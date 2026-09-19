@@ -1,0 +1,14 @@
+{
+  "seed": "-8201142900731514829",
+  "schematic": "schematic/base.litematic",
+  "schematicSize": { "x": 76, "y": 283, "z": 62 },
+  "schematicAuthor": "Planeta_Play",
+  "schematicBlocks": 114636,
+  "testServer": {
+    "levelSeedLine": "level-seed=-8201142900731514829",
+    "onlineMode": false,
+    "allowFlight": true,
+    "maxPlayers": 20,
+    "note": "allow-flight=true mirrors 2b2t-style anarchy servers, where flying bots are normal; with allow-flight=false vanilla kicks any bot that hovers for 80 ticks"
+  }
+}

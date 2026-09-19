@@ -50,18 +50,23 @@ async function placeTable (bot) {
  * Makes sure the bot holds a pickaxe and a shovel (wooden at least, stone if it can).
  * Returns { ok, kit } describing what it ended up with.
  */
-export async function ensureTools (bot, { miner = null, log = () => {}, maxSeconds = 240 } = {}) {
+export async function ensureTools (bot, { miner = null, log = () => {}, maxSeconds = 60 } = {}) {
   const started = Date.now()
   const step = msg => log(`[tools] ${msg}`)
   const timeLeft = () => maxSeconds - (Date.now() - started) / 1000
 
-  // 1. wood (bare hands chop logs fine)
+  // 1. wood - short budget, on foot, never a long fly-around (that used to eat minutes per bot)
   if (countLogs(bot) < 6 && miner) {
     for (const name of LOG_BLOCKS) {
-      if (countLogs(bot) >= 6 || timeLeft() < 30) break
+      if (countLogs(bot) >= 6 || timeLeft() < 20) break
       try {
-        await miner.harvestSite(name, { want: 6 - countLogs(bot), searchRadius: 64, maxSeconds: Math.min(90, Math.max(20, timeLeft() - 20)) })
-      } catch { /* try the next wood type */ }
+        await miner.collectArea([name, name.replace('_log', '_wood')], {
+          count: 3,
+          hopDistance: 14,
+          perBlockTimeoutMs: 8000,
+          shouldStop: () => countLogs(bot) >= 6 || timeLeft() < 15
+        })
+      } catch { /* next wood type */ }
     }
     step(`logs: ${countLogs(bot)}`)
   }
@@ -89,7 +94,10 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
 
   if (hasKind(bot, 'pickaxe') && countItem(bot, 'cobblestone') < 4 && miner) {
     try {
-      await miner.harvestSite('stone', { want: 6, searchRadius: 64, maxSeconds: Math.min(60, Math.max(20, timeLeft())) })
+      await miner.digShaft(['stone', 'cobblestone', 'andesite', 'diorite', 'tuff'], {
+        maxBlocks: 6,
+        shouldStop: () => countItem(bot, 'cobblestone') >= 4 || timeLeft() < 15
+      })
     } catch { /* keep the wooden kit */ }
   }
   const cobble = countItem(bot, 'cobblestone')

@@ -658,37 +658,62 @@ export function createMiner ({
    * TheDudeFromCI/mineflayer-collectblock, examples/collector.js). We only decide *what* to
    * collect and walk on along our own direction when there is nothing left here.
    */
-  async function collectArea (names, { direction = new Vec3(1, 0, 0), hopDistance = 32, count = 24, shouldStop = null, exclude = null, onProgress = null } = {}) {
+  // collect() from the plugin never resolves when the target is unreachable (that is exactly
+  // why bots stood still on every batch). Every call gets a hard timeout, and positions that
+  // fail are blacklisted for a while instead of being retried forever.
+  const unrеachable = new Map() // "x,y,z" -> timestamp until which we skip it
+  const withTimeout = (promise, ms, label) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: timeout after ${ms}ms`)), ms))
+  ])
+
+  async function collectArea (names, { direction = new Vec3(1, 0, 0), hopDistance = 32, count = 16, shouldStop = null, exclude = null, onProgress = null, perBlockTimeoutMs = 15000 } = {}) {
     configureGroundMovements()
     await landHere()
     const inExcluded = pos => exclude != null &&
       pos.x >= exclude.min.x && pos.x <= exclude.max.x &&
       pos.y >= exclude.min.y && pos.y <= exclude.max.y &&
       pos.z >= exclude.min.z && pos.z <= exclude.max.z
+    const skipped = pos => {
+      const until = unrеachable.get(`${pos.x},${pos.y},${pos.z}`)
+      if (until == null) return false
+      if (until < Date.now()) { unrеachable.delete(`${pos.x},${pos.y},${pos.z}`); return false }
+      return true
+    }
     const started = Date.now()
     while (!shouldStop?.() && bot.entity) {
       const positions = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: count * 3 })
-        .filter(pos => !inExcluded(pos))
-      const targets = positions.slice(0, count).map(p => bot.blockAt(p)).filter(b => b && b.type !== 0)
-      if (targets.length) {
+        .filter(pos => !inExcluded(pos) && !skipped(pos))
+      let didSomething = false
+      for (const pos of positions.slice(0, count)) {
+        if (shouldStop?.() || !bot.entity) break
+        const block = bot.blockAt(pos)
+        if (!block || block.type === 0) continue
         const before = inventoryCount()
         try {
-          await bot.collectBlock.collect(targets)
-        } catch { /* unreachable ones are skipped by the plugin */ }
-        stats.mined += Math.max(0, inventoryCount() - before)
+          await withTimeout(bot.collectBlock.collect(block), perBlockTimeoutMs, `collect ${block.name}`)
+        } catch {
+          unrеachable.set(`${pos.x},${pos.y},${pos.z}`, Date.now() + 60000)
+          stats.failed++
+          continue
+        }
+        const gained = inventoryCount() - before
+        didSomething = true
+        stats.mined += gained
+        stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
         if (onProgress) onProgress(stats.mined, stats)
-        continue
       }
-      // nothing here any more: walk along our own direction (keeps the fleet spread out)
+      if (didSomething) continue
+      // nothing reachable here: walk along our own direction (keeps the fleet spread out)
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
       try {
-        await bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4))
+        await withTimeout(bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4)), 20000, 'walk')
       } catch {
         try {
           await bot.flyTravel(new Vec3(goal.x, here.y + 3, goal.z), { speed: 1.5, cruiseAbove: 8, timeoutMs: 8000 })
           await landHere()
-        } catch { /* try walking again next round */ }
+        } catch { /* next round */ }
       }
     }
     const secs = (Date.now() - started) / 1000
@@ -699,7 +724,99 @@ export function createMiner ({
     return bot.inventory.items().reduce((a, i) => a + i.count, 0)
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, username }
+  // ------------------------------------------- vanilla physics mode (no fly at all)
+  // Flying in survival is what vanilla fights (floating kicks, "moved wrongly"). For actual
+  // digging we hand movement back to mineflayer's own physics: the bot mines the block below
+  // itself and simply falls into the hole, so every movement is legal and drops land underfoot.
+  function enablePhysicsMode () {
+    try { bot.flyStop?.() } catch { /* nothing flying */ }
+    bot.physicsEnabled = true
+  }
+
+  /**
+   * Shaft mining: dig the block below, fall in, repeat. Works with any tool the bot has and
+   * needs no pathfinding at all, so 19 bots can do it simultaneously without stepping on
+   * each other (each one has its own column).
+   */
+  async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, onProgress = null } = {}) {
+    enablePhysicsMode()
+    configureGroundMovements()
+    const started = Date.now()
+    let done = 0
+    const floor = minY ?? bot.game.minY + 3
+    while (done < maxBlocks && !shouldStop?.() && bot.entity) {
+      const pos = bot.entity.position.floored().offset(0, -1, 0)
+      if (pos.y <= floor) break
+      const block = bot.blockAt(pos)
+      if (block && block.type !== 0 && (names == null || names.includes(block.name))) {
+        try {
+          await bot.fastDig(block)
+          done++
+          stats.mined++
+          stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
+          if (onProgress && done % 8 === 0) onProgress(done, stats)
+        } catch {
+          stats.failed++
+          await bot.waitForTicks(4)
+        }
+      } else {
+        // the cell is already free: let gravity move us down (no packets that vanilla dislikes)
+        await bot.waitForTicks(3)
+        const still = bot.entity.position.offset(0, -1, 0)
+        const block2 = bot.blockAt(still)
+        if (block2 && block2.type !== 0 && (names == null || names.includes(block2.name))) continue
+        // move sideways if we landed on something we cannot mine
+        if (block2 && block2.type !== 0) {
+          const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][done % 4]
+          try {
+            await bot.pathfinder.goto(new goals.GoalNear(bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, 1))
+          } catch { /* keep digging where we are */ }
+        }
+      }
+    }
+    const secs = (Date.now() - started) / 1000
+    return { done, secs, rate: secs > 0 ? done / secs : 0 }
+  }
+
+  // ---------------------------------------------------------------- wood run
+  const LOG_NAMES = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log']
+  const logCount = () => bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)
+
+  /**
+   * Spawn -> fly up -> fly to the nearest tree -> come down -> chop it, then look for the next
+   * one. Simple and deterministic, and (unlike the pathfinder loops) it always makes progress.
+   */
+  async function gatherWood ({ want = 8, direction = new Vec3(1, 0, 0), shouldStop = null, maxSeconds = 180 } = {}) {
+    const started = Date.now()
+    while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
+      const tree = bot.findBlock({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 128 })
+      if (!tree) {
+        // no forest in view: cruise outwards and look again
+        const here = bot.entity.position
+        try {
+          await bot.flyTravel(new Vec3(here.x + direction.x * 96, here.y + 30, here.z + direction.z * 96), { speed: 2.0, cruiseAbove: 30, timeoutMs: 25000 })
+        } catch { /* keep searching */ }
+        continue
+      }
+      // up, over the tree, then down next to the trunk
+      const here = bot.entity.position
+      try {
+        await bot.flyTo(new Vec3(here.x, here.y + 25, here.z), { speed: 2.0, timeoutMs: 10000 })
+        await bot.flyTravel(new Vec3(tree.position.x, tree.position.y + 5, tree.position.z), { speed: 2.0, cruiseAbove: 10, timeoutMs: 30000 })
+      } catch { /* chop from wherever we are */ }
+      // chop: dig straight down through the canopy and the trunk. The bot arrives on top of the
+      // tree, so a vertical shaft eats the leaves and then the whole trunk, and gravity carries
+      // it down while the drops land at its feet.
+      enablePhysicsMode()
+      await digShaft([...LOG_NAMES, 'oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves'], {
+        maxBlocks: 40,
+        shouldStop: () => logCount() >= want || shouldStop?.()
+      })
+    }
+    return { logs: logCount(), secs: (Date.now() - started) / 1000 }
+  }
+
+  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.

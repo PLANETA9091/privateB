@@ -4,6 +4,19 @@ Fleet of **mineflayer** bots for **Minecraft 26.2** that play *survival* (no op,
 gather the materials a `.litematic` base needs. Everything here was measured on a live vanilla
 26.2 server (`allow-flight=false`, offline mode) — numbers below are real runs, not estimates.
 
+## Seed and schematic (inside this repo)
+
+* **World seed:** `-8201142900731514829` (also in `config/world.json`)
+* **Schematic:** `schematic/base.litematic` — 76×283×62, 114 636 blocks, 90 block types, by
+  `Planeta_Play`; the counted material plan is in `data/base-materials.json` (blocks) and
+  `data/base-raw.json` (raw resources: sand 157 926, gravel 149 380, ink sac 31 860,
+  deepslate 27 420, andesite 10 725, coal 7 668, stone 6 695, tuff 4 439, blaze rod 4 142,
+  popped chorus 4 142, iron 2 275, netherite 1 225, planks 1 272, bone 3 649, wool 465 …).
+* Server template with that seed: `testbed/server.properties.template`
+  (`online-mode=false`, `allow-flight=true`, `max-players=20`, `level-seed=-8201142900731514829`).
+* Every fleet run resets the world and rebuilds it from that seed:
+  `scripts/fleet-run.sh [bots] [seconds] [--yard]`.
+
 ## Current status
 
 | Piece | State | Evidence |

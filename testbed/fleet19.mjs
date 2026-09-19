@@ -15,7 +15,7 @@ const { goals } = pathfinderPkg
 const COUNT = Number(process.argv[2] || 19)
 const SECONDS = Number(process.argv[3] || 300)
 const TARGETS = (process.argv[4] || 'sand,gravel,oak_log,birch_log,spruce_log').split(',')
-const BATCH = 4
+const BATCH = COUNT // all bots at once (the user wants them working simultaneously)
 
 let need = {}
 try {
@@ -74,34 +74,45 @@ async function runBot (name, target, index) {
       // the workshop must not be eaten: forbid mining inside it and force every bot to walk
       // at least 48 blocks away from spawn before it starts digging
       const spawnPoint = miner.bot.entity.position.floored()
-      const exclude = {
-        min: new Vec3(spawnPoint.x - 30, spawnPoint.y - 10, spawnPoint.z - 20),
-        max: new Vec3(spawnPoint.x + 30, spawnPoint.y + 14, spawnPoint.z + 20)
-      }
+      void spawnPoint // the workshop stays intact because its blocks (smooth_stone, stone_bricks) are never in the target list
 
       if (attempt === 0) {
-        // first wood on foot (ready-made collect), then craft the kit
-        await miner.collectArea(['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log'], {
-          direction, count: 4, hopDistance: 20, exclude, shouldStop: () => Date.now() > deadline
-        })
+        // spawn -> fly up -> fly to a tree -> come down -> chop (what the owner asked for)
+        try {
+          await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 120 })
+        } catch { /* go mine anyway */ }
         const res = await ensureTools(miner.bot, { miner, log: () => {} })
         if (res.ok) toolsOk++
-        console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) tools=${res.kit || 'none'}`)
+        console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) logs=${miner.bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)} tools=${res.kit || 'none'}`)
       }
 
       const hasPick = miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      const soft = ['dirt', 'grass_block', 'sand', 'gravel', 'clay', 'snow', 'soul_sand', 'podzol', 'coarse_dirt']
       const names = hasPick
-        ? ['sand', 'gravel', 'dirt', 'grass_block', 'clay', 'stone', 'cobblestone', 'andesite', 'diorite', 'tuff', 'deepslate', 'coal_ore', 'iron_ore', 'granite', 'oak_log', 'birch_log', 'spruce_log']
-        : ['sand', 'gravel', 'dirt', 'grass_block', 'clay', 'oak_log', 'birch_log', 'spruce_log']
+        ? [...soft, 'stone', 'andesite', 'diorite', 'tuff', 'deepslate', 'granite', 'coal_ore', 'iron_ore', 'copper_ore']
+        : soft
 
-      // mine the ready-made way: collectblock handles pathfinding, tool swap, digging, pickup
-      await miner.collectArea(names, {
-        direction,
-        count: 16,
-        hopDistance: 32,
-        exclude,
-        shouldStop: () => Date.now() > deadline || !miner.bot.entity
-      })
+      // Shaft after shaft, on vanilla physics: no flight, no pathfinder stalls, and every bot
+      // works its own column so 19 of them can dig at the same time.
+      let shaft = 0
+      while (!(Date.now() > deadline) && miner.bot.entity) {
+        await miner.digShaft(names, {
+          minY: 24,
+          shouldStop: () => Date.now() > deadline || !miner.bot.entity
+        })
+        if (Date.now() > deadline || !miner.bot.entity) break
+        // step to a fresh column and dig the next shaft
+        shaft++
+        const here = miner.bot.entity.position
+        const side = new Vec3(here.x + direction.x * 8, here.y, here.z + direction.z * 8)
+        try {
+          await miner.bot.pathfinder.goto(new goals.GoalNear(side.x, side.y, side.z, 2))
+        } catch {
+          try {
+            await miner.bot.pathfinder.goto(new goals.GoalNear(here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), 2))
+          } catch { /* next shaft from here */ }
+        }
+      }
     } catch (e) {
       if (/kicked|end|disconnect/i.test(e.message)) reconnects++
     }
@@ -121,7 +132,7 @@ for (let i = 0; i < names.length; i += BATCH) {
     runners.push(runBot(name, TARGETS[index % TARGETS.length], index))
     spawned++
   }
-  await new Promise(r => setTimeout(r, 2500)) // staggered joins
+  await new Promise(r => setTimeout(r, 300)) // tiny stagger so the joins do not collide
 }
 
 const reporter = setInterval(() => {
