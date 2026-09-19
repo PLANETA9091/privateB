@@ -71,12 +71,16 @@ test('flyTo moves the bot to a free target and resolves', async t => {
 })
 
 test('flyTo refuses to end inside solid terrain (collision-aware)', async t => {
-  // a 2-thick wall reaching the mock sky: the bot climbs 2 blocks PER TICK, so a wall
-  // with a top (say y<=70) would simply be climbed over within a few ticks - it must
-  // have no top at all for "no candidate works" to ever be true
+  // a TRULY 2-thick wall reaching the mock sky (x=5 AND x=6): the bot climbs 2 blocks
+  // PER TICK and steps 2 blocks per tick at speed 2.0, so a 1-thick wall is simply
+  // jumped over in one step (x 4.5 -> 6.5 lands past it) - the wall must be thicker
+  // than the step AND have no top at all
   const extra = {}
   for (let y = 64; y <= 400; y++) {
-    for (let z = -1; z <= 3; z++) extra[`5,${y},${z}`] = 'stone'
+    for (let z = -1; z <= 3; z++) {
+      extra[`5,${y},${z}`] = 'stone'
+      extra[`6,${y},${z}`] = 'stone'
+    }
   }
   const bot = mockBot(extra)
   installFly(bot, { speed: 2.0, antiKick: false, digThrough: false, log: () => {} })
@@ -117,6 +121,10 @@ test('flyTo with digThrough digs through the blocking wall (via flyDigHook)', as
   }
   for (let y = 66; y <= 200; y++) extra[`2,${y},1`] = 'stone' // ceiling: no climbing out
   const bot = mockBot(extra)
+  // start on the z=1 lane: the approach must run BETWEEN our own z=0/z=2 blocker walls.
+  // From z=0.5 the diagonal path hits the x=2 z=0 blocker stone BEFORE the dig wall,
+  // the hook (which only opens x=3) cannot help, and the bot stalls in its own maze.
+  bot.entity.position = new Vec3(0.5, 64, 1.5)
   let dug = 0
   bot.flyDigHook = async () => {
     dug++
