@@ -33,28 +33,47 @@ async function craft (bot, itemName, times, table = null) {
 // the table onto the block BELOW us, i.e. into the very cell the bot stands in, and
 // the server silently rejected it - the bot kept holding the table and every later
 // tool craft failed with 'no crafting table'. Use a free neighbour cell instead.
-async function placeTable (bot) {
-  const existing = bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
-  if (existing) return existing
-  const tableItem = inventoryItems(bot).find(i => i.name === 'crafting_table')
-  if (!tableItem) return null
-  try {
-    await bot.equip(tableItem, 'hand')
-    const feet = bot.entity.position.floored()
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-      const cell = feet.offset(dx, 0, dz)
-      const cellB = bot.blockAt(cell)
-      const floorB = bot.blockAt(cell.offset(0, -1, 0))
-      if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
-        try {
-          await bot.placeBlock(floorB, new Vec3(0, 1, 0))
-          const placed = bot.blockAt(cell)
-          if (placed && placed.name === 'crafting_table') return placed
-        } catch { /* next neighbour */ }
+//
+// Treetop spawns need one more trick: on a canopy every neighbour cell has AIR below
+// it, so there is nowhere to put the table. If no spot works and the block under us is
+// diggable, dig it, fall towards the terrain and retry - on the ground the neighbours'
+// floors are solid dirt/grass.
+async function placeTable (bot, { rounds = 3 } = {}) {
+  const find = () => bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
+  for (let round = 0; round < rounds; round++) {
+    const existing = find()
+    if (existing) return existing
+    const tableItem = inventoryItems(bot).find(i => i.name === 'crafting_table')
+    if (!tableItem) return null
+    try {
+      await bot.equip(tableItem, 'hand')
+      const feet = bot.entity.position.floored()
+      let placed = false
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const cell = feet.offset(dx, 0, dz)
+        const cellB = bot.blockAt(cell)
+        const floorB = bot.blockAt(cell.offset(0, -1, 0))
+        if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
+          try {
+            await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+            const placedB = bot.blockAt(cell)
+            if (placedB && placedB.name === 'crafting_table') return placedB
+            placed = true
+          } catch { /* next neighbour */ }
+        }
       }
-    }
-  } catch { /* fall through */ }
-  return bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
+      if (placed) continue // a block appeared (maybe not the table) - look again
+      // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
+      const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
+        try { await bot.dig(below) } catch { break } // undiggable (bedrock, ...) - give up
+        await bot.waitForTicks(15) // fall one block
+      } else {
+        await bot.waitForTicks(10) // already airborne - let gravity settle us
+      }
+    } catch { /* fall through to the next round */ }
+  }
+  return find()
 }
 
 /**

@@ -607,6 +607,18 @@ export function createMiner ({
   async function workOnGround (names, { direction = new Vec3(1, 0, 0), hopDistance = 24, maxBlocks = Infinity, shouldStop = null, onProgress = null, exclude = null, minDistanceFrom = null } = {}) {
     configureGroundMovements()
     await landHere()
+    // Bots can spawn on treetops (world spawn selection picks canopies): from up there
+    // nothing within reach matches the target names and every hop wastes time. Dig
+    // straight down through leaves/wood until real solid ground is under our feet.
+    for (let guard = 0; guard < 40; guard++) {
+      const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (!bot.entity) break
+      if (under && under.type !== 0 && under.boundingBox !== 'empty' && !/leaves/.test(under.name)) break
+      if (under && under.type !== 0) {
+        try { await bot.fastDig(under) } catch { break } // undiggable below - work from here
+      }
+      await bot.waitForTicks(4) // let gravity settle us into the freed cell
+    }
     const started = Date.now()
     let done = 0
     const inExcluded = pos => exclude != null &&
