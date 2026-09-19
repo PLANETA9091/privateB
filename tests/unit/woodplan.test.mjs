@@ -6,7 +6,7 @@
 // re-bootstrap loop lives in testbed/fleet19.mjs and is exercised by the CI fleet.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stalledButCraftable, recoveryDue, upgradeDue } from '../../src/lib/woodplan.mjs'
+import { stalledButCraftable, recoveryDue } from '../../src/lib/woodplan.mjs'
 
 test('stall escape: below goodEnough logs the bot keeps gathering (never crafts a kit from 3 logs)', () => {
   assert.equal(stalledButCraftable({ logs: 0, goodEnough: 4, msSinceGain: 999999, stallMs: 25000 }), false)
@@ -78,23 +78,7 @@ test('recoveryDue: the v0.7.0 failure mode is now covered (due mid-shaft, 135s l
   assert.equal(recoveryDue({ hasPick: false, msSinceLast: 160000, remainingMs: 135000 }), true)
 })
 
-test('upgradeDue: wooden kit + 3+ cobblestone + cooldown elapsed -> upgrade', () => {
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 3, msSinceLast: 61000, remainingMs: 120000 }), true)
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 29, msSinceLast: 61000, remainingMs: 120000 }), true)
-})
-
-test('upgradeDue: already stone (or better) never re-upgrades', () => {
-  assert.equal(upgradeDue({ hasStoneTools: true, cobblestone: 50, msSinceLast: 999999, remainingMs: 120000 }), false)
-})
-
-test('upgradeDue: below 3 cobblestone there is nothing to craft with', () => {
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 2, msSinceLast: 999999, remainingMs: 120000 }), false)
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 0, msSinceLast: 999999, remainingMs: 120000 }), false)
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: NaN, msSinceLast: 999999, remainingMs: 120000 }), false)
-})
-
-test('upgradeDue: cooldown and deadline guards (a ~40s table dance needs runway)', () => {
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 5, msSinceLast: 60000, remainingMs: 120000 }), false, 'boundary: <= cooldown')
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 5, msSinceLast: 61000, remainingMs: 60000 }), false, 'boundary: <= minRemaining')
-  assert.equal(upgradeDue({ hasStoneTools: false, cobblestone: 5, msSinceLast: 61000, remainingMs: 5000 }), false)
-})
+// NOTE (v0.9.1): woodplan.upgradeDue was removed - the fleet's mid-run upgrade path
+// went through toolupgrade.mjs upgradeCheck (testbed/fleet19.mjs upgradeDueNow) since
+// v0.7.5, and the old predicate had no production caller left. The tier logic it
+// described lives on in tests/unit/toolupgrade.test.mjs.
