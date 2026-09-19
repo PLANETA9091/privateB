@@ -44,6 +44,7 @@ const bots = new Map() // name -> { miner, target }
 let spawned = 0
 let reconnects = 0
 let toolsOk = 0
+let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let banked = 0 // items deposited into the yard's chests
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
@@ -121,13 +122,20 @@ async function runBot (name, target, index) {
       const spawnPoint = miner.bot.entity.position.floored()
       void spawnPoint // the workshop stays intact because its blocks (smooth_stone, stone_bricks) are never in the target list
 
-      if (attempt === 0) {
-        // spawn -> fly up -> fly to a tree -> come down -> chop (what the owner asked for)
+      // Tool bootstrap: on the FIRST attempt AND after every death. A dead bot respawns
+      // with an EMPTY inventory (everything was dropped where it died) - without the
+      // re-bootstrap it would dig bare-handed for the rest of the run, which is exactly
+      // the slow-bot pattern the rage-fastbreak benchmarks were built to avoid.
+      const needsTools = !miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      if (attempt === 0 || needsTools) {
+        if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
+        // spawn -> walk to a tree -> chop -> craft (no op, no gifts)
         try {
           await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 120 })
         } catch { /* go mine anyway */ }
         const res = await ensureTools(miner.bot, { miner, log: () => {} })
-        if (res.ok) toolsOk++
+        if (res.ok && attempt === 0) toolsOk++
+        if (res.ok) toolsReboot++
         console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) logs=${miner.bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)} tools=${res.kit || 'none'}`)
       }
 
@@ -262,7 +270,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} alive=${aliveCount()} banked=${banked}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)
@@ -285,6 +293,7 @@ const fleetReport = {
   spawned,
   reconnects,
   toolsOk,
+  toolsReboot,
   banked,
   mined: s.mined,
   blocksPerSecond: secs > 0 ? Number((s.mined / secs).toFixed(3)) : 0,
