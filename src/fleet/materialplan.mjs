@@ -44,11 +44,14 @@ export const MINABLE_OF = {
 // the vanilla drop AND the one-step product. The v0.8.x FLEET RESULT reported
 // iron_ingot have=0 while bots carried stacks of raw_iron (one furnace away), and
 // planks have=0 forever because no item is literally named 'planks' - the 12
-// wood families each have their own. Counting both sides of a smelt/craft step
-// keeps the plan progress (and the deficit order of mapTripTargets) honest.
+// wood families each have their own. Stone counts BOTH the mining drop (cobblestone)
+// and the smelted stone item (the fleet's furnaces turn cobble -> stone in bulk).
+// Counting both sides of a smelt/craft step keeps the plan progress (and the
+// deficit order of mapTripTargets) honest.
 export const ITEMS_OF = {
   iron_ingot: ['iron_ingot', 'raw_iron'],
   deepslate: ['cobbled_deepslate', 'deepslate'],
+  stone: ['cobblestone', 'stone'],
   planks: PLANK_TYPES
 }
 
