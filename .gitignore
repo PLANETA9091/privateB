@@ -17,3 +17,4 @@ data/worldmap.json
 __pycache__/
 *.pyc
 bun.lock
+ci-logs/

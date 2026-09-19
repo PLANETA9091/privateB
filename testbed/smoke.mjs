@@ -22,9 +22,9 @@ const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1 }
 const done = (code, msg) => { step(msg); process.exit(code) }
 
 const timeout = setTimeout(() => {
-  fail('overall timeout (120s)')
+  fail('overall timeout (180s)')
   process.exit(1)
-}, 120000)
+}, 180000)
 
 step(`connecting to ${host}:${port} as ${username} (version ${VERSION})`)
 const bot = mineflayer.createBot({ host, port, username, version: VERSION, auth: 'offline' })
@@ -90,17 +90,31 @@ bot.once('spawn', async () => {
 
     // --- 3. dig a hand-diggable surface block and collect the drop ---
     // Spawn can be ANYWHERE (world spawn selection is not fixed to the ground): the same
-    // seed put us on grass in one run and on top of an oak canopy in the next. If we are
-    // standing on leaves, eat our way down to the terrain first (bare hands, no drops).
+    // seed put us on grass in one run and 15 blocks up an oak canopy in the next. If we
+    // are standing on leaves, eat our way down to the terrain first (bare hands, no drops).
+    // CRITICAL: while falling through/under the canopy the block below is air - a naive
+    // loop would stop there and scan for a diggable block mid-air (found none => FAIL).
+    // Always wait for the physics engine to report ground contact before re-checking.
     const LEAVES = ['oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves', 'cherry_leaves', 'pale_oak_leaves']
-    for (let guard = 0; guard < 16; guard++) {
+    const waitLanded = async (ms = 10000) => {
+      const t0 = Date.now()
+      while (Date.now() - t0 < ms) {
+        if (bot.entity.onGround) return true
+        await bot.waitForTicks(4)
+      }
+      return false
+    }
+    for (let guard = 0; guard < 40; guard++) {
+      await waitLanded() // mid-air (spawn fall, post-dig fall) => land first
       const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
       if (!under) throw new Error('cannot read the block below (chunks unloaded)')
+      if (under.boundingBox !== 'block') { await bot.waitForTicks(10); continue } // hovering over air/fluid
       if (!LEAVES.includes(under.name)) break
       step(`spawned on ${under.name}: eating our way down to the terrain`)
       await bot.dig(under)
       await bot.waitForTicks(12) // fall one block
     }
+    await waitLanded()
 
     // side blocks first, dirt family over logs over anything else (digging under our
     // feet would drop us one block down, but on a trunk that is exactly what we want)
@@ -124,6 +138,22 @@ bot.once('spawn', async () => {
       return target
     }
 
+    // No diggable block within reach (canopy edge, mid-lake spawn): look further afield
+    // and WALK there - a forest floor or a trunk is nearly always under 24 blocks away.
+    const findTarget = async () => {
+      let t = pickTarget()
+      for (let w = 0; w < 4 && !t; w++) {
+        const near = bot.findBlock({ matching: b => HAND_DIGGABLE.includes(b.name), maxDistance: 24 })
+        if (!near) break
+        step(`no diggable within reach - walking toward ${near.name} at ${near.position.floored()} (round ${w + 1})`)
+        for (let k = 0; k < 8 && !t; k++) {
+          await walkToward(bot, near.position)
+          t = pickTarget()
+        }
+      }
+      return t
+    }
+
     // up to three attempts: the drop pickup is the flakiest part of the whole smoke
     // (an unlucky spawn can put the drop into a hole the bot cannot quite walk into),
     // while everything critical (login, chunks, registry, dig) has already passed
@@ -131,7 +161,7 @@ bot.once('spawn', async () => {
     let dropped = null
     let target = null
     for (let attempt = 1; attempt <= 3 && !dropped; attempt++) {
-      target = pickTarget()
+      target = await findTarget()
       if (!target) throw new Error('no hand-diggable surface block near spawn')
       step(`digging ${target.name} at ${target.position} (bare hands, attempt ${attempt})`)
       await bot.dig(target)

@@ -36,11 +36,21 @@ const logDir = path.join('/tmp', `fleet-test-${process.pid}`)
 fs.mkdirSync(logDir, { recursive: true })
 const logFile = path.join(logDir, 'fleet.log')
 const logStream = fs.createWriteStream(logFile, { flags: 'a' })
-const log = m => { logStream.write(`${new Date().toISOString()} ${m}\n`); if (process.env.VERBOSE) console.log(m) }
+// Bots keep firing events (disconnects, pending dig chains) for a moment after the
+// test ends and the stream is closed - a bare write-after-end would surface as an
+// uncaughtException (and, funnily enough, our own handler logs it => another write).
+logStream.on('error', () => { /* stream already ended */ })
+const log = m => {
+  if (!logStream.writableEnded) { try { logStream.write(`${new Date().toISOString()} ${m}\n`) } catch { /* closed */ } }
+  if (process.env.VERBOSE) console.log(m)
+}
 
 test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECONDS}s`, { timeout: (WINDOW_SECONDS + 420) * 1000 }, async t => {
-  t.after(() => {
+  t.after(async () => {
     for (const m of miners) { try { m.bot.quit() } catch { /* gone */ } }
+    // let the sockets flush and the bots die before closing the log, otherwise their
+    // last words land on an ended stream (write after end -> uncaughtException noise)
+    await new Promise(r => setTimeout(r, 2000))
     logStream.end()
     console.log(`[fleet-test] logs: ${logFile}`)
   })
