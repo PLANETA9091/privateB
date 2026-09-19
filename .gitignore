@@ -16,3 +16,4 @@ data/worldmap.json
 .omc/
 __pycache__/
 *.pyc
+bun.lock

@@ -179,6 +179,7 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
   }
 
   const timer = setInterval(tick, TICK_MS)
+  bot._flyTimer = timer // exposed so tests/disposeFly can stop the ticker
   bot.once('end', () => clearInterval(timer))
 
   // With physics disabled mineflayer stops emitting physicsTick, so its own
@@ -252,11 +253,13 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
     const cruiseY = Math.max(start.y, vec.y) + cruiseAbove
     await bot.flyTo(new Vec3(start.x, cruiseY, start.z), { speed, timeoutMs })
     await bot.flyTo(new Vec3(vec.x, cruiseY, vec.z), { speed, timeoutMs })
-    // descend only as far as there is free space: flying into rock is what makes the server
-    // answer "moved wrongly!" and snap the bot back (it looks like teleporting in game)
+    // descend onto the target: walk down until the cell is free and the one BELOW it is
+    // solid, i.e. the bot actually stands on the ground. The old version stopped at the
+    // first free cell (6+ blocks up in the air), so the bot hung in the air and the next
+    // ground-mode step started from a floating position (looked like teleporting).
     let landing = vec.y
     for (let y = Math.floor(vec.y) + 6; y >= Math.floor(vec.y) - 8; y--) {
-      if (freeAt(vec.x, y, vec.z)) { landing = y; break }
+      if (freeAt(vec.x, y, vec.z) && !freeAt(vec.x, y - 1, vec.z)) { landing = y; break }
     }
     await bot.flyTo(new Vec3(vec.x, landing, vec.z), { speed, timeoutMs })
   }

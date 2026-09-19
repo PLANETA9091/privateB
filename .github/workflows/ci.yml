@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_fleet:
+        description: 'Run the big fleet test too'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  unit:
+    name: Unit tests (no server needed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Patch the PrismarineJS stack for Minecraft 26.2
+        run: node scripts/setup-26.2.mjs
+
+      - name: Syntax-check every module
+        run: node scripts/check-syntax.mjs
+
+      - name: Unit tests
+        run: node scripts/run-tests.mjs unit
+
+  integration:
+    name: Integration (vanilla 26.2 server + fleet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MC_HOST: 127.0.0.1
+      MC_PORT: 25565
+      FLEET_TEST_BOTS: '2'
+      FLEET_TEST_SECONDS: '90'
+      FLEET_TEST_MIN_BLOCKS: '4'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25' # Minecraft 26.2 needs class file 69
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Patch the PrismarineJS stack for Minecraft 26.2
+        run: node scripts/setup-26.2.mjs
+
+      - name: Syntax-check every module
+        run: node scripts/check-syntax.mjs
+
+      - name: Cache the vanilla server jar
+        id: jar-cache
+        uses: actions/cache@v4
+        with:
+          path: testbed/server/server.jar
+          key: mc-server-26.2-823e2250d24b3ddac457a60c92a6a941943fcd6a
+
+      - name: Download the vanilla 26.2 server jar
+        if: steps.jar-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSf --max-time 300 -o testbed/server/server.jar \
+            "https://piston-data.mojang.com/v1/objects/823e2250d24b3ddac457a60c92a6a941943fcd6a/server.jar"
+          echo "823e2250d24b3ddac457a60c92a6a941943fcd6a  testbed/server/server.jar" | sha1sum -c -
+
+      - name: Start the vanilla server (fixed test seed)
+        run: scripts/server.sh start
+
+      - name: Wait for the world to settle
+        run: sleep 5
+
+      - name: Smoke test (login, chunks, place, dig)
+        run: |
+          scripts/server.sh cmd "op BotAlpha"
+          sleep 1
+          node testbed/smoke.mjs 127.0.0.1 25565 BotAlpha
+
+      - name: Unit tests (again, cheap insurance inside the integration env)
+        run: node scripts/run-tests.mjs unit
+
+      - name: Fleet productivity test (ground mode, no flight)
+        run: node scripts/run-tests.mjs integration
+
+      - name: Dump the server console
+        if: failure()
+        run: tail -80 testbed/server/logs/latest.log || true
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-logs
+          path: |
+            /tmp/fleet-test-*/
+            testbed/server/logs/latest.log
+          if-no-files-found: ignore
+          retention-days: 5
+
+      - name: Stop the server
+        if: always()
+        run: scripts/server.sh stop
+
+  fleet:
+    name: Big fleet run (19 bots, optional)
+    runs-on: ubuntu-latest
+    needs: [unit, integration]
+    if: github.event_name == 'workflow_dispatch' && inputs.run_fleet == 'true'
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '25' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/setup-26.2.mjs
+      - uses: actions/cache@v4
+        id: jar-cache-fleet
+        with:
+          path: testbed/server/server.jar
+          key: mc-server-26.2-823e2250d24b3ddac457a60c92a6a941943fcd6a
+      - name: Download the server jar
+        if: steps.jar-cache-fleet.outputs.cache-hit != 'true'
+        run: |
+          curl -sSf --max-time 300 -o testbed/server/server.jar \
+            "https://piston-data.mojang.com/v1/objects/823e2250d24b3ddac457a60c92a6a941943fcd6a/server.jar"
+      - name: Launch the fleet (19 bots, 5 minutes)
+        run: |
+          scripts/server.sh start
+          scripts/server.sh cmd "op F1"
+          node testbed/fleet19.mjs 19 300 sand,gravel,dirt,stone | tee /tmp/fleet19.log
+      - name: Upload fleet log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet19-log
+          path: /tmp/fleet19.log
+      - name: Stop the server
+        if: always()
+        run: scripts/server.sh stop

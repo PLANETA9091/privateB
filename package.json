@@ -2,7 +2,17 @@
   "name": "mcbot-fleet",
   "private": true,
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.2.0",
+  "scripts": {
+    "test": "node scripts/run-tests.mjs unit",
+    "test:integration": "node scripts/run-tests.mjs integration",
+    "test:all": "node scripts/run-tests.mjs all",
+    "test:syntax": "node scripts/check-syntax.mjs",
+    "postinstall": "node scripts/setup-26.2.mjs",
+    "setup": "node scripts/setup-26.2.mjs",
+    "server": "scripts/server.sh",
+    "fleet": "scripts/fleet-run.sh"
+  },
   "dependencies": {
     "minecraft-data": "^3.116.0",
     "mineflayer": "^4.39.0",

@@ -11,6 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
+import { MiningJobQueue, withTimeout, inBox } from '../lib/jobqueue.mjs'
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
@@ -676,53 +677,89 @@ export function createMiner ({
    * tool swap, the digging and the drop pickup (that is the exact example code from
    * TheDudeFromCI/mineflayer-collectblock, examples/collector.js). We only decide *what* to
    * collect and walk on along our own direction when there is nothing left here.
+   *
+   * Since the job-queue refactor (src/lib/jobqueue.mjs) the flow is:
+   *   find targets -> fill the queue -> pop only PATHFINDER-VERIFIED reachable ones ->
+   *   collect() under a hard timeout -> blacklist the positions that fail.
+   * collect() used to hang forever on unreachable targets (that is exactly why the bots
+   * stood still); now it cannot - every call is fenced by the queue's timeout.
    */
-  // collect() from the plugin never resolves when the target is unreachable (that is exactly
-  // why bots stood still on every batch). Every call gets a hard timeout, and positions that
-  // fail are blacklisted for a while instead of being retried forever.
-  const unrеachable = new Map() // "x,y,z" -> timestamp until which we skip it
-  const withTimeout = (promise, ms, label) => Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: timeout after ${ms}ms`)), ms))
-  ])
-
-  async function collectArea (names, { direction = new Vec3(1, 0, 0), hopDistance = 32, count = 16, shouldStop = null, exclude = null, onProgress = null, perBlockTimeoutMs = 15000 } = {}) {
+  async function collectArea (names, { direction = new Vec3(1, 0, 0), hopDistance = 32, count = 16, shouldStop = null, exclude = null, onProgress = null, perBlockTimeoutMs = 15000, maxSeconds = Infinity } = {}) {
     configureGroundMovements()
     await landHere()
-    const inExcluded = pos => exclude != null &&
-      pos.x >= exclude.min.x && pos.x <= exclude.max.x &&
-      pos.y >= exclude.min.y && pos.y <= exclude.max.y &&
-      pos.z >= exclude.min.z && pos.z <= exclude.max.z
-    const skipped = pos => {
-      const until = unrеachable.get(`${pos.x},${pos.y},${pos.z}`)
-      if (until == null) return false
-      if (until < Date.now()) { unrеachable.delete(`${pos.x},${pos.y},${pos.z}`); return false }
-      return true
-    }
     const started = Date.now()
-    while (!shouldStop?.() && bot.entity) {
-      const positions = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: count * 3 })
-        .filter(pos => !inExcluded(pos) && !skipped(pos))
-      let didSomething = false
-      for (const pos of positions.slice(0, count)) {
-        if (shouldStop?.() || !bot.entity) break
-        const block = bot.blockAt(pos)
-        if (!block || block.type === 0) continue
-        const before = inventoryCount()
-        try {
-          await withTimeout(bot.collectBlock.collect(block), perBlockTimeoutMs, `collect ${block.name}`)
-        } catch {
-          unrеachable.set(`${pos.x},${pos.y},${pos.z}`, Date.now() + 60000)
-          stats.failed++
-          continue
-        }
-        const gained = inventoryCount() - before
-        didSomething = true
-        stats.mined += gained
-        stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
-        if (onProgress) onProgress(stats.mined, stats)
+    const overBudget = () => (Date.now() - started) / 1000 > maxSeconds
+
+    // Reachability test: a real pathfinder answer with a small CPU budget, not a guess.
+    // A target counts as reachable when the pathfinder can produce a path to stand
+    // next to it (within 3 blocks) in under 2.5s.
+    const canPathTo = (pos) => {
+      try {
+        const goal = new goals.GoalNear(pos.x + 0.5, pos.y, pos.z + 0.5, 3)
+        const path = bot.pathfinder.getPathTo(bot.pathfinder.movements, goal, 2500)
+        return !!(path && path.status === 'success' && path.path && path.path.length > 0)
+      } catch {
+        return false
       }
-      if (didSomething) continue
+    }
+
+    let queue = null
+    let areaStats = { mined: 0, byName: {} }
+    let emptyHops = 0
+    while (!shouldStop?.() && bot.entity && !overBudget()) {
+      // 1. find candidates and fill a fresh queue (previous queue is either done or exhausted)
+      const positions = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: count * 3 })
+        .filter(pos => !inBox(pos, exclude))
+      if (!positions.length) {
+        // nothing in sight: walk along our own direction and look again (gatherWood relies
+        // on this to reach the next tree). A few empty hops in a row mean there is really
+        // nothing out there - give up instead of wandering forever.
+        if (emptyHops++ >= 4) break
+        const far = bot.entity.position
+        const goal = new Vec3(far.x + direction.x * hopDistance, far.y, far.z + direction.z * hopDistance)
+        try {
+          await withTimeout(bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4)), 20000, 'walk-empty')
+        } catch { /* look again from here */ }
+        continue
+      }
+      emptyHops = 0
+      queue = new MiningJobQueue({
+        canReach: async job => canPathTo(job.pos),
+        execute: async (job) => {
+          const block = bot.blockAt(new Vec3(job.pos.x, job.pos.y, job.pos.z))
+          if (!block || block.type === 0) return true // nothing to do = done
+          const before = inventoryCount()
+          try {
+            await bot.collectBlock.collect(block)
+          } catch (e) {
+            if (/timeout after/.test(e.message)) {
+              // the collect() promise may hang forever - the queue timeout turned it into
+              // an error, so stop the pathfinder now or it keeps walking to the old target
+              try { bot.pathfinder.setGoal(null) } catch { /* already idle */ }
+            }
+            throw e
+          }
+          const gained = inventoryCount() - before
+          areaStats.mined += gained
+          areaStats.byName[block.name] = (areaStats.byName[block.name] || 0) + 1
+          // the miner's main stats must see this too (fleetStats and the fleet reporter read it)
+          stats.mined += gained
+          stats.byName[block.name] = (stats.byName[block.name] || 0) + gained
+          if (onProgress) onProgress(areaStats.mined, areaStats)
+          return true
+        },
+        timeoutMs: perBlockTimeoutMs,
+        blacklistMs: 60000,
+        maxAttempts: 2,
+        maxConsecutiveFails: 10,
+        log: m => log(`${tag} ${m}`)
+      })
+      queue.addMany(positions.slice(0, count * 2))
+      // 2. drain the queue: only pathfinder-verified targets, hard timeout on every collect
+      await queue.run({ shouldStop: () => shouldStop?.() || !bot.entity || overBudget() })
+      log(`${tag} batch done: done=${queue.stats.done} failed=${queue.stats.failed} left=${queue.size}`)
+      // everything drained and targets remain in range -> refill immediately, no hop needed
+      if (!queue.size && bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: 1 }).length) continue
       // nothing reachable here: walk along our own direction (keeps the fleet spread out)
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
@@ -738,7 +775,8 @@ export function createMiner ({
       }
     }
     const secs = (Date.now() - started) / 1000
-    return { mined: stats.mined, secs, rate: secs > 0 ? stats.mined / secs : 0 }
+    const minedTotal = areaStats.mined
+    return { mined: minedTotal, secs, rate: secs > 0 ? minedTotal / secs : 0 }
   }
 
   function inventoryCount () {

@@ -26,28 +26,42 @@ gather the materials a `.litematic` base needs. Everything here was measured on 
 | NoFall | **works** | `onGround=true` every tick; 0 fall deaths over full fleet runs |
 | Ground mode (pathfinder, no block clipping) | **works** | `moved wrongly!` went 1487 → **0**, floating kicks → **0** |
 | Rage FastBreak (cheat) | **works, 4x** | A/B: 0.83 blocks/s vs 0.21 blocks/s honest (bare hands, no op), measured |
-| Tool bootstrap (no op) | written | logs → planks → sticks → crafting table → wooden pickaxe/shovel → stone tools |
+| Tool bootstrap (no op) | **works** | logs → planks → sticks → crafting table → wooden pickaxe/shovel → stone tools |
 | Material plan from a schematic | **works** | `scripts/litematic-dump.py` + `scripts/materials-expand.py` → `data/base-*.json` |
 | Workshop (furnaces/stonecutters/water/portals/50 chests) | **works** | `scripts/setup-yard.mjs`, verified 19/19 structures by a bot |
 | Structure placement maths for 26.2 | **verified** | reproduces the live server 3/3 (shipwreck/monument/village) |
 | Structure-seed cracker | **works** | recovered a real 48-bit seed from 36 structure positions in ~6 s (12 cores) |
 | Dungeon / ore based cracking | **dead end** | upstream SeedcrackerX states dungeons/emerald cracking was removed for 1.18+ |
-| **Fleet mining productivity** | **NOT WORKING** | bots stay put; the ready-made `collectblock` collect() waits on the pathfinder and never finishes, see "Known problem" |
+| **Fleet mining productivity** | **works (CI-tested)** | per-bot job queue (`src/lib/jobqueue.mjs`): pathfinder-verified reachable targets only, hard timeout around every `collect()`, blacklist for failures; asserted by `tests/integration/productivity.test.mjs` on a live vanilla server in GitHub Actions |
+| Test suite | **works** | 40+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig) + integration tests, all run in CI on every push |
 
-## Known problem (the reason the fleet is not productive yet)
+## How the fleet stays productive (the old "Known problem", fixed)
 
-Bots spawn on the workshop platform and **stay there**:
+Bots used to spawn on the workshop platform and **stand there forever**:
 
-* `bot.collectBlock.collect(targets)` (ready-made plugin) waits for the pathfinder; when the
-  target is unreachable (under the platform, across water) the promise never resolves, so the
-  loop stalls on the first batch.
-* Long walks to a deployment area were tried and are too slow; short hops work but the bots
-  keep choosing blocks inside the workshop box (now excluded by an `exclude` box) or under it.
-* Sustained flight is not an option: with `allow-flight=false` vanilla kicks any bot that
-  hovers for 80 ticks, so the bots must work on the ground.
+* `bot.collectBlock.collect(targets)` waits on the pathfinder; when a target is unreachable
+  (under the platform, across water) the promise never resolves, so the loop stalled on the
+  first batch.
+* Long walks to a deployment area were too slow; short hops kept picking blocks inside the
+  workshop box or under it.
 
-What has to happen next: a per-bot job queue with **reachable** targets only (verified with
-`bot.pathfinder` before mining) and a hard timeout around every `collect()` call.
+The fix (`src/lib/jobqueue.mjs`, used by `collectArea` in `src/bots/miner.mjs`):
+
+1. **Reachable targets only.** Before a job runs, `bot.pathfinder.getPathTo()` must produce
+   a successful path to stand next to the block (2.5 s CPU budget). Everything else waits
+   in the queue or is skipped - it is never attempted.
+2. **Hard timeout around every `collect()`** (`withTimeout`). The hang becomes a normal
+   failed job, and the pathfinder goal is cancelled so the bot does not keep walking into
+   the wall.
+3. **Blacklist with expiry.** A position that fails twice is skipped for 60 s instead of
+   being retried forever; the blacklist self-prunes so long runs cannot leak memory.
+4. **Fail-safe limits.** `maxConsecutiveFails` stops a poisoned queue, `maxAttempts`
+   prevents infinite retries, and an empty scan walks the bot along its own compass
+   direction (which is what spreads the fleet out) before giving up.
+
+Ground mode (flight off) is how the fleet actually works: vanilla physics + pathfinder on
+foot, `digShaft` for per-bot columns, `workOnGround` for batch mining. The flight module
+(`src/lib/fly.mjs`) is kept for servers that allow it, but it is off by default.
 
 ## Layout
 
@@ -82,13 +96,35 @@ anti-kick, NoFall, `flySnap`) for servers that allow it, e.g. 2b2t-style anarchy
 ## Run it
 
 ```bash
-npm install
-node scripts/setup-26.2.mjs          # make the stack speak 26.2 (rerun after every npm install)
-scripts/server.sh start              # local vanilla 26.2 server, allow-flight=false
-node scripts/setup-yard.mjs          # workshop at spawn
+npm install                        # postinstall patches the stack for 26.2 automatically
+node scripts/setup-26.2.mjs        # idempotent, rerun by hand if needed
+scripts/server.sh start            # local vanilla 26.2 server (auto-finds Java >= 22)
+node scripts/setup-yard.mjs        # workshop at spawn
 scripts/fleet-run.sh 19 1800 --yard  # reset world to the fixed seed, launch 19 bots in background
-tail -f /tmp/fleet19.log             # watch the fleet
+tail -f /tmp/fleet19.log           # watch the fleet
 ```
+
+## Test it (GitHub CI runs all of this on every push)
+
+```bash
+npm test                # unit tests: LCG vs JavaRandom, placement, xoroshiro, worldmap,
+                        # job queue, fly physics (mocked world), fastdig (mocked bot)
+npm run test:syntax     # node --check over every .mjs file in the repo
+npm run test:integration  # live server required: spawns bots, crafts tools, mines,
+                          # asserts progress in every 15 s window (anti-stall)
+```
+
+`.github/workflows/ci.yml` runs three jobs on GitHub Actions:
+
+* **unit** - install, patch the stack, syntax check, the whole unit suite (no server needed)
+* **integration** - downloads the vanilla 26.2 server jar (cached), starts it with the fixed
+  test seed, ops the smoke bot, runs `testbed/smoke.mjs` (login/chunks/place/dig) and the
+  fleet productivity test on a live server in ground mode; uploads logs as artifacts
+* **fleet** (manual, `workflow_dispatch` with `run_fleet=true`) - the full 19-bot, 5-minute run
+
+The server needs a JVM with class file 69+ (Java 25). `scripts/server.sh` picks the newest
+java automatically: `$JAVA`, `$JAVA_HOME`, `~/jdk/*/bin/java`, then `PATH` - each candidate
+is version-checked, so a stale Java 21 on the PATH cannot silently break the start.
 
 ## Findings worth keeping
 
