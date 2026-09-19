@@ -48,6 +48,7 @@ let spawned = 0
 let reconnects = 0
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
+let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
 let banked = 0 // items deposited into the yard's chests
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
@@ -148,9 +149,12 @@ async function runBot (name, target, index) {
       const needsTools = !miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       if (attempt === 0 || needsTools) {
         if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
-        // spawn -> walk to a tree -> chop -> craft (no op, no gifts)
+        // spawn -> walk to a tree -> chop -> craft (no op, no gifts). 60s: the stall
+        // escape (src/lib/woodplan.mjs) returns craftable bots early, and a bot that
+        // finds NOTHING in 60s will not find it in 120s either - the v0.6.9 fleet had
+        // 7 bots burn 120s on an empty forest and then never retry again
         try {
-          await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 120 })
+          await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 60 })
         } catch { /* go mine anyway */ }
         const res = await ensureTools(miner.bot, { miner, log: () => {} })
         if (res.ok && attempt === 0) toolsOk++
@@ -158,17 +162,35 @@ async function runBot (name, target, index) {
         console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) logs=${miner.bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)} tools=${res.kit || 'none'}`)
       }
 
-      const hasPick = miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       const soft = ['dirt', 'grass_block', 'sand', 'gravel', 'clay', 'snow', 'soul_sand', 'podzol', 'coarse_dirt']
-      const names = hasPick
+      const namesFor = pick => pick
         ? [...soft, 'stone', 'andesite', 'diorite', 'tuff', 'deepslate', 'granite', 'coal_ore', 'iron_ore', 'copper_ore']
         : soft
 
       // Shaft after shaft, on vanilla physics: no flight, no pathfinder stalls, and every bot
       // works its own column so 19 of them can dig at the same time.
+      //
+      // In-loop tool recovery: a bot whose bootstrap failed ONCE must not dig bare-handed
+      // for the rest of the run. The v0.6.9 fleet ended with 8/19 bots pickaxe-less: 7
+      // never found wood ("no planks recipe") and 1 never got a table, and all of them
+      // spent the remaining minutes in dirt-only shafts. Every 45s without a pickaxe the
+      // loop retries the whole chain - each retry sees the shared WorldMap that siblings
+      // keep filling, so late retries actually find trees.
+      let lastBootstrap = Date.now()
       let shaft = 0
       while (!(Date.now() > deadline) && miner.bot.entity) {
-        await miner.digShaft(names, {
+        const hasPick = miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+        if (!hasPick && Date.now() - lastBootstrap > 45000 && deadline - Date.now() > 80000) {
+          lastBootstrap = Date.now()
+          console.log(`${name} tool recovery: no pickaxe - re-running the bootstrap`)
+          try {
+            await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 40 })
+          } catch { /* craft with whatever we have */ }
+          const res = await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 45 })
+          if (res.ok) toolsRecovered++
+          console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
+        }
+        await miner.digShaft(namesFor(hasPick), {
           minY: 24,
           shouldStop: () => Date.now() > deadline || !miner.bot.entity
         })
@@ -304,7 +326,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)
@@ -327,6 +349,7 @@ const fleetReport = {
   spawned,
   reconnects,
   toolsOk,
+  toolsRecovered,
   toolsReboot,
   banked,
   mined: s.mined,

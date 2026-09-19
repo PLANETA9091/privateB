@@ -13,6 +13,7 @@ import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
 import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
+import { stalledButCraftable } from '../lib/woodplan.mjs'
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
@@ -1083,11 +1084,19 @@ export function createMiner ({
    * one. Simple and deterministic, and (unlike the pathfinder loops) it always makes progress.
    * On foot: walk to the lowest unseen trunk, eat the trunk from the side, walk on.
    */
-  async function gatherWood ({ want = 8, direction = new Vec3(1, 0, 0), shouldStop = null, maxSeconds = 180 } = {}) {
+  async function gatherWood ({ want = 8, goodEnough = 4, stallSeconds = 25, direction = new Vec3(1, 0, 0), shouldStop = null, maxSeconds = 180 } = {}) {
     const started = Date.now()
     const visitedTrunks = new Set() // "x,z" of every trunk we already ate (floating tops stay behind)
     let idleChops = 0
+    // stall escape (src/lib/woodplan.mjs): a bot holding enough logs for the tool kit
+    // must go CRAFT instead of burning its whole budget on the last log of a eaten-out
+    // forest (v0.6.9 fleet: a bot with 7/8 logs idled ~110s and only then crafted)
+    let lastGain = started
+    let prevLogs = logCount()
     while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
+      const nowTs = Date.now()
+      if (logCount() > prevLogs) { lastGain = nowTs; prevLogs = logCount() }
+      const stalled = () => stalledButCraftable({ logs: prevLogs, goodEnough, msSinceGain: nowTs - lastGain, stallMs: stallSeconds * 1000 })
       // every walking bot is a passive scout: record the trees/sand/gravel it sees into
       // the shared map so wood-starved siblings can query real positions instead of
       // blind-walking into a depleted forest (11/19 bots ended the v0.6.8 fleet run
@@ -1099,6 +1108,9 @@ export function createMiner ({
         .sort((a, b) => (a.y - b.y) || (a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position)))
       const base = cands.find(p => !visitedTrunks.has(`${p.x},${p.z}`))
       if (!base) {
+        // local scan empty AND we already hold a craftable amount: a FAILED wood trip
+        // lands here on the next round - stop and craft instead of trip-failing forever
+        if (stalled()) break
         // local scan empty: ask the shared map for a tree another bot recorded.
         // verify=false - far entries sit in unloaded chunks and blockAt-nulling them
         // would wipe the bucket; chopReachable re-checks locally on arrival.
@@ -1111,6 +1123,7 @@ export function createMiner ({
           continue
         }
         // nothing known anywhere either: move along our direction and look again
+        if (stalled()) break
         const here = bot.entity.position
         const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
         try {
@@ -1143,7 +1156,9 @@ export function createMiner ({
         const chopped = await chopReachable()
         idleChops = chopped > 0 ? 0 : idleChops + 1
         if (idleChops >= 3) {
-          // three trees in a row yielded nothing (cliffs, water, fenced yards): relocate
+          // three trees in a row yielded nothing (cliffs, water, fenced yards): with a
+          // craftable amount in the pocket, craft NOW; otherwise relocate and keep looking
+          if (stalled()) break
           idleChops = 0
           const here = bot.entity.position
           try {

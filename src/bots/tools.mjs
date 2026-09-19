@@ -253,26 +253,28 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const timeLeft = () => maxSeconds - (Date.now() - started) / 1000
   const plankCounts = () => PLANK_TYPES.map(n => `${n.replace('_planks', '')}:${countItem(bot, n)}`).join(' ')
 
-  // 1. wood - the tool chain needs ~10 planks' worth of stock (4 table + 3 pickaxe +
-  // 2 sticks + 1 shovel) and plank stacks FRAGMENT (each craft output is its own
-  // 4-stack, the stick craft eats 2 from one of them), so target 8 logs: gatherWood
-  // eats whole trunks and is much faster than the per-block collectArea fallback.
+  // 1. wood - the tool kit itself needs ~12 planks = 3 logs (4 table + 3 pickaxe +
+  // 2 sticks + 1 shovel); 8 logs is SURPLUS greed for stone-tool upgrades, not a
+  // requirement. The stall escape (woodplan.mjs) returns early when the forest is
+  // eaten out, and the fallback below only fires when we are BELOW kit-critical 4
+  // logs - a bot holding 4-7 logs must go CRAFT, not keep hunting (v0.6.9 fleet:
+  // a bot with 7 logs idled ~110s inside these two phases and only then crafted).
   if (countLogs(bot) < 8 && miner?.gatherWood) {
     try {
-      await miner.gatherWood({ want: 8, maxSeconds: Math.min(60, Math.max(15, timeLeft())) })
+      await miner.gatherWood({ want: 8, maxSeconds: Math.min(35, Math.max(15, timeLeft())) })
     } catch { /* the fallback below still applies */ }
     const logCounts = () => LOG_BLOCKS.map(n => `${n.replace(/_(log|stem|block)$/, '')}:${countItem(bot, n)}`).filter(s => !s.endsWith(':0')).join(' ')
     step(`logs after gatherWood: ${countLogs(bot)} (${logCounts()})`)
   }
-  if (countLogs(bot) < 8 && miner) {
+  if (countLogs(bot) < 4 && miner) {
     for (const name of LOG_BLOCKS) {
-      if (countLogs(bot) >= 8 || timeLeft() < 20) break
+      if (countLogs(bot) >= 6 || timeLeft() < 20) break
       try {
         await miner.collectArea([name, name.replace('_log', '_wood')], {
           count: 3,
           hopDistance: 14,
           perBlockTimeoutMs: 8000,
-          shouldStop: () => countLogs(bot) >= 8 || timeLeft() < 15
+          shouldStop: () => countLogs(bot) >= 6 || timeLeft() < 15
         })
       } catch { /* next wood type */ }
     }
