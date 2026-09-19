@@ -11,7 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, inBox } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, inBox } from '../lib/jobqueue.mjs'
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
@@ -637,7 +637,7 @@ export function createMiner ({
         leaveAttempts++
         const here = bot.entity.position
         const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
-        try { await bot.pathfinder.goto(new goals.GoalNear(out.x, out.y, out.z, 3)) } catch { /* try a hop */ }
+        try { await gotoSafe(bot, new goals.GoalNear(out.x, out.y, out.z, 3)) } catch { /* try a hop */ }
         if (tooClose()) {
           try {
             await bot.flyTravel(new Vec3(out.x, here.y + 3, out.z), { speed: 1.5, cruiseAbove: 8, timeoutMs: 8000 })
@@ -669,19 +669,19 @@ export function createMiner ({
       if (dug > 0) {
         const centre = batch.slice(0, Math.max(1, dug)).reduce((acc, p) => acc.add(p), new Vec3(0, 0, 0)).scale(1 / Math.max(1, dug))
         try {
-          await bot.pathfinder.goto(new goals.GoalNear(centre.x, centre.y, centre.z, 2))
+          await gotoSafe(bot, new goals.GoalNear(centre.x, centre.y, centre.z, 2))
         } catch { /* whatever we could not reach is left behind */ }
       }
       const drops = Object.values(bot.entities)
         .filter(e => e.name === 'item' && e.position.distanceTo(bot.entity.position) < 14)
         .slice(0, 8)
       for (const drop of drops) {
-        try { await bot.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
+        try { await gotoSafe(bot, new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
       }
       if (onProgress) onProgress(done, stats)
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
-      try { await bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 3)) } catch { /* keep working here */ }
+      try { await gotoSafe(bot, new goals.GoalNear(goal.x, goal.y, goal.z, 3)) } catch { /* keep working here */ }
     }
     const secs = (Date.now() - started) / 1000
     stats.secs = secs
@@ -734,7 +734,7 @@ export function createMiner ({
         const far = bot.entity.position
         const goal = new Vec3(far.x + direction.x * hopDistance, far.y, far.z + direction.z * hopDistance)
         try {
-          await withTimeout(bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4)), 20000, 'walk-empty')
+          await gotoSafe(bot, new goals.GoalNear(goal.x, goal.y, goal.z, 4), { timeoutMs: 20000 })
         } catch { /* look again from here */ }
         continue
       }
@@ -780,7 +780,7 @@ export function createMiner ({
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
       try {
-        await withTimeout(bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4)), 20000, 'walk')
+        await gotoSafe(bot, new goals.GoalNear(goal.x, goal.y, goal.z, 4), { timeoutMs: 20000 })
       } catch {
         if (bot.flyTravel) {
           try {
@@ -844,7 +844,7 @@ export function createMiner ({
         if (block2 && block2.type !== 0) {
           const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][done % 4]
           try {
-            await bot.pathfinder.goto(new goals.GoalNear(bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, 1))
+            await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, 1))
           } catch { /* keep digging where we are */ }
         }
       }
@@ -882,7 +882,7 @@ export function createMiner ({
       .filter(e => e.name === 'item' && e.position.distanceTo(bot.entity.position) < 14)
       .slice(0, 8)
     for (const drop of drops) {
-      try { await bot.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
+      try { await gotoSafe(bot, new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
     }
     return n
   }
@@ -895,11 +895,7 @@ export function createMiner ({
       await bot.flyTravel(vec, { speed, cruiseAbove, timeoutMs })
       return
     }
-    await withTimeout(
-      bot.pathfinder.goto(new goals.GoalNear(vec.x, vec.y, vec.z, 3)),
-      timeoutMs,
-      'travel'
-    )
+    await gotoSafe(bot, new goals.GoalNear(vec.x, vec.y, vec.z, 3), { timeoutMs, label: 'travel' })
   }
 
   /**
@@ -922,7 +918,7 @@ export function createMiner ({
         const here = bot.entity.position
         const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
         try {
-          await bot.pathfinder.goto(new goals.GoalNear(out.x, out.y, out.z, 4))
+          await gotoSafe(bot, new goals.GoalNear(out.x, out.y, out.z, 4))
         } catch { /* try again next round */ }
         continue
       }
@@ -935,7 +931,7 @@ export function createMiner ({
         } catch { /* chop from wherever we are */ }
       } else {
         try {
-          await bot.pathfinder.goto(new goals.GoalNear(base.x, base.y, base.z, 2))
+          await gotoSafe(bot, new goals.GoalNear(base.x, base.y, base.z, 2))
         } catch { /* try to chop what is in reach */ }
       }
       if (bot.flyTravel) {
@@ -955,7 +951,7 @@ export function createMiner ({
           idleChops = 0
           const here = bot.entity.position
           try {
-            await bot.pathfinder.goto(new goals.GoalNear(here.x + direction.x * 24, here.y, here.z + direction.z * 24, 4))
+            await gotoSafe(bot, new goals.GoalNear(here.x + direction.x * 24, here.y, here.z + direction.z * 24, 4))
           } catch { /* keep looking */ }
         }
       }

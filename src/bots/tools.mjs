@@ -1,6 +1,7 @@
 // Tool bootstrap: no op, no gifts - the bot chops wood and crafts its own kit.
 // logs -> planks -> sticks -> crafting table -> wooden pickaxe/shovel -> stone tools.
 import { Vec3 } from 'vec3'
+import { withTimeout } from '../lib/jobqueue.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log']
 const LOG_ITEMS = LOG_BLOCKS.map(n => n.replace('_log', '_log'))
@@ -24,7 +25,8 @@ async function craft (bot, itemName, times, table = null) {
   // mid-sequence): retry a couple of times before giving up on the recipe
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await bot.craft(recipe, times, table ?? null)
+      // bot.craft can hang when the window desyncs - fence it with a hard timeout
+      await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
       return true
     } catch { /* retry */ }
   }
@@ -69,7 +71,8 @@ async function placeTable (bot, { rounds = 3 } = {}) {
       // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
       const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
       if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
-        try { await bot.dig(below) } catch { break } // undiggable (bedrock, ...) - give up
+        // bot.dig has no internal timeout - fence it (a hanging dig would freeze ensureTools)
+        await withTimeout(bot.dig(below), 10000, 'dig below for table placement')
         await bot.waitForTicks(15) // fall one block
       } else {
         await bot.waitForTicks(10) // already airborne - let gravity settle us

@@ -166,3 +166,11 @@ export class MiningJobQueue {
     return this.stats
   }
 }
+
+// Every pathfinder.goto in the codebase goes through this: mineflayer-pathfinder's
+// promise is known to never settle in a few corner cases (goal in mid-air, path
+// recalculation loops), and one hung goto freezes the whole bot loop. A hard timeout
+// turns the hang into an ordinary 'walk failed' that every caller already catches.
+export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {}) {
+  return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+}
