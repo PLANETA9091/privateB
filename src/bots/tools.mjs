@@ -115,16 +115,25 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const timeLeft = () => maxSeconds - (Date.now() - started) / 1000
   const plankCounts = () => PLANK_TYPES.map(n => `${n.replace('_planks', '')}:${countItem(bot, n)}`).join(' ')
 
-  // 1. wood - short budget, on foot, never a long fly-around (that used to eat minutes per bot)
-  if (countLogs(bot) < 6 && miner) {
+  // 1. wood - the tool chain needs ~10 planks' worth of stock (4 table + 3 pickaxe +
+  // 2 sticks + 1 shovel) and plank stacks FRAGMENT (each craft output is its own
+  // 4-stack, the stick craft eats 2 from one of them), so target 8 logs: gatherWood
+  // eats whole trunks and is much faster than the per-block collectArea fallback.
+  if (countLogs(bot) < 8 && miner?.gatherWood) {
+    try {
+      await miner.gatherWood({ want: 8, maxSeconds: Math.min(60, Math.max(15, timeLeft())) })
+    } catch { /* the fallback below still applies */ }
+    step(`logs after gatherWood: ${countLogs(bot)}`)
+  }
+  if (countLogs(bot) < 8 && miner) {
     for (const name of LOG_BLOCKS) {
-      if (countLogs(bot) >= 6 || timeLeft() < 20) break
+      if (countLogs(bot) >= 8 || timeLeft() < 20) break
       try {
         await miner.collectArea([name, name.replace('_log', '_wood')], {
           count: 3,
           hopDistance: 14,
           perBlockTimeoutMs: 8000,
-          shouldStop: () => countLogs(bot) >= 6 || timeLeft() < 15
+          shouldStop: () => countLogs(bot) >= 8 || timeLeft() < 15
         })
       } catch { /* next wood type */ }
     }
@@ -159,7 +168,7 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
     // the table needs, converting logs if it does not
     if (!PLANK_TYPES.some(n => countItem(bot, n) >= 4)) {
       for (const [logName, plankName] of Object.entries(PLANK_OF)) {
-        while (countItem(bot, logName) > 0 && countItem(bot, plankName) < 4) {
+        while (countItem(bot, logName) > 0 && countItem(bot, plankName) < 4 && countItem(bot, plankName) < 12) {
           if (!await craft(bot, plankName, 1, null, step)) break
         }
       }
@@ -171,7 +180,17 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const table = await placeTable(bot)
   if (!table) return { ok: false, kit: 'no crafting table' }
 
-  // 3. wooden tools, then stone ones if we can mine cobblestone
+  // 3. wooden tools, then stone ones if we can mine cobblestone. The pickaxe needs 3
+  // planks of ONE type and the table already ate 4 of the best type - convert more
+  // logs when nothing is left with enough.
+  const planksOfBestType = () => Math.max(0, ...PLANK_TYPES.map(n => countItem(bot, n)))
+  if (planksOfBestType() < 3) {
+    for (const [logName, plankName] of Object.entries(PLANK_OF)) {
+      while (countItem(bot, logName) > 0 && planksOfBestType() < 6) {
+        if (!await craft(bot, plankName, 1, null, step)) break
+      }
+    }
+  }
   if (!hasKind(bot, 'pickaxe')) await craft(bot, 'wooden_pickaxe', 1, table, step)
   if (!hasKind(bot, 'shovel')) await craft(bot, 'wooden_shovel', 1, table, step)
   step(`wooden: pickaxe=${hasKind(bot, 'pickaxe')} shovel=${hasKind(bot, 'shovel')}`)
