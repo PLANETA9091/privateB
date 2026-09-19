@@ -66,10 +66,12 @@ test('flyTo moves the bot to a free target and resolves', async () => {
 })
 
 test('flyTo refuses to end inside solid terrain (collision-aware)', async () => {
-  // a tall 2-thick wall in front of the bot - climbing over it is impossible. The wall is
-  // 2 thick on purpose: a single 1-thick wall could be skipped by one 2-block step.
+  // A tall 2-thick wall reaching the mock sky: climbing over it is impossible (there is no
+  // "above"), stepping around it only slides along z, and every other candidate is blocked,
+  // so flyTo must give up with a no-progress error instead of ending inside blocks. The wall
+  // is 2 thick on purpose: a single 1-thick wall could be skipped by one 2-block step.
   const extra = {}
-  for (let y = 64; y <= 70; y++) {
+  for (let y = 64; y <= 200; y++) {
     for (let z = -1; z <= 3; z++) {
       extra[`5,${y},${z}`] = 'stone'
       extra[`6,${y},${z}`] = 'stone'
@@ -78,7 +80,7 @@ test('flyTo refuses to end inside solid terrain (collision-aware)', async () => 
   const bot = mockBot(extra)
   installFly(bot, { speed: 0.5, antiKick: false, digThrough: false, log: () => {} })
   await assert.rejects(
-    bot.flyTo(new Vec3(9.5, 64, 1.5), { timeoutMs: 3000 }),
+    bot.flyTo(new Vec3(9.5, 64, 1.5), { timeoutMs: 5000 }),
     /fly timeout|blocked|no progress/
   )
   // the bot must NOT have ended inside the wall
@@ -102,17 +104,27 @@ test('flyTo climbs over a 2-block obstacle', async () => {
 
 test('flyTo with digThrough digs through the blocking wall (via flyDigHook)', async () => {
   const extra = {}
-  for (let z = 0; z <= 2; z++) extra[`3,64,${z}`] = 'stone'
+  // wall x=3 from the ground up to the mock sky (climbing must not get around digging),
+  // plus a ceiling above our own column so the [0,1,0] climb candidate is blocked too:
+  // the dig hook only fires when stepFree has NO move left at all.
+  for (let y = 64; y <= 200; y++) {
+    for (let z = 0; z <= 2; z++) extra[`3,${y},${z}`] = 'stone'
+  }
+  for (let y = 66; y <= 200; y++) {
+    for (let z = 0; z <= 3; z++) extra[`2,${y},${z}`] = 'stone'
+  }
   const bot = mockBot(extra)
   let dug = 0
   bot.flyDigHook = async () => {
     dug++
-    for (const k of Object.keys(extra)) delete extra[k] // digging removes the blocks
+    for (const k of Object.keys(extra)) {
+      if (k.startsWith('3,')) delete extra[k] // digging opens the wall (the ceiling stays)
+    }
     return true
   }
   // speed 0.5: a slower step must not skip over the 1-thick wall without touching it
   installFly(bot, { speed: 0.5, antiKick: false, digThrough: true, log: () => {} })
-  await bot.flyTo(new Vec3(6.5, 64, 1.5), { timeoutMs: 8000 })
+  await bot.flyTo(new Vec3(6.5, 64, 1.5), { timeoutMs: 10000 })
   assert.ok(dug >= 1, 'the dig hook should have been used for the wall')
   disposeFly(bot)
 })
