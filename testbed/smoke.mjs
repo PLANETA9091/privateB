@@ -137,7 +137,7 @@ bot.once('spawn', async () => {
       await bot.dig(target)
       step(`dug ${target.name}`)
       try {
-        dropped = await collectDrop(bot, DROPS[target.name] ?? ANY_PLACEABLE, 12000)
+        dropped = await collectDrop(bot, DROPS[target.name] ?? ANY_PLACEABLE, 12000, target.position)
       } catch { /* next attempt picks a different block */ }
     }
     if (!dropped) {
@@ -218,28 +218,33 @@ bot.once('spawn', async () => {
 // Wait for one of the item names to land in the inventory. Polls (robust against
 // missed windowUpdate events on direct pickups) and walks toward the nearest item
 // entity, because the drop may pop just outside the vanilla pickup radius.
-function collectDrop (bot, names, ms) {
+function collectDrop (bot, names, ms, fallbackPos = null) {
   const found = () => bot.inventory.items().find(i => names.includes(i.name))
   const now = found()
   if (now) return Promise.resolve(now)
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { clearInterval(poll); reject(new Error(`no ${names.join('/')} picked up within ${ms}ms`)) }, ms)
+    const timer = setTimeout(() => { clearInterval(poll); bot.clearControlStates?.(); reject(new Error(`no ${names.join('/')} picked up within ${ms}ms`)) }, ms)
     const poll = setInterval(async () => {
       const item = found()
-      if (item) { clearTimeout(timer); clearInterval(poll); resolve(item); return }
+      if (item) { clearTimeout(timer); clearInterval(poll); bot.clearControlStates?.(); resolve(item); return }
       const drop = bot.nearestEntity(e => e.name === 'item')
-      if (drop) await walkToward(bot, drop.position)
+      // walk to the item entity; if none is visible, head for the dug block - the drop
+      // may not be tracked yet or may be sitting in the hole we just made
+      await walkToward(bot, drop ? drop.position : fallbackPos)
     }, 400)
   })
 }
 
 // A few seconds of look-and-walk without the pathfinder (smoke tests core mineflayer)
 async function walkToward (bot, targetPos) {
+  if (!targetPos) return
   try {
     await bot.lookAt(targetPos.offset(0, 0.5, 0), true)
     bot.setControlState('forward', true)
-    bot.setControlState('sprint', false)
-    await bot.waitForTicks(8)
-  } catch { /* keep polling */ }
-  bot.setControlState('forward', false)
+    bot.setControlState('jump', true) // drops regularly sit behind a trunk or a 1-block step
+    await bot.waitForTicks(10)
+  } catch { /* keep polling */ } finally {
+    bot.setControlState('forward', false)
+    bot.setControlState('jump', false)
+  }
 }
