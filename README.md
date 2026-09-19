@@ -32,7 +32,7 @@ gather the materials a `.litematic` base needs. Everything here was measured on 
 | Structure placement maths for 26.2 | **verified** | reproduces the live server 3/3 (shipwreck/monument/village) |
 | Structure-seed cracker | **works** | recovered a real 48-bit seed from 36 structure positions in ~6 s (12 cores) |
 | Dungeon / ore based cracking | **dead end** | upstream SeedcrackerX states dungeons/emerald cracking was removed for 1.18+ |
-| **Fleet mining productivity** | **works (CI-tested)** | per-bot job queue (`src/lib/jobqueue.mjs`): pathfinder-verified reachable targets only, hard timeout around every `collect()`, blacklist for failures; asserted by `tests/integration/productivity.test.mjs` on a live vanilla server in GitHub Actions |
+| **Fleet mining productivity** | **works - CI GREEN** | per-bot job queue (`src/lib/jobqueue.mjs`): pathfinder-verified reachable targets only, hard timeout around every `collect()`, blacklist for failures; asserted by `tests/integration/productivity.test.mjs` on a live vanilla server in GitHub Actions |
 | Test suite | **works** | 40+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig) + integration tests, all run in CI on every push |
 
 ## How the fleet stays productive (the old "Known problem", fixed)
