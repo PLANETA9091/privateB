@@ -22,7 +22,12 @@ async function craft (bot, itemName, times, table = null, log = null) {
   const id = bot.registry.itemsByName[itemName]?.id
   if (id == null) return false
   const recipes = bot.recipesFor(id, null, 1, table ?? null) || []
-  if (!recipes.length) return false
+  if (!recipes.length) {
+    // recipesFor pre-filters by ingredient availability: empty means "no variant is
+    // craftable with what we hold" - log it, this silent path cost hours of debugging
+    ;(log ?? (() => {}))?.(`craft ${itemName}: no craftable recipe variant (ingredients missing?)`)
+    return false
+  }
   // A tree-fleet inventory holds MIXED plank types (oak + birch + ...); every plank
   // recipe exists once per plank type, and recipes[0] may be the variant whose plank
   // we do not have - that is why the pickaxe "never" crafted while the shovel did.
@@ -123,7 +128,8 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
     try {
       await miner.gatherWood({ want: 8, maxSeconds: Math.min(60, Math.max(15, timeLeft())) })
     } catch { /* the fallback below still applies */ }
-    step(`logs after gatherWood: ${countLogs(bot)}`)
+    const logCounts = () => LOG_BLOCKS.map(n => `${n.replace(/_(log|stem|block)$/, '')}:${countItem(bot, n)}`).filter(s => !s.endsWith(':0')).join(' ')
+    step(`logs after gatherWood: ${countLogs(bot)} (${logCounts()})`)
   }
   if (countLogs(bot) < 8 && miner) {
     for (const name of LOG_BLOCKS) {
@@ -137,7 +143,8 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
         })
       } catch { /* next wood type */ }
     }
-    step(`logs: ${countLogs(bot)}`)
+    const logCounts2 = () => LOG_BLOCKS.map(n => `${n.replace(/_(log|stem|block)$/, '')}:${countItem(bot, n)}`).filter(s => !s.endsWith(':0')).join(' ')
+    step(`logs: ${countLogs(bot)} (${logCounts2()})`)
   }
 
   // 2. planks -> sticks -> table (all 2x2, no table needed yet)
@@ -150,8 +157,13 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
     mangrove_log: 'mangrove_planks', cherry_log: 'cherry_planks', pale_oak_log: 'pale_oak_planks',
     bamboo_block: 'bamboo_planks', crimson_stem: 'crimson_planks', warped_stem: 'warped_planks'
   }
-  for (const [logName, plankName] of Object.entries(PLANK_OF)) {
-    for (let i = 0; i < 8 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 10; i++) {
+  // Convert the DOMINANT log type first: the whole tool kit (4 table + 3 pickaxe +
+  // 1 shovel + 2 sticks) needs 10 planks of ONE type. Mixed types were exactly how a
+  // bot ended with 6 + 6 and could not craft anything 3-or-4-of-a-kind.
+  const dominantLog = Object.entries(PLANK_OF)
+    .sort((a, b) => countItem(bot, b[0]) - countItem(bot, a[0]))[0]
+  for (const [logName, plankName] of [dominantLog, ...Object.entries(PLANK_OF).filter(([l]) => l !== dominantLog[0])]) {
+    for (let i = 0; i < 10 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 12; i++) {
       if (!await craft(bot, plankName, 1, null, step)) break
     }
   }
