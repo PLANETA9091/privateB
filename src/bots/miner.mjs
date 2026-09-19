@@ -34,13 +34,6 @@ export function createMiner ({
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
   bot.loadPlugin(pathfinder)
-  // Bound the A* search space BEFORE anything pathes. searchRadius=-1 (the library
-  // default) prunes NOTHING: a goal sealed in stone then explores the whole reachable
-  // graph and retains millions of nodes - 19 concurrent searches were the Big Fleet
-  // 4 GB heap OOM (v0.6.4 investigation). searchRadius only bounds DETOURS beyond the
-  // straight-line estimate, so normal and even long paths are unaffected.
-  bot.pathfinder.searchRadius = 32
-  bot.pathfinder.thinkTimeout = 2000 // less CPU per search; dynamic pathing recomputes anyway
   bot.loadPlugin(toolPlugin)
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
@@ -102,6 +95,16 @@ export function createMiner ({
 
   const ready = new Promise((resolve, reject) => {
     bot.once('spawn', async () => {
+      // Bound the A* search space (v0.6.5 Big Fleet OOM fix). searchRadius=-1 (the
+      // library default) prunes NOTHING: a goal sealed in stone then explores the whole
+      // reachable graph, retaining millions of nodes - 19 concurrent searches did that
+      // simultaneously. searchRadius only bounds DETOURS beyond the straight-line
+      // estimate, so normal and even long paths are unaffected. The pathfinder object
+      // exists by spawn time (the plugin injects it during load), but stay defensive.
+      if (bot.pathfinder) {
+        bot.pathfinder.searchRadius = 32
+        bot.pathfinder.thinkTimeout = 2000 // less CPU per search; dynamic pathing recomputes anyway
+      }
       if (fly === true) {
         installFly(bot, {
           speed: flySpeed,
@@ -624,6 +627,9 @@ export function createMiner ({
     moves.dontCreateFlow = true
     moves.scafoldingBlocks = []
     bot.pathfinder.setMovements(moves)
+    // belt & braces: the spawn hook normally set these already
+    bot.pathfinder.searchRadius = 32
+    bot.pathfinder.thinkTimeout = 2000
     movementsReady = true
   }
 

@@ -71,6 +71,12 @@ export function createScout ({
 
   const ready = new Promise((resolve, reject) => {
     bot.once('spawn', async () => {
+      // same A* bound as the miner (v0.6.5 OOM fix): unlimited detour search on a
+      // far patrol goal must not grow an unbounded node graph
+      if (bot.pathfinder) {
+        bot.pathfinder.searchRadius = 32
+        bot.pathfinder.thinkTimeout = 2000
+      }
       if (fly === true) installFly(bot, { speed: 2.0, antiKick: true, log: m => log(`${tag} ${m}`) })
       else {
         bot.physicsEnabled = true
