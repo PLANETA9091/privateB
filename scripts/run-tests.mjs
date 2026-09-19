@@ -21,7 +21,6 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const what = process.argv[2] || 'unit'
-const FILE_TIMEOUT_MS = Number(process.env.TEST_FILE_TIMEOUT_MS || 120000)
 
 function discover (dir) {
   if (!fs.existsSync(dir)) return []
@@ -36,6 +35,12 @@ function discover (dir) {
 
 const suites = what === 'all' ? ['unit', 'integration'] : [what]
 const files = suites.flatMap(s => discover(path.join(root, 'tests', s)))
+
+// Per-file hard timeout. The integration suite legitimately runs for minutes (bot fleets
+// spawning, gathering wood, crafting tools and mining on a live server), so it gets a
+// bigger budget than the pure unit files, which finish in seconds.
+const DEFAULT_TIMEOUT_MS = suites.includes('integration') ? 420000 : 120000
+const FILE_TIMEOUT_MS = Number(process.env.TEST_FILE_TIMEOUT_MS || DEFAULT_TIMEOUT_MS)
 
 if (!files.length) {
   console.error(`[run-tests] no test files found for "${what}"`)
