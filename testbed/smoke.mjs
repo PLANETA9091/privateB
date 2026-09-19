@@ -79,17 +79,38 @@ bot.once('spawn', async () => {
     if (missing.length) throw new Error(`registry missing blocks: ${missing.join(', ')}`)
     step(`registry ok: ${wanted.length} sample blocks present`)
 
-    // --- 3. dig a hand-diggable surface block next to us and collect the drop ---
+    // --- 3. dig a hand-diggable surface block and collect the drop ---
+    // Spawn can be ANYWHERE (world spawn selection is not fixed to the ground): the same
+    // seed put us on grass in one run and on top of an oak canopy in the next. If we are
+    // standing on leaves, eat our way down to the terrain first (bare hands, no drops).
+    const LEAVES = ['oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves', 'cherry_leaves', 'pale_oak_leaves']
+    for (let guard = 0; guard < 16; guard++) {
+      const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (!under) throw new Error('cannot read the block below (chunks unloaded)')
+      if (!LEAVES.includes(under.name)) break
+      step(`spawned on ${under.name}: eating our way down to the terrain`)
+      await bot.dig(under)
+      await bot.waitForTicks(12) // fall one block
+    }
+
     // side blocks first (digging under our feet would drop us one block down)
     let target = null
     outer:
     for (const y of [-1, 0]) {
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-        const b = bot.blockAt(pos.offset(dx, y, dz))
+        const b = bot.blockAt(bot.entity.position.floored().offset(dx, y, dz))
         if (b && HAND_DIGGABLE.includes(b.name)) { target = b; break outer }
       }
     }
-    if (!target) target = below && HAND_DIGGABLE.includes(below.name) ? below : null
+    if (!target) {
+      const belowNow = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (belowNow && HAND_DIGGABLE.includes(belowNow.name)) target = belowNow
+    }
+    if (!target) {
+      // last resort: any diggable surface block within bare-hand reach
+      const near = bot.findBlock({ matching: b => HAND_DIGGABLE.includes(b.name), maxDistance: 3.5 })
+      if (near) target = near
+    }
     if (!target) throw new Error('no hand-diggable surface block near spawn')
     step(`digging ${target.name} at ${target.position} (bare hands)`)
     await bot.dig(target)
