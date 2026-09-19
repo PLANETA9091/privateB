@@ -18,6 +18,22 @@ function recipeFor (bot, itemName, table) {
   return recipes?.length ? recipes[0] : null
 }
 
+// The patched 26.2 crafting occasionally leaves ingredients stuck in the 2x2 craft
+// grid of the player inventory window. Those items are invisible to
+// bot.inventory.items() (that is how planks 'vanished': oak 12 -> oak 0) and starve
+// every later craft with 'missing ingredient'. Click whatever is in the grid back.
+async function returnGridItems (bot) {
+  try {
+    const inv = bot.inventory
+    for (let slot = 1; slot <= 4; slot++) {
+      if (!inv.slots[slot]) continue
+      for (let dest = 9; dest <= 44; dest++) {
+        if (!inv.slots[dest]) { await bot.moveSlotItem(slot, dest); break }
+      }
+    }
+  } catch { /* window quirk - best effort */ }
+}
+
 async function craft (bot, itemName, times, table = null, log = null) {
   const id = bot.registry.itemsByName[itemName]?.id
   if (id == null) return false
@@ -41,6 +57,7 @@ async function craft (bot, itemName, times, table = null, log = null) {
         await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
         return true
       } catch (e) {
+        await returnGridItems(bot)
         lastErr = e
         // one line per FAILED variant: this is how a broken craft shows up in CI logs
         step(`craft ${itemName}: variant#${recipe.delta ? recipe.delta.length : '?'} attempt${attempt} failed: ${e.message}`)
@@ -84,7 +101,7 @@ const reachableTable = bot => bot.findBlock({
   maxDistance: TABLE_REACH
 })
 
-async function placeTable (bot, { rounds = 3 } = {}) {
+async function placeTable (bot, { rounds = 8 } = {}) {
   const find = () => reachableTable(bot)
   for (let round = 0; round < rounds; round++) {
     const existing = find()
@@ -109,12 +126,16 @@ async function placeTable (bot, { rounds = 3 } = {}) {
         }
       }
       if (placed) continue // a block appeared (maybe not the table) - look again
-      // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
-      const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
-      if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
-        // bot.dig has no internal timeout - fence it (a hanging dig would freeze ensureTools)
-        await withTimeout(bot.dig(below), 10000, 'dig below for table placement')
-        await bot.waitForTicks(15) // fall one block
+      // nowhere to place (treetop / mid-air): eat the block below and fall towards
+      // the terrain. A canopy is 10+ blocks deep - 3 rounds never reached the ground,
+      // so this loops until we actually stand on something solid (or rounds run out).
+      const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (under && under.type !== 0 && under.boundingBox !== 'fluid' && /leaves/.test(under.name)) {
+        // leaves under our feet: dig (fastDig is 3x faster than an honest dig)
+        try { await withTimeout(bot.fastDig ? bot.fastDig(under) : bot.dig(under), 5000, 'dig leaves below') } catch { /* fall anyway */ }
+        await bot.waitForTicks(12)
+      } else if (under && under.type !== 0 && under.boundingBox !== 'fluid') {
+        break // solid non-leaf ground and still no spot -> stop retrying
       } else {
         await bot.waitForTicks(10) // already airborne - let gravity settle us
       }
@@ -176,9 +197,11 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const dominantLog = Object.entries(PLANK_OF)
     .sort((a, b) => countItem(bot, b[0]) - countItem(bot, a[0]))[0]
   for (const [logName, plankName] of [dominantLog, ...Object.entries(PLANK_OF).filter(([l]) => l !== dominantLog[0])]) {
-    for (let i = 0; i < 10 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 12; i++) {
-      if (!await craft(bot, plankName, 1, null, step)) break
-    }
+    await returnGridItems(bot)
+    const logs = countItem(bot, logName)
+    const want = Math.ceil((12 - countItem(bot, plankName)) / 4)
+    const times = Math.min(logs, want)
+    if (times > 0) await craft(bot, plankName, times, null, step) // one window session
   }
   // 26.2 wood sets - the old list (oak..mangrove only) missed cherry/pale_oak/bamboo/
   // crimson/warped, which is how a bot ended with 5 oak + 3 cherry planks and could not
