@@ -1220,12 +1220,13 @@ export function createMiner ({
   }
 
   // Proactive map-driven trip: walk to a position the shared map KNOWS for one of
-  // `findNames`, then dig a short descent there with `digNames`. This is how the
-  // fleet turns scout/map knowledge into actual collection of the plan's top
-  // resources (v0.6.9: sand collected=0 while the map held 194 sand positions).
-  // Returns the found block name, or null when the map had nothing reachable.
-  // Failed destinations land in failedTrips so the fleet never re-bounces on them.
-  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 24000, maxBlocks = 24, maxDistance = 128 } = {}) {
+  // `findNames`, then harvest/dig there. This is how the fleet turns scout/map
+  // knowledge into actual collection of the plan's top resources (v0.6.9: sand
+  // collected=0 while the map held 194 sand positions). Returns the found block
+  // name, or null when the map had nothing reachable. Failed destinations land in
+  // failedTrips so the fleet never re-bounces on them.
+  const SURFACE_NAMES = new Set(['sand', 'gravel', 'clay', 'dirt', 'grass_block'])
+  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 24000, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
     const target = mapTargetFor(findNames, { maxDistance, verify: false })
     if (!target) return null
     const key = `${target.pos.x},${target.pos.y},${target.pos.z}`
@@ -1238,6 +1239,22 @@ export function createMiner ({
       return null
     }
     recordToMap({ maxDistance: 32, count: 32 })
+    if (findNames.every(n => SURFACE_NAMES.has(n))) {
+      // Beach-type targets sit in a thin HORIZONTAL layer (shorelines): the v0.7.1
+      // fleet sent 20 sand trips and collected 1 sand - a vertical shaft digs 2-3
+      // sand blocks and then burns the rest of the budget on the stone underneath.
+      // collectArea-style harvesting walks the beach and eats the layer sideways
+      // (collectBlock also picks the drops up - surface drops bounce and scatter).
+      await collectArea(findNames, {
+        count: 24,
+        hopDistance: 10,
+        perBlockTimeoutMs: 8000,
+        maxSeconds: harvestSeconds,
+        direction: direction ?? new Vec3(1, 0, 0),
+        shouldStop: shouldStop ?? (() => false)
+      })
+      return target.name
+    }
     // eat what we came for: a short descent at the arrival point collects the target
     // block plus whatever sits underneath (a sand column ends in stone - which the
     // plan wants anyway). digNames must be the bot's FULL minable list: a sand-only

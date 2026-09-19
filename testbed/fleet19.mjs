@@ -264,7 +264,10 @@ async function runBot (name, target, index) {
           const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
           if (tripBlocks.length) {
             try {
-              const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true) })
+              // direction + shouldStop feed the surface-harvest mode (beaches are eaten
+              // sideways, and the deadline always wins); digNames is the full stone list
+              // for the ore/stone descent mode
+              const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, shouldStop: () => Date.now() > deadline })
               if (trip) console.log(`${name} map trip: ${trip}`)
             } catch { /* normal shafts continue */ }
           }
