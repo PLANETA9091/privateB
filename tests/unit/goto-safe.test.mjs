@@ -45,29 +45,41 @@ test('standGoalNear: a clear column keeps the requested y', () => {
   assert.equal(g.range, 1)
 })
 
-test('standGoalNear: searches upward first when the requested cell is buried', () => {
-  // buried everywhere up to y=75, so the first standable spot is y=76 (needs maxShift 12)
-  const g = standGoalNear(buriedBot(), goals, 10, 64, 10, { range: 1, maxShift: 12 })
-  assert.equal(g.y, 76)
-})
-
-test('standGoalNear: falls back downward when nothing above is standable', () => {
-  // flat world: solid ground top at 61, pure air above - walking targets above the
-  // surface have NO ground to stand on, so the helper must step DOWN to the surface
+test('standGoalNear: a buried column prefers DOWN (falling is cheap), then the last-resort cell', () => {
+  // flat world: solid ground top at 61, pure air above. The requested y=64 has no ground
+  // anywhere above (nothing to stand ON), so the helper must step DOWN to the surface.
   const bot = { blockAt: p => (p.y <= 61 ? { boundingBox: 'block' } : { boundingBox: 'empty' }) }
   const g = standGoalNear(bot, goals, 5, 64, 5, { range: 1, maxShift: 4 })
   assert.equal(g.y, 62) // ground 61, feet 62, head 63
 })
 
-test('standGoalNear: a fully buried column aims above it (finite fallback)', () => {
-  // buriedBot: sealed 55..75, requested 64, maxShift 6 covers 58..70 - all buried -> fallback
+test('standGoalNear: a sealed (trunk) column snaps to a standable NEIGHBOR', () => {
+  // ground top 63 everywhere, trunk occupies column (10,10) at 64..68
+  const bot = {
+    blockAt (p) {
+      const trunk = p.x === 10 && p.z === 10 && p.y >= 64 && p.y <= 68
+      return { boundingBox: (trunk || p.y <= 63) ? 'block' : 'empty' }
+    }
+  }
+  const g = standGoalNear(bot, goals, 10, 64, 10, { range: 1 })
+  // the trunk column itself is sealed up to its top (68); "standable" at 69 would be a
+  // trunk TOP - unreachable for a walker. The ring finds the grass right next to it.
+  assert.notEqual(g.y, 69)
+  assert.ok(Math.abs(g.x - 10) + Math.abs(g.z - 10) >= 1, 'goal moved off the trunk column')
+  assert.equal(g.y, 64) // neighbor ground top, feet at 64
+  assert.equal(g.range, 2)
+})
+
+test('standGoalNear: a fully buried column falls back to the requested cell (never aims high)', () => {
+  // buriedBot: sealed 0..75 (requested 64 +- everything the helper scans) -> last resort
   const g = standGoalNear(buriedBot(), goals, 10, 64, 10, { range: 1, maxShift: 6 })
-  assert.equal(g.y, 64 + 6 + 1)
+  assert.equal(g.y, 64)
+  assert.equal(g.range, 2)
 
   // truly sealed forever: solid at every y the helper can reach
   const sealedBot = { blockAt: () => ({ boundingBox: 'block' }) }
   const g2 = standGoalNear(sealedBot, goals, 0, 64, 0, { range: 1, maxShift: 6 })
-  assert.equal(g2.y, 64 + 6 + 1)
+  assert.equal(g2.y, 64)
   assert.ok(g2.range >= 2)
 })
 

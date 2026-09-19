@@ -184,29 +184,54 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {})
   })
 }
 
-// A walk goal the fleet can actually reach: nudge the requested column to the nearest
-// y where the bot can STAND (solid ground, air feet + head). Raw GoalNear targets computed
-// as "current position + offset" regularly landed inside unexcavated stone; the pathfinder
-// then dug/explored toward a goal sealed in rock - exactly the degenerate search the
-// OOM run saturated the heap with. Always returns a GoalNear (the buried-column fallback
-// aims above the column so the search stays finite).
+// A walk goal the fleet can actually reach: snap the requested column to the nearest
+// STANDABLE spot (solid ground, air feet + head) around it. Raw GoalNear targets computed
+// as "current position + offset" regularly landed inside unexcavated stone or inside a
+// tree trunk - the pathfinder then planned toward a cell it could never occupy, which was
+// one of the degenerate searches behind the Big Fleet heap OOM (v0.6.4 investigation).
+//
+// GoalNear.isEnd is a 3D SPHERE, so a goal ABOVE the column (my first fallback) is
+// unreachable for a walker and burns the whole goto timeout: the v0.6.6 fleet run
+// collapsed its tool phase to 8/19 bots because of exactly that. Order of preference
+// here: the cell itself -> DOWN (falling is cheap, maxDropDown=4) -> up at most 2 (a
+// walker steps/jumps 1-2 blocks; higher standable spots on the same column are e.g. a
+// trunk top - "standable" but unreachable) -> a ring of neighboring columns -> the raw
+// requested cell (searchRadius bounds the A*, the caller's timeout bounds the wait).
 export function standGoalNear (bot, goals, x, y, z, { range = 1, maxShift = 6 } = {}) {
   const px = Math.floor(x)
   const pz = Math.floor(z)
   const py = Math.floor(y)
-  const standable = yy => {
-    const feet = bot.blockAt(new Vec3(px, yy, pz))
-    const head = bot.blockAt(new Vec3(px, yy + 1, pz))
-    const ground = bot.blockAt(new Vec3(px, yy - 1, pz))
+  const standable = (cx, yy, cz) => {
+    const feet = bot.blockAt(new Vec3(cx, yy, cz))
+    const head = bot.blockAt(new Vec3(cx, yy + 1, cz))
+    const ground = bot.blockAt(new Vec3(cx, yy - 1, cz))
     return !!ground && ground.boundingBox !== 'empty' &&
       (!feet || feet.boundingBox === 'empty') &&
       (!head || head.boundingBox === 'empty')
   }
-  for (let d = 0; d <= maxShift; d++) {
-    if (standable(py + d)) return new goals.GoalNear(px, py + d, pz, range)
-    if (d > 0 && standable(py - d)) return new goals.GoalNear(px, py - d, pz, range)
+  if (standable(px, py, pz)) return new goals.GoalNear(px, py, pz, range)
+  for (let d = 1; d <= maxShift; d++) {
+    if (standable(px, py - d, pz)) return new goals.GoalNear(px, py - d, pz, range)
   }
-  // nothing standable in +-maxShift (the column is buried): aim just above it so the
-  // pathfinder at worst digs upward through finite rock instead of toward a sealed cell
-  return new goals.GoalNear(px, py + maxShift + 1, pz, Math.max(range, 2))
+  for (let d = 1; d <= 2; d++) {
+    if (standable(px, py + d, pz)) return new goals.GoalNear(px, py + d, pz, range)
+  }
+  // sealed column (tree trunk, wall): the nearest standable spot NEXT to it. The goal
+  // sits on the neighbor column, so the walker ends up within reach of the target.
+  const ring = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+  for (let r = 1; r <= 3; r++) {
+    for (const [ox, oz] of ring) {
+      const nx = px + ox * r
+      const nz = pz + oz * r
+      if (standable(nx, py, nz)) return new goals.GoalNear(nx, py, nz, range + 1)
+      for (let d = 1; d <= 2; d++) {
+        if (standable(nx, py - d, nz)) return new goals.GoalNear(nx, py - d, nz, range + 1)
+        if (standable(nx, py + d, nz)) return new goals.GoalNear(nx, py + d, nz, range + 1)
+      }
+    }
+  }
+  // last resort: the requested cell itself (possibly buried). With searchRadius=32 the
+  // A* stays finite, and for underground shaft-to-shaft walks digging toward the cell is
+  // exactly the desired behavior (canDig=true).
+  return new goals.GoalNear(px, py, pz, Math.max(range, 2))
 }
