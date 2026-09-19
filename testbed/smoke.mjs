@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 // Smoke test: does mineflayer actually work on Minecraft 26.2 (protocol 776)?
-// Checks login -> spawn -> chunk parsing -> survival dig -> pickup -> place -> dig.
-// Survival only: no op, no /give, no gifts - exactly how the fleet plays.
+// Checks login -> spawn -> chunk parsing -> registry -> dig (collect drop) -> place -> dig.
+//
+// Fully survival, no op and no /give: on an offline-mode CI server the console
+// `op <name>` can bind to a Mojang premium UUID (the runner has internet), which
+// never matches the OfflinePlayer UUID the bot joins with - and /give would then
+// silently fail. Digging dirt with bare hands is also exactly what the fleet does.
 //
 // Usage: node testbed/smoke.mjs [host] [port] [username]
 import mineflayer from 'mineflayer'
@@ -18,9 +22,9 @@ const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1 }
 const done = (code, msg) => { step(msg); process.exit(code) }
 
 const timeout = setTimeout(() => {
-  fail('overall timeout (90s)')
+  fail('overall timeout (120s)')
   process.exit(1)
-}, 90000)
+}, 120000)
 
 step(`connecting to ${host}:${port} as ${username} (version ${VERSION})`)
 const bot = mineflayer.createBot({ host, port, username, version: VERSION, auth: 'offline' })
@@ -31,7 +35,17 @@ bot.on('end', r => step(`disconnected: ${r}`))
 
 bot.once('login', () => step('login ok'))
 
-const countItems = () => bot.inventory.items().reduce((a, i) => a + i.count, 0)
+// blocks a bare hand can dig on the surface and the items they drop
+const HAND_DIGGABLE = ['grass_block', 'dirt', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay']
+const DROPS = {
+  grass_block: ['dirt'],
+  dirt: ['dirt'],
+  coarse_dirt: ['coarse_dirt'],
+  podzol: ['dirt'],
+  sand: ['sand'],
+  gravel: ['gravel', 'flint'], // gravel has a 10% flint chance
+  clay: ['clay_ball']
+}
 
 bot.once('spawn', async () => {
   try {
@@ -51,7 +65,7 @@ bot.once('spawn', async () => {
         for (let y = -4; y < 4; y++) {
           const b = bot.blockAt(pos.offset(x, y, z))
           if (!b) unknown++
-          else if (b.name === 'air' || b.name === 'cave_air') air++
+          else if (b.name === 'air' || b.name === 'cave_air' || b.name === 'void_air') air++
           else solid++
         }
       }
@@ -65,66 +79,45 @@ bot.once('spawn', async () => {
     if (missing.length) throw new Error(`registry missing blocks: ${missing.join(', ')}`)
     step(`registry ok: ${wanted.length} sample blocks present`)
 
-    // --- 3. survival dig: bare-hand a dirt-ish block right under our feet, then let the
-    //        drop land at our feet and confirm it reached the inventory (no op needed)
-    const DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel']
-    const before = countItems()
-    let dug = null
-    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const p = pos.offset(dx, -1, dz)
-      const b = bot.blockAt(p)
-      if (b && DIGGABLE.includes(b.name)) {
-        dug = { block: b, p }
-        break
+    // --- 3. dig a hand-diggable surface block next to us and collect the drop ---
+    // side blocks first (digging under our feet would drop us one block down)
+    let target = null
+    outer:
+    for (const y of [-1, 0]) {
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const b = bot.blockAt(pos.offset(dx, y, dz))
+        if (b && HAND_DIGGABLE.includes(b.name)) { target = b; break outer }
       }
     }
-    if (!dug) throw new Error('no bare-hand diggable block (dirt/grass/sand/gravel) within 1 block - unexpected for a vanilla spawn')
-    await bot.dig(dug.block)
+    if (!target) target = below && HAND_DIGGABLE.includes(below.name) ? below : null
+    if (!target) throw new Error('no hand-diggable surface block near spawn')
+    step(`digging ${target.name} at ${target.position} (bare hands)`)
+    await bot.dig(target)
+    step(`dug ${target.name}`)
+    const dropped = await collectDrop(bot, DROPS[target.name], 20000)
+    step(`inventory ok: picked up ${dropped.count}x ${dropped.name}`)
+
+    // --- 4. place what we dug back into the hole, then dig it again ---
+    await bot.equip(dropped, 'hand')
+    step('equip ok')
+    const ref = bot.blockAt(target.position.offset(0, -1, 0)) || bot.blockAt(target.position.offset(1, 0, 0))
+    if (!ref) throw new Error('cannot read a reference block for placement')
+    await bot.placeBlock(ref, ref.position.equals(target.position.offset(0, -1, 0)) ? new Vec3(0, 1, 0) : new Vec3(0, 0, 1))
     await bot.waitForTicks(10)
-    step(`dig ok: ${dug.block.name} at ${dug.p.floored()} is gone`)
+    const placed = bot.blockAt(target.position)
+    step(`place -> ${target.position}: ${placed && placed.name}`)
+    if (!placed || placed.name === 'air') step('WARN: placement not confirmed (may be server desync)')
 
-    // wait for the drop to be picked up (poll the inventory, do not trust events)
-    let pickedUp = false
-    for (let i = 0; i < 40 && !pickedUp; i++) {
+    const toDig = bot.blockAt(target.position)
+    if (toDig && toDig.name !== 'air') {
+      await bot.dig(toDig)
       await bot.waitForTicks(10)
-      pickedUp = countItems() > before
-    }
-    if (!pickedUp) step('WARN: drop was not picked up into the inventory (continuing)')
-    else step('pickup ok: the drop reached the inventory')
-
-    // --- 4. place what we dug back (into the free NEIGHBOUR cell: the bot itself
-    //        occupies the hole), then dig it again - place + dig in one go
-    const dirt = bot.inventory.items().find(i => ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel'].includes(i.name))
-    if (dirt) {
-      try {
-        await bot.equip(dirt, 'hand')
-        step(`equip ok: ${dirt.name} in hand`)
-        const feet = bot.entity.position.floored()
-        // the floor of the neighbouring column: solid at feet-1, free at feet/feet+1
-        const ref = bot.blockAt(feet.offset(1, -1, 0))
-        if (ref && ref.boundingBox !== 'empty' && ref.boundingBox !== 'fluid') {
-          await bot.placeBlock(ref, new Vec3(0, 1, 0))
-          await bot.waitForTicks(10)
-          const placed = bot.blockAt(feet.offset(1, 0, 0))
-          step(`place -> block beside us: ${placed && placed.name}`)
-          const toDig = placed && placed.type !== 0 ? placed : null
-          if (toDig) {
-            await bot.dig(toDig)
-            await bot.waitForTicks(10)
-            const after = bot.blockAt(feet.offset(1, 0, 0))
-            step(`dig again ok: placed block is now ${after && after.name}`)
-          }
-        } else {
-          step('WARN: no solid neighbour floor to place on - skipping place checks')
-        }
-      } catch (e) {
-        step(`WARN: place/dig-again failed (${e.message}) - core checks already passed`)
-      }
-    } else {
-      step('WARN: nothing in inventory to place - skipping place/dig-again checks')
+      const after = bot.blockAt(target.position)
+      step(`dig -> ${target.position} now: ${after && after.name}`)
+      if (after && after.name !== 'air') step('WARN: dig not confirmed')
     }
 
-    // --- 5. player entities visible (entity tracking works)
+    // --- 5. player entities visible (entity tracking works) ---
     step(`entities tracked: ${Object.keys(bot.entities).length}`)
 
     clearTimeout(timeout)
@@ -135,3 +128,32 @@ bot.once('spawn', async () => {
     process.exit(1)
   }
 })
+
+// Wait for one of the item names to land in the inventory. Polls (robust against
+// missed windowUpdate events on direct pickups) and walks toward the nearest item
+// entity, because the drop may pop just outside the vanilla pickup radius.
+function collectDrop (bot, names, ms) {
+  const found = () => bot.inventory.items().find(i => names.includes(i.name))
+  const now = found()
+  if (now) return Promise.resolve(now)
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { clearInterval(poll); reject(new Error(`no ${names.join('/')} picked up within ${ms}ms`)) }, ms)
+    const poll = setInterval(async () => {
+      const item = found()
+      if (item) { clearTimeout(timer); clearInterval(poll); resolve(item); return }
+      const drop = bot.nearestEntity(e => e.name === 'item')
+      if (drop) await walkToward(bot, drop.position)
+    }, 400)
+  })
+}
+
+// A few seconds of look-and-walk without the pathfinder (smoke tests core mineflayer)
+async function walkToward (bot, targetPos) {
+  try {
+    await bot.lookAt(targetPos.offset(0, 0.5, 0), true)
+    bot.setControlState('forward', true)
+    bot.setControlState('sprint', false)
+    await bot.waitForTicks(8)
+  } catch { /* keep polling */ }
+  bot.setControlState('forward', false)
+}
