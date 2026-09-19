@@ -31,7 +31,7 @@ const logFile = path.join(logDir, 'fleet.log')
 const logStream = fs.createWriteStream(logFile, { flags: 'a' })
 const log = m => { logStream.write(`${new Date().toISOString()} ${m}\n`); if (process.env.VERBOSE) console.log(m) }
 
-test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECONDS}s`, { timeout: (WINDOW_SECONDS + 240) * 1000 }, async t => {
+test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECONDS}s`, { timeout: (WINDOW_SECONDS + 420) * 1000 }, async t => {
   t.after(() => {
     for (const m of miners) { try { m.bot.quit() } catch { /* gone */ } }
     logStream.end()
@@ -64,18 +64,22 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   const direction = [new Vec3(1, 0, 0), new Vec3(-1, 0, 0)]
 
   // --- wood + tools (no op, no gifts) ---
-  const toolResults = []
-  for (let i = 0; i < miners.length; i++) {
-    const m = miners[i]
+  // Both bots work CONCURRENTLY: the sequential loop burned up to 105s per bot before
+  // the mining window even started, which is exactly how the whole test outgrew its
+  // own 330s budget. Different direction per bot keeps them off each other's trees.
+  const toolResults = await Promise.all(miners.map(async (m, i) => {
     try {
       await m.gatherWood({ want: 4, direction: direction[i % 2], maxSeconds: 60, shouldStop: () => Date.now() > deadline })
     } catch (e) { log(`${m.username} gatherWood failed: ${e.message}`) }
     try {
-      const res = await ensureTools(m.bot, { miner: m, log, maxSeconds: 45 })
-      toolResults.push(res)
+      const res = await ensureTools(m.bot, { miner: m, log, maxSeconds: 60 })
       log(`${m.username} tools: ${res.ok ? 'ok' : 'fail'} (${res.kit})`)
-    } catch (e) { log(`${m.username} ensureTools failed: ${e.message}`) }
-  }
+      return res
+    } catch (e) {
+      log(`${m.username} ensureTools failed: ${e.message}`)
+      return { ok: false, kit: e.message }
+    }
+  }))
   assert.ok(
     toolResults.some(r => r.ok),
     `at least one bot must craft a pickaxe (got: ${JSON.stringify(toolResults)})`

@@ -20,12 +20,15 @@ function recipeFor (bot, itemName, table) {
 async function craft (bot, itemName, times, table = null) {
   const recipe = recipeFor(bot, itemName, table)
   if (!recipe) return false
-  try {
-    await bot.craft(recipe, times, table ?? null)
-    return true
-  } catch {
-    return false
+  // the craft window is flaky on a moving server (clicks desync, the window closes
+  // mid-sequence): retry a couple of times before giving up on the recipe
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await bot.craft(recipe, times, table ?? null)
+      return true
+    } catch { /* retry */ }
   }
+  return false
 }
 
 // Put a crafting table on the ground and return the Block, or null.
