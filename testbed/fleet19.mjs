@@ -135,7 +135,7 @@ async function runBot (name, target, index) {
         } catch { /* go mine anyway */ }
         const res = await ensureTools(miner.bot, { miner, log: () => {} })
         if (res.ok && attempt === 0) toolsOk++
-        if (res.ok) toolsReboot++
+        if (res.ok && attempt > 0) toolsReboot++
         console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) logs=${miner.bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)} tools=${res.kit || 'none'}`)
       }
 
