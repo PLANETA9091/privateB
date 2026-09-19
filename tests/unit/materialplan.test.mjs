@@ -92,3 +92,46 @@ test('MINABLE_OF/DROP_OF sanity: every plan-block resource maps somewhere sensib
   assert.ok(MINABLE_OF.coal[0].endsWith('coal_ore'))
   assert.equal(MINABLE_OF.ink_sac, undefined, 'mob-drop resources must not be minable')
 })
+
+// ---- (v0.9.3) honest plan counting: planItemsOf / planHave ----
+import { ITEMS_OF, planItemsOf, planHave } from '../../src/fleet/materialplan.mjs'
+
+test('planItemsOf: iron_ingot counts the raw ore too (one furnace away)', () => {
+  assert.deepEqual(planItemsOf('iron_ingot'), ['iron_ingot', 'raw_iron'])
+  assert.deepEqual(planItemsOf('deepslate'), ['cobbled_deepslate', 'deepslate'])
+})
+
+test('planItemsOf: planks covers every 26.2 wood family (no item is named just planks)', () => {
+  const planks = planItemsOf('planks')
+  assert.ok(planks.includes('oak_planks') && planks.includes('birch_planks') && planks.includes('pale_oak_planks'))
+  assert.equal(planks.length, 12)
+})
+
+test('planItemsOf: plain resources fall back through DROP_OF to the name itself', () => {
+  assert.deepEqual(planItemsOf('stone'), ['cobblestone'])
+  assert.deepEqual(planItemsOf('dirt'), ['dirt'])
+  assert.deepEqual(planItemsOf('ink_sac'), ['ink_sac'])
+})
+
+test('planHave: sums every counting item across the inventory snapshot', () => {
+  const items = [p9('iron_ingot', 12), p9('raw_iron', 30), p9('oak_planks', 5), p9('stone', 64)]
+  assert.equal(planHave(items, 'iron_ingot'), 42)
+  assert.equal(planHave(items, 'planks'), 5)
+  assert.equal(planHave(items, 'stone'), 64)
+})
+
+test('planHave: junk input is ignored, never crashes', () => {
+  assert.equal(planHave(null, 'iron_ingot'), 0)
+  assert.equal(planHave([null, {}, { name: 'raw_iron' }, { name: 'raw_iron', count: -2 }, { name: 'raw_iron', count: NaN }], 'iron_ingot'), 0)
+  assert.equal(planHave([p9('raw_iron', 3)], 'nonexistent_resource'), 0)
+})
+
+function p9 (name, count) { return { name, count } }
+
+test('ITEMS_OF self-check: every list holds distinct non-empty strings', () => {
+  for (const [res, names] of Object.entries(ITEMS_OF)) {
+    assert.ok(names.length >= 1, res)
+    assert.equal(new Set(names).size, names.length, `${res} has duplicate items`)
+    for (const n of names) assert.equal(typeof n, 'string')
+  }
+})

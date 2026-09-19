@@ -6,6 +6,8 @@
 // and never consumed its own map. These helpers are the missing link: which
 // resources are worth a proactive walk, in plan-deficit order.
 
+import { PLANK_TYPES } from '../lib/surplus.mjs'
+
 // Vanilla DROPS, not the block, land in the inventory: stone mines to cobblestone,
 // grass_block to dirt, deepslate to cobbled_deepslate. Count those instead or every
 // mined shaft shows as 0 collected (the first fleet run: stone 415 mined, 0 collected).
@@ -36,6 +38,39 @@ export const MINABLE_OF = {
   oak_log: ['oak_log'],
   birch_log: ['birch_log'],
   spruce_log: ['spruce_log']
+}
+
+// (v0.9.3) Plan resource -> EVERY inventory item that honestly counts toward it:
+// the vanilla drop AND the one-step product. The v0.8.x FLEET RESULT reported
+// iron_ingot have=0 while bots carried stacks of raw_iron (one furnace away), and
+// planks have=0 forever because no item is literally named 'planks' - the 12
+// wood families each have their own. Counting both sides of a smelt/craft step
+// keeps the plan progress (and the deficit order of mapTripTargets) honest.
+export const ITEMS_OF = {
+  iron_ingot: ['iron_ingot', 'raw_iron'],
+  deepslate: ['cobbled_deepslate', 'deepslate'],
+  planks: PLANK_TYPES
+}
+
+/**
+ * The item names that count toward plan resource `res`, fallback DROP_OF, fallback
+ * the resource name itself. Pure.
+ */
+export function planItemsOf (res) {
+  return ITEMS_OF[res] ?? [DROP_OF[res] ?? res]
+}
+
+/**
+ * How much of plan resource `res` does an inventory snapshot hold? Sums every item
+ * from planItemsOf(res). Pure: takes [{ name, count }]-like entries, ignores junk.
+ */
+export function planHave (items, res) {
+  const names = planItemsOf(res)
+  let n = 0
+  for (const it of items ?? []) {
+    if (it && names.includes(it.name) && Number.isFinite(it.count) && it.count > 0) n += it.count
+  }
+  return n
 }
 
 /**

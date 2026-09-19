@@ -17,7 +17,7 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
-import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
+import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import { recoveryDue } from '../src/lib/woodplan.mjs'
@@ -95,9 +95,11 @@ function materialsProgress () {
   const out = {}
   for (const [res, required] of Object.entries(need)) {
     if (!Number.isFinite(required) || required <= 0) continue
-    const item = DROP_OF[res] ?? res
-    const have = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, item) : 0), 0)
-    out[res] = { required, have, item, pct: Math.min(100, (have / required) * 100) }
+    // (v0.9.3) planHave counts the drop AND the one-step product (raw_iron toward
+    // iron_ingot, any *_planks toward planks) - the old single-item count reported
+    // have=0 for resources the fleet was actually making
+    const have = list.reduce((a, m) => a + (m.bot ? planHave(m.bot.inventory.items(), res) : 0), 0)
+    out[res] = { required, have, item: planItemsOf(res).join('+'), pct: Math.min(100, (have / required) * 100) }
   }
   return out
 }
@@ -419,8 +421,7 @@ for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
   // grass_block drops (the first runs reported stone collected=0 while bots held
   // stacks of cobblestone - a reporting lie, not an empty inventory)
-  const item = DROP_OF[t] ?? t
-  const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, item) : 0), 0)
+  const got = list.reduce((a, m) => a + (m.bot ? planHave(m.bot.inventory.items(), t) : 0), 0)
   const required = need[t]
   console.log(`  ${t.padEnd(13)} collected ${String(got).padStart(7)}${required ? ` (${((got / required) * 100).toFixed(3)}% of ${required.toLocaleString()})` : ''}`)
 }
