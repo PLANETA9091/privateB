@@ -11,7 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, gotoSafe, inBox } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
 import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 
 export const BOT_VERSION = '26.2'
@@ -33,10 +33,17 @@ export function createMiner ({
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
+  bot.loadPlugin(pathfinder)
+  // Bound the A* search space BEFORE anything pathes. searchRadius=-1 (the library
+  // default) prunes NOTHING: a goal sealed in stone then explores the whole reachable
+  // graph and retains millions of nodes - 19 concurrent searches were the Big Fleet
+  // 4 GB heap OOM (v0.6.4 investigation). searchRadius only bounds DETOURS beyond the
+  // straight-line estimate, so normal and even long paths are unaffected.
+  bot.pathfinder.searchRadius = 32
+  bot.pathfinder.thinkTimeout = 2000 // less CPU per search; dynamic pathing recomputes anyway
   bot.loadPlugin(toolPlugin)
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
-  bot.loadPlugin(pathfinder)
 
   const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
@@ -951,6 +958,7 @@ export function createMiner ({
     let done = 0
     const floor = minY ?? bot.game.minY + 3
     let lastHealth = bot.health ?? 20
+    let sidestepRounds = 0 // independent rotation: "done" never grows while stuck, done%4 always picked east
     while (done < maxBlocks && !shouldStop?.() && bot.entity) {
       // health guard: damaged bots wait before the next dig (regen needs food; autoeat feeds)
       const hp = bot.health ?? 20
@@ -961,7 +969,8 @@ export function createMiner ({
         if (hp < 6) {
           // badly hurt: climb OUT of this shaft via the pathfinder (it can dig steps)
           try {
-            await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + 6, bot.entity.position.y, bot.entity.position.z + 6, 2), { timeoutMs: 12000, label: 'hurt retreat' })
+            const g = standGoalNear(bot, goals, bot.entity.position.x + 6, bot.entity.position.y, bot.entity.position.z + 6, { range: 2 })
+            await gotoSafe(bot, g, { timeoutMs: 12000, label: 'hurt retreat' })
           } catch { /* stay and heal here instead */ }
           await bot.waitForTicks(40)
         }
@@ -974,9 +983,11 @@ export function createMiner ({
       // lava guard: a column that opens into lava within 4 blocks is a death trap
       if (lavaAheadBelow(pos)) {
         log(`${tag} digShaft: lava below ${pos.floored()} - moving sideways`)
-        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][done % 4]
+        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
+        sidestepRounds++
         try {
-          await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, 1), { timeoutMs: 10000, label: 'lava sidestep' })
+          const g = standGoalNear(bot, goals, bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, { range: 1 })
+          await gotoSafe(bot, g, { timeoutMs: 10000, label: 'lava sidestep' })
         } catch { /* cannot move: stop this shaft */ break }
         continue
       }
@@ -1000,9 +1011,11 @@ export function createMiner ({
         if (block2 && block2.type !== 0 && (names == null || names.includes(block2.name))) continue
         // move sideways if we landed on something we cannot mine
         if (block2 && block2.type !== 0) {
-          const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][done % 4]
+          const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
+          sidestepRounds++
           try {
-            await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, 1))
+            const g = standGoalNear(bot, goals, bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, { range: 1 })
+            await gotoSafe(bot, g)
           } catch { /* keep digging where we are */ }
         }
       }
@@ -1068,7 +1081,7 @@ export function createMiner ({
     while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
       // lowest log first: that is a trunk base; a floating top of an eaten tree sorts higher
       // and is skipped by the visited-column check
-      const cands = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 128, count: 24 })
+      const cands = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 48, count: 24 })
         .sort((a, b) => (a.y - b.y) || (a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position)))
       const base = cands.find(p => !visitedTrunks.has(`${p.x},${p.z}`))
       if (!base) {
@@ -1076,7 +1089,7 @@ export function createMiner ({
         const here = bot.entity.position
         const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
         try {
-          await gotoSafe(bot, new goals.GoalNear(out.x, out.y, out.z, 4))
+          await gotoSafe(bot, standGoalNear(bot, goals, out.x, out.y, out.z, { range: 4 }))
         } catch { /* try again next round */ }
         continue
       }
@@ -1089,7 +1102,7 @@ export function createMiner ({
         } catch { /* chop from wherever we are */ }
       } else {
         try {
-          await gotoSafe(bot, new goals.GoalNear(base.x, base.y, base.z, 2))
+          await gotoSafe(bot, standGoalNear(bot, goals, base.x, base.y, base.z, { range: 2 }))
         } catch { /* try to chop what is in reach */ }
       }
       if (bot.flyTravel) {
@@ -1109,7 +1122,7 @@ export function createMiner ({
           idleChops = 0
           const here = bot.entity.position
           try {
-            await gotoSafe(bot, new goals.GoalNear(here.x + direction.x * 24, here.y, here.z + direction.z * 24, 4))
+            await gotoSafe(bot, standGoalNear(bot, goals, here.x + direction.x * 24, here.y, here.z + direction.z * 24, { range: 4 }))
           } catch { /* keep looking */ }
         }
       }

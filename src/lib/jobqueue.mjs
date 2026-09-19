@@ -13,6 +13,8 @@
 // The class itself is engine-agnostic (no mineflayer import), which makes it unit-testable
 // without a Minecraft server.
 
+import { Vec3 } from 'vec3'
+
 // Rejects if the promise is still pending after `ms` milliseconds, clears the timer
 // in both cases (the old inline version leaked one setTimeout per call).
 export function withTimeout (promise, ms, label = 'operation') {
@@ -170,10 +172,41 @@ export class MiningJobQueue {
   }
 }
 
-// Every pathfinder.goto in the codebase goes through this: mineflayer-pathfinder's
-// promise is known to never settle in a few corner cases (goal in mid-air, path
-// recalculation loops), and one hung goto freezes the whole bot loop. A hard timeout
-// turns the hang into an ordinary 'walk failed' that every caller already catches.
+// Hard-timeout goto wrapper. On a timeout the pathfinder is explicitly STOPPED: an
+// abandoned goto used to keep its A* recomputing in the background forever, and with
+// searchRadius unbounded each such zombie search retained millions of graph nodes -
+// 19 bots in that state were the Big Fleet's 4 GB heap OOM (v0.6.4 investigation:
+// heap 109 MB -> 3550 MB in ~35 s, 99.6 % of it live A* state, reporter starved).
 export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {}) {
-  return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+  return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label).catch(e => {
+    try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
+    throw e
+  })
+}
+
+// A walk goal the fleet can actually reach: nudge the requested column to the nearest
+// y where the bot can STAND (solid ground, air feet + head). Raw GoalNear targets computed
+// as "current position + offset" regularly landed inside unexcavated stone; the pathfinder
+// then dug/explored toward a goal sealed in rock - exactly the degenerate search the
+// OOM run saturated the heap with. Always returns a GoalNear (the buried-column fallback
+// aims above the column so the search stays finite).
+export function standGoalNear (bot, goals, x, y, z, { range = 1, maxShift = 6 } = {}) {
+  const px = Math.floor(x)
+  const pz = Math.floor(z)
+  const py = Math.floor(y)
+  const standable = yy => {
+    const feet = bot.blockAt(new Vec3(px, yy, pz))
+    const head = bot.blockAt(new Vec3(px, yy + 1, pz))
+    const ground = bot.blockAt(new Vec3(px, yy - 1, pz))
+    return !!ground && ground.boundingBox !== 'empty' &&
+      (!feet || feet.boundingBox === 'empty') &&
+      (!head || head.boundingBox === 'empty')
+  }
+  for (let d = 0; d <= maxShift; d++) {
+    if (standable(py + d)) return new goals.GoalNear(px, py + d, pz, range)
+    if (d > 0 && standable(py - d)) return new goals.GoalNear(px, py - d, pz, range)
+  }
+  // nothing standable in +-maxShift (the column is buried): aim just above it so the
+  // pathfinder at worst digs upward through finite rock instead of toward a sealed cell
+  return new goals.GoalNear(px, py + maxShift + 1, pz, Math.max(range, 2))
 }

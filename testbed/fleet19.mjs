@@ -18,6 +18,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
+import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -123,7 +124,7 @@ async function runBot (name, target, index) {
       const goal = new Vec3(spawn.x + direction.x * deployDistance, spawn.y, spawn.z + direction.z * deployDistance)
       if (deployDistance > 2) {
         try {
-          await miner.bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 3))
+          await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, goal.x, goal.y, goal.z, { range: 3 }), { timeoutMs: 30000, label: 'deploy' })
         } catch {
           for (let hop = 0; hop < 4; hop++) {
             const here = miner.bot.entity.position
@@ -182,15 +183,18 @@ async function runBot (name, target, index) {
         // shared map (fleet digs with digShaft, which never goes through workOnGround,
         // so without this hook the fleet's map stayed empty the whole first run)
         miner.recordToMap({ maxDistance: 24, count: 32 })
-        // step to a fresh column and dig the next shaft
+        // step to a fresh column and dig the next shaft. The walk target MUST be a
+        // standable spot: a raw "here + direction*8" goal sits inside unexcavated stone
+        // at shaft-bottom y, and 19 bots pathing toward sealed goals were the heap OOM
+        // (v0.6.4 investigation). standGoalNear snaps the goal to a walkable surface.
         shaft++
         const here = miner.bot.entity.position
         const side = new Vec3(here.x + direction.x * 8, here.y, here.z + direction.z * 8)
         try {
-          await miner.bot.pathfinder.goto(new goals.GoalNear(side.x, side.y, side.z, 2))
+          await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, side.x, side.y, side.z, { range: 2 }), { timeoutMs: 20000, label: 'next column' })
         } catch {
           try {
-            await miner.bot.pathfinder.goto(new goals.GoalNear(here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), 2))
+            await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), { range: 2 }), { timeoutMs: 20000, label: 'next column alt' })
           } catch { /* next shaft from here */ }
         }
       }
