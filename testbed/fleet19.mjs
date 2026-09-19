@@ -209,6 +209,7 @@ async function runBot (name, target, index) {
       // the plan's ores). Fails cheap on 'no cobblestone', so the cooldown mostly
       // guards against repeating a failed table dance back-to-back.
       let lastUpgrade = Date.now()
+      let lastTrip = Date.now()
       const upgradeDueNow = () => upgradeDue({
         hasStoneTools: hasStonePickaxe(miner.bot),
         cobblestone: countItem(miner.bot, 'cobblestone'),
@@ -260,7 +261,12 @@ async function runBot (name, target, index) {
         // resources and digs there. The v0.6.9 run collected ZERO sand while the map
         // held sand=194 - the map must feed the diggers, not just the report.
         shaft++
-        if (hasPickNow() && shaft % 3 === 0) {
+        // Time-based trip cadence (75s), NOT shaft-count: one digShaft descent runs
+        // 60-120s, so "every 3rd shaft" meant most bots never tripped even once in a
+        // 300s run (0 "map trip" lines in three CI fleets). Cheap when the map has
+        // nothing nearby: no-target returns in microseconds.
+        if (hasPickNow() && Date.now() - lastTrip > 75000) {
+          lastTrip = Date.now()
           const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
           if (tripBlocks.length) {
             try {
@@ -268,8 +274,9 @@ async function runBot (name, target, index) {
               // sideways, and the deadline always wins); digNames is the full stone list
               // for the ore/stone descent mode
               const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, shouldStop: () => Date.now() > deadline })
-              if (trip) console.log(`${name} map trip: ${trip}`)
-            } catch { /* normal shafts continue */ }
+              if (trip.name) console.log(`${name} map trip: ${trip.name}`)
+              else if (trip.error === 'unreachable') console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
+            } catch (e) { console.log(`${name} map trip failed: ${e.message}`) }
           }
         }
         // step to a fresh column and dig the next shaft. The walk target MUST be a

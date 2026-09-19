@@ -10,6 +10,10 @@ on:
         description: 'Run the big fleet test too'
         required: false
         default: 'false'
+      fleet_seconds:
+        description: 'Big fleet duration in seconds (default 300)'
+        required: false
+        default: '300'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -157,7 +161,7 @@ jobs:
         run: |
           set -o pipefail   # an OOM in the fleet process must fail this step, not be masked by tee
           scripts/server.sh start
-          node --expose-gc testbed/fleet19.mjs 19 300 sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
+          node --expose-gc testbed/fleet19.mjs 19 ${{ inputs.fleet_seconds || '300' }} sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
       - name: Upload fleet log
         if: always()
         uses: actions/upload-artifact@v4

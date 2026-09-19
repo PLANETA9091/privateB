@@ -1228,7 +1228,9 @@ export function createMiner ({
   const SURFACE_NAMES = new Set(['sand', 'gravel', 'clay', 'dirt', 'grass_block'])
   async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 24000, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
     const target = mapTargetFor(findNames, { maxDistance, verify: false })
-    if (!target) return null
+    // structured result: the fleet logs failures ('unreachable') - silent map trips
+    // looked like the feature never fired (it never printed a line in 3 CI runs)
+    if (!target) return { error: 'no-target' }
     const key = `${target.pos.x},${target.pos.y},${target.pos.z}`
     stats.mapTrips++
     try {
@@ -1236,7 +1238,7 @@ export function createMiner ({
     } catch {
       failedTrips.add(key)
       if (failedTrips.size > 32) failedTrips.clear() // bounded amnesia, same as workOnGround
-      return null
+      return { error: 'unreachable' }
     }
     recordToMap({ maxDistance: 32, count: 32 })
     if (findNames.every(n => SURFACE_NAMES.has(n))) {
@@ -1253,14 +1255,14 @@ export function createMiner ({
         direction: direction ?? new Vec3(1, 0, 0),
         shouldStop: shouldStop ?? (() => false)
       })
-      return target.name
+      return { name: target.name }
     }
     // eat what we came for: a short descent at the arrival point collects the target
     // block plus whatever sits underneath (a sand column ends in stone - which the
     // plan wants anyway). digNames must be the bot's FULL minable list: a sand-only
     // list would make digShaft sidestep forever once the column turns to stone.
     await digShaft(digNames ?? findNames, { maxBlocks })
-    return target.name
+    return { name: target.name }
   }
 
   // Walk to the nearest chest and bank everything but the tool kit. Soft no-op when no
