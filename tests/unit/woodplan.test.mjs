@@ -6,7 +6,7 @@
 // re-bootstrap loop lives in testbed/fleet19.mjs and is exercised by the CI fleet.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stalledButCraftable } from '../../src/lib/woodplan.mjs'
+import { stalledButCraftable, recoveryDue } from '../../src/lib/woodplan.mjs'
 
 test('stall escape: below goodEnough logs the bot keeps gathering (never crafts a kit from 3 logs)', () => {
   assert.equal(stalledButCraftable({ logs: 0, goodEnough: 4, msSinceGain: 999999, stallMs: 25000 }), false)
@@ -51,4 +51,29 @@ test('gatherWood loop accounting: lastGain resets exactly when the log count ris
   assert.equal(stalled(27001), true, 'stalled >25s with 7 logs - escape fires')
   chop(8, 27002) // the 8th log lands exactly then
   assert.equal(stalled(51000), false, 'the gain reset the clock - escape must not fire')
+})
+
+test('recoveryDue: no pickaxe + cooldown elapsed + enough runway -> recover', () => {
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 46000, remainingMs: 120000 }), true)
+})
+
+test('recoveryDue: a bot holding a pickaxe never needs recovery', () => {
+  assert.equal(recoveryDue({ hasPick: true, msSinceLast: 999999, remainingMs: 120000 }), false)
+})
+
+test('recoveryDue: cooldown not yet elapsed -> keep digging', () => {
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 45000, remainingMs: 120000 }), false, 'boundary: <= cooldown')
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 1000, remainingMs: 120000 }), false)
+})
+
+test('recoveryDue: too close to the deadline -> never start a ~85s bootstrap', () => {
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 46000, remainingMs: 80000 }), false, 'boundary: <= minRemaining')
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 46000, remainingMs: 10000 }), false)
+})
+
+test('recoveryDue: the v0.7.0 failure mode is now covered (due mid-shaft, 135s left)', () => {
+  // v0.7.0: the initial bootstrap burned ~115s, the first between-shaft check ran at
+  // ~65s remaining and the guard blocked it -> recovered=0 forever. Mid-shaft checks
+  // with the same clock now fire while there is still runway.
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 160000, remainingMs: 135000 }), true)
 })

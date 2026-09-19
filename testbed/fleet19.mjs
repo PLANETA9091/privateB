@@ -17,8 +17,10 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
+import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
+import { recoveryDue } from '../src/lib/woodplan.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -55,15 +57,8 @@ const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).le
 
 // Materials plan progress: for every resource the base needs, how much the fleet is
 // holding right now (inventories) vs the required amount. This is what turns a
-// "blocks/s" number into actual progress towards the build.
-// Vanilla DROPS, not the block, land in the inventory: stone mines to cobblestone,
-// grass_block to dirt, deepslate to cobbled_deepslate - count those instead or every
-// mined shaft shows as 0 collected (the first fleet run: stone 415 mined, 0 collected).
-const DROP_OF = {
-  stone: 'cobblestone',
-  deepslate: 'cobbled_deepslate',
-  grass_block: 'dirt'
-}
+// "blocks/s" number into actual progress towards the build. The block->item DROP_OF
+// mapping lives in src/fleet/materialplan.mjs (shared with the map-trip policy).
 function materialsProgress () {
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const out = {}
@@ -146,6 +141,10 @@ async function runBot (name, target, index) {
       // with an EMPTY inventory (everything was dropped where it died) - without the
       // re-bootstrap it would dig bare-handed for the rest of the run, which is exactly
       // the slow-bot pattern the rage-fastbreak benchmarks were built to avoid.
+      // lastBootstrap starts BEFORE the attempt: when the attempt fails, the cooldown
+      // has already run during it and the first in-loop recovery fires immediately
+      // instead of after another 45s of bare-handed digging.
+      let lastBootstrap = Date.now()
       const needsTools = !miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       if (attempt === 0 || needsTools) {
         if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
@@ -170,17 +169,18 @@ async function runBot (name, target, index) {
       // Shaft after shaft, on vanilla physics: no flight, no pathfinder stalls, and every bot
       // works its own column so 19 of them can dig at the same time.
       //
-      // In-loop tool recovery: a bot whose bootstrap failed ONCE must not dig bare-handed
-      // for the rest of the run. The v0.6.9 fleet ended with 8/19 bots pickaxe-less: 7
-      // never found wood ("no planks recipe") and 1 never got a table, and all of them
-      // spent the remaining minutes in dirt-only shafts. Every 45s without a pickaxe the
-      // loop retries the whole chain - each retry sees the shared WorldMap that siblings
-      // keep filling, so late retries actually find trees.
-      let lastBootstrap = Date.now()
+      // In-loop tool recovery: a bot whose bootstrap failed ONCE - or that died with its
+      // kit on the ground - must not dig bare-handed for the rest of the run. The v0.7.0
+      // fleet still ended with recovered=0: the check lived ONLY between shafts while
+      // one digShaft descent runs ~90s, so the >80s-remaining guard never saw a due
+      // recovery. Now the SAME predicate also stops digShaft from the inside
+      // (interrupted -> continue), so a due recovery preempts the current shaft within
+      // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
+      const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })
       let shaft = 0
       while (!(Date.now() > deadline) && miner.bot.entity) {
-        const hasPick = miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
-        if (!hasPick && Date.now() - lastBootstrap > 45000 && deadline - Date.now() > 80000) {
+        if (recoveryDueNow()) {
           lastBootstrap = Date.now()
           console.log(`${name} tool recovery: no pickaxe - re-running the bootstrap`)
           try {
@@ -190,11 +190,17 @@ async function runBot (name, target, index) {
           if (res.ok) toolsRecovered++
           console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
         }
-        await miner.digShaft(namesFor(hasPick), {
+        let interrupted = false
+        await miner.digShaft(namesFor(hasPickNow()), {
           minY: 24,
-          shouldStop: () => Date.now() > deadline || !miner.bot.entity
+          shouldStop: () => {
+            if (Date.now() > deadline || !miner.bot.entity) return true
+            if (recoveryDueNow()) { interrupted = true; return true }
+            return false
+          }
         })
         if (Date.now() > deadline || !miner.bot.entity) break
+        if (interrupted) continue // recovery is due - skip the walk/trip, let the top of the loop handle it
         // pockets nearly full: bank the loot in the yard's chest rows before digging on
         // (a full inventory turns every further dig into a wasted drop)
         if (miner.inventoryLoad().slots >= 30) {
@@ -205,11 +211,24 @@ async function runBot (name, target, index) {
         // shared map (fleet digs with digShaft, which never goes through workOnGround,
         // so without this hook the fleet's map stayed empty the whole first run)
         miner.recordToMap({ maxDistance: 24, count: 32 })
+        // Need-based map routing (src/fleet/materialplan.mjs): every 3rd shaft a tooled
+        // bot walks to a position the shared map KNOWS for the plan's most-deficient
+        // resources and digs there. The v0.6.9 run collected ZERO sand while the map
+        // held sand=194 - the map must feed the diggers, not just the report.
+        shaft++
+        if (hasPickNow() && shaft % 3 === 0) {
+          const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
+          if (tripBlocks.length) {
+            try {
+              const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true) })
+              if (trip) console.log(`${name} map trip: ${trip}`)
+            } catch { /* normal shafts continue */ }
+          }
+        }
         // step to a fresh column and dig the next shaft. The walk target MUST be a
         // standable spot: a raw "here + direction*8" goal sits inside unexcavated stone
         // at shaft-bottom y, and 19 bots pathing toward sealed goals were the heap OOM
         // (v0.6.4 investigation). standGoalNear snaps the goal to a walkable surface.
-        shaft++
         const here = miner.bot.entity.position
         const side = new Vec3(here.x + direction.x * 8, here.y, here.z + direction.z * 8)
         try {
@@ -329,7 +348,11 @@ console.log('================ FLEET RESULT ================')
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
-  const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)
+  // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
+  // grass_block drops (the first runs reported stone collected=0 while bots held
+  // stacks of cobblestone - a reporting lie, not an empty inventory)
+  const item = DROP_OF[t] ?? t
+  const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, item) : 0), 0)
   const required = need[t]
   console.log(`  ${t.padEnd(13)} collected ${String(got).padStart(7)}${required ? ` (${((got / required) * 100).toFixed(3)}% of ${required.toLocaleString()})` : ''}`)
 }

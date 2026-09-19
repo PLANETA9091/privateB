@@ -1170,6 +1170,33 @@ export function createMiner ({
     return { logs: logCount(), secs: (Date.now() - started) / 1000 }
   }
 
+  // Proactive map-driven trip: walk to a position the shared map KNOWS for one of
+  // `findNames`, then dig a short descent there with `digNames`. This is how the
+  // fleet turns scout/map knowledge into actual collection of the plan's top
+  // resources (v0.6.9: sand collected=0 while the map held 194 sand positions).
+  // Returns the found block name, or null when the map had nothing reachable.
+  // Failed destinations land in failedTrips so the fleet never re-bounces on them.
+  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 24000, maxBlocks = 24, maxDistance = 128 } = {}) {
+    const target = mapTargetFor(findNames, { maxDistance, verify: false })
+    if (!target) return null
+    const key = `${target.pos.x},${target.pos.y},${target.pos.z}`
+    stats.mapTrips++
+    try {
+      await gotoSafe(bot, standGoalNear(bot, goals, target.pos.x, target.pos.y, target.pos.z, { range: 4 }), { timeoutMs: walkTimeoutMs, label: `map trip ${target.name}` })
+    } catch {
+      failedTrips.add(key)
+      if (failedTrips.size > 32) failedTrips.clear() // bounded amnesia, same as workOnGround
+      return null
+    }
+    recordToMap({ maxDistance: 32, count: 32 })
+    // eat what we came for: a short descent at the arrival point collects the target
+    // block plus whatever sits underneath (a sand column ends in stone - which the
+    // plan wants anyway). digNames must be the bot's FULL minable list: a sand-only
+    // list would make digShaft sidestep forever once the column turns to stone.
+    await digShaft(digNames ?? findNames, { maxBlocks })
+    return target.name
+  }
+
   // Walk to the nearest chest and bank everything but the tool kit. Soft no-op when no
   // chest is in range (CI worlds have none) - a full inventory must never kill a bot.
   async function depositLoot (opts = {}) {
@@ -1178,7 +1205,7 @@ export function createMiner ({
     return res
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.

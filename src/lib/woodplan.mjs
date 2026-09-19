@@ -11,7 +11,29 @@
 //    retried the bootstrap - 8/19 bots ended the v0.6.9 run without a pickaxe.
 //
 // This module pins the decision logic for fix 1 (the stall escape). Fix 2 lives in
-// the fleet loop (testbed/fleet19.mjs): periodic re-bootstrap when there is no pickaxe.
+// the fleet loop (testbed/fleet19.mjs): periodic re-bootstrap when there is no pickaxe,
+// with its timing predicate below.
+
+/**
+ * Should the fleet loop interrupt the current shaft and re-run the tool bootstrap?
+ * The v0.7.0 fleet still ended with recovered=0: the check lived ONLY between shafts
+ * while one digShaft descent runs ~90s, so the remaining-time guard never saw a due
+ * recovery. The fleet now evaluates this SAME predicate inside digShaft's shouldStop.
+ *
+ * @param {object} p
+ * @param {boolean} p.hasPick does the bot hold a pickaxe right now
+ * @param {number} p.msSinceLast ms since the last bootstrap attempt (initial one included)
+ * @param {number} p.remainingMs ms left until the run's deadline
+ * @param {number} [p.cooldownMs] minimum gap between bootstrap attempts
+ * @param {number} [p.minRemainingMs] do not start a ~85s bootstrap near the deadline
+ * @returns {boolean}
+ */
+export function recoveryDue ({ hasPick, msSinceLast, remainingMs, cooldownMs = 45000, minRemainingMs = 80000 }) {
+  if (hasPick) return false
+  if (!Number.isFinite(msSinceLast) || msSinceLast <= cooldownMs) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
+  return true
+}
 
 /**
  * Should a wood-gathering loop stop hunting and go craft with what it already holds?
