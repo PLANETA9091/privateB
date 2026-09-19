@@ -15,6 +15,7 @@ import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
+import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
@@ -41,6 +42,7 @@ try {
 
 const deadline = Date.now() + SECONDS * 1000
 const bots = new Map() // name -> { miner, target }
+const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs)
 let spawned = 0
 let reconnects = 0
 let toolsOk = 0
@@ -102,6 +104,13 @@ async function runBot (name, target, index) {
       })
       bots.set(name, { miner, target })
       await miner.ready
+
+      // Bound the process memory: stale chunk columns (missed unload packets,
+      // respawn dimension switches) pushed the first Big Fleet run into a 4 GB
+      // heap OOM at t+210s. The guard evicts far columns + nudges the GC and its
+      // stats are printed by the reporter below.
+      const guard = attachMemoryGuard(miner.bot, { log: () => {} })
+      guards.set(name, guard)
 
       // FLEET_SYNC=1: hear the OTHER processes' broadcasts (a scout in a second terminal)
       // and merge them into this process's shared map; also broadcast our own finds.
@@ -190,6 +199,7 @@ async function runBot (name, target, index) {
       // reference inside THIS process; chat (PVB1, src/fleet/chatsync.mjs) is the only
       // channel to OTHER processes - a scout in a second terminal merges our finds live.
       if (sync) sync.stop()
+      if (guard) { guard.stop(); guards.delete(name) }
 
       // end-of-run banking: after the deadline the pockets still hold loot that would
       // otherwise be lost when the bot quits - one final walk to the chests. Skipped
@@ -274,6 +284,13 @@ const reporter = setInterval(() => {
     return `${m.username}=${m.stats.mined}[${top || 'empty'}]`
   }).join(' | ')
   console.log(`   ${detail}`)
+  // memory line: the OOM run had no visibility into heap growth at all
+  const mem = process.memoryUsage()
+  const gs = [...guards.values()].map(g => { try { return g.stats() } catch { return null } }).filter(Boolean)
+  const cols = gs.reduce((a, s) => a + s.columns, 0)
+  const ents = gs.reduce((a, s) => a + s.entities, 0)
+  const evicted = gs.reduce((a, s) => a + s.evicted, 0)
+  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted}`)
 }, 15000)
 
 await Promise.all(runners)

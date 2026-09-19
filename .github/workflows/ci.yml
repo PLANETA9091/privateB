@@ -130,6 +130,11 @@ jobs:
     needs: [unit, integration]
     if: github.event_name == 'workflow_dispatch' && inputs.run_fleet == 'true'
     timeout-minutes: 40
+    env:
+      # The first Big Fleet run OOMed at the default ~4 GB heap cap. Cap it lower
+      # so the failure mode is a clean V8 OOM in the log (with the mem: line right
+      # above it), not an OS-level kill; the Java server needs its 2 GB headroom.
+      NODE_OPTIONS: --max-old-space-size=3584
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -150,9 +155,9 @@ jobs:
             "https://piston-data.mojang.com/v1/objects/823e2250d24b3ddac457a60c92a6a941943fcd6a/server.jar"
       - name: Launch the fleet (19 bots, 5 minutes)
         run: |
+          set -o pipefail   # an OOM in the fleet process must fail this step, not be masked by tee
           scripts/server.sh start
-          scripts/server.sh cmd "op F1"
-          node testbed/fleet19.mjs 19 300 sand,gravel,dirt,stone | tee /tmp/fleet19.log
+          node --expose-gc testbed/fleet19.mjs 19 300 sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
       - name: Upload fleet log
         if: always()
         uses: actions/upload-artifact@v4
