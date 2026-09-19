@@ -2,6 +2,7 @@
 // logs -> planks -> sticks -> crafting table -> wooden pickaxe/shovel -> stone tools.
 import { Vec3 } from 'vec3'
 import { withTimeout } from '../lib/jobqueue.mjs'
+import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 
@@ -417,6 +418,46 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   }
   step(`final: ${inventoryItems(bot).filter(i => i.name.includes('pickaxe') || i.name.includes('shovel') || i.name.includes('axe')).map(i => i.name).join(', ') || 'none'}`)
   return { ok: hasKind(bot, 'pickaxe'), kit: inventoryItems(bot).filter(i => i.name.includes('pickaxe')).map(i => i.name).join(',') }
+}
+
+// tools.mjs imports (top of file) already include withTimeout; surplus import here
+
+/**
+ * (v0.9.2) Mid-run inventory hygiene: fragmented plank types -> sticks.
+ * Planks are on the deposit KEEP list, so 12-type fragmentation is permanent pocket
+ * dead weight (v0.8.x fleets: 5 slots of 5-15 planks each that never add up). Sticks
+ * are type-agnostic: 2 planks of one type -> 4 sticks, and every future tool tier
+ * eats them. Called by the fleet loop right before the bank walk (a smaller pocket
+ * makes the walk shorter or unnecessary). Bounded; never throws.
+ */
+export async function consolidateSurplus (bot, { log = () => {}, maxSeconds = 12, stickCap = 32 } = {}) {
+  const started = Date.now()
+  const step = msg => log(`[surplus] ${msg}`)
+  try {
+    const plan = surplusPlan({ items: inventoryItems(bot) })
+    if (!plan.total) return { ok: true, sticksGained: 0, burned: 0 }
+    const before = countItem(bot, 'stick')
+    if (before >= stickCap) return { ok: true, sticksGained: 0, burned: 0 }
+    let burned = 0
+    for (const [plankName] of plan.convert) {
+      while ((Date.now() - started) / 1000 < maxSeconds &&
+             countItem(bot, plankName) >= 2 && countItem(bot, 'stick') < stickCap) {
+        const had = countItem(bot, plankName)
+        // one craft batch: 2 planks of THIS type -> 4 sticks (2x2, no table). craft()
+        // already carries the 26.2 phantom-craft recovery (window close + grid sweep).
+        if (!await craft(bot, 'stick', 1, null, step)) break
+        // VERIFIED burn: a phantom craft that consumed nothing must not loop forever
+        if (countItem(bot, plankName) === had) break
+        burned += 2
+      }
+    }
+    const gained = countItem(bot, 'stick') - before
+    step(`plan total=${plan.total} (max ${sticksFromPlanks(plan.total)} sticks) -> burned ${burned} planks, gained ${gained} sticks`)
+    return { ok: true, sticksGained: gained, burned }
+  } catch (e) {
+    step(`failed: ${e.message}`)
+    return { ok: false, sticksGained: 0, burned: 0, error: e.message }
+  }
 }
 
 const STONE_OR_BETTER = ['stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe', 'golden_pickaxe']

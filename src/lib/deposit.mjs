@@ -10,10 +10,13 @@ const { goals } = pathfinderPkg
 export const CHEST_NAMES = ['chest', 'trapped_chest', 'barrel', 'ender_chest']
 
 // Never banked: the bot needs these to keep working (and to survive the night).
+// (v0.9.0) sapling is replant stock: banking it made every bot chop its next tree
+// into a bare stump with nothing to plant back - the regrow loop needs the sapling
+// to stay in the pocket until it is planted at a stump.
 export const KEEP = [
   'pickaxe', 'shovel', 'axe', 'sword', 'hoe', 'crafting_table', 'furnace',
   'stick', 'planks', 'log', 'torch', 'bread', 'apple', 'porkchop', 'beef',
-  'carrot', 'potato', 'cooked_'
+  'carrot', 'potato', 'cooked_', 'sapling'
 ]
 
 // Rough fullness metric: 36 slots total (27 main + 9 hotbar); stack size 64 makes

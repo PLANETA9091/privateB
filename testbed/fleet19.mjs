@@ -18,7 +18,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
-import { ensureTools, countItem } from '../src/bots/tools.mjs'
+import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import { recoveryDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
@@ -256,10 +256,12 @@ async function runBot (name, target, index) {
         })
         if (Date.now() > deadline || !miner.bot.entity) break
         if (interrupted) continue // recovery OR upgrade is due - skip the walk/trip, let the top of the loop handle it
-        // pockets nearly full: smelt the raw loot, then bank the products in the
-        // yard's chest rows before digging on (a full inventory turns every further
-        // dig into a wasted drop)
+        // pockets nearly full: merge fragmented planks into sticks (KEEP keeps planks,
+        // so 12-type fragmentation is permanent otherwise), then smelt the raw loot
+        // and bank the products in the yard's chest rows before digging on (a full
+        // inventory turns every further dig into a wasted drop)
         if (miner.inventoryLoad().slots >= 30) {
+          try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           const res = await smeltThenBank(miner)
           if (res.deposited > 0) banked += res.deposited
         }
