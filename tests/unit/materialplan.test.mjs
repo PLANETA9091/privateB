@@ -114,10 +114,10 @@ test('planItemsOf: plain resources fall back through DROP_OF to the name itself'
 })
 
 test('planHave: sums every counting item across the inventory snapshot', () => {
-  const items = [p9('iron_ingot', 12), p9('raw_iron', 30), p9('oak_planks', 5), p9('stone', 64)]
+  const items = [p9('iron_ingot', 12), p9('raw_iron', 30), p9('oak_planks', 5), p9('cobblestone', 64)]
   assert.equal(planHave(items, 'iron_ingot'), 42)
   assert.equal(planHave(items, 'planks'), 5)
-  assert.equal(planHave(items, 'stone'), 64)
+  assert.equal(planHave(items, 'stone'), 64, 'stone counts through DROP_OF -> cobblestone')
 })
 
 test('planHave: junk input is ignored, never crashes', () => {
