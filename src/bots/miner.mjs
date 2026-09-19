@@ -28,6 +28,7 @@ export function createMiner ({
   antiKickDistance = 0.035,
   fly = false, // flight OFF by default: with allow-flight=false vanilla kicks hovering bots
   mode = 'rage', // 'rage' = FastBreak cheat, 'honest' = plain client dig time
+  map = null, // WorldMap: scouts (and this bot itself) fill it, we consume it when the local scan is empty
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -36,9 +37,49 @@ export function createMiner ({
   bot.loadPlugin(autoeat)
   bot.loadPlugin(pathfinder)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
+
+  // ---- scout -> miner integration (WorldMap) ----
+  // Record what we can see right now into the shared map: every walking miner is a
+  // passive scout, so the map fills up even when no dedicated scout is around.
+  // Cheap: findBlocks on loaded chunks, dedup happens inside map.add.
+  const mapTargets = new Set(['sand', 'gravel', 'clay', 'coal_ore', 'iron_ore', 'copper_ore', 'oak_log', 'birch_log', 'spruce_log', 'dark_oak_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'mangrove_log'])
+  function recordToMap ({ maxDistance = 32, count = 64 } = {}) {
+    if (!map) return 0
+    try {
+      const found = bot.findBlocks({ matching: b => mapTargets.has(b.name), maxDistance, count })
+      const here = bot.entity.position.floored()
+      map.markScanned(here.x >> 4, here.z >> 4)
+      for (const pos of found) {
+        const block = bot.blockAt(pos)
+        if (!block) continue
+        const before = map.size(block.name)
+        map.add(block.name, pos)
+        if (map.size(block.name) > before) stats.mapRecords++
+      }
+      return found.length
+    } catch { /* chunk unloaded mid-scan - skip this round */ }
+    return 0
+  }
+
+  // Where does the fleet KNOW a target is? Verify through blockAt so stale entries
+  // (already mined by another bot) are dropped from the map as a side effect.
+  const failedTrips = new Set() // "x,y,z" the pathfinder could not handle - do not retry forever
+  function mapTargetFor (names, { maxDistance = 96 } = {}) {
+    if (!map) return null
+    let best = null
+    for (const name of names) {
+      const pos = map.nearest(name, bot.entity.position, {
+        maxDistance,
+        verifyWith: p => bot.blockAt(p)
+      })
+      if (pos && failedTrips.has(`${pos.x},${pos.y},${pos.z}`)) continue
+      if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
+    }
+    return best
+  }
 
   bot.on('error', e => log(`${tag} error: ${e.message}`))
   // socket-level failures (EPIPE when the server closes the connection) must not kill the run
@@ -663,6 +704,7 @@ export function createMiner ({
         dug++
         stats.mined++
         stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
+        map?.take(block.name, pos) // mined away - no other bot should walk here for it
       }
 
       // 2. one single walk to collect the whole batch (the bot only moves once per batch)
@@ -679,9 +721,28 @@ export function createMiner ({
         try { await gotoSafe(bot, new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
       }
       if (onProgress) onProgress(done, stats)
+
+      // 3. nothing in reach: ask the map where the fleet KNOWS a target is (scout data or
+      //    what another miner recorded). A verified trip replaces a blind direction hop.
+      if (dug === 0) {
+        const known = mapTargetFor(names)
+        if (known) {
+          stats.mapTrips++
+          try {
+            await gotoSafe(bot, new goals.GoalNear(known.pos.x, known.pos.y, known.pos.z, 2), { timeoutMs: 25000, label: `map trip ${known.name}` })
+          } catch {
+            failedTrips.add(`${known.pos.x},${known.pos.y},${known.pos.z}`)
+            if (failedTrips.size > 32) failedTrips.clear() // bounded amnesia
+          }
+          recordToMap()
+          continue // re-scan at the new spot instead of also doing the direction hop
+        }
+      }
+
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
       try { await gotoSafe(bot, new goals.GoalNear(goal.x, goal.y, goal.z, 3)) } catch { /* keep working here */ }
+      recordToMap() // every walking miner is a passive scout
     }
     const secs = (Date.now() - started) / 1000
     stats.secs = secs
@@ -963,7 +1024,7 @@ export function createMiner ({
     return { logs: logCount(), secs: (Date.now() - started) / 1000 }
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, map, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.
