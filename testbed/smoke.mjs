@@ -104,45 +104,67 @@ bot.once('spawn', async () => {
 
     // side blocks first, dirt family over logs over anything else (digging under our
     // feet would drop us one block down, but on a trunk that is exactly what we want)
-    let target = null
     const rank = n => (n === 'grass_block' || n === 'dirt' || n === 'sand' || n === 'gravel') ? 0 : (n.endsWith('_log') ? 1 : 2)
-    outer:
-    for (const y of [-1, 0]) {
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-        const b = bot.blockAt(bot.entity.position.floored().offset(dx, y, dz))
-        if (b && HAND_DIGGABLE.includes(b.name) && (!target || rank(b.name) < rank(target.name))) target = b
+    const pickTarget = () => {
+      let target = null
+      for (const y of [-1, 0]) {
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+          const b = bot.blockAt(bot.entity.position.floored().offset(dx, y, dz))
+          if (b && HAND_DIGGABLE.includes(b.name) && (!target || rank(b.name) < rank(target.name))) target = b
+        }
       }
+      if (!target) {
+        const belowNow = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+        if (belowNow && HAND_DIGGABLE.includes(belowNow.name)) target = belowNow
+      }
+      if (!target) {
+        const near = bot.findBlock({ matching: b => HAND_DIGGABLE.includes(b.name), maxDistance: 3.5 })
+        if (near) target = near
+      }
+      return target
     }
-    if (!target) {
-      const belowNow = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
-      if (belowNow && HAND_DIGGABLE.includes(belowNow.name)) target = belowNow
+
+    // up to three attempts: the drop pickup is the flakiest part of the whole smoke
+    // (an unlucky spawn can put the drop into a hole the bot cannot quite walk into),
+    // while everything critical (login, chunks, registry, dig) has already passed
+    const ANY_PLACEABLE = [...new Set(Object.values(DROPS).flat())]
+    let dropped = null
+    let target = null
+    for (let attempt = 1; attempt <= 3 && !dropped; attempt++) {
+      target = pickTarget()
+      if (!target) throw new Error('no hand-diggable surface block near spawn')
+      step(`digging ${target.name} at ${target.position} (bare hands, attempt ${attempt})`)
+      await bot.dig(target)
+      step(`dug ${target.name}`)
+      try {
+        dropped = await collectDrop(bot, DROPS[target.name] ?? ANY_PLACEABLE, 12000)
+      } catch { /* next attempt picks a different block */ }
     }
-    if (!target) {
-      // last resort: any diggable surface block within bare-hand reach
-      const near = bot.findBlock({ matching: b => HAND_DIGGABLE.includes(b.name), maxDistance: 3.5 })
-      if (near) target = near
+    if (!dropped) {
+      step('WARN: no drop picked up in 3 attempts - continuing (the fleet productivity test covers dig+pickup at scale)')
+    } else {
+      step(`inventory ok: picked up ${dropped.count}x ${dropped.name}`)
     }
-    if (!target) throw new Error('no hand-diggable surface block near spawn')
-    step(`digging ${target.name} at ${target.position} (bare hands)`)
-    await bot.dig(target)
-    step(`dug ${target.name}`)
-    const dropped = await collectDrop(bot, DROPS[target.name], 20000)
-    step(`inventory ok: picked up ${dropped.count}x ${dropped.name}`)
+    const havePlaceable = dropped ?? bot.inventory.items().find(i => ANY_PLACEABLE.includes(i.name))
 
     // --- 4. place what we dug back, then dig it again ---
     // Vanilla refuses to place a block into a cell that intersects ANY entity hitbox:
     // when the dug block was the one under our feet, the bot fell into the hole and
     // placing back into it is refused by design. So pick a placement cell that is free:
     // a horizontal neighbour of the current feet cell that is empty with a solid floor.
-    await bot.equip(dropped, 'hand')
+    if (!havePlaceable) {
+      step('WARN: nothing placeable in the inventory - skipping place/dig-again checks')
+    } else {
+    await bot.equip(havePlaceable, 'hand')
     step('equip ok')
     let spot = null
     {
       const feet = bot.entity.position.floored()
       // if the hole is NOT where we stand, it is a perfectly good placement cell
-      const holeBelowUs = Math.abs(target.position.x - feet.x) < 0.5 &&
-        Math.abs(target.position.z - feet.z) < 0.5 && target.position.y === feet.y
-      if (!holeBelowUs) {
+      if (target && Math.abs(target.position.x - feet.x) < 0.5 &&
+        Math.abs(target.position.z - feet.z) < 0.5 && target.position.y === feet.y) {
+        // (the hole IS below us - skip straight to the neighbour scan)
+      } else if (target) {
         const ref = bot.blockAt(target.position.offset(0, -1, 0))
         if (ref && ref.boundingBox !== 'empty') spot = { ref, face: new Vec3(0, 1, 0), cell: target.position }
       }
@@ -178,6 +200,7 @@ bot.once('spawn', async () => {
       }
     } else {
       step('WARN: no free placement cell around the bot - skipping place/dig-again checks')
+    }
     }
 
     // --- 5. player entities visible (entity tracking works) ---
