@@ -19,16 +19,22 @@ function recipeFor (bot, itemName, table) {
 }
 
 async function craft (bot, itemName, times, table = null) {
-  const recipe = recipeFor(bot, itemName, table)
-  if (!recipe) return false
-  // the craft window is flaky on a moving server (clicks desync, the window closes
-  // mid-sequence): retry a couple of times before giving up on the recipe
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      // bot.craft can hang when the window desyncs - fence it with a hard timeout
-      await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
-      return true
-    } catch { /* retry */ }
+  const id = bot.registry.itemsByName[itemName]?.id
+  if (id == null) return false
+  const recipes = bot.recipesFor(id, null, 1, table ?? null) || []
+  if (!recipes.length) return false
+  // A tree-fleet inventory holds MIXED plank types (oak + birch + ...); every plank
+  // recipe exists once per plank type, and recipes[0] may be the variant whose plank
+  // we do not have - that is why the pickaxe "never" crafted while the shovel did.
+  // Try every variant before giving up.
+  for (const recipe of recipes) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        // bot.craft can hang when the window desyncs - fence it with a hard timeout
+        await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
+        return true
+      } catch { /* next attempt / next variant */ }
+    }
   }
   return false
 }
@@ -43,8 +49,18 @@ async function craft (bot, itemName, times, table = null) {
 // it, so there is nowhere to put the table. If no spot works and the block under us is
 // diggable, dig it, fall towards the terrain and retry - on the ground the neighbours'
 // floors are solid dirt/grass.
+// A table the bot cannot reach is useless for crafting: two bots spawn ~18 blocks
+// apart, so placeTable must never "reuse" the OTHER bot's table (openCraftingTable on
+// an out-of-reach block hangs until the craft timeout burns the whole budget).
+const TABLE_REACH = 4.5
+const reachableTable = bot => bot.findBlock({
+  matching: b => b.name === 'crafting_table' &&
+    bot.entity.position.distanceTo(b.position) <= TABLE_REACH,
+  maxDistance: TABLE_REACH
+})
+
 async function placeTable (bot, { rounds = 3 } = {}) {
-  const find = () => bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
+  const find = () => reachableTable(bot)
   for (let round = 0; round < rounds; round++) {
     const existing = find()
     if (existing) return existing
