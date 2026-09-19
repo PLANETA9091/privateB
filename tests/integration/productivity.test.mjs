@@ -25,6 +25,13 @@ const WINDOW_SECONDS = Number(process.env.FLEET_TEST_SECONDS || 90)
 const BOT_COUNT = Number(process.env.FLEET_TEST_BOTS || 2)
 const MIN_BLOCKS_PER_WINDOW = Number(process.env.FLEET_TEST_MIN_BLOCKS || 6)
 
+// A fleet of bots on real sockets WILL occasionally hit mineflayer-internal paths
+// that reject with nobody awaiting them (a placeBlock chain after a socket drop, an
+// autoeat tick on a closing connection). Node kills the whole process for those, which
+// would take the healthy bots down with the dead one - log and stay alive instead.
+process.on('unhandledRejection', e => log(`unhandled rejection (kept alive): ${e?.stack || e}`))
+process.on('uncaughtException', e => log(`uncaught exception (kept alive): ${e?.stack || e}`))
+
 const logDir = path.join('/tmp', `fleet-test-${process.pid}`)
 fs.mkdirSync(logDir, { recursive: true })
 const logFile = path.join(logDir, 'fleet.log')

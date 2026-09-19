@@ -121,6 +121,9 @@ async function runBot (name, target, index) {
   }
 }
 
+process.on('unhandledRejection', e => console.log(`[fleet] unhandled rejection (kept alive): ${e?.stack || e}`))
+process.on('uncaughtException', e => console.log(`[fleet] uncaught exception (kept alive): ${e?.stack || e}`))
+
 console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join(', ')}`)
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
