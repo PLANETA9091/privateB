@@ -490,7 +490,8 @@ export function createMiner ({
         const dist = bot.entity.position.distanceTo(known)
         log(`${tag} ${name}: map knows a site ${dist.toFixed(0)} blocks away at ${known.floored()}`)
         try {
-          await bot.flyTravel(known.offset(0, 4, 0), { speed: 2.0, cruiseAbove: 30, timeoutMs: 90000 })
+          await travelTo(known.offset(0, 4, 0), { speed: 2.0, cruiseAbove: 30, timeoutMs: 90000 })
+          await landHere()
           stats0.travelled += dist
         } catch (e) {
           log(`${tag} travel to site failed: ${e.message}`)
@@ -511,7 +512,8 @@ export function createMiner ({
           bot.entity.position.z + (dir === 2 ? 96 : dir === 3 ? -96 : 0)
         )
         try {
-          await bot.flyTravel(step, { speed: 2.0, cruiseAbove: 26, timeoutMs: 30000 })
+          await travelTo(step, { speed: 2.0, cruiseAbove: 26, timeoutMs: 30000 })
+          await landHere()
           stats0.travelled += 96
         } catch { /* keep searching */ }
         continue
@@ -529,14 +531,16 @@ export function createMiner ({
           bot.entity.position.z + (dir === 2 ? 48 : dir === 3 ? -48 : 0)
         )
         try {
-          await bot.flyTravel(step, { speed: 2.0, cruiseAbove: 12, timeoutMs: 20000 })
+          await travelTo(step, { speed: 2.0, cruiseAbove: 12, timeoutMs: 20000 })
+          await landHere()
           stats0.travelled += 48
         } catch { /* keep searching */ }
         continue
       }
       if (bot.entity.position.distanceTo(spot) > 3) {
         try {
-          await bot.flyTravel(spot, { speed: 2.0, cruiseAbove: 14, timeoutMs: 30000 })
+          await travelTo(spot, { speed: 2.0, cruiseAbove: 14, timeoutMs: 30000 })
+          await landHere()
           stats0.travelled += 8
         } catch { /* mine from where we are */ }
       }
@@ -839,45 +843,110 @@ export function createMiner ({
 
   // ---------------------------------------------------------------- wood run
   const LOG_NAMES = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log']
+  const LEAF_NAMES = ['oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves']
   const logCount = () => bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)
+
+  // Ground chopping: dig every log within reach at the trunk base (lowest first), then
+  // walk over the drops. A vertical shaft only works from the top of the tree (flight);
+  // on foot the trunk must be eaten from the side, which reach 4.5 fully covers for the
+  // usual 4-5 log trunk.
+  async function chopReachable () {
+    const batch = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 4.5, count: 40 })
+      .sort((a, b) => a.y - b.y) // lowest first: the trunk bottom is what keeps the rest up
+    let n = 0
+    for (const pos of batch) {
+      if (logCount() > 0 && n >= 6) break // enough for a full tool kit from one tree
+      const block = bot.blockAt(pos)
+      if (!block || block.type === 0) continue
+      try {
+        await bot.fastDig(block)
+        n++
+        stats.mined++
+        stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
+      } catch { /* next log */ }
+    }
+    // pick up what fell: walk to the item entities (pickup radius is small)
+    const drops = Object.values(bot.entities)
+      .filter(e => e.name === 'item' && e.position.distanceTo(bot.entity.position) < 14)
+      .slice(0, 8)
+    for (const drop of drops) {
+      try { await bot.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
+    }
+    return n
+  }
+
+  // Travel for ground mode: fly when the flight module is installed, otherwise walk
+  // with the pathfinder under a hard timeout (harvestSite used to be fly-only and
+  // silently did nothing without flight).
+  async function travelTo (vec, { timeoutMs = 30000, speed = 2.0, cruiseAbove = 14 } = {}) {
+    if (typeof bot.flyTravel === 'function') {
+      await bot.flyTravel(vec, { speed, cruiseAbove, timeoutMs })
+      return
+    }
+    await withTimeout(
+      bot.pathfinder.goto(new goals.GoalNear(vec.x, vec.y, vec.z, 3)),
+      timeoutMs,
+      'travel'
+    )
+  }
 
   /**
    * Spawn -> fly up -> fly to the nearest tree -> come down -> chop it, then look for the next
    * one. Simple and deterministic, and (unlike the pathfinder loops) it always makes progress.
+   * On foot: walk to the lowest unseen trunk, eat the trunk from the side, walk on.
    */
   async function gatherWood ({ want = 8, direction = new Vec3(1, 0, 0), shouldStop = null, maxSeconds = 180 } = {}) {
     const started = Date.now()
+    const visitedTrunks = new Set() // "x,z" of every trunk we already ate (floating tops stay behind)
+    let idleChops = 0
     while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
-      const tree = bot.findBlock({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 128 })
-      if (!tree) {
-        // no forest in view: walk outwards and look again (flight is optional)
+      // lowest log first: that is a trunk base; a floating top of an eaten tree sorts higher
+      // and is skipped by the visited-column check
+      const cands = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 128, count: 24 })
+        .sort((a, b) => (a.y - b.y) || (a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position)))
+      const base = cands.find(p => !visitedTrunks.has(`${p.x},${p.z}`))
+      if (!base) {
+        // only eaten trunks in view: move along our direction and look again
         const here = bot.entity.position
-        const out = new Vec3(here.x + direction.x * 64, here.y, here.z + direction.z * 64)
+        const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
         try {
           await bot.pathfinder.goto(new goals.GoalNear(out.x, out.y, out.z, 4))
         } catch { /* try again next round */ }
         continue
       }
+      visitedTrunks.add(`${base.x},${base.z}`)
       // go to the tree: fly when flight is enabled, otherwise walk there
-      const here = bot.entity.position
       if (bot.flyTravel) {
         try {
-          await bot.flyTo(new Vec3(here.x, here.y + 25, here.z), { speed: 2.0, timeoutMs: 10000 })
-          await bot.flyTravel(new Vec3(tree.position.x, tree.position.y + 5, tree.position.z), { speed: 2.0, cruiseAbove: 10, timeoutMs: 30000 })
+          await bot.flyTo(new Vec3(bot.entity.position.x, bot.entity.position.y + 25, bot.entity.position.z), { speed: 2.0, timeoutMs: 10000 })
+          await bot.flyTravel(new Vec3(base.position.x, base.position.y + 5, base.position.z), { speed: 2.0, cruiseAbove: 10, timeoutMs: 30000 })
         } catch { /* chop from wherever we are */ }
       } else {
         try {
-          await bot.pathfinder.goto(new goals.GoalNear(tree.position.x, tree.position.y, tree.position.z, 3))
+          await bot.pathfinder.goto(new goals.GoalNear(base.x, base.y, base.z, 2))
         } catch { /* try to chop what is in reach */ }
       }
-      // chop: dig straight down through the canopy and the trunk. The bot arrives on top of the
-      // tree, so a vertical shaft eats the leaves and then the whole trunk, and gravity carries
-      // it down while the drops land at its feet.
-      enablePhysicsMode()
-      await digShaft([...LOG_NAMES, 'oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves'], {
-        maxBlocks: 40,
-        shouldStop: () => logCount() >= want || shouldStop?.()
-      })
+      if (bot.flyTravel) {
+        // chop: dig straight down through the canopy and the trunk. The bot arrives on top of the
+        // tree, so a vertical shaft eats the leaves and then the whole trunk, and gravity carries
+        // it down while the drops land at its feet.
+        enablePhysicsMode()
+        await digShaft([...LOG_NAMES, ...LEAF_NAMES], {
+          maxBlocks: 40,
+          shouldStop: () => logCount() >= want || shouldStop?.()
+        })
+      } else {
+        const chopped = await chopReachable()
+        idleChops = chopped > 0 ? 0 : idleChops + 1
+        if (idleChops >= 3) {
+          // three trees in a row yielded nothing (cliffs, water, fenced yards): relocate
+          idleChops = 0
+          const here = bot.entity.position
+          try {
+            await bot.pathfinder.goto(new goals.GoalNear(here.x + direction.x * 24, here.y, here.z + direction.z * 24, 4))
+          } catch { /* keep looking */ }
+        }
+      }
     }
     return { logs: logCount(), secs: (Date.now() - started) / 1000 }
   }
