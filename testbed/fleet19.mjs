@@ -52,13 +52,22 @@ const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).le
 // Materials plan progress: for every resource the base needs, how much the fleet is
 // holding right now (inventories) vs the required amount. This is what turns a
 // "blocks/s" number into actual progress towards the build.
+// Vanilla DROPS, not the block, land in the inventory: stone mines to cobblestone,
+// grass_block to dirt, deepslate to cobbled_deepslate - count those instead or every
+// mined shaft shows as 0 collected (the first fleet run: stone 415 mined, 0 collected).
+const DROP_OF = {
+  stone: 'cobblestone',
+  deepslate: 'cobbled_deepslate',
+  grass_block: 'dirt'
+}
 function materialsProgress () {
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const out = {}
   for (const [res, required] of Object.entries(need)) {
     if (!Number.isFinite(required) || required <= 0) continue
-    const have = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, res) : 0), 0)
-    out[res] = { required, have, pct: Math.min(100, (have / required) * 100) }
+    const item = DROP_OF[res] ?? res
+    const have = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, item) : 0), 0)
+    out[res] = { required, have, item, pct: Math.min(100, (have / required) * 100) }
   }
   return out
 }
@@ -160,6 +169,10 @@ async function runBot (name, target, index) {
           const res = await miner.depositLoot()
           if (res.deposited > 0) banked += res.deposited
         }
+        // underground the bot still SEES ores in the shaft walls - record them into the
+        // shared map (fleet digs with digShaft, which never goes through workOnGround,
+        // so without this hook the fleet's map stayed empty the whole first run)
+        miner.recordToMap({ maxDistance: 24, count: 32 })
         // step to a fresh column and dig the next shaft
         shaft++
         const here = miner.bot.entity.position
