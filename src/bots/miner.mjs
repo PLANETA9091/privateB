@@ -712,7 +712,11 @@ export function createMiner ({
     const canPathTo = (pos) => {
       try {
         const goal = new goals.GoalNear(pos.x + 0.5, pos.y, pos.z + 0.5, 3)
-        const path = bot.pathfinder.getPathTo(bot.pathfinder.movements, goal, 2500)
+        // PATHFINDER A* IS SYNCHRONOUS: the budget is event-loop BLOCKED time, and the
+        // server times a bot out after ~30s of unanswered keepalives. 24 probes x 2.5s
+        // used to freeze the loop for a full minute (bots 'Timed out' mid-gather).
+        // 600ms per probe is enough for a 3-block neighbourhood answer.
+        const path = bot.pathfinder.getPathTo(bot.pathfinder.movements, goal, 600)
         return !!(path && path.status === 'success' && path.path && path.path.length > 0)
       } catch {
         return false

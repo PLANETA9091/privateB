@@ -98,12 +98,15 @@ export class MiningJobQueue {
   // First queued job that is not blacklisted and passes canReach(). Unreachable jobs
   // stay in the queue (a later mining neighbour may open a path to them) but the scan
   // remembers how many we tried, so a fully unreachable queue does not cost O(n) scans.
-  async popReachable ({ maxProbe = 24 } = {}) {
+  async popReachable ({ maxProbe = 10 } = {}) {
     let probes = 0
     while (this.jobs.length && probes < maxProbe) {
       const job = this.jobs.shift()
       if (this.isBlacklisted(job.pos)) continue
       probes++
+      // yield between probes: canReach may run synchronous pathfinding, and back-to-back
+      // probes used to block the event loop long enough for the server to time the bot out
+      await new Promise(resolve => setImmediate(resolve))
       let ok = false
       try {
         ok = await this.canReach(job)
