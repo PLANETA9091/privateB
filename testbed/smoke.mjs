@@ -35,8 +35,10 @@ bot.on('end', r => step(`disconnected: ${r}`))
 
 bot.once('login', () => step('login ok'))
 
-// blocks a bare hand can dig on the surface and the items they drop
-const HAND_DIGGABLE = ['grass_block', 'dirt', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay']
+// blocks a bare hand can dig WITH A DROP (logs drop themselves; leaves drop nothing
+// usable, they are only "eaten through" on the way down to the terrain)
+const HAND_DIGGABLE = ['grass_block', 'dirt', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay',
+  'oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log']
 const DROPS = {
   grass_block: ['dirt'],
   dirt: ['dirt'],
@@ -44,7 +46,14 @@ const DROPS = {
   podzol: ['dirt'],
   sand: ['sand'],
   gravel: ['gravel', 'flint'], // gravel has a 10% flint chance
-  clay: ['clay_ball']
+  clay: ['clay_ball'],
+  oak_log: ['oak_log'],
+  birch_log: ['birch_log'],
+  spruce_log: ['spruce_log'],
+  jungle_log: ['jungle_log'],
+  dark_oak_log: ['dark_oak_log'],
+  acacia_log: ['acacia_log'],
+  mangrove_log: ['mangrove_log']
 }
 
 bot.once('spawn', async () => {
@@ -93,13 +102,15 @@ bot.once('spawn', async () => {
       await bot.waitForTicks(12) // fall one block
     }
 
-    // side blocks first (digging under our feet would drop us one block down)
+    // side blocks first, dirt family over logs over anything else (digging under our
+    // feet would drop us one block down, but on a trunk that is exactly what we want)
     let target = null
+    const rank = n => (n === 'grass_block' || n === 'dirt' || n === 'sand' || n === 'gravel') ? 0 : (n.endsWith('_log') ? 1 : 2)
     outer:
     for (const y of [-1, 0]) {
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
         const b = bot.blockAt(bot.entity.position.floored().offset(dx, y, dz))
-        if (b && HAND_DIGGABLE.includes(b.name)) { target = b; break outer }
+        if (b && HAND_DIGGABLE.includes(b.name) && (!target || rank(b.name) < rank(target.name))) target = b
       }
     }
     if (!target) {

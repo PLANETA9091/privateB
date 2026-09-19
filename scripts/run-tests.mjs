@@ -35,8 +35,10 @@ if (!files.length) {
 console.log(`[run-tests] ${files.length} test file(s):`)
 for (const f of files) console.log(`  ${path.relative(root, f)}`)
 
+// --test-force-exit: a leaked handle (e.g. a timer installed by a module under test)
+// would otherwise keep a test child alive forever and stall the whole CI job.
 const reporter = process.stdout.isTTY ? ['--test-reporter=spec'] : []
-const res = spawnSync(process.execPath, ['--test', ...reporter, ...files], {
+const res = spawnSync(process.execPath, ['--test', '--test-force-exit', ...reporter, ...files], {
   stdio: 'inherit',
   cwd: root,
   timeout: 20 * 60 * 1000
