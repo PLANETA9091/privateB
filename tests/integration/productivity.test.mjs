@@ -123,6 +123,8 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   const minersAlive = () => miners.filter(m => m.bot.entity)
   let minedAtWindowStart = fleetStats(minersAlive()).mined
 
+  const miningStart = Date.now()
+  log(`mining phase: alive=${minersAlive().length}/${miners.length} window=${Math.round((miningDeadline - Date.now()) / 1000)}s pick=${minersAlive().filter(m => m.bot.inventory.items().some(it => it.name.includes('pickaxe'))).length}`)
   const work = minersAlive().map((m, i) => {
     const soft = ['dirt', 'grass_block', 'sand', 'gravel', 'clay', 'coarse_dirt', 'podzol']
     const pick = m.bot.inventory.items().some(it => it.name.includes('pickaxe'))
@@ -143,7 +145,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   }, windowMs)
 
   await Promise.race([
-    Promise.all(work),
+    Promise.all(work).then(() => log(`mining phase: all work promises SETTLED after ${Math.round((Date.now() - miningStart) / 1000)}s`)),
     new Promise(r => setTimeout(r, Math.max(1000, miningDeadline - Date.now())))
   ])
   clearInterval(sampler)
