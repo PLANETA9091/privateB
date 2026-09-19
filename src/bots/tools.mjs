@@ -101,9 +101,11 @@ const reachableTable = bot => bot.findBlock({
   maxDistance: TABLE_REACH
 })
 
-async function placeTable (bot, { rounds = 8 } = {}) {
+async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
   const find = () => reachableTable(bot)
+  const started = Date.now()
   for (let round = 0; round < rounds; round++) {
+    if (Date.now() - started > maxMs) break // give up in time so ensureTools can self-heal
     const existing = find()
     if (existing) return existing
     const tableItem = inventoryItems(bot).find(i => i.name === 'crafting_table')
@@ -118,6 +120,11 @@ async function placeTable (bot, { rounds = 8 } = {}) {
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
         if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
           try {
+            // vanilla ignores right-clicks that arrive less than 4 game ticks apart: the
+            // old loop fired all 8 neighbour attempts back-to-back (~120ms apart, this
+            // run: 16 attempts in 1.9s) and every packet after the first was silently
+            // dropped - the table never appeared and the bot reported 'no crafting table'
+            await bot.waitForTicks(5) // 250ms > the 200ms server throttle
             await bot.placeBlock(floorB, new Vec3(0, 1, 0))
             const placedB = bot.blockAt(cell)
             if (placedB && placedB.name === 'crafting_table') return placedB
@@ -225,7 +232,30 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   }
   step(`planks ${planks} (${plankCounts()}) sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)
 
-  const table = await placeTable(bot)
+  let table = await placeTable(bot)
+  if (!table) {
+    // Self-healing pass: the 26.2 craft window can silently eat ingredients (planks
+    // 'vanished' into a desynced grid) and vanilla drops right-clicks that come too
+    // fast, so BOTH failure modes above end here with the kit incomplete. Two roads:
+    // the table item exists -> just place it again (slower pacing makes it land);
+    // it does not -> gather fresh wood and rebuild planks/sticks/table from scratch.
+    if (!hasKind(bot, 'crafting_table') && timeLeft() > 25 && miner?.gatherWood) {
+      step('self-heal: rebuilding the table chain from fresh wood')
+      try { await miner.gatherWood({ want: 8, maxSeconds: Math.min(40, timeLeft() - 15) }) } catch { /* work with what we have */ }
+      await returnGridItems(bot)
+      for (const [logName, plankName] of Object.entries(PLANK_OF)) {
+        const want = Math.ceil((8 - countItem(bot, plankName)) / 4)
+        const times = Math.min(countItem(bot, logName), want)
+        if (times > 0) await craft(bot, plankName, times, null, step)
+      }
+      if (countItem(bot, 'stick') < 4) await craftUntil(bot, 'stick', { want: 4, log: step })
+      if (!hasKind(bot, 'crafting_table')) await craftUntil(bot, 'crafting_table', { want: 1, log: step })
+    } else {
+      await returnGridItems(bot) // a stuck grid is the usual placement-blocker too
+    }
+    table = await placeTable(bot)
+    step(`self-heal: table ${table ? 'placed' : 'STILL missing'}`)
+  }
   if (!table) return { ok: false, kit: 'no crafting table' }
 
   // 3. wooden tools, then stone ones if we can mine cobblestone. The pickaxe needs 3
