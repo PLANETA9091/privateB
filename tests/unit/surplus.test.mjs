@@ -53,10 +53,16 @@ test('surplusPlan: a plan worth less than minConvert planks is not worth a craft
   assert.equal(plan.dominant, 'oak_planks', 'dominant is still reported for the log line')
 })
 
-test('surplusPlan: minConvert boundary fires at exactly 4', () => {
-  const plan = surplusPlan({ items: [p('oak_planks', 2), p('birch_planks', 2)] })
+test('surplusPlan: minConvert boundary fires at exactly 4 burned planks', () => {
+  // burn = non-dominant types + dominant excess above keepDominant(12): here oak
+  // keeps its 2, birch 2 + spruce 2 burn -> exactly 4 -> the plan fires
+  const plan = surplusPlan({ items: [p('oak_planks', 2), p('birch_planks', 2), p('spruce_planks', 2)] })
   assert.equal(plan.total, 4)
   assert.equal(plan.convert.length, 2)
+  // one plank below the boundary: only birch burns (2 < 4) -> no plan
+  const below = surplusPlan({ items: [p('oak_planks', 2), p('birch_planks', 2)] })
+  assert.deepEqual(below.convert, [])
+  assert.equal(below.total, 0, 'total is zeroed so callers can trust a single field')
 })
 
 test('surplusPlan: custom keepDominant (0 converts everything, 64 keeps everything)', () => {
@@ -65,9 +71,13 @@ test('surplusPlan: custom keepDominant (0 converts everything, 64 keeps everythi
 })
 
 test('surplusPlan: same type split across inventory stacks aggregates first', () => {
-  const plan = surplusPlan({ items: [p('birch_planks', 4), p('birch_planks', 6)] })
-  assert.deepEqual(plan.convert, [['birch_planks', 10]])
-  assert.equal(plan.total, 10)
+  // 4+6+8 = 18 merged into ONE type entry before the dominant rule applies:
+  // keep 12, burn 6. (Totals below the 12 buffer burn nothing.)
+  const plan = surplusPlan({ items: [p('birch_planks', 4), p('birch_planks', 6), p('birch_planks', 8)] })
+  assert.deepEqual(plan.convert, [['birch_planks', 6]])
+  assert.equal(plan.total, 6)
+  const small = surplusPlan({ items: [p('birch_planks', 4), p('birch_planks', 6)] })
+  assert.deepEqual(small.convert, [], '10 < keepDominant 12 - nothing is surplus')
 })
 
 test('surplusPlan: duplicate entries of the same type and proto-pollution names are safe', () => {
