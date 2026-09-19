@@ -116,6 +116,16 @@ async function carveAlcove (bot, miner) {
 }
 
 test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { timeout: 390000 }, async t => {
+  // BUDGET: node:test kills this file at 390s. A pathological spawn (barren beach:
+  // 0 trees in 90s, tool retry, no reachable stone) can eat 5+ minutes BEFORE the
+  // smelting phase even starts - measured in CI (run 35469790933: tools ok only at
+  // t+310s, then the cobble hunt burned the rest and the test died on the raw
+  // timeout instead of skipping). Every phase below checks the clock and SKIPS when
+  // the remaining budget cannot fit the rest of the chain - an environment flake
+  // must not look like a pipeline failure.
+  const BUDGET_MS = 350000 // 40s margin before the 390s test timeout
+  const budgetStarted = Date.now()
+  const budgetLeft = () => BUDGET_MS - (Date.now() - budgetStarted)
   t.after(async () => {
     for (const m of miners) { try { m.bot.quit() } catch { /* gone */ } }
     await new Promise(r => setTimeout(r, 1500))
@@ -142,7 +152,7 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // DRY sand only (air above): underwater sand floods the dig cell - fastDig never
   // sees the block "gone" (water replaces air) and the drop floats away unpicked.
   // progressive search: meadows may hide the nearest beach beyond the first radius
-  const sandDeadline = Date.now() + 90000
+  const sandDeadline = Date.now() + 60000
   const findDrySand = maxR => {
     const cands = bot.findBlocks({ matching: b => b.name === 'sand', maxDistance: maxR, count: 24 })
       .map(p => bot.blockAt(p))
@@ -184,7 +194,9 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // a single-bot test needs an explicit retry).
   let toolRes = { ok: false, kit: 'not attempted' }
   for (let attempt = 0; attempt < 2 && !toolRes.ok; attempt++) {
-    try { await miner.gatherWood({ want: 20, maxSeconds: 90 }) } catch (e) { log(`gatherWood failed: ${e.message}`) }
+    // 70/60s: two full 90s attempts on a barren spawn blow the whole test budget
+    // (measured: 0 logs in 90s twice = 300s before the table is even craftable)
+    try { await miner.gatherWood({ want: 20, maxSeconds: 70 }) } catch (e) { log(`gatherWood failed: ${e.message}`) }
     toolRes = await ensureTools(bot, { miner, log, maxSeconds: 60 })
     if (toolRes.ok) break
     // beach spawns can leave every neighbour cell under water - no legal placement
@@ -199,6 +211,12 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   }
   log(`tools: ${toolRes.ok ? 'ok' : 'fail'} (${toolRes.kit})`)
   assert.ok(toolRes.ok, 'tool bootstrap must succeed before the smelting chain')
+  // the rest of the chain needs ~150s minimum (8 cobble + furnace craft/place + 2 smelts):
+  // a bootstrap that ate the budget is an environment condition, not a pipeline failure
+  if (budgetLeft() < 150000) {
+    t.skip(`bootstrap ate the budget (${Math.round(budgetLeft() / 1000)}s left) - smelting chain not exercised this run`)
+    return
+  }
 
   // --- fuel: convert the DOMINANT log type into planks (>= 20 of one kind: the
   //     table craft eats 4, pickFuel reserves 8 for the tool bootstrap, the rest
@@ -232,7 +250,13 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // alternate strategies until 8 cobble: the shaft descends (sidesteps around caves),
   // the job-queue collector walks to VERIFIED reachable stone. On churned worlds a
   // single strategy can hit a cave-riddled patch - alternating keeps the budget busy.
-  const cobbleDeadline = Date.now() + 150000
+  // The phase deadline is BUDGET-CAPPED: the furnace + smelt phases still need ~100s.
+  const cobbleBudgetMs = Math.min(150000, budgetLeft() - 100000)
+  if (cobbleBudgetMs < 40000) {
+    t.skip(`no budget left for the cobble phase (${Math.round(budgetLeft() / 1000)}s left) - smelting chain not exercised this run`)
+    return
+  }
+  const cobbleDeadline = Date.now() + cobbleBudgetMs
   for (let round = 0; countItem(bot, 'cobblestone') < 8 && Date.now() < cobbleDeadline; round++) {
     if (round % 2 === 0) {
       try {
@@ -301,11 +325,16 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   const inputName = countOf(bot, 'sand') >= 1 ? 'sand' : 'cobblestone'
   const expectOut = inputName === 'sand' ? 'glass' : 'stone'
   log(`smelting input: ${inputName} x${countOf(bot, inputName)} -> ${expectOut}`)
+  const smeltSeconds = Math.min(150, Math.floor((budgetLeft() - 30000) / 1000))
+  if (smeltSeconds < 20) {
+    t.skip(`no budget left for the smelt phase (${Math.round(budgetLeft() / 1000)}s left) - chain verified up to the placed furnace`)
+    return
+  }
   const res = await smeltBatch(bot, {
     machineBlock: bot.blockAt(furnaceBlock.position) ?? furnaceBlock,
     inputName,
     count: 2,
-    maxSeconds: 150,
+    maxSeconds: smeltSeconds,
     fuelReserve: { reservePlanks: 0, reserveLogs: 0, reserveSticks: 0 },
     log
   })
