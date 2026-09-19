@@ -172,7 +172,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
 
 // Also import-check the whole bot stack in CI (catches broken refactors early)
 test('bot modules import cleanly', async () => {
-  for (const mod of ['src/bots/miner.mjs', 'src/bots/scout.mjs', 'src/bots/tools.mjs', 'src/bots/deposit.mjs', 'src/fleet/worldmap.mjs', 'src/fleet/structurefind.mjs', 'src/fleet/chatsync.mjs', 'src/lib/fly.mjs', 'src/lib/fastdig.mjs', 'src/lib/jobqueue.mjs', 'src/lib/goals.mjs']) {
+  for (const mod of ['src/bots/miner.mjs', 'src/bots/scout.mjs', 'src/bots/tools.mjs', 'src/lib/deposit.mjs', 'src/fleet/worldmap.mjs', 'src/fleet/structurefind.mjs', 'src/fleet/chatsync.mjs', 'src/lib/fly.mjs', 'src/lib/fastdig.mjs', 'src/lib/jobqueue.mjs', 'src/lib/goals.mjs']) {
     await import(path.join(root, mod))
   }
 })
