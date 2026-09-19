@@ -40,7 +40,10 @@ export function recoverCraftWindow (bot, log = null) {
 // When closeWindow is not enough (the 26.2 stack sometimes keeps ghost slots), move the
 // leftover grid items back into the main inventory by hand. Slot layout: table windows
 // hold the 3x3 grid in slots 1..9, the player inventory window holds its 2x2 grid in
-// slots 1..4. Returns how many slots were swept.
+// slots 1..4. Returns how many slots were ACTUALLY emptied - every putAway is VERIFIED
+// (the 26.2 stack silently drops window clicks, and an unverified sweep reported success
+// while the grid stayed poisoned, so every later craft kept failing "missing ingredient"
+// and the retries ate the plank stacks).
 export async function sweepGridItems (bot) {
   try {
     const w = bot.currentWindow ?? bot.inventory
@@ -50,7 +53,10 @@ export async function sweepGridItems (bot) {
     let moved = 0
     for (const [slot, it] of [...w.slots.entries()]) {
       if (!it || slot < 1 || slot > lastGridSlot) continue
-      try { await bot.putAway(slot); moved++ } catch { /* stuck slot stays */ }
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try { await bot.putAway(slot) } catch { /* retry, then give up on this slot */ }
+        if (!w.slots[slot]) { moved++; break } // VERIFIED: the slot really emptied
+      }
     }
     return moved
   } catch { return 0 }
@@ -143,15 +149,19 @@ async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, t
 const TABLE_REACH = 4.5
 // WARNING (the two-bot crash, caught by diag-two-tools): mineflayer's findBlocks palette
 // fast-path calls the matcher with a Block whose .position is NULL (Block.fromStateId has
-// no position). Because the predicate short-circuits on `b.name === 'crafting_table'`,
-// distanceTo(null) only ever fired when ANOTHER bot's table was already in a nearby
-// chunk palette - so one bot always worked and two bots crashed with
-// "Cannot read properties of null (reading 'x')". Never trust matcher block positions.
+// no position) - because the predicate short-circuited on distanceTo(null), two bots
+// crashed with "reading 'x' of null" whenever ANOTHER bot's table was in a nearby chunk
+// palette. The first fix (`b.position != null` INSIDE the matcher) stopped the crash but
+// ALSO made every palette section test false, so findBlock returned null even when the
+// table was 3 blocks away (measured live: sand at distance 13, findBlock(32) -> null).
+// The matcher must therefore guard ONLY the distanceTo call, never the name match:
+// palette blocks (position null) pass the pre-check, the real per-cursor scan re-checks
+// the distance with true positions afterwards.
 const reachableTable = bot => {
   const me = bot.entity?.position
   if (!me) return null
   return bot.findBlock({
-    matching: b => b.name === 'crafting_table' && b.position != null && me.distanceTo(b.position) <= TABLE_REACH,
+    matching: b => b.name === 'crafting_table' && (b.position == null || me.distanceTo(b.position) <= TABLE_REACH),
     maxDistance: TABLE_REACH
   })
 }
@@ -183,7 +193,8 @@ async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         const cell = feet.offset(dx, 0, dz)
         const cellB = bot.blockAt(cell)
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
-        if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
+        if (!floorB || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') continue
+        if (cellB && cellB.boundingBox === 'empty') {
           try {
             // vanilla ignores right-clicks that arrive less than 4 game ticks apart: firing
             // all 8 neighbour attempts back-to-back made every packet after the first be
@@ -195,14 +206,33 @@ async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
             if (placedB && placedB.name === 'crafting_table') return placedB
             placed = true
           } catch { /* next neighbour */ }
+        } else if (cellB && cellB.boundingBox === 'block' && bot.fastDig) {
+          // CARVE a placement cell out of the wall (beach sand, underground, a 1x1 pit:
+          // measured live, a bot on a beach spent 2 full self-heal rounds with every
+          // neighbour cell water or wall). fastDig, NOT bot.dig - under the rage
+          // digTime=0 patch bot.dig resolves instantly WITHOUT breaking the block.
+          try {
+            await bot.waitForTicks(5)
+            await withTimeout(bot.fastDig(cellB), 10000, `carve table cell ${cell}`)
+            const freed = bot.blockAt(cell)
+            if (freed && freed.boundingBox === 'empty') {
+              await bot.equip(tableItem, 'hand')
+              await bot.waitForTicks(5)
+              await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+              const placedB = bot.blockAt(cell)
+              if (placedB && placedB.name === 'crafting_table') return placedB
+              placed = true
+            }
+          } catch { /* next neighbour */ }
         }
       }
       if (placed) continue // a block appeared (maybe not the table) - look again
       // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
       const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
       if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
-        // bot.dig has no internal timeout - fence it (a hanging dig would freeze ensureTools)
-        await withTimeout(bot.dig(below), 10000, 'dig below for table placement')
+        // fastDig when the bot has it (miner bots: bot.dig is a no-op under the
+        // digTime=0 patch - the block never breaks); fenced either way
+        await withTimeout(bot.fastDig ? bot.fastDig(below) : bot.dig(below), 10000, 'dig below for table placement')
         await bot.waitForTicks(15) // fall one block
       } else {
         await bot.waitForTicks(10) // already airborne - let gravity settle us

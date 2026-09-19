@@ -17,6 +17,15 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
   // Returns true when the server really removed the block.
   bot.fastDig = async function fastDig (block) {
     if (!block || block.type === 0) return true
+    // EQUIP THE HARVESTING TOOL FIRST. fastDig never cared what the hand holds, and
+    // vanilla punishes that: stone/diorite/ores broken without a pickaxe DO break
+    // (FastBreak spam makes sure of it) but drop NOTHING - measured live: a bot dug
+    // 20 stone/diorite blocks in a shaft with a shovel in hand and collected 0 items.
+    // bot.tool (mineflayer-tool) checks the held item first, so a correct hand is a
+    // no-op; no tool plugin (unit-test mocks) -> dig as before.
+    if (bot.tool?.equipForBlock) {
+      try { await bot.tool.equipForBlock(block, { requireHarvest: true }) } catch { /* dig anyway */ }
+    }
     const pos = block.position
     const face = 1 // top
 

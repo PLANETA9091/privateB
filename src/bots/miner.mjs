@@ -726,6 +726,12 @@ export function createMiner ({
         stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
         map?.take(block.name, pos) // mined away - no other bot should walk here for it
       }
+      // record the chunk RIGHT HERE, before any walking: the bot is a passive scout
+      // every iteration, not only when a hop completes. A window that ends mid-batch
+      // (drop-chasing can eat the whole budget) still marks the chunk as scanned -
+      // measured: a 45s forest window ended with chunksScanned=0 because both bots
+      // never finished an iteration, which then failed the integration assertion.
+      recordToMap()
 
       // 2. one single walk to collect the whole batch (the bot only moves once per batch)
       if (dug > 0) {
@@ -961,15 +967,44 @@ export function createMiner ({
     return false
   }
 
-  async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, onProgress = null } = {}) {
+  // How many AIR blocks start directly below `fromPos` (which is ABOUT TO BE dug).
+  // A 4+ block fall deals damage and a shaft that punches through a cave ceiling
+  // drops the bot into a dark pit full of whatever lives there - measured live:
+  // a bot dug 16 stone, fell into a cavern, took 20 -> 5 fall damage and DIED,
+  // losing the whole inventory. Vanilla players never dig straight down for exactly
+  // this reason; the bot must measure before it digs.
+  function dropAheadBelow (fromPos, { depth = 5 } = {}) {
+    let air = 0
+    for (let dy = 1; dy <= depth; dy++) {
+      const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
+      if (!b) break // unloaded chunk below: assume the worst is behind the dug block
+      if (b.boundingBox === 'empty') air++
+      else break
+    }
+    return air
+  }
+
+  async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, maxMs = Infinity, onProgress = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
+    // Treetop spawn / canopy end position: from up there the block below is leaves or
+    // wood - not in the target names - and the loop would wander sideways forever
+    // (measured: 90s, zero blocks). Dig straight down through leaves/wood until real
+    // solid ground is under our feet, exactly like workOnGround's pre-descent.
+    for (let guard = 0; guard < 40 && bot.entity; guard++) {
+      const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (under && under.type !== 0 && under.boundingBox !== 'empty' && !/leaves/.test(under.name)) break
+      if (under && under.type !== 0 && under.boundingBox !== 'empty') {
+        try { await bot.fastDig(under) } catch { break } // undiggable below - work from here
+      }
+      await bot.waitForTicks(4) // let gravity settle us into the freed cell
+    }
     const started = Date.now()
     let done = 0
     const floor = minY ?? bot.game.minY + 3
     let lastHealth = bot.health ?? 20
     let sidestepRounds = 0 // independent rotation: "done" never grows while stuck, done%4 always picked east
-    while (done < maxBlocks && !shouldStop?.() && bot.entity) {
+    while (done < maxBlocks && !shouldStop?.() && bot.entity && Date.now() - started <= maxMs) {
       // health guard: damaged bots wait before the next dig (regen needs food; autoeat feeds)
       const hp = bot.health ?? 20
       if (hp < lastHealth - 0.5) {
@@ -977,12 +1012,16 @@ export function createMiner ({
         await bot.waitForTicks(30)
         lastHealth = bot.health ?? 20
         if (hp < 6) {
-          // badly hurt: climb OUT of this shaft via the pathfinder (it can dig steps)
+          // badly hurt: STOP this shaft entirely. Climbing out mid-shaft used to
+          // continue the same descent right after the retreat - and the next fall
+          // finished the job (measured: 20 -> 5 -> dead, inventory lost). The caller
+          // redeploys us somewhere else instead.
           try {
             const g = standGoalNear(bot, goals, bot.entity.position.x + 6, bot.entity.position.y, bot.entity.position.z + 6, { range: 2 })
             await gotoSafe(bot, g, { timeoutMs: 12000, label: 'hurt retreat' })
           } catch { /* stay and heal here instead */ }
           await bot.waitForTicks(40)
+          break
         }
         continue
       }
@@ -998,6 +1037,16 @@ export function createMiner ({
         try {
           const g = standGoalNear(bot, goals, bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, { range: 1 })
           await gotoSafe(bot, g, { timeoutMs: 10000, label: 'lava sidestep' })
+        } catch { /* cannot move: stop this shaft */ break }
+        continue
+      }
+      // fall guard: digging into a cave ceiling drops the bot 4+ blocks (fall damage,
+      // then whatever waits at the bottom). Sidestep instead of descending.
+      if (dropAheadBelow(pos) >= 4) {
+        log(`${tag} digShaft: drop of 4+ below ${pos.floored()} (cave?) - moving sideways`)
+        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][(done + 2) % 4]
+        try {
+          await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, 1), { timeoutMs: 10000, label: 'fall sidestep' })
         } catch { /* cannot move: stop this shaft */ break }
         continue
       }

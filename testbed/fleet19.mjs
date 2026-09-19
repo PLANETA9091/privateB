@@ -21,6 +21,7 @@ import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import { recoveryDue } from '../src/lib/woodplan.mjs'
+import { smeltInventory } from '../src/lib/smelting.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -31,6 +32,11 @@ const SECONDS = Number(process.argv[3] || 300)
 const TARGETS = (process.argv[4] || 'sand,gravel,oak_log,birch_log,spruce_log').split(',')
 const SCOUT = process.argv.includes('--scout') || process.env.SCOUT === '1'
 const SYNC = process.env.FLEET_SYNC === '1' // cross-process chat sync (PVB1)
+// Smelting pipeline (v0.7.0): before banking, a bot turns its raw loot (sand, ores,
+// raw food) into finished materials (glass, ingots, cooked food) in the yard's
+// furnace bay - the base plan needs GLASS and INGOTS, not sand and ore.
+const SMELT = process.env.FLEET_SMELT !== '0'
+const SMELT_BUDGET = Number(process.env.FLEET_SMELT_BUDGET || 90) // seconds per smelting visit
 const BATCH = COUNT // all bots at once (the user wants them working simultaneously)
 
 // The shared resource map: scouts fill it, miners read it. Persisted so a restarted
@@ -52,6 +58,25 @@ let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
 let banked = 0 // items deposited into the yard's chests
+let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
+
+// Smelt what the bot carries, then bank. Smelting comes FIRST on purpose: the chests
+// should hold glass/ingots, not raw sand/ore. Budget-capped and failure-tolerant -
+// a stuck furnace must never cost the bot its mining loop or its banking trip.
+async function smeltThenBank (miner, { timeoutMs = 30000 } = {}) {
+  if (SMELT) {
+    try {
+      const res = await smeltInventory(miner.bot, { maxSeconds: SMELT_BUDGET, log: m => console.log(m) })
+      if (res.smelted > 0 || res.rescued > 0) {
+        smelted += res.smelted
+        console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)
+      }
+    } catch (e) {
+      console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)
+    }
+  }
+  return miner.depositLoot({ timeoutMs })
+}
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
 
@@ -201,10 +226,11 @@ async function runBot (name, target, index) {
         })
         if (Date.now() > deadline || !miner.bot.entity) break
         if (interrupted) continue // recovery is due - skip the walk/trip, let the top of the loop handle it
-        // pockets nearly full: bank the loot in the yard's chest rows before digging on
-        // (a full inventory turns every further dig into a wasted drop)
+        // pockets nearly full: smelt the raw loot, then bank the products in the
+        // yard's chest rows before digging on (a full inventory turns every further
+        // dig into a wasted drop)
         if (miner.inventoryLoad().slots >= 30) {
-          const res = await miner.depositLoot()
+          const res = await smeltThenBank(miner)
           if (res.deposited > 0) banked += res.deposited
         }
         // underground the bot still SEES ores in the shaft walls - record them into the
@@ -253,7 +279,7 @@ async function runBot (name, target, index) {
         miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
       if (bankable) {
         try {
-          const res = await miner.depositLoot({ timeoutMs: 120000 })
+          const res = await smeltThenBank(miner, { timeoutMs: 120000 })
           if (res.deposited > 0) banked += res.deposited
         } catch { /* report whatever was banked so far */ }
       }
@@ -320,7 +346,7 @@ const reporter = setInterval(() => {
   const s = fleetStats(list)
   const per = TARGETS.map(t => `${t}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')
   const mapRep = map.report()
-  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} | ${per}`)
+  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} smelted=${smelted} | ${per}`)
   if (Object.keys(need).length) console.log(`   deficits: ${topDeficits()}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
@@ -345,7 +371,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked} smelted=${smelted}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
@@ -375,6 +401,7 @@ const fleetReport = {
   toolsRecovered,
   toolsReboot,
   banked,
+  smelted,
   mined: s.mined,
   blocksPerSecond: secs > 0 ? Number((s.mined / secs).toFixed(3)) : 0,
   perBot: list.map(m => ({

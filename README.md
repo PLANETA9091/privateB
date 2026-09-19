@@ -39,7 +39,11 @@ gather the materials a `.litematic` base needs. Everything here was measured on 
 | **Two-bot tool bootstrap crash** | **fixed** | mineflayer's findBlocks palette fast-path hands matchers position-less blocks - the reachableTable predicate crashed with `reading 'x' of null` whenever ANOTHER bot's table was in a nearby chunk palette; guarded (v0.5.0) |
 | **Fleet chat sync (PVB1)** | **works** | `src/fleet/chatsync.mjs`: scouts broadcast new finds over compact chat lines, every bot merges them into its WorldMap - the only channel across process boundaries; unit-tested codec (chunking, content dedupe, hostile-input safe) |
 | **Chest delivery** | **works** | `src/lib/deposit.mjs`: bots with full pockets walk back and bank into the yard's chest rows (tools/food stay with the bot); VERIFIED transfers (ghost clicks are not counted as loot), multi-chest continuation, `depositToChests` for full deliveries; fleet19 banks mid-run (>=30 slots) AND at the end, reports `banked=` |
-| **digShaft survival guards** | **works** | lava check 4 blocks below (sidestep instead of dying) + health guard (pause/retreat when damaged); every death drops the whole inventory |
+| **Smelting pipeline (v0.7.0)** | **works - CI GREEN** | `src/lib/smelting.mjs`: bots turn sand -> glass, ores -> ingots, raw food -> cooked in the yard's furnace bay BEFORE banking (verified transfers, fuel policy with tool reserves, busy-machine avoidance, abandoned-output rescue, smoker for food / blast furnace for metals); fleet19 counters `smelted=` in the report; asserted end-to-end by `tests/integration/smelting.test.mjs` (craft a furnace from hand-dug cobble at a shaft bottom, smelt, verified output) |
+| **fastDig equips the harvesting tool** | **works** | stone/diorite/ores broken without a pickaxe DO break but drop NOTHING (measured: 20 blocks dug, 0 items) - `fastDig` now runs `bot.tool.equipForBlock` first; a correct hand is a no-op |
+| **digShaft fall guard + treetop descent** | **works** | a shaft that opens into a cave dropped a bot 20 -> 5 hp -> dead (whole inventory lost); the shaft now measures the air run below and sidesteps 4+ drops, stops entirely below 6 hp, descends through canopies before targeting stone, and has a hard `maxMs` cap |
+| **findBlocks palette-trap matchers fixed** | **works** | a `b.position != null` term inside a findBlock matcher defeats mineflayer's palette pre-check (palette blocks have no position) and silently returns null for everything - sand at distance 13 was invisible to findBlock(32); matchers now test the name only and guard `distanceTo` instead; `sweepGridItems` verifies every putAway (ghost clicks made the old sweep report success while the grid stayed poisoned) |
+| **Stall-proof ground mining** | lava check 4 blocks below (sidestep instead of dying) + health guard (pause/retreat when damaged); every death drops the whole inventory |
 | Test suite | **works** | 70+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig, chatsync, deposit, scout) + integration tests, all run in CI on Node 22 and 24 on every push |
 
 ## How the fleet stays productive (the old "Known problem", fixed)
@@ -110,9 +114,11 @@ node scripts/setup-yard.mjs        # workshop at spawn
 scripts/fleet-run.sh 19 1800 --yard  # reset world to the fixed seed, launch 19 bots in background
 tail -f /tmp/fleet19.log           # watch the fleet
 
-# fleet extras (both optional):
+# fleet extras (all optional):
 FLEET_SYNC=1 node testbed/fleet19.mjs 19 1800   # share finds between bots over chat
 FLEET_DEPOSIT=0 node testbed/fleet19.mjs 19 300 # disable end-of-run chest delivery
+FLEET_SMELT=0 node testbed/fleet19.mjs 19 300   # disable the pre-banking smelting pass
+FLEET_SMELT_BUDGET=120 node testbed/fleet19.mjs # seconds a bot may spend smelting per visit
 ```
 
 ## Test it (GitHub CI runs all of this on every push)
