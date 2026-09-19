@@ -95,7 +95,10 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
       await m.gatherWood({ want: 4, direction: direction[i % 2], maxSeconds: 60, shouldStop: () => Date.now() > deadline })
     } catch (e) { log(`${m.username} gatherWood failed: ${e.message}`) }
     try {
-      const res = await ensureTools(m.bot, { miner: m, log, maxSeconds: 60 })
+      // a tight cap: the 26.2 craft window can burn seconds per ghost-grid recovery, and
+      // the tool phase must not eat the whole budget (a run where the tools finished at
+      // t+90s left the mining phase zero seconds - the degenerate pass we assert against)
+      const res = await ensureTools(m.bot, { miner: m, log, maxSeconds: 45 })
       log(`${m.username} tools: ${res.ok ? 'ok' : 'fail'} (${res.kit})`)
       return res
     } catch (e) {
@@ -111,6 +114,10 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   // --- mine on the ground and demand progress in every window ---
   // One workOnGround per bot for the whole phase (concurrent calls on the same bot would
   // fight over the pathfinder); a sampler measures how much each window contributed.
+  // GUARANTEED MINING WINDOW: whatever the tool phase ate, the ground phase gets at
+  // least 45s - without this a slow tool phase ended the test before a single hop, and
+  // the map/mining assertions measured an empty run instead of fleet productivity.
+  const miningDeadline = Math.max(deadline, Date.now() + 45000)
   const windowMs = 15000
   const samples = []
   const minersAlive = () => miners.filter(m => m.bot.entity)
@@ -123,7 +130,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
     return m.workOnGround(names, {
       direction: direction[i % 2],
       hopDistance: 12,
-      shouldStop: () => Date.now() > deadline
+      shouldStop: () => Date.now() > miningDeadline
     }).catch(e => { log(`${m.username} workOnGround error: ${e.message}`); return null })
   })
 
@@ -137,7 +144,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
 
   await Promise.race([
     Promise.all(work),
-    new Promise(r => setTimeout(r, WINDOW_SECONDS * 1000))
+    new Promise(r => setTimeout(r, Math.max(1000, miningDeadline - Date.now())))
   ])
   clearInterval(sampler)
 
