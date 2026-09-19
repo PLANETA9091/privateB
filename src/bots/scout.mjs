@@ -8,6 +8,7 @@ import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { gotoSafe } from '../lib/jobqueue.mjs'
+import { attachChatSync } from '../fleet/chatsync.mjs'
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -55,12 +56,14 @@ export function createScout ({
   targets = SCAN_TARGETS,
   map,
   fly = false, // ground patrol by default: allow-flight=false kicks hovering bots
+  syncChat = false, // broadcast every NEW find over chat (PVB1) so bots in OTHER processes hear it
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version: '26.2', auth: 'offline' })
   bot.loadPlugin(pathfinder)
   const tag = `[${username}]`
   const stats = { scans: 0, found: 0, travelled: 0 }
+  const sync = syncChat ? attachChatSync(bot, map, { flushEveryMs: 4000, maxPerFlush: 40, log: m => log(`${tag} ${m}`) }) : null
 
   bot.on('error', e => log(`${tag} error: ${e.message}`))
   bot.on('kicked', r => log(`${tag} KICKED: ${typeof r === 'string' ? r : JSON.stringify(r)}`))
@@ -99,9 +102,25 @@ export function createScout ({
   }
 
   const scan = createScan({ bot, map, targets, stats, log: m => log(`${tag} ${m}`) })
-  const patrol = createPatrol({ bot, map, scan, stats })
+  // when chat sync is on, every NEW position goes on the air right after it is recorded
+  const scanWithSync = sync
+    ? async () => {
+      const before = map ? map.total() : 0
+      const r = await scan()
+      if (map && map.total() > before) {
+        // enqueue only what this scan just added: walk the newest bucket entries
+        for (const [name, bucket] of map.found) {
+          for (const entry of bucket.values()) {
+            if (entry.seenAt > Date.now() - 6000) sync.enqueue(name, entry.pos)
+          }
+        }
+      }
+      return r
+    }
+    : scan
+  const patrol = createPatrol({ bot, map, scan: scanWithSync, stats })
 
-  return { bot, ready, scan, patrol, stats, username }
+  return { bot, ready, scan: scanWithSync, patrol, stats, username, sync: sync ?? null }
 }
 
 // The lawnmower: fly mode rides altitude-110 lanes with flyTravel, ground mode walks

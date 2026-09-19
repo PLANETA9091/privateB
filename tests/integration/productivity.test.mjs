@@ -152,6 +152,16 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   const kickLog = fs.readFileSync(logFile, 'utf8')
   assert.ok(!/KICKED/.test(kickLog), 'bots must not be kicked in ground mode')
 
+  // ANTI-STALL (v0.4.0): a fleet that mines hard for two windows and then freezes
+  // (+0, +0, +0 ...) still beats a "total" check while being completely broken.
+  // Two CONSECUTIVE dead windows mean a real stall (field logs showed exactly that).
+  for (let i = 1; i < samples.length; i++) {
+    assert.ok(
+      !(samples[i - 1] === 0 && samples[i] === 0),
+      `fleet stalled: windows ${i - 1} and ${i} both produced 0 blocks (all windows: ${samples.join(', ')})`
+    )
+  }
+
   // scout -> miner pipeline: walking miners record the world into the shared map
   const mapRep = map.report()
   log(`worldmap: ${mapRep.positions} positions, ${mapRep.chunksScanned} chunks`)
@@ -162,7 +172,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
 
 // Also import-check the whole bot stack in CI (catches broken refactors early)
 test('bot modules import cleanly', async () => {
-  for (const mod of ['src/bots/miner.mjs', 'src/bots/scout.mjs', 'src/bots/tools.mjs', 'src/fleet/worldmap.mjs', 'src/fleet/structurefind.mjs', 'src/lib/fly.mjs', 'src/lib/fastdig.mjs', 'src/lib/jobqueue.mjs']) {
+  for (const mod of ['src/bots/miner.mjs', 'src/bots/scout.mjs', 'src/bots/tools.mjs', 'src/bots/deposit.mjs', 'src/fleet/worldmap.mjs', 'src/fleet/structurefind.mjs', 'src/fleet/chatsync.mjs', 'src/lib/fly.mjs', 'src/lib/fastdig.mjs', 'src/lib/jobqueue.mjs', 'src/lib/goals.mjs']) {
     await import(path.join(root, mod))
   }
 })

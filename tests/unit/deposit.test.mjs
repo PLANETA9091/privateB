@@ -3,11 +3,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { inventoryLoad, findChest, depositToChest } from '../../src/lib/deposit.mjs'
+import { inventoryLoad, findChest, depositToChest, depositToChests } from '../../src/lib/deposit.mjs'
 
+// Unique stable numeric type per item name - the REAL code calls window.deposit(item.type),
+// so a mock where every item shares type 1 would remove the WRONG item (that bug made
+// these tests fail exactly when two item types were deposited in one run).
+const TYPES = new Map()
 function item (name, count = 1) {
-  // inventory.items() entries only need name/count/type for our code paths
-  return { name, count, type: 1 }
+  if (!TYPES.has(name)) TYPES.set(name, TYPES.size + 1)
+  return { name, count, type: TYPES.get(name) }
 }
 
 function makeMockBot ({
@@ -15,7 +19,8 @@ function makeMockBot ({
   chest = null,
   gotoFails = false,
   openFails = false,
-  fullFor = [] // item names the chest cannot accept
+  fullFor = [], // item names the chest cannot accept
+  silentFor = [] // item names where the deposit call resolves but moves nothing (26.2 ghost clicks)
 } = {}) {
   const bot = {
     username: 'MockBot',
@@ -32,6 +37,7 @@ function makeMockBot ({
         deposit: async (type, meta, count) => {
           const it = bot._items.find(i => i.type === type)
           if (it && fullFor.includes(it.name)) throw new Error('chest full')
+          if (it && silentFor.includes(it.name)) return // resolved, nothing moved
           bot.depositCalls.push({ name: it?.name, count })
           bot._items = bot._items.filter(i => i.type !== type)
         },
@@ -111,4 +117,48 @@ test('a chest that cannot be opened is reported, never thrown', async () => {
   const res = await depositToChest(bot)
   assert.equal(res.deposited, 0)
   assert.match(res.reason, /cannot open/)
+})
+
+test('a ghost click (resolved call, nothing moved) is NOT counted as deposited', async () => {
+  // the 26.2 stack sometimes resolves window.deposit while silently dropping the click -
+  // counting the call instead of the inventory inflated the reports with phantom loot
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({
+    chest,
+    silentFor: ['cobblestone'],
+    items: [item('cobblestone', 10), item('gravel', 4)]
+  })
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 4, 'only the gravel actually moved')
+  assert.equal(bot._items.map(i => i.name).sort()[0], 'cobblestone', 'the ghosted stack stays with the bot')
+})
+
+test('depositToChests continues into the next chest while bankable items remain', async () => {
+  // chest A accepts one deposit, then is full; chest B takes the rest
+  const chests = [
+    { position: new Vec3(3, 64, 3) },
+    { position: new Vec3(6, 64, 6) }
+  ]
+  let call = 0
+  const bot = makeMockBot({ items: [item('cobblestone', 20), item('gravel', 10)] })
+  bot.findBlock = () => chests[Math.min(call++, chests.length - 1)]
+  // first window: only accepts cobblestone, then reports full for everything else
+  const windows = []
+  bot.openChest = async () => {
+    const idx = windows.length
+    windows.push(true)
+    return {
+      deposit: async (type, meta, count) => {
+        const it = bot._items.find(i => i.type === type)
+        if (idx === 0 && it.name === 'gravel') throw new Error('chest A full for gravel')
+        bot.depositCalls.push({ name: it.name, count })
+        bot._items = bot._items.filter(i => i.type !== type)
+      },
+      close: () => { bot.closed = true }
+    }
+  }
+  const res = await depositToChests(bot, { maxChests: 3 })
+  assert.equal(res.deposited, 30, 'cobblestone went to chest A, gravel to chest B')
+  assert.equal(res.chestsUsed, 2)
+  assert.equal(bot._items.length, 0, 'everything bankable must be gone')
 })

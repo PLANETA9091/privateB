@@ -68,19 +68,51 @@ export async function depositToChest (bot, {
 
   let deposited = 0
   const skipped = []
+  const countOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
     for (const item of bot.inventory.items()) {
       if (keep.some(k => item.name.includes(k))) { skipped.push(item.name); continue }
+      // VERIFIED TRANSFER (the 26.2 stack silently drops some window clicks): the only
+      // truth is the inventory afterwards, so count before/after instead of trusting
+      // the deposit call's resolution.
+      const before = countOf(item.name)
       try {
         await withTimeout(window.deposit(item.type, null, item.count), 5000, `deposit ${item.name}`)
-        deposited += item.count
       } catch {
         skipped.push(item.name) // chest full or a desynced slot - keep the item, move on
+        continue
       }
+      const moved = before - countOf(item.name)
+      if (moved > 0) deposited += moved
+      else skipped.push(item.name)
     }
   } finally {
     try { window.close?.() } catch { /* already closed */ }
   }
   if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
   return { deposited, reason: deposited > 0 ? 'ok' : 'nothing to deposit' }
+}
+
+/**
+ * Multi-chest continuation: keep walking to the nearest UNUSED chest while bankable
+ * items remain. A single full chest then costs a walk, not the whole delivery.
+ * Returns { deposited, chestsUsed, chestReport } - never throws.
+ */
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {} } = {}) {
+  let total = 0
+  let chestsUsed = 0
+  const reports = []
+  const bankableItems = () => {
+    try {
+      return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
+    } catch { return 0 }
+  }
+  for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
+    const chest = findChest(bot, { maxDistance: findRadius })
+    if (!chest) break
+    const res = await depositToChest(bot, { chestBlock: chest, keep, log })
+    reports.push(res.reason)
+    if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else break // same chest again = no progress
+  }
+  return { deposited: total, chestsUsed, chestReport: reports }
 }

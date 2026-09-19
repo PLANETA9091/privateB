@@ -671,6 +671,8 @@ export function createMiner ({
       Math.hypot(bot.entity.position.x - minDistanceFrom.x, bot.entity.position.z - minDistanceFrom.z) < minDistanceFrom.r
 
     let leaveAttempts = 0
+    let idleLoops = 0 // consecutive loop iterations with NOTHING mined (the silent stall)
+    let dirIndex = 0 // rotates when the current direction stopped yielding
     while (done < maxBlocks && !shouldStop?.() && bot.entity) {
       // do not mine at spawn: walk out to our own patch first (bots used to chew the workshop
       // floor). If we cannot get away (water, cliffs, a platform in the air) we give up after
@@ -725,7 +727,12 @@ export function createMiner ({
 
       // 3. nothing in reach: ask the map where the fleet KNOWS a target is (scout data or
       //    what another miner recorded). A verified trip replaces a blind direction hop.
+      //    STALL ESCALATION behind it (v0.4.0): when the map cannot help either, the old
+      //    "hop and look again" loop spun forever on the same spot - each failed gotoSafe
+      //    burned its whole 25s timeout and the bot produced nothing (+0, +0, +0 windows).
+      //    Escalate: far hop -> 90 deg rotation -> guaranteed digShaft descent.
       if (dug === 0) {
+        idleLoops++
         const known = mapTargetFor(names)
         if (known) {
           stats.mapTrips++
@@ -738,7 +745,24 @@ export function createMiner ({
           recordToMap()
           continue // re-scan at the new spot instead of also doing the direction hop
         }
+        const cur = rot(dirIndex, direction)
+        if (idleLoops === 2) {
+          await hopDirection(bot, cur, 32) // twice nothing: try FURTHER out
+        } else if (idleLoops === 4) {
+          dirIndex++ // the direction itself is the problem (river / cliff wall)
+          await hopDirection(bot, rot(dirIndex, direction), 24)
+        } else if (idleLoops >= 6) {
+          // guaranteed progress: descend into the terrain and mine our way forward
+          log(`${tag} workOnGround idle x${idleLoops}: descending (digShaft fallback)`)
+          await digShaft(names, { maxBlocks: Math.min(24, maxBlocks - done), shouldStop })
+          idleLoops = 2 // keep us in the "far hop" regime afterwards
+        } else {
+          await hopDirection(bot, cur, hopDistance)
+        }
+        recordToMap()
+        continue
       }
+      idleLoops = 0
 
       const here = bot.entity.position
       const goal = new Vec3(here.x + direction.x * hopDistance, here.y, here.z + direction.z * hopDistance)
@@ -748,6 +772,30 @@ export function createMiner ({
     const secs = (Date.now() - started) / 1000
     stats.secs = secs
     return { done, secs, rate: secs > 0 ? done / secs : 0 }
+  }
+
+  // direction rotated by 90 degrees * quarterTurns around Y (pure, unit-testable)
+  function rot (quarterTurns, dir) {
+    const q = ((quarterTurns % 4) + 4) % 4
+    if (q === 0) return dir
+    if (q === 1) return new Vec3(-dir.z, 0, dir.x)
+    if (q === 2) return new Vec3(-dir.x, 0, -dir.z)
+    return new Vec3(dir.z, 0, -dir.x)
+  }
+
+  // walk `dist` blocks along dir; on failure try a SHORT perpendicular hop so the bot
+  // never spins in place against an obstacle (the old "hop failed -> same hop again" loop)
+  async function hopDirection (bot, dir, dist) {
+    const here = bot.entity.position
+    const goal = new Vec3(here.x + dir.x * dist, here.y, here.z + dir.z * dist)
+    try {
+      await gotoSafe(bot, new goals.GoalNear(goal.x, goal.y, goal.z, 3))
+      return true
+    } catch {
+      const side = new Vec3(here.x - dir.z * 8, here.y, here.z + dir.x * 8)
+      try { await gotoSafe(bot, new goals.GoalNear(side.x, side.y, side.z, 2), { timeoutMs: 10000 }) } catch { /* give this round up */ }
+      return false
+    }
   }
 
   /**
@@ -878,16 +926,60 @@ export function createMiner ({
    * Shaft mining: dig the block below, fall in, repeat. Works with any tool the bot has and
    * needs no pathfinding at all, so 19 bots can do it simultaneously without stepping on
    * each other (each one has its own column).
+   *
+   * SURVIVAL GUARDS (field log v0.4.0: one bot died FOUR times in a single 90s window on a
+   * world that earlier runs had riddled with holes - every death drops the whole inventory):
+   *   1. LAVA CHECK - never dig into a column that opens into lava within 4 blocks below.
+   *   2. HEALTH CHECK - a bot that just took damage (fall, mob, lava) stops descending and
+   *      waits to regenerate before digging deeper.
    */
+  const DANGEROUS = new Set(['lava', 'flowing_lava'])
+  function lavaAheadBelow (fromPos, { depth = 4 } = {}) {
+    for (let dy = 1; dy <= depth; dy++) {
+      const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
+      if (!b) continue // unloaded chunk: treat as unknown, not dangerous
+      if (DANGEROUS.has(b.name)) return true
+      if (b.boundingBox !== 'empty') return false // solid ground seals the column
+    }
+    return false
+  }
+
   async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, onProgress = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
     const started = Date.now()
     let done = 0
     const floor = minY ?? bot.game.minY + 3
+    let lastHealth = bot.health ?? 20
     while (done < maxBlocks && !shouldStop?.() && bot.entity) {
+      // health guard: damaged bots wait before the next dig (regen needs food; autoeat feeds)
+      const hp = bot.health ?? 20
+      if (hp < lastHealth - 0.5) {
+        log(`${tag} digShaft: health dropped ${lastHealth.toFixed(1)} -> ${hp.toFixed(1)}, pausing descent`)
+        await bot.waitForTicks(30)
+        lastHealth = bot.health ?? 20
+        if (hp < 6) {
+          // badly hurt: climb OUT of this shaft via the pathfinder (it can dig steps)
+          try {
+            await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + 6, bot.entity.position.y, bot.entity.position.z + 6, 2), { timeoutMs: 12000, label: 'hurt retreat' })
+          } catch { /* stay and heal here instead */ }
+          await bot.waitForTicks(40)
+        }
+        continue
+      }
+      lastHealth = hp
+
       const pos = bot.entity.position.floored().offset(0, -1, 0)
       if (pos.y <= floor) break
+      // lava guard: a column that opens into lava within 4 blocks is a death trap
+      if (lavaAheadBelow(pos)) {
+        log(`${tag} digShaft: lava below ${pos.floored()} - moving sideways`)
+        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][done % 4]
+        try {
+          await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, 1), { timeoutMs: 10000, label: 'lava sidestep' })
+        } catch { /* cannot move: stop this shaft */ break }
+        continue
+      }
       const block = bot.blockAt(pos)
       if (block && block.type !== 0 && (names == null || names.includes(block.name))) {
         try {

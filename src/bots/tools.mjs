@@ -4,7 +4,6 @@ import { Vec3 } from 'vec3'
 import { withTimeout } from '../lib/jobqueue.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
-const LOG_ITEMS = LOG_BLOCKS.map(n => n.replace('_log', '_log'))
 
 const inventoryItems = bot => bot.inventory.items()
 export const countItem = (bot, name) => inventoryItems(bot).filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
@@ -18,20 +17,43 @@ function recipeFor (bot, itemName, table) {
   return recipes?.length ? recipes[0] : null
 }
 
-// The patched 26.2 crafting occasionally leaves ingredients stuck in the 2x2 craft
-// grid of the player inventory window. Those items are invisible to
-// bot.inventory.items() (that is how planks 'vanished': oak 12 -> oak 0) and starve
-// every later craft with 'missing ingredient'. Click whatever is in the grid back.
-async function returnGridItems (bot) {
+// A timed-out or failed bot.craft leaves the crafting window OPEN with items sitting in
+// the grid. Every subsequent craft then desyncs ("missing ingredient" while the inventory
+// is full of ingredients) - this exact poisoning is how ProdTest2 lost its whole tool
+// budget in one 90s window (log: craft stick timeout x2, then missing ingredient forever).
+// Vanilla returns the grid items to the inventory when the window closes, so closing it
+// IS the recovery. The PLAYER inventory window (2x2 crafts: sticks, planks, the table)
+// poisons EXACTLY the same way, so it is included - closing it is harmless and vanilla
+// empties the 2x2 grid back into the inventory. Exported for tests.
+export function recoverCraftWindow (bot, log = null) {
   try {
-    const inv = bot.inventory
-    for (let slot = 1; slot <= 4; slot++) {
-      if (!inv.slots[slot]) continue
-      for (let dest = 9; dest <= 44; dest++) {
-        if (!inv.slots[dest]) { await bot.moveSlotItem(slot, dest); break }
-      }
+    const w = bot.currentWindow ?? bot.inventory
+    if (w) {
+      ;(log ?? (() => {}))?.(`[tools] closing stale craft window (${w.type}) - grid recovery`)
+      bot.closeWindow(w)
+      return true
     }
-  } catch { /* window quirk - best effort */ }
+  } catch { /* window already gone */ }
+  return false
+}
+
+// When closeWindow is not enough (the 26.2 stack sometimes keeps ghost slots), move the
+// leftover grid items back into the main inventory by hand. Slot layout: table windows
+// hold the 3x3 grid in slots 1..9, the player inventory window holds its 2x2 grid in
+// slots 1..4. Returns how many slots were swept.
+export async function sweepGridItems (bot) {
+  try {
+    const w = bot.currentWindow ?? bot.inventory
+    if (!w) return 0
+    const isInventory = w.type === 'minecraft:inventory'
+    const lastGridSlot = isInventory ? 4 : 9
+    let moved = 0
+    for (const [slot, it] of [...w.slots.entries()]) {
+      if (!it || slot < 1 || slot > lastGridSlot) continue
+      try { await bot.putAway(slot); moved++ } catch { /* stuck slot stays */ }
+    }
+    return moved
+  } catch { return 0 }
 }
 
 async function craft (bot, itemName, times, table = null, log = null) {
@@ -57,10 +79,18 @@ async function craft (bot, itemName, times, table = null, log = null) {
         await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
         return true
       } catch (e) {
-        await returnGridItems(bot)
         lastErr = e
         // one line per FAILED variant: this is how a broken craft shows up in CI logs
         step(`craft ${itemName}: variant#${recipe.delta ? recipe.delta.length : '?'} attempt${attempt} failed: ${e.message}`)
+        // THE CRITICAL RECOVERY: a timed-out craft leaves the window open with the grid
+        // full. Without closing it, every later craft fails with "missing ingredient"
+        // no matter what the inventory holds (measured: ProdTest2 burned its whole
+        // budget this way; ProdTest1 repeated it on the 2x2 sticks craft). Close +
+        // sweep before the next attempt.
+        recoverCraftWindow(bot, step)
+        const swept = await sweepGridItems(bot)
+        if (swept) step(`craft ${itemName}: swept ${swept} ghost grid slot(s) back into the inventory`)
+        if (/missing ingredient|no craftable recipe/i.test(e.message)) break // other attempts of THIS variant cannot help
       }
     }
   }
@@ -95,14 +125,25 @@ async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, t
 // apart, so placeTable must never "reuse" the OTHER bot's table (openCraftingTable on
 // an out-of-reach block hangs until the craft timeout burns the whole budget).
 const TABLE_REACH = 4.5
-const reachableTable = bot => bot.findBlock({
-  matching: b => b.name === 'crafting_table' &&
-    bot.entity.position.distanceTo(b.position) <= TABLE_REACH,
-  maxDistance: TABLE_REACH
-})
+// WARNING (the two-bot crash, caught by diag-two-tools): mineflayer's findBlocks palette
+// fast-path calls the matcher with a Block whose .position is NULL (Block.fromStateId has
+// no position). Because the predicate short-circuits on `b.name === 'crafting_table'`,
+// distanceTo(null) only ever fired when ANOTHER bot's table was already in a nearby
+// chunk palette - so one bot always worked and two bots crashed with
+// "Cannot read properties of null (reading 'x')". Never trust matcher block positions.
+const reachableTable = bot => {
+  const me = bot.entity?.position
+  if (!me) return null
+  return bot.findBlock({
+    matching: b => b.name === 'crafting_table' && b.position != null && me.distanceTo(b.position) <= TABLE_REACH,
+    maxDistance: TABLE_REACH
+  })
+}
 
 async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
-  const find = () => reachableTable(bot)
+  const find = () => {
+    try { return reachableTable(bot) } catch { return null } // a throw here must not kill ensureTools
+  }
   const started = Date.now()
   for (let round = 0; round < rounds; round++) {
     if (Date.now() - started > maxMs) break // give up in time so ensureTools can self-heal
@@ -110,6 +151,14 @@ async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
     if (existing) return existing
     const tableItem = inventoryItems(bot).find(i => i.name === 'crafting_table')
     if (!tableItem) return null
+    // Standing in water / on a 1x1 pillar / mid-slope leaves no legal neighbour cell and
+    // the old code burned all 3 rounds without ever moving. Relocate first: a short walk
+    // to flat-enough ground makes the neighbour cells placeable (measured: bots in a
+    // river bed failed 3/3 rounds and reported "no crafting table" WITH a table item).
+    if (isWetOrFloating(bot)) {
+      try { await relocateToSolidGround(bot) } catch { /* try placement anyway */ }
+      if (find()) continue
+    }
     try {
       await bot.equip(tableItem, 'hand')
       const feet = bot.entity.position.floored()
@@ -120,11 +169,11 @@ async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
         if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
           try {
-            // vanilla ignores right-clicks that arrive less than 4 game ticks apart: the
-            // old loop fired all 8 neighbour attempts back-to-back (~120ms apart, this
-            // run: 16 attempts in 1.9s) and every packet after the first was silently
-            // dropped - the table never appeared and the bot reported 'no crafting table'
-            await bot.waitForTicks(5) // 250ms > the 200ms server throttle
+            // vanilla ignores right-clicks that arrive less than 4 game ticks apart: firing
+            // all 8 neighbour attempts back-to-back made every packet after the first be
+            // silently dropped - the table never appeared and the bot reported
+            // 'no crafting table'. 250ms > the 200ms server throttle.
+            await bot.waitForTicks(5)
             await bot.placeBlock(floorB, new Vec3(0, 1, 0))
             const placedB = bot.blockAt(cell)
             if (placedB && placedB.name === 'crafting_table') return placedB
@@ -133,22 +182,49 @@ async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         }
       }
       if (placed) continue // a block appeared (maybe not the table) - look again
-      // nowhere to place (treetop / mid-air): eat the block below and fall towards
-      // the terrain. A canopy is 10+ blocks deep - 3 rounds never reached the ground,
-      // so this loops until we actually stand on something solid (or rounds run out).
-      const under = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
-      if (under && under.type !== 0 && under.boundingBox !== 'fluid' && /leaves/.test(under.name)) {
-        // leaves under our feet: dig (fastDig is 3x faster than an honest dig)
-        try { await withTimeout(bot.fastDig ? bot.fastDig(under) : bot.dig(under), 5000, 'dig leaves below') } catch { /* fall anyway */ }
-        await bot.waitForTicks(12)
-      } else if (under && under.type !== 0 && under.boundingBox !== 'fluid') {
-        break // solid non-leaf ground and still no spot -> stop retrying
+      // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
+      const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
+        // bot.dig has no internal timeout - fence it (a hanging dig would freeze ensureTools)
+        await withTimeout(bot.dig(below), 10000, 'dig below for table placement')
+        await bot.waitForTicks(15) // fall one block
       } else {
         await bot.waitForTicks(10) // already airborne - let gravity settle us
       }
     } catch { /* fall through to the next round */ }
   }
   return find()
+}
+
+// feet or head inside fluid, or no solid block directly below us
+export function isWetOrFloating (bot) {
+  try {
+    const p = bot.entity.position.floored()
+    const feet = bot.blockAt(p)
+    const head = bot.blockAt(p.offset(0, 1, 0))
+    const below = bot.blockAt(p.offset(0, -1, 0))
+    return !!(feet?.boundingBox === 'fluid' || head?.boundingBox === 'fluid' ||
+      !below || below.boundingBox === 'empty' || below.boundingBox === 'fluid')
+  } catch { return false }
+}
+
+// Walk a few blocks (pathfinder, fenced) until the bot stands on solid, dry ground.
+export async function relocateToSolidGround (bot, { tries = 6 } = {}) {
+  const { goals } = await import('mineflayer-pathfinder')
+  for (let i = 0; i < tries; i++) {
+    if (!isWetOrFloating(bot)) return true
+    const angle = Math.PI * 2 * i / tries
+    const here = bot.entity.position
+    const tx = here.x + Math.cos(angle) * 6
+    const tz = here.z + Math.sin(angle) * 6
+    try {
+      await withTimeout(
+        bot.pathfinder.goto(new goals.GoalNear(tx, here.y, tz, 1)),
+        8000, 'relocate walk'
+      )
+    } catch { try { bot.pathfinder.setGoal(null) } catch { /* idle */ } }
+  }
+  return !isWetOrFloating(bot)
 }
 
 /**
@@ -204,11 +280,9 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const dominantLog = Object.entries(PLANK_OF)
     .sort((a, b) => countItem(bot, b[0]) - countItem(bot, a[0]))[0]
   for (const [logName, plankName] of [dominantLog, ...Object.entries(PLANK_OF).filter(([l]) => l !== dominantLog[0])]) {
-    await returnGridItems(bot)
-    const logs = countItem(bot, logName)
-    const want = Math.ceil((12 - countItem(bot, plankName)) / 4)
-    const times = Math.min(logs, want)
-    if (times > 0) await craft(bot, plankName, times, null, step) // one window session
+    for (let i = 0; i < 10 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 12; i++) {
+      if (!await craft(bot, plankName, 1, null, step)) break
+    }
   }
   // 26.2 wood sets - the old list (oak..mangrove only) missed cherry/pale_oak/bamboo/
   // crimson/warped, which is how a bot ended with 5 oak + 3 cherry planks and could not
@@ -234,15 +308,17 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
 
   let table = await placeTable(bot)
   if (!table) {
-    // Self-healing pass: the 26.2 craft window can silently eat ingredients (planks
-    // 'vanished' into a desynced grid) and vanilla drops right-clicks that come too
-    // fast, so BOTH failure modes above end here with the kit incomplete. Two roads:
-    // the table item exists -> just place it again (slower pacing makes it land);
-    // it does not -> gather fresh wood and rebuild planks/sticks/table from scratch.
+    // Self-healing pass (v0.3.1 idea, kept in the merge): the 26.2 craft window can
+    // silently eat ingredients (planks 'vanished' into a desynced grid) and vanilla
+    // drops right-clicks that come too fast, so BOTH failure modes above end here with
+    // the kit incomplete. Two roads: the table item exists -> just place it again
+    // (slower pacing makes it land); it does not -> gather fresh wood and rebuild
+    // planks/sticks/table from scratch.
     if (!hasKind(bot, 'crafting_table') && timeLeft() > 25 && miner?.gatherWood) {
       step('self-heal: rebuilding the table chain from fresh wood')
       try { await miner.gatherWood({ want: 8, maxSeconds: Math.min(40, timeLeft() - 15) }) } catch { /* work with what we have */ }
-      await returnGridItems(bot)
+      await recoverCraftWindow(bot, step)
+      await sweepGridItems(bot)
       for (const [logName, plankName] of Object.entries(PLANK_OF)) {
         const want = Math.ceil((8 - countItem(bot, plankName)) / 4)
         const times = Math.min(countItem(bot, logName), want)
@@ -251,7 +327,9 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
       if (countItem(bot, 'stick') < 4) await craftUntil(bot, 'stick', { want: 4, log: step })
       if (!hasKind(bot, 'crafting_table')) await craftUntil(bot, 'crafting_table', { want: 1, log: step })
     } else {
-      await returnGridItems(bot) // a stuck grid is the usual placement-blocker too
+      // a stuck grid is the usual placement-blocker too
+      await recoverCraftWindow(bot, step)
+      await sweepGridItems(bot)
     }
     table = await placeTable(bot)
     step(`self-heal: table ${table ? 'placed' : 'STILL missing'}`)

@@ -136,8 +136,11 @@ test('patrol respects the deadline even when the bot cannot move', async () => {
   const map = new WorldMap()
   const bot = makeMockBot({ blocks: [] })
   bot.pathfinder.goto = async () => { throw new Error('stuck') } // wedged against a cliff
-  const scan = createScan({ bot, map })
+  // NOTE: the SAME stats object must go into createScan AND createPatrol - createScan
+  // otherwise builds its own internal stats and every scans assertion would see a
+  // frozen 0 forever (this was a test bug, not a patrol bug)
   const stats = { scans: 0, found: 0, travelled: 0 }
+  const scan = createScan({ bot, map, stats })
   const patrol = createPatrol({ bot, map, scan, stats })
   const t0 = Date.now()
   await patrol({ heading: 'north', distance: 96, lanes: 8, laneGap: 24, seconds: 1 })

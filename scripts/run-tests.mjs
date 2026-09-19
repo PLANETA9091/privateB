@@ -16,6 +16,7 @@
 //   node scripts/run-tests.mjs all
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -50,8 +51,17 @@ console.log(`[run-tests] ${files.length} test file(s), ${FILE_TIMEOUT_MS / 1000}
 for (const f of files) console.log(`  ${path.relative(root, f)}`)
 
 // --test-force-exit exists from Node 22.5; probe once so older runtimes still work.
-const probe = spawnSync(process.execPath, ['--test-force-exit', '--test', '-e', 'process.exit(0)'], { timeout: 15000 })
-const forceExit = probe.status === 0
+// The probe must use a real test FILE: newer Node (24+) rejects `--test` combined with
+// `-e` ("either --test or --eval can be used, not both"), which made the old probe
+// report "not supported" on runtimes that actually have the flag.
+let forceExit = false
+try {
+  const probeFile = path.join(os.tmpdir(), `probe-force-exit-${process.pid}.test.mjs`)
+  fs.writeFileSync(probeFile, "import { test } from 'node:test'\ntest('probe', () => {})\n")
+  const probe = spawnSync(process.execPath, ['--test-force-exit', '--test', probeFile], { timeout: 15000 })
+  fs.unlinkSync(probeFile)
+  forceExit = probe.status === 0
+} catch { /* keep forceExit = false */ }
 if (!forceExit) console.log('[run-tests] --test-force-exit not supported here, relying on the per-file timeout')
 
 let failed = 0

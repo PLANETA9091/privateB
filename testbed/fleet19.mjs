@@ -14,6 +14,8 @@ import fs from 'node:fs'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
+import { attachChatSync } from '../src/fleet/chatsync.mjs'
+import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
@@ -24,6 +26,7 @@ const COUNT = Number(process.argv[2] || 19)
 const SECONDS = Number(process.argv[3] || 300)
 const TARGETS = (process.argv[4] || 'sand,gravel,oak_log,birch_log,spruce_log').split(',')
 const SCOUT = process.argv.includes('--scout') || process.env.SCOUT === '1'
+const SYNC = process.env.FLEET_SYNC === '1' // cross-process chat sync (PVB1)
 const BATCH = COUNT // all bots at once (the user wants them working simultaneously)
 
 // The shared resource map: scouts fill it, miners read it. Persisted so a restarted
@@ -66,6 +69,10 @@ async function runBot (name, target, index) {
       })
       bots.set(name, { miner, target })
       await miner.ready
+
+      // FLEET_SYNC=1: hear the OTHER processes' broadcasts (a scout in a second terminal)
+      // and merge them into this process's shared map; also broadcast our own finds.
+      const sync = SYNC ? attachChatSync(miner.bot, map, { flushEveryMs: 5000, maxPerFlush: 30, log: () => {} }) : null
 
       // Deploy on foot: with allow-flight=false vanilla kicks a bot that hovers for 80 ticks,
       // so sustained flight is not usable. The actual spreading happens while working: every
@@ -133,6 +140,23 @@ async function runBot (name, target, index) {
             await miner.bot.pathfinder.goto(new goals.GoalNear(here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), 2))
           } catch { /* next shaft from here */ }
         }
+      }
+
+      // FLEET_SYNC (v0.6.0): cross-process resource sync. The shared WorldMap works by
+      // reference inside THIS process; chat (PVB1, src/fleet/chatsync.mjs) is the only
+      // channel to OTHER processes - a scout in a second terminal merges our finds live.
+      if (sync) sync.stop()
+
+      // end-of-run banking: after the deadline the pockets still hold loot that would
+      // otherwise be lost when the bot quits - one final walk to the chests. Skipped
+      // when only KEEP-list items remain (a pointless walk to the yard costs minutes).
+      const bankable = miner.bot.entity &&
+        miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
+      if (bankable) {
+        try {
+          const res = await miner.depositLoot({ timeoutMs: 120000 })
+          if (res.deposited > 0) banked += res.deposited
+        } catch { /* report whatever was banked so far */ }
       }
     } catch (e) {
       if (/kicked|end|disconnect/i.test(e.message)) reconnects++

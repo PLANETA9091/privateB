@@ -33,8 +33,14 @@ gather the materials a `.litematic` base needs. Everything here was measured on 
 | Structure-seed cracker | **works** | recovered a real 48-bit seed from 36 structure positions in ~6 s (12 cores) |
 | Dungeon / ore based cracking | **dead end** | upstream SeedcrackerX states dungeons/emerald cracking was removed for 1.18+ |
 | **Fleet mining productivity** | **works - CI GREEN** | per-bot job queue (`src/lib/jobqueue.mjs`): pathfinder-verified reachable targets only, hard timeout around every `collect()`, blacklist for failures; asserted by `tests/integration/productivity.test.mjs` on a live vanilla server in GitHub Actions |
-| Scout -> miner integration | **works (ground mode)** | shared `WorldMap` (`src/fleet/worldmap.mjs`): every walking miner records what it sees and walks to map-known positions when its local scan runs dry; `SCOUT=1 node testbed/fleet19.mjs` adds a dedicated walking scout (no fly, no dig); map persists to `data/worldmap.json` |
-| Test suite | **works** | 40+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig, scout) + integration tests, all run in CI on every push |
+| **Scout -> miner integration** | **works (ground mode)** | shared `WorldMap` (`src/fleet/worldmap.mjs`): every walking miner records what it sees and walks to map-known positions when its local scan runs dry; `SCOUT=1 node testbed/fleet19.mjs` adds a dedicated walking scout (no fly, no dig); map persists to `data/worldmap.json` |
+| **Stall-proof ground mining** | **works** | `workOnGround` escalates instead of spinning: map trip -> far hop -> 90° rotation -> digShaft fallback (v0.5.0, field logs showed +0 windows before) |
+| **Craft window recovery** | **works** | a timed-out `bot.craft` used to poison the grid ("missing ingredient" forever); `tools.mjs` now closes/sweeps the stale window (table AND inventory windows), plus the 4-tick place throttle and the self-healing table chain |
+| **Two-bot tool bootstrap crash** | **fixed** | mineflayer's findBlocks palette fast-path hands matchers position-less blocks - the reachableTable predicate crashed with `reading 'x' of null` whenever ANOTHER bot's table was in a nearby chunk palette; guarded (v0.5.0) |
+| **Fleet chat sync (PVB1)** | **works** | `src/fleet/chatsync.mjs`: scouts broadcast new finds over compact chat lines, every bot merges them into its WorldMap - the only channel across process boundaries; unit-tested codec (chunking, content dedupe, hostile-input safe) |
+| **Chest delivery** | **works** | `src/lib/deposit.mjs`: bots with full pockets walk back and bank into the yard's chest rows (tools/food stay with the bot); VERIFIED transfers (ghost clicks are not counted as loot), multi-chest continuation, `depositToChests` for full deliveries; fleet19 banks mid-run (>=30 slots) AND at the end, reports `banked=` |
+| **digShaft survival guards** | **works** | lava check 4 blocks below (sidestep instead of dying) + health guard (pause/retreat when damaged); every death drops the whole inventory |
+| Test suite | **works** | 70+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig, chatsync, deposit, scout) + integration tests, all run in CI on Node 22 and 24 on every push |
 
 ## How the fleet stays productive (the old "Known problem", fixed)
 
@@ -103,6 +109,10 @@ scripts/server.sh start            # local vanilla 26.2 server (auto-finds Java 
 node scripts/setup-yard.mjs        # workshop at spawn
 scripts/fleet-run.sh 19 1800 --yard  # reset world to the fixed seed, launch 19 bots in background
 tail -f /tmp/fleet19.log           # watch the fleet
+
+# fleet extras (both optional):
+FLEET_SYNC=1 node testbed/fleet19.mjs 19 1800   # share finds between bots over chat
+FLEET_DEPOSIT=0 node testbed/fleet19.mjs 19 300 # disable end-of-run chest delivery
 ```
 
 ## Test it (GitHub CI runs all of this on every push)
