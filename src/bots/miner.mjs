@@ -68,13 +68,16 @@ export function createMiner ({
   // Where does the fleet KNOW a target is? Verify through blockAt so stale entries
   // (already mined by another bot) are dropped from the map as a side effect.
   const failedTrips = new Set() // "x,y,z" the pathfinder could not handle - do not retry forever
-  function mapTargetFor (names, { maxDistance = 96 } = {}) {
+  function mapTargetFor (names, { maxDistance = 96, verify = true } = {}) {
     if (!map) return null
     let best = null
     for (const name of names) {
       const pos = map.nearest(name, bot.entity.position, {
         maxDistance,
-        verifyWith: p => bot.blockAt(p)
+        // verify=true deletes entries the current chunks can no longer confirm - good
+        // for nearby mining targets, harmful for far ones (blockAt nulls unloaded
+        // chunks, so a query with verify would WIPE the whole far bucket)
+        verifyWith: verify ? (p => bot.blockAt(p)) : null
       })
       if (pos && failedTrips.has(`${pos.x},${pos.y},${pos.z}`)) continue
       if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
@@ -1085,17 +1088,33 @@ export function createMiner ({
     const visitedTrunks = new Set() // "x,z" of every trunk we already ate (floating tops stay behind)
     let idleChops = 0
     while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
+      // every walking bot is a passive scout: record the trees/sand/gravel it sees into
+      // the shared map so wood-starved siblings can query real positions instead of
+      // blind-walking into a depleted forest (11/19 bots ended the v0.6.8 fleet run
+      // with logs=0 that way)
+      recordToMap({ maxDistance: 48, count: 32 })
       // lowest log first: that is a trunk base; a floating top of an eaten tree sorts higher
       // and is skipped by the visited-column check
       const cands = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 48, count: 24 })
         .sort((a, b) => (a.y - b.y) || (a.distanceTo(bot.entity.position) - b.distanceTo(bot.entity.position)))
       const base = cands.find(p => !visitedTrunks.has(`${p.x},${p.z}`))
       if (!base) {
-        // only eaten trunks in view: move along our direction and look again
+        // local scan empty: ask the shared map for a tree another bot recorded.
+        // verify=false - far entries sit in unloaded chunks and blockAt-nulling them
+        // would wipe the bucket; chopReachable re-checks locally on arrival.
+        const known = mapTargetFor(LOG_NAMES, { maxDistance: 256, verify: false })
+        if (known) {
+          visitedTrunks.add(`${known.pos.x},${known.pos.z}`) // never loop on the same entry
+          try {
+            await gotoSafe(bot, standGoalNear(bot, goals, known.pos.x, known.pos.y, known.pos.z, { range: 4 }), { timeoutMs: 24000, label: 'wood trip' })
+          } catch { /* chop whatever is in reach now */ }
+          continue
+        }
+        // nothing known anywhere either: move along our direction and look again
         const here = bot.entity.position
         const out = new Vec3(here.x + direction.x * 32, here.y, here.z + direction.z * 32)
         try {
-          await gotoSafe(bot, standGoalNear(bot, goals, out.x, out.y, out.z, { range: 4 }))
+          await gotoSafe(bot, standGoalNear(bot, goals, out.x, out.y, out.z, { range: 4 }), { timeoutMs: 15000, label: 'wood relocate' })
         } catch { /* try again next round */ }
         continue
       }
