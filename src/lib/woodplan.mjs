@@ -36,6 +36,35 @@ export function recoveryDue ({ hasPick, msSinceLast, remainingMs, cooldownMs = 4
 }
 
 /**
+ * Should the fleet loop attempt a mid-run tool UPGRADE (wooden kit -> stone kit)?
+ * The v0.7.1 Big Fleet ended with bots holding 29+ cobblestone while STILL digging
+ * with wooden pickaxes: ensureTools only upgrades during the bootstrap, when the bot
+ * has no cobblestone yet. A wooden pickaxe digs stone ~2x slower than stone - and
+ * WORSE, it breaks coal/iron ore WITHOUT a drop, so wooden-kit bots can never
+ * collect the ores the plan needs. Requires the bot to hold the upgrade material
+ * (cobblestone >= 3 for the pickaxe) and enough runway (the table dance + 2 crafts
+ * can take up to ~40s).
+ *
+ * @param {object} p
+ * @param {boolean} p.hasStoneTools does the bot already dig with stone-or-better
+ * @param {number} p.cobblestone cobblestone currently held
+ * @param {number} p.msSinceLast ms since the last upgrade attempt (cheap when it
+ *   fails on 'no cobblestone', so the cooldown mainly avoids repeating a FAILED
+ *   table dance back-to-back)
+ * @param {number} p.remainingMs ms left until the run's deadline
+ * @param {number} [p.cooldownMs]
+ * @param {number} [p.minRemainingMs]
+ * @returns {boolean}
+ */
+export function upgradeDue ({ hasStoneTools, cobblestone, msSinceLast, remainingMs, cooldownMs = 60000, minRemainingMs = 60000 }) {
+  if (hasStoneTools) return false
+  if (!Number.isFinite(cobblestone) || cobblestone < 3) return false
+  if (!Number.isFinite(msSinceLast) || msSinceLast <= cooldownMs) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
+  return true
+}
+
+/**
  * Should a wood-gathering loop stop hunting and go craft with what it already holds?
  * True only when BOTH hold:
  *   - we hold at least `goodEnough` logs (enough for the whole tool kit), and

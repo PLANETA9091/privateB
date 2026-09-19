@@ -10,6 +10,18 @@ export const countItem = (bot, name) => inventoryItems(bot).filter(i => i.name =
 export const countLogs = bot => LOG_BLOCKS.reduce((a, n) => a + countItem(bot, n), 0)
 export const hasKind = (bot, kind) => inventoryItems(bot).some(i => i.name.includes(kind))
 
+// 26.2 wood sets - the old list (oak..mangrove only) missed cherry/pale_oak/bamboo/
+// crimson/warped, which is how a bot ended with 5 oak + 3 cherry planks and could not
+// craft anything that needs 4 of a kind. Module scope: shared by ensureTools AND
+// upgradeTools (mid-run stone upgrade rebuilds planks/tables the same way).
+const PLANK_OF = {
+  oak_log: 'oak_planks', birch_log: 'birch_planks', spruce_log: 'spruce_planks',
+  jungle_log: 'jungle_planks', dark_oak_log: 'dark_oak_planks', acacia_log: 'acacia_planks',
+  mangrove_log: 'mangrove_planks', cherry_log: 'cherry_planks', pale_oak_log: 'pale_oak_planks',
+  bamboo_block: 'bamboo_planks', crimson_stem: 'crimson_planks', warped_stem: 'warped_planks'
+}
+const PLANK_TYPES = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 'acacia_planks', 'cherry_planks', 'dark_oak_planks', 'pale_oak_planks', 'mangrove_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks']
+
 function recipeFor (bot, itemName, table) {
   const id = bot.registry.itemsByName[itemName]?.id
   if (id == null) return null
@@ -315,13 +327,8 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   // 2. planks -> sticks -> table (all 2x2, no table needed yet)
   // Craft planks out of EVERY log type we actually hold: the old code always picked
   // the oak recipe, so a bot holding birch logs accumulated planks it could not use
-  // and every craft after that silently failed.
-  const PLANK_OF = {
-    oak_log: 'oak_planks', birch_log: 'birch_planks', spruce_log: 'spruce_planks',
-    jungle_log: 'jungle_planks', dark_oak_log: 'dark_oak_planks', acacia_log: 'acacia_planks',
-    mangrove_log: 'mangrove_planks', cherry_log: 'cherry_planks', pale_oak_log: 'pale_oak_planks',
-    bamboo_block: 'bamboo_planks', crimson_stem: 'crimson_planks', warped_stem: 'warped_planks'
-  }
+  // and every craft after that silently failed. PLANK_OF/PLANK_TYPES are module-scope
+  // (shared with upgradeTools).
   // Convert the DOMINANT log type first: the whole tool kit (4 table + 3 pickaxe +
   // 1 shovel + 2 sticks) needs 10 planks of ONE type. Mixed types were exactly how a
   // bot ended with 6 + 6 and could not craft anything 3-or-4-of-a-kind.
@@ -332,10 +339,6 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
       if (!await craft(bot, plankName, 1, null, step)) break
     }
   }
-  // 26.2 wood sets - the old list (oak..mangrove only) missed cherry/pale_oak/bamboo/
-  // crimson/warped, which is how a bot ended with 5 oak + 3 cherry planks and could not
-  // craft anything that needs 4 of a kind
-  const PLANK_TYPES = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 'acacia_planks', 'cherry_planks', 'dark_oak_planks', 'pale_oak_planks', 'mangrove_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks']
   const planksName = PLANK_TYPES.find(n => countItem(bot, n) >= 4) ?? PLANK_TYPES.find(n => recipeFor(bot, n, null))
   if (!planksName) return { ok: false, kit: 'no planks recipe' }
   const planks = PLANK_TYPES.reduce((a, n) => a + countItem(bot, n), 0)
@@ -414,4 +417,62 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   }
   step(`final: ${inventoryItems(bot).filter(i => i.name.includes('pickaxe') || i.name.includes('shovel') || i.name.includes('axe')).map(i => i.name).join(', ') || 'none'}`)
   return { ok: hasKind(bot, 'pickaxe'), kit: inventoryItems(bot).filter(i => i.name.includes('pickaxe')).map(i => i.name).join(',') }
+}
+
+const STONE_OR_BETTER = ['stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe', 'golden_pickaxe']
+export const hasStonePickaxe = bot => inventoryItems(bot).some(i => STONE_OR_BETTER.includes(i.name))
+
+/**
+ * Mid-run tool upgrade: wooden kit + cobblestone -> stone kit.
+ * ensureTools only upgrades during the bootstrap (when the bot has no cobblestone
+ * yet), so fleet bots used to dig their WHOLE run with wooden pickaxes while holding
+ * 29+ cobblestone (v0.7.1 fleet). A wooden pickaxe digs stone ~2x slower than stone,
+ * and it breaks coal/iron ore WITHOUT a drop - the upgrade also unlocks the ores the
+ * materials plan needs.
+ *
+ * Self-contained: reuses a reachable table or crafts+places a spare one from surplus
+ * planks/logs, tops up sticks, then crafts stone_pickaxe (+ stone_shovel when the
+ * cobblestone allows). Bounded by maxSeconds; never throws. Cheap no-op when the kit
+ * is already stone or there is nothing to upgrade with.
+ */
+export async function upgradeTools (bot, { log = () => {}, maxSeconds = 40 } = {}) {
+  const started = Date.now()
+  const step = msg => log(`[upgrade] ${msg}`)
+  const timeLeft = () => maxSeconds - (Date.now() - started) / 1000
+  try {
+    if (hasStonePickaxe(bot)) return { ok: true, kit: 'already stone+' }
+    if (countItem(bot, 'cobblestone') < 3) return { ok: false, kit: 'no cobblestone' }
+    // each stone tool craft eats 2 sticks
+    if (countItem(bot, 'stick') < 4) await craftUntil(bot, 'stick', { want: 4, log: step })
+    // stone tools are 3x3 recipes: reuse a reachable table, else craft + place a spare
+    // one from surplus planks (converting logs when the planks fragmented across types)
+    let table = reachableTable(bot)
+    if (!table) {
+      if (!hasKind(bot, 'crafting_table')) {
+        const planksOfBestType = () => Math.max(0, ...PLANK_TYPES.map(n => countItem(bot, n)))
+        if (planksOfBestType() < 4) {
+          for (const [logName, plankName] of Object.entries(PLANK_OF)) {
+            while (countItem(bot, logName) > 0 && planksOfBestType() < 6) {
+              if (!await craft(bot, plankName, 1, null, step)) break
+            }
+          }
+        }
+        await craftUntil(bot, 'crafting_table', { want: 1, log: step })
+      }
+      if (!hasKind(bot, 'crafting_table')) return { ok: false, kit: 'no table material' }
+      table = await placeTable(bot, { maxMs: 15000 })
+      if (!table) return { ok: false, kit: 'no table placement' }
+    }
+    if (timeLeft() > 8 && !hasStonePickaxe(bot)) await craftUntil(bot, 'stone_pickaxe', { table, log: step })
+    if (timeLeft() > 8 && countItem(bot, 'cobblestone') >= 4 &&
+        !inventoryItems(bot).some(i => STONE_OR_BETTER.includes(i.name.replace('shovel', 'pickaxe')))) {
+      await craftUntil(bot, 'stone_shovel', { table, log: step })
+    }
+    const kit = inventoryItems(bot).filter(i => i.name.includes('pickaxe') || i.name.includes('shovel')).map(i => i.name).join(',')
+    step(`upgraded: ${kit || 'none'}`)
+    return { ok: hasStonePickaxe(bot), kit }
+  } catch (e) {
+    step(`failed: ${e.message}`)
+    return { ok: hasStonePickaxe(bot), kit: e.message }
+  }
 }

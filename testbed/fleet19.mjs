@@ -18,9 +18,9 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
-import { ensureTools, countItem } from '../src/bots/tools.mjs'
+import { ensureTools, upgradeTools, hasStonePickaxe, countItem } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
-import { recoveryDue } from '../src/lib/woodplan.mjs'
+import { recoveryDue, upgradeDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
@@ -57,6 +57,7 @@ let reconnects = 0
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
+let toolsUpgraded = 0 // successful wooden -> stone kit upgrades (v0.8.0)
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
 
@@ -203,6 +204,17 @@ async function runBot (name, target, index) {
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
       const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })
+      // stone upgrade: wooden kit + 3+ cobblestone -> stone kit (2x stone dig speed,
+      // and wooden pickaxes break coal/iron ore WITHOUT a drop - the upgrade unlocks
+      // the plan's ores). Fails cheap on 'no cobblestone', so the cooldown mostly
+      // guards against repeating a failed table dance back-to-back.
+      let lastUpgrade = Date.now()
+      const upgradeDueNow = () => upgradeDue({
+        hasStoneTools: hasStonePickaxe(miner.bot),
+        cobblestone: countItem(miner.bot, 'cobblestone'),
+        msSinceLast: Date.now() - lastUpgrade,
+        remainingMs: deadline - Date.now()
+      })
       let shaft = 0
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
@@ -214,6 +226,12 @@ async function runBot (name, target, index) {
           const res = await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 45 })
           if (res.ok) toolsRecovered++
           console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
+        }
+        if (upgradeDueNow()) {
+          lastUpgrade = Date.now()
+          const res = await upgradeTools(miner.bot, { log: () => {} })
+          if (res.ok) toolsUpgraded++
+          console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} (${res.kit})`)
         }
         let interrupted = false
         await miner.digShaft(namesFor(hasPickNow()), {
@@ -371,7 +389,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked} smelted=${smelted}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} upgraded=${toolsUpgraded} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked} smelted=${smelted}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
@@ -399,6 +417,7 @@ const fleetReport = {
   reconnects,
   toolsOk,
   toolsRecovered,
+  toolsUpgraded,
   toolsReboot,
   banked,
   smelted,
