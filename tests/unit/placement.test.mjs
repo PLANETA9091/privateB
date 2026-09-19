@@ -58,11 +58,13 @@ test('potentialStructureChunk is deterministic per (seed, region)', () => {
     }
   }
   // a different world seed must change at least ONE of the probed regions (a single
-  // region can collide by chance: two offsets out of (spacing-separation)^2)
+  // region can collide by chance: two offsets out of (spacing-separation)^2).
+  // The +1 MUST be applied in BigInt: SEED needs 63 bits, so `SEED + 1` as a Number
+  // rounds straight back to SEED and the probe would compare the seed with itself.
   let differs = false
   for (let rx = -4; rx <= 4; rx++) {
     for (let rz = -4; rz <= 4; rz++) {
-      if (potentialStructureChunk(SEED + 1, def, rx, rz).chunkX !== potentialStructureChunk(SEED, def, rx, rz).chunkX) differs = true
+      if (potentialStructureChunk(BigInt(SEED) + 1n, def, rx, rz).chunkX !== potentialStructureChunk(SEED, def, rx, rz).chunkX) differs = true
     }
   }
   assert.ok(differs, 'seed +1 produced identical placement for every probed region')
