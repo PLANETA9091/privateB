@@ -108,7 +108,9 @@ test('planItemsOf: planks covers every 26.2 wood family (no item is named just p
 })
 
 test('planItemsOf: plain resources fall back through DROP_OF to the name itself', () => {
-  assert.deepEqual(planItemsOf('stone'), ['cobblestone'])
+  // stone is NOT plain fallback: it counts the drop AND the smelted product
+  // (the fleet's furnaces turn cobble -> stone in bulk)
+  assert.deepEqual(planItemsOf('stone'), ['cobblestone', 'stone'])
   assert.deepEqual(planItemsOf('dirt'), ['dirt'])
   assert.deepEqual(planItemsOf('ink_sac'), ['ink_sac'])
 })
@@ -118,6 +120,7 @@ test('planHave: sums every counting item across the inventory snapshot', () => {
   assert.equal(planHave(items, 'iron_ingot'), 42)
   assert.equal(planHave(items, 'planks'), 5)
   assert.equal(planHave(items, 'stone'), 64, 'stone counts through DROP_OF -> cobblestone')
+  assert.equal(planHave([p9('stone', 30), p9('cobblestone', 10)], 'stone'), 40, 'smelted stone and the drop count TOGETHER')
 })
 
 test('planHave: junk input is ignored, never crashes', () => {
