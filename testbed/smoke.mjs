@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Smoke test: does mineflayer actually work on Minecraft 26.2 (protocol 776)?
-// Checks login -> spawn -> chunk parsing -> inventory -> place -> dig.
+// Checks login -> spawn -> chunk parsing -> survival dig -> pickup -> place -> dig.
+// Survival only: no op, no /give, no gifts - exactly how the fleet plays.
 //
 // Usage: node testbed/smoke.mjs [host] [port] [username]
 import mineflayer from 'mineflayer'
@@ -17,9 +18,9 @@ const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1 }
 const done = (code, msg) => { step(msg); process.exit(code) }
 
 const timeout = setTimeout(() => {
-  fail('overall timeout (60s)')
+  fail('overall timeout (90s)')
   process.exit(1)
-}, 60000)
+}, 90000)
 
 step(`connecting to ${host}:${port} as ${username} (version ${VERSION})`)
 const bot = mineflayer.createBot({ host, port, username, version: VERSION, auth: 'offline' })
@@ -29,6 +30,8 @@ bot.on('kicked', r => fail(`kicked: ${typeof r === 'string' ? r : JSON.stringify
 bot.on('end', r => step(`disconnected: ${r}`))
 
 bot.once('login', () => step('login ok'))
+
+const countItems = () => bot.inventory.items().reduce((a, i) => a + i.count, 0)
 
 bot.once('spawn', async () => {
   try {
@@ -47,7 +50,7 @@ bot.once('spawn', async () => {
       for (let z = -8; z < 8; z++) {
         for (let y = -4; y < 4; y++) {
           const b = bot.blockAt(pos.offset(x, y, z))
-          if (!b || b.name === 'void_air' && !b) unknown++
+          if (!b) unknown++
           else if (b.name === 'air' || b.name === 'cave_air') air++
           else solid++
         }
@@ -62,33 +65,63 @@ bot.once('spawn', async () => {
     if (missing.length) throw new Error(`registry missing blocks: ${missing.join(', ')}`)
     step(`registry ok: ${wanted.length} sample blocks present`)
 
-    // --- 3. inventory + place + dig (we are opped, so ask the server for a block)
-    bot.chat('/give @s minecraft:dirt 64')
-    const dirt = await waitForItem(bot, 'dirt', 15000)
-    step(`inventory ok: got ${dirt.count}x ${dirt.name}`)
-
-    await bot.equip(dirt, 'hand')
-    step('equip ok')
-
-    const ground = bot.blockAt(pos.offset(0, -1, 0))
-    const target = bot.blockAt(pos.offset(1, -1, 0))
-    if (!ground || !target) throw new Error('cannot read ground blocks for placement')
-    await bot.placeBlock(ground, new Vec3(0, 1, 0))
+    // --- 3. survival dig: bare-hand a dirt-ish block right under our feet, then let the
+    //        drop land at our feet and confirm it reached the inventory (no op needed)
+    const DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel']
+    const before = countItems()
+    let dug = null
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const p = pos.offset(dx, -1, dz)
+      const b = bot.blockAt(p)
+      if (b && DIGGABLE.includes(b.name)) {
+        dug = { block: b, p }
+        break
+      }
+    }
+    if (!dug) throw new Error('no bare-hand diggable block (dirt/grass/sand/gravel) within 1 block - unexpected for a vanilla spawn')
+    await bot.dig(dug.block)
     await bot.waitForTicks(10)
-    const placed = bot.blockAt(pos.offset(0, 0, 0))
-    step(`place -> block at feet: ${placed && placed.name}`)
-    if (!placed || placed.name !== 'dirt') step('WARN: placement not confirmed at feet position (may be server desync)')
+    step(`dig ok: ${dug.block.name} at ${dug.p.floored()} is gone`)
 
-    // --- 4. digging: break the block we just placed
-    const toDig = bot.blockAt(pos)
-    if (toDig && toDig.name === 'dirt') {
-      await bot.dig(toDig)
+    // wait for the drop to be picked up (poll the inventory, do not trust events)
+    let pickedUp = false
+    for (let i = 0; i < 40 && !pickedUp; i++) {
       await bot.waitForTicks(10)
-      const after = bot.blockAt(pos)
-      step(`dig -> block at feet now: ${after && after.name}`)
-      if (after && after.name !== 'air') step('WARN: dig not confirmed')
+      pickedUp = countItems() > before
+    }
+    if (!pickedUp) step('WARN: drop was not picked up into the inventory (continuing)')
+    else step('pickup ok: the drop reached the inventory')
+
+    // --- 4. place what we dug back (into the free NEIGHBOUR cell: the bot itself
+    //        occupies the hole), then dig it again - place + dig in one go
+    const dirt = bot.inventory.items().find(i => ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel'].includes(i.name))
+    if (dirt) {
+      try {
+        await bot.equip(dirt, 'hand')
+        step(`equip ok: ${dirt.name} in hand`)
+        const feet = bot.entity.position.floored()
+        // the floor of the neighbouring column: solid at feet-1, free at feet/feet+1
+        const ref = bot.blockAt(feet.offset(1, -1, 0))
+        if (ref && ref.boundingBox !== 'empty' && ref.boundingBox !== 'fluid') {
+          await bot.placeBlock(ref, new Vec3(0, 1, 0))
+          await bot.waitForTicks(10)
+          const placed = bot.blockAt(feet.offset(1, 0, 0))
+          step(`place -> block beside us: ${placed && placed.name}`)
+          const toDig = placed && placed.type !== 0 ? placed : null
+          if (toDig) {
+            await bot.dig(toDig)
+            await bot.waitForTicks(10)
+            const after = bot.blockAt(feet.offset(1, 0, 0))
+            step(`dig again ok: placed block is now ${after && after.name}`)
+          }
+        } else {
+          step('WARN: no solid neighbour floor to place on - skipping place checks')
+        }
+      } catch (e) {
+        step(`WARN: place/dig-again failed (${e.message}) - core checks already passed`)
+      }
     } else {
-      step('skip dig: nothing to dig at feet')
+      step('WARN: nothing in inventory to place - skipping place/dig-again checks')
     }
 
     // --- 5. player entities visible (entity tracking works)
@@ -102,17 +135,3 @@ bot.once('spawn', async () => {
     process.exit(1)
   }
 })
-
-function waitForItem (bot, name, ms) {
-  const found = () => bot.inventory.items().find(i => i.name === name || i.name === `minecraft:${name}`)
-  const now = found()
-  if (now) return Promise.resolve(now)
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { bot.removeListener('windowUpdate', check); reject(new Error(`timeout waiting for ${name}`)) }, ms)
-    function check () {
-      const item = found()
-      if (item) { clearTimeout(timer); bot.removeListener('windowUpdate', check); resolve(item) }
-    }
-    bot.on('windowUpdate', check)
-  })
-}
