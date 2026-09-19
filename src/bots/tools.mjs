@@ -51,6 +51,19 @@ async function craft (bot, itemName, times, table = null, log = null) {
   return false
 }
 
+// Crafting on the patched 26.2 stack is occasionally PHANTOM: bot.craft resolves,
+// no error is thrown, and the item still never shows up in the inventory. The only
+// trustworthy check is the inventory itself, so keep crafting until the count rises.
+async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, tries = 4, log = null } = {}) {
+  const have = () => countItem(bot, itemName)
+  const before = have()
+  for (let i = 0; i < tries && have() - before < want; i++) {
+    const ok = await craft(bot, itemName, times, table, log)
+    if (!ok) break // no recipe variant / hard failure - retries will not change that
+  }
+  return have() - before >= want
+}
+
 // Put a crafting table on the ground and return the Block, or null.
 // Vanilla refuses a placement that intersects ANY entity hitbox: the old code placed
 // the table onto the block BELOW us, i.e. into the very cell the bot stands in, and
@@ -174,7 +187,7 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const planksName = PLANK_TYPES.find(n => countItem(bot, n) >= 4) ?? PLANK_TYPES.find(n => recipeFor(bot, n, null))
   if (!planksName) return { ok: false, kit: 'no planks recipe' }
   const planks = PLANK_TYPES.reduce((a, n) => a + countItem(bot, n), 0)
-  if (countItem(bot, 'stick') < 4) await craft(bot, 'stick', 1, null, step)
+  if (countItem(bot, 'stick') < 4) await craftUntil(bot, 'stick', { want: 4, log: step })
   if (!hasKind(bot, 'crafting_table')) {
     // sticks just consumed planks of one type - make sure SOME type still has the 4
     // the table needs, converting logs if it does not
@@ -185,7 +198,7 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
         }
       }
     }
-    await craft(bot, 'crafting_table', 1, null, step)
+    await craftUntil(bot, 'crafting_table', { want: 1, log: step })
   }
   step(`planks ${planks} (${plankCounts()}) sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)
 
@@ -203,8 +216,8 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
       }
     }
   }
-  if (!hasKind(bot, 'pickaxe')) await craft(bot, 'wooden_pickaxe', 1, table, step)
-  if (!hasKind(bot, 'shovel')) await craft(bot, 'wooden_shovel', 1, table, step)
+  if (!hasKind(bot, 'pickaxe')) await craftUntil(bot, 'wooden_pickaxe', { table, log: step })
+  if (!hasKind(bot, 'shovel')) await craftUntil(bot, 'wooden_shovel', { table, log: step })
   step(`wooden: pickaxe=${hasKind(bot, 'pickaxe')} shovel=${hasKind(bot, 'shovel')}`)
 
   if (hasKind(bot, 'pickaxe') && countItem(bot, 'cobblestone') < 4 && miner) {
@@ -217,8 +230,8 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   }
   const cobble = countItem(bot, 'cobblestone')
   if (cobble >= 3) {
-    await craft(bot, 'stone_pickaxe', 1, table, step)
-    if (cobble >= 4) await craft(bot, 'stone_shovel', 1, table, step)
+    await craftUntil(bot, 'stone_pickaxe', { table, log: step })
+    if (cobble >= 4) await craftUntil(bot, 'stone_shovel', { table, log: step })
   }
   step(`final: ${inventoryItems(bot).filter(i => i.name.includes('pickaxe') || i.name.includes('shovel') || i.name.includes('axe')).map(i => i.name).join(', ') || 'none'}`)
   return { ok: hasKind(bot, 'pickaxe'), kit: inventoryItems(bot).filter(i => i.name.includes('pickaxe')).map(i => i.name).join(',') }
