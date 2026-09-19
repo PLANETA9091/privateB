@@ -18,3 +18,4 @@ __pycache__/
 *.pyc
 bun.lock
 ci-logs/
+data/fleet-report.json

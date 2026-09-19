@@ -48,6 +48,29 @@ let banked = 0 // items deposited into the yard's chests
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
 
+// Materials plan progress: for every resource the base needs, how much the fleet is
+// holding right now (inventories) vs the required amount. This is what turns a
+// "blocks/s" number into actual progress towards the build.
+function materialsProgress () {
+  const list = [...bots.values()].map(e => e.miner).filter(Boolean)
+  const out = {}
+  for (const [res, required] of Object.entries(need)) {
+    if (!Number.isFinite(required) || required <= 0) continue
+    const have = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, res) : 0), 0)
+    out[res] = { required, have, pct: Math.min(100, (have / required) * 100) }
+  }
+  return out
+}
+
+// The 5 resources we are furthest from finishing - what the fleet should focus on.
+function topDeficits (n = 5) {
+  return Object.values(materialsProgress())
+    .sort((a, b) => (b.required - b.have) - (a.required - a.have))
+    .slice(0, n)
+    .map(m => `${m.required}/${m.have} (${m.pct.toFixed(1)}%)`)
+    .join(' ')
+}
+
 async function runBot (name, target, index) {
   // Each bot gets its own compass direction and deployment distance: that is what stops all
   // 19 of them from mining the same spot and stealing each other's drops.
@@ -221,7 +244,8 @@ const reporter = setInterval(() => {
   const s = fleetStats(list)
   const per = TARGETS.map(t => `${t}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')
   const mapRep = map.report()
-  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch | ${per}`)
+  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} | ${per}`)
+  if (Object.keys(need).length) console.log(`   deficits: ${topDeficits()}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
     const inv = m.bot?.inventory ? m.bot.inventory.items().reduce((a, i) => { a[i.name] = (a[i.name] || 0) + i.count; return a }, {}) : {}
@@ -250,5 +274,38 @@ console.log(`kicks handled: ${reconnects}`)
 const finalMap = map.report()
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)
 map.save() // next fleet starts with this knowledge
+
+// Machine-readable report for the plan loop: what was produced, by whom, and how far
+// the build's material plan got. Consumed by scripts and by the next session's agent.
+const materials = materialsProgress()
+const fleetReport = {
+  finishedAt: new Date().toISOString(),
+  seconds: SECONDS,
+  bots: COUNT,
+  spawned,
+  reconnects,
+  toolsOk,
+  banked,
+  mined: s.mined,
+  blocksPerSecond: secs > 0 ? Number((s.mined / secs).toFixed(3)) : 0,
+  perBot: list.map(m => ({
+    name: m.username,
+    mined: m.stats.mined,
+    banked: m.stats.banked ?? 0,
+    mapTrips: m.stats.mapTrips ?? 0,
+    mapRecords: m.stats.mapRecords ?? 0,
+    byName: m.stats.byName
+  })),
+  materials,
+  worldmap: finalMap
+}
+try {
+  fs.writeFileSync('data/fleet-report.json', JSON.stringify(fleetReport, null, 2))
+  console.log('report: data/fleet-report.json written')
+} catch (e) {
+  console.log(`report: could not write fleet-report.json (${e.message})`)
+}
+console.log(`plan progress: ${Object.values(materials).filter(m => m.pct >= 100).length}/${Object.keys(materials).length} resources complete`)
+
 for (const m of list) { try { m.bot.quit() } catch { /* already gone */ } }
 process.exit(0)
