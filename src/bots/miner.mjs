@@ -16,6 +16,12 @@ import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 
+// one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
+// sapling replant path calls this from gatherWood - a missing definition threw
+// ReferenceError on every replant attempt ("gatherWood failed: inventoryItems
+// is not defined", measured live and in CI 064c13c)
+const inventoryItems = bot => bot.inventory.items()
+
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
 
