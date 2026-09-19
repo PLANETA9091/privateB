@@ -57,7 +57,12 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
 
   const { createMiner, fleetStats } = await import(path.join(root, 'src', 'bots', 'miner.mjs'))
   const { ensureTools, countItem } = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
+  const { WorldMap } = await import(path.join(root, 'src', 'fleet', 'worldmap.mjs'))
   const { Vec3 } = await import('vec3')
+
+  // The shared scout -> miner resource map: while mining, every bot records what it sees;
+  // the assertion at the end proves the pipeline actually filled it.
+  const map = new WorldMap({ file: path.join(logDir, 'map.json') })
 
   // --- spawn the fleet in ground mode (no flight, exactly like production) ---
   const miners = []
@@ -68,6 +73,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
       username: `ProdTest${i}`,
       fly: false,
       mode: 'rage',
+      map,
       log
     }))
   }
@@ -145,6 +151,13 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   // no bot may have been kicked for flying (ground mode must be clean)
   const kickLog = fs.readFileSync(logFile, 'utf8')
   assert.ok(!/KICKED/.test(kickLog), 'bots must not be kicked in ground mode')
+
+  // scout -> miner pipeline: walking miners record the world into the shared map
+  const mapRep = map.report()
+  log(`worldmap: ${mapRep.positions} positions, ${mapRep.chunksScanned} chunks`)
+  assert.ok(mapRep.positions >= MIN_BLOCKS_PER_WINDOW,
+    `miners must record what they see into the worldmap (got ${mapRep.positions} positions)`)
+  assert.ok(mapRep.chunksScanned >= 1, 'the chunks the miners worked in must be marked scanned')
 })
 
 // Also import-check the whole bot stack in CI (catches broken refactors early)

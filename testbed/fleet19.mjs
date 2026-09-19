@@ -3,9 +3,17 @@
 // each one crafts its own tools, then they mine the build's materials non-stop. Kicked bots
 // are respawned automatically, so the fleet keeps working.
 //
-//   node testbed/fleet19.mjs [bots] [seconds] [targets]
+// The fleet shares a WorldMap (src/fleet/worldmap.mjs): every walking miner records what it
+// sees, and when a miner runs out of local targets it walks to a position the map knows.
+// With SCOUT=1 (or the --scout flag) one bot slot becomes a dedicated ground scout that
+// patrols and fills the map without digging.
+//
+//   node testbed/fleet19.mjs [bots] [seconds] [targets] [--scout]
+//   SCOUT=1 node testbed/fleet19.mjs
 import fs from 'node:fs'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
+import { createScout } from '../src/bots/scout.mjs'
+import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
@@ -15,7 +23,13 @@ const { goals } = pathfinderPkg
 const COUNT = Number(process.argv[2] || 19)
 const SECONDS = Number(process.argv[3] || 300)
 const TARGETS = (process.argv[4] || 'sand,gravel,oak_log,birch_log,spruce_log').split(',')
+const SCOUT = process.argv.includes('--scout') || process.env.SCOUT === '1'
 const BATCH = COUNT // all bots at once (the user wants them working simultaneously)
+
+// The shared resource map: scouts fill it, miners read it. Persisted so a restarted
+// fleet does not start from zero knowledge (data/worldmap.json is gitignored).
+const map = new WorldMap({ file: 'data/worldmap.json' })
+const HEADINGS = ['east', 'south', 'west', 'north']
 
 let need = {}
 try {
@@ -46,6 +60,7 @@ async function runBot (name, target, index) {
         username: name,
         mode: 'rage',
         fly: false, // flight is off: bots walk (see README)
+        map, // shared scout -> miner resource map
         log: () => {}
       })
       bots.set(name, { miner, target })
@@ -124,9 +139,42 @@ async function runBot (name, target, index) {
 process.on('unhandledRejection', e => console.log(`[fleet] unhandled rejection (kept alive): ${e?.stack || e}`))
 process.on('uncaughtException', e => console.log(`[fleet] uncaught exception (kept alive): ${e?.stack || e}`))
 
-console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join(', ')}`)
+console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join(', ')}${SCOUT ? ' (+1 ground scout)' : ''}`)
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
+
+// The dedicated ground scout (optional): one of the bot slots patrols and fills the
+// shared map instead of digging. It walks, it never flies, it never digs.
+if (SCOUT) {
+  runners.push((async () => {
+    for (let attempt = 0; attempt < 6 && Date.now() < deadline; attempt++) {
+      let scout
+      try {
+        scout = createScout({
+          host: '127.0.0.1',
+          port: 25565,
+          username: 'FleetScout',
+          map,
+          fly: false, // ground patrol: allow-flight=false would kick a flying scout
+          log: m => console.log(`[scout] ${m}`)
+        })
+        await scout.ready
+        let heading = HEADINGS[attempt % HEADINGS.length]
+        console.log(`[scout] patrolling ${heading} for ${Math.max(10, (deadline - Date.now()) / 1000 | 0)}s`)
+        while (Date.now() < deadline && scout.bot.entity) {
+          await scout.patrol({ heading, distance: 96, lanes: 4, laneGap: 24, seconds: Math.max(10, (deadline - Date.now()) / 1000) })
+          // one full lawn cycles through the next compass direction
+          heading = HEADINGS[(HEADINGS.indexOf(heading) + 1) % HEADINGS.length]
+        }
+        return
+      } catch (e) {
+        console.log(`[scout] attempt failed: ${e.message}`)
+      }
+      await new Promise(r => setTimeout(r, 3000))
+    }
+  })())
+}
+
 for (let i = 0; i < names.length; i += BATCH) {
   const slice = names.slice(i, i + BATCH)
   for (const name of slice) {
@@ -141,7 +189,8 @@ const reporter = setInterval(() => {
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const s = fleetStats(list)
   const per = TARGETS.map(t => `${t}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')
-  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} | ${per}`)
+  const mapRep = map.report()
+  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch | ${per}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
     const inv = m.bot?.inventory ? m.bot.inventory.items().reduce((a, i) => { a[i.name] = (a[i.name] || 0) + i.count; return a }, {}) : {}
@@ -167,5 +216,8 @@ for (const t of TARGETS) {
 }
 console.log(`materials: ${JSON.stringify(s.byName)}`)
 console.log(`kicks handled: ${reconnects}`)
+const finalMap = map.report()
+console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)
+map.save() // next fleet starts with this knowledge
 for (const m of list) { try { m.bot.quit() } catch { /* already gone */ } }
 process.exit(0)

@@ -33,7 +33,8 @@ gather the materials a `.litematic` base needs. Everything here was measured on 
 | Structure-seed cracker | **works** | recovered a real 48-bit seed from 36 structure positions in ~6 s (12 cores) |
 | Dungeon / ore based cracking | **dead end** | upstream SeedcrackerX states dungeons/emerald cracking was removed for 1.18+ |
 | **Fleet mining productivity** | **works - CI GREEN** | per-bot job queue (`src/lib/jobqueue.mjs`): pathfinder-verified reachable targets only, hard timeout around every `collect()`, blacklist for failures; asserted by `tests/integration/productivity.test.mjs` on a live vanilla server in GitHub Actions |
-| Test suite | **works** | 40+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig) + integration tests, all run in CI on every push |
+| Scout -> miner integration | **works (ground mode)** | shared `WorldMap` (`src/fleet/worldmap.mjs`): every walking miner records what it sees and walks to map-known positions when its local scan runs dry; `SCOUT=1 node testbed/fleet19.mjs` adds a dedicated walking scout (no fly, no dig); map persists to `data/worldmap.json` |
+| Test suite | **works** | 40+ unit tests (LCG vs JavaRandom, placement, xoroshiro, worldmap, job queue, fly physics, fastdig, scout) + integration tests, all run in CI on every push |
 
 ## How the fleet stays productive (the old "Known problem", fixed)
 
