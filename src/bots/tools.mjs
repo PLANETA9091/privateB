@@ -128,7 +128,7 @@ async function craft (bot, itemName, times, table = null, log = null) {
 // Crafting on the patched 26.2 stack is occasionally PHANTOM: bot.craft resolves,
 // no error is thrown, and the item still never shows up in the inventory. The only
 // trustworthy check is the inventory itself, so keep crafting until the count rises.
-async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, tries = 4, log = null } = {}) {
+export async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, tries = 4, log = null } = {}) {
   const have = () => countItem(bot, itemName)
   const before = have()
   for (let i = 0; i < tries && have() - before < want; i++) {
@@ -178,7 +178,7 @@ const reachableTable = bot => {
   })
 }
 
-async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
+export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
   const find = () => {
     try { return reachableTable(bot) } catch { return null } // a throw here must not kill ensureTools
   }

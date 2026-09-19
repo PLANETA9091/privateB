@@ -18,10 +18,11 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { DROP_OF, mapTripTargets } from '../src/fleet/materialplan.mjs'
-import { ensureTools, upgradeTools, hasStonePickaxe, countItem } from '../src/bots/tools.mjs'
+import { ensureTools, countItem } from '../src/bots/tools.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
-import { recoveryDue, upgradeDue } from '../src/lib/woodplan.mjs'
+import { recoveryDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
+import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -57,7 +58,7 @@ let reconnects = 0
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
-let toolsUpgraded = 0 // successful wooden -> stone kit upgrades (v0.8.0)
+let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (v0.8.0/v0.7.5)
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
 
@@ -76,7 +77,11 @@ async function smeltThenBank (miner, { timeoutMs = 30000 } = {}) {
       console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)
     }
   }
-  return miner.depositLoot({ timeoutMs })
+  // Iron reserve (toolupgrade.mjs): until the bot's OWN pickaxe is iron, ingots and
+  // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
+  // surplus flows to the chests as base stock.
+  const keep = [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
+  return miner.depositLoot({ timeoutMs, keep })
 }
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
@@ -204,18 +209,18 @@ async function runBot (name, target, index) {
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
       const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })
-      // stone upgrade: wooden kit + 3+ cobblestone -> stone kit (2x stone dig speed,
-      // and wooden pickaxes break coal/iron ore WITHOUT a drop - the upgrade unlocks
-      // the plan's ores). Fails cheap on 'no cobblestone', so the cooldown mostly
-      // guards against repeating a failed table dance back-to-back.
-      let lastUpgrade = Date.now()
-      let lastTrip = Date.now()
-      const upgradeDueNow = () => upgradeDue({
-        hasStoneTools: hasStonePickaxe(miner.bot),
-        cobblestone: countItem(miner.bot, 'cobblestone'),
-        msSinceLast: Date.now() - lastUpgrade,
-        remainingMs: deadline - Date.now()
-      })
+      // Tool upgrade chain (toolupgrade.mjs): proactive replacement of a WORN pickaxe
+      // and tier raises (wooden->stone via the tools.mjs upgrade flow, stone->iron from
+      // smelted ingots). A failed attempt gets a cooldown so a stuck table/craft cannot
+      // burn the whole mining deadline in a retry loop.
+      let lastUpgradeAttempt = 0
+      const UPGRADE_RETRY_MS = 60000
+      const upgradeDueNow = () => {
+        if (Date.now() - lastUpgradeAttempt < UPGRADE_RETRY_MS) return null
+        const c = upgradeCheck(miner.bot)
+        return c.due ? c : null
+      }
+      let lastTrip = Date.now() // (v0.8.3) time-based map-trip cadence
       let shaft = 0
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
@@ -228,11 +233,16 @@ async function runBot (name, target, index) {
           if (res.ok) toolsRecovered++
           console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
         }
-        if (upgradeDueNow()) {
-          lastUpgrade = Date.now()
-          const res = await upgradeTools(miner.bot, { log: () => {} })
-          if (res.ok) toolsUpgraded++
-          console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} (${res.kit})`)
+        const up = upgradeDueNow()
+        if (up) {
+          lastUpgradeAttempt = Date.now()
+          console.log(`${name} tool upgrade due: ${up.reason} -> ${up.target}`)
+          const res = await upgradeTools(miner.bot, { log: m => console.log(`${name} ${m}`) })
+          if (res.ok) {
+            toolsUpgraded++
+            lastBootstrap = Date.now() // fresh tool: reset the recovery cooldown clock too
+          }
+          console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} -> ${res.tier || 'none'} (${res.detail})`)
         }
         let interrupted = false
         await miner.digShaft(namesFor(hasPickNow()), {
@@ -240,11 +250,12 @@ async function runBot (name, target, index) {
           shouldStop: () => {
             if (Date.now() > deadline || !miner.bot.entity) return true
             if (recoveryDueNow()) { interrupted = true; return true }
+            if (upgradeDueNow()) { interrupted = true; return true } // a worn pickaxe must not break mid-shaft
             return false
           }
         })
         if (Date.now() > deadline || !miner.bot.entity) break
-        if (interrupted) continue // recovery is due - skip the walk/trip, let the top of the loop handle it
+        if (interrupted) continue // recovery OR upgrade is due - skip the walk/trip, let the top of the loop handle it
         // pockets nearly full: smelt the raw loot, then bank the products in the
         // yard's chest rows before digging on (a full inventory turns every further
         // dig into a wasted drop)
@@ -399,7 +410,8 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} upgraded=${toolsUpgraded} reboots=${toolsReboot} alive=${aliveCount()} banked=${banked} smelted=${smelted}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} banked=${banked} smelted=${smelted}`)
+console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
@@ -429,6 +441,7 @@ const fleetReport = {
   toolsRecovered,
   toolsUpgraded,
   toolsReboot,
+  toolsUpgraded,
   banked,
   smelted,
   mined: s.mined,
