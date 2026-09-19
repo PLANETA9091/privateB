@@ -45,8 +45,7 @@ async function runBot (name, target, index) {
         port: 25565,
         username: name,
         mode: 'rage',
-        flySpeed: 1.5,
-        antiKickInterval: 20,
+        fly: false, // flight is off: bots walk (see README)
         log: () => {}
       })
       bots.set(name, { miner, target })

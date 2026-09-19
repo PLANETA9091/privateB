@@ -23,6 +23,9 @@ export function createMiner ({
   flySpeed = 0.6,
   reach = 4.0,
   antiKick = true,
+  antiKickInterval = 70,
+  antiKickDistance = 0.035,
+  fly = false, // flight OFF by default: with allow-flight=false vanilla kicks hovering bots
   mode = 'rage', // 'rage' = FastBreak cheat, 'honest' = plain client dig time
   log = () => {}
 } = {}) {
@@ -49,7 +52,20 @@ export function createMiner ({
 
   const ready = new Promise((resolve, reject) => {
     bot.once('spawn', async () => {
-      installFly(bot, { speed: flySpeed, antiKick, digThrough: true, log: m => log(`${tag} ${m}`) })
+      if (fly === true) {
+        installFly(bot, {
+          speed: flySpeed,
+          antiKick,
+          antiKickInterval,
+          antiKickDistance,
+          digThrough: false,
+          log: m => log(`${tag} ${m}`)
+        })
+      } else {
+        // no flight: mineflayer's own physics moves the bot (walking, falling off ledges)
+        bot.physicsEnabled = true
+        log(`${tag} flight disabled - ground mode (pathfinder + vanilla physics)`)
+      }
       installRageFastBreak(bot, { log: m => log(`${tag} ${m}`) })
       // flight uses this to mine its way through terrain that blocks the path
       bot.flyDigHook = async (block) => {
@@ -154,6 +170,7 @@ export function createMiner ({
   }
 
   async function flyTo (vec) {
+    if (!bot.flyTo) return false // flight disabled: caller falls back to walking
     try {
       await bot.flyTo(vec)
       return true
@@ -556,8 +573,10 @@ export function createMiner ({
     movementsReady = true
   }
 
-  // Descend onto solid ground in the current column.
+  // Descend onto solid ground in the current column (only meaningful with flight; without it
+  // vanilla physics already keeps the bot on the ground).
   async function landHere () {
+    if (!bot.flyTo) return false
     const p = bot.entity.position
     const x = Math.floor(p.x)
     const z = Math.floor(p.z)
@@ -710,10 +729,12 @@ export function createMiner ({
       try {
         await withTimeout(bot.pathfinder.goto(new goals.GoalNear(goal.x, goal.y, goal.z, 4)), 20000, 'walk')
       } catch {
-        try {
-          await bot.flyTravel(new Vec3(goal.x, here.y + 3, goal.z), { speed: 1.5, cruiseAbove: 8, timeoutMs: 8000 })
-          await landHere()
-        } catch { /* next round */ }
+        if (bot.flyTravel) {
+          try {
+            await bot.flyTravel(new Vec3(goal.x, here.y + 3, goal.z), { speed: 1.5, cruiseAbove: 8, timeoutMs: 8000 })
+            await landHere()
+          } catch { /* next round */ }
+        }
       }
     }
     const secs = (Date.now() - started) / 1000
@@ -791,19 +812,26 @@ export function createMiner ({
     while (logCount() < want && !shouldStop?.() && bot.entity && (Date.now() - started) / 1000 < maxSeconds) {
       const tree = bot.findBlock({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 128 })
       if (!tree) {
-        // no forest in view: cruise outwards and look again
+        // no forest in view: walk outwards and look again (flight is optional)
         const here = bot.entity.position
+        const out = new Vec3(here.x + direction.x * 64, here.y, here.z + direction.z * 64)
         try {
-          await bot.flyTravel(new Vec3(here.x + direction.x * 96, here.y + 30, here.z + direction.z * 96), { speed: 2.0, cruiseAbove: 30, timeoutMs: 25000 })
-        } catch { /* keep searching */ }
+          await bot.pathfinder.goto(new goals.GoalNear(out.x, out.y, out.z, 4))
+        } catch { /* try again next round */ }
         continue
       }
-      // up, over the tree, then down next to the trunk
+      // go to the tree: fly when flight is enabled, otherwise walk there
       const here = bot.entity.position
-      try {
-        await bot.flyTo(new Vec3(here.x, here.y + 25, here.z), { speed: 2.0, timeoutMs: 10000 })
-        await bot.flyTravel(new Vec3(tree.position.x, tree.position.y + 5, tree.position.z), { speed: 2.0, cruiseAbove: 10, timeoutMs: 30000 })
-      } catch { /* chop from wherever we are */ }
+      if (bot.flyTravel) {
+        try {
+          await bot.flyTo(new Vec3(here.x, here.y + 25, here.z), { speed: 2.0, timeoutMs: 10000 })
+          await bot.flyTravel(new Vec3(tree.position.x, tree.position.y + 5, tree.position.z), { speed: 2.0, cruiseAbove: 10, timeoutMs: 30000 })
+        } catch { /* chop from wherever we are */ }
+      } else {
+        try {
+          await bot.pathfinder.goto(new goals.GoalNear(tree.position.x, tree.position.y, tree.position.z, 3))
+        } catch { /* try to chop what is in reach */ }
+      }
       // chop: dig straight down through the canopy and the trunk. The bot arrives on top of the
       // tree, so a vertical shaft eats the leaves and then the whole trunk, and gravity carries
       // it down while the drops land at its feet.

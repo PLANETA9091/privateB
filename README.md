@@ -70,6 +70,15 @@ scripts/litematic-dump.py / materials-expand.py   schematic -> block counts -> r
 testbed/*.mjs            all the measurements (benchmarks, kick tests, seed cracker, fleet runs)
 ```
 
+## Flight
+
+Flight is **disabled by default** (`createMiner({ fly: false })`): with `allow-flight=false`
+vanilla kicks any bot that hovers for 80 ticks, and even with `allow-flight=true` a flying
+bot that digs into terrain produces `moved wrongly!` and gets snapped back. The bots therefore
+walk with `mineflayer-pathfinder` and dig straight down (see `digShaft`). Passing `fly: true`
+re-enables the flight module (`src/lib/fly.mjs`: 20 blocks/s, collision-aware stepping,
+anti-kick, NoFall, `flySnap`) for servers that allow it, e.g. 2b2t-style anarchy servers.
+
 ## Run it
 
 ```bash
