@@ -3,7 +3,7 @@
 import { Vec3 } from 'vec3'
 import { withTimeout } from '../lib/jobqueue.mjs'
 
-export const LOG_BLOCKS = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log']
+export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 const LOG_ITEMS = LOG_BLOCKS.map(n => n.replace('_log', '_log'))
 
 const inventoryItems = bot => bot.inventory.items()
@@ -138,14 +138,18 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   const PLANK_OF = {
     oak_log: 'oak_planks', birch_log: 'birch_planks', spruce_log: 'spruce_planks',
     jungle_log: 'jungle_planks', dark_oak_log: 'dark_oak_planks', acacia_log: 'acacia_planks',
-    mangrove_log: 'mangrove_planks'
+    mangrove_log: 'mangrove_planks', cherry_log: 'cherry_planks', pale_oak_log: 'pale_oak_planks',
+    bamboo_block: 'bamboo_planks', crimson_stem: 'crimson_planks', warped_stem: 'warped_planks'
   }
   for (const [logName, plankName] of Object.entries(PLANK_OF)) {
-    for (let i = 0; i < 6 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 8; i++) {
+    for (let i = 0; i < 8 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 10; i++) {
       if (!await craft(bot, plankName, 1, null, step)) break
     }
   }
-  const PLANK_TYPES = ['oak_planks', 'birch_planks', 'spruce_planks', 'jungle_planks', 'dark_oak_planks', 'acacia_planks', 'mangrove_planks']
+  // 26.2 wood sets - the old list (oak..mangrove only) missed cherry/pale_oak/bamboo/
+  // crimson/warped, which is how a bot ended with 5 oak + 3 cherry planks and could not
+  // craft anything that needs 4 of a kind
+  const PLANK_TYPES = ['oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 'acacia_planks', 'cherry_planks', 'dark_oak_planks', 'pale_oak_planks', 'mangrove_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks']
   const planksName = PLANK_TYPES.find(n => countItem(bot, n) >= 4) ?? PLANK_TYPES.find(n => recipeFor(bot, n, null))
   if (!planksName) return { ok: false, kit: 'no planks recipe' }
   const planks = PLANK_TYPES.reduce((a, n) => a + countItem(bot, n), 0)
