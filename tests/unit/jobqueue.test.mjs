@@ -170,5 +170,5 @@ test('blacklist map is pruned when it grows large', async () => {
   await sleep(15)
   q.add(P(1, 1, 1)) // one job so the run loop (and its prune branch) executes
   await q.run()
-  assert.ok(q.blacklist.size < 1200, `prune did not shrink the map: ${q.blacklist.size}`)
+  assert.ok(q.blacklistMap.size < 1200, `prune did not shrink the map: ${q.blacklistMap.size}`)
 })

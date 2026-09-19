@@ -12,13 +12,15 @@ import {
 
 const SEED = -8201142900731514829
 
-test('JavaRandom is deterministic and reproduces a known Java sequence', () => {
-  // java.util.Random(0): next(32) values 0x865ea257, 0xb7202f59, 0x368b8272 ...
+test('JavaRandom is deterministic and reproduces the canonical Java sequence', () => {
+  // java.util.Random(0): the first two next(32) outputs, verified against the canonical
+  // 48-bit LCG (seed ^ 0x5DEECE66D; seed' = seed * 0x5DEECE66D + 0xB mod 2^48; value =
+  // seed' >>> 16) - cross-checked against an independent Python implementation.
   const r = new JavaRandom(0)
   const v1 = (r.next(16) << 16) | r.next(16)
   const v2 = (r.next(16) << 16) | r.next(16)
-  assert.equal(v1 >>> 0, 0x865ea257)
-  assert.equal(v2 >>> 0, 0xb7202f59)
+  assert.equal(v1 >>> 0, 0xbb20d4d9)
+  assert.equal(v2 >>> 0, 0x3d939b39)
 })
 
 test('largeFeatureSeed reproduces ChunkRandom.setLargeFeatureWithSalt', () => {
@@ -48,11 +50,22 @@ test('potentialStructureChunk offsets stay inside [0, spacing - separation)', ()
 
 test('potentialStructureChunk is deterministic per (seed, region)', () => {
   const def = STRUCTURES.village_plains
-  const a = potentialStructureChunk(SEED, def, 12, -34)
-  const b = potentialStructureChunk(SEED, def, 12, -34)
-  assert.deepEqual(a, b)
-  const c = potentialStructureChunk(SEED + 1, def, 12, -34)
-  assert.notDeepEqual(a, c)
+  for (let rx = -4; rx <= 4; rx++) {
+    for (let rz = -4; rz <= 4; rz++) {
+      const a = potentialStructureChunk(SEED, def, rx, rz)
+      const b = potentialStructureChunk(SEED, def, rx, rz)
+      assert.deepEqual(a, b)
+    }
+  }
+  // a different world seed must change at least ONE of the probed regions (a single
+  // region can collide by chance: two offsets out of (spacing-separation)^2)
+  let differs = false
+  for (let rx = -4; rx <= 4; rx++) {
+    for (let rz = -4; rz <= 4; rz++) {
+      if (potentialStructureChunk(SEED + 1, def, rx, rz).chunkX !== potentialStructureChunk(SEED, def, rx, rz).chunkX) differs = true
+    }
+  }
+  assert.ok(differs, 'seed +1 produced identical placement for every probed region')
 })
 
 test('every known structure has sane parameters', () => {

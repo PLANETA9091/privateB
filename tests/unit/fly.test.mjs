@@ -71,9 +71,11 @@ test('flyTo moves the bot to a free target and resolves', async t => {
 })
 
 test('flyTo refuses to end inside solid terrain (collision-aware)', async t => {
-  // a tall 2-thick wall in front of the bot - climbing over it is impossible
+  // a 2-thick wall reaching the mock sky: the bot climbs 2 blocks PER TICK, so a wall
+  // with a top (say y<=70) would simply be climbed over within a few ticks - it must
+  // have no top at all for "no candidate works" to ever be true
   const extra = {}
-  for (let y = 64; y <= 70; y++) {
+  for (let y = 64; y <= 400; y++) {
     for (let z = -1; z <= 3; z++) extra[`5,${y},${z}`] = 'stone'
   }
   const bot = mockBot(extra)

@@ -53,7 +53,9 @@ export class MiningJobQueue {
     this.maxConsecutiveFails = maxConsecutiveFails
     this.log = log
     this.jobs = [] // { pos, meta, attempts }
-    this.blacklist = new Map() // key -> until (epoch ms)
+    this.blacklistMap = new Map() // key -> until (epoch ms). (Named -Map- because the
+    // prototype method blacklist(pos, ms) must stay callable: an instance property called
+    // -blacklist- would shadow it and turn every this.blacklist(pos) into a TypeError.)
     this.stats = { queued: 0, done: 0, failed: 0, timeout: 0, unreachable: 0, blacklisted: 0 }
   }
 
@@ -78,10 +80,10 @@ export class MiningJobQueue {
   }
 
   isBlacklisted (pos) {
-    const until = this.blacklist.get(keyOf(pos))
+    const until = this.blacklistMap.get(keyOf(pos))
     if (until == null) return false
     if (until < Date.now()) {
-      this.blacklist.delete(keyOf(pos))
+      this.blacklistMap.delete(keyOf(pos))
       return false
     }
     return true
@@ -89,7 +91,7 @@ export class MiningJobQueue {
 
   blacklist (pos, ms = this.blacklistMs) {
     const capped = Math.min(ms, this.maxBlacklistMs)
-    this.blacklist.set(keyOf(pos), Date.now() + capped)
+    this.blacklistMap.set(keyOf(pos), Date.now() + capped)
     this.stats.blacklisted++
   }
 
@@ -123,9 +125,9 @@ export class MiningJobQueue {
     let consecutiveFails = 0
     let doneJobs = 0
     while (this.jobs.length && doneJobs < maxJobs && !shouldStop()) {
-      if (this.blacklist.size > 1000) {
+      if (this.blacklistMap.size > 1000) {
         // keep the map small: drop expired entries in bulk
-        for (const [k, until] of this.blacklist) if (until < Date.now()) this.blacklist.delete(k)
+        for (const [k, until] of this.blacklistMap) if (until < Date.now()) this.blacklistMap.delete(k)
       }
       const job = await this.popReachable()
       if (!job) {

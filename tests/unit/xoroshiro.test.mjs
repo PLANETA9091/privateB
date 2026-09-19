@@ -61,11 +61,17 @@ test('setDecorationSeed mixes chunk origin into the stream', () => {
 })
 
 test('setFeatureSeed depends on both index and step', () => {
-  const a = setFeatureSeed(null, 1000n, 1, 2)
-  const b = setFeatureSeed(null, 1000n, 2, 2)
-  const c = setFeatureSeed(null, 1000n, 1, 3)
+  // setFeatureSeed(rng, decorationSeed, index, step) seeds a real rng instance
+  const mk = () => new Xoroshiro128PlusPlus()
+  const a = setFeatureSeed(mk(), 1000n, 1, 2)
+  const b = setFeatureSeed(mk(), 1000n, 2, 2)
+  const c = setFeatureSeed(mk(), 1000n, 1, 3)
   assert.notEqual(a, b)
   assert.notEqual(a, c)
+  // and the returned seed is what the formula says: decorationSeed + index + 10000*step
+  const r = mk()
+  const d = setFeatureSeed(r, 1000n, 1, 2)
+  assert.equal(d, BigInt.asUintN(64, 1000n + 1n + 20000n))
 })
 
 test('monsterRoomCandidates returns at most `attempts` positions', () => {

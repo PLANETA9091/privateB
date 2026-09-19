@@ -8,7 +8,8 @@ const C = 11
 const A_LO = A % 16777216 // 15525485
 const A_HI = Math.floor(A / 16777216) // 1502
 const M24 = 16777216
-const MASK48 = 281474976710655
+const MASK48 = 281474976710655 // 2^48 - 1 (state mask)
+const P48 = 281474976710656 // 2^48 (the LCG modulus)
 export const A_MOD_20 = A % (1 << 20)
 
 export class FastRandom {
@@ -19,14 +20,17 @@ export class FastRandom {
   }
 
   setSeed (seed) {
-    const s = ((Number(seed) % MASK48) + MASK48) % MASK48
+    // java.util.Random: state = (seed ^ A) mod 2^48. Number seeds above 2^53 are imprecise
+    // doubles (the low bits are already lost at the call site), BigInt seeds stay exact.
+    // The old code took the seed mod (2^48 - 1) instead of mod 2^48, which corrupted every
+    // large negative seed and desynchronised FastRandom from JavaRandom from step 0.
+    const s = typeof seed === 'bigint'
+      ? Number(BigInt.asUintN(48, seed))
+      : ((Number(seed) % P48) + P48) % P48
     const hi = Math.floor(s / M24)
     const lo = s - hi * M24
-    const xLo = (lo ^ (A_LO & (M24 - 1))) % M24
-    // A = A_HI*2^24 + A_LO, so (seed ^ A) low bits come from lo ^ A_LO and the carry from A_HI
-    const xHi = (hi ^ A_HI ^ Math.floor((lo ^ A_LO) / M24)) % M24
-    this.hi = xHi
-    this.lo = xLo
+    this.hi = hi ^ A_HI
+    this.lo = lo ^ A_LO
   }
 
   step () {
@@ -46,6 +50,9 @@ export class FastRandom {
   }
 
   nextInt (bound) {
+    // java.util.Random throws RangeError for a non-positive bound - mirror that
+    // (bound 0 would otherwise slip through the power-of-two branch and return 0)
+    if (bound <= 0) throw new RangeError('bound must be positive')
     if ((bound & -bound) === bound) {
       return Math.floor((bound * this.next(31)) / 2147483648)
     }
