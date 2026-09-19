@@ -14,6 +14,7 @@ import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
 import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable } from '../lib/woodplan.mjs'
+import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
@@ -39,7 +40,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -1097,6 +1098,42 @@ export function createMiner ({
   const LEAF_NAMES = ['oak_leaves', 'birch_leaves', 'spruce_leaves', 'jungle_leaves', 'dark_oak_leaves', 'acacia_leaves', 'mangrove_leaves', 'azalea_leaves', 'flowering_azalea_leaves', 'cherry_leaves', 'pale_oak_leaves']
   const logCount = () => bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)
 
+  // (v0.9.0) Replant at the stump right after the chop. This is the cheapest legal
+  // spot there is: the cell is freshly emptied, the dirt-family floor is still intact
+  // (chopReachable eats only logs), and the bot stands within reach RIGHT NOW. Canopy
+  // decay over the next seconds drops the saplings the sweep below already picks up,
+  // so a chopped trunk becomes the NEXT bot's tree - the vanilla-ticks cure for the
+  // v0.8.4 death spiral (recovery bots starve once the spawn forest is eaten: 25
+  // recovery attempts / 3 OK in 600s). Bounded and silent: planting must never break
+  // the chop loop.
+  async function replantStump (stumpPos) {
+    if (!stumpPos) return false
+    try {
+      const item = pickSapling(inventoryItems(bot))
+      if (!item) return false // no saplings yet (canopy drops not picked up) - nothing to do
+      // stump cell first (the true spot), then the 4 horizontal neighbours: a stump
+      // over a cave hole / dug-out floor still leaves the neighbours plantable
+      const cells = [stumpPos, stumpPos.offset(1, 0, 0), stumpPos.offset(-1, 0, 0), stumpPos.offset(0, 0, 1), stumpPos.offset(0, 0, -1)]
+      for (const cell of cells) {
+        const cellB = bot.blockAt(cell)
+        const floorB = bot.blockAt(cell.offset(0, -1, 0))
+        const verdict = plantableCell(cellB, floorB)
+        if (!verdict.ok) continue
+        await bot.equip(item, 'hand')
+        // vanilla drops right-clicks that arrive <4 ticks apart (the placeTable lesson)
+        await bot.waitForTicks(5)
+        await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), 5000, 'sapling placement')
+        const now = bot.blockAt(cell)
+        if (now && now.name === item.name) {
+          stats.planted++
+          log(`${tag} sapling planted: ${item.name} at ${cell.floored()} (${verdict.reason})`)
+          return true
+        }
+      }
+    } catch { /* replanting is opportunistic - never break the chop loop */ }
+    return false
+  }
+
   // Ground chopping: dig every log within reach at the trunk base (lowest first), then
   // walk over the drops. A vertical shaft only works from the top of the tree (flight);
   // on foot the trunk must be eaten from the side, which reach 4.5 fully covers for the
@@ -1105,6 +1142,7 @@ export function createMiner ({
     const batch = bot.findBlocks({ matching: b => LOG_NAMES.includes(b.name), maxDistance: 4.5, count: 40 })
       .sort((a, b) => a.y - b.y) // lowest first: the trunk bottom is what keeps the rest up
     let n = 0
+    let lowestDug = null
     for (const pos of batch) {
       if (logCount() > 0 && n >= 6) break // enough for a full tool kit from one tree
       const block = bot.blockAt(pos)
@@ -1112,6 +1150,7 @@ export function createMiner ({
       try {
         await bot.fastDig(block)
         n++
+        if (!lowestDug || pos.y < lowestDug.y) lowestDug = pos.floored()
         stats.mined++
         stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
       } catch { /* next log */ }
@@ -1122,6 +1161,9 @@ export function createMiner ({
       .slice(0, 8)
     for (const drop of drops) {
       try { await gotoSafe(bot, new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1)) } catch { /* already picked up */ }
+    }
+    if (n > 0 && inventoryItems(bot).some(i => isPlantableSapling(i.name))) {
+      await replantStump(lowestDug)
     }
     return n
   }
