@@ -13,7 +13,10 @@ function fakeBotWithWindow ({ type = 'minecraft:inventory', slots = [], currentW
   const w = { type, slots }
   const putAwayCalls = []
   const bot = {
-    putAway: async slot => { putAwayCalls.push(slot) },
+    // a WORKING putAway empties the window slot (v0.7.3 sweep VERIFIES the slot
+    // emptied - ghost clicks resolve without moving anything, and an unverified
+    // sweep reported success while the grid stayed poisoned)
+    putAway: async slot => { putAwayCalls.push(slot); w.slots[slot] = null },
     closeWindow: () => { bot.closed = (bot.closed || 0) + 1 }
   }
   if (currentWindow) bot.currentWindow = w
@@ -50,13 +53,16 @@ test('sweepGridItems: an empty grid is a no-op (safe before every craft attempt)
 })
 
 test('sweepGridItems: putAway failures never throw - the stuck slot just stays', async () => {
-  const { bot } = fakeBotWithWindow({
+  const { bot, w } = fakeBotWithWindow({
     type: 'minecraft:inventory',
     slots: [null, fakeItem('a'), fakeItem('b')]
   })
-  bot.putAway = async slot => { if (slot === 1) throw new Error('stuck') }
+  bot.putAway = async slot => {
+    if (slot === 1) throw new Error('stuck') // slot 1 never empties (ghost click)
+    w.slots[slot] = null
+  }
   const swept = await sweepGridItems(bot)
-  assert.equal(swept, 1) // slot 2 swept, slot 1 stayed
+  assert.equal(swept, 1) // slot 2 swept, slot 1 stayed (verified: never emptied)
 })
 
 test('sweepGridItems: no window open at all returns 0', async () => {
