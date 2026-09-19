@@ -28,7 +28,11 @@ async function craft (bot, itemName, times, table = null) {
   }
 }
 
-// Put a crafting table on the ground in front of the bot and return the Block, or null.
+// Put a crafting table on the ground and return the Block, or null.
+// Vanilla refuses a placement that intersects ANY entity hitbox: the old code placed
+// the table onto the block BELOW us, i.e. into the very cell the bot stands in, and
+// the server silently rejected it - the bot kept holding the table and every later
+// tool craft failed with 'no crafting table'. Use a free neighbour cell instead.
 async function placeTable (bot) {
   const existing = bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
   if (existing) return existing
@@ -36,11 +40,18 @@ async function placeTable (bot) {
   if (!tableItem) return null
   try {
     await bot.equip(tableItem, 'hand')
-    const below = bot.blockAt(bot.entity.position.offset(0, -1, 0))
-    if (below && below.boundingBox !== 'empty') {
-      await bot.placeBlock(below, new Vec3(0, 1, 0))
-      const placed = bot.blockAt(bot.entity.position.offset(0, -1, 0).offset(0, 1, 0))
-      if (placed && placed.name === 'crafting_table') return placed
+    const feet = bot.entity.position.floored()
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+      const cell = feet.offset(dx, 0, dz)
+      const cellB = bot.blockAt(cell)
+      const floorB = bot.blockAt(cell.offset(0, -1, 0))
+      if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
+        try {
+          await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+          const placed = bot.blockAt(cell)
+          if (placed && placed.name === 'crafting_table') return placed
+        } catch { /* next neighbour */ }
+      }
     }
   } catch { /* fall through */ }
   return bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 })
@@ -72,17 +83,26 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
   }
 
   // 2. planks -> sticks -> table (all 2x2, no table needed yet)
-  const planksName = ['oak_planks', 'birch_planks', 'spruce_planks', 'jungle_planks', 'dark_oak_planks', 'acacia_planks', 'mangrove_planks']
-    .find(n => recipeFor(bot, n, null))
-  if (!planksName) return { ok: false, kit: 'no planks recipe' }
-  let planks = planksName ? countItem(bot, planksName) : 0
-  if (planks < 8) {
-    for (let i = 0; i < 4 && countItem(bot, planksName) < 12; i++) await craft(bot, planksName, 1)
-    planks = countItem(bot, planksName)
+  // Craft planks out of EVERY log type we actually hold: the old code always picked
+  // the oak recipe, so a bot holding birch logs accumulated planks it could not use
+  // and every craft after that silently failed.
+  const PLANK_OF = {
+    oak_log: 'oak_planks', birch_log: 'birch_planks', spruce_log: 'spruce_planks',
+    jungle_log: 'jungle_planks', dark_oak_log: 'dark_oak_planks', acacia_log: 'acacia_planks',
+    mangrove_log: 'mangrove_planks'
   }
+  for (const [logName, plankName] of Object.entries(PLANK_OF)) {
+    for (let i = 0; i < 6 && countItem(bot, logName) > 0 && countItem(bot, plankName) < 8; i++) {
+      if (!await craft(bot, plankName, 1)) break
+    }
+  }
+  const PLANK_TYPES = ['oak_planks', 'birch_planks', 'spruce_planks', 'jungle_planks', 'dark_oak_planks', 'acacia_planks', 'mangrove_planks']
+  const planksName = PLANK_TYPES.find(n => countItem(bot, n) >= 4) ?? PLANK_TYPES.find(n => recipeFor(bot, n, null))
+  if (!planksName) return { ok: false, kit: 'no planks recipe' }
+  const planks = PLANK_TYPES.reduce((a, n) => a + countItem(bot, n), 0)
   if (countItem(bot, 'stick') < 4) await craft(bot, 'stick', 1)
   if (!hasKind(bot, 'crafting_table')) await craft(bot, 'crafting_table', 1)
-  step(`planks ${countItem(bot, planksName)} sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)
+  step(`planks ${planks} sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)
 
   const table = await placeTable(bot)
   if (!table) return { ok: false, kit: 'no crafting table' }
