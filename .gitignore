@@ -1,0 +1,16 @@
+node_modules/
+package-lock.json
+testbed/server/*.jar
+testbed/server/libraries/
+testbed/server/versions/
+testbed/server/world/
+testbed/server/logs/
+testbed/server/*.log
+testbed/server/cmd.fifo
+testbed/server/*.json
+vendor/md/
+vendor/jars/
+vendor/seedcrackerx/
+tools/*.class
+data/worldmap.json
+.omc/

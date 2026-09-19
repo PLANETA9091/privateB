@@ -1,0 +1,140 @@
+[
+  {
+    "x": -281,
+    "y": -23,
+    "z": -42,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -236,
+    "y": -12,
+    "z": -35,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -234,
+    "y": 10,
+    "z": 214,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -212,
+    "y": -26,
+    "z": 56,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -210,
+    "y": -31,
+    "z": -247,
+    "mob": "minecraft:spider"
+  },
+  {
+    "x": -190,
+    "y": 16,
+    "z": 49,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -183,
+    "y": 18,
+    "z": -182,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -181,
+    "y": -35,
+    "z": -265,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -138,
+    "y": 85,
+    "z": -8,
+    "mob": "minecraft:spider"
+  },
+  {
+    "x": -124,
+    "y": 26,
+    "z": -307,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -103,
+    "y": -52,
+    "z": -324,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -86,
+    "y": -30,
+    "z": -232,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -51,
+    "y": 14,
+    "z": -292,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -39,
+    "y": -29,
+    "z": -156,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -38,
+    "y": -3,
+    "z": -266,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -38,
+    "y": -27,
+    "z": 86,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": -22,
+    "y": -32,
+    "z": 37,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": -16,
+    "y": -2,
+    "z": -344,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": 21,
+    "y": 16,
+    "z": -354,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": 29,
+    "y": -48,
+    "z": -45,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": 34,
+    "y": -28,
+    "z": 14,
+    "mob": "minecraft:skeleton"
+  },
+  {
+    "x": 95,
+    "y": -18,
+    "z": 118,
+    "mob": "minecraft:zombie"
+  },
+  {
+    "x": 113,
+    "y": -48,
+    "z": -59,
+    "mob": "minecraft:zombie"
+  }
+]
