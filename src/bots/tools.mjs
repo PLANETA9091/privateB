@@ -75,8 +75,17 @@ async function craft (bot, itemName, times, table = null, log = null) {
   for (const recipe of recipes) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        // bot.craft can hang when the window desyncs - fence it with a hard timeout
-        await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
+        // PROACTIVE grid sweep: the 26.2 stack leaves ghost items in the 2x2/3x3 grid
+        // after earlier crafts even when bot.craft resolved cleanly (v0.6.7 CI log:
+        // the table craft failed "missing ingredient" on attempt0 because plank ghosts
+        // were already in the grid). Sweeping an empty grid is a no-op, so doing it
+        // before every dance is free and removes the whole poisoning class.
+        const pre = await sweepGridItems(bot)
+        if (pre) step(`craft ${itemName}: swept ${pre} stale grid slot(s) before the attempt`)
+        // bot.craft can hang when the window desyncs - fence it with a hard timeout.
+        // 7s: a healthy click dance takes well under 2s, so burning less budget here
+        // leaves room for the retry attempts.
+        await withTimeout(bot.craft(recipe, times, table ?? null), 7000, `craft ${itemName}`)
         return true
       } catch (e) {
         lastErr = e
@@ -107,6 +116,13 @@ async function craftUntil (bot, itemName, { times = 1, table = null, want = 1, t
   for (let i = 0; i < tries && have() - before < want; i++) {
     const ok = await craft(bot, itemName, times, table, log)
     if (!ok) break // no recipe variant / hard failure - retries will not change that
+    // PHANTOM craft: bot.craft resolved, no error, and the count STILL did not rise.
+    // The window state may now be desynced (client predicted a result the server never
+    // produced) - reset it before the next attempt or the next dance fails on ghosts.
+    if (have() - before < want) {
+      recoverCraftWindow(bot, log)
+      await sweepGridItems(bot)
+    }
   }
   return have() - before >= want
 }
