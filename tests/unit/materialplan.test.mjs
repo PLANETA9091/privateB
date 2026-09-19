@@ -58,7 +58,10 @@ test('mapTripTargets: satisfied resources (deficit < minDeficit) never send bots
 test('mapTripTargets: stone falls back to the whole grey-stone family, deduped', () => {
   const progress = progressFrom([['stone', 6695, 0]])
   const mapCounts = { stone: 2, andesite: 10, diorite: 8, granite: 6, tuff: 5 }
-  assert.deepEqual(mapTripTargets({ progress, mapCounts }), ['andesite', 'diorite', 'granite'])
+  // plain stone has only 2 known positions (below minMapCount), so the family
+  // fallback kicks in - all four grey stones with enough map knowledge, in
+  // MINABLE_OF order
+  assert.deepEqual(mapTripTargets({ progress, mapCounts }), ['andesite', 'diorite', 'granite', 'tuff'])
 })
 
 test('mapTripTargets: maxTargets caps the list', () => {
