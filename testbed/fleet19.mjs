@@ -41,6 +41,7 @@ const bots = new Map() // name -> { miner, target }
 let spawned = 0
 let reconnects = 0
 let toolsOk = 0
+let banked = 0 // items deposited into the yard's chests
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
 
@@ -115,6 +116,12 @@ async function runBot (name, target, index) {
           shouldStop: () => Date.now() > deadline || !miner.bot.entity
         })
         if (Date.now() > deadline || !miner.bot.entity) break
+        // pockets nearly full: bank the loot in the yard's chest rows before digging on
+        // (a full inventory turns every further dig into a wasted drop)
+        if (miner.inventoryLoad().slots >= 30) {
+          const res = await miner.depositLoot()
+          if (res.deposited > 0) banked += res.deposited
+        }
         // step to a fresh column and dig the next shaft
         shaft++
         const here = miner.bot.entity.position
@@ -207,7 +214,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} alive=${aliveCount()}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} alive=${aliveCount()} banked=${banked}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
   const got = list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)

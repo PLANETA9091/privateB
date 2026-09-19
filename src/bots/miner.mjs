@@ -12,6 +12,7 @@ import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, inBox } from '../lib/jobqueue.mjs'
+import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
@@ -37,7 +38,7 @@ export function createMiner ({
   bot.loadPlugin(autoeat)
   bot.loadPlugin(pathfinder)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -1024,7 +1025,15 @@ export function createMiner ({
     return { logs: logCount(), secs: (Date.now() - started) / 1000 }
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, map, username }
+  // Walk to the nearest chest and bank everything but the tool kit. Soft no-op when no
+  // chest is in range (CI worlds have none) - a full inventory must never kill a bot.
+  async function depositLoot (opts = {}) {
+    const res = await depositToChest(bot, { log, ...opts })
+    if (res.deposited > 0) stats.banked = (stats.banked ?? 0) + res.deposited
+    return res
+  }
+
+  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.
