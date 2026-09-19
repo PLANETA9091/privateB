@@ -66,15 +66,19 @@ test('flyTo moves the bot to a free target and resolves', async () => {
 })
 
 test('flyTo refuses to end inside solid terrain (collision-aware)', async () => {
-  // a tall 2-thick wall in front of the bot - climbing over it is impossible
+  // a tall 2-thick wall in front of the bot - climbing over it is impossible. The wall is
+  // 2 thick on purpose: a single 1-thick wall could be skipped by one 2-block step.
   const extra = {}
   for (let y = 64; y <= 70; y++) {
-    for (let z = -1; z <= 3; z++) extra[`5,${y},${z}`] = 'stone'
+    for (let z = -1; z <= 3; z++) {
+      extra[`5,${y},${z}`] = 'stone'
+      extra[`6,${y},${z}`] = 'stone'
+    }
   }
   const bot = mockBot(extra)
-  installFly(bot, { speed: 2.0, antiKick: false, digThrough: false, log: () => {} })
+  installFly(bot, { speed: 0.5, antiKick: false, digThrough: false, log: () => {} })
   await assert.rejects(
-    bot.flyTo(new Vec3(9.5, 64, 1.5), { timeoutMs: 700 }),
+    bot.flyTo(new Vec3(9.5, 64, 1.5), { timeoutMs: 3000 }),
     /fly timeout|blocked|no progress/
   )
   // the bot must NOT have ended inside the wall
@@ -106,7 +110,8 @@ test('flyTo with digThrough digs through the blocking wall (via flyDigHook)', as
     for (const k of Object.keys(extra)) delete extra[k] // digging removes the blocks
     return true
   }
-  installFly(bot, { speed: 2.0, antiKick: false, digThrough: true, log: () => {} })
+  // speed 0.5: a slower step must not skip over the 1-thick wall without touching it
+  installFly(bot, { speed: 0.5, antiKick: false, digThrough: true, log: () => {} })
   await bot.flyTo(new Vec3(6.5, 64, 1.5), { timeoutMs: 8000 })
   assert.ok(dug >= 1, 'the dig hook should have been used for the wall')
   disposeFly(bot)

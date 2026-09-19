@@ -2,6 +2,7 @@
 // "gone" detection that keeps fastDig from looping forever on unbreakable blocks.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { Vec3 } from 'vec3'
 import { installRageFastBreak } from '../../src/lib/fastdig.mjs'
 
 function mockBot (options = {}) {
@@ -24,7 +25,8 @@ function mockBot (options = {}) {
 test('fastDig sends START then STOP_DESTROY_BLOCK spam and returns true when the block vanishes', async () => {
   const { bot, packets } = mockBot({ goneAfter: 2, ticksLeft: 3 })
   installRageFastBreak(bot, { log: () => {} })
-  const ok = await bot.fastDig({ type: 1, name: 'stone', position: { x: 1, y: 2, z: 3 } })
+  // real mineflayer blocks carry a Vec3 position (fastDig calls pos.offset)
+  const ok = await bot.fastDig({ type: 1, name: 'stone', position: new Vec3(1, 2, 3) })
   assert.equal(ok, true)
   const digs = packets.filter(p => p.name === 'block_dig')
   assert.ok(digs.length >= 2, 'expected START + STOP packets')
@@ -44,7 +46,7 @@ test('fastDig returns true immediately for air (type 0)', async () => {
 test('fastDig gives up after 100 ticks on an unbreakable block (bedrock)', async () => {
   const { bot } = mockBot() // block never disappears
   installRageFastBreak(bot, { log: () => {} })
-  const ok = await bot.fastDig({ type: 1, name: 'bedrock', position: { x: 0, y: 4, z: 0 } })
+  const ok = await bot.fastDig({ type: 1, name: 'bedrock', position: new Vec3(0, 4, 0) })
   assert.equal(ok, false)
 })
 

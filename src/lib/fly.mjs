@@ -281,4 +281,8 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
 export function disposeFly (bot) {
   if (bot.flyState) bot.flyStop?.()
   bot.flyState = null
+  // stop the ticker: the interval keeps the event loop alive (unit tests hang forever
+  // without this - the node --test child process never exits) and real bots leak one
+  // 20 Hz timer per installFly call
+  if (bot._flyTimer) { clearInterval(bot._flyTimer); bot._flyTimer = null }
 }
