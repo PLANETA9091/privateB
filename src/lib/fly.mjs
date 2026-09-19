@@ -16,6 +16,7 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
     stuckTicks: 0,
     bestDist: Infinity,
     noProgressTicks: 0,
+    stalledDigs: 0,
     antiKick,
     digThrough, // dig through terrain that blocks the flight path (mining bots need this)
     // Vanilla kicks a player who never touches the ground ("Flying is not enabled on
@@ -72,6 +73,20 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
     return null
   }
 
+  // First solid cell (feet- or head-level) on the direct line towards the target,
+  // i.e. the block a stuck bot would have to dig out. Returns null for open air.
+  function blockerAhead (pos, target, dist) {
+    const step = Math.min(state.speed, dist)
+    const nx = pos.x + ((target.x - pos.x) / dist) * step
+    const ny = pos.y + ((target.y - pos.y) / dist) * step
+    const nz = pos.z + ((target.z - pos.z) / dist) * step
+    const feet = bot.blockAt(new Vec3(Math.floor(nx), Math.floor(ny), Math.floor(nz)))
+    if (feet && feet.boundingBox !== 'empty') return feet
+    const head = bot.blockAt(new Vec3(Math.floor(nx), Math.floor(ny + 1), Math.floor(nz)))
+    if (head && head.boundingBox !== 'empty') return head
+    return null
+  }
+
   function tick () {
     const pos = bot.entity?.position
     if (!pos || !Number.isFinite(pos.x)) return
@@ -115,10 +130,34 @@ export function installFly (bot, { speed = 1.0, antiKick = true, antiKickInterva
     if (dist < state.bestDist - 0.05) {
       state.bestDist = dist
       state.noProgressTicks = 0
+      state.stalledDigs = 0
     } else if (!state.digging && ++state.noProgressTicks > 60) {
+      // No meaningful progress for 60 ticks. Two ways out: dig through the blocker that
+      // sits on the DIRECT line to the target (digThrough mode), or give up. The dig is
+      // essential: a bot that only slides along walls (z-creep) makes micro-progress
+      // forever, so the "stepFree found nothing" branch below never runs and the bot
+      // would starve in front of a wall it was explicitly allowed to dig through.
+      applyAntiKick(pos)
+      const blocker = state.digThrough && bot.flyDigHook ? blockerAhead(pos, target, dist) : null
+      if (blocker && state.stalledDigs < 3) {
+        state.stalledDigs++
+        state.noProgressTicks = 0
+        state.digging = true
+        const p = blocker.position.clone()
+        Promise.resolve(bot.flyDigHook(blocker))
+          .catch(() => {})
+          .finally(() => {
+            state.digging = false
+            if (bot.blockAt(p) && bot.blockAt(p).type === 0) state.bestDist = Infinity
+          })
+        return
+      }
+      if (state.stalledDigs >= 3) {
+        settle(new Error(`blocked (3 digs did not open the way) at ${pos.floored()} -> ${target.floored()}`))
+        return
+      }
       const here = pos.floored()
       const dest = target.floored()
-      applyAntiKick(pos)
       settle(new Error(`blocked at ${here} (${bot.blockAt(pos)?.name}) -> ${dest} (${bot.blockAt(target)?.name})`))
       return
     }
