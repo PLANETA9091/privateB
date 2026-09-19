@@ -48,6 +48,11 @@ export function createMiner ({
   // passive scout, so the map fills up even when no dedicated scout is around.
   // Cheap: findBlocks on loaded chunks, dedup happens inside map.add.
   const mapTargets = new Set(['sand', 'gravel', 'clay', 'coal_ore', 'iron_ore', 'copper_ore', 'oak_log', 'birch_log', 'spruce_log', 'dark_oak_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'mangrove_log'])
+  // shore minerals only make sense as map targets when a bot can STAND at them: the
+  // 600s fleet stored sand=349 of which 21/22 trips were unreachable - underwater
+  // positions flood the dig cell and the pathfinder has no dry route (24s walk burned
+  // per attempt). Dry = air above; logs keep no filter (canopy leaves sit above trunks).
+  const DRY_TARGETS = new Set(['sand', 'gravel', 'clay'])
   function recordToMap ({ maxDistance = 32, count = 64 } = {}) {
     if (!map) return 0
     try {
@@ -57,6 +62,10 @@ export function createMiner ({
       for (const pos of found) {
         const block = bot.blockAt(pos)
         if (!block) continue
+        if (DRY_TARGETS.has(block.name)) {
+          const above = bot.blockAt(pos.offset(0, 1, 0))
+          if (!above || above.boundingBox !== 'empty') continue // underwater / buried: not a trip target
+        }
         const before = map.size(block.name)
         map.add(block.name, pos)
         if (map.size(block.name) > before) stats.mapRecords++
@@ -1226,7 +1235,7 @@ export function createMiner ({
   // name, or null when the map had nothing reachable. Failed destinations land in
   // failedTrips so the fleet never re-bounces on them.
   const SURFACE_NAMES = new Set(['sand', 'gravel', 'clay', 'dirt', 'grass_block'])
-  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 24000, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
+  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 14000, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
     const target = mapTargetFor(findNames, { maxDistance, verify: false })
     // structured result: the fleet logs failures ('unreachable') - silent map trips
     // looked like the feature never fired (it never printed a line in 3 CI runs)
@@ -1237,7 +1246,9 @@ export function createMiner ({
       await gotoSafe(bot, standGoalNear(bot, goals, target.pos.x, target.pos.y, target.pos.z, { range: 4 }), { timeoutMs: walkTimeoutMs, label: `map trip ${target.name}` })
     } catch {
       failedTrips.add(key)
-      if (failedTrips.size > 32) failedTrips.clear() // bounded amnesia, same as workOnGround
+      // bounded amnesia, same as workOnGround - but drop the OLDEST half, not all:
+      // a full clear made bots re-walk the same unreachable shores every few trips
+      if (failedTrips.size > 32) for (const k of [...failedTrips].slice(0, 16)) failedTrips.delete(k)
       return { error: 'unreachable' }
     }
     recordToMap({ maxDistance: 32, count: 32 })
