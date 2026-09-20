@@ -47,7 +47,14 @@ const SMELT_BUDGET = Number(process.env.FLEET_SMELT_BUDGET || 90) // seconds per
 
 // The shared resource map: scouts fill it, miners read it. Persisted so a restarted
 // fleet does not start from zero knowledge (data/worldmap.json is gitignored).
-const map = new WorldMap({ file: 'data/worldmap.json' })
+// (v0.18.4) worldKey = the fixed seed: a map file from a DIFFERENT world must not
+// leak into this one (load refuses it, save overwrites instead of merging).
+// Autosave (5 min): merge-on-save means a run killed by the OOM class keeps the
+// knowledge gathered up to the last interval instead of losing the whole run.
+let worldSeed = null
+try { worldSeed = JSON.parse(fs.readFileSync('config/world.json', 'utf8')).seed } catch { /* merge-always legacy mode */ }
+const map = new WorldMap({ file: 'data/worldmap.json', worldKey: worldSeed == null ? null : String(worldSeed) })
+map.startAutosave({ everyMs: 300000, log: m => console.log(`[worldmap] ${m}`) })
 // (v0.15.0) fleet-wide trip claims: when one bot commits to a map target, the others
 // score that cluster as "already taken" (soft penalty) and pick a different one - the
 // measured single-beach pile-up (38x 'map trip skipped: unreachable', sand=0 @ sand=110)
@@ -703,7 +710,8 @@ console.log(`materials: ${JSON.stringify(s.byName)}`)
 console.log(`kicks handled: ${kicks} (reconnect attempts: ${reconnects})`)
 const finalMap = map.report()
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)
-map.save() // next fleet starts with this knowledge
+map.save() // (v0.18.4) merge-on-save: the union of this run's finds + anything on disk; next fleet starts with this knowledge
+map.stopAutosave() // the final save above is the last word - no timer races after it
 
 // Machine-readable report for the plan loop: what was produced, by whom, and how far
 // the build's material plan got. Consumed by scripts and by the next session's agent.
