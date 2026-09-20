@@ -65,19 +65,31 @@ export function pickWear (bot) {
 function craftablePickTier (bot) {
   const sticks = countItem(bot, 'stick')
   const stickOk = sticks >= PICK_STICKS
-  const stickOkViaPlanks = stickOk || countAllPlanks(bot) >= 2
+  // ONE-TYPE semantics (v0.10.3): the vanilla pickaxe recipe needs 3 planks of the
+  // SAME tree, and 2 planks of one tree make the sticks. The v0.10.2 fleet kept
+  // reporting 'planks available' off the ALL-TYPES SUM while recipesFor found no
+  // craftable variant ('no craftable recipe variant (ingredients missing?)' x10 in
+  // run 35481439229) - the exact 6-oak + 6-birch trap the dominant-type conversion
+  // in tools.mjs was built for. Summing plank types lies; the max of one type is
+  // the only number the recipe cares about.
+  const oneType = countMaxPlankType(bot)
+  const stickOkViaPlanks = stickOk || oneType >= 2
   if (!stickOkViaPlanks) return { tier: -1, name: null, reason: 'no sticks and no planks for sticks' }
   const ingots = countItem(bot, 'iron_ingot')
   const cobble = countItem(bot, 'cobblestone')
-  const planks = countAllPlanks(bot)
   if (ingots >= IRON_PICK_INGOTS) return { tier: 2, name: 'iron_pickaxe', reason: 'iron available' }
   if (cobble >= 3) return { tier: 1, name: 'stone_pickaxe', reason: 'cobble available' }
-  if (planks >= 3) return { tier: 0, name: 'wooden_pickaxe', reason: 'planks available' }
-  return { tier: -1, name: null, reason: 'no pickaxe materials (need 3 ingots / 3 cobble / 3 planks)' }
+  if (oneType >= 3) return { tier: 0, name: 'wooden_pickaxe', reason: 'planks available' }
+  return { tier: -1, name: null, reason: 'no pickaxe materials (need 3 ingots / 3 cobble / 3 planks of ONE type)' }
 }
 
-function countAllPlanks (bot) {
-  return invItems(bot).filter(i => i.name.endsWith('_planks')).reduce((a, i) => a + i.count, 0)
+function countMaxPlankType (bot) {
+  const perType = new Map()
+  for (const i of invItems(bot)) {
+    if (!i || !i.name.endsWith('_planks')) continue
+    perType.set(i.name, (perType.get(i.name) ?? 0) + i.count)
+  }
+  return perType.size ? Math.max(...perType.values()) : 0
 }
 
 /**

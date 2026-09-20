@@ -285,11 +285,17 @@ async function runBot (name, target, index) {
         if (interrupted) continue
         if ((shaftRes.done ?? 0) === 0) emptyShafts++
         else emptyShafts = 0
-        if (emptyShafts >= 2 && hasPickNow()) {
+        if (emptyShafts >= 2) {
           emptyShafts = 0
+          // (v0.10.3) namesFor(TRUE) unconditionally: the tunnel's first job is
+          // MOVEMENT - a pickless bot digging stone bare-handed gains no drops but
+          // breaks the seal, keeps the map recording and can surface to re-tool.
+          // Gating the tunnel names by hasPickNow() is what kept 0-pick bots churning
+          // 'tunnel: 0 blocks' 21763 times in run 35481439229 (soft-only names vs
+          // sealed stone = instant else-break). Pick-holders collect as before.
           const tdir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
           try {
-            const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(hasPickNow()), shouldStop: () => Date.now() > deadline })
+            const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
             console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor)`)
           } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
           continue // fresh column walk below still applies

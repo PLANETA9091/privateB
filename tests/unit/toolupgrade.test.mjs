@@ -313,3 +313,32 @@ test('sparePickCheck: wooden tier when cobble is out but planks of one type exis
   assert.equal(chk.due, true)
   assert.equal(chk.tier, 'wooden_pickaxe')
 })
+
+test('sparePickCheck: plank materials need ONE type - the 12-type sum lies (v0.10.3)', () => {
+  // 3 singles across 3 tree types: the all-types sum says 3, the recipe says no
+  const fragmented = fakeBot([
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('oak_planks', 1), it('birch_planks', 1), it('spruce_planks', 1),
+    it('stick', 4), it('crafting_table', 1)
+  ])
+  const chk = sparePickCheck(fragmented)
+  assert.equal(chk.due, false)
+  assert.match(chk.reason, /ONE type|no pickaxe materials/)
+  // 3 planks of the same tree: the recipe is craftable
+  const solid = fakeBot([
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('oak_planks', 3),
+    it('stick', 4), it('crafting_table', 1)
+  ])
+  const ok = sparePickCheck(solid)
+  assert.equal(ok.due, true)
+  assert.equal(ok.tier, 'wooden_pickaxe')
+  // sticks from planks also need one type: 2 singles cannot make the 2 sticks
+  const stickless = fakeBot([
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('oak_planks', 1), it('birch_planks', 1),
+    it('crafting_table', 1)
+  ])
+  const noStickPath = sparePickCheck(stickless)
+  assert.equal(noStickPath.due, false)
+})
