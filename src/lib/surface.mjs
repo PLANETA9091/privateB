@@ -447,6 +447,73 @@ export function climbableCeiling (block) {
   return 'stop' // fluid bounding box or unknown shape - not proven free
 }
 
+// ---------------------------------------------------------------------------
+// GRAVITY STEP PLANNING (v0.25.0) - the climb's answer to sand/gravel columns.
+//
+// MEASURED (fleet 35538062596, master 9afe4f5, 19 bots x 600s): 10+ bots died
+// at the final bank with 'climb out (bank): failed - stalled' and the diag
+// signature 'did not rise (dug=1..3) feet=air support=gravel step=gravel
+// head=air' clustered at y=42-43 (river/ocean-beach columns). The staircase
+// dug each step ONCE, bottom-up: digging the LOWER cell of a sand/gravel
+// column makes the UPPER cell sink into it, so the just-cleared step cell was
+// occupied again by the time the bot tried to step onto it. Every retry dug
+// one more block, the column sank one more, and the fail budget burned while
+// the bot stood still - 'stalled' at the bank, pockets full, banked=0.
+//
+// THE CURE is the miner's textbook rule: RE-SCAN and RE-DIG. Gravity only
+// refills cells from above; a finite column (beach bands run 2-4 blocks) is
+// exhausted by repeated passes, each pass eating its top off. The scan runs
+// TOP-DOWN so a sunk block always lands in a cell the NEXT pass will re-plan
+// - never out of a cell already cleared this pass.
+//
+// Pure policy, simulated in CI with an instant-settle gravity model: a 10-block
+// column clears within STEP_MAX_PASSES passes, and ONE pass provably leaves a
+// sunk block standing (the measured bug, pinned so it cannot return silently).
+export const STEP_MAX_PASSES = 6
+
+/**
+ * Plan ONE digging pass of a climb step.
+ *
+ * Four cells decide the diagonal step-up: the two above the head (feet+1,
+ * feet+2) and the two above the landing cell (step+1 = feet+d at y+1,
+ * step+2 = feet+d at y+2). The landing cell itself (feet+d at feet level) is
+ * NOT scanned: it is the floor the bot lands on and must stay solid.
+ *
+ * @param {object} p
+ * @param {Vec3-like} p.feet the floored feet cell the bot stands in (needs .offset)
+ * @param {{x: number, z: number}} p.d cardinal direction of the step
+ * @param {Function} p.read (cell) => prismarine Block | null (bot.blockAt)
+ * @param {number} [p.dug] blocks already dug this climb (for the global budget)
+ * @param {number} [p.maxDug] global dig budget (default PILLAR_LEVEL_CAP * 2)
+ * @returns {{ok: true, digs: Array<{cell: object, block: object}>, blocked: false}
+ *           |{ok: false, digs: Array, blocked: true, blockedWet: boolean, reason: string}}
+ *   digs lists the solid cells to fastDig THIS pass, top-down (head+2, head+1,
+ *   step+2, step+1); an already-clear step returns ok with digs: []. blocked
+ *   means a fluid/undiggable/unknown cell (or the budget) refuses the step -
+ *   blockedWet mirrors the old wet flag for the caller's wet-escape policy.
+ */
+export function stepDigPlan ({ feet, d, read, dug = 0, maxDug = PILLAR_LEVEL_CAP * 2 } = {}) {
+  const empty = { ok: false, digs: [], blocked: true, blockedWet: false, reason: 'unknown' }
+  if (!feet || !d || typeof read !== 'function' || typeof feet.offset !== 'function') return empty
+  if (!(Number.isFinite(d.x) && Number.isFinite(d.z) && (d.x !== 0 || d.z !== 0))) return empty
+  const tryRead = (dx, dy, dz) => {
+    try { return read(feet.offset(dx, dy, dz)) } catch { return null }
+  }
+  const digs = []
+  // top-down: gravity sinks INTO cells the next pass re-plans, never out of
+  // a cell this pass already cleared
+  for (const [dx, dy, dz] of [[0, 2, 0], [0, 1, 0], [d.x, 2, d.z], [d.x, 1, d.z]]) {
+    const b = tryRead(dx, dy, dz)
+    const verdict = climbableCeiling(b)
+    if (verdict === 'free') continue
+    if (verdict !== 'dig' || dug + digs.length >= maxDug) {
+      return { ok: false, digs, blocked: true, blockedWet: isWetCell(b), reason: verdict === 'dig' ? 'dig budget' : 'stop' }
+    }
+    digs.push({ cell: feet.offset(dx, dy, dz), block: b })
+  }
+  return { ok: true, digs, blocked: false, blockedWet: false }
+}
+
 /**
  * Pick the pillar block from an inventory-shaped list, honouring PILLAR_BLOCKS
  * preference order. Junk telemetry (null items, NaN counts) is skipped, never

@@ -12,13 +12,14 @@ import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
-import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
+import { depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
+  stepDigPlan, STEP_MAX_PASSES,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
@@ -1828,25 +1829,32 @@ export function createMiner ({
       // headroom for the step-up jump: the two cells above the feet. Inside the
       // shaft both are open (the bot dug them on the way down); a cave overhang
       // is dug through under the bounded ceiling budget. Fluids/bedrock stop.
+      // (v0.25.0) GRAVITY PASSES: the old single bottom-up scan dug each step
+      // once - into a sand/gravel column the upper block SANK into the cell
+      // just cleared (fleet 35538062596: 'did not rise ... support=gravel
+      // step=gravel' x10+ at the river beaches, 'climb out: failed - stalled'
+      // at the final bank, banked=0 with full pockets). stepDigPlan re-plans
+      // the four step cells until the column is exhausted: each pass eats the
+      // sunk column's top off (beach bands run 2-4 blocks, STEP_MAX_PASSES=6
+      // covers 12), and a genuinely wet/hard/unknown cell still refuses with
+      // the old blocked/blockedWet flags so the wet-escape policy is untouched.
       let blocked = false
       let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
-      for (const cell of [feet.offset(0, 1, 0), feet.offset(0, 2, 0), feet.offset(d.x, 1, d.z), feet.offset(d.x, 2, d.z)]) {
-        // (v0.24.0) the unguarded read threw mid-climb and the final-bank catch
-        // swallowed it in silence (fleet 35536139524: staggered climbs produced
-        // diag lines and then NOTHING) - unknown now means blocked, like null
-        let cellB = null
-        try { cellB = bot.blockAt(cell) } catch { cellB = null }
-        const verdict = climbableCeiling(cellB)
-        if (verdict === 'free') continue
-        if (verdict !== 'dig' || dug >= PILLAR_LEVEL_CAP * 2) {
-          blocked = true
-          blockedWet = isWetCell(cellB)
-          break
+      const readCell = cell => { try { return bot.blockAt(cell) } catch { return null } }
+      for (let pass = 0; pass < STEP_MAX_PASSES; pass++) {
+        const plan = stepDigPlan({ feet, d, read: readCell, dug })
+        if (plan.blocked) { blocked = true; blockedWet = plan.blockedWet; break }
+        if (plan.digs.length === 0) break // the step is clear - step onto it
+        for (const { block: cellB } of plan.digs) {
+          try {
+            if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
+            else { blocked = true; break }
+          } catch { blocked = true; break }
         }
-        try {
-          if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
-          else { blocked = true; break }
-        } catch { blocked = true; break }
+        if (blocked) break
+        // let the server's gravity updates land before the next scan: a sunk
+        // block must be SEEN here, not discovered by a failed stepUp
+        await settleTicks(4, 'climb gravity pass settle')
       }
       // the step needs solid ground at (feet + d) to land on - a cave gap there
       // is not a stair, rotate and try the next wall (read guarded: v0.24.0)
@@ -2198,9 +2206,17 @@ export function createMiner ({
   // Walk to the nearest chest and bank everything but the tool kit. Soft no-op when no
   // chest is in range (CI worlds have none) - a full inventory must never kill a bot.
   async function depositLoot (opts = {}) {
-    const res = await depositToChest(bot, { log, ...opts })
+    // (v0.25.0) MULTI-CHEST continuation: yards are chest ROWS - a single full
+    // chest used to eat the whole delivery (depositToChest returned 'nothing to
+    // deposit' after every click was rejected and smeltThenBank reported bank: 0
+    // with a full pocket - fleet 35538062596 F18). depositToChests excludes the
+    // dead chest and scans again (maxChests bound) until the pockets drain.
+    const res = await depositToChests(bot, { log, ...opts })
     if (res.deposited > 0) stats.banked = (stats.banked ?? 0) + res.deposited
-    return res
+    const reason = res.deposited > 0
+      ? 'ok'
+      : (Array.isArray(res.chestReport) && res.chestReport.length ? res.chestReport[res.chestReport.length - 1] : 'no chest in range')
+    return { deposited: res.deposited, reason, chestsUsed: res.chestsUsed ?? 0, chestReport: res.chestReport ?? [] }
   }
 
   return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }

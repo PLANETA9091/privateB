@@ -183,11 +183,25 @@ export async function depositToChest (bot, {
     return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
   }
 
-  let window
-  try {
-    window = await withTimeout(bot.openChest(chest), 10000, 'open chest')
-  } catch (e) {
-    return { deposited: 0, reason: `cannot open chest (${e.message})` }
+  // (v0.25.0) TWO open attempts: fleet 35538062596 F10 walked the whole way and
+  // died here - 'cannot open chest (open chest: timeout after 10000ms)' - while
+  // the server lagged 1.3s per event (late=1324ms under 19 bots): a slow window
+  // open must not void a 60s walk. One re-look + one retry costs seconds; a lost
+  // deposit costs the whole pocket.
+  let window = null
+  let openErr = null
+  for (let attempt = 1; attempt <= 2 && !window; attempt++) {
+    try {
+      window = await withTimeout(bot.openChest(chest), 10000, 'open chest')
+    } catch (e) {
+      openErr = e
+      if (attempt === 1) {
+        try { await bot.lookAt(chest.position.offset(0.5, 0.5, 0.5), true) } catch { /* retry anyway */ }
+      }
+    }
+  }
+  if (!window) {
+    return { deposited: 0, reason: `cannot open chest (${openErr && openErr.message ? openErr.message : 'unknown'})` }
   }
 
   let deposited = 0
@@ -241,10 +255,17 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       // (v0.23.1) FLEET EVIDENCE (3e21d58): 5x 'chest unreachable (No path to the
       // goal!)' at final bank - the NEAREST chest's walk dead-ends (a pond, a rim,
       // unloaded chunks) and the whole deposit died with the loot still in pockets.
-      // A 'No path' to ONE chest excludes exactly that chest and tries the next
-      // nearest (the yard holds dozens); everything else still breaks - the
-      // maxChests bound stays the only loop guard.
-      if (/chest unreachable \(No path/i.test(String(res.reason)) && chest.position) {
+      // (v0.25.0) THE FULL CHEST JOINS THE EXCLUSION LIST: fleet 35538062596 F18
+      // walked to the yard, every click was rejected by a full chest
+      // ('bank: 0 (nothing to deposit)') and the delivery died with 200+ units
+      // still in the pocket while chest #2 stood empty beside it. ANY zero at a
+      // reached chest with bankable items left means THIS chest is dead for us
+      // (full, ghost-click desync, unopenable window) - exclude it and try the
+      // next nearest, still bounded by maxChests. 'no chest in range' stays a
+      // plain break: there is nothing to hop from.
+      const r = String(res.reason || '')
+      const chestDead = /nothing to deposit|cannot open chest|chest unreachable/i.test(r)
+      if (chestDead && chest.position) {
         tried.push(chest.position.floored())
         continue
       }

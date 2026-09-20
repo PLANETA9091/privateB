@@ -133,6 +133,86 @@ test('a ghost click (resolved call, nothing moved) is NOT counted as deposited',
   assert.equal(bot._items.map(i => i.name).sort()[0], 'cobblestone', 'the ghosted stack stays with the bot')
 })
 
+// ------------------------------------------------------------------ v0.25.0
+// Fleet 35538062596: F10 walked the whole way and died at 'cannot open chest
+// (open chest: timeout after 10000ms)' while the server lagged 1.3s/event -
+// ONE retry (re-look + re-open) is cheaper than a lost 60s walk.
+
+test('a slow window open retries once and still banks', async () => {
+  const chest = { name: 'chest', position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)] })
+  let attempts = 0
+  const realOpen = bot.openChest
+  bot.openChest = async (...args) => {
+    attempts++
+    if (attempts === 1) throw new Error('open chest: timeout after 10000ms')
+    return realOpen(...args)
+  }
+  const res = await depositToChest(bot)
+  assert.equal(attempts, 2, 'exactly one re-open attempt')
+  assert.equal(res.deposited, 5, 'the retry delivers the loot')
+})
+
+test('both failed open attempts are still reported honestly', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({ chest, openFails: true, items: [item('cobblestone', 5)] })
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 0)
+  assert.match(res.reason, /cannot open/)
+})
+
+test('a FULL chest is skipped for the next one (nothing-to-deposit hops too)', async () => {
+  // fleet 35538062596 F18: the whole delivery died at 'bank: 0 (nothing to
+  // deposit)' - every click rejected by a full chest - while chest #2 stood
+  // empty beside it. A reached chest that moves NOTHING while bankable items
+  // remain is dead for us: exclude it, scan again.
+  const chests = [
+    { name: 'chest', position: new Vec3(3, 64, 3) },
+    { name: 'chest', position: new Vec3(6, 64, 6) }
+  ]
+  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
+  bot.openChest = async chest => {
+    const idx = chests.indexOf(chest)
+    return {
+      deposit: async type => {
+        const it = bot._items.find(i => i.type === type)
+        if (idx === 0) throw new Error('chest full') // chest A rejects EVERYTHING
+        bot.depositCalls.push({ name: it.name, count })
+        bot._items = bot._items.filter(i => i.type !== type)
+      },
+      close: () => { bot.closed = true }
+    }
+  }
+  const res = await depositToChests(bot, { maxChests: 3 })
+  assert.equal(res.deposited, 20, 'chest B takes what chest A refused')
+  assert.equal(res.chestsUsed, 1)
+  assert.deepEqual(bot._items.map(i => i.name), [])
+})
+
+test('an unopenable chest is skipped for the next one', async () => {
+  const chests = [
+    { name: 'chest', position: new Vec3(3, 64, 3) },
+    { name: 'chest', position: new Vec3(6, 64, 6) }
+  ]
+  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
+  bot.openChest = async chest => {
+    if (chests.indexOf(chest) === 0) throw new Error('open chest: timeout after 10000ms')
+    return {
+      deposit: async type => {
+        const it = bot._items.find(i => i.type === type)
+        bot.depositCalls.push({ name: it.name, count })
+        bot._items = bot._items.filter(i => i.type !== type)
+      },
+      close: () => { bot.closed = true }
+    }
+  }
+  const res = await depositToChests(bot, { maxChests: 3 })
+  assert.equal(res.deposited, 20)
+  assert.deepEqual(res.chestReport, ['cannot open chest (open chest: timeout after 10000ms)', 'ok'])
+})
+
 test('depositToChests continues into the next chest while bankable items remain', async () => {
   // chest A accepts one deposit, then is full; chest B takes the rest
   const chests = [
