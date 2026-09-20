@@ -18,6 +18,20 @@
 // moment, not the fleet its CPU. The per-call timeout starts when the search
 // actually STARTS (activation), not while queued - a queued bot does not
 // burn its caller's budget.
+//
+// (v0.21.0) PRIORITY INSIDE THE QUEUE. FLEET v0.19.2 EVIDENCE (927 blocks,
+// banked=0): at final-bank time 19 bots enqueue walks at once and the throttle
+// showed path=6a/10q - a BANK walk (the only walk that turns mined blocks into
+// banked stock) can sit behind a dozen next-column walks and its dist-scaled
+// budget burns while queued position does not matter to mining pace at all.
+// Higher priority dequeues first; FIFO within the same priority (the old
+// behavior is exactly priority 0 everywhere). Wire format of stats() is
+// UNCHANGED (the heartbeat line is parsed by log readers/tests).
+
+/** Priority classes for fleet walks - the queue serves higher classes first. */
+export const PATH_PRIO_NORMAL = 0 // mining columns, relocations, everything default
+export const PATH_PRIO_TRIP = 1 // wood/ore steering trips (a bot's commute)
+export const PATH_PRIO_BANK = 2 // bank/yard walks - the only walk that banks stock
 
 /**
  * @param {object} [opts]
@@ -34,10 +48,16 @@ export function createPathThrottle ({ maxConcurrent = 6, queueCap = 40 } = {}) {
 
   const pump = () => {
     while (active < max && queue.length > 0) {
-      const next = queue.shift()
+      // highest priority first; among equals, FIFO (a linear scan of <=40
+      // entries is free next to the A* searches this gate is throttling)
+      let bestIdx = 0
+      for (let i = 1; i < queue.length; i++) {
+        if (queue[i].prio > queue[bestIdx].prio) bestIdx = i
+      }
+      const next = queue.splice(bestIdx, 1)[0]
       active++
       if (active > maxActive) maxActive = active
-      next()
+      next.start()
     }
   }
 
@@ -47,9 +67,12 @@ export function createPathThrottle ({ maxConcurrent = 6, queueCap = 40 } = {}) {
      * Rejects with 'path throttle: queue full' when the queue overflows.
      * @template T
      * @param {() => T | Promise<T>} fn
+     * @param {object} [opts]
+     * @param {number} [opts.priority] higher dequeues first (default 0 = FIFO as before)
      * @returns {Promise<T>}
      */
-    run (fn) {
+    run (fn, { priority = PATH_PRIO_NORMAL } = {}) {
+      const prio = Number.isFinite(priority) && priority >= 0 ? Math.floor(priority) : PATH_PRIO_NORMAL
       return new Promise((resolve, reject) => {
         const start = () => {
           let result
@@ -71,7 +94,7 @@ export function createPathThrottle ({ maxConcurrent = 6, queueCap = 40 } = {}) {
           if (active > maxActive) maxActive = active
           start()
         } else if (queue.length < cap) {
-          queue.push(start)
+          queue.push({ prio, start })
         } else {
           rejected++
           reject(new Error('path throttle: queue full'))

@@ -73,3 +73,50 @@ test('bad options fall back to safe defaults', async () => {
   gate.open()
   await first
 })
+
+// (v0.21.0) Priority inside the queue: a bank walk must not sit behind a dozen
+// next-column walks when the fleet saturates the throttle (fleet v0.19.2:
+// path=6a/10q at final-bank time, banked=0 with 927 blocks in pockets).
+test('a higher-priority caller jumps the saturated queue', async () => {
+  const t = createPathThrottle({ maxConcurrent: 1 })
+  const order = []
+  const gate = deferred()
+  const running = t.run(async () => { order.push('running'); await gate.gate })
+  await new Promise(r => setImmediate(r))
+
+  const low1 = t.run(async () => { order.push('low1') }, { priority: 0 })
+  const low2 = t.run(async () => { order.push('low2') }, { priority: 0 })
+  const bank = t.run(async () => { order.push('bank') }, { priority: 2 })
+  assert.equal(t.stats().queued, 3, 'all three wait in line')
+
+  gate.open()
+  await Promise.all([running, low1, low2, bank])
+  assert.deepEqual(order, ['running', 'bank', 'low1', 'low2'], 'the bank walk dequeues FIRST, the normals keep FIFO among themselves')
+})
+
+test('priority is per-call: default callers keep plain FIFO (backwards compatible)', async () => {
+  const t = createPathThrottle({ maxConcurrent: 1 })
+  const gate = deferred()
+  const order = []
+  const running = t.run(async () => { order.push('first'); await gate.gate })
+  await new Promise(r => setImmediate(r))
+  const a = t.run(async () => { order.push('a') })
+  const b = t.run(async () => { order.push('b') })
+  gate.open()
+  await Promise.all([running, a, b])
+  assert.deepEqual(order, ['first', 'a', 'b'], 'no priority passed -> today\'s FIFO behavior, byte for byte')
+})
+
+test('bad priority values fall back to the normal class', async () => {
+  const t = createPathThrottle({ maxConcurrent: 1 })
+  const gate = deferred()
+  const order = []
+  const running = t.run(async () => { order.push('run'); await gate.gate })
+  await new Promise(r => setImmediate(r))
+  const normal = t.run(async () => { order.push('normal') }, { priority: 0 })
+  const weird = t.run(async () => { order.push('weird') }, { priority: -3 })
+  const nan = t.run(async () => { order.push('nan') }, { priority: NaN })
+  gate.open()
+  await Promise.all([running, normal, weird, nan])
+  assert.deepEqual(order, ['run', 'normal', 'weird', 'nan'], 'negative/NaN priority must not outrank the normal class')
+})

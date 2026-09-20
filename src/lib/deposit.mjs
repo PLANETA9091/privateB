@@ -4,6 +4,7 @@
 // around the origin. No op, no commands - vanilla chest windows only.
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from './jobqueue.mjs'
+import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 
 const { goals } = pathfinderPkg
@@ -113,7 +114,10 @@ export async function depositToChest (bot, {
     try { budget = chestWalkBudgetMs(bot.entity.position.distanceTo(chest.position)) } catch { /* floor stays */ }
   }
 
-  const walkOnce = async label => gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: budget, label })
+  // (v0.21.0) bank walks jump the fleet queue: a banked walk is the only one that
+  // turns mined blocks into stock - under path saturation it must not wait behind
+  // next-column walks (fleet v0.19.2: path=6a/10q at final-bank time, banked=0).
+  const walkOnce = async label => gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: budget, label, priority: PATH_PRIO_BANK })
   // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
   // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
   //   water rescue -> wait out the rescue window, then the retry (v0.18.5 behavior)

@@ -236,17 +236,20 @@ function clearStaleStop (bot) {
   } catch { /* diagnostics must never block the walk they precede */ }
 }
 
-export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {}) {
+export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0 } = {}) {
   // (v0.13.0) drowning rescue gate: while a swim rescue is in flight the
   // pathfinder must NOT issue new goals - each one re-engages its own control
   // states and fights the raw swim controls (the same lesson as tunnel/shelter:
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
+  // (v0.21.0) priority rides through to the fleet queue: bank walks (PATH_PRIO_BANK)
+  // jump ahead of mining-column walks under saturation - a queued bank walk burns
+  // its dist-scaled budget in line while a mining delay costs nothing at all.
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
     return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
-  }).catch(e => {
+  }, { priority }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
     // next physics tick - or, for a standing bot, at the NEXT goto's setGoal

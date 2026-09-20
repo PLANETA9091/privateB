@@ -24,6 +24,7 @@ import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
+import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
@@ -130,7 +131,7 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
           miner.bot.on('path_reset', spy)
           miner.bot.on('path_stop', spyStop)
           walkStart = Date.now()
-          await gotoSafe(miner.bot, walkGoal, { timeoutMs: 120000, label: 'walk to yard' })
+          await gotoSafe(miner.bot, walkGoal, { timeoutMs: 120000, label: 'walk to yard', priority: PATH_PRIO_BANK })
           arrived = true
           console.log(`${miner.username} bank: yard walk arrived in ${((Date.now() - walkStart) / 1000).toFixed(0)}s (${attempt} attempt${attempt > 1 ? 's' : ''})`)
         } catch (e) {
