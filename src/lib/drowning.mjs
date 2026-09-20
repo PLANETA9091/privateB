@@ -40,6 +40,10 @@ export const OXYGEN_CRITICAL_LEVEL = 4
 /** Metadata fallback: if oxygenLevel never updates on this version, a bot whose
  * head has been under for this long drowns anyway - rescue on the clock. */
 export const HEAD_SUBMERGED_RESCUE_MS = 5000
+/** Rate limit for the air-bar glitch diagnostic log in the sentry (ms). The
+ * glitch itself is counted every time; the log line would otherwise spam the
+ * fleet log once per sentry tick on a bot with a broken bar. */
+export const AIR_GLITCH_LOG_MS = 30000
 /** One rescue attempt's budget (bounded like runAway/shelter - never a hang). */
 export const RESCUE_MAX_MS = 25000
 /** Shore scan radius (blocks). 12 keeps the sample grid at 25x25 reads max. */
@@ -50,6 +54,28 @@ export const RESCUE_COOLDOWN_MS = 3000
 
 export function isWaterName (name) {
   return typeof name === 'string' && WATER_NAMES.has(name)
+}
+
+/**
+ * Contact-trust classifier for the air-bar override (v0.16.0).
+ *
+ * The fleet measured (run #120, 19 bots, 600 s) 140 rescue starts with ZERO
+ * real drownings: on 26.2 bot.oxygenLevel can read ~0 while the bot is bone
+ * dry, and the old "the bar overrides dry reads" policy turned every such
+ * tick into a rescue - each one cancelled the walk goal the work loop had
+ * just issued, so the fake rescues were productivity poison, not insurance.
+ *
+ * The bar is still believed when the bot is wet or a read is missing
+ * (unloaded chunks, kelp lag) - but two DEFINITE dry reads (stone feet, air
+ * head) now out-vote it: the glitch is logged and counted, not swum on.
+ * Verdicts: 'wet' - water contact, 'dry' - both cells definitely not water,
+ * 'unknown' - any read missing.
+ */
+export function airBarTrust ({ feet = null, head = null } = {}) {
+  if (isWaterName(feet) || isWaterName(head)) return 'wet'
+  const dry = n => n != null && !isWaterName(n)
+  if (dry(feet) && dry(head)) return 'dry'
+  return 'unknown'
 }
 
 /**
@@ -70,10 +96,14 @@ export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs
   const o2 = Number.isFinite(raw) ? raw : 20 // NaN/undefined/junk air bar reads as FULL - a false 0 would swim-loop a dry bot
   const headWet = isWaterName(head)
   const feetWet = isWaterName(feet)
-  // the air bar overrides everything, INCLUDING dry block reads: at critical
-  // air we act even when the blocks say dry (lag, kelp over the eyes, stale
-  // chunk data) - better a wasted swim than a silent drown
-  if (o2 <= OXYGEN_CRITICAL_LEVEL) return 'drowning'
+  // The air bar overrides everything except DEFINITE dry contact (v0.16.0):
+  // at critical air we still act on wet or unknown reads (lag, kelp over the
+  // eyes, stale chunk data - better a wasted swim than a silent drown), but
+  // the fleet measured 140 rescue starts on bone-dry bots - on 26.2 the
+  // oxygen metadata can read ~0 on land. Two definite dry reads out-vote the
+  // bar; the wiring counts the glitch so the next fleet run tells us whether
+  // the sensor or the water table was lying.
+  if (o2 <= OXYGEN_CRITICAL_LEVEL && airBarTrust({ feet, head }) !== 'dry') return 'drowning'
   if (!headWet && !feetWet) return 'none'
   if (headWet) {
     if (o2 <= OXYGEN_RESCUE_LEVEL) return 'drowning'

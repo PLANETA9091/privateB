@@ -23,8 +23,8 @@ import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
 import {
-  waterVerdict, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
-  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS
+  waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
+  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -61,7 +61,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, claims: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -429,6 +429,7 @@ export function createMiner ({
   // while it runs (bot._waterRescue is the cross-module gate).
   let swimming = false
   let lastRescueAt = 0
+  let lastGlitchLogAt = 0
   let headWetSince = 0
   function waterRead () {
     if (!bot.entity?.position) return { feet: null, head: null, oxygen: 20 }
@@ -489,6 +490,19 @@ export function createMiner ({
       const read = waterRead()
       const headWet = isWaterName(read.head)
       if (headWet) { if (!headWetSince) headWetSince = now } else headWetSince = 0
+      // (v0.16.0) the 26.2 oxygen sensor can read ~0 on dry land - fleet #120
+      // measured 140 rescue starts with zero real drownings, every one of them
+      // cancelling a walk goal the work loop had just issued. A critical bar on
+      // DEFINITE dry contact is a glitch: count it, log it rate-limited, do not
+      // swim. waterVerdict applies the same gate, so this is pure telemetry.
+      const o2raw = Number(read.oxygen)
+      if (Number.isFinite(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry') {
+        stats.airGlitches++
+        if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
+          lastGlitchLogAt = now
+          log(`${tag} water: air-bar glitch ignored (oxygen ${o2raw} on dry land, ${stats.airGlitches} total)`)
+        }
+      }
       const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0 })
       if (verdict === 'drowning') rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
     } catch { /* never kill the interval */ }

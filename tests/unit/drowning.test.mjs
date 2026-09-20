@@ -9,8 +9,8 @@ import assert from 'node:assert/strict'
 import {
   WATER_NAMES, AIR_NAMES, SHAFT_FLUID_NAMES,
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
-  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS,
-  isWaterName, waterVerdict, shoreDirection
+  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
+  isWaterName, waterVerdict, airBarTrust, shoreDirection
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -31,9 +31,9 @@ test('waterVerdict: the measured death pattern reads as drowning', () => {
   assert.equal(waterVerdict({ feet: 'water', head: 'seagrass', oxygen: 3 }), 'drowning')
 })
 
-test('waterVerdict: the air bar and the clock override stale block reads', () => {
-  assert.equal(waterVerdict({ feet: 'sand', head: 'air', oxygen: 2 }), 'drowning', 'critical air with dry reads: believe the bar')
+test('waterVerdict: the air bar and the clock override UNKNOWN and WET reads', () => {
   assert.equal(waterVerdict({ feet: 'water', head: null, oxygen: 2 }), 'drowning', 'critical air, unreadable head: act')
+  assert.equal(waterVerdict({ feet: 'stone', head: null, oxygen: 2 }), 'drowning', 'critical air, unreadable head over stone feet: still act')
   assert.equal(
     waterVerdict({ feet: 'water', head: 'water', oxygen: 20, headWetMs: HEAD_SUBMERGED_RESCUE_MS }),
     'drowning',
@@ -44,6 +44,33 @@ test('waterVerdict: the air bar and the clock override stale block reads', () =>
     'wet',
     'just under the clock limit: keep monitoring'
   )
+})
+
+test('waterVerdict: DEFINITE dry reads out-vote a glitching air bar (fleet #120: 140 fake rescues)', () => {
+  // fleet #120 measured 140 rescue starts on bone-dry bots: on 26.2 the oxygen
+  // metadata can read ~0 on land, and the old "believe the bar" policy turned
+  // every such tick into a rescue that cancelled the walk goal just issued
+  assert.equal(waterVerdict({ feet: 'sand', head: 'air', oxygen: 2 }), 'none', 'critical air with two dry reads: sensor glitch, do not swim')
+  assert.equal(waterVerdict({ feet: 'stone', head: 'air', oxygen: 0 }), 'none', 'oxygen 0 on definite dry land is the glitch, not drowning')
+  assert.equal(waterVerdict({ feet: 'deepslate', head: 'cave_air', oxygen: OXYGEN_CRITICAL_LEVEL }), 'none', 'the line itself is gated too (<=)')
+  // wet contact still believes the bar - the F1/F3 sinking shape keeps its rescue
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: 2 }), 'drowning', 'feet in water + critical bar: real')
+  assert.equal(waterVerdict({ feet: 'kelp', head: 'air', oxygen: 2 }), 'drowning', 'water-content feet count as wet contact')
+  assert.equal(waterVerdict({ feet: null, head: null, oxygen: 2 }), 'drowning', 'unreadable world + critical bar: act (the old fallback)')
+  assert.equal(waterVerdict({ feet: 'stone', head: null, oxygen: 2 }), 'drowning', 'one unknown read leaves the bar in charge')
+})
+
+test('airBarTrust: the contact classifier behind the air-bar gate', () => {
+  assert.equal(airBarTrust({ feet: 'sand', head: 'air' }), 'dry', 'two definite non-water reads are dry')
+  assert.equal(airBarTrust({ feet: 'stone', head: 'cave_air' }), 'dry', 'cave air is air-family, reads dry')
+  assert.equal(airBarTrust({ feet: 'water', head: 'air' }), 'wet', 'feet-only contact is wet')
+  assert.equal(airBarTrust({ feet: 'air', head: 'kelp' }), 'wet', 'water-content blocks read wet')
+  assert.equal(airBarTrust({ feet: 'bubble_column', head: 'air' }), 'wet', 'bubble column is water contact')
+  assert.equal(airBarTrust({ feet: null, head: 'air' }), 'unknown', 'one missing read is unknown, never dry')
+  assert.equal(airBarTrust({ feet: 'stone', head: null }), 'unknown')
+  assert.equal(airBarTrust({}), 'unknown', 'no reads at all: unknown')
+  assert.equal(airBarTrust(), 'unknown', 'no argument: unknown')
+  assert.equal(airBarTrust({ feet: 'water', head: 'water' }), 'wet')
 })
 
 test('waterVerdict: junk oxygen is treated as a full bar (never a false 0)', () => {
@@ -117,6 +144,7 @@ test('policy constants stay sane', () => {
   assert.ok(RESCUE_MAX_MS >= 10000, 'a rescue has time to cross a small lake')
   assert.ok(RESCUE_COOLDOWN_MS > 0 && RESCUE_COOLDOWN_MS < 10000, 'cooldown prevents spin without blinding the sentry')
   assert.ok(HEAD_SUBMERGED_RESCUE_MS >= 3000, 'the metadata fallback is slower than a surface bob')
+  assert.ok(AIR_GLITCH_LOG_MS >= 5000, 'the glitch log is rate-limited enough not to spam the fleet log')
   assert.ok(SHORE_MAX_RADIUS >= 8, 'the scan reaches a shore a swimming bot can cross in the budget')
   assert.equal(WATER_NAMES.has('water'), true, 'water is water')
   assert.equal(WATER_NAMES.has('kelp'), true, 'water-content blocks count as water')
