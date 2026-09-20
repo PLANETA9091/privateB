@@ -135,6 +135,13 @@ export async function craftUntil (bot, itemName, { times = 1, table = null, want
   for (let i = 0; i < tries && have() - before < want; i++) {
     const ok = await craft(bot, itemName, times, table, log)
     if (!ok) break // no recipe variant / hard failure - retries will not change that
+    // SETTLE before judging (CI 3fd2e8a, ProdTest1): bot.craft resolves when the click
+    // dance is SENT - the server's confirm/set-slot packets are still in flight. The old
+    // code counted the inventory microseconds later, misclassified a LANDED craft as a
+    // phantom and then the recovery close below poisoned the NEXT dance (log: four
+    // phantom-recoveries in a row, 19 planks held, sticks never counted). Half a second
+    // lets the window state land; a genuinely phantom craft still retries normally.
+    await new Promise(resolve => setTimeout(resolve, 500))
     // PHANTOM craft: bot.craft resolved, no error, and the count STILL did not rise.
     // The window state may now be desynced (client predicted a result the server never
     // produced) - reset it before the next attempt or the next dance fails on ghosts.
@@ -183,6 +190,8 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
   const find = () => {
     try { return reachableTable(bot) } catch { return null } // a throw here must not kill ensureTools
   }
+  const tableCount = () => inventoryItems(bot).filter(i => i.name === 'crafting_table').reduce((a, i) => a + i.count, 0)
+  const tablesAtEntry = tableCount()
   const started = Date.now()
   for (let round = 0; round < rounds; round++) {
     if (Date.now() - started > maxMs) break // give up in time so ensureTools can self-heal
@@ -215,6 +224,11 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
             // 'no crafting table'. 250ms > the 200ms server throttle.
             await bot.waitForTicks(5)
             await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+            // VERIFY PACING (CI 3fd2e8a, ProdTest1): placeBlock resolves on the SENT
+            // packet, the server's block-update arrives a few ticks later. Reading the
+            // chunk at once serves the stale cell, the verify fails, the round loop
+            // spins on - and the table item is already consumed. Wait out the update.
+            if (bot.waitForTicks) await bot.waitForTicks(10)
             const placedB = bot.blockAt(cell)
             if (placedB && placedB.name === 'crafting_table') return placedB
             placed = true
@@ -232,6 +246,7 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
               await bot.equip(tableItem, 'hand')
               await bot.waitForTicks(5)
               await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+              if (bot.waitForTicks) await bot.waitForTicks(10) // same verify pacing as above
               const placedB = bot.blockAt(cell)
               if (placedB && placedB.name === 'crafting_table') return placedB
               placed = true
@@ -239,7 +254,7 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
           } catch { /* next neighbour */ }
         }
       }
-      if (placed) continue // a block appeared (maybe not the table) - look again
+      if (placed) continue // a block appeared (maybe not the table) - look again (paced verifies above give it time)
       // nowhere to place (treetop / mid-air): eat the block below and fall to the terrain
       const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
       if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
@@ -251,6 +266,28 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         await bot.waitForTicks(10) // already airborne - let gravity settle us
       }
     } catch { /* fall through to the next round */ }
+  }
+  // VANISH-AWARE last look (CI 3fd2e8a, ProdTest1): the loop exhausted while the place
+  // packet actually LANDED server-side - the item left the inventory but the verify
+  // reads kept serving the stale chunk, so the table stood next to us unseen. If the
+  // item count DROPPED during the call, the table is ours and near: let the block
+  // update land (1.2s), re-scan normal reach, then a little beyond it as last resort.
+  const first = find()
+  if (first) return first
+  if (tableCount() < tablesAtEntry) {
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    const second = find()
+    if (second) return second
+    try {
+      const me = bot.entity?.position
+      if (me) {
+        const wide = bot.findBlock({
+          matching: b => b.name === 'crafting_table' && (b.position == null || me.distanceTo(b.position) <= 8),
+          maxDistance: 8
+        })
+        if (wide) return wide
+      }
+    } catch { /* give up below */ }
   }
   return find()
 }
