@@ -779,3 +779,21 @@ Work Log:
 Stage Summary:
 - Мастер: 3e21d58 (=мой stale-flag fix + retry unification + bank priority + их climb window + stagger). CI ЗЕЛЁНЫЙ. Root-cause 'Path was stopped' ЗАКРЫТ и подтверждён флотом (stale=81).
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) climb-out success rate: climbs=2 при ~15 ботах, нуждающихся в выходе из шахты - почему climbOut с их 'REAL window' успешен так редко ( wet-кластеры? нер diggable-лестница?); (2) 'No path' при финальном банке с ПОВЕРХНОСТИ рядом с yard = проблема movements (вода? запреты nightsafety?) - отличать от 'No path' из глубины шахты (реальная геометрия); (3) темп 591 b/s 0.99 - боты ели dirt вместо ore-steering: проверить где ходили (map=570p/11ch); (4) НЕ пушить при чужом PENDING dispatch; (5) BANK_UNITS 128->96 не трогать, пока темп не восстановится (депозитить dirt бессмысленно).
+
+---
+Task ID: 398294-20260921-0353
+Agent: Z.ai Code (cron session, 03:53 +08)
+Task: climb-out success rate + No-path chest hop; разобран тайный финальный банк
+
+Work Log:
+- ФРОНТ №1 (climb-out): fleet-лог 3e21d58 показал F2/F5 класса - бот УЖЕ на поверхности ('y=63 did not rise, dug=60, feet=air support=grass_block step=air'), но entry-based pillarTarget требовал stale shaftEntryY, лестница жгла бюджет вращениями по траве и рапортовала 'stalled'. v0.23.0 (223c602): isWalkableSurface() - daylight на feet + >=2 walkable направления (1x1 шахта=0, 2x2=1, туннель=0 - false positive невозможен; бот в ямке 1 блок с травяным rim'ом=F2 кейс читается 2-4). climbOut после двух неудачных rise'ов отдаёт бота прогулке. 6 тестов.
+- ФРОНТ №2 (No path): 5x 'chest unreachable (No path)' при десятках сундуков в yard. v0.23.1 (f515e23): depositToChest({exclude}) - если СТАМИ выбранный (chestBlock null) ближайший сундук No-path'ит, он исключается и скан повторяется (один раз); pinned chestBlock остаётся финальным; findChest({exclude}) фильтрует matching. 4 теста.
+- 2 красных CI починены (оба - мои тестовые моки): v0.23.2 (isWalkableSurface(null) падал на деструктуризации; нефейтный findBlock-мок; hop сохраняет первопричину) + v0.23.3 (chest-моки без name:'chest' отфильтровывались real matching-предикатом).
+- FLEET 35536139524 (v0.23.3, 600s, SUCCESS): 894 blocks @ 1.49 b/s, alive 19/19, kicks=0, tools=19/19, upgraded=14 - пайплайн здоров. НО: 9 staggered финальных climbs дали diag-строки и ТИШИНУ - ни 'final climb', ни 'final bank', catch глотал всё молча. ДИАГНОЗ: негардированные bot.blockAt в climb-цикле (throw умирает в catch) + unbounded waitForTicks (зависание при мёртвой физике).
+- v0.24.0 (9afe4f5): блоки read'ов в climb-цикле под try/catch (unknown=blocked), ВСЕ waitForTicks в climbOut race-bounded 2s (settleTicks), финальный catch теперь пишет 'final bank chain error: ...'. CI ЗЕЛЁНЫЙ (35537450821).
+- Темп-фронт (591→894 blocks, dirt-тяжёлый прогон): wood-фаза + tool-upgrades съедают старт, глубокая добыча начинается поздно - СТРАТЕГИЧЕСКИЙ фронт, не трогал (нужен отдельный разбор wood/trip планирования).
+
+Stage Summary:
+- Мастер: 9afe4f5 (v0.24.0). Сессия: 5 коммитов (v0.23.0..v0.24.0), 10+ тестов, 2 красных CI починены, финальный fleet dispatch запущен на 9afe4f5 (валидация v0.24.0 в полёте для след. сессии).
+- ОЖИДАНИЯ к fleet-прогону v0.24.0: строки 'final bank chain error: ...' наконец НАЗОВУТ убийцу финальных climb'ов; 'walkable surface' при поверхностных кейсах; chest-hop при NoPath; banked>0 при достаточной добыче.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) скачать артефакты dispatch на 9afe4f5, grep 'final bank chain error' - это ГЛАВНЫЙ ожидаемый сигнал; (2) если ошибки = 'Cannot read properties of null (reading position)' - бот терял entity mid-climb, смотреть reconnect-гонку в final-bank окне; (3) стратегия early-game (wood 147 logs vs coal 340 в worldmap) - candidates: пропуск wood-фазы при готовых инструментах, materials-plan приоритеты; (4) НЕ пушить при чужом PENDING dispatch; (5) git pull --rebase перед пушем.
