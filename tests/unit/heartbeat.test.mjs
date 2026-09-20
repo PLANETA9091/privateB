@@ -134,8 +134,14 @@ test('REAL worker smoke: boots from the eval source, beats, and exits on stop', 
   const hb = startHeartbeat({ intervalMs: 60, writeFd: -1, onBeat: b => beats.push(b) })
   try {
     assert.equal(typeof hb.worker.on, 'function', 'the real Worker is in place')
-    await sleep(220)
-    assert.ok(beats.length >= 2, `expected >=2 beats in 220ms at 60ms interval, got ${beats.length}`)
+    // (v0.19.2) load-tolerant window: a fixed 220ms sleep assumed an idle
+    // runner - CI 35525359987 measured 0 beats in 220ms on an oversubscribed
+    // 2-core box (worker boot alone can eat the whole window). Poll up to 5s
+    // for 2 beats; the assertion still proves boot + tick + message plumbing,
+    // without betting on scheduler latency.
+    const deadline = Date.now() + 5000
+    while (beats.length < 2 && Date.now() < deadline) await sleep(50)
+    assert.ok(beats.length >= 2, `expected >=2 beats within 5s at 60ms interval, got ${beats.length}`)
     const b = beats[0]
     assert.equal(typeof b.n, 'number')
     assert.equal(typeof b.ts, 'number')
