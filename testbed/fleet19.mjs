@@ -26,6 +26,7 @@ import { recoveryDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
+import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -64,6 +65,7 @@ const bots = new Map() // name -> { miner, target }
 const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs)
 let spawned = 0
 let reconnects = 0
+let kicks = 0 // (v0.16.3) server-side kicks/ECONNRESETs, counted ONCE (the old loop double-counted every kick: once in catch, once as a retry)
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
@@ -129,6 +131,12 @@ async function runBot (name, target, index) {
   const direction = new Vec3(Math.cos(angle), 0, Math.sin(angle))
   const deployDistance = (index % 4) * 8 // just enough to not stand inside each other
 
+  // (v0.16.3) consecutive-failure streak: grows on every failed session, resets on
+  // a successful login. A lone mid-run kick retries in ~2-4 s; a real ECONNRESET
+  // storm backs off exponentially AND the per-bot phase spreads 19 reconnects
+  // over a window instead of hitting the stalling server as one herd again.
+  let failStreak = 0
+  let lastWhy = '' // (v0.16.3) why the last session ended - printed on the retry line
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -155,6 +163,7 @@ async function runBot (name, target, index) {
       })
       bots.set(name, { miner, target })
       await miner.ready
+      failStreak = 0 // logged in and alive: the next kick starts the streak from scratch
 
       // Bound the process memory: stale chunk columns (missed unload packets,
       // respawn dimension switches) pushed the first Big Fleet run into a 4 GB
@@ -463,11 +472,19 @@ async function runBot (name, target, index) {
         } catch { /* report whatever was banked so far */ }
       }
     } catch (e) {
-      if (/kicked|end|disconnect/i.test(e.message)) reconnects++
+      // (v0.16.3) count kicks ONCE here; the retry itself is counted below - the old
+      // loop incremented `reconnects` in both places, so every kick was reported twice
+      if (/kicked|end|disconnect/i.test(e.message)) { kicks++; lastWhy = 'kick/disconnect' }
+      else lastWhy = String(e.message || 'unknown error').slice(0, 120)
     }
     if (Date.now() >= deadline) break
+    failStreak++
     reconnects++
-    await new Promise(r => setTimeout(r, 3000))
+    // (v0.16.3) jittered exponential backoff with a per-bot phase: see src/lib/backoff.mjs
+    const delay = reconnectDelayMs({ attempt: failStreak, index, rand: Math.random })
+    console.log(`${name} retry #${failStreak} in ${(delay / 1000).toFixed(1)}s (${lastWhy})`)
+    lastWhy = ''
+    await new Promise(r => setTimeout(r, delay))
   }
 }
 
@@ -555,7 +572,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
@@ -567,7 +584,7 @@ for (const t of TARGETS) {
   console.log(`  ${t.padEnd(13)} collected ${String(got).padStart(7)}${required ? ` (${((got / required) * 100).toFixed(3)}% of ${required.toLocaleString()})` : ''}`)
 }
 console.log(`materials: ${JSON.stringify(s.byName)}`)
-console.log(`kicks handled: ${reconnects}`)
+console.log(`kicks handled: ${kicks} (reconnect attempts: ${reconnects})`)
 const finalMap = map.report()
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)
 map.save() // next fleet starts with this knowledge
@@ -581,6 +598,7 @@ const fleetReport = {
   bots: COUNT,
   spawned,
   reconnects,
+  kicks,
   toolsOk,
   toolsRecovered,
   toolsUpgraded,
