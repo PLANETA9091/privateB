@@ -34,11 +34,15 @@ test('breathing guard: patches the shipped unguarded condition', () => {
 
 test('breathing guard: the guarded expression only admits the bot own entity', () => {
   // semantic check of the emitted expression, evaluated against mocks
+  // (metas.air_supply non-null: the trust gate passes, the self check decides)
   const cond = GUARDED.slice(GUARDED.indexOf('if (') + 4, GUARDED.lastIndexOf(')'))
+  const metas = { air_supply: 0 }
+  const fn = (entity, bot) => new Function('entity', 'bot', 'metas', `return (${cond})`)(entity, bot, metas)
   const self = { entity: { id: 7 } }
-  assert.equal(new Function('entity', 'bot', `return (${cond})`)( { id: 7 }, self), true, 'self packet passes')
-  assert.equal(new Function('entity', 'bot', `return (${cond})`)( { id: 99 }, self), false, 'mob packet blocked')
-  assert.equal(new Function('entity', 'bot', `return (${cond})`)( { id: 7 }, {}), false, 'missing bot.entity never crashes')
+  assert.equal(fn({ id: 7 }, self), true, 'self packet passes')
+  assert.equal(fn({ id: 99 }, self), false, 'mob packet blocked')
+  assert.equal(fn({ id: 7 }, {}), false, 'missing bot.entity never crashes')
+  assert.equal(fn({ id: 7 }, self) === true && new Function('entity', 'bot', 'metas', `return (${cond})`)({ id: 7 }, self, { air_supply: null }) === false, true, 'null air still vetoed by the trust gate')
 })
 
 test('breathing guard: idempotent (second application is a no-op)', () => {
