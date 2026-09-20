@@ -73,10 +73,33 @@ let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
 
-// Smelt what the bot carries, then bank. Smelting comes FIRST on purpose: the chests
-// should hold glass/ingots, not raw sand/ore. Budget-capped and failure-tolerant -
-// a stuck furnace must never cost the bot its mining loop or its banking trip.
+// Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
+// furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
+// bots smelted at their shaft entries, 100-300 blocks from any furnace, and
+// smelted=0 banked=0 came from that ONE root cause. So: cheap pre-deposit (bots
+// near spawn already have chests in range), then the yard walk when bankFallback
+// says so, then SMELT at the workshop furnaces, then the real deposit.
+// Budget-capped and failure-tolerant - a stuck furnace or an unwalkable yard
+// must never cost the bot its mining loop.
 async function smeltThenBank (miner, { timeoutMs = 30000, yardGoal = null } = {}) {
+  const keep = () => [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
+  // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
+  // dig near spawn); the verdict's reason also drives the yard-walk decision
+  const pre = await miner.depositLoot({ timeoutMs, keep: keep() })
+  if (pre.deposited === 0) {
+    const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
+    const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
+    if (decision.action === 'walk') {
+      try {
+        console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
+        await gotoSafe(miner.bot, new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24), { timeoutMs: 120000, label: 'walk to yard' })
+      } catch (e) {
+        console.log(`${miner.username} bank: yard walk failed (${e.message}) - smelting locally if a furnace is near`)
+      }
+    } else if (decision.action === 'none' && decision.why && decision.why !== pre.reason) {
+      console.log(`${miner.username} bank: 0 (${decision.why})`)
+    }
+  }
   if (SMELT) {
     try {
       const res = await smeltInventory(miner.bot, { maxSeconds: SMELT_BUDGET, log: m => console.log(m) })
@@ -90,33 +113,12 @@ async function smeltThenBank (miner, { timeoutMs = 30000, yardGoal = null } = {}
   }
   // Iron reserve (toolupgrade.mjs): until the bot's OWN pickaxe is iron, ingots and
   // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
-  // surplus flows to the chests as base stock.
-  const keep = [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
-  const res = await miner.depositLoot({ timeoutMs, keep })
-  // (v0.16.4) THE INVISIBLE ZERO: fleet #122 climbed out for 'bank' 15+ times
-  // (F6 alone six times) and banked=0 - every attempt died as a silent
-  // 'no chest in range' because the chest warehouse sits at the yard (spawn)
-  // while a 600s bot digs 100-300 blocks OUT, far beyond findChest's 64-block
-  // scan. The reason was returned by depositToChest and swallowed here. Fix:
-  // bankFallback() decides; when it says 'walk', the bot walks back to the
-  // yard (first-login position = world spawn) and retries the deposit once.
-  const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
-  const decision = bankFallback({ deposited: res.deposited, reason: res.reason, yardDist })
-  if (decision.action === 'walk') {
-    try {
-      console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
-      await gotoSafe(miner.bot, new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24), { timeoutMs: 120000, label: 'walk to yard' })
-      const res2 = await miner.depositLoot({ timeoutMs, keep })
-      if (res2.deposited > 0) return res2
-      return { ...res2, reason: `${res2.reason} (after yard walk)` }
-    } catch (e) {
-      return { deposited: 0, reason: `yard walk failed: ${e.message}` }
-    }
-  }
-  if (decision.action === 'none' && res.deposited === 0 && decision.why && decision.why !== res.reason) {
-    return { ...res, reason: `${res.reason} (${decision.why})` }
-  }
-  return res
+  // surplus flows to the chests as base stock. keep is computed AFTER smelting: a
+  // bot that just produced its first ingots keeps them for the iron pickaxe.
+  const res = await miner.depositLoot({ timeoutMs, keep: keep() })
+  const deposited = pre.deposited + res.deposited
+  if (deposited > 0) return { deposited, reason: 'ok' }
+  return { deposited: 0, reason: res.reason || pre.reason }
 }
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
