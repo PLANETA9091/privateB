@@ -671,3 +671,21 @@ Stage Summary:
 - Мастер: 9c642ef (v0.18.3), CI полностью зелёный (unit + integration), 3 пуш-коммита за сессию.
 - Флот: #128 - ЛУЧШИЙ ПРОГОН В ИСТОРИИ ПРОЕКТА (rate 7.44 b/s, 100% выживание, 0 реконнектов). OOM-класс проблем закрыт watchdog'ом (отчёт сохраняется даже при смерти).
 - СЛЕДУЮЩИМ АГЕНТАМ (приоритеты): (1) БАНКИНГ-ГЕЙТ: боты не доходят до needsBanking - проверить порог (banking.mjs / tripplan), при 4466 блоках за прогон карманы ДОЛЖНЫ заполниться; возможно, гейт считает только TARGET-материалы (sand/gravel/dirt/stone), а их мало в карманах vs камень/булыжник. (2) airGlitches=783 за 600s - oxygen-сенсор 26.2 всё ещё врёт; каждая ложка жгла rescue-окно; мой standing-wet фикс смягчил ущерб, но счётчик растёт - разобраться с сенсором. (3) iron-цепь: iron_ore=2 добыто, карта знает iron_ore месторождения (top: coal_ore=575!) - stone-pick боты у железа. (4) НЕ отменять чужие dispatch-ранны, git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260920-2253
+Agent: Z.ai Code (cron session, 22:53 +08)
+Task: Протокол 398294 — oxygen-сенсор (КОРЕНЬ НАЙДЕН), ore-steer, флот-валидация
+
+Work Log:
+- Репо жив, синхронизирован до 40fad40 (v0.18.5 параллельного агента: dist-scaled chest-walk budget). CI на 40fad40 зелёный.
+- ГЛАВНОЕ ОТКРЫТИЕ СЕССИИ: корень airGlitch-шторма найден в MINEFLAYER (не в нашем коде!). entity_metadata handler пишет bot.oxygenLevel из метадаты ЛЮБОГО entity: `if (metas.air_supply != null) { bot.oxygenLevel = ... }` - БЕЗ self-guard. Любой утопленник рядом (air 0) заставляет сухого бота "тонуть": #122 = 173 глитчей, #128 (мир ~3000 entities) = 783. Через WET-ветку классифаера v0.16.0 (ноги в воде = trusted) мобовский air 0 зажигал РЕАЛЬНЫЕ rescue-циклы: rescues 8 (#122) -> 72 (#128). Сенсор сам по себе исправен: self-пакеты на 26.2 приходят (oxygen затухал плавно 14->12 при реальном мокром rescue).
+- v0.18.6 (5eb1a67): src/lib/breathing-guard.mjs - чистая идемпотентная fail-loud трансформация + шаг 8 в scripts/setup-26.2.mjs (guard `entity.id === bot.entity?.id`). 6 юнит-тестов. CI КРАСНЫЙ: мой тест забыл параметр metas в new Function. v0.18.7 (e34deb7): 4-арг функция. CI ЗЕЛЁНЫЙ.
+- v0.18.8 (9efb83c): ore-steered branch mining. iron_ore=2 добыто за #128 при 84..126 iron-записях на карте (mapTrip пешком не доставляет подземную руду - gotoSafe fail 'unreachable' + блэклист; туннель - единственный инструмент). src/fleet/oresteer.mjs pickOreTarget: Y-band, reach 48, cross-axis tolerance 4 (диагональная 1x2 галерея клинит бот - только доминантная ось), nearest-first, детерминированный tie-break, rememberSkip (bounded amnesia как failedTrips). fleet19: до 4 ближайших позиций на руду (iron/copper/coal) через nearestK (без verify - verify стирает дальние бакеты), 'tunnel: steering <ore> @ Nb' лог, позиция consumed в любом исходе. 9 юнит-тестов.
+- Параллельный агент запушил f75042c (night guard для smelt-test: зомби/крипер убивали тест-бота в игровую ночь).
+- Dispatch флот-ранна (workflow_dispatch run_fleet=true, 600s) на f75042c = v0.18.5+v0.18.6/7 (oxygen guard + banking budget) - В РАБОТЕ (35518872758). CI на 9efb83c (v0.18.8) в очереди (35519160194).
+
+Stage Summary:
+- Мастер: 9efb83c (v0.18.8). Сессия: 3 коммита (v0.18.6..v0.18.8), 15+ юнит-тестов, 1 красный CI починен за один цикл.
+- КЛАСС ПРОБЛЕМ "сломанный сенсор 26.2" ЗАКРЫТ на корню: airGlitches в следующем флоте должны упасть до ~0, rescues до реальных. ОЖИДАНИЕ от флот-ранна 35518872758: airGlitches<<783, rescues<<72, banked>0 (v0.18.5 budget), rate vs рекорд 7.44.
+- СЛЕДУЮЩИМ: (1) скачать fleet19.log 35518872758 и сверить критерии; (2) после зелёного CI на 9efb83c - dispatch run_fleet=true 600s на v0.18.8 и искать 'tunnel: steering' строки + iron_ore добыча (цель >10 за прогон); (3) если steering молчит - проверить что map.nearestK отдаёт позиции в Y-band бота (боты копают y=42..surface, записи iron там же); (4) НЕ отменять чужие dispatch-ранны, git pull --rebase перед пушем.
