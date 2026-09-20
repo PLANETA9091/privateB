@@ -18,6 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
+import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
 import { craftTorches } from './tools.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
@@ -50,7 +51,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, shelters: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -181,17 +182,146 @@ export function createMiner ({
     } catch { return true }
   }
 
+  // ---- shelter (v0.11.3, policy in src/lib/shelter.mjs) ----
+  // Naked-at-night bots lose every chase (zombies pursue across the surface)
+  // AND every fight (fists vs 20 hp - measured live). A sealed hole is
+  // unbeatable by vanilla surface mobs: dig in, seal the entrance, wait the
+  // mob out, unseal, continue. Two variants: a WALL dig-in (hillside) and the
+  // PIT (dig 1 down, seal overhead) for open terrain - exactly 1 deep, the
+  // repo avoids pillar-up climbing on purpose. Best-effort: any failure falls
+  // back to the flee.
+  async function sealWaitUnseal (sealCell, threatName, reason) {
+    // seal: place into the cell we used to stand in, against any solid
+    // neighbour face (the proven placeTable pacing: 5 ticks before the click,
+    // 10 before the verify)
+    let sealed = false
+    try {
+      const sealName = pickSealItem(inventoryItems(bot))?.name
+      const item = sealName ? bot.inventory.items().find(i => i.name === sealName) : null
+      if (item) {
+        // two rounds: a mob following us into the entrance cell blocks EVERY
+        // face (the server rejects placements into entity-occupied cells) - a
+        // short pause then one more round, then give up and fall back
+        for (let round = 0; round < 2 && !sealed; round++) {
+          if (round > 0) await bot.waitForTicks(6)
+          for (const off of [new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(0, 0, 1), new Vec3(0, 0, -1), new Vec3(0, 1, 0), new Vec3(0, -1, 0)]) {
+            const ref = bot.blockAt(sealCell.offset(off.x, off.y, off.z))
+            if (!ref || ref.boundingBox === 'empty') continue
+            try {
+              await bot.equip(item, 'hand')
+              await bot.waitForTicks(5)
+              await bot.placeBlock(ref, off.scaled(-1)) // the face of ref that touches sealCell
+              await bot.waitForTicks(10)
+              const placedB = bot.blockAt(sealCell)
+              if (placedB && placedB.boundingBox !== 'empty') { sealed = true; break }
+            } catch { /* next face */ }
+          }
+        }
+      }
+    } catch { sealed = false }
+    // an unsealed hole is a death trap (mobs path straight into it): back out
+    // and let the flee handle it
+    if (!sealed) return false
+    stats.shelters++
+    log(`${tag} combat: sheltering from ${threatName} (seal ${pickSealItem(inventoryItems(bot))?.name ?? 'spent'}, ${reason})`)
+    const started = Date.now()
+    while (bot.entity && Date.now() - started < SHELTER_MAX_MS) {
+      const cur = nearestHostile()
+      if (!cur || cur.dist > SHELTER_SAFE_DIST) break
+      await bot.waitForTicks(Math.max(1, Math.ceil(SHELTER_ROUND_MS / 50)))
+    }
+    // unseal - the next flee/fight/work decision owns what happens after
+    try {
+      const sealBlock = bot.blockAt(sealCell)
+      if (sealBlock && sealBlock.type !== 0) await bot.fastDig(sealBlock)
+    } catch { /* dig out on the next attempt */ }
+    return true
+  }
+
+  async function tryShelter (reason) {
+    const threat = nearestHostile()
+    const armed = !!pickWeapon(inventoryItems(bot))
+    const night = isNight(bot.time?.timeOfDay)
+    if (!threat || !shelterDue({ night, armed, threatDist: threat ? threat.dist : Infinity })) {
+      log(`${tag} combat: shelter skip (night=${night} armed=${armed} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
+      return false
+    }
+    // no seal material means no shelter (an open hole is a death trap)
+    if (!pickSealItem(inventoryItems(bot))) {
+      log(`${tag} combat: shelter skip (no seal material)`)
+      return false
+    }
+    log(`${tag} combat: shelter try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${reason})`)
+    const sealCell = bot.entity.position.floored() // the cell we seal behind us
+    // variant 1: horizontal WALL dig-in (hillside)
+    for (const d of [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)]) {
+      const cellA = sealCell.offset(d.x, 0, d.z)
+      const wall = bot.blockAt(cellA)
+      if (!wall || !SHELTER_WALL_OK.has(wall.name)) continue // never dig into sand/gravel (gravity refill race, measured)
+      const behind = bot.blockAt(cellA.offset(d.x, 0, d.z))
+      if (!behind || behind.boundingBox === 'empty') continue // a window into a cave/lava is no shelter
+      try {
+        const feet = bot.blockAt(cellA)
+        const head = bot.blockAt(cellA.offset(0, 1, 0))
+        if (!feet || !head) { log(`${tag} combat: shelter skip (${d.x},${d.z}: unreadable cells)`); continue }
+        if (feet.type !== 0) await bot.fastDig(feet)
+        if (head.type !== 0) await bot.fastDig(head)
+      } catch (e) { log(`${tag} combat: shelter skip (${d.x},${d.z}: dig failed: ${e.message})`); continue }
+      // gravity refill / partial dig: verify both cells are actually free
+      const feet2 = bot.blockAt(cellA)
+      const head2 = bot.blockAt(cellA.offset(0, 1, 0))
+      if (!feet2 || !head2 || feet2.boundingBox !== 'empty' || head2.boundingBox !== 'empty') { log(`${tag} combat: shelter skip (${d.x},${d.z}: cells not free)`); continue }
+      const behind2 = bot.blockAt(cellA.offset(d.x, 0, d.z))
+      if (!behind2 || behind2.boundingBox === 'empty') { log(`${tag} combat: shelter skip (${d.x},${d.z}: hollow behind)`); continue }
+      // RAW step-in (the tunnel() lesson: the pathfinder recomputes while mobs
+      // shove the bot - one straight block of forward movement needs no A*)
+      try {
+        await bot.lookAt(cellA.offset(0.5, 0, 0.5), true)
+        bot.setControlState('forward', true)
+        bot.setControlState('sprint', true)
+        const stepDeadline = Date.now() + 2000
+        while (bot.entity && bot.entity.position.floored().distanceTo(cellA) > 0.6 && Date.now() < stepDeadline) {
+          await bot.waitForTicks(2)
+        }
+        bot.setControlState('forward', false)
+        bot.setControlState('sprint', false)
+      } catch (e) {
+        log(`${tag} combat: shelter skip (${d.x},${d.z}: step failed: ${e.message})`)
+        continue
+      }
+      if (!bot.entity || bot.entity.position.floored().distanceTo(cellA) > 0.6) { log(`${tag} combat: shelter skip (${d.x},${d.z}: step-in incomplete)`); continue }
+      if (await sealWaitUnseal(sealCell, threat.name, reason)) {
+        try { await gotoSafe(bot, new goals.GoalBlock(sealCell.x, sealCell.y, sealCell.z), { timeoutMs: 4000, label: 'shelter step out' }) } catch { /* already out or free */ }
+        return true
+      }
+      try { await gotoSafe(bot, new goals.GoalBlock(sealCell.x, sealCell.y, sealCell.z), { timeoutMs: 4000, label: 'shelter abort out' }) } catch { /* fight from the hole */ }
+      return false
+    }
+    // variant 2 (REMOVED): the open-terrain PIT cannot work in vanilla - at 1 deep
+    // the seal cell IS the bot's head cell (placement rejected), at 2 deep C0 has NO
+    // solid face-neighbour to place against (open field) and the exit needs
+    // pillar-up climbing, which this repo refuses on purpose. Open terrain stays
+    // with the flee until a verified ring/torch alternative exists.
+    return false // no diggable wall around: the flee handles it
+  }
+
   let defending = false
   async function defendSelf (reason = 'guard') {
     if (defending) return { action: 'busy' }
     const threat = nearestHostile()
     if (!threat) return { action: 'none' }
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere() })
+    const armed = !!pickWeapon(inventoryItems(bot))
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
     try {
       if (verdict === 'flee') {
+        // UNARMED AT NIGHT: the chase is lost and the following fight is lost
+        // too - seal in instead when the terrain allows (the 7-death streak)
+        try {
+          if (await tryShelter(reason)) return { action: 'shelter', threat: threat.name }
+        } catch { /* shelter is best-effort - fall back to the flee */ }
         log(`${tag} combat: fleeing ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
         await runAway(threat, reason)
         await recover()
@@ -206,9 +336,10 @@ export function createMiner ({
         if (!cur) break // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere() })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)) })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
+          try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()
           return { action: 'flee', threat: cur.name }
@@ -251,6 +382,25 @@ export function createMiner ({
       defendSelf('sentry').catch(() => { /* the next drop re-primes us */ })
     }, 400)
   })
+
+  // PROXIMITY sentry for UNARMED bots (v0.11.3): the damage sentry fires when a
+  // hit has ALREADY landed, and the measured e2e run showed what happens then -
+  // the zombie at dist 0.4 follows the bot into the shelter entrance and the
+  // seal placement lands into an OCCUPIED cell (server rejects it, bot dies in
+  // the open). Detection must come BEFORE contact: an unarmed bot at night with
+  // a hostile inside 7 blocks (~3 s of shamble) shelters while there is still
+  // time. Armed bots keep the damage-driven behaviour.
+  const proximityTimer = setInterval(() => {
+    try {
+      if (!bot.entity || defending) return
+      if (!!pickWeapon(inventoryItems(bot))) return // armed: the damage sentry owns it
+      if (!isNight(bot.time?.timeOfDay)) return
+      const threat = nearestHostile({ range: 7 })
+      if (!threat) return
+      defendSelf('proximity').catch(() => { /* re-checked next tick */ })
+    } catch { /* never kill the interval */ }
+  }, 1200)
+  bot.on('end', () => { try { clearInterval(proximityTimer) } catch { /* process teardown */ } })
 
   const ready = new Promise((resolve, reject) => {
     bot.once('spawn', async () => {

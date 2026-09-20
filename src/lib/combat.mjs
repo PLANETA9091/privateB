@@ -93,9 +93,14 @@ export function pickWeapon (items) {
  *   neutral spider only wastes a moment. Spiders are NEUTRAL in daylight (vanilla
  *   light > 7) - they wander past working bots without attacking; enderman stay
  *   hostile-listed (the stare mechanic is too risky to model blind).
+ * @param {boolean} [p.armed=true] does the bot hold ANY melee weapon? Default true
+ *   keeps the historical behaviour. UNARMED bots never fight: fists deal 1-2 per
+ *   swing, a zombie has 20 hp and swings 2.5 back per second - the live combat
+ *   logs measured unarmed fights ending 17 hp -> 4.3 hp with the zombie alive.
+ *   Within RANGED_ENGAGE_RANGE a naked bot FLEES; beyond it there is no urgency.
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
@@ -104,6 +109,7 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   // daylight spiders are peaceful bystanders UNLESS they are already on top of us
   // (collide/provoke) - the flee decision they used to trigger wasted trips
   if (name === 'spider' && dark !== true && dist > 2.5) return 'ignore'
+  if (armed !== true) return dist <= RANGED_ENGAGE_RANGE ? 'flee' : 'ignore'
   if (health < FLEE_HP) return 'flee'
   if (crowd >= SWARM_SIZE && health < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE

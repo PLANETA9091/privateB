@@ -103,6 +103,15 @@ test('daylight spiders are neutral bystanders, cave/night spiders are threats', 
   assert.equal(threatVerdict({ name: 'cave_spider', dist: 4, hp: 20, dark: false }), 'fight', 'cave spiders are ALWAYS hostile (they live in the dark)')
 })
 
+test('unarmed bots never fight: the fists-vs-zombie battle is a measured loss', () => {
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 20, armed: false }), 'flee', 'naked vs a melee mob: no fight, ever')
+  assert.equal(threatVerdict({ name: 'skeleton', dist: 10, hp: 20, armed: false }), 'flee', 'walking into arrows unarmed is not fighting back')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 14, hp: 20, armed: false }), 'ignore', 'beyond the detect edge a naked bot keeps working')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 20, armed: true }), 'fight', 'armed behaviour is unchanged')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 20 }), 'fight', 'default armed=true keeps the historical behaviour')
+  assert.equal(threatVerdict({ name: 'creeper', dist: 4, hp: 20, armed: false }), 'flee', 'creepers outrank everything, armed or not')
+})
+
 test('policy constants stay in a sane relation to each other', () => {
   assert.equal(DETECT_RANGE >= RANGED_ENGAGE_RANGE, true, 'the scanner must see what the verdict engages')
   assert.equal(FLEE_HP < SWARM_FLEE_HP, true)
