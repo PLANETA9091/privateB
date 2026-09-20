@@ -122,3 +122,48 @@ test('a NON-rescue walk failure returns immediately (no pointless retry)', async
   assert.match(res.reason, /no path/)
   assert.equal(bot.gotoCalls.length, 1)
 })
+
+// (v0.20.1) The fleet #128 headline class: 'chest unreachable (Path was stopped...)'.
+// walkRetryPlan classifies it as retryable-immediate; depositToChest must honor that.
+test('a Path-was-stopped walk gets exactly ONE immediate retry and banks', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({
+    chest,
+    items: [item('cobblestone', 7)],
+    gotoScript: [new Error('Path was stopped before it could be completed! Thus, the desired goal was not reached.'), 'ok']
+  })
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 7, 'the retry walk must reach the chest and bank the loot')
+  assert.equal(bot.gotoCalls.length, 2, 'exactly one retry - bounded')
+  assert.ok(bot.closed)
+})
+
+test('Path-was-stopped on BOTH attempts gives up (never loops the walk open-ended)', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const stopped = new Error('Path was stopped before it could be completed! Thus, the desired goal was not reached.')
+  const bot = makeMockBot({
+    chest,
+    items: [item('cobblestone', 5)],
+    gotoScript: [stopped, stopped]
+  })
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 0)
+  assert.match(res.reason, /chest unreachable/)
+  assert.match(res.reason, /Path was stopped/)
+  assert.equal(bot.gotoCalls.length, 2, 'at most TWO walks total - the runtime bound stays hard')
+})
+
+test('a walk timeout retries once (the first budget may burn on a poisoned walk), then gives up', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const timeout = new Error('walk to chest: timeout after 30000ms')
+  const recovered = makeMockBot({ chest, items: [item('cobblestone', 4)], gotoScript: [timeout, 'ok'] })
+  const ok = await depositToChest(recovered, { timeoutMs: 30000 })
+  assert.equal(ok.deposited, 4, 'timeout then success -> the loot banks')
+  assert.equal(recovered.gotoCalls.length, 2)
+
+  const stuck = makeMockBot({ chest, items: [item('cobblestone', 4)], gotoScript: [timeout, timeout] })
+  const bad = await depositToChest(stuck, { timeoutMs: 30000 })
+  assert.equal(bad.deposited, 0)
+  assert.match(bad.reason, /timeout after/)
+  assert.equal(stuck.gotoCalls.length, 2, 'a real-distance timeout never gets a third walk')
+})

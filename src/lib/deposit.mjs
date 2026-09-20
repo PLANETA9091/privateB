@@ -3,7 +3,7 @@
 // input rows of chests at spawn, so the walk-back is short for fleet bots working
 // around the origin. No op, no commands - vanilla chest windows only.
 import pathfinderPkg from 'mineflayer-pathfinder'
-import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
+import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from './jobqueue.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 
 const { goals } = pathfinderPkg
@@ -114,20 +114,36 @@ export async function depositToChest (bot, {
   }
 
   const walkOnce = async label => gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: budget, label })
-  try {
-    await walkOnce('walk to chest')
-  } catch (e) {
-    if (!/water rescue/i.test(String(e?.message))) {
-      return { deposited: 0, reason: `chest unreachable (${e.message})` }
-    }
-    // the drowning rescue owns the bot right now - wait it out (bounded), then try once
-    const cleared = await waitForWaterRescueClear(bot)
-    if (!cleared) return { deposited: 0, reason: `chest unreachable (${e.message})` }
+  // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
+  // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
+  //   water rescue -> wait out the rescue window, then the retry (v0.18.5 behavior)
+  //   Path stopped -> immediate retry - the stale-flag settle transient that fleet
+  //     #128 measured 77x (banked=0, 3298 blocks stuck in pockets); the v0.20.0
+  //     gotoSafe pre-clear defuses the poison at the SOURCE, this retry is the
+  //     belt-and-braces layer for whatever else stops a path mid-walk
+  //   timeout -> one retry (the first budget may have burned on a poisoned/stuck
+  //     walk, not on real distance); still bounded: max 2 walks x 60s cap
+  //   everything else (no path, ...) -> give up, the geometry is real
+  let walked = false
+  let lastError = null
+  for (let attempt = 1; attempt <= 2 && !walked; attempt++) {
     try {
-      await walkOnce('walk to chest (rescue cleared)')
-    } catch (e2) {
-      return { deposited: 0, reason: `chest unreachable (${e2.message})` }
+      await walkOnce(attempt === 1 ? 'walk to chest' : 'walk to chest (retry)')
+      walked = true
+    } catch (e) {
+      lastError = e
+      const plan = walkRetryPlan({ error: e, attempt, maxAttempts: 2 })
+      if (plan.action === 'wait-rescue') {
+        const cleared = await waitForWaterRescueClear(bot, { maxMs: plan.waitMs })
+        if (!cleared) break // the rescue owns the bot longer than its own window - a stuck sentry
+        continue
+      }
+      if (plan.action === 'immediate' || plan.action === 'timeout-retry') continue
+      break // give-up: real geometry or the attempt budget is spent
     }
+  }
+  if (!walked) {
+    return { deposited: 0, reason: `chest unreachable (${lastError && lastError.message ? lastError.message : 'walk failed'})` }
   }
 
   let window
