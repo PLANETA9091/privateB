@@ -1510,6 +1510,10 @@ export function createMiner ({
     const floor = minY ?? bot.game.minY + 3
     let lastHealth = bot.health ?? 20
     let sidestepRounds = 0 // independent rotation: "done" never grows while stuck, done%4 always picked east
+    let consecSidesteps = 0 // consecutive sidesteps without a successful dig - CI 35491904900 measured the carousel:
+    // a water pocket below y=49 made the fluid guard sidestep the SAME spot every 40 s (3x in a row, 80 s burned),
+    // then the smelt test ran out of budget. Sidestep is correct, unbounded sidestep is a hang - give up honestly.
+    const SIDESTEP_CAP = 6
     while (done < maxBlocks && !shouldStop?.() && bot.entity && Date.now() - started <= maxMs) {
       // health guard: damaged bots defend FIRST (v0.11.0), then wait to regen.
       // The old code only waited - measured 2026-09-20: a zombie hit 20 -> 5.7 ->
@@ -1543,6 +1547,10 @@ export function createMiner ({
         log(`${tag} digShaft: fluid below ${pos.floored()} - moving sideways`)
         const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
         sidestepRounds++
+        if (++consecSidesteps >= SIDESTEP_CAP) {
+          log(`${tag} digShaft: giving up this shaft (${consecSidesteps} fluid/drop sidesteps, no dig between) - the caller rotates`)
+          break
+        }
         try {
           const g = standGoalNear(bot, goals, bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, { range: 1 })
           await gotoSafe(bot, g, { timeoutMs: 10000, label: 'lava sidestep' })
@@ -1553,7 +1561,12 @@ export function createMiner ({
       // then whatever waits at the bottom). Sidestep instead of descending.
       if (dropAheadBelow(pos) >= 4) {
         log(`${tag} digShaft: drop of 4+ below ${pos.floored()} (cave?) - moving sideways`)
-        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][(done + 2) % 4]
+        const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
+        sidestepRounds++
+        if (++consecSidesteps >= SIDESTEP_CAP) {
+          log(`${tag} digShaft: giving up this shaft (${consecSidesteps} fluid/drop sidesteps, no dig between) - the caller rotates`)
+          break
+        }
         try {
           await gotoSafe(bot, new goals.GoalNear(bot.entity.position.x + dir.x * 3, bot.entity.position.y, bot.entity.position.z + dir.z * 3, 1), { timeoutMs: 10000, label: 'fall sidestep' })
         } catch { /* cannot move: stop this shaft */ break }
@@ -1564,6 +1577,7 @@ export function createMiner ({
         try {
           await bot.fastDig(block)
           done++
+          consecSidesteps = 0 // a real dig: the carousel counter resets (sidesteps only matter between digs)
           stats.mined++
           stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
           // torch rhythm (v0.10.0): a wall torch every TORCH_SPACING digs keeps the
@@ -1586,6 +1600,10 @@ export function createMiner ({
         if (block2 && block2.type !== 0) {
           const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
           sidestepRounds++
+          if (++consecSidesteps >= SIDESTEP_CAP) {
+            log(`${tag} digShaft: giving up this shaft (${consecSidesteps} sidesteps, undiggable floor) - the caller rotates`)
+            break
+          }
           try {
             const g = standGoalNear(bot, goals, bot.entity.position.x + dir.x, bot.entity.position.y, bot.entity.position.z + dir.z, { range: 1 })
             await gotoSafe(bot, g)

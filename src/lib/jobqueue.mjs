@@ -186,7 +186,16 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {})
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
   return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
-    throw e
+    // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
+    // next physics tick. A goto started inside that ~50 ms window inherits the
+    // poisoned flag and dies instantly with "Path was stopped before it could
+    // be completed" - the smelt test's machine walk was killed by the timeout
+    // stop of the walk just before it. Two ticks settle the flag (bounded, in
+    // case the bot is already going down). Mocks without a physics loop skip it.
+    const settle = typeof bot.waitForTicks === 'function'
+      ? withTimeout(bot.waitForTicks(2), 400, 'goto settle').catch(() => { /* bot going down: rethrow below */ })
+      : Promise.resolve()
+    return settle.then(() => { throw e })
   })
 }
 
