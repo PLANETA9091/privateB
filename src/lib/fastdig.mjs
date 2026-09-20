@@ -15,7 +15,13 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
   const send = (status, pos, face) => bot._client.write('block_dig', { status, location: pos, face })
 
   // Returns true when the server really removed the block.
-  bot.fastDig = async function fastDig (block) {
+  // maxTicks (default 100 = the historical 5s spam window) extends the window
+  // for PATIENT digs: the server validates vanilla dig time, and a submerged
+  // miner digs 5x slower (no aqua affinity on any bot) - stone with a stone
+  // pick needs ~115 ticks underwater, which the plain window refuses. The
+  // wet-escape traverse (surface.mjs) uses the extended window because the
+  // alternative is a bot that drowns in its own flooded shaft.
+  bot.fastDig = async function fastDig (block, { maxTicks = 100 } = {}) {
     if (!block || block.type === 0) return true
     // EQUIP THE HARVESTING TOOL FIRST. fastDig never cared what the hand holds, and
     // vanilla punishes that: stone/diorite/ores broken without a pickaxe DO break
@@ -38,7 +44,7 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
       return !b || b.type === 0
     }
 
-    for (let tick = 0; tick < 100; tick++) {
+    for (let tick = 0; tick < maxTicks; tick++) {
       for (let s = 0; s < stopSpamPerTick; s++) send(2, pos, face) // STOP_DESTROY_BLOCK spam
       if (gone()) return true
       await bot.waitForTicks(1)

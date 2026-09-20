@@ -53,6 +53,126 @@ export const CEILING_DIG_LIMIT = 10
 // runaway loop from burning the whole deadline on one climb)
 export const PILLAR_LEVEL_CAP = 80
 
+// ---------------------------------------------------------------------------
+// WET ESCAPE (v0.17.0) - the climb's answer to flooded shafts.
+//
+// MEASURED (fleet 2026-09-20 17:05, 8 bots x 450s, fresh world, master v0.16.2):
+//   F7 stuck at y=55 the WHOLE run: 'climb diag: level at y=55 blocked toward
+//   0,-1 / 1,0 / 0,1 (dug=0)' x10+ interleaved with 'drowning rescue start
+//   (drowning, oxygen 20)' and 'rescue timeout (still wet)'. dug=0 on ALL
+//   rotations is the signature of the cells ABOVE THE HEAD refusing (feet+1 /
+//   feet+2 do not depend on the rotation d): the bot's own shaft had turned
+//   into a water column (dug into an aquifer wall - the water pours down the
+//   1x1 well). F5 climbed 16 levels (dug=32) and hit the same wet band at
+//   y=56. The rescue cannot help (a down-flowing 1x1 waterfall pushes the bot
+//   back down - vanilla swim-up loses to the flow, measured 4x 25s timeouts;
+//   no shore inside the 12-block scan of a vertical shaft). The climb cannot
+//   help (digging UP under water floods the staircase - the FLUIDS stop is
+//   correct). Rotation cannot help (the wet cells are the ceiling above).
+//   THE ONLY ESCAPE is horizontal: dig a dry 1x2 gallery sideways out from
+//   under the water column, then resume the staircase from there (the gallery
+//   roof is dry stone - exactly what the main loop digs).
+//
+// Budgets (a wet bot must never burn the whole climb): TRAVERSE_MAX_BLOCKS
+// caps one gallery, TRAVERSE_MAX_MS hard-caps its wall clock (past this the
+// drown sentry must win back the controls), TRAVERSE_MAX_ATTEMPTS caps how
+// many galleries one climb may open before giving up honestly.
+export const TRAVERSE_MAX_BLOCKS = 12
+// 20s: a submerged dig can take ~6-10s (5x vanilla underwater penalty, no
+// aqua affinity on any bot) - the window must fit two of them plus the steps
+export const TRAVERSE_MAX_MS = 20000
+export const TRAVERSE_MAX_ATTEMPTS = 2
+// no-motion forward steps before a gallery is declared stalled (the tunnel
+// lesson: a blocked lip never unblocks by holding forward)
+export const TRAVERSE_STALL_LIMIT = 3
+
+// Plants that only exist INSIDE a water column: digging a cell under them
+// breaks the plant and the cell becomes a full water source (a gallery dug
+// under kelp floods). Read through prismarine's waterlogged flag as well -
+// any waterlogged solid refuses a dig the same way.
+export const WET_PLANT_NAMES = ['kelp', 'kelp_plant', 'seagrass', 'tall_seagrass']
+
+/**
+ * Is this climb cell WET - i.e. digging or stepping into it releases water?
+ * True for free fluids (lava too: a gallery next to lava is a death sentence,
+ * same list climbableCeiling stops on), waterlogged solids and water plants.
+ * A null/unknown read is NOT wet - the caller refuses it as 'unknown' instead,
+ * because a missing chunk must not be dug into blindly.
+ * @param {{name?: string, waterlogged?: boolean}|null|undefined} block
+ * @returns {boolean}
+ */
+export function isWetCell (block) {
+  if (!block || typeof block !== 'object') return false
+  const name = typeof block.name === 'string' ? block.name : ''
+  if (FLUIDS.includes(name)) return true
+  if (WET_PLANT_NAMES.includes(name)) return true
+  return block.waterlogged === true
+}
+
+/**
+ * Plan one horizontal escape step of the wet-escape gallery.
+ *
+ * The bot stands in the flooded shaft at `feet` and digs toward `d` (a pure
+ * cardinal, same vocabulary as the staircase). Three cells decide the step:
+ *   feet-level ahead  (d.x, 0, d.z) - the cell the body will occupy
+ *   head-level ahead  (d.x, 1, d.z) - the cell the head will occupy
+ *   above the head    (d.x, 2, d.z) - WATERFALL GUARD: a fluid there pours
+ *                                     into the gallery the moment the head
+ *                                     cell is dug
+ * Plus the floor ahead (d.x, -1, d.z) - GAP GUARD: stepping onto air drops
+ * the bot out of its level (a flooded well has a stone floor; a cave gap is
+ * not an escape, it is a new trap).
+ *
+ * @param {object} p
+ * @param {Vec3-like} p.feet the floored feet cell the bot stands in
+ * @param {{x: number, z: number}} p.d cardinal direction to dig toward
+ * @param {Function} p.read (cell) => prismarine Block | null (bot.blockAt)
+ * @returns {{ok: true, digs: Array<{name: string}>}|{ok: false, reason: 'wet'|'hard'|'unknown'|'gap'}}
+ *   digs lists the solid cells to fastDig (feet first, head second - the
+ *   tunnel order); an open passage returns ok with digs: [] and the bot just
+ *   walks the step.
+ */
+export function traverseStep ({ feet, d, read } = {}) {
+  if (!feet || !d || typeof read !== 'function') return { ok: false, reason: 'unknown' }
+  if (!(Number.isFinite(d.x) && Number.isFinite(d.z) && (d.x !== 0 || d.z !== 0))) {
+    return { ok: false, reason: 'unknown' }
+  }
+  const tryRead = (dx, dy, dz) => {
+    try { return read(feet.offset(dx, dy, dz)) } catch { return null }
+  }
+  // GAP GUARD first: the floor the step lands on must be solid. A null floor
+  // is an UNLOADED CHUNK (unknown, not a gap) and a wet floor is water to
+  // land in - each gets its own honest reason.
+  const floor = tryRead(d.x, -1, d.z)
+  if (!floor) return { ok: false, reason: 'unknown' }
+  if (isWetCell(floor)) return { ok: false, reason: 'wet' }
+  if (floor.boundingBox !== 'block') return { ok: false, reason: 'gap' }
+  const digs = []
+  for (const [dx, dy, dz] of [[d.x, 0, d.z], [d.x, 1, d.z], [d.x, 2, d.z]]) {
+    const b = tryRead(dx, dy, dz)
+    const isOver = dy === 2
+    if (isOver) {
+      // waterfall guard: fluid above the head cell pours in when it is dug
+      if (isWetCell(b)) return { ok: false, reason: 'wet' }
+      continue
+    }
+    const verdict = climbableCeiling(b)
+    if (verdict === 'free') continue // open passage - walk it, dig nothing
+    if (verdict === 'dig') {
+      // a waterlogged solid reads as an ordinary 'dig' by name/box - but
+      // digging it RELEASES the water into the gallery, so it is wet
+      if (isWetCell(b)) return { ok: false, reason: 'wet' }
+      digs.push(b)
+      continue
+    }
+    // 'stop': classify WHY - wet cells allow the traverse to keep going in
+    // another direction, hard cells (bedrock) or unknown reads do not
+    if (!b) return { ok: false, reason: 'unknown' }
+    return { ok: false, reason: isWetCell(b) ? 'wet' : 'hard' }
+  }
+  return { ok: true, digs }
+}
+
 // Inventory preference for the pillar block: stone-family drops the fleet
 // accumulates by the hundreds. Planks/sticks/logs are TOOL material and are
 // deliberately absent - a climb must never strip a bot's kit.

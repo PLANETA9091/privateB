@@ -17,7 +17,9 @@ import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
 import {
-  pillarTarget, climbableCeiling, PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP
+  pillarTarget, climbableCeiling, isWetCell, traverseStep,
+  PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
+  TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -28,6 +30,7 @@ import {
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
+import { walkBudgetMs } from '../lib/tripplan.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
 // sapling replant path calls this from gatherWood - a missing definition threw
@@ -484,7 +487,10 @@ export function createMiner ({
 
   const drownTimer = setInterval(() => {
     try {
-      if (!bot.entity || swimming || defending) return
+      // (v0.17.0) bot._climbEscape: the wet-escape traverse owns the controls -
+      // it IS the escape (a purposeful 15s gallery beats the measured 25s
+      // tread-water timeout), and a rescue mid-dig would undo its own way out
+      if (!bot.entity || swimming || defending || bot._climbEscape) return
       if (Date.now() - lastRescueAt < RESCUE_COOLDOWN_MS) return // a bot treading a flooded shaft re-fires otherwise every 5 s
       const now = Date.now()
       const read = waterRead()
@@ -520,6 +526,7 @@ export function createMiner ({
     try {
       if (!bot.entity || defending) return
       if (swimming) return // the drowning rescue owns the controls
+      if (bot._climbEscape) return // (v0.17.0) the wet-escape traverse owns the controls
       if (isWaterName(waterRead().head)) return // no dig-in shelter while submerged - the water sentry owns it
       if (!isNight(bot.time?.timeOfDay)) return
       const threat = nearestHostile({ range: 7 })
@@ -1703,8 +1710,67 @@ export function createMiner ({
     let dug = 0
     let steps = 0
     let fails = 0
+    let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
+    let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     const start = Date.now()
+    // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
+    // measured the trap (17:05 run): a shaft that turned into a water column
+    // refuses every rotation with dug=0, the rescue times out 'still wet' (a
+    // 1x1 down-flow beats swim-up), and the bot burns the whole run in the
+    // climb<->rescue cycle. The escape digs a dry 1x2 gallery sideways out
+    // from under the water with the PROVEN tunnel mechanics (fastDig + raw
+    // forward steps), then hands back to the staircase loop - the gallery roof
+    // is dry stone, exactly what the main loop digs. traverseStep guards every
+    // step (waterfall above, gap below, wet/hard/unknown cells refuse).
+    // _climbEscape makes the drown sentry yield: this IS the escape, and a
+    // 25s tread-water rescue measured worse than 15s of purposeful digging.
+    const escapeTraverse = async ({ shouldStop }) => {
+      const t0 = Date.now()
+      let walked = 0
+      let stalls = 0
+      bot._climbEscape = true
+      try {
+        while (bot.entity && walked < TRAVERSE_MAX_BLOCKS && !shouldStop?.() && Date.now() - t0 < TRAVERSE_MAX_MS) {
+          const feet = bot.entity.position.floored()
+          const plan = traverseStep({ feet, d, read: cell => { try { return bot.blockAt(cell) } catch { return null } } })
+          if (!plan.ok) return { walked, resumed: false, reason: plan.reason }
+          for (const b of plan.digs) {
+            let broke = false
+            // maxTicks 200: a submerged dig needs ~115+ server ticks (5x
+            // underwater penalty, no aqua affinity) - the plain 100-tick
+            // window refuses exactly the digs the escape cannot fail on
+            try { broke = await bot.fastDig(b, { maxTicks: 200 }) } catch { broke = false }
+            if (!broke) return { walked, resumed: false, reason: 'refused' }
+            dug++
+            stats.mined++
+            stats.byName[b.name] = (stats.byName[b.name] || 0) + 1
+          }
+          // raw forward step (the tunnel lesson: no pathfinder while conditions
+          // are hostile); jump held like the staircase uses it - in shallow flow
+          // it keeps the eyes above the water so digs run at full speed
+          let moved = false
+          try {
+            await bot.lookAt(feet.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
+            bot.setControlState('jump', true)
+            bot.setControlState('forward', true)
+            await bot.waitForTicks(10)
+            bot.setControlState('forward', false)
+            bot.setControlState('jump', false)
+            const to = bot.entity.position.floored()
+            moved = to.x !== feet.x || to.z !== feet.z
+          } catch { /* stall accounting below */ }
+          if (moved) stalls = 0
+          else if (++stalls >= TRAVERSE_STALL_LIMIT) return { walked, resumed: false, reason: 'stalled' }
+          walked++
+          await bot.waitForTicks(2) // gravity/water settle before the next cut
+        }
+        return { walked, resumed: walked > 0, reason: walked > 0 ? 'budget' : 'unknown' }
+      } finally {
+        try { bot.clearControlStates() } catch { /* nothing held */ }
+        bot._climbEscape = false
+      }
+    }
     while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && steps < maxUp && Date.now() - start <= maxMs) {
       const feet = bot.entity.position.floored()
       if (feet.y >= plan.targetY) break
@@ -1712,11 +1778,16 @@ export function createMiner ({
       // shaft both are open (the bot dug them on the way down); a cave overhang
       // is dug through under the bounded ceiling budget. Fluids/bedrock stop.
       let blocked = false
+      let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
       for (const cell of [feet.offset(0, 1, 0), feet.offset(0, 2, 0), feet.offset(d.x, 1, d.z), feet.offset(d.x, 2, d.z)]) {
         const cellB = bot.blockAt(cell)
         const verdict = climbableCeiling(cellB)
         if (verdict === 'free') continue
-        if (verdict !== 'dig' || dug >= PILLAR_LEVEL_CAP * 2) { blocked = true; break }
+        if (verdict !== 'dig' || dug >= PILLAR_LEVEL_CAP * 2) {
+          blocked = true
+          blockedWet = isWetCell(cellB)
+          break
+        }
         try {
           if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
           else { blocked = true; break }
@@ -1727,7 +1798,18 @@ export function createMiner ({
       const support = bot.blockAt(feet.offset(d.x, 0, d.z))
       if (!blocked && (!support || support.boundingBox !== 'block')) blocked = true
       if (blocked) {
-        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug})`)
+        // (v0.17.0) WET ESCAPE: a wet refusal on a rotation-independent cell
+        // (the ceiling above) is the flooded-shaft signature - rotation cannot
+        // fix it and digging up floods the staircase. Dig sideways out from
+        // under the water first; the staircase resumes from the dry gallery.
+        if (blockedWet && wetTries < TRAVERSE_MAX_ATTEMPTS) {
+          wetTries++
+          const esc = await escapeTraverse({ shouldStop })
+          traversed += esc.walked
+          if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason})`)
+          if (esc.resumed) continue // fresh position - let the main loop re-judge
+        }
+        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})`)
         fails++
         rotate()
         await bot.waitForTicks(4)
@@ -1753,7 +1835,7 @@ export function createMiner ({
         await bot.waitForTicks(4)
       }
     }
-    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug, steps }
+    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug, steps, traversed }
     const feetNow = bot.entity.position.floored()
     const ok = feetNow.y >= plan.targetY
     if (ok) stats.climbs = (stats.climbs ?? 0) + 1
@@ -1764,6 +1846,7 @@ export function createMiner ({
       gained: feetNow.y - feet0.y,
       dug,
       steps,
+      traversed,
       secs: (Date.now() - start) / 1000
     }
   }
@@ -1960,8 +2043,13 @@ export function createMiner ({
     claimTrip(target) // (v0.15.0) steer the rest of the fleet away from this cluster
     const key = `${target.pos.x},${target.pos.y},${target.pos.z}`
     stats.mapTrips++
+    // (v0.17.0) the walk budget scales with distance: a flat 14s killed F4's
+    // legitimate 100-block trips ('unreachable' with the climb already paid)
+    // while the cap keeps the v0.11.2 A*-expansion OOM lesson honoured
+    const tripDist = target.pos.distanceTo(bot.entity.position)
+    const budget = walkBudgetMs({ dist: tripDist, base: walkTimeoutMs })
     try {
-      await gotoSafe(bot, standGoalNear(bot, goals, target.pos.x, target.pos.y, target.pos.z, { range: 4 }), { timeoutMs: walkTimeoutMs, label: `map trip ${target.name}` })
+      await gotoSafe(bot, standGoalNear(bot, goals, target.pos.x, target.pos.y, target.pos.z, { range: 4 }), { timeoutMs: budget, label: `map trip ${target.name}` })
     } catch {
       failedTrips.add(key)
       // bounded amnesia, same as workOnGround - but drop the OLDEST half, not all:
