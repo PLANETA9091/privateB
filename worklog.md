@@ -762,3 +762,20 @@ Stage Summary:
 - Мастер: ae0c255 (v0.20.1). Сессия: 2 коммита, 10 тестов, push выполнен, CI - следить.
 - ОЖИДАНИЯ к следующему fleet-прогону: banked>0 (впервые с v0.18.x при достаточной добыче), 'Path was stopped' либо исчезает, либо ретрай спасает; в heartbeat stale>0 в моменты таймаутов = доказательство теории.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) если banked всё ещё 0 - смотреть depositLoot ПЕРЕД final bank (needsBanking мог не сработать: ~49 блоков/бота не наполняют карманы; рассмотреть порог BANK_UNITS 128->96); (2) path-сатурация 6a/10q early-game - приоритет очереди (bank > trip > column) остаётся фронтом v0.21; (3) climb-out 'stalled' wet-кластеры не трогать без новой теории (swim-up против down-flow проигрывает, v0.17.0); (4) git pull --rebase перед пушем, чужие dispatch-ранны не отменять.
+
+---
+Task ID: 398294-20260921-0253 (part 2 - FLEET VALIDATION)
+Agent: Z.ai Code (cron session, 02:53 +08)
+Task: Валидация v0.20.x на 19-ботовом fleet (dispatch 35532157834, 3e21d58)
+
+Work Log:
+- Мой первый dispatch (на 667a9c2) бесследно исчез из списка раннов (гонка concurrency-очередей с параллельным агентом; их 35531762279 тоже cancelled). Не пушить, пока чужой dispatch PENDING - новый pending отменяет предыдущий!
+- Параллельный агент запушил комплементарные фиксы: 1e45614 (v0.21.0 их: final-bank climbOut был silent no-op с v0.12.0 - shouldStop уже true, ноль попыток) + 83542d6 (v0.21.1 их: stagger final-bank по индексу бота). Мой коллизионный v0.21.0 перебазирован поверх, версия выправлена на 0.22.0 (48ceb76), gitignore-чик 3e21d58.
+- CI на 48ceb76 (полный стек) - SUCCESS. Их dispatch 35532157834 (3e21d58, 600s): completed SUCCESS.
+- ВАЛИДАЦИЯ v0.20.0 ЧИСЛОМ: 'Path was stopped' = 0 (в каждом прежнем прогоне 12-15x); heartbeat stale=81 - 81 прогулка спасена пре-клиром stale stopPathing; 'timeout after' = 0; stagger сработал (+8s..+120s); path-сатурация редка (6a/10q только 2x в early-game).
+- НОВЫЙ БЛОКЕР final-bank: 'chest unreachable (No path to the goal!)' 5x + 1x 'Took to long to decide path' - РЕАЛЬНАЯ геометрия из шахт при climbs=2 (их climb-фикс дал окно, но успехов мало). banked=0 объясним: слабый прогон mined=591 (0.99 b/s, dirt=76-92 - боты грызли грунт), карманы ~31 бл/бота, needsBanking не срабатывал, депозитить было нечего.
+- Штормов нет ('Can't keep up' = 0), но rescues=9, airGlitches=67 (вода), reconnects=6 - неровный прогон.
+
+Stage Summary:
+- Мастер: 3e21d58 (=мой stale-flag fix + retry unification + bank priority + их climb window + stagger). CI ЗЕЛЁНЫЙ. Root-cause 'Path was stopped' ЗАКРЫТ и подтверждён флотом (stale=81).
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) climb-out success rate: climbs=2 при ~15 ботах, нуждающихся в выходе из шахты - почему climbOut с их 'REAL window' успешен так редко ( wet-кластеры? нер diggable-лестница?); (2) 'No path' при финальном банке с ПОВЕРХНОСТИ рядом с yard = проблема movements (вода? запреты nightsafety?) - отличать от 'No path' из глубины шахты (реальная геометрия); (3) темп 591 b/s 0.99 - боты ели dirt вместо ore-steering: проверить где ходили (map=570p/11ch); (4) НЕ пушить при чужом PENDING dispatch; (5) BANK_UNITS 128->96 не трогать, пока темп не восстановится (депозитить dirt бессмысленно).
