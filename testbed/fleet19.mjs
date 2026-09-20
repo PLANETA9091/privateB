@@ -29,6 +29,7 @@ import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
+import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -607,6 +608,13 @@ process.on('unhandledRejection', e => console.log(`[fleet] unhandled rejection (
 process.on('uncaughtException', e => console.log(`[fleet] uncaught exception (kept alive): ${e?.stack || e}`))
 
 console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join(', ')}${SCOUT ? ' (+1 ground scout)' : ''}`)
+// (v0.18.15) WORKER HEARTBEAT: fleet #126 silenced the reporter for 380 s while the log
+// kept growing - the log could not tell "main thread's timers starved" from "process
+// frozen". The heartbeat worker ticks on its OWN thread and writeSync's straight to the
+// real stdout fd, so [hb] lines land even mid-starvation: hb live + reporter silent =
+// main-thread spin; hb dead too = process/machine freeze. Unref'd: it must never hold
+// the process open (the OOM path included). 20s -> 30 lines per 600s run.
+const heartbeat = startHeartbeat({ intervalMs: 20000 })
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -657,7 +665,14 @@ for (let i = 0; i < names.length; i++) {
   await new Promise(r => setTimeout(r, JOIN_SPREAD_MS)) // one bot per spread slot
 }
 
+let lastReportAt = Date.now()
 const reporter = setInterval(() => {
+  // (v0.18.15) self-annotated gaps: one skipped tick is normal under load (2.5x
+  // tolerance); past that the line carries the [hb] attribution matrix inline
+  const nowTick = Date.now()
+  const rn = gapNote(lastReportAt, nowTick, 15000)
+  if (rn) console.log(rn)
+  lastReportAt = nowTick
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const s = fleetStats(list)
   const per = TARGETS.map(t => `${t}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')
@@ -734,6 +749,7 @@ process.exit(0)
 
 // ---- the final report, shared by the normal end and the watchdog cliff ----
 function printFinalReport (reason) {
+  stopHeartbeat(heartbeat) // no [hb] lines racing the report block; covers both call sites
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const s = fleetStats(list)
   const secs = SECONDS
