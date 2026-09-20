@@ -24,6 +24,10 @@ import {
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
+import {
+  waterVerdict, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
+  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS
+} from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
@@ -56,7 +60,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -313,6 +317,7 @@ export function createMiner ({
   let defending = false
   async function defendSelf (reason = 'guard') {
     if (defending) return { action: 'busy' }
+    if (swimming) return { action: 'busy' } // drowning outranks fighting: the rescue owns the controls
     const threat = nearestHostile()
     if (!threat) return { action: 'none' }
     const armed = !!pickWeapon(inventoryItems(bot))
@@ -388,6 +393,81 @@ export function createMiner ({
     }, 400)
   })
 
+  // ---- drowning rescue (v0.13.0, policy in src/lib/drowning.mjs) ----
+  // Fleet 900 s run: F1 and F3 DROWNED. The shape every time: walk into water
+  // (pathfinder liquidCost=1 - crossings were free), sink (vanilla physics has
+  // no swim-up without a held jump), drown while the work loop keeps issuing
+  // pathfinder goals that fight every manual control state. The sentry fires a
+  // raw-controls swim BEFORE the air bar empties; gotoSafe refuses new goals
+  // while it runs (bot._waterRescue is the cross-module gate).
+  let swimming = false
+  let lastRescueAt = 0
+  let headWetSince = 0
+  function waterRead () {
+    if (!bot.entity?.position) return { feet: null, head: null, oxygen: 20 }
+    const base = bot.entity.position.floored()
+    const feetB = bot.blockAt(base)
+    const headB = bot.blockAt(base.offset(0, 1, 0))
+    return { feet: feetB?.name ?? null, head: headB?.name ?? null, oxygen: bot.oxygenLevel ?? 20 }
+  }
+
+  async function rescueFromWater (verdict) {
+    if (swimming || !bot.entity) return
+    swimming = true
+    bot._waterRescue = true // gotoSafe refuses new walk goals from now on
+    lastRescueAt = Date.now()
+    stats.rescues++
+    log(`${tag} water: drowning rescue start (${verdict}, oxygen ${bot.oxygenLevel ?? '?'})`)
+    try {
+      try { bot.pathfinder.setGoal(null) } catch { /* idle already */ }
+      try { bot.clearControlStates() } catch { /* nothing held */ }
+      const sample = (x, y, z) => { try { return bot.blockAt(new Vec3(x, y, z))?.name ?? null } catch { return null } }
+      while (bot.entity && Date.now() - lastRescueAt < RESCUE_MAX_MS) {
+        const read = waterRead()
+        const inWater = isWaterName(read.feet) || isWaterName(read.head)
+        if (!inWater && bot.entity.onGround) break // out and standing: done
+        bot.setControlState('jump', true) // swim up / stay at the surface
+        if (!isWaterName(read.head)) {
+          // head in air: surface reached - swim for the nearest shore (the raw
+          // tunnel/shelter lesson: no pathfinder while conditions are hostile)
+          const dir = shoreDirection(sample, bot.entity.position.floored())
+          if (dir) {
+            try { await bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false) } catch { /* keep the bearing */ }
+            bot.setControlState('forward', true)
+            await bot.waitForTicks(8)
+            bot.setControlState('forward', false)
+          } else {
+            await bot.waitForTicks(10) // no shore in sight: tread and stay alive
+          }
+        } else {
+          await bot.waitForTicks(5) // submerged: ascending is everything
+        }
+      }
+      const done = !bot.entity
+        ? 'aborted (bot gone)'
+        : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
+      log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+    } finally {
+      try { bot.clearControlStates() } catch { /* nothing held */ }
+      bot._waterRescue = false
+      swimming = false
+    }
+  }
+
+  const drownTimer = setInterval(() => {
+    try {
+      if (!bot.entity || swimming || defending) return
+      if (Date.now() - lastRescueAt < RESCUE_COOLDOWN_MS) return // a bot treading a flooded shaft re-fires otherwise every 5 s
+      const now = Date.now()
+      const read = waterRead()
+      const headWet = isWaterName(read.head)
+      if (headWet) { if (!headWetSince) headWetSince = now } else headWetSince = 0
+      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0 })
+      if (verdict === 'drowning') rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
+    } catch { /* never kill the interval */ }
+  }, 600)
+  bot.on('end', () => { try { clearInterval(drownTimer) } catch { /* process teardown */ } })
+
   // PROXIMITY sentry for UNARMED bots (v0.11.3): the damage sentry fires when a
   // hit has ALREADY landed, and the measured e2e run showed what happens then -
   // the zombie at dist 0.4 follows the bot into the shelter entrance and the
@@ -398,7 +478,8 @@ export function createMiner ({
   const proximityTimer = setInterval(() => {
     try {
       if (!bot.entity || defending) return
-      if (!!pickWeapon(inventoryItems(bot))) return // armed: the damage sentry owns it
+      if (swimming) return // the drowning rescue owns the controls
+      if (isWaterName(waterRead().head)) return // no dig-in shelter while submerged - the water sentry owns it
       if (!isNight(bot.time?.timeOfDay)) return
       const threat = nearestHostile({ range: 7 })
       if (!threat) return
@@ -1010,6 +1091,11 @@ export function createMiner ({
     moves.allowFreeMotion = false
     moves.maxDropDown = 4
     moves.dontCreateFlow = true
+    // (v0.13.0) drowning prevention: default liquidCost=1 made lake crossings
+    // FREE for the pathfinder - bots walked into water and sank (fleet 900 s
+    // run: F1 and F3 "drowned"). A real per-block cost makes A* prefer land
+    // detours; the existing retry ladder absorbs the rare unreachable.
+    moves.liquidCost = 8
     moves.scafoldingBlocks = []
     bot.pathfinder.setMovements(moves)
     // belt & braces: the spawn hook normally set these already
@@ -1337,7 +1423,7 @@ export function createMiner ({
    *   2. HEALTH CHECK - a bot that just took damage (fall, mob, lava) stops descending and
    *      waits to regenerate before digging deeper.
    */
-  const DANGEROUS = new Set(['lava', 'flowing_lava'])
+  const DANGEROUS = SHAFT_FLUID_NAMES // lava kills, water drowns: a shaft punched into an aquifer floods into a 1x1 well with no shore and no climb
   function lavaAheadBelow (fromPos, { depth = 4 } = {}) {
     for (let dy = 1; dy <= depth; dy++) {
       const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
@@ -1452,9 +1538,9 @@ export function createMiner ({
 
       const pos = bot.entity.position.floored().offset(0, -1, 0)
       if (pos.y <= floor) break
-      // lava guard: a column that opens into lava within 4 blocks is a death trap
+      // fluid guard: a column that opens into lava/water within 4 blocks is a death trap
       if (lavaAheadBelow(pos)) {
-        log(`${tag} digShaft: lava below ${pos.floored()} - moving sideways`)
+        log(`${tag} digShaft: fluid below ${pos.floored()} - moving sideways`)
         const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
         sidestepRounds++
         try {
