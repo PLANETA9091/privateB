@@ -298,6 +298,7 @@ async function runBot (name, target, index) {
       let shaft = 0
       let lastNightLog = 0 // one deferral line per night per bot, not one per loop
       let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
+      let zeroTunnels = 0 // (v0.18.1) consecutive zero-progress tunnels - the freeze budget
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
@@ -384,6 +385,20 @@ async function runBot (name, target, index) {
           try {
             const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
             console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor)`)
+            // (v0.18.1) ZERO-PROGRESS BACKOFF - the fleet freeze, measured live
+            // (run 2026-09-20 20:05): a bot sealed in wet stone made
+            // (digShaft instant 0 -> tunnel instant 0 - the FLUID early-break
+            // awaits nothing -> print) a ~97/s sync spin: 41,686 'tunnel: 0
+            // blocks' lines in 430s, the 15s reporter starved the whole time
+            // and all 8 bots froze with it (mined +19 in the last 7 minutes).
+            // Three dead tunnels buy a REAL yield (setTimeout is a macrotask:
+            // the event loop reaches its timers, other bots dig again).
+            if ((tres.done ?? 0) > 0) zeroTunnels = 0
+            else if (++zeroTunnels >= 3) {
+              zeroTunnels = 0
+              console.log(`${name} tunnel: 0 blocks x3 - sealed or flooded, cooling down 15s`)
+              await new Promise(r => setTimeout(r, 15000))
+            }
           } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
           // no continue: tunneling bots still need consolidation (pockets fill while
           // branch mining), recordToMap and the trip gate - the only thing that must
