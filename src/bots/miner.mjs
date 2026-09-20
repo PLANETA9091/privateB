@@ -639,14 +639,24 @@ export function createMiner ({
     return { done, secs, rate: secs > 0 ? done / secs : 0 }
   }
 
-  // (v0.10.1) Horizontal 1x2 branch gallery - the cure for the floor lock. digShaft
+  // (v0.10.4) Horizontal 1x2 branch gallery - the cure for the floor lock. digShaft
   // digs DOWN and breaks the moment pos.y <= floor; the caller's "next column" walk
   // at that depth targets sealed stone and fails, so a bottomed-out bot froze for the
-  // rest of the run (600s fleet 35478370438: mined frozen at 987 for the last 222s -
-  // 37% of the run - with 19/19 bots alive and holding stone picks). tunnel() mines
-  // SIDEWAYS instead: dig the feet-level cell, dig the head-level cell, WALK in
-  // (pathfinder sees the open tunnel - no fly calls, ground-mode safe), repeat.
-  // Bounded by maxBlocks; never throws; every block is credited through stats.
+  // rest of the run (600s fleet 35478370438: mined frozen at 987 for the last 222s).
+  //
+  // Two hard lessons from three 600s dispatches (35478370438, 35479849058,
+  // 35482935239 - 9298/17198 'tunnel: 0 blocks' lines):
+  // 1. fastDig resolves false when the server VALIDATES the vanilla dig time and the
+  //    hand cannot harvest (bare hand on stone needs 150 ticks of break progress; the
+  //    100-tick spam window expires first). A block that did not break must not be
+  //    counted - done now grows only on fastDig === true, and repeated refusals trip
+  //    the stall breaker instead of looping.
+  // 2. gotoSafe/standGoalNear REFUSE exactly the cells a tunnel produces (cave lips,
+  //    1-block ledges, unfloored openings): the walk failure was the freeze. The one-
+  //    block step now uses raw CONTROLS - look at the cell, hold "forward" 10 ticks,
+  //    let gravity handle the drop - which is what a real player does and it never
+  //    refuses a walkable step. stalls (no position change) break the gallery early;
+  //    the caller rotates the direction.
   async function tunnel (dir, { maxBlocks = 12, names = null, shouldStop = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
@@ -654,33 +664,45 @@ export function createMiner ({
     const start = Date.now()
     const d = new Vec3(Math.sign(dir.x) || 1, 0, Math.sign(dir.z) || 0)
     let done = 0
+    let stalls = 0
     try {
-      while (done < maxBlocks && !shouldStop?.() && bot.entity) {
-        const feetCell = bot.entity.position.floored().offset(d.x, 0, d.z)
+      while (done < maxBlocks && !shouldStop?.() && bot.entity && stalls < 4) {
+        const from = bot.entity.position.floored()
+        const feetCell = from.offset(d.x, 0, d.z)
         const feetB = bot.blockAt(feetCell)
         const headB = bot.blockAt(feetCell.offset(0, 1, 0))
         // lava/water ahead: stop this gallery, the caller rotates the direction
         if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) break
-        // bedrock / out-of-world / a block the caller did not ask for: honest stop
-        if ((!feetB || feetB.type === 0) && (!headB || headB.type === 0)) {
-          // already open - just walk in
-        } else if (feetB && (!names || names.includes(feetB.name)) && feetB.boundingBox !== 'empty') {
-          try { await bot.fastDig(feetB) } catch { break }
-          done++
-          stats.mined++
-          stats.byName[feetB.name] = (stats.byName[feetB.name] || 0) + 1
-        } else break
-        if (headB && headB.type !== 0 && headB.boundingBox !== 'empty' && (!names || names.includes(headB.name))) {
-          try { await bot.fastDig(headB) } catch { /* headroom may stay - step may still fit */ }
-          done++
-          stats.mined++
-          stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
+        // clear the feet cell first (one-type names gate honoured; a refused break
+        // is NOT counted - see lesson 1)
+        if (feetB && feetB.type !== 0) {
+          if (names && !names.includes(feetB.name)) break
+          if (await bot.fastDig(feetB)) {
+            done++
+            stats.mined++
+            stats.byName[feetB.name] = (stats.byName[feetB.name] || 0) + 1
+          }
+        }
+        if (headB && headB.type !== 0 && (!names || names.includes(headB.name))) {
+          if (await bot.fastDig(headB)) {
+            done++
+            stats.mined++
+            stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
+          }
         }
         if (done >= maxBlocks || shouldStop?.() || !bot.entity) break
-        // walk one cell forward through the freed tunnel
+        // one-block step by raw CONTROLS (lesson 2): no pathfinder in the hot path
+        let moved = false
         try {
-          await gotoSafe(bot, standGoalNear(bot, goals, feetCell.x + 0.5, feetCell.y, feetCell.z + 0.5, { range: 1 }), { timeoutMs: 8000, label: 'tunnel step' })
-        } catch { break } // sealed ahead: the caller rotates
+          await bot.lookAt(feetCell.offset(0.5, 0.5, 0.5), true)
+          bot.setControlState('forward', true)
+          await bot.waitForTicks(10)
+          bot.setControlState('forward', false)
+          const to = bot.entity.position.floored()
+          moved = to.x !== from.x || to.z !== from.z
+        } catch { /* stall accounting below */ }
+        if (moved) stalls = 0
+        else stalls++
         await bot.waitForTicks(2) // gravity/step settle before the next cut
       }
     } catch { /* never break the caller's loop */ }
