@@ -163,6 +163,20 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   assert.ok(bot.entity, 'bot must be spawned')
   log(`spawned at ${bot.entity.position.floored()}`)
 
+  // NIGHT GUARD (local finding, worklog Task 11): the testbed world keeps the real
+  // clock - a server up >10 min is IN-GAME NIGHT, and mobs kill the single-bot chain
+  // ('SmeltTest was slain by Zombie' x3 + 'blown up by Creeper' x2 in one run, then
+  // the file died with a dangling-promise exit). The fleet survives night through
+  // redundancy + shelter + fight-or-flee; one unarmoured bootstrap bot cannot. CI
+  // worlds always start fresh (day), so this guard never fires there - locally it
+  // turns the mob-slaughter flake into an honest skip instead of a zombie hang.
+  const { isNight } = await import(path.join(root, 'src', 'lib', 'nightsafety.mjs'))
+  const tod = bot.time?.timeOfDay ?? 0
+  if (isNight(tod)) {
+    t.skip(`in-game night (timeOfDay ${tod}) - mobs kill the single test bot; reset the world or rerun by day`)
+    return
+  }
+
   // --- hand-dig 2 dry sand BEFORE the tool phase: the bot spawns next to the
   //     beach, and after the tool phase it may have been walked inland/relocated ---
   // DRY sand only (air above): underwater sand floods the dig cell - fastDig never
