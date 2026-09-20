@@ -175,7 +175,10 @@ test('a FULL chest is skipped for the next one (nothing-to-deposit hops too)', a
   bot.openChest = async chest => {
     const idx = chests.indexOf(chest)
     return {
-      deposit: async type => {
+      // (fix) the real code calls window.deposit(type, null, count) - the mock
+      // needs the same signature, a bare (type) left `count` undefined and the
+      // ReferenceError swallowed every deposit (the hop was blameless)
+      deposit: async (type, meta, count) => {
         const it = bot._items.find(i => i.type === type)
         if (idx === 0) throw new Error('chest full') // chest A rejects EVERYTHING
         bot.depositCalls.push({ name: it.name, count })
@@ -200,7 +203,7 @@ test('an unopenable chest is skipped for the next one', async () => {
   bot.openChest = async chest => {
     if (chests.indexOf(chest) === 0) throw new Error('open chest: timeout after 10000ms')
     return {
-      deposit: async type => {
+      deposit: async (type, meta, count) => {
         const it = bot._items.find(i => i.type === type)
         bot.depositCalls.push({ name: it.name, count })
         bot._items = bot._items.filter(i => i.type !== type)
