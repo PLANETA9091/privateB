@@ -134,8 +134,9 @@ async function runBot (name, target, index) {
         map, // shared scout -> miner resource map
         // bot-level logs are too chatty for a fleet run, but COMBAT events are the
         // field evidence the next iteration needs (the v0.11.0 verification run
-        // counted fights=2 while printing nothing - invisible, useless evidence)
-        log: m => { if (/combat|died|KICKED|error/.test(m)) console.log(`${name} ${m}`) }
+        // counted fights=2 while printing nothing - invisible, useless evidence);
+        // 'climb' shows the pillar-jump shaft exits for the same reason
+        log: m => { if (/combat|died|KICKED|error|climb/.test(m)) console.log(`${name} ${m}`) }
       })
       bots.set(name, { miner, target })
       await miner.ready

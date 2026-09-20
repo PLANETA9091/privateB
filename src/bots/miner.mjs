@@ -18,7 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
-  PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
+  PILLAR_FAIL_LIMIT, PILLAR_LAND_TICKS,
   PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS, CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
@@ -1548,6 +1548,7 @@ export function createMiner ({
     let dug = 0
     let fails = 0
     let equipped = null
+    let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     const start = Date.now()
     const done = () => ({ ok: !bot.entity ? false : bot.entity.position.floored().y >= plan.targetY, reason: 'done', gained: (bot.entity ? bot.entity.position.floored().y : feet0.y) - feet0.y, placed, dug, secs: (Date.now() - start) / 1000 })
     while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && placed < maxUp && Date.now() - start <= maxMs) {
@@ -1580,27 +1581,42 @@ export function createMiner ({
       try {
         if (equipped !== item.name) { await bot.equip(item, 'hand'); equipped = item.name }
       } catch { break }
-      // the jump: look straight down, leap, and at the apex place the block into
-      // the cell the feet are leaving, against one of its four solid walls
+      // the jump: look straight down, leap, and place the block into the cell the
+      // feet are leaving AS SOON AS the feet actually clear it - by measurement,
+      // not by a fixed tick count. mineflayer's jump height does not exactly match
+      // vanilla's 1.25 (physics integration differs by version/patching), so tick-5
+      // and tick-8 placements both produced server rejections (fleet 35488918930:
+      // 6 climbs OK, fleet after the tick-8 'fix': 0/15). The height poll below is
+      // self-timing: place the moment the AABB is provably clear (>= 1.02 above
+      // the fill cell), no matter how the physics integrate the impulse.
       let okPlace = false
+      let placeHeight = 0
       try {
         await bot.look(bot.entity.yaw, Math.PI / 2, false)
         bot.setControlState('jump', true)
-        await bot.waitForTicks(PILLAR_TICKS_TO_APEX)
-        const fill = feet // the cell we jumped out of (feet are ~1.1 above it now)
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const ref = bot.blockAt(fill.offset(dx, 0, dz))
-          if (!ref || ref.boundingBox !== 'block') continue
-          try {
-            await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), PILLAR_PLACE_TIMEOUT_MS, 'pillar place')
-            okPlace = true
-            break
-          } catch { /* next wall */ }
+        const fill = feet // the cell we are jumping out of
+        let cleared = false
+        for (let t = 0; t < 16 && bot.entity; t++) {
+          await bot.waitForTicks(1)
+          placeHeight = bot.entity.position.y - fill.y
+          if (placeHeight >= 1.02) { cleared = true; break }
+        }
+        if (cleared) {
+          for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const ref = bot.blockAt(fill.offset(dx, 0, dz))
+            if (!ref || ref.boundingBox !== 'block') continue
+            try {
+              await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), PILLAR_PLACE_TIMEOUT_MS, 'pillar place')
+              okPlace = true
+              break
+            } catch { /* next wall */ }
+          }
         }
       } catch { /* fail accounting below */ }
       bot.setControlState('jump', false)
       await bot.waitForTicks(PILLAR_LAND_TICKS) // land on the fresh block (or the floor)
       const now = bot.entity.position.floored()
+      if (!okPlace && diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} no place (height ${placeHeight.toFixed(2)}, cleared=${placeHeight >= 1.02})`)
       // a y-jump of more than 3 levels without a placement is not climbing - it is
       // a respawn/teleport (fleet 35488918930: a bot that died mid-climb respawned
       // at the surface and the climb reported +31 gained with 0 placed, 4 s). Stop
