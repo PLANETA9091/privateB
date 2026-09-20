@@ -41,7 +41,8 @@ const SYNC = process.env.FLEET_SYNC === '1' // cross-process chat sync (PVB1)
 // furnace bay - the base plan needs GLASS and INGOTS, not sand and ore.
 const SMELT = process.env.FLEET_SMELT !== '0'
 const SMELT_BUDGET = Number(process.env.FLEET_SMELT_BUDGET || 90) // seconds per smelting visit
-const BATCH = COUNT // all bots at once (the user wants them working simultaneously)
+// (v0.14.2) the old all-at-once BATCH launch is gone: logins spread over
+// JOIN_SPREAD_MS so the server's network thread never faces a 19-login burst
 
 // The shared resource map: scouts fill it, miners read it. Persisted so a restarted
 // fleet does not start from zero knowledge (data/worldmap.json is gitignored).
@@ -493,14 +494,19 @@ if (SCOUT) {
   })())
 }
 
-for (let i = 0; i < names.length; i += BATCH) {
-  const slice = names.slice(i, i + BATCH)
-  for (const name of slice) {
-    const index = i + slice.indexOf(name)
-    runners.push(runBot(name, TARGETS[index % TARGETS.length], index))
-    spawned++
-  }
-  await new Promise(r => setTimeout(r, 300)) // tiny stagger so the joins do not collide
+// JOIN SPREAD (v0.14.2): two consecutive fleet runs (#116, #117) died in
+// ECONNRESET / disconnect.timeout storms during the simultaneous join of 19
+// bots - the vanilla server's network thread stalls >30 s under a 19-login
+// chunk-send burst on a slow hosted runner, every bot's bootstrap burns, and
+// the whole run is garbage even though the process exits 0. Logins are now
+// spread over JOIN_SPREAD_MS: the server settles each player before the next
+// arrives, and early joiners bootstrap while late joiners connect (zero
+// wall-clock cost, the deadline starts before the spread).
+const JOIN_SPREAD_MS = Number(process.env.FLEET_JOIN_SPREAD_MS || 2500)
+for (let i = 0; i < names.length; i++) {
+  runners.push(runBot(names[i], TARGETS[i % TARGETS.length], i))
+  spawned++
+  await new Promise(r => setTimeout(r, JOIN_SPREAD_MS)) // one bot per spread slot
 }
 
 const reporter = setInterval(() => {
