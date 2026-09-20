@@ -26,11 +26,21 @@ export const SKY_SCAN_MAX = 96
 // failed jump-place attempts before the climb gives up (a blocked shaft retries
 // at the next level; 4 consecutive failures mean geometry changed under us)
 export const PILLAR_FAIL_LIMIT = 4
-// ticks from jump start to the place moment (vanilla jump: v0.42/tick decaying,
-// apex at ~6 ticks; placing at 5 keeps the feet ~1.1 above the old floor)
-export const PILLAR_TICKS_TO_APEX = 5
+// ticks from jump start to the place moment (vanilla jump: v0.42 decaying by
+// (v-0.08)*0.98 per tick; by tick 5 the feet are only ~0.94 up - the AABB still
+// overlaps the vacated cell and the server REJECTS the placement, burning the
+// 3 s place timeout on wall after wall: measured 241 s for a 24-level climb in
+// fleet 35488918930. By tick 8 the feet clear ~1.15 - safely above the cell.
+export const PILLAR_TICKS_TO_APEX = 8
 // ticks to wait for the fall back onto the freshly placed block
 export const PILLAR_LAND_TICKS = 10
+// per-attempt ceiling for one placeBlock call: a rejected placement resolves
+// slow in mineflayer (it waits for a block-update event that never comes), and
+// the climb tries up to 4 walls per level - 3 s each made every level ~10 s
+export const PILLAR_PLACE_TIMEOUT_MS = 1500
+// hard wall-clock budget for one climb: a climb that eats minutes starves the
+// mining loop that called it (the 241 s climb cost F7 40% of its 600 s run)
+export const PILLAR_MAX_MS = 90000
 // ceiling blocks the climb may dig through before declaring itself blocked
 // (caves put 1-3 stone cells over a tunnel; more than 10 is a solid wall)
 export const CEILING_DIG_LIMIT = 10
@@ -90,6 +100,8 @@ export function pillarTarget ({ feetY = 0, targetY = null, skyLitAt = null, maxU
  *   prismarine Block (only name and boundingBox are consulted)
  * @returns {'free'|'dig'|'stop'} free = air/torch (walk through), dig = solid
  *   and mineable, stop = fluid or undiggable (the climb cannot proceed here)
+ *   NOTE: anything without an explicit 'empty' bounding box is stop - unknown
+ *   shapes must never be treated as passable
  */
 export function climbableCeiling (block) {
   if (!block || typeof block !== 'object') return 'stop'

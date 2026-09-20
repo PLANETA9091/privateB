@@ -18,7 +18,8 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
-  PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS, CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
+  PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
+  PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS, CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -1521,7 +1522,7 @@ export function createMiner ({
   // jump. Cave overhangs and tunnel ceilings on the way are dug through (bounded);
   // fluids and undiggable blocks stop the climb honestly instead of drowning it.
   // Never throws: a failed climb costs the caller its trip/banking, not the bot.
-  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, shouldStop = null } = {}) {
+  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, placed: 0, dug: 0 }
@@ -1549,7 +1550,7 @@ export function createMiner ({
     let equipped = null
     const start = Date.now()
     const done = () => ({ ok: !bot.entity ? false : bot.entity.position.floored().y >= plan.targetY, reason: 'done', gained: (bot.entity ? bot.entity.position.floored().y : feet0.y) - feet0.y, placed, dug, secs: (Date.now() - start) / 1000 })
-    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && placed < maxUp) {
+    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && placed < maxUp && Date.now() - start <= maxMs) {
       const feet = bot.entity.position.floored()
       if (feet.y >= plan.targetY) return { ...done(), reason: 'out' }
       // headroom: the jump needs the two cells above the feet free. Solid ones are
@@ -1591,7 +1592,7 @@ export function createMiner ({
           const ref = bot.blockAt(fill.offset(dx, 0, dz))
           if (!ref || ref.boundingBox !== 'block') continue
           try {
-            await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), 3000, 'pillar place')
+            await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), PILLAR_PLACE_TIMEOUT_MS, 'pillar place')
             okPlace = true
             break
           } catch { /* next wall */ }
@@ -1600,6 +1601,11 @@ export function createMiner ({
       bot.setControlState('jump', false)
       await bot.waitForTicks(PILLAR_LAND_TICKS) // land on the fresh block (or the floor)
       const now = bot.entity.position.floored()
+      // a y-jump of more than 3 levels without a placement is not climbing - it is
+      // a respawn/teleport (fleet 35488918930: a bot that died mid-climb respawned
+      // at the surface and the climb reported +31 gained with 0 placed, 4 s). Stop
+      // honestly instead of crediting the teleport to the climb.
+      if (now.y - feet.y > 3) return { ok: false, reason: 'teleport', gained: now.y - feet0.y, placed, dug }
       if (okPlace && now.y > feet.y) { placed++; fails = 0 } else { fails++ }
       await bot.waitForTicks(2)
     }
@@ -1607,9 +1613,10 @@ export function createMiner ({
     const feetNow = bot.entity.position.floored()
     const ok = feetNow.y >= plan.targetY
     if (ok) stats.climbs = (stats.climbs ?? 0) + 1
+    const timedOut = Date.now() - start > maxMs
     return {
       ok,
-      reason: ok ? 'out' : (placed + dug === 0 ? 'nothing to climb with' : 'stalled'),
+      reason: ok ? 'out' : (timedOut ? 'timeout' : (placed + dug === 0 ? 'nothing to climb with' : 'stalled')),
       gained: feetNow.y - feet0.y,
       placed,
       dug,

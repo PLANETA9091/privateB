@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import {
   pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
   PILLAR_BLOCKS, UNDIGGABLE, FLUIDS,
+  PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS,
   PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
   CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
 } from '../../src/lib/surface.mjs'
@@ -140,8 +141,13 @@ test('pillarPlacement: no solid wall (open platform) -> null', () => {
 
 test('climb constants: bounded and sane before any fleet trusts them', () => {
   assert.ok(PILLAR_FAIL_LIMIT >= 3 && PILLAR_FAIL_LIMIT <= 8)
-  assert.ok(PILLAR_TICKS_TO_APEX >= 4 && PILLAR_TICKS_TO_APEX <= 8) // vanilla apex ~6 ticks
+  // tick 5 left the AABB overlapping the vacated cell -> server rejected every
+  // placement and a 24-level climb took 241 s (fleet 35488918930). Tick 8 puts
+  // the feet ~1.15 up; more than 10 wastes climb time for nothing.
+  assert.ok(PILLAR_TICKS_TO_APEX >= 7 && PILLAR_TICKS_TO_APEX <= 10)
   assert.ok(PILLAR_LAND_TICKS >= 8 && PILLAR_LAND_TICKS <= 20)
   assert.ok(CEILING_DIG_LIMIT >= 4 && CEILING_DIG_LIMIT <= 20)
   assert.ok(PILLAR_LEVEL_CAP >= 64 && PILLAR_LEVEL_CAP <= 128) // y63 -> minY24 needs ~40
+  assert.ok(PILLAR_PLACE_TIMEOUT_MS >= 1000 && PILLAR_PLACE_TIMEOUT_MS <= 3000)
+  assert.ok(PILLAR_MAX_MS >= 45000 && PILLAR_MAX_MS <= 180000) // a climb must not eat the run
 })
