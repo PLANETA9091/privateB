@@ -47,6 +47,30 @@ export class WorldMap {
     return n
   }
 
+  // Up to k nearest known positions of a block type, closest first. Same verify
+  // contract as nearest(): entries the world no longer has are dropped on the fly.
+  // (v0.15.0) target distribution needs MORE than the single nearest candidate -
+  // scoring several candidates against the fleet's claims is what spreads the bots.
+  nearestK (name, from, { maxDistance = Infinity, k = 6, verifyWith = null } = {}) {
+    const bucket = this.found.get(name)
+    if (!bucket || !(k > 0)) return []
+    const out = []
+    for (const [key, entry] of bucket) {
+      const dist = entry.pos.distanceTo(from)
+      if (dist > maxDistance || dist >= Infinity) continue
+      if (verifyWith) {
+        const block = verifyWith(entry.pos)
+        if (!block || block.name !== name) {
+          bucket.delete(key)
+          continue
+        }
+      }
+      out.push({ pos: entry.pos, dist })
+    }
+    out.sort((a, b) => a.dist - b.dist)
+    return out.slice(0, k).map(e => e.pos)
+  }
+
   // Closest known position of a block type; drops entries that the world no longer has.
   nearest (name, from, { maxDistance = Infinity, verifyWith = null } = {}) {
     const bucket = this.found.get(name)

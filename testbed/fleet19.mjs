@@ -15,6 +15,7 @@ import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
+import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking } from '../src/lib/deposit.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
@@ -45,6 +46,11 @@ const BATCH = COUNT // all bots at once (the user wants them working simultaneou
 // The shared resource map: scouts fill it, miners read it. Persisted so a restarted
 // fleet does not start from zero knowledge (data/worldmap.json is gitignored).
 const map = new WorldMap({ file: 'data/worldmap.json' })
+// (v0.15.0) fleet-wide trip claims: when one bot commits to a map target, the others
+// score that cluster as "already taken" (soft penalty) and pick a different one - the
+// measured single-beach pile-up (38x 'map trip skipped: unreachable', sand=0 @ sand=110)
+// is what this stops. Shared by reference exactly like the map; TTL-bound, death-safe.
+const board = new ClaimBoard()
 const HEADINGS = ['east', 'south', 'west', 'north']
 
 let need = {}
@@ -124,6 +130,7 @@ async function runBot (name, target, index) {
 
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
+    let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
     try {
       miner = createMiner({
         host: '127.0.0.1',
@@ -132,6 +139,10 @@ async function runBot (name, target, index) {
         mode: 'rage',
         fly: false, // flight is off: bots walk (see README)
         map, // shared scout -> miner resource map
+        board, // shared trip-claim board (target distribution, v0.15.0)
+        // cross-process claims (a scout in a second terminal): broadcast our trips as
+        // PVB2 chat lines; claimSync is attached right after the bot logs in
+        broadcastClaim: SYNC ? pos => { try { claimSync?.broadcast(pos) } catch { /* chat never kills a trip */ } } : null,
         // bot-level logs are too chatty for a fleet run, but COMBAT events are the
         // field evidence the next iteration needs (the v0.11.0 verification run
         // counted fights=2 while printing nothing - invisible, useless evidence);
@@ -151,6 +162,8 @@ async function runBot (name, target, index) {
       // FLEET_SYNC=1: hear the OTHER processes' broadcasts (a scout in a second terminal)
       // and merge them into this process's shared map; also broadcast our own finds.
       const sync = SYNC ? attachChatSync(miner.bot, map, { flushEveryMs: 5000, maxPerFlush: 30, log: () => {} }) : null
+      // (v0.15.0) same channel, claims half: other processes' PVB2 lines land on the board
+      claimSync = SYNC ? attachClaimSync(miner.bot, board, { selfUsername: name, log: () => {} }) : null
 
       // Deploy on foot: with allow-flight=false vanilla kicks a bot that hovers for 80 ticks,
       // so sustained flight is not usable. The actual spreading happens while working: every
@@ -415,6 +428,7 @@ async function runBot (name, target, index) {
       // reference inside THIS process; chat (PVB1, src/fleet/chatsync.mjs) is the only
       // channel to OTHER processes - a scout in a second terminal merges our finds live.
       if (sync) sync.stop()
+      if (claimSync) claimSync.stop()
       if (guard) { guard.stop(); guards.delete(name) }
 
       // end-of-run banking: after the deadline the pockets still hold loot that would
@@ -519,7 +533,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
@@ -566,6 +580,7 @@ const fleetReport = {
     mapRecords: m.stats.mapRecords ?? 0,
     fights: m.stats.fights ?? 0,
     rescues: m.stats.rescues ?? 0,
+    claims: m.stats.claims ?? 0,
     byName: m.stats.byName
   })),
   materials,

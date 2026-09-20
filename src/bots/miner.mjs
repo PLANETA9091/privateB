@@ -27,6 +27,7 @@ import {
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
+import { chooseTarget } from '../fleet/claims.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
 // sapling replant path calls this from gatherWood - a missing definition threw
@@ -50,6 +51,8 @@ export function createMiner ({
   fly = false, // flight OFF by default: with allow-flight=false vanilla kicks hovering bots
   mode = 'rage', // 'rage' = FastBreak cheat, 'honest' = plain client dig time
   map = null, // WorldMap: scouts (and this bot itself) fill it, we consume it when the local scan is empty
+  board = null, // ClaimBoard (src/fleet/claims.mjs): trip claims so bots do not all walk to the same cluster
+  broadcastClaim = null, // (pos) => void - cross-process claim broadcast (PVB2 over chat), optional
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -58,7 +61,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -99,19 +102,45 @@ export function createMiner ({
   const failedTrips = new Set() // "x,y,z" the pathfinder could not handle - do not retry forever
   function mapTargetFor (names, { maxDistance = 96, verify = true } = {}) {
     if (!map) return null
+    // verify=true deletes entries the current chunks can no longer confirm - good
+    // for nearby mining targets, harmful for far ones (blockAt nulls unloaded
+    // chunks, so a query with verify would WIPE the whole far bucket)
+    const verifyWith = verify ? (p => bot.blockAt(p)) : null
+    // (v0.15.0) claim-aware choice: with a fleet ClaimBoard, k candidates per name are
+    // scored distance + penalty for positions another bot is already walking to - the
+    // measured "19 bots -> one beach" convergence (38x unreachable, sand=0 @ sand=110).
+    if (board) {
+      return chooseTarget({
+        map,
+        names,
+        from: bot.entity.position,
+        board,
+        owner: username,
+        maxDistance,
+        verifyWith,
+        skip: pos => failedTrips.has(`${pos.x},${pos.y},${pos.z}`)
+      })
+    }
     let best = null
     for (const name of names) {
-      const pos = map.nearest(name, bot.entity.position, {
-        maxDistance,
-        // verify=true deletes entries the current chunks can no longer confirm - good
-        // for nearby mining targets, harmful for far ones (blockAt nulls unloaded
-        // chunks, so a query with verify would WIPE the whole far bucket)
-        verifyWith: verify ? (p => bot.blockAt(p)) : null
-      })
+      const pos = map.nearest(name, bot.entity.position, { maxDistance, verifyWith })
       if (pos && failedTrips.has(`${pos.x},${pos.y},${pos.z}`)) continue
       if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
     }
     return best
+  }
+
+  // (v0.15.0) commit to a trip target: register the claim on the fleet board (shared
+  // by reference inside this process) and optionally broadcast it to OTHER processes
+  // (a scout in a second terminal). Claims are TTL-bound (CLAIM_TTL_MS), so a bot that
+  // dies mid-trip never leaves a permanent hole - no explicit release anywhere.
+  function claimTrip (target) {
+    if (!board || !target?.pos) return
+    board.claim(username, target.pos)
+    stats.claims++
+    if (broadcastClaim) {
+      try { broadcastClaim(target.pos) } catch { /* chat must never kill the trip */ }
+    }
   }
 
   bot.on('error', e => log(`${tag} error: ${e.message}`))
@@ -1223,6 +1252,7 @@ export function createMiner ({
         idleLoops++
         const known = mapTargetFor(names)
         if (known) {
+          claimTrip(known) // (v0.15.0) the walk is ours - the fleet spreads to other clusters
           stats.mapTrips++
           try {
             await gotoSafe(bot, new goals.GoalNear(known.pos.x, known.pos.y, known.pos.z, 2), { timeoutMs: 25000, label: `map trip ${known.name}` })
@@ -1913,6 +1943,7 @@ export function createMiner ({
     // structured result: the fleet logs failures ('unreachable') - silent map trips
     // looked like the feature never fired (it never printed a line in 3 CI runs)
     if (!target) return { error: 'no-target' }
+    claimTrip(target) // (v0.15.0) steer the rest of the fleet away from this cluster
     const key = `${target.pos.x},${target.pos.y},${target.pos.z}`
     stats.mapTrips++
     try {
