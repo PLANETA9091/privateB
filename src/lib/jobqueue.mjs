@@ -250,6 +250,32 @@ export async function waitForWaterRescueClear (bot, {
   return !bot._waterRescue
 }
 
+// (v0.19.0) Retry policy for the fleet's long walks (the yard bank walk).
+// MEASURED (fleet run on v0.18.15, 600s): 25 yard walks, 0 arrivals, banked=0
+// with 3298 blocks held in pockets - 6 walks died on the water-rescue
+// interlock ('walk to yard refused' while the rescue still had >20s of
+// window; waitForWaterRescueClear exists exactly for that and was never used
+// here) and the rest on 'Path was stopped before it could be completed' (the
+// gotoSafe settle window poisons a goto that starts inside ~50ms after a
+// stop - a transient, not geometry). Both classes are RETRYABLE. A real
+// 'timeout after Nms' means the walk budget ran out on real distance: one
+// retry max, then hand the bot its mining loop back.
+//
+// @param {object} p
+// @param {Error|string} [p.error] the gotoSafe rejection
+// @param {number} [p.attempt] 1-based walk attempt the error came from
+// @param {number} [p.maxAttempts] walk-attempt budget (wait-rescue does not
+//   grant extra walks - runtime bounds stay hard)
+// @returns {{action: 'wait-rescue'|'immediate'|'timeout-retry'|'give-up', waitMs?: number}}
+export function walkRetryPlan ({ error, attempt = 1, maxAttempts = 3 } = {}) {
+  if (!error || attempt >= maxAttempts) return { action: 'give-up' }
+  const msg = error && error.message ? error.message : String(error)
+  if (/water rescue/i.test(msg)) return { action: 'wait-rescue', waitMs: RESCUE_MAX_MS + 5000 }
+  if (/Path was stopped/i.test(msg)) return { action: 'immediate' }
+  if (/timeout after/i.test(msg)) return attempt === 1 ? { action: 'timeout-retry' } : { action: 'give-up' }
+  return { action: 'give-up' }
+}
+
 // A walk goal the fleet can actually reach: snap the requested column to the nearest
 // STANDABLE spot (solid ground, air feet + head) around it. Raw GoalNear targets computed
 // as "current position + offset" regularly landed inside unexcavated stone or inside a

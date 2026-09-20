@@ -1860,19 +1860,30 @@ export function createMiner ({
       }
       // the step: look at the diagonal cell, hold forward + jump - vanilla
       // movement onto a dug step, the exact mechanic the tunnels use sideways
-      let rose = false
-      try {
-        await bot.lookAt(feet.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
+      // (v0.19.0) stepUp reads FRESH feet and takes the hold length: the
+      // fleet measured 'did not rise (yaw stuck?)' clusters (F5 y=63, F12
+      // y=63, F8 y=51, F6 y=44 on v0.18.15) where the cells were just dug
+      // free - a momentum/yaw transient, not geometry. One longer hold (24
+      // ticks) on the SAME bearing fixes it; only then rotate (a rotation
+      // re-digs 2+ cells per wall, the expensive path).
+      const stepUp = async holdTicks => {
+        const f = bot.entity.position.floored()
+        await bot.lookAt(f.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
         bot.setControlState('forward', true)
         bot.setControlState('jump', true)
-        await bot.waitForTicks(12)
+        await bot.waitForTicks(holdTicks)
         bot.setControlState('forward', false)
         bot.setControlState('jump', false)
         await bot.waitForTicks(4) // gravity settles us onto the step
-        rose = bot.entity.position.floored().y > feet.y
-      } catch { /* fail accounting below */ }
+        return bot.entity.position.floored().y > f.y
+      }
+      let rose = false
+      try { rose = await stepUp(12) } catch { /* fail accounting below */ }
+      if (!rose) {
+        try { rose = await stepUp(24) } catch { /* rotate below */ }
+      }
       if (rose) { steps++; fails = 0 } else {
-        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} did not rise (yaw stuck?)`)
+        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} did not rise (food=${bot.food}, dug=${dug})`)
         fails++
         rotate()
         await bot.waitForTicks(4)

@@ -22,7 +22,7 @@ import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe, pathThrottleStats } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
 import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
@@ -103,11 +103,32 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
     if (decision.action === 'walk') {
-      try {
-        console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
-        await gotoSafe(miner.bot, new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24), { timeoutMs: 120000, label: 'walk to yard' })
-      } catch (e) {
-        console.log(`${miner.username} bank: yard walk failed (${e.message}) - smelting locally if a furnace is near`)
+      console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
+      // (v0.19.0) the yard walk RETRIES: fleet on v0.18.15 measured 25 walks /
+      // 0 arrivals with 3298 blocks stuck in pockets (banked=0) - 6 walks were
+      // refused by the water-rescue interlock while the rescue still had >20s
+      // of window (waitForWaterRescueClear waits it out), the rest died on
+      // 'Path was stopped' settle-poisoning (a fresh goto re-issues cleanly).
+      // walkRetryPlan owns the policy; runtime stays bounded (3 walk attempts,
+      // wait-rescue grants no extra walks, a real timeout retries once).
+      const walkGoal = new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24)
+      let arrived = false
+      for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
+        try {
+          if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3`)
+          await gotoSafe(miner.bot, walkGoal, { timeoutMs: 120000, label: 'walk to yard' })
+          arrived = true
+        } catch (e) {
+          const plan = walkRetryPlan({ error: e, attempt, maxAttempts: 3 })
+          if (plan.action === 'wait-rescue') {
+            const cleared = await waitForWaterRescueClear(miner.bot, { maxMs: plan.waitMs })
+            console.log(`${miner.username} bank: yard walk waited out the rescue (cleared=${cleared})`)
+            continue
+          }
+          if (plan.action === 'immediate' || plan.action === 'timeout-retry') continue
+          console.log(`${miner.username} bank: yard walk failed (${e.message}) - smelting locally if a furnace is near`)
+          break
+        }
       }
     } else if (decision.action === 'none' && decision.why && decision.why !== pre.reason) {
       console.log(`${miner.username} bank: 0 (${decision.why})`)
