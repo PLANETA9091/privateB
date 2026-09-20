@@ -219,13 +219,17 @@ export function traverseStep ({ feet, d, read } = {}) {
  * @param {object} [p]
  * @param {number} [p.now] wall clock (ms epoch)
  * @param {number|null} [p.feetY] the bot's current feet cell y
- * @returns {{refused: false, stage: number, failLimit: number, wetAttempts: number, rotateBy: number}|{refused: true, waitMs: number}}
+ * @param {boolean} [p.force] end-of-run escape hatch (v0.21.0): a mid-cooldown
+ *   exhausted ladder is granted ONE stage-1 attempt instead of the refusal.
+ *   Only the fleet's final bank may pass this - mid-run the cooldown exists
+ *   precisely to stop the loop paying for a proven wall.
+ * @returns {{refused: false, stage: number, failLimit: number, wetAttempts: number, rotateBy: number, forced?: boolean}|{refused: true, waitMs: number}}
  *   refused + waitMs: the ladder is exhausted and the cooldown is running -
  *   the caller must return immediately WITHOUT touching the ledger (a
  *   refusal that restarted the cooldown would keep a hammered bot exhausted
  *   forever).
  */
-export function climbEntry (ledger, { now = Date.now(), feetY = null } = {}) {
+export function climbEntry (ledger, { now = Date.now(), feetY = null, force = false } = {}) {
   const stage = ledger && typeof ledger === 'object' && Number.isFinite(ledger.stage)
     ? ledger.stage
     : 0
@@ -240,6 +244,14 @@ export function climbEntry (ledger, { now = Date.now(), feetY = null } = {}) {
   if (lifted) return { refused: false, failLimit: CLIMB_STAGE_BUDGETS[0].failLimit, wetAttempts: CLIMB_STAGE_BUDGETS[0].wetAttempts, rotateBy: CLIMB_STAGE_BUDGETS[0].rotateBy, stage: 0 }
   const elapsed = now - (Number.isFinite(ledger.at) ? ledger.at : 0)
   if (elapsed < CLIMB_EXHAUST_COOLDOWN_MS) {
+    // (v0.21.0) force: the final bank cannot accept a refusal - the yard walk
+    // would start at the shaft bottom, which is the failure it must prevent.
+    // ONE stage-1 attempt (the same budget the cooldown-served path grants);
+    // the ledger stays untouched, exactly like a refusal.
+    if (force) {
+      const b = CLIMB_STAGE_BUDGETS[1]
+      return { refused: false, forced: true, failLimit: b.failLimit, wetAttempts: b.wetAttempts, rotateBy: b.rotateBy, stage: 1 }
+    }
     return { refused: true, waitMs: CLIMB_EXHAUST_COOLDOWN_MS - elapsed }
   }
   // cooldown served: ONE escalated retry from a rotated bearing (stage 1) -
@@ -285,6 +297,31 @@ export function climbLedgerUpdate (ledger, { ok = false, gained = 0, traversed =
     return { stage: Math.min(ledStage + 1, CLIMB_EXHAUSTED_STAGE - 1), feetY: y, at }
   }
   return { stage: Math.min(ledStage + 1, CLIMB_EXHAUSTED_STAGE), feetY: y, at }
+}
+
+/**
+ * Did this climbOut call actually ATTEMPT anything? (v0.21.0) Pure.
+ *
+ * A never-tried stop - shouldStop already fired when the call entered, so the
+ * main loop never ran once - must NOT touch the ledger: an ok=false gained=0
+ * update counts as a dead stall and would escalate the ladder for a wall the
+ * bot never saw (the hammered-refusal class the v0.18.0 contract forbids).
+ * The miner passes its live counters; any nonzero counter means the climb
+ * really started (a step placed, a block dug, a fail burned, a gallery opened
+ * or walked).
+ *
+ * @param {object} [c]
+ * @param {number} [c.steps] pillar steps placed
+ * @param {number} [c.dug] blocks dug
+ * @param {number} [c.fails] failed step attempts
+ * @param {number} [c.traversed] horizontal escape blocks walked
+ * @param {number} [c.wetTries] wet-escape galleries opened
+ * @returns {boolean} true when the climb made at least one attempt
+ */
+export function climbStarted (c) {
+  const o = c && typeof c === 'object' ? c : {} // junk-tolerant, like climbEntry
+  const n = x => (Number.isFinite(x) && x > 0 ? x : 0)
+  return Boolean(n(o.steps) || n(o.dug) || n(o.fails) || n(o.traversed) || n(o.wetTries))
 }
 
 // Inventory preference for the pillar block: stone-family drops the fleet

@@ -612,7 +612,17 @@ async function runBot (name, target, index) {
         try {
           // (v0.12.0) the bot ends the run at the bottom of its last shaft: without
           // the climb this walk always failed and the final banked= stayed 0
-          await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
+          // (v0.21.0) REAL CLIMB WINDOW: this call used to pass
+          // shouldStop: () => Date.now() > deadline - ALREADY TRUE here (the work
+          // loop just exited on it), so since v0.12.0 the final-bank climb
+          // silently no-op'd ('stopped', zero attempts, ledger escalated for a
+          // wall never seen) and every yard walk started from the shaft bottom.
+          // No shouldStop now: climbOut's own maxMs/failLimit budgets bound it.
+          // force = even an exhausted ledger gets ONE stage-1 attempt - a refusal
+          // here would guarantee the bank failure the climb exists to prevent.
+          const cr = await miner.climbOut({ dir: direction, force: true })
+          if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
+          else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
           const res = await smeltThenBank(miner, { yardGoal })
           if (res.deposited > 0) {
             banked += res.deposited

@@ -12,7 +12,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  climbEntry, climbLedgerUpdate,
+  climbEntry, climbLedgerUpdate, climbStarted,
   CLIMB_STAGE_BUDGETS, CLIMB_EXHAUSTED_STAGE, CLIMB_EXHAUST_COOLDOWN_MS, CLIMB_RESCUE_MIN_GAIN,
   PILLAR_FAIL_LIMIT, TRAVERSE_MAX_ATTEMPTS
 } from '../../src/lib/surface.mjs'
@@ -207,4 +207,51 @@ test('contract: the deep-climb campaign - lateral stages then a healed exit', ()
   e = climbEntry(led, { now: T0 + 5, feetY: 45 })
   assert.equal(e.stage, 0)
   assert.equal(e.rotateBy, 0) // caller's bearing again
+})
+
+// ------------------------------------------------- the final-bank hatch (v0.21.0)
+
+test('entry: force grants ONE stage-1 attempt mid-cooldown instead of the refusal', () => {
+  const led = { stage: CLIMB_EXHAUSTED_STAGE, feetY: 42, at: T0 }
+  const e = climbEntry(led, { now: T0 + 1000, feetY: 42, force: true })
+  assert.equal(e.refused, false)
+  assert.equal(e.forced, true)
+  // the same budget the cooldown-served path grants: ONE escalated retry
+  assert.equal(e.stage, 1)
+  assert.equal(e.failLimit, CLIMB_STAGE_BUDGETS[1].failLimit)
+  assert.equal(e.wetAttempts, CLIMB_STAGE_BUDGETS[1].wetAttempts)
+  assert.equal(e.rotateBy, CLIMB_STAGE_BUDGETS[1].rotateBy)
+})
+
+test('entry: force without an exhausted ladder is inert - normal budgets, no forced flag', () => {
+  for (const led of [null, { stage: 1, feetY: 42, at: T0 - 1000 }, { stage: 2, feetY: 42, at: T0 - 1000 }]) {
+    const e = climbEntry(led, { now: T0, feetY: 42, force: true })
+    assert.equal(e.refused, false, String(led))
+    assert.equal(e.forced, undefined, String(led))
+    assert.equal(e.stage, led ? led.stage : 0, String(led))
+  }
+})
+
+test('entry: the rescue lift wins over force - a lifted bot restarts fresh at stage 0', () => {
+  const led = { stage: CLIMB_EXHAUSTED_STAGE, feetY: 42, at: T0 }
+  const e = climbEntry(led, { now: T0 + 1000, feetY: 42 + CLIMB_RESCUE_MIN_GAIN, force: true })
+  assert.equal(e.refused, false)
+  assert.equal(e.forced, undefined)
+  assert.equal(e.stage, 0)
+  assert.equal(e.rotateBy, 0)
+})
+
+test('climbStarted: the never-tried matrix - every zero means "no ledger touch"', () => {
+  // the final-bank bug shape: shouldStop fired at entry, loop never ran once
+  assert.equal(climbStarted({}), false)
+  assert.equal(climbStarted({ steps: 0, dug: 0, fails: 0, traversed: 0, wetTries: 0 }), false)
+  // junk and negative counters are zeros, not attempts
+  assert.equal(climbStarted({ steps: -3, dug: NaN, fails: undefined }), false)
+  assert.equal(climbStarted(null), false)
+  // any real attempt marks the climb started
+  assert.equal(climbStarted({ steps: 1 }), true)
+  assert.equal(climbStarted({ dug: 2 }), true)
+  assert.equal(climbStarted({ fails: 1 }), true) // a burned fail IS an attempt
+  assert.equal(climbStarted({ traversed: 5 }), true)
+  assert.equal(climbStarted({ wetTries: 1 }), true)
 })

@@ -18,7 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
-  climbEntry, climbLedgerUpdate,
+  climbEntry, climbLedgerUpdate, climbStarted,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
@@ -1703,7 +1703,7 @@ export function createMiner ({
   // diagonally up, then step onto them with forward+jump (vanilla movement,
   // always legal). ~2 digs + 1 jump per level, no placement anywhere.
   // Never throws: a failed climb costs the caller its trip/banking, not the bot.
-  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null } = {}) {
+  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null, force = false } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug: 0, steps: 0 }
@@ -1734,7 +1734,9 @@ export function createMiner ({
     // an exhausted one refuses instantly for a cooldown instead of burning
     // the loop's time on a proven wall. A refusal must NOT touch the ledger:
     // a hammered refusal would restart the cooldown forever.
-    const entry = climbEntry(bot._climbLedger, { now: Date.now(), feetY: feet0.y })
+    // (v0.21.0) force = the final-bank escape hatch: an exhausted ledger still
+    // gets ONE stage-1 attempt instead of the refusal (see climbEntry).
+    const entry = climbEntry(bot._climbLedger, { now: Date.now(), feetY: feet0.y, force })
     if (entry.refused) {
       return { ok: false, reason: 'exhausted', waitSecs: Math.ceil(entry.waitMs / 1000), gained: 0, dug: 0, steps: 0, traversed: 0 }
     }
@@ -1898,6 +1900,15 @@ export function createMiner ({
       }
     }
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug, steps, traversed }
+    // (v0.21.0) NEVER-TRIED STOP: shouldStop fired before the first loop
+    // iteration (the fleet's final bank passed an already-expired deadline
+    // shouldStop for v0.12.0..v0.20.2 - the climb silently no-op'd here). A
+    // never-tried call must not touch the ledger: the ok=false gained=0 update
+    // below would count as a dead stall and escalate the ladder for a wall the
+    // bot never saw - the hammered-refusal class the v0.18.0 contract forbids.
+    if (!climbStarted({ steps, dug, fails, traversed, wetTries })) {
+      return { ok: false, reason: 'stopped', gained: 0, dug, steps, traversed, stage: entry.stage, secs: 0 }
+    }
     const feetNow = bot.entity.position.floored()
     const ok = feetNow.y >= plan.targetY
     if (ok) stats.climbs = (stats.climbs ?? 0) + 1
