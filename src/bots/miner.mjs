@@ -18,7 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
-  climbEntry, climbLedgerUpdate, climbStarted,
+  climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
@@ -1885,6 +1885,26 @@ export function createMiner ({
         try { rose = await stepUp(24) } catch { /* rotate below */ }
       }
       if (rose) { steps++; fails = 0 } else {
+        // (v0.23.0) WALKABLE SURFACE: the fleet measured bots burning their whole
+        // fail budget ON the biome surface (F2: 'y=63 did not rise, dug=60, feet=air
+        // support=grass_block step=air' - the stale entry target demanded levels the
+        // terrain no longer owes). Daylight + 2 walkable directions cannot be a shaft
+        // (walls) or a tunnel (no free dirs) - hand the bot to the chest walk.
+        const feetNow = bot.entity.position.floored()
+        let skyLit = false
+        try { const fb = bot.blockAt(feetNow); skyLit = !!fb && (fb.skyLight ?? 0) >= 15 } catch { /* dark by default */ }
+        const probes = (dx, dz) => {
+          const stepC = bot.blockAt(feetNow.offset(dx, 1, dz))
+          const floorC = bot.blockAt(feetNow.offset(dx, 0, dz))
+          return { free: !!stepC && stepC.boundingBox === 'empty', solid: !!floorC && floorC.boundingBox === 'block' }
+        }
+        if (isWalkableSurface({ skyLit, probes })) {
+          const gainedNow = feetNow.y - feet0.y
+          stats.climbs = (stats.climbs ?? 0) + 1
+          bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetNow.y, now: Date.now() })
+          log(`${tag} climb: walkable surface at y=${feetNow.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over`)
+          return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+        }
         // (v0.19.1) the 24-tick same-bearing retry did NOT cure the rise
         // failures (fleet v0.19.0: 15 'did not rise', food=20) - momentum is
         // NOT the cause. Name the cells: a water film on the floor (from a

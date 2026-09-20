@@ -324,6 +324,46 @@ export function climbStarted (c) {
   return Boolean(n(o.steps) || n(o.dug) || n(o.fails) || n(o.traversed) || n(o.wetTries))
 }
 
+// (v0.23.0) WALKABLE SURFACE - the F2/F5 measured waste (fleet on 3e21d58):
+// 'F2 climb diag: level at y=63 did not rise (dug=60) feet=air support=grass_block
+// step=air head=air' - the bot was ALREADY on the biome surface, but the entry-based
+// pillarTarget demanded the stale shaft-entry level from possibly miles away, so the
+// staircase kept rotating on flat grass, burned its whole fail budget and reported
+// 'stalled' - the chest walk then started from a bot the climb refused to call out.
+//
+// The rule: full daylight at the feet cell (skyLight 15, which an UNDERGROUND cell
+// can never have - a cave stays dark, so caves keep climbing) plus at least TWO
+// walkable directions (a free cell at feet+1 with a solid floor at feet level).
+// - 1x1 open shaft: sky-lit (skyLight falls straight down an air column) but 0
+//   walkable dirs (walls all around) -> NOT a surface, the climb continues.
+// - 2x2 open shaft: exactly 1 walkable dir (the second shaft column) -> continues.
+// - tunnel/gallery: 0 walkable dirs at feet level -> continues.
+// - open surface, including a bot standing in a 1-block hole with a grass rim
+//   (F2's exact end state): 2-4 walkable dirs -> the staircase hands the bot to
+//   the chest walk, whose pathfinder steps the rim trivially.
+// Pure - the bot reads the cells, this function only decides.
+//
+// @param {object} p
+// @param {boolean} [p.skyLit] true when the feet cell sees skyLight >= 15
+// @param {Function} [p.probes] (dx, dz) => { free, solid } for the horizontal
+//   neighbour: free = the cell at feet+1 has an empty bounding box (walkable
+//   air), solid = the cell at feet level is a solid floor to walk on
+// @param {number} [p.minDirs] walkable directions required (default 2)
+// @returns {boolean} true = the bot stands on a walkable surface, stop climbing
+export function isWalkableSurface ({ skyLit = false, probes = null, minDirs = 2 } = {}) {
+  if (skyLit !== true || typeof probes !== 'function') return false
+  const need = Number.isFinite(minDirs) && minDirs >= 1 ? Math.floor(minDirs) : 2
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+  let open = 0
+  for (const [dx, dz] of dirs) {
+    let c = null
+    try { c = probes(dx, dz) } catch { c = null }
+    if (c && c.free === true && c.solid === true) open++
+    if (open >= need) return true
+  }
+  return false
+}
+
 // Inventory preference for the pillar block: stone-family drops the fleet
 // accumulates by the hundreds. Planks/sticks/logs are TOOL material and are
 // deliberately absent - a climb must never strip a bot's kit.

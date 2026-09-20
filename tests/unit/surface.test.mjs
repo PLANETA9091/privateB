@@ -151,3 +151,56 @@ test('climb constants: bounded and sane before any fleet trusts them', () => {
   assert.ok(PILLAR_PLACE_TIMEOUT_MS >= 1000 && PILLAR_PLACE_TIMEOUT_MS <= 3000)
   assert.ok(PILLAR_MAX_MS >= 45000 && PILLAR_MAX_MS <= 180000) // a climb must not eat the run
 })
+
+// (v0.23.0) isWalkableSurface - the F2/F5 measured waste: bots burning their whole
+// fail budget ON the biome surface because the stale entry target demanded levels
+// the terrain no longer owes. Daylight + 2 walkable directions must read "surface".
+import { isWalkableSurface } from '../../src/lib/surface.mjs'
+
+// probe factory: models (feet+dx, feet+1) free/solid per direction
+const world = open => (dx, dz) => {
+  const key = `${dx},${dz}`
+  return open[key] || { free: false, solid: true } // default: solid wall, blocked step
+}
+
+test('walkable surface: an open field (F2 at y=63 with a grass rim) reads TRUE', () => {
+  // F2's exact end state: feet air, a 1-block grass rim in front (step=air above it),
+  // open field around - the climb must hand the bot to the chest walk
+  const probes = world({ '1,0': { free: true, solid: true }, '-1,0': { free: true, solid: true }, '0,1': { free: true, solid: true }, '0,-1': { free: true, solid: true } })
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), true)
+})
+
+test('walkable surface: daylight alone is not enough - a 1x1 open shaft has 0 walkable dirs', () => {
+  // skyLight falls straight down an open air column, so the shaft bottom IS sky-lit;
+  // the walls all around keep it from being declared a surface
+  const probes = world({}) // every direction: solid wall + blocked step
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), false)
+})
+
+test('walkable surface: a 2x2 open shaft has exactly 1 walkable dir - still NOT a surface', () => {
+  const probes = world({ '0,1': { free: true, solid: true } }) // the second shaft column
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), false)
+})
+
+test('walkable surface: a tunnel/gallery (0 free dirs) keeps climbing even when sky-lit', () => {
+  const probes = world({ '1,0': { free: false, solid: true }, '-1,0': { free: true, solid: false }, '0,1': { free: true, solid: false } })
+  // dirs -1,0 / 0,1 have free steps but NO floor (a corridor edge) - not walkable
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), false)
+})
+
+test('walkable surface: a dark cell (cave) never reads as surface, however open', () => {
+  const probes = world({ '1,0': { free: true, solid: true }, '-1,0': { free: true, solid: true } })
+  assert.equal(isWalkableSurface({ skyLit: false, probes }), false, 'caves must keep the staircase')
+})
+
+test('walkable surface: junk inputs are safe (no probe fn, throwing probes, minDirs floor)', () => {
+  assert.equal(isWalkableSurface({ skyLit: true }), false, 'no probes -> not a surface')
+  assert.equal(isWalkableSurface({}), false)
+  assert.equal(isWalkableSurface(null), false)
+  const boom = () => { throw new Error('chunk gone') }
+  assert.equal(isWalkableSurface({ skyLit: true, probes: boom }), false, 'a throwing probe must not crash the climb loop')
+  // minDirs=1 lets a caller demand less (kept for tuning; the climb uses the default 2)
+  const one = world({ '0,-1': { free: true, solid: true } })
+  assert.equal(isWalkableSurface({ skyLit: true, probes: one, minDirs: 1 }), true)
+  assert.equal(isWalkableSurface({ skyLit: true, probes: one, minDirs: 2 }), false)
+})
