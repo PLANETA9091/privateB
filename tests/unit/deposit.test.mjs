@@ -162,3 +162,41 @@ test('depositToChests continues into the next chest while bankable items remain'
   assert.equal(res.chestsUsed, 2)
   assert.equal(bot._items.length, 0, 'everything bankable must be gone')
 })
+
+// ---------------------------------------------------------------- needsBanking (v0.12.0)
+// The old mid-run gate `inventoryLoad().slots >= 30` NEVER fired in a real fleet:
+// consolidation merges fragmented stacks, so 40-70 units sat in ~10-15 stacks -
+// fleet 35485296464 ran 600s with banked=0 smelted=0. The gate now fires on EITHER
+// slots >= BANK_SLOTS OR units >= BANK_UNITS.
+import { needsBanking, BANK_SLOTS, BANK_UNITS } from '../../src/lib/deposit.mjs'
+
+test('needsBanking: fires on raw unit mass even when stacks are few', () => {
+  // 3 stacks of 64 = 192 units across only 3 slots - the old gate would sleep
+  const bot = makeMockBot({ items: [item('cobblestone', 64), item('dirt', 64), item('gravel', 64)] })
+  assert.equal(needsBanking(bot), true)
+})
+
+test('needsBanking: fires on slot fragmentation even when units are few', () => {
+  // BANK_SLOTS distinct single-item stacks
+  const names = Array.from({ length: BANK_SLOTS }, (_, i) => `junk_${i}`)
+  const bot = makeMockBot({ items: names.map(n => item(n, 1)) })
+  assert.equal(needsBanking(bot), true)
+})
+
+test('needsBanking: a light pocket stays underground (no wasted walk to the yard)', () => {
+  const bot = makeMockBot({ items: [item('cobblestone', 64), item('stone_pickaxe', 1)] })
+  assert.equal(needsBanking(bot), false)
+})
+
+test('needsBanking: the units threshold is exactly BANK_UNITS (boundary honest)', () => {
+  const bot = makeMockBot({ items: [item('cobblestone', BANK_UNITS - 1)] })
+  assert.equal(needsBanking(bot), false)
+  bot._items = [item('cobblestone', BANK_UNITS)]
+  assert.equal(needsBanking(bot), true)
+})
+
+test('needsBanking: an unreadable inventory must not throw the caller\'s loop', () => {
+  const bot = { inventory: null }
+  assert.equal(needsBanking(bot), false)
+  assert.equal(needsBanking(undefined), false)
+})

@@ -16,7 +16,7 @@ import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking } from '../src/lib/deposit.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
@@ -215,6 +215,18 @@ async function runBot (name, target, index) {
       // (interrupted -> continue), so a due recovery preempts the current shaft within
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
       const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      // (v0.12.0) Pillar-jump shaft exit: digShaft strands every bot at the bottom of
+      // a 1x1 hole and the pathfinder cannot climb out of what it did not dig stairs
+      // into - fleet 35485296464 ended banked=0 smelted=0 sand=0 with sand=110 known
+      // positions (38x 'map trip skipped: unreachable'). climbOut leaps + places a
+      // block beneath itself one level at a time until the recorded shaft entry level
+      // (or daylight) is reached, then surface goals path normally again.
+      const ensureSurface = async reason => {
+        const r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
+        if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.placed} placed, ${r.dug} ceiling dug, ${r.secs?.toFixed(0)}s)`)
+        else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}`)
+        return r.ok
+      }
       const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })
       // Tool upgrade chain (toolupgrade.mjs): proactive replacement of a WORN pickaxe
       // and tier raises (wooden->stone via the tools.mjs upgrade flow, stone->iron from
@@ -307,10 +319,17 @@ async function runBot (name, target, index) {
         // so 12-type fragmentation is permanent otherwise), then smelt the raw loot
         // and bank the products in the yard's chest rows before digging on (a full
         // inventory turns every further dig into a wasted drop)
-        if (miner.inventoryLoad().slots >= 30) {
+        // (v0.12.0) needsBanking fires on EITHER slots>=24 OR units>=128: the old
+        // slots>=30 gate never fired because consolidation merges stacks (the 600s
+        // fleet held 40-70 units in ~10-15 stacks - banked=0 forever). The banking
+        // itself needs the SURFACE: climb out of the shaft first, then the chest
+        // walk and the furnace bay are reachable at all.
+        if (needsBanking(miner.bot)) {
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
-          const res = await smeltThenBank(miner)
-          if (res.deposited > 0) banked += res.deposited
+          if (await ensureSurface('bank')) {
+            const res = await smeltThenBank(miner)
+            if (res.deposited > 0) banked += res.deposited
+          }
         }
         // underground the bot still SEES ores in the shaft walls - record them into the
         // shared map (fleet digs with digShaft, which never goes through workOnGround,
@@ -343,7 +362,12 @@ async function runBot (name, target, index) {
             lastTrip = Date.now()
             const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
             if (tripBlocks.length) {
-              try {
+              // (v0.12.0) trip targets are surface positions (sand shores, log runs):
+              // an underground bot must leave the shaft first or the walk below fails
+              // with 'unreachable' 38 times per run
+              if (!(await ensureSurface('trip'))) {
+                console.log(`${name} map trip skipped: cannot leave the shaft`)
+              } else try {
                 // direction + shouldStop feed the surface-harvest mode (beaches are eaten
                 // sideways, and the deadline always wins); digNames is the full stone list
                 // for the ore/stone descent mode
@@ -392,6 +416,9 @@ async function runBot (name, target, index) {
         miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
       if (bankable) {
         try {
+          // (v0.12.0) the bot ends the run at the bottom of its last shaft: without
+          // the climb this walk always failed and the final banked= stayed 0
+          await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
           const res = await smeltThenBank(miner, { timeoutMs: 120000 })
           if (res.deposited > 0) banked += res.deposited
         } catch { /* report whatever was banked so far */ }
@@ -484,7 +511,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
@@ -514,6 +541,7 @@ const fleetReport = {
   toolsRecovered,
   toolsUpgraded,
   toolsReboot,
+  climbs: list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0),
   torched: list.reduce((a, m) => a + (m.stats.torched ?? 0), 0),
   banked,
   smelted,
@@ -523,6 +551,7 @@ const fleetReport = {
     name: m.username,
     mined: m.stats.mined,
     banked: m.stats.banked ?? 0,
+    climbs: m.stats.climbs ?? 0,
     planted: m.stats.planted ?? 0,
     torched: m.stats.torched ?? 0,
     mapTrips: m.stats.mapTrips ?? 0,

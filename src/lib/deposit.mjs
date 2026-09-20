@@ -28,6 +28,24 @@ export function inventoryLoad (bot) {
   return { slots: used, free: Math.max(0, 36 - used), units }
 }
 
+// (v0.12.0) The mid-run bank gate. The old `slots >= 30` NEVER fired in a real
+// fleet: inventoryLoad().slots counts OCCUPIED STACKS, and consolidation merges
+// fragmented stacks back together - the 600s fleet (35485296464) ended with
+// 40-70 UNITS per bot across ~10-15 stacks, so banked=0 and smelted=0 forever.
+// The gate now fires on EITHER signal: pockets fragmenting (24+ stacks) or raw
+// loot mass (128 units = two full stacks of cobblestone).
+export const BANK_SLOTS = 24
+export const BANK_UNITS = 128
+
+export function needsBanking (bot) {
+  try {
+    const load = inventoryLoad(bot)
+    return load.slots >= BANK_SLOTS || load.units >= BANK_UNITS
+  } catch {
+    return false // an unreadable inventory must not kill the mining loop
+  }
+}
+
 export function findChest (bot, { maxDistance = 64 } = {}) {
   try {
     return bot.findBlock({

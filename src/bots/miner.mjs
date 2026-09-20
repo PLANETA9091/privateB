@@ -16,6 +16,10 @@ import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
+import {
+  pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
+  PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS, CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
+} from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
@@ -51,7 +55,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, shelters: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -1392,6 +1396,10 @@ export function createMiner ({
   async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, maxMs = Infinity, onProgress = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
+    // (v0.12.0) record where this descent started: climbOut (the pillar-jump shaft
+    // exit) climbs back to exactly this level. Overwritten every shaft, so the
+    // value is always the most recent descent's surface reference.
+    stats.shaftEntryY = bot.entity?.position ? bot.entity.position.floored().y : null
     // Torch stocking (v0.10.0): surplus sticks + mined coal -> torches BEFORE the
     // descent. The kit phase passes here too (gatherWood digs through a tree) and
     // then holds no sticks, so torchCraftPlan's reserve makes it an honest no-op
@@ -1500,6 +1508,113 @@ export function createMiner ({
     }
     const secs = (Date.now() - started) / 1000
     return { done, secs, rate: secs > 0 ? done / secs : 0, torched: stats.torched ?? 0 }
+  }
+
+  // ---------------------------------------------------------------- climb out
+  // PILLAR-JUMP exit from the 1x1 dig shaft (v0.12.0). The pathfinder cannot
+  // climb out of a shaft the bot dug straight down (no stairs, no ladder) - which
+  // stranded every bot underground and made the whole surface economy dead:
+  // fleet 35485296464 (600s) ended banked=0 smelted=0 sand=0 with sand=110 KNOWN
+  // positions on the map and 38x 'map trip skipped: unreachable'. The shaft above
+  // the bot is open (the bot dug it), so the climb is the classic survival move:
+  // leap, place a block beneath us at the apex, land on it, repeat - one level per
+  // jump. Cave overhangs and tunnel ceilings on the way are dug through (bounded);
+  // fluids and undiggable blocks stop the climb honestly instead of drowning it.
+  // Never throws: a failed climb costs the caller its trip/banking, not the bot.
+  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, shouldStop = null } = {}) {
+    enablePhysicsMode()
+    configureGroundMovements()
+    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, placed: 0, dug: 0 }
+    const feet0 = bot.entity.position.floored()
+    const blockAtDy = dy => {
+      try { return bot.blockAt(feet0.offset(0, dy, 0)) } catch { return null }
+    }
+    // target: the recorded shaft entry level wins (digShaft just stored it); with
+    // no record, daylight (skyLight 15, exists only above ground) marks the surface
+    const skyLitAt = dy => {
+      const b = blockAtDy(dy)
+      if (!b) return null // chunk data missing - unknown
+      return (b.skyLight ?? 0) >= 15
+    }
+    const entryY = Number.isFinite(stats.shaftEntryY) ? stats.shaftEntryY : null
+    const plan = pillarTarget({ feetY: feet0.y, targetY: entryY, skyLitAt, maxUp })
+    if (plan.levels <= 1) return { ok: true, reason: `already out (${plan.source})`, gained: 0, placed: 0, dug: 0 }
+    // dir = the way the caller is headed (deployment direction / yard bearing):
+    // only used to pick the wall for the one-block bootstrap dig, so any cardinal
+    // sign of it is good enough
+    const d = new Vec3(Math.sign(dir?.x ?? 1) || 1, 0, Math.sign(dir?.z ?? 0) || 0)
+    let placed = 0
+    let dug = 0
+    let fails = 0
+    let equipped = null
+    const start = Date.now()
+    const done = () => ({ ok: !bot.entity ? false : bot.entity.position.floored().y >= plan.targetY, reason: 'done', gained: (bot.entity ? bot.entity.position.floored().y : feet0.y) - feet0.y, placed, dug, secs: (Date.now() - start) / 1000 })
+    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && placed < maxUp) {
+      const feet = bot.entity.position.floored()
+      if (feet.y >= plan.targetY) return { ...done(), reason: 'out' }
+      // headroom: the jump needs the two cells above the feet free. Solid ones are
+      // dug through (bounded by CEILING_DIG_LIMIT); fluids/undiggable stop the climb.
+      let blocked = false
+      for (const dy of [1, 2]) {
+        const cellB = bot.blockAt(feet.offset(0, dy, 0))
+        const verdict = climbableCeiling(cellB)
+        if (verdict === 'free') continue
+        if (verdict !== 'dig' || dug >= CEILING_DIG_LIMIT) { blocked = true; break }
+        try {
+          if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
+          else { blocked = true; break }
+        } catch { blocked = true; break }
+      }
+      if (blocked) { fails++; await bot.waitForTicks(10); continue }
+      // pillar stock: pockets first, then a ONE-block wall dig as bootstrap (stone
+      // walls refuse bare hands - the dig is honest, a refusal just fails the climb)
+      let item = pickPillarBlock(inventoryItems(bot))
+      if (!item) {
+        const wall = bot.blockAt(feet.offset(d.x, 0, d.z))
+        if (!wall || wall.type === 0) break
+        try { await bot.fastDig(wall) } catch { break }
+        item = pickPillarBlock(inventoryItems(bot))
+        if (!item) break // dug, but nothing dropped (bare-handed stone): cannot pillar
+      }
+      try {
+        if (equipped !== item.name) { await bot.equip(item, 'hand'); equipped = item.name }
+      } catch { break }
+      // the jump: look straight down, leap, and at the apex place the block into
+      // the cell the feet are leaving, against one of its four solid walls
+      let okPlace = false
+      try {
+        await bot.look(bot.entity.yaw, Math.PI / 2, false)
+        bot.setControlState('jump', true)
+        await bot.waitForTicks(PILLAR_TICKS_TO_APEX)
+        const fill = feet // the cell we jumped out of (feet are ~1.1 above it now)
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const ref = bot.blockAt(fill.offset(dx, 0, dz))
+          if (!ref || ref.boundingBox !== 'block') continue
+          try {
+            await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), 3000, 'pillar place')
+            okPlace = true
+            break
+          } catch { /* next wall */ }
+        }
+      } catch { /* fail accounting below */ }
+      bot.setControlState('jump', false)
+      await bot.waitForTicks(PILLAR_LAND_TICKS) // land on the fresh block (or the floor)
+      const now = bot.entity.position.floored()
+      if (okPlace && now.y > feet.y) { placed++; fails = 0 } else { fails++ }
+      await bot.waitForTicks(2)
+    }
+    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, placed, dug }
+    const feetNow = bot.entity.position.floored()
+    const ok = feetNow.y >= plan.targetY
+    if (ok) stats.climbs = (stats.climbs ?? 0) + 1
+    return {
+      ok,
+      reason: ok ? 'out' : (placed + dug === 0 ? 'nothing to climb with' : 'stalled'),
+      gained: feetNow.y - feet0.y,
+      placed,
+      dug,
+      secs: (Date.now() - start) / 1000
+    }
   }
 
   // ---------------------------------------------------------------- wood run
@@ -1735,7 +1850,7 @@ export function createMiner ({
     return res
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.
