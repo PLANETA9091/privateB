@@ -797,3 +797,22 @@ Stage Summary:
 - Мастер: 9afe4f5 (v0.24.0). Сессия: 5 коммитов (v0.23.0..v0.24.0), 10+ тестов, 2 красных CI починены, финальный fleet dispatch запущен на 9afe4f5 (валидация v0.24.0 в полёте для след. сессии).
 - ОЖИДАНИЯ к fleet-прогону v0.24.0: строки 'final bank chain error: ...' наконец НАЗОВУТ убийцу финальных climb'ов; 'walkable surface' при поверхностных кейсах; chest-hop при NoPath; banked>0 при достаточной добыче.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) скачать артефакты dispatch на 9afe4f5, grep 'final bank chain error' - это ГЛАВНЫЙ ожидаемый сигнал; (2) если ошибки = 'Cannot read properties of null (reading position)' - бот терял entity mid-climb, смотреть reconnect-гонку в final-bank окне; (3) стратегия early-game (wood 147 logs vs coal 340 в worldmap) - candidates: пропуск wood-фазы при готовых инструментах, materials-plan приоритеты; (4) НЕ пушить при чужом PENDING dispatch; (5) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0553
+Agent: Z.ai Code (cron session, 05:53 +08)
+Task: вскрытие fleet 35538062596 (v0.24.0): гравийные столбы + полный сундук + open timeout
+
+Work Log:
+- Сендбокс умер, репо переклонирован. Мастер ушёл вперёд: 8942d39 (v0.24.1, wet-escape e2e, параллельный агент). CI 35539867961 (v0.24.1) в полёте.
+- Скачаны артефакты dispatch 35538062596 (9afe4f5, v0.24.0, SUCCESS): mined=3241 @ 5.4 b/s (лучший темп в истории проекта!), alive 19/19, 'final bank chain error' = 0 (guards v0.24.0 сработали - silent-kill мёртв). НО banked=0 smelted=0, карманы полны cobblestone (110-166/бот).
+- ROOT CAUSE #1 (climb): diag-подпись 'did not rise (dug=1..3) feet=air support=gravel step=gravel head=air' x10+, кластер y=42-43 (речные пляжи). Старый climb копал шаг ОДИН РАЗ снизу-вверх: копание нижней ячейки столба sand/gravel заставляет ВЕРХНИЙ блок ОСЕСТЬ в только что очищенную ячейку. Каждый ретрай копал ещё блок - столб оседал ещё на один - fail-бюджет горел, бот стоял ('stalled') с полными карманами.
+- ROOT CAUSE #2 (deposit): F18 'bank: 0 (nothing to deposit)' - depositLoot шёл в ОДИН сундук (depositToChest); полный сундук отклонял все клики, доставка умирала с 200+ юнитов в кармане при пустом соседнем сундуке. depositToChests существовал, но не использовался.
+- ROOT CAUSE #3 (open): F10 'cannot open chest (open chest: timeout after 10000ms)' при late=1324ms (19 ботов) - медленное открытие окна сжигало 60s прогулку.
+- v0.25.0 (ebef1c5): (1) surface.mjs stepDigPlan + STEP_MAX_PASSES=6 - план одного прохода копания шага (верх-вниз: head+2, head+1, step+2, step+1) + pass-цикл в climbOut: повторный скан выедает осевший столб (пляжные полосы 2-4 блока), wet/hard/unknown refuse сохранены (wet-escape v0.17.0 нетронут); (2) depositLoot -> depositToChests (мульти-сундук): любой zero у ДОСТИГНУТОГО сундука при банкабельных предметах в кармане исключает его и сканирует дальше ('nothing to deposit', 'cannot open chest', 'chest unreachable'; 'no chest in range' - обычный break); (3) openChest ретрай x2 с re-look между попытками. Тесты: step-dig-plan.test.mjs (гравитационный симулятор: баг запинен '1 проход оставляет осевший блок', cure доказан: столб 10 вычищается за <=6 проходов; budget/wet/unknown/bedrock), deposit.test.mjs +4 (open retry x2, full-chest hop, unopenable hop).
+- Пуш: pull --rebase (up to date) -> push 8942d39..ebef1c5. CI на v0.25.0 запущен автоматически.
+
+Stage Summary:
+- Мастер: ebef1c5 (v0.25.0). Сессия: 1 коммит, ~15 юнит-тестов, 3 root cause вскрыты и закрыты кодом.
+- ОЖИДАНИЯ к fleet-прогону v0.25.0: 'did not rise' с support=gravel/step=gravel исчезает ИЛИ climb проходит после pass-цикла; 'banked' > 0 (впервые с v0.19!); 'nothing to deposit' не убивает доставку (chestReport покажет хопы); 'cannot open chest' реже x2.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) скачать артефакты dispatch на ebef1c5 (dispatch запустить через workflow_dispatch run_fleet=true, дождавшись зелёного CI), сверить ожидания выше; (2) если banked всё ещё 0 - смотреть climb diag: pass-цикл горел на 'stalled' с dug>=8 на уровень = столб глубже 12 (поднять STEP_MAX_PASSES) или новая геометрия; (3) темп-фронт: 5.4 b/s уже хорош, следующий потолок - ore-steering vs dirt-питание; (4) airGlitches=462 (вырос с 67!) - смотреть breathing-guard/водные кластеры; (5) НЕ пушить при чужом PENDING dispatch; git pull --rebase перед пушем.
