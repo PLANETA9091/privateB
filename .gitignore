@@ -20,3 +20,6 @@ bun.lock
 ci-logs/
 data/fleet-report.json
 .dbg/
+
+# server runtime state (start stamp for the v0.18.16 falsifiable boot check)
+testbed/server/.start-stamp
