@@ -55,7 +55,11 @@ test('bad inputs fall back to safe defaults instead of NaN/Infinity', () => {
   assert.equal(reconnectDelayMs({ attempt: 1.9, rand: () => 0.5 }), 4000) // floors to 1
   assert.equal(reconnectDelayMs({ baseMs: -1, rand: () => 0.5 }), 2000)
   assert.equal(reconnectDelayMs({ jitter: 5, rand: () => 0.5 }), 2000) // clamped to 1 -> still centre
-  assert.equal(reconnectDelayMs({ rand: 'not a function' }), 2000) // falls back to Math.random path
+  // a non-function rand falls back to Math.random: the result is a random jitter
+  // draw, so only the SANITY CONTRACT can be asserted (integer, inside the global
+  // bounds) - an exact value here would be a flaky test (it failed CI once already)
+  const d = reconnectDelayMs({ rand: 'not a function' })
+  assert.ok(Number.isInteger(d) && d >= 750 && d <= 34000, `bad rand must still return a sane delay, got ${d}`)
 })
 
 test('zero phase span gives identical delays for all bots (degenerate but safe)', () => {
