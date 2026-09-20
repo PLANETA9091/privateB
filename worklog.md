@@ -709,3 +709,22 @@ Stage Summary:
 - Мастер: cb7e97d (v0.18.14). Сессия: 9 коммитов (v0.18.6..v0.18.14), 20+ юнит-тестов, 3 красных CI починены (все три - мои же тесты/флаги).
 - ЗАКРЫТЫ КЛАССЫ: oxygen-сенсор (v0.18.6, airGlitches -97.6%), фейковые rescue (rescues 72->4), потеря статистики при реконнектах (v0.18.9).
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) после зелёного CI на cb7e97d - DISPATCH run_fleet=true 600s: ожидания airGlitches<30, rescues<10, reconnects честные счётчики при штормах (статистика выживает), 'tunnel: steering' строки + iron_ore>10 (v0.18.8), banked>0; (2) НОВЫЙ fleet-server-log artifact = JVM-доказательство тик-стопов (grep 'Can't keep up' console.log + GC-паузы) - атрибуция штормов; (3) ЧИНИТЬ climb-out 'stalled' (боты заперты в шахтах - блокирует и bank и trips; y=41-60 банды, 'blocked toward' при dug=2 - лестница упирается в нер diggable?) и final-bank 'Path was stopped' (ретраить как timeout, cap выше 60s при 2x-обходах); (4) НЕ отменять чужие dispatch-ранны, git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0053 (part 2: fleet #131 v0.19.0 analysis, v0.19.1 evidence hooks, v0.19.2 flake fix)
+Agent: Z.ai Code (cron session, 00:53 +08)
+Task: Флот на v0.19.0, ретраи работают но banked=0; интрументирование; фикс flaky heartbeat-теста
+
+Work Log:
+- FLOTL OG v0.19.0 (dispatch 35525066418, 600s, SUCCESS): 2841 blocks @ 4.74 b/s, alive=19/19, kicks=0, server штормов НЕТ (0 Can't keep up), climbs=8 (F2 +22 @66s и F8 +21 @72s УСПЕШНЫ через wet-escape+stepUp - механика v0.19.0 работает), НО banked=0 снова: 19 yard-walk ретраев сработали, wait-rescue работает (F14 cleared=true), НО НИ ОДИН walk не дошёл; финальные ошибки "Path was stopped" x8.
+- РАССЛЕДОВАНИЕ Path was stopped: полная трасса mineflayer-pathfinder (goto.js: cleanup ТОЛЬКО на path_stop/goal_updated/noPath/goal_reached; path_stop эмитит ТОЛЬКО stop(); stopPathing=true ставит ТОЛЬКО bot.pathfinder.stop(); единственный вызыватель - jobqueue:200 catch). pathsemaphore чист (FIFO, без абортов). Water rescue НЕ виновата (F2: ZERO water events). Спойлеры path_reset: block_update->resetPath('block_updated') НЕ эмитит path_stop. ГИПОТЕЗА НЕ ПОДТВЕРЖДЕНА - причина осталась неизвестной, т.к. ретрай-цикл v0.19.0 ГЛОТАЛ ошибки промежуточных попыток.
+- v0.19.1 (adc0817): EVIDENCE HOOKS - (1) в smeltThenBank лог каждой попытки: "yard walk attempt N failed: <ErrorName>: <msg>", success-строка "yard walk arrived in Xs (N attempts)"; (2) path_reset/path_stop СПАИ на окно прогулки (причина resetPath: block_updated/chunk_loaded/goal_moved vs явный stop); (3) climb diag "did not rise" обогащён именами ячеек feet/support/step/head (теория моментума МЕРТВА: food=20, ретрай 24 тика не помог, x15 провалов - структурная причина, возможно водяная плёнка на полу от wet-escape галереи).
+- v0.19.2 (f4f7181): фикс flaky heartbeat-теста (CI 35525359987 v0.18.17 красный: 0 beats за 220ms на перегруженном 2-ядерном руннере) - поллинг до 5s вместо фиксированного окна. ПО УРОКУ: мой adc0817 упал на ТОМ ЖЕ тесте (гонка с пушем фикса), и integration упал на smelting-тесте "job timeout after 8000ms" @390s - FLAKE (на f4f7181 тот же тест зелёный).
+- Мастер f4f7181 (v0.19.2): CI ЗЕЛЁНЫЙ (unit 22+24, integration). Fleet dispatch запущен на f4f7181 (мой 35527733037 + параллельного агента 35527739603 - чужие не трогаю).
+- airGlitches=683 (был 61): застрявшее чтение oxygen=0 на "сухой земле" у бота в мелкой воде (20 строк "air-bar glitch ignored"), по дизайну игнорируется, утоплений нет. Наблюдение, действий нет.
+
+Stage Summary:
+- Мастер: f4f7181 (v0.19.2), CI зелёный. Сессия: 3 коммита (v0.19.0..v0.19.2), 7 тестов walkRetryPlan.
+- Движок добычи ОТЛИЧЕН: 4.7-5.5 b/s, 19/19 живы, штормов нет, climbing частично работает (2 успеха через wet-escape).
+- ГЛАВНАЯ ЗАГАДКА: почему 100% yard-walk умирают ~15-30с с "Path was stopped" при отсутствии внешних stop()-вызывателей. v0.19.1 спаи дадут ответ в след. прогоне.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) скачать fleet19-log dispatch на f4f7181, grep "bank walk path event" и "yard walk attempt N failed" - ЭТО ОТВЕТ ПОЧЕМУ; (2) по причине: block_updated xN - 19 ботов перекапывают путь (решение: liquidCost выше для yard-walk / выбор более чистого коридора / троттлинг чужих dig-рядом); path_stop explicit - искать второй вызов pathfinder.stop(); (3) climb "did not rise" - читать имена ячеек (water?); (4) heartbeat-тест теперь поллинг 5s - не откатывать; (5) git pull --rebase перед пушем.
