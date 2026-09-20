@@ -502,6 +502,55 @@ export function createMiner ({
     return { done, secs, rate: secs > 0 ? done / secs : 0 }
   }
 
+  // (v0.10.1) Horizontal 1x2 branch gallery - the cure for the floor lock. digShaft
+  // digs DOWN and breaks the moment pos.y <= floor; the caller's "next column" walk
+  // at that depth targets sealed stone and fails, so a bottomed-out bot froze for the
+  // rest of the run (600s fleet 35478370438: mined frozen at 987 for the last 222s -
+  // 37% of the run - with 19/19 bots alive and holding stone picks). tunnel() mines
+  // SIDEWAYS instead: dig the feet-level cell, dig the head-level cell, WALK in
+  // (pathfinder sees the open tunnel - no fly calls, ground-mode safe), repeat.
+  // Bounded by maxBlocks; never throws; every block is credited through stats.
+  async function tunnel (dir, { maxBlocks = 12, names = null, shouldStop = null } = {}) {
+    enablePhysicsMode()
+    configureGroundMovements()
+    stats.startedAt = stats.startedAt || Date.now()
+    const start = Date.now()
+    const d = new Vec3(Math.sign(dir.x) || 1, 0, Math.sign(dir.z) || 0)
+    let done = 0
+    try {
+      while (done < maxBlocks && !shouldStop?.() && bot.entity) {
+        const feetCell = bot.entity.position.floored().offset(d.x, 0, d.z)
+        const feetB = bot.blockAt(feetCell)
+        const headB = bot.blockAt(feetCell.offset(0, 1, 0))
+        // lava/water ahead: stop this gallery, the caller rotates the direction
+        if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) break
+        // bedrock / out-of-world / a block the caller did not ask for: honest stop
+        if ((!feetB || feetB.type === 0) && (!headB || headB.type === 0)) {
+          // already open - just walk in
+        } else if (feetB && (!names || names.includes(feetB.name)) && feetB.boundingBox !== 'empty') {
+          try { await bot.fastDig(feetB) } catch { break }
+          done++
+          stats.mined++
+          stats.byName[feetB.name] = (stats.byName[feetB.name] || 0) + 1
+        } else break
+        if (headB && headB.type !== 0 && headB.boundingBox !== 'empty' && (!names || names.includes(headB.name))) {
+          try { await bot.fastDig(headB) } catch { /* headroom may stay - step may still fit */ }
+          done++
+          stats.mined++
+          stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
+        }
+        if (done >= maxBlocks || shouldStop?.() || !bot.entity) break
+        // walk one cell forward through the freed tunnel
+        try {
+          await gotoSafe(bot, standGoalNear(bot, goals, feetCell.x + 0.5, feetCell.y, feetCell.z + 0.5, { range: 1 }), { timeoutMs: 8000, label: 'tunnel step' })
+        } catch { break } // sealed ahead: the caller rotates
+        await bot.waitForTicks(2) // gravity/step settle before the next cut
+      }
+    } catch { /* never break the caller's loop */ }
+    const secs = (Date.now() - start) / 1000
+    return { done, secs, rate: secs > 0 ? done / secs : 0 }
+  }
+
   // Bore in a straight line (dir is one of up/down/north/...): dig the next cell,
   // step into it, dig again. No travel time and the drops land exactly where the bot
   // steps, so nothing can be lost. This is the max-throughput, zero-loss mode.
@@ -1374,7 +1423,7 @@ export function createMiner ({
     return res
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.

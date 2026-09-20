@@ -226,6 +226,7 @@ async function runBot (name, target, index) {
       let lastTrip = Date.now() // (v0.8.3) time-based map-trip cadence
       let shaft = 0
       let lastNightLog = 0 // one deferral line per night per bot, not one per loop
+      let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
@@ -249,7 +250,7 @@ async function runBot (name, target, index) {
           console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} -> ${res.tier || 'none'} (${res.detail})`)
         }
         let interrupted = false
-        await miner.digShaft(namesFor(hasPickNow()), {
+        const shaftRes = await miner.digShaft(namesFor(hasPickNow()), {
           minY: 24,
           shouldStop: () => {
             if (Date.now() > deadline || !miner.bot.entity) return true
@@ -258,8 +259,25 @@ async function runBot (name, target, index) {
             return false
           }
         })
+        // FLOOR LOCK (v0.10.1, 600s fleet 35478370438): a bottomed-out bot's shaft
+        // breaks instantly on minY, the "next column" walk targets sealed stone and
+        // fails, and the bot froze for the rest of the run (mined frozen at 987 for
+        // the last 222s - 37% of the run - with 19/19 alive). Two empty shafts in a
+        // row mean we are sealed in at the floor: branch-mine sideways instead of
+        // idling. The direction rotates each attempt so 19 bots spread their galleries.
+        if (interrupted) continue
+        if ((shaftRes.done ?? 0) === 0) emptyShafts++
+        else emptyShafts = 0
+        if (emptyShafts >= 2 && hasPickNow()) {
+          emptyShafts = 0
+          const tdir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
+          try {
+            const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(hasPickNow()), shouldStop: () => Date.now() > deadline })
+            console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor)`)
+          } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
+          continue // fresh column walk below still applies
+        }
         if (Date.now() > deadline || !miner.bot.entity) break
-        if (interrupted) continue // recovery OR upgrade is due - skip the walk/trip, let the top of the loop handle it
         // pockets nearly full: merge fragmented planks into sticks (KEEP keeps planks,
         // so 12-type fragmentation is permanent otherwise), then smelt the raw loot
         // and bank the products in the yard's chest rows before digging on (a full
