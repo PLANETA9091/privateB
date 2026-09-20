@@ -13,7 +13,7 @@ import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
 import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
-import { stalledButCraftable } from '../lib/woodplan.mjs'
+import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
 import {
@@ -2035,7 +2035,7 @@ export function createMiner ({
   // name, or null when the map had nothing reachable. Failed destinations land in
   // failedTrips so the fleet never re-bounces on them.
   const SURFACE_NAMES = new Set(['sand', 'gravel', 'clay', 'dirt', 'grass_block'])
-  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = 14000, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
+  async function mapTrip (findNames, { digNames = null, walkTimeoutMs = TRIP_WALK_MS, maxBlocks = 24, maxDistance = 128, harvestSeconds = 40, direction = null, shouldStop = null } = {}) {
     const target = mapTargetFor(findNames, { maxDistance, verify: false })
     // structured result: the fleet logs failures ('unreachable') - silent map trips
     // looked like the feature never fired (it never printed a line in 3 CI runs)

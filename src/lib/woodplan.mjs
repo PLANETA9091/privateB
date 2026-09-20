@@ -61,3 +61,26 @@ export function stalledButCraftable ({ logs, goodEnough, msSinceGain, stallMs })
   if (!Number.isFinite(msSinceGain) || msSinceGain < stallMs) return false
   return true
 }
+
+// (v0.17.1) Map-trip gate, extracted from fleet19 so CI can test the arithmetic.
+// WHY NOW: fleet #122 skipped ALL 23 trips - 14x 'cannot leave the shaft' (the
+// bot was underground when the 75s cadence fired) and 9x 'unreachable', where the
+// walk budget (14s) was physically shorter than the distance it licensed (targets
+// up to 128 blocks away need 30s+ of pathfinding+walking). A walkable-but-slow
+// shore was then remembered in failedTrips - a self-inflicted blacklist.
+// The gate now ALSO refuses to start a trip the run cannot finish: a trip needs
+// its walk budget (45s), the harvest (40s) and the way back, so <150s remaining
+// means: keep mining instead of dying mid-beach when the deadline hits.
+export function tripDue ({ hasPick, emptyShafts, msSinceLast, remainingMs, cadenceMs = 75000, minRemainingMs = 150000 }) {
+  if (!hasPick) return false
+  if (emptyShafts !== 0) return false // bottomed-out bots: sealed-stone A*, the v0.11.2 explosion class
+  if (!Number.isFinite(msSinceLast) || msSinceLast <= cadenceMs) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
+  return true
+}
+
+// Walk budget for a map trip: the target may be up to `maxDistance` blocks away.
+// The old 14s default licensed 128-block walks - mathematically impossible on
+// foot (~4 blocks/s plus pathfinding thought time), so every far shore failed as
+// 'unreachable'. 45s spans the licensed range with headroom for one detour.
+export const TRIP_WALK_MS = 45000

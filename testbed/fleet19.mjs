@@ -22,7 +22,7 @@ import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
-import { recoveryDue } from '../src/lib/woodplan.mjs'
+import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -424,7 +424,7 @@ async function runBot (name, target, index) {
         // 60-120s, so "every 3rd shaft" meant most bots never tripped even once in a
         // 300s run (0 "map trip" lines in three CI fleets). Cheap when the map has
         // nothing nearby: no-target returns in microseconds.
-        if (hasPickNow() && emptyShafts === 0 && Date.now() - lastTrip > 75000) {
+        if (tripDue({ hasPick: hasPickNow(), emptyShafts, msSinceLast: Date.now() - lastTrip, remainingMs: deadline - Date.now() })) {
           // (v0.11.2) emptyShafts gate: every bottomed-out bot's map trip is a
           // sealed-stone A* toward a surface position - 38x 'unreachable' in three
           // runs and the same explosion class as the next-column walk. Underground
@@ -432,6 +432,9 @@ async function runBot (name, target, index) {
           // NIGHT WALK GATE (v0.10.0): the fleet loses bots to night SURFACE mobs
           // ("night mob kill streak - 7 deaths measured"), not to shafts. A deferred
           // trip becomes more shaft - the walk happens after dawn instead.
+          // (v0.17.1) tripDue also refuses trips the run cannot FINISH: fleet #122
+          // skipped all 23 trips - 9x 'unreachable' were walks the 14s budget could
+          // never span (targets up to 128 blocks need 30s+ on foot).
           const tod = miner.bot.time?.timeOfDay
           if (walkForbidden(tod)) {
             if (Date.now() - lastNightLog > 120000) {
@@ -451,7 +454,7 @@ async function runBot (name, target, index) {
                 // direction + shouldStop feed the surface-harvest mode (beaches are eaten
                 // sideways, and the deadline always wins); digNames is the full stone list
                 // for the ore/stone descent mode
-                const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, shouldStop: () => Date.now() > deadline })
+                const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, walkTimeoutMs: TRIP_WALK_MS, shouldStop: () => Date.now() > deadline })
                 if (trip.name) console.log(`${name} map trip: ${trip.name}`)
                 else if (trip.error === 'unreachable') console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
               } catch (e) { console.log(`${name} map trip failed: ${e.message}`) }
