@@ -112,11 +112,16 @@ test('a rescue returning mid-retry still cannot loop the walk open-ended', async
 
 test('a NON-rescue walk failure returns immediately (no pointless retry)', async () => {
   const chest = { position: new Vec3(30, 64, 30) }
-  const bot = makeMockBot({
-    chest,
-    items: [item('cobblestone', 5)],
-    gotoScript: [new Error('no path')]
-  })
+  const bot = makeMockBot({ items: [item('cobblestone', 5)] })
+  bot._gotoScript = [new Error('no path')]
+  // a FAITHFUL scanner: the real findChest matching predicate (with the v0.23.1
+  // exclude list) runs against the world - the only chest gets excluded after its
+  // No-path hop attempt, the re-scan finds nothing, no second walk ever starts
+  bot.findBlock = ({ matching, maxDistance }) => {
+    if (!matching(chest)) return null
+    const d = bot.entity.position.distanceTo(chest.position)
+    return d <= maxDistance ? chest : null
+  }
   const res = await depositToChest(bot)
   assert.equal(res.deposited, 0)
   assert.match(res.reason, /no path/)

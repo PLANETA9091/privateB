@@ -350,16 +350,19 @@ export function climbStarted (c) {
 //   air), solid = the cell at feet level is a solid floor to walk on
 // @param {number} [p.minDirs] walkable directions required (default 2)
 // @returns {boolean} true = the bot stands on a walkable surface, stop climbing
-export function isWalkableSurface ({ skyLit = false, probes = null, minDirs = 2 } = {}) {
-  if (skyLit !== true || typeof probes !== 'function') return false
-  const need = Number.isFinite(minDirs) && minDirs >= 1 ? Math.floor(minDirs) : 2
+export function isWalkableSurface (p) {
+  const o = p && typeof p === 'object' ? p : {} // junk-tolerant, like climbEntry
+  const skyLit = o.skyLit === true
+  const probes = typeof o.probes === 'function' ? o.probes : null
+  const minDirs = Number.isFinite(o.minDirs) && o.minDirs >= 1 ? Math.floor(o.minDirs) : 2
+  if (!skyLit || !probes) return false
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]
   let open = 0
   for (const [dx, dz] of dirs) {
     let c = null
     try { c = probes(dx, dz) } catch { c = null }
     if (c && c.free === true && c.solid === true) open++
-    if (open >= need) return true
+    if (open >= minDirs) return true
   }
   return false
 }

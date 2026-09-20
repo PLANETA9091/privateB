@@ -172,7 +172,12 @@ export async function depositToChest (bot, {
     if (!chestBlock && exclude.length === 0 && /No path/i.test(lastMsg) && chest.position) {
       const dead = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
       if (dead && Number.isFinite(dead.x)) {
-        return depositToChest(bot, { keep, maxDistance, log, timeoutMs, exclude: [dead] })
+        // the hop is a resilience attempt: report the PRIMARY failure ('No path to
+        // the nearest chest') when the second candidate also fails, and the second
+        // candidate's success when it does not
+        const second = await depositToChest(bot, { keep, maxDistance, log, timeoutMs, exclude: [dead] })
+        if (second.deposited > 0) return second
+        return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
       }
     }
     return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
