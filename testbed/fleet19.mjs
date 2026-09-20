@@ -18,6 +18,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/deposit.mjs'
+import { finalBankDelayMs } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -609,6 +610,16 @@ async function runBot (name, target, index) {
       const bankable = miner.bot.entity &&
         miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
       if (bankable) {
+        // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
+        // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
+        // path throttle 6a/10q - every walk budget burned in the queue). Index-
+        // spread slots give each climb + walk a quieter throttle and yard; the
+        // reporter keeps printing (t-0s) and the process end shifts by the cap.
+        const delayMs = finalBankDelayMs({ index })
+        if (delayMs > 0 && Date.now() >= deadline) {
+          console.log(`${name} final bank: staggered +${Math.round(delayMs / 1000)}s`)
+          await new Promise(r => setTimeout(r, delayMs))
+        }
         try {
           // (v0.12.0) the bot ends the run at the bottom of its last shaft: without
           // the climb this walk always failed and the final banked= stayed 0
