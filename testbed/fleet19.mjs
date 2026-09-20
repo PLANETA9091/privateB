@@ -21,7 +21,7 @@ import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/dep
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats } from '../src/lib/jobqueue.mjs'
 import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
@@ -612,7 +612,10 @@ const reporter = setInterval(() => {
   const cols = gs.reduce((a, s) => a + s.columns, 0)
   const ents = gs.reduce((a, s) => a + s.entities, 0)
   const evicted = gs.reduce((a, s) => a + s.evicted, 0)
-  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted}`)
+  // (v0.17.4) path throttle visibility: fleet #124 starved invisibly - the next
+  // freeze must show up as maxActive/queued in the log, not as a silent gap
+  const ps = pathThrottleStats()
+  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive})`)
 }, 15000)
 
 await Promise.all(runners)

@@ -177,6 +177,17 @@ export class MiningJobQueue {
 // searchRadius unbounded each such zombie search retained millions of graph nodes -
 // 19 bots in that state were the Big Fleet's 4 GB heap OOM (v0.6.4 investigation:
 // heap 109 MB -> 3550 MB in ~35 s, 99.6 % of it live A* state, reporter starved).
+//
+// (v0.17.4) THE CPU CLIFF: the memory half of that fix (heap cap) stopped the OOM,
+// but fleet #124 starved the same way WITHOUT memory pressure - 19 simultaneous A*
+// searches oversubscribed the 2-core runner, physics and the reporter stalled for
+// minutes, 15 connections died, stat counters reset. Every goto now runs under a
+// fleet-wide throttle; the per-call timeout starts on ACTIVATION (queued time is
+// free), and callers already treat goto as best-effort so a bounded wait is safe.
+import { createPathThrottle } from './pathsemaphore.mjs'
+const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
+export function pathThrottleStats () { return fleetPaths.stats() }
+
 export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {}) {
   // (v0.13.0) drowning rescue gate: while a swim rescue is in flight the
   // pathfinder must NOT issue new goals - each one re-engages its own control
@@ -184,7 +195,7 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {})
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
-  return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label).catch(e => {
+  return fleetPaths.run(() => withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
     // next physics tick. A goto started inside that ~50 ms window inherits the
