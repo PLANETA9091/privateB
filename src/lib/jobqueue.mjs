@@ -185,6 +185,7 @@ export class MiningJobQueue {
 // fleet-wide throttle; the per-call timeout starts on ACTIVATION (queued time is
 // free), and callers already treat goto as best-effort so a bounded wait is safe.
 import { createPathThrottle } from './pathsemaphore.mjs'
+import { RESCUE_MAX_MS } from './drowning.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
@@ -208,6 +209,45 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {})
       : Promise.resolve()
     return settle.then(() => { throw e })
   })
+}
+
+// (v0.18.2) Bounded wait for the drowning-rescue interlock to clear.
+//
+// MEASURED (CI run 35511474490, smelting pipeline): the smelt bot dug its shaft
+// into a water pocket - 'rescue start (oxygen 14)' - and placed its furnace
+// anyway. The furnace walk 2 s later was refused x3 at 500 ms apart (all inside
+// the rescue's 25 s window) and the whole visit aborted on 'machine unreachable'
+// - while the rescue still had 23 s of window that would have cleared. The same
+// interlock ate F8's final bank ('walk to yard refused').
+//
+// The gate itself stays FAIL-FAST on purpose (a pathfinder goal mid-swim fights
+// the raw controls). This helper is for RETRYING callers: wait until the rescue
+// finished (or its window expired) before burning the next attempt.
+//
+// @param {object} bot a mineflayer bot (or a mock with the same _waterRescue flag)
+// @param {object} [p]
+// @param {number} [p.maxMs] total wait ceiling - defaults to the rescue's own
+//   window plus settle margin (a rescue that outlives its window is a stuck
+//   sentry, and the caller's own retry bound must stop it, not this helper)
+// @param {number} [p.pollMs] poll interval
+// @param {Function} [p.sleep] injectable delay (tests use a fake clock)
+// @returns {Promise<boolean>} true = the interlock cleared, false = still held
+//   after maxMs (or the bot object was absent)
+export async function waitForWaterRescueClear (bot, {
+  maxMs = RESCUE_MAX_MS + 5000,
+  pollMs = 1000,
+  sleep = ms => new Promise(r => setTimeout(r, ms))
+} = {}) {
+  if (!bot) return false
+  const budget = Number.isFinite(maxMs) && maxMs > 0 ? maxMs : RESCUE_MAX_MS + 5000
+  const step = Number.isFinite(pollMs) && pollMs > 0 ? pollMs : 1000
+  let waited = 0
+  while (bot._waterRescue && waited < budget) {
+    const slice = Math.min(step, budget - waited)
+    await sleep(slice)
+    waited += slice
+  }
+  return !bot._waterRescue
 }
 
 // A walk goal the fleet can actually reach: snap the requested column to the nearest

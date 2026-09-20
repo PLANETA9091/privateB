@@ -9,7 +9,7 @@
 // Every transfer is VERIFIED like in deposit.mjs: the 26.2 stack silently drops some
 // window clicks, so inventory counts before/after are the only truth.
 import pathfinderPkg from 'mineflayer-pathfinder'
-import { gotoSafe, withTimeout } from './jobqueue.mjs'
+import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -206,12 +206,24 @@ export async function smeltBatch (bot, {
   // still stands simply walks again. Bounded: 3 attempts, settle pause between.
   let lastWalkError = 'never attempted'
   let walked = false
+  let rescueWaited = false // (v0.18.2) one bounded clear-wait per visit
   for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
     try {
       await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: 20000, label: 'walk to furnace' })
       walked = true
     } catch (e) {
       lastWalkError = e.message
+      // (v0.18.2) the 500 ms token pause cannot outlive a drowning rescue: CI
+      // 35511474490 measured all 3 attempts refused inside the rescue's 25 s
+      // window (furnace walk 2 s after 'rescue start (oxygen 14)') and the
+      // visit aborted 'machine unreachable' while the rescue would have
+      // cleared. The gate stays fail-fast; a retrying caller WAITS for it to
+      // clear - once per visit, bounded by the rescue's own window + margin.
+      if (!rescueWaited && /water rescue in progress/.test(e.message)) {
+        rescueWaited = true
+        const cleared = await waitForWaterRescueClear(bot)
+        log(`${tag} walk refused by a water rescue - ${cleared ? 'rescue cleared, walking again' : 'wait timed out'}`)
+      }
       await new Promise(r => setTimeout(r, 500)) // let the interrupting path/control settle
     }
   }
