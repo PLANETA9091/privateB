@@ -8,18 +8,22 @@
 //   (the yard's chests, the furnace bay, the map's sand shores) is unreachable,
 //   so the entire smelt+bank+trip economy never runs.
 //
-// THE CURE is the oldest mining trick there is: the PILLAR JUMP. The column
-// above the bot is open (the bot dug it), so it leaps, places a block beneath
-// itself at the apex, lands on it, and repeats - one level per jump, no
-// pathfinder, no stair excavation. When the column above IS blocked (cave
-// overhang, tunnel ceiling) the same jump digs through up to a small budget of
-// ceiling blocks first; fluids and undiggable blocks stop the climb honestly.
+// THE CURE: the bot digs itself out. A 45-degree DIG STAIRCASE (clear the two
+// step cells diagonally up, step onto them with forward+jump - vanilla movement
+// that three fleets of tunnels already proved) costs ~2 digs + 1 jump per level
+// and needs NO block placement at all. The first implementation pillar-jumped
+// (leap + place a block beneath at the apex); three CI fleets killed it - the
+// height poll read a perfectly clear 1.12-1.20 above the fill cell and the
+// server STILL rejected every placement (fleet 112 diag: 'no place (height
+// 1.17, cleared=true)' x20+). Placement is server-suspect on this stack;
+// digging + movement are not. The pillar policy helpers below stay exported
+// (PILLAR_BLOCKS, pickPillarBlock, pillarPlacement) for the day placement is
+// retried with a different transport; the mechanics in miner.mjs climbOut do
+// NOT use them.
 //
-// This module pins the POLICY; the mechanics live in miner.mjs (climbOut):
+// This module pins the POLICY:
 // - where the climb should stop (recorded shaft entry y > sky-lit cell > cap);
-// - which inventory item becomes the pillar (stone-family drops, never planks);
-// - which wall block is the placement reference and which face vector follows;
-// - which ceilings may be dug through on the way up.
+// - which ceilings may be dug through on the way up (fluids/undiggable stop).
 
 // cells scanned above the head when looking for daylight / an open runway
 export const SKY_SCAN_MAX = 96

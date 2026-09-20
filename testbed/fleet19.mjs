@@ -216,15 +216,15 @@ async function runBot (name, target, index) {
       // (interrupted -> continue), so a due recovery preempts the current shaft within
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
       const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
-      // (v0.12.0) Pillar-jump shaft exit: digShaft strands every bot at the bottom of
+      // (v0.12.0, v0.14.0) Shaft exit: digShaft strands every bot at the bottom of
       // a 1x1 hole and the pathfinder cannot climb out of what it did not dig stairs
       // into - fleet 35485296464 ended banked=0 smelted=0 sand=0 with sand=110 known
-      // positions (38x 'map trip skipped: unreachable'). climbOut leaps + places a
-      // block beneath itself one level at a time until the recorded shaft entry level
-      // (or daylight) is reached, then surface goals path normally again.
+      // positions (38x 'map trip skipped: unreachable'). climbOut digs a 45-degree
+      // staircase (proven fastDig + raw forward/jump movement) until the recorded
+      // shaft entry level (or daylight) is reached, then surface goals path normally.
       const ensureSurface = async reason => {
         const r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
-        if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.placed} placed, ${r.dug} ceiling dug, ${r.secs?.toFixed(0)}s)`)
+        if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}`)
         return r.ok
       }

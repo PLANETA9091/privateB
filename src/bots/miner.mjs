@@ -17,9 +17,7 @@ import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
 import {
-  pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
-  PILLAR_FAIL_LIMIT, PILLAR_LAND_TICKS,
-  PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS, CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
+  pillarTarget, climbableCeiling, PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -1616,20 +1614,27 @@ export function createMiner ({
   }
 
   // ---------------------------------------------------------------- climb out
-  // PILLAR-JUMP exit from the 1x1 dig shaft (v0.12.0). The pathfinder cannot
+  // STAIRCASE exit from the 1x1 dig shaft (v0.14.0). The pathfinder cannot
   // climb out of a shaft the bot dug straight down (no stairs, no ladder) - which
   // stranded every bot underground and made the whole surface economy dead:
   // fleet 35485296464 (600s) ended banked=0 smelted=0 sand=0 with sand=110 KNOWN
-  // positions on the map and 38x 'map trip skipped: unreachable'. The shaft above
-  // the bot is open (the bot dug it), so the climb is the classic survival move:
-  // leap, place a block beneath us at the apex, land on it, repeat - one level per
-  // jump. Cave overhangs and tunnel ceilings on the way are dug through (bounded);
-  // fluids and undiggable blocks stop the climb honestly instead of drowning it.
+  // positions on the map and 38x 'map trip skipped: unreachable'.
+  //
+  // The first implementation pillar-jumped (leap + place a block beneath at the
+  // apex). Three CI fleets killed it: the height poll reads a perfectly clear
+  // 1.12-1.20 above the fill cell (fleet 112 diag) and the server STILL rejects
+  // every placement - mineflayer's placeBlock waits for a block-update that
+  // never comes, the timeout burns wall after wall, 0 climbs succeeded. Block
+  // PLACEMENT is server-suspect; block DIGGING + raw movement are proven by
+  // three fleets of tunnels (53 full tunnels in fleet 35485296464 alone).
+  // So the climb is now a 45-degree DIG STAIRCASE: clear the step cells
+  // diagonally up, then step onto them with forward+jump (vanilla movement,
+  // always legal). ~2 digs + 1 jump per level, no placement anywhere.
   // Never throws: a failed climb costs the caller its trip/banking, not the bot.
   async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
-    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, placed: 0, dug: 0 }
+    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug: 0, steps: 0 }
     const feet0 = bot.entity.position.floored()
     const blockAtDy = dy => {
       try { return bot.blockAt(feet0.offset(0, dy, 0)) } catch { return null }
@@ -1643,103 +1648,78 @@ export function createMiner ({
     }
     const entryY = Number.isFinite(stats.shaftEntryY) ? stats.shaftEntryY : null
     const plan = pillarTarget({ feetY: feet0.y, targetY: entryY, skyLitAt, maxUp })
-    if (plan.levels <= 1) return { ok: true, reason: `already out (${plan.source})`, gained: 0, placed: 0, dug: 0 }
-    // dir = the way the caller is headed (deployment direction / yard bearing):
-    // only used to pick the wall for the one-block bootstrap dig, so any cardinal
-    // sign of it is good enough
-    const d = new Vec3(Math.sign(dir?.x ?? 1) || 1, 0, Math.sign(dir?.z ?? 0) || 0)
-    let placed = 0
+    if (plan.levels <= 1) return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0 }
+    // horizontal bearing for the staircase: the caller's deployment direction is
+    // a fine default (it leads AWAY from the yard); snap it to a pure cardinal
+    const raw = dir && (dir.x || dir.z) ? dir : new Vec3(1, 0, 0)
+    let d = Math.abs(raw.x) >= Math.abs(raw.z)
+      ? new Vec3(Math.sign(raw.x) || 1, 0, 0)
+      : new Vec3(0, 0, Math.sign(raw.z) || 1)
+    const rotate = () => { d = new Vec3(-d.z, 0, d.x) } // 90 degrees: a refused wall rotates away
     let dug = 0
+    let steps = 0
     let fails = 0
-    let equipped = null
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     const start = Date.now()
-    const done = () => ({ ok: !bot.entity ? false : bot.entity.position.floored().y >= plan.targetY, reason: 'done', gained: (bot.entity ? bot.entity.position.floored().y : feet0.y) - feet0.y, placed, dug, secs: (Date.now() - start) / 1000 })
-    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && placed < maxUp && Date.now() - start <= maxMs) {
+    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && steps < maxUp && Date.now() - start <= maxMs) {
       const feet = bot.entity.position.floored()
-      if (feet.y >= plan.targetY) return { ...done(), reason: 'out' }
-      // headroom: the jump needs the two cells above the feet free. Solid ones are
-      // dug through (bounded by CEILING_DIG_LIMIT); fluids/undiggable stop the climb.
+      if (feet.y >= plan.targetY) break
+      // headroom for the step-up jump: the two cells above the feet. Inside the
+      // shaft both are open (the bot dug them on the way down); a cave overhang
+      // is dug through under the bounded ceiling budget. Fluids/bedrock stop.
       let blocked = false
-      for (const dy of [1, 2]) {
-        const cellB = bot.blockAt(feet.offset(0, dy, 0))
+      for (const cell of [feet.offset(0, 1, 0), feet.offset(0, 2, 0), feet.offset(d.x, 1, d.z), feet.offset(d.x, 2, d.z)]) {
+        const cellB = bot.blockAt(cell)
         const verdict = climbableCeiling(cellB)
         if (verdict === 'free') continue
-        if (verdict !== 'dig' || dug >= CEILING_DIG_LIMIT) { blocked = true; break }
+        if (verdict !== 'dig' || dug >= PILLAR_LEVEL_CAP * 2) { blocked = true; break }
         try {
           if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
           else { blocked = true; break }
         } catch { blocked = true; break }
       }
-      if (blocked) { fails++; await bot.waitForTicks(10); continue }
-      // pillar stock: pockets first, then a ONE-block wall dig as bootstrap (stone
-      // walls refuse bare hands - the dig is honest, a refusal just fails the climb)
-      let item = pickPillarBlock(inventoryItems(bot))
-      if (!item) {
-        const wall = bot.blockAt(feet.offset(d.x, 0, d.z))
-        if (!wall || wall.type === 0) break
-        try { await bot.fastDig(wall) } catch { break }
-        item = pickPillarBlock(inventoryItems(bot))
-        if (!item) break // dug, but nothing dropped (bare-handed stone): cannot pillar
+      // the step needs solid ground at (feet + d) to land on - a cave gap there
+      // is not a stair, rotate and try the next wall
+      const support = bot.blockAt(feet.offset(d.x, 0, d.z))
+      if (!blocked && (!support || support.boundingBox !== 'block')) blocked = true
+      if (blocked) {
+        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug})`)
+        fails++
+        rotate()
+        await bot.waitForTicks(4)
+        continue
       }
+      // the step: look at the diagonal cell, hold forward + jump - vanilla
+      // movement onto a dug step, the exact mechanic the tunnels use sideways
+      let rose = false
       try {
-        if (equipped !== item.name) { await bot.equip(item, 'hand'); equipped = item.name }
-      } catch { break }
-      // the jump: look straight down, leap, and place the block into the cell the
-      // feet are leaving AS SOON AS the feet actually clear it - by measurement,
-      // not by a fixed tick count. mineflayer's jump height does not exactly match
-      // vanilla's 1.25 (physics integration differs by version/patching), so tick-5
-      // and tick-8 placements both produced server rejections (fleet 35488918930:
-      // 6 climbs OK, fleet after the tick-8 'fix': 0/15). The height poll below is
-      // self-timing: place the moment the AABB is provably clear (>= 1.02 above
-      // the fill cell), no matter how the physics integrate the impulse.
-      let okPlace = false
-      let placeHeight = 0
-      try {
-        await bot.look(bot.entity.yaw, Math.PI / 2, false)
+        await bot.lookAt(feet.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
+        bot.setControlState('forward', true)
         bot.setControlState('jump', true)
-        const fill = feet // the cell we are jumping out of
-        let cleared = false
-        for (let t = 0; t < 16 && bot.entity; t++) {
-          await bot.waitForTicks(1)
-          placeHeight = bot.entity.position.y - fill.y
-          if (placeHeight >= 1.02) { cleared = true; break }
-        }
-        if (cleared) {
-          for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            const ref = bot.blockAt(fill.offset(dx, 0, dz))
-            if (!ref || ref.boundingBox !== 'block') continue
-            try {
-              await withTimeout(bot.placeBlock(ref, new Vec3(-dx, 0, -dz)), PILLAR_PLACE_TIMEOUT_MS, 'pillar place')
-              okPlace = true
-              break
-            } catch { /* next wall */ }
-          }
-        }
+        await bot.waitForTicks(12)
+        bot.setControlState('forward', false)
+        bot.setControlState('jump', false)
+        await bot.waitForTicks(4) // gravity settles us onto the step
+        rose = bot.entity.position.floored().y > feet.y
       } catch { /* fail accounting below */ }
-      bot.setControlState('jump', false)
-      await bot.waitForTicks(PILLAR_LAND_TICKS) // land on the fresh block (or the floor)
-      const now = bot.entity.position.floored()
-      if (!okPlace && diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} no place (height ${placeHeight.toFixed(2)}, cleared=${placeHeight >= 1.02})`)
-      // a y-jump of more than 3 levels without a placement is not climbing - it is
-      // a respawn/teleport (fleet 35488918930: a bot that died mid-climb respawned
-      // at the surface and the climb reported +31 gained with 0 placed, 4 s). Stop
-      // honestly instead of crediting the teleport to the climb.
-      if (now.y - feet.y > 3) return { ok: false, reason: 'teleport', gained: now.y - feet0.y, placed, dug }
-      if (okPlace && now.y > feet.y) { placed++; fails = 0 } else { fails++ }
-      await bot.waitForTicks(2)
+      if (rose) { steps++; fails = 0 } else {
+        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} did not rise (yaw stuck?)`)
+        fails++
+        rotate()
+        await bot.waitForTicks(4)
+      }
     }
-    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, placed, dug }
+    if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug, steps }
     const feetNow = bot.entity.position.floored()
     const ok = feetNow.y >= plan.targetY
     if (ok) stats.climbs = (stats.climbs ?? 0) + 1
     const timedOut = Date.now() - start > maxMs
     return {
       ok,
-      reason: ok ? 'out' : (timedOut ? 'timeout' : (placed + dug === 0 ? 'nothing to climb with' : 'stalled')),
+      reason: ok ? 'out' : (timedOut ? 'timeout' : (fails >= PILLAR_FAIL_LIMIT ? 'stalled' : 'stopped')),
       gained: feetNow.y - feet0.y,
-      placed,
       dug,
+      steps,
       secs: (Date.now() - start) / 1000
     }
   }
