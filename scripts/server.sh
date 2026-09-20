@@ -31,24 +31,53 @@ server_pids () {
   # server.jar nogui"; this pattern deliberately does not match the shell running
   # this script, and tolerates flags between -Xmx and -jar (the v0.18.13 GC flag
   # lesson: -Xlog:gc landed between them and the old pattern stopped matching -
-  # fail-fast declared the server dead after one 2s iteration)
-  pgrep -f -- '-Xmx[0-9]+[GgMm] .*-jar server\.jar nogui$' || true
+  # fail-fast declared the server dead after one 2s iteration).
+  # (v0.18.15) NO trailing anchor: a live server measured with cmdline ending at
+  # `-jar server.jar` (nogui missing on an older start path) made `stop` a silent
+  # no-op forever. The unanchored pattern also catches the fifo-bash wrapper
+  # (`bash -c tail -f cmd.fifo | java ... server.jar nogui`) - stop wants BOTH dead,
+  # and killing the wrapper first orphans the JVM otherwise. `pgrep -f` matches the
+  # full cmdline, so every hit here contains -Xmx AND -jar server.jar: no false
+  # positives on the tail/editor/tooling processes.
+  pgrep -f -- '-Xmx[0-9]+[GgMm] .*-jar server\.jar' || true
 }
+
+# Count the boot-completed lines in the server log. `start` needs a FRESH one:
+# (v0.18.15) the old check was `grep -q "Done ("` - ANY historical Done counted,
+# so when stop had silently missed a stale JVM, start's fail-fast never saw the
+# port-busy death of the NEW jvm (the old one still matched server_pids) and
+# start printed "server up" instantly - while the world it had just deleted was
+# still held open by the zombie. (v0.18.15) A Done COUNT cannot work either -
+# vanilla rotates latest.log on every boot, so a fresh boot restarts the count
+# at 1 and `> before` never fires (measured live). The falsifiable up-check is
+# -nt against a stamp touched at launch: latest.log must be NEWER than this
+# start attempt, so historical Done lines can never satisfy a fresh start.
 
 case "${1:-status}" in
   stop)
     for p in $(server_pids); do kill "$p"; done
-    sleep 4
-    server_pids > /dev/null && echo "still running" || echo "stopped"
+    # (v0.18.15) TERM then verify-gone; a JVM that ignores TERM gets KILLed - the
+    # old one-kill-and-hope left zombies holding port 25565 and the deleted world
+    for _ in $(seq 1 10); do
+      [ -z "$(server_pids)" ] && break
+      sleep 1
+    done
+    if [ -n "$(server_pids)" ]; then
+      for p in $(server_pids); do kill -9 "$p" 2>/dev/null; done
+      sleep 1
+    fi
+    [ -z "$(server_pids)" ] && echo "stopped" || { echo "still running: $(server_pids)"; exit 1; }
     ;;
   start)
     if [ ! -p "$DIR/cmd.fifo" ]; then mkfifo "$DIR/cmd.fifo"; fi
     cd "$DIR"
+    STAMP="$DIR/.start-stamp"
+    touch "$STAMP" 2>/dev/null || STAMP=/dev/null
     setsid nohup bash -c "tail -f cmd.fifo | '$JAVA_BIN' -Xms1G -Xmx2G -Xlog:gc -jar server.jar nogui" >> "$DIR/console.log" 2>&1 < /dev/null &
     disown || true
     for _ in $(seq 1 120); do
       sleep 2
-      if grep -q "Done (" "$DIR/logs/latest.log" 2>/dev/null && [ -n "$(server_pids)" ]; then
+      if [ "$DIR/logs/latest.log" -nt "$STAMP" ] && grep -q "Done (" "$DIR/logs/latest.log" 2>/dev/null && [ -n "$(server_pids)" ]; then
         echo "server up ($JAVA_BIN)"
         exit 0
       fi
