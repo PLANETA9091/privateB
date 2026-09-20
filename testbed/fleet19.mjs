@@ -18,7 +18,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -685,6 +685,22 @@ console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join('
 const heartbeat = startHeartbeat({ intervalMs: 20000 })
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
+
+// (v0.26.0) HARD KILL - the run's last-resort exit guarantee. Dispatch
+// 35541442371 (600s, e8f0ce1): every bot stalled inside the final bank chain
+// at once (25+ minutes of NOTHING but heartbeat lines), FLEET RESULT never
+// printed, the CI job burned its 40-minute budget and was cancelled BEFORE
+// the artifact upload - the whole run's evidence lost. Past the deadline +
+// this margin the process owes the CI nothing but its partial evidence:
+// print the totals and exit so the job ends and fleet19.log lands.
+// unref'd: a healthy early finish must not be held open by this timer.
+setTimeout(() => {
+  const list = [...bots.values()].map(e => e.miner).filter(Boolean)
+  const alive = list.filter(m => m.bot?.entity).length
+  console.log(`[fleet] HARD KILL: ${SECONDS}s run + end-phase margin exceeded (end-phase hang) - exiting with partial evidence`)
+  console.log(`[fleet] partial: alive=${alive} mined=${list.reduce((a, m) => a + (m.stats.mined ?? 0), 0)} banked=${banked} smelted=${smelted} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)}`)
+  process.exit(0)
+}, hardKillDelayMs({ runSeconds: SECONDS })).unref()
 
 // The dedicated ground scout (optional): one of the bot slots patrols and fills the
 // shared map instead of digging. It walks, it never flies, it never digs.

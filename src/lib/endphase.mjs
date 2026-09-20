@@ -36,3 +36,40 @@ export function finalBankDelayMs ({ index = 0, stepMs = FINAL_BANK_STEP_MS, capM
   const cap = Number.isFinite(capMs) && capMs >= 0 ? capMs : FINAL_BANK_CAP_MS
   return Math.min(i * step, cap)
 }
+
+// ---------------------------------------------------------------------------
+// HARD KILL (v0.26.0) - the run's last-resort exit guarantee.
+//
+// MEASURED (dispatch 35541442371, 600s on e8f0ce1): the fleet mined 1240
+// blocks, hit its deadline, walked the whole end-phase chain - 17 'final
+// climb' lines, 16 staggered delays - and then EVERY bot stalled inside the
+// final smelt/bank visits at once: from 22:45:49 to the 23:11 cancel the log
+// held NOTHING but the heartbeat worker's lines. The 6-slot path throttle
+// kept circulating (stale +3 per 15s = new activations), yet no walk ever
+// completed and no bot line ever printed: the runners never returned, FLEET
+// RESULT never printed, the CI job burned 40 minutes and was cancelled
+// BEFORE any artifact upload - the whole run's evidence lost.
+//
+// THE CURE is structural, not another walk fix: a wall-clock kill timer that
+// fires at runSeconds + a margin wide enough for the legitimate end-phase
+// (stagger cap 120s + climb 90s + bounded bank walks + smelt budget). Past
+// that point the process owes the CI nothing but its partial evidence: print
+// the kill line and exit, so the job ends and the fleet19.log artifact lands.
+// unref'd: a healthy process that finishes early must not be held open.
+/** Margin past the run deadline before the hard kill fires. */
+export const HARD_KILL_MARGIN_MS = 420000
+
+/**
+ * Delay from process start until the hard kill fires. Pure, junk-tolerant:
+ * junk runSeconds = 600 (the fleet default), junk/negative margin = the
+ * default margin, 0 margin is honoured (kill exactly at the deadline).
+ * @param {object} [p]
+ * @param {number} [p.runSeconds] the fleet run length in seconds (default 600)
+ * @param {number} [p.marginMs] extra wall clock for the end phase (default HARD_KILL_MARGIN_MS)
+ * @returns {number} milliseconds from process start to the kill
+ */
+export function hardKillDelayMs ({ runSeconds = 600, marginMs = HARD_KILL_MARGIN_MS } = {}) {
+  const s = Number.isFinite(runSeconds) && runSeconds > 0 ? runSeconds : 600
+  const m = Number.isFinite(marginMs) && marginMs >= 0 ? marginMs : HARD_KILL_MARGIN_MS
+  return s * 1000 + m
+}

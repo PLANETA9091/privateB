@@ -61,3 +61,25 @@ test('shape: the whole 19-bot schedule stays inside the cap and is strictly belo
   const distinct = new Set(sched).size
   assert.ok(distinct >= 16, `the cap must not collapse the schedule (${distinct} distinct slots)`)
 })
+
+// ------------------------------------------------------ HARD KILL (v0.26.0)
+// Dispatch 35541442371: the whole end-phase chain stalled and the process
+// never exited - the CI job was cancelled before any artifact upload. The
+// kill timer must fire at runSeconds + margin, junk-tolerantly.
+import { hardKillDelayMs, HARD_KILL_MARGIN_MS } from '../../src/lib/endphase.mjs'
+
+test('hardKillDelayMs: 600s run kills at deadline + margin', () => {
+  assert.equal(hardKillDelayMs({ runSeconds: 600 }), 600000 + HARD_KILL_MARGIN_MS)
+})
+
+test('hardKillDelayMs: honours custom run lengths and a zero margin', () => {
+  assert.equal(hardKillDelayMs({ runSeconds: 300, marginMs: 0 }), 300000)
+  assert.equal(hardKillDelayMs({ runSeconds: 900, marginMs: 1000 }), 901000)
+})
+
+test('hardKillDelayMs: junk inputs fall back to the fleet defaults', () => {
+  assert.equal(hardKillDelayMs({}), 600000 + HARD_KILL_MARGIN_MS)
+  assert.equal(hardKillDelayMs({ runSeconds: NaN }), 600000 + HARD_KILL_MARGIN_MS)
+  assert.equal(hardKillDelayMs({ runSeconds: -5, marginMs: NaN }), 600000 + HARD_KILL_MARGIN_MS)
+  assert.equal(hardKillDelayMs({ runSeconds: 600, marginMs: -1 }), 600000 + HARD_KILL_MARGIN_MS)
+})
