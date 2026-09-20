@@ -11,6 +11,10 @@
 //   6. prismarine-physics: add "26.2" to every feature list that ends with "26.1"
 //      (otherwise entities fall through the world - silent!)
 //   7. mineflayer: add '26.2' to testedVersions
+//   8. mineflayer: self-only oxygen guard - the entity_metadata handler wrote
+//      bot.oxygenLevel from ANY entity's air_supply (a nearby drowned at air 0
+//      made dry bots "drown"); fleet #122/#128 measured 173/783 such glitches
+import { applyBreathingGuard } from '../src/lib/breathing-guard.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -214,6 +218,22 @@ function patchMineflayer () {
   log('mineflayer: added 26.2 to testedVersions')
 }
 
+// ------------------------------------------------ 6. mineflayer oxygen guard
+// mineflayer entities.js: `if (metas.air_supply != null)` sets bot.oxygenLevel
+// from ANY entity's metadata packet. Only the bot's OWN entity may own its
+// lungs - see src/lib/breathing-guard.mjs for the evidence trail.
+function patchBreathingGuard () {
+  const p = path.join(nm, 'mineflayer', 'lib', 'plugins', 'entities.js')
+  const before = fs.readFileSync(p, 'utf8')
+  const after = applyBreathingGuard(before)
+  if (after !== before) {
+    fs.writeFileSync(p, after)
+    log('mineflayer: self-only oxygen guard installed (entities.js)')
+  } else {
+    log('mineflayer: self-only oxygen guard already present')
+  }
+}
+
 assertInstalled()
 installData()
 registerVersion()
@@ -221,4 +241,5 @@ patchDataIndex()
 patchChunk()
 patchPhysics()
 patchMineflayer()
+patchBreathingGuard()
 log('done - stack speaks 26.2')
