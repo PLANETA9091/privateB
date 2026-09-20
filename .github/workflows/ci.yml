@@ -161,6 +161,16 @@ jobs:
         run: |
           set -o pipefail   # an OOM in the fleet process must fail this step, not be masked by tee
           scripts/server.sh start
+          sleep 5           # let the world settle (same as the integration job)
+          # (v0.17.5) THE MISSING KEYSTONE: the fleet world NEVER had a yard - the
+          # chest warehouse, furnace row and crafting tables were never built, so
+          # banked=0 smelted=0 in EVERY fleet run (#122..#124: bots held 130-319
+          # units, climbed out for 'bank' 15+ times, found 'no chest in range' at
+          # ANY distance because the chests did not exist). The yard script surveys
+          # world spawn with a throwaway bot and places everything through the
+          # server console (infrastructure, not bot gifts - bots stay survival,
+          # no op); setworldspawn pins respawns to the yard floor.
+          node scripts/setup-yard.mjs
           node --expose-gc testbed/fleet19.mjs 19 ${{ inputs.fleet_seconds || '300' }} sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
       - name: Upload fleet log
         if: always()
