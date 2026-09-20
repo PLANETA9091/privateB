@@ -88,11 +88,14 @@ let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cook
 // says so, then SMELT at the workshop furnaces, then the real deposit.
 // Budget-capped and failure-tolerant - a stuck furnace or an unwalkable yard
 // must never cost the bot its mining loop.
-async function smeltThenBank (miner, { timeoutMs = 30000, yardGoal = null } = {}) {
+async function smeltThenBank (miner, { yardGoal = null } = {}) {
+  // (v0.18.5) no flat timeoutMs pinning: depositToChest scales its walk budget with
+  // the real distance now (fleet #128: the flat 30s killed every far-chest walk,
+  // banked=0 with 77 attempts), and waits out one rescue window on refusal.
   const keep = () => [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
-  const pre = await miner.depositLoot({ timeoutMs, keep: keep() })
+  const pre = await miner.depositLoot({ keep: keep() })
   if (pre.deposited === 0) {
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
@@ -122,7 +125,7 @@ async function smeltThenBank (miner, { timeoutMs = 30000, yardGoal = null } = {}
   // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
   // surplus flows to the chests as base stock. keep is computed AFTER smelting: a
   // bot that just produced its first ingots keeps them for the iron pickaxe.
-  const res = await miner.depositLoot({ timeoutMs, keep: keep() })
+  const res = await miner.depositLoot({ keep: keep() })
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }
@@ -534,7 +537,7 @@ async function runBot (name, target, index) {
           // (v0.12.0) the bot ends the run at the bottom of its last shaft: without
           // the climb this walk always failed and the final banked= stayed 0
           await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
-          const res = await smeltThenBank(miner, { timeoutMs: 120000, yardGoal })
+          const res = await smeltThenBank(miner, { yardGoal })
           if (res.deposited > 0) {
             banked += res.deposited
             console.log(`${name} final bank: +${res.deposited}`)

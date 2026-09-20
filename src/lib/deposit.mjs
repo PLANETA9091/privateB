@@ -3,7 +3,8 @@
 // input rows of chests at spawn, so the walk-back is short for fleet bots working
 // around the origin. No op, no commands - vanilla chest windows only.
 import pathfinderPkg from 'mineflayer-pathfinder'
-import { gotoSafe, withTimeout } from './jobqueue.mjs'
+import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
+import { walkBudgetMs } from './tripplan.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -57,27 +58,76 @@ export function findChest (bot, { maxDistance = 64 } = {}) {
   }
 }
 
+// (v0.18.5) The chest walk budget, dist-scaled like mapTrip's (tripplan.walkBudgetMs).
+// FLEET #128 EVIDENCE (19 bots, 600s, the first fully healthy run): 77 bank attempts,
+// banked=0 - the flat timeoutMs=30000 killed every walk to a chest beyond ~25 blocks
+// ('chest unreachable (Path was stopped before it could be completed!)'): the walk is
+// not the straight line the distance suggests, it is shaft-mouth escape + terrain
+// detours (2x the straight distance is the rule, not the exception), and the timeout
+// then poisons the RETRY too (the stop races the next goto). The budget scales at
+// 500 ms/block (2x the pathfinder ground speed = detour allowance), keeps the
+// historical 30s floor for near chests and caps at 60s - still bounded, the
+// v0.11.2/v0.6.4 OOM lesson (no open-ended walk windows) stays honoured.
+export const CHEST_WALK_BASE_MS = 30000
+export const CHEST_WALK_PER_BLOCK_MS = 500
+export const CHEST_WALK_CAP_MS = 60000
+export function chestWalkBudgetMs (dist) {
+  return walkBudgetMs({
+    dist,
+    base: CHEST_WALK_BASE_MS,
+    perBlock: CHEST_WALK_PER_BLOCK_MS,
+    cap: CHEST_WALK_CAP_MS,
+    overhead: 5000
+  })
+}
+
 /**
  * Deposit everything non-essential into a chest. Steps: pick a chest (the nearest one
  * unless given), walk to it on foot, open the window, deposit item by item (a full or
  * desynced chest only costs us that one item type), close it. Never throws - the return
  * value tells the caller what happened, because a failed deposit must not kill a bot.
+ *
+ * (v0.18.5) The walk is rescue-aware: a bot mid-drowning used to lose the attempt
+ * INSTANTLY ('chest unreachable (water rescue in progress (walk to chest refused))' -
+ * fleet #128 line class) because the fail-fast gate refuses goals while the rescue
+ * owns the controls. Now: the first refusal waits out ONE bounded rescue window
+ * (waitForWaterRescueClear, the same treatment smeltBatch got in v0.18.2) and retries
+ * once with the same budget - the rescue's 25s window is cheaper than the walk's
+ * whole deposit being lost.
  */
 export async function depositToChest (bot, {
   chestBlock = null,
   keep = KEEP,
   maxDistance = 64,
   log = () => {},
-  timeoutMs = 30000
+  timeoutMs = null // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
   const tag = `[${bot.username ?? 'bot'}]`
 
+  let budget = CHEST_WALK_BASE_MS
+  if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    budget = timeoutMs // explicit caller choice wins
+  } else if (bot.entity?.position?.distanceTo && chest.position) {
+    try { budget = chestWalkBudgetMs(bot.entity.position.distanceTo(chest.position)) } catch { /* floor stays */ }
+  }
+
+  const walkOnce = async label => gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: budget, label })
   try {
-    await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs, label: 'walk to chest' })
+    await walkOnce('walk to chest')
   } catch (e) {
-    return { deposited: 0, reason: `chest unreachable (${e.message})` }
+    if (!/water rescue/i.test(String(e?.message))) {
+      return { deposited: 0, reason: `chest unreachable (${e.message})` }
+    }
+    // the drowning rescue owns the bot right now - wait it out (bounded), then try once
+    const cleared = await waitForWaterRescueClear(bot)
+    if (!cleared) return { deposited: 0, reason: `chest unreachable (${e.message})` }
+    try {
+      await walkOnce('walk to chest (rescue cleared)')
+    } catch (e2) {
+      return { deposited: 0, reason: `chest unreachable (${e2.message})` }
+    }
   }
 
   let window
