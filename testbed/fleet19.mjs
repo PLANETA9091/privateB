@@ -279,7 +279,7 @@ async function runBot (name, target, index) {
       const ensureSurface = async reason => {
         const r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
-        else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.traversed ? ` (traversed ${r.traversed})` : ''}`)
+        else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         return r.ok
       }
       const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })

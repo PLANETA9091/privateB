@@ -18,6 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
+  climbEntry, climbLedgerUpdate,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
@@ -1699,14 +1700,36 @@ export function createMiner ({
     }
     const entryY = Number.isFinite(stats.shaftEntryY) ? stats.shaftEntryY : null
     const plan = pillarTarget({ feetY: feet0.y, targetY: entryY, skyLitAt, maxUp })
-    if (plan.levels <= 1) return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0 }
+    if (plan.levels <= 1) {
+      // being out proves the climb problem solved: forget any stale exhaustion
+      // (v0.18.0) so a later descent never inherits a dead wall's ledger
+      bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, feetY: feet0.y, now: Date.now() })
+      return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0 }
+    }
+    // (v0.18.0) DEEP CLIMB PERSISTENCE: the ladder lives on the bot across
+    // calls. From the y=42 aquifer floor one call's budgets (4 fails, 2
+    // galleries) cannot cross several wet bands - measured as endless
+    // 'failed - stalled' repeats, every call fresh in the same wet mess.
+    // Now an unhealed ladder escalates (2x/3x budgets + rotated bearing) and
+    // an exhausted one refuses instantly for a cooldown instead of burning
+    // the loop's time on a proven wall. A refusal must NOT touch the ledger:
+    // a hammered refusal would restart the cooldown forever.
+    const entry = climbEntry(bot._climbLedger, { now: Date.now(), feetY: feet0.y })
+    if (entry.refused) {
+      return { ok: false, reason: 'exhausted', waitSecs: Math.ceil(entry.waitMs / 1000), gained: 0, dug: 0, steps: 0, traversed: 0 }
+    }
+    const failLimit = entry.failLimit // stage ladder, replaces PILLAR_FAIL_LIMIT
+    const wetAttempts = entry.wetAttempts // stage ladder, replaces TRAVERSE_MAX_ATTEMPTS
     // horizontal bearing for the staircase: the caller's deployment direction is
-    // a fine default (it leads AWAY from the yard); snap it to a pure cardinal
+    // a fine default (it leads AWAY from the yard); snap it to a pure cardinal.
+    // An escalated stage starts on a ROTATED bearing - repeated calls must not
+    // re-dig into the same aquifer wall that refused stage 0.
     const raw = dir && (dir.x || dir.z) ? dir : new Vec3(1, 0, 0)
     let d = Math.abs(raw.x) >= Math.abs(raw.z)
       ? new Vec3(Math.sign(raw.x) || 1, 0, 0)
       : new Vec3(0, 0, Math.sign(raw.z) || 1)
     const rotate = () => { d = new Vec3(-d.z, 0, d.x) } // 90 degrees: a refused wall rotates away
+    for (let i = 0; i < entry.rotateBy; i++) rotate()
     let dug = 0
     let steps = 0
     let fails = 0
@@ -1771,7 +1794,7 @@ export function createMiner ({
         bot._climbEscape = false
       }
     }
-    while (bot.entity && !shouldStop?.() && fails < PILLAR_FAIL_LIMIT && steps < maxUp && Date.now() - start <= maxMs) {
+    while (bot.entity && !shouldStop?.() && fails < failLimit && steps < maxUp && Date.now() - start <= maxMs) {
       const feet = bot.entity.position.floored()
       if (feet.y >= plan.targetY) break
       // headroom for the step-up jump: the two cells above the feet. Inside the
@@ -1802,7 +1825,7 @@ export function createMiner ({
         // (the ceiling above) is the flooded-shaft signature - rotation cannot
         // fix it and digging up floods the staircase. Dig sideways out from
         // under the water first; the staircase resumes from the dry gallery.
-        if (blockedWet && wetTries < TRAVERSE_MAX_ATTEMPTS) {
+        if (blockedWet && wetTries < wetAttempts) {
           wetTries++
           const esc = await escapeTraverse({ shouldStop })
           traversed += esc.walked
@@ -1840,13 +1863,22 @@ export function createMiner ({
     const ok = feetNow.y >= plan.targetY
     if (ok) stats.climbs = (stats.climbs ?? 0) + 1
     const timedOut = Date.now() - start > maxMs
+    // (v0.18.0) persist the outcome on the bot: the NEXT call inherits the
+    // ladder (escalated after stalls, healed by movement). A refused entry
+    // (reason 'exhausted', waitSecs) never reaches this line - it must not
+    // restart the cooldown.
+    const gained = feetNow.y - feet0.y
+    bot._climbLedger = climbLedgerUpdate(bot._climbLedger, {
+      ok, gained, traversed, feetY: feetNow.y, now: Date.now()
+    })
     return {
       ok,
-      reason: ok ? 'out' : (timedOut ? 'timeout' : (fails >= PILLAR_FAIL_LIMIT ? 'stalled' : 'stopped')),
-      gained: feetNow.y - feet0.y,
+      reason: ok ? 'out' : (timedOut ? 'timeout' : (fails >= failLimit ? 'stalled' : 'stopped')),
+      gained,
       dug,
       steps,
       traversed,
+      stage: entry.stage,
       secs: (Date.now() - start) / 1000
     }
   }

@@ -86,6 +86,43 @@ export const TRAVERSE_MAX_ATTEMPTS = 2
 // lesson: a blocked lip never unblocks by holding forward)
 export const TRAVERSE_STALL_LIMIT = 3
 
+// ---------------------------------------------------------------------------
+// DEEP CLIMB PERSISTENCE (v0.18.0) - a STAGE LADDER across climbOut calls.
+//
+// MEASURED (fleet 2026-09-20, 17:05 + verification runs): from the y=42
+// aquifer floor a climbOut meets MULTIPLE wet bands on the way up (~20 levels
+// to the surface). One call opens at most TRAVERSE_MAX_ATTEMPTS galleries and
+// eats PILLAR_FAIL_LIMIT fails - not enough to cross several bands - so deep
+// bots ended 'climb out: failed - stalled' REPEATEDLY: every call started
+// fresh (fails=0, wetTries=0) in the same wet mess, and the fleet loop
+// hammered climbOut on every bank/trip decision, burning the run in a
+// climb<->stall cycle (F7 produced ~nothing for 450s).
+//
+// THE CURE: the climb budget lives on the BOT across calls (bot._climbLedger),
+// not inside one call. The ladder:
+//   stage 0 - ordinary budgets (4 fails, 2 galleries, caller's bearing);
+//   stage 1 - 8 fails, 4 galleries, bearing rotated 90 deg;
+//   stage 2 - 12 fails, 6 galleries, bearing rotated 180 deg: one call is a
+//             full escape CAMPAIGN (still wall-clock bounded by maxMs);
+//   stage 3 = EXHAUSTED - climbOut refuses instantly for
+//             CLIMB_EXHAUST_COOLDOWN_MS: the loop stops paying for a wall.
+// Movement heals the ladder: a successful climb, levels gained, or an
+// external lift (drowning rescue won elsewhere) reset to stage 0. Lateral-
+// only escape work (traversed > 0, no level gained) escalates too - more
+// galleries next call - but NEVER reaches exhaustion: a bot that still
+// walks is not declared hopeless.
+export const CLIMB_EXHAUSTED_STAGE = 3
+export const CLIMB_EXHAUST_COOLDOWN_MS = 90000
+// feetY at least this much above the last call's end = outside help moved us
+// (a climb that gains levels reports gained > 0 itself; this catches lifts
+// that happened BETWEEN calls)
+export const CLIMB_RESCUE_MIN_GAIN = 2
+export const CLIMB_STAGE_BUDGETS = [
+  { failLimit: PILLAR_FAIL_LIMIT, wetAttempts: TRAVERSE_MAX_ATTEMPTS, rotateBy: 0 },
+  { failLimit: PILLAR_FAIL_LIMIT * 2, wetAttempts: TRAVERSE_MAX_ATTEMPTS * 2, rotateBy: 1 },
+  { failLimit: PILLAR_FAIL_LIMIT * 3, wetAttempts: TRAVERSE_MAX_ATTEMPTS * 3, rotateBy: 2 }
+]
+
 // Plants that only exist INSIDE a water column: digging a cell under them
 // breaks the plant and the cell becomes a full water source (a gallery dug
 // under kelp floods). Read through prismarine's waterlogged flag as well -
@@ -171,6 +208,83 @@ export function traverseStep ({ feet, d, read } = {}) {
     return { ok: false, reason: isWetCell(b) ? 'wet' : 'hard' }
   }
   return { ok: true, digs }
+}
+
+/**
+ * Entry decision for one climbOut call against the bot's persisted ledger
+ * (v0.18.0 deep climb persistence). Pure - the caller stores the ledger.
+ *
+ * @param {{stage?: number, feetY?: number, at?: number}|null|undefined} ledger
+ *   the ledger left by the PREVIOUS climbOut call (null on a fresh bot)
+ * @param {object} [p]
+ * @param {number} [p.now] wall clock (ms epoch)
+ * @param {number|null} [p.feetY] the bot's current feet cell y
+ * @returns {{refused: false, stage: number, failLimit: number, wetAttempts: number, rotateBy: number}|{refused: true, waitMs: number}}
+ *   refused + waitMs: the ladder is exhausted and the cooldown is running -
+ *   the caller must return immediately WITHOUT touching the ledger (a
+ *   refusal that restarted the cooldown would keep a hammered bot exhausted
+ *   forever).
+ */
+export function climbEntry (ledger, { now = Date.now(), feetY = null } = {}) {
+  const stage = ledger && typeof ledger === 'object' && Number.isFinite(ledger.stage)
+    ? ledger.stage
+    : 0
+  if (stage < CLIMB_EXHAUSTED_STAGE) {
+    const b = CLIMB_STAGE_BUDGETS[stage] || CLIMB_STAGE_BUDGETS[0]
+    return { refused: false, failLimit: b.failLimit, wetAttempts: b.wetAttempts, rotateBy: b.rotateBy, stage }
+  }
+  // exhausted: an outside lift since the last call resets the ladder even
+  // mid-cooldown (the old wall is not this wall), else the cooldown must elapse
+  const lifted = Number.isFinite(feetY) && Number.isFinite(ledger.feetY) &&
+    feetY >= ledger.feetY + CLIMB_RESCUE_MIN_GAIN
+  if (lifted) return { refused: false, failLimit: CLIMB_STAGE_BUDGETS[0].failLimit, wetAttempts: CLIMB_STAGE_BUDGETS[0].wetAttempts, rotateBy: CLIMB_STAGE_BUDGETS[0].rotateBy, stage: 0 }
+  const elapsed = now - (Number.isFinite(ledger.at) ? ledger.at : 0)
+  if (elapsed < CLIMB_EXHAUST_COOLDOWN_MS) {
+    return { refused: true, waitMs: CLIMB_EXHAUST_COOLDOWN_MS - elapsed }
+  }
+  // cooldown served: ONE escalated retry from a rotated bearing (stage 1) -
+  // not the full ladder, the bot already proved this geometry is hostile
+  const b = CLIMB_STAGE_BUDGETS[1]
+  return { refused: false, failLimit: b.failLimit, wetAttempts: b.wetAttempts, rotateBy: b.rotateBy, stage: 1 }
+}
+
+/**
+ * Ledger update after a climbOut call ended (v0.18.0). Pure - returns the
+ * NEXT ledger; the caller stores it on the bot.
+ *
+ * Movement heals, persistence escalates:
+ *   ok / gained > 0 / lifted >= CLIMB_RESCUE_MIN_GAIN since the previous
+ *   call's end  -> stage 0 (fresh budgets next call);
+ *   lateral-only work (traversed > 0, no levels) -> stage + 1, CAPPED at
+ *   CLIMB_EXHAUSTED_STAGE - 1 (a bot that still walks is never 'exhausted');
+ *   dead stall   -> stage + 1, topping out at CLIMB_EXHAUSTED_STAGE.
+ *
+ * @param {{stage?: number, feetY?: number, at?: number}|null|undefined} ledger
+ * @param {object} o
+ * @param {boolean} [o.ok] the climb reached its target
+ * @param {number} [o.gained] levels gained by THIS call
+ * @param {number} [o.traversed] horizontal escape blocks walked by THIS call
+ * @param {number|null} [o.feetY] feet cell y at the call's end
+ * @param {number} [o.now] wall clock (ms epoch)
+ * @returns {{stage: number, feetY: number|null, at: number}}
+ */
+export function climbLedgerUpdate (ledger, { ok = false, gained = 0, traversed = 0, feetY = null, now = Date.now() } = {}) {
+  const prevY = ledger && typeof ledger === 'object' && Number.isFinite(ledger.feetY) ? ledger.feetY : null
+  const ledStage = ledger && typeof ledger === 'object' && Number.isFinite(ledger.stage) ? ledger.stage : 0
+  const y = Number.isFinite(feetY) ? feetY : prevY
+  const at = Number.isFinite(now) ? now : 0
+  const g = Number.isFinite(gained) ? gained : 0
+  const tr = Number.isFinite(traversed) ? traversed : 0
+  // healed: the climb worked, moved us up, or outside help did
+  if (ok || g > 0 || (prevY !== null && y !== null && y >= prevY + CLIMB_RESCUE_MIN_GAIN)) {
+    return { stage: 0, feetY: y, at }
+  }
+  if (tr > 0) {
+    // lateral escape work is real progress sideways: escalate for a bigger
+    // campaign next call, but never declare a moving bot hopeless
+    return { stage: Math.min(ledStage + 1, CLIMB_EXHAUSTED_STAGE - 1), feetY: y, at }
+  }
+  return { stage: Math.min(ledStage + 1, CLIMB_EXHAUSTED_STAGE), feetY: y, at }
 }
 
 // Inventory preference for the pillar block: stone-family drops the fleet
