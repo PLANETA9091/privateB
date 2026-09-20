@@ -265,13 +265,26 @@ async function runBot (name, target, index) {
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
-          console.log(`${name} tool recovery: no pickaxe - re-running the bootstrap`)
-          try {
-            await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 40 })
-          } catch { /* craft with whatever we have */ }
-          const res = await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 45 })
-          if (res.ok) toolsRecovered++
-          console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
+          // (v0.16.2) CHEAP RECOVERY FIRST: the full bootstrap costs ~85 s
+          // (gatherWood + ensureTools) and fails outright underground ('no planks
+          // recipe' x22 in run 35478370438, F5 looped it for whole minutes in run
+          // #121). A bot that lost its picks but holds cobble + sticks (or enough
+          // planks) crafts a spare pickaxe in seconds - try that before the wood
+          // trip, and only bootstrap when the pocket craft cannot land.
+          console.log(`${name} tool recovery: no pickaxe - spare-pick craft first`)
+          const sp = await craftSparePickaxe(miner.bot, { log: m => console.log(`${name} ${m}`) })
+          if (sp.ok) {
+            toolsRecovered++
+            console.log(`${name} tool recovery: OK (spare craft ${sp.tier}, holds ${sp.picks})`)
+          } else {
+            console.log(`${name} tool recovery: spare craft failed (${sp.reason}) - re-running the bootstrap`)
+            try {
+              await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 40 })
+            } catch { /* craft with whatever we have */ }
+            const res = await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 45 })
+            if (res.ok) toolsRecovered++
+            console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
+          }
         }
         const up = upgradeDueNow()
         if (up) {

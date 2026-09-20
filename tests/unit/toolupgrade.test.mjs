@@ -342,3 +342,95 @@ test('sparePickCheck: plank materials need ONE type - the 12-type sum lies (v0.1
   const noStickPath = sparePickCheck(stickless)
   assert.equal(noStickPath.due, false)
 })
+
+// ---- craftSparePickaxe mechanics (v0.16.2: sticks top-up from planks) ----
+
+test('craftSparePickaxe: zero sticks -> sticks crafted first, then the pick (v0.16.2)', async () => {
+  // fleet #121: F6 held 12 oak planks and 0 sticks - 'spare pick due: spare
+  // (planks available)' went straight into 'no craftable recipe variant'
+  const items = [
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('cobblestone', 9),
+    it('oak_planks', 6)
+  ]
+  const calls = []
+  const res = await craftSparePickaxe(fakeBot(items), {
+    log: () => {},
+    deps: {
+      craftUntil: async (bot, item) => {
+        calls.push(item)
+        if (item === 'stick') { items.push(it('stick', 4)); return true }
+        if (item === 'stone_pickaxe') { items.push(it('stone_pickaxe', 1, { max: 131 })); return true }
+        return false
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.deepEqual(calls, ['stick', 'stone_pickaxe'], 'the stick top-up must precede the pick craft')
+  assert.equal(res.ok, true)
+  assert.equal(res.tier, 'stone_pickaxe')
+  assert.equal(res.picks, 2)
+})
+
+test('craftSparePickaxe: a failed stick top-up aborts BEFORE the table is placed', async () => {
+  const items = [
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('cobblestone', 9),
+    it('oak_planks', 6)
+  ]
+  let tablePlaced = false
+  const res = await craftSparePickaxe(fakeBot(items), {
+    log: () => {},
+    deps: {
+      craftUntil: async () => false, // phantom/stuck craft: nothing lands
+      placeTable: async () => { tablePlaced = true; return null }
+    }
+  })
+  assert.equal(tablePlaced, false, 'no table may be placed when the sticks never land')
+  assert.equal(res.ok, false)
+  assert.match(res.reason, /no sticks and no planks/)
+})
+
+test('craftSparePickaxe: a wooden spare needs 5 one-type planks when sticks are zero', async () => {
+  // 2 planks convert into the 2 sticks, the recipe eats 3 more: 4 of one type
+  // cannot unlock both, so the plan must refuse BEFORE burning anything
+  const items = [
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('oak_planks', 4)
+  ]
+  const calls = []
+  let tablePlaced = false
+  const res = await craftSparePickaxe(fakeBot(items), {
+    log: () => {},
+    deps: {
+      craftUntil: async (bot, item) => { calls.push(item); return true },
+      placeTable: async () => { tablePlaced = true; return { name: 'crafting_table' } }
+    }
+  })
+  assert.deepEqual(calls, [], 'the stick conversion must be refused before any craft')
+  assert.equal(tablePlaced, false)
+  assert.equal(res.ok, false)
+  assert.match(res.reason, /not enough planks to make sticks/)
+})
+
+test('craftSparePickaxe: sticks in the pocket skip the top-up entirely', async () => {
+  const items = [
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('cobblestone', 5),
+    it('stick', 2)
+  ]
+  const calls = []
+  const res = await craftSparePickaxe(fakeBot(items), {
+    log: () => {},
+    deps: {
+      craftUntil: async (bot, item) => {
+        calls.push(item)
+        if (item === 'stone_pickaxe') { items.push(it('stone_pickaxe', 1, { max: 131 })); return true }
+        return false
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.deepEqual(calls, ['stone_pickaxe'], 'no stick craft may run when 2 sticks are already held')
+  assert.equal(res.ok, true)
+})

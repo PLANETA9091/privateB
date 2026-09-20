@@ -238,26 +238,51 @@ export function sparePickCheck (bot, { maxSpares = 2 } = {}) {
 }
 
 /**
- * Mechanism: place/reuse a table, craft one spare pickaxe of the check's tier,
- * VERIFY the count rose. Never throws; an aborted plan wastes nothing (placeTable
- * only consumes a table item when it actually has one).
+ * Mechanism: sticks top-up from planks when the pockets have none (v0.16.2),
+ * place/reuse a table, craft one spare pickaxe of the check's tier, VERIFY the
+ * count rose. Never throws; an aborted plan wastes nothing (placeTable only
+ * consumes a table item when it actually has one).
+ * deps: test seam { craftUntil, placeTable } - real tools.mjs helpers by default.
  * @returns {Promise<{ok: boolean, tier: string|null, reason?: string, picks?: number}>}
  */
-export async function craftSparePickaxe (bot, { log = null, maxSpares = 2 } = {}) {
+export async function craftSparePickaxe (bot, { log = null, maxSpares = 2, deps = {} } = {}) {
   const step = log ?? (() => {})
+  const craftUntilFn = deps.craftUntil ?? craftUntil
+  const tableOf = deps.placeTable ?? placeTable
   try {
     const chk = sparePickCheck(bot, { maxSpares })
     if (!chk.due) {
       step(`spare pick: skip (${chk.reason})`)
       return { ok: false, tier: null, reason: chk.reason }
     }
-    const table = await placeTable(bot)
+    // STICKS FIRST (v0.16.2): the check reads "planks available" as craftable when
+    // one plank type >= 2, but the pickaxe recipe needs 2 sticks on top - a bot
+    // with zero sticks got 'spare pick due' straight into 'no craftable recipe
+    // variant' (fleet #121: F6 held 12 oak planks and 0 sticks, the spare craft
+    // burned its tries on every cooldown). Same first step as upgradeTools: 2
+    // planks of one type -> 4 sticks on the 2x2, no table needed. A wooden pick
+    // eats 2 planks MORE into those sticks, so the one-type stack must hold 5
+    // before the conversion can unlock the craft; stone/iron tiers only need 2.
+    if (countItem(bot, 'stick') < PICK_STICKS) {
+      const oneType = countMaxPlankType(bot)
+      const enoughPlanks = chk.tier === 'wooden_pickaxe' ? oneType >= 5 : oneType >= 2
+      if (!enoughPlanks) {
+        step(`spare pick: skip (sticks ${countItem(bot, 'stick')} < 2, one-type planks ${oneType} cannot unlock the craft)`)
+        return { ok: false, tier: chk.tier, reason: 'not enough planks to make sticks' }
+      }
+      const made = await craftUntilFn(bot, 'stick', { want: PICK_STICKS, tries: 2, log: step })
+      if (!made && countItem(bot, 'stick') < PICK_STICKS) {
+        step('spare pick: stick craft did not land')
+        return { ok: false, tier: chk.tier, reason: 'no sticks and no planks for sticks' }
+      }
+    }
+    const table = await tableOf(bot)
     if (!table) {
       step('spare pick: no table reachable or placeable')
       return { ok: false, tier: null, reason: 'no table' }
     }
     const before = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
-    const ok = await craftUntil(bot, chk.tier, { times: 1, want: 1, table, tries: 2, log: step })
+    const ok = await craftUntilFn(bot, chk.tier, { times: 1, want: 1, table, tries: 2, log: step })
     const after = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
     const done = ok && after > before
     step(`spare pick: ${done ? 'OK' : 'craft did not land'} (${chk.tier}, holds ${after})`)
