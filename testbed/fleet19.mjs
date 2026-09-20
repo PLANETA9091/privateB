@@ -298,7 +298,9 @@ async function runBot (name, target, index) {
             const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
             console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor)`)
           } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
-          continue // fresh column walk below still applies
+          // no continue: tunneling bots still need consolidation (pockets fill while
+          // branch mining), recordToMap and the trip gate - the only thing that must
+          // NOT run down here is the pathfinder (see the walk guard below)
         }
         if (Date.now() > deadline || !miner.bot.entity) break
         // pockets nearly full: merge fragmented planks into sticks (KEEP keeps planks,
@@ -323,7 +325,11 @@ async function runBot (name, target, index) {
         // 60-120s, so "every 3rd shaft" meant most bots never tripped even once in a
         // 300s run (0 "map trip" lines in three CI fleets). Cheap when the map has
         // nothing nearby: no-target returns in microseconds.
-        if (hasPickNow() && Date.now() - lastTrip > 75000) {
+        if (hasPickNow() && emptyShafts === 0 && Date.now() - lastTrip > 75000) {
+          // (v0.11.2) emptyShafts gate: every bottomed-out bot's map trip is a
+          // sealed-stone A* toward a surface position - 38x 'unreachable' in three
+          // runs and the same explosion class as the next-column walk. Underground
+          // bots branch-mine; trips resume the moment a shaft produces again.
           // NIGHT WALK GATE (v0.10.0): the fleet loses bots to night SURFACE mobs
           // ("night mob kill streak - 7 deaths measured"), not to shafts. A deferred
           // trip becomes more shaft - the walk happens after dawn instead.
@@ -352,14 +358,24 @@ async function runBot (name, target, index) {
         // standable spot: a raw "here + direction*8" goal sits inside unexcavated stone
         // at shaft-bottom y, and 19 bots pathing toward sealed goals were the heap OOM
         // (v0.6.4 investigation). standGoalNear snaps the goal to a walkable surface.
-        const here = miner.bot.entity.position
-        const side = new Vec3(here.x + direction.x * 8, here.y, here.z + direction.z * 8)
-        try {
-          await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, side.x, side.y, side.z, { range: 2 }), { timeoutMs: 20000, label: 'next column' })
-        } catch {
+        //
+        // BOTTOMED-OUT GUARD (v0.11.2, OOM in 35484290848): standGoalNear's snap is a
+        // scan, not a guarantee - a bot that just emptied two shafts stands at the
+        // shaft-bottom y where EVERY side goal is sealed, and the 20s gotoSafe does
+        // not stop the A* from EXPANDING into the whole sealed world: 3.4GB in ~30s,
+        // process dead at t-470s. When the last shaft was empty we are bottomed out:
+        // the tunnel IS the next column (raw controls, no pathfinder), so the walk is
+        // skipped entirely until a shaft produces again.
+        if (emptyShafts === 0) {
+          const here = miner.bot.entity.position
+          const side = new Vec3(here.x + direction.x * 8, here.y, here.z + direction.z * 8)
           try {
-            await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), { range: 2 }), { timeoutMs: 20000, label: 'next column alt' })
-          } catch { /* next shaft from here */ }
+            await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, side.x, side.y, side.z, { range: 2 }), { timeoutMs: 20000, label: 'next column' })
+          } catch {
+            try {
+              await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, here.x + (shaft % 2 ? 6 : -6), here.y, here.z + (shaft % 3 ? 6 : -6), { range: 2 }), { timeoutMs: 20000, label: 'next column alt' })
+            } catch { /* next shaft from here */ }
+          }
         }
       }
 
