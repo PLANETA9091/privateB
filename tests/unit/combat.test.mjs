@@ -94,6 +94,15 @@ test('threatVerdict: junk input never picks a fight', () => {
   assert.equal(threatVerdict({ name: 'zombie', dist: 3, attackers: NaN }), 'fight', 'junk count assumes a lone attacker')
 })
 
+test('daylight spiders are neutral bystanders, cave/night spiders are threats', () => {
+  assert.equal(threatVerdict({ name: 'spider', dist: 6, hp: 20, dark: false }), 'ignore', 'day spider wandering by')
+  assert.equal(threatVerdict({ name: 'spider', dist: 6, hp: 6, dark: false }), 'ignore', 'neutral even when hurt: no threat, no flee')
+  assert.equal(threatVerdict({ name: 'spider', dist: 2, hp: 20, dark: false }), 'fight', 'on top of us = provoked/colliding')
+  assert.equal(threatVerdict({ name: 'spider', dist: 4, hp: 20, dark: true }), 'fight', 'dark spider is a real spider')
+  assert.equal(threatVerdict({ name: 'spider', dist: 4, hp: 20 }), 'fight', 'default dark=true: the safe default fears spiders')
+  assert.equal(threatVerdict({ name: 'cave_spider', dist: 4, hp: 20, dark: false }), 'fight', 'cave spiders are ALWAYS hostile (they live in the dark)')
+})
+
 test('policy constants stay in a sane relation to each other', () => {
   assert.equal(DETECT_RANGE >= RANGED_ENGAGE_RANGE, true, 'the scanner must see what the verdict engages')
   assert.equal(FLEE_HP < SWARM_FLEE_HP, true)

@@ -17,6 +17,7 @@ import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
+import { isNight } from '../lib/nightsafety.mjs'
 import { craftTorches } from './tools.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
@@ -168,12 +169,24 @@ export function createMiner ({
     }
   }
 
+  // Darkness decides spider neutrality (vanilla: hostile only at light <= 7):
+  // night by the clock OR a solid roof 8 blocks above (cave). Cannot read the
+  // world -> assume dark, the safe default (a wrongly feared spider costs a
+  // moment, a wrongly ignored one costs the run).
+  function isDarkHere () {
+    try {
+      if (isNight(bot.time?.timeOfDay)) return true
+      const roof = bot.blockAt(bot.entity.position.floored().offset(0, 8, 0))
+      return !(roof && roof.boundingBox === 'empty')
+    } catch { return true }
+  }
+
   let defending = false
   async function defendSelf (reason = 'guard') {
     if (defending) return { action: 'busy' }
     const threat = nearestHostile()
     if (!threat) return { action: 'none' }
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles() })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere() })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -193,7 +206,7 @@ export function createMiner ({
         if (!cur) break // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles() })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere() })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
           await runAway(cur, `${reason} re-verdict`)

@@ -88,14 +88,22 @@ export function pickWeapon (items) {
  * @param {number} [p.dist] metres from the bot (junk -> ignore: we cannot act on it)
  * @param {number} [p.hp] bot health 0..20
  * @param {number} [p.attackers] hostiles within DETECT_RANGE (swarm detection)
+ * @param {boolean} [p.dark=true] is it dark at the bot (night / underground)? Safe
+ *   default true: wrongly ignoring a real threat kills bots, wrongly fleeing a
+ *   neutral spider only wastes a moment. Spiders are NEUTRAL in daylight (vanilla
+ *   light > 7) - they wander past working bots without attacking; enderman stay
+ *   hostile-listed (the stare mechanic is too risky to model blind).
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1 } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
   const crowd = Number.isFinite(attackers) && attackers > 0 ? attackers : 1
   if (name === 'creeper' && dist <= CREEPER_FLEE_RANGE) return 'flee'
+  // daylight spiders are peaceful bystanders UNLESS they are already on top of us
+  // (collide/provoke) - the flee decision they used to trigger wasted trips
+  if (name === 'spider' && dark !== true && dist > 2.5) return 'ignore'
   if (health < FLEE_HP) return 'flee'
   if (crowd >= SWARM_SIZE && health < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
