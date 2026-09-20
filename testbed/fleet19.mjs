@@ -19,6 +19,7 @@ import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/deposit.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
+import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats } from '../src/lib/jobqueue.mjs'
@@ -310,6 +311,7 @@ async function runBot (name, target, index) {
       let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
       let zeroTunnels = 0 // (v0.18.1) consecutive zero-progress tunnels - the freeze budget
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
+      const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
@@ -391,10 +393,37 @@ async function runBot (name, target, index) {
           // Gating the tunnel names by hasPickNow() is what kept 0-pick bots churning
           // 'tunnel: 0 blocks' 21763 times in run 35481439229 (soft-only names vs
           // sealed stone = instant else-break). Pick-holders collect as before.
-          const tdir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
+          // (v0.18.8) ORE-STEERED BRANCH MINING: aim the gallery at known ore.
+          // Fleet #128 mined iron_ore=2 in 600s while the map held 84..126 iron
+          // records (coal 575): the rotating direction walked PAST veins the fleet
+          // already knows. The bot is already in the ore's Y band - it just has to
+          // dig TOWARD the record. nearestK (no verify - a verify would erase far
+          // buckets on unloaded chunks, mapTargetFor's lesson) feeds up to 4 nearest
+          // positions per ore into the geometry filter; a steer that fails is
+          // remembered (bounded amnesia) so the wall is never retried forever.
+          const steerFrom = miner.bot.entity?.position
+          let steer = null
+          if (steerFrom && miner.map) {
+            const oreCands = []
+            for (const on of ['iron_ore', 'copper_ore', 'coal_ore']) {
+              try {
+                for (const p of miner.map.nearestK(on, steerFrom, { maxDistance: 48, k: 4 })) oreCands.push({ name: on, pos: p })
+              } catch { /* map read must never break the branch mine */ }
+            }
+            steer = pickOreTarget({
+              candidates: oreCands,
+              from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
+              skip: veerSkipped
+            })
+          }
+          const tdir = steer
+            ? new Vec3(steer.axis === 'x' ? steer.dir : 0, 0, steer.axis === 'z' ? steer.dir : 0)
+            : [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
+          if (steer) console.log(`${name} tunnel: steering ${steer.name} @ ${steer.dist}b (axis ${steer.axis}${steer.dir > 0 ? '+' : '-'}${steer.dir < 0 ? steer.dir : ''}, cross ${steer.cross})`)
           try {
             const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
-            console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor)`)
+            console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''})`)
+            if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
             // (v0.18.1) ZERO-PROGRESS BACKOFF - the fleet freeze, measured live
             // (run 2026-09-20 20:05): a bot sealed in wet stone made
             // (digShaft instant 0 -> tunnel instant 0 - the FLUID early-break
