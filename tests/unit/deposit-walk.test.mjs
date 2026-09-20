@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS } from '../../src/lib/deposit.mjs'
+import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS, findChest } from '../../src/lib/deposit.mjs'
 
 const TYPES = new Map()
 function item (name, count = 1) {
@@ -166,4 +166,52 @@ test('a walk timeout retries once (the first budget may burn on a poisoned walk)
   assert.equal(bad.deposited, 0)
   assert.match(bad.reason, /timeout after/)
   assert.equal(stuck.gotoCalls.length, 2, 'a real-distance timeout never gets a third walk')
+})
+
+// (v0.23.1) ONE chest must not strand the delivery: the fleet measured 5x
+// 'chest unreachable (No path to the goal!)' at final bank while the yard held
+// dozens of chests. The auto-picked nearest chest that No-paths is excluded and
+// the next nearest gets the walk; a caller-pinned chest stays final.
+test('a No-path nearest chest hops to the NEXT nearest chest and banks there', async () => {
+  const chestA = { position: new Vec3(4, 64, 4) } // nearest, but its walk dead-ends
+  const chestB = { position: new Vec3(10, 64, 10) } // next nearest, reachable
+  const bot = makeMockBot({ items: [item('cobblestone', 6)] })
+  // emulate mineflayer's findBlock: the NEAREST chest passing the caller's predicate
+  bot.findBlock = ({ matching, maxDistance }) => {
+    let best = null
+    let bestD = Infinity
+    for (const b of [chestA, chestB]) {
+      if (!matching(b)) continue
+      const d = bot.entity.position.distanceTo(b.position)
+      if (d <= maxDistance && d < bestD) { best = b; bestD = d }
+    }
+    return best
+  }
+  // the walk toward chest A dead-ends with the pathfinder's No path; chest B walks
+  bot.pathfinder.goto = async g => {
+    if (Math.abs(g.x - 4) < 3 && Math.abs(g.z - 4) < 3) throw new Error('No path to the goal!')
+  }
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 6, 'the second chest banks what the first refused')
+  assert.ok(bot.closed, 'the used window must be closed')
+})
+
+test('an explicitly chosen chest that No-paths is NOT replaced (caller choice is final)', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const stopped = new Error('No path to the goal!')
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: [stopped] })
+  const res = await depositToChest(bot, { chestBlock: chest })
+  assert.equal(res.deposited, 0)
+  assert.match(res.reason, /No path/)
+  assert.equal(bot.gotoCalls.length, 1, "walkRetryPlan gives up on 'No path' (one walk), and there is no chest hop")
+})
+
+test('findChest: the exclude list skips exactly the dead positions', () => {
+  const A = { name: 'chest', position: new Vec3(3, 64, 3) }
+  const B = { name: 'chest', position: new Vec3(8, 64, 8) }
+  const bot = { findBlock: ({ matching }) => [A, B].filter(matching)[0] || null }
+  assert.equal(findChest(bot), A, 'nearest first when nothing is excluded')
+  assert.equal(findChest(bot, { exclude: [A.position.floored()] }), B, 'excluded A -> B')
+  assert.equal(findChest(bot, { exclude: [A.position.floored(), B.position.floored()] }), null, 'all excluded -> null')
+  assert.equal(findChest(bot, { exclude: [null, undefined] }), A, 'junk exclude entries change nothing')
 })

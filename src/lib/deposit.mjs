@@ -48,10 +48,21 @@ export function needsBanking (bot) {
   }
 }
 
-export function findChest (bot, { maxDistance = 64 } = {}) {
+export function findChest (bot, { maxDistance = 64, exclude = [] } = {}) {
   try {
     return bot.findBlock({
-      matching: b => CHEST_NAMES.includes(b.name) || /_chest$/.test(b.name),
+      matching: b => {
+        if (!(CHEST_NAMES.includes(b.name) || /_chest$/.test(b.name))) return false
+        // (v0.23.1) a chest the bot already failed to reach ('No path') is skipped:
+        // the yard holds dozens of chests, one unreachable slot must not strand
+        // the whole delivery
+        if (exclude.length > 0 && b.position) {
+          const p = typeof b.position.floored === 'function' ? b.position.floored() : b.position
+          const hit = exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z)
+          if (hit) return false
+        }
+        return true
+      },
       maxDistance
     })
   } catch {
@@ -101,9 +112,10 @@ export async function depositToChest (bot, {
   keep = KEEP,
   maxDistance = 64,
   log = () => {},
-  timeoutMs = null // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
+  timeoutMs = null, // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
+  exclude = [] // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
 } = {}) {
-  const chest = chestBlock ?? findChest(bot, { maxDistance })
+  const chest = chestBlock ?? findChest(bot, { maxDistance, exclude })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
   const tag = `[${bot.username ?? 'bot'}]`
 
@@ -147,7 +159,23 @@ export async function depositToChest (bot, {
     }
   }
   if (!walked) {
-    return { deposited: 0, reason: `chest unreachable (${lastError && lastError.message ? lastError.message : 'walk failed'})` }
+    const lastMsg = lastError && lastError.message ? lastError.message : 'walk failed'
+    // (v0.23.1) ONE CHEST MUST NOT STRAND THE DELIVERY. FLEET EVIDENCE (3e21d58,
+    // final bank): 5x 'chest unreachable (No path to the goal!)' - the NEAREST
+    // chest's walk dead-ends (a pond between, a terrain rim, unloaded chunks) and
+    // the whole deposit died with the loot still in pockets while the yard held
+    // dozens of other chests. When the caller let US pick the chest (chestBlock
+    // null) and the failure is the pathfinder's 'No path' (not a timeout, not a
+    // rescue), exclude exactly that chest and scan again - once (exclude.length
+    // guard): two dead chests mean the terrain is the problem, not the slot.
+    // A caller who pinned chestBlock gets their failure back: their choice is final.
+    if (!chestBlock && exclude.length === 0 && /No path/i.test(lastMsg) && chest.position) {
+      const dead = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      if (dead && Number.isFinite(dead.x)) {
+        return depositToChest(bot, { keep, maxDistance, log, timeoutMs, exclude: [dead] })
+      }
+    }
+    return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
   }
 
   let window
@@ -193,17 +221,30 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   let total = 0
   let chestsUsed = 0
   const reports = []
+  const tried = [] // (v0.23.1) chest positions that refused a walk ('No path')
   const bankableItems = () => {
     try {
       return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
     } catch { return 0 }
   }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
-    const chest = findChest(bot, { maxDistance: findRadius })
+    const chest = findChest(bot, { maxDistance: findRadius, exclude: tried })
     if (!chest) break
     const res = await depositToChest(bot, { chestBlock: chest, keep, log })
     reports.push(res.reason)
-    if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else break // same chest again = no progress
+    if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
+      // (v0.23.1) FLEET EVIDENCE (3e21d58): 5x 'chest unreachable (No path to the
+      // goal!)' at final bank - the NEAREST chest's walk dead-ends (a pond, a rim,
+      // unloaded chunks) and the whole deposit died with the loot still in pockets.
+      // A 'No path' to ONE chest excludes exactly that chest and tries the next
+      // nearest (the yard holds dozens); everything else still breaks - the
+      // maxChests bound stays the only loop guard.
+      if (/chest unreachable \(No path/i.test(String(res.reason)) && chest.position) {
+        tried.push(chest.position.floored())
+        continue
+      }
+      break
+    }
   }
   return { deposited: total, chestsUsed, chestReport: reports }
 }
