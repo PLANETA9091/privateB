@@ -197,11 +197,26 @@ export async function smeltBatch (bot, {
   const invCount = name => countItem(bot, name)
   if (invCount(inputName) <= 0) return { smelted: 0, rescued: 0, reason: 'input not in inventory' }
 
-  // walk to the machine first - openBlock out of reach throws or hangs
-  try {
-    await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: 20000, label: 'walk to furnace' })
-  } catch (e) {
-    return { smelted: 0, rescued: 0, reason: `machine unreachable (${e.message})` }
+  // walk to the machine first - openBlock out of reach throws or hangs.
+  // (v0.13.1) RETRY x3: the walk to a machine at a dark shaft bottom gets
+  // interrupted by everything the world throws at the bot - a mob shove engages
+  // the combat flee (its own pathfinder goal stops ours: 'Path was stopped'),
+  // a shelter dig-in, a hurt-sentry pause. One interruption used to waste the
+  // whole smelt visit AND fail the integration test (CI run 109); a bot that
+  // still stands simply walks again. Bounded: 3 attempts, settle pause between.
+  let lastWalkError = 'never attempted'
+  let walked = false
+  for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
+    try {
+      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: 20000, label: 'walk to furnace' })
+      walked = true
+    } catch (e) {
+      lastWalkError = e.message
+      await new Promise(r => setTimeout(r, 500)) // let the interrupting path/control settle
+    }
+  }
+  if (!walked) {
+    return { smelted: 0, rescued: 0, reason: `machine unreachable (${lastWalkError})` }
   }
 
   let furnace
