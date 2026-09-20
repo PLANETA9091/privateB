@@ -27,7 +27,8 @@ import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
-  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS
+  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
+  rescueDone
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -449,6 +450,7 @@ export function createMiner ({
     bot._waterRescue = true // gotoSafe refuses new walk goals from now on
     lastRescueAt = Date.now()
     stats.rescues++
+    let standingWet = false // exited via the standing-in-shallow-water policy
     log(`${tag} water: drowning rescue start (${verdict}, oxygen ${bot.oxygenLevel ?? '?'})`)
     try {
       try { bot.pathfinder.setGoal(null) } catch { /* idle already */ }
@@ -458,26 +460,44 @@ export function createMiner ({
         const read = waterRead()
         const inWater = isWaterName(read.feet) || isWaterName(read.head)
         if (!inWater && bot.entity.onGround) break // out and standing: done
-        bot.setControlState('jump', true) // swim up / stay at the surface
         if (!isWaterName(read.head)) {
           // head in air: surface reached - swim for the nearest shore (the raw
           // tunnel/shelter lesson: no pathfinder while conditions are hostile)
           const dir = shoreDirection(sample, bot.entity.position.floored())
           if (dir) {
+            bot.setControlState('jump', true) // stay at the surface while swimming
             try { await bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false) } catch { /* keep the bearing */ }
             bot.setControlState('forward', true)
             await bot.waitForTicks(8)
             bot.setControlState('forward', false)
           } else {
-            await bot.waitForTicks(10) // no shore in sight: tread and stay alive
+            // (CI 35511474490) no shore in sight - two honest outcomes. The old
+            // loop just treaded here for the FULL RESCUE_MAX_MS; in a flooded
+            // 1x1 shaft (feet wet, head dry, walls everywhere) that 25 s held
+            // the _waterRescue walk-gate and refused every fleet goal while
+            // the bot was SAFE. Release the swim controls, let physics settle,
+            // and a STANDING bot goes back to work - shallow water is not
+            // drowning, raw swimming can never leave a 1x1 hole, and a renewed
+            // submersion re-fires this rescue after the cooldown.
+            bot.setControlState('jump', false)
+            await bot.waitForTicks(2) // onGround needs physics ticks to settle
+            if (!bot.entity) break
+            if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
+              standingWet = true
+              break
+            }
+            await bot.waitForTicks(8) // floating in open water: tread and stay alive
           }
         } else {
-          await bot.waitForTicks(5) // submerged: ascending is everything
+          bot.setControlState('jump', true) // submerged: ascending is everything
+          await bot.waitForTicks(5)
         }
       }
       const done = !bot.entity
         ? 'aborted (bot gone)'
-        : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
+        : standingWet
+          ? 'complete (standing wet - shallow water is not drowning)'
+          : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
     } finally {
       try { bot.clearControlStates() } catch { /* nothing held */ }

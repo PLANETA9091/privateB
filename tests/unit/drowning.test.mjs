@@ -10,7 +10,7 @@ import {
   WATER_NAMES, AIR_NAMES, SHAFT_FLUID_NAMES,
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
-  isWaterName, waterVerdict, airBarTrust, shoreDirection
+  isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -136,6 +136,29 @@ test('shoreDirection: junk inputs return null (tread water instead of swimming a
   const allWater = () => 'water'
   assert.equal(shoreDirection(allWater, { x: 0, y: 3, z: 0 }), null, 'open ocean: no shore within radius')
   assert.equal(shoreDirection(() => null, { x: 0, y: 3, z: 0 }), null, 'all-unknown: no direction')
+})
+
+test('rescueDone: the swim rescue keeps the bot while drowning is possible', () => {
+  // head wet = the F1/F3 sinking shape: never hand over, whatever else reads
+  assert.equal(rescueDone({ headWet: true, shore: null, onGround: true }), false, 'head wet: keep swimming')
+  assert.equal(rescueDone({ headWet: true, shore: { dx: 1, dz: 0 }, onGround: true }), false, 'head wet + shore: keep swimming')
+  assert.equal(rescueDone({ headWet: true, shore: null, onGround: false }), false)
+  // a shore plan exists: the swim phase owns the bot until it lands
+  assert.equal(rescueDone({ headWet: false, shore: { dx: 3, dz: 0, step: 0 }, onGround: false }), false, 'shore in sight: swim on')
+  // floating in open water, no shore: tread (the old behaviour, still safe)
+  assert.equal(rescueDone({ headWet: false, shore: null, onGround: false }), false, 'floating deep: keep treading')
+})
+
+test('rescueDone: standing in shallow water without a shore ends the rescue (CI 35511474490)', () => {
+  // the measured poisoned case: flooded 1x1 shaft, feet in water, head dry,
+  // shoreDirection null (walls, not beaches) - the old loop treaded the FULL
+  // RESCUE_MAX_MS holding the fleet walk-gate while the bot was safe
+  assert.equal(rescueDone({ headWet: false, shore: null, onGround: true }), true, 'standing wet: hand the bot back NOW')
+  // junk inputs stay conservative: no reads -> never a hand-back
+  assert.equal(rescueDone({}), false, 'no information: keep the rescue')
+  assert.equal(rescueDone(), false, 'no argument: keep the rescue')
+  assert.equal(rescueDone({ headWet: 1, shore: 0, onGround: 'yes' }), false, 'junk truthy headWet keeps the swim')
+  assert.equal(rescueDone({ headWet: null, shore: null, onGround: 1 }), true, 'numeric onGround is a stand')
 })
 
 test('policy constants stay sane', () => {

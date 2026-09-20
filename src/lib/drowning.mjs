@@ -160,6 +160,34 @@ export function shoreDirection (sample, center, { maxRadius = SHORE_MAX_RADIUS }
   return null
 }
 
+/**
+ * The rescue-loop EXIT policy (pure).
+ *
+ * CI run 35511474490 measured the poisoned case: a smelt-test bot dug into an
+ * aquifer, the rescue fired, and the loop then treaded for the FULL
+ * RESCUE_MAX_MS (25 s) - feet in water on the flooded-shaft floor, head dry,
+ * shoreDirection null (a 1x1 hole has walls, not beaches). The whole window
+ * held bot._waterRescue true, so the fleet walk-gate refused every goal
+ * ("water rescue in progress (walk to furnace refused)") and the smelt phase
+ * died. The insight: a swim rescue owns the bot only while DROWNING is
+ * possible. Head dry + STANDING means the air bar is recovering and the bot
+ * can walk out on its own legs - shallow water is not drowning. Raw swimming
+ * can never leave a 1x1 hole anyway.
+ *
+ *   headWet  - the head cell reads water: keep swimming (the F1/F3 shape)
+ *   shore    - shoreDirection result: a swim plan exists, keep going
+ *   onGround - the bot STANDS (measured AFTER releasing the jump control and
+ *              settling physics - holding jump never lets onGround settle)
+ * A renewed submersion re-fires the rescue after RESCUE_COOLDOWN_MS, so
+ * ending early on a standing bot costs no safety.
+ * Returns true only when the rescue must hand the bot back NOW.
+ */
+export function rescueDone ({ headWet = false, shore = null, onGround = false } = {}) {
+  if (headWet) return false
+  if (shore) return false
+  return !!onGround
+}
+
 /** digShaft fluid scan set: what may NEVER open under a shaft we are about to
  * dig. Lava kills, water drowns (a shaft punched into an aquifer floods, the
  * bot sinks into a 1x1 well with water walls - no shore, no climb). */
