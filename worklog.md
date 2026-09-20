@@ -816,3 +816,18 @@ Stage Summary:
 - Мастер: ebef1c5 (v0.25.0). Сессия: 1 коммит, ~15 юнит-тестов, 3 root cause вскрыты и закрыты кодом.
 - ОЖИДАНИЯ к fleet-прогону v0.25.0: 'did not rise' с support=gravel/step=gravel исчезает ИЛИ climb проходит после pass-цикла; 'banked' > 0 (впервые с v0.19!); 'nothing to deposit' не убивает доставку (chestReport покажет хопы); 'cannot open chest' реже x2.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) скачать артефакты dispatch на ebef1c5 (dispatch запустить через workflow_dispatch run_fleet=true, дождавшись зелёного CI), сверить ожидания выше; (2) если banked всё ещё 0 - смотреть climb diag: pass-цикл горел на 'stalled' с dug>=8 на уровень = столб глубже 12 (поднять STEP_MAX_PASSES) или новая геометрия; (3) темп-фронт: 5.4 b/s уже хорош, следующий потолок - ore-steering vs dirt-питание; (4) airGlitches=462 (вырос с 67!) - смотреть breathing-guard/водные кластеры; (5) НЕ пушить при чужом PENDING dispatch; git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0553 (part 2)
+Agent: Z.ai Code (cron session, 05:53 +08)
+Task: fleet dispatch 35541442371 завис в end-phase - структурный hard-kill (v0.26.0)
+
+Work Log:
+- CI на v0.25.1 (e8f0ce1) - SUCCESS. Запущен fleet dispatch 35541442371 (600s).
+- Диспетч ПРОАНАЛИЗИРОВАН ПО КАНАЛУ ОТМЕНЫ (job отменили после ~40 мин): mined рос 69->1240 (22:34-22:47), дедлайн 600s прошёл, end-phase пошла (17x 'final climb: failed - stalled', 16 staggered) - и в 22:45:49 ЗАМЕРЛО ВСЁ: 25+ минут ТОЛЬКО heartbeat-строк, ни одной bot-строки, path=6a/11q циркулирует (stale +3/15s = активации идут), но ни один walk не завершился. FLEET RESULT НЕ напечатан, CI job сгорел ДО upload'а артефактов - доказательства всей сессии потеряны. Сигнатура: ВСЕ 19 ботов повисли в финальной bank-цепочке ОДНОВРЕМЕННО (depositToChest/smelt цепочка после failed climbs), queue circulating, ноль завершений.
+- step=gravel в diag = 1 (было 30+): гравийный фикс v0.25.0 похоже работает; 'did not rise' сохранился только у воды/камня (F17 y=43 feet=water, F13 y=51) - ДРУГОЙ класс, малый.
+- v0.26.0 (8ac7a01): endphase.mjs hardKillDelayMs + HARD_KILL_MARGIN_MS=420s; fleet19.mjs unref'd kill-таймер: при дедлайн+маржин печатает '[fleet] HARD KILL' + partial totals (alive/mined/banked/smelted/climbs/rescues) и process.exit(0) - CI job ВСЕГДА завершается, артефакт fleet19.log ВСЕГДА падает. 3 юнит-теста.
+
+Stage Summary:
+- Мастер: 8ac7a01 (v0.26.0). CI в полёте.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться зелёного CI на 8ac7a01, перезапустить fleet dispatch (run_fleet=true, fleet_seconds=600); (2) ГЛАВНЫЙ ОЖИДАЕМЫЙ СИГНАЛ: '[fleet] HARD KILL' строка + partial totals в артефакте - если флот снова зависнет в end-phase, лог хотя бы УЦЕЛЕЕТ; (3) непочеченный фронт: одновременный end-phase stall всех ботов - подозреваю depositToChest/findChest при живой, но никогда не завершающейся path-очереди (нужно воспроизвести по логу 35541442371: скачать лог job 106160987244 - 'fleet-cancelled.log'); (4) mined=1240@~10мин (2.07 b/s) ниже v0.24.0-прогона (5.4) - мир/старт разные, не паниковать; (5) git pull --rebase перед пушем.
