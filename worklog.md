@@ -746,3 +746,19 @@ Stage Summary:
 - НОВЫЙ ФРОНТ: path-сатурация в early-game (wood-фаза + 19 ботов). Кандидаты на v0.20: (a) приоритет очереди (bank-walk > trip > next-column), (b) отложенные next-column ходки при глубокой очереди, (c) maxConcurrent 6->8 (риск CPU-голодания, тестировать в CI).
 - ЗАГАДКА "Path was stopped" (100% yard-walk смерти в #130/#131) ОСТАЁТСЯ: спаи v0.19.1 дадут ответ в прогоне, где needsBanking сработает (нужно >128 юнитов у бота или 24 слота).
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) dispatch run_fleet=true, ждать прогон где боты нароют >100 блоков каждый; grep "bank walk path event" + "yard walk attempt N failed"; (2) path-сатурация: проверить "path=Xa/Yq" строки в статусах - если 6a/10q повторяется, делать приоритет очереди; (3) НЕ откатывать heartbeat-поллинг 5s и walkRetryPlan; (4) git pull --rebase перед пушем, чужие dispatch-ранны не отменять.
+
+---
+Task ID: 398294-20260921-0253
+Agent: Z.ai Code (cron session, 02:53 +08)
+Task: Раскрыть загадку 'Path was stopped' (banked=0), фикс v0.20.0/v0.20.1
+
+Work Log:
+- CI был зелёный (v0.19.2). Скачал артефакт fleet19-log dispatch 35527733037 (f4f7181): 927 blocks @ 1.54 b/s, alive 19/19, banked=0; 15x 'chest unreachable', все - 'Path was stopped...'; yard-walk ретраи v0.19.0 (0 'yard walk retry') и хуки v0.19.1 (0 'bank walk path event') НЕ СРАБОТАЛИ, т.к. bankFallback получал 'chest unreachable' (не 'no chest in range') и уходил в 'none' - падающая прогулка жила ВНУТРИ depositToChest, без ретраев и хуков.
+- ROOT CAUSE доказан по исходникам node_modules/mineflayer-pathfinder: (1) stop() только ставит модуль-флаг stopPathing=true; (2) флаг потребляется ТОЛЬКО приходом в точку пути, resetPath от block_update у НЕпустого пути или следующим setGoal; (3) у СТОЯЩЕГО бота (пустой путь после таймаута у стены) валидаторов нет: GoalNear.isValid() const-true, базовый hasChanged() const-false; (4) 2-тик-сеттл gotoSafe бесполезен; (5) следующий goto: setGoal -> resetPath('goal_updated') -> if(stopPathing) stop() -> СИНХРОННЫЙ 'path_stop' -> свежий listener -> мгновенный PathStopped. Это объясняет 77 attempts/banked=0 (#128), смерти всех ретраев v0.19.0 и 12-15x Path was stopped в final bank.
+- v0.20.0 (59294a9): gotoSafe вызывает clearStaleStop(bot) перед КАЖДЫМ goto - при isMoving()=false ставит setGoal(null), потребляя stale-флаг (path_stop уходит в пустоту); one-shot spy считает реальные случаи -> gotoSafeStats().staleStopClears; heartbeat флота печатает stale=N. Моки без setGoal/isMoving деградируют к старому поведению. 6 юнит-тестов.
+- v0.20.1 (ae0c255): depositToChest - ВСЕ классы отказов прогулки к сундуку унифицированы под walkRetryPlan (max 2 прогулки): water-rescue -> wait-rescue (как было), Path stopped -> 1 немедленный ретрай (НОВОЕ), timeout -> 1 ретрай (НОВОЕ, ограничено), no path -> give-up (как было). 4 юнит-теста.
+
+Stage Summary:
+- Мастер: ae0c255 (v0.20.1). Сессия: 2 коммита, 10 тестов, push выполнен, CI - следить.
+- ОЖИДАНИЯ к следующему fleet-прогону: banked>0 (впервые с v0.18.x при достаточной добыче), 'Path was stopped' либо исчезает, либо ретрай спасает; в heartbeat stale>0 в моменты таймаутов = доказательство теории.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) если banked всё ещё 0 - смотреть depositLoot ПЕРЕД final bank (needsBanking мог не сработать: ~49 блоков/бота не наполняют карманы; рассмотреть порог BANK_UNITS 128->96); (2) path-сатурация 6a/10q early-game - приоритет очереди (bank > trip > column) остаётся фронтом v0.21; (3) climb-out 'stalled' wet-кластеры не трогать без новой теории (swim-up против down-flow проигрывает, v0.17.0); (4) git pull --rebase перед пушем, чужие dispatch-ранны не отменять.
