@@ -12,13 +12,13 @@ const FROM = pos(100, 50, 100)
 test('ore steer: picks the nearest qualifying candidate, dominant axis + sign', () => {
   const t = pickOreTarget({
     candidates: [
-      { name: 'iron_ore', pos: pos(112, 50, 101) }, // dx=12, dz=1 -> axis x, dir +1
-      { name: 'coal_ore', pos: pos(90, 51, 100) } // behind, farther
+      { name: 'iron_ore', pos: pos(112, 50, 101) }, // dx=12, dz=1 -> axis x, dir +1, dist ~12.0
+      { name: 'coal_ore', pos: pos(85, 51, 100) } // behind at dist ~15.0 - farther, loses
     ],
     from: FROM
   })
   assert.ok(t, 'a target is chosen')
-  assert.equal(t.name, 'iron_ore')
+  assert.equal(t.name, 'iron_ore', 'nearest wins regardless of name order')
   assert.equal(t.axis, 'x')
   assert.equal(t.dir, 1)
   assert.equal(t.cross, 1)
