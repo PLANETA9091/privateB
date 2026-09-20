@@ -27,9 +27,12 @@ find_java () {
 JAVA_BIN="$(find_java)" || { echo "no Java >= 22 found; install a newer JDK (e.g. Temurin 25) into ~/jdk"; exit 1; }
 
 server_pids () {
-  # the java process command line is "<java> -Xms1G -Xmx2G -jar server.jar nogui";
-  # this pattern deliberately does not match the shell running this script
-  pgrep -f -- '-Xmx[0-9]+[GgMm] -jar server\.jar nogui$' || true
+  # the java process command line is "<java> -Xms1G -Xmx2G [-Xlog:gc ...] -jar
+  # server.jar nogui"; this pattern deliberately does not match the shell running
+  # this script, and tolerates flags between -Xmx and -jar (the v0.18.13 GC flag
+  # lesson: -Xlog:gc landed between them and the old pattern stopped matching -
+  # fail-fast declared the server dead after one 2s iteration)
+  pgrep -f -- '-Xmx[0-9]+[GgMm] .*-jar server\.jar nogui$' || true
 }
 
 case "${1:-status}" in
