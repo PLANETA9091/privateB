@@ -15,8 +15,8 @@
 // byName mined-block histogram, merged additively.
 export const CARRY_FIELDS = [
   'mined', 'failed', 'skipped', 'flyFails', 'hookCalls', 'hookFails',
-  'mapTrips', 'mapRecords', 'planted', 'torched', 'fights', 'climbs',
-  'shelters', 'rescues', 'airGlitches', 'claims', 'deaths'
+  'mapTrips', 'mapRecords', 'banked', 'planted', 'torched', 'fights',
+  'climbs', 'shelters', 'rescues', 'airGlitches', 'claims', 'deaths'
 ]
 
 /**
