@@ -41,7 +41,7 @@ case "${1:-status}" in
   start)
     if [ ! -p "$DIR/cmd.fifo" ]; then mkfifo "$DIR/cmd.fifo"; fi
     cd "$DIR"
-    setsid nohup bash -c "tail -f cmd.fifo | '$JAVA_BIN' -Xms1G -Xmx2G -jar server.jar nogui" >> "$DIR/console.log" 2>&1 < /dev/null &
+    setsid nohup bash -c "tail -f cmd.fifo | '$JAVA_BIN' -Xms1G -Xmx2G -Xlog:gc:stdout:uptime,levels -jar server.jar nogui" >> "$DIR/console.log" 2>&1 < /dev/null &
     disown || true
     for _ in $(seq 1 120); do
       sleep 2

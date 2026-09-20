@@ -178,6 +178,14 @@ jobs:
         with:
           name: fleet19-log
           path: /tmp/fleet19.log
+      - name: Upload server console + log (tick-stall evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-server-log
+          path: |
+            testbed/server/console.log
+            testbed/server/logs/latest.log
       - name: Stop the server
         if: always()
         run: scripts/server.sh stop
