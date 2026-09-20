@@ -44,29 +44,59 @@ cmd('kill', '@e[type=skeleton]')
 cmd('give', username, 'stone_pickaxe', 1)
 await bot.waitForTicks(30)
 
-const p = bot.entity.position.floored()
-const cx = p.x + 6
-const cz = p.z
+// (2026-09-21, Task 14) FLOATING ARENA - three measured failure modes killed the
+// old spawn-anchored build: (1) on a slope spawn the console water tower POURS
+// over its mouth and pools around the well base (the terrain probe read
+// 'dy=2:water' on ALL 4 gallery directions while dy=0/dy=1 were dry dirt) - the
+// waterfall guard (correctly!) refused every side, FAIL by terrain luck; (2) a
+// previous diag's escape staircase chewed up the world spawn itself (the bot
+// spawned INTO a wet crater); (3) any structure SMALLER than the escape's reach
+// gets breached - the gallery walks up to TRAVERSE_MAX_BLOCKS (12) and digs
+// feet+head cells straight through a 1-thick wall, then the staircase drifts up
+// to 7 more blocks laterally - a bot outside the structure falls onto the
+// platform (gained resets, FAIL). The stable geometry: a monolithic 41x41 stone
+// block (101..110) ON a 45x45 platform at fixed y=100 - gallery AND staircase
+// stay inside solid stone (the exact fleet scenario: cross the aquifer band
+// horizontally, staircase up to the rim), the wall is unreachable, the only way
+// out is UP through the self-dug steps. Water column 101..108 (the F7
+// signature: 7 water blocks above the head), capped by 2 stone layers.
+const p0 = bot.entity.position.floored()
+const ax = p0.x + 40 // well clear of the chewed spawn area, same loaded chunks
+const az = p0.z
 const DEPTH = 8
-const groundY = p.y // the bot stands on the surface at groundY; ground body below
-// skyLight telemetry: if this stack never populates block.skyLight, pillarTarget
-// degrades to the cap target (feet+maxUp) and res.ok may stay false even on a
-// clean escape - which is exactly why the pass criterion below is SURFACE-
-// relative (onSurface/outOfWater), not climbOut-return-relative.
-cmd('fill', cx, groundY - DEPTH, cz, cx, groundY - 1, cz, 'stone') // seal the column solid first
+const PLATFORM_Y = 100 // fixed - never reads local terrain
+const groundY = PLATFORM_Y + 1 // the platform top IS the ground now
+const cx = ax // the well site = the arena center
+const cz = az
+cmd('fill', ax - 22, PLATFORM_Y, az - 22, ax + 22, PLATFORM_Y, az + 22, 'stone') // the platform
+cmd('fill', cx - 20, groundY, cz - 20, cx + 20, groundY + DEPTH + 1, cz + 20, 'stone') // the monolith
 await bot.waitForTicks(20)
-cmd('fill', cx, groundY - DEPTH, cz, cx, groundY - 1, cz, 'air') // hollow it
-cmd('fill', cx, groundY - DEPTH, cz, cx, groundY - 1, cz, 'water') // fill it with sources
+cmd('fill', cx, groundY, cz, cx, groundY + DEPTH - 1, cz, 'air') // hollow the column
+cmd('fill', cx, groundY, cz, cx, groundY + DEPTH - 1, cz, 'water') // fill it with sources
 await bot.waitForTicks(40) // let the water settle into a full column
-const mouth = bot.blockAt(new (bot.entity.position.floored().constructor)(cx, groundY, cz))
-console.log(`[diag] well mouth block=${mouth?.name} skyLight=${mouth?.skyLight} (null/undefined = the stack never fills it)`)
+const Vec3c = bot.entity.position.floored().constructor
+const cap = bot.blockAt(new Vec3c(cx, groundY + DEPTH + 1, cz))
+console.log(`[diag] cap block=${cap?.name} (stone = the column is sealed)`)
+const skyCell = bot.blockAt(new Vec3c(cx, groundY + DEPTH + 2, cz))
+console.log(`[diag] above-cap cell block=${skyCell?.name} skyLight=${skyCell?.skyLight}`)
+const stackTop = bot.blockAt(new Vec3c(cx, groundY + DEPTH - 1, cz))
+console.log(`[diag] well top block=${stackTop?.name} (water = the column flooded)`)
 
 // drop the bot to the well bottom: feet in the lowest water cell, 7 water
 // blocks above its head - the exact F7 signature
-cmd('tp', username, cx + 0.5, groundY - DEPTH, cz + 0.5)
+cmd('tp', username, cx + 0.5, groundY, cz + 0.5)
 await bot.waitForTicks(20)
 const check = bot.entity?.position?.floored()
 console.log(`[diag] bot in the well at ${check} (ground ${groundY}) - running climbOut`)
+
+// (Task 14, measured) mineflayer's block.skyLight for CONSOLE-BUILT geometry is
+// STALE garbage: the open-sky cell read 0 while the sealed water column read 15
+// - pillarTarget's skylight scan then 'proves' the bot is already out at dy=1
+// ('already out (skylight)', zero attempts). The fleet never sees this (its bots
+// dig gradually through streaming light updates), so the diag pins the fleet's
+// OWN target semantics: digShaft records stats.shaftEntryY and the climb returns
+// to the recorded RIM level - light-independent, deterministic here too.
+miner.stats.shaftEntryY = groundY + DEPTH - 1
 
 // THE ESCAPE: climbOut must notice the wet ceiling, dig the gallery sideways,
 // staircase up and breach the surface next to the well. res.ok is informational
