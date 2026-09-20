@@ -16,6 +16,7 @@ import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue } from '../lib/torch.mjs'
+import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { craftTorches } from './tools.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
@@ -48,7 +49,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -113,6 +114,129 @@ export function createMiner ({
     log(`${tag} died - respawning`)
     stats.deaths = (stats.deaths ?? 0) + 1
     setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)
+  })
+
+  // ---- combat defense (v0.11.0, policy in src/lib/combat.mjs) ----
+  // The smelt-test measured a midday death where the digShaft health guard just
+  // "paused descent" while a zombie hit 20 -> 5.7 -> dead in 9 s: waiting heals
+  // nothing when a mob keeps swinging. Every health drop therefore primes a
+  // short sentry window; a hostile nearby inside it triggers defendSelf once.
+  function nearestHostile ({ range = DETECT_RANGE } = {}) {
+    if (!bot.entity) return null
+    let best = null
+    for (const e of Object.values(bot.entities)) {
+      if (!e || e === bot.entity || !isHostileEntity(e) || !e.position) continue
+      const d = e.position.distanceTo(bot.entity.position)
+      if (d <= range && (!best || d < best.dist)) best = { entity: e, name: e.name, dist: d }
+    }
+    return best
+  }
+
+  function countHostiles () {
+    if (!bot.entity) return 0
+    let n = 0
+    for (const e of Object.values(bot.entities)) {
+      if (!e || e === bot.entity || !isHostileEntity(e) || !e.position) continue
+      if (e.position.distanceTo(bot.entity.position) <= DETECT_RANGE) n++
+    }
+    return n
+  }
+
+  // Multi-hop escape: ONE 12-block hop does not outrun a persistent zombie (the
+  // first live run measured flee-at-4hp -> caught -> dead), so we keep hopping
+  // until the threat is beyond 14 blocks or the deadline burns.
+  async function runAway (threat, reason) {
+    const deadline = Date.now() + 12000
+    for (let hop = 0; hop < 3 && bot.entity && Date.now() < deadline; hop++) {
+      const dx = bot.entity.position.x - threat.entity.position.x
+      const dz = bot.entity.position.z - threat.entity.position.z
+      const len = Math.hypot(dx, dz) || 1
+      const away = new goals.GoalXZ(bot.entity.position.x + (dx / len) * 12, bot.entity.position.z + (dz / len) * 12)
+      try { await gotoSafe(bot, away, { timeoutMs: 5000, label: 'combat flee' }) } catch { /* hop again from where we are */ }
+      const cur = nearestHostile()
+      if (!cur || cur.dist > 14) return
+    }
+  }
+
+  // Bounded regen window after a fight or a flee: autoeat + natural regen need
+  // seconds. Without this the bot went straight back to mining at 3 hp (measured)
+  // and the very next hit re-triggered the whole cycle.
+  async function recover () {
+    const deadline = Date.now() + 8000
+    while (bot.entity && (bot.health ?? 20) < 14 && Date.now() < deadline) {
+      await bot.waitForTicks(10)
+    }
+  }
+
+  let defending = false
+  async function defendSelf (reason = 'guard') {
+    if (defending) return { action: 'busy' }
+    const threat = nearestHostile()
+    if (!threat) return { action: 'none' }
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles() })
+    if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
+    defending = true
+    stats.fights++
+    try {
+      if (verdict === 'flee') {
+        log(`${tag} combat: fleeing ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
+        await runAway(threat, reason)
+        await recover()
+        return { action: 'flee', threat: threat.name }
+      }
+      log(`${tag} combat: fighting ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
+      const weapon = pickWeapon(inventoryItems(bot))
+      if (weapon) { try { await bot.equip(weapon, 'hand') } catch { /* fists are still something */ } }
+      const deadline = Date.now() + 10000
+      while (bot.entity && Date.now() < deadline) {
+        const cur = nearestHostile()
+        if (!cur) break // the threat died or wandered off
+        // per-round re-verdict (the first live run measured a bot fighting down
+        // to 5 hp and then just standing there): the policy owns the decision
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles() })
+        if (v === 'flee') {
+          log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
+          await runAway(cur, `${reason} re-verdict`)
+          await recover()
+          return { action: 'flee', threat: cur.name }
+        }
+        if (v === 'ignore') break
+        try {
+          if (cur.dist > 3.2) {
+            // shooters (skeleton at 10 blocks) cannot be hit from here: close the
+            // distance first, bounded so a chase cannot drag us across the map
+            await gotoSafe(bot, new goals.GoalFollow(cur.entity, 2), { timeoutMs: 2500, label: `closing ${cur.name}` })
+          }
+        } catch { /* swing anyway when in reach */ }
+        if (!bot.entity) break
+        try {
+          await bot.lookAt(cur.entity.position.offset(0, (cur.entity.height ?? 1.8) * 0.9, 0), true)
+          bot.attack(cur.entity)
+        } catch { /* swing again next round */ }
+        await bot.waitForTicks(10) // ~2 swings/s - vanilla cooldown eats DPS but kills all the same
+      }
+      await recover()
+      return { action: 'fight', threat: threat.name }
+    } finally { defending = false }
+  }
+
+  // Reactive sentry: mineflayer emits 'health' on every damage tick. A drop that
+  // is NOT ours to fix by waiting (fall/lava/starvation) is a mob hit when a
+  // hostile stands near - the dig guards handle the terrain damage themselves.
+  let sentryHealth = bot.health ?? 20
+  let sentryTimer = null
+  bot.on('health', () => {
+    const hp = bot.health ?? 20
+    const dropped = hp < sentryHealth - 0.25
+    sentryHealth = hp
+    if (!dropped || sentryTimer) return
+    sentryTimer = setTimeout(() => {
+      sentryTimer = null
+      if (!bot.entity) return // died between the hit and this timer
+      const threat = nearestHostile({ range: DETECT_RANGE })
+      if (!threat) return
+      defendSelf('sentry').catch(() => { /* the next drop re-primes us */ })
+    }, 400)
   })
 
   const ready = new Promise((resolve, reject) => {
@@ -1107,10 +1231,13 @@ export function createMiner ({
     let lastHealth = bot.health ?? 20
     let sidestepRounds = 0 // independent rotation: "done" never grows while stuck, done%4 always picked east
     while (done < maxBlocks && !shouldStop?.() && bot.entity && Date.now() - started <= maxMs) {
-      // health guard: damaged bots wait before the next dig (regen needs food; autoeat feeds)
+      // health guard: damaged bots defend FIRST (v0.11.0), then wait to regen.
+      // The old code only waited - measured 2026-09-20: a zombie hit 20 -> 5.7 ->
+      // dead in 9 s while the guard "paused descent" for 30 ticks at a time.
       const hp = bot.health ?? 20
       if (hp < lastHealth - 0.5) {
         log(`${tag} digShaft: health dropped ${lastHealth.toFixed(1)} -> ${hp.toFixed(1)}, pausing descent`)
+        try { await defendSelf('digShaft') } catch { /* never let defense break the dig loop */ }
         await bot.waitForTicks(30)
         lastHealth = bot.health ?? 20
         if (hp < 6) {

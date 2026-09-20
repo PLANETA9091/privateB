@@ -132,7 +132,10 @@ async function runBot (name, target, index) {
         mode: 'rage',
         fly: false, // flight is off: bots walk (see README)
         map, // shared scout -> miner resource map
-        log: () => {}
+        // bot-level logs are too chatty for a fleet run, but COMBAT events are the
+        // field evidence the next iteration needs (the v0.11.0 verification run
+        // counted fights=2 while printing nothing - invisible, useless evidence)
+        log: m => { if (/combat|died|KICKED|error/.test(m)) console.log(`${name} ${m}`) }
       })
       bots.set(name, { miner, target })
       await miner.ready
@@ -459,7 +462,7 @@ const list = [...bots.values()].map(e => e.miner).filter(Boolean)
 const s = fleetStats(list)
 const secs = SECONDS
 console.log('================ FLEET RESULT ================')
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
@@ -502,6 +505,7 @@ const fleetReport = {
     torched: m.stats.torched ?? 0,
     mapTrips: m.stats.mapTrips ?? 0,
     mapRecords: m.stats.mapRecords ?? 0,
+    fights: m.stats.fights ?? 0,
     byName: m.stats.byName
   })),
   materials,
