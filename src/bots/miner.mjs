@@ -15,6 +15,8 @@ import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../
 import { depositToChest, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
+import { torchDue } from '../lib/torch.mjs'
+import { craftTorches } from './tools.mjs'
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
 // sapling replant path calls this from gatherWood - a missing definition threw
@@ -46,7 +48,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -1000,9 +1002,43 @@ export function createMiner ({
     return air
   }
 
+  // (v0.10.0) One wall torch at head level in the shaft we are standing in. Wall-
+  // attached ON PURPOSE: a floor torch pops the moment digShaft eats the block
+  // under it (place -> dig -> pop -> pickup loops forever). A torch has no
+  // collision shape, so vanilla accepts it in the cell we are about to occupy;
+  // with the next fall the torch ends up ABOVE our head, attached to the wall,
+  // and lights the column we came down through. Bounded and silent: placement
+  // must never break the dig loop.
+  async function placeTorchHere () {
+    try {
+      const torch = inventoryItems(bot).find(i => i.name === 'torch')
+      if (!torch) return false
+      const cell = bot.entity.position.floored().offset(0, 1, 0)
+      const cellB = bot.blockAt(cell)
+      if (!cellB || cellB.boundingBox !== 'empty') return false // no free cell right now
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const wall = bot.blockAt(cell.offset(dx, 0, dz))
+        if (!wall || wall.boundingBox !== 'block') continue // air / fluid / out of world
+        await bot.equip(torch, 'hand')
+        // vanilla drops right-clicks that arrive <4 ticks apart (the placeTable
+        // lesson) - the dig rhythm around this call paces the attempts naturally
+        await bot.waitForTicks(5)
+        await withTimeout(bot.placeBlock(wall, new Vec3(-dx, 0, -dz)), 5000, 'shaft torch')
+        stats.torched++
+        return true
+      }
+      return false
+    } catch { return false }
+  }
+
   async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, maxMs = Infinity, onProgress = null } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
+    // Torch stocking (v0.10.0): surplus sticks + mined coal -> torches BEFORE the
+    // descent. The kit phase passes here too (gatherWood digs through a tree) and
+    // then holds no sticks, so torchCraftPlan's reserve makes it an honest no-op
+    // there. Silent and bounded: a dark shaft is survivable, a broken loop is not.
+    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`) }) } catch { /* keep digging */ }
     // Treetop spawn / canopy end position: from up there the block below is leaves or
     // wood - not in the target names - and the loop would wander sideways forever
     // (measured: 90s, zero blocks). Dig straight down through leaves/wood until real
@@ -1017,6 +1053,7 @@ export function createMiner ({
     }
     const started = Date.now()
     let done = 0
+    let digsSinceTorch = 0 // torch rhythm counter - reset on a successful placement
     const floor = minY ?? bot.game.minY + 3
     let lastHealth = bot.health ?? 20
     let sidestepRounds = 0 // independent rotation: "done" never grows while stuck, done%4 always picked east
@@ -1073,6 +1110,11 @@ export function createMiner ({
           done++
           stats.mined++
           stats.byName[block.name] = (stats.byName[block.name] || 0) + 1
+          // torch rhythm (v0.10.0): a wall torch every TORCH_SPACING digs keeps the
+          // whole column above the hostile-spawn light threshold; torchDue also
+          // fires early when the bot can READ darkness. Silent on any failure.
+          digsSinceTorch++
+          if (torchDue({ digsSinceTorch }) && await placeTorchHere()) digsSinceTorch = 0
           if (onProgress && done % 8 === 0) onProgress(done, stats)
         } catch {
           stats.failed++

@@ -3,6 +3,7 @@
 import { Vec3 } from 'vec3'
 import { withTimeout } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
+import { torchCraftPlan } from '../lib/torch.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 
@@ -499,6 +500,34 @@ export async function consolidateSurplus (bot, { log = () => {}, maxSeconds = 12
 
 const STONE_OR_BETTER = ['stone_pickaxe', 'iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe', 'golden_pickaxe']
 export const hasStonePickaxe = bot => inventoryItems(bot).some(i => STONE_OR_BETTER.includes(i.name))
+
+// Torch chain (v0.10.0): surplus sticks + mined coal -> torches, so digShaft can
+// light its way down instead of feeding the bots to the dark (mid-run deaths in
+// the 0.8.x-0.9.x fleets were hostile mobs meeting a bot in an unlit shaft).
+// The vanilla recipe is 1 coal over 1 stick - a shaped 1x2 that fits the 2x2
+// grid, so no table is needed and this is safe to run anywhere between tool
+// crafts. The pure policy (stick reserve, batch maths) lives in torch.mjs; this
+// is the mechanics: plan -> craftUntil -> VERIFIED count. Never throws.
+export async function craftTorches (bot, { log = null, reserveSticks = undefined } = {}) {
+  const step = log ?? (() => {})
+  try {
+    const sticks = countItem(bot, 'stick')
+    const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
+    const plan = torchCraftPlan({ sticks, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+    if (plan.batches <= 0) {
+      step(`craft torches: skip (${plan.reason}: sticks ${sticks} coals ${coals})`)
+      return { ok: false, batches: 0, torches: 0, reason: plan.reason }
+    }
+    step(`craft torches: ${plan.batches} batch(es) -> ${plan.torches} torches (sticks ${sticks} coals ${coals})`)
+    const ok = await craftUntil(bot, 'torch', { times: plan.batches, want: plan.torches, tries: 2, log: step })
+    const made = countItem(bot, 'torch')
+    if (!ok) step(`craft torches: craft did not land (held ${made} torch(es))`)
+    return { ok, batches: plan.batches, torches: plan.torches, made }
+  } catch (e) {
+    step(`craft torches: failed: ${e.message}`)
+    return { ok: false, batches: 0, torches: 0, error: e.message }
+  }
+}
 
 /**
  * Mid-run tool upgrade: wooden kit + cobblestone -> stone kit.
