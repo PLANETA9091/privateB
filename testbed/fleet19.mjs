@@ -402,10 +402,17 @@ async function runBot (name, target, index) {
         if (needsBanking(miner.bot)) {
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           if (await ensureSurface('bank')) {
+            // (v0.17.3) remember WHERE we work: after banking at the yard the bot
+            // must return here, or it digs its next shaft next to spawn and
+            // re-mines the already-hollowed yard area (emptyShafts spiral).
+            const preBank = miner.bot.entity.position.clone()
             const res = await smeltThenBank(miner, { yardGoal })
             if (res.deposited > 0) {
               banked += res.deposited
               console.log(`${name} bank: +${res.deposited}`)
+              try {
+                await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, preBank.x, preBank.y, preBank.z, { range: 4 }), { timeoutMs: 90000, label: 'return to column' })
+              } catch { /* dig from wherever the return walk reached */ }
             } else {
               // (v0.16.4) the reason MUST reach the log - the invisible 'no chest in
               // range' zero cost fleet #122 its whole banking chain (v0.16.1 lesson)
