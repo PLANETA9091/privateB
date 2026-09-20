@@ -19,6 +19,7 @@ import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP } from '../src/lib/deposit.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
+import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import { recoveryDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
@@ -227,6 +228,7 @@ async function runBot (name, target, index) {
       let shaft = 0
       let lastNightLog = 0 // one deferral line per night per bot, not one per loop
       let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
+      let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
@@ -248,6 +250,18 @@ async function runBot (name, target, index) {
             lastBootstrap = Date.now() // fresh tool: reset the recovery cooldown clock too
           }
           console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} -> ${res.tier || 'none'} (${res.detail})`)
+        }
+        // SPARE PICKAXE (v0.10.2): a pick that breaks underground used to cost the bot
+        // an 85s bootstrap that fails without wood ('no planks recipe', 22x in run
+        // 35478370438) and then idle-digged nothing. A bot holding TWO picks swaps
+        // instantly instead. Cooldown keeps a stuck table/craft from burning budget.
+        if (Date.now() - lastSpareAttempt > 60000) {
+          const sp = sparePickCheck(miner.bot)
+          if (sp.due) {
+            lastSpareAttempt = Date.now()
+            console.log(`${name} spare pick due: ${sp.reason}`)
+            await craftSparePickaxe(miner.bot, { log: m => console.log(`${name} ${m}`) })
+          }
         }
         let interrupted = false
         const shaftRes = await miner.digShaft(namesFor(hasPickNow()), {

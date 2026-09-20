@@ -195,3 +195,62 @@ export function keepForIron (bot) {
   const hasIronPick = invItems(bot).some(i => i.name === 'iron_pickaxe')
   return hasIronPick ? [] : ['iron_ingot', 'raw_iron']
 }
+
+// ---------------------------------------------------------------- spare pickaxe
+//
+// The 600s fleet 35478370438 froze for its last 222s not only on the floor lock:
+// 26 'no pickaxe - re-running the bootstrap' recoveries fired and 22 FAILED with
+// 'no planks recipe' - a bot whose pick broke UNDERGROUND has no wood there, and a
+// bare-handed bot digs stone without drops. The cheapest cure on the market: hold a
+// SPARE. A stone pickaxe is 3 cobblestone + 2 sticks - shaft waste material - and a
+// bot holding two picks swaps instantly when the main breaks, keeping the yield
+// continuous until the next surface/bootstrap window.
+
+/**
+ * Decision: should the bot craft one more pickaxe as a spare RIGHT NOW?
+ * Reads live inventory; tier comes from craftablePickTier (highest craftable first).
+ * NEVER fires when the bot already holds `maxSpares` picks.
+ * @returns {{due: boolean, tier: string|null, reason: string}}
+ */
+export function sparePickCheck (bot, { maxSpares = 2 } = {}) {
+  try {
+    const picks = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
+    if (picks >= maxSpares) return { due: false, tier: null, reason: `holds ${picks} pickaxe(s)` }
+    const c = craftablePickTier(bot)
+    if (c.tier < 0) return { due: false, tier: null, reason: c.reason }
+    return { due: true, tier: c.name, reason: `spare (${c.reason})` }
+  } catch {
+    // junk inventory shapes (null items(), detached bot) must not kill the caller's loop
+    return { due: false, tier: null, reason: 'inventory unreadable' }
+  }
+}
+
+/**
+ * Mechanism: place/reuse a table, craft one spare pickaxe of the check's tier,
+ * VERIFY the count rose. Never throws; an aborted plan wastes nothing (placeTable
+ * only consumes a table item when it actually has one).
+ * @returns {Promise<{ok: boolean, tier: string|null, reason?: string, picks?: number}>}
+ */
+export async function craftSparePickaxe (bot, { log = null, maxSpares = 2 } = {}) {
+  const step = log ?? (() => {})
+  try {
+    const chk = sparePickCheck(bot, { maxSpares })
+    if (!chk.due) {
+      step(`spare pick: skip (${chk.reason})`)
+      return { ok: false, tier: null, reason: chk.reason }
+    }
+    const table = await placeTable(bot)
+    if (!table) {
+      step('spare pick: no table reachable or placeable')
+      return { ok: false, tier: null, reason: 'no table' }
+    }
+    const before = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
+    const ok = await craftUntil(bot, chk.tier, { times: 1, want: 1, table, tries: 2, log: step })
+    const after = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
+    const done = ok && after > before
+    step(`spare pick: ${done ? 'OK' : 'craft did not land'} (${chk.tier}, holds ${after})`)
+    return { ok: done, tier: chk.tier, picks: after }
+  } catch (e) {
+    return { ok: false, tier: null, reason: `error: ${e.message}` }
+  }
+}

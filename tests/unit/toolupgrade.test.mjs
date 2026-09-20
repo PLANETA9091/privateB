@@ -259,3 +259,57 @@ test('upgradeTools NO delegation for a WORN stone pick (their early "already sto
   assert.equal(res.ok, true)
   assert.equal(res.tier, 'stone_pickaxe')
 })
+
+// ---- spare pickaxe policy (v0.10.2) ----
+import { sparePickCheck, craftSparePickaxe } from '../../src/lib/toolupgrade.mjs'
+
+test('sparePickCheck: due for a single-pick bot with shaft-waste materials', () => {
+  const bot = fakeBot([
+    it('stone_pickaxe', 1, { max: 131, used: 100 }),
+    it('cobblestone', 5),
+    it('stick', 2),
+    it('crafting_table', 1)
+  ])
+  const chk = sparePickCheck(bot)
+  assert.equal(chk.due, true)
+  assert.equal(chk.tier, 'stone_pickaxe')
+})
+
+test('sparePickCheck: never fires when the bot already holds two picks', () => {
+  const bot = fakeBot([
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('wooden_pickaxe', 1, { max: 59 }),
+    it('cobblestone', 30),
+    it('stick', 8)
+  ])
+  const chk = sparePickCheck(bot)
+  assert.equal(chk.due, false)
+  assert.match(chk.reason, /holds 2/)
+})
+
+test('sparePickCheck: not due without materials - honest reason, no crash', () => {
+  const bare = sparePickCheck(fakeBot([it('stone_pickaxe', 1, { max: 131 })]))
+  assert.equal(bare.due, false)
+  // sticks are checked first in craftablePickTier: a bot with neither sticks nor
+  // planks reports the stick shortage before the pickaxe-material shortage
+  assert.match(bare.reason, /no sticks and no planks/)
+
+  const noSticks = sparePickCheck(fakeBot([it('stone_pickaxe', 1, { max: 131 }), it('cobblestone', 9)]))
+  assert.equal(noSticks.due, false)
+  assert.match(noSticks.reason, /no sticks and no planks/)
+
+  const junk = sparePickCheck(fakeBot(null))
+  assert.equal(junk.due, false)
+})
+
+test('sparePickCheck: wooden tier when cobble is out but planks of one type exist', () => {
+  const bot = fakeBot([
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('oak_planks', 6),
+    it('stick', 4),
+    it('crafting_table', 1)
+  ])
+  const chk = sparePickCheck(bot)
+  assert.equal(chk.due, true)
+  assert.equal(chk.tier, 'wooden_pickaxe')
+})
