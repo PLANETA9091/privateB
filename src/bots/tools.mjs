@@ -1,7 +1,7 @@
 // Tool bootstrap: no op, no gifts - the bot chops wood and crafts its own kit.
 // logs -> planks -> sticks -> crafting table -> wooden pickaxe/shovel -> stone tools.
 import { Vec3 } from 'vec3'
-import { withTimeout } from '../lib/jobqueue.mjs'
+import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
 import { torchCraftPlan } from '../lib/torch.mjs'
 
@@ -306,20 +306,32 @@ export function isWetOrFloating (bot) {
 }
 
 // Walk a few blocks (pathfinder, fenced) until the bot stands on solid, dry ground.
+// (CI 35512719192, Big fleet #127, OOM): this walk was a RAW bot.pathfinder.goto -
+// bypassing BOTH the gotoSafe water-rescue gate and the fleet path semaphore. The
+// yard now has a water basin; F14 fell in mid-toolupgrade, the drowning rescue
+// held the raw swim controls, and this loop kept re-issuing pathfinder goals
+// AGAINST them every round - the v0.13.0 "pathfinder vs raw controls" fight, and
+// the v0.6.4 allocation-storm signature: heap 113M -> 3550 MB in ~35 s, event
+// loop starved, 19-bot fleet dead at t-400s while mining 891 blocks. Now: a
+// rescue owns the bot (refuse immediately - placeTable just tries placement
+// anyway), and the walk runs under gotoSafe (gate + semaphore + stop-on-timeout).
 export async function relocateToSolidGround (bot, { tries = 6 } = {}) {
-  const { goals } = await import('mineflayer-pathfinder')
+  // (v0.18.3) the dynamic import shape: mineflayer-pathfinder is CJS - named
+  // exports live under .default. `const { goals } = await import(...)` read
+  // undefined and `new goals.GoalNear` threw on EVERY round, silently caught -
+  // this walk NEVER walked since birth (found while wiring the rescue gate).
+  const pf = await import('mineflayer-pathfinder')
+  const goals = pf.goals ?? pf.default?.goals
   for (let i = 0; i < tries; i++) {
     if (!isWetOrFloating(bot)) return true
+    if (bot._waterRescue) return false // the drowning rescue owns the controls
     const angle = Math.PI * 2 * i / tries
     const here = bot.entity.position
     const tx = here.x + Math.cos(angle) * 6
     const tz = here.z + Math.sin(angle) * 6
     try {
-      await withTimeout(
-        bot.pathfinder.goto(new goals.GoalNear(tx, here.y, tz, 1)),
-        8000, 'relocate walk'
-      )
-    } catch { try { bot.pathfinder.setGoal(null) } catch { /* idle */ } }
+      await gotoSafe(bot, new goals.GoalNear(tx, here.y, tz, 1), { timeoutMs: 8000, label: 'relocate walk' })
+    } catch { /* next bearing */ }
   }
   return !isWetOrFloating(bot)
 }

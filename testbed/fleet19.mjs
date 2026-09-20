@@ -633,13 +633,61 @@ const reporter = setInterval(() => {
   console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive})`)
 }, 15000)
 
+// (v0.18.3) HEAP WATCHDOG: fleet #127 died at t-400s - heap 113M -> 3550 MB in
+// ~35 s ("Ineffective mark-compacts", exit 134) and the FINAL REPORT WAS NEVER
+// PRINTED: 891 mined blocks, 19/19 alive, every counter lost. The 15s reporter
+// cannot see - let alone act on - a 90 MB/s allocation storm. Every 5s: sample
+// the heap; growth above STORM_MB_S gets a gc() nudge and a log line; a storm
+// that survives 3 strikes AND crosses the cliff gets an ORDERLY shutdown - the
+// same final report the OOM erased, the map save, exit code 13 (distinct from
+// 0 = deadline reached and 1 = test failure) so CI and the next agent can tell
+// the deaths apart.
+const WATCHDOG_MS = 5000
+const STORM_MB_S = Number(process.env.FLEET_STORM_MB_S || 40)
+const CLIFF_MB = Number(process.env.FLEET_HEAP_CLIFF_MB || 2900)
+let wdLastHeap = process.memoryUsage().heapUsed
+let wdLastTs = Date.now()
+let wdStrikes = 0
+let wdShuttingDown = false
+const heapWatchdog = setInterval(() => {
+  if (wdShuttingDown) return
+  const now = Date.now()
+  const used = process.memoryUsage().heapUsed
+  const dt = (now - wdLastTs) / 1000
+  const rate = dt > 0 ? ((used - wdLastHeap) / 1048576) / dt : 0 // MB/s
+  wdLastHeap = used
+  wdLastTs = now
+  if (rate > STORM_MB_S) {
+    wdStrikes++
+    console.log(`heap watchdog: +${rate.toFixed(0)} MB/s, heap ${(used / 1048576).toFixed(0)}M (strike ${wdStrikes})`)
+    if (typeof global.gc === 'function') { try { global.gc() } catch { /* best effort */ } }
+    if (used / 1048576 > CLIFF_MB && wdStrikes >= 3) {
+      wdShuttingDown = true
+      clearInterval(heapWatchdog)
+      console.log('heap watchdog: CLIFF REACHED - orderly shutdown so the report survives')
+      for (const e of bots.values()) { try { e.bot?.quit?.('heap watchdog shutdown') } catch { /* going down */ } }
+      setTimeout(() => {
+        printFinalReport('heap watchdog cliff - the OOM report the old runs lost')
+        process.exit(13)
+      }, 3000) // NOT unref'd: the quit() below empties the loop, this timer must survive it
+    }
+  } else {
+    wdStrikes = 0
+  }
+}, WATCHDOG_MS)
+
 await Promise.all(runners)
 clearInterval(reporter)
+clearInterval(heapWatchdog)
+printFinalReport(`normal end - deadline ${SECONDS}s reached`)
+process.exit(0)
 
-const list = [...bots.values()].map(e => e.miner).filter(Boolean)
-const s = fleetStats(list)
-const secs = SECONDS
-console.log('================ FLEET RESULT ================')
+// ---- the final report, shared by the normal end and the watchdog cliff ----
+function printFinalReport (reason) {
+  const list = [...bots.values()].map(e => e.miner).filter(Boolean)
+  const s = fleetStats(list)
+  const secs = SECONDS
+  console.log(`================ FLEET RESULT (${reason}) ================`)
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
@@ -704,4 +752,4 @@ try {
 console.log(`plan progress: ${Object.values(materials).filter(m => m.pct >= 100).length}/${Object.keys(materials).length} resources complete`)
 
 for (const m of list) { try { m.bot.quit() } catch { /* already gone */ } }
-process.exit(0)
+}
