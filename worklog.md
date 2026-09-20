@@ -689,3 +689,23 @@ Stage Summary:
 - Мастер: 9efb83c (v0.18.8). Сессия: 3 коммита (v0.18.6..v0.18.8), 15+ юнит-тестов, 1 красный CI починен за один цикл.
 - КЛАСС ПРОБЛЕМ "сломанный сенсор 26.2" ЗАКРЫТ на корню: airGlitches в следующем флоте должны упасть до ~0, rescues до реальных. ОЖИДАНИЕ от флот-ранна 35518872758: airGlitches<<783, rescues<<72, banked>0 (v0.18.5 budget), rate vs рекорд 7.44.
 - СЛЕДУЮЩИМ: (1) скачать fleet19.log 35518872758 и сверить критерии; (2) после зелёного CI на 9efb83c - dispatch run_fleet=true 600s на v0.18.8 и искать 'tunnel: steering' строки + iron_ore добыча (цель >10 за прогон); (3) если steering молчит - проверить что map.nearestK отдаёт позиции в Y-band бота (боты копают y=42..surface, записи iron там же); (4) НЕ отменять чужие dispatch-ранны, git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260920-2253 (part 2: fleet #129 analysis + hotfix chain)
+Agent: Z.ai Code (cron session, 22:53 +08)
+Task: Анализ флот-ранна #129, серия хотфиксов CI
+
+Work Log:
+- ФЛОТ #129 (35518872758, 600s, f75042c = v0.18.5 + oxygen guard): SUCCESS job. РЕЗУЛЬТАТЫ OXYGEN-ФИКСА: airGlitches=19 (было 783 в #128, -97.6%), rescues=4 (было 72) - оставшиеся глитчи - метадата при смерти/респавне (F5: oxygen 0 on dry land x12 сразу после респавна), безвредны (ignored). КЛАСС "сломанный сенсор" ЗАКРЫТ.
+- ШТОРМЫ вернулись: 2 серверных тик-стопа (все 19 ботов одновременно 'Timeout waiting for 4 ticks' на t≈-310 и t≈-90), 31 reconnect, 4 смерти (F5/F19/F16/F14 - шторм+драун). До шторма темп 3.6 b/s (крейсерский), после двух штормов финальный счётчик 153 блока = 0.26 b/s - ЛОЖЬ из-за сброса per-bot счётчиков на реконнектах.
+- Причина сбросов: runBot создаёт НОВОГО miner-а на каждый reconnect - stats обнуляются.
+- v0.18.9 (31c4e38): src/lib/statcarry.mjs - seed-then-snapshot перенос монотонных счётчиков через реконнекты (CARRY_FIELDS whitelist: shaftEntryY/startAt исключены; byName аддитивно), fleet19 сеедит свежего miner-а и снапшотит в конце попытки; failed login сохраняет прежний carry. 5 юнит-тестов.
+- v0.18.8 (9efb83c, ore-steer): CI упал на МОЁМ тесте (coal на dist 10 ближе железа 12.04 - тест ожидал железо; pickOreTarget ПРАВ). v0.18.10 (87c951f): fixture перевёрнут честно (coal на 15). v0.18.12 (3ad304a): banked добавлен в CARRY_FIELDS (пропустил при переносе списка - тест поймал).
+- v0.18.11 (ce9921d): серверное доказательство тик-стопов: fleet job теперь аплоидит testbed/server/console.log + logs/latest.log (fleet-server-log artifact), server.sh добавил -Xlog:gc. НО: (a) 'levels' - невалидный декоратор JVM (v0.18.13: -Xlog:gc без декораторов); (b) -Xlog:gc встал между -Xmx и -jar, pgrep-паттерн '-Xmx... -jar server.jar nogui$' перестал матчить, fail-fast объявил сервер мёртвым через 2.25s (v0.18.14 cb7e97d: паттерн '-Xmx[0-9]+[GgMm] .*-jar server\.jar nogui$'). 3 красных CI подряд из-за одного флага - урок: диагностический флаг в JAVA_CMD ломает pgrep-контракт.
+- БАНКИНГ #129 (анализ для следующей сессии): гейт needsBanking срабатывает (F1: 178 юнитов > 128), но цепочка умирает на (1) climb out (bank): 'failed - stalled' x2 - боты не могут выйти из шахты по лестнице ('climb diag: level at y=41 blocked toward 0,1 (dug=2)', 'did not rise (yaw stuck?)') - это же уронило и trips (climb out (trip): failed x3, claims=0); (2) final bank x10: 'chest unreachable (Path was stopped before it could be completed!)' - это render timeout'а gotoSafe (stop() гонка), боты в ~64 блоках от сундуков яарда, 60s cap при 2x-обходах может не хватать + 'Path was stopped' не ретраится (v0.18.5 ретраит только water-rescue).
+- MaxListenersExceededWarning (11 physicsTick) - НЕ утечка: bot.waitForTicks() добавляет listener на вызов и снимает по timeout/resolve; при шторме вызовы стекуются. Симптом, самочистится.
+
+Stage Summary:
+- Мастер: cb7e97d (v0.18.14). Сессия: 9 коммитов (v0.18.6..v0.18.14), 20+ юнит-тестов, 3 красных CI починены (все три - мои же тесты/флаги).
+- ЗАКРЫТЫ КЛАССЫ: oxygen-сенсор (v0.18.6, airGlitches -97.6%), фейковые rescue (rescues 72->4), потеря статистики при реконнектах (v0.18.9).
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) после зелёного CI на cb7e97d - DISPATCH run_fleet=true 600s: ожидания airGlitches<30, rescues<10, reconnects честные счётчики при штормах (статистика выживает), 'tunnel: steering' строки + iron_ore>10 (v0.18.8), banked>0; (2) НОВЫЙ fleet-server-log artifact = JVM-доказательство тик-стопов (grep 'Can't keep up' console.log + GC-паузы) - атрибуция штормов; (3) ЧИНИТЬ climb-out 'stalled' (боты заперты в шахтах - блокирует и bank и trips; y=41-60 банды, 'blocked toward' при dug=2 - лестница упирается в нер diggable?) и final-bank 'Path was stopped' (ретраить как timeout, cap выше 60s при 2x-обходах); (4) НЕ отменять чужие dispatch-ранны, git pull --rebase перед пушем.
