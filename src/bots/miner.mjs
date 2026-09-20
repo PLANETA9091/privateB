@@ -1883,7 +1883,15 @@ export function createMiner ({
         try { rose = await stepUp(24) } catch { /* rotate below */ }
       }
       if (rose) { steps++; fails = 0 } else {
-        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} did not rise (food=${bot.food}, dug=${dug})`)
+        // (v0.19.1) the 24-tick same-bearing retry did NOT cure the rise
+        // failures (fleet v0.19.0: 15 'did not rise', food=20) - momentum is
+        // NOT the cause. Name the cells: a water film on the floor (from a
+        // wet escape gallery) or a support/step name tells the structural
+        // story without a new theory.
+        if (diagLevels++ < 3) {
+          const at = cell => { try { const b = bot.blockAt(cell); return b ? b.name : 'null' } catch { return 'err' } }
+          log(`${tag} climb diag: level at y=${feet.y} did not rise (food=${bot.food}, dug=${dug}) feet=${at(feet)} support=${at(feet.offset(d.x, 0, d.z))} step=${at(feet.offset(d.x, 1, d.z))} head=${at(feet.offset(0, 2, 0))}`)
+        }
         fails++
         rotate()
         await bot.waitForTicks(4)

@@ -113,12 +113,27 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
       // wait-rescue grants no extra walks, a real timeout retries once).
       const walkGoal = new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24)
       let arrived = false
+      // (v0.19.1) EVIDENCE HOOK: v0.19.0's retries fired 19 times, every walk
+      // still died and the per-attempt errors were swallowed by the retry
+      // loop - the fleet log could not say WHY the paths stopped ("Path was
+      // stopped" is only the final attempt's error). Attach one-shot
+      // path_reset/path_stop spies for the walk window: resetPath reasons
+      // ('block_updated' = other bots' digs, 'chunk_loaded', 'goal_moved')
+      // vs a raw path_stop (an explicit bot.pathfinder.stop() somewhere).
+      const spy = reason => console.log(`${miner.username} bank walk path event: ${reason}`)
+      const spyStop = () => spy('path_stop (explicit)')
+      let walkStart = Date.now()
       for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
         try {
           if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3`)
+          miner.bot.on('path_reset', spy)
+          miner.bot.on('path_stop', spyStop)
+          walkStart = Date.now()
           await gotoSafe(miner.bot, walkGoal, { timeoutMs: 120000, label: 'walk to yard' })
           arrived = true
+          console.log(`${miner.username} bank: yard walk arrived in ${((Date.now() - walkStart) / 1000).toFixed(0)}s (${attempt} attempt${attempt > 1 ? 's' : ''})`)
         } catch (e) {
+          console.log(`${miner.username} bank: yard walk attempt ${attempt} failed: ${e.name ? `${e.name}: ` : ''}${e.message}`)
           const plan = walkRetryPlan({ error: e, attempt, maxAttempts: 3 })
           if (plan.action === 'wait-rescue') {
             const cleared = await waitForWaterRescueClear(miner.bot, { maxMs: plan.waitMs })
@@ -128,6 +143,9 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
           if (plan.action === 'immediate' || plan.action === 'timeout-retry') continue
           console.log(`${miner.username} bank: yard walk failed (${e.message}) - smelting locally if a furnace is near`)
           break
+        } finally {
+          miner.bot.removeListener('path_reset', spy)
+          miner.bot.removeListener('path_stop', spyStop)
         }
       }
     } else if (decision.action === 'none' && decision.why && decision.why !== pre.reason) {
