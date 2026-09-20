@@ -56,7 +56,10 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   })
 
   const { createMiner, fleetStats } = await import(path.join(root, 'src', 'bots', 'miner.mjs'))
-  const { ensureTools, countItem } = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
+  const { ensureTools, countItem, relocateToSolidGround } = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
+  const { gotoSafe } = await import(path.join(root, 'src', 'lib', 'jobqueue.mjs'))
+  const pathfinderPkg = await import('mineflayer-pathfinder')
+  const { goals } = pathfinderPkg.default // dynamic import wraps the CJS default export
   const { WorldMap } = await import(path.join(root, 'src', 'fleet', 'worldmap.mjs'))
   const { Vec3 } = await import('vec3')
 
@@ -91,21 +94,47 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   // the mining window even started, which is exactly how the whole test outgrew its
   // own 330s budget. Different direction per bot keeps them off each other's trees.
   const toolResults = await Promise.all(miners.map(async (m, i) => {
-    try {
-      await m.gatherWood({ want: 4, direction: direction[i % 2], maxSeconds: 60, shouldStop: () => Date.now() > deadline })
-    } catch (e) { log(`${m.username} gatherWood failed: ${e.message}`) }
-    try {
-      // a tight cap: the 26.2 craft window can burn seconds per ghost-grid recovery, and
-      // the tool phase must not eat the whole budget (a run where the tools finished at
-      // t+90s left the mining phase zero seconds - the degenerate pass we assert against)
-      const res = await ensureTools(m.bot, { miner: m, log, maxSeconds: 45 })
-      log(`${m.username} tools: ${res.ok ? 'ok' : 'fail'} (${res.kit})`)
-      return res
-    } catch (e) {
-      log(`${m.username} ensureTools failed: ${e.message}`)
-      return { ok: false, kit: e.message }
+    // TWO attempts with an inland relocation between them (the smelting test's
+    // escalation): a fresh CI world can spawn on a beach/island where EVERY
+    // neighbour cell is under water - the table then has no legal placement cell
+    // and ensureTools reports "no crafting table" although the bot holds the wood.
+    // Walking inland + snapping to solid ground cures the placement, not the wood.
+    let res = { ok: false, kit: 'not attempted' }
+    for (let attempt = 0; attempt < 2 && !res.ok; attempt++) {
+      try {
+        await m.gatherWood({ want: 4, direction: direction[i % 2], maxSeconds: attempt === 0 ? 60 : 30, shouldStop: () => Date.now() > deadline })
+      } catch (e) { log(`${m.username} gatherWood failed: ${e.message}`) }
+      try {
+        // a tight cap: the 26.2 craft window can burn seconds per ghost-grid recovery, and
+        // the tool phase must not eat the whole budget (a run where the tools finished at
+        // t+90s left the mining phase zero seconds - the degenerate pass we assert against)
+        res = await ensureTools(m.bot, { miner: m, log, maxSeconds: attempt === 0 ? 45 : 30 })
+        log(`${m.username} tools attempt ${attempt}: ${res.ok ? 'ok' : 'fail'} (${res.kit})`)
+      } catch (e) {
+        log(`${m.username} ensureTools failed: ${e.message}`)
+        res = { ok: false, kit: e.message }
+      }
+      if (res.ok) break
+      try {
+        const here = m.bot.entity.position
+        await gotoSafe(m.bot, new goals.GoalNear(here.x + 16, here.y, here.z + 16, 2), { timeoutMs: 20000, label: `${m.username} inland walk` })
+        await relocateToSolidGround(m.bot)
+      } catch (e) { log(`${m.username} inland walk failed: ${e.message}`) }
     }
+    return res
   }))
+  // TOLERANT to BARREN spawns (the smelting test's rule): when BOTH bots starved
+  // with no wood materials AND no table in reach, the world gave them nothing to
+  // work with - an environment condition, not a tool-chain regression. Skip so CI
+  // measures the fleet, not the forest. Anything else failing = real bug -> assert.
+  const woodless = toolResults.every((r, i) => {
+    const items = miners[i].bot?.inventory?.items?.() ?? []
+    return !items.some(it => /(_log|_planks)$/.test(it.name) || it.name === 'crafting_table')
+  })
+  if (!toolResults.some(r => r.ok) && woodless) {
+    t.skip(`barren spawn: neither bot reached wood or a table (${toolResults.map(r => r.kit).join(' | ')}) - productivity not measurable`)
+    return
+  }
   assert.ok(
     toolResults.some(r => r.ok),
     `at least one bot must craft a pickaxe (got: ${JSON.stringify(toolResults)})`

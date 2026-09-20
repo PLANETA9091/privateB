@@ -23,6 +23,7 @@ import { standGoalNear, gotoSafe } from '../src/lib/jobqueue.mjs'
 import { recoveryDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
+import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -224,6 +225,7 @@ async function runBot (name, target, index) {
       }
       let lastTrip = Date.now() // (v0.8.3) time-based map-trip cadence
       let shaft = 0
+      let lastNightLog = 0 // one deferral line per night per bot, not one per loop
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
@@ -281,17 +283,28 @@ async function runBot (name, target, index) {
         // 300s run (0 "map trip" lines in three CI fleets). Cheap when the map has
         // nothing nearby: no-target returns in microseconds.
         if (hasPickNow() && Date.now() - lastTrip > 75000) {
-          lastTrip = Date.now()
-          const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
-          if (tripBlocks.length) {
-            try {
-              // direction + shouldStop feed the surface-harvest mode (beaches are eaten
-              // sideways, and the deadline always wins); digNames is the full stone list
-              // for the ore/stone descent mode
-              const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, shouldStop: () => Date.now() > deadline })
-              if (trip.name) console.log(`${name} map trip: ${trip.name}`)
-              else if (trip.error === 'unreachable') console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
-            } catch (e) { console.log(`${name} map trip failed: ${e.message}`) }
+          // NIGHT WALK GATE (v0.10.0): the fleet loses bots to night SURFACE mobs
+          // ("night mob kill streak - 7 deaths measured"), not to shafts. A deferred
+          // trip becomes more shaft - the walk happens after dawn instead.
+          const tod = miner.bot.time?.timeOfDay
+          if (walkForbidden(tod)) {
+            if (Date.now() - lastNightLog > 120000) {
+              lastNightLog = Date.now()
+              console.log(`${name} map trip deferred: night (tod=${Math.floor(tod)})`)
+            }
+          } else {
+            lastTrip = Date.now()
+            const tripBlocks = mapTripTargets({ progress: materialsProgress(), mapCounts: map.counts(), maxTargets: 2 })
+            if (tripBlocks.length) {
+              try {
+                // direction + shouldStop feed the surface-harvest mode (beaches are eaten
+                // sideways, and the deadline always wins); digNames is the full stone list
+                // for the ore/stone descent mode
+                const trip = await miner.mapTrip(tripBlocks, { digNames: namesFor(true), direction, shouldStop: () => Date.now() > deadline })
+                if (trip.name) console.log(`${name} map trip: ${trip.name}`)
+                else if (trip.error === 'unreachable') console.log(`${name} map trip skipped: ${tripBlocks.join(',')} unreachable`)
+              } catch (e) { console.log(`${name} map trip failed: ${e.message}`) }
+            }
           }
         }
         // step to a fresh column and dig the next shaft. The walk target MUST be a
@@ -444,7 +457,7 @@ const fleetReport = {
   toolsRecovered,
   toolsUpgraded,
   toolsReboot,
-  toolsUpgraded,
+  torched: list.reduce((a, m) => a + (m.stats.torched ?? 0), 0),
   banked,
   smelted,
   mined: s.mined,

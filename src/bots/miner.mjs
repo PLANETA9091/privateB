@@ -1138,7 +1138,7 @@ export function createMiner ({
       }
     }
     const secs = (Date.now() - started) / 1000
-    return { done, secs, rate: secs > 0 ? done / secs : 0 }
+    return { done, secs, rate: secs > 0 ? done / secs : 0, torched: stats.torched ?? 0 }
   }
 
   // ---------------------------------------------------------------- wood run
