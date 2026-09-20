@@ -111,7 +111,7 @@ test('a rescue returning mid-retry still cannot loop the walk open-ended', async
 })
 
 test('a NON-rescue walk failure returns immediately (no pointless retry)', async () => {
-  const chest = { position: new Vec3(30, 64, 30) }
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) } // name: the real matching predicate needs it
   const bot = makeMockBot({ items: [item('cobblestone', 5)] })
   bot._gotoScript = [new Error('no path')]
   // a FAITHFUL scanner: the real findChest matching predicate (with the v0.23.1
@@ -178,8 +178,8 @@ test('a walk timeout retries once (the first budget may burn on a poisoned walk)
 // dozens of chests. The auto-picked nearest chest that No-paths is excluded and
 // the next nearest gets the walk; a caller-pinned chest stays final.
 test('a No-path nearest chest hops to the NEXT nearest chest and banks there', async () => {
-  const chestA = { position: new Vec3(4, 64, 4) } // nearest, but its walk dead-ends
-  const chestB = { position: new Vec3(10, 64, 10) } // next nearest, reachable
+  const chestA = { name: 'chest', position: new Vec3(4, 64, 4) } // nearest, but its walk dead-ends
+  const chestB = { name: 'chest', position: new Vec3(10, 64, 10) } // next nearest, reachable
   const bot = makeMockBot({ items: [item('cobblestone', 6)] })
   // emulate mineflayer's findBlock: the NEAREST chest passing the caller's predicate
   bot.findBlock = ({ matching, maxDistance }) => {
@@ -219,4 +219,7 @@ test('findChest: the exclude list skips exactly the dead positions', () => {
   assert.equal(findChest(bot, { exclude: [A.position.floored()] }), B, 'excluded A -> B')
   assert.equal(findChest(bot, { exclude: [A.position.floored(), B.position.floored()] }), null, 'all excluded -> null')
   assert.equal(findChest(bot, { exclude: [null, undefined] }), A, 'junk exclude entries change nothing')
+  const decoy = { name: 'chest_minecart', position: new Vec3(1, 64, 1) }
+  const bot2 = { findBlock: ({ matching }) => [decoy, A].filter(matching)[0] || null }
+  assert.equal(findChest(bot2), A, "a chest-shaped name that fails both predicate branches ('chest_minecart' ends in 'minecart', not '_chest') cannot shadow the real chest")
 })
