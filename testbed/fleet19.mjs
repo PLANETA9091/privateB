@@ -28,6 +28,7 @@ import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
+import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -175,6 +176,11 @@ async function runBot (name, target, index) {
   let failStreak = 0
   let lastWhy = '' // (v0.16.3) why the last session ended - printed on the retry line
   let yardGoal = null // (v0.16.4) first-login position = the yard (world spawn): the bank fallback target
+  // (v0.18.9) per-bot stat survival: the old miner dies with its counters on every
+  // reconnect, so two server-tick storms rewrote history (fleet #129: mined 854 ->
+  // 620 -> 120, final report 0.26 b/s for a 3.6 b/s run). Carry = the totals so
+  // far; seeded into each fresh miner, re-snapshotted when the attempt ends.
+  let carry = {}
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -200,6 +206,7 @@ async function runBot (name, target, index) {
         log: m => { if (/combat|died|KICKED|error|climb|water/.test(m)) console.log(`${name} ${m}`) }
       })
       bots.set(name, { miner, target })
+      seedStats(miner.stats, carry) // (v0.18.9) the reconnect must not erase what the bot already mined
       await miner.ready
       failStreak = 0 // logged in and alive: the next kick starts the streak from scratch
       if (!yardGoal) yardGoal = miner.bot.entity.position.floored() // a fresh bot logs in at world spawn - the yard
@@ -581,6 +588,10 @@ async function runBot (name, target, index) {
       if (/kicked|end|disconnect/i.test(e.message)) { kicks++; lastWhy = 'kick/disconnect' }
       else lastWhy = String(e.message || 'unknown error').slice(0, 120)
     }
+    // (v0.18.9) totals survive into the next attempt's miner; a failed LOGIN leaves
+    // no stats object - keep the previous carry instead of resetting to zero
+    const snap = snapshotStats(miner?.stats)
+    if (Object.keys(snap).length) carry = snap
     if (Date.now() >= deadline) break
     failStreak++
     reconnects++
