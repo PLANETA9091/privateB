@@ -190,7 +190,23 @@ export function traverseStep ({ feet, d, read } = {}) {
     const isOver = dy === 2
     if (isOver) {
       // waterfall guard: fluid above the head cell pours in when it is dug
-      if (isWetCell(b)) return { ok: false, reason: 'wet' }
+      if (isWetCell(b)) {
+        // (v0.24.0) SURFACE POOL ALLOWANCE - measured on the 04:05 diag probe:
+        // a shaft-mouth pour runs down the column and POOLS on the terrain -
+        // 'dy=2:water' over DRY dirt on every gallery direction while the wall
+        // itself is dry. A single water cell with a DRY cell above it is that
+        // finite surface film: digging the gallery under it wades at worst one
+        // level and the film drains behind the bot - stalling in the well is
+        // strictly worse. Everything else keeps the v0.17.0 refusal: a water
+        // COLUMN (water above water - an aquifer layer keeps feeding), an
+        // unknown read above (never dig blindly), lava (wading it is death),
+        // water plants (breaking the cell under them turns them into sources)
+        // and waterlogged solids (digging releases the water).
+        const above = tryRead(dx, 3, dz)
+        if (!(b.name === 'water' && above && !isWetCell(above))) {
+          return { ok: false, reason: 'wet' }
+        }
+      }
       continue
     }
     const verdict = climbableCeiling(b)

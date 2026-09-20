@@ -81,9 +81,60 @@ test('traverseStep: water ahead at either body level refuses WET', () => {
   assert.deepEqual(wetHead, { ok: false, reason: 'wet' })
 })
 
-test('traverseStep: WATERFALL GUARD - fluid above the head cell refuses even with a clear wall', () => {
+test('traverseStep: WATERFALL GUARD - a water COLUMN above the head cell refuses even with a clear wall', () => {
   const feet = new Vec3(10, 40, 10)
-  const cells = { '11,42,10': WATER } // clear feet+head, water above
+  // (v0.24.0) the guard now only holds for a SUSTAINED column: water above water
+  // (an aquifer layer keeps feeding the pour). The finite-pool case is below.
+  const cells = { '11,42,10': WATER, '11,43,10': WATER }
+  const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
+  assert.deepEqual(r, { ok: false, reason: 'wet' })
+})
+
+test('traverseStep: SURFACE POOL - a single water cell over DRY air above is waded under (the measured pour pool)', () => {
+  const feet = new Vec3(10, 40, 10)
+  // measured (04:05 diag terrain probe): a shaft-mouth pour pools on the
+  // terrain - 'dy=2:water' over dry dirt on EVERY gallery direction while the
+  // wall itself is dry. Refusing all 4 sides stalls the bot in the well; wading
+  // one level is strictly better.
+  const cells = { '11,42,10': WATER, '11,43,10': AIR }
+  const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
+  assert.equal(r.ok, true, 'the finite film must not stall the escape')
+  assert.equal(r.digs.length, 2, 'the wall itself is still dug feet-then-head')
+})
+
+test('traverseStep: SURFACE POOL - an unknown cell above the water still refuses (never dig blindly)', () => {
+  const feet = new Vec3(10, 40, 10)
+  // an unloaded chunk above the pool must not read as 'dry stone' - the read
+  // itself returns null there and the step refuses like the original guard
+  const r = traverseStep({
+    feet, d: { x: 1, z: 0 },
+    read: cell => {
+      if (cell.x === 11 && cell.y === 42 && cell.z === 10) return WATER // the pool cell
+      if (cell.x === 11 && cell.y === 43 && cell.z === 10) return null // unloaded above
+      return STONE
+    }
+  })
+  assert.deepEqual(r, { ok: false, reason: 'wet' })
+})
+
+test('traverseStep: lava over the head cell refuses even as a 1-deep pool (wading lava is death)', () => {
+  const feet = new Vec3(10, 40, 10)
+  const lava = B('lava', { box: 'fluid' })
+  const cells = { '11,42,10': lava, '11,43,10': AIR }
+  const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
+  assert.deepEqual(r, { ok: false, reason: 'wet' })
+})
+
+test('traverseStep: kelp over the head cell refuses even with dry air above (the plant becomes a source when broken)', () => {
+  const feet = new Vec3(10, 40, 10)
+  const cells = { '11,42,10': B('kelp', { box: 'empty' }), '11,43,10': AIR }
+  const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
+  assert.deepEqual(r, { ok: false, reason: 'wet' })
+})
+
+test('traverseStep: a waterlogged solid over the head cell refuses even with dry air above (digging releases the water)', () => {
+  const feet = new Vec3(10, 40, 10)
+  const cells = { '11,42,10': B('stone', { wl: true }), '11,43,10': AIR }
   const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
   assert.deepEqual(r, { ok: false, reason: 'wet' })
 })
@@ -120,7 +171,7 @@ test('traverseStep: unknown (null) reads refuse - never dig into unloaded chunks
 
 test('traverseStep: kelp over the head cell refuses (the plant becomes a source when broken)', () => {
   const feet = new Vec3(10, 40, 10)
-  const cells = { '11,42,10': B('kelp', { box: 'empty' }) }
+  const cells = { '11,42,10': B('kelp', { box: 'empty' }) } // world default: STONE above - a plant under stone is no pool either
   const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
   assert.deepEqual(r, { ok: false, reason: 'wet' })
 })
