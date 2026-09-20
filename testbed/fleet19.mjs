@@ -22,7 +22,7 @@ import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe, pathThrottleStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
 import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
@@ -733,8 +733,11 @@ const reporter = setInterval(() => {
   const evicted = gs.reduce((a, s) => a + s.evicted, 0)
   // (v0.17.4) path throttle visibility: fleet #124 starved invisibly - the next
   // freeze must show up as maxActive/queued in the log, not as a silent gap
+  // (v0.20.0) stale= counts pre-cleared stopPathing flags - every unit is a walk
+  // that would have died with 'Path was stopped' before the gotoSafe pre-clear
   const ps = pathThrottleStats()
-  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive})`)
+  const gss = gotoSafeStats()
+  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive}) stale=${gss.staleStopClears}`)
 }, 15000)
 
 // (v0.18.3) HEAP WATCHDOG: fleet #127 died at t-400s - heap 113M -> 3550 MB in

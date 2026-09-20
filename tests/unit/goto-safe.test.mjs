@@ -5,7 +5,7 @@
 // failure; standGoalNear must snap walk targets to standable columns.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { gotoSafe, standGoalNear } from '../../src/lib/jobqueue.mjs'
+import { gotoSafe, standGoalNear, gotoSafeStats } from '../../src/lib/jobqueue.mjs'
 import { Vec3 } from 'vec3'
 
 const goals = {
@@ -137,4 +137,82 @@ test('gotoSafe returns real Vec3 compatibility: goal objects pass through untouc
   const goal = new Vec3(1, 2, 3)
   await gotoSafe(bot, goal, { timeoutMs: 500 })
   assert.equal(received, goal)
+})
+
+// (v0.20.0) The library-level trace: a stop() on a STANDING bot (empty path) leaves
+// stopPathing=true unconsumed, and the NEXT goto dies instantly at its own setGoal
+// ('Path was stopped before it could be completed!'). gotoSafe must pre-clear the
+// flag with setGoal(null) while the bot is not moving.
+test('gotoSafe: pre-clears a stale stopPathing flag before the new goal (standing bot)', async () => {
+  let staleFlag = true // a previous timeout's stop() on a standing bot: nothing consumed it
+  const setGoalCalls = []
+  const bot = {
+    pathfinder: {
+      isMoving: () => false,
+      // the library contract: setGoal -> resetPath -> `if (stopPathing) return stop()`
+      // -> stop() emits 'path_stop' synchronously and clears the flag
+      setGoal: g => {
+        setGoalCalls.push(g)
+        if (staleFlag) { staleFlag = false; bot.emit('path_stop') }
+      },
+      goto: async () => 'walked'
+    },
+    _handlers: {},
+    on (ev, fn) { (this._handlers[ev] = this._handlers[ev] || []).push(fn) },
+    removeListener (ev, fn) { this._handlers[ev] = (this._handlers[ev] || []).filter(f => f !== fn) },
+    emit (ev, ...a) { for (const fn of this._handlers[ev] || []) fn(...a) }
+  }
+  const before = gotoSafeStats().staleStopClears
+  const r = await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
+  assert.equal(r, 'walked', 'the next goto SURVIVES the stale flag - the poisoning chain is broken')
+  assert.deepEqual(setGoalCalls, [null, { x: 1 }], 'setGoal(null) runs first, the real goal second')
+  assert.equal(gotoSafeStats().staleStopClears, before + 1, 'the synchronous path_stop during the pre-clear is the stale-flag signature')
+})
+
+test('gotoSafe: no stale flag -> the pre-clear is harmless (no path_stop, counter flat)', async () => {
+  const bot = {
+    pathfinder: {
+      isMoving: () => false,
+      setGoal: () => { /* no stopPathing set: resetPath alone, no stop() */ },
+      goto: async () => 'walked'
+    },
+    _handlers: {},
+    on (ev, fn) { (this._handlers[ev] = this._handlers[ev] || []).push(fn) },
+    removeListener (ev, fn) { this._handlers[ev] = (this._handlers[ev] || []).filter(f => f !== fn) },
+    emit (ev, ...a) { for (const fn of this._handlers[ev] || []) fn(...a) }
+  }
+  const before = gotoSafeStats().staleStopClears
+  await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
+  assert.equal(gotoSafeStats().staleStopClears, before, 'a clean bot must not inflate the stale counter')
+})
+
+test('gotoSafe: an ACTIVE walk is never disturbed by the pre-clear', async () => {
+  let setGoalCalls = 0
+  const bot = {
+    pathfinder: {
+      isMoving: () => true, // a walk is in flight (the second-goto fight keeps old semantics)
+      setGoal: () => { setGoalCalls++ },
+      goto: async () => 'walked'
+    }
+  }
+  await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
+  assert.equal(setGoalCalls, 0, 'setGoal(null) would kill the active goal - it must not run')
+})
+
+test('gotoSafe: a bare mock without setGoal/isMoving keeps passing (degradation guard)', async () => {
+  const bot = { pathfinder: { goto: async () => 'ok', stop: () => {} } }
+  const r = await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
+  assert.equal(r, 'ok')
+})
+
+test('gotoSafe: a throwing setGoal(null) never blocks the real walk', async () => {
+  const bot = {
+    pathfinder: {
+      isMoving: () => false,
+      setGoal: () => { throw new Error('resetPath exploded') },
+      goto: async () => 'walked'
+    }
+  }
+  const r = await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
+  assert.equal(r, 'walked', 'diagnostics are best-effort; the walk proceeds')
 })

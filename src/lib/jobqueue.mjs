@@ -189,6 +189,53 @@ import { RESCUE_MAX_MS } from './drowning.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
+// (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
+//
+// MEASURED: fleet #128 (77 bank attempts, banked=0), the v0.19.0 yard-walk retries
+// (19 walks, every one still died), the v0.19.2 final bank (12-15x 'Path was
+// stopped'). The library-level trace (node_modules/mineflayer-pathfinder):
+//
+//   1. any goto error path calls bot.pathfinder.stop() (gotoSafe's own catch does
+//      it too) which only sets a module flag: stopPathing = true;
+//   2. that flag is consumed ONLY by: arriving at the next path point, a
+//      resetPath() from a block update near a NON-EMPTY path, or the next
+//      setGoal(). A STANDING bot (empty path - stuck against a wall, timeout
+//      between A* recomputes) consumes NOTHING: GoalNear.isValid() is a constant
+//      true and the base Goal.hasChanged() is a constant false, so the
+//      monitorMovement stop paths never fire;
+//   3. the flag therefore survives the 2-tick settle INDEFINITELY, and the NEXT
+//      goto dies instantly: gotoUtil registers its 'path_stop' listener, calls
+//      setGoal -> resetPath('goal_updated') -> `if (stopPathing) return stop()`
+//      -> stop() emits 'path_stop' SYNCHRONOUSLY -> the fresh listener rejects
+//      with 'Path was stopped before it could be completed!'.
+//
+// The settle window (the v0.13.0/CI 35491904900 fix) only covers the MOVING-bot
+// race. The standing-bot flag is unconsumable by ticks - it must be cleared
+// BEFORE the new goal: setGoal(null) while the bot is not moving runs
+// resetPath -> stop(), consuming the stale flag and emitting 'path_stop' into
+// EMPTY space (no goto listener is registered yet). An active walk (isMoving())
+// is left untouched - the second-goto fight keeps today's semantics.
+//
+// The one-shot 'path_stop' spy during setGoal(null) is the precise stale-flag
+// signature: it fires ONLY when stop() ran, i.e. the flag was really set.
+let staleStopClears = 0
+export function gotoSafeStats () { return { staleStopClears } }
+
+function clearStaleStop (bot) {
+  try {
+    const pf = bot.pathfinder
+    if (!pf || typeof pf.setGoal !== 'function' || typeof pf.isMoving !== 'function') return // bare mocks keep passing
+    if (pf.isMoving()) return // an active walk owns the goal slot - do not disturb it
+    let stale = false
+    const spy = () => { stale = true }
+    if (typeof bot.on === 'function') bot.on('path_stop', spy)
+    try { pf.setGoal(null) } finally {
+      if (typeof bot.removeListener === 'function') bot.removeListener('path_stop', spy)
+    }
+    if (stale) staleStopClears++
+  } catch { /* diagnostics must never block the walk they precede */ }
+}
+
 export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {}) {
   // (v0.13.0) drowning rescue gate: while a swim rescue is in flight the
   // pathfinder must NOT issue new goals - each one re-engages its own control
@@ -196,14 +243,15 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk' } = {})
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
-  return fleetPaths.run(() => withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)).catch(e => {
+  return fleetPaths.run(() => {
+    clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
+    return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+  }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
-    // next physics tick. A goto started inside that ~50 ms window inherits the
-    // poisoned flag and dies instantly with "Path was stopped before it could
-    // be completed" - the smelt test's machine walk was killed by the timeout
-    // stop of the walk just before it. Two ticks settle the flag (bounded, in
-    // case the bot is already going down). Mocks without a physics loop skip it.
+    // next physics tick - or, for a standing bot, at the NEXT goto's setGoal
+    // (v0.20.0: clearStaleStop above is what now actually defuses that case;
+    // the settle below still covers the moving-bot tick race).
     const settle = typeof bot.waitForTicks === 'function'
       ? withTimeout(bot.waitForTicks(2), 400, 'goto settle').catch(() => { /* bot going down: rethrow below */ })
       : Promise.resolve()
