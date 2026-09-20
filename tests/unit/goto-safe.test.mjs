@@ -146,6 +146,7 @@ test('gotoSafe returns real Vec3 compatibility: goal objects pass through untouc
 test('gotoSafe: pre-clears a stale stopPathing flag before the new goal (standing bot)', async () => {
   let staleFlag = true // a previous timeout's stop() on a standing bot: nothing consumed it
   const setGoalCalls = []
+  const gotoCalls = []
   const bot = {
     pathfinder: {
       isMoving: () => false,
@@ -155,7 +156,10 @@ test('gotoSafe: pre-clears a stale stopPathing flag before the new goal (standin
         setGoalCalls.push(g)
         if (staleFlag) { staleFlag = false; bot.emit('path_stop') }
       },
-      goto: async () => 'walked'
+      // gotoUtil's own setGoal(goal) is INSIDE the library; this mock keeps the
+      // two seams separate: goto() receives the real goal, setGoal() sees only
+      // the pre-clear's null
+      goto: async g => { gotoCalls.push(g); return 'walked' }
     },
     _handlers: {},
     on (ev, fn) { (this._handlers[ev] = this._handlers[ev] || []).push(fn) },
@@ -165,7 +169,8 @@ test('gotoSafe: pre-clears a stale stopPathing flag before the new goal (standin
   const before = gotoSafeStats().staleStopClears
   const r = await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
   assert.equal(r, 'walked', 'the next goto SURVIVES the stale flag - the poisoning chain is broken')
-  assert.deepEqual(setGoalCalls, [null, { x: 1 }], 'setGoal(null) runs first, the real goal second')
+  assert.deepEqual(setGoalCalls, [null], 'the pre-clear runs setGoal(null) exactly once, BEFORE goto()')
+  assert.deepEqual(gotoCalls, [{ x: 1 }], 'the real goal reaches the pathfinder untouched')
   assert.equal(gotoSafeStats().staleStopClears, before + 1, 'the synchronous path_stop during the pre-clear is the stale-flag signature')
 })
 
