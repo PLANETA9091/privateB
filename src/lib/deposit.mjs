@@ -137,3 +137,21 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   }
   return { deposited: total, chestsUsed, chestReport: reports }
 }
+
+// (v0.16.4) The banking chain's invisible zero, made decidable. Fleet #122 climbed
+// out for 'bank' 15+ times and banked=0 forever: depositToChest returned
+// 'no chest in range' (the chest warehouse sits at the yard/spawn while a 600s bot
+// digs 100-300 blocks out, way beyond findChest's 64-block scan) and the caller
+// swallowed the reason. This pure predicate turns a failed deposit into an action:
+//   done  - the deposit worked, nothing to add
+//   walk  - no chest nearby, but the yard is close enough to walk back to
+//   none  - nothing sane to do (other failure reasons, no yard known, too far)
+// Pure arithmetic on plain values (positions stay in the caller) so CI can test
+// every branch without a server.
+export function bankFallback ({ deposited = 0, reason = '', yardDist = null, maxWalkBlocks = 400 } = {}) {
+  if (deposited > 0) return { action: 'done' }
+  if (!/no chest/i.test(String(reason || ''))) return { action: 'none', why: reason || 'unknown reason' }
+  if (yardDist == null || !Number.isFinite(yardDist)) return { action: 'none', why: 'no yard position known' }
+  if (yardDist >= maxWalkBlocks) return { action: 'none', why: `yard is ${Math.round(yardDist)} blocks away (walk cap ${maxWalkBlocks})` }
+  return { action: 'walk', dist: Math.round(yardDist) }
+}

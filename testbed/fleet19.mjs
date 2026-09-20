@@ -17,7 +17,7 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/deposit.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
@@ -76,7 +76,7 @@ let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cook
 // Smelt what the bot carries, then bank. Smelting comes FIRST on purpose: the chests
 // should hold glass/ingots, not raw sand/ore. Budget-capped and failure-tolerant -
 // a stuck furnace must never cost the bot its mining loop or its banking trip.
-async function smeltThenBank (miner, { timeoutMs = 30000 } = {}) {
+async function smeltThenBank (miner, { timeoutMs = 30000, yardGoal = null } = {}) {
   if (SMELT) {
     try {
       const res = await smeltInventory(miner.bot, { maxSeconds: SMELT_BUDGET, log: m => console.log(m) })
@@ -92,7 +92,31 @@ async function smeltThenBank (miner, { timeoutMs = 30000 } = {}) {
   // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
   // surplus flows to the chests as base stock.
   const keep = [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
-  return miner.depositLoot({ timeoutMs, keep })
+  const res = await miner.depositLoot({ timeoutMs, keep })
+  // (v0.16.4) THE INVISIBLE ZERO: fleet #122 climbed out for 'bank' 15+ times
+  // (F6 alone six times) and banked=0 - every attempt died as a silent
+  // 'no chest in range' because the chest warehouse sits at the yard (spawn)
+  // while a 600s bot digs 100-300 blocks OUT, far beyond findChest's 64-block
+  // scan. The reason was returned by depositToChest and swallowed here. Fix:
+  // bankFallback() decides; when it says 'walk', the bot walks back to the
+  // yard (first-login position = world spawn) and retries the deposit once.
+  const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
+  const decision = bankFallback({ deposited: res.deposited, reason: res.reason, yardDist })
+  if (decision.action === 'walk') {
+    try {
+      console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
+      await gotoSafe(miner.bot, new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24), { timeoutMs: 120000, label: 'walk to yard' })
+      const res2 = await miner.depositLoot({ timeoutMs, keep })
+      if (res2.deposited > 0) return res2
+      return { ...res2, reason: `${res2.reason} (after yard walk)` }
+    } catch (e) {
+      return { deposited: 0, reason: `yard walk failed: ${e.message}` }
+    }
+  }
+  if (decision.action === 'none' && res.deposited === 0 && decision.why && decision.why !== res.reason) {
+    return { ...res, reason: `${res.reason} (${decision.why})` }
+  }
+  return res
 }
 
 const aliveCount = () => [...bots.values()].filter(e => e.miner?.bot?.entity).length
@@ -137,6 +161,7 @@ async function runBot (name, target, index) {
   // over a window instead of hitting the stalling server as one herd again.
   let failStreak = 0
   let lastWhy = '' // (v0.16.3) why the last session ended - printed on the retry line
+  let yardGoal = null // (v0.16.4) first-login position = the yard (world spawn): the bank fallback target
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -164,6 +189,7 @@ async function runBot (name, target, index) {
       bots.set(name, { miner, target })
       await miner.ready
       failStreak = 0 // logged in and alive: the next kick starts the streak from scratch
+      if (!yardGoal) yardGoal = miner.bot.entity.position.floored() // a fresh bot logs in at world spawn - the yard
 
       // Bound the process memory: stale chunk columns (missed unload packets,
       // respawn dimension switches) pushed the first Big Fleet run into a 4 GB
@@ -374,8 +400,15 @@ async function runBot (name, target, index) {
         if (needsBanking(miner.bot)) {
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           if (await ensureSurface('bank')) {
-            const res = await smeltThenBank(miner)
-            if (res.deposited > 0) banked += res.deposited
+            const res = await smeltThenBank(miner, { yardGoal })
+            if (res.deposited > 0) {
+              banked += res.deposited
+              console.log(`${name} bank: +${res.deposited}`)
+            } else {
+              // (v0.16.4) the reason MUST reach the log - the invisible 'no chest in
+              // range' zero cost fleet #122 its whole banking chain (v0.16.1 lesson)
+              console.log(`${name} bank: 0 (${res.reason})`)
+            }
           }
         }
         // underground the bot still SEES ores in the shaft walls - record them into the
@@ -467,8 +500,13 @@ async function runBot (name, target, index) {
           // (v0.12.0) the bot ends the run at the bottom of its last shaft: without
           // the climb this walk always failed and the final banked= stayed 0
           await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
-          const res = await smeltThenBank(miner, { timeoutMs: 120000 })
-          if (res.deposited > 0) banked += res.deposited
+          const res = await smeltThenBank(miner, { timeoutMs: 120000, yardGoal })
+          if (res.deposited > 0) {
+            banked += res.deposited
+            console.log(`${name} final bank: +${res.deposited}`)
+          } else {
+            console.log(`${name} final bank: 0 (${res.reason})`)
+          }
         } catch { /* report whatever was banked so far */ }
       }
     } catch (e) {
