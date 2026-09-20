@@ -19,3 +19,4 @@ __pycache__/
 bun.lock
 ci-logs/
 data/fleet-report.json
+.dbg/
