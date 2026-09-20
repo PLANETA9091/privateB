@@ -147,8 +147,11 @@ async function runBot (name, target, index) {
         // bot-level logs are too chatty for a fleet run, but COMBAT events are the
         // field evidence the next iteration needs (the v0.11.0 verification run
         // counted fights=2 while printing nothing - invisible, useless evidence);
-        // 'climb' shows the pillar-jump shaft exits for the same reason
-        log: m => { if (/combat|died|KICKED|error|climb/.test(m)) console.log(`${name} ${m}`) }
+        // 'climb' shows the pillar-jump shaft exits for the same reason;
+        // 'water' shows the drowning rescue + the v0.16.0 air-bar glitch lines -
+        // fleet #120 ended rescues=140 with zero visible water lines (the counter
+        // contradicted the log, the diagnosis burned a whole session)
+        log: m => { if (/combat|died|KICKED|error|climb|water/.test(m)) console.log(`${name} ${m}`) }
       })
       bots.set(name, { miner, target })
       await miner.ready
