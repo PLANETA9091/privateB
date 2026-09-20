@@ -1770,6 +1770,12 @@ export function createMiner ({
     // step (waterfall above, gap below, wet/hard/unknown cells refuse).
     // _climbEscape makes the drown sentry yield: this IS the escape, and a
     // 25s tread-water rescue measured worse than 15s of purposeful digging.
+    // (v0.24.0) settleTicks: every waitForTicks is race-bounded - a dead
+    // connection stops physics ticks and an UNBOUNDED waitForTicks hangs the
+    // climb (and the whole runner) forever; the loop budgets then end it.
+    const settleTicks = async (n, label) => {
+      try { await withTimeout(bot.waitForTicks(n), 2000, label) } catch { /* dead physics: the time/fail budgets end this climb */ }
+    }
     const escapeTraverse = async ({ shouldStop }) => {
       const t0 = Date.now()
       let walked = 0
@@ -1799,7 +1805,7 @@ export function createMiner ({
             await bot.lookAt(feet.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
             bot.setControlState('jump', true)
             bot.setControlState('forward', true)
-            await bot.waitForTicks(10)
+            await settleTicks(10, 'escape move')
             bot.setControlState('forward', false)
             bot.setControlState('jump', false)
             const to = bot.entity.position.floored()
@@ -1808,7 +1814,7 @@ export function createMiner ({
           if (moved) stalls = 0
           else if (++stalls >= TRAVERSE_STALL_LIMIT) return { walked, resumed: false, reason: 'stalled' }
           walked++
-          await bot.waitForTicks(2) // gravity/water settle before the next cut
+          await settleTicks(2, 'escape settle') // gravity/water settle before the next cut
         }
         return { walked, resumed: walked > 0, reason: walked > 0 ? 'budget' : 'unknown' }
       } finally {
@@ -1825,7 +1831,11 @@ export function createMiner ({
       let blocked = false
       let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
       for (const cell of [feet.offset(0, 1, 0), feet.offset(0, 2, 0), feet.offset(d.x, 1, d.z), feet.offset(d.x, 2, d.z)]) {
-        const cellB = bot.blockAt(cell)
+        // (v0.24.0) the unguarded read threw mid-climb and the final-bank catch
+        // swallowed it in silence (fleet 35536139524: staggered climbs produced
+        // diag lines and then NOTHING) - unknown now means blocked, like null
+        let cellB = null
+        try { cellB = bot.blockAt(cell) } catch { cellB = null }
         const verdict = climbableCeiling(cellB)
         if (verdict === 'free') continue
         if (verdict !== 'dig' || dug >= PILLAR_LEVEL_CAP * 2) {
@@ -1839,8 +1849,9 @@ export function createMiner ({
         } catch { blocked = true; break }
       }
       // the step needs solid ground at (feet + d) to land on - a cave gap there
-      // is not a stair, rotate and try the next wall
-      const support = bot.blockAt(feet.offset(d.x, 0, d.z))
+      // is not a stair, rotate and try the next wall (read guarded: v0.24.0)
+      let support = null
+      try { support = bot.blockAt(feet.offset(d.x, 0, d.z)) } catch { support = null }
       if (!blocked && (!support || support.boundingBox !== 'block')) blocked = true
       if (blocked) {
         // (v0.17.0) WET ESCAPE: a wet refusal on a rotation-independent cell
@@ -1857,7 +1868,7 @@ export function createMiner ({
         if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})`)
         fails++
         rotate()
-        await bot.waitForTicks(4)
+        await settleTicks(4, 'climb rotate settle')
         continue
       }
       // the step: look at the diagonal cell, hold forward + jump - vanilla
@@ -1873,10 +1884,10 @@ export function createMiner ({
         await bot.lookAt(f.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
         bot.setControlState('forward', true)
         bot.setControlState('jump', true)
-        await bot.waitForTicks(holdTicks)
+        await settleTicks(holdTicks, 'climb step hold')
         bot.setControlState('forward', false)
         bot.setControlState('jump', false)
-        await bot.waitForTicks(4) // gravity settles us onto the step
+        await settleTicks(4, 'climb step settle') // gravity settles us onto the step
         return bot.entity.position.floored().y > f.y
       }
       let rose = false
@@ -1916,7 +1927,7 @@ export function createMiner ({
         }
         fails++
         rotate()
-        await bot.waitForTicks(4)
+        await settleTicks(4, 'climb rise settle')
       }
     }
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug, steps, traversed }

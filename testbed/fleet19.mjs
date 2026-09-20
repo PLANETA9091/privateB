@@ -642,7 +642,14 @@ async function runBot (name, target, index) {
           } else {
             console.log(`${name} final bank: 0 (${res.reason})`)
           }
-        } catch { /* report whatever was banked so far */ }
+        } catch (e) {
+          // (v0.24.0) this catch swallowed EVERYTHING in silence - fleet
+          // 35536139524: 9 staggered climbs produced diag lines and then
+          // NOTHING (no 'final climb', no 'final bank'), the report showed
+          // banked=0 with zero evidence why. A climb that dies mid-air now
+          // names its killer.
+          console.log(`${name} final bank chain error: ${e && e.message ? e.message : e}`)
+        }
       }
     } catch (e) {
       // (v0.16.3) count kicks ONCE here; the retry itself is counted below - the old
