@@ -281,7 +281,14 @@ async function runBot (name, target, index) {
         }
         let interrupted = false
         const shaftRes = await miner.digShaft(namesFor(hasPickNow()), {
-          minY: 24,
+          // (v0.14.1) the floor moves UP from 24 to 42: the old bottom sat the fleet
+          // inside the AQUIFER band - every shaft bottom was wet (fleet 114:
+          // rescues=17, climb staircases refused their step cells as water, 'blocked
+          // toward ...' x17, 0 climbs, banked=0). y=42 still holds the plan's
+          // underground materials (iron/copper/coal/stone all spawn above the
+          // deepslate band) but the dig columns stay dry: no swim physics, and the
+          // staircase climb only meets stone it can dig.
+          minY: 42,
           shouldStop: () => {
             if (Date.now() > deadline || !miner.bot.entity) return true
             if (recoveryDueNow()) { interrupted = true; return true }
