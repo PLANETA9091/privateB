@@ -4,11 +4,20 @@
 // water pool for concrete, nether + end portals, a bed, lighting and a labelled chest
 // warehouse. Everything is placed through the server console pipe (no client needed).
 //
+// (v0.18.17) FIRE-AND-FORGET IS FORBIDDEN: run 35521952724 lost ~159 of 169
+// commands in the fifo transport (only the last 11 executed - zero feedback,
+// zero errors) and the whole fleet banked into an empty yard, banked=0 forever.
+// The survey bot now STAYS ONLINE as chunk-keeper and verification witness:
+// after the batch the yard is probed client-side (findBlocks) and RE-SENT
+// (idempotent) until the structures are real, or the script dies LOUD (exit 1)
+// instead of poisoning a whole fleet run.
+//
 //   node scripts/setup-yard.mjs [--origin 0,72,0] [--dry]
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import mineflayer from 'mineflayer'
+import { tallyYardBlocks, yardVerdict } from '../src/lib/yardcheck.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FIFO = process.env.MC_FIFO || path.join(root, 'testbed/server/cmd.fifo')
@@ -132,19 +141,49 @@ async function surfaceY () {
       }
     }
   }
-  bot.quit()
-  if (best == null) throw new Error('could not find a buildable surface near the spawn')
-  return { x: here.x, y: best, z: here.z }
+  if (best == null) { bot.quit(); throw new Error('could not find a buildable surface near the spawn') }
+  // (v0.18.17) the bot STAYS ONLINE: it is both the chunk-keeper for the console
+  // build AND the verification witness. The old flow quit here - run #130 then
+  // lost ~159 of 169 commands to the fifo transport with zero feedback, and the
+  // fleet banked into an empty yard for the whole run.
+  return { bot, origin: [here.x, best, here.z] }
+}
+
+// Client-side truth: count the yard structures in the SURVEY BOT's own world
+// view. Match on name ONLY then convert through blockAt - the palette trap from
+// smelting.mjs applies verbatim (a position guard inside the matcher makes
+// findBlocks return NOTHING).
+const YARD_BLOCK_NAMES = ['chest', 'trapped_chest', 'barrel', 'furnace', 'blast_furnace', 'smoker']
+async function verifyYard (bot, origin) {
+  const { Vec3 } = await import('vec3')
+  const center = new Vec3(origin[0], origin[1], origin[2])
+  let last = { ok: false, detail: 'never probed' }
+  // block updates stream in right after the commands execute; a short settle
+  // ladder absorbs the stragglers without a fixed long sleep
+  for (const settleMs of [2500, 1500, 1500, 3000]) {
+    await new Promise(r => setTimeout(r, settleMs))
+    try {
+      const found = bot.findBlocks({ matching: b => YARD_BLOCK_NAMES.includes(b.name), maxDistance: 48, count: 200 })
+      const tally = tallyYardBlocks(found.map(p => bot.blockAt(p)?.name).filter(Boolean))
+      last = yardVerdict(tally)
+      if (last.ok) return last
+    } catch (e) {
+      last = { ok: false, detail: `probe error (${e.message})` }
+    }
+  }
+  return last
 }
 
 let origin
+let surveyBot = null
 if (originArg) {
   origin = originArg.split(',').map(Number)
   log(`origin from CLI: ${origin.join(',')}`)
 } else {
   const spot = await surfaceY()
-  origin = [spot.x, spot.y, spot.z]
-  log(`buildable surface near spawn: y=${spot.y - 1}, yard floor at ${spot.x},${spot.y},${spot.z}`)
+  surveyBot = spot.bot
+  origin = spot.origin
+  log(`buildable surface near spawn: y=${origin[1] - 1}, yard floor at ${origin[0]},${origin[1]},${origin[2]}`)
 }
 
 buildYard(origin[0], origin[1], origin[2])
@@ -152,8 +191,34 @@ log(`${commands.length} commands prepared`)
 
 if (DRY) {
   for (const c of commands.slice(0, 20)) console.log('  ' + c)
+  surveyBot?.quit?.()
   process.exit(0)
 }
 
-for (const c of commands) fs.appendFileSync(FIFO, `${c}\n`)
+// (v0.18.17) ONE atomic write for the whole batch. The old loop did 169 separate
+// open/write/close cycles - each close is an EOF boundary on the fifo, and run
+// #130 measured exactly that kind of burst losing everything but the last ~11
+// commands. 9.3KB fits the 64KB kernel fifo buffer with room to spare.
+fs.appendFileSync(FIFO, commands.join('\n') + '\n')
 log('commands sent to the server console')
+
+// VERIFY-AND-RESEND: the batch is idempotent (same commands, same coordinates),
+// so a swallowed transport costs a resend, not the fleet's bank chain.
+let verdict = { ok: false, detail: 'not verified' }
+const ATTEMPTS = 3
+for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+  if (attempt > 1) {
+    log(`resending all ${commands.length} commands (attempt ${attempt}/${ATTEMPTS})`)
+    fs.appendFileSync(FIFO, commands.join('\n') + '\n')
+  }
+  verdict = await verifyYard(surveyBot, origin)
+  log(`attempt ${attempt}: ${verdict.detail}`)
+  if (verdict.ok) break
+}
+surveyBot?.quit?.()
+if (!verdict.ok) {
+  log(`YARD BUILD FAILED after ${ATTEMPTS} attempts: ${verdict.detail}`)
+  log('the fleet would bank into an empty yard - fix the cmd.fifo transport and re-run')
+  process.exit(1)
+}
+log('yard verified - chests and machines are real blocks in the world')
