@@ -29,6 +29,56 @@ export const SHELTER_MAX_MS = 60000
 /** Hostiles within this distance keep the bot sealed. */
 export const SHELTER_SAFE_DIST = 8
 
+// ---- v0.50.0: EARN-THE-SEAL (the inventory-full-of-ore class) ----
+// Fleet 35619512737 (v0.48.1) measured 10x 'shelter skip (no seal material)'
+// (F18 x7, F3/F13/F17) - a full-pocket miner cannot PICK UP the cobble its own
+// digs drop, so it holds nothing sealable while the threat closes in; F3 then
+// died to a skeleton flee-chase at no-seal (hp 4.0). One freed slot is enough:
+// the shelter wall dug below respawns its block as a drop INSIDE vanilla pickup
+// range (~1.5 blocks), the freed slot swallows it, and the seal finds the block
+// in the inventory.
+//
+// The earn's ONLY extra cost over a normal shelter dig-in is one toss (~0.3 s):
+// the wall dig + step-in are the shelter's own steps. A mob at ~2.5 b/s closes
+// 8 blocks in ~3.2 s - the toss + dig window fits; beyond that means RUN.
+export const EARN_SEAL_MAX_THREAT_DIST = 8
+
+/** Drop-for-a-slot priority: true junk first, then the cheapest stacked loot.
+ * NEVER dropped: any tool or weapon (pickaxes, swords, axes, shovels, hoes),
+ * food the fleet cooks or eats (bread, cooked meats, apples), bootstrap stock
+ * (logs, planks, sticks), and the high-value plan items (diamond, emerald). */
+export const JUNK_DROP_PRIORITY = [
+  'rotten_flesh', 'spider_eye', 'bone', 'wheat_seeds', 'seeds',
+  'gravel', 'sand', 'flint',
+  'redstone', 'coal', 'lapis_lazuli',
+  'raw_copper', 'raw_iron', 'raw_gold'
+]
+
+/** The cheapest held item worth trading for one inventory slot, or null when
+ * the bot carries nothing expendable (a tool-only pocket stays whole - a dead
+ * naked bot loses EVERYTHING, one dropped coal is the cheaper loss).
+ * @param {Array<{name?:string, count?:number}>|null|undefined} items */
+export function pickJunkToDrop (items) {
+  if (!Array.isArray(items)) return null
+  const held = new Map()
+  for (const item of items) {
+    if (!item || typeof item.name !== 'string') continue
+    const n = Number.isFinite(item.count) && item.count > 0 ? item.count : 1
+    held.set(item.name, (held.get(item.name) ?? 0) + n)
+  }
+  for (const name of JUNK_DROP_PRIORITY) {
+    if ((held.get(name) ?? 0) > 0) return { name, count: held.get(name) }
+  }
+  return null
+}
+
+/** Is the threat far enough that the earn attempt fits before contact?
+ * @param {object} p
+ * @param {number} [p.threatDist] metres to the nearest hostile (junk -> false) */
+export function earnSealDue ({ threatDist = Infinity } = {}) {
+  return Number.isFinite(threatDist) && threatDist > 0 && threatDist <= EARN_SEAL_MAX_THREAT_DIST
+}
+
 // Blocks worth digging INTO (shelter walls): never a gravity column (the smelt
 // test measured a sand stratum refilling carved cells in <1 s), never fluid,
 // never undiggable.

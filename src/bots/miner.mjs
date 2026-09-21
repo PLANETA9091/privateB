@@ -27,7 +27,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
-import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -156,9 +156,38 @@ export function createMiner ({
   bot._client?.on?.('error', e => log(`${tag} socket error: ${e.message}`))
   bot.on('kicked', r => log(`${tag} KICKED: ${typeof r === 'string' ? r : JSON.stringify(r)}`))
   bot.on('end', r => log(`${tag} disconnected (${r})`))
+  // (v0.50.0) DEATH-CAUSE REPORTER: fleet 35610870878 measured 4 mining-accident
+  // deaths with UNLOGGED causes (F1/F18/F11) - a dead bot's pocket scatters where
+  // it fell, so the cause names the leak. Every hp drop primes lastHarm (the
+  // nearest hostile in range, or drowning/fall/env when nothing hostile is near);
+  // the death line prints the freshest harm within 6 s.
+  let lastHarm = null
+  let lastHp = 20
+  bot.on('health', () => {
+    try {
+      const hp = bot.health
+      if (bot.entity && Number.isFinite(hp) && hp < lastHp) {
+        const h = nearestHostile({ range: 16 })
+        const drowning = (bot.oxygenLevel ?? 20) <= 0
+        lastHarm = {
+          name: h ? h.name : (drowning ? 'drowning' : 'fall/env'),
+          dist: h ? h.dist : 0,
+          at: Date.now(),
+          pos: bot.entity.position.floored()
+        }
+      }
+      if (Number.isFinite(hp)) lastHp = hp
+    } catch { /* the sentry must never throw */ }
+  })
   bot.on('death', () => {
-    log(`${tag} died - respawning`)
+    const fresh = lastHarm && Date.now() - lastHarm.at < 6000
+    const cause = fresh
+      ? `${lastHarm.name}${lastHarm.dist ? `@${lastHarm.dist.toFixed(1)}` : ''} (${Math.round((Date.now() - lastHarm.at) / 100) / 10}s before death at [${lastHarm.pos.x},${lastHarm.pos.y},${lastHarm.pos.z}])`
+      : `unknown (no hp drop in the last 6s${bot.entity ? ` at [${bot.entity.position.floored().x},${bot.entity.position.floored().y},${bot.entity.position.floored().z}]` : ''})`
+    log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1
+    lastHarm = null
+    lastHp = 20
     setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)
   })
 
@@ -296,10 +325,35 @@ export function createMiner ({
       log(`${tag} combat: shelter skip (night=${night} armed=${armed} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
       return false
     }
-    // no seal material means no shelter (an open hole is a death trap)
+    // no seal material: (v0.50.0) EARN one instead of skipping - the measured
+    // 10x 'shelter skip (no seal material)' class (fleet 35619512737; F18 x7)
+    // is the full-pocket miner that cannot pick up its own dig drops; F3 then
+    // died at no-seal (skeleton chase, hp 4.0). Free ONE slot with the cheapest
+    // junk: the wall dug below respawns its block as a drop INSIDE pickup range
+    // and sealWaitUnseal re-reads the inventory, so the fresh block seals the hole.
     if (!pickSealItem(inventoryItems(bot))) {
-      log(`${tag} combat: shelter skip (no seal material)`)
-      return false
+      if (!threat || !earnSealDue({ threatDist: threat.dist })) {
+        log(`${tag} combat: shelter skip (no seal material, ${threat ? `threat@${threat.dist.toFixed(1)} too close to earn` : 'no threat'})`)
+        return false
+      }
+      const junk = pickJunkToDrop(inventoryItems(bot))
+      if (!junk) {
+        log(`${tag} combat: shelter skip (no seal material, nothing expendable to drop)`)
+        return false
+      }
+      try {
+        const item = bot.inventory.items().find(i => i.name === junk.name)
+        if (item) {
+          await bot.toss(item.type, item.metadata ?? 0, 1)
+          log(`${tag} combat: shelter earn: dropped 1 ${junk.name} for a seal slot`)
+        } else {
+          log(`${tag} combat: shelter skip (no seal material, ${junk.name} vanished)`) 
+          return false
+        }
+      } catch (e) {
+        log(`${tag} combat: shelter skip (no seal material, toss failed: ${e.message})`)
+        return false
+      }
     }
     log(`${tag} combat: shelter try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${reason})`)
     const sealCell = bot.entity.position.floored() // the cell we seal behind us

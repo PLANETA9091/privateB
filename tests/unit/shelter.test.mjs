@@ -8,7 +8,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, SEAL_PRIORITY,
-  shelterDue, pickSealItem
+  EARN_SEAL_MAX_THREAT_DIST, JUNK_DROP_PRIORITY,
+  shelterDue, pickSealItem, pickJunkToDrop, earnSealDue
 } from '../../src/lib/shelter.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
@@ -64,4 +65,49 @@ test('policy constants stay sane', () => {
   assert.equal(SHELTER_SAFE_DIST >= 8, true, 'a zombie at the wall must keep the bot sealed')
   assert.equal(SEAL_PRIORITY[0] === 'dirt', true, 'dirt leads the priority - it is worthless to the bootstrap')
   assert.ok(!SEAL_PRIORITY.some(n => n.endsWith('_log') || n.endsWith('_planks') || n === 'stick'), 'craft-critical blocks are excluded by construction')
+})
+
+// ---- v0.50.0: EARN-THE-SEAL (the inventory-full-of-ore class) ----
+// Fleet 35619512737 measured 10x 'shelter skip (no seal material)' (F18 x7,
+// F3/F13/F17): a full-pocket miner cannot pick up the cobble its own digs drop,
+// so it holds nothing sealable - and F3 then died to a skeleton chase at no-seal.
+// The cure: drop ONE expendable item for a slot; the wall dug below respawns its
+// block as a drop inside pickup range and the seal finds it in the inventory.
+test('pickJunkToDrop: true junk is dropped before cheap stacked loot', () => {
+  assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'rotten_flesh', count: 3 }]).name, 'rotten_flesh', 'rotten flesh outranks ore')
+  assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'bone', count: 2 }]).name, 'bone')
+  assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'gravel', count: 9 }]).name, 'gravel')
+  assert.equal(pickJunkToDrop([{ name: 'raw_gold', count: 5 }, { name: 'coal', count: 30 }]).name, 'coal', 'coal outranks raw gold')
+  assert.equal(pickJunkToDrop([{ name: 'raw_copper', count: 8 }, { name: 'raw_iron', count: 12 }]).name, 'raw_copper')
+})
+
+test('pickJunkToDrop: the measured full-ore pocket gets a sacrifice, tools never', () => {
+  // F18's pocket: raw iron/gold/coal stacks only - something MUST go for the slot
+  const f18 = [{ name: 'raw_iron', count: 9 }, { name: 'raw_gold', count: 4 }, { name: 'coal', count: 21 }]
+  assert.equal(pickJunkToDrop(f18).name, 'coal', 'the cheapest plan item pays the one-slot toll')
+  // a tool/food/bootstrap-only pocket stays whole: a dead naked bot loses EVERYTHING
+  const sacred = [
+    { name: 'stone_pickaxe', count: 1 }, { name: 'bread', count: 6 },
+    { name: 'oak_log', count: 4 }, { name: 'oak_planks', count: 12 }, { name: 'stick', count: 8 }
+  ]
+  assert.equal(pickJunkToDrop(sacred), null, 'tools/food/bootstrap stock are NEVER dropped')
+  assert.equal(pickJunkToDrop([{ name: 'diamond', count: 2 }, { name: 'iron_pickaxe', count: 1 }]), null, 'plan-critical loot stays')
+})
+
+test('pickJunkToDrop: junk inventories yield null (skip stays honest)', () => {
+  assert.equal(pickJunkToDrop([]), null)
+  assert.equal(pickJunkToDrop(null), null)
+  assert.equal(pickJunkToDrop(undefined), null)
+  assert.equal(pickJunkToDrop([null, 42, {}, { name: 7 }]), null)
+})
+
+test('earnSealDue: the earn window fits before contact, junk never lies', () => {
+  assert.equal(earnSealDue({ threatDist: 8 }), true, 'the boundary is inside (zombie ~3.2s to contact)')
+  assert.equal(earnSealDue({ threatDist: 1.5 }), true, 'close counts too - the flee itself is already lost')
+  assert.equal(earnSealDue({ threatDist: 8.5 }), false, 'beyond the window: RUN, do not craft')
+  assert.equal(earnSealDue({ threatDist: 0 }), false, 'contact = no time for anything')
+  assert.equal(earnSealDue({ threatDist: NaN }), false, 'junk distance reads as too far to earn')
+  assert.equal(earnSealDue({ threatDist: -3 }), false, 'junk negative reads as no earn')
+  assert.equal(EARN_SEAL_MAX_THREAT_DIST < 12, true, 'the earn window stays inside the detect radius')
+  assert.ok(!JUNK_DROP_PRIORITY.some(n => n.endsWith('_pickaxe') || n.endsWith('_sword') || n === 'bread' || n.endsWith('_log') || n === 'stick'), 'the drop list never contains tools/food/bootstrap stock by construction')
 })
