@@ -17,7 +17,7 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -398,6 +398,7 @@ async function runBot (name, target, index) {
       let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
       let zeroTunnels = 0 // (v0.18.1) consecutive zero-progress tunnels - the freeze budget
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
+      let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       while (!(Date.now() > deadline) && miner.bot.entity) {
         if (recoveryDueNow()) {
@@ -540,14 +541,37 @@ async function runBot (name, target, index) {
         // fleet held 40-70 units in ~10-15 stacks - banked=0 forever). The banking
         // itself needs the SURFACE: climb out of the shaft first, then the chest
         // walk and the furnace bay are reachable at all.
-        if (needsBanking(miner.bot)) {
+        // (v0.33.0) MINING TRIPS: bank EARLY, while the walk back is still
+        // affordable. needsBanking almost never fires at ~90 mined blocks/bot/run,
+        // so pockets rode the whole 600s to the deadline and the final bank burned
+        // its 150s budget on a 100-300 block walk (14x 'final bank: 0 (budget
+        // exhausted)' in dispatch 35552013594). A planned TRIP fires every
+        // BANK_TRIP_EVERY_MS when the pockets hold a stack of loot AND the run has
+        // time to finish it (minRemainingMs gates the start); its chain budget
+        // scales with the distance to the yard. lastBankAt resets on EVERY attempt
+        // - a failed trip must not retry-storm every loop iteration.
+        const load = (() => { try { return inventoryLoad(miner.bot) } catch { return null } })()
+        const tripPlanned = !!(load && bankTripDue({
+          units: load.units,
+          msSinceBank: Date.now() - lastBankAt,
+          remainingMs: deadline - Date.now()
+        }))
+        if (load && (needsBanking(miner.bot) || tripPlanned)) {
+          lastBankAt = Date.now()
+          // (v0.17.3) remember WHERE we work: after banking at the yard the bot
+          // must return here, or it digs its next shaft next to spawn and
+          // re-mines the already-hollowed yard area (emptyShafts spiral).
+          const preBank = miner.bot.entity.position.clone()
+          // a PLANNED trip (start-gated by minRemainingMs) may use the dist-scaled
+          // budget; a needsBanking bank can fire right next to the deadline and
+          // keeps the v0.28.0 120s cap that fits the hard-kill margin
+          const bankBudgetMs = tripPlanned && !needsBanking(miner.bot)
+            ? bankTripBudgetMs({ yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0 })
+            : MID_BANK_BUDGET
+          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           if (await ensureSurface('bank')) {
-            // (v0.17.3) remember WHERE we work: after banking at the yard the bot
-            // must return here, or it digs its next shaft next to spawn and
-            // re-mines the already-hollowed yard area (emptyShafts spiral).
-            const preBank = miner.bot.entity.position.clone()
-            const res = await smeltThenBank(miner, { yardGoal, budgetMs: MID_BANK_BUDGET })
+            const res = await smeltThenBank(miner, { yardGoal, budgetMs: bankBudgetMs })
             if (res.deposited > 0) {
               banked += res.deposited
               console.log(`${name} bank: +${res.deposited}`)

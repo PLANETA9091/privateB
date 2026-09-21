@@ -48,6 +48,57 @@ export function needsBanking (bot) {
   }
 }
 
+// (v0.33.0) MINING TRIPS - the banked=0 front.
+//
+// MEASURED (dispatch 35552013594, 600s on c292cf0): 14x 'final bank: 0 (budget
+// exhausted)' - bots dig 100-300 blocks out and only attempt a bank at the
+// deadline, when the 150s end-bank budget can never cover the walk back.
+// needsBanking (slots>=24 OR units>=128) almost never fires at ~90 mined
+// blocks/bot/run, so the whole loot pile rides the pockets for 600s and is
+// then lost to the budget wall. The cure is the classic mining-trip cadence:
+// bank EARLY, while the walk back is still affordable. Pure policy here (the
+// cadence gate + the trip budget); the mechanics live in fleet19's banking
+// branch, which already climbs out, walks to the yard and returns to the
+// remembered column.
+export const BANK_TRIP_EVERY_MS = 180000 // a planned bank trip at most every 3 min of digging
+export const BANK_TRIP_MIN_UNITS = 64 // ...but only when the pockets hold a stack of loot
+export const BANK_TRIP_MIN_REMAINING_MS = 330000 // never START a trip inside the last 5.5 min
+export const BANK_TRIP_FLOOR_MS = 120000 // (v0.28.0) a late bank keeps the 120s mid-run cap as the floor
+export const BANK_TRIP_CAP_MS = 300000 // hard ceiling - the 420s hard-kill margin is sacred
+
+/**
+ * Should this bot START a planned bank trip now? True when the pockets hold
+ * enough loot (units, non-KEEP), enough digging time passed since the last
+ * attempt, and the run has enough time LEFT to finish the whole trip without
+ * colliding with the end-phase (trip budget <= 300s + the 90s return walk fits
+ * inside minRemainingMs). Junk input = no trip (the mining loop must decide
+ * fast and never on garbage).
+ */
+export function bankTripDue ({ units = 0, msSinceBank = 0, remainingMs = Infinity, everyMs = BANK_TRIP_EVERY_MS, minUnits = BANK_TRIP_MIN_UNITS, minRemainingMs = BANK_TRIP_MIN_REMAINING_MS } = {}) {
+  const u = Number.isFinite(units) && units > 0 ? units : 0
+  if (u < minUnits) return false // nothing worth the walk
+  if (!Number.isFinite(remainingMs) || remainingMs < minRemainingMs) return false // too late for a full trip
+  const every = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : BANK_TRIP_EVERY_MS
+  const since = Number.isFinite(msSinceBank) && msSinceBank > 0 ? msSinceBank : 0
+  return since >= every
+}
+
+/**
+ * The chain budget a planned bank trip may use. The walk there AND back is
+ * dist-scaled (2x the straight distance at CHEST_WALK_PER_BLOCK_MS is the
+ * measured rule - fleet #128), plus the climb out (~90s measured across
+ * v0.26-v0.29 fleets) and the deposit itself (~45s for the chest hops).
+ * Clamped to [floor, cap] so arithmetic on junk input can never overrun the
+ * hard-kill margin.
+ */
+export function bankTripBudgetMs ({ yardDist = 0, floorMs = BANK_TRIP_FLOOR_MS, capMs = BANK_TRIP_CAP_MS } = {}) {
+  const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : 0
+  const raw = 90000 + 45000 + 2 * d * CHEST_WALK_PER_BLOCK_MS // climb + deposit + there-and-back
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BANK_TRIP_FLOOR_MS
+  const cap = Number.isFinite(capMs) && capMs > floor ? capMs : BANK_TRIP_CAP_MS
+  return Math.min(Math.max(raw, floor), cap)
+}
+
 export function findChest (bot, { maxDistance = 64, exclude = [] } = {}) {
   try {
     return bot.findBlock({
