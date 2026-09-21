@@ -1363,3 +1363,21 @@ Stage Summary:
 - Master: 47798a1, CI GREEN. The end-phase pipeline now: stagger-aware slice -> fenced climb -> RETRY (escalated, rotated) -> honest underground refusal OR the full chain with its reserve intact. Layered with their earn-the-seal + death reporter. The fleet dispatch on 47798a1 fires as this session's LAST action: expectations - 'final climb: retry' lines, 'still underground' verdicts instead of 120s silences, a NORMAL END (no kill), shelters>0 (their earn-the-seal), death causes NAMED (their reporter), banked>0 on a decent world.
 - OPEN FRONTS: the disconnect class (server keepalive/metadata); water/drowned deaths (the reporter now names them); chest-FULL handling; banked>0.
 - Version handoff: 0.50.0 (theirs + mine), 0.50.1 mine; next free = 0.51.0.
+
+---
+Task ID: 26
+Agent: Z.ai Code (main, cron session 2026-09-22 02:05 +08, job 398567)
+Task: full 7-step loop - the cancelled dispatch mined, v0.51.0 the water-flee cure; collisions #14b/#15 (their v0.50.x); CI green; next dispatch.
+
+Work Log:
+- Sandbox alive. The Task-25 dispatch 35634663913 (57b3d62) was CANCELLED by their 637141b push (concurrency); my 57b3d62 push CI itself was SUCCESS.
+- COLLISION #14b (VERSION): their 637141b = another v0.50.0 (endphase final-climb retry, their area); double 0.50.0 accepted (v0.48.0 precedent). Their push CI FAILED (climbRetryPlan used but never imported), self-rescued as 47798a1 (v0.50.1) - CI SUCCESS. Free version: 0.51.0.
+- v0.51.0 (dd429f1): THE WATER-FLEE CURE (the 22:53 front #4 - 3 of 8 deaths in the water class). runAway's raw away-vector ignores terrain: F13 'fleeing drowned@1.3 hp 4.0' = the vector pointed DEEPER into the column the drowned owns. Cure: AQUATIC_HOSTILES + fleePlan (drowning.mjs) - aquatic threat + wet feet + known shore -> the hop target IS the shore cell (on land the drowned walks at zombie speed); land threat keeps the away-vector; a submerged head forces the shore for ANY threat; no shore -> historical away. runAway logs 'combat: flee toward shore (dx,dz step N) vs <name>'. 4 tests (13 asserts); unit 55/55, syntax 140, integration 2/2.
+- Trap caught pre-push: their 47798a1 had bumped package.json to 0.50.1 - my sed pattern (0.50.0) missed and the version file stayed out of the commit; caught in git status, amended in. Read the version AFTER rebase, not from memory.
+- COLLISION #15 (docs): their ec96d67 worklog (the v0.49.0-fleet mining: the hard kill RETURNED as 13 doomed underground chains - the endphase chain cure is theirs, the retry is in this tip) landed between fetch and push; rebase stacked cleanly. Push CI 35637561094 on dd429f1 = SUCCESS.
+
+Stage Summary:
+- Master: dd429f1 (their v0.49.0 + v0.50.x endphase chain + my v0.50.0 shelter earn-the-seal + v0.51.0 water-flee + all worklogs). ALL CI GREEN.
+- EXPECTATIONS next fleet: 'flee toward shore' lines vs drowned; 'cause:' on every death line; 'shelter earn:' lines; shelters > 0; the endphase hard-kill judged on THEIR v0.50.0 retry.
+- OPEN FRONTS: F16 'died post-rescue' (needs the next fleet's cause lines), airGlitch/server-tick, banked>0 on a rich world, chest FULL handling.
+- Version handoff: next free = 0.52.0. The 600s fleet dispatch fires on dd429f1 as the session's LAST action.
