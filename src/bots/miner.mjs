@@ -31,7 +31,7 @@ import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK,
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
-  rescueDone
+  rescueDone, fleePlan
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -220,14 +220,37 @@ export function createMiner ({
   // Multi-hop escape: ONE 12-block hop does not outrun a persistent zombie (the
   // first live run measured flee-at-4hp -> caught -> dead), so we keep hopping
   // until the threat is beyond 14 blocks or the deadline burns.
+  // (v0.51.0) THE WATER-FLEE CURE: fleet 35610870878 measured F13 dying to a
+  // drowned flee-chase at hp 4.0 - the raw away-vector ran DEEPER into the
+  // water column the drowned owns. Wet feet + an aquatic threat -> the hop
+  // target is the nearest SHORE cell (on land the drowned walks at zombie
+  // speed); a land threat keeps the away-vector (the shore may be behind it).
   async function runAway (threat, reason) {
     const deadline = Date.now() + 12000
     for (let hop = 0; hop < 3 && bot.entity && Date.now() < deadline; hop++) {
-      const dx = bot.entity.position.x - threat.entity.position.x
-      const dz = bot.entity.position.z - threat.entity.position.z
-      const len = Math.hypot(dx, dz) || 1
-      const away = new goals.GoalXZ(bot.entity.position.x + (dx / len) * 12, bot.entity.position.z + (dz / len) * 12)
-      try { await gotoSafe(bot, away, { timeoutMs: 5000, label: 'combat flee' }) } catch { /* hop again from where we are */ }
+      let goal = null
+      try {
+        const here = bot.entity.position.floored()
+        const feetB = bot.blockAt(here)
+        const headB = bot.blockAt(here.offset(0, 1, 0))
+        const feetWet = feetB ? isWaterName(feetB.name) : false
+        const headWet = headB ? isWaterName(headB.name) : false
+        if (feetWet || headWet) {
+          const shore = shoreDirection((x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name ?? null, here)
+          const plan = fleePlan({ threatName: threat.name, feetWet, headWet, shore })
+          if (plan.kind === 'shore') {
+            goal = new goals.GoalBlock(here.x + plan.dx, here.y + plan.step, here.z + plan.dz)
+            log(`${tag} combat: flee toward shore (${plan.dx},${plan.dz} step ${plan.step}) vs ${threat.name} (${reason})`)
+          }
+        }
+      } catch { /* unreadable world -> the away-vector below */ }
+      if (!goal) {
+        const dx = bot.entity.position.x - threat.entity.position.x
+        const dz = bot.entity.position.z - threat.entity.position.z
+        const len = Math.hypot(dx, dz) || 1
+        goal = new goals.GoalXZ(bot.entity.position.x + (dx / len) * 12, bot.entity.position.z + (dz / len) * 12)
+      }
+      try { await gotoSafe(bot, goal, { timeoutMs: 5000, label: 'combat flee' }) } catch { /* hop again from where we are */ }
       const cur = nearestHostile()
       if (!cur || cur.dist > 14) return
     }

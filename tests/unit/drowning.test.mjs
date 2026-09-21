@@ -10,7 +10,8 @@ import {
   WATER_NAMES, AIR_NAMES, SHAFT_FLUID_NAMES,
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
-  isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone
+  AQUATIC_HOSTILES,
+  isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -186,4 +187,34 @@ test('isWaterName: junk names are not water', () => {
   assert.equal(isWaterName(''), false)
   assert.equal(isWaterName('waterlogged_mystery'), false, 'no substring matches - exact names only')
   assert.equal(isWaterName(42), false)
+})
+
+// ---- v0.51.0: the WATER-FLEE cure ----
+// Fleet 35610870878 measured F13 dying to a drowned flee-chase at hp 4.0 - the
+// raw away-vector ran DEEPER into the water the drowned owns. The cure: an
+// aquatic threat + wet feet + a known shore = flee TOWARD THE SHORE; a land
+// threat keeps the away-vector (the shore may be behind the zombie).
+test('fleePlan: an aquatic threat in water flees to the shore, not deeper', () => {
+  const shore = { dx: 3, dz: -2, dist: 4, step: 0 }
+  assert.deepEqual(fleePlan({ threatName: 'drowned', feetWet: true, shore }), { kind: 'shore', dx: 3, dz: -2, step: 0 }, 'the measured F13 cell: drowned chase while wet')
+  assert.equal(fleePlan({ threatName: 'guardian', feetWet: true, shore }).kind, 'shore', 'monument mobs own the water too')
+  assert.equal(fleePlan({ threatName: 'elder_guardian', feetWet: true, shore }).kind, 'shore')
+  assert.equal(AQUATIC_HOSTILES.has('drowned'), true, 'the drowned is pinned in the aquatic set')
+})
+
+test('fleePlan: a land threat never pulls the bot onto a shore behind it', () => {
+  const shore = { dx: 3, dz: -2, dist: 4, step: 1 }
+  assert.deepEqual(fleePlan({ threatName: 'zombie', feetWet: true, shore }), { kind: 'away' }, 'the zombie owns the land - the away-vector stays')
+  assert.deepEqual(fleePlan({ threatName: 'skeleton', feetWet: true, shore }), { kind: 'away' })
+  assert.deepEqual(fleePlan({ threatName: 'creeper', feetWet: false, shore }), { kind: 'away' }, 'dry feet never shore-flee')
+  assert.deepEqual(fleePlan({ threatName: null, feetWet: true, shore }), { kind: 'away' }, 'junk threat names keep the historical flee')
+  assert.deepEqual(fleePlan({ threatName: 'drowned', feetWet: true, shore: null }), { kind: 'away' }, 'no known shore = no shore hop (deep lake center)')
+})
+
+test('fleePlan: a submerged head forces the shore for ANY threat, step preserved', () => {
+  const shore1 = { dx: -2, dz: 5, dist: 5, step: 1 }
+  assert.deepEqual(fleePlan({ threatName: 'zombie', headWet: true, feetWet: true, shore: shore1 }), { kind: 'shore', dx: -2, dz: 5, step: 1 }, 'drowning beats outflanking - seconds from death')
+  const shore0 = { dx: 1, dz: 1, dist: 1, step: 0 }
+  assert.deepEqual(fleePlan({ threatName: 'spider', headWet: true, shore: shore0 }).step, 0, 'step 0 -> walk out, no jump needed')
+  assert.equal(fleePlan({ threatName: 'zombie', headWet: true, feetWet: false, shore: null }).kind, 'away', 'head wet but no shore known: the rescue sentry owns it')
 })

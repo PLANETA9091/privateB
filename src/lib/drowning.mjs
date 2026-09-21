@@ -192,3 +192,47 @@ export function rescueDone ({ headWet = false, shore = null, onGround = false } 
  * dig. Lava kills, water drowns (a shaft punched into an aquifer floods, the
  * bot sinks into a 1x1 well with water walls - no shore, no climb). */
 export const SHAFT_FLUID_NAMES = new Set(['lava', 'flowing_lava', 'water', 'bubble_column'])
+
+// ---- v0.51.0: the WATER-FLEE cure ----
+// Fleet 35610870878 (the parallel agent's 22:53 section) measured F13 dying to
+// a DROWNED flee-chase at hp 4.0 ('fleeing drowned@1.3, hp 4.0'), F16 dying
+// post-rescue, F17 in water - 3 of 8 deaths in the water class. The flee's
+// raw away-vector (miner.mjs runAway) ignores terrain: fleeing a drowned that
+// came FROM the water points DEEPER into the column the drowned owns (it swims
+// faster than a surface-swimming bot and never drowns), and the chase is lost
+// before it starts. The one winning move against an aquatic hostile in water
+// is the SHORE: on land the drowned walks at zombie speed and the bot regains
+// its ground mobility. A land threat (zombie) must NOT pull the bot onto a
+// shore that may be behind the zombie - the away-vector stays correct there
+// (gotoSafe's liquidCost=8 already prefers land detours for the path itself).
+
+/** Hostiles that own the water column (vanilla 26.2): faster than a swimming
+ * bot, immune to drowning. Guardians live in ocean monuments (not yet mined),
+ * kept in the set so the cure covers the deep-sea mining candidate too. */
+export const AQUATIC_HOSTILES = new Set(['drowned', 'guardian', 'elder_guardian'])
+
+/**
+ * Which way should a fleeing bot run when the fight reaches water?
+ *   'shore' - wet feet (or a submerged head) + an AQUATIC threat + a known
+ *             shore: the hop target is the nearest shore cell. On land the
+ *             aquatic threat loses its speed and drowning immunity.
+ *   'away'  - everything else: the historical raw away-vector (a land mob is
+ *             outrun on land; gotoSafe's liquidCost keeps the PATH on land).
+ * A submerged head forces 'shore' for ANY threat when a shore is known - the
+ * bot is seconds from drowning and the rescue sentry may be mid-cooldown.
+ * @param {object} p
+ * @param {string|null} [p.threatName] hostile entity name (junk -> 'away')
+ * @param {boolean} [p.feetWet] the feet cell reads water
+ * @param {boolean} [p.headWet] the head cell reads water (drowning imminent)
+ * @param {{dx:number,dz:number,step:number}|null} [p.shore] shoreDirection result
+ * @returns {{kind:'shore',dx:number,dz:number,step:number}|{kind:'away'}}
+ */
+export function fleePlan ({ threatName = null, feetWet = false, headWet = false, shore = null } = {}) {
+  const aquatic = typeof threatName === 'string' && AQUATIC_HOSTILES.has(threatName)
+  const wantsLand = aquatic || headWet === true
+  if (wantsLand && shore && Number.isFinite(shore.dx) && Number.isFinite(shore.dz)) {
+    const step = shore.step === 1 ? 1 : 0
+    return { kind: 'shore', dx: shore.dx, dz: shore.dz, step }
+  }
+  return { kind: 'away' }
+}
