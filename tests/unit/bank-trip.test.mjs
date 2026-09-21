@@ -47,8 +47,8 @@ test('bankTripDue: too late for a full trip - the end-phase owns the bot', () =>
 test('bankTripBudgetMs: a near-yard trip keeps the v0.28.0 mid-run floor', () => {
   assert.equal(bankTripBudgetMs({ yardDist: 0 }), BANK_TRIP_FLOOR_MS + 15000,
     '90s climb + 45s deposit + 0 walk = 135s')
-  assert.equal(bankTripBudgetMs({ yardDist: 10 }), BANK_TRIP_FLOOR_MS + 15000,
-    'short walks land above the 120s floor, no extra budget needed')
+  assert.equal(bankTripBudgetMs({ yardDist: 10 }), 90000 + 45000 + 2 * 10 * CHEST_WALK_PER_BLOCK_MS,
+    'short walks add their (small) there-and-back on top of the floor')
 })
 
 test('bankTripBudgetMs: the there-and-back walk scales at the measured rate', () => {
@@ -70,6 +70,6 @@ test('bankTripBudgetMs: junk distance and junk clamps are tolerated', () => {
   assert.equal(bankTripBudgetMs({ yardDist: -40 }), BANK_TRIP_FLOOR_MS + 15000)
   assert.equal(bankTripBudgetMs({ yardDist: 0, floorMs: NaN }), BANK_TRIP_FLOOR_MS + 15000,
     'junk floor falls back to the default')
-  assert.equal(bankTripBudgetMs({ yardDist: 0, capMs: 1000 }), BANK_TRIP_CAP_MS,
-    'a cap below the floor is ignored (the default cap wins)')
+  assert.equal(bankTripBudgetMs({ yardDist: 0, capMs: 1000 }), BANK_TRIP_FLOOR_MS + 15000,
+    'a cap below the floor is ignored (the default cap wins, the baseline budget stands)')
 })
