@@ -206,6 +206,26 @@ export function chestWalkBudgetMs (dist) {
   })
 }
 
+// (v0.36.0) The YARD walk budget, dist-scaled at last. MEASURED (dispatch
+// 35562867668): 13x 'final bank: 0 (budget exhausted)' fired even with the
+// v0.34.0 dist-scaled chain budget - the CHAIN grew, but the yard walk inside
+// it kept the flat 120s distBudget (the v0.19.0 pin), and a 150-300 block
+// walk physically cannot fit 120s at the 500ms/block rule: how much the chain
+// received, the hop still could not spend. The budget now scales with the
+// SAME 2x-detour maths as the chest walks, caps at 180s (a chain that cannot
+// afford 180s of walking has no business starting one), and is still clamped
+// by the caller's remaining chain budget through effectiveWalkBudget - the
+// hard-kill margin stays untouched by construction.
+export const YARD_WALK_CAP_MS = 180000
+
+export function yardWalkBudgetMs ({ yardDist = 0, floorMs = CHEST_WALK_BASE_MS, capMs = YARD_WALK_CAP_MS } = {}) {
+  const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : 0
+  const raw = CHEST_WALK_BASE_MS + 2 * d * CHEST_WALK_PER_BLOCK_MS
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : CHEST_WALK_BASE_MS
+  const cap = Number.isFinite(capMs) && capMs >= floor ? capMs : YARD_WALK_CAP_MS
+  return Math.min(Math.max(raw, floor), cap)
+}
+
 /**
  * Deposit everything non-essential into a chest. Steps: pick a chest (the nearest one
  * unless given), walk to it on foot, open the window, deposit item by item (a full or

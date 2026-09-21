@@ -117,3 +117,46 @@ export function endBankBudgetMs ({ env = undefined, def = END_BANK_BUDGET_MS } =
   const n = Number(env)
   return Number.isFinite(n) && n > 0 ? n : d
 }
+
+// ---------------------------------------------------------------------------
+// PRE-POSITION (v0.36.0) - the walk home starts BEFORE the deadline.
+//
+// MEASURED (dispatches 35560497949 + 35562867668, 600s): bots dig 100-300
+// blocks out; at t-0 the dist-scaled final bank budget (v0.34.0) still burned
+// 13-14x 'final bank: 0 (budget exhausted)' per run, because the chain must
+// first WALK the whole way back (2*dist*500ms is the measured detour rule)
+// out of a budget that also has to pay climb + smelt + the chest hops. The
+// walk back is not an end-phase cost at all - it is mining time spent going
+// the wrong way. The v0.35.0 tunnel budget un-stuck the work loop, so the
+// loop can afford one more gate: inside the last window the bot STOPS
+// DIGGING and walks TOWARD the yard on mining time. The end-phase then
+// starts near the yard - a short walk the existing budget covers - and a
+// successful early bank leaves the pockets empty, so the final bankable
+// check skips the chain entirely.
+/** The walk home starts this long before the deadline. */
+export const PRE_POSITION_WINDOW_MS = 90000
+
+/** Bots nearer than this already find chests in range (findChest scans 64 blocks). */
+export const PRE_POSITION_MIN_DIST = 48
+
+/**
+ * Should this bot stop digging and walk home now? True when the run is
+ * inside the pre-position window AND the bot is far enough from the yard
+ * for the walk to matter. Pure, junk-tolerant: junk/negative remaining =
+ * false (a bot must never abandon mining on garbage), junk dist = 0 ->
+ * false (a near bot has nothing to pre-position for).
+ * @param {object} [p]
+ * @param {number} [p.remainingMs] ms left before the deadline
+ * @param {number} [p.yardDist] straight-line distance to the yard, blocks
+ * @param {number} [p.windowMs] window width (default PRE_POSITION_WINDOW_MS)
+ * @param {number} [p.minDistBlocks] minimum distance worth walking (default PRE_POSITION_MIN_DIST)
+ * @returns {boolean}
+ */
+export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, windowMs = PRE_POSITION_WINDOW_MS, minDistBlocks = PRE_POSITION_MIN_DIST } = {}) {
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return false
+  const w = Number.isFinite(windowMs) && windowMs > 0 ? windowMs : PRE_POSITION_WINDOW_MS
+  if (remainingMs > w) return false
+  const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : 0
+  const m = Number.isFinite(minDistBlocks) && minDistBlocks >= 0 ? minDistBlocks : PRE_POSITION_MIN_DIST
+  return d >= m
+}

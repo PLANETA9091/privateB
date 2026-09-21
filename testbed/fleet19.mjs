@@ -17,8 +17,8 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs } from '../src/lib/deposit.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -160,7 +160,12 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           // (v0.27.0) the walk fits INSIDE the chain budget: a retry may not
           // restart 120s the chain no longer has (the 35544781892 hang burned
           // 3x120s walks per bot while the margin had 420s for ALL 19 bots).
-          const walkMs = effectiveWalkBudget({ distBudget: 120000, remainingMs: remaining() })
+          // (v0.36.0) the yard walk budget SCALES with the distance: the flat
+          // 120s pin could not carry a 150-300 block walk at the 500ms/block
+          // rule (13x 'budget exhausted' in dispatch 35562867668 even with a
+          // dist-scaled chain). effectiveWalkBudget still clamps it into the
+          // chain's remaining wall clock, so the margin maths stand.
+          const walkMs = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: decision.dist }), remainingMs: remaining() })
           if (walkMs <= 0) {
             console.log(`${miner.username} bank: end-bank budget spent - yard walk cancelled`)
             break
@@ -198,7 +203,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     if (remaining() <= 0) {
       console.log(`${miner.username} end-bank budget spent - smelt skipped`)
     } else try {
-      const res = await smeltInventory(miner.bot, { maxSeconds: SMELT_BUDGET, log: m => console.log(m) })
+      // (v0.36.0) the smelt CLAMPS into the chain budget: the old call always
+      // passed the full 90s SMELT_BUDGET while only checking remaining()>0
+      // first - a smelt entered at t-10s of a 150s budget could legitimately
+      // burn 90s MORE than the chain had, pushing the whole end phase toward
+      // the hard kill (the 4th hang class, the smelt leg of the chain).
+      const smeltSecs = Math.min(SMELT_BUDGET, Math.ceil(remaining() / 1000))
+      const res = await smeltInventory(miner.bot, { maxSeconds: smeltSecs, log: m => console.log(m) })
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
         console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)
@@ -372,6 +383,23 @@ async function runBot (name, target, index) {
       // (interrupted -> continue), so a due recovery preempts the current shaft within
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
       const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      // (v0.36.0) PRE-POSITION helpers. bankableNow mirrors the end-phase's
+      // bankable check; prePositionNow fires only when the run is inside the
+      // window AND the pockets hold non-KEEP loot AND the bot is far enough
+      // from the yard for the walk to matter (prePositionDue, endphase.mjs).
+      const bankableNow = () => {
+        try { return miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k))) } catch { return false }
+      }
+      const prePositionNow = () => {
+        if (!yardGoal || !miner.bot?.entity) return false
+        if (!bankableNow()) return false // nothing to bank - keep digging to the last second
+        try {
+          return prePositionDue({
+            remainingMs: deadline - Date.now(),
+            yardDist: miner.bot.entity.position.distanceTo(yardGoal)
+          })
+        } catch { return false }
+      }
       // (v0.12.0, v0.14.0) Shaft exit: digShaft strands every bot at the bottom of
       // a 1x1 hole and the pathfinder cannot climb out of what it did not dig stairs
       // into - fleet 35485296464 ended banked=0 smelted=0 sand=0 with sand=110 known
@@ -405,6 +433,33 @@ async function runBot (name, target, index) {
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       while (!(Date.now() > deadline) && miner.bot.entity) {
+        // (v0.36.0) PRE-POSITION: inside the last window a far bot walks home
+        // on MINING time instead of digging loot it cannot deliver. MEASURED
+        // (35562867668): 13x 'final bank: 0 (budget exhausted)' - the end
+        // phase had to pay climb + smelt + a 100-300 block walk out of one
+        // budget. Here the walk is already paid for; the bank below (or the
+        // end-phase retry) starts near the yard. The chain budget is bounded
+        // by the time left BEFORE the deadline - the end phase keeps its
+        // whole hard-kill margin. After the attempt the bot stops digging: a
+        // fresh shaft inside the last 90s mines less than the walk is worth,
+        // and empty pockets let the end phase skip its chain entirely.
+        if (prePositionNow()) {
+          lastBankAt = Date.now()
+          const distB = Math.round(miner.bot.entity.position.distanceTo(yardGoal))
+          console.log(`${name} pre-position: ${distB}b from yard, t-${Math.round((deadline - Date.now()) / 1000)}s - walking home`)
+          try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
+          if (await ensureSurface('pre-position')) {
+            const preBudget = Math.max(0, deadline - Date.now())
+            const res = await smeltThenBank(miner, { yardGoal, budgetMs: preBudget })
+            if (res.deposited > 0) {
+              banked += res.deposited
+              console.log(`${name} pre-position bank: +${res.deposited}`)
+            } else {
+              console.log(`${name} pre-position bank: 0 (${res.reason})`)
+            }
+          }
+          break // the run is over for this bot - the end phase finishes the rest
+        }
         if (recoveryDueNow()) {
           lastBootstrap = Date.now()
           // (v0.16.2) CHEAP RECOVERY FIRST: the full bootstrap costs ~85 s
@@ -465,6 +520,7 @@ async function runBot (name, target, index) {
             if (Date.now() > deadline || !miner.bot.entity) return true
             if (recoveryDueNow()) { interrupted = true; return true }
             if (upgradeDueNow()) { interrupted = true; return true } // a worn pickaxe must not break mid-shaft
+            if (prePositionNow()) { interrupted = true; return true } // (v0.36.0) the walk home preempts the shaft
             return false
           }
         })
