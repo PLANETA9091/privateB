@@ -740,6 +740,19 @@ setTimeout(() => {
   const alive = list.filter(m => m.bot?.entity).length
   console.log(`[fleet] HARD KILL: ${SECONDS}s run + end-phase margin exceeded (end-phase hang) - exiting with partial evidence`)
   console.log(`[fleet] partial: alive=${alive} mined=${list.reduce((a, m) => a + (m.stats.mined ?? 0), 0)} banked=${banked} smelted=${smelted} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)}`)
+  // (v0.31.0) the partial line above is not enough: the runs that NEED the hard kill
+  // are exactly the runs whose evidence matters most (dispatch 35541442371 lost every
+  // counter when its 25-minute end-phase hang hit the kill - FLEET RESULT never
+  // printed, the report file was never written). printFinalReport is fully
+  // synchronous (writeFileSync for fleet-report.json) and is the same code the
+  // normal end and the heap cliff already use: the full FLEET RESULT block lands in
+  // the log, the machine-readable report is written, and only then does the
+  // process exit.
+  try {
+    printFinalReport('hard kill - deadline + margin exceeded (end-phase hang)')
+  } catch (e) {
+    console.log(`[fleet] hard-kill report failed: ${e?.message} - exiting with the partial line above`)
+  }
   process.exit(0)
 }, hardKillDelayMs({ runSeconds: SECONDS })).unref()
 
