@@ -1887,6 +1887,7 @@ export function createMiner ({
       let blocked = false
       let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
       let blockedRefusal = null // (v0.32.0) {cell, name, reason} of the refusing cell
+      let digFailCell = null // (v0.37.0) {cell, name} of a fastDig that failed mid-pass
       const readCell = cell => { try { return bot.blockAt(cell) } catch { return null } }
       for (let pass = 0; pass < STEP_MAX_PASSES; pass++) {
         const plan = stepDigPlan({ feet, d, read: readCell, dug })
@@ -1895,8 +1896,8 @@ export function createMiner ({
         for (const { block: cellB } of plan.digs) {
           try {
             if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
-            else { blocked = true; break }
-          } catch { blocked = true; break }
+            else { blocked = true; digFailCell = { cell: [cellB.x, cellB.y, cellB.z], name: cellB.name }; break }
+          } catch { blocked = true; digFailCell = { cell: [cellB.x, cellB.y, cellB.z], name: cellB.name }; break }
         }
         if (blocked) break
         // let the server's gravity updates land before the next scan: a sunk
@@ -1920,14 +1921,59 @@ export function createMiner ({
           if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason})`)
           if (esc.resumed) continue // fresh position - let the main loop re-judge
         }
+        // (v0.37.0) SURFACE HANDOFF on the blocked path. Fleet 35566494961 (the
+        // first run whose bank trips finally fired): F2 climbed out, banked at
+        // the surface, re-shafted, and the NEXT climb stalled at y=64 - 3x
+        // 'blocked toward (dug=3..5)' across every bearing with the bot SKY-LIT
+        // on solid ground. The support check demands a solid STEP cell (feet+d)
+        // to keep rising, but flat open terrain has none in any direction: the
+        // bot is already OUT and the raw loop cannot see it. The rise-failure
+        // path has had the walkable-surface verdict since v0.23.0; the blocked
+        // path never ran it ('cannot leave the shaft' 11x, map trips dead, the
+        // climb half of every banking chain gated by a verdict that never
+        // fires). Same probes, same skyLight gate - a bot standing at daylight
+        // with 2+ walkable directions is out; the chest walk takes over.
+        {
+          // re-runs on every blocked event BY DESIGN: an early underground
+          // refusal is dark (verdict false, free), the surface refusal that
+          // matters comes later - the v0.23.0 shape. The verdict is a handful
+          // of block reads gated by skyLight, not a walk.
+          const feetBlocked = bot.entity.position.floored()
+          let skyLitBlocked = false
+          try { const fb = readCell(feetBlocked); skyLitBlocked = !!fb && (fb.skyLight ?? 0) >= 15 } catch { /* dark by default */ }
+          const probesBlocked = (dx, dz) => {
+            const stepC = readCell(feetBlocked.offset(dx, 1, dz))
+            const floorC = readCell(feetBlocked.offset(dx, 0, dz))
+            const belowC = readCell(feetBlocked.offset(dx, -1, dz))
+            return {
+              free: !!stepC && stepC.boundingBox === 'empty',
+              solid: !!floorC && floorC.boundingBox === 'block',
+              // (v0.37.0) the flat-ground direction: no wall at feet level, headroom
+              // above it, ground BELOW it - the exact shape the support check just
+              // refused (no step UP in open field)
+              walkFlat: !!stepC && stepC.boundingBox === 'empty' && !!floorC && floorC.boundingBox === 'empty' && !!belowC && belowC.boundingBox === 'block'
+            }
+          }
+          if (isWalkableSurface({ skyLit: skyLitBlocked, probes: probesBlocked })) {
+            const gainedNow = feetBlocked.y - feet0.y
+            stats.climbs = (stats.climbs ?? 0) + 1
+            bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetBlocked.y, now: Date.now() })
+            log(`${tag} climb: walkable surface at y=${feetBlocked.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over (blocked step)`)
+            return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+          }
+        }
         if (diagLevels++ < 3) {
           // (v0.32.0) the refusal names its cell: fleet 35555025482 showed four
           // bearings of 'blocked toward (dug=0)' with NO way to tell an unloaded
           // chunk read (null) from a fluid from bedrock - the diagnosis had to
           // guess. blockedRefusal.blockedCell/blockedName say it outright.
+          // (v0.37.0) the fastDig-failure zero (dug>0 then a dig that never
+          // landed) names its cell too - 62 unnamed 'blocked toward (dug=N)'
+          // lines in 35566494961 could not say gravity-sunk block vs dig
+          // timeout vs a freshly-placed obstruction.
           const refusal = blockedRefusal && blockedRefusal.blockedCell
             ? ` at [${blockedRefusal.blockedCell.join(',')}] ${blockedRefusal.blockedName} (${blockedRefusal.reason})`
-            : ''
+            : (digFailCell ? ` dig failed at [${digFailCell.cell.join(',')}] ${digFailCell.name}` : '')
           log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})${refusal}`)
         }
         fails++
@@ -1971,7 +2017,14 @@ export function createMiner ({
         const probes = (dx, dz) => {
           const stepC = bot.blockAt(feetNow.offset(dx, 1, dz))
           const floorC = bot.blockAt(feetNow.offset(dx, 0, dz))
-          return { free: !!stepC && stepC.boundingBox === 'empty', solid: !!floorC && floorC.boundingBox === 'block' }
+          const belowC = bot.blockAt(feetNow.offset(dx, -1, dz))
+          return {
+            free: !!stepC && stepC.boundingBox === 'empty',
+            solid: !!floorC && floorC.boundingBox === 'block',
+            // (v0.37.0) flat-ground directions count too: a rise failure on level
+            // open terrain is the same "already out" verdict as the terraced bank
+            walkFlat: !!stepC && stepC.boundingBox === 'empty' && !!floorC && floorC.boundingBox === 'empty' && !!belowC && belowC.boundingBox === 'block'
+          }
         }
         if (isWalkableSurface({ skyLit, probes })) {
           const gainedNow = feetNow.y - feet0.y

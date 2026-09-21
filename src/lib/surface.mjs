@@ -358,7 +358,17 @@ export function climbStarted (c) {
 //
 // The rule: full daylight at the feet cell (skyLight 15, which an UNDERGROUND cell
 // can never have - a cave stays dark, so caves keep climbing) plus at least TWO
-// walkable directions (a free cell at feet+1 with a solid floor at feet level).
+// walkable directions:
+//   terrace - a free cell at feet+1 with a solid floor at feet level (a one-block
+//             step up in front: the bank shape the v0.23.0 fleet measured)
+//   flat    - (v0.37.0) the level-ground shape the same fleet's F2 then stalled
+//             on at y=64: front feet-level cell EMPTY (no wall), feet+1 free
+//             (headroom), feet-1 SOLID (ground to walk on). The old terrace-only
+//             rule could not see flat open terrain as "out" - the support check
+//             blocked every bearing (no step UP exists) and the climb burned its
+//             fails on a bot that was already standing outside ('cannot leave
+//             the shaft' 11x in 35566494961, every bank/map trip gated behind
+//             that climb).
 // - 1x1 open shaft: sky-lit (skyLight falls straight down an air column) but 0
 //   walkable dirs (walls all around) -> NOT a surface, the climb continues.
 // - 2x2 open shaft: exactly 1 walkable dir (the second shaft column) -> continues.
@@ -370,9 +380,12 @@ export function climbStarted (c) {
 //
 // @param {object} p
 // @param {boolean} [p.skyLit] true when the feet cell sees skyLight >= 15
-// @param {Function} [p.probes] (dx, dz) => { free, solid } for the horizontal
-//   neighbour: free = the cell at feet+1 has an empty bounding box (walkable
-//   air), solid = the cell at feet level is a solid floor to walk on
+// @param {Function} [p.probes] (dx, dz) => { free, solid, walkFlat } for the
+//   horizontal neighbour: free = the cell at feet+1 has an empty bounding box
+//   (walkable air), solid = the cell at feet level is a solid floor to walk on,
+//   walkFlat = feet-level front cell empty + feet+1 free + feet-1 solid (level
+//   ground). A direction counts when terrace OR flat holds; the extra field is
+//   optional - callers that only report {free, solid} keep the v0.23.0 behaviour.
 // @param {number} [p.minDirs] walkable directions required (default 2)
 // @returns {boolean} true = the bot stands on a walkable surface, stop climbing
 export function isWalkableSurface (p) {
@@ -386,7 +399,10 @@ export function isWalkableSurface (p) {
   for (const [dx, dz] of dirs) {
     let c = null
     try { c = probes(dx, dz) } catch { c = null }
-    if (c && c.free === true && c.solid === true) open++
+    if (!c) continue
+    const terrace = c.free === true && c.solid === true
+    const flat = c.walkFlat === true // (v0.37.0) optional - old callers keep the terrace-only rule
+    if (terrace || flat) open++
     if (open >= minDirs) return true
   }
   return false

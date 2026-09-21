@@ -238,3 +238,41 @@ test('rise recovery: the assist timeout stays sane (bounded but usable)', () => 
   assert.equal(RISE_ASSIST_TIMEOUT_MS >= 3000, true, 'a real jump-edge computation needs headroom')
   assert.equal(RISE_ASSIST_TIMEOUT_MS <= 6000, true, 'a failed assist must not eat the fail budget - 4 fails own the climb')
 })
+
+// (v0.37.0) FLAT directions - fleet 35566494961: F2 stalled at y=64 on flat open
+// ground ('blocked toward (dug=3)' on every bearing, no step UP exists in any of
+// them) and 'cannot leave the shaft' gated 11 map trips. The terrace-only rule
+// could not see level ground as "out"; walkFlat adds the level-ground direction.
+test('walkable surface: flat open ground (F2 y=64, no step UP anywhere) reads TRUE via walkFlat', () => {
+  // every bearing: headroom free, NO solid step at feet level (that is why the
+  // support check blocked), ground one below (walkable flat) - the bot is OUT
+  const flat = { free: true, solid: false, walkFlat: true }
+  const probes = world({ '1,0': flat, '-1,0': flat, '0,1': flat, '0,-1': flat })
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), true)
+})
+
+test('walkable surface: an island (free steps, no floor at any level) is still NOT a surface', () => {
+  // the blocked-path verdict must not hand a stranded bot to a walk it cannot start
+  const island = { free: true, solid: false, walkFlat: false }
+  const probes = world({ '1,0': island, '-1,0': island, '0,1': island, '0,-1': island })
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), false)
+})
+
+test('walkable surface: one terrace dir + one flat dir clears minDirs=2', () => {
+  const probes = world({
+    '1,0': { free: true, solid: true }, // terrace: the riverbank rim
+    '-1,0': { free: true, solid: false, walkFlat: true } // flat: open beach
+  })
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), true)
+})
+
+test('walkable surface: a single flat direction is not enough (2x2 shaft stays a shaft)', () => {
+  const probes = world({ '0,1': { free: true, solid: false, walkFlat: true } })
+  assert.equal(isWalkableSurface({ skyLit: true, probes }), false)
+})
+
+test('walkable surface: walkFlat is counted only when strictly true (old callers unaffected)', () => {
+  // legacy probes never set walkFlat - a truthy junk value must not widen the gate
+  const junk = { free: true, solid: false, walkFlat: 1 }
+  assert.equal(isWalkableSurface({ skyLit: true, probes: world({ '1,0': junk, '-1,0': junk, '0,1': junk, '0,-1': junk }) }), false)
+})
