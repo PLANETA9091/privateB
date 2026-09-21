@@ -849,3 +849,19 @@ Work Log:
 Stage Summary:
 - Мастер: v0.27.0 (этот коммит). Root cause end-phase hang ЗАКРЫТ КОДОМ (wall-clock budget), ждёт fleet-валидации.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться зелёного CI, dispatch run_fleet=true fleet_seconds=600; ОЖИДАНИЯ: НЕТ '[fleet] HARD KILL', ЕСТЬ 'FLEET RESULT (normal end)', строки 'budget exhausted'/'end-bank budget spent' при обречённых прогулках, process exit 0 до дедлайн+270s; (2) banked скорее всего всё ещё 0 - климбы 'stalled' не починены (отдельный фронт: 'blocked toward X (dug=0)' = геометрия ям, 'did not rise dug=60+' = F2-класс у поверхности, isWalkableSurface не сработал у F1 y=64-66 grass_block - разбирать отдельно); (3) mined 1258@600s = 2.1 b/s (лучший 5.4) - мир/старт разные; (4) git pull --rebase перед пушем; чужие PENDING dispatch не трогать.
+
+---
+Task ID: 398294-20260921-0753 (part 2)
+Agent: Z.ai Code (cron session, 07:53 +08)
+Task: валидация v0.27.0 флотом (35547800726) + mid-run bank budget (v0.28.0)
+
+Work Log:
+- Параллельный агент запушил 0871cb2 (climb stepUp assist) поверх моего cbb4785. Его CI зелёный. Fleet dispatch 35547800726 прошёл на 0871cb2 (оба фикса в стеке). Job SUCCESS за ~22 мин.
+- ВАЛИДАЦИЯ v0.27.0: path=0a/0q (лайвлок очереди МЁРТВ - было 6a/6q на весь margin), 17/19 ботов завершили ПОЛНУЮ финальную цепочку (33 'final bank' строк против 14), бюджет-линии сработали как спроектировано ('F4 final bank: 0 (budget exhausted)', 'F7 end-bank budget spent - smelt skipped'). mined=2048 @ 600s = 3.4 b/s.
+- НО '[fleet] HARD KILL' снова стрельнул. Разбор двух молчащих ботов: F6 - НЕ висел (погиб после дедлайна на ts~900, инвентарь сгорел при смерти, bankable=false -> легитимный тихий выход; спам air-bar после - фоновый сентри). F14 - НАСТОЯЩИЙ завис: needsBanking сработал ДО дедлайна, 94s climb перешёл t-0, и MID-RUN smeltThenBank (строка 540, БЕЗ бюджета - v0.27.0 покрыл только финальную цепочку) молол rescue-отказанные chest-хопы до kill'а.
+- v0.28.0: MID_BANK_BUDGET = endBankBudgetMs({env: FLEET_BANK_BUDGET_MS, def: 120000}) в mid-run вызов smeltThenBank (строка 550). Банк, не уложившийся в 120s, не стоил времени майнинга - needsBanking остаётся true, следующая итерация ретраит на более тихой очереди. +2 пина endBankBudgetMs({def}) в deposit-budget.test.mjs.
+- Арифметика margin: mid-run банк, начатый у дедлайна, теперь <= deadline+120s; финальная цепочка <= deadline+120+150s=270s < 420s margin. HARD KILL должен стать недостижимым для hang-сценариев.
+
+Stage Summary:
+- Мастер: v0.28.0 (этот коммит). v0.27.0 подтверждён числами (path 0a/0q, 17/19 цепочек, бюджет-линии); последний unbudgeted вызов цепочки закрыт.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) dispatch run_fleet=true fleet_seconds=600 на v0.28.0: ожидание - НЕТ HARD KILL, ЕСТЬ 'FLEET RESULT (normal end)' + fleet-report.json written; (2) banked=0 остаётся (климбы 'stalled' + вода): 0871cb2 (stepUp assist) может помочь climb'ам - смотреть 'final climb: OK' долю; (3) air-bar glitch спам (oxygen 0 on dry land, 300-700/run) - сенсор 26.2, телеметрия не баг, но drowning-rescue цикл F7/F11 ('rescue timeout still wet' x N) жжёт 25s окна - фронт; (4) git pull --rebase перед пушем.

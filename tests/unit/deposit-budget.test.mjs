@@ -151,4 +151,6 @@ test('endBankBudgetMs: default, env parse, junk tolerance', () => {
   assert.equal(endBankBudgetMs({ env: '-50' }), END_BANK_BUDGET_MS)
   assert.equal(endBankBudgetMs({ env: '' }), END_BANK_BUDGET_MS)
   assert.equal(endBankBudgetMs({ env: undefined }), END_BANK_BUDGET_MS)
+  assert.equal(endBankBudgetMs({ env: '90000', def: 120000 }), 90000, 'a valid env wins over a custom def (the mid-run bank clock)')
+  assert.equal(endBankBudgetMs({ env: 'junk', def: 120000 }), 120000, 'junk falls to the custom def, not the final-bank default')
 })

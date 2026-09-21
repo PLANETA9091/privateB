@@ -54,6 +54,16 @@ const SMELT_BUDGET = Number(process.env.FLEET_SMELT_BUDGET || 90) // seconds per
 // deadline + stagger 120s + 150s = 270s < the 420s margin, so the process
 // finishes naturally and printFinalReport always runs.
 const END_BANK_BUDGET = endBankBudgetMs({ env: process.env.FLEET_END_BUDGET_MS })
+// (v0.28.0) the MID-RUN bank chain gets its own (tighter) clock. MEASURED
+// (dispatch 35547800726, 600s on 0871cb2): 17/19 final chains completed and
+// reported, path=0a/0q (the v0.27.0 livelock is dead) - but the job still
+// burned to the HARD KILL: F14's needsBanking branch fired just before the
+// deadline, its 94s climb crossed t-0, and the UNBUDGETED mid-run
+// smeltThenBank then ground through water-rescue-refused chest hops until
+// the kill. A mid-run bank that cannot finish in 120s was not worth the
+// mining time anyway - needsBanking stays true and the next iteration
+// retries on a quieter queue.
+const MID_BANK_BUDGET = endBankBudgetMs({ env: process.env.FLEET_BANK_BUDGET_MS, def: 120000 })
 // (v0.14.2) the old all-at-once BATCH launch is gone: logins spread over
 // JOIN_SPREAD_MS so the server's network thread never faces a 19-login burst
 
@@ -537,7 +547,7 @@ async function runBot (name, target, index) {
             // must return here, or it digs its next shaft next to spawn and
             // re-mines the already-hollowed yard area (emptyShafts spiral).
             const preBank = miner.bot.entity.position.clone()
-            const res = await smeltThenBank(miner, { yardGoal })
+            const res = await smeltThenBank(miner, { yardGoal, budgetMs: MID_BANK_BUDGET })
             if (res.deposited > 0) {
               banked += res.deposited
               console.log(`${name} bank: +${res.deposited}`)
