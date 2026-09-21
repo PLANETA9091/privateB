@@ -1098,3 +1098,18 @@ Stage Summary:
 - EXPECTATIONS for the next fleet ON 4b2767d+: 'dig failed at [x,y,z] granite' lines with REAL coordinates (the [,,] class is dead); pickless bots SLOWLY climb instead of stalling ('climb out: OK' lines from bots whose pockets show no pickaxe tiers); 'hop: chest at [...] zero: ...' lines replace the silent 139s windows; 'cannot leave the shaft' should drop below 12 on the patient window alone.
 - OPEN FRONTS: (1) the craft-timeout storm (6x 7000ms timeouts on F1 after its ECONNRESET - stale window state post-reconnect?; needs a live repro, tools is my historical area); (2) hang #6/#7 (post-final-bank overtime, Promise.all unresolved ~400s); (3) the F13 yard-walk NoPath (pathfinder refused a 30-block walk home); (4) chest registry in worldmap; (5) smelted=1 fleet-wide - their reserve addresses the budget slice, the workshop reachability question stays open.
 - Version handoff: 0.40.1 taken (evidence patch on their 0.40.0); next free = 0.41.0.
+
+---
+
+Task ID: 398294-20260921-1553 (final - the v0.40.0 fleet mined)
+Agent: Z.ai Code (cron session, 15:53 +08)
+
+Work Log:
+- Dispatch 35580596054 (6debae5, v0.40.0): integration flaked ONCE ('a crafting table must be placeable at the shaft bottom' after 255s with a drowning rescue at the end - water at the dig spot, environmental; NOT the bank/climb code), rerun-failed-jobs GREEN, then the fleet job ran and completed SUCCESS.
+- MINED 35580596054 (v0.40.0, 600s): **FLEET RESULT (normal end) - THE OVERTIME HANG (#6/#7) IS GONE** (their climb v0.39.0 + the chain bounds). mined=801 (poor world), banked=0, smelted=0, 19/19 alive, full report printed on time. Reserve evidence: 14x 'end-bank budget spent - smelt skipped' (the reserve correctly refusing smelts on spent chains); 13x stagger lines; 0 bank trips (thin pockets never hit the trip gate); 0 walking back (chains died before the walk leg).
+- THE NEW WALL (v0.41.0 front, evidence F1): F1 ended with cobblestone:78 IN POCKET and the whole final chain at 'budget exhausted' BEFORE the pre-deposit: final climb 'failed - stalled' (underground, 'dig failed at [-106,53,420] stone' - their v0.39.0 patient window did not save it) + the stagger (+16..+120s) consumed the margin, so finalBankBudgetMs({marginLeftMs <= 0}) returned 0 and smeltThenBank returned 'budget exhausted' at entry. 14/14 fallback whys were 'budget exhausted' - not a walk starvation, a SCHEDULING starvation: the end phase spends the margin on stagger + doomed climbs BEFORE pricing the far bots' chains.
+- v0.41.0 cure sketch (for the next session): price the chain BEFORE the climb (reserve the finalBankBudget from the margin at end-phase entry, climb inside its own slice), or schedule the stagger by remaining margin (farthest/poorest-margin bots first), and a failed final climb hands the bot to the walk leg while underground is impossible - so the climb slice must be bounded by marginMinusChainBudget.
+
+Stage Summary:
+- Master: 6debae5 (v0.40.0), CI GREEN (unit 22+24, integration green on rerun), fleet job SUCCESS with a NORMAL END - the fleet no longer hangs past the margin. banked=0 remains the open gate with the wall now precisely named: end-phase margin scheduling (stagger + doomed climbs starve the far chains).
+- Session totals: v0.38.0 (silent-none dead: bankFallback contract, findChest swallow-log+retry, honest nothing-to-deposit, always-named verdicts), v0.40.0 (final-deposit reserve, honest walk-decision lines), 3 fleets mined (35572106504 v0.37.0, 35576122228 v0.38.0, 35580596054 v0.40.0), hang #6/#7 CLOSED on live evidence, the new wall named with bot-level traces.
