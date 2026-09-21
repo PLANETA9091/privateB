@@ -49,6 +49,30 @@ export const STALE_VIEW_MIN_UNITS = 24
 export const STALE_VIEW_SETTLE_MS = 500
 export const STALE_VIEW_WINDOW_MS = 90000
 
+// (v0.48.0) THE RAW HOP. Fleet 35610870878 (v0.47.1): 85x 'chest unreachable
+// (Took to long to decide path to goal!)' on hops of d=7-12 - WITH the v0.45.0
+// widened think window (4500 ms) already live. A 7-block walk failing to
+// decide in 4.5 s is CPU starvation: 19 node processes share the CI runner's
+// cores, the pathfinder thinkTimeout measures wall time, and A* on an open
+// platform explodes its frontier exactly when 19 bots think at once. The cure
+// skips A* entirely for short VISIBLE hops: the repo's proven raw-controls
+// pattern (the shelter step-in, the wet-escape traverse) - lookAt the chest,
+// forward, hop the step when not converging, stop inside openChest's reach.
+// The pathfinder stays for long legs and blind hops (walls between).
+export const RAW_HOP_DIST = 10
+export const RAW_HOP_MS = 6000
+
+/** Pure: is a chest close enough AND visible enough to walk in raw (no A*)?
+ * Junk-safe: invisible, unknown or zero/negative distances all refuse (the
+ * pathfinder attempt follows as before). */
+export function rawHopDue ({ dist = Infinity, visible = false } = {}) {
+  if (visible !== true) return false
+  const d = Number(dist)
+  if (!Number.isFinite(d) || d <= 0) return false
+  if (d > RAW_HOP_DIST) return false
+  return true
+}
+
 /** Pure: may the pathfinder plausibly reach a chest at this straight-line
  * distance? Junk-safe - a null/NaN distance is "unknown", which passes (the
  * walk attempt then decides, as it always has). */
@@ -78,6 +102,47 @@ export async function withHopPathfinder (bot, runFn) {
       try { pf.thinkTimeout = prevThink } catch { /* mocks */ }
     }
   }
+}
+
+/** (v0.48.0) The raw hop walk: steer the bot INTO the chest's reach with raw
+ * controls - no pathfinder, no throttle slot, no think budget. Best-effort by
+ * construction: any surprise (waitForTicks on a bare mock, a bot that stops
+ * existing) returns false and the caller falls through to the pathfinder
+ * attempt. Never throws. */
+export async function rawHopWalk (bot, chest, { ms = RAW_HOP_MS, reach = PROXIMATE_OPEN_DIST, log = () => {} } = {}) {
+  const distTo = () => {
+    try {
+      const d = bot?.entity?.position?.distanceTo?.(chest.position)
+      return Number.isFinite(d) ? d : Infinity
+    } catch { return Infinity }
+  }
+  if (distTo() <= reach) return true
+  const target = (() => { try { return chest.position.offset(0.5, 0.5, 0.5) } catch { return null } })()
+  if (!target) return false
+  const deadline = Date.now() + (Number.isFinite(ms) && ms > 0 ? ms : RAW_HOP_MS)
+  let lastD = distTo()
+  try { await bot.lookAt(target, true) } catch { /* steer on the initial bearing */ }
+  try { bot.setControlState('forward', true); bot.setControlState('sprint', true) } catch { return false }
+  try {
+    while (bot.entity && Date.now() < deadline) {
+      const d = distTo()
+      if (!Number.isFinite(d)) return false
+      if (d <= reach) return true
+      if (d > lastD - 0.05) {
+        // not converging: re-acquire the bearing and hop the step (the
+        // shelter step-in's nudge, minus the sprint toggling)
+        try { await bot.lookAt(target, true) } catch { /* keep the bearing */ }
+        try { bot.setControlState('jump', true) } catch { /* physics will drag us */ }
+        try { await bot.waitForTicks(3) } catch { return false }
+        try { bot.setControlState('jump', false) } catch { /* already clear */ }
+      }
+      lastD = d
+      try { await bot.waitForTicks(4) } catch { return false }
+    }
+  } finally {
+    try { bot.setControlState('forward', false); bot.setControlState('sprint', false); bot.setControlState('jump', false) } catch { /* nothing held */ }
+  }
+  return false
 }
 
 const { goals } = pathfinderPkg
@@ -577,6 +642,26 @@ export async function depositToChest (bot, {
     } catch { return false }
   })()
   let walked = proximate
+  // (v0.48.0) THE RAW HOP: a short VISIBLE chest is walked in with raw
+  // controls - the 19-bot pathfinder cannot decide a 7-block open-platform
+  // walk inside its think window (85x 'Took to long' on v0.47.1), and a
+  // straight look-and-forward needs no decision at all. Guards: no raw walk
+  // while a water rescue owns the controls (it IS the walk) and no raw walk
+  // when the chest is not visible (walls between - that is pathfinder work).
+  // Bounded: RAW_HOP_MS max, then the pathfinder attempt runs exactly as
+  // before - the raw miss costs seconds, never the attempt.
+  if (!walked && bot._waterRescue !== true) {
+    let visible = false
+    try { visible = typeof bot.canSeeBlock === 'function' && !!chest.position && bot.canSeeBlock(chest) === true } catch { visible = false }
+    let d0 = Infinity
+    try { d0 = bot.entity?.position?.distanceTo?.(chest.position) } catch { /* unknown -> refuse */ }
+    if (rawHopDue({ dist: d0, visible })) {
+      const t0 = Date.now()
+      walked = await rawHopWalk(bot, chest, { log })
+      if (walked) log(`${tag} hop: raw walk in (d=${d0.toFixed(1)} visible, ${(Date.now() - t0)}ms - no pathfinder: the CPU-starved A* cannot decide a short walk in time)`)
+      else log(`${tag} hop: raw walk missed the reach window (d=${d0.toFixed(1)}) - the pathfinder attempt follows`)
+    }
+  }
   // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
   // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
   //   water rescue -> wait out the rescue window, then the retry (v0.18.5 behavior)
