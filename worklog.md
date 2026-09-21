@@ -997,3 +997,23 @@ Stage Summary:
 - VERSION HANDOFF: the parallel agent's 'PLAN v0.35.0' (pre-position walk to the yard ~90 s before the deadline, dist-scale the per-walk cap, fence climbOut/smelt inside end-phase) is UNPUSHED - it becomes v0.36.0; first-pusher-wins applied (my tunnel budget is the pushed v0.35.0). The end-phase hang (3rd occurrence) is theirs to fence per their plan items 1-3.
 - EXPECTATIONS for the next fleet dispatch: 'tunnel: stopping after Ns (budget|digless, done=N)' lines appear (the guard firing = the cure working); NO tunnel completion line straddles 100 s+; the bank-trip gate finally evaluates (look for 'bank trip: planned' on bots whose loop cycles); banked>0 remains the open gate - the trip gate now GETS CPU, the yard walk itself is the 0.36.0 front.
 - tunnel() had exactly ONE caller (fleet19 floor-lock branch mine) - the change is signature-compatible (new optional maxMs param, additive `stopped` field); their file was NOT touched.
+
+---
+Task ID: 398294-20260921-1353
+Agent: Z.ai Code (cron session, 13:53 +08)
+Task: v0.36.0 - pre-position (the walk home starts on mining time) + fleet 35566494961 (v0.35.0) breakdown
+
+Work Log:
+- Pulled the parallel agent's v0.35.0 (71156b0 tunnel wall-clock budget) + handoff worklog (8a1849e): their unpushed pre-position plan became v0.36.0 - my front.
+- Verified climbOut's own budgets (maxMs=PILLAR_MAX_MS, failLimit) - no unfenced await left in the end-phase climb leg itself.
+- v0.36.0 (608b4d4): (1) endphase.mjs prePositionDue - inside the last 90s a bot >= 48 blocks from the yard stops digging (junk-tolerant); (2) fleet19.mjs pre-position branch at the work-loop top - climbOut + smeltThenBank on MINING time (budget = the deadline remainder, the hard-kill margin untouched by construction), then break; digShaft shouldStop preempts for the walk home; (3) deposit.mjs yardWalkBudgetMs - the yard walk finally scales with distance (30s + 2x500ms/block, cap 180s) instead of the flat 120s pin that could not carry 150-300 block walks; (4) the end-phase smelt clamps into the chain budget (the old call could burn 90s MORE than the chain had - the smelt leg).
+- tests/unit/preposition.test.mjs: 5 tests. SELF-CAUGHT: my first margin invariant ('walk cap + chain cap < margin') was wrong arithmetic - the walk is a PART of the chain via effectiveWalkBudget, not an addition; replaced with the real guarantee (finalBankBudgetMs <= marginLeftMs). CAUGHT BY THE PARALLEL AGENT (v0.36.1, 02b8671): my finalBankBudgetMs import pointed at endphase.mjs (it lives in deposit.mjs - named-import SyntaxError killed the whole file in CI) + 3 junk asserts expected the fallback instead of min(raw, fallback). Fixed upstream of me; this session verified the fix.
+- check-syntax 133 files 0 broken; node --check x4; node -e arithmetic mirrors green.
+
+Stage Summary:
+- Master: 02b8671 (v0.36.1 = v0.36.0 + test fixes). CI on it checked by this session; fleet dispatch fired as the session's LAST action (expectations below).
+- FLEET 35566494961 (8a1849e, v0.35.0) BREAKDOWN - mined=1753, banked=0, smelted=2, climbs=12, HARD KILL again (4th):
+  (a) GOOD: 'bank trip: pockets full budget 120s' fired 3x (F2/F3, t-308s) - the v0.35.0 tunnel budget un-stuck the loop, the banking branch GETS CPU now. 0 tunnel-warden lines (no 390s gallery). 8 'budget exhausted' (down from 13-14).
+  (b) THE NEW WALL - CLIMB: 12+ 'final climb: failed - stalled|timeout' (F2,F6,F7,F8,F10,F11,F12,F13,F14,F16,F17...); only F5 (+6 levels) and F15 (+0) rose. Failed climbs keep bots UNDERGROUND -> their yard walks start at the shaft bottom -> 'no chest in range' (F6,F15,F16), 'chest unreachable No path' (F5), 'budget exhausted' (the rest). The v0.32.0 rise assist fired but timed out at 4500ms ('climb rise assist: timeout after 4500ms') - too short for deep shafts. 6 bots never even printed a final bank line before the kill.
+  (c) F16 burned the end phase in a drowning-rescue loop ('rescue timeout (still wet)' x3).
+- EXPECTATIONS for the next dispatch (v0.36.x): 'F# pre-position: Nb from yard, t-Xs - walking home' lines ~90s before the deadline; 'pre-position bank: +N' or a shorter end-phase walk; banked > 0 is the gate. The CLIMB is the next front (v0.37.0): give the final climb a real cure - longer assist window, stage-ladder retry with re-dig, or walk-toward-yard THROUGH the staircase the climb dug.
