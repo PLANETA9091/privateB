@@ -41,6 +41,53 @@ let stopped = false
 let timer = null
 let mainLate = 0
 const t0 = Date.now()
+// (v0.55.0) THE STORM GUARD - off-thread teeth. run53 (35647216505): the main
+// thread froze mid-drowning-rescue and allocated +3.1GB of RETAINED heap in 20s
+// (158MB/s) while its own heap watchdog (main-thread setInterval) could not
+// fire - sync spin + GC thrash leaves no timer phase. The worker's rss read is
+// process-wide and its fs.writeSync lands frozen: the worker sees the storm and
+// kills the process HONESTLY (SIGTERM, exit 143) ~30s before the unsymbolized
+// OOM (exit 134) erases the story. Arithmetic mirrors src/lib/stormguard.mjs
+// (the CI-tested reference; the eval worker cannot import it).
+var sgRate = Math.max(5, Number(process.env.FLEET_STORM_MB_S) || 40)
+var sgFloor = Math.max(100, Number(process.env.FLEET_STORM_FLOOR_MB) || 1200)
+var sgWin = [] // {ts, rss}
+var sgTimer = null
+function sgVerdict () {
+  var t = Date.now()
+  while (sgWin.length > 1 && t - sgWin[0].ts > 10000) sgWin.shift()
+  if (sgWin.length < 2) return null
+  var first = sgWin[0]
+  var last = sgWin[sgWin.length - 1]
+  var dtS = Math.max(1, last.ts - first.ts) / 1000
+  var gain = last.rss - first.rss
+  var rate = gain / dtS
+  if (last.rss >= sgFloor && rate >= sgRate && gain >= sgRate * dtS * 0.5) {
+    return { storm: true, rate: rate, gain: gain, rss: last.rss, first: first.rss, dtS: dtS }
+  }
+  return null
+}
+function sgTick () {
+  if (stopped) return
+  try {
+    var r = Math.round(process.memoryUsage().rss / 1048576)
+    var t = Date.now()
+    if (sgWin.length && r < sgWin[sgWin.length - 1].rss) sgWin.length = 0 // growth streak broken
+    sgWin.push({ ts: t, rss: r })
+    var v = sgVerdict()
+    if (v && !stopped) {
+      stopped = true // no further lines race the emergency report
+      try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+      try {
+        fs.writeSync(writeFd, '[stormguard] FATAL: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s >= ' + sgRate + 'MB/s at rss >= ' + sgFloor + 'M floor)\\n')
+        fs.writeSync(writeFd, '[stormguard] the MAIN thread is allocating itself to death while frozen (run53/35647216505 OOM class: unsymbolized exit 134, mainLate was ' + mainLate + 'ms) - emergency SIGTERM keeps the story readable (exit 143)\\n')
+      } catch { /* stdout closed - kill anyway */ }
+      try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
+    }
+  } catch { /* never throw from a guard */ }
+}
+sgTimer = setInterval(sgTick, 5000)
+try { sgTimer.unref && sgTimer.unref() } catch { /* older runtimes */ }
 function tick () {
   if (stopped) return
   n++
@@ -55,7 +102,7 @@ function tick () {
 }
 timer = setTimeout(tick, intervalMs)
 parentPort.on('message', m => {
-  if (m === 'stop') { stopped = true; clearTimeout(timer); try { process.exit(0) } catch { /* already exiting */ } }
+  if (m === 'stop') { stopped = true; clearTimeout(timer); try { clearInterval(sgTimer) } catch { /* teardown */ }; try { process.exit(0) } catch { /* already exiting */ } }
   // (v0.48.0) the parent's main-thread lag report arrives one beat late (the
   // line is written before this message lands) - evidence, not an alarm.
   if (m && typeof m === 'object' && Number.isFinite(m.mainLateMs)) { try { mainLate = Math.max(0, Math.round(m.mainLateMs)) } catch { /* junk stays harmless */ } }

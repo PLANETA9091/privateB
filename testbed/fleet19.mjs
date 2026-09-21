@@ -11,6 +11,7 @@
 //   node testbed/fleet19.mjs [bots] [seconds] [targets] [--scout]
 //   SCOUT=1 node testbed/fleet19.mjs
 import fs from 'node:fs'
+import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { pocketTotals, lootLedger } from '../src/lib/pocketline.mjs'
 import { createScout } from '../src/bots/scout.mjs'
@@ -1108,6 +1109,11 @@ const reporter = setInterval(() => {
   console.log(`   ${detail}`)
   // memory line: the OOM run had no visibility into heap growth at all
   const mem = process.memoryUsage()
+  // (v0.55.0) run53's storm was 3.4GB of RETAINED V8 heap while rss grew - the
+  // old/ext/ab split says WHICH pool: old_space = retained JS objects,
+  // external/arrayBuffers = Buffers and TypedArrays (socket payloads live here)
+  const hs = v8.getHeapSpaceStatistics()
+  const sp = nm => { const s = hs.find(x => x.name === nm); return s ? Math.round(s.size_used / 1048576) : -1 }
   const gs = [...guards.values()].map(g => { try { return g.stats() } catch { return null } }).filter(Boolean)
   const cols = gs.reduce((a, s) => a + s.columns, 0)
   const ents = gs.reduce((a, s) => a + s.entities, 0)
@@ -1118,7 +1124,7 @@ const reporter = setInterval(() => {
   // that would have died with 'Path was stopped' before the gotoSafe pre-clear
   const ps = pathThrottleStats()
   const gss = gotoSafeStats()
-  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive}) stale=${gss.staleStopClears}`)
+  console.log(`   mem: heap=${(mem.heapUsed / 1048576).toFixed(0)}M/${(mem.heapTotal / 1048576).toFixed(0)}M old=${sp('old_space')}M ext=${(mem.external / 1048576).toFixed(0)}M ab=${(mem.arrayBuffers / 1048576).toFixed(0)}M rss=${(mem.rss / 1048576).toFixed(0)}M cols=${cols} ents=${ents} evicted=${evicted} path=${ps.active}a/${ps.queued}q (max ${ps.maxActive}) stale=${gss.staleStopClears}`)
 }, 15000)
 
 // (v0.18.3) HEAP WATCHDOG: fleet #127 died at t-400s - heap 113M -> 3550 MB in
