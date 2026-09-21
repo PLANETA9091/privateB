@@ -85,6 +85,15 @@ export const TRAVERSE_MAX_ATTEMPTS = 2
 // no-motion forward steps before a gallery is declared stalled (the tunnel
 // lesson: a blocked lip never unblocks by holding forward)
 export const TRAVERSE_STALL_LIMIT = 3
+// (v0.29.0) 4 = a full circle of bearings. Every traverseStep refusal is
+// BEARING-LOCAL (it reads only the cells along d), so a refusing gallery
+// rotates to the next cardinal instead of dying on the first refusal - the
+// fleet measured the cycle (F11: 'wet escape: 1 blocks walked (gap)' ->
+// staircase rotate -> wet again -> a fresh escape into the SAME gap ->
+// 'failed - stalled'), each cycle feeding the rescue loop's 25s 'still wet'
+// timeout (68 per 600s fleet). After a full circle of refusals the pocket is
+// genuinely sealed - give up honestly.
+export const TRAVERSE_ROTATE_LIMIT = 4
 
 // ---------------------------------------------------------------------------
 // DEEP CLIMB PERSISTENCE (v0.18.0) - a STAGE LADDER across climbOut calls.

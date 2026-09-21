@@ -14,6 +14,7 @@ import { Vec3 } from 'vec3'
 import {
   isWetCell, traverseStep,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
+  TRAVERSE_ROTATE_LIMIT,
   WET_PLANT_NAMES, FLUIDS, UNDIGGABLE
 } from '../../src/lib/surface.mjs'
 
@@ -197,6 +198,9 @@ test('traverse budgets: bounded per climb, generous per gallery', () => {
   assert.ok(TRAVERSE_MAX_MS < 25000, 'past 25s the drown sentry must win the controls back')
   assert.ok(TRAVERSE_MAX_ATTEMPTS >= 1 && TRAVERSE_MAX_ATTEMPTS <= 3)
   assert.ok(TRAVERSE_STALL_LIMIT >= 2 && TRAVERSE_STALL_LIMIT <= 5)
+  // (v0.29.0) the escape rotates through the bearings on a refusal: 4 = one
+  // full circle, so every cardinal is tried at most once per gallery
+  assert.ok(TRAVERSE_ROTATE_LIMIT === 4, 'a full circle, no bearing probed twice')
 })
 
 test('a wet escape plus the normal fail limit stays bounded (worst-case climbs end)', () => {

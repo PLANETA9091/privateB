@@ -21,7 +21,8 @@ import {
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
   stepDigPlan, STEP_MAX_PASSES, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
-  TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
+  TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
+  TRAVERSE_ROTATE_LIMIT
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -1781,12 +1782,30 @@ export function createMiner ({
       const t0 = Date.now()
       let walked = 0
       let stalls = 0
+      let rotations = 0 // (v0.29.0) refusals absorbed by rotating the bearing
       bot._climbEscape = true
       try {
-        while (bot.entity && walked < TRAVERSE_MAX_BLOCKS && !shouldStop?.() && Date.now() - t0 < TRAVERSE_MAX_MS) {
+        while (bot.entity && walked < TRAVERSE_MAX_BLOCKS && rotations < TRAVERSE_ROTATE_LIMIT && !shouldStop?.() && Date.now() - t0 < TRAVERSE_MAX_MS) {
           const feet = bot.entity.position.floored()
           const plan = traverseStep({ feet, d, read: cell => { try { return bot.blockAt(cell) } catch { return null } } })
-          if (!plan.ok) return { walked, resumed: false, reason: plan.reason }
+          if (!plan.ok) {
+            // (v0.29.0) ROTATE, NOT DIE: a traverseStep refusal is
+            // BEARING-LOCAL (it reads only the cells along d), but the old
+            // first-refusal return turned the escape into a single-bearing
+            // probe - the fleet measured the cycle (F11: 'wet escape: 1 blocks
+            // walked (gap)' -> staircase rotate -> wet again -> a fresh escape
+            // into the SAME gap -> 'failed - stalled'), and each cycle fed the
+            // rescue loop's 25s 'still wet' timeout (68 per 600s fleet). The
+            // rotation is bounded by TRAVERSE_ROTATE_LIMIT (a full circle) and
+            // the same walked/maxMs budgets - a genuinely sealed pocket gives
+            // up honestly with 'sealed' and the staircase ladder escalates.
+            // The dig-failure 'refused' below stays an immediate return: a
+            // fastDig timeout is a block property, not a bearing property.
+            rotations++
+            rotate()
+            await settleTicks(2, 'escape rotate settle')
+            continue
+          }
           for (const b of plan.digs) {
             let broke = false
             // maxTicks 200: a submerged dig needs ~115+ server ticks (5x
@@ -1817,7 +1836,12 @@ export function createMiner ({
           walked++
           await settleTicks(2, 'escape settle') // gravity/water settle before the next cut
         }
-        return { walked, resumed: walked > 0, reason: walked > 0 ? 'budget' : 'unknown' }
+        // (v0.29.0) the reason vocabulary changed: bearing refusals no longer
+        // surface ('gap'/'wet'/'hard' were the old single-bearing returns) -
+        // a sealed pocket (a full circle of refusals, walked=0) reports
+        // 'sealed', everything else keeps the old 'budget'/'unknown' split.
+        const reason = walked > 0 ? 'budget' : (rotations >= TRAVERSE_ROTATE_LIMIT ? 'sealed' : 'unknown')
+        return { walked, resumed: walked > 0, reason }
       } finally {
         try { bot.clearControlStates() } catch { /* nothing held */ }
         bot._climbEscape = false
