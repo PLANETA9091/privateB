@@ -527,6 +527,32 @@ export function climbableCeiling (block) {
 // sunk block standing (the measured bug, pinned so it cannot return silently).
 export const STEP_MAX_PASSES = 6
 
+// ---------------------------------------------------------------------------
+// THE CLIMB'S PATIENT DIG WINDOW (v0.39.0) - mobility outlives the tool.
+//
+// MEASURED (fleet 35572106504, master c7c3a2b, 19 bots x 600s): 25+ diag lines
+// of 'blocked toward X,Z (dug=N) dig failed at [,,] granite/stone/andesite'
+// (F1 y=53 x7, F14 y=43 x9, F4 y=42 x4, F13, F10, F17) - the dig failing is
+// the climb's top refusal shape, and every one of those bots had a broken or
+// never-crafted pickaxe (F1's stone_pickaxe broke after 100+ mined; F14's
+// inventory never held one). The server validates vanilla dig times, and the
+// fastDig equip step (requireHarvest) silently gives up when no pickaxe exists
+// - a bare hand digs stone-family in 7.5s = 150 ticks, over the plain 100-tick
+// window. fastDig returned false at dug=0 on every retry: the staircase could
+// not cut a single cell, the climb burned its budget standing still, and the
+// bank chain never ran ('cannot leave the shaft' 12x, banked=0).
+//
+// THE CURE is what the wet-escape traverse already does (its own measured
+// 200-tick window, v0.13.0): give the climb's step digs the same patient
+// window. A pickless bot now finishes the bare-hand cut at ~150 ticks - slow
+// (7.5s/block, no drops: bare stone yields nothing) but the STAIRCASE MOVES,
+// and a bot that reaches the surface can bank, craft and re-arm. A pick bot
+// finishes at 23-46 ticks and the window changes nothing for it. 200 = 150
+// (bare-hand stone) + settle/latency margin, matching the escapeTraverse
+// precedent; deepslate bare-hand (750t) stays hopeless by design - the tool
+// pipeline, not the climb, owns that class.
+export const CLIMB_DIG_TICKS = 200
+
 /**
  * Plan ONE digging pass of a climb step.
  *

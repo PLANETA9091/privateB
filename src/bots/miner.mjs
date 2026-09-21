@@ -19,7 +19,7 @@ import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
-  stepDigPlan, STEP_MAX_PASSES, riseRecoveryPlan,
+  stepDigPlan, STEP_MAX_PASSES, CLIMB_DIG_TICKS, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT,
@@ -1893,11 +1893,19 @@ export function createMiner ({
         const plan = stepDigPlan({ feet, d, read: readCell, dug })
         if (plan.blocked) { blocked = true; blockedWet = plan.blockedWet; blockedRefusal = plan; break }
         if (plan.digs.length === 0) break // the step is clear - step onto it
-        for (const { block: cellB } of plan.digs) {
+        // (v0.39.0) the step digs take the PATIENT window (CLIMB_DIG_TICKS):
+        // fleet 35572106504 measured 25+ 'dig failed at [,,] granite' refusals
+        // from pick-less bots - a bare hand needs 150 ticks on stone-family,
+        // over the plain 100-tick window, so the staircase could not cut one
+        // cell and the climb burned its budget standing still. Slow mobility
+        // beats a total stall; the plan's own `cell` names the failing cell
+        // (the Block object carries no x/y/z - only .position - so the old
+        // cellB.x read printed '[,,]').
+        for (const { cell: cellPos, block: cellB } of plan.digs) {
           try {
-            if (await bot.fastDig(cellB)) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
-            else { blocked = true; digFailCell = { cell: [cellB.x, cellB.y, cellB.z], name: cellB.name }; break }
-          } catch { blocked = true; digFailCell = { cell: [cellB.x, cellB.y, cellB.z], name: cellB.name }; break }
+            if (await bot.fastDig(cellB, { maxTicks: CLIMB_DIG_TICKS })) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
+            else { blocked = true; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
+          } catch { blocked = true; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
         }
         if (blocked) break
         // let the server's gravity updates land before the next scan: a sunk

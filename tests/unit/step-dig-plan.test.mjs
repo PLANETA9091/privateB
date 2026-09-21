@@ -16,7 +16,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { stepDigPlan, STEP_MAX_PASSES, PILLAR_LEVEL_CAP } from '../../src/lib/surface.mjs'
+import { stepDigPlan, STEP_MAX_PASSES, PILLAR_LEVEL_CAP, CLIMB_DIG_TICKS } from '../../src/lib/surface.mjs'
 
 const GRAVITY = new Set(['gravel', 'sand'])
 
@@ -248,4 +248,45 @@ test('stepDigPlan: the global dig budget still stops a runaway climb', () => {
   assert.equal(plan.blocked, true)
   assert.equal(plan.blockedWet, false)
   assert.equal(plan.reason, 'dig budget')
+})
+
+// (v0.39.0) THE PICK-LESS STALL: fleet 35572106504 printed 25+ 'dig failed at
+// [,,] granite' refusals from bots whose pickaxe broke (or never existed) -
+// a bare hand digs stone-family in 150 ticks, over the plain 100-tick fastDig
+// window, so the staircase could not cut a single cell ('cannot leave the
+// shaft' 12x, banked=0). The climb's step digs now take the patient window
+// (the wet-escape traverse's own measured precedent), and the failing dig
+// names its cell from the PLAN (prismarine Blocks carry no x/y/z - the old
+// cellB.x read printed '[,,]').
+test('CLIMB_DIG_TICKS: patient enough for a bare-hand stone cut, still bounded', () => {
+  // bare-hand stone/granite/andesite = 7.5s = 150 ticks; below 160 the window
+  // re-creates the measured stall, above 400 the climb would outlive its own
+  // wall-clock budgets on a single cell
+  assert.ok(CLIMB_DIG_TICKS >= 160, `covers the bare-hand cut (${CLIMB_DIG_TICKS})`)
+  assert.ok(CLIMB_DIG_TICKS <= 400, `stays bounded (${CLIMB_DIG_TICKS})`)
+})
+
+test('CLIMB_DIG_TICKS: aligned with the wet-escape traverse window it generalises', async () => {
+  // the escapeTraverse (v0.13.0) chose 200 for the same server-validated dig
+  // time; the climb window must never be tighter than that precedent
+  const minerSrc = await import('node:fs').then(fs => fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8'))
+  const m = minerSrc.match(/maxTicks:\s*(\d+)/)
+  assert.ok(m, 'escapeTraverse keeps an explicit maxTicks')
+  assert.ok(Number(m[1]) <= CLIMB_DIG_TICKS, `climb window >= traverse window (${m[1]})`)
+})
+
+test('every planned dig carries a usable cell (the [,,] telemetry guard)', () => {
+  // miner.mjs builds 'dig failed at [x,y,z]' from the plan's cell field - a
+  // cell without finite x/y/z would print '[,,]' again (the v0.37.0 bug)
+  const world = makeWorld()
+  for (const [dx, dy] of [[0, 1], [0, 2], [1, 1], [1, 2]]) world.set(10 + dx, 40 + dy, 5, 'granite')
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: readOf(world) })
+  assert.equal(plan.ok, true)
+  assert.ok(plan.digs.length > 0)
+  for (const g of plan.digs) {
+    for (const axis of ['x', 'y', 'z']) {
+      assert.ok(Number.isFinite(g.cell[axis]), `cell.${axis} is finite (${g.cell[axis]})`)
+    }
+  }
 })
