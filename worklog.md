@@ -1315,3 +1315,20 @@ Stage Summary:
 - Master: 582171f, ALL CI GREEN (the code SHA baffa0c green first try; the docs delta green on rerun-3). The layered raw-hop bank pipeline is live and healthy; banked>0 awaits a rich world.
 - OPEN FRONTS: (1) airGlitch flood = server tick health under 19 bots (the deepest infra front); (2) banked>0 on a rich world; (3) the no-seal-material shelter class; (4) water/drowned deaths; (5) a death-cause reporter (4 unlogged mining-accident deaths in v0.47.1).
 - Version handoff: next free = 0.49.0.
+
+---
+Task ID: 398294-20260922-0053
+Agent: Z.ai Code (cron session, 00:53 +08)
+Task: the chain-budget entry pricing (the F4 class) - v0.49.0 the final-climb fence + the stagger-aware slice.
+
+Work Log:
+- No fresh fleets (their dispatch on 0175eab was concurrency-cancelled by my 27d4101 push); CI green everywhere. Took the evidence-ranked front both sessions named: the chain-budget entry pricing (F4).
+- RE-DOWNLOADED the run46 artifact (lost in the sandbox rebuild) and reconstructed F4's episode with heartbeat anchors (b] ts=): ts=361s bank trip -> ts=601s trip climb timeout -> ts=609s end phase enters (margin 381s, chain 150s reserved, slice 231s) -> stagger +72s -> ts=681s final climb starts (maxMs = min(90s, 231s) = 90s) -> **ts=941s 'final climb: failed - timeout' = 188s REAL** -> the wall-clock re-clamp hands the chain ~19s -> every hop 'budget exhausted (walk floor)' at d=27-30 -> banked=0 with the bot 17 blocks from the yard, pockets full.
+- THE MECHANISM: climbEntry's escalation ladder multiplies maxMs INTERNALLY (2x/3x) - the granted 90s became ~180s real. Plus the slice itself never subtracted the stagger window that runs between entry and the climb.
+- v0.49.0 (65ece44): (1) finalBankSchedule gains staggerDelayMs - the slice prices the stagger FIRST (F4: 381-72-150 = 159s, was 231s); (2) fleet19's FINAL climb runs under a shouldStop fence at the granted wall clock - climbOut's main loop checks it every iteration, so the internal escalation can no longer borrow the chain's reserve; mid-run climbs keep their escalation (the final climb is the one place where the chain's reserve outranks a deeper staircase). The timeout reason names the fence. 5 unit pins incl. the slice+stagger+chain<=margin invariant.
+- Push CI 35629186537 GREEN.
+
+Stage Summary:
+- Master: 65ece44 (v0.49.0), CI GREEN. The chain's reserved budget now survives BOTH the stagger window and the escalation ladder by construction. banked>0 is the next fleet's gate with the full pipeline (raw hops + yard filter + slots + fence) live.
+- OPEN FRONTS: (1) the disconnect class (14 reconnects, kicks=0, no main-thread starvation - server keepalive/metadata suspicion); (2) the no-seal-material shelter skips (inventory-full-of-ore); (3) water/drowned deaths; (4) a death-cause reporter (4 unlogged deaths); (5) chest-FULL handling at 50 chests.
+- Version handoff: 0.49.0 taken; next free = 0.50.0. The fleet dispatch fires as this session's LAST action.
