@@ -81,7 +81,16 @@ test('policy constants stay sane', () => {
   assert.equal(SHELTER_MAX_MS > SHELTER_ROUND_MS, true, 'at least one wait round fits the cap')
   assert.equal(SHELTER_SAFE_DIST >= 8, true, 'a zombie at the wall must keep the bot sealed')
   assert.equal(SEAL_PRIORITY[0] === 'dirt', true, 'dirt leads the priority - it is worthless to the bootstrap')
-  assert.ok(!SEAL_PRIORITY.some(n => n.endsWith('_log') || n.endsWith('_planks') || n === 'stick'), 'craft-critical blocks are excluded by construction')
+  // (v0.58.0) PIN FLIPPED BY RUN57's EVIDENCE: the old pin excluded every
+  // *_log/*_planks from SEAL_PRIORITY 'by construction' - run57 measured that
+  // construction killing two bots (F3 oak_log:12+planks:8, F14 oak_log:8+
+  // planks:7, both 'shelter skip (no seal material)' then dead). The bootstrap
+  // pocket now seals; planks still rank AFTER logs' own stone-family elders,
+  // sticks stay excluded (nothing is built from sticks), and dirt still leads.
+  assert.ok(!SEAL_PRIORITY.includes('stick'), 'sticks stay excluded (nothing is built from a wall of sticks)')
+  assert.ok(SEAL_PRIORITY.includes('oak_planks') && SEAL_PRIORITY.includes('oak_log'), 'the run57 bootstrap pocket is seal material now')
+  assert.ok(SEAL_PRIORITY.indexOf('oak_planks') > SEAL_PRIORITY.indexOf('stone'), 'planks rank after the stone family - craft stock is spent last')
+  assert.ok(SEAL_PRIORITY.indexOf('oak_log') > SEAL_PRIORITY.indexOf('oak_planks'), 'a log is a quarter of craft value more than a plank - planks first')
 })
 
 // ---- v0.50.0: EARN-THE-SEAL (the inventory-full-of-ore class) ----
