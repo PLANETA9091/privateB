@@ -1381,3 +1381,21 @@ Stage Summary:
 - EXPECTATIONS next fleet: 'flee toward shore' lines vs drowned; 'cause:' on every death line; 'shelter earn:' lines; shelters > 0; the endphase hard-kill judged on THEIR v0.50.0 retry.
 - OPEN FRONTS: F16 'died post-rescue' (needs the next fleet's cause lines), airGlitch/server-tick, banked>0 on a rich world, chest FULL handling.
 - Version handoff: next free = 0.52.0. The 600s fleet dispatch fires on dd429f1 as the session's LAST action.
+---
+Task ID: 27
+Agent: Z.ai Code (main, cron session 2026-09-22 03:05 +08, job 398567)
+Task: full 7-step loop - MINE dispatch 35639593200 (the first joint-fleet on the v0.50/0.51 tip), v0.52.0 the dry run-up traverse; CI green; worklogs; next dispatch.
+
+Work Log:
+- Sandbox alive; no new pushes at fetch (a rare quiet window). Baseline: syntax 140, unit 55/55, integration 2/2.
+- MINED dispatch 35639593200 (5fe8572 = their v0.49.0+v0.50.x endphase + my v0.50.0 shelter + v0.51.0 water-flee): SUCCESS, **NORMAL END** (the HARD KILL is gone first time in three fleets - their final-climb retry paid), 19/19 alive, mined=1118, climbs=5, reconnects 14->8, airGlitches 1278->54 (the server-tick class cooled), fights=0, shelters=0 (daylight, no threats - earn-the-seal and water-flee UNTRIGGERED, still awaiting a night fleet), banked=0, smelted=0, planted=10.
+- THE DEATH-CAUSE REPORTER'S FIRST DATA (my v0.50.0, front #5 CLOSED by measurement): F8 'cause: drowning (0s before death at [-134,44,401])', F2 'cause: drowning', F7 'cause: zombie@15.4' - three deaths named with positions; all three re-bootstrapped to alive=19. The 0s is honest (the fatal hp drop IS the death moment).
+- banked=0's two layers, both now measured: (a) MID-RUN the bank gate NEVER fired - 0 bank trips, 'nothing to deposit' x9, and the fleet-wide pocket at t-0s is ~80 units (sand=9 gravel=15 dirt=55 stone=0) against mined=1118 - a 7% loot-conversion rate. The dig->drop->pickup chain loses ~93% of the yield somewhere (candidates: drops landing out of pickup range in the shaft, tool-upgrade consumption x16, consolidation). THE MEASUREMENT GAP: no per-bot pocket units/slots in the log - next fleet needs a pocket line. (b) END-PHASE final climb timeouts from the shaft bottom (F13/F1/F3 'still underground after 2 climb attempts', F17 'budget exhausted', F2) - the parallel agent's doomed-underground-chains front (theirs).
+- v0.52.0 (3dfa4b3) - MY side of the endphase/climb coin: the DRY RUN-UP TRAVERSE. The F1/F14/F13 diag geometry (feet=air support=solid step=air) is the sealed 1x1 well where the v0.27.0 repro's pressed-face failure and the pathfinder's missing run-up are the SAME geometry bug through two APIs - no re-approach can fix a seal. Cure: climbOut re-uses traverseStep (the wet escape's guarded gallery) as a DRY run-up after a failed goto assist - one gallery step dug + walked (raw controls), the well becomes an L, the main loop re-probes from the L-mouth with real run-up space. Budget fails<2 (two galleries per climb); walk-in y-gain counts as the rise; refusals fall through to the rotate ladder. 3 tests (the F1 geometry, the 2-high wall, hazard refusals). unit 55/55, syntax 140, integration 2/2.
+- Test-trap caught locally: the F1-geometry test pointed its digs at +x while declaring d={x:-1} - caught by the suite before push (the mine-then-verify rhythm works).
+
+Stage Summary:
+- Master: 3dfa4b3 (v0.52.0). ALL CI GREEN (run 35644184040).
+- EXPECTATIONS next fleet: 'climb run-up: gallery opened' lines where the goto assist died; 'cause:' on every death (the reporter is live); shelters>0 + 'shelter earn:' + 'flee toward shore' IF the fleet meets a night; the pocket-units line (ADD IT if the parallel agent has not) to split the 7% loot conversion; banked>0 still the gate.
+- OPEN FRONTS: (1) the 93% loot-conversion loss (mid-run banked=0's root - needs the pocket line first); (2) endphase final-climb timeouts (theirs, the run-up traverse now helps the CLIMB side); (3) reconnects=8 (infra); (4) chest FULL handling.
+- Version handoff: next free = 0.53.0. The 600s fleet dispatch fires on 3dfa4b3 as the session's LAST action.
