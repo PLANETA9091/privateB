@@ -9,11 +9,44 @@ test('a successful deposit is always done', () => {
   assert.equal(bankFallback({ deposited: 1, reason: 'chest unreachable', yardDist: null }).action, 'done')
 })
 
-test('non-range reasons never trigger a walk (the old silent zero)', () => {
-  for (const reason of ['chest unreachable (timeout)', 'cannot open chest (x)', 'nothing to deposit', '', undefined]) {
+// (v0.38.0) CONTRACT CHANGE - the reached-chain zeros walk. The v0.16.4 table
+// walked ONLY on 'no chest in range' and the caller hid the rest, which stranded
+// F2's delivery on a zero that never said why (fleet 35566494961). The yard is
+// where the chests are (dispatch 35569034780 verified 50) - a dead nearest chest,
+// a dead window or an unknown junk reason all mean GO THERE. The walk is
+// budget-clamped and retry-bounded, so the worst case is a bounded walk, not a
+// silent stranding.
+test('reached-chain zeros walk: dead chest, dead window, junk unknown (v0.38.0)', () => {
+  for (const reason of [
+    'chest unreachable (No path to the goal!)',
+    'chest unreachable (timeout)',
+    'cannot open chest (open chest: timeout after 10000ms)',
+    '', undefined, 'no chest in range'
+  ]) {
+    const d = bankFallback({ deposited: 0, reason, yardDist: 50 })
+    assert.equal(d.action, 'walk', `reason=${JSON.stringify(reason)}`)
+    assert.ok(Number.isFinite(d.dist), 'a walk-decision carries its dist')
+  }
+})
+
+// (v0.38.0) the two zeros a walk CANNOT fix stay home - but the caller now logs
+// every none-verdict, so home no longer means invisible.
+test('unfixable-by-walking zeros stay home, named (v0.38.0)', () => {
+  for (const reason of ['budget exhausted', 'nothing to deposit']) {
     const d = bankFallback({ deposited: 0, reason, yardDist: 50 })
     assert.equal(d.action, 'none', `reason=${JSON.stringify(reason)}`)
-    assert.ok(d.why, 'a none-decision must carry its why to the log')
+    assert.equal(d.why, reason, 'the none-verdict carries the honest why')
+  }
+})
+
+test('junk reasons still respect the yard gates (no yard / beyond the cap)', () => {
+  for (const reason of ['', 'no chest in range', 'chest unreachable (x)']) {
+    const noYard = bankFallback({ deposited: 0, reason, yardDist: null })
+    assert.equal(noYard.action, 'none', `yardDist=null reason=${JSON.stringify(reason)}`)
+    assert.match(noYard.why, /yard/i)
+    const far = bankFallback({ deposited: 0, reason, yardDist: 500 })
+    assert.equal(far.action, 'none', `yardDist=500 reason=${JSON.stringify(reason)}`)
+    assert.match(far.why, /walk cap/)
   }
 })
 

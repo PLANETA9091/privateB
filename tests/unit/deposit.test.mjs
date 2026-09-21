@@ -62,6 +62,52 @@ test('findChest returns null quietly when nothing is loaded', () => {
   assert.equal(findChest(bot), null)
 })
 
+// (v0.38.0) the swallow NAMES itself and retries once. Fleet 35569034780: F19
+// stood 19 blocks from 50 verified chests and got null twice - the bare catch
+// turned every findBlock throw into a quiet 'no chest in range' lie.
+test('findChest: a swallowed scan names itself and retries once', () => {
+  const bot = makeMockBot()
+  const chest = { name: 'chest', position: new Vec3(1, 64, 1) }
+  let calls = 0
+  bot.findBlock = () => { if (++calls === 1) throw new Error('palette desync'); return chest }
+  const lines = []
+  assert.equal(findChest(bot, { log: m => lines.push(m) }), chest, 'the retry recovers the scan')
+  assert.equal(calls, 2)
+  assert.equal(lines.length, 1)
+  assert.match(lines[0], /findChest swallowed: palette desync/)
+  assert.match(lines[0], /attempt 1\/2/)
+})
+
+test('findChest: two throws stay null, both attempts named', () => {
+  const bot = makeMockBot()
+  let calls = 0
+  bot.findBlock = () => { calls++; throw new Error('chunks unloaded') }
+  const lines = []
+  assert.equal(findChest(bot, { log: m => lines.push(m) }), null)
+  assert.equal(calls, 2, 'exactly one retry - no throw storm')
+  assert.equal(lines.length, 2)
+  assert.match(lines[1], /attempt 2\/2/)
+})
+
+test('findChest: the swallow log carries the bot position', () => {
+  const bot = makeMockBot()
+  bot.findBlock = () => { throw new Error('boom') }
+  const lines = []
+  findChest(bot, { log: m => lines.push(m) })
+  assert.match(lines[0], /at \[1,64,1\]/, 'mock bot stands at [1, 64, 1] (0.5 floored + round)')
+})
+
+test('an all-KEEP pocket is nothing to deposit, not a chest miss (v0.38.0)', async () => {
+  const bot = makeMockBot({ items: [item('oak_planks', 32), item('stick', 10)] })
+  let scans = 0
+  const realScan = bot.findBlock
+  bot.findBlock = (...a) => { scans++; return realScan(...a) }
+  const res = await depositToChests(bot)
+  assert.equal(res.deposited, 0)
+  assert.deepEqual(res.chestReport, ['nothing to deposit'], 'the honest reason bankFallback can stay home on')
+  assert.equal(scans, 0, 'no scan ran - the pocket truth precedes the world')
+})
+
 test('deposit without a chest in range is a soft no-op', async () => {
   const bot = makeMockBot({ items: [item('cobblestone', 10)] })
   const res = await depositToChest(bot)

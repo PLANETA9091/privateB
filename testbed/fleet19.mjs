@@ -192,8 +192,12 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           miner.bot.removeListener('path_stop', spyStop)
         }
       }
-    } else if (decision.action === 'none' && decision.why && decision.why !== pre.reason) {
-      console.log(`${miner.username} bank: 0 (${decision.why})`)
+    } else if (decision.action === 'none') {
+      // (v0.38.0) ALWAYS, not only when the why differs from pre.reason: the old
+      // guard made the most common 'none' (why === pre.reason) INVISIBLE - the
+      // F2 zero (fleet 35566494961) that never said why while a whole bank trip
+      // burned. One line per failed chain, whatever the reason.
+      console.log(`${miner.username} bank fallback: none (${decision.why || 'unknown'})`)
     }
   }
   if (SMELT) {

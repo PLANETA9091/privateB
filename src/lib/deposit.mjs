@@ -116,26 +116,46 @@ export function finalBankBudgetMs ({ yardDist = 0, marginLeftMs = Infinity, floo
   return Math.min(want, marginLeftMs)
 }
 
-export function findChest (bot, { maxDistance = 64, exclude = [] } = {}) {
-  try {
-    return bot.findBlock({
-      matching: b => {
-        if (!(CHEST_NAMES.includes(b.name) || /_chest$/.test(b.name))) return false
-        // (v0.23.1) a chest the bot already failed to reach ('No path') is skipped:
-        // the yard holds dozens of chests, one unreachable slot must not strand
-        // the whole delivery
-        if (exclude.length > 0 && b.position) {
-          const p = typeof b.position.floored === 'function' ? b.position.floored() : b.position
-          const hit = exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z)
-          if (hit) return false
-        }
-        return true
-      },
-      maxDistance
-    })
-  } catch {
-    return null
+export function findChest (bot, { maxDistance = 64, exclude = [], log } = {}) {
+  // (v0.38.0) FLEET EVIDENCE (dispatch 35569034780): F19 stood 19 blocks from the
+  // yard's 50 VERIFIED chests (the [yard] survey counted them seconds earlier) and
+  // findChest(64) returned null TWICE - pre-deposit and again after the yard walk
+  // arrived in 1s ('final bank: 0 (no chest in range)' at walking distance). The
+  // bare `catch { return null }` turned EVERY findBlock throw (the v0.9 two-bot
+  // palette-crash class, a chunk/palette desync under 19-bot load) into a quiet
+  // 'no chest in range' lie. The swallow now NAMES itself (bot position included,
+  // so the log can tell an at-the-yard miss from a mid-wilderness one), and ONE
+  // retry absorbs the transient throws: a single bad palette tick must not void a
+  // bank walk that just cost the bot 100+ blocks of real walking.
+  const scan = () => bot.findBlock({
+    matching: b => {
+      if (!(CHEST_NAMES.includes(b.name) || /_chest$/.test(b.name))) return false
+      // (v0.23.1) a chest the bot already failed to reach ('No path') is skipped:
+      // the yard holds dozens of chests, one unreachable slot must not strand
+      // the whole delivery
+      if (exclude.length > 0 && b.position) {
+        const p = typeof b.position.floored === 'function' ? b.position.floored() : b.position
+        const hit = exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z)
+        if (hit) return false
+      }
+      return true
+    },
+    maxDistance
+  })
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return scan()
+    } catch (e) {
+      const at = (() => {
+        try {
+          const p = bot.entity?.position
+          return p && Number.isFinite(p.x) ? ` at [${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}]` : ''
+        } catch { return '' }
+      })()
+      try { log?.(`findChest swallowed: ${e?.message || e}${at} (attempt ${attempt}/2)`) } catch { /* log never kills a scan */ }
+    }
   }
+  return null
 }
 
 // (v0.18.5) The chest walk budget, dist-scaled like mapTrip's (tripplan.walkBudgetMs).
@@ -249,7 +269,7 @@ export async function depositToChest (bot, {
   budgetMs = null, // (v0.27.0) wall-clock cap on the WHOLE attempt (walk retries incl.) - the end-phase chain budget
   exclude = [] // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
 } = {}) {
-  const chest = chestBlock ?? findChest(bot, { maxDistance, exclude })
+  const chest = chestBlock ?? findChest(bot, { maxDistance, exclude, log })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
   const tag = `[${bot.username ?? 'bot'}]`
 
@@ -401,10 +421,24 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
     } catch { return 0 }
   }
+  // (v0.38.0) HONEST REASONS: bankable=0 and scan-miss are different zeros and
+  // used to collapse into the same 'no chest in range' (depositLoot's default
+  // when chestReport is empty) - which made the fallback WALK a bot whose pocket
+  // held nothing bankable (fleet evidence: F1's log+planks+sapling KEEP pocket
+  // burned a trip on a walk that could never deliver). The early return speaks
+  // the truth and lets bankFallback stay home.
+  if (bankableItems() <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['nothing to deposit'] }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
     if (deadline != null && remaining() <= 0) { reports.push('budget exhausted'); break }
-    const chest = findChest(bot, { maxDistance: findRadius, exclude: tried })
-    if (!chest) break
+    const chest = findChest(bot, { maxDistance: findRadius, exclude: tried, log })
+    if (!chest) {
+      // (v0.38.0) the scan-miss names itself: 'no chest in range' has been proven
+      // a lie twice (F19: null at 19 blocks from 50 verified chests) - this line
+      // pins WHERE the scan gave up and how much loot was left standing, so the
+      // next dispatch can tell a real wilderness miss from an at-the-yard one.
+      log(`[${bot.username ?? 'bot'}] scan: no chest within ${findRadius}b (bankable ${bankableItems()})`)
+      break
+    }
     const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining() })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
@@ -437,13 +471,31 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
 // digs 100-300 blocks out, way beyond findChest's 64-block scan) and the caller
 // swallowed the reason. This pure predicate turns a failed deposit into an action:
 //   done  - the deposit worked, nothing to add
-//   walk  - no chest nearby, but the yard is close enough to walk back to
-//   none  - nothing sane to do (other failure reasons, no yard known, too far)
+//   walk  - a chain zero the walk CAN fix (scan miss, dead chest, dead window,
+//           unknown junk): the yard is where the chests are (v0.38.0)
+//   none  - walking cannot fix it (budget out, nothing deliverable, no yard
+//           known, yard beyond the walk cap) - the caller logs the why either way
 // Pure arithmetic on plain values (positions stay in the caller) so CI can test
 // every branch without a server.
 export function bankFallback ({ deposited = 0, reason = '', yardDist = null, maxWalkBlocks = 400 } = {}) {
   if (deposited > 0) return { action: 'done' }
-  if (!/no chest/i.test(String(reason || ''))) return { action: 'none', why: reason || 'unknown reason' }
+  // (v0.38.0) CONTRACT CHANGE - evidence-driven. The v0.16.4 table made 'no chest
+  // in range' the ONLY walk trigger and left every other zero in 'none' - and the
+  // fleet19 caller logged 'none' only when its why differed from the chain
+  // reason, so the common case printed NOTHING. Fleet 35566494961 F2 proved the
+  // cost: a bot ~250 blocks from the yard burned a whole bank trip on a zero
+  // that never said why (0 walk lines, 0 fallback lines in the whole log). And
+  // dispatch 35569034780 F19 walked home CORRECTLY on 'no chest in range' while
+  // the real killer was findChest swallowing findBlock throws at 19 blocks from
+  // 50 verified chests. New table: the yard is where the chests ARE (50
+  // verified), the walk is budget-clamped and retry-bounded, so EVERY chain zero
+  // walks - EXCEPT the two walking cannot fix: the clock is out ('budget
+  // exhausted') and the pocket holds nothing deliverable ('nothing to deposit',
+  // now an honest early return from depositToChests). An unknown junk reason is
+  // a walk too: an unexplained zero must not strand the delivery again, and the
+  // fleet caller now logs the verdict either way.
+  const r = String(reason || '')
+  if (/budget exhausted|nothing to deposit/i.test(r)) return { action: 'none', why: r }
   if (yardDist == null || !Number.isFinite(yardDist)) return { action: 'none', why: 'no yard position known' }
   if (yardDist >= maxWalkBlocks) return { action: 'none', why: `yard is ${Math.round(yardDist)} blocks away (walk cap ${maxWalkBlocks})` }
   return { action: 'walk', dist: Math.round(yardDist) }
