@@ -158,3 +158,141 @@ export function pickSealItem (items) {
   }
   return null
 }
+
+// ---- v0.59.0: THE OPEN-FIELD RING (variant 3) ----
+// Fleet 35657683920 (run58, v0.58.1, NORMAL END 19/19) measured SIX 'shelter
+// try' lines that all fell through the wall variant SILENTLY (the loop found
+// no diggable wall and the function returned false without a word) and then
+// fled: F1 zombie@5.6, F1 drowned@1.3 (died 6 log lines later), F17 zombie@2.4,
+// F5 zombie@1.9, F17 zombie@3.5, F15 drowned@6.5. ALL open terrain - and the
+// survivors' pockets read cobblestone:29+dirt:4, cobblestone:106+granite:14,
+// cobblestone:102 ... the seal material was THERE, the terrain just had no
+// wall to dig into. The PIT variant stays removed (v0.48.0 measured the seal
+// placement impossible in open field), but the same placement machinery works
+// in the OTHER direction: instead of digging a hole, BUILD a 2-high ring of
+// blocks in the four lateral cells around the bot's own cell. Every placement
+// has a solid face-neighbour in open field - the ground below the foot cell
+// (face up), then the fresh foot block below the head cell (face up). A
+// complete 2-high ring cannot be walked into by vanilla surface mobs: a
+// zombie jumps 1, not 2; creepers cannot reach the bot to detonate; melee
+// drowned beach on the wall. The bot then waits the same SHELTER_MAX_MS /
+// SHELTER_SAFE_DIST round the dig-in wait uses, and digs ONE column open to
+// walk out.
+// Policy pinned here (the mechanics live in miner.mjs tryRingShelter):
+// - the ring is the FALLBACK after the wall dig-in finds no wall (digging is
+//   faster than building - 2 digs + 1 placement vs 8 placements);
+// - ALL four sides must be buildable before the first placement: a single
+//   gap is a walk-in door (a zombie jumps the 1-high foot block and drops
+//   in), and a mob standing in a target cell rejects the placement;
+// - the build order runs the sides pointing AWAY from the threat first, so
+//   the last (risky) placements happen on the side the mob reaches last;
+// - an incomplete ring never waits - the bot flees and the half-ring still
+//   slows the chase.
+
+/** Cells per ring side: one at foot level, one at head level. */
+export const RING_CELLS_PER_SIDE = 2
+/** A full ring: 4 lateral sides x (foot + head). */
+export const RING_BLOCKS_NEEDED = 8
+/** The four lateral sides in canonical order: +x, -x, +z, -z. */
+export const RING_SIDE_NORMALS = [
+  { dx: 1, dz: 0 }, { dx: -1, dz: 0 }, { dx: 0, dz: 1 }, { dx: 0, dz: -1 }
+]
+
+/**
+ * Normalize one observed cell to the three-state class the ring planner
+ * works with: 'empty' (air - a placement can fill it), 'solid' (a block is
+ * already there - the cell is done), 'blocked' (an entity occupies it, or the
+ * world read failed - placements into entity-occupied cells are rejected by
+ * the server and an unreadable cell must never be built on).
+ * @param {string} [cls] 'empty' | 'solid' | 'blocked' (junk -> 'blocked')
+ */
+export function ringCellClass (cls) {
+  return cls === 'empty' || cls === 'solid' ? cls : 'blocked'
+}
+
+/**
+ * Can one lateral SIDE be closed into a 2-high column? The side reads:
+ * - foot/head: the ringCellClass of the two stacked cells next to the bot;
+ * - groundSolid: is the block under the foot cell solid (the placement
+ *   reference for the foot block in open field - without it the foot cell
+ *   has no face to place against)?
+ * The foot part needs a block or a placement reference; the head part needs
+ * a block or emptiness (the fresh foot block becomes the head's reference -
+ * it only exists when the foot part can be made solid first).
+ * @param {object} [side]
+ * @param {string} [side.foot] 'empty' | 'solid' | 'blocked'
+ * @param {string} [side.head] 'empty' | 'solid' | 'blocked'
+ * @param {boolean} [side.groundSolid] solid ground under the foot cell
+ */
+export function ringSideBuildable (side = {}) {
+  const foot = ringCellClass(side.foot)
+  const head = ringCellClass(side.head)
+  const footOk = foot === 'solid' || (side.groundSolid === true && foot === 'empty')
+  if (!footOk) return false
+  return head === 'solid' || head === 'empty'
+}
+
+/**
+ * The whole ring (4 sides) must be closable BEFORE the first placement: a
+ * single unbuilt gap is a walk-in door, so a partial build must not buy the
+ * wait. Junk input reads as not feasible.
+ * @param {Array<object>} [sides] 4 side reads (ringSideBuildable shape)
+ */
+export function ringFeasible (sides) {
+  if (!Array.isArray(sides) || sides.length < 4) return false
+  return sides.every(s => ringSideBuildable(s))
+}
+
+/**
+ * How many of the 8 cells still need a placement (pre-solid cells are free).
+ * Junk sides read as the full cost (build nothing on a guess).
+ * @param {Array<object>} [sides] 4 side reads (ringSideBuildable shape)
+ */
+export function ringBlocksNeeded (sides) {
+  if (!Array.isArray(sides)) return RING_BLOCKS_NEEDED
+  let n = 0
+  for (const s of sides) {
+    if (ringCellClass(s.foot) === 'empty') n++
+    if (ringCellClass(s.head) === 'empty') n++
+  }
+  return n
+}
+
+/**
+ * Placement order for the four sides: the side pointing AWAY from the threat
+ * first, so the placements that happen while the mob is closest are the ones
+ * nearest the bot's protected side. Sides keep the RING_SIDE_NORMALS indexes
+ * (+x, -x, +z, -z); the score is the side's outward normal dotted with the
+ * bot->threat bearing, ascending (most negative = most opposed to the threat
+ * = away from it) - stable on ties so a zero bearing keeps the canonical
+ * order.
+ * @param {object} [p]
+ * @param {number} [p.threatDx] bot->threat bearing x (junk -> 0)
+ * @param {number} [p.threatDz] bot->threat bearing z (junk -> 0)
+ */
+export function ringSideOrder ({ threatDx = 0, threatDz = 0 } = {}) {
+  const dx = Number.isFinite(threatDx) ? threatDx : 0
+  const dz = Number.isFinite(threatDz) ? threatDz : 0
+  return RING_SIDE_NORMALS
+    .map((n, i) => ({ i, score: n.dx * dx + n.dz * dz }))
+    .sort((a, b) => a.score - b.score || a.i - b.i)
+    .map(x => x.i)
+}
+
+/**
+ * Total blocks held that the SEAL_PRIORITY accepts (the ring spends the same
+ * stock the dig-in seal does, just up to 8 of it). Junk -> 0.
+ * @param {Array<{name?:string, count?:number}>|null|undefined} items
+ */
+export function countSealBlocks (items) {
+  if (!Array.isArray(items)) return 0
+  const held = new Map()
+  for (const item of items) {
+    if (!item || typeof item.name !== 'string') continue
+    const n = Number.isFinite(item.count) && item.count > 0 ? item.count : 1
+    held.set(item.name, (held.get(item.name) ?? 0) + n)
+  }
+  let total = 0
+  for (const name of SEAL_PRIORITY) total += held.get(name) ?? 0
+  return total
+}

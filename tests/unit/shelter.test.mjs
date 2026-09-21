@@ -9,7 +9,10 @@ import assert from 'node:assert/strict'
 import {
   SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, SEAL_PRIORITY,
   EARN_SEAL_MAX_THREAT_DIST, JUNK_DROP_PRIORITY,
-  shelterDue, pickSealItem, pickJunkToDrop, earnSealDue
+  RING_BLOCKS_NEEDED, RING_SIDE_NORMALS,
+  shelterDue, pickSealItem, pickJunkToDrop, earnSealDue,
+  ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
+  ringSideOrder, countSealBlocks
 } from '../../src/lib/shelter.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
@@ -136,4 +139,92 @@ test('earnSealDue: the earn window fits before contact, junk never lies', () => 
   assert.equal(earnSealDue({ threatDist: -3 }), false, 'junk negative reads as no earn')
   assert.equal(EARN_SEAL_MAX_THREAT_DIST < 12, true, 'the earn window stays inside the detect radius')
   assert.ok(!JUNK_DROP_PRIORITY.some(n => n.endsWith('_pickaxe') || n.endsWith('_sword') || n === 'bread' || n.endsWith('_log') || n === 'stick'), 'the drop list never contains tools/food/bootstrap stock by construction')
+})
+
+// ---- v0.59.0: THE OPEN-FIELD RING (variant 3) ----
+// Fleet 35657683920 (run58, v0.58.1, NORMAL END 19/19) measured SIX 'shelter
+// try' lines that fell through the wall variant SILENTLY and fled: F1
+// zombie@5.6, F1 drowned@1.3 (dead 6 log lines later), F17 zombie@2.4, F5
+// zombie@1.9, F17 zombie@3.5, F15 drowned@6.5 - ALL open terrain, while the
+// surviving pockets read cobblestone:29+dirt:4, cobblestone:106+granite:14,
+// cobblestone:102. The seal stock was THERE; the terrain had no wall to dig
+// into. The cure builds the 2-high ring instead: ground-below as the foot
+// reference, the fresh foot block as the head reference, all four sides
+// closable BEFORE the first placement, away-from-threat first.
+test('ringCellClass: three states, junk reads as blocked', () => {
+  assert.equal(ringCellClass('empty'), 'empty')
+  assert.equal(ringCellClass('solid'), 'solid')
+  assert.equal(ringCellClass('blocked'), 'blocked')
+  assert.equal(ringCellClass(undefined), 'blocked', 'an unreadable cell never gets built on')
+  assert.equal(ringCellClass('air'), 'blocked', 'unknown strings are blocked')
+  assert.equal(ringCellClass(''), 'blocked')
+})
+
+test('ringSideBuildable: flat open ground closes, cliffs and mobs do not', () => {
+  assert.equal(ringSideBuildable({ foot: 'empty', head: 'empty', groundSolid: true }), true, 'the open-field side: ground below, two air cells')
+  assert.equal(ringSideBuildable({ foot: 'empty', head: 'empty', groundSolid: false }), false, 'a cliff side has no foot reference - never buildable')
+  assert.equal(ringSideBuildable({ foot: 'solid', head: 'solid', groundSolid: false }), true, 'a pre-walled side is already done')
+  assert.equal(ringSideBuildable({ foot: 'solid', head: 'empty', groundSolid: false }), true, 'a solid foot block IS the head reference')
+  assert.equal(ringSideBuildable({ foot: 'empty', head: 'solid', groundSolid: true }), true, 'a head block with air under it still closes (the foot fills first)')
+  assert.equal(ringSideBuildable({ foot: 'blocked', head: 'empty', groundSolid: true }), false, 'a mob in the foot cell rejects the placement')
+  assert.equal(ringSideBuildable({ foot: 'empty', head: 'blocked', groundSolid: true }), false, 'a mob in the head cell rejects the placement')
+  assert.equal(ringSideBuildable({}), false, 'junk side reads as not buildable')
+  assert.equal(ringSideBuildable({ foot: 'empty', head: 'empty', groundSolid: 'yes' }), false, 'ground junk is not solid ground')
+})
+
+test('ringFeasible: ALL four sides must close - one gap is a door', () => {
+  const open = () => ({ foot: 'empty', head: 'empty', groundSolid: true })
+  assert.equal(ringFeasible([open(), open(), open(), open()]), true, 'the run58 open field: flat ground all around is closable')
+  assert.equal(ringFeasible([open(), open(), open(), { foot: 'empty', head: 'empty', groundSolid: false }]), false, 'one cliff side = one walk-in door = never start the build')
+  assert.equal(ringFeasible([open(), open(), open(), { foot: 'blocked', head: 'empty', groundSolid: true }]), false, 'one mob-occupied side blocks the whole ring')
+  assert.equal(ringFeasible([open(), open(), open()]), false, 'three sides is not a ring')
+  assert.equal(ringFeasible(null), false, 'junk world reads as not feasible')
+  assert.equal(ringFeasible('flat'), false, 'string junk reads as not feasible')
+})
+
+test('ringBlocksNeeded: pre-walled cells are free, junk costs the full ring', () => {
+  const open = { foot: 'empty', head: 'empty', groundSolid: true }
+  assert.equal(ringBlocksNeeded([open, open, open, open]), 8, 'a flat open field costs all 8')
+  assert.equal(ringBlocksNeeded([{ foot: 'solid', head: 'solid' }, open, open, open]), 6, 'one pre-walled side saves 2')
+  assert.equal(ringBlocksNeeded(null), 8, 'junk sides read as the full cost')
+  assert.equal(RING_BLOCKS_NEEDED, 8, 'the constant pins the full ring cost')
+})
+
+test('ringSideOrder: the threat side builds last, junk bearing keeps canonical', () => {
+  // score = normal . bearing, ascending: the sides pointing AWAY from the
+  // threat (most negative score) build first, the side the threat stands on
+  // builds last; index order breaks score ties.
+  assert.deepEqual(ringSideOrder({ threatDx: 5, threatDz: 0 }), [1, 2, 3, 0], 'threat east: -x first, +x last')
+  assert.deepEqual(ringSideOrder({ threatDx: -5, threatDz: 0 }), [0, 2, 3, 1], 'threat west: +x first, -x last')
+  assert.deepEqual(ringSideOrder({ threatDx: 0, threatDz: 5 }), [3, 0, 1, 2], 'threat at +z: -z first, +z last')
+  assert.deepEqual(ringSideOrder({ threatDx: 0, threatDz: -5 }), [2, 0, 1, 3], 'threat at -z: +z first, -z last')
+  assert.deepEqual(ringSideOrder({ threatDx: 3, threatDz: 3 }), [1, 3, 0, 2], 'diagonal threat: both opposed sides first (index tie order)')
+  assert.deepEqual(ringSideOrder({}), [0, 1, 2, 3], 'zero bearing keeps the canonical +x,-x,+z,-z order')
+  assert.deepEqual(ringSideOrder({ threatDx: NaN, threatDz: undefined }), [0, 1, 2, 3], 'junk bearing is a zero bearing')
+  assert.equal(RING_SIDE_NORMALS.length, 4, 'four lateral sides')
+})
+
+test('countSealBlocks: the run58 survivor pockets can all build a ring', () => {
+  // F2's measured pocket: cobblestone:29 birch_log:8 dirt:4 -> 41
+  assert.equal(countSealBlocks([{ name: 'cobblestone', count: 29 }, { name: 'birch_log', count: 8 }, { name: 'dirt', count: 4 }]), 41, 'F2 closes a ring twice over')
+  // F6's measured pocket: cobblestone:106 granite:14 diorite:14 -> all stone family
+  assert.equal(countSealBlocks([{ name: 'cobblestone', count: 106 }, { name: 'granite', count: 14 }, { name: 'diorite', count: 14 }]), 134, 'F6 is a walking wall')
+  // F17's measured pocket: stick:2 oak_planks:2 smooth_stone:1 -> planks only (2)
+  assert.equal(countSealBlocks([{ name: 'stick', count: 2 }, { name: 'oak_planks', count: 2 }, { name: 'smooth_stone', count: 1 }]), 2, 'sticks and smooth stone are not seal stock')
+  assert.equal(countSealBlocks([{ name: 'stone_pickaxe', count: 1 }, { name: 'bread', count: 6 }]), 0, 'a tool-only pocket builds nothing')
+  assert.equal(countSealBlocks(null), 0)
+  assert.equal(countSealBlocks([]), 0)
+  assert.equal(countSealBlocks([42, { name: 7 }]), 0, 'junk items count as nothing')
+})
+
+test('REGRESSION PIN (run58 F1): open field + rich pocket must be ring-feasible', () => {
+  // F1 died to a drowned@0.7 six log lines after 'shelter try vs drowned
+  // (dist 1.3)' fell through the wall variant silently. The same bot carried
+  // cobblestone+dirt earlier in the run. The cure must accept EXACTLY this
+  // world: flat open ground, all cells air, a full stock, threat anywhere.
+  const f1Pocket = [{ name: 'cobblestone', count: 29 }, { name: 'dirt', count: 4 }, { name: 'birch_log', count: 8 }]
+  const openField = () => ({ foot: 'empty', head: 'empty', groundSolid: true })
+  assert.equal(countSealBlocks(f1Pocket) >= RING_BLOCKS_NEEDED, true, 'the stock gate passes')
+  assert.equal(ringFeasible([openField(), openField(), openField(), openField()]), true, 'the world gate passes - the ring builds where no wall exists')
+  assert.equal(ringSideBuildable(openField()), true, 'every side closes')
 })

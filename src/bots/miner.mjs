@@ -27,7 +27,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -427,9 +427,157 @@ export function createMiner ({
     // variant 2 (REMOVED): the open-terrain PIT cannot work in vanilla - at 1 deep
     // the seal cell IS the bot's head cell (placement rejected), at 2 deep C0 has NO
     // solid face-neighbour to place against (open field) and the exit needs
-    // pillar-up climbing, which this repo refuses on purpose. Open terrain stays
-    // with the flee until a verified ring/torch alternative exists.
-    return false // no diggable wall around: the flee handles it
+    // pillar-up climbing, which this repo refuses on purpose.
+    // (v0.59.0) The silent fall-through is gone: run58 (fleet 35657683920)
+    // measured SIX 'shelter try' lines with NOTHING after them - the wall
+    // loop found no diggable wall and the flee just took over. The open
+    // field now names its verdict and tries variant 3: the RING.
+    const threatStill = nearestHostile()
+    log(`${tag} combat: shelter skip (open field: no diggable wall, ${threatStill ? `${threatStill.name}@${threatStill.dist.toFixed(1)}` : 'threat gone'})`)
+    try { return await tryRingShelter(reason) } catch (e) {
+      log(`${tag} combat: shelter skip (open field: ring failed: ${e.message})`)
+      return false
+    }
+  }
+
+  // variant 3 (v0.59.0): the OPEN-FIELD RING. Build a 2-high ring of blocks in
+  // the four lateral cells around the bot's own cell, wait the threat out, dig
+  // one column open and step out. Every placement has a solid face-neighbour
+  // in open field: the ground below the foot cell (face up), then the fresh
+  // foot block below the head cell (face up). The policy (pure, in
+  // shelter.mjs) demands ALL four sides buildable before the first placement
+  // (one gap is a walk-in door), the sides away from the threat first, and
+  // never waits behind an incomplete ring. Best-effort: any failure falls
+  // back to the flee (and a half-ring still slows the chase).
+  async function tryRingShelter (reason) {
+    const threat = nearestHostile()
+    if (!threat || !bot.entity) return false
+    // cheap stock gate BEFORE the world reads: the ring spends up to 8 blocks
+    const stock = countSealBlocks(inventoryItems(bot))
+    if (stock < RING_BLOCKS_NEEDED) {
+      log(`${tag} combat: shelter skip (open field: need ${RING_BLOCKS_NEEDED} wall blocks, have ${stock})`)
+      return false
+    }
+    const here = bot.entity.position.floored()
+    // read the four lateral sides: foot/head cell class + the ground under
+    // the foot cell (the foot placement's reference) + hostile occupancy
+    const hostileIn = (x, y, z) => {
+      for (const e of Object.values(bot.entities)) {
+        if (!e || e === bot.entity || !isHostileEntity(e) || !e.position) continue
+        const c = e.position.floored()
+        if (c.x === x && c.y === y && c.z === z) return true
+      }
+      return false
+    }
+    const readClass = (x, y, z) => {
+      if (hostileIn(x, y, z)) return 'blocked'
+      try {
+        const b = bot.blockAt(new Vec3(x, y, z))
+        if (!b) return 'blocked'
+        return b.boundingBox === 'empty' ? 'empty' : 'solid'
+      } catch { return 'blocked' }
+    }
+    const sides = RING_SIDE_NORMALS.map(n => {
+      const fx = here.x + n.dx
+      const fz = here.z + n.dz
+      let groundSolid = false
+      try {
+        const g = bot.blockAt(new Vec3(fx, here.y - 1, fz))
+        groundSolid = !!(g && g.boundingBox !== 'empty')
+      } catch { groundSolid = false }
+      return {
+        foot: readClass(fx, here.y, fz),
+        head: readClass(fx, here.y + 1, fz),
+        groundSolid,
+        fx,
+        fz
+      }
+    })
+    if (!ringFeasible(sides)) {
+      const mark = s => `${s.foot === 'solid' ? 'B' : s.foot === 'empty' ? (s.groundSolid ? 'o' : '-') : 'x'}${s.head === 'solid' ? 'B' : s.head === 'empty' ? 'o' : 'x'}`
+      log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}] vs ${threat.name}@${threat.dist.toFixed(1)})`)
+      return false
+    }
+    const order = ringSideOrder({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z })
+    log(`${tag} combat: shelter ring try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${order.map(i => ['+x', '-x', '+z', '-z'][i]).join('')} first, ${reason})`)
+    // the build: per side, foot then head; re-pick the seal item each
+    // placement (a stack that runs out mid-build hands over to the next
+    // priority block); the only reference needed is the ground below the foot
+    // cell, then the fresh foot block itself
+    for (const si of order) {
+      const s = sides[si]
+      for (const y of [here.y, here.y + 1]) {
+        if (readClass(s.fx, y, s.fz) === 'solid') continue // pre-walled cell
+        const refY = y === here.y ? here.y - 1 : here.y
+        const ref = bot.blockAt(new Vec3(s.fx, refY, s.fz))
+        if (!ref || ref.boundingBox === 'empty') break // lost the reference
+        const sealName = pickSealItem(inventoryItems(bot))?.name
+        const item = sealName ? bot.inventory.items().find(i => i.name === sealName) : null
+        if (!item) break // stock ran dry mid-build
+        try {
+          await bot.equip(item, 'hand')
+          await bot.placeBlock(ref, new Vec3(0, 1, 0))
+          await bot.waitForTicks(2)
+        } catch {
+          // one measured retry (a mob grazing the cell rejects the click):
+          // a short pause, then the same face once more
+          try {
+            await bot.waitForTicks(4)
+            const item2 = pickSealItem(inventoryItems(bot))?.name
+            const itemB = item2 ? bot.inventory.items().find(i => i.name === item2) : null
+            if (!itemB) break
+            await bot.equip(itemB, 'hand')
+            await bot.placeBlock(ref, new Vec3(0, 1, 0))
+            await bot.waitForTicks(2)
+          } catch { break }
+        }
+      }
+    }
+    // the verify: every one of the 8 cells must be solid - an incomplete ring
+    // NEVER waits (a gap is a door)
+    let solid = 0
+    for (const s of sides) {
+      for (const y of [here.y, here.y + 1]) {
+        if (readClass(s.fx, y, s.fz) === 'solid') solid++
+      }
+    }
+    if (solid < RING_BLOCKS_NEEDED) {
+      log(`${tag} combat: shelter skip (open field: ring incomplete ${solid}/${RING_BLOCKS_NEEDED})`)
+      return false
+    }
+    stats.shelters++
+    log(`${tag} combat: sheltering from ${threat.name} (ring ${solid}/${RING_BLOCKS_NEEDED}, ${reason})`)
+    // the wait: the same round/cap the dig-in seal uses
+    const started = Date.now()
+    while (bot.entity && Date.now() - started < SHELTER_MAX_MS) {
+      const cur = nearestHostile()
+      if (!cur || cur.dist > SHELTER_SAFE_DIST) break
+      await bot.waitForTicks(Math.max(1, Math.ceil(SHELTER_ROUND_MS / 50)))
+    }
+    // unseal: dig ONE column open (both cells - a 1-high gap does not pass a
+    // 1.8-tall bot) and raw step out (the tunnel() lesson: one straight block
+    // of movement needs no A*)
+    const outSide = sides.find(s => readClass(s.fx, here.y, s.fz) === 'solid')
+    if (outSide) {
+      try {
+        for (const y of [here.y, here.y + 1]) {
+          if (readClass(outSide.fx, y, outSide.fz) !== 'solid') continue
+          const b = bot.blockAt(new Vec3(outSide.fx, y, outSide.fz))
+          if (b && b.type !== 0) await bot.fastDig(b)
+        }
+      } catch { /* the dig drop may seal us further - the step decides */ }
+      try {
+        await bot.lookAt(new Vec3(outSide.fx + 0.5, here.y + 0.5, outSide.fz + 0.5), true)
+        bot.setControlState('forward', true)
+        const outDeadline = Date.now() + 2000
+        const door = new Vec3(outSide.fx, here.y, outSide.fz)
+        while (bot.entity && bot.entity.position.floored().distanceTo(door) > 0.6 && Date.now() < outDeadline) {
+          await bot.waitForTicks(2)
+        }
+        bot.setControlState('forward', false)
+      } catch { /* boxed in is fine - the next dig continues the job */ }
+    }
+    return true
   }
 
   let defending = false
