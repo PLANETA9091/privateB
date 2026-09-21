@@ -81,7 +81,7 @@ test('an explicit timeoutMs still works (backwards compatible pinning)', async (
 })
 
 test('a water-rescue refusal waits out the window and retries ONCE', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const bot = makeMockBot({
     chest,
     items: [item('cobblestone', 5)],
@@ -95,7 +95,7 @@ test('a water-rescue refusal waits out the window and retries ONCE', async () =>
 })
 
 test('a rescue returning mid-retry still cannot loop the walk open-ended', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const bot = makeMockBot({
     chest,
     items: [item('cobblestone', 5)],
@@ -131,7 +131,7 @@ test('a NON-rescue walk failure returns immediately (no pointless retry)', async
 // (v0.20.1) The fleet #128 headline class: 'chest unreachable (Path was stopped...)'.
 // walkRetryPlan classifies it as retryable-immediate; depositToChest must honor that.
 test('a Path-was-stopped walk gets exactly ONE immediate retry and banks', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const bot = makeMockBot({
     chest,
     items: [item('cobblestone', 7)],
@@ -144,7 +144,7 @@ test('a Path-was-stopped walk gets exactly ONE immediate retry and banks', async
 })
 
 test('Path-was-stopped on BOTH attempts gives up (never loops the walk open-ended)', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const stopped = new Error('Path was stopped before it could be completed! Thus, the desired goal was not reached.')
   const bot = makeMockBot({
     chest,
@@ -159,7 +159,7 @@ test('Path-was-stopped on BOTH attempts gives up (never loops the walk open-ende
 })
 
 test('a walk timeout retries once (the first budget may burn on a poisoned walk), then gives up', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const timeout = new Error('walk to chest: timeout after 30000ms')
   const recovered = makeMockBot({ chest, items: [item('cobblestone', 4)], gotoScript: [timeout, 'ok'] })
   const ok = await depositToChest(recovered, { timeoutMs: 30000 })
@@ -202,7 +202,7 @@ test('a No-path nearest chest hops to the NEXT nearest chest and banks there', a
 })
 
 test('an explicitly chosen chest that No-paths is NOT replaced (caller choice is final)', async () => {
-  const chest = { position: new Vec3(3, 64, 3) }
+  const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const stopped = new Error('No path to the goal!')
   const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: [stopped] })
   const res = await depositToChest(bot, { chestBlock: chest })

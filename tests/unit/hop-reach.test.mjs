@@ -11,7 +11,7 @@
 // a finally.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hopReachable, withHopPathfinder, HOP_SEARCH_RADIUS, HOP_THINK_TIMEOUT_MS } from '../../src/lib/deposit.mjs'
+import { hopReachable, withHopPathfinder, HOP_SEARCH_RADIUS, HOP_THINK_TIMEOUT_MS, PROXIMATE_OPEN_DIST, STALE_VIEW_MIN_UNITS, STALE_VIEW_SETTLE_MS, STALE_VIEW_WINDOW_MS } from '../../src/lib/deposit.mjs'
 
 test('hopReachable: the boundary and the junk contract', () => {
   assert.equal(hopReachable(0), true, 'at the chest')
@@ -74,4 +74,77 @@ test('withHopPathfinder: a bot without a pathfinder (or junk fields) runs as-is'
   const bot = { pathfinder: pf }
   assert.equal(await withHopPathfinder(bot, () => 'junk'), 'junk')
   assert.ok('searchRadius' in pf || pf.searchRadius === undefined, 'no crash either way')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.46.0) THE PROXIMITY FAST-PATH + THE STALE-VIEW GUARD (their 19:53 sketch
+// items 1+4, fleet 35599777909: 10/19 bots refused 'nothing to deposit' with
+// 43-337 units in pocket - the desynced window view strikes the DEPOSIT
+// DECISION; F6 hopped 8 warehouse chests from arm's reach and burned the
+// decision clock on every one).
+import { depositToChests } from '../../src/lib/deposit.mjs'
+
+test('v0.46.0 constants: the probe thresholds sit in sane bands', () => {
+  assert.equal(PROXIMATE_OPEN_DIST, 4, 'inside openChest reach (~4.5), outside goal-near noise')
+  assert.ok(STALE_VIEW_MIN_UNITS >= 16 && STALE_VIEW_MIN_UNITS <= 48, 'full enough that KEEP cannot explain it, small enough to fire on real pockets')
+  assert.ok(STALE_VIEW_SETTLE_MS >= 200 && STALE_VIEW_SETTLE_MS <= 1500, 'the resync settle mirrors the craft path')
+})
+
+test('v0.46.0 chain: the stale-view probe resyncs, the proximity fast-path skips the walk, the deposit lands', async () => {
+  const chest = { name: 'chest', position: { x: 0, y: 64, z: 0, floored: () => ({ x: 0, y: 64, z: 0 }) } }
+  let items = [] // the STALE view: the pocket reads empty (the '[empty]' flip)
+  let probed = false
+  const bot = {
+    username: 'T',
+    entity: { position: { x: 2, y: 64, z: 2, distanceTo: () => 3 } },
+    inventory: { items: () => items },
+    // the memo remembers the last good read: a full pocket 5s ago
+    _bankableMemo: { units: 30, at: Date.now() - 5000 },
+    findBlock: ({ matching }) => (matching(chest) ? chest : null),
+    openChest: async () => {
+      if (!probed) {
+        probed = true
+        return { close: () => { items = [{ name: 'cobblestone', count: 30, type: 7 }] } } // the resync
+      }
+      return { close: () => {}, deposit: async () => { items = [] } } // the transfer
+    },
+    pathfinder: { searchRadius: 32, thinkTimeout: 2000 }
+  }
+  const lines = []
+  const res = await depositToChests(bot, { maxChests: 1, log: l => lines.push(l), yardCenter: { x: 0, y: 64, z: 0 } })
+  assert.equal(res.deposited, 30, 'the re-synced pocket deposited')
+  assert.equal(res.chestsUsed, 1)
+  assert.ok(lines.some(l => /stale-view probe/.test(l)), 'the probe line prints')
+  assert.equal(probed, true, 'the probe opened exactly one window before the chain')
+  assert.equal(bot.pathfinder.searchRadius, 32, 'the hop budget was restored (no walk ever ran: proximate)')
+})
+
+test('v0.46.0 guard: a STALE memo (window elapsed) does not probe', async () => {
+  let opens = 0
+  const bot = {
+    username: 'T3',
+    _bankableMemo: { units: 200, at: Date.now() - STALE_VIEW_WINDOW_MS - 1000 },
+    entity: { position: { x: 0, y: 64, z: 0, distanceTo: () => 3 } },
+    inventory: { items: () => [] },
+    findBlock: () => { opens++; return null },
+    openChest: async () => { opens++; return { close: () => {} } }
+  }
+  const res = await depositToChests(bot, { maxChests: 1, log: () => {}, yardCenter: null })
+  assert.deepEqual(res.chestReport, ['nothing to deposit'])
+  assert.equal(opens, 0, 'an old memo is not evidence - no probe window')
+})
+
+test('v0.46.0 guard: an honest empty pocket (raw 0) refuses WITHOUT any probe', async () => {
+  let opens = 0
+  const bot = {
+    username: 'T2',
+    entity: { position: { x: 0, y: 64, z: 0, distanceTo: () => 5 } },
+    inventory: { items: () => [] },
+    findBlock: () => null,
+    openChest: async () => { opens++; return { close: () => {} } }
+  }
+  const res = await depositToChests(bot, { maxChests: 1, log: () => {}, yardCenter: null })
+  assert.equal(res.deposited, 0)
+  assert.deepEqual(res.chestReport, ['nothing to deposit'])
+  assert.equal(opens, 0, 'no chest, no raw units - no probe window')
 })

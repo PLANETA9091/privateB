@@ -268,7 +268,7 @@ test('an unopenable chest is skipped for the next one', async () => {
 // zero hop now logs WHICH chest refused and WHY before the exclusion retry.
 test('a failed hop names its chest and reason before the exclusion retry', async () => {
   const chests = [
-    { name: 'chest', position: new Vec3(3, 64, 3) },
+    { name: 'chest', position: new Vec3(6, 64, 3) }, // beyond PROXIMATE_OPEN_DIST: the walk branch runs
     { name: 'chest', position: new Vec3(6, 64, 6) }
   ]
   const bot = makeMockBot({ items: [item('cobblestone', 20)] })
@@ -278,7 +278,7 @@ test('a failed hop names its chest and reason before the exclusion retry', async
   const lines = []
   const res = await depositToChests(bot, { maxChests: 3, log: m => lines.push(m) })
   assert.equal(res.deposited, 20, 'chest B takes what chest A refused to walk to')
-  const hop = lines.find(l => l.includes('hop: chest at [3,64,3]'))
+  const hop = lines.find(l => l.includes('hop: chest at [6,64,3]'))
   assert.ok(hop, 'the failed hop names its chest coords')
   assert.match(hop, /chest unreachable \(No path to the goal!\)/, 'and its real reason')
 })

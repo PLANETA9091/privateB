@@ -36,6 +36,19 @@ import { walkBudgetMs } from './tripplan.mjs'
 export const HOP_SEARCH_RADIUS = 48
 export const HOP_THINK_TIMEOUT_MS = 4500
 
+// (v0.46.0) THE PROXIMITY + STALE-VIEW CONSTANTS (their 19:53 sketch items 1+4,
+// fleet 35599777909). PROXIMATE_OPEN_DIST: a chest within this distance needs
+// no pathfinder hop - openChest's ~4.5 reach governs. STALE_VIEW_MIN_UNITS: a
+// raw pocket this full reading bankable 0 is a desynced window view, not an
+// honest empty pocket (KEEP holds a handful of items; 10/19 bots refused with
+// 43-337 units in pocket). STALE_VIEW_SETTLE_MS: the window-0 resync lands
+// right after the close - half a second absorbs the packet flight, the same
+// settle the craft path has used since 3fd2e8a.
+export const PROXIMATE_OPEN_DIST = 4
+export const STALE_VIEW_MIN_UNITS = 24
+export const STALE_VIEW_SETTLE_MS = 500
+export const STALE_VIEW_WINDOW_MS = 90000
+
 /** Pure: may the pathfinder plausibly reach a chest at this straight-line
  * distance? Junk-safe - a null/NaN distance is "unknown", which passes (the
  * walk attempt then decides, as it always has). */
@@ -439,10 +452,26 @@ export async function depositToChest (bot, {
     // (v0.45.0) the hop runs under the widened hop budget (radius 48, think
     // 4500ms) and restores the tunnel tuning in a finally - the global 32/2000
     // pair made every open-platform hop 'No path' or 'Took to long' (304x,
-    // dispatch 35599777909).
+    // dispatch 35599777909). (v0.46.0) range 2 -> 3 (their 19:53 sketch item 2):
+    // at a PACKED chest row the within-2 standable cells are scarce (102x 'No
+    // path'); range 3 quadruples the goal-cell candidates while openChest's
+    // ~4.5 reach still holds from any of them.
     return withHopPathfinder(bot, () =>
-      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: ms, label, priority: PATH_PRIO_BANK }))
+      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK }))
   }
+  // (v0.46.0) THE PROXIMITY FAST-PATH (their 19:53 sketch item 1): a bot that
+  // ALREADY stands within reach of the chest must not spend a pathfinder hop
+  // (and its throttle slot + think budget) re-deciding what a straight look can
+  // settle - openChest's own reach check governs, exactly like the smelt visit.
+  // MEASURED: 12-64b yard walks arrived and the hop STILL burned the decision
+  // clock on a 3-6 block walk; F6 hopped 8 distinct warehouse chests, all refused.
+  const proximate = (() => {
+    try {
+      const d = bot.entity?.position?.distanceTo?.(chest.position)
+      return Number.isFinite(d) && d <= PROXIMATE_OPEN_DIST
+    } catch { return false }
+  })()
+  let walked = proximate
   // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
   // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
   //   water rescue -> wait out the rescue window, then the retry (v0.18.5 behavior)
@@ -453,7 +482,6 @@ export async function depositToChest (bot, {
   //   timeout -> one retry (the first budget may have burned on a poisoned/stuck
   //     walk, not on real distance); still bounded: max 2 walks x 60s cap
   //   everything else (no path, ...) -> give up, the geometry is real
-  let walked = false
   let lastError = null
   for (let attempt = 1; attempt <= 2 && !walked; attempt++) {
     try {
@@ -572,7 +600,38 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   // held nothing bankable (fleet evidence: F1's log+planks+sapling KEEP pocket
   // burned a trip on a walk that could never deliver). The early return speaks
   // the truth and lets bankFallback stay home.
-  if (bankableItems() <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['nothing to deposit'] }
+  //
+  // (v0.46.0) THE STALE-VIEW GUARD (their 19:53 sketch item 4, fleet 35599777909):
+  // 10/19 bots ended 'nothing to deposit' while their pockets held 43-337 units
+  // SERVER-SIDE - the 26.2 window desync ERASED the items from the client view
+  // (the '[empty]' flip), so bankable computes 0 from the same stale read the
+  // reporter used and the chain refuses without a single click. The client
+  // CANNOT distinguish an honest empty from a stale empty on the read alone -
+  // but it can REMEMBER: the memo carries the last good bankable count and its
+  // timestamp (a full pocket seen moments ago + no deposit since = the view is
+  // the suspect, not the pocket). A chest within arm's reach then gets ONE
+  // open+close probe - the vanilla close reconciles window 0 - and the re-count
+  // decides: an honest zero still refuses, a re-synced pocket deposits.
+  const bankable = bankableItems()
+  if (bankable > 0) bot._bankableMemo = { units: bankable, at: Date.now() }
+  if (bankable <= 0) {
+    const memo = bot._bankableMemo
+    const stale = !!memo && memo.units >= STALE_VIEW_MIN_UNITS && (Date.now() - memo.at) <= STALE_VIEW_WINDOW_MS
+    if (stale) {
+      const probeChest = findChest(bot, { maxDistance: PROXIMATE_OPEN_DIST, exclude: [], log, yardCenter, yardRadius })
+      if (probeChest) {
+        try {
+          const w = await withTimeout(bot.openChest(probeChest), 10000, 'stale-view probe open')
+          try { w.close?.() } catch { /* the close is the point: vanilla re-syncs window 0 */ }
+          await new Promise(resolve => setTimeout(resolve, STALE_VIEW_SETTLE_MS))
+          log(`[${bot.username ?? 'bot'}] stale-view probe: bankable read 0 but a pocket of ${memo.units} was seen ${Math.round((Date.now() - memo.at) / 1000)}s ago - window resynced, re-counting`)
+        } catch (e) {
+          log(`[${bot.username ?? 'bot'}] stale-view probe failed: ${e?.message || e}`)
+        }
+      }
+    }
+    if (bankableItems() <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['nothing to deposit'] }
+  }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
     if (deadline != null && remaining() <= 0) { reports.push('budget exhausted'); break }
     const chest = findChest(bot, { maxDistance: findRadius, exclude: tried, log, yardCenter, yardRadius })
