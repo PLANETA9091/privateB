@@ -1225,3 +1225,23 @@ Stage Summary:
 - NEW LEAK to mine next: 17 deaths (fights=31, shelters=0 - the shelter branch never fired while mobs landed kills; night overlap suspected). Every death scatters a pocket - banked>0 needs alive-with-loot bots.
 - OPEN FRONTS: the death/shelter class (above); x25 swimming stack; deepslate bare-hand 750t; path-decision timeouts under load (partially addressed by the widened hop think window).
 - Version handoff: 0.44.0 theirs, 0.44.1 mine, 0.45.0 mine, 0.46.0 mine; next free = 0.47.0. The 600s fleet dispatch fires on the final master as the session's LAST action.
+
+---
+Task ID: 398294-20260921-2153
+Agent: Z.ai Code (cron session, 21:53 +08)
+Task: mine dispatch 35605960761 (the banked>0 gate on v0.46.0); the death leak - v0.47.0 the melee-armed shelter gate + v0.47.1 the day-engaged class.
+
+Work Log:
+- Sandbox dead again: re-cloned at 56a19b5 (v0.46.0 + docs). Their dispatch 35605960761 (v0.46.0) was in flight - PUSHED NOTHING until it completed (the push-cancels-dispatch lesson).
+- MINED 35605960761 (v0.45.0 hop budget + v0.46.0 proximity fast-path + stale-view guard, 600s): **NORMAL END**, 19/19 alive, reconnects=12 (disconnect.timeout kicks recovered), mined=1086 (poor world, 1.81 b/s), climbs=3, fights=5, **shelters=0**, **banked=0**, smelted=0, planted=8, airGlitches=177. 5 deaths: F5/F7/F1/F10/F16 ('died - respawning').
+- THE SMOKING GUN in the log itself: `F7 combat: shelter skip (night=false armed=true threat=zombie@1.8)` and the same for F10 - BOTH THEN DIED. Root cause chain: tryShelter's armed gate = pickWeapon, and pickWeapon counts pickaxes/shovels/hoes as weapons (WEAPON_TYPE_RANK) - every miner holds a pickaxe, so armed was ALWAYS true and the shelter branch was DEAD CODE for the entire fleet since v0.11.3. The historical shelters=0 across every fleet is explained by construction, not by luck. A 3-dmg pickaxe is in the measured losing class (fists 17 hp -> 4.3 hp, zombie alive); only a sword (4-5 dmg) or an axe (7-9 dmg) wins the following fight.
+- v0.47.0 (8c57fc7): pickMeleeWeapon in combat.mjs (sword/axe only; pickWeapon refactored onto a shared pickByTypeRanks core - semantics unchanged, the fight-equip path keeps counting pickaxes); tryShelter gates on it. 4 unit tests incl. the regression pin (a pickaxe-only miner at night with a zombie at 5 MUST shelter; a sword holder never does).
+- v0.47.1 (cb9e35e): shelterDue gains DAY_ENGAGE_DIST=3.5 - the day-engaged class straight from the F7/F10 lines (night=false was the second seal). A zombie already in swing range cannot be outrun (same speed) and cannot be beaten by a tool; the dig-in beats both. Daylight threats beyond 3.5 keep walking past (no shelter for shadows); night keeps its full 12-block radius; open terrain still falls back to fight/flee when no diggable wall exists - no regression path. 7 new pins.
+- Push CI 35609739789 (cb9e35e) GREEN: both unit shards + integration first try.
+- THE HOP WALL (still the banked>0 blocker, mined from the same artifact): 64 hop lines - 'chest unreachable (Took to long to decide path to goal!)' at d=7-12 (with the v0.45.0 think 4500ms!) and 'walk to chest (retry): timeout after 30000ms' at d=28-35. A 7-block hop failing to decide in 4.5 s is CPU starvation: 19 node processes on the CI runner share 2-4 cores, pathfinder thinkTimeout measures wall time. The sketched cure (v0.48.0 front): RAW-controls short hops - the repo's proven tunnel()/shelter step-in pattern (lookAt + forward + bounded deadline, no A*) for hops under ~10 blocks with the chest visible; the pathfinder stays for long legs. F2's chain is the honest-verdict counter-evidence: 'nothing to deposit' end to end (the stale-view guard refusing honestly on a genuinely empty pocket).
+
+Stage Summary:
+- Master: cb9e35e (v0.47.0 + v0.47.1), CI GREEN. The shelter branch is ALIVE for the first time since v0.11.3: melee-naked bots (every pickaxe-only miner) now shelter at night AND when a daylight zombie is already chewing. The fleet dispatch on cb9e35e fires as this session's LAST action.
+- EXPECTATIONS for the next fleet: 'sheltering from zombie' lines > 0 (the branch must finally fire); 'shelter skip (night=... armed=false ...)' lines carry the melee gate; deaths from the F7/F10 day-engaged class drop; shelters>0 in the result line. banked>0 stays gated on the hop wall (CPU starvation class) - v0.48.0's raw-controls hop is the front.
+- OPEN FRONTS: (1) the hop think-timeouts at d=7 (raw-controls cure sketched above); (2) reconnects=12 disconnect.timeout kicks (server tick lag under 19 bots?); (3) airGlitches=177 (benign telemetry but 3x the previous fleet); (4) the x25 swimming stack; (5) deepslate bare-hand.
+- Version handoff: 0.47.0+0.47.1 taken; next free = 0.48.0.
