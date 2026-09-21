@@ -6,7 +6,7 @@
 // re-bootstrap loop lives in testbed/fleet19.mjs and is exercised by the CI fleet.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stalledButCraftable, recoveryDue } from '../../src/lib/woodplan.mjs'
+import { stalledButCraftable, recoveryDue, recoveryCooldownMs } from '../../src/lib/woodplan.mjs'
 
 test('stall escape: below goodEnough logs the bot keeps gathering (never crafts a kit from 3 logs)', () => {
   assert.equal(stalledButCraftable({ logs: 0, goodEnough: 4, msSinceGain: 999999, stallMs: 25000 }), false)
@@ -82,3 +82,32 @@ test('recoveryDue: the v0.7.0 failure mode is now covered (due mid-shaft, 135s l
 // went through toolupgrade.mjs upgradeCheck (testbed/fleet19.mjs upgradeDueNow) since
 // v0.7.5, and the old predicate had no production caller left. The tier logic it
 // described lives on in tests/unit/toolupgrade.test.mjs.
+
+// (v0.52.0) THE HOPELESS-LOOP BRAKE - run51 (fleet 35639593200): F7 underground,
+// no sticks, no planks, re-ran the ~85s bootstrap every ~60-80s for 350+s. The
+// brake stretches the cooldown on every consecutive failure.
+test('recoveryCooldownMs: first attempts keep the 45s cadence', () => {
+  assert.equal(recoveryCooldownMs(0), 45000)
+  assert.equal(recoveryCooldownMs(1), 45000)
+})
+
+test('recoveryCooldownMs: consecutive failures stretch 90s -> 180s -> cap ~300s', () => {
+  assert.equal(recoveryCooldownMs(2), 90000)
+  assert.equal(recoveryCooldownMs(3), 180000)
+  assert.ok(recoveryCooldownMs(4) > 300000, 'streak 4 doubles past 300 - capped next')
+  assert.equal(recoveryCooldownMs(9), 300150, 'the cap holds (45000 * 6.67)')
+})
+
+test('recoveryDue with failStreak: a hopeless bot waits out the stretched cooldown', () => {
+  // streak 2 -> 90s cooldown: at 60s since the last attempt the recovery refuses
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 60000, remainingMs: 120000, failStreak: 2 }), false)
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 91000, remainingMs: 120000, failStreak: 2 }), true)
+  // streak 0 keeps the historical 45s boundary intact
+  assert.equal(recoveryDue({ hasPick: false, msSinceLast: 46000, remainingMs: 120000, failStreak: 0 }), true)
+})
+
+test('recoveryCooldownMs: junk streaks fall back to the base cadence', () => {
+  assert.equal(recoveryCooldownMs(undefined), 45000)
+  assert.equal(recoveryCooldownMs(NaN), 45000)
+  assert.equal(recoveryCooldownMs(-3), 45000)
+})

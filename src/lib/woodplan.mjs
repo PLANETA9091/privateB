@@ -28,11 +28,28 @@
  * @param {number} [p.minRemainingMs] do not start a ~85s bootstrap near the deadline
  * @returns {boolean}
  */
-export function recoveryDue ({ hasPick, msSinceLast, remainingMs, cooldownMs = 45000, minRemainingMs = 80000 }) {
+export function recoveryDue ({ hasPick, msSinceLast, remainingMs, cooldownMs = 45000, minRemainingMs = 80000, failStreak = 0 }) {
   if (hasPick) return false
-  if (!Number.isFinite(msSinceLast) || msSinceLast <= cooldownMs) return false
+  if (!Number.isFinite(msSinceLast)) return false
+  if (msSinceLast <= recoveryCooldownMs(failStreak, cooldownMs)) return false
   if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
   return true
+}
+
+// (v0.52.0) THE HOPELESS-LOOP BRAKE. run51 (fleet 35639593200) mined: F7 lost its
+// pickaxe with no sticks and no planks in the pocket, underground where no tree
+// grows - and the recovery loop re-ran the full ~85s bootstrap (gatherWood <=40s
+// + ensureTools <=45s of pathfinder/craft CPU) every ~60-80s for 350+ seconds,
+// ALWAYS failing ('no planks recipe'). Nineteen bots' worth of that is the
+// runner-CPU exhaustion that made the server time out every client at ts~270s.
+// The brake: every CONSECUTIVE failed recovery stretches the cooldown, so a
+// hopeless bot costs the fleet seconds, not minutes - while a bot that keeps
+// failing for a DIFFERENT reason (a broken table) still retries meaningfully.
+//   streak 0-1 -> 45s   2 -> 90s   3 -> 180s   4+ -> 300s (cap)
+export function recoveryCooldownMs (failStreak = 0, baseMs = 45000) {
+  const n = Number(failStreak)
+  if (!Number.isFinite(n) || n <= 1) return baseMs
+  return Math.min(baseMs * 2 ** (n - 1), baseMs * 6.67) // 300s is the practical cap at the 45s base
 }
 
 // NOTE (v0.9.1): upgradeDue was REMOVED from here. The fleet's mid-run upgrade path

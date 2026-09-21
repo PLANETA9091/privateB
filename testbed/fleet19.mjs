@@ -26,12 +26,13 @@ import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
-import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
+import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
+import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
@@ -315,11 +316,22 @@ async function runBot (name, target, index) {
         // lines - each one a proven scan miss - with ZERO 'scan:' lines; v0401's
         // hop log never landed either). Bounded by construction: 1 scan line per
         // deposit call, <= 8 hops per call, <= 2 swallows per scan.
-        log: m => { if (/combat|died|KICKED|error|climb|water|scan:|hop:|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`) }
+        // (v0.52.0) the same hook feeds the SERVER-DEATH WATCHDOG: transport-
+        // class errors and timeout kicks are fleet-health signals - no new
+        // mineflayer event wiring, the lines already flow through here.
+        log: m => {
+          if (isSocketLossLine(m) || isTimeoutKickLine(m)) {
+            serverGuard.recordLoss()
+            if (serverGuard.suspect) startServerProbe()
+            if (serverGuard.dead) onServerDeath(`transport losses fleet-wide (total ${serverGuard.totalLosses})`)
+          }
+          if (/combat|died|KICKED|error|climb|water|scan:|hop:|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`)
+        }
       })
       bots.set(name, { miner, target })
       seedStats(miner.stats, carry) // (v0.18.9) the reconnect must not erase what the bot already mined
       await miner.ready
+      serverGuard.recordRelogin() // (v0.52.0) a fresh spawn is the server proving it lives - clears SUSPECT
       failStreak = 0 // logged in and alive: the next kick starts the streak from scratch
       if (!yardGoal) yardGoal = miner.bot.entity.position.floored() // a fresh bot logs in at world spawn - the yard
 
@@ -368,6 +380,11 @@ async function runBot (name, target, index) {
       // has already run during it and the first in-loop recovery fires immediately
       // instead of after another 45s of bare-handed digging.
       let lastBootstrap = Date.now()
+      // (v0.52.0) the hopeless-loop brake: every CONSECUTIVE failed recovery (spare
+      // craft AND full bootstrap both failed) stretches the next cooldown 45s -> 90s
+      // -> 180s -> 300s. run51: F7 re-ran a doomed ~85s bootstrap every minute for
+      // 350+s underground - 19 such loops is the CPU exhaustion that killed the link.
+      let recoveryFailStreak = 0
       const needsTools = !miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       if (attempt === 0 || needsTools) {
         if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
@@ -429,7 +446,7 @@ async function runBot (name, target, index) {
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         return r.ok
       }
-      const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now() })
+      const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now(), failStreak: recoveryFailStreak })
       // Tool upgrade chain (toolupgrade.mjs): proactive replacement of a WORN pickaxe
       // and tier raises (wooden->stone via the tools.mjs upgrade flow, stone->iron from
       // smelted ingots). A failed attempt gets a cooldown so a stuck table/craft cannot
@@ -489,6 +506,7 @@ async function runBot (name, target, index) {
           const sp = await craftSparePickaxe(miner.bot, { log: m => console.log(`${name} ${m}`) })
           if (sp.ok) {
             toolsRecovered++
+            recoveryFailStreak = 0 // (v0.52.0) a landing craft resets the brake
             console.log(`${name} tool recovery: OK (spare craft ${sp.tier}, holds ${sp.picks})`)
           } else {
             console.log(`${name} tool recovery: spare craft failed (${sp.reason}) - re-running the bootstrap`)
@@ -496,7 +514,16 @@ async function runBot (name, target, index) {
               await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 40 })
             } catch { /* craft with whatever we have */ }
             const res = await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 45 })
-            if (res.ok) toolsRecovered++
+            if (res.ok) {
+              toolsRecovered++
+              recoveryFailStreak = 0
+            } else {
+              // (v0.52.0) BOTH the pocket craft and the full bootstrap failed -
+              // the loop is hopeless (no wood underground, a broken table): the
+              // next attempt waits 90s/180s/300s instead of burning CPU every minute
+              recoveryFailStreak++
+              console.log(`${name} recovery brake: ${recoveryFailStreak} consecutive failures - next attempt in ${Math.round(recoveryCooldownMs(recoveryFailStreak) / 1000)}s`)
+            }
             console.log(`${name} tool recovery: ${res.ok ? 'OK' : 'failed'} (${res.kit || 'none'})`)
           }
         }
@@ -930,6 +957,54 @@ const heartbeat = startHeartbeat({ intervalMs: 20000 })
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
+// (v0.52.0) SERVER-DEATH WATCHDOG - run49 (dispatch 35630279913) mined 2026-09-22:
+// at ts~550s the vanilla server stopped answering and within ~30 s ALL 19 bot
+// sockets broke (write EPIPE / write ECONNRESET, 6 explicit disconnect.timeout
+// kicks) - while the fleet process kept executing end-phase chains against dead
+// sockets for ~450 s (mineflayer never emitted 'end': zero `disconnected (`
+// lines), the end phase hung past the deadline and the run died in a HARD KILL
+// with banked=0. Detection: a fleet-wide BURST of socket-class errors is the
+// server dying (one bot losing its link is a reconnect, half the fleet is a
+// funeral). Response: end the run honestly - the same orderly shutdown the heap
+// cliff uses - so the report lands and the CI job stops burning its budget.
+const serverGuard = createServerGuard({ total: COUNT })
+let serverDeathHandled = false
+let serverProbeTimer = null
+function stopServerProbe () { if (serverProbeTimer) { clearInterval(serverProbeTimer); serverProbeTimer = null } }
+// (v0.52.0) THE VERDICT LOOP - run51 taught the difference: a transport burst is
+// only SUSPECT. While suspect, a bare TCP connect decides every 5 s: the JVM
+// still accepts (tick-drowned, wave) -> clear and keep mining; refused/timeout
+// -> the server is GONE -> honest shutdown instead of a 400s dead-socket hang.
+function startServerProbe () {
+  if (serverProbeTimer || serverDeathHandled) return
+  console.log(`[fleet] server guard: SUSPECT - ${serverGuard.lossesInWindow} transport losses fleet-wide (threshold ${serverGuard.threshold}); probing 127.0.0.1:25565 every ${PROBE_INTERVAL_MS / 1000}s`)
+  serverProbeTimer = setInterval(async () => {
+    const answer = await probeServerPort({ port: 25565 })
+    serverGuard.recordProbe(answer)
+    const v = serverGuard.pollExpiry()
+    if (v.dead) {
+      stopServerProbe()
+      onServerDeath(`transport losses fleet-wide, port probe ${serverGuard.lastProbe}`)
+    } else if (!v.suspect) {
+      stopServerProbe()
+      console.log('[fleet] server guard: suspect CLEARED - a re-login or a live probe says the server breathes (the run51 wave class); the run continues')
+    }
+  }, PROBE_INTERVAL_MS)
+  serverProbeTimer.unref?.()
+}
+function onServerDeath (detail) {
+  if (serverDeathHandled) return
+  serverDeathHandled = true
+  console.log(`[fleet] SERVER DEATH WATCHDOG: ${detail} - the server stopped answering mid-run; ending the run honestly (the run49 400s end-phase hang class)`)
+  for (const e of bots.values()) { try { e.bot?.quit?.('server death watchdog') } catch { /* going down */ } }
+  // NOT unref'd - same contract as the heap cliff: quit() empties the event loop,
+  // this timer must survive it to print the report.
+  setTimeout(() => {
+    printFinalReport(`server death watchdog - ${detail}`)
+    process.exit(14)
+  }, 3000)
+}
+
 // (v0.26.0) HARD KILL - the run's last-resort exit guarantee. Dispatch
 // 35541442371 (600s, e8f0ce1): every bot stalled inside the final bank chain
 // at once (25+ minutes of NOTHING but heartbeat lines), FLEET RESULT never
@@ -1099,6 +1174,10 @@ function printFinalReport (reason) {
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
+// (v0.52.0) the server-death verdict joins the report: a run whose server died
+// mid-way must be readable as such years later (run49's hang read as a
+// pathfinder bug for a whole session before the socket burst was mined)
+console.log(`server guard: losses=${serverGuard.totalLosses} (window ${serverGuard.lossesInWindow}/${serverGuard.threshold}) relogins=${serverGuard.relogins} probe=${serverGuard.lastProbe ?? 'n/a'} dead=${serverGuard.dead ? 'YES' : 'no'}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 for (const t of TARGETS) {
