@@ -60,8 +60,8 @@ export function needsBanking (bot) {
 // cadence gate + the trip budget); the mechanics live in fleet19's banking
 // branch, which already climbs out, walks to the yard and returns to the
 // remembered column.
-export const BANK_TRIP_EVERY_MS = 180000 // a planned bank trip at most every 3 min of digging
-export const BANK_TRIP_MIN_UNITS = 64 // ...but only when the pockets hold a stack of loot
+export const BANK_TRIP_EVERY_MS = 150000 // a planned bank trip at most every 2.5 min of digging
+export const BANK_TRIP_MIN_UNITS = 48 // ...but only when the pockets hold real loot (measured: ~67 units/bot/600s)
 export const BANK_TRIP_MIN_REMAINING_MS = 330000 // never START a trip inside the last 5.5 min
 export const BANK_TRIP_FLOOR_MS = 120000 // (v0.28.0) a late bank keeps the 120s mid-run cap as the floor
 export const BANK_TRIP_CAP_MS = 300000 // hard ceiling - the 420s hard-kill margin is sacred
@@ -97,6 +97,23 @@ export function bankTripBudgetMs ({ yardDist = 0, floorMs = BANK_TRIP_FLOOR_MS, 
   const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BANK_TRIP_FLOOR_MS
   const cap = Number.isFinite(capMs) && capMs > floor ? capMs : BANK_TRIP_CAP_MS
   return Math.min(Math.max(raw, floor), cap)
+}
+
+// (v0.34.0) THE FINAL bank chain budget: distance-scaled, margin-aware.
+//
+// MEASURED (dispatch 35560497949, 600s on 4c7802b): mined=1274, every bot's
+// pockets at t-0 held 50-121 units of real loot (cobblestone/dirt/andesite) -
+// and 14x 'final bank: 0 (budget exhausted)' STILL fired: the flat 150s chain
+// budget cannot cover a 100-300 block walk back to the yard. The budget must
+// scale with the distance (the same maths as the mining-trip budget), and it
+// must also respect the hard-kill margin: whatever wall clock the bot has
+// left past the deadline (margin minus the stagger and the climb already
+// spent, minus a safety slice for the report) caps it. Near-yard bots keep
+// the historical floor; nobody outruns the kill - by construction.
+export function finalBankBudgetMs ({ yardDist = 0, marginLeftMs = Infinity, floorMs = 150000, capMs = 280000 } = {}) {
+  if (!Number.isFinite(marginLeftMs) || marginLeftMs <= 0) return 0 // no margin left - refuse fast
+  const want = bankTripBudgetMs({ yardDist, floorMs, capMs })
+  return Math.min(want, marginLeftMs)
 }
 
 export function findChest (bot, { maxDistance = 64, exclude = [] } = {}) {

@@ -96,6 +96,11 @@ export function hardKillDelayMs ({ runSeconds = 600, marginMs = HARD_KILL_MARGIN
 /** Default wall-clock budget for one bot's whole final bank chain. */
 export const END_BANK_BUDGET_MS = 150000
 
+/** (v0.34.0) Ceiling for the distance-scaled final bank budget: a far bot may
+ * use up to 280s of chain - the runtime margin clamp (RUN_KILL_AT based) keeps
+ * the 420s hard-kill margin intact regardless. */
+export const END_BANK_BUDGET_CAP_MS = 280000
+
 /**
  * Parse the FLEET_END_BUDGET_MS env value. Pure, junk-tolerant: unset, empty,
  * junk, zero or negative -> the default budget (an env of 0 reads as 'unset':

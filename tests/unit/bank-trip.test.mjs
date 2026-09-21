@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  bankTripDue, bankTripBudgetMs,
+  bankTripDue, bankTripBudgetMs, finalBankBudgetMs,
   BANK_TRIP_EVERY_MS, BANK_TRIP_MIN_UNITS, BANK_TRIP_MIN_REMAINING_MS,
   BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS
 } from '../../src/lib/deposit.mjs'
@@ -72,4 +72,25 @@ test('bankTripBudgetMs: junk distance and junk clamps are tolerated', () => {
     'junk floor falls back to the default')
   assert.equal(bankTripBudgetMs({ yardDist: 0, capMs: 1000 }), BANK_TRIP_FLOOR_MS + 15000,
     'a cap below the floor is ignored (the default cap wins, the baseline budget stands)')
+})
+
+test('finalBankBudgetMs: a near-yard bot keeps the historical 150s floor', () => {
+  assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: 400000, floorMs: 150000, capMs: 280000 }), 150000)
+})
+
+test('finalBankBudgetMs: a far bot gets the distance-scaled budget up to the cap', () => {
+  // 200 blocks: 90s climb + 45s deposit + 2*200*500ms = 335s raw -> the 280s cap
+  assert.equal(finalBankBudgetMs({ yardDist: 200, marginLeftMs: 400000, floorMs: 150000, capMs: 280000 }), 280000)
+})
+
+test('finalBankBudgetMs: whatever hard-kill margin is left caps everything', () => {
+  assert.equal(finalBankBudgetMs({ yardDist: 200, marginLeftMs: 200000, floorMs: 150000, capMs: 280000 }), 200000)
+  assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: 40000, floorMs: 150000, capMs: 280000 }), 40000,
+    'below the floor the bot still uses what is left (a near chest may be reachable)')
+})
+
+test('finalBankBudgetMs: no margin left = refuse at once (named budget exhausted)', () => {
+  assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: 0 }), 0)
+  assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: -5 }), 0)
+  assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: NaN }), 0)
 })

@@ -17,8 +17,8 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs } from '../src/lib/endphase.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs } from '../src/lib/deposit.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -90,6 +90,10 @@ try {
 } catch { /* plan is optional for the report */ }
 
 const deadline = Date.now() + SECONDS * 1000
+// (v0.34.0) the wall clock the hard kill fires at, minus a safety slice for the
+// final report + bot quits: no end-phase chain may budget past this line.
+const RUN_KILL_AT = Date.now() + hardKillDelayMs({ runSeconds: SECONDS })
+const END_PHASE_SAFETY_MS = 30000
 const bots = new Map() // name -> { miner, target }
 const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs)
 let spawned = 0
@@ -700,7 +704,18 @@ async function runBot (name, target, index) {
           // (v0.27.0) the chain runs under a wall-clock budget: doomed walks
           // give up with a named reason instead of churning the path queue
           // until the hard kill (dispatch 35544781892: 420s of silence).
-          const res = await smeltThenBank(miner, { yardGoal, budgetMs: END_BANK_BUDGET })
+          // (v0.34.0) the budget now SCALES with the walk back to the yard: the
+          // flat 150s burned on a 100-300 block walk (14x 'final bank: 0 (budget
+          // exhausted)' in dispatch 35560497949 with pockets FULL of loot) - and
+          // it clamps into whatever hard-kill margin the bot has left, so a long
+          // stagger + climb eats into the walk budget instead of the kill line.
+          const finalBudget = finalBankBudgetMs({
+            yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
+            marginLeftMs: RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now(),
+            floorMs: END_BANK_BUDGET,
+            capMs: END_BANK_BUDGET_CAP_MS
+          })
+          const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
           if (res.deposited > 0) {
             banked += res.deposited
             console.log(`${name} final bank: +${res.deposited}`)
