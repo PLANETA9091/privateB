@@ -897,3 +897,19 @@ Work Log:
 Stage Summary:
 - Мастер: 94060fc (v0.30.0). push-CI + fleet dispatch на c292cf0 проверяются этой сессией.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться fleet 35552013594: ожидание - НЕТ HARD KILL, ЕСТЬ 'FLEET RESULT (normal end)'; climb-доля при 21c278b (bearing rotation); (2) если снова зависшие боты - искать label'ы 'putAway sweep: timeout', 'placeTable *: timeout' в логах = fence сработал и цепочка пошла дальше (это уже НЕ hang, а named failure); (3) runner-watchdog (разрыв молчащей цепочки после дедлайна) - следующий backstop; (4) miner.mjs ещё содержит ~25 raw waitForTicks/lookAt (класс тот же, но там wall-clock бюджеты между итерациями) - fenceить постепенно по фронту; (5) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0953 (part 2)
+Agent: Z.ai Code (cron session, 09:53 +08)
+Task: валидация fleet 35552013594 (v0.29.0) + v0.31.0 hard-kill report
+
+Work Log:
+- Fleet dispatch 35552013594 (c292cf0, 600s): SUCCESS за ~24 мин. ПОЛНАЯ ВАЛИДАЦИЯ end-phase работы v0.27/0.28/0.29: 'FLEET RESULT (normal end - deadline 600s reached)', НОЛЬ 'HARD KILL' строк, fleet-report.json written. mined=1713 @600s = 2.86 b/s, alive=19/19 на t-0, kicks=0, reconnects=3, rescues=9.
+- climbs=8 (последний флот-отчёт; 'final climb: OK' x3 в end-phase) против climbs=0 в прогоне 35550036529 - bearing rotation 21c278b (v0.29.0) работает. banked=0 остаётся - депозит в сундуки ни разу не дошёл (фронт: вода + climbs к yard).
+- 33 'final bank' строк, 30 бюджет-линий ('budget exhausted'/'end-bank budget spent') - финальная цепочка всегда завершается с named reason.
+- push-CI 35552681578 (7e95081) FAILURE: мой тест-мок в craft-fence.test.mjs использовал Map для w.slots - у mineflayer Window.slots МАССИВ, прод-верификация `w.slots[slot]` на Map всегда undefined => moved++ на первой попытке. Тест-фикс 4addf02 (моки на массивах) - push-CI SUCCESS. Оба упавших job'а падали ТОЛЬКО на этом (46/47 файлов).
+- v0.31.0 (566ebf7): HARD KILL теперь выходит через printFinalReport (полный FLEET RESULT + fleet-report.json writeFileSync) вместо голой partial-строки - worst-case прогоны больше не теряют счётчики (урок dispatch 35541442371). try/catch вокруг отчёта, exit гарантирован.
+
+Stage Summary:
+- Мастер: 566ebf7 (v0.31.0). Dispatch на 29498a4 в полёте - первая live-валидация v0.30.0 fence'ов: ждать 'putAway sweep: timeout'/'placeTable *: timeout' как НАЗВАННЫЕ отказы, зависших ботов быть не должно.
+- Фронты: (1) banked=0 - chest-депозит chain; (2) mined 2.86 b/s (лучший 5.4) - ore-steering; (3) runner-watchdog закрыт v0.31.0 (hard-kill evidence); (4) miner.mjs ~25 raw waitForTicks/lookAt - fence'ить по фронту; (5) git pull --rebase перед пушем.
