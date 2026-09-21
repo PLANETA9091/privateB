@@ -7,6 +7,66 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from '.
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 
+// ---------------------------------------------------------------------------
+// (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
+//
+// MEASURED (dispatch 35599777909, v0.43.0+v0.44.0, NORMAL END, mined=3919 best
+// ever): the palette rule opened the warehouse - 304 'hop:' lines, banked=0
+// anyway. Every hop failed: 159x 'Took to long to decide path to goal!' and
+// 102x 'No path to the goal!' while F2 hopped chests from 40 blocks out. The
+// miner's global pathfinder budget (searchRadius=32, thinkTimeout=2000 - the
+// v0.6.5 OOM fix / v0.17.4 CPU cliff) is tuned for TUNNEL walks: short, walled,
+// self-pruning. A yard hop is the opposite - open smooth_stone platform, the
+// A* frontier explodes, and under 19-bot CPU starvation 2000ms buys only a
+// fraction of the search. Worse: the warehouse spans +-26 blocks of the yard
+// origin, so a bot walking back to the yard EDGE stands up to 40+ blocks from
+// the far chest row - the goal sits OUTSIDE a 32-block search box and 'No
+// path' is guaranteed BY CONSTRUCTION, 8 doomed hops per deposit call.
+//
+// The cure, two layers + an honest line:
+//   (1) a chest beyond HOP_SEARCH_RADIUS is not hopped - findChest returns the
+//       NEAREST chest first, so the first out-of-reach chest means ALL of them
+//       are; the loop breaks with a named line and the caller's bankFallback
+//       walks the bot home (the yard walk works - 14 arrivals this fleet),
+//       where every chest is within ~26 blocks;
+//   (2) the hop walk itself runs under a TEMPORARY wider budget (radius 48,
+//       think 4500ms), restored in a finally - the bank walk holds a
+//       PATH_PRIO_BANK throttle slot, so the wider search cannot herd (the
+//       OOM lesson was UNBOUNDED searches; 48 is bounded).
+export const HOP_SEARCH_RADIUS = 48
+export const HOP_THINK_TIMEOUT_MS = 4500
+
+/** Pure: may the pathfinder plausibly reach a chest at this straight-line
+ * distance? Junk-safe - a null/NaN distance is "unknown", which passes (the
+ * walk attempt then decides, as it always has). */
+export function hopReachable (dist, radius = HOP_SEARCH_RADIUS) {
+  const d = Number(dist)
+  if (!Number.isFinite(d)) return true
+  const r = Number.isFinite(radius) && radius > 0 ? radius : HOP_SEARCH_RADIUS
+  return d <= r
+}
+
+/** Run `runFn` with the bot's pathfinder temporarily widened to the hop
+ * budget, restored in a finally (resolve AND reject paths). A bot without a
+ * pathfinder (mocks) or junk fields runs as-is. One bot walks one goal at a
+ * time, so the mutation cannot race a concurrent walk of the SAME bot. */
+export async function withHopPathfinder (bot, runFn) {
+  const pf = bot?.pathfinder
+  const prevRadius = pf ? pf.searchRadius : undefined
+  const prevThink = pf ? pf.thinkTimeout : undefined
+  if (pf) {
+    try { pf.searchRadius = HOP_SEARCH_RADIUS; pf.thinkTimeout = HOP_THINK_TIMEOUT_MS } catch { /* bare mocks */ }
+  }
+  try {
+    return await runFn()
+  } finally {
+    if (pf) {
+      try { pf.searchRadius = prevRadius } catch { /* mocks */ }
+      try { pf.thinkTimeout = prevThink } catch { /* mocks */ }
+    }
+  }
+}
+
 const { goals } = pathfinderPkg
 
 export const CHEST_NAMES = ['chest', 'trapped_chest', 'barrel', 'ender_chest']
@@ -376,7 +436,12 @@ export async function depositToChest (bot, {
   const walkOnce = async label => {
     const ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
     if (ms <= 0) throw new Error('budget exhausted (walk floor)')
-    return gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: ms, label, priority: PATH_PRIO_BANK })
+    // (v0.45.0) the hop runs under the widened hop budget (radius 48, think
+    // 4500ms) and restores the tunnel tuning in a finally - the global 32/2000
+    // pair made every open-platform hop 'No path' or 'Took to long' (304x,
+    // dispatch 35599777909).
+    return withHopPathfinder(bot, () =>
+      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: ms, label, priority: PATH_PRIO_BANK }))
   }
   // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
   // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
@@ -519,6 +584,20 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       log(`[${bot.username ?? 'bot'}] scan: no chest within ${findRadius}b (bankable ${bankableItems()})`)
       break
     }
+    // (v0.45.0) THE FAR-CHEST SKIP: a chest beyond HOP_SEARCH_RADIUS cannot be
+    // hopped - the goal sits outside the pathfinder's search box and 'No path'
+    // is guaranteed BY CONSTRUCTION (102x, dispatch 35599777909; F2 hopped from
+    // 40 blocks out). findChest returns the NEAREST chest first, so the first
+    // out-of-reach chest means ALL of them are - break with a named line and
+    // let the caller's bankFallback walk the bot home (the yard walk works:
+    // 14 arrivals this fleet), where every chest is within ~26 blocks. The
+    // distance is also pinned onto EVERY hop line (d=) so the next mining
+    // round can separate doomed far hops from at-the-yard ones.
+    const hopDist = (() => { try { const d = bot.entity?.position?.distanceTo?.(chest.position); return Number.isFinite(d) ? Math.round(d) : null } catch { return null } })()
+    if (hopDist != null && !hopReachable(hopDist)) {
+      log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}] d=${hopDist} zero: chest beyond the hop search radius ${HOP_SEARCH_RADIUS} - walking home instead`)
+      break
+    }
     const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining() })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
@@ -529,7 +608,9 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       // the log could not say a single thing that happened in that window
       // ('walk to chest' goto events carry no chest identity or reason). One
       // line per failed hop: WHICH chest refused and WHY - bounded by maxChests.
-      log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}] zero: ${res.reason || 'unknown'}`)
+      // (v0.45.0) d= joins the line (the 304-hop fleet could not separate a
+      // doomed 40-block hop from an at-the-yard one).
+      log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}]${hopDist != null ? ` d=${hopDist}` : ''} zero: ${res.reason || 'unknown'}`)
       // (v0.23.1) FLEET EVIDENCE (3e21d58): 5x 'chest unreachable (No path to the
       // goal!)' at final bank - the NEAREST chest's walk dead-ends (a pond, a rim,
       // unloaded chunks) and the whole deposit died with the loot still in pockets.
