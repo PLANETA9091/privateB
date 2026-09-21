@@ -9,6 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS } from '../../src/lib/endphase.mjs'
+import { finalBankSchedule, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
 
 test('slots: deterministic index spacing, bot 0 banks immediately', () => {
   assert.equal(finalBankDelayMs({ index: 0 }), 0)
@@ -82,4 +83,38 @@ test('hardKillDelayMs: junk inputs fall back to the fleet defaults', () => {
   assert.equal(hardKillDelayMs({ runSeconds: NaN }), 600000 + HARD_KILL_MARGIN_MS)
   assert.equal(hardKillDelayMs({ runSeconds: -5, marginMs: NaN }), 600000 + HARD_KILL_MARGIN_MS)
   assert.equal(hardKillDelayMs({ runSeconds: 600, marginMs: -1 }), 600000 + HARD_KILL_MARGIN_MS)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.41.0) END-PHASE MARGIN SCHEDULING - the chain is priced BEFORE the climb.
+// Fleet 35580596054: F1's climb stalled ~85s, then the chain - priced AFTER it -
+// burned ~195s more on doomed wilderness hops. The chain's needs now RESERVE
+// their slice at entry; the climb gets only the remainder.
+test('finalBankSchedule: the climb gets what the chain does not need', () => {
+  assert.equal(CLIMB_MIN_SLICE_MS, 15000, 'the minimum climb slice is pinned - the fleet skip line prints it')
+  // the measured shape: 390s margin at deadline, a 433-block bot's chain wants
+  // the 280s cap -> the climb slice is 110s (>= the 15s minimum, it may run)
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 280000 }), { climbSliceMs: 110000, climbSkipped: false })
+  // a near-yard bot's chain (the 150s floor) leaves a fat climb slice
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000 }), { climbSliceMs: 240000, climbSkipped: false })
+})
+
+test('finalBankSchedule: a thin margin skips the climb, the chain keeps the clock', () => {
+  // margin ~= chain: no climb slice left - a doomed underground staircase is
+  // worth less than the walk home
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 20000 }), { climbSliceMs: 0, climbSkipped: true })
+  // below the minimum slice the climb is skipped too (it cannot usefully start)
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 280000 }), { climbSliceMs: 0, climbSkipped: true })
+  assert.equal(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 8000 }).climbSkipped, true, '12s slice < the 15s minimum')
+  assert.equal(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 8000 }).climbSkipped, false, '22s slice >= the minimum - the climb may run')
+})
+
+test('finalBankSchedule: junk margins collapse to zero, junk chain gives the climb everything', () => {
+  assert.deepEqual(finalBankSchedule({}), { climbSliceMs: 0, climbSkipped: true })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: -5, chainBudgetMs: NaN }), { climbSliceMs: 0, climbSkipped: true })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 100000, chainBudgetMs: NaN }), { climbSliceMs: 100000, climbSkipped: false })
+  assert.equal(finalBankSchedule({ entryMarginMs: NaN, chainBudgetMs: 0 }).climbSkipped, true)
+  // the wall-clock invariant: climbSlice + chainBudget <= entryMargin (up to junk)
+  const s = finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 45000 })
+  assert.ok(s.climbSliceMs + 45000 <= 50000)
 })

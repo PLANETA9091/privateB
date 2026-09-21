@@ -223,3 +223,55 @@ test('findChest: the exclude list skips exactly the dead positions', () => {
   const bot2 = { findBlock: ({ matching }) => [decoy, A].filter(matching)[0] || null }
   assert.equal(findChest(bot2), A, "a chest-shaped name that fails both predicate branches ('chest_minecart' ends in 'minecart', not '_chest') cannot shadow the real chest")
 })
+
+// ---------------------------------------------------------------------------
+// (v0.41.0) THE YARD FILTER - natural worldgen chests must never hijack a bank
+// chain. Fleet 35580596054 evidence: bots dug ~400-450 blocks from the yard,
+// ZERO scan-miss lines fired (findChest found worldgen chests at the y=40-60
+// band), 14/14 fallback whys were 'budget exhausted' and F1 burned ~195s on
+// doomed wilderness hops. With a yard known, only near-yard chests qualify.
+test('findChest: the yard filter accepts a chest inside the yard radius', () => {
+  const yard = new Vec3(0, 64, 0)
+  const chest = { name: 'chest', position: new Vec3(50, 66, 20) } // ~54 blocks from the yard
+  const bot = { findBlock: ({ matching }) => (matching(chest) ? chest : null) }
+  assert.equal(findChest(bot, { yardCenter: yard }), chest, 'a warehouse chest passes the filter')
+})
+
+test('findChest: the yard filter rejects a wilderness worldgen chest', () => {
+  const yard = new Vec3(0, 64, 0)
+  const wild = { name: 'chest', position: new Vec3(-106, 51, 420) } // ~433 blocks out - the F1 case
+  const bot = { findBlock: ({ matching }) => (matching(wild) ? wild : null) }
+  assert.equal(findChest(bot, { yardCenter: yard }), null, 'a mineshaft chest 400+ blocks out is NOT a bank target')
+})
+
+test('findChest: the yard radius boundary and the legacy no-yard behavior', () => {
+  const yard = new Vec3(0, 64, 0)
+  const edge = { name: 'chest', position: new Vec3(64, 64, 0) } // exactly at the radius
+  const beyond = { name: 'chest', position: new Vec3(65, 64, 0) }
+  const bot = { findBlock: ({ matching }) => [edge, beyond].filter(matching)[0] || null }
+  assert.equal(findChest(bot, { yardCenter: yard }), edge, 'exactly at the radius passes (<=)')
+  assert.equal(findChest(bot, { yardCenter: yard, yardRadius: 10 }), null, 'a custom radius shrinks the filter')
+  assert.equal(findChest(bot), edge, 'no yardCenter = legacy behavior, no filter')
+  assert.equal(findChest(bot, { yardCenter: null }), edge, 'an explicit null yard = no filter')
+})
+
+test('findChest: a chest with an unreadable position is skipped while a filter is active', () => {
+  const yard = new Vec3(0, 64, 0)
+  const blind = { name: 'chest', position: null }
+  const junk = { name: 'chest', position: { x: 10, y: NaN, z: 0 } }
+  const bot = { findBlock: ({ matching }) => (matching(blind) ? blind : (matching(junk) ? junk : null)) }
+  assert.equal(findChest(bot, { yardCenter: yard }), null, 'a blind walk is not a delivery - reject')
+  assert.equal(findChest(bot, { yardCenter: yard, yardRadius: 64 }), null)
+})
+
+test('chestNearYard: junk-tolerant pure predicate', async () => {
+  const { chestNearYard } = await import('../../src/lib/deposit.mjs')
+  const yard = { x: 0, y: 64, z: 0 }
+  assert.equal(chestNearYard({ chestPos: { x: 3, y: 64, z: 3 }, yardCenter: yard }), true)
+  assert.equal(chestNearYard({ chestPos: { x: 400, y: 64, z: 0 }, yardCenter: yard }), false)
+  assert.equal(chestNearYard({ chestPos: null, yardCenter: yard }), false, 'no position - no filter pass')
+  assert.equal(chestNearYard({ chestPos: { x: NaN, y: 1, z: 2 }, yardCenter: yard }), false, 'junk position rejected')
+  assert.equal(chestNearYard({ chestPos: { x: 9999, y: 1, z: 2 }, yardCenter: null }), true, 'no yard known - legacy pass')
+  assert.equal(chestNearYard({ chestPos: { x: 9999, y: 1, z: 2 }, yardCenter: { x: NaN, y: 0, z: 0 } }), true, 'junk yard cannot filter')
+  assert.equal(chestNearYard({ chestPos: { x: 40, y: 0, z: 0 }, yardCenter: yard, radius: NaN }), false, 'junk radius -> the default 64 still applies')
+})

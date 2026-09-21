@@ -17,14 +17,15 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
+import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
@@ -126,7 +127,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   if (hasBudget && budgetMs <= 0) return { deposited: 0, reason: 'budget exhausted' }
   const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
   const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
-  const lootOpts = () => ({ keep: keep(), budgetMs: remaining() })
+  const lootOpts = () => ({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
   const pre = await miner.depositLoot(lootOpts())
@@ -741,6 +742,24 @@ async function runBot (name, target, index) {
       const bankable = miner.bot.entity &&
         miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
       if (bankable) {
+        // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the
+        // margin BEFORE the stagger and the climb spend any of it, and the
+        // climb is bounded by what the chain does not need. MEASURED (fleet
+        // 35580596054, v0.40.0): F1's climb stalled ~85s, then the chain -
+        // priced AFTER the climb - burned ~195s more on doomed wilderness
+        // hops and died 'budget exhausted' with a full pocket. The chain's
+        // needs (the walk home + the deposit) now RESERVE their slice first;
+        // the climb gets the remainder and the wall-clock re-clamp below
+        // still cuts the chain into whatever is really left - the margin
+        // cannot be outrun, same construction as v0.34.0.
+        const entryMarginMs = Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now())
+        const chainBudgetMs = finalBankBudgetMs({
+          yardDist: yardGoal && miner.bot.entity ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
+          marginLeftMs: entryMarginMs,
+          floorMs: END_BANK_BUDGET,
+          capMs: END_BANK_BUDGET_CAP_MS
+        })
+        const schedule = finalBankSchedule({ entryMarginMs, chainBudgetMs })
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
         // path throttle 6a/10q - every walk budget burned in the queue). Index-
@@ -762,7 +781,16 @@ async function runBot (name, target, index) {
           // No shouldStop now: climbOut's own maxMs/failLimit budgets bound it.
           // force = even an exhausted ledger gets ONE stage-1 attempt - a refusal
           // here would guarantee the bank failure the climb exists to prevent.
-          const cr = await miner.climbOut({ dir: direction, force: true })
+          // (v0.41.0) ...and the climb now runs INSIDE its slice: maxMs =
+          // min(the historical PILLAR_MAX_MS, what the chain spared). A thin
+          // margin skips the climb entirely - the chain's walk home is worth
+          // more than a doomed underground staircase.
+          let cr
+          if (schedule.climbSkipped) {
+            cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
+          } else {
+            cr = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, schedule.climbSliceMs) })
+          }
           if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
           else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
           // (v0.27.0) the chain runs under a wall-clock budget: doomed walks
@@ -773,12 +801,11 @@ async function runBot (name, target, index) {
           // exhausted)' in dispatch 35560497949 with pockets FULL of loot) - and
           // it clamps into whatever hard-kill margin the bot has left, so a long
           // stagger + climb eats into the walk budget instead of the kill line.
-          const finalBudget = finalBankBudgetMs({
-            yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
-            marginLeftMs: RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now(),
-            floorMs: END_BANK_BUDGET,
-            capMs: END_BANK_BUDGET_CAP_MS
-          })
+          // (v0.41.0) the RESERVED slice from entry (chainBudgetMs) re-clamped
+          // into the wall clock the stagger + climb actually left: the chain
+          // never starts with less than the margin allows, and never outruns
+          // the kill line.
+          const finalBudget = Math.min(chainBudgetMs, Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now()))
           const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
           if (res.deposited > 0) {
             banked += res.deposited

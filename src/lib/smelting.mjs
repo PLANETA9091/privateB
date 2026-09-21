@@ -187,6 +187,7 @@ export async function smeltBatch (bot, {
   inputName,
   count = 64,
   maxSeconds = 90,
+  visitBudgetMs = null, // (v0.41.0) wall-clock cap on the WHOLE visit (walk + open) - the chain budget
   pollMs = 1200, // output poll interval (tests shrink it; production 1.2s)
   smeltSecondsPerItem = 11, // vanilla smelts one item in 10s + lag margin
   fuelReserve = null, // { reservePlanks, reserveLogs, reserveSticks } - null = defaults
@@ -197,19 +198,30 @@ export async function smeltBatch (bot, {
   const invCount = name => countItem(bot, name)
   if (invCount(inputName) <= 0) return { smelted: 0, rescued: 0, reason: 'input not in inventory' }
 
-  // walk to the machine first - openBlock out of reach throws or hangs.
-  // (v0.13.1) RETRY x3: the walk to a machine at a dark shaft bottom gets
-  // interrupted by everything the world throws at the bot - a mob shove engages
-  // the combat flee (its own pathfinder goal stops ours: 'Path was stopped'),
-  // a shelter dig-in, a hurt-sentry pause. One interruption used to waste the
-  // whole smelt visit AND fail the integration test (CI run 109); a bot that
-  // still stands simply walks again. Bounded: 3 attempts, settle pause between.
+  // (v0.41.0) THE VISIT BUDGET - the walk is part of the visit, not a freebie.
+  // MEASURED (fleet 35582520041, v0.40.1, F3): the chain arrived at the yard
+  // ('yard walk arrived in 32s'), the smelt leg then went SILENT for ~94s and
+  // the final deposit died 'budget exhausted' with the loot still pocketed.
+  // smeltBatch's clock only starts AFTER the walk, so the 3x20s machine walk
+  // burned the chain's remaining budget unseen - the 30s deposit reserve was
+  // void by construction. When the caller passes visitBudgetMs, every walk
+  // attempt clamps into the visit's remaining wall clock and a retry that
+  // cannot fit its minimum slice breaks out with a named reason instead of
+  // spending budget the deposit needs. Null = legacy unbounded (mid-run calls).
+  const visitDeadline = Number.isFinite(visitBudgetMs) && visitBudgetMs > 0 ? Date.now() + visitBudgetMs : null
+  const walkSlice = () => {
+    if (visitDeadline == null) return 20000
+    const left = visitDeadline - Date.now()
+    return left < 1000 ? 0 : Math.min(20000, left)
+  }
   let lastWalkError = 'never attempted'
   let walked = false
   let rescueWaited = false // (v0.18.2) one bounded clear-wait per visit
   for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
+    const ms = walkSlice()
+    if (ms <= 0) { lastWalkError = 'visit budget spent (walk slice)'; break }
     try {
-      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: 20000, label: 'walk to furnace' })
+      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: ms, label: 'walk to furnace' })
       walked = true
     } catch (e) {
       lastWalkError = e.message
@@ -233,7 +245,8 @@ export async function smeltBatch (bot, {
 
   let furnace
   try {
-    furnace = await withTimeout(bot.openFurnace(machineBlock), 10000, 'open furnace')
+    const openMs = visitDeadline == null ? 10000 : Math.min(10000, Math.max(1000, visitDeadline - Date.now()))
+    furnace = await withTimeout(bot.openFurnace(machineBlock), openMs, 'open furnace')
   } catch (e) {
     return { smelted: 0, rescued: 0, reason: `cannot open (${e.message})` }
   }
@@ -389,6 +402,10 @@ export async function smeltInventory (bot, {
       if (left() <= 0) break
       for (const block of findMachineBlocks(bot, [machineKind], { maxDistance })) {
         if (Date.now() - started > maxSeconds * 1000) break
+        // (v0.41.0) the visit budget: what the smeltInventory clock still has
+        // is the hard cap for the batch's walk + open (smeltBatch's own
+        // maxSeconds floor cannot overrun it from outside)
+        const remainMs = maxSeconds * 1000 - (Date.now() - started)
         const res = await smeltBatch(bot, {
           machineBlock: block,
           inputName: name,
@@ -396,6 +413,7 @@ export async function smeltInventory (bot, {
           // never hand a batch a sub-second deadline in production (pollMs=1200 ->
           // floor 15s); the floor shrinks with pollMs so fast test mocks stay fast
           maxSeconds: Math.max(15 * (pollMs / 1200), maxSeconds - (Date.now() - started) / 1000),
+          visitBudgetMs: remainMs,
           pollMs,
           smeltSecondsPerItem,
           fuelReserve,

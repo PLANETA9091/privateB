@@ -160,3 +160,47 @@ export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, windowMs
   const m = Number.isFinite(minDistBlocks) && minDistBlocks >= 0 ? minDistBlocks : PRE_POSITION_MIN_DIST
   return d >= m
 }
+
+// ---------------------------------------------------------------------------
+// (v0.41.0) END-PHASE MARGIN SCHEDULING - the chain is priced BEFORE the climb.
+//
+// MEASURED (fleet 35580596054, v0.40.0, 600s, the first NORMAL END): banked=0,
+// 14/14 fallback whys 'budget exhausted'. F1's chain is the anatomy:
+//   stagger 0s -> the final climb STALLED ~85s (bare-hand ceiling digs, the
+//   v0.39.0 patient window never fit the off-ground 5x dig penalty) -> the
+//   chain budget then priced whatever margin was left -> the PRE-DEPOSIT
+//   burned ~195s on doomed wilderness-chest hops -> 'none (budget exhausted)'
+//   at deadline+281s. The margin was not walk-starved, it was
+//   SCHEDULING-starved: the climb spent the margin before the chain was
+//   priced, and the chain then burned what was left underground.
+//
+// THE CURE (pure half - the fleet half lives in fleet19's end phase): price
+// the chain budget from the margin AT END-PHASE ENTRY (before the stagger and
+// the climb spend any of it), and give the climb only what the chain does not
+// need: climbSlice = entryMargin - chainBudget. A climb that cannot afford its
+// minimum slice is SKIPPED - an underground bot's chain is worthless (the yard
+// filter + walk refusals name it in seconds) and a surface bot needs no climb.
+// The wall clock is still king: the caller re-clamps the chain budget into the
+// margin that is actually left after the stagger + climb, so the hard-kill
+// margin can never be outrun - by construction, same as v0.34.0.
+/** Below this the climb cannot usefully start - the chain keeps the slice instead. */
+export const CLIMB_MIN_SLICE_MS = 15000
+
+/**
+ * Split the end-phase entry margin between the chain (reserved) and the climb
+ * (what remains). Pure, junk-tolerant: junk/negative margins collapse to 0, a
+ * junk chain budget reads as 0 (the climb gets everything - the caller's own
+ * re-clamp still protects the wall clock).
+ * @param {object} [p]
+ * @param {number} [p.entryMarginMs] wall clock left before the safety line, measured at end-phase entry
+ * @param {number} [p.chainBudgetMs] the chain's reserved budget (finalBankBudgetMs at entry)
+ * @param {number} [p.minClimbSliceMs] below this the climb is skipped (default CLIMB_MIN_SLICE_MS)
+ * @returns {{climbSliceMs: number, climbSkipped: boolean}}
+ */
+export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS } = {}) {
+  const m = Number.isFinite(entryMarginMs) && entryMarginMs > 0 ? entryMarginMs : 0
+  const c = Number.isFinite(chainBudgetMs) && chainBudgetMs > 0 ? chainBudgetMs : 0
+  const min = Number.isFinite(minClimbSliceMs) && minClimbSliceMs >= 0 ? minClimbSliceMs : CLIMB_MIN_SLICE_MS
+  const climbSliceMs = Math.max(0, m - c)
+  return { climbSliceMs, climbSkipped: climbSliceMs < min }
+}

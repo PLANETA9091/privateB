@@ -378,3 +378,57 @@ test('smeltInventory stops instantly with a negative time budget', async () => {
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: -1 })
   assert.equal(res.smelted, 0, 'no budget -> no smelting, no crash')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.41.0) THE VISIT BUDGET - the machine walk is part of the visit. Fleet
+// 35582520041 F3: the chain reached the yard, the smelt leg went silent ~94s
+// (3x20s machine walk, unseen by every budget) and the final deposit died
+// 'budget exhausted' with the loot still pocketed. The visit budget clamps
+// every walk attempt into the caller's remaining wall clock.
+test('smeltBatch: a visit budget stops the walk retries when the clock is out', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const slices = []
+  // a slow-failing walk: each attempt burns ~1.6s of the visit's wall clock
+  bot.pathfinder.goto = async goal => {
+    slices.push(goal)
+    await new Promise(r => setTimeout(r, 1600))
+    throw new Error('walk to furnace: timeout after Nms')
+  }
+  const t0 = Date.now()
+  const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST, visitBudgetMs: 3000 })
+  const elapsed = Date.now() - t0
+  assert.match(res.reason, /machine unreachable/)
+  assert.match(res.reason, /visit budget spent|timeout/, 'the last walk error names why it gave up')
+  assert.ok(slices.length < 3, `a 3s visit budget must not fund 3 x 1.6s walks + pauses (got ${slices.length})`)
+  assert.ok(elapsed < 8000, `the visit stays inside its budget wall (elapsed ${elapsed}ms)`)
+})
+
+test('smeltBatch: no visit budget keeps the legacy 3 walk attempts', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  let calls = 0
+  bot.pathfinder.goto = async () => { calls++ ; throw new Error('no path') }
+  const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
+  assert.equal(calls, 3, 'legacy behavior: 3 bounded walk attempts')
+  assert.match(res.reason, /machine unreachable/)
+})
+
+test('smeltInventory: the visit budget threads into every batch it starts', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)] })
+  const seen = []
+  bot.pathfinder.goto = async goal => {
+    seen.push(goal)
+    await new Promise(r => setTimeout(r, 1500))
+    throw new Error('walk to furnace: timeout after Nms')
+  }
+  const t0 = Date.now()
+  // maxSeconds 3: the smeltInventory clock must stop the SLOW walk before it
+  // can burn multiples of its budget (the F3 shape: the walk ate ~3x the clock)
+  const res = await smeltInventory(bot, { ...FAST, maxSeconds: 3 })
+  const elapsed = Date.now() - t0
+  assert.equal(res.smelted, 0)
+  assert.ok(elapsed < 9000, `the smelt leg respects its wall clock (elapsed ${elapsed}ms)`)
+  assert.ok(seen.length <= 2, `the visit budget cut the walk retries (got ${seen.length})`)
+})

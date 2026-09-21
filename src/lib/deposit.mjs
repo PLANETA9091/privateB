@@ -116,7 +116,48 @@ export function finalBankBudgetMs ({ yardDist = 0, marginLeftMs = Infinity, floo
   return Math.min(want, marginLeftMs)
 }
 
-export function findChest (bot, { maxDistance = 64, exclude = [], log } = {}) {
+// (v0.41.0) THE YARD FILTER - natural-chest worldgen must never hijack a bank
+// chain. MEASURED (fleet 35580596054, v0.40.0, the first NORMAL END): the bots
+// dug ~400-450 blocks from the yard (dig-fail cells at x=-100..-145, z=388..425
+// vs the yard at the spawn origin) - yet ZERO 'scan: no chest within 64b' lines
+// printed and ZERO 'walking back' lines fired, while 14/14 fallback whys were
+// 'budget exhausted' and F1 burned ~195s INSIDE the pre-deposit in silence.
+// The only chests findChest can have found are VANILLA WORLDGEN chests
+// (mineshaft/cave/dungeon loot chests at the y=40-60 dig band - CHEST_NAMES
+// matches the plain 'chest' block). Every pre-deposit hopped doomed walks to a
+// wilderness chest until the chain's clock died, and the yard walk - the only
+// delivery that means anything for the materials plan - never fired (the
+// v0.38.0 table maps 'budget exhausted' -> none, correctly). Even a SUCCESSFUL
+// hop would BANK THE LOOT INTO A WILDERNESS CHEST - lost to the plan anyway.
+//
+// THE CURE: when the caller knows the yard, a chest only qualifies as a bank
+// target if it sits within YARD_CHEST_RADIUS of the yard center. In the
+// wilderness the scan then returns null honestly ('scan: no chest within 64b')
+// and bankFallback walks the bot HOME - the exact flow v0.36.0's pre-position
+// and v0.19.0's yard-walk retries were built for. At the yard the warehouse
+// chests all pass the filter and the deposit proceeds unchanged. Junk-tolerant:
+// no yard known (null center) = no filter (legacy), a chest with an unreadable
+// position is SKIPPED while a filter is active (a blind walk is not a delivery).
+export const YARD_CHEST_RADIUS = 64
+
+/** Pure predicate: may this chest position serve as a bank target for a bot
+ * banking toward `yardCenter`? Plain-values only (positions stay in the
+ * caller), junk-safe: a filter with an unreadable chest position rejects -
+ * the fleet cannot deliver to a chest it cannot locate. */
+export function chestNearYard ({ chestPos = null, yardCenter = null, radius = YARD_CHEST_RADIUS } = {}) {
+  if (!yardCenter) return true // no yard known - no filter (legacy behavior)
+  const r = Number.isFinite(radius) && radius > 0 ? radius : YARD_CHEST_RADIUS
+  const p = chestPos
+  if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) return false
+  const y = yardCenter
+  if (!Number.isFinite(y.x) || !Number.isFinite(y.y) || !Number.isFinite(y.z)) return true // junk yard - cannot filter
+  const dx = p.x - y.x
+  const dy = p.y - y.y
+  const dz = p.z - y.z
+  return Math.sqrt(dx * dx + dy * dy + dz * dz) <= r
+}
+
+export function findChest (bot, { maxDistance = 64, exclude = [], log, yardCenter = null, yardRadius = YARD_CHEST_RADIUS } = {}) {
   // (v0.38.0) FLEET EVIDENCE (dispatch 35569034780): F19 stood 19 blocks from the
   // yard's 50 VERIFIED chests (the [yard] survey counted them seconds earlier) and
   // findChest(64) returned null TWICE - pre-deposit and again after the yard walk
@@ -138,6 +179,10 @@ export function findChest (bot, { maxDistance = 64, exclude = [], log } = {}) {
         const hit = exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z)
         if (hit) return false
       }
+      // (v0.41.0) the yard filter: a chest far from the yard is worldgen loot
+      // (or another bot's stray) - hopping it burns the chain's clock and the
+      // loot would land nowhere near the warehouse either way
+      if (!chestNearYard({ chestPos: b.position, yardCenter, radius: yardRadius })) return false
       return true
     },
     maxDistance
@@ -426,7 +471,7 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
@@ -451,7 +496,7 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   if (bankableItems() <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['nothing to deposit'] }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
     if (deadline != null && remaining() <= 0) { reports.push('budget exhausted'); break }
-    const chest = findChest(bot, { maxDistance: findRadius, exclude: tried, log })
+    const chest = findChest(bot, { maxDistance: findRadius, exclude: tried, log, yardCenter, yardRadius })
     if (!chest) {
       // (v0.38.0) the scan-miss names itself: 'no chest in range' has been proven
       // a lie twice (F19: null at 19 blocks from 50 verified chests) - this line
