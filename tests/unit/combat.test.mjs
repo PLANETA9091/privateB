@@ -2,13 +2,15 @@
 // The 2026-09-20 smelt-test measured a midday death where the digShaft health
 // guard "paused descent" while a zombie hit 20 -> 14.7 -> 5.7 -> dead in 9 s -
 // these tests pin the fight-or-flee decisions that layer now executes.
+// v0.47.0 adds the melee-armed shelter gate regression pins.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   HOSTILE_NAMES, RANGED_HOSTILES, DETECT_RANGE, ENGAGE_RANGE, RANGED_ENGAGE_RANGE,
   CREEPER_FLEE_RANGE, FLEE_HP, SWARM_FLEE_HP, SWARM_SIZE,
-  isHostileEntity, pickWeapon, threatVerdict
+  isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict
 } from '../../src/lib/combat.mjs'
+import { shelterDue } from '../../src/lib/shelter.mjs'
 
 test('HOSTILE_NAMES: the mob classes the fleet actually meets are covered', () => {
   for (const name of ['zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'spider', 'cave_spider', 'witch', 'slime', 'enderman', 'phantom', 'blaze', 'wither_skeleton']) {
@@ -116,4 +118,51 @@ test('policy constants stay in a sane relation to each other', () => {
   assert.equal(DETECT_RANGE >= RANGED_ENGAGE_RANGE, true, 'the scanner must see what the verdict engages')
   assert.equal(FLEE_HP < SWARM_FLEE_HP, true)
   assert.equal(CREEPER_FLEE_RANGE > 3, true, 'the vanilla blast radius is 3 - fleeing at <=3 would be too late')
+})
+
+// ---- v0.47.0: the melee-armed shelter gate ----
+// Fleet 35599777909 (v0.46.0) measured 17 deaths with shelters=0: every dead
+// bot held a pickaxe, pickWeapon counted it as a weapon, so the shelter gate
+// read armed=true and the whole shelter branch was dead code for miners. A
+// 3-dmg pickaxe loses the following fight the same way the measured fists do
+// (17 hp -> 4.3 hp, zombie alive); only a sword (4-5 dmg) or an axe (7-9 dmg)
+// is a real melee weapon.
+test('pickMeleeWeapon: swords and axes are melee, tools are not', () => {
+  assert.equal(pickMeleeWeapon([{ name: 'stone_pickaxe' }]), null, 'a pickaxe is a tool, not a melee weapon')
+  assert.equal(pickMeleeWeapon([{ name: 'iron_shovel' }]), null)
+  assert.equal(pickMeleeWeapon([{ name: 'wooden_hoe' }]), null)
+  assert.equal(pickMeleeWeapon([{ name: 'stone_sword' }])?.name, 'stone_sword', 'a sword is the melee weapon')
+  assert.equal(pickMeleeWeapon([{ name: 'stone_axe' }])?.name, 'stone_axe', 'an axe is a real melee weapon (7-9 dmg)')
+  assert.equal(pickMeleeWeapon(null), null)
+  assert.equal(pickMeleeWeapon([]), null)
+  assert.equal(pickMeleeWeapon([{ name: 'dirt' }, { count: 3 }]), null, 'junk items are skipped')
+})
+
+test('pickMeleeWeapon: type and material ordering match pickWeapon semantics', () => {
+  assert.equal(pickMeleeWeapon([{ name: 'wooden_sword' }, { name: 'stone_axe' }])?.name, 'wooden_sword',
+    'type outranks material: sword(5) beats axe(4) even in better material')
+  assert.equal(pickMeleeWeapon([{ name: 'wooden_axe' }, { name: 'golden_sword' }])?.name, 'golden_sword',
+    'the golden sword outscores the wooden axe (same as pickWeapon)')
+  assert.equal(pickMeleeWeapon([{ name: 'wooden_axe' }, { name: 'diamond_axe' }])?.name, 'diamond_axe',
+    'material breaks ties within a type')
+})
+
+test('pickWeapon keeps counting pickaxes: the fight-equip path is unchanged', () => {
+  assert.equal(pickWeapon([{ name: 'stone_pickaxe' }])?.name, 'stone_pickaxe',
+    'a pickaxe still beats fists when a fight happens anyway (equip path)')
+  assert.equal(pickWeapon([{ name: 'stone_pickaxe' }, { name: 'wooden_sword' }])?.name, 'wooden_sword')
+})
+
+test('REGRESSION PIN: a pickaxe-only bot is naked for shelterDue', () => {
+  // the exact wiring tryShelter uses (miner.mjs v0.47.0): the shelter gate
+  // must see armed=false for a pickaxe-only miner, or the 17-death class
+  // (shelters=0) stays sealed
+  const pickaxePocket = [{ name: 'stone_pickaxe', count: 1 }, { name: 'dirt', count: 12 }]
+  assert.equal(!!pickMeleeWeapon(pickaxePocket), false, 'pickaxe-only = no melee weapon')
+  assert.equal(shelterDue({ night: true, armed: !!pickMeleeWeapon(pickaxePocket), threatDist: 5 }), true,
+    'a pickaxe-only miner at night with a zombie at 5 MUST shelter')
+  // and the armed bot keeps the old behaviour: a sword holder fights or flees,
+  // never seals (the shelter is for the naked)
+  const swordPocket = [{ name: 'stone_sword', count: 1 }, { name: 'dirt', count: 12 }]
+  assert.equal(shelterDue({ night: true, armed: !!pickMeleeWeapon(swordPocket), threatDist: 5 }), false)
 })

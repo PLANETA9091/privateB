@@ -62,9 +62,17 @@ export function isHostileEntity (e) {
 const WEAPON_TYPE_RANK = { sword: 5, axe: 4, pickaxe: 3, shovel: 2, hoe: 1 }
 const WEAPON_MATERIAL_RANK = { netherite: 6, diamond: 5, iron: 4, stone: 3, golden: 2, wooden: 1 }
 
-/** Best melee item from an inventory item list (or null = fight with the fist).
- * @param {Array<{name?:string}>|null|undefined} items */
-export function pickWeapon (items) {
+// MELEE-capable classes only: a sword (4-5 dmg) or an axe (7-9 dmg) wins the
+// following fight; a pickaxe (3 dmg), shovel (2.5) and hoe (1) are TOOLS. The
+// live measurement (fists 1-2 dmg: 17 hp -> 4.3 hp, zombie alive) puts the
+// 3-dmg pickaxe in the same losing class against a 20 hp zombie swinging
+// 2.5/s - and fleet 35599777909 (v0.46.0) measured 17 deaths with shelters=0
+// BECAUSE every dead bot held a pickaxe: the shelter gate read armed=true and
+// sealed the shelter branch BY CONSTRUCTION. The shelter policy and anything
+// that feeds it must ask pickMeleeWeapon, not pickWeapon.
+export const MELEE_TYPE_RANK = { sword: 5, axe: 4 }
+
+function pickByTypeRanks (items, typeRank) {
   if (!Array.isArray(items)) return null
   let best = null
   let bestKey = null
@@ -72,13 +80,27 @@ export function pickWeapon (items) {
     if (!item || typeof item.name !== 'string') continue
     const [mat, ...rest] = item.name.split('_')
     const type = rest.join('_')
-    const t = WEAPON_TYPE_RANK[type]
+    const t = typeRank[type]
     if (!t) continue // tools that are not weapons, armour, blocks - all skipped
     const m = WEAPON_MATERIAL_RANK[mat] ?? 0
     const key = t * 10 + m
     if (bestKey === null || key > bestKey) { best = item; bestKey = key }
   }
   return best
+}
+
+/** Best melee item from an inventory item list (or null = fight with the fist).
+ * @param {Array<{name?:string}>|null|undefined} items */
+export function pickWeapon (items) {
+  return pickByTypeRanks(items, WEAPON_TYPE_RANK)
+}
+
+/** Best MELEE weapon (sword or axe) from an inventory item list, or null when
+ * the bot holds only tools - a pickaxe-only bot is NAKED for the shelter
+ * policy: it loses the following fight the same way fists do.
+ * @param {Array<{name?:string}>|null|undefined} items */
+export function pickMeleeWeapon (items) {
+  return pickByTypeRanks(items, MELEE_TYPE_RANK)
 }
 
 /**

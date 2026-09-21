@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, pickSealItem, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST } from '../lib/shelter.mjs'
 import {
@@ -284,7 +284,13 @@ export function createMiner ({
 
   async function tryShelter (reason) {
     const threat = nearestHostile()
-    const armed = !!pickWeapon(inventoryItems(bot))
+    // (v0.47.0) the MELEE gate: a pickaxe-only bot is naked for the shelter
+    // policy - pickWeapon counts pickaxes/shovels/hoes as weapons, and fleet
+    // 35599777909 measured 17 deaths with shelters=0 because every miner held
+    // a pickaxe, so armed=true sealed this branch BY CONSTRUCTION. A 3-dmg
+    // pickaxe loses the following fight the same way the measured 1-2 dmg
+    // fists do; only a sword/axe (4-9 dmg) counts as armed here.
+    const armed = !!pickMeleeWeapon(inventoryItems(bot))
     const night = isNight(bot.time?.timeOfDay)
     if (!threat || !shelterDue({ night, armed, threatDist: threat ? threat.dist : Infinity })) {
       log(`${tag} combat: shelter skip (night=${night} armed=${armed} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
