@@ -8,7 +8,7 @@
 // and junk tolerance matching the rest of the lib.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS } from '../../src/lib/endphase.mjs'
+import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS, FINAL_BANK_REF_DIST } from '../../src/lib/endphase.mjs'
 import { finalBankSchedule, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
 
 test('slots: deterministic index spacing, bot 0 banks immediately', () => {
@@ -186,5 +186,5 @@ test('distance slots: junk distance falls back to the legacy index spread', () =
   // junk refDist keeps the default reference; a custom one rescales the band
   assert.equal(finalBankDelayMs({ yardDist: 40, refDist: NaN }), finalBankDelayMs({ yardDist: 40 }))
   assert.equal(finalBankDelayMs({ yardDist: 40, refDist: 80 }), finalBankDelayMs({ yardDist: 40 }))
-  assert.equal(finalBankDelayMs({ yardDist: 20, refDist: 40 }), 0, 'half the reference = mid slot')
+  assert.equal(finalBankDelayMs({ yardDist: 20, refDist: 40 }), 64000, 'half the reference = the mid slot (round(7.5)=8 -> 8*8000)')
 })
