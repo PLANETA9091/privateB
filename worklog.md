@@ -963,3 +963,19 @@ Stage Summary:
 - Мастер: 6d14592 (v0.33.0). push-CI перепроверяется; флот-диспатч будет ПОСЛЕДНИМ действием сессии (урок 09:53: не пушить во время диспатча).
 - Ожидание на диспатче: строки 'F# bank trip: planned budget Ns', banked>0, уход 14x 'final bank: 0 (budget exhausted)'; hanging/нормальный конец сохраняются (3 прогона подряд).
 - След. фронты: (1) airGlitches/rescues (76/17 в слабом прогоне) - сенсор кислорода; (2) miner.mjs ~25 raw waitForTicks/lookAt - fence'ить по фронту; (3) mined rate 1.3-2.9 b/s против лучших 5.4 - ore-steering; (4) scout->miner worldmap routing.
+
+---
+Task ID: 398294-20260921-1153 (final)
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: финал - v0.34.0 + разбор fleet 35562867668
+
+Work Log:
+- Fleet 35562867668 (d66ef6a, v0.34.0): job SUCCESS, но снова HARD KILL + banked=0. mined=875 (слабый мир), карманы на t-0 всего 19-64 юнита (F1=32[log+planks+sapling - почти весь KEEP]).
+- 0 'bank trip' строк - КОРРЕКТНО: units-гейт (48) не достигнут в узком окне при слабой добыче; в rich-мире (1274+) трипы могут сработать.
+- 13x 'final bank: 0 (budget exhausted)' ПРИ dist-scaled бюджете => СЛЕДУЮЩАЯ СТЕНА: per-walk кап CHEST_WALK_CAP_MS=60s (deposit.mjs v0.18.5) - прогулка 100-300 блоков физически не влезает в 60s на хоп, сколько бы цепочка ни получила. Бюджет цепочки вырос, хопы - нет.
+- HARD KILL (3-й раз) висит ВНЕ цепочки: climbs=0, НЕТ строк 'final climb' до kill'а - climbOut/smelt-путь не полностью fence'ен (v0.30 закрыл только craft-path). Обрыв сразу после reporter-строк t-0.
+- airGlitches=712 (F1: 701 'oxygen 0 on dry land' - 'ignored', телеметрия 26.2): шум не вредит боту, но 700+ строк - это спам лога; rate-limit per-bot.
+
+Stage Summary:
+- Мастер: d66ef6a (v0.34.0), CI ЗЕЛЁНЫЙ (unit+integration). 3 флот-диспатча за сессию проанализированы (35560497949, 35562867668 + прошлой сессии).
+- ПЛАН v0.35.0: (1) ГЛАВНОЕ - pre-position: за ~90s до дедлайна бот ПРЕКРАЩАЕТ копать и идёт К двору (worldmap знает путь), финальный банк тогда короткий; (2) ЛИБО dist-scale per-walk кап yard-walk'а (120s x3 уже есть - проверять, почему не используется для дальних ботов); (3) fence climbOut/smelt внутри end-phase (4-й класс зависания); (4) airGlitch лог rate-limit (1 строка/бот/30s); (5) git pull --rebase, диспатч ПОСЛЕ последнего пуша.
