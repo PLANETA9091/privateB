@@ -51,6 +51,24 @@ export function recoverCraftWindow (bot, log = null) {
   return false
 }
 
+// (v0.30.0) FENCES for the craft/tool path: an inventory click (putAway), an equip,
+// a block placement (placeBlock) or a physics wait (waitForTicks) all talk to the
+// SERVER - on a stalled or dead socket those promises NEVER settle, and everything
+// awaiting them hangs forever. Measured in fleet 35550036529: F13 hung inside
+// sweepGridItems -> bot.putAway(slot) after 'error: write ECONNRESET' (the craft-catch
+// recovery ran on the corpse of the connection), F8 hung in the placeTable pacing
+// loop. Healthy calls finish far under the fences; a timeout rejects and the
+// surrounding catch blocks treat it like any other failed attempt.
+const EQUIP_FENCE_MS = 5000
+const PLACE_FENCE_MS = 8000
+const TICK_FENCE_MS = 3000
+const SWEEP_FENCE_MS = 3000
+
+// physics wait, fenced; a bot without waitForTicks has nothing to wait on
+export const tickWait = (bot, n, label = 'ticks') => bot.waitForTicks
+  ? withTimeout(bot.waitForTicks(n), TICK_FENCE_MS, `${label} x${n}`)
+  : Promise.resolve()
+
 // When closeWindow is not enough (the 26.2 stack sometimes keeps ghost slots), move the
 // leftover grid items back into the main inventory by hand. Slot layout: table windows
 // hold the 3x3 grid in slots 1..9, the player inventory window holds its 2x2 grid in
@@ -68,7 +86,14 @@ export async function sweepGridItems (bot) {
     for (const [slot, it] of [...w.slots.entries()]) {
       if (!it || slot < 1 || slot > lastGridSlot) continue
       for (let attempt = 0; attempt < 3; attempt++) {
-        try { await bot.putAway(slot) } catch { /* retry, then give up on this slot */ }
+        try {
+          await withTimeout(bot.putAway(slot), SWEEP_FENCE_MS, 'putAway sweep')
+        } catch (e) {
+          // a plain error -> retry the slot; a FENCE TIMEOUT means the socket is dead
+          // and no click will ever land again - burning the remaining attempts on it is
+          // exactly how F13 hung (unbounded putAways, one per attempt, forever)
+          if (/timeout after \d+ms/.test(e.message)) break
+        }
         if (!w.slots[slot]) { moved++; break } // VERIFIED: the slot really emptied
       }
     }
@@ -209,7 +234,7 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
       if (find()) continue
     }
     try {
-      await bot.equip(tableItem, 'hand')
+      await withTimeout(bot.equip(tableItem, 'hand'), EQUIP_FENCE_MS, 'equip table')
       const feet = bot.entity.position.floored()
       let placed = false
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
@@ -223,13 +248,13 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
             // all 8 neighbour attempts back-to-back made every packet after the first be
             // silently dropped - the table never appeared and the bot reported
             // 'no crafting table'. 250ms > the 200ms server throttle.
-            await bot.waitForTicks(5)
-            await bot.placeBlock(floorB, new Vec3(0, 1, 0))
+            await tickWait(bot, 5, 'placeTable pre-click')
+            await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), PLACE_FENCE_MS, 'placeBlock table')
             // VERIFY PACING (CI 3fd2e8a, ProdTest1): placeBlock resolves on the SENT
             // packet, the server's block-update arrives a few ticks later. Reading the
             // chunk at once serves the stale cell, the verify fails, the round loop
             // spins on - and the table item is already consumed. Wait out the update.
-            if (bot.waitForTicks) await bot.waitForTicks(10)
+            await tickWait(bot, 10, 'placeTable verify')
             const placedB = bot.blockAt(cell)
             if (placedB && placedB.name === 'crafting_table') return placedB
             placed = true
@@ -240,14 +265,14 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
           // neighbour cell water or wall). fastDig, NOT bot.dig - under the rage
           // digTime=0 patch bot.dig resolves instantly WITHOUT breaking the block.
           try {
-            await bot.waitForTicks(5)
+            await tickWait(bot, 5, 'placeTable carve pre')
             await withTimeout(bot.fastDig(cellB), 10000, `carve table cell ${cell}`)
             const freed = bot.blockAt(cell)
             if (freed && freed.boundingBox === 'empty') {
-              await bot.equip(tableItem, 'hand')
-              await bot.waitForTicks(5)
-              await bot.placeBlock(floorB, new Vec3(0, 1, 0))
-              if (bot.waitForTicks) await bot.waitForTicks(10) // same verify pacing as above
+              await withTimeout(bot.equip(tableItem, 'hand'), EQUIP_FENCE_MS, 'equip table (carve)')
+              await tickWait(bot, 5, 'placeTable carve place')
+              await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), PLACE_FENCE_MS, 'placeBlock table (carve)')
+              await tickWait(bot, 10, 'placeTable verify') // same verify pacing as above
               const placedB = bot.blockAt(cell)
               if (placedB && placedB.name === 'crafting_table') return placedB
               placed = true
@@ -262,9 +287,9 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         // fastDig when the bot has it (miner bots: bot.dig is a no-op under the
         // digTime=0 patch - the block never breaks); fenced either way
         await withTimeout(bot.fastDig ? bot.fastDig(below) : bot.dig(below), 10000, 'dig below for table placement')
-        await bot.waitForTicks(15) // fall one block
+        await tickWait(bot, 15, 'placeTable fall')
       } else {
-        await bot.waitForTicks(10) // already airborne - let gravity settle us
+        await tickWait(bot, 10, 'placeTable settle')
       }
     } catch { /* fall through to the next round */ }
   }
