@@ -230,13 +230,21 @@ export const CLIMB_MIN_SLICE_MS = 15000
  * @param {object} [p]
  * @param {number} [p.entryMarginMs] wall clock left before the safety line, measured at end-phase entry
  * @param {number} [p.chainBudgetMs] the chain's reserved budget (finalBankBudgetMs at entry)
+ * @param {number} [p.staggerDelayMs] the stagger sleep the caller runs BETWEEN entry and the climb
+ *   (default 0). (v0.49.0) FLEET 35605960761 F4: the slice ignored this window -
+ *   entry margin 381s, chain 150s, slice 231s, stagger +72s - the climb's wall
+ *   clock overlapped the chain's reserve by exactly the stagger, and after the
+ *   (escalated) climb overran, the re-clamp handed the chain ~19s: every hop
+ *   'budget exhausted (walk floor)', banked=0 with the bot 17 blocks from the
+ *   yard, pockets full. The slice now prices the stagger FIRST.
  * @param {number} [p.minClimbSliceMs] below this the climb is skipped (default CLIMB_MIN_SLICE_MS)
  * @returns {{climbSliceMs: number, climbSkipped: boolean}}
  */
-export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS } = {}) {
+export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, staggerDelayMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS } = {}) {
   const m = Number.isFinite(entryMarginMs) && entryMarginMs > 0 ? entryMarginMs : 0
   const c = Number.isFinite(chainBudgetMs) && chainBudgetMs > 0 ? chainBudgetMs : 0
+  const s = Number.isFinite(staggerDelayMs) && staggerDelayMs > 0 ? staggerDelayMs : 0
   const min = Number.isFinite(minClimbSliceMs) && minClimbSliceMs >= 0 ? minClimbSliceMs : CLIMB_MIN_SLICE_MS
-  const climbSliceMs = Math.max(0, m - c)
+  const climbSliceMs = Math.max(0, m - s - c)
   return { climbSliceMs, climbSkipped: climbSliceMs < min }
 }

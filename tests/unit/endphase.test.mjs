@@ -188,3 +188,44 @@ test('distance slots: junk distance falls back to the legacy index spread', () =
   assert.equal(finalBankDelayMs({ yardDist: 40, refDist: 80 }), finalBankDelayMs({ yardDist: 40 }))
   assert.equal(finalBankDelayMs({ yardDist: 20, refDist: 40 }), 64000, 'half the reference = the mid slot (round(7.5)=8 -> 8*8000)')
 })
+
+// ---- v0.49.0: the schedule prices the STAGGER WINDOW first ----
+// Fleet 35605960761 F4: entry margin 381s, chain 150s, slice 231s, stagger
+// +72s - the slice ignored the stagger sleep that runs BETWEEN entry and the
+// climb, so the climb's wall clock overlapped the chain's reserve by exactly
+// the stagger; after the (escalated) climb overran, the re-clamp handed the
+// chain ~19s and every hop died 'budget exhausted (walk floor)' with the bot
+// 17 blocks from the yard, pockets full.
+test('finalBankSchedule: the stagger window is priced BEFORE the slice', () => {
+  // the F4 arithmetic: 381s margin - 72s stagger - 150s chain = 159s slice
+  // (the old maths gave 231s - 72s of it was a lie the wall clock collected)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 381000, chainBudgetMs: 150000, staggerDelayMs: 72000 }),
+    { climbSliceMs: 159000, climbSkipped: false }
+  )
+  // a late entry whose margin barely covers stagger + chain: the climb skips
+  // honestly instead of borrowing from the reserve
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 210000, chainBudgetMs: 150000, staggerDelayMs: 72000 }),
+    { climbSliceMs: 0, climbSkipped: true }
+  )
+  // no stagger = the legacy maths exactly (backward compatibility)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000 }),
+    finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000, staggerDelayMs: 0 })
+  )
+  // junk stagger reads as 0
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000, staggerDelayMs: NaN }),
+    { climbSliceMs: 240000, climbSkipped: false }
+  )
+  // the invariant that protects banked>0: slice + stagger + chain <= margin
+  for (const [m, s, c] of [[381000, 72000, 150000], [390000, 120000, 280000], [100000, 8000, 150000]]) {
+    const r = finalBankSchedule({ entryMarginMs: m, chainBudgetMs: c, staggerDelayMs: s })
+    if (!r.climbSkipped) {
+      assert.ok(r.climbSliceMs + s + c <= m, `slice ${r.climbSliceMs} + stagger ${s} + chain ${c} <= margin ${m}`)
+    } else {
+      assert.ok(m - s - c < CLIMB_MIN_SLICE_MS, 'a skipped climb really had no room')
+    }
+  }
+})

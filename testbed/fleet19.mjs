@@ -772,7 +772,6 @@ async function runBot (name, target, index) {
           floorMs: END_BANK_BUDGET,
           capMs: END_BANK_BUDGET_CAP_MS
         })
-        const schedule = finalBankSchedule({ entryMarginMs, chainBudgetMs })
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
         // path throttle 6a/10q - every walk budget burned in the queue). Index-
@@ -785,6 +784,12 @@ async function runBot (name, target, index) {
         // The farthest bot takes the FIRST slot; near bots open last, when the
         // throttle is empty and their 0-5s walks churn instantly.
         const delayMs = finalBankDelayMs({ index, yardDist })
+        // (v0.49.0) the schedule prices the STAGGER WINDOW first: the slice the
+        // climb gets must never overlap the stagger sleep that runs before it
+        // (F4, fleet 35605960761: entry margin 381s, chain 150s, slice 231s,
+        // stagger +72s - the overlap ate the chain's reserve and the re-clamp
+        // handed it ~19s, every hop 'budget exhausted (walk floor)').
+        const schedule = finalBankSchedule({ entryMarginMs, chainBudgetMs, staggerDelayMs: delayMs })
         if (delayMs > 0 && Date.now() >= deadline) {
           console.log(`${name} final bank: staggered +${Math.round(delayMs / 1000)}s`)
           await new Promise(r => setTimeout(r, delayMs))
@@ -808,7 +813,21 @@ async function runBot (name, target, index) {
           if (schedule.climbSkipped) {
             cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
           } else {
-            cr = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, schedule.climbSliceMs) })
+            // (v0.49.0) THE FINAL-CLIMB FENCE: the escalation ladder multiplies
+            // maxMs INTERNALLY (climbEntry 2x/3x), so a doomed underground climb
+            // outran its granted slice and the wall-clock re-clamp then handed
+            // the chain the crumbs (F4: slice 231s, maxMs 90s, escalated ~180s,
+            // the climb ended at ts=941 of the 990s safety line - the chain got
+            // ~19s, banked=0 with the bot 17 blocks from the yard, pockets
+            // full). shouldStop fences the climb cooperatively at the wall
+            // clock the schedule actually granted (the main loop checks it
+            // every iteration; mid-run climbs keep their escalation - this is
+            // the FINAL climb only, where the chain's reserve outranks a
+            // deeper staircase attempt).
+            const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)
+            const climbFenceAt = Date.now() + climbFenceMs
+            cr = await miner.climbOut({ dir: direction, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
+            if (!cr.ok && cr.reason === 'timeout') cr.reason = `timeout (fenced at ${Math.round(climbFenceMs / 1000)}s - the chain keeps its reserve)`
           }
           if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
           else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
