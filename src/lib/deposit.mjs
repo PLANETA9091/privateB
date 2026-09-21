@@ -463,6 +463,14 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
     const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining() })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
+      // (v0.39.1) THE FAILED HOP NAMES ITSELF: a zero hop used to vanish into a
+      // reason string only the CALLER's last-entry saw - fleet 35576122228 F9
+      // spent 139s between 'yard walk arrived in 1s' and 'bank: 0 (budget
+      // exhausted)' with up to maxChests silent walk failures in between, and
+      // the log could not say a single thing that happened in that window
+      // ('walk to chest' goto events carry no chest identity or reason). One
+      // line per failed hop: WHICH chest refused and WHY - bounded by maxChests.
+      log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}] zero: ${res.reason || 'unknown'}`)
       // (v0.23.1) FLEET EVIDENCE (3e21d58): 5x 'chest unreachable (No path to the
       // goal!)' at final bank - the NEAREST chest's walk dead-ends (a pond, a rim,
       // unloaded chunks) and the whole deposit died with the loot still in pockets.

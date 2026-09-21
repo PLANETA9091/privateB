@@ -262,6 +262,27 @@ test('an unopenable chest is skipped for the next one', async () => {
   assert.deepEqual(res.chestReport, ['cannot open chest (open chest: timeout after 10000ms)', 'ok'])
 })
 
+// (v0.39.1) THE SILENT HOP, named. Fleet 35576122228 F9: 139s between 'yard
+// walk arrived in 1s' and 'bank: 0 (budget exhausted)' - up to maxChests walk
+// failures printed NOTHING, so the log could not say what ate the window. A
+// zero hop now logs WHICH chest refused and WHY before the exclusion retry.
+test('a failed hop names its chest and reason before the exclusion retry', async () => {
+  const chests = [
+    { name: 'chest', position: new Vec3(3, 64, 3) },
+    { name: 'chest', position: new Vec3(6, 64, 6) }
+  ]
+  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
+  let gotoCalls = 0
+  bot.pathfinder = { goto: async () => { if (++gotoCalls === 1) throw new Error('No path to the goal!') } }
+  const lines = []
+  const res = await depositToChests(bot, { maxChests: 3, log: m => lines.push(m) })
+  assert.equal(res.deposited, 20, 'chest B takes what chest A refused to walk to')
+  const hop = lines.find(l => l.includes('hop: chest at [3,64,3]'))
+  assert.ok(hop, 'the failed hop names its chest coords')
+  assert.match(hop, /chest unreachable \(No path to the goal!\)/, 'and its real reason')
+})
+
 test('depositToChests continues into the next chest while bankable items remain', async () => {
   // chest A accepts one deposit, then is full; chest B takes the rest
   const chests = [
