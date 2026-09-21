@@ -38,7 +38,7 @@ export function resurrectPlan ({ remainingMs, restartsUsed = 0, maxRestarts = RE
   const max = Number.isFinite(maxRestarts) && maxRestarts >= 0 ? Math.floor(maxRestarts) : RESURRECT_MAX
   const usedRaw = Number(restartsUsed)
   const used = Number.isFinite(usedRaw) && usedRaw > 0 ? Math.floor(usedRaw) : 0
-  const rem = Number(remainingMs)
+  const rem = typeof remainingMs === 'number' ? remainingMs : NaN // (v0.57.1 fix) the clock is the RUNWAY GRANT: a numeric string must NOT coerce into one ('600000' acted as restart). restartsUsed strings still coerce the CONSERVATIVE way below - they spend, never grant.
   if (!Number.isFinite(rem) || rem <= 0) return { action: 'quit', why: `unknown or spent runway (remainingMs ${remainingMs})` }
   if (used >= max) return { action: 'quit', why: `no restarts left (${used}/${max} spent - a flapping server must not boot-loop the CI budget)` }
   const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : RESURRECT_FLOOR_MS
