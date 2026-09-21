@@ -979,3 +979,21 @@ Work Log:
 Stage Summary:
 - Мастер: d66ef6a (v0.34.0), CI ЗЕЛЁНЫЙ (unit+integration). 3 флот-диспатча за сессию проанализированы (35560497949, 35562867668 + прошлой сессии).
 - ПЛАН v0.35.0: (1) ГЛАВНОЕ - pre-position: за ~90s до дедлайна бот ПРЕКРАЩАЕТ копать и идёт К двору (worldmap знает путь), финальный банк тогда короткий; (2) ЛИБО dist-scale per-walk кап yard-walk'а (120s x3 уже есть - проверять, почему не используется для дальних ботов); (3) fence climbOut/smelt внутри end-phase (4-й класс зависания); (4) airGlitch лог rate-limit (1 строка/бот/30s); (5) git pull --rebase, диспатч ПОСЛЕ последнего пуша.
+
+---
+Task ID: 398567-20260921-1305
+Agent: Z.ai Code (cron job 398567, session 13:05 +08)
+Task: v0.35.0 - the tunnel wall-clock budget (the 390-second silent gallery)
+
+Work Log:
+- Sandbox died again: re-cloned, rebuilt env (JDK 25.0.4.1 adoptium, server.jar sha1 823e2250 verified, npm install, server up). Baseline on d66ef6a: syntax 131, unit 48/48, integration 2/2.
+- Mined the in-flight dispatch 35562867668 (d66ef6a, v0.33 trips + v0.34 budget): job SUCCESS but HARD KILL again ('end-phase hang'), mined=805 with the last ~400s producing +16 (the fleet FROZE at t-400s), banked=0, 0 'bank trip' lines.
+- ROOT CAUSE (miner.mjs tunnel, the F2 signature): 'F2 tunnel: steering coal_ore @ 5.2b' printed at ~t-400s, the completion line 'F2 tunnel: 1 blocks' printed at ~t-8s - ONE tunnel call ran 390 s for one block. The loop had no wall clock: the two skeletons harrying F2 ('combat: fighting skeleton ... 2 nearby') SHOVED it every physics second, each shove reset the stalls counter (moved=true), and nothing diggable was ever in `names` - so `stalls < 4` never fired and `done < 12` never grew. The 390 s ALSO starved the bank-trip gate that sits after the tunnel call in the fleet loop: bankTripDue was TRUE for F2 (63 units, remaining 400 s >= 330 s) but the loop never reached it. This refines the previous section's 'units-gate not reached' attribution: for F2 the gate was REACHABLE never - it was starved by the tunnel hang.
+- v0.35.0 (32d62f7): surface.mjs gains tunnelStopReason (pure, ordered: no entity > shouldStop > done > budget > digless > stalled) + TUNNEL_MAX_MS=60000 + TUNNEL_DIGLESS_LIMIT=8; miner.mjs tunnel() uses the guard AS the loop condition, logs the abort reason ('stopping after Ns (budget|digless, done=N)') and returns `stopped` for callers. The dig-less iteration counter survives shoving (only a successful dig resets it). 7 unit tests pin the F2 shape. syntax 132, unit 49/49, integration 2/2 (one flaky first run - the known fresh-world chest flake, rerun green).
+- CORRECTION to the previous section, item (4): airGlitch LOGS are already rate-limited - AIR_GLITCH_LOG_MS=30000 has been in drowning.mjs since v0.17.0, and the dispatch log holds only 15 'air-bar glitch ignored' lines total. The 712/701 figures are the airGlitches COUNTER (one event per 600 ms sentry tick with a critical-oxygen-on-dry-land reading) summed into the final report - telemetry by design, not log spam. No change made.
+
+Stage Summary:
+- Master: 32d62f7 (v0.35.0 tunnel budget), CI checked by the session end. My session: 32d62f7 + this worklog.
+- VERSION HANDOFF: the parallel agent's 'PLAN v0.35.0' (pre-position walk to the yard ~90 s before the deadline, dist-scale the per-walk cap, fence climbOut/smelt inside end-phase) is UNPUSHED - it becomes v0.36.0; first-pusher-wins applied (my tunnel budget is the pushed v0.35.0). The end-phase hang (3rd occurrence) is theirs to fence per their plan items 1-3.
+- EXPECTATIONS for the next fleet dispatch: 'tunnel: stopping after Ns (budget|digless, done=N)' lines appear (the guard firing = the cure working); NO tunnel completion line straddles 100 s+; the bank-trip gate finally evaluates (look for 'bank trip: planned' on bots whose loop cycles); banked>0 remains the open gate - the trip gate now GETS CPU, the yard walk itself is the 0.36.0 front.
+- tunnel() had exactly ONE caller (fleet19 floor-lock branch mine) - the change is signature-compatible (new optional maxMs param, additive `stopped` field); their file was NOT touched.
