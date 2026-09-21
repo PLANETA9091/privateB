@@ -19,22 +19,58 @@ export const FINAL_BANK_STEP_MS = 8000
 /** Ceiling: bots past slot 15 share the 120s mark - a 4-bot herd beats a 19-bot stampede. */
 export const FINAL_BANK_CAP_MS = 120000
 
+/** (v0.44.0) Distance reference: a bot this far from the yard (or farther)
+ * takes the FIRST slot; a bot standing at the yard takes the LAST one. The
+ * fleet's dig band lands 10-70 blocks out, so 80 puts the whole observed
+ * range on the early slots without collapsing them into one stampede. */
+export const FINAL_BANK_REF_DIST = 80
+
 /**
  * Delay before bot `index` may start its final bank. Pure, junk-tolerant
  * (negative/NaN/undefined index = 0, junk budgets = defaults), deterministic -
  * tests pin the slot math and the cap.
  *
+ * (v0.44.0) DISTANCE-ORDERED SLOTS: when the caller knows the bot's distance
+ * to the yard, the delay no longer follows the boot index (which has zero
+ * correlation with distance). MEASURED (fleet 35591877408, v0.42.1): the
+ * end-phase yard walks crawled - F6 timed out at 67000ms for 37 blocks, F19
+ * at 56389ms, F11 at 66468ms, each followed by 'end-bank budget spent - yard
+ * walk cancelled' - while the throttle held path=6a/12q: 17 walkers started
+ * in boot order, so far walks (index 5-18 = 40-120s delays) activated into a
+ * saturated queue AND a CPU-starved runner. The same fleet's QUIET mid-run
+ * walks took 0-5s (F10 13b -> 0s, F11 54b -> 0s, F4 47b -> 5s). Ordering the
+ * slots by distance - the FARTHEST bot first, near bots last - gives the
+ * long walks the empty throttle (each finishes in tens of seconds instead of
+ * crawling), and by the time the near bots' slots open their walks are 0-5s
+ * jobs the 6 slots churn instantly. The total window and the cap are
+ * UNCHANGED, so the hard-kill margin maths (stagger cap 120s + chain 150s <
+ * 420s margin) stand untouched.
+ *
  * @param {object} [p]
- * @param {number} [p.index] the bot's boot index (0-based)
+ * @param {number} [p.index] the bot's boot index (0-based) - legacy ordering without a distance
+ * @param {number} [p.yardDist] straight-line distance to the yard, blocks (null/undefined/junk = legacy index ordering)
  * @param {number} [p.stepMs] slot width (default FINAL_BANK_STEP_MS)
  * @param {number} [p.capMs] delay ceiling (default FINAL_BANK_CAP_MS)
- * @returns {number} milliseconds to wait, 0 for index 0
+ * @param {number} [p.refDist] distance that takes the first slot (default FINAL_BANK_REF_DIST)
+ * @returns {number} milliseconds to wait, 0 for the farthest bots
  */
-export function finalBankDelayMs ({ index = 0, stepMs = FINAL_BANK_STEP_MS, capMs = FINAL_BANK_CAP_MS } = {}) {
-  const i = Number.isFinite(index) && index > 0 ? Math.floor(index) : 0
+export function finalBankDelayMs ({ index = 0, yardDist = null, stepMs = FINAL_BANK_STEP_MS, capMs = FINAL_BANK_CAP_MS, refDist = FINAL_BANK_REF_DIST } = {}) {
   const step = Number.isFinite(stepMs) && stepMs > 0 ? stepMs : FINAL_BANK_STEP_MS
   const cap = Number.isFinite(capMs) && capMs >= 0 ? capMs : FINAL_BANK_CAP_MS
-  return Math.min(i * step, cap)
+  // legacy path: no usable distance -> the boot-index spread (pre-v0.44.0 behavior)
+  const d = Number.isFinite(yardDist) && yardDist >= 0 ? yardDist : null
+  if (d == null) {
+    const i = Number.isFinite(index) && index > 0 ? Math.floor(index) : 0
+    return Math.min(i * step, cap)
+  }
+  const ref = Number.isFinite(refDist) && refDist > 0 ? refDist : FINAL_BANK_REF_DIST
+  // slot 0 for a bot at >= refDist, the last slot for a bot at the yard;
+  // linear in between - two bots at the same distance may share a slot (a
+  // 2-3 bot cohort beats the 17-walker herd either way)
+  const slots = Math.floor(cap / step)
+  const frac = Math.min(d / ref, 1)
+  const slot = Math.round((1 - frac) * slots)
+  return Math.min(slot * step, cap)
 }
 
 // ---------------------------------------------------------------------------

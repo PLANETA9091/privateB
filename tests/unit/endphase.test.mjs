@@ -118,3 +118,73 @@ test('finalBankSchedule: junk margins collapse to zero, junk chain gives the cli
   const s = finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 45000 })
   assert.ok(s.climbSliceMs + 45000 <= 50000)
 })
+
+// ---------------------------------------------------------------------------
+// (v0.44.0) DISTANCE-ORDERED SLOTS - the end-phase walk herd cure.
+//
+// Fleet 35591877408 (v0.42.1) evidence: 17 walkers started in boot order, the
+// far walks activated into a saturated queue (path=6a/12q) and a CPU-starved
+// runner - F6 timed out at 67000ms for 37 blocks (zero path_reset events: the
+// path stayed valid, the walk just crawled), then the retry was budget-
+// cancelled ('end-bank budget spent'). The same fleet's QUIET mid-run walks
+// took 0-5s (F10 13b -> 0s, F11 54b -> 0s, F4 47b -> 5s). Ordering the slots
+// by distance - farthest first, nearest last - gives the long walks the empty
+// throttle and leaves the 0-5s near walks for the quiet tail.
+
+test('distance slots: the farthest bot banks first, a bot at the yard last', () => {
+  // at/beyond the reference distance = slot 0 (immediate start)
+  assert.equal(finalBankDelayMs({ index: 18, yardDist: FINAL_BANK_REF_DIST }), 0)
+  assert.equal(finalBankDelayMs({ index: 18, yardDist: 130 }), 0, 'beyond the reference clamps to slot 0')
+  // standing at the yard = the LAST slot (the old cap): the walk is 0s anyway
+  assert.equal(finalBankDelayMs({ index: 0, yardDist: 0 }), FINAL_BANK_CAP_MS)
+})
+
+test('distance slots: monotone - delay shrinks as the bot stands farther out', () => {
+  // the real fleet's distance band (dispatch 35591877408 reporters), near -> far
+  const near = finalBankDelayMs({ yardDist: 10 })
+  const f10 = finalBankDelayMs({ yardDist: 13 })
+  const f18 = finalBankDelayMs({ yardDist: 30 })
+  const f6 = finalBankDelayMs({ yardDist: 37 })
+  const f4 = finalBankDelayMs({ yardDist: 47 })
+  const f11 = finalBankDelayMs({ yardDist: 54 })
+  const f9 = finalBankDelayMs({ yardDist: 69 })
+  assert.ok(near >= f10, 'nearest waits the longest')
+  assert.ok(f10 > f18, 'strictly monotone toward the yard')
+  assert.ok(f18 > f6)
+  assert.ok(f6 > f4)
+  assert.ok(f4 > f11)
+  assert.ok(f11 > f9)
+  assert.ok(f9 > 0, 'the far bot still starts before the cap window ends')
+  // pinned slots (step 8s, cap 120s -> 15 slots): the evidence distances land
+  // on distinct early/mid slots, the near cohort shares the quiet tail
+  assert.equal(f9, 16000)
+  assert.equal(f11, 40000)
+  assert.equal(f6, 64000)
+  assert.equal(f18, 72000)
+  assert.equal(f10, 104000)
+  assert.equal(near, 104000, '10b and 13b share a slot - a 2-bot cohort, not a herd')
+})
+
+test('distance slots: the window and the cap are unchanged - the kill margin maths stand', () => {
+  // every distance the fleet can produce stays inside the same cap the hard
+  // kill was sized against (stagger cap 120s + chain 150s < 420s margin)
+  for (let d = 0; d <= 200; d += 5) {
+    const ms = finalBankDelayMs({ yardDist: d })
+    assert.ok(Number.isFinite(ms) && ms >= 0 && ms <= FINAL_BANK_CAP_MS, `d=${d}`)
+  }
+  // the whole 19-bot band (0..80 blocks) compresses into the SAME window the
+  // index spread used - no end phase grows past the cap
+  const band = Array.from({ length: 17 }, (_, i) => finalBankDelayMs({ yardDist: 5 + i * 5 }))
+  assert.ok(Math.max(...band) <= FINAL_BANK_CAP_MS)
+})
+
+test('distance slots: junk distance falls back to the legacy index spread', () => {
+  for (const junk of [undefined, null, NaN, -3, '40', Infinity]) {
+    const d = finalBankDelayMs({ index: 5, yardDist: junk })
+    assert.equal(d, 5 * FINAL_BANK_STEP_MS, String(junk))
+  }
+  // junk refDist keeps the default reference; a custom one rescales the band
+  assert.equal(finalBankDelayMs({ yardDist: 40, refDist: NaN }), finalBankDelayMs({ yardDist: 40 }))
+  assert.equal(finalBankDelayMs({ yardDist: 40, refDist: 80 }), finalBankDelayMs({ yardDist: 40 }))
+  assert.equal(finalBankDelayMs({ yardDist: 20, refDist: 40 }), 0, 'half the reference = mid slot')
+})

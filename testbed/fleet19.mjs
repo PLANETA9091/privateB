@@ -761,8 +761,13 @@ async function runBot (name, target, index) {
         // still cuts the chain into whatever is really left - the margin
         // cannot be outrun, same construction as v0.34.0.
         const entryMarginMs = Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now())
+        // (v0.44.0) null when unmeasurable (no yard/no entity yet): the stagger's
+        // junk contract then keeps the legacy index order, and the budget maths
+        // read the distance as 0 (the bankTripBudgetMs floor) - a 0 distance must
+        // never be mistaken for 'standing at the yard' by the slot order.
+        const yardDist = yardGoal && miner.bot.entity ? miner.bot.entity.position.distanceTo(yardGoal) : null
         const chainBudgetMs = finalBankBudgetMs({
-          yardDist: yardGoal && miner.bot.entity ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
+          yardDist,
           marginLeftMs: entryMarginMs,
           floorMs: END_BANK_BUDGET,
           capMs: END_BANK_BUDGET_CAP_MS
@@ -773,7 +778,13 @@ async function runBot (name, target, index) {
         // path throttle 6a/10q - every walk budget burned in the queue). Index-
         // spread slots give each climb + walk a quieter throttle and yard; the
         // reporter keeps printing (t-0s) and the process end shifts by the cap.
-        const delayMs = finalBankDelayMs({ index })
+        // (v0.44.0) the slots order by DISTANCE now: fleet 35591877408 - 17
+        // walkers started in boot order, the far walks (40-120s delays) crawled
+        // into a saturated queue (F6: 67000ms for 37 blocks, then the retry was
+        // budget-cancelled) while the same fleet's quiet mid-run walks took 0-5s.
+        // The farthest bot takes the FIRST slot; near bots open last, when the
+        // throttle is empty and their 0-5s walks churn instantly.
+        const delayMs = finalBankDelayMs({ index, yardDist })
         if (delayMs > 0 && Date.now() >= deadline) {
           console.log(`${name} final bank: staggered +${Math.round(delayMs / 1000)}s`)
           await new Promise(r => setTimeout(r, delayMs))
