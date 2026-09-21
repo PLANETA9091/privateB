@@ -46,8 +46,12 @@ export const EARN_SEAL_MAX_THREAT_DIST = 8
 /** Drop-for-a-slot priority: true junk first, then the cheapest stacked loot.
  * NEVER dropped: any tool or weapon (pickaxes, swords, axes, shovels, hoes),
  * food the fleet cooks or eats (bread, cooked meats, apples), bootstrap stock
- * (logs, planks, sticks), and the high-value plan items (diamond, emerald). */
+ * (logs, planks, sticks), and the high-value plan items (diamond, emerald).
+ * (v0.58.0) leaf_litter leads: run57's pockets held it on F2/F4/F5 while those
+ * same bots skipped or died - pure ground clutter in this fleet's plan (nothing
+ * plants, crafts or smelts it), the cheapest slot-freer there is. */
 export const JUNK_DROP_PRIORITY = [
+  'leaf_litter',
   'rotten_flesh', 'spider_eye', 'bone', 'wheat_seeds', 'seeds',
   'gravel', 'sand', 'flint',
   'redstone', 'coal', 'lapis_lazuli',
@@ -90,9 +94,22 @@ export const SHELTER_WALL_OK = new Set([
 
 // Seal material priority (first held item wins). Dirt family before stone:
 // dirt is worthless to the bootstrap, cobblestone feeds the furnace chain.
+// (v0.58.0) THE BOOTSTRAP POCKET JOINS THE SEAL: fleet 35652259509 (run57,
+// NORMAL END, 19/19 alive) measured F3 dying to a 5-zombie horde and F14 to a
+// zombie pair with 'shelter skip (no seal material, nothing expendable to
+// drop)' while their pockets read F3=oak_log:12+oak_planks:8 and F14=oak_log:8
+// +oak_planks:7 - the freshly re-bootstrapped miner (drowning respawn ->
+// gatherWood -> walk out) carries ONLY logs and planks until its first dig,
+// and a horde that finds it in that window hits a pocket the seal refused.
+// Logs are ALREADY accepted shelter-wall material (SHELTER_WALL_OK) and the
+// seal uses the same placement machinery, so a plank/log block seals exactly
+// like dirt; they rank LAST (after the stone family) because per-unit value
+// (a plank = a quarter log of craft stock) still beats dying - the module's
+// own rule since v0.48.1: a dead naked bot loses EVERYTHING.
 export const SEAL_PRIORITY = [
   'dirt', 'grass_block', 'coarse_dirt', 'podzol', 'rooted_dirt', 'mud',
-  'cobblestone', 'cobbled_deepslate', 'andesite', 'diorite', 'granite', 'tuff', 'stone'
+  'cobblestone', 'cobbled_deepslate', 'andesite', 'diorite', 'granite', 'tuff', 'stone',
+  'oak_planks', 'birch_planks', 'spruce_planks', 'oak_log', 'birch_log', 'spruce_log'
 ]
 
 /**

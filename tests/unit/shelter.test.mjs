@@ -45,11 +45,28 @@ test('shelterDue: the day-engaged cell (zombie already chewing) gets the shelter
 
 test('pickSealItem: dirt family first, craft-critical items never spent', () => {
   assert.equal(pickSealItem([{ name: 'cobblestone', count: 10 }, { name: 'dirt', count: 3 }]).name, 'dirt', 'dirt outranks cobblestone')
-  assert.equal(pickSealItem([{ name: 'oak_log', count: 4 }, { name: 'cobblestone', count: 10 }]).name, 'cobblestone', 'logs are NEVER spent')
-  assert.equal(pickSealItem([{ name: 'oak_log', count: 4 }, { name: 'oak_planks', count: 12 }, { name: 'stick', count: 8 }]), null, 'only craft-critical stock -> no shelter (an open hole is a death trap)')
+  assert.equal(pickSealItem([{ name: 'oak_log', count: 4 }, { name: 'cobblestone', count: 10 }]).name, 'cobblestone', 'stone family outranks the bootstrap stock')
+  // (v0.58.0) PIN FLIPPED BY RUN57's EVIDENCE: the old pin said a logs+planks
+  // pocket yields null ('an open hole is a death trap') - fleet 35652259509
+  // measured the reverse: F3 (oak_log:12+oak_planks:8) died to a 5-zombie
+  // horde and F14 (oak_log:8+oak_planks:7) to a zombie pair, both after
+  // 'shelter skip (no seal material, nothing expendable to drop)'. The
+  // bootstrap pocket IS the death trap now; planks rank before logs (a plank
+  // is a quarter log of craft stock), sticks stay protected.
+  assert.equal(pickSealItem([{ name: 'oak_log', count: 4 }, { name: 'oak_planks', count: 12 }, { name: 'stick', count: 8 }]).name, 'oak_planks', 'the run57 bootstrap pocket seals (planks first)')
+  assert.equal(pickSealItem([{ name: 'oak_log', count: 12 }]).name, 'oak_log', 'a logs-only pocket seals with a log (F3\'s exact pocket)')
+  assert.equal(pickSealItem([{ name: 'birch_log', count: 2 }, { name: 'stick', count: 8 }]).name, 'birch_log', 'birch seals too')
+  assert.equal(pickSealItem([{ name: 'stick', count: 8 }]), null, 'sticks alone stay protected (nothing built from a shelter made of sticks)')
   assert.equal(pickSealItem([{ name: 'dirt', count: 1 }]).name, 'dirt')
   assert.equal(pickSealItem([{ name: 'grass_block', count: 2 }]).name, 'grass_block', 'grass block is dirt family')
   assert.equal(pickSealItem([{ name: 'stone', count: 5 }]).name, 'stone', 'smelted stone seals too')
+  assert.equal(pickSealItem([{ name: 'oak_planks', count: 2 }, { name: 'dirt', count: 9 }]).name, 'dirt', 'planks rank AFTER the dirt/stone families - dirt is spent first')
+})
+
+test('pickJunkToDrop: leaf_litter leads (v0.58.0), craft stock never drops', () => {
+  assert.equal(pickJunkToDrop([{ name: 'leaf_litter', count: 5 }, { name: 'rotten_flesh', count: 2 }]).name, 'leaf_litter', 'pure clutter drops before mob loot')
+  assert.equal(pickJunkToDrop([{ name: 'oak_planks', count: 8 }, { name: 'oak_sapling', count: 2 }]), null, 'saplings and planks are protected - the earn path stays honest')
+  assert.equal(pickJunkToDrop([{ name: 'stick', count: 6 }]), null)
 })
 
 test('pickSealItem: junk inventories yield null (flee instead)', () => {
