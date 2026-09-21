@@ -553,6 +553,52 @@ export const STEP_MAX_PASSES = 6
 // pipeline, not the climb, owns that class.
 export const CLIMB_DIG_TICKS = 200
 
+// ---------------------------------------------------------------------------
+// THE FLOODED-DIG WINDOW (v0.42.0) - the vanilla multiplier beats the patient
+// window exactly when the shaft is wet.
+//
+// MEASURED (fleet 35582520041, master 4304f32, the first run with v0.39.0's
+// 200-tick window): 8x 'dig failed at [x,y,z] granite/diorite/stone/dirt'
+// with dug=0 - and F16's failing block is DIRT, which a bare hand cuts in
+// 0.75s = 15 ticks. A 200-tick window cannot fail a dry dirt dig, so the
+// window was not the binding constraint: the server multiplies the dig time
+// x5 when the digger is in water and another x5 when off the ground
+// (vanilla's dig-speed rules). A flooded shaft bottom turns bare-hand dirt
+// into 375t (25s under the x25 stack) and stone-family into 750t-3750t - the
+// 200t window returns false, the climb rotates, fails again, and burns its
+// whole budget: 6x 'final climb: failed - stalled/timeout' and every one of
+// those bots never surfaced to bank.
+//
+// THE CURE has two halves. (1) The climb sizes its dig window from the
+// environment: a wet context (eye OR feet in fluid - the eye read matches
+// mineflayer's own digTime approximation, the feet read catches the vanilla
+// bounding-box rule it misses) takes the flooded window. 800t = 40s covers
+// the common flooded floors: bare-hand stone-family on-ground x5 = 750t, a
+// pick x5 = 115t (the plain 100t window refused THAT class too - the fastdig
+// note measured it), dirt x25 = 375t. (2) The hopeless x25 stack (bare-hand
+// stone-family while swimming = 3750t) deliberately exceeds it: the dig fails
+// at 40s and the caller routes a wet dig-failure to the WET ESCAPE (walk out
+// from under the water) instead of a rotate-fail loop - the v0.17.0 policy,
+// which the dig-fail path could never reach before (it did not set
+// blockedWet).
+export const CLIMB_DIG_TICKS_WET = 800
+
+/**
+ * Dig window (ticks) for one climb step dig, from the bot's wet context.
+ * Pure, junk-tolerant: junk/absent flags read dry (the v0.39.0 window).
+ * @param {object} [p]
+ * @param {boolean} [p.eyeWet] the block at the bot's eye level is fluid
+ * @param {boolean} [p.feetWet] the block at the bot's feet is fluid
+ * @param {number} [p.dryTicks] dry window (default CLIMB_DIG_TICKS)
+ * @param {number} [p.wetTicks] flooded window (default CLIMB_DIG_TICKS_WET)
+ * @returns {number} maxTicks for fastDig
+ */
+export function climbDigWindow ({ eyeWet = false, feetWet = false, dryTicks = CLIMB_DIG_TICKS, wetTicks = CLIMB_DIG_TICKS_WET } = {}) {
+  const dry = Number.isFinite(dryTicks) && dryTicks > 0 ? dryTicks : CLIMB_DIG_TICKS
+  const wet = Number.isFinite(wetTicks) && wetTicks > 0 ? wetTicks : CLIMB_DIG_TICKS_WET
+  return eyeWet === true || feetWet === true ? wet : dry
+}
+
 /**
  * Plan ONE digging pass of a climb step.
  *

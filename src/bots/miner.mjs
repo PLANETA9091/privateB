@@ -19,7 +19,7 @@ import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
-  stepDigPlan, STEP_MAX_PASSES, CLIMB_DIG_TICKS, riseRecoveryPlan,
+  stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT,
@@ -1888,7 +1888,19 @@ export function createMiner ({
       let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
       let blockedRefusal = null // (v0.32.0) {cell, name, reason} of the refusing cell
       let digFailCell = null // (v0.37.0) {cell, name} of a fastDig that failed mid-pass
+      // (v0.42.0) the flooded-dig context, read ONCE per step attempt: the eye
+      // read matches mineflayer's digTime approximation, the feet read catches
+      // the vanilla bounding-box rule (a bot standing in waist-deep water digs
+      // x5 slower while its eye is still in air). A wet context takes the
+      // flooded dig window AND routes a dig-failure to the wet escape - the
+      // rotate-fail loop this class used to die in (6x 'final climb: failed -
+      // stalled' in 35582520041) never reached the v0.17.0 policy because a
+      // dig-fail did not set blockedWet.
       const readCell = cell => { try { return bot.blockAt(cell) } catch { return null } }
+      const eyeWet = isWetCell(readCell(bot.entity.position.offset(0, 1.62, 0)))
+      const feetWet = isWetCell(readCell(bot.entity.position.offset(0, 0.1, 0)))
+      const wetContext = eyeWet || feetWet
+      const digWindow = climbDigWindow({ eyeWet, feetWet })
       for (let pass = 0; pass < STEP_MAX_PASSES; pass++) {
         const plan = stepDigPlan({ feet, d, read: readCell, dug })
         if (plan.blocked) { blocked = true; blockedWet = plan.blockedWet; blockedRefusal = plan; break }
@@ -1901,11 +1913,16 @@ export function createMiner ({
         // beats a total stall; the plan's own `cell` names the failing cell
         // (the Block object carries no x/y/z - only .position - so the old
         // cellB.x read printed '[,,]').
+        // (v0.42.0) the window is the WET-CONTEXT window (climbDigWindow): a
+        // flooded shaft multiplies the server's validated dig time x5/x25 and
+        // the dry window guarantees a false. A wet dig-failure now also sets
+        // blockedWet - the wet escape fires for the hopeless stack instead of
+        // the rotate-fail loop.
         for (const { cell: cellPos, block: cellB } of plan.digs) {
           try {
-            if (await bot.fastDig(cellB, { maxTicks: CLIMB_DIG_TICKS })) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
-            else { blocked = true; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
-          } catch { blocked = true; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
+            if (await bot.fastDig(cellB, { maxTicks: digWindow })) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
+            else { blocked = true; blockedWet = wetContext; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
+          } catch { blocked = true; blockedWet = wetContext; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
         }
         if (blocked) break
         // let the server's gravity updates land before the next scan: a sunk

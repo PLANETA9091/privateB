@@ -10,7 +10,8 @@ import {
   PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS,
   PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
   CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP,
-  riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS
+  riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS,
+  CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -275,4 +276,40 @@ test('walkable surface: walkFlat is counted only when strictly true (old callers
   // legacy probes never set walkFlat - a truthy junk value must not widen the gate
   const junk = { free: true, solid: false, walkFlat: 1 }
   assert.equal(isWalkableSurface({ skyLit: true, probes: world({ '1,0': junk, '-1,0': junk, '0,1': junk, '0,-1': junk }) }), false)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.42.0) THE FLOODED-DIG WINDOW - a wet context takes the flooded window;
+// the dry window keeps the v0.39.0 contract untouched.
+//
+// Measured basis (fleet 35582520041): F16's dig-fail block was DIRT (15t dry)
+// - only the vanilla in-water x5 / off-ground x5 multipliers can push a dirt
+// cut past a 200t window. Bare-hand stone-family on-ground in water = 750t;
+// the flooded window must cover that floor.
+test('climbDigWindow: dry context keeps the v0.39.0 patient window', () => {
+  assert.equal(climbDigWindow({}), CLIMB_DIG_TICKS)
+  assert.equal(climbDigWindow({ eyeWet: false, feetWet: false }), CLIMB_DIG_TICKS)
+  assert.equal(climbDigWindow({ eyeWet: 0, feetWet: null }), CLIMB_DIG_TICKS, 'junk flags read dry')
+})
+
+test('climbDigWindow: eye-wet OR feet-wet takes the flooded window', () => {
+  assert.equal(climbDigWindow({ eyeWet: true }), CLIMB_DIG_TICKS_WET)
+  assert.equal(climbDigWindow({ feetWet: true }), CLIMB_DIG_TICKS_WET)
+  assert.equal(climbDigWindow({ eyeWet: false, feetWet: true }), CLIMB_DIG_TICKS_WET)
+})
+
+test('climbDigWindow: the flooded window covers the bare-hand stone in-water floor (750t)', () => {
+  // vanilla dig-speed rules: in-water x5 on the 150t bare-hand stone cut
+  assert.ok(CLIMB_DIG_TICKS_WET >= 750, `wet window ${CLIMB_DIG_TICKS_WET} must cover the 750t floor`)
+  assert.ok(CLIMB_DIG_TICKS_WET > CLIMB_DIG_TICKS, 'the flooded window strictly exceeds the dry one')
+  // and stays bounded: the hopeless x25 stack (3750t bare-hand stone) is
+  // deliberately NOT covered - the wet escape owns that class
+  assert.ok(CLIMB_DIG_TICKS_WET < 1000, `wet window ${CLIMB_DIG_TICKS_WET} must not eat the whole 90s climb on one dig`)
+})
+
+test('climbDigWindow: junk window overrides fall back to the module defaults', () => {
+  assert.equal(climbDigWindow({ dryTicks: 'junk' }), CLIMB_DIG_TICKS)
+  assert.equal(climbDigWindow({ eyeWet: true, wetTicks: -5 }), CLIMB_DIG_TICKS_WET)
+  assert.equal(climbDigWindow({ eyeWet: true, wetTicks: NaN }), CLIMB_DIG_TICKS_WET)
+  assert.equal(climbDigWindow({ dryTicks: 0 }), CLIMB_DIG_TICKS)
 })
