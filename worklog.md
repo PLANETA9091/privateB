@@ -913,3 +913,20 @@ Work Log:
 Stage Summary:
 - Мастер: 566ebf7 (v0.31.0). Dispatch на 29498a4 в полёте - первая live-валидация v0.30.0 fence'ов: ждать 'putAway sweep: timeout'/'placeTable *: timeout' как НАЗВАННЫЕ отказы, зависших ботов быть не должно.
 - Фронты: (1) banked=0 - chest-депозит chain; (2) mined 2.86 b/s (лучший 5.4) - ore-steering; (3) runner-watchdog закрыт v0.31.0 (hard-kill evidence); (4) miner.mjs ~25 raw waitForTicks/lookAt - fence'ить по фронту; (5) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0953 (final)
+Agent: Z.ai Code (cron session, 09:53 +08)
+Task: финал сессии - v0.30.0 fences, v0.31.0 hard-kill report, 2 флот-валидации
+
+Work Log:
+- Сессия суммарно: 6 коммитов (94060fc v0.30.0 fences, 7e95081 worklog, 4addf02 тест-фикс моков, 566ebf7 v0.31.0 hard-kill report, 7385491 worklog; параллельный агент: 29498a4 bump 0.30.1).
+- Диспатч 35554539729 отменён concurrency-группой (мой push через 8s после диспатча) - УРОК: диспатчить флот ТОЛЬКО после финального пуша сессии, потом не пушить до завершения.
+- Fleet 35552013594 (c292cf0, v0.29.0): mined=1713 (2.86 b/s), climbs=8 (0->8!), normal end, 0 HARD KILL. Валидация v0.27/0.28/0.29 полная.
+- Fleet 35555025482 (7385491, v0.31.0): mined=771 (слабый мир), climbs=1, rescues=17, airGlitches=76 (!), reconnects=10. Normal end, 0 HARD KILL, отчёт записан - 3-й подряд. Fence-линий 0 (мёртвых сокетов не было - fence'ы ждут своего прогона).
+- CI: мастер зелёный на всех прогонах с 4addf02 (push + dispatch unit22/24 + integration).
+- banked=0 КОРЕНЬ УТОЧНЁН (лог 35552013594): 14x 'final bank: 0 (budget exhausted)' - бот в 100-300 блоках от двора, 150s end-bank бюджет не покрывает обратный путь; mid-run needsBanking (slots>=24 OR units>=128) при добыче ~90 блоков/бот/прогон почти не срабатывает. F16 единственный пробовал mid-run банк - тоже budget exhausted.
+
+Stage Summary:
+- Мастер: 7385491 (v0.31.0 label). CI ЗЕЛЁНЫЙ (unit + integration + 2 fleet dispatch SUCCESS).
+- ПЛАН v0.32.0 (mining trips): (1) периодический возврат к двору - после N=150-200s копки или units>=96 бот идёт к yardGoal, банк, возврат на worldmap-запомненную точку копки; (2) масштабировать end-bank бюджет от dist до yard (кап по 420s margin: deadline+stagger 120s+budget<=400s); (3) ожидание на диспатче: banked>0, финальные 'final bank: 0 (budget exhausted)' должны уйти; (4) airGlitches=76 - смотреть сенсор кислорода (шум telemetry 26.2, но 17 rescues жгут время); (5) miner.mjs ~25 raw waitForTicks/lookAt fence'ить по фронту; (6) git pull --rebase, диспатчить флот ПОСЛЕДНИМ действием сессии.
