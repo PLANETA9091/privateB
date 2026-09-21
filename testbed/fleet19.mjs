@@ -307,7 +307,15 @@ async function runBot (name, target, index) {
         // 'water' shows the drowning rescue + the v0.16.0 air-bar glitch lines -
         // fleet #120 ended rescues=140 with zero visible water lines (the counter
         // contradicted the log, the diagnosis burned a whole session)
-        log: m => { if (/combat|died|KICKED|error|climb|water/.test(m)) console.log(`${name} ${m}`) }
+        // (v0.41.1) THE EVIDENCE CLASSES JOIN THE FILTER: the v0.38.0/v0.40.1/
+        // v0.41.0 bank evidence ('scan: no chest within 64b', 'hop: chest at
+        // [...] zero: ...', 'findChest swallowed: ...') is emitted through the
+        // MINER's log - and this filter matched none of those patterns, so the
+        // fleet log NEVER SAW THEM (measured: v0410 printed 17 'walking back'
+        // lines - each one a proven scan miss - with ZERO 'scan:' lines; v0401's
+        // hop log never landed either). Bounded by construction: 1 scan line per
+        // deposit call, <= 8 hops per call, <= 2 swallows per scan.
+        log: m => { if (/combat|died|KICKED|error|climb|water|scan:|hop:|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`) }
       })
       bots.set(name, { miner, target })
       seedStats(miner.stats, carry) // (v0.18.9) the reconnect must not erase what the bot already mined
