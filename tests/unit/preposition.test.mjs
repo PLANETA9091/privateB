@@ -9,8 +9,8 @@
 // 120s pin (yardWalkBudgetMs, deposit.mjs).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { prePositionDue, PRE_POSITION_WINDOW_MS, PRE_POSITION_MIN_DIST, END_BANK_BUDGET_CAP_MS, HARD_KILL_MARGIN_MS, finalBankBudgetMs } from '../../src/lib/endphase.mjs'
-import { yardWalkBudgetMs, YARD_WALK_CAP_MS, CHEST_WALK_BASE_MS } from '../../src/lib/deposit.mjs'
+import { prePositionDue, PRE_POSITION_WINDOW_MS, PRE_POSITION_MIN_DIST, END_BANK_BUDGET_CAP_MS, HARD_KILL_MARGIN_MS } from '../../src/lib/endphase.mjs'
+import { yardWalkBudgetMs, YARD_WALK_CAP_MS, CHEST_WALK_BASE_MS, finalBankBudgetMs } from '../../src/lib/deposit.mjs'
 import { effectiveWalkBudget } from '../../src/lib/deposit.mjs'
 
 test('window: the gate fires only inside the last 90s', () => {
@@ -69,10 +69,12 @@ test('yard walk budget: the 180s cap bounds the arithmetic, junk clamps to defau
   // junk dist -> the floor, never NaN
   assert.equal(yardWalkBudgetMs({ yardDist: NaN }), CHEST_WALK_BASE_MS)
   assert.equal(yardWalkBudgetMs({ yardDist: -40 }), CHEST_WALK_BASE_MS)
-  // junk caps/floors fall back to the defaults
-  assert.equal(yardWalkBudgetMs({ yardDist: 100, capMs: -1 }), YARD_WALK_CAP_MS)
-  assert.equal(yardWalkBudgetMs({ yardDist: 100, capMs: NaN }), YARD_WALK_CAP_MS)
-  assert.equal(yardWalkBudgetMs({ yardDist: 100, floorMs: 0 }), CHEST_WALK_BASE_MS)
+  // junk caps/floors fall back to the defaults: a junk cap never un-caps the
+  // arithmetic (300 blocks still lands on the default 180s cap, not 330s) and
+  // a junk floor never zeroes the walk (the honest dist arithmetic survives)
+  assert.equal(yardWalkBudgetMs({ yardDist: 300, capMs: -1 }), YARD_WALK_CAP_MS)
+  assert.equal(yardWalkBudgetMs({ yardDist: 300, capMs: NaN }), YARD_WALK_CAP_MS)
+  assert.equal(yardWalkBudgetMs({ yardDist: 100, floorMs: 0 }), 130000)
   // a caller-chosen cap below the floor is honoured as the floor
   assert.equal(yardWalkBudgetMs({ yardDist: 100, capMs: 45000 }), 45000)
 })
