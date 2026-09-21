@@ -40,7 +40,7 @@ function makeConvergingBot ({ chest, startX = 0.5, startZ = 0.5, y = 64 } = {}) 
       bot._ticks += n
       const dir = chest.position.clone().subtract(bot.entity.position)
       dir.y = 0
-      const len = dir.len()
+      const len = dir.norm() // mineflayer's vec3: norm() IS the length; there is no len()
       if (len > 0.01) {
         dir.scale(1 / len)
         bot.entity.position = bot.entity.position.add(dir.scale(Math.min(1.2, len)))
@@ -118,7 +118,7 @@ test('INTEGRATION: a visible 7-block chest deposits with ZERO pathfinder calls',
   const bot = makeConvergingBot({ chest })
   const logs = []
   const r = await depositToChest(bot, { chestBlock: chest, log: m => logs.push(m) })
-  assert.equal(r.deposited, 1, 'the cobblestone landed')
+  assert.equal(r.deposited, 40, 'the cobblestone landed (units, not stacks)')
   assert.equal(bot.gotoCalls.length, 0, 'the pathfinder was NEVER touched - the CPU-starved A* is out of the loop')
   assert.ok(logs.some(l => /raw walk in/.test(l)), 'the raw walk line is printed')
   assert.equal(bot.closed, true)
@@ -130,7 +130,7 @@ test('INTEGRATION: without canSeeBlock the legacy pathfinder path still owns the
   delete bot.canSeeBlock
   const logs = []
   const r = await depositToChest(bot, { chestBlock: chest, log: m => logs.push(m) })
-  assert.equal(r.deposited, 1, 'the deposit still lands (via the proximate/goal walk or the pathfinder)')
+  assert.equal(r.deposited, 40, 'the deposit still lands (via the proximate/goal walk or the pathfinder)')
   assert.ok(bot.gotoCalls.length > 0, 'no visibility -> the raw hop must not fire, the pathfinder walks')
 })
 
@@ -138,12 +138,14 @@ test('INTEGRATION: a water rescue owns the controls - no raw walk fires', async 
   const chest = makeChest(7, 64, 0)
   const bot = makeConvergingBot({ chest })
   bot._waterRescue = true // the rescue IS the walk
-  bot.gotoScript = ['ok']
-  bot.pathfinder.goto = async goal => { bot.gotoCalls.push(goal) }
-  bot.findBlock = () => chest
+  // the rescue clears 100 ms in (the real rescue sets _waterRescue=false in
+  // its finally) - the retry then walks via the rescue-aware pathfinder path
+  bot._rescueTimer = setTimeout(() => { bot._waterRescue = false }, 100)
   const logs = []
-  const r = await depositToChest(bot, { chestBlock: chest, log: m => logs.push(m) })
-  assert.equal(r.deposited, 1, 'the deposit lands via the rescue-aware walkOnce path')
-  assert.ok(bot.gotoCalls.length > 0, 'the walkOnce pathfinder path ran')
-  assert.ok(!logs.some(l => /raw walk in/.test(l)), 'the raw hop never fired under a rescue')
+  try {
+    const r = await depositToChest(bot, { chestBlock: chest, log: m => logs.push(m) })
+    assert.equal(r.deposited, 40, 'the deposit lands once the rescue clears')
+    assert.ok(bot.gotoCalls.length > 0, 'the rescue-aware walkOnce path ran the goal')
+    assert.ok(!logs.some(l => /raw walk in/.test(l)), 'the v0.48.0 raw hop NEVER fired under a rescue')
+  } finally { clearTimeout(bot._rescueTimer) }
 })
