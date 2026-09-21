@@ -594,3 +594,52 @@ export function pillarPlacement (walls) {
   // 0 - x (not -x): normalizes -0 to 0 so the face vector survives deepStrictEqual
   return { dx: wall.dx, dz: wall.dz, face: { x: 0 - wall.dx, y: 0, z: 0 - wall.dz } }
 }
+
+// (v0.35.0) TUNNEL WALL-CLOCK BUDGET - the 390-second silent tunnel.
+//
+// MEASURED (fleet dispatch 35562867668, d66ef6a): F2 entered a steered branch
+// tunnel at ~t-400s and the call did not return until the deadline - 390 s for
+// ONE block. The loop had no wall clock: `stalls < 4` is the only non-progress
+// exit, and the two skeletons harrying the bot ("combat: fighting skeleton ...
+// 2 nearby") SHOVED it every physics second - each shove resets the stall
+// counter (moved=true), so a bot that is chased around an open pocket never
+// accumulates stalls and never digs either. Every one of those 390 s was also
+// stolen from the v0.33/v0.34 bank-trip gate that sits AFTER the tunnel call
+// in the fleet loop - the trips never fired because the loop never got there.
+//
+// The guard is deliberately DUAL:
+//   - maxMs: a hard wall clock no harassment can defeat (60 s is ~4x a healthy
+//     12-block tunnel; the wet-escape TRAVERSE_MAX_MS precedent is 20 s);
+//   - diglessIters: loop iterations since the last successful dig - a tunnel
+//     that keeps stepping into air/refused cells without cutting anything is
+//     already dead, mobs or no mobs (8 iterations at ~12-14 ticks each is
+//     well under 20 s of honest non-progress).
+// The caller keeps its rotation policy; the ONLY behavior change is that the
+// tunnel now ENDS and says why instead of eating the rest of the run.
+export const TUNNEL_MAX_MS = 60000
+export const TUNNEL_DIGLESS_LIMIT = 8
+
+/**
+ * Pure stop decision for the raw branch tunnel loop (src/bots/miner.mjs).
+ * Order matters and mirrors the loop: a finished tunnel is never 'stalled',
+ * an external stop always wins over accounting, and the budget check runs
+ * BEFORE the stall check (a chased bot accumulates no stalls but does burn
+ * wall clock).
+ * @param {{done?: number, maxBlocks?: number, stalls?: number, stallLimit?: number,
+ *   diglessIters?: number, diglessLimit?: number, elapsedMs?: number, maxMs?: number,
+ *   stopRequested?: boolean, alive?: boolean}} s
+ * @returns {string|null} 'no entity' | 'shouldStop' | 'budget' | 'digless' |
+ *   'stalled' | null (null = keep digging)
+ */
+export function tunnelStopReason ({ done = 0, maxBlocks = 12, stalls = 0, stallLimit = 4, diglessIters = 0, diglessLimit = TUNNEL_DIGLESS_LIMIT, elapsedMs = 0, maxMs = TUNNEL_MAX_MS, stopRequested = false, alive = true } = {}) {
+  if (!alive) return 'no entity'
+  if (stopRequested) return 'shouldStop'
+  if (done >= maxBlocks) return null // the healthy exit - no reason to report
+  const safeMaxMs = Number.isFinite(maxMs) && maxMs > 0 ? maxMs : TUNNEL_MAX_MS
+  if (elapsedMs >= safeMaxMs) return 'budget'
+  const safeDigless = Number.isFinite(diglessLimit) && diglessLimit > 0 ? diglessLimit : TUNNEL_DIGLESS_LIMIT
+  if (diglessIters >= safeDigless) return 'digless'
+  const safeStall = Number.isFinite(stallLimit) && stallLimit > 0 ? stallLimit : 4
+  if (stalls >= safeStall) return 'stalled'
+  return null
+}

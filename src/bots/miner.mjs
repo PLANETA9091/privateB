@@ -22,7 +22,8 @@ import {
   stepDigPlan, STEP_MAX_PASSES, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
-  TRAVERSE_ROTATE_LIMIT
+  TRAVERSE_ROTATE_LIMIT,
+  tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -964,7 +965,7 @@ export function createMiner ({
   //    let gravity handle the drop - which is what a real player does and it never
   //    refuses a walkable step. stalls (no position change) break the gallery early;
   //    the caller rotates the direction.
-  async function tunnel (dir, { maxBlocks = 12, names = null, shouldStop = null } = {}) {
+  async function tunnel (dir, { maxBlocks = 12, names = null, shouldStop = null, maxMs = TUNNEL_MAX_MS } = {}) {
     enablePhysicsMode()
     configureGroundMovements()
     stats.startedAt = stats.startedAt || Date.now()
@@ -972,8 +973,26 @@ export function createMiner ({
     const d = new Vec3(Math.sign(dir.x) || 1, 0, Math.sign(dir.z) || 0)
     let done = 0
     let stalls = 0
+    let diglessIters = 0 // (v0.35.0) iterations since the last successful dig - mob shoving resets `stalls` but cannot reset this
+    let stopped = null // (v0.35.0) why the loop ended before maxBlocks: 'budget' | 'digless' | 'stalled' | 'shouldStop' | 'no entity'
     try {
-      while (done < maxBlocks && !shouldStop?.() && bot.entity && stalls < 4) {
+      while (true) {
+        // (v0.35.0) the guard is the LOOP CONDITION now: fleet 35562867668 (F2) ran
+        // ONE tunnel call for 390 s and dug 1 block - two skeletons reset the stall
+        // counter by shoving, nothing diggable was ever in `names`, and the bank-trip
+        // gate AFTER this call in the fleet loop never ran. `tunnelStopReason` ends
+        // the call and NAMES the reason instead.
+        const stop = tunnelStopReason({ done, maxBlocks, stalls, diglessIters, elapsedMs: Date.now() - start, maxMs, stopRequested: !!shouldStop?.(), alive: !!bot.entity })
+        if (stop) {
+          stopped = stop
+          // (v0.16.4 lesson) the reason MUST reach the log - a silent abort is
+          // exactly the 390 s hole this guard closes. shouldStop/no entity are
+          // the caller's own machinery, not tunnel failures: stay silent there.
+          if (stop !== 'shouldStop' && stop !== 'no entity') {
+            log(`${tag} tunnel: stopping after ${((Date.now() - start) / 1000).toFixed(0)}s (${stop}, done=${done}) - the caller rotates`)
+          }
+          break
+        }
         const from = bot.entity.position.floored()
         const feetCell = from.offset(d.x, 0, d.z)
         const feetB = bot.blockAt(feetCell)
@@ -986,6 +1005,7 @@ export function createMiner ({
           if (names && !names.includes(feetB.name)) break
           if (await bot.fastDig(feetB)) {
             done++
+            diglessIters = 0
             stats.mined++
             stats.byName[feetB.name] = (stats.byName[feetB.name] || 0) + 1
           }
@@ -993,6 +1013,7 @@ export function createMiner ({
         if (headB && headB.type !== 0 && (!names || names.includes(headB.name))) {
           if (await bot.fastDig(headB)) {
             done++
+            diglessIters = 0
             stats.mined++
             stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
           }
@@ -1010,11 +1031,12 @@ export function createMiner ({
         } catch { /* stall accounting below */ }
         if (moved) stalls = 0
         else stalls++
+        diglessIters++ // a move is NOT progress - only a dig resets this (v0.35.0)
         await bot.waitForTicks(2) // gravity/step settle before the next cut
       }
     } catch { /* never break the caller's loop */ }
     const secs = (Date.now() - start) / 1000
-    return { done, secs, rate: secs > 0 ? done / secs : 0 }
+    return { done, secs, rate: secs > 0 ? done / secs : 0, stopped }
   }
 
   // Bore in a straight line (dir is one of up/down/north/...): dig the next cell,
