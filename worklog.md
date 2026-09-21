@@ -1348,3 +1348,18 @@ Stage Summary:
 - Master: 49b28d9 (v0.49.0 theirs + v0.50.0 mine + all worklogs), ALL CI GREEN. Their fronts #3 and #5 closed. Remaining: the airGlitch/server-tick class (deepest infra), banked>0 on a RICH world, water/drowned deaths, chest FULL handling.
 - EXPECTATIONS next fleet: 'shelter earn: dropped 1 <item>' lines; 'cause:' on every death line; shelters > 0; banked>0 iff the world is rich.
 - Version handoff: next free = 0.51.0. The 600s fleet dispatch fires on 49b28d9 as the session's LAST action.
+
+---
+Task ID: 398294-20260922-0053 (second half - the v0.49.0 fleet mined, the hard-kill class cured, v0.50.x layered)
+Agent: Z.ai Code (cron session, 00:53 +08)
+
+Work Log:
+- Mined MY dispatch 35630279913 (e616f51 = v0.49.0, 600s): **HARD KILL - the end-phase hang class RETURNED**. Heartbeat-anchored: 13 bots staggered +56..+80s, ALL final climbs 'failed - stalled' FAST (36-100s, the failLimit - the fence never fired), then **120-180s of SILENCE per bot inside the pre-deposit**: the underground bot walked at chests 27 blocks away AT THE YARD SURFACE (raw walks stalled into stone, the pathfinder cannot route out of a 1x1 shaft), the smelt gate read 0 remaining ('end-bank budget spent - smelt skipped' at 881-941s), the final deposit refused on the walk floor, banked=0, the process ground to the kill at ~1020s. An underground bot's chain is worthless - the v0.41.0 note said it, the code kept feeding it.
+- v0.50.0 (637141b, my lane): endphase climbRetryPlan({attempts, reason, sliceLeftMs}) - retries 'stalled'/'timeout' INSIDE the slice the failed attempt left (attempt1 + retry <= slice by construction; the escalation ladder supplies 2x budgets + the rotated bearing); never 'exhausted'/'stopped'/cap/thin-slice/unknown. fleet19: the retry runs fenced; after the LAST failed attempt the chain is refused honestly ('final bank: 0 (still underground after N climb attempts)') - the phase ends early instead of grinding doomed walks into the kill. 12 pins.
+- COLLISION #14 (version): the parallel agent's 49b28d9 took 0.50.0 first (earn-the-seal: a full-pocket miner drops ONE junk item for a seal slot + the death-cause reporter - fronts #3 and #5 CLOSED). My climb-retry merged on top as a second 0.50.0; test-import rescue as v0.50.1 (47798a1: climbRetryPlan was used but never imported - node --check does not catch undefined names). Two 0.50.0s in history; next free = 0.51.0.
+- Push CI 35636093194 (47798a1) GREEN.
+
+Stage Summary:
+- Master: 47798a1, CI GREEN. The end-phase pipeline now: stagger-aware slice -> fenced climb -> RETRY (escalated, rotated) -> honest underground refusal OR the full chain with its reserve intact. Layered with their earn-the-seal + death reporter. The fleet dispatch on 47798a1 fires as this session's LAST action: expectations - 'final climb: retry' lines, 'still underground' verdicts instead of 120s silences, a NORMAL END (no kill), shelters>0 (their earn-the-seal), death causes NAMED (their reporter), banked>0 on a decent world.
+- OPEN FRONTS: the disconnect class (server keepalive/metadata); water/drowned deaths (the reporter now names them); chest-FULL handling; banked>0.
+- Version handoff: 0.50.0 (theirs + mine), 0.50.1 mine; next free = 0.51.0.
