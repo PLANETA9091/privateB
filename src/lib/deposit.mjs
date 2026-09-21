@@ -82,6 +82,95 @@ export async function withHopPathfinder (bot, runFn) {
 
 const { goals } = pathfinderPkg
 
+// (v0.48.0) THE RAW HOP WALK - the end-phase A* saturation, measured and killed
+// at its source. Dispatch 35605960761 (56a19b5 = v0.45.0+v0.46.0 first joint
+// fleet): NORMAL END but banked=0 again, and the attribution matrix finally
+// names the machine-level cause. The heartbeat worker stayed healthy (b] lines
+// every 20s, late<=809ms) while the MAIN thread's reporter starved TWICE - a
+// 50s window at t~205 (all 19 bots then keepalive-kicked 'Timed out' by the
+// server, 13s spread) and a 209s window across the whole end phase (9 more
+// bots kicked at its start; 28 mid-run disconnects total; mined rate collapsed
+// to 1.81 b/s vs the 6.53 best). The one thread was drowned in pathfinder A*:
+// every bot's end-phase bank chain hops warehouse chests with the v0.45.0
+// widened search (radius 48 x think 4500ms on an OPEN platform - the v0.6.5
+// OOM-class frontier explosion, re-measured as CPU saturation), plus 19 bots'
+// mining/trip paths on 2 CI cores shared with the JVM. Under saturation the
+// keepalive answers lag past the server's 30s deadline and WALK TIMEOUTS
+// CANNOT EVEN FIRE ON TIME (F3: 'timeout after 27527ms' for a 41-block walk).
+// THE YARD IS A BUILT FLAT PLATFORM (scripts/setup-yard.mjs): walking a
+// straight line on it needs ZERO A*. The hop therefore walks RAW CONTROLS
+// FIRST (look + forward + step-jump - the tunnel/shelter/wet-escape lesson
+// applied to open flat ground), and only a failed/stalled raw walk falls back
+// to the pathfinder hop, which keeps every existing retry/No-path semantic.
+export const RAW_HOP_MAX_DIST = 40
+export const RAW_HOP_REACH = 3.2
+export const RAW_HOP_TICK_MS = 250
+export const RAW_HOP_STALL_MS = 2000
+export const RAW_HOP_TIMEOUT_MS = 20000
+
+/** Pure: may this hop try the raw walk? Junk-safe - unknown distance passes
+ * (the raw walk itself decides with live positions), a water-rescue owner
+ * never touches raw controls (the rescue owns them; waitForWaterRescueClear
+ * runs before walkOnce, but the flag can re-set mid-chain). */
+export function rawHopEligible ({ dist, waterRescue = false } = {}) {
+  if (waterRescue) return false
+  const d = Number(dist)
+  if (!Number.isFinite(d)) return true
+  return d <= RAW_HOP_MAX_DIST
+}
+
+/** Walk a straight line to `targetPos` with raw controls - NO pathfinder, NO
+ * path-queue slot, NO A* CPU. The flat-platform hop: look at the target,
+ * hold forward, jump when the walk stops making progress (the platform's
+ * steps / a shoved bot). Progress = position delta over the tick window; a
+ * stall longer than stallMs fails honestly (the pathfinder fallback then
+ * handles whatever the straight line could not: a furnace wall, a crowd).
+ * Controls are ALWAYS cleared in the finally - a leaked forward key would
+ * walk the bot into the sea after the deposit. */
+export async function walkRawToward (bot, targetPos, {
+  reach = RAW_HOP_REACH, timeoutMs = RAW_HOP_TIMEOUT_MS,
+  tickMs = RAW_HOP_TICK_MS, stallMs = RAW_HOP_STALL_MS, log = () => {}
+} = {}) {
+  if (!bot?.entity?.position?.distanceTo || !targetPos) throw new Error('raw walk: no position')
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  const started = Date.now()
+  let lastPos = null
+  let lastProgressAt = started
+  let jumpUntil = 0
+  try {
+    while (true) { // eslint-disable-line no-constant-condition
+      const now = Date.now()
+      const d = bot.entity.position.distanceTo(targetPos)
+      if (Number.isFinite(d) && d <= reach) return { walked: true, ms: now - started, d }
+      if (now - started > timeoutMs) throw new Error(`raw walk timeout after ${now - started}ms (d=${Number(d).toFixed(1)})`)
+      const moved = lastPos ? bot.entity.position.distanceTo(lastPos) : Infinity
+      if (Number.isFinite(moved) && moved < 0.35) {
+        if (now - lastProgressAt > stallMs) throw new Error(`raw walk stalled after ${now - lastProgressAt}ms (d=${Number(d).toFixed(1)})`)
+        if (now >= jumpUntil) {
+          // the step-block case: the platform rows and machine bays sit 1 up
+          jumpUntil = now + tickMs * 2
+          try { bot.setControlState('jump', true) } catch { /* mocks */ }
+          setTimeout(() => { try { bot.setControlState('jump', false) } catch { /* gone */ } }, tickMs)
+        }
+      } else {
+        lastProgressAt = now
+      }
+      lastPos = bot.entity.position.clone ? bot.entity.position.clone() : bot.entity.position
+      const dx = targetPos.x - bot.entity.position.x
+      const dz = targetPos.z - bot.entity.position.z
+      // mineflayer yaw: 0 faces +z; the yaw that faces the target is atan2(-dx, -dz)
+      try { await bot.look(Math.atan2(-dx, -dz), 0, true) } catch { /* mocks / force unsupported */ }
+      try { bot.setControlState('forward', true) } catch { /* mocks */ }
+      try { bot.setControlState('sneak', false) } catch { /* mocks */ }
+      await sleep(tickMs)
+    }
+  } finally {
+    for (const c of ['forward', 'jump', 'sneak', 'sprint']) {
+      try { bot.setControlState(c, false) } catch { /* mocks */ }
+    }
+  }
+}
+
 export const CHEST_NAMES = ['chest', 'trapped_chest', 'barrel', 'ender_chest']
 
 // Never banked: the bot needs these to keep working (and to survive the night).
@@ -449,13 +538,29 @@ export async function depositToChest (bot, {
   const walkOnce = async label => {
     const ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
     if (ms <= 0) throw new Error('budget exhausted (walk floor)')
+    // (v0.48.0) RAW FIRST: the flat yard platform needs no A* - 19 concurrent
+    // radius-48 hops saturated the one node thread for 209s (dispatch
+    // 35605960761) and the server keepalive-kicked every bot mid-walk. The raw
+    // walk costs no path slot and near-zero CPU; a stall/timeout falls through
+    // to the pathfinder hop below, which keeps every retry/No-path semantic.
+    // The proximate case never gets here (walked=true at entry); a water-rescue
+    // owner keeps the pathfinder path too (raw controls are ITS controls).
+    if (rawHopEligible({ dist: (() => { try { return bot.entity?.position?.distanceTo?.(chest.position) } catch { return null } })(), waterRescue: bot._waterRescue === true })) {
+      try {
+        return await walkRawToward(bot, chest.position, { timeoutMs: Math.min(ms, RAW_HOP_TIMEOUT_MS), log })
+      } catch (e) {
+        log?.(`${tag} raw hop failed: ${e.message} - pathfinder retry`)
+      }
+    }
     // (v0.45.0) the hop runs under the widened hop budget (radius 48, think
     // 4500ms) and restores the tunnel tuning in a finally - the global 32/2000
     // pair made every open-platform hop 'No path' or 'Took to long' (304x,
     // dispatch 35599777909). (v0.46.0) range 2 -> 3 (their 19:53 sketch item 2):
     // at a PACKED chest row the within-2 standable cells are scarce (102x 'No
     // path'); range 3 quadruples the goal-cell candidates while openChest's
-    // ~4.5 reach still holds from any of them.
+    // ~4.5 reach still holds from any of them. (v0.48.0) this is now the
+    // FALLBACK: the raw walk owns the flat platform, the pathfinder owns
+    // whatever a straight line cannot cross.
     return withHopPathfinder(bot, () =>
       gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK }))
   }

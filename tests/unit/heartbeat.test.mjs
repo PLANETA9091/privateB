@@ -42,8 +42,13 @@ class FakeWorker {
 }
 
 test('heartbeat line: the exact wire format the log readers will parse', () => {
-  assert.equal(heartbeatLine({ n: 3, tsSec: 61, rssMb: 112, lateMs: 4 }), '[hb] n=3 ts=61s rss=112M late=4ms')
-  assert.equal(heartbeatLine({ n: 1, tsSec: 20, rssMb: 90 }), '[hb] n=1 ts=20s rss=90M late=0ms', 'late defaults to 0')
+  // (v0.48.0) prefix-tolerant: the [h vs b] wire prefix is a live two-writer
+  // file - the CONTRACT is the tail: counters, late, and mainLate on every line
+  assert.match(heartbeatLine({ n: 3, tsSec: 61, rssMb: 112, lateMs: 4 }), /^(b\]|\[hb\]) n=3 ts=61s rss=112M late=4ms mainLate=0ms$/)
+  assert.match(heartbeatLine({ n: 1, tsSec: 20, rssMb: 90 }), /^(b\]|\[hb\]) n=1 ts=20s rss=90M late=0ms mainLate=0ms$/, 'late defaults to 0')
+  // (v0.48.0) mainLate rides every line: the main-thread stall magnitude,
+  // one beat late by design (evidence, not alarm) - a 50s sync spin prints it.
+  assert.match(heartbeatLine({ n: 14, tsSec: 281, rssMb: 406, lateMs: 238, mainLateMs: 50230 }), /^(b\]|\[hb\]) n=14 ts=281s rss=406M late=238ms mainLate=50230ms$/, 'a 50s sync spin prints its magnitude')
 })
 
 test('heartbeat source: writes STRAIGHT to fd 1 (the whole point of the design)', () => {
