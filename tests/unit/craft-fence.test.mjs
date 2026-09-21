@@ -17,18 +17,21 @@ function item (name, count = 1) {
 }
 
 test('sweepGridItems: healthy clicks sweep and VERIFY the slot emptied', async () => {
-  const w = { type: 'minecraft:inventory', slots: new Map([[1, item('oak_planks', 2)]]) }
+  // mineflayer Window.slots is an ARRAY - the verify path indexes it, so mocks must too
+  const w = { type: 'minecraft:inventory', slots: [null, item('oak_planks', 2)] }
   const bot = {
     currentWindow: w,
     inventory: { items: () => [] },
-    putAway: async slot => { w.slots.delete(slot) }
+    putAway: async slot => { w.slots[slot] = null }
   }
   assert.equal(await sweepGridItems(bot), 1)
-  assert.equal(w.slots.size, 0)
+  assert.ok(w.slots.every(s => !s))
 })
 
 test('sweepGridItems: non-grid slots are left alone', async () => {
-  const w = { type: 'minecraft:inventory', slots: new Map([[0, item('oak_planks', 2)], [5, item('stick', 4)]]) }
+  const arr = [item('oak_planks', 2)]
+  arr[5] = item('stick', 4)
+  const w = { type: 'minecraft:inventory', slots: arr }
   let calls = 0
   const bot = {
     currentWindow: w,
@@ -40,7 +43,7 @@ test('sweepGridItems: non-grid slots are left alone', async () => {
 })
 
 test('sweepGridItems: silent window drops retry up to 3x then give up on the slot', async () => {
-  const w = { type: 'minecraft:inventory', slots: new Map([[2, item('birch_planks', 4)]]) }
+  const w = { type: 'minecraft:inventory', slots: [null, null, item('birch_planks', 4)] }
   let calls = 0
   const bot = {
     currentWindow: w,
@@ -52,7 +55,7 @@ test('sweepGridItems: silent window drops retry up to 3x then give up on the slo
 })
 
 test('sweepGridItems: a putAway that never settles (dead socket) cannot hang the sweep', async () => {
-  const w = { type: 'minecraft:inventory', slots: new Map([[3, item('spruce_planks', 1)]]) }
+  const w = { type: 'minecraft:inventory', slots: [null, null, null, item('spruce_planks', 1)] }
   let calls = 0
   const bot = {
     currentWindow: w,
