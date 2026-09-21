@@ -34,8 +34,23 @@ const { goals } = pathfinderPkg
 // path, raw hop, pathfinder) keeps every v0.45-0.48 semantic untouched.
 export const APPROACH_THRESHOLD = 24
 export const APPROACH_SEGMENT_MAX = 20 // one segment always fits searchRadius 32
-export const APPROACH_MIN_REMAINING = 8 // leave the last blocks to the normal ladder
+// (v0.61.0) 8 -> 4: the run58 evidence (dispatch 35657683920) measured THREE
+// independent F14 attempts each ending 'goal now d=28.1/28.2/27.7 (still
+// outside)' - with minRemaining 8 the planner stopped closing at d=28 and the
+// direct ladder failed there every time (the run51 pit geometry lives well
+// below the hop's 48 radius). The planner must close PAST the 24 threshold:
+// the last segment steps (dist - 4), so d=28 walks to ~8 and the proximate
+// fast-path / raw hop owns the final blocks it can actually see.
+export const APPROACH_MIN_REMAINING = 4
 export const APPROACH_SEGMENT_MS = 15000 // a 20-block raw walk ~10s + margin
+// (v0.61.0) the hard safety cap: run58 measured chests d=60-75 (the F14/F16
+// approach lines started at d=60+ after the end-phase walk) where the old
+// cap of 2 segments (<= 40 blocks of closing) was doomed BY ARITHMETIC - the
+// log itself said '2 segment(s) walked, goal now d=34.1 (still outside)'.
+// 8 segments = 160 blocks of closing - more than any measured chest row -
+// while the anti-spin guard (one immobile segment ends the loop) and the
+// caller's budgetMs keep the loop honest in time, not in segment count.
+export const APPROACH_MAX_SEGMENTS = 8
 
 /**
  * Pure: the intermediate point one segment toward `to`, or null when `from`
@@ -75,6 +90,12 @@ const posOf = bot => {
 /**
  * Walk up to `maxSegments` raw/pathfinder segments toward `targetPos`, stopping
  * as soon as the remaining distance enters the direct-ladder envelope.
+ * (v0.61.0) THE BUDGET LOOP: segments continue while the caller's `budgetMs`
+ * wall clock lasts and every segment moves the bot - the run58 far-chest class
+ * (d=60-75) needs 3-4 segments, not the v0.56.0 cap of 2. The clock, not the
+ * segment count, is the honest bound: the last affordable segment's slice
+ * clamps to the remaining budget, and the anti-spin rule (one immobile
+ * segment ends the loop) survives unchanged.
  * NEVER THROWS: a failed segment just ends the approach (the caller's existing
  * walk ladder then reports honestly). Every control path clears its own state
  * because the raw walker (walkRawToward) owns its finally.
@@ -82,38 +103,45 @@ const posOf = bot => {
  * @param {{x: number, y: number, z: number}} targetPos the far goal (plain or Vec3)
  * @param {object} [opts]
  * @param {number} [opts.threshold] approach while the goal is farther than this (default APPROACH_THRESHOLD)
- * @param {number} [opts.maxSegments] hard segment cap (default 2)
+ * @param {number} [opts.maxSegments] hard segment cap (default APPROACH_MAX_SEGMENTS)
  * @param {number} [opts.segmentMs] per-segment budget (default APPROACH_SEGMENT_MS)
+ * @param {number} [opts.budgetMs] TOTAL wall clock for the whole loop (default Infinity - the cap governs; the deposit wiring passes the chain clock minus the walk floor)
  * @param {Function} [opts.rawWalk] async (bot, pos, {timeoutMs}) => walked - injected by the caller (deposit.mjs passes walkRawToward); null skips the raw attempt
  * @param {Function} [opts.log] line sink
  * @returns {Promise<{walked: boolean, d: number|null, segments: number}>} walked=true when the goal is within the threshold
  */
 export async function approachWalk (bot, targetPos, {
   threshold = APPROACH_THRESHOLD,
-  maxSegments = 2,
+  maxSegments = APPROACH_MAX_SEGMENTS,
   segmentMs = APPROACH_SEGMENT_MS,
+  budgetMs = Infinity,
   rawWalk = null,
   log = () => {}
 } = {}) {
   const segmentsUsed = []
   let d = dist3(posOf(bot), targetPos)
-  const cap = Number.isFinite(maxSegments) && maxSegments > 0 ? maxSegments : 2
+  const cap = Number.isFinite(maxSegments) && maxSegments > 0 ? maxSegments : APPROACH_MAX_SEGMENTS
   const slice = Number.isFinite(segmentMs) && segmentMs > 0 ? segmentMs : APPROACH_SEGMENT_MS
+  const budget = Number.isFinite(budgetMs) && budgetMs >= 0 ? budgetMs : Infinity // 0 = no approach at all; junk = the cap governs
+  const started = Date.now()
+  let endWhy = 'inside the direct envelope'
   for (let n = 0; n < cap; n++) {
+    const left = budget - (Date.now() - started)
+    if (left <= 0) { endWhy = 'the approach clock is spent'; break }
     const from = posOf(bot)
     const seg = approachTargetPos({ from, to: targetPos })
     if (!seg) break // close enough (or unreadable): the direct ladder takes over
     let rawOk = false
     if (typeof rawWalk === 'function') {
       try {
-        const r = await rawWalk(bot, seg, { timeoutMs: slice })
+        const r = await rawWalk(bot, seg, { timeoutMs: Math.min(slice, left) })
         rawOk = !!(r && (r.walked === true || r === true))
       } catch { /* stall/timeout: the segment ends, the pathfinder fallback runs */ }
     }
     let pathOk = false
     if (!rawOk) {
       try {
-        await gotoSafe(bot, new goals.GoalNear(seg.x, seg.y, seg.z, 2), { timeoutMs: slice, label: 'approach segment' })
+        await gotoSafe(bot, new goals.GoalNear(seg.x, seg.y, seg.z, 2), { timeoutMs: Math.min(slice, left), label: 'approach segment' })
         pathOk = true
       } catch { /* whatever the segment could not cross stays - report honestly */ }
     }
@@ -124,10 +152,10 @@ export async function approachWalk (bot, targetPos, {
     segmentsUsed.push(seg)
     const dNow = dist3(after, targetPos)
     if (Number.isFinite(dNow)) d = dNow
-    if ((rawOk || (pathOk && moved)) && Number.isFinite(d) && d <= threshold) break
-    if (!moved) break // one immobile segment is enough: the caller's ladder owns the rest
+    if ((rawOk || (pathOk && moved)) && Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
+    if (!moved) { endWhy = 'a segment stalled (no position delta)'; break } // one immobile segment is enough: the caller's ladder owns the rest
   }
   const ok = Number.isFinite(d) && d <= threshold
-  if (segmentsUsed.length) log(`approach: ${segmentsUsed.length} segment(s) walked, goal now d=${Number.isFinite(d) ? d.toFixed(1) : '?'} (${ok ? 'inside the direct envelope' : 'still outside - the ladder reports honestly'})`)
+  if (segmentsUsed.length) log(`approach: ${segmentsUsed.length} segment(s) walked in ${((Date.now() - started) / 1000).toFixed(1)}s, goal now d=${Number.isFinite(d) ? d.toFixed(1) : '?'} (${ok ? 'inside the direct envelope' : `still outside - ${endWhy}`})`)
   return { walked: ok, d, segments: segmentsUsed.length }
 }

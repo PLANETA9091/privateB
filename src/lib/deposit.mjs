@@ -646,6 +646,13 @@ export async function depositToChest (bot, {
       await approachWalk(bot, chest.position, {
         rawWalk: walkRawToward,
         segmentMs: Math.min(ms, APPROACH_SEGMENT_MS),
+        // (v0.61.0) THE BUDGET LOOP: the approach may spend the whole chain
+        // clock except the direct-ladder floor. Run58 measured the old cap of
+        // 2 segments doomed BY ARITHMETIC on chests d=60-75 ('2 segment(s)
+        // walked, goal now d=34.1 (still outside)') - the loop now closes
+        // while the chain clock (distance-scaled since v0.34.0, so it sized
+        // for exactly this walk) and per-segment progress last.
+        budgetMs: Math.max(0, chainLeft - BUDGET_WALK_FLOOR_MS),
         log: m => log?.(`${tag} ${m}`)
       })
       ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })

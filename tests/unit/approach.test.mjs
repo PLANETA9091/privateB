@@ -21,14 +21,20 @@ import {
 
 test('planner: a close goal needs no approach (null inside the envelope)', () => {
   const from = { x: 0, y: 0, z: 0 }
-  const to = { x: APPROACH_SEGMENT_MAX + APPROACH_MIN_REMAINING, y: 0, z: 0 } // exactly 28
-  assert.equal(approachTargetPos({ from, to }), null, 'at maxSegment+minRemaining the direct ladder owns the walk')
+  // (v0.61.0) the boundary moved 28 -> 24 (minRemaining 8 -> 4, the run58 F14
+  // wall: three attempts each died on the final 28-block stretch the planner
+  // refused to close) - the planner now owns everything past the threshold.
+  const to = { x: APPROACH_SEGMENT_MAX + APPROACH_MIN_REMAINING, y: 0, z: 0 } // exactly 24
+  assert.equal(approachTargetPos({ from, to }), null, 'at maxSegment+minRemaining (= the threshold) the direct ladder owns the walk')
+  const seg25 = approachTargetPos({ from, to: { x: 25, y: 0, z: 0 } })
+  assert.ok(seg25, 'd=25 is ABOVE the threshold - the planner owns it now (the run58 F14 wall)')
+  assert.equal(seg25.x, 20, 'the 25-block goal gets one 20-block step: 5 remain after it')
   assert.equal(approachTargetPos({ from, to: { x: 10, y: 0, z: 0 } }), null, 'a short walk never approaches')
 })
 
 test('planner: the F17 geometry (d=43) yields one 20-block segment', () => {
   const seg = approachTargetPos({ from: { x: 0, y: 0, z: 0 }, to: { x: 43, y: 0, z: 0 } })
-  assert.ok(seg, 'd=43 > 28 must approach')
+  assert.ok(seg, 'd=43 > 24 must approach')
   assert.equal(seg.x, 20, 'the segment caps at 20 blocks (inside searchRadius 32)')
   assert.equal(seg.y, 0)
   assert.equal(seg.z, 0)
@@ -104,7 +110,7 @@ test('walk: both mechanisms failing is honest, bounded, and never throws', async
   assert.equal(res.walked, false, 'still outside - the caller reports honestly')
 })
 
-test('walk: the segment cap bounds the loop (d=100 with 2 segments stays honest)', async () => {
+test('walk: the segment cap bounds the loop (d=100 closes in 4 segments now)', async () => {
   const bot = makeBot({ gotoMoves: true })
   const target = new Vec3(100.5, 64, 0.5)
   const rawWalk = async (b, seg) => {
@@ -112,8 +118,56 @@ test('walk: the segment cap bounds the loop (d=100 with 2 segments stays honest)
     return { walked: true }
   }
   const res = await approachWalk(bot, target, { rawWalk })
+  assert.equal(res.segments, 4, 'the run58 arithmetic cure: 100 -> 80 -> 60 -> 40 -> 20, then inside the envelope')
+  assert.equal(res.walked, true, 'the v0.56.0 cap of 2 left 60 blocks outside - the loop closes what the arithmetic allows')
+})
+
+test('walk: an explicit maxSegments still caps the loop (opt-in, the old 2-segment semantics)', async () => {
+  const bot = makeBot({ gotoMoves: true })
+  const target = new Vec3(100.5, 64, 0.5)
+  const rawWalk = async (b, seg) => {
+    b.entity.position = new Vec3(seg.x, seg.y, seg.z)
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, target, { rawWalk, maxSegments: 2 })
   assert.equal(res.segments, 2)
   assert.equal(res.walked, false, '60 blocks remain - above the threshold, reported as-is')
+})
+
+test('walk: the budgetMs clock bounds the loop and the last slice clamps to it', async () => {
+  const bot = makeBot({ gotoMoves: true })
+  const target = new Vec3(100.5, 64, 0.5)
+  const slices = []
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  const rawWalk = async (b, seg, { timeoutMs } = {}) => {
+    slices.push(timeoutMs)
+    await sleep(timeoutMs) // the walk consumes exactly its slice of real wall clock
+    b.entity.position = new Vec3(seg.x, seg.y, seg.z)
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, target, { rawWalk, segmentMs: 20, budgetMs: 50 })
+  assert.equal(res.segments, 3, 'a 50ms budget with 20ms slices: two full slices, then a clamped remainder')
+  assert.equal(slices[0], 20)
+  assert.equal(slices[1], 20)
+  assert.ok(slices[2] > 0 && slices[2] < 20, `the third slice clamped to the remaining clock (got ${slices[2]})`)
+  assert.equal(res.walked, false, 'the clock spent before the threshold - reported as-is')
+})
+
+test('walk: a zero budget ends the loop BEFORE any segment starts', async () => {
+  const bot = makeBot({ gotoMoves: true })
+  const target = new Vec3(100.5, 64, 0.5)
+  let calls = 0
+  const rawWalk = async (b, seg) => {
+    calls++
+    b.entity.position = new Vec3(seg.x, seg.y, seg.z)
+    return { walked: true }
+  }
+  const zero = await approachWalk(bot, target, { rawWalk, budgetMs: 0 })
+  assert.equal(zero.segments, 0, 'budgetMs 0 is a real clock answer: no budget, no segments')
+  assert.equal(calls, 0)
+  assert.equal(zero.walked, false)
+  const junk = await approachWalk(bot, target, { rawWalk, budgetMs: NaN })
+  assert.equal(junk.segments, 4, 'junk budget falls back to the unbounded default (the cap governs, d=100 closes in 4)')
 })
 
 test('walk: a bot with no entity never throws and never approaches', async () => {
