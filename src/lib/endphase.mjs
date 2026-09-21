@@ -73,3 +73,42 @@ export function hardKillDelayMs ({ runSeconds = 600, marginMs = HARD_KILL_MARGIN
   const m = Number.isFinite(marginMs) && marginMs >= 0 ? marginMs : HARD_KILL_MARGIN_MS
   return s * 1000 + m
 }
+
+// ---------------------------------------------------------------------------
+// END-BANK BUDGET (v0.27.0) - the chain inside the margin gets its own clock.
+//
+// MEASURED (dispatch 35544781892, 600s on 504f744, the first run the hard kill
+// SAVED): after 16/17 final climbs failed ('stalled'/'timeout'), every bot
+// entered smeltThenBank and the log went heartbeat-only for the whole 420s
+// margin - mined frozen at 1258, path=6a/6q circulating, stale +3-5/15s, ZERO
+// 'final bank' lines. The chain is combinatorial (see deposit.mjs v0.27.0
+// note: 8-chest hops x walk retries x the yard walk x 2 deposit passes) and
+// every step was individually budgeted while the CHAIN was not - so the run
+// never reached printFinalReport and the evidence stayed partial (no
+// fleet-report.json, no worldmap save).
+//
+// THE CURE: the final bank chain gets a wall-clock budget (default 150s).
+// Budget sizing: stagger cap 120s runs BEFORE the chain, so the worst chain
+// end is deadline + 120s + 150s = 270s < the 420s hard-kill margin - the
+// process now finishes NATURALLY (full report) with the kill as a pure
+// safety net, and each bot's doomed walks give up with a named reason
+// instead of churning the path queue.
+/** Default wall-clock budget for one bot's whole final bank chain. */
+export const END_BANK_BUDGET_MS = 150000
+
+/**
+ * Parse the FLEET_END_BUDGET_MS env value. Pure, junk-tolerant: unset, empty,
+ * junk, zero or negative -> the default budget (an env of 0 reads as 'unset':
+ * the deposit chain treats finite <= 0 as 'already spent', which would
+ * silently kill every final bank if honoured).
+ * @param {object} [p]
+ * @param {string|number} [p.env] raw env value (default: unset -> default budget)
+ * @param {number} [p.def] default budget ms (default END_BANK_BUDGET_MS)
+ * @returns {number} budget in ms (finite, > 0)
+ */
+export function endBankBudgetMs ({ env = undefined, def = END_BANK_BUDGET_MS } = {}) {
+  const d = Number.isFinite(def) && def > 0 ? def : END_BANK_BUDGET_MS
+  if (env === undefined || env === null || env === '') return d
+  const n = Number(env)
+  return Number.isFinite(n) && n > 0 ? n : d
+}

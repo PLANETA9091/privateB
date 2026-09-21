@@ -83,6 +83,51 @@ export function findChest (bot, { maxDistance = 64, exclude = [] } = {}) {
 export const CHEST_WALK_BASE_MS = 30000
 export const CHEST_WALK_PER_BLOCK_MS = 500
 export const CHEST_WALK_CAP_MS = 60000
+
+// (v0.27.0) END-PHASE WALL CLOCK - the fleet's last unbounded loop, closed.
+//
+// MEASURED (dispatch 35544781892, 600s on 504f744): 17 staggered final climbs
+// - 1 OK, 16 'stalled'/'timeout' - and then EVERY bot entered smeltThenBank at
+// once. Inside it the deposit chain is combinatorial: depositToChests hops up
+// to maxChests=8 chests, each hop walks up to 2x the dist-scaled budget, the
+// yard walk retries 3x120s, and the whole chain runs twice (pre-deposit + the
+// final deposit). Worst case per bot: tens of minutes - all of it SILENT (a
+// failed hop only returns a reason string, nothing prints). 19 bots x doomed
+// walks also re-saturated the path throttle (path=6a/6q, stale +3-5/15s), so
+// every walk additionally waited 100-150s for a slot that another doomed walk
+// held. Nothing finished, FLEET RESULT never printed, HARD KILL (v0.26.0) had
+// to take the evidence.
+//
+// THE CURE is a wall-clock budget threaded down the chain: a caller with a
+// deadline passes budgetMs, every hop clamps its walk into the remaining
+// time, and a hop that cannot fit its floor gives up immediately with a named
+// reason. Bounded chain -> Promise.all(runners) resolves -> printFinalReport
+// prints with FULL evidence (fleet-report.json + worldmap save) instead of
+// the hard kill's partials. floorMs: a walk with less than this left cannot
+// even cross a yard - returning 'budget exhausted' beats burning it on a
+// guaranteed timeout.
+export const BUDGET_WALK_FLOOR_MS = 5000
+
+/**
+ * Pure clamp: the walk budget this attempt may actually use.
+ * Junk-tolerant: non-finite remainingMs means UNBOUNDED (no deadline in play)
+ * -> the walk's own budget passes through untouched.
+ * @param {object} [p]
+ * @param {number} [p.distBudget] the walk's own budget (dist-scaled or pinned)
+ * @param {number} [p.remainingMs] wall clock left on the caller's budget
+ * @param {number} [p.floorMs] below this the walk cannot usefully start (default BUDGET_WALK_FLOOR_MS)
+ * @returns {number} ms for this walk; 0 = do not walk (report 'budget exhausted')
+ */
+export function effectiveWalkBudget ({ distBudget = CHEST_WALK_BASE_MS, remainingMs = Infinity, floorMs = BUDGET_WALK_FLOOR_MS } = {}) {
+  const d = Number.isFinite(distBudget) && distBudget > 0 ? distBudget : CHEST_WALK_BASE_MS
+  if (!Number.isFinite(remainingMs)) return d // no deadline in play - legacy behavior
+  const left = remainingMs
+  if (!Number.isFinite(left) || left <= 0) return 0
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BUDGET_WALK_FLOOR_MS
+  if (left < floor) return 0 // cannot usefully start - say so instead of timing out
+  return Math.min(d, left)
+}
+
 export function chestWalkBudgetMs (dist) {
   return walkBudgetMs({
     dist,
@@ -113,11 +158,20 @@ export async function depositToChest (bot, {
   maxDistance = 64,
   log = () => {},
   timeoutMs = null, // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
+  budgetMs = null, // (v0.27.0) wall-clock cap on the WHOLE attempt (walk retries incl.) - the end-phase chain budget
   exclude = [] // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance, exclude })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
   const tag = `[${bot.username ?? 'bot'}]`
+
+  // (v0.27.0) the chain budget: a finite budgetMs > 0 sets a deadline every
+  // walk must fit; an explicit <= 0 means the caller already knows the clock
+  // is spent (skip without walking); junk/null = unbounded (legacy mid-run).
+  const hasBudget = Number.isFinite(budgetMs)
+  if (hasBudget && budgetMs <= 0) return { deposited: 0, reason: 'budget exhausted' }
+  const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
+  const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
 
   let budget = CHEST_WALK_BASE_MS
   if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
@@ -129,7 +183,13 @@ export async function depositToChest (bot, {
   // (v0.21.0) bank walks jump the fleet queue: a banked walk is the only one that
   // turns mined blocks into stock - under path saturation it must not wait behind
   // next-column walks (fleet v0.19.2: path=6a/10q at final-bank time, banked=0).
-  const walkOnce = async label => gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: budget, label, priority: PATH_PRIO_BANK })
+  // (v0.27.0) each attempt re-clamps into the remaining wall clock - a retry may
+  // not restart the full budget after the first attempt already ate most of it.
+  const walkOnce = async label => {
+    const ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
+    if (ms <= 0) throw new Error('budget exhausted (walk floor)')
+    return gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: ms, label, priority: PATH_PRIO_BANK })
+  }
   // (v0.20.1) ONE retry policy for every walk-failure class: walkRetryPlan is the
   // single source of truth (the yard walk in fleet19.mjs has run it since v0.19.0).
   //   water rescue -> wait out the rescue window, then the retry (v0.18.5 behavior)
@@ -175,7 +235,8 @@ export async function depositToChest (bot, {
         // the hop is a resilience attempt: report the PRIMARY failure ('No path to
         // the nearest chest') when the second candidate also fails, and the second
         // candidate's success when it does not
-        const second = await depositToChest(bot, { keep, maxDistance, log, timeoutMs, exclude: [dead] })
+        // (v0.27.0) the hop inherits the SAME wall clock, not a fresh budget
+        const second = await depositToChest(bot, { keep, maxDistance, log, timeoutMs, budgetMs: remaining(), exclude: [dead] })
         if (second.deposited > 0) return second
         return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
       }
@@ -236,20 +297,27 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {} } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
   const tried = [] // (v0.23.1) chest positions that refused a walk ('No path')
+  // (v0.27.0) chain budget: finite > 0 = deadline for the WHOLE hop loop; <= 0 =
+  // already spent (no hop at all); junk/null = unbounded (legacy mid-run calls).
+  const hasBudget = Number.isFinite(budgetMs)
+  if (hasBudget && budgetMs <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['budget exhausted'] }
+  const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
+  const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
   const bankableItems = () => {
     try {
       return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
     } catch { return 0 }
   }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
+    if (deadline != null && remaining() <= 0) { reports.push('budget exhausted'); break }
     const chest = findChest(bot, { maxDistance: findRadius, exclude: tried })
     if (!chest) break
-    const res = await depositToChest(bot, { chestBlock: chest, keep, log })
+    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining() })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
       // (v0.23.1) FLEET EVIDENCE (3e21d58): 5x 'chest unreachable (No path to the

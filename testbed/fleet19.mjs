@@ -17,8 +17,8 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs } from '../src/lib/endphase.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget } from '../src/lib/deposit.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -47,6 +47,13 @@ const SYNC = process.env.FLEET_SYNC === '1' // cross-process chat sync (PVB1)
 // furnace bay - the base plan needs GLASS and INGOTS, not sand and ore.
 const SMELT = process.env.FLEET_SMELT !== '0'
 const SMELT_BUDGET = Number(process.env.FLEET_SMELT_BUDGET || 90) // seconds per smelting visit
+// (v0.27.0) the final-bank chain's wall clock (see endphase.mjs): the last
+// unbounded loop in the fleet. 16/17 failed final climbs left every bot
+// churning doomed chest walks silently for the WHOLE hard-kill margin - the
+// full report never printed. With a 150s chain budget the worst end is
+// deadline + stagger 120s + 150s = 270s < the 420s margin, so the process
+// finishes naturally and printFinalReport always runs.
+const END_BANK_BUDGET = endBankBudgetMs({ env: process.env.FLEET_END_BUDGET_MS })
 // (v0.14.2) the old all-at-once BATCH launch is gone: logins spread over
 // JOIN_SPREAD_MS so the server's network thread never faces a 19-login burst
 
@@ -93,14 +100,22 @@ let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cook
 // says so, then SMELT at the workshop furnaces, then the real deposit.
 // Budget-capped and failure-tolerant - a stuck furnace or an unwalkable yard
 // must never cost the bot its mining loop.
-async function smeltThenBank (miner, { yardGoal = null } = {}) {
+async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) {
   // (v0.18.5) no flat timeoutMs pinning: depositToChest scales its walk budget with
   // the real distance now (fleet #128: the flat 30s killed every far-chest walk,
   // banked=0 with 77 attempts), and waits out one rescue window on refusal.
   const keep = () => [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
+  // (v0.27.0) the chain budget: a finite budgetMs > 0 sets a deadline every
+  // deposit/smelt step must fit (Infinity passes through the deposit chain
+  // unchanged - junk-safe legacy behavior for the mid-run caller).
+  const hasBudget = Number.isFinite(budgetMs)
+  if (hasBudget && budgetMs <= 0) return { deposited: 0, reason: 'budget exhausted' }
+  const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
+  const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
+  const lootOpts = () => ({ keep: keep(), budgetMs: remaining() })
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
-  const pre = await miner.depositLoot({ keep: keep() })
+  const pre = await miner.depositLoot(lootOpts())
   if (pre.deposited === 0) {
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
@@ -128,10 +143,18 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
       for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
         try {
           if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3`)
+          // (v0.27.0) the walk fits INSIDE the chain budget: a retry may not
+          // restart 120s the chain no longer has (the 35544781892 hang burned
+          // 3x120s walks per bot while the margin had 420s for ALL 19 bots).
+          const walkMs = effectiveWalkBudget({ distBudget: 120000, remainingMs: remaining() })
+          if (walkMs <= 0) {
+            console.log(`${miner.username} bank: end-bank budget spent - yard walk cancelled`)
+            break
+          }
           miner.bot.on('path_reset', spy)
           miner.bot.on('path_stop', spyStop)
           walkStart = Date.now()
-          await gotoSafe(miner.bot, walkGoal, { timeoutMs: 120000, label: 'walk to yard', priority: PATH_PRIO_BANK })
+          await gotoSafe(miner.bot, walkGoal, { timeoutMs: walkMs, label: 'walk to yard', priority: PATH_PRIO_BANK })
           arrived = true
           console.log(`${miner.username} bank: yard walk arrived in ${((Date.now() - walkStart) / 1000).toFixed(0)}s (${attempt} attempt${attempt > 1 ? 's' : ''})`)
         } catch (e) {
@@ -155,7 +178,12 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
     }
   }
   if (SMELT) {
-    try {
+    // (v0.27.0) smelting is the chain's middle step: when the budget is already
+    // gone the bot skips straight to the final deposit attempt (which the
+    // budget will cut to a named reason) instead of compounding the overrun.
+    if (remaining() <= 0) {
+      console.log(`${miner.username} end-bank budget spent - smelt skipped`)
+    } else try {
       const res = await smeltInventory(miner.bot, { maxSeconds: SMELT_BUDGET, log: m => console.log(m) })
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
@@ -169,7 +197,7 @@ async function smeltThenBank (miner, { yardGoal = null } = {}) {
   // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
   // surplus flows to the chests as base stock. keep is computed AFTER smelting: a
   // bot that just produced its first ingots keeps them for the iron pickaxe.
-  const res = await miner.depositLoot({ keep: keep() })
+  const res = await miner.depositLoot(lootOpts())
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }
@@ -635,7 +663,10 @@ async function runBot (name, target, index) {
           const cr = await miner.climbOut({ dir: direction, force: true })
           if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
           else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
-          const res = await smeltThenBank(miner, { yardGoal })
+          // (v0.27.0) the chain runs under a wall-clock budget: doomed walks
+          // give up with a named reason instead of churning the path queue
+          // until the hard kill (dispatch 35544781892: 420s of silence).
+          const res = await smeltThenBank(miner, { yardGoal, budgetMs: END_BANK_BUDGET })
           if (res.deposited > 0) {
             banked += res.deposited
             console.log(`${name} final bank: +${res.deposited}`)

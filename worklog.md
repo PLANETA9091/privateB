@@ -831,3 +831,21 @@ Work Log:
 Stage Summary:
 - Мастер: 8ac7a01 (v0.26.0). CI в полёте.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться зелёного CI на 8ac7a01, перезапустить fleet dispatch (run_fleet=true, fleet_seconds=600); (2) ГЛАВНЫЙ ОЖИДАЕМЫЙ СИГНАЛ: '[fleet] HARD KILL' строка + partial totals в артефакте - если флот снова зависнет в end-phase, лог хотя бы УЦЕЛЕЕТ; (3) непочеченный фронт: одновременный end-phase stall всех ботов - подозреваю depositToChest/findChest при живой, но никогда не завершающейся path-очереди (нужно воспроизвести по логу 35541442371: скачать лог job 106160987244 - 'fleet-cancelled.log'); (4) mined=1240@~10мин (2.07 b/s) ниже v0.24.0-прогона (5.4) - мир/старт разные, не паниковать; (5) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0753
+Agent: Z.ai Code (cron session, 07:53 +08)
+Task: вскрытие HARD KILL-доказательства (35544781892) + end-phase wall-clock budget (v0.27.0)
+
+Work Log:
+- CI на v0.26.0 (504f744) зелёный. Fleet dispatch 35544781892 дошёл до конца: SUCCESS job, но '[fleet] HARD KILL' в логе - end-phase hang ПОДТВЕРЖДЁН и впервые с ПОЛНЫМИ уликами (v0.26.0 окупился: partial evidence упал в артефакт).
+- Хронология: mined рос 43->1258 (2.1 b/s), замер НА t-0s; 17 staggered финальных климбов (1 OK, 16 'stalled'/'timeout'); F12/F17 ПОГИБЛИ в бою (drowned/zombie) в конце; после последних 'final climb: failed' - ТИШИНА на весь 420s margin: только heartbeat, path=6a/6q циркулирует, stale 187->200 (+3-5/15s), mined заморожен.
+- КЛЮЧЕВАЯ улика: F1/F4 прошли всю цепочку ('final bank: 0 (chest unreachable (No path to the goal!))'), остальные 10+ ботов НИ ОДНОЙ 'final bank' строки - зависли ВНУТРИ smeltThenBank. Цепочка комбинаторна: depositToChests 8 хопов x 2 walk-бюджета + yard walk 3x120s + ДВА depositLoot прохода = десятки минут молча на бота. 19 ботов с обречёнными прогулками пере-насыщали path-очередь (каждая попытка ждала слот 100-150s) - лайвлок, не дедлок.
+- v0.27.0: (1) deposit.mjs: BUDGET_WALK_FLOOR_MS=5000 + effectiveWalkBudget (pure clamp: junk remaining=unbounded legacy; <floor=0 'не начинай обречённую прогулку'); depositToChest budgetMs (deadline+remaining, walkOnce ре-клампится на каждой попытке - ретрай не перезапускает полный бюджет, No-path хоп наследует ТУ ЖЕ стенку); depositToChests budgetMs (<=0 = мгновенный 'budget exhausted', <=0 между хопами = break с отчётом); (2) endphase.mjs: END_BANK_BUDGET_MS=150000 + endBankBudgetMs (env FLEET_END_BUDGET_MS, junk/0/негатив -> default); (3) fleet19.mjs: smeltThenBank budgetMs (lootOpts() с remaining -> оба depositLoot; yard walk per-attempt clamp через effectiveWalkBudget + break 'end-bank budget spent'; smelt пропускается с логом при исчерпании), финальная цепочка зовёт smeltThenBank({budgetMs: END_BANK_BUDGET}).
+- Сайзинг: worst chain end = deadline + stagger 120s + budget 150s = 270s < 420s margin - процесс теперь доходит до printFinalReport ЕСТЕСТВЕННО (полный FLEET RESULT + fleet-report.json + worldmap save), hard kill остаётся чистой страховкой.
+- Тесты: tests/unit/deposit-budget.test.mjs (10 тестов: pure clamp pass-through/clamp/floor/junk, budgetMs=0 fast-path без прогулок, tiny budget floor-guard, щедрый бюджет = legacy happy path, junk=null/NaN/undefined/'junk' = unbounded, No-path хоп наследует стенку, endBankBudgetMs pins).
+- Инцидент записи: MultiEdit частично применился дважды -> дубли helper-блока и полный дубль хвоста deposit.mjs (579 строк, 'chestWalkBudgetMs already declared'); восстановлено splice-обрезкой до bankFallback + повторный точечный Edit. Урок: после MultiEdit - сразу node --check + grep -c маркеров.
+
+Stage Summary:
+- Мастер: v0.27.0 (этот коммит). Root cause end-phase hang ЗАКРЫТ КОДОМ (wall-clock budget), ждёт fleet-валидации.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться зелёного CI, dispatch run_fleet=true fleet_seconds=600; ОЖИДАНИЯ: НЕТ '[fleet] HARD KILL', ЕСТЬ 'FLEET RESULT (normal end)', строки 'budget exhausted'/'end-bank budget spent' при обречённых прогулках, process exit 0 до дедлайн+270s; (2) banked скорее всего всё ещё 0 - климбы 'stalled' не починены (отдельный фронт: 'blocked toward X (dug=0)' = геометрия ям, 'did not rise dug=60+' = F2-класс у поверхности, isWalkableSurface не сработал у F1 y=64-66 grass_block - разбирать отдельно); (3) mined 1258@600s = 2.1 b/s (лучший 5.4) - мир/старт разные; (4) git pull --rebase перед пушем; чужие PENDING dispatch не трогать.
