@@ -154,3 +154,40 @@ test('endBankBudgetMs: default, env parse, junk tolerance', () => {
   assert.equal(endBankBudgetMs({ env: '90000', def: 120000 }), 90000, 'a valid env wins over a custom def (the mid-run bank clock)')
   assert.equal(endBankBudgetMs({ env: 'junk', def: 120000 }), 120000, 'junk falls to the custom def, not the final-bank default')
 })
+
+// ---------------------------------------------------------------- smeltClampSeconds (v0.39.0)
+// MEASURED (dispatch 35576122228, the first fleet where the walk branch works):
+// F9 arrived at the yard (8 blocks, 1s) and the chain STILL died 'budget
+// exhausted' - the smelt clamp let the smelt eat the whole remainder, so the
+// final deposit entered at remaining() <= 0 and refused without a click. The
+// reserve keeps the deposit its slice; these tests pin the arithmetic.
+import { smeltClampSeconds, FINAL_DEPOSIT_RESERVE_MS } from '../../src/lib/deposit.mjs'
+
+test('smeltClampSeconds: junk and spent clocks never smelt', () => {
+  assert.equal(smeltClampSeconds({ remainingMs: 0 }), 0)
+  assert.equal(smeltClampSeconds({ remainingMs: -5 }), 0)
+  assert.equal(smeltClampSeconds({ remainingMs: NaN }), 0)
+  assert.equal(smeltClampSeconds({ remainingMs: 'junk' }), 0)
+  assert.equal(smeltClampSeconds({}), 90, 'unbounded legacy clock: the smelt budget stands')
+})
+
+test('smeltClampSeconds: the reserve is untouchable by the smelt', () => {
+  assert.equal(smeltClampSeconds({ remainingMs: FINAL_DEPOSIT_RESERVE_MS }), 0, 'exactly the reserve left: smelt skipped, deposit keeps it all')
+  assert.equal(smeltClampSeconds({ remainingMs: FINAL_DEPOSIT_RESERVE_MS - 1 }), 0)
+  assert.equal(smeltClampSeconds({ remainingMs: FINAL_DEPOSIT_RESERVE_MS + 999 }), 0, 'less than a full usable second: no smelt')
+  assert.equal(smeltClampSeconds({ remainingMs: FINAL_DEPOSIT_RESERVE_MS + 1000 }), 1)
+  assert.equal(smeltClampSeconds({ remainingMs: FINAL_DEPOSIT_RESERVE_MS + 31000 }), 31)
+})
+
+test('smeltClampSeconds: a big clock still caps at the smelt budget', () => {
+  assert.equal(smeltClampSeconds({ remainingMs: 600000, budgetSecs: 90 }), 90)
+  assert.equal(smeltClampSeconds({ remainingMs: 600000, budgetSecs: 45 }), 45)
+})
+
+test('smeltClampSeconds invariant: smelt + reserve never outruns the clock', () => {
+  for (const remaining of [31000, 60000, 120000, 121000, 300000]) {
+    const secs = smeltClampSeconds({ remainingMs: remaining })
+    if (secs === 0) continue
+    assert.ok(secs * 1000 + FINAL_DEPOSIT_RESERVE_MS <= remaining, `remaining=${remaining}`)
+  }
+})

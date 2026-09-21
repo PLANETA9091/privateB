@@ -158,6 +158,27 @@ export function findChest (bot, { maxDistance = 64, exclude = [], log } = {}) {
   return null
 }
 
+// (v0.39.0) THE FINAL-DEPOSIT RESERVE - the chain's last silent starvation,
+// closed. MEASURED (dispatch 35576122228, v0.38.0, first fleet where the walk
+// branch WORKS - 5 'walking back', 3 'yard walk arrived'): F9 stood 8 BLOCKS
+// from the yard, arrived in 1s, and the chain still died 'budget exhausted' -
+// the smelt clamp (min(SMELT_BUDGET, remaining)) had let the smelt eat the
+// whole remainder, so the final deposit - the actual point of the chain -
+// entered with remaining() <= 0 and refused without a single click. Ten of
+// fourteen fallback zeros that run were 'budget exhausted'. The cure: the
+// smelt may only spend what remains AFTER a fixed slice reserved for the
+// final deposit (walk to the chest is short at the yard, the click sequence
+// is seconds). Pure arithmetic, CI-testable.
+export const FINAL_DEPOSIT_RESERVE_MS = 30000
+export function smeltClampSeconds ({ remainingMs = Infinity, budgetSecs = 90, reserveMs = FINAL_DEPOSIT_RESERVE_MS } = {}) {
+  const ms = Number(remainingMs)
+  if (Number.isNaN(ms) || ms <= 0) return 0
+  if (!Number.isFinite(ms)) return Math.max(0, Math.floor(budgetSecs)) // unbounded legacy clock: full smelt budget
+  const usable = ms - reserveMs
+  if (usable <= 0) return 0
+  return Math.min(budgetSecs, Math.floor(usable / 1000))
+}
+
 // (v0.18.5) The chest walk budget, dist-scaled like mapTrip's (tripplan.walkBudgetMs).
 // FLEET #128 EVIDENCE (19 bots, 600s, the first fully healthy run): 77 bank attempts,
 // banked=0 - the flat timeoutMs=30000 killed every walk to a chest beyond ~25 blocks

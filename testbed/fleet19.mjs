@@ -17,7 +17,7 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -134,7 +134,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
     if (decision.action === 'walk') {
-      console.log(`${miner.username} bank: no chest in range (${decision.dist} blocks from yard) - walking back`)
+      // (v0.39.0) the line used to HARDCODE 'no chest in range' whatever the real
+      // pre.reason was - the log could not tell a scan miss from a dead chest on
+      // a walk decision. Print the honest reason.
+      console.log(`${miner.username} bank: ${pre.reason || 'no chest in range'} (${decision.dist} blocks from yard) - walking back`)
       // (v0.19.0) the yard walk RETRIES: fleet on v0.18.15 measured 25 walks /
       // 0 arrivals with 3298 blocks stuck in pockets (banked=0) - 6 walks were
       // refused by the water-rescue interlock while the rescue still had >20s
@@ -204,15 +207,16 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     // (v0.27.0) smelting is the chain's middle step: when the budget is already
     // gone the bot skips straight to the final deposit attempt (which the
     // budget will cut to a named reason) instead of compounding the overrun.
-    if (remaining() <= 0) {
+    // (v0.39.0) the smelt may only spend what remains AFTER the final-deposit
+    // reserve: dispatch 35576122228 F9 arrived at the yard in 1s and the smelt
+    // still ate the whole remainder - the final deposit entered at remaining<=0
+    // and refused without a click ('bank: 0 (budget exhausted)' AT the yard,
+    // 10 of 14 fallback zeros that run). smeltClampSeconds keeps the deposit
+    // slice; smeltSecs <= 0 skips the leg entirely.
+    const smeltSecs = smeltClampSeconds({ remainingMs: remaining(), budgetSecs: SMELT_BUDGET })
+    if (smeltSecs <= 0) {
       console.log(`${miner.username} end-bank budget spent - smelt skipped`)
     } else try {
-      // (v0.36.0) the smelt CLAMPS into the chain budget: the old call always
-      // passed the full 90s SMELT_BUDGET while only checking remaining()>0
-      // first - a smelt entered at t-10s of a 150s budget could legitimately
-      // burn 90s MORE than the chain had, pushing the whole end phase toward
-      // the hard kill (the 4th hang class, the smelt leg of the chain).
-      const smeltSecs = Math.min(SMELT_BUDGET, Math.ceil(remaining() / 1000))
       const res = await smeltInventory(miner.bot, { maxSeconds: smeltSecs, log: m => console.log(m) })
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
