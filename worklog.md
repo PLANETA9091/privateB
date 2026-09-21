@@ -1188,3 +1188,21 @@ Stage Summary:
 - EXPECTATIONS for the next fleet: 'scan: no chest within 64b' lines should VANISH at the yard (bots standing near the warehouse find chests and hop them); 'hop: chest at [...] zero: full'-class lines may appear (the chests may fill - 50 chests x 27 slots at 19 bots is plenty); banked>0 is THE gate, now unblocked by construction end to end (climb OK, walk OK, scan OK, hop OK); the end-phase hang (HARD KILL here) is the parallel agent's named wall ('the end-phase walk herd', their dd8c5d8) - my palette fix may ALSO defuse part of it (bots that find a chest stop walking in circles).
 - OPEN FRONTS: (1) the end-phase walk herd (their wall); (2) the x25 swimming stack (bare-hand stone 3750t - the tool pipeline or swim-out); (3) deepslate bare-hand 750t (hopeless by design); (4) 'Took to long to decide path to goal!' under 19-bot load.
 - Version handoff: 0.43.0 taken; next free = 0.44.0.
+
+---
+Task ID: 398294-20260921-1953 (final - v0.44.1 fleet mined, the yard is REACHED, the hop is the wall)
+Agent: Z.ai Code (cron session, 19:53 +08)
+
+Work Log:
+- Session shipped v0.44.0 (distance-ordered final-bank slots: farthest bot takes slot 0, yard-standing bot the last; junk distance keeps the legacy index spread; window/cap unchanged) + its test rescue (collision #10: the parallel agent's identical e00e7d5 accepted wholesale, first-pusher-wins). CI GREEN on rerun-attempt-2 (the known furnace-placement environmental flake failed once).
+- Fleet 35599777909 (e00e7d5 = v0.43.0 palette rule + v0.44.0 slots, 600s): **NORMAL END**, 19/19 alive, reconnects=0, mined=3919 (richest NORMAL-END run ever), climbs=29, rescues=73, banked=0, smelted=0.
+- v0.44.0 VALIDATED: the stagger orders by distance (F3 +16s far -> F18/F14 +96s near; the old boot-order scramble is gone); walk timeouts 5 (was 7+), 'yard walk cancelled' 1 (was a mass class); NO hard kill (the end phase fits the margin).
+- THE YARD MYTH CORRECTED: this world's spawn (the yard) sits near [-105, 74, 404] - NOT the origin. The hop chest cluster at x=-100..-110, z=398..406, y=74 IS the warehouse (setup-yard rows), within YARD_CHEST_RADIUS. The v0.41.0 'wilderness worldgen chest hijack 400+ blocks out' reading was wrong about the frame - the dig band IS near the yard.
+- THE PALETTE FIX VALIDATED: findChest now FINDS the warehouse (hops target real chest positions at y=74). The pre-v0.43.0 invisible-warehouse scan-miss class is gone.
+- THE NEW WALL (v0.45.0 front): **the chest HOP**. 325x 'chest unreachable (No path to the goal! / Took to long to decide path to goal!)' - ZERO deposits landed (0 'bank: +' lines). The yard WALK (GoalNear 24) arrives 0-70s from 12-64b, then the deposit hop (GoalNear chest,2) fails: at a PACKED chest cluster the within-2 standable cells are scarce (No path) and A* decisions time out under load (thinkTimeout). F6 hopped 8 distinct warehouse chests - all refused.
+- THE SECOND CLASS: 10/19 bots end 'nothing to deposit' while their reporters read '[empty]' with 43-337 units in pocket - THE STALE INVENTORY VIEW strikes the deposit DECISION itself: bankable computes 0 from the desynced window, the chain refuses without a click. The correlation is perfect (reporter-has-items -> hop attempts; reporter-[empty] -> refuse).
+- CURE SKETCH v0.45.0 (deposit.mjs): (1) proximity fast-path - within 4 blocks of the chest, SKIP the hop walk and openChest directly; (2) hop goal GoalNear range 2 -> 3 (openChest reach ~4.5 still holds, more standable candidates); (3) raise bot.pathfinder.thinkTimeout (5s -> 10s) for bank-priority hops only; (4) stale-view guard: bankable=0 && units >= 24 && a chest within 4 -> one open+close probe (the vanilla close re-syncs window 0), re-count, then honest refuse or deposit.
+
+Stage Summary:
+- Master: e00e7d5 (v0.44.1), CI GREEN, fleet mined with a NORMAL END. The bank pipeline is now blocked at its LAST meter: bots reach the yard, see the warehouse, and cannot complete a hop/click. v0.45.0's four-part cure is sketched above - the hop-goal and proximity fixes are surgical (deposit.mjs only), the stale-view probe reuses the chest the deposit was going to open anyway.
+- Version handoff: 0.44.x taken; next free = 0.45.0.
