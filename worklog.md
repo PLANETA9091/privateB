@@ -1332,3 +1332,19 @@ Stage Summary:
 - Master: 65ece44 (v0.49.0), CI GREEN. The chain's reserved budget now survives BOTH the stagger window and the escalation ladder by construction. banked>0 is the next fleet's gate with the full pipeline (raw hops + yard filter + slots + fence) live.
 - OPEN FRONTS: (1) the disconnect class (14 reconnects, kicks=0, no main-thread starvation - server keepalive/metadata suspicion); (2) the no-seal-material shelter skips (inventory-full-of-ore); (3) water/drowned deaths; (4) a death-cause reporter (4 unlogged deaths); (5) chest-FULL handling at 50 chests.
 - Version handoff: 0.49.0 taken; next free = 0.50.0. The fleet dispatch fires as this session's LAST action.
+
+---
+Task ID: 25
+Agent: Z.ai Code (main, cron session 2026-09-22 01:05 +08, job 398567)
+Task: full 7-step loop - v0.50.0 the shelter earn-the-seal cure + the death-cause reporter; collision #14 (docs-only); CI green; next dispatch.
+
+Work Log:
+- Sandbox dead; re-cloned at 65ece44 (v0.49.0 climb fence + the 22:53 final). Their mined verdict on fleet 35619512737: banked=0 = LOOT STARVATION (empty pockets), not a walk failure - the layered raw hops cut pathfinder pressure 7x. Env rebuilt from nothing (JDK 25.0.4.1, server.jar sha1 verified, npm install, server up). Baseline: unit 55/55, integration 2/2.
+- v0.50.0 closes TWO of the 22:53 fronts: (1) EARN-THE-SEAL (front #3, the 10x 'shelter skip (no seal material)' class, F18 x7, F3 died at no-seal): pickJunkToDrop drops the cheapest expendable item (true junk first; tools/food/logs/planks/sticks/diamond NEVER by construction), earnSealDue gates it to threatDist <= 8; miner.mjs tosses ONE item (~0.3 s extra over the shelter's own dig-in), variant-1's dug wall respawns as a drop inside vanilla pickup range, the freed slot swallows it, sealWaitUnseal re-reads the inventory. Honest degrade to the old skip lines with reasons. (2) DEATH-CAUSE REPORTER (front #5, 4 unlogged deaths F1/F18/F11): every hp drop primes lastHarm (nearest hostile in 16 / drowning at oxygen 0 / fall-env); the death line prints 'cause: <name>@<dist> (<X>s before death at [x,y,z])'.
+- 4 unit tests (12 asserts); unit 55/55, syntax 140, integration 2/2. Self-caught: a 'cooked_*/apple' comment sequence closed its own block comment (1 broken syntax) - reworded before push.
+- COLLISION #14 (docs-only): their e616f51 worklog landed between my fetch and push; pull --rebase stacked mine cleanly on top (01858f0 -> 49b28d9). CI 35631611564 on 49b28d9 = SUCCESS after a ~35 min single-runner queue behind their run.
+
+Stage Summary:
+- Master: 49b28d9 (v0.49.0 theirs + v0.50.0 mine + all worklogs), ALL CI GREEN. Their fronts #3 and #5 closed. Remaining: the airGlitch/server-tick class (deepest infra), banked>0 on a RICH world, water/drowned deaths, chest FULL handling.
+- EXPECTATIONS next fleet: 'shelter earn: dropped 1 <item>' lines; 'cause:' on every death line; shelters > 0; banked>0 iff the world is rich.
+- Version handoff: next free = 0.51.0. The 600s fleet dispatch fires on 49b28d9 as the session's LAST action.
