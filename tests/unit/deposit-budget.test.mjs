@@ -142,6 +142,82 @@ test('depositToChest: the No-path hop inherits the same wall clock', async () =>
   assert.match(res.reason, /chest unreachable.*No path/i, `named reason: ${res.reason}`)
 })
 
+// ---------------------------------------------------------------- (v0.56.0) the approach segment
+// MEASURED (dispatch 35639593200, F17): surfaced d=33..43 from the chest rows,
+// 7x 'No path to the goal!' under the widened hop budget (radius 48), then the
+// walk floor ate the chain - banked=0 fleet-wide with 1118 units in pockets.
+// The cure walks ONE segment toward the chest on a finite chain budget before
+// the direct ladder runs. These tests pin the wiring, not just the planner.
+
+// a mock whose goto MOVES the bot to the goal (the pathfinder "walked" case)
+// and whose raw-look snaps to the chest (the raw walk "landed" case)
+function makeMovingBot ({ items = [], chest, snapOnLook = false } = {}) {
+  const bot = {
+    username: 'F17Bot',
+    entity: { position: new Vec3(0.5, 64, 0.5) },
+    inventory: { items: () => bot._items },
+    _items: items.slice(),
+    findBlock: () => chest,
+    gotoCalls: [],
+    rawWalkCalls: 0,
+    pathfinder: {
+      goto: async goal => {
+        bot.gotoCalls.push(goal)
+        bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+      },
+      stop: () => {}
+    },
+    look: async () => {
+      if (snapOnLook) bot.entity.position = chest.position.clone()
+    },
+    setControlState: () => {},
+    canSeeBlock: () => false,
+    waitForTicks: async () => {},
+    depositCalls: [],
+    closed: false,
+    openChest: async () => ({
+      deposit: async (type, meta, count) => {
+        bot.depositCalls.push({ type, count })
+        bot._items = []
+      },
+      close: () => { bot.closed = true }
+    })
+  }
+  return bot
+}
+
+test('approach: the F17 cure - a far chest on a finite chain budget banks via the segments', async () => {
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) } // d ~= 41.7 > 24
+  const bot = makeMovingBot({ items: [item('cobblestone', 40)], chest, snapOnLook: true })
+  const res = await depositToChest(bot, { chestBlock: chest, budgetMs: 60000 })
+  assert.equal(res.deposited, 40, 'the whole pocket banks - the doomed far hop never repeats')
+})
+
+test('approach: a raw-stalled segment still banks through the pathfinder segment', async () => {
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const bot = makeMovingBot({ items: [item('cobblestone', 40)], chest, snapOnLook: false })
+  // no snapOnLook: the raw walk cannot move the static mock position -> stalls
+  // (~2s real) -> the pathfinder segment moves the bot -> the direct ladder
+  // (raw hop first, d <= 40 now) finishes the approach.
+  const res = await depositToChest(bot, { chestBlock: chest, budgetMs: 120000 })
+  assert.equal(res.deposited, 40, 'the segment walk lands the bot inside the direct envelope')
+})
+
+test('approach: the legacy unbounded mid-run call keeps byte-identical behavior', async () => {
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const bot = makeMockBot({ items: [item('cobblestone', 5)], chest })
+  bot._gotoScript = [new Error('no path')]
+  bot.findBlock = ({ matching, maxDistance }) => {
+    if (!matching(chest)) return null
+    const d = bot.entity.position.distanceTo(chest.position)
+    return d <= maxDistance ? chest : null
+  }
+  const res = await depositToChest(bot) // budgetMs null = unbounded legacy
+  assert.equal(res.deposited, 0)
+  assert.match(res.reason, /no path/)
+  assert.equal(bot.gotoCalls.length, 1, 'no approach segment on the legacy path - exactly the old single walk')
+})
+
 test('endBankBudgetMs: default, env parse, junk tolerance', () => {
   assert.equal(endBankBudgetMs(), END_BANK_BUDGET_MS)
   assert.equal(END_BANK_BUDGET_MS, 150000, 'the default: deadline 600s + stagger 120s + 150s < the 420s kill margin')

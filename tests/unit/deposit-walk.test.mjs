@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS, findChest } from '../../src/lib/deposit.mjs'
+import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS, CHEST_WALK_SHORT_MS, findChest } from '../../src/lib/deposit.mjs'
 
 const TYPES = new Map()
 function item (name, count = 1) {
@@ -48,9 +48,16 @@ function makeMockBot ({ items = [], chest = null, gotoScript = [] } = {}) {
   return bot
 }
 
-test('chestWalkBudgetMs: floor at 30s, 500 ms/block, cap at 60s', () => {
-  assert.equal(chestWalkBudgetMs(0), CHEST_WALK_BASE_MS, 'a near chest keeps the historical floor')
-  assert.equal(chestWalkBudgetMs(-5), CHEST_WALK_BASE_MS, 'nonsense distance -> floor')
+test('chestWalkBudgetMs: short-hop pin 15s (d<=16), floor knee, 500 ms/block, cap at 60s', () => {
+  // (v0.56.0) THE SHORT-HOP PIN: F2 (run51/35639593200) stood d=10..11 from the
+  // chest rows and 2 crowd-crushed walks ate 30s each, then the walk floor
+  // refused the 3rd chest. d<=16 walks now cap at 15s: one stuck walk cannot
+  // starve the hop loop, and 3 short hops still fit the chain clock.
+  assert.equal(chestWalkBudgetMs(0), CHEST_WALK_SHORT_MS, 'a near chest walks in seconds - the 30s floor only fed stalls')
+  assert.equal(chestWalkBudgetMs(-5), CHEST_WALK_SHORT_MS, 'nonsense distance -> the short class')
+  assert.equal(chestWalkBudgetMs(10), CHEST_WALK_SHORT_MS, 'the F2 case: 35s of stall budget becomes 15s')
+  assert.equal(chestWalkBudgetMs(16), CHEST_WALK_SHORT_MS, 'the pin covers the whole short class')
+  assert.equal(chestWalkBudgetMs(17), CHEST_WALK_BASE_MS, 'past the pin the historical 30s floor resumes (the curve floors at 30s until d~50)')
   assert.equal(chestWalkBudgetMs(64), 64 * 500 + 5000, '64 blocks = detour-allowed 37s, NOT the old flat 30s')
   assert.equal(chestWalkBudgetMs(200), CHEST_WALK_CAP_MS, 'an absurd distance hits the cap - the walk stays bounded')
   const a = chestWalkBudgetMs(50) // the knee: 50*500+5000 = the 30s floor exactly

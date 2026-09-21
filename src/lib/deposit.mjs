@@ -6,6 +6,7 @@ import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from './jobqueue.mjs'
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
+import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -523,7 +524,28 @@ export function effectiveWalkBudget ({ distBudget = CHEST_WALK_BASE_MS, remainin
   return Math.min(d, left)
 }
 
+// (v0.56.0) see chestWalkBudgetMs - the short-hop class constants
+export const CHEST_WALK_SHORT_DIST = 16
+export const CHEST_WALK_SHORT_MS = 15000
+
 export function chestWalkBudgetMs (dist) {
+  // (v0.56.0) THE SHORT-HOP PIN (the run51 F2 class): F2 stood d=10..11 from the
+  // chest rows and its 2 walks ate 30s each ('walk to chest (retry): timeout
+  // after 30000ms' - a crowd-crushed stall, not a distance problem), then the
+  // walk floor refused the 3rd chest. A d<=16 walk physically needs ~8s; a
+  // 30s+ budget per attempt lets ONE stuck walk starve the whole hop loop.
+  // Pin the short class to 15s: 3 short hops still fit the chain clock, and a
+  // genuinely blocked short walk fails fast enough to try the NEXT chest.
+  const d = Number.isFinite(dist) && dist > 0 ? dist : 0
+  if (d <= CHEST_WALK_SHORT_DIST) {
+    return Math.min(CHEST_WALK_SHORT_MS, walkBudgetMs({
+      dist,
+      base: CHEST_WALK_BASE_MS,
+      perBlock: CHEST_WALK_PER_BLOCK_MS,
+      cap: CHEST_WALK_CAP_MS,
+      overhead: 5000
+    }))
+  }
   return walkBudgetMs({
     dist,
     base: CHEST_WALK_BASE_MS,
@@ -601,8 +623,34 @@ export async function depositToChest (bot, {
   // (v0.27.0) each attempt re-clamps into the remaining wall clock - a retry may
   // not restart the full budget after the first attempt already ate most of it.
   const walkOnce = async label => {
-    const ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
+    let ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
     if (ms <= 0) throw new Error('budget exhausted (walk floor)')
+    // (v0.56.0) THE APPROACH SEGMENT - the run51 F17 cure. F17 surfaced d=33..43
+    // from the chest rows and 7x 'No path to the goal!' fired under the WIDENED
+    // hop budget (radius 48): a direct goal across quarried terrain needs a path
+    // longer than the search envelope BY CONSTRUCTION, so every retry repeated
+    // the identical doomed geometry until the walk floor ate the chain. When the
+    // chest is beyond APPROACH_THRESHOLD, first walk ONE raw/pathfinder segment
+    // (max 20 blocks, always inside the searchRadius 32 envelope) toward it -
+    // the direct ladder below then routes a goal it can actually reach. The
+    // segment spends the same wall clock; the slice re-clamps afterwards so the
+    // walk floor stays honest.
+    const d0 = (() => { try { return bot.entity?.position?.distanceTo?.(chest.position) } catch { return null } })()
+    // AFFORDABILITY + SCOPE: the approach exists for the END-PHASE chain (the
+    // run51 F17 evidence is a finite-budget final bank), so a finite chain
+    // clock is required - the legacy unbounded mid-run calls (budgetMs null)
+    // keep byte-identical behavior, and an approach the clock cannot pay for
+    // (one segment + the walk floor) is a doomed hop with extra steps anyway.
+    const chainLeft = remaining()
+    if (Number.isFinite(d0) && d0 > APPROACH_THRESHOLD && Number.isFinite(chainLeft) && chainLeft >= APPROACH_SEGMENT_MS + BUDGET_WALK_FLOOR_MS) {
+      await approachWalk(bot, chest.position, {
+        rawWalk: walkRawToward,
+        segmentMs: Math.min(ms, APPROACH_SEGMENT_MS),
+        log: m => log?.(`${tag} ${m}`)
+      })
+      ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
+      if (ms <= 0) throw new Error('budget exhausted (walk floor)')
+    }
     // (v0.48.0) RAW FIRST: the flat yard platform needs no A* - 19 concurrent
     // radius-48 hops saturated the one node thread for 209s (dispatch
     // 35605960761) and the server keepalive-kicked every bot mid-walk. The raw

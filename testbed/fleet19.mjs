@@ -327,7 +327,13 @@ async function runBot (name, target, index) {
             if (serverGuard.suspect) startServerProbe()
             if (serverGuard.dead) onServerDeath(`transport losses fleet-wide (total ${serverGuard.totalLosses})`)
           }
-          if (/combat|died|KICKED|error|climb|water|scan:|hop:|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`)
+          // (v0.56.0) 'hop failed' joins 'hop:' - run51 (35639593200) proved the
+          // filter blind: every raw hop attempt failed on the quarried approach
+          // ('raw hop failed: raw walk stalled...') and the filter's 'hop:' never
+          // matched 'hop failed', so the artifact showed ONLY the pathfinder
+          // results and the walk diagnostics were mined from nothing. 'approach'
+          // brings the v0.56.0 segment walk's lines to the same visibility.
+          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
