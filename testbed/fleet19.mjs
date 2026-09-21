@@ -35,7 +35,10 @@ import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
+import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
+import { execFile } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 
@@ -978,6 +981,12 @@ const runners = []
 const serverGuard = createServerGuard({ total: COUNT })
 let serverDeathHandled = false
 let serverProbeTimer = null
+// (v0.56.0) the resurrection budget: how many JVM reboots this run has spent
+let serverRestarts = 0
+// the same control script the CI workflow uses - the reboot is the runner
+// restarting ITS OWN server, not a second server (stop clears a zombie still
+// holding the port; start blocks until "Done (" or its own 240s budget)
+const SERVER_SH = fileURLToPath(new URL('../scripts/server.sh', import.meta.url))
 function stopServerProbe () { if (serverProbeTimer) { clearInterval(serverProbeTimer); serverProbeTimer = null } }
 // (v0.52.0) THE VERDICT LOOP - run51 taught the difference: a transport burst is
 // only SUSPECT. While suspect, a bare TCP connect decides every 5 s: the JVM
@@ -1000,10 +1009,8 @@ function startServerProbe () {
   }, PROBE_INTERVAL_MS)
   serverProbeTimer.unref?.()
 }
-function onServerDeath (detail) {
-  if (serverDeathHandled) return
-  serverDeathHandled = true
-  console.log(`[fleet] SERVER DEATH WATCHDOG: ${detail} - the server stopped answering mid-run; ending the run honestly (the run49 400s end-phase hang class)`)
+function funeral (detail, why) {
+  console.log(`[fleet] SERVER DEATH WATCHDOG: ${detail} - ${why}; ending the run honestly (the run49 400s end-phase hang class)`)
   for (const e of bots.values()) { try { e.bot?.quit?.('server death watchdog') } catch { /* going down */ } }
   // NOT unref'd - same contract as the heap cliff: quit() empties the event loop,
   // this timer must survive it to print the report.
@@ -1011,6 +1018,35 @@ function onServerDeath (detail) {
     printFinalReport(`server death watchdog - ${detail}`)
     process.exit(14)
   }, 3000)
+}
+
+function onServerDeath (detail) {
+  if (serverDeathHandled) return
+  serverDeathHandled = true
+  // (v0.56.0) THE RESURRECTION: a dead JVM on a shared runner is usually infra,
+  // not world death - the world dir survives a reboot and the bots' reconnect
+  // backoff (12 attempts, ~34s apart, deadline-gated) already knows how to
+  // re-enter a server that comes back. ONE boot attempt per run, only with real
+  // runway (src/lib/resurrect.mjs); everything else takes the honest funeral.
+  const plan = resurrectPlan({ remainingMs: deadline - Date.now(), restartsUsed: serverRestarts })
+  if (plan.action !== 'restart') {
+    funeral(detail, `no resurrection: ${plan.why}`)
+    return
+  }
+  console.log(`[fleet] SERVER DEATH WATCHDOG: ${detail} - resurrection attempted (${Math.round(plan.remainingMs / 1000)}s of runway, boot floor ${Math.round(RESURRECT_FLOOR_MS / 1000)}s): rebooting the JVM, bots re-login through their own backoff`)
+  const t0 = Date.now()
+  execFile(SERVER_SH, ['stop'], { timeout: 30000 }, () => {
+    execFile(SERVER_SH, ['start'], { timeout: 300000 }, (err, stdout) => {
+      if (err) {
+        funeral(detail, `resurrection failed: the JVM did not come back up in ${((Date.now() - t0) / 1000).toFixed(0)}s (${String(err.message).split('\n')[0].slice(0, 100)})`)
+        return
+      }
+      serverRestarts++
+      serverDeathHandled = false // a second death of the NEW JVM must still fire
+      serverGuard.revive('jvm restart') // the old losses proved the OLD process dead - stale evidence now
+      console.log(`[fleet] resurrection: ${String(stdout).trim().split('\n').pop() || 'server up'} in ${((Date.now() - t0) / 1000).toFixed(0)}s - the guard is re-armed, relogins clear any new suspect (restarts spent ${serverRestarts})`)
+    })
+  })
 }
 
 // (v0.26.0) HARD KILL - the run's last-resort exit guarantee. Dispatch
@@ -1193,7 +1229,7 @@ console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${k
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)
-console.log(`server guard: losses=${serverGuard.totalLosses} (window ${serverGuard.lossesInWindow}/${serverGuard.threshold}) relogins=${serverGuard.relogins} probe=${serverGuard.lastProbe ?? 'n/a'} dead=${serverGuard.dead ? 'YES' : 'no'}`)
+console.log(`server guard: losses=${serverGuard.totalLosses} (window ${serverGuard.lossesInWindow}/${serverGuard.threshold}) relogins=${serverGuard.relogins} probe=${serverGuard.lastProbe ?? 'n/a'} dead=${serverGuard.dead ? 'YES' : 'no'} revives=${serverGuard.revives} restarts=${serverRestarts}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
 // (v0.54.0) the loot ledger: where the yield ended up. unaccounted = the

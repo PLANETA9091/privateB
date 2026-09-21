@@ -49,6 +49,13 @@ export const SERVER_DEATH_FLOOR = 3 // tiny fleets (integration runs 2 bots) mus
 export const SUSPECT_GRACE_MS = 120000 // no probe result and no re-login inside this = dead
 export const PROBE_INTERVAL_MS = 5000
 
+// (v0.56.0) THE RESURRECTION BRIDGE - the runner restarts a dead JVM
+// (src/lib/resurrect.mjs is the policy); a fresh boot is a NEW server: every
+// loss that proved the OLD one dead is stale evidence, and the guard must
+// re-arm or the run would stay dead forever after a successful reboot.
+// History (totalLosses, relogins) survives on purpose - the report tells the
+// whole story including the death the run walked out of.
+
 export function isSocketLossLine (line) {
   return typeof line === 'string' && SOCKET_LOSS_RE.test(line)
 }
@@ -71,6 +78,7 @@ export function createServerGuard ({ total, windowMs = SERVER_DEATH_WINDOW_MS, f
   let suspectAt = 0 // 0 = not suspect
   let totalLosses = 0
   let relogins = 0
+  let revives = 0
   let lastProbe = null // 'ok' | 'refused'
 
   function clearSuspect (why) {
@@ -111,6 +119,18 @@ export function createServerGuard ({ total, windowMs = SERVER_DEATH_WINDOW_MS, f
     return verdict()
   }
 
+  // (v0.56.0) The runner rebooted the JVM and it answers again: clear the DEAD
+  // verdict and every loss that proved the OLD process dead. A fresh burst
+  // starts fresh evidence; a second death still fires (revives is bounded by
+  // the runner's restart budget, not by the guard).
+  function revive (why) {
+    deadAt = 0
+    suspectAt = 0
+    losses.length = 0
+    revives++
+    return why
+  }
+
   // GRACE: suspect with neither a re-login nor a probe verdict inside graceMs -
   // declare dead anyway (a probe-less runner must still escape the hang).
   function pollExpiry () {
@@ -128,6 +148,7 @@ export function createServerGuard ({ total, windowMs = SERVER_DEATH_WINDOW_MS, f
       lossesInWindow: losses.length,
       totalLosses,
       relogins,
+      revives,
       lastProbe
     }
   }
@@ -137,6 +158,7 @@ export function createServerGuard ({ total, windowMs = SERVER_DEATH_WINDOW_MS, f
     recordRelogin,
     recordProbe,
     pollExpiry,
+    revive,
     get dead () { return !!deadAt },
     get suspect () { return !!suspectAt && !deadAt },
     get deadAt () { return deadAt },
@@ -152,6 +174,7 @@ export function createServerGuard ({ total, windowMs = SERVER_DEATH_WINDOW_MS, f
     },
     get totalLosses () { return totalLosses },
     get relogins () { return relogins },
+    get revives () { return revives },
     get lastProbe () { return lastProbe }
   }
 }
