@@ -126,6 +126,60 @@ test('stepDigPlan: bedrock refuses the step', () => {
   assert.equal(plan.blockedWet, false)
 })
 
+// (v0.32.0) refusal metadata: fleet 35555025482 printed 'blocked toward X,Z
+// (dug=0)' on FOUR bearings with no record of WHICH cell refused or what sat
+// in it - a null chunk read, a fluid and bedrock were indistinguishable. The
+// plan now carries blockedCell [dx,dy,dz] + blockedName on every refusal.
+test('stepDigPlan: a refusal names the refusing cell and block (fluid)', () => {
+  const world = makeWorld()
+  world.set(10, 42, 5, 'water') // head+2 refuses first
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: readOf(world) })
+  assert.equal(plan.blocked, true)
+  assert.deepEqual(plan.blockedCell, [0, 2, 0])
+  assert.equal(plan.blockedName, 'water')
+  assert.equal(plan.blockedWet, true)
+  assert.equal(plan.reason, 'stop')
+})
+
+test('stepDigPlan: a null read names itself - the unloaded-chunk class is visible', () => {
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: () => null })
+  assert.equal(plan.blocked, true)
+  assert.deepEqual(plan.blockedCell, [0, 2, 0])
+  assert.equal(plan.blockedName, 'null')
+  assert.equal(plan.blockedWet, false)
+})
+
+test('stepDigPlan: bedrock names its own cell (head+1) and block', () => {
+  const world = makeWorld()
+  world.set(10, 41, 5, 'bedrock') // head+1
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: readOf(world) })
+  assert.equal(plan.blocked, true)
+  assert.deepEqual(plan.blockedCell, [0, 1, 0])
+  assert.equal(plan.blockedName, 'bedrock')
+})
+
+test('stepDigPlan: a step-column refusal reports the step offset, not the own column', () => {
+  const world = makeWorld()
+  world.set(11, 41, 5, 'water') // step+1
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: readOf(world) })
+  assert.equal(plan.blocked, true)
+  assert.deepEqual(plan.blockedCell, [1, 1, 0])
+  assert.equal(plan.blockedName, 'water')
+})
+
+test('stepDigPlan: a clean plan carries no refusal metadata', () => {
+  const world = makeWorld()
+  const feet = new Vec3(10, 40, 5)
+  const plan = stepDigPlan({ feet, d: { x: 1, z: 0 }, read: readOf(world) })
+  assert.equal(plan.ok, true)
+  assert.equal(plan.blockedCell, undefined)
+  assert.equal(plan.blockedName, undefined)
+})
+
 test('stepDigPlan: junk input refuses without throwing', () => {
   assert.equal(stepDigPlan({}).blocked, true)
   assert.equal(stepDigPlan({ feet: new Vec3(0, 0, 0), d: { x: 0, z: 0 }, read: () => null }).blocked, true)

@@ -526,11 +526,17 @@ export const STEP_MAX_PASSES = 6
  * @param {number} [p.dug] blocks already dug this climb (for the global budget)
  * @param {number} [p.maxDug] global dig budget (default PILLAR_LEVEL_CAP * 2)
  * @returns {{ok: true, digs: Array<{cell: object, block: object}>, blocked: false}
- *           |{ok: false, digs: Array, blocked: true, blockedWet: boolean, reason: string}}
+ *           |{ok: false, digs: Array, blocked: true, blockedWet: boolean, reason: string,
+ *              blockedCell?: number[], blockedName?: string}}
  *   digs lists the solid cells to fastDig THIS pass, top-down (head+2, head+1,
  *   step+2, step+1); an already-clear step returns ok with digs: []. blocked
  *   means a fluid/undiggable/unknown cell (or the budget) refuses the step -
  *   blockedWet mirrors the old wet flag for the caller's wet-escape policy.
+ *   (v0.32.0) a refusal also names its cell: blockedCell is the refusing
+ *   offset [dx,dy,dz] and blockedName the block name there ('null' for an
+ *   unloaded/unknown read) - the fleet's 'blocked toward X,Z (dug=0)' diag
+ *   lines never said WHICH cell refused or what sat in it, and four bearings
+ *   of dug=0 refusals were indistinguishable from four different causes.
  */
 export function stepDigPlan ({ feet, d, read, dug = 0, maxDug = PILLAR_LEVEL_CAP * 2 } = {}) {
   const empty = { ok: false, digs: [], blocked: true, blockedWet: false, reason: 'unknown' }
@@ -547,7 +553,8 @@ export function stepDigPlan ({ feet, d, read, dug = 0, maxDug = PILLAR_LEVEL_CAP
     const verdict = climbableCeiling(b)
     if (verdict === 'free') continue
     if (verdict !== 'dig' || dug + digs.length >= maxDug) {
-      return { ok: false, digs, blocked: true, blockedWet: isWetCell(b), reason: verdict === 'dig' ? 'dig budget' : 'stop' }
+      return { ok: false, digs, blocked: true, blockedWet: isWetCell(b), reason: verdict === 'dig' ? 'dig budget' : 'stop',
+        blockedCell: [dx, dy, dz], blockedName: b && b.name ? b.name : 'null' }
     }
     digs.push({ cell: feet.offset(dx, dy, dz), block: b })
   }

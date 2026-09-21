@@ -1864,10 +1864,11 @@ export function createMiner ({
       // the old blocked/blockedWet flags so the wet-escape policy is untouched.
       let blocked = false
       let blockedWet = false // (v0.17.0) the refusal was water - a wet escape may exist
+      let blockedRefusal = null // (v0.32.0) {cell, name, reason} of the refusing cell
       const readCell = cell => { try { return bot.blockAt(cell) } catch { return null } }
       for (let pass = 0; pass < STEP_MAX_PASSES; pass++) {
         const plan = stepDigPlan({ feet, d, read: readCell, dug })
-        if (plan.blocked) { blocked = true; blockedWet = plan.blockedWet; break }
+        if (plan.blocked) { blocked = true; blockedWet = plan.blockedWet; blockedRefusal = plan; break }
         if (plan.digs.length === 0) break // the step is clear - step onto it
         for (const { block: cellB } of plan.digs) {
           try {
@@ -1897,7 +1898,16 @@ export function createMiner ({
           if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason})`)
           if (esc.resumed) continue // fresh position - let the main loop re-judge
         }
-        if (diagLevels++ < 3) log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})`)
+        if (diagLevels++ < 3) {
+          // (v0.32.0) the refusal names its cell: fleet 35555025482 showed four
+          // bearings of 'blocked toward (dug=0)' with NO way to tell an unloaded
+          // chunk read (null) from a fluid from bedrock - the diagnosis had to
+          // guess. blockedRefusal.blockedCell/blockedName say it outright.
+          const refusal = blockedRefusal && blockedRefusal.blockedCell
+            ? ` at [${blockedRefusal.blockedCell.join(',')}] ${blockedRefusal.blockedName} (${blockedRefusal.reason})`
+            : ''
+          log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})${refusal}`)
+        }
         fails++
         rotate()
         await settleTicks(4, 'climb rotate settle')
@@ -1960,13 +1970,14 @@ export function createMiner ({
         // instead (swim momentum while the eyes clear the bank lip).
         const recovery = riseRecoveryPlan({ feetWater: isWetCell(readCell(feetNow)), stepTop: feetNow.offset(d.x, 1, d.z) })
         let assistMoved = false
+        let assistNote = null // (v0.32.0) the assist failure NAMES itself - silent catches hid the field cause
         if (recovery.kind === 'longHold') {
-          try { rose = await stepUp(recovery.holdTicks) } catch { /* the rotate path owns it below */ }
+          try { rose = await stepUp(recovery.holdTicks) } catch (e) { assistNote = `longHold threw: ${e.message}` }
         } else if (recovery.kind === 'assist') {
           try {
             await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist' })
             assistMoved = true
-          } catch { /* bounded - the rotate path owns it below */ }
+          } catch (e) { assistNote = `goto: ${e.message}` }
         }
         const feetAfter = bot.entity ? bot.entity.position.floored() : null
         if (rose || (feetAfter && feetAfter.y > feetNow.y)) { steps++; fails = 0; continue }
@@ -1974,6 +1985,11 @@ export function createMiner ({
           log(`${tag} climb rise assist: repositioned to ${feetAfter.x},${feetAfter.y},${feetAfter.z} - the loop re-judges`)
           continue // fresh position - let the main loop re-judge (the wet-escape resumed pattern)
         }
+        // (v0.32.0) the assist that neither rose nor moved says WHY: NoPath,
+        // thinkTimeout, queue-full or a goto timeout are different causes with
+        // different cures, and 'did not rise' after a silent catch hid them all.
+        // Capped like the diag lines - two notes per climb, not one per level.
+        if (assistNote && diagLevels < 5) log(`${tag} climb rise assist: ${recovery.kind} did not complete (${assistNote})`)
         // (v0.19.1) the 24-tick same-bearing retry did NOT cure the rise
         // failures (fleet v0.19.0: 15 'did not rise', food=20) - momentum is
         // NOT the cause. Name the cells: a water film on the floor (from a
