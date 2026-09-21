@@ -31,7 +31,7 @@ import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK,
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
-  rescueDone, fleePlan
+  rescueDone, fleePlan, recordWaterHazard, nearWaterHazard, verifyShoreCell
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -228,19 +228,34 @@ export function createMiner ({
   async function runAway (threat, reason) {
     const deadline = Date.now() + 12000
     for (let hop = 0; hop < 3 && bot.entity && Date.now() < deadline; hop++) {
+      // (v0.59.0) YIELD TO THE RESCUE, every hop: the check at defendSelf entry
+      // cannot see a rescue that STARTS mid-flee. Fleet 35657683920 measured the
+      // exact interleave - F1's rescue fired at oxygen 0, the sentry's flee then
+      // issued a pathfinder shore-hop INTO the drowning swim (two control owners:
+      // the original drowning shape, "pathfinder goals fight every manual control
+      // state"). The rescue's raw swim IS the escape - on shore the fight re-verdicts.
+      if (swimming || bot._waterRescue) return
       let goal = null
       try {
         const here = bot.entity.position.floored()
+        const sample = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name ?? null
         const feetB = bot.blockAt(here)
         const headB = bot.blockAt(here.offset(0, 1, 0))
         const feetWet = feetB ? isWaterName(feetB.name) : false
         const headWet = headB ? isWaterName(headB.name) : false
         if (feetWet || headWet) {
-          const shore = shoreDirection((x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name ?? null, here)
+          const shore = shoreDirection(sample, here)
           const plan = fleePlan({ threatName: threat.name, feetWet, headWet, shore })
           if (plan.kind === 'shore') {
-            goal = new goals.GoalBlock(here.x + plan.dx, here.y + plan.step, here.z + plan.dz)
-            log(`${tag} combat: flee toward shore (${plan.dx},${plan.dz} step ${plan.step}) vs ${threat.name} (${reason})`)
+            // (v0.59.0) verify the shore cell against the LIVE world before the
+            // hop commits: the ring scan is one snapshot, and F1's '(0,2 step 1)'
+            // hop died in place - the cell was gone (or never) a real shore. A
+            // failed verification falls through to the away-vector below.
+            const cell = { x: here.x + plan.dx, y: here.y + plan.step, z: here.z + plan.dz }
+            if (verifyShoreCell(sample, cell)) {
+              goal = new goals.GoalBlock(cell.x, cell.y, cell.z)
+              log(`${tag} combat: flee toward shore (${plan.dx},${plan.dz} step ${plan.step}) vs ${threat.name} (${reason})`)
+            }
           }
         }
       } catch { /* unreadable world -> the away-vector below */ }
@@ -670,6 +685,11 @@ export function createMiner ({
   let lastRescueAt = 0
   let lastGlitchLogAt = 0
   let headWetSince = 0
+  // (v0.59.0) the WATER MEMORY: every rescue records WHERE it happened; the dig
+  // planner (digShaft) refuses to send the bot back into a live hazard cell.
+  // Fleet 35657683920: F16 completed four rescues in a row and died in the
+  // fifth cycle - the work loop had zero memory of the water it kept re-entering.
+  let waterHazards = []
   function waterRead () {
     if (!bot.entity?.position) return { feet: null, head: null, oxygen: 20 }
     const base = bot.entity.position.floored()
@@ -733,8 +753,24 @@ export function createMiner ({
           ? 'complete (standing wet - shallow water is not drowning)'
           : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+    } catch (err) {
+      // (v0.59.0) an honest exit: a thrown rescue used to vanish silently (no
+      // completion line - the F1 fleet evidence had a start with no end) while
+      // the flags still reset in the finally. Name the abort, keep the reset.
+      log(`${tag} water: rescue aborted (${err?.message ?? 'error'})`)
     } finally {
       try { bot.clearControlStates() } catch { /* nothing held */ }
+      // (v0.59.0) the WATER MEMORY write happens on EVERY exit path (complete,
+      // timeout, abort): the water the bot nearly drowned in is real whether
+      // or not the escape was clean. The digShaft guard below reads this list.
+      const rescueCell = bot.entity?.position
+        ? { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
+        : null
+      if (rescueCell) {
+        waterHazards = recordWaterHazard(waterHazards, rescueCell, Date.now())
+        const f = bot.entity.position.floored()
+        log(`${tag} water: hazard memorized at [${f.x},${f.y},${f.z}] (${waterHazards.length} live)`)
+      }
       bot._waterRescue = false
       swimming = false
     }
@@ -1867,6 +1903,19 @@ export function createMiner ({
 
       const pos = bot.entity.position.floored().offset(0, -1, 0)
       if (pos.y <= floor) break
+      // (v0.59.0) the WATER MEMORY gate: a rescue just handed us back - if we
+      // stand inside a live hazard cell (the flooded column the last rescue
+      // escaped), continuing THIS descent re-dives the bot. Fleet 35657683920:
+      // F16 rescued four times in a row (2.2-3.4s each) and died in the fifth
+      // cycle, because nothing remembered the water. Give the shaft up - the
+      // caller rotates/hops 24-32 blocks out, and the memory keeps the new
+      // spot honest too. The record is the rescue's own position, so a bot
+      // digging a DRY shaft 5+ blocks from the lake edge is unaffected.
+      const hazard = nearWaterHazard(waterHazards, bot.entity.position, Date.now())
+      if (hazard) {
+        log(`${tag} digShaft: water hazard ${hazard.d.toFixed(1)}b away (live ${waterHazards.length}) - refusing this column, the caller rotates`)
+        break
+      }
       // fluid guard: a column that opens into lava/water within 4 blocks is a death trap
       if (lavaAheadBelow(pos)) {
         log(`${tag} digShaft: fluid below ${pos.floored()} - moving sideways`)

@@ -10,8 +10,9 @@ import {
   WATER_NAMES, AIR_NAMES, SHAFT_FLUID_NAMES,
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
-  AQUATIC_HOSTILES,
-  isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan
+  AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
+  isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
+  recordWaterHazard, nearWaterHazard, verifyShoreCell
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -217,4 +218,80 @@ test('fleePlan: a submerged head forces the shore for ANY threat, step preserved
   const shore0 = { dx: 1, dz: 1, dist: 1, step: 0 }
   assert.deepEqual(fleePlan({ threatName: 'spider', headWet: true, shore: shore0 }).step, 0, 'step 0 -> walk out, no jump needed')
   assert.equal(fleePlan({ threatName: 'zombie', headWet: true, feetWet: false, shore: null }).kind, 'away', 'head wet but no shore known: the rescue sentry owns it')
+})
+
+// ---- v0.59.0: the WATER MEMORY ----
+// Fleet 35657683920 (the v0.58.1 tip): 7 of 10 deaths were drownings in ONE
+// lake region, and the rescue loop itself reported the disease - F16 completed
+// FOUR rescues (2.2-3.4s each) and died in the fifth cycle because the work
+// loop re-entered the same flooded column with zero memory. The cure: every
+// rescue records its cell; the dig planner refuses live hazards; the flee's
+// shore hop re-verifies the cell against the live world (F1's '(0,2 step 1)'
+// hop died in place).
+test('water memory constants stay sane', () => {
+  assert.ok(WATER_HAZARD_TTL_MS >= 60000, 'the window covers the measured 10s re-dive loop with margin')
+  assert.ok(WATER_HAZARD_TTL_MS <= 300000, 'and stays bounded - the fleet mines onward')
+  assert.ok(WATER_HAZARD_RADIUS >= 3 && WATER_HAZARD_RADIUS <= 8, 'wide enough for the column + banks, narrow enough to keep diggable ground')
+  assert.ok(WATER_HAZARD_Y_BAND >= 4 && WATER_HAZARD_Y_BAND <= 16, 'the same column up or down is the same water')
+  assert.ok(WATER_HAZARD_CAP >= 8 && WATER_HAZARD_CAP <= 64, 'bounded amnesia like failedTrips')
+})
+
+test('recordWaterHazard: appends floored, prunes expired, caps newest-first', () => {
+  const t0 = 1000000
+  const a = recordWaterHazard([], { x: 1.7, y: 45.2, z: -8.9 }, t0)
+  assert.deepEqual(a, [{ x: 1, y: 45, z: -9, at: t0 }], 'the rescue cell is floored to an integer cell')
+  // expiry: a record past the TTL is dropped, a fresh one is kept
+  const two = [{ x: 0, y: 0, z: 0, at: t0 - WATER_HAZARD_TTL_MS - 1 }, { x: 5, y: 0, z: 5, at: t0 - 1000 }]
+  const pruned = recordWaterHazard(two, null, t0) // junk pos: prune only
+  assert.equal(pruned.length, 1, 'the expired record dies')
+  assert.equal(pruned[0].x, 5, 'the live record survives')
+  // cap: the oldest dies first, the newest (the cell we stand in) always survives
+  const many = []
+  for (let i = 0; i < WATER_HAZARD_CAP + 5; i++) many.push({ x: i, y: 0, z: 0, at: t0 - (WATER_HAZARD_CAP + 5 - i) * 1000 })
+  const capped = recordWaterHazard(many, { x: 99, y: 1, z: 99 }, t0)
+  assert.equal(capped.length, WATER_HAZARD_CAP, 'the cap holds')
+  assert.equal(capped[capped.length - 1].x, 99, 'the newest record is the rescue we just survived')
+  assert.equal(capped[0].x, many.length - WATER_HAZARD_CAP + 1, 'the oldest fell off')
+  // purity: the input list is not mutated
+  const input = [{ x: 1, y: 1, z: 1, at: t0 }]
+  recordWaterHazard(input, { x: 2, y: 2, z: 2 }, t0)
+  assert.equal(input.length, 1, 'the caller\'s list is untouched (pure)')
+})
+
+test('nearWaterHazard: the measured re-dive shape is caught, clean ground is not', () => {
+  const now = 5000000
+  const hazards = [{ x: -140, y: 45, z: 400, at: now - 1000 }]
+  // the F16 shape: back at the rescue column (same cell, any dy inside the band)
+  assert.ok(nearWaterHazard(hazards, { x: -140, y: 45, z: 400 }, now), 'same cell is a hazard')
+  assert.ok(nearWaterHazard(hazards, { x: -138.5, y: 52, z: 401 }, now), '2.5b XZ + 7 up (inside the band) is a hazard')
+  assert.equal(nearWaterHazard(hazards, { x: -140, y: 45 + WATER_HAZARD_Y_BAND + 1, z: 400 }, now), null, 'outside the y-band: a DIFFERENT level is diggable')
+  assert.equal(nearWaterHazard(hazards, { x: -140 + WATER_HAZARD_RADIUS + 1, y: 45, z: 400 }, now), null, 'outside the XZ radius: dry ground past the banks')
+  assert.equal(nearWaterHazard(hazards, { x: -140, y: 45, z: 400 }, now + WATER_HAZARD_TTL_MS + 1), null, 'expired memory never fires')
+  assert.equal(nearWaterHazard(hazards, null, now), null, 'junk position is clean')
+  // nearest-of-multiple wins
+  const multi = [{ x: -104, y: 45, z: 400, at: now }, { x: -100, y: 45, z: 400, at: now }]
+  const hit = nearWaterHazard(multi, { x: -100.5, y: 45, z: 400 }, now)
+  assert.equal(hit.hazard.x, -100, 'the nearest live hazard is returned')
+})
+
+test('verifyShoreCell: F1\'s imagined shore dies here, a real bank passes', () => {
+  const grid = {}
+  const put = (x, y, z, name) => { grid[`${x},${y},${z}`] = name }
+  // a real step-0 bank: land under the standing cell, two air above
+  put(10, 63, 10, 'sand'); put(10, 64, 10, 'air'); put(10, 65, 10, 'air')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, { x: 10, y: 64, z: 10 }), true, 'ground at y-1, air at y and y+1 = a walk-out bank')
+  // a real step-1 bank: ground AT y-1 (the standing cell is one above the swim level)
+  put(12, 64, 10, 'grass_block'); put(12, 65, 10, 'air'); put(12, 66, 10, 'air')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, { x: 12, y: 65, z: 10 }), true, 'the jump-out bank verifies too')
+  // F1's killer shapes:
+  put(14, 63, 10, 'water'); put(14, 64, 10, 'air'); put(14, 65, 10, 'air')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, { x: 14, y: 64, z: 10 }), false, 'water ground is not a shore (the scan read the lake surface)')
+  put(16, 63, 10, 'sand'); put(16, 64, 10, 'oak_leaves'); put(16, 65, 10, 'air')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, { x: 16, y: 64, z: 10 }), false, 'a canopy over the bank is not climbable while swimming')
+  put(18, 63, 10, 'sand'); put(18, 64, 10, 'stone'); put(18, 65, 10, 'air')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, { x: 18, y: 64, z: 10 }), false, 'a wall at eye level is not a shore')
+  // unknown (unloaded) cells never verify - the flee falls through to the away-vector
+  assert.equal(verifyShoreCell(() => null, { x: 20, y: 64, z: 10 }), false, 'unreadable world is not a verified shore')
+  assert.equal(verifyShoreCell(null, { x: 10, y: 64, z: 10 }), false, 'junk sample is false')
+  assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, null), false, 'junk cell is false')
 })

@@ -236,3 +236,100 @@ export function fleePlan ({ threatName = null, feetWet = false, headWet = false,
   }
   return { kind: 'away' }
 }
+
+// ---- v0.59.0: the WATER MEMORY ----
+// Fleet 35657683920 (the v0.58.1 tip, NORMAL END) flipped the death map: 7 of
+// 10 deaths were DROWNINGS, all clustered in one lake region (x -99..-155,
+// z 386..424), and the rescue machinery itself reported the loop: F16 completed
+// FOUR rescues in a row (2.2-3.4s each) and died in the fifth cycle - after
+// every rescue the work loop issued the next dig goal straight back into the
+// same flooded column, because NOTHING remembered the water. F4 burned a full
+// RESCUE_MAX_MS (25.1s, 'still wet'), re-fired, died later. F1's rescue fired
+// at oxygen 0 (a re-dive consequence: a completed rescue, then back in). The
+// water is real and persistent - a lake does not dry in a run - so the cure is
+// memory: every rescue records WHERE it happened, and the dig planner refuses
+// to send the bot back into a live hazard cell (the escalation ladder moves
+// the bot instead: the shaft gives up, the caller rotates, the hops go 24-32
+// blocks out). Bounded like every other memory in this repo: a TTL, a cap,
+// and re-records on every new rescue keep it honest.
+
+/** How long a recorded hazard stays live (ms). 120s covers the immediate
+ * re-dive window (the measured F16 loop spanned ~10s) while keeping the set
+ * bounded; a fresh rescue re-records and re-arms the window anyway. */
+export const WATER_HAZARD_TTL_MS = 120000
+/** XZ radius (blocks) around a rescue cell that stays suspect. 4 covers the
+ * flooded column plus the banks a sideways sidestep would reach. */
+export const WATER_HAZARD_RADIUS = 4
+/** Vertical band (blocks, |dy|) a hazard covers. A rescue at y=45 marks
+ * y=37..53: digging up or down the same column is the same water. */
+export const WATER_HAZARD_Y_BAND = 8
+/** Maximum live hazards kept. Bounded amnesia - the oldest record is dropped
+ * first (the fleet mines onward; the ancient lake is behind it). */
+export const WATER_HAZARD_CAP = 24
+
+/**
+ * Record a rescue position as a water hazard (pure: returns a NEW array,
+ * the caller reassigns). Expired records are pruned first; a junk position
+ * (bot gone mid-rescue) prunes only. The newest record always survives the
+ * cap - it is the one the bot is standing in.
+ * @param {Array<{x:number,y:number,z:number,at:number}>} hazards current list
+ * @param {{x:number,y:number,z:number}|null} [pos] the rescue cell (world coords)
+ * @param {number} [now] caller's clock (ms)
+ * @param {{ttlMs?:number,cap?:number}} [opts]
+ * @returns {Array<{x:number,y:number,z:number,at:number}>} the new list
+ */
+export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, cap = WATER_HAZARD_CAP } = {}) {
+  const live = (Array.isArray(hazards) ? hazards : []).filter(h =>
+    h && Number.isFinite(h.x) && Number.isFinite(h.y) && Number.isFinite(h.z) &&
+    Number.isFinite(h.at) && now - h.at < ttlMs
+  )
+  if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)) {
+    live.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z), at: now })
+  }
+  return live.slice(-cap)
+}
+
+/**
+ * Is `pos` inside a live hazard? Returns the nearest live hit as
+ * { hazard, d } (d = XZ distance in blocks) or null. A position outside the
+ * XZ radius OR outside the y-band is clean; expired records never fire.
+ * @param {Array} hazards current list
+ * @param {{x:number,y:number,z:number}|null} [pos] the candidate dig/goal cell
+ * @param {number} [now] caller's clock (ms)
+ * @param {{ttlMs?:number,radius?:number,yBand?:number}} [opts]
+ */
+export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, yBand = WATER_HAZARD_Y_BAND } = {}) {
+  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return null
+  let best = null
+  for (const h of Array.isArray(hazards) ? hazards : []) {
+    if (!h || !Number.isFinite(h.at) || now - h.at >= ttlMs) continue
+    if (Math.abs(pos.y - h.y) > yBand) continue
+    const d = Math.hypot(pos.x - h.x, pos.z - h.z)
+    if (d <= radius && (!best || d < best.d)) best = { hazard: h, d }
+  }
+  return best
+}
+
+/**
+ * Re-verify a shore cell against the LIVE world right before a flee hop
+ * commits to it (pure). shoreDirection scans once; by the time the pathfinder
+ * goal is issued the palette may have changed or the cell may never have been
+ * what the ring scan thought. Same contract as shoreDirection's shoreAt, but
+ * `cell` is the STANDING cell (the flee's GoalBlock target): ground at y-1,
+ * two passable air cells above (a wall or a tree there is not a shore a
+ * swimming bot can climb onto).
+ * @param {(x:number,y:number,z:number)=>string|null} sample block-name reader
+ * @param {{x:number,y:number,z:number,step?:number}} cell standing cell
+ * @returns {boolean}
+ */
+export function verifyShoreCell (sample, cell) {
+  if (typeof sample !== 'function' || !cell ||
+    !Number.isFinite(cell.x) || !Number.isFinite(cell.y) || !Number.isFinite(cell.z)) return false
+  const isAir = n => n != null && AIR_NAMES.has(n)
+  const isLand = n => n != null && !WATER_NAMES.has(n) && !AIR_NAMES.has(n)
+  const groundY = Math.floor(cell.y) - 1
+  if (!isLand(sample(cell.x, groundY, cell.z))) return false
+  if (!isAir(sample(cell.x, groundY + 1, cell.z))) return false
+  if (!isAir(sample(cell.x, groundY + 2, cell.z))) return false
+  return true
+}
