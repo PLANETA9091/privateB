@@ -1416,3 +1416,20 @@ Stage Summary:
 - EXPECTATIONS next fleet: 'server guard: SUSPECT' + 'suspect CLEARED' lines around any wave (the wave becomes VISIBLE); reconnects may still happen but the run survives them; 'recovery brake:' lines where a naked bot loops; entity pressure down (watch mem: ents=); banked>0 + shelters>0 still the gates.
 - OPEN FRONTS: the 93% loot-conversion loss (their #1, needs the pocket-units line); endphase final-climb timeouts (their run-up traverse v0.52.0 now in); the mid-run SERVER RESTART path (the watchdog only shuts down honestly today - restarting the JVM + mass re-login is the next rung); chest-FULL handling.
 - Version handoff: next free = 0.54.0.
+
+---
+Task ID: 398294-20260922-0353
+Agent: Z.ai Code (cron session, 03:53 +08)
+Task: privateB cron protocol - mine the v0.53.0 fleet, keep CI green, ship the next improvement.
+
+Work Log:
+- Mined the in-flight joint fleet 35647216505 (run 301, v0.53.0): FAILED - the OOM class. exit 134 `Reached heap limit`, UNSYMBOLIZED native stack. Artifacts mined (/scripts/fleet-mining/run53): mainLate 1.0-1.7s the whole run (the known CPU-starvation class); F1 drowning rescue #1 timed out ('still wet', 25.8s); rescue #2 starts (oxygen 12, head submerged) = the LAST main-thread line ever; heartbeat n=8 ts=161s rss=367M -> n=9 ts=181s rss=3520M = +3.1GB RETAINED heap in 20s (~158MB/s; GC log: 3.5GB live old-space, mu=0.013 - live objects, not garbage); the main thread froze and allocated itself to death; its own 5s heap watchdog (v0.18.3) NEVER fired because it lives on the thread it guards; the server console's 'Timed out' x19 (20:03:22-32) is the GC-thrash starving keepalives - consequence, not cause.
+- v0.54.0 (2fe560e): THE POCKET LINE - src/lib/pocketline.mjs (pocketTotals + lootLedger) + 10 unit pins; fleet19's t- line carries pocket=Uu/Ss and the FLEET RESULT carries a loot-ledger line (mined vs banked+smelted+pocket, unaccounted = the never-reached class). The 93% loot-conversion front has its instrument.
+- v0.55.0 (406106f): THE OFF-THREAD STORM GUARD - the heartbeat worker's rss read is PROCESS-wide and its fs.writeSync lands while the main thread is frozen (PROVEN: n=8/n=9 landed during run53's freeze). The worker now samples rss every 5s off-thread and kills the fleet HONESTLY (SIGTERM, exit 143 - distinct from the OOM's 134) when growth >= 40MB/s sustained AND rss >= 1200M floor (run53's healthy rss was 367M), ~30s before the thrash erases the story. src/lib/stormguard.mjs is the CI-tested reference (the eval worker carries a hand-rolled subset, the heartbeatLine pattern); the mem line now splits old-space/external/arrayBuffers (which pool grows); 10 pins.
+- CI-as-tester lessons: run302 caught pocketTotals passing negative counts through (v0.55.1: impossible counts clamped to 0); run304 caught stormguard's first-warn blocked by the rate-limit window and backwards-clock resets only on >window jumps (v0.55.2: warnedAt=-Infinity; ANY backwards motion resets the window). Master: 1215420, CI 305 GREEN.
+
+Stage Summary:
+- The OOM class is now a DIAGNOSED kill: exit 143 + [stormguard] lines (rate/floor/mainLate attribution) instead of an unsymbolized 134; the next storm costs ~30s of CI and its log is readable.
+- OPEN: WHAT allocates 3.4GB retained mid-rescue is still unnamed (the freeze began at F1's SECOND drowning rescue - the first was clean; the old/ext/ab split + the attributed kill will narrow the next one); loot conversion (pocket= trend live from the next fleet); the disconnect class (serverguard live); chest-FULL handling; mid-run server restart path.
+- EXPECTATIONS next fleet: pocket= in every t- line + a loot-ledger line in the result; [stormguard] FATAL + exit 143 IF the storm class returns (a clean run prints none); old/ext/ab in the mem line; server guard / recovery brake / run-up / death-cause lines from v0.52-0.53 still watched.
+- Version handoff: next free = 0.56.0.
