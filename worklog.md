@@ -947,3 +947,19 @@ Work Log:
 Stage Summary:
 - Master: 782fb34 (v0.32.0), CI GREEN. Fleet dispatch on 782fb34 fired as the session's LAST action (see next section for run id + expectations).
 - For the next session: (1) mine the dispatch - EXPECT the 'blocked toward' lines to now name cell+block and 'did not rise' to be preceded by 'climb rise assist: ... did not complete (goto: <reason>)'; that reason picks the cure (NoPath -> GoalNear fallback / longer thinkTimeout; queue-full -> PATH_MAX_CONCURRENT). (2) climbs=1 + 5x 'cannot leave the shaft' made the climb the banked=0 GATE - if the assist reason is systematic, fixing it may move banked off 0 without touching endphase (their area stays untouched). (3) their v0.32.0 plan is mining trips periodic yard return - label the next bump 0.33.0 to avoid the collision. (4) the e2e now survives fresh worlds, night and the fifo - rerun as-is before/after any stepUp-adjacent change.
+
+---
+Task ID: 398294-20260921-1153
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: v0.33.0 - mining trips (banked=0 front)
+
+Work Log:
+- Сендбокс умер, репо переклонировано. Параллельный агент занял v0.32.0 (782fb34, climb-диагностика: refusal cells, assist outcomes, rise e2e) + worklog 78083ff. CI на 782fb34 SUCCESS. Мой фронт - v0.33.0.
+- КОРЕНЬ banked=0 (доказан в 09:53-сессии): needsBanking (slots>=24 OR units>=128) почти не срабатывает при ~90 блоках/бот/прогон; карманы едут все 600s к дедлайну, и финальный банк сжигает 150s бюджет о 100-300 блоковую прогулку (14x 'final bank: 0 (budget exhausted)').
+- v0.33.0 (6d14592): MINING TRIPS - банк рано, пока обратная дорога дешёвая. deposit.mjs: bankTripDue({units, msSinceBank, remainingMs}) - cadence-гейт (каждые 180s при units>=64 и remaining>=330s); bankTripBudgetMs({yardDist}) - 90s climb + 45s deposit + 2*dist*500ms, clamp [120s, 300s] (420s hard-kill margin неприкосновенен). fleet19.mjs: пер-бот lastBankAt (сброс на КАЖДОЙ попытке - без retry-шторма), плановый трип получает dist-бюджет, needsBanking-банк сохраняет v0.28.0 120s кап.
+- 9 юнит-тестов (tests/unit/bank-trip.test.mjs): junk/тонкие карманы/каденс/поздний старт/границы, бюджет - floor/cap/масштаб/junk-клампы + инвариант cap+90s return <= 420s margin. node --check x3, check-syntax 131 files, node -e арифметика - зелёные.
+
+Stage Summary:
+- Мастер: 6d14592 (v0.33.0). push-CI перепроверяется; флот-диспатч будет ПОСЛЕДНИМ действием сессии (урок 09:53: не пушить во время диспатча).
+- Ожидание на диспатче: строки 'F# bank trip: planned budget Ns', banked>0, уход 14x 'final bank: 0 (budget exhausted)'; hanging/нормальный конец сохраняются (3 прогона подряд).
+- След. фронты: (1) airGlitches/rescues (76/17 в слабом прогоне) - сенсор кислорода; (2) miner.mjs ~25 raw waitForTicks/lookAt - fence'ить по фронту; (3) mined rate 1.3-2.9 b/s против лучших 5.4 - ore-steering; (4) scout->miner worldmap routing.
