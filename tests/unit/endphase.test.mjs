@@ -229,3 +229,47 @@ test('finalBankSchedule: the stagger window is priced BEFORE the slice', () => {
     }
   }
 })
+
+// ---- v0.50.0: the final-climb retry ----
+// Fleet 35630279913 (v0.49.0): 13 fast 'stalled' climbs, then 13 underground
+// chains burned their whole 150s reserve on pre-deposit walks to chests 27
+// blocks away AT THE YARD SURFACE - a shaft-bottom bot cannot walk there. The
+// escalation ladder (climbEntry: 2x budgets + rotated bearing) is the built-in
+// cure; the retry policy gates it to the slice the failed attempt left.
+test('climbRetryPlan: stalled/timeout retry inside the remaining slice', () => {
+  assert.deepEqual(climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: 120000 }),
+    { retry: true, maxMs: 120000, why: 'escalated retry after stalled' })
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'timeout (fenced at 90s - the chain keeps its reserve)', sliceLeftMs: 60000 }).retry, true,
+    'the fenced timeout retries - the escalated attempt rotates the bearing')
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: 120000 }).maxMs, 120000,
+    'the retry fence is the slice the failed attempt left')
+})
+
+test('climbRetryPlan: the classes that must never retry', () => {
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'exhausted', sliceLeftMs: 120000 }).retry, false,
+    'the ledger cooldown would refuse the retry instantly - burn nothing')
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'stopped', sliceLeftMs: 120000 }).retry, false,
+    'shouldStop already fired - no wall clock left')
+  assert.equal(climbRetryPlan({ attempts: 2, reason: 'stalled', sliceLeftMs: 120000 }).retry, false,
+    'the attempt cap')
+  assert.equal(climbRetryPlan({ attempts: 5, reason: 'stalled', sliceLeftMs: 120000 }).retry, false)
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: 5000 }).retry, false,
+    'a 5s slice cannot usefully start a second climb')
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: NaN }).retry, false, 'junk slice refuses')
+  assert.equal(climbRetryPlan({ attempts: 1, reason: 'no entity', sliceLeftMs: 120000 }).retry, false,
+    'unknown reasons stay honest: no blind retries')
+})
+
+test('climbRetryPlan: the fence arithmetic keeps the chain reserve intact', () => {
+  // the invariant: attempt1 real time + retry fence <= the granted slice,
+  // so both attempts together can never starve the chain the way the
+  // un-fenced escalation did (F4)
+  const slice = 159000 // the v0.49.0 F4-arithmetic slice
+  const attempt1Ms = 90000
+  const plan = climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: slice - attempt1Ms })
+  if (plan.retry) assert.ok(attempt1Ms + plan.maxMs <= slice, 'the total climb time stays inside the slice')
+  // a fast fail (36s stalls, the measured class) leaves the retry nearly the whole slice
+  const fast = climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: slice - 36000 })
+  assert.equal(fast.retry, true)
+  assert.equal(fast.maxMs, slice - 36000)
+})

@@ -18,7 +18,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -810,6 +810,8 @@ async function runBot (name, target, index) {
           // margin skips the climb entirely - the chain's walk home is worth
           // more than a doomed underground staircase.
           let cr
+          let climbAttempts = 0
+          const climbSliceStart = Date.now()
           if (schedule.climbSkipped) {
             cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
           } else {
@@ -828,6 +830,28 @@ async function runBot (name, target, index) {
             const climbFenceAt = Date.now() + climbFenceMs
             cr = await miner.climbOut({ dir: direction, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
             if (!cr.ok && cr.reason === 'timeout') cr.reason = `timeout (fenced at ${Math.round(climbFenceMs / 1000)}s - the chain keeps its reserve)`
+            climbAttempts = 1
+            // (v0.50.0) THE FINAL-CLIMB RETRY: fleet 35630279913 measured 13
+            // fast 'stalled' climbs and then 13 underground chains burning
+            // their whole 150s reserve on pre-deposit walks to chests that sit
+            // 27 blocks away AT THE YARD SURFACE (a shaft-bottom bot cannot
+            // walk there: raw walks stall into stone, the pathfinder cannot
+            // route out) - 120s of silence per bot, 'smelt skipped', walk-floor
+            // refusals, banked=0, and the process ground into the hard kill.
+            // The escalation ladder (climbEntry) is the built-in cure: attempt
+            // 2 inherits 2x budgets and a ROTATED bearing. The retry is fenced
+            // by the slice the failed attempt left, so the chain's reserve
+            // survives both attempts by construction; 'exhausted'/'stopped'
+            // never retry (the ledger cooldown / no clock left).
+            const retryPlan = climbRetryPlan({ attempts: climbAttempts, reason: cr.reason, sliceLeftMs: Math.max(0, schedule.climbSliceMs - (Date.now() - climbSliceStart)) })
+            if (!cr.ok && retryPlan.retry) {
+              console.log(`${name} final climb: retry (${retryPlan.why}, ${Math.round(retryPlan.maxMs / 1000)}s fence)`)
+              const retryFenceAt = Date.now() + retryPlan.maxMs
+              cr = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+              climbAttempts = 2
+            } else if (!cr.ok) {
+              console.log(`${name} final climb: no retry (${retryPlan.why})`)
+            }
           }
           if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
           else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
@@ -844,12 +868,23 @@ async function runBot (name, target, index) {
           // never starts with less than the margin allows, and never outruns
           // the kill line.
           const finalBudget = Math.min(chainBudgetMs, Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now()))
-          const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
-          if (res.deposited > 0) {
-            banked += res.deposited
-            console.log(`${name} final bank: +${res.deposited}`)
+          // (v0.50.0) STILL UNDERGROUND: a bot whose every climb attempt failed
+          // cannot reach the yard chests (they stand at the surface) and cannot
+          // walk home - the chain from the shaft bottom is 150s of doomed walks
+          // (fleet 35630279913: 120s of pre-deposit silence per bot, smelt
+          // skipped, walk-floor refusals, banked=0, the hard kill at +420s).
+          // The honest verdict ends the phase NOW and the reserve goes back to
+          // the wall clock (the process ends early, the report prints).
+          if (!cr.ok && climbAttempts > 0) {
+            console.log(`${name} final bank: 0 (still underground after ${climbAttempts} climb attempt${climbAttempts > 1 ? 's' : ''} - the chain from the shaft bottom is doomed walks)`)
           } else {
-            console.log(`${name} final bank: 0 (${res.reason})`)
+            const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
+            if (res.deposited > 0) {
+              banked += res.deposited
+              console.log(`${name} final bank: +${res.deposited}`)
+            } else {
+              console.log(`${name} final bank: 0 (${res.reason})`)
+            }
           }
         } catch (e) {
           // (v0.24.0) this catch swallowed EVERYTHING in silence - fleet

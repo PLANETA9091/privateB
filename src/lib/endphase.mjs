@@ -248,3 +248,53 @@ export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, stagg
   const climbSliceMs = Math.max(0, m - s - c)
   return { climbSliceMs, climbSkipped: climbSliceMs < min }
 }
+
+// ---------------------------------------------------------------------------
+// (v0.50.0) THE FINAL-CLIMB RETRY - a failed climb hands the slice BACK to
+// the climb, not to a doomed underground chain.
+//
+// MEASURED (fleet 35630279913, v0.49.0, the first HARD KILL since the v0.40.x
+// hang class): 13 bots' final climbs failed 'stalled' FAST (36-100s, the
+// failLimit, not the fence), every bot still at its shaft bottom - and the
+// chain then burned its whole 150s reserve on pre-deposit walks to chests 27
+// blocks AWAY AT THE YARD SURFACE: raw walks stalled into stone, pathfinder
+// walks cannot route out of a 1x1 shaft, 120s of silence per bot, the smelt
+// gate read 0 remaining ('end-bank budget spent - smelt skipped'), the final
+// deposit refused on the walk floor, banked=0 - and the process ground past
+// deadline+420s into the hard kill. An underground bot's chain is worthless
+// (the v0.41.0 note said it; the code kept feeding it). The escalation ladder
+// (climbEntry) exists for exactly this wall: attempt 2 inherits 2x budgets
+// and a ROTATED bearing.
+/** Below this a retry attempt cannot usefully start. */
+export const CLIMB_RETRY_MIN_SLICE_MS = 20000
+
+/**
+ * After a failed final climb: retry inside the slice, or give up honestly?
+ * Pure, junk-safe. Retries on 'stalled' and 'timeout' (the escalated attempt
+ * rotates the bearing and multiplies the budgets - the measured cure for a
+ * proven wall); never on 'exhausted' (the ledger cooldown would refuse the
+ * retry instantly) or 'stopped' (no wall clock left). The retry's fence is
+ * the slice the failed attempt left: total climb time can never exceed the
+ * slice, so the chain's reserve survives both attempts by construction.
+ * @param {object} [p]
+ * @param {number} [p.attempts] climb attempts already made (0-based count before this decision)
+ * @param {string} [p.reason] the failed attempt's reason ('stalled'|'timeout'|...)
+ * @param {number} [p.sliceLeftMs] wall clock left of the climb slice (junk -> 0)
+ * @param {number} [p.maxAttempts] hard cap (default 2)
+ * @param {number} [p.minRetrySliceMs] below this the retry cannot start (default CLIMB_RETRY_MIN_SLICE_MS)
+ * @returns {{retry: boolean, maxMs: number, why: string}}
+ */
+export function climbRetryPlan ({ attempts = 0, reason = '', sliceLeftMs = 0, maxAttempts = 2, minRetrySliceMs = CLIMB_RETRY_MIN_SLICE_MS } = {}) {
+  const done = Number.isFinite(attempts) && attempts > 0 ? Math.floor(attempts) : 0
+  const max = Number.isFinite(maxAttempts) && maxAttempts > 0 ? Math.floor(maxAttempts) : 2
+  if (done >= max) return { retry: false, maxMs: 0, why: `attempt cap (${done} made)` }
+  const left = Number.isFinite(sliceLeftMs) && sliceLeftMs > 0 ? sliceLeftMs : 0
+  if (left < (Number.isFinite(minRetrySliceMs) && minRetrySliceMs > 0 ? minRetrySliceMs : CLIMB_RETRY_MIN_SLICE_MS)) {
+    return { retry: false, maxMs: 0, why: `slice left ${Math.round(left / 1000)}s < min ${Math.round(CLIMB_RETRY_MIN_SLICE_MS / 1000)}s` }
+  }
+  const r = String(reason || '')
+  if (/exhausted/i.test(r)) return { retry: false, maxMs: 0, why: 'ledger exhausted - a retry would refuse instantly' }
+  if (/stopped/i.test(r)) return { retry: false, maxMs: 0, why: 'no wall clock left (shouldStop)' }
+  if (/stalled|timeout/i.test(r)) return { retry: true, maxMs: left, why: `escalated retry after ${r}` }
+  return { retry: false, maxMs: 0, why: `no retry for '${r || 'unknown'}'` }
+}
