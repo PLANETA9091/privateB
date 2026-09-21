@@ -46,18 +46,31 @@ export const SEAL_PRIORITY = [
 ]
 
 /**
- * Should the bot dig in and seal instead of fleeing? Only the measured death
- * pattern gets the shelter: naked + night + a threat close enough to matter.
+ * Should the bot dig in and seal instead of fleeing? The measured death
+ * patterns get the shelter: a NAKED (melee-naked) bot with a threat close
+ * enough to matter. Two classes:
+ * - NIGHT: any threat within 12 (the surface mob class - zombies chase across
+ *   the whole surface, the chase is lost before it starts);
+ * - (v0.47.1) DAY, ENGAGED: fleet 35605960761 measured F7/F10 dying in
+ *   daylight to a zombie at 1.8 blocks - 'shelter skip (night=false
+ *   armed=true threat=zombie@1.8)' then dead. A chewing zombie at <= 3.5
+ *   blocks is a lost fight for a tool-armed bot AND a lost chase (same speed,
+ *   already in swing range); the dig-in beats both. Daylight mobs beyond
+ *   contact keep walking past - no shelter for shadows.
  * @param {object} p
- * @param {boolean} [p.night] night by the vanilla clock (junk -> false: daylight bots walk)
- * @param {boolean} [p.armed] does the bot hold any melee weapon? (junk -> true: shelter is for the naked)
+ * @param {boolean} [p.night] night by the vanilla clock (junk -> false)
+ * @param {boolean} [p.armed] does the bot hold a REAL melee weapon (sword/axe)?
+ *   (junk -> true: shelter is for the melee-naked)
  * @param {number} [p.threatDist] metres to the nearest hostile (junk -> far)
  */
+export const DAY_ENGAGE_DIST = 3.5
+
 export function shelterDue ({ night = false, armed = true, threatDist = Infinity } = {}) {
-  if (night !== true) return false
   if (armed !== false) return false
   if (!Number.isFinite(threatDist) || threatDist > 12) return false
-  return true
+  if (night === true) return true
+  if (threatDist <= DAY_ENGAGE_DIST) return true
+  return false
 }
 
 /**

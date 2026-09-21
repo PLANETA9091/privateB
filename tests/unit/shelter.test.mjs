@@ -27,6 +27,21 @@ test('shelterDue: junk inputs never trap the bot in a hole', () => {
   assert.equal(shelterDue({ night: true, armed: false, threatDist: -1 }), true, 'negative = basically inside the mob')
 })
 
+// ---- v0.47.1: the DAY ENGAGED class ----
+// Fleet 35605960761 (v0.46.0) measured F7/F10 dying in daylight:
+// 'shelter skip (night=false armed=true threat=zombie@1.8)' then dead. A
+// chewing zombie at <= 3.5 blocks is a lost fight for a tool-armed bot AND a
+// lost chase; the dig-in beats both. Beyond contact, daylight mobs walk past.
+test('shelterDue: the day-engaged cell (zombie already chewing) gets the shelter', () => {
+  assert.equal(shelterDue({ night: false, armed: false, threatDist: 1.8 }), true, 'the measured F7/F10 cell: zombie at 1.8, day')
+  assert.equal(shelterDue({ night: false, armed: false, threatDist: 3.5 }), true, 'the DAY_ENGAGE_DIST boundary is inside')
+  assert.equal(shelterDue({ night: false, armed: false, threatDist: 3.6 }), false, 'beyond contact: daylight bots walk in the open')
+  assert.equal(shelterDue({ night: false, armed: false, threatDist: 12 }), false, 'the detect edge in daylight is NOT a shelter case')
+  assert.equal(shelterDue({ night: false, armed: true, threatDist: 1.8 }), false, 'an armed bot never seals, day or night')
+  assert.equal(shelterDue({ night: false, armed: 0, threatDist: 1.8 }), false, 'armed junk stays junk')
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 3.6 }), true, 'night keeps its full 12-block radius')
+})
+
 test('pickSealItem: dirt family first, craft-critical items never spent', () => {
   assert.equal(pickSealItem([{ name: 'cobblestone', count: 10 }, { name: 'dirt', count: 3 }]).name, 'dirt', 'dirt outranks cobblestone')
   assert.equal(pickSealItem([{ name: 'oak_log', count: 4 }, { name: 'cobblestone', count: 10 }]).name, 'cobblestone', 'logs are NEVER spent')
