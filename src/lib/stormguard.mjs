@@ -46,7 +46,7 @@ export const STORM_WINDOW_MS = 10000 // two 5s samples minimum before a verdict
  */
 export function createStormGuard ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb = STORM_FLOOR_MB_DEFAULT, windowMs = STORM_WINDOW_MS, now = () => Date.now() } = {}) {
   const win = [] // {ts, rss} inside the window
-  let warnedAt = 0
+  let warnedAt = -Infinity // -Infinity: the FIRST sub-floor warn fires at once, the rate limit only stops spam
 
   function verdict (t = now()) { // one clock read per sample - a double read would skew the prune
     while (win.length > 1 && t - win[0].ts > windowMs) win.shift()
@@ -70,7 +70,7 @@ export function createStormGuard ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       const t = now()
       const r = Number(rssMb)
       if (!Number.isFinite(r) || r < 0) return verdict(t) // junk never enters the window
-      if (win.length && t <= win[win.length - 1].ts - windowMs) win.length = 0 // clock went backwards - fresh window
+      if (win.length && t < win[win.length - 1].ts) win.length = 0 // ANY backwards motion corrupts rate arithmetic - fresh window
       if (win.length && r < win[win.length - 1].rss) win.length = 0 // RSS dropped: growth streak broken, start over
       win.push({ ts: t, rss: r })
       return verdict(t)
