@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS, FINAL_BANK_REF_DIST } from '../../src/lib/endphase.mjs'
-import { finalBankSchedule, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
+import { finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
 
 test('slots: deterministic index spacing, bot 0 banks immediately', () => {
   assert.equal(finalBankDelayMs({ index: 0 }), 0)
