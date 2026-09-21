@@ -33,7 +33,12 @@ export function pocketTotals (miners) {
     try {
       const items = m?.bot?.inventory?.items?.()
       if (!Array.isArray(items)) continue
-      for (const it of items) units += Number.isFinite(it?.count) ? it.count : 0
+      for (const it of items) {
+        // a torn view must not corrupt the sum: NaN/Infinity AND negative
+        // counts are impossible data (a pocket cannot hold -5 units) - zeroed
+        const c = it?.count
+        units += (Number.isFinite(c) && c > 0) ? c : 0
+      }
       slots += items.length
     } catch { /* a torn window view on a dying bot counts as zero this tick */ }
   }
