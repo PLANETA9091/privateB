@@ -255,13 +255,23 @@ test('findChest: the yard radius boundary and the legacy no-yard behavior', () =
   assert.equal(findChest(bot, { yardCenter: null }), edge, 'an explicit null yard = no filter')
 })
 
-test('findChest: a chest with an unreadable position is skipped while a filter is active', () => {
+test('findChest: palette candidates pass, REAL junk positions still reject', () => {
+  // (v0.43.0) CONTRACT UPDATE - the palette lesson. mineflayer probes the matcher
+  // with Block.fromStateId blocks that have NO position (blocks.js
+  // isBlockInSection); rejecting them inside the matcher skipped every chest
+  // section and findChest returned null with the warehouse in range (measured:
+  // dispatch 35591877408 F10, 13 blocks from 50 verified chests, banked=0). A
+  // position-less block is a CANDIDATE (the real scan re-runs the matcher with
+  // true positions), while a REAL block with a junk position (NaN coords) is a
+  // blind-walk hazard and still rejects.
   const yard = new Vec3(0, 64, 0)
-  const blind = { name: 'chest', position: null }
+  const palette = { name: 'chest', position: null }
   const junk = { name: 'chest', position: { x: 10, y: NaN, z: 0 } }
-  const bot = { findBlock: ({ matching }) => (matching(blind) ? blind : (matching(junk) ? junk : null)) }
-  assert.equal(findChest(bot, { yardCenter: yard }), null, 'a blind walk is not a delivery - reject')
-  assert.equal(findChest(bot, { yardCenter: yard, yardRadius: 64 }), null)
+  const bot = { findBlock: ({ matching }) => (matching(palette) ? palette : (matching(junk) ? junk : null)) }
+  assert.equal(findChest(bot, { yardCenter: yard }), palette, 'position-less = palette candidate - the section must be scanned')
+  assert.equal(findChest(bot, { yardCenter: yard, yardRadius: 64 }), palette)
+  const junkBot = { findBlock: ({ matching }) => (matching(junk) ? junk : null) }
+  assert.equal(findChest(junkBot, { yardCenter: yard }), null, 'a real junk position is still a blind walk - reject')
 })
 
 test('chestNearYard: junk-tolerant pure predicate', async () => {

@@ -171,10 +171,24 @@ export function findChest (bot, { maxDistance = 64, exclude = [], log, yardCente
   const scan = () => bot.findBlock({
     matching: b => {
       if (!(CHEST_NAMES.includes(b.name) || /_chest$/.test(b.name))) return false
+      // (v0.43.0) THE PALETTE CANDIDATE RULE - the fix that reopens the warehouse.
+      // MEASURED TWICE: (a) tools.mjs reachableTable (v0.6.7): a position-dependent
+      // matcher made every palette section test false, findBlock returned null with
+      // the target 3 blocks away; (b) THIS run (dispatch 35591877408, v0.42.1):
+      // F10 stood 13 blocks from the 50 verified warehouse chests and the v0.41.0
+      // yard filter answered chestNearYard({chestPos: null}) = false for every
+      // PALETTE block - mineflayer's fast-path probes the matcher with
+      // Block.fromStateId(stateId, 0), which has NO position (blocks.js
+      // isBlockInSection) - so every chest section was skipped and findChest
+      // returned null: 24x 'scan: no chest within 64b (bankable 126)', banked=0.
+      // A palette block is a CANDIDATE, not a target: pass it so the section gets
+      // scanned; the real per-block scan re-runs this matcher with true positions
+      // and the yard filter applies there (a real far chest is still rejected).
+      if (!b.position) return true
       // (v0.23.1) a chest the bot already failed to reach ('No path') is skipped:
       // the yard holds dozens of chests, one unreachable slot must not strand
       // the whole delivery
-      if (exclude.length > 0 && b.position) {
+      if (exclude.length > 0) {
         const p = typeof b.position.floored === 'function' ? b.position.floored() : b.position
         const hit = exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z)
         if (hit) return false

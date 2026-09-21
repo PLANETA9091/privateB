@@ -101,22 +101,66 @@ export async function sweepGridItems (bot) {
   } catch { return 0 }
 }
 
-async function craft (bot, itemName, times, table = null, log = null) {
+// (v0.43.0) THE CRAFT-STORM BRAKE. Measured (F1, fleet 35572106504): after an
+// ECONNRESET reconnect while the server was still stalled, F1's crafts ALL timed
+// out at the fence - 6 back-to-back 7000ms timeouts = 42s of hammering a server
+// that never confirmed a single click, each retry making the stall worse. The
+// brake: a timeout raises a per-bot consecutive counter, the next retry sleeps
+// an exponentially growing backoff, and at CRAFT_STORM_GIVE_UP consecutive
+// timeouts the craft is abandoned for this call and a cooldown refuses new
+// crafts until it elapses (one probe craft after it, self-healing without the
+// herd). State lives on the BOT object - fleet19 recreates the bot on every
+// reconnect, which is exactly when the storm state should reset.
+export const CRAFT_TIMEOUT_MS = 7000
+export const CRAFT_STORM_GIVE_UP = 3
+export const CRAFT_STORM_BASE_MS = 1000
+export const CRAFT_STORM_CAP_MS = 8000
+
+export function craftBackoffMs ({ consecutive = 0, baseMs = CRAFT_STORM_BASE_MS, capMs = CRAFT_STORM_CAP_MS } = {}) {
+  const n = Number(consecutive)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.min(baseMs * 2 ** (n - 1), capMs)
+}
+
+const stormOf = bot => {
+  if (!bot._craftStorm) bot._craftStorm = { consecutive: 0, cooldownUntil: 0 }
+  return bot._craftStorm
+}
+
+// The entry gate: at >= GIVE_UP consecutive timeout crafts, refuse while the
+// cooldown runs; once it elapses, allow ONE probe craft (a success resets, a
+// timeout re-arms the next, longer cooldown).
+export function craftStormVerdict (bot, { now = Date.now() } = {}) {
+  const s = stormOf(bot)
+  if (s.consecutive < CRAFT_STORM_GIVE_UP) return { allowed: true, waitMs: 0, consecutive: s.consecutive }
+  if (now < s.cooldownUntil) return { allowed: false, waitMs: s.cooldownUntil - now, consecutive: s.consecutive }
+  return { allowed: true, waitMs: 0, consecutive: s.consecutive }
+}
+
+export async function craft (bot, itemName, times, table = null, log = null, opts = {}) {
+  const { timeoutMs = CRAFT_TIMEOUT_MS, stormBaseMs = CRAFT_STORM_BASE_MS, stormCapMs = CRAFT_STORM_CAP_MS } = opts
+  const step = log ?? (() => {})
+  const storm = stormOf(bot)
+  const verdict = craftStormVerdict(bot)
+  if (!verdict.allowed) {
+    step(`craft ${itemName}: storm cooldown ${verdict.waitMs}ms left (${verdict.consecutive} consecutive timeouts) - refusing`)
+    return false
+  }
   const id = bot.registry.itemsByName[itemName]?.id
   if (id == null) return false
   const recipes = bot.recipesFor(id, null, 1, table ?? null) || []
   if (!recipes.length) {
     // recipesFor pre-filters by ingredient availability: empty means "no variant is
     // craftable with what we hold" - log it, this silent path cost hours of debugging
-    ;(log ?? (() => {}))?.(`craft ${itemName}: no craftable recipe variant (ingredients missing?)`)
+    step(`craft ${itemName}: no craftable recipe variant (ingredients missing?)`)
     return false
   }
   // A tree-fleet inventory holds MIXED plank types (oak + birch + ...); every plank
   // recipe exists once per plank type, and recipes[0] may be the variant whose plank
   // we do not have - that is why the pickaxe "never" crafted while the shovel did.
   // Try every variant before giving up.
-  const step = log ?? (() => {})
   let lastErr = null
+  loop:
   for (const recipe of recipes) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -130,7 +174,9 @@ async function craft (bot, itemName, times, table = null, log = null) {
         // bot.craft can hang when the window desyncs - fence it with a hard timeout.
         // 7s: a healthy click dance takes well under 2s, so burning less budget here
         // leaves room for the retry attempts.
-        await withTimeout(bot.craft(recipe, times, table ?? null), 7000, `craft ${itemName}`)
+        await withTimeout(bot.craft(recipe, times, table ?? null), timeoutMs, `craft ${itemName}`)
+        storm.consecutive = 0
+        storm.cooldownUntil = 0
         return true
       } catch (e) {
         lastErr = e
@@ -145,6 +191,20 @@ async function craft (bot, itemName, times, table = null, log = null) {
         const swept = await sweepGridItems(bot)
         if (swept) step(`craft ${itemName}: swept ${swept} ghost grid slot(s) back into the inventory`)
         if (/missing ingredient|no craftable recipe/i.test(e.message)) break // other attempts of THIS variant cannot help
+        // THE STORM BRAKE (v0.43.0): a fence timeout means the server never confirmed
+        // the click dance. Sleep an exponentially growing backoff before the next
+        // attempt, and at GIVE_UP consecutive timeouts abandon the whole item - the
+        // next craft call is refused until the cooldown elapses.
+        if (/timeout after \d+ms/.test(e.message)) {
+          storm.consecutive++
+          const backoff = craftBackoffMs({ consecutive: storm.consecutive, baseMs: stormBaseMs, capMs: stormCapMs })
+          storm.cooldownUntil = Date.now() + backoff
+          if (storm.consecutive >= CRAFT_STORM_GIVE_UP) {
+            step(`craft storm: ${storm.consecutive} consecutive craft timeouts - cooldown ${backoff}ms (server stall?)`)
+            break loop
+          }
+          if (backoff > 0) await new Promise(resolve => setTimeout(resolve, backoff))
+        }
       }
     }
   }
