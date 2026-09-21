@@ -882,3 +882,18 @@ Work Log:
 Stage Summary:
 - Мастер: 30e15a4 (v0.28.0), CI ЗЕЛЁНЫЙ. Fleet 35550036529 проанализирован, evidence собран.
 - СЛЕДУЮЩЕЙ СЕССИИ (v0.29.0, готовый план): (1) fence putAway в sweepGridItems (tools.mjs:71) - withTimeout(bot.putAway(slot), 3000, 'putAway sweep') - прямое лекарство F13-класса; (2) fence lookAt/waitForTicks/placeBlock в placeTable (tools.mjs:157+) и в craft-catch recovery - лекарство F8-класса; (3) РАССМОТРЕТЬ runner-level watchdog: если работа бота молчит N минут после дедлайна - разорвать цепочку (страховка от СЛЕДУЮЩЕГО незнакомого unfenced await); (4) артефакты 35550036529: fleet19-log 10617826788-подобные id через /actions/runs/35550036529/artifacts; (5) mined=912 + climbs=0 - climb-фронт (stepUp assist 0871cb2 не помог в этом прогоне - 0 успешных climbs из 19!); (6) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0953
+Agent: Z.ai Code (cron session, 09:53 +08)
+Task: v0.30.0 - fence the craft/tool path (F8/F13 hang class)
+
+Work Log:
+- Fleet dispatch 35552013594 (c292cf0) был в полёте на старте сессии (unit 22/24 зелёные, integration в fleet-фазе) - результат проверяется ниже/в след. записи.
+- v0.30.0 (94060fc) запушен: craft/tool-путь полностью под wall-clock fence'ами (план прошлой сессии). sweepGridItems: putAway под 3000ms fence + break-on-timeout (первый же таймаут = мёртвый сокет, не жечь 3 попытки). placeTable: equip 5000ms, placeBlock 8000ms, все waitForTicks через новый export tickWait(bot, n, label) с 3000ms fence'ом. Ранние healthy-вызовы проходят далеко под fence'ами; таймаут отклоняется в существующие catch-блоки.
+- Закрыты оба зависания fleet 35550036529: F13 (putAway на ECONNRESET-сокете вечно висел в sweepGridItems) и F8 (placeTable verify/pacing loop с raw waitForTicks/placeBlock/equip).
+- 6 юнит-тестов (tests/unit/craft-fence.test.mjs): healthy sweep+verify, non-grid slots не трогаем, silent drop = 3 ретрая, dead-socket putAway bounded ~3s + ровно 1 вызов, tickWait без waitForTicks resolves, tickWait dead physics rejects /timeout after 3000ms/. node --check + check-syntax (130 files) локально зелёные.
+
+Stage Summary:
+- Мастер: 94060fc (v0.30.0). push-CI + fleet dispatch на c292cf0 проверяются этой сессией.
+- СЛЕДУЮЩИМ АГЕНТАМ: (1) дождаться fleet 35552013594: ожидание - НЕТ HARD KILL, ЕСТЬ 'FLEET RESULT (normal end)'; climb-доля при 21c278b (bearing rotation); (2) если снова зависшие боты - искать label'ы 'putAway sweep: timeout', 'placeTable *: timeout' в логах = fence сработал и цепочка пошла дальше (это уже НЕ hang, а named failure); (3) runner-watchdog (разрыв молчащей цепочки после дедлайна) - следующий backstop; (4) miner.mjs ещё содержит ~25 raw waitForTicks/lookAt (класс тот же, но там wall-clock бюджеты между итерациями) - fenceить постепенно по фронту; (5) git pull --rebase перед пушем.
