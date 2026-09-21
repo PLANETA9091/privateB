@@ -208,3 +208,45 @@ test('a wet escape plus the normal fail limit stays bounded (worst-case climbs e
   // rotation fails - a flooded bot gives up in bounded time either way
   assert.equal(TRAVERSE_MAX_ATTEMPTS, 2)
 })
+
+// ---- v0.52.0: the DRY RUN-UP TRAVERSE ----
+// Fleet 35639593200 (v0.51.0) measured F1/F14 'assist did not complete
+// (timeout)' + F13 '(No path to the goal!)' with diag 'feet=air
+// support=diorite step=air': a bot sealed in a 1x1 well where the step cell
+// is OPEN AIR yet both the raw stepUps and the goto assist fail - the
+// pressed-face geometry (the v0.27.0 repro) leaves no run-up space and the
+// pathfinder needs the same space. The cure re-uses the wet-escape gallery
+// (traverseStep) as a DRY run-up: dig one step toward the bearing, walk in,
+// re-judge from the L-mouth. These tests pin the plan the mechanic executes.
+test('traverseStep as a dry run-up: the measured F1 well opens in two digs', () => {
+  // the F1 diag geometry: support=diorite (feet-level solid ahead), step=air
+  // (the wall is exactly ONE block high - jumpable with space, hopeless pressed)
+  const feet = new Vec3(-130, 43, 395)
+  const cells = {
+    '-129,43,395': B('diorite'), // feet-level ahead: the support wall
+    '-129,44,395': AIR,          // step cell: open air (the measured diag)
+    '-129,45,395': AIR           // above the head: open (no waterfall)
+  }
+  const r = traverseStep({ feet, d: { x: 1, z: 0 }, read: world(cells) })
+  assert.equal(r.ok, true, 'a dry 1-high wall is a legal gallery step')
+  assert.equal(r.digs.length, 1, 'only the feet-level wall needs digging (head level is the open step)')
+  assert.equal(r.digs[0].name, 'diorite')
+})
+
+test('traverseStep as a dry run-up: the sealed 2-high wall opens in two digs', () => {
+  const feet = new Vec3(10, 40, 10)
+  const r = traverseStep({ feet, d: { x: 0, z: 1 }, read: world({}) }) // all stone
+  assert.equal(r.ok, true)
+  assert.equal(r.digs.length, 2, 'feet + head stone both go')
+})
+
+test('traverseStep as a dry run-up: it never digs into the measured hazards', () => {
+  const feet = new Vec3(10, 40, 10)
+  // a gap ahead is not a run-up, it is a new trap
+  assert.equal(traverseStep({ feet, d: { x: 1, z: 0 }, read: world({ '11,39,10': AIR }) }).ok, false, 'gap floor refuses')
+  // lava ahead refuses even though the wall itself is diggable
+  assert.equal(traverseStep({ feet, d: { x: 1, z: 0 }, read: world({ '11,40,10': B('lava', { box: 'fluid' }) }) }).ok, false, 'lava refuses')
+  // an unknown read ahead (unloaded chunk) refuses - never dig blind
+  const unknown = () => null
+  assert.equal(traverseStep({ feet, d: { x: 1, z: 0 }, read: unknown }).ok, false, 'unknown refuses')
+})

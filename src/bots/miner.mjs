@@ -2173,6 +2173,53 @@ export function createMiner ({
         // different cures, and 'did not rise' after a silent catch hid them all.
         // Capped like the diag lines - two notes per climb, not one per level.
         if (assistNote && diagLevels < 5) log(`${tag} climb rise assist: ${recovery.kind} did not complete (${assistNote})`)
+        // (v0.52.0) DRY RUN-UP TRAVERSE: fleet 35639593200 (v0.51.0) measured
+        // the class the goto assist cannot reach: F1/F14 'assist did not
+        // complete (timeout)' + F13 '(No path to the goal!)', diag
+        // 'feet=air support=diorite step=air' - a bot sealed in a 1x1 well
+        // where the step cell is OPEN AIR yet every rise attempt fails. The
+        // v0.27.0 repro explained it: pressed against the step face the
+        // collision zeroes horizontal velocity while the jump arc needs it,
+        // and the pathfinder needs the same 2-block run-up it cannot find
+        // inside the well - NoPath and goto-timeouts are the SAME geometry
+        // failure through two APIs. The wet escape already owns the cure:
+        // dig a short horizontal gallery (traverseStep guards: waterfall
+        // above, gap below, wet/hard cells refuse), walk in, and the well
+        // becomes an L - the main loop re-judges from the gallery mouth with
+        // real run-up space. Budget: two galleries per climb (fails < 2),
+        // then the honest rotate ladder owns the level.
+        if (!rose && recovery.kind === 'assist' && assistNote && fails < 2) {
+          const plan = traverseStep({ feet: feetNow, d, read: cell => { try { return bot.blockAt(cell) } catch { return null } } })
+          if (plan.ok) {
+            let opened = true
+            for (const b of plan.digs) {
+              let broke = false
+              try { broke = await bot.fastDig(b, { maxTicks: 200 }) } catch { broke = false }
+              if (!broke) { opened = false; break }
+              dug++
+              stats.mined++
+              stats.byName[b.name] = (stats.byName[b.name] || 0) + 1
+            }
+            if (opened) {
+              let walkedIn = false
+              try {
+                await bot.lookAt(feetNow.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
+                bot.setControlState('forward', true)
+                await settleTicks(8, 'run-up walk')
+                bot.setControlState('forward', false)
+                const inCell = bot.entity ? bot.entity.position.floored() : feetNow
+                walkedIn = inCell.x !== feetNow.x || inCell.z !== feetNow.z
+              } catch { /* the re-judge below still runs from wherever we stand */ }
+              if (walkedIn) {
+                const feetGal = bot.entity ? bot.entity.position.floored() : feetNow
+                if (feetGal.y > feetNow.y) { steps++; fails = 0; continue }
+                log(`${tag} climb run-up: gallery opened toward ${d.x},${d.z} (digs ${plan.digs.length}) - the rise re-judges from the L-mouth`)
+                // falls through to the rotate: the loop re-probes all bearings
+                // from the gallery cell, where a jump finally has run-up space
+              }
+            }
+          }
+        }
         // (v0.19.1) the 24-tick same-bearing retry did NOT cure the rise
         // failures (fleet v0.19.0: 15 'did not rise', food=20) - momentum is
         // NOT the cause. Name the cells: a water film on the floor (from a
