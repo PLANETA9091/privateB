@@ -131,12 +131,15 @@ test('depositToChest: the walk fits inside the remaining budget', async () => {
 test('depositToChest: the No-path hop inherits the same wall clock', async () => {
   const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
   const bot = makeMockBot({ items: [item('cobblestone', 40)], chest, gotoScript: [new Error('No path to the goal!')] })
+  // 6000ms: above the 5000ms floor (a smaller budget refuses BEFORE any walk -
+  // that is the floor-guard test's job), below two full walks - the hop gets
+  // the leftover, not a fresh budget.
   const t0 = Date.now()
-  const res = await depositToChest(bot, { budgetMs: 1000 })
+  const res = await depositToChest(bot, { budgetMs: 6000 })
   assert.equal(res.deposited, 0)
-  assert.ok(bot.gotoCalls.length >= 1, 'the first walk attempts')
+  assert.ok(bot.gotoCalls.length >= 2, `the first walk AND the No-path hop walk (got ${bot.gotoCalls.length})`)
   assert.ok(Date.now() - t0 < 5000, 'the whole attempt stays inside the budget wall clock')
-  assert.match(res.reason, /budget exhausted|chest unreachable/i, `named reason: ${res.reason}`)
+  assert.match(res.reason, /chest unreachable.*No path/i, `named reason: ${res.reason}`)
 })
 
 test('endBankBudgetMs: default, env parse, junk tolerance', () => {
