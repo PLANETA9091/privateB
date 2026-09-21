@@ -12,6 +12,7 @@
 //   SCOUT=1 node testbed/fleet19.mjs
 import fs from 'node:fs'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
+import { pocketTotals, lootLedger } from '../src/lib/pocketline.mjs'
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
@@ -1093,7 +1094,10 @@ const reporter = setInterval(() => {
   const s = fleetStats(list)
   const per = TARGETS.map(t => `${t}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')
   const mapRep = map.report()
-  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} smelted=${smelted} | ${per}`)
+  // (v0.54.0) the pocket pair joins the tick: mined vs pocket+banked per tick
+  // is the loot-conversion trend (the 93% loss made visible BEFORE the run ends)
+  const pk = pocketTotals(list)
+  console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} smelted=${smelted} pocket=${pk.units}u/${pk.slots}s | ${per}`)
   if (Object.keys(need).length) console.log(`   deficits: ${topDeficits()}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
@@ -1180,6 +1184,12 @@ console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${k
 console.log(`server guard: losses=${serverGuard.totalLosses} (window ${serverGuard.lossesInWindow}/${serverGuard.threshold}) relogins=${serverGuard.relogins} probe=${serverGuard.lastProbe ?? 'n/a'} dead=${serverGuard.dead ? 'YES' : 'no'}`)
 console.log(`pickaxe tiers at end: ${PICK_TIERS.join(',')} -> ${PICK_TIERS.map(t => `${t.split('_')[0]}=${list.reduce((a, m) => a + (m.bot?.inventory ? countItem(m.bot, t) : 0), 0)}`).join(' ')}`)
 console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(2)} blocks/s (${((s.mined / secs) * 60).toFixed(0)}/min)`)
+// (v0.54.0) the loot ledger: where the yield ended up. unaccounted = the
+// never-reached class (drops out of pickup range, tool consumption, consolidation)
+// - fleet 35566494961 measured this as 93% of mined with no way to see it live.
+const endPk = pocketTotals(list)
+const ledger = lootLedger({ mined: s.mined, banked, smelted, pocket: endPk.units })
+console.log(`loot ledger: mined=${ledger.mined} banked=${banked} smelted=${smelted} pocket=${endPk.units}u/${endPk.slots}s accounted=${ledger.accounted} unaccounted=${ledger.unaccounted} conversion=${ledger.conversion == null ? 'n/a' : (ledger.conversion * 100).toFixed(1) + '%'}`)
 for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
   // grass_block drops (the first runs reported stone collected=0 while bots held
