@@ -865,3 +865,20 @@ Work Log:
 Stage Summary:
 - Мастер: v0.28.0 (этот коммит). v0.27.0 подтверждён числами (path 0a/0q, 17/19 цепочек, бюджет-линии); последний unbudgeted вызов цепочки закрыт.
 - СЛЕДУЮЩИМ АГЕНТАМ: (1) dispatch run_fleet=true fleet_seconds=600 на v0.28.0: ожидание - НЕТ HARD KILL, ЕСТЬ 'FLEET RESULT (normal end)' + fleet-report.json written; (2) banked=0 остаётся (климбы 'stalled' + вода): 0871cb2 (stepUp assist) может помочь climb'ам - смотреть 'final climb: OK' долю; (3) air-bar glitch спам (oxygen 0 on dry land, 300-700/run) - сенсор 26.2, телеметрия не баг, но drowning-rescue цикл F7/F11 ('rescue timeout still wet' x N) жжёт 25s окна - фронт; (4) git pull --rebase перед пушем.
+
+---
+Task ID: 398294-20260921-0753 (final)
+Agent: Z.ai Code (cron session, 07:53 +08)
+Task: анализ fleet 35550036529 (v0.28.0) - НОВЫЙ класс зависания: craft-путь
+
+Work Log:
+- Fleet dispatch 35550036529 (30e15a4 = v0.28.0): job SUCCESS за 27 мин, НО снова '[fleet] HARD KILL'. mined=912 (слабый мир), climbs=0 (!), rescues=22.
+- Покрытие финальных цепочек: 15/19 завершили ('F15 final bank: 0 (budget exhausted)' в самом хвосте - бюджет режет даже на последнем вздохе). F17[empty]/F18[stick+sapling+table] - легитимные bankable=false чистые выходы. Висели F8 и F13.
+- path=1a/0q-2a/0q весь end-phase - очередь НЕ насыщена (лайвлок v0.26 не вернулся). Это ДРУГОЙ класс.
+- F13: 'error: write ECONNRESET' + 'socket error' -> ПОСЛЕ этого '[tools] closing stale craft window' x2 = craft-catch recovery работает на МЁРТВОМ сокете -> sweepGridItems -> await bot.putAway(slot) БЕЗ таймаут-забора -> вечное зависание. putAway на отвалившемся соединении никогда не settle'ится.
+- F8: последние строки ts~701: 'craft crafting_table: timeout after 7000ms' x3 -> 'all 1 variant(s) failed' -> 5+ мин тишины. craft() завершился корректно, но 'spare table: FAILED' (следующий шаг toolupgrade) не напечатался -> зависание в tableOf/placeTable (dig/fall/retry цикл с НЕограниченными waitForTicks/lookAt/placeBlock - v0.24.0 race-bound покрыл только climb-пути) ЛИБО в неalfenced await между craft и step.
+- Общий знаменатель: НЕограниченные await'ы в craft/tool-пути (putAway, lookAt, placeBlock, waitForTicks в placeTable) - на stalled/dead-сокетах они висят вечно. С TTL-флоу (craft 7s) соседствуют raw-вызовы.
+
+Stage Summary:
+- Мастер: 30e15a4 (v0.28.0), CI ЗЕЛЁНЫЙ. Fleet 35550036529 проанализирован, evidence собран.
+- СЛЕДУЮЩЕЙ СЕССИИ (v0.29.0, готовый план): (1) fence putAway в sweepGridItems (tools.mjs:71) - withTimeout(bot.putAway(slot), 3000, 'putAway sweep') - прямое лекарство F13-класса; (2) fence lookAt/waitForTicks/placeBlock в placeTable (tools.mjs:157+) и в craft-catch recovery - лекарство F8-класса; (3) РАССМОТРЕТЬ runner-level watchdog: если работа бота молчит N минут после дедлайна - разорвать цепочку (страховка от СЛЕДУЮЩЕГО незнакомого unfenced await); (4) артефакты 35550036529: fleet19-log 10617826788-подобные id через /actions/runs/35550036529/artifacts; (5) mined=912 + climbs=0 - climb-фронт (stepUp assist 0871cb2 не помог в этом прогоне - 0 успешных climbs из 19!); (6) git pull --rebase перед пушем.
