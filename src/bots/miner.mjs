@@ -19,7 +19,7 @@ import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
-  stepDigPlan, STEP_MAX_PASSES,
+  stepDigPlan, STEP_MAX_PASSES, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT
 } from '../lib/surface.mjs'
@@ -1924,11 +1924,40 @@ export function createMiner ({
           log(`${tag} climb: walkable surface at y=${feetNow.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over`)
           return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
         }
+        // (v0.27.0) RISE RECOVERY: two failed raw stepUps on geometry the dig
+        // pass just verified clean is the fleet's 'did not rise (dug=0)' class
+        // (F13 dry, F17 in-river) - the repro probe confirmed the raw mechanic
+        // fails ~half the pressed-jump trials: flush against the step face the
+        // collision zeroes horizontal velocity into the wall while the arc
+        // needs it. The pathfinder takes the same step with a REAL jump-edge
+        // computation (backs off, jumps with speed) - one bounded assist
+        // before any rotate. In water the assist is flaky and an off-goal move
+        // loses the bearing, so the wet variant gets one LONGER jump hold
+        // instead (swim momentum while the eyes clear the bank lip).
+        const recovery = riseRecoveryPlan({ feetWater: isWetCell(readCell(feetNow)), stepTop: feetNow.offset(d.x, 1, d.z) })
+        let assistMoved = false
+        if (recovery.kind === 'longHold') {
+          try { rose = await stepUp(recovery.holdTicks) } catch { /* the rotate path owns it below */ }
+        } else if (recovery.kind === 'assist') {
+          try {
+            await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist' })
+            assistMoved = true
+          } catch { /* bounded - the rotate path owns it below */ }
+        }
+        const feetAfter = bot.entity ? bot.entity.position.floored() : null
+        if (rose || (feetAfter && feetAfter.y > feetNow.y)) { steps++; fails = 0; continue }
+        if (assistMoved && feetAfter && (feetAfter.x !== feetNow.x || feetAfter.z !== feetNow.z)) {
+          log(`${tag} climb rise assist: repositioned to ${feetAfter.x},${feetAfter.y},${feetAfter.z} - the loop re-judges`)
+          continue // fresh position - let the main loop re-judge (the wet-escape resumed pattern)
+        }
         // (v0.19.1) the 24-tick same-bearing retry did NOT cure the rise
         // failures (fleet v0.19.0: 15 'did not rise', food=20) - momentum is
         // NOT the cause. Name the cells: a water film on the floor (from a
         // wet escape gallery) or a support/step name tells the structural
         // story without a new theory.
+        // On v0.27.0+ this line also IMPLIES the rise recovery already ran and
+        // failed (assist repositioned nothing, long hold gained nothing) - the
+        // rotate here is a rotated-wall attempt, not a blind repeat.
         if (diagLevels++ < 3) {
           const at = cell => { try { const b = bot.blockAt(cell); return b ? b.name : 'null' } catch { return 'err' } }
           log(`${tag} climb diag: level at y=${feet.y} did not rise (food=${bot.food}, dug=${dug}) feet=${at(feet)} support=${at(feet.offset(d.x, 0, d.z))} step=${at(feet.offset(d.x, 1, d.z))} head=${at(feet.offset(0, 2, 0))}`)

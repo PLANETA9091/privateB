@@ -9,7 +9,8 @@ import {
   PILLAR_BLOCKS, UNDIGGABLE, FLUIDS,
   PILLAR_PLACE_TIMEOUT_MS, PILLAR_MAX_MS,
   PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
-  CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP
+  CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP,
+  riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -203,4 +204,37 @@ test('walkable surface: junk inputs are safe (no probe fn, throwing probes, minD
   const one = world({ '0,-1': { free: true, solid: true } })
   assert.equal(isWalkableSurface({ skyLit: true, probes: one, minDirs: 1 }), true)
   assert.equal(isWalkableSurface({ skyLit: true, probes: one, minDirs: 2 }), false)
+})
+
+// (v0.27.0) RISE RECOVERY - the decision after two failed raw stepUps on clean
+// geometry (the 'did not rise (dug=0)' fleet class: F13 dry, F17 in-river).
+test('rise recovery: no step-top cell means no bounded wait - rotate as before', () => {
+  assert.deepEqual(riseRecoveryPlan({ feetWater: false, stepTop: null }), { kind: 'rotate' })
+  assert.deepEqual(riseRecoveryPlan({ feetWater: true }), { kind: 'rotate' })
+  assert.deepEqual(riseRecoveryPlan(), { kind: 'rotate' }, 'junk-tolerant like climbEntry')
+  // a stepTop without .offset is junk telemetry, not a target
+  assert.deepEqual(riseRecoveryPlan({ stepTop: { x: 1, y: 2, z: 3 } }), { kind: 'rotate' })
+})
+
+test('rise recovery: dry feet hand the step to the pathfinder (one bounded assist)', () => {
+  const stepTop = { x: 5, y: 43, z: -2, offset () { return this } }
+  const plan = riseRecoveryPlan({ feetWater: false, stepTop })
+  assert.equal(plan.kind, 'assist')
+  assert.equal(plan.stepTop, stepTop, 'the caller walks to THIS cell')
+  assert.equal(plan.timeoutMs, RISE_ASSIST_TIMEOUT_MS, 'the assist is bounded, never an unbounded goto')
+})
+
+test('rise recovery: wet feet get a longer jump hold, never a water pathfind', () => {
+  // F17: feet=water support=andesite step=air - pathfinding inside water is
+  // flaky and an off-goal move loses the bearing; swim momentum is the cure
+  const stepTop = { x: 5, y: 43, z: -2, offset () { return this } }
+  const plan = riseRecoveryPlan({ feetWater: true, stepTop })
+  assert.equal(plan.kind, 'longHold')
+  assert.equal(plan.holdTicks, RISE_LONGHOLD_TICKS)
+  assert.equal(plan.holdTicks > 24, true, 'strictly longer than the proven-dead v0.19 24-tick retry')
+})
+
+test('rise recovery: the assist timeout stays sane (bounded but usable)', () => {
+  assert.equal(RISE_ASSIST_TIMEOUT_MS >= 3000, true, 'a real jump-edge computation needs headroom')
+  assert.equal(RISE_ASSIST_TIMEOUT_MS <= 6000, true, 'a failed assist must not eat the fail budget - 4 fails own the climb')
 })

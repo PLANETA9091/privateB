@@ -383,6 +383,37 @@ export function isWalkableSurface (p) {
   return false
 }
 
+export const RISE_ASSIST_TIMEOUT_MS = 4500
+export const RISE_LONGHOLD_TICKS = 32
+
+// (v0.27.0) RISE RECOVERY - the decision after two failed raw stepUps on
+// geometry the dig pass just verified clean (the fleet's 'did not rise
+// (dug=0)' class: F13 dry 'feet=air support=stone step=air head=air', F17
+// in-river 'feet=water support=andesite step=air'). The 24-tick same-bearing
+// retry is a PROVEN dead end (v0.19.1: momentum is not the cause) and a
+// rotation re-digs 2+ cells per wall - the expensive path. The repro probe
+// (Task 16, sky nook, clean 1-block step) confirmed the raw mechanic fails
+// ~half the pressed-jump trials: standing flush against the step face, the
+// collision zeroes horizontal velocity into the wall while the jump arc needs
+// it - the bot bonks the lip and slides back. The cure is variant-specific:
+// DRY - hand the single step to the pathfinder ONCE (a real jump-edge
+// computation: it backs off and takes the arc with speed, bounded by the
+// goto timeout); WET - pathfinding inside water is flaky and an off-goal move
+// loses the bearing, so one LONGER jump hold keeps swim momentum while the
+// eyes clear the bank lip instead.
+//
+// @param {object} p
+// @param {boolean} [p.feetWater] the feet cell is a fluid/wet plant (F17 variant)
+// @param {Vec3-like|null} [p.stepTop] the step landing cell (feet + d, y+1);
+//   null/absent means no target worth a bounded wait - rotate as before
+// @returns {{kind: 'assist'|'longHold'|'rotate', stepTop?: Vec3-like,
+//            timeoutMs?: number, holdTicks?: number}}
+export function riseRecoveryPlan ({ feetWater = false, stepTop = null } = {}) {
+  if (!stepTop || typeof stepTop.offset !== 'function') return { kind: 'rotate' }
+  if (feetWater) return { kind: 'longHold', stepTop, holdTicks: RISE_LONGHOLD_TICKS }
+  return { kind: 'assist', stepTop, timeoutMs: RISE_ASSIST_TIMEOUT_MS }
+}
+
 // Inventory preference for the pillar block: stone-family drops the fleet
 // accumulates by the hundreds. Planks/sticks/logs are TOOL material and are
 // deliberately absent - a climb must never strip a bot's kit.
