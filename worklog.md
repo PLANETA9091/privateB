@@ -1282,3 +1282,36 @@ Stage Summary:
 - THEIR dispatch 35619512737 (600s fleet on 582171f) RAN and was mined: NORMAL END, 19/19, mined=881 (1.47 b/s), banked=0, smelted=0, climbs=5, reconnects=14, airGlitches=1278, rescues=24. THE mainLate PROBE IS LIVE: mainLate=96ms at the close - NO main-thread starvation this run (the v0.48.0 raw lanes removed the A* saturation) - yet reconnects=14 PERSIST and mined stayed poor: the disconnect class is NOT my starvation mechanism. F4's final bank still died at entry ('budget exhausted (walk floor)' at d=17) - the chain budget priced 0 at entry.
 - NEXT FRONT (evidence-ranked): (1) the DISCONNECT class - 14 reconnects with kicks=0 and NO main-thread starvation: server-side keepalive decisions or metadata desync (airGlitches 1278 = 3x, 'oxygen 0 on dry land' - the 26.2 air-metadata pipeline?); each reconnect is ~30s of dead bot + re-bootstrap; (2) the chain-budget entry pricing (their v0.41.0 margin schedule gives 0 to late entries - F4 class); (3) chest FULL handling at 50 chests.
 - Version handoff: 0.48.x taken; next free = 0.49.0. No duplicate dispatch from this session (their dispatch covered 582171f; a push would have cancelled it - the next session dispatches on its own SHA).
+--n
+
+---
+Task ID: 398294-20260921-2253
+Agent: Z.ai Code (cron session, 22:53 +08)
+Task: mine dispatch 35610870878 (the v0.47.x shelter validation); v0.48.0 the raw hop; v0.48.1 the unit-gate rescue.
+
+Work Log:
+- Re-cloned (sandbox dead); their in-flight runs completed while the env rebuilt: push CI 35610842548 (18ec17a) SUCCESS + **fleet dispatch 35610870878 (v0.47.0+v0.47.1) SUCCESS** - mined before any push.
+- MINED 35610870878 (600s): NORMAL END, 19/19 alive, mined=1439 (2.40 b/s), climbs=2, fights=16, **shelters=2 - THE FIRST NON-ZERO SHELTER COUNT EVER (the v0.11.3 branch was dead code until v0.47.0)**, rescues=33, banked=0, smelted=0. The shelter episodes: F1 sealed TWICE vs creepers ('shelter try vs creeper (dist 6.7, proximity)' -> 'sheltering from creeper (seal dirt)') - the melee gate + proximity sentry working end to end. 10x 'shelter skip (no seal material)' (F18 x7, F3/F13/F17) - inventory-full-of-ore bots carry nothing sealable (the mined cobble cannot be picked up) - a NEW front (drop-junk-for-seal or keep-a-seal-reserve). Deaths 8, moved out of the shelter class: water/drowned (F13 fleeing drowned@1.3 hp 4.0, F16 died post-rescue, F17), F3 flee-chase at no-seal (skeleton@2.1 hp 4.0), mining-accident class (F1/F18x2/F11 contexts unlogged).
+- THE HOP WALL RE-MEASURED: 112 hop lines - 85x 'Took to long to decide path to goal!' at d=7-12 (WITH the v0.45.0 think 4500ms live) + 16x 'walk to chest (retry): timeout after 30000ms' + 6 honest 'nothing to deposit'. A 7-block walk failing to decide in 4.5s = CPU starvation (19 node processes on the runner's cores).
+- v0.48.0 (1802517): the RAW HOP in deposit.mjs - rawHopDue({dist, visible}) + rawHopWalk (lookAt+forward+sprint, hop-the-step on non-convergence, stop inside openChest reach, never throws, controls released in a finally). Guards: no raw walk under a water rescue, no raw walk blind. RAW_HOP_DIST=10, RAW_HOP_MS=6000. 8 tests (raw-hop.test.mjs).
+- COLLISION #12: the parallel agent pushed THEIR 32d48fb (their v0.48.0: raw-first INSIDE walkOnce, d<=40 blind, stall 2000ms + timeout 20000, walkRawToward throws on stall; + heartbeat mainLate main-thread drift metric; their diagnosis: the main thread starved 50s + 209s windows, the server keepalive-kicked ALL 19 bots mid-walk). My pull --rebase AUTO-MERGED on top: the result is a coherent LAYERING - proximate(<=4) -> my raw walk (visible, <=10, never throws) -> their raw-first (<=40, stall-guarded) -> A* fallback. Both test files coexist (rawhop.test.mjs theirs, raw-hop.test.mjs mine). Version bookkeeping: two 0.48.0 commits exist in history; next free = 0.49.0.
+- My push CI 35615877101 FAILED (units): the parallel agent's merge was fine - MY TEST FILE used a vec3 API that does not exist (dir.len(); norm() IS the length), the converging mock threw on the first tick, zero-pathfinder deposits never landed; the T8 water-rescue assertion was written against a fictional flow (gotoSafe refuses under _waterRescue BY DESIGN). v0.48.1 (baffa0c): the mock fixed (dir.norm()), deposited counts UNITS (40), the rescue pin rewritten honestly (the rescue clears on a 100ms timer; the pin = the v0.48.0 raw hop NEVER fires under a rescue). All scenarios verified with node -e sims before the push. CI 35618377223 GREEN (both unit shards + integration).
+
+Stage Summary:
+- Master: baffa0c (v0.48.0 layered raw hops + v0.48.1 test rescue), CI GREEN. The hop pipeline now has FOUR walk layers (proximate open / visible raw / blind raw with stall detect / pathfinder) - the CPU-starved A* is out of the common path entirely.
+- OPEN FRONTS: (1) 'shelter skip (no seal material)' x10 - the inventory-full-of-ore class (drop-junk-for-seal / seal-reserve); (2) the water/drowned death class (3 of 8 deaths; flee-from-drowned at hp 4 is a measured loss); (3) mining-accident deaths with unlogged causes (F1/F18/F11 - a death-cause reporter would name them); (4) banked>0 - the next fleet's gate with the layered raw hops live.
+- Version handoff: 0.48.0 (theirs+mine), 0.48.1 mine; next free = 0.49.0. The fleet dispatch fires on baffa0c as this session's LAST action.
+
+---
+Task ID: 398294-20260921-2253 (final - fleet 35619512737 mined, the artifact-403 class named)
+Agent: Z.ai Code (cron session, 22:53 +08)
+
+Work Log:
+- The session's fleet dispatch 35619512737 (582171f = v0.48.1 + docs, the layered raw hops) completed SUCCESS and was mined: NORMAL END, 19/19 alive, mined=881 (poor world, 1.47 b/s), fights=1, shelters=0 (no threats met), rescues=24, **airGlitches=1278 (20x the previous fleet - the oxygen-sensor glitch flood tracks SERVER TICK LAG, matching 14 reconnects and the parallel agent's main-thread starvation diagnosis)**, reboots=4, **banked=0**.
+- banked=0 THIS TIME IS LOOT STARVATION, NOT A WALK FAILURE: 'nothing to deposit' x11 (empty pockets), hop attempts 34 (was 112), 'Took to long' 12 (was 85) - the layered walks cut the pathfinder pressure 7x, but a fights=1 daylight run never filled the pockets to the trip gate (48 units). The walk layers now have headroom; the next RICH world decides banked>0.
+- The docs push CI (35619477639, worklog.md-only delta) failed 3x on Integration - MINED THE LOG: tests PASSED, the job died at '##[error]Failed to FinalizeArtifact: 403 Forbidden' - a GitHub artifact-upload infra error, not a test failure (and it ran concurrent with the fleet's 600s phase twice). rerun-failed-jobs #3 on the idle runner: SUCCESS. Failure class named: artifact-403, cure = rerun on an idle runner.
+
+Stage Summary:
+- Master: 582171f, ALL CI GREEN (the code SHA baffa0c green first try; the docs delta green on rerun-3). The layered raw-hop bank pipeline is live and healthy; banked>0 awaits a rich world.
+- OPEN FRONTS: (1) airGlitch flood = server tick health under 19 bots (the deepest infra front); (2) banked>0 on a rich world; (3) the no-seal-material shelter class; (4) water/drowned deaths; (5) a death-cause reporter (4 unlogged mining-accident deaths in v0.47.1).
+- Version handoff: next free = 0.49.0.
