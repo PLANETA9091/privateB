@@ -330,23 +330,26 @@ export function surfaceStability ({ reads = null, minReads = STABILITY_WINDOW, d
 
 /**
  * The combined open-water release decision (pure): the v0.80.0 continuous
- * dry clock OR the v0.81.0 stability window - both behind the same gates
- * (no shore plan exists, air at/above the rescue line). A drowning bot never
- * releases on either path; junk oxygen reads as full (the clocks decide).
- * Keeping the combination pure keeps the wiring a one-call branch.
+ * dry clock OR the v0.81.0 stability window OR (v0.82.0) the bobbing tier -
+ * all behind the same gates (no shore plan exists, air at/above the rescue
+ * line). A drowning bot never releases on any path; junk oxygen reads as
+ * full (the clocks decide). Keeping the combination pure keeps the wiring a
+ * one-call branch.
  *
  * @param {object} [p]
  * @param {number} [p.headDryMs] continuous dry clock (the v0.80.0 path)
  * @param {number} [p.oxygen] bot.oxygenLevel (junk -> full)
  * @param {object|null} [p.shore] a shoreDirection hit (any plan -> false)
- * @param {Array<{wet: boolean, atMs: number}>|null} [p.reads] pass records (the v0.81.0 path)
+ * @param {Array<{wet: boolean, atMs: number}>|null} [p.reads] pass records (the v0.81.0 window + the v0.82.0 bobbing tier)
  * @returns {boolean} true -> release the bot to the walk gate
  */
 export function openWaterRelease ({ headDryMs = 0, oxygen = 20, shore = null, reads = null } = {}) {
   if (shore) return false
   const o2 = oxygenInDomain(oxygen) ? Number(oxygen) : 20
   if (o2 < OXYGEN_RESCUE_LEVEL) return false
-  return surfaceSafeRelease({ headDryMs, oxygen: o2, shore: null }) || surfaceStability({ reads })
+  return surfaceSafeRelease({ headDryMs, oxygen: o2, shore: null }) ||
+    surfaceStability({ reads }) ||
+    bobbingRelease({ reads, oxygen: o2 })
 }
 
 /**
@@ -560,4 +563,153 @@ export class HazardLedger {
   get size () {
     return this.hazards.length
   }
+}
+
+// ---- v0.82.0: THE STAND-DOWN TRIO ----
+// Run76 (35748191786, the record run: 4322 @ 7.20 b/s) named the two rescue-
+// eating branches its blackbox was built to catch. The fleet still hit a
+// record THROUGH them: 92 rescue starts / 53 still-wet timeouts ate ~1325s.
+//
+// (1) THE FROZEN CLIENT - F17 burned 14 back-to-back 25s budgets at ONE cell
+//     [-100,42,377]: the pass blackbox shows a FLAT y (42.2 +- 0.2) across
+//     90+ passes with jump held and a STALE oxygen bar (20 while head-wet for
+//     the whole budget - a real submersion drains it in ~15s). Physics are
+//     not ticking and the block reads are stale: no swim can help a bot whose
+//     client is dead. The rescue must NAME it and stand down - the reconnect
+//     lane owns a dead client, the rescue owns living water.
+// (2) THE REPEAT WET PAGE - F9 burned 25 starts (its whole 600s run) at one
+//     flooded pocket [-115,48/49,392]: each rescue ends still-wet, the watch
+//     re-pages 3s (cooldown) + 5s (head-wet clock) later, the rescue has
+//     nothing new to try, 25s more. A rescue that JUST failed at the same
+//     cell with healthy air must stand down and hand the bot to the walk/
+//     rotation machinery - which is the only lane that can actually move it.
+// (3) THE STALLED TRANSIT + THE BOBBING TIER - F9's dry passes steered at an
+//     oak_log d=7 that NEVER shrank (the shaft walls own the swim) and the
+//     land branch SHADOWS the release below it; a bobbing head (dry/wet/dry,
+//     y 48.2-50.2) also never fills the v0.81.0 stability window (last-3-dry
+//     + 75% share is unreachable for a bobber). The transit gets a progress
+//     latch; the release gets an oxygen-gated bobbing tier.
+
+/** The frozen-physics window: this many consecutive flat passes condemn the physics. */
+export const FROZEN_WINDOW = 10
+/** Total drift under this (blocks, per axis) across the window = frozen. */
+export const FROZEN_EPS = 0.5
+/** A page within this window after a still-wet end at the same cell is a repeat. */
+export const REPEAT_PAGE_WINDOW_MS = 90000
+/** Full rescues allowed per repeat episode before the stand-down owns the page. */
+export const REPEAT_PAGE_ALLOW = 1
+/** The stand-down log rate limit (the frozen/repeat lines must survive 19 bots). */
+export const STAND_DOWN_LOG_MS = 15000
+/** The bobbing release window: this many recent pass records examined. */
+export const BOB_WINDOW = 10
+/** Dry reads required inside the window (the head DOES reach the air line). */
+export const BOB_MIN_DRY = 2
+/** Oxygen at/above this (the healthy band run76 measured as 12-20) + the dry reads = surface-safe. */
+export const BOB_RELEASE_O2 = 15
+/** The transit progress latch: this many passes without closing the distance... */
+export const TRANSIT_STALL_PASSES = 15
+/** ...by this margin (blocks) = the walls own the swim. */
+export const TRANSIT_STALL_MARGIN = 2
+
+/**
+ * Did the bot's position FLATLINE across the last `window` pass records
+ * (pure)? Run76's F17 sat at [-100,42.2,377] for 90+ passes with jump held:
+ * mineflayer physics were not ticking, so no swim, transit or release can
+ * ever fire - the honest verdict is to stop spending the 25s budget and let
+ * the reconnect lane work. Per-axis drift <= eps across the window condemns
+ * it. Junk never condemns: a null/short/NaN reading is a LOST reading, not a
+ * frozen one (the Number(null) lesson - fifth strike - lives here too).
+ *
+ * @param {object} [p]
+ * @param {Array<{x:number,y:number,z:number}>|null} [p.points] per-pass positions, oldest first
+ * @param {number} [p.window] pass count required (default FROZEN_WINDOW)
+ * @param {number} [p.eps] per-axis drift floor (default FROZEN_EPS)
+ * @returns {boolean} true -> the physics are frozen, stand down
+ */
+export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FROZEN_EPS } = {}) {
+  const w = Number.isFinite(window) && window > 1 ? Math.floor(window) : FROZEN_WINDOW
+  const e = Number.isFinite(eps) && eps >= 0 ? eps : FROZEN_EPS
+  if (!Array.isArray(points) || points.length < w) return false
+  const tail = points.slice(-w)
+  let minX = Infinity, maxX = -Infinity
+  let minY = Infinity, maxY = -Infinity
+  let minZ = Infinity, maxZ = -Infinity
+  for (const raw of tail) {
+    if (raw == null || typeof raw !== 'object') return false
+    // (the v0.75.1 lesson, fifth strike) a MISSING coordinate activates the
+    // default null and Number(null) is 0 - a FINITE phantom at the origin
+    // that would read as a frozen bot for a walking one. Explicit null check
+    // BEFORE the coercion.
+    if (raw.x == null || raw.y == null || raw.z == null) return false
+    const x = Number(raw.x), y = Number(raw.y), z = Number(raw.z)
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+    if (z < minZ) minZ = z
+    if (z > maxZ) maxZ = z
+  }
+  return (maxX - minX) <= e && (maxY - minY) <= e && (maxZ - minZ) <= e
+}
+
+/**
+ * May a BOBBING-at-the-surface bot be released (pure, the v0.82.0 third
+ * tier)? Run76's F9 toggles head dry/wet while bobbing y 48.2-50.2 in a
+ * flooded shaft: the continuous clock resets on every dip and the stability
+ * window's tail (last-3-dry) never fills - both v0.80/v0.81 tiers starve
+ * forever. The bobbing evidence: within the last `window` pass records the
+ * head reached air `minDry` times, and the air bar sits in the healthy band
+ * (>= o2Floor - the bot demonstrably CAN breathe there and is not drowning).
+ * Junk discipline: a non-boolean wet flag is a LOST reading, not a dry one;
+ * junk oxygen reads as full (the repo convention - the gates decide).
+ *
+ * @param {object} [p]
+ * @param {Array<{wet:boolean}>|null} [p.reads] pass records, oldest first
+ * @param {number} [p.oxygen] bot.oxygenLevel (junk -> full)
+ * @param {number} [p.window] records examined (default BOB_WINDOW)
+ * @param {number} [p.minDry] dry reads required (default BOB_MIN_DRY)
+ * @param {number} [p.o2Floor] healthy-air floor (default BOB_RELEASE_O2)
+ * @returns {boolean} true -> release the bot to the walk gate
+ */
+export function bobbingRelease ({ reads = null, oxygen = 20, window = BOB_WINDOW, minDry = BOB_MIN_DRY, o2Floor = BOB_RELEASE_O2 } = {}) {
+  const raw = Number(oxygen)
+  const o2 = oxygenInDomain(raw) ? raw : 20
+  if (o2 < (Number.isFinite(o2Floor) ? o2Floor : BOB_RELEASE_O2)) return false
+  const w = Number.isFinite(window) && window > 0 ? Math.floor(window) : BOB_WINDOW
+  if (!Array.isArray(reads) || reads.length < 1) return false
+  let dry = 0
+  for (const r of reads.slice(-w)) {
+    if (r == null || typeof r !== 'object' || typeof r.wet !== 'boolean') continue
+    if (!r.wet) dry++
+  }
+  return dry >= (Number.isFinite(minDry) ? Math.floor(minDry) : BOB_MIN_DRY)
+}
+
+/**
+ * Has the map transit STALLED (pure, the v0.82.0 progress latch)? Run76's
+ * F9 steered at an oak_log d=7 that never shrank for 60+ passes - the bot
+ * was bobbing in a flooded SHAFT and the walls own the swim. Same-distance
+ * steering for `maxPasses` passes without closing `margin` blocks condemns
+ * the plan: the caller drops it and the release policy takes over. Junk
+ * distances never condemn (the Number(null) hole would turn a missing d0
+ * into 0 and condemn EVERY swim).
+ *
+ * @param {object} [p]
+ * @param {number|null} [p.d0] distance when the target was picked (null -> false)
+ * @param {number|null} [p.d] distance now (null -> false)
+ * @param {number} [p.passes] passes steered at this target
+ * @param {number} [p.maxPasses] patience (default TRANSIT_STALL_PASSES)
+ * @param {number} [p.margin] progress required (default TRANSIT_STALL_MARGIN)
+ * @returns {boolean} true -> the transit is stalled, drop the plan
+ */
+export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = TRANSIT_STALL_PASSES, margin = TRANSIT_STALL_MARGIN } = {}) {
+  if (d0 == null || d == null) return false
+  const a = Number(d0), b = Number(d)
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false
+  const p = Number(passes)
+  if (!Number.isFinite(p)) return false
+  const mp = Number.isFinite(maxPasses) ? Math.floor(maxPasses) : TRANSIT_STALL_PASSES
+  const m = Number.isFinite(margin) ? margin : TRANSIT_STALL_MARGIN
+  return p >= mp && b > a - m
 }

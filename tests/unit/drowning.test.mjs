@@ -16,9 +16,11 @@ import {
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
   SURFACE_SAFE_DRY_MS, TRANSIT_RESCAN_TICKS, TRANSIT_MAP_RANGE,
   surfaceSafeRelease, transitBearing,
-  openWaterRelease, surfaceStability,
+  openWaterRelease, surfaceStability, physicsFrozen, bobbingRelease, transitStalled,
   STANDING_PROBE_BUDGET, STABILITY_WINDOW, STABILITY_MIN_DRY_SHARE, STABILITY_TAIL_DRY,
-  RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
+  RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
+  FROZEN_WINDOW, FROZEN_EPS, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW,
+  BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -546,4 +548,115 @@ test('REGRESSION PIN: the run75 blackbox constants - the wiring cannot silently 
   assert.equal(RESCUE_READS_CAP, 24, 'the record buffer caps at 24')
   assert.equal(PASS_LOG_INTERVAL_MS, 2000, 'the pass line prints at most every 2s')
   assert.equal(PASS_LOG_MAX_PER_RESCUE, 10, 'at most 10 pass lines per rescue (19 bots share the log)')
+})
+
+test('physicsFrozen: run76 F17\'s flatline condemns the physics (the frozen client)', () => {
+  // the measured shape: [-100,42.2,377] held for 90+ passes with jump held -
+  // y drifts 42.0 -> 42.2 (a stale read jitter) while nothing else moves
+  const flat = []
+  for (let i = 0; i < FROZEN_WINDOW; i++) flat.push({ x: -100 + (i % 2) * 0.1, y: 42.0 + (i % 3) * 0.1, z: 377 })
+  assert.equal(physicsFrozen({ points: flat }), true,
+    'a flat position across the window = the physics are not ticking')
+  // a REAL bob (run76 F9): y 48.2-50.2, the shaft walls wiggle x/z
+  const bob = []
+  for (let i = 0; i < FROZEN_WINDOW; i++) bob.push({ x: -114.5 + (i % 2) * 0.6, y: 48.2 + (i % 3) * 1.0, z: 392.5 + (i % 2) * 0.8 })
+  assert.equal(physicsFrozen({ points: bob }), false,
+    'a bobbing bot moves between passes - the rescue owns living water')
+  // a walking bot covers ground
+  const walker = Array.from({ length: FROZEN_WINDOW }, (_, i) => ({ x: i * 2.0, y: 62, z: 0 }))
+  assert.equal(physicsFrozen({ points: walker }), false, 'a walking bot is never frozen')
+  // drift exactly at the eps boundary: the flatline holds, one hair more does not
+  const edge = Array.from({ length: FROZEN_WINDOW }, (_, i) => ({ x: 0, y: 42 + (i / (FROZEN_WINDOW - 1)) * FROZEN_EPS, z: 0 }))
+  assert.equal(physicsFrozen({ points: edge }), true, 'drift <= eps stays within the flatline')
+  const over = Array.from({ length: FROZEN_WINDOW }, (_, i) => ({ x: 0, y: 42 + (i / (FROZEN_WINDOW - 1)) * (FROZEN_EPS * 2), z: 0 }))
+  assert.equal(physicsFrozen({ points: over }), false, 'drift beyond eps is alive')
+  // junk never condemns: short window, lost readings, NaN, missing coords
+  assert.equal(physicsFrozen({ points: flat.slice(0, FROZEN_WINDOW - 1) }), false, 'a short window cannot condemn')
+  assert.equal(physicsFrozen({ points: null }), false)
+  assert.equal(physicsFrozen({ points: [] }), false)
+  assert.equal(physicsFrozen({ points: [...flat.slice(0, 9), null] }), false, 'a null reading is a LOST reading, not a frozen one')
+  assert.equal(physicsFrozen({ points: [...flat.slice(0, 9), { x: NaN, y: 42, z: 0 }] }), false, 'NaN is junk')
+  assert.equal(physicsFrozen({ points: [...flat.slice(0, 9), { x: -100, y: 42 }] }), false, 'a missing coordinate must not Number(null) into the origin (the fifth strike)')
+  assert.equal(physicsFrozen({ points: [...flat.slice(0, 9), 'junk'] }), false)
+})
+
+test('bobbingRelease: the oxygen-gated tier releases where the window tail starves (run76 F9)', () => {
+  // F9\'s measured pattern: dry/wet oscillation (tail dry/wet/wet) with o2 12-20 -
+  // the v0.81.0 window (last-3-dry + 75% share) can NEVER fill for a bobber
+  const bobTail = [
+    { wet: true, atMs: 1 }, { wet: true, atMs: 2 }, { wet: false, atMs: 3 },
+    { wet: true, atMs: 4 }, { wet: false, atMs: 5 }, { wet: false, atMs: 6 },
+    { wet: true, atMs: 7 }, { wet: true, atMs: 8 }, { wet: true, atMs: 9 }
+  ]
+  assert.equal(surfaceStability({ reads: bobTail }), false, 'the pre-condition: the window starves for a bobber')
+  assert.equal(bobbingRelease({ reads: bobTail, oxygen: 20 }), true,
+    'the head demonstrably reaches air + healthy bar = surface-safe')
+  assert.equal(bobbingRelease({ reads: bobTail, oxygen: 12 }), false,
+    'below the healthy floor the bot keeps the full rescue')
+  // one dry read is not proven (a single splash-dry moment)
+  assert.equal(bobbingRelease({ reads: [{ wet: true }, { wet: false }], oxygen: 20 }), false,
+    'BOB_MIN_DRY=2: one dry read is a splash, not a breathing pattern')
+  // the window: dry reads older than the window do not count
+  const stale = [{ wet: false, atMs: 1 }]
+  for (let i = 0; i < BOB_WINDOW; i++) stale.push({ wet: true, atMs: i + 2 })
+  assert.equal(bobbingRelease({ reads: stale, oxygen: 20 }), false,
+    'the stale dry read outside the window cannot release')
+  // junk discipline
+  assert.equal(bobbingRelease({ reads: null, oxygen: 20 }), false)
+  assert.equal(bobbingRelease({ reads: [], oxygen: 20 }), false)
+  assert.equal(bobbingRelease({ reads: [{ wet: 'x' }, { wet: null }], oxygen: 20 }), false,
+    'junk wet flags are LOST readings, not dry ones')
+  assert.equal(bobbingRelease({ reads: [{ wet: false }, { wet: false }], oxygen: NaN }), true,
+    'junk oxygen reads as full (the repo convention - the gates decide)')
+  assert.equal(bobbingRelease({ reads: [{ wet: false }, { wet: false }], oxygen: -1 }), true,
+    'the -1 reset sentinel maps to full (the repo convention - same as NaN)')
+})
+
+test('transitStalled: the progress latch condemns the walls-own-the-swim plan (run76 F9 d=7 forever)', () => {
+  // the measured shape: transit steered at an oak_log d=7-8 for 60+ passes, d never shrank
+  assert.equal(transitStalled({ d0: 8, d: 7, passes: TRANSIT_STALL_PASSES }), true,
+    '15 passes without closing the margin = the walls own this swim')
+  assert.equal(transitStalled({ d0: 8, d: 4, passes: TRANSIT_STALL_PASSES }), false,
+    'closing 4 blocks is progress - the transit keeps steering')
+  assert.equal(transitStalled({ d0: 8, d: 7, passes: TRANSIT_STALL_PASSES - 1 }), false,
+    'patience first: a short stall gets the full budget')
+  // the margin: progress must close >= TRANSIT_STALL_MARGIN
+  assert.equal(transitStalled({ d0: 8, d: 8 - TRANSIT_STALL_MARGIN + 0.5, passes: 99 }), true,
+    '0.5 blocks of progress over 99 passes is still a wall')
+  assert.equal(transitStalled({ d0: 8, d: 8 - TRANSIT_STALL_MARGIN, passes: 99 }), false,
+    'closing exactly the margin counts as progress')
+  // the Number(null) hole (fifth strike): a missing distance never condemns
+  assert.equal(transitStalled({ d0: null, d: 7, passes: 99 }), false)
+  assert.equal(transitStalled({ d0: 8, d: null, passes: 99 }), false)
+  assert.equal(transitStalled({ d0: undefined, d: undefined, passes: 99 }), false, 'undefined defaults must not Number(null) into 0')
+  assert.equal(transitStalled({ d0: 'junk', d: 7, passes: 99 }), false)
+  assert.equal(transitStalled({ d0: 8, d: NaN, passes: 99 }), false)
+  assert.equal(transitStalled({ d0: 8, d: 7, passes: 'junk' }), false)
+})
+
+test('openWaterRelease: the bobbing tier fires through the combined gate (run76 F9 wiring)', () => {
+  const bobWindow = []
+  for (let i = 0; i < 9; i++) bobWindow.push({ wet: i % 3 === 2, atMs: i })
+  // the v0.82.0 path alone (run76\'s shape: the clock resets, the window tail starves)
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 20, shore: null, reads: bobWindow }), true,
+    'the bobbing tier releases where both older tiers starve')
+  // the gates hold on ALL three paths
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 9, shore: null, reads: bobWindow }), false,
+    'a drowning bot never releases via the bobbing tier')
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 20, shore: { dx: 1, dz: 0 }, reads: bobWindow }), false,
+    'a shore plan owns the bot')
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 20, shore: null, reads: [{ wet: true }] }), false,
+    'no dry evidence -> no release')
+})
+
+test('REGRESSION PIN: the run76 stand-down constants - the wiring cannot silently rot', () => {
+  assert.equal(FROZEN_WINDOW, 10, 'ten flat passes condemn the physics')
+  assert.equal(FROZEN_EPS, 0.5, 'half a block of drift is the flatline floor')
+  assert.equal(REPEAT_PAGE_WINDOW_MS, 90000, 'a repeat page lives 90s after the still-wet end')
+  assert.equal(REPEAT_PAGE_ALLOW, 1, 'one full retry, then the stand-down owns the page')
+  assert.equal(BOB_WINDOW, 10, 'the bobbing window reads 10 records')
+  assert.equal(BOB_MIN_DRY, 2, 'two dry reads prove the head reaches air')
+  assert.equal(BOB_RELEASE_O2, 15, 'the healthy band run76 measured as 12-20')
+  assert.equal(TRANSIT_STALL_PASSES, 15, 'the transit gets 15 passes of patience')
+  assert.equal(TRANSIT_STALL_MARGIN, 2, 'progress means closing two blocks')
 })

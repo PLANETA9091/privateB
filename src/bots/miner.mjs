@@ -31,9 +31,10 @@ import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK,
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
-  rescueDone, fleePlan, verifyShoreCell, HazardLedger,
+  OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
-  openWaterRelease,
+  openWaterRelease, physicsFrozen, transitStalled,
+  FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
@@ -772,6 +773,15 @@ export function createMiner ({
   let lastRescueAt = 0
   let lastGlitchLogAt = 0
   let headWetSince = 0
+  // (v0.82.0) THE STAND-DOWN STATE: run76's F9 (25 starts, one flooded pocket)
+  // and F17 (14 starts, one frozen client) ate their runs in 25s slices - the
+  // watch re-pages 3s (cooldown) + 5s (head-wet clock) after every still-wet
+  // end and the rescue has nothing new to try. The ledger remembers the last
+  // still-wet end; the entry gate below hands repeat pages to the walk
+  // machinery instead of re-burning the budget. A drowning bar NEVER trips it.
+  let lastStillWet = null // { x, y, z, at } - where the last still-wet rescue ended
+  let repeatWetPages = 0 // consecutive gated repeats at the same cell
+  let standDownLogAt = 0 // rate-limits the frozen/repeat stand-down lines
   // (v0.59.0) the WATER MEMORY: every rescue records WHERE it happened; the dig
   // planner (digShaft) refuses to send the bot back into a live hazard cell.
   // Fleet 35657683920: F16 completed four rescues in a row and died in the
@@ -791,6 +801,34 @@ export function createMiner ({
 
   async function rescueFromWater (verdict) {
     if (swimming || !bot.entity) return
+    // (v0.82.0) THE STAND-DOWN GATE - before any state changes. A page that
+    // repeats a JUST-FAILED rescue at the same cell with healthy air has
+    // nothing new to try: the instant return keeps the walk machinery free
+    // (no _waterRescue gate, no 25s budget, no second hazard record). One
+    // full retry is still honoured (REPEAT_PAGE_ALLOW) - physics change, and
+    // the transit may converge on its second pass at open water. A genuinely
+    // drowning bot (o2 <= OXYGEN_RESCUE_LEVEL or a junk bar - the 26.2 sensor
+    // lesson) NEVER stands down: better a wasted swim than a silent drown.
+    const preO2raw = Number(bot.oxygenLevel)
+    const o2Healthy = Number.isFinite(preO2raw) && oxygenInDomain(preO2raw) && preO2raw > OXYGEN_RESCUE_LEVEL
+    if (o2Healthy && lastStillWet && bot.entity?.position) {
+      const hp = bot.entity.position
+      const sameCell = Math.abs(hp.x - lastStillWet.x) <= 1.5 &&
+        Math.abs(hp.y - lastStillWet.y) <= 2.5 &&
+        Math.abs(hp.z - lastStillWet.z) <= 1.5
+      if (sameCell && Date.now() - lastStillWet.at < REPEAT_PAGE_WINDOW_MS) {
+        repeatWetPages++
+        if (repeatWetPages > REPEAT_PAGE_ALLOW) {
+          if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
+            standDownLogAt = Date.now()
+            log(`${tag} water: repeat wet page at the same cell (o2 ${preO2raw}) - standing down, the walk machinery owns the exit`)
+          }
+          return
+        }
+      } else {
+        repeatWetPages = 0 // a different cell (or a stale episode): full service again
+      }
+    }
     swimming = true
     bot._waterRescue = true // gotoSafe refuses new walk goals from now on
     lastRescueAt = Date.now()
@@ -808,11 +846,15 @@ export function createMiner ({
     // y-trajectory (ascent vs snag vs frozen physics), the head pattern (the
     // bobbing treadmill), the shore/map verdicts, the probe spend.
     const rescueReads = []
+    const passPoints = [] // (v0.82.0) per-pass positions feed the frozen-physics detector
     let standingProbes = 0
     let passNo = 0
     let passLogAt = 0
     let passLogs = 0
     let mapMissLogged = false
+    let transitPlan = null // (v0.82.0) the progress latch: { key, d0, atPass, logged }
+    let transitStalledFlag = false // once the walls own the swim, the release owns the pass
+    let frozenDown = false // (v0.82.0) the physics flatlined - the reconnect lane owns the bot
     // The fleet map knows land the raw 12-block shore scan cannot: a tree log
     // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
     // known land cell, or null (no map / no entries / junk) - the caller then
@@ -827,7 +869,7 @@ export function createMiner ({
         const b = transitBearing({ hx: here.x, hz: here.z, lx: p.x, lz: p.z })
         if (b) {
           log(`${tag} water: transit toward known land (${name}) at [${p.x},${p.z}] d=${b.dist.toFixed(0)}`)
-          return { ...b, name }
+          return { ...b, name, tx: p.x, tz: p.z }
         }
       }
       // (v0.81.0) the map-miss evidence, once per rescue: run75 could not tell
@@ -899,6 +941,24 @@ export function createMiner ({
         passNo++
         rescueReads.push({ wet: headWet, atMs: Date.now() })
         if (rescueReads.length > RESCUE_READS_CAP) rescueReads.shift()
+        // (v0.82.0) THE FROZEN-PHYSICS DETECTOR: run76's F17 held a flat
+        // [-100,42.2,377] for 90+ passes with jump held and a stale o2=20 -
+        // mineflayer physics were not ticking, so no swim, transit or release
+        // can ever fire. Name it and stand down; the reconnect lane owns a
+        // dead client, the rescue owns living water.
+        if (bot.entity?.position) {
+          const pp = bot.entity.position
+          passPoints.push({ x: pp.x, y: pp.y, z: pp.z })
+          if (passPoints.length > RESCUE_READS_CAP) passPoints.shift()
+          if (physicsFrozen({ points: passPoints })) {
+            if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
+              standDownLogAt = Date.now()
+              log(`${tag} water: frozen physics (${FROZEN_WINDOW} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}) - standing down, the reconnect lane owns this`)
+            }
+            frozenDown = true
+            break
+          }
+        }
         if (!headWet) {
           if (dir) {
             bot.setControlState('jump', true) // stay at the surface while swimming
@@ -906,12 +966,27 @@ export function createMiner ({
             bot.setControlState('forward', true)
             await settle(8)
             bot.setControlState('forward', false)
-          } else if (land) {
-            bot.setControlState('jump', true) // stay at the surface while swimming
-            try { await withTimeout(bot.lookAt(bot.entity.position.offset(land.dx, 0, land.dz), false), 2000, 'transit look') } catch { /* keep the bearing */ }
-            bot.setControlState('forward', true)
-            await settle(TRANSIT_RESCAN_TICKS) // each settle swims ~1-2 blocks; the shore scan re-runs next pass
-            bot.setControlState('forward', false)
+          } else if (land && !transitStalledFlag) {
+            // (v0.82.0) THE TRANSIT PROGRESS LATCH: run76's transits steered
+            // at d=7-8 that NEVER shrank (the shaft walls own the swim) while
+            // this branch shadowed the release below it. Patience runs out:
+            // drop the plan for the rest of this rescue - the release policy
+            // takes over this pass and every pass after.
+            const tkey = `${land.name},${Math.round(land.tx)},${Math.round(land.tz)}`
+            if (!transitPlan || transitPlan.key !== tkey) transitPlan = { key: tkey, d0: land.dist, atPass: passNo, logged: false }
+            if (transitStalled({ d0: transitPlan.d0, d: land.dist, passes: passNo - transitPlan.atPass })) {
+              if (!transitPlan.logged) {
+                transitPlan.logged = true
+                log(`${tag} water: transit stalled (d=${land.dist.toFixed(0)} after ${passNo - transitPlan.atPass} passes - the walls own this swim; the release takes over)`)
+              }
+              transitStalledFlag = true
+            } else {
+              bot.setControlState('jump', true) // stay at the surface while swimming
+              try { await withTimeout(bot.lookAt(bot.entity.position.offset(land.dx, 0, land.dz), false), 2000, 'transit look') } catch { /* keep the bearing */ }
+              bot.setControlState('forward', true)
+              await settle(TRANSIT_RESCAN_TICKS) // each settle swims ~1-2 blocks; the shore scan re-runs next pass
+              bot.setControlState('forward', false)
+            }
           } else if (openWaterRelease({ headDryMs: Date.now() - headDrySince, oxygen: read.oxygen, shore: null, reads: rescueReads })) {
             // (v0.80.0) the continuous-clock release OR (v0.81.0) the stability
             // window - reachable now that the probe budget below stops the
@@ -953,10 +1028,25 @@ export function createMiner ({
             ? 'complete (standing wet - shallow water is not drowning)'
             : releasedSafe
               ? 'released (surface-safe, open water - no land known; the walk gate reopens)'
-              : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head))
-                ? 'complete'
-                : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
+              : frozenDown
+                ? 'standing down (frozen physics - the walk gate reopens, the reconnect lane owns a dead client)'
+                : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head))
+                  ? 'complete'
+                  : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+      // (v0.82.0) THE STAND-DOWN LEDGER: remember where this rescue ended
+      // still wet (the frozen stand-down included - its reads are stale but
+      // the cell is the truth); a healthy repeat page will stand down instead
+      // of burning another budget. Any wet-free end clears the episode.
+      try {
+        if (bot.entity && (frozenDown || isWaterName(waterRead().feet) || isWaterName(waterRead().head))) {
+          const ep = bot.entity.position
+          lastStillWet = { x: ep.x, y: ep.y, z: ep.z, at: Date.now() }
+        } else {
+          lastStillWet = null
+          repeatWetPages = 0
+        }
+      } catch { /* junk position: keep the old ledger */ }
     } catch (err) {
       // (v0.59.0) an honest exit: a thrown rescue used to vanish silently (no
       // completion line - the F1 fleet evidence had a start with no end) while
