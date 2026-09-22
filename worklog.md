@@ -1738,3 +1738,17 @@ Stage Summary:
 - EXPECTATIONS next fleet: 'doomed-goal ledger: N recorded, N re-issues refused' in FLEET RESULT with refusals >> 0 (the spiral breaker working); mainLate peaks << 44s (the funnel no longer re-pays dead geometry); the pf:queue freeze chain does not recur or dies in seconds (the sweep can finally act at 8s because the queue starves less); banked>0 testable at last with their slot-direct cure + my ledger clearing the doomed geometry.
 - OPEN FRONTS: the freeze root cause INSIDE the pathfinder (the ledger cuts the re-issue fuel; first-time exhaustions remain); banked=0 (their slot-direct + mirror pocket chain is the newest attempt); smelted=0 (needs banked>0); shelters=0 (armed-skip by design); plan progress 2/31 resources complete (the material plan is the scoreboard now).
 - Version handoff: 0.72.0 mine (doomed-goal ledger), 0.72.1/0.73.0 theirs (range guard + mirror pocket); next free = 0.74.0. My next section = Task ID 42.
+---
+Task ID: 398294-20260922-1553-cure
+Agent: Z.ai Code (cron session, 15:53 +08)
+Task: THE DEPOSIT CURE - root-caused the banked=0 wall of ~130 fleets and shipped the fix.
+
+Work Log:
+- Probe v3-v5 through CI: item replace block is REJECTED by 26.2 ('Incorrect argument' on container.0); setblock with modern stack NBT + the execute-if-items say marker VERIFIED the fill; the RAW window_items tap + the mapped SLOTMAP + the server NBT agreed per slot; withdraw clicks worked server-side; THE SMOKING GUN: Chest.deposit put 8 of 9 withdrawn dirt on WINDOW SLOT 27 (the first PLAYER slot, one past the single-chest range [0,27)) - the 26.2 Chest destination arithmetic is off, so every fleet deposit landed back in the bot's own pocket and the verified diff read moved=0 forever. banked=0 across ~130 fleets was never walking or lag.
+- v0.72.0 THE SLOT-DIRECT CURE: chestSlotCount (total-36, %9 guard), pickDirectSlots, depositStackDirect (clickWindow src->dst, cursor returns home on refuse); depositToChest direct-first with the legacy fallback; direct=N/fallback=N on the banked line; 7 unit pins. v0.72.1: the player-window guard + honest mock pins.
+- v0.73.0 THE MIRROR POCKET: window.items() reads the PLAYER range for 26.2 (the same 27-shift root) and bot.inventory goes stale while a chest window is open (mirror [54]=dirtx9 vs bot.inventory dirtx1, measured) - the fleet's keep iteration and verified diff now read the chest window's mirror range [chestSlots..] which tracks the server exactly.
+- LIVE PROOF (the probe's fleet-cure rung, green run 35707603478): depositStackDirect merged the withdrawn stack into chest slot 0 ([0]=dirtx33, mirror slot 54 emptied) against the real 26.2 server.
+- The doomed-goal ledger (d9f2eda, the parallel agent) rides on top; their CI failed on my then-broken pins, my fix push went green with their code in. Next free version = 0.74.0. The 600s fleet dispatch fires after this push as the session's last action.
+
+Stage Summary:
+- Master at push: 04d68ba. EXPECTATIONS for the next fleet: banked>0 FOR THE FIRST TIME IN PROJECT HISTORY; 'banked N items ... direct=' lines; '(t=,m0=)' counters on zero hops; watch mainLate vs the doomed-goal ledger counts. NEXT: mine the artifact; banked>0 unblocks the smelting chain (smelted>0 next).
