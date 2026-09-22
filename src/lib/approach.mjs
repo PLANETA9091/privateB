@@ -138,21 +138,31 @@ export async function approachWalk (bot, targetPos, {
         rawOk = !!(r && (r.walked === true || r === true))
       } catch { /* stall/timeout: the segment ends, the pathfinder fallback runs */ }
     }
+    // (v0.62.0) the PHANTOM RAW CURE: a raw walk can report walked=true while
+    // the bot stood still (stalled against a ledge - run60 measured 13/13
+    // approach chains ending 'stalled (no position delta)', most at the SAME
+    // ring d=24.5-27.0 around the chests, F5 three separate attempts at
+    // d=24.5-24.9: a reproducible obstacle, not random crowd crush). The old
+    // flow ran the pathfinder only when raw FAILED TO REPORT - a phantom
+    // success ate the segment and A* never tried, even though routing AROUND
+    // an obstacle is exactly what it can do that a straight raw walk cannot.
+    // The position delta is the only truth (the run51 lesson): when the raw
+    // attempt produced none, the pathfinder gets the segment too.
+    let after = posOf(bot)
+    let moved = !!(from && after && dist3(from, after) > 0.5)
     let pathOk = false
-    if (!rawOk) {
+    if (!moved) {
       try {
         await gotoSafe(bot, new goals.GoalNear(seg.x, seg.y, seg.z, 2), { timeoutMs: Math.min(slice, left), label: 'approach segment' })
         pathOk = true
       } catch { /* whatever the segment could not cross stays - report honestly */ }
+      after = posOf(bot)
+      moved = !!(from && after && dist3(from, after) > 0.5)
     }
-    // A resolved goal is NOT a walked segment (the run51 raw walks resolved
-    // nothing but stood still): the only truth is the POSITION delta.
-    const after = posOf(bot)
-    const moved = !!(from && after && dist3(from, after) > 0.5)
     segmentsUsed.push(seg)
     const dNow = dist3(after, targetPos)
     if (Number.isFinite(dNow)) d = dNow
-    if ((rawOk || (pathOk && moved)) && Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
+    if (moved && Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
     if (!moved) { endWhy = 'a segment stalled (no position delta)'; break } // one immobile segment is enough: the caller's ladder owns the rest
   }
   const ok = Number.isFinite(d) && d <= threshold

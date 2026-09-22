@@ -333,3 +333,41 @@ export function verifyShoreCell (sample, cell) {
   if (!isAir(sample(cell.x, groundY + 2, cell.z))) return false
   return true
 }
+
+/**
+ * The FLEET hazard ledger (v0.62.0): the per-bot `waterHazards` array of v0.60.0
+ * is invisible to the other 18 bots - run58's lake drowned SEVEN different bots
+ * in the same region, and run59 logged 42x 'refusing this column', which means
+ * 42 walks the fleet paid to reach water it could have avoided BEFORE leaving.
+ * A ledger instance shared by reference (same wiring as the ClaimBoard: bots
+ * live in one process, fleet19 creates one and hands it to every miner) makes
+ * one bot's rescue immunize the whole fleet. The pure functions above stay pure
+ * - the ledger is a thin stateful wrapper over them with an injectable clock,
+ * so expiry, radius and cap are all unit-testable without sleeping.
+ */
+export class HazardLedger {
+  constructor ({ ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, yBand = WATER_HAZARD_Y_BAND, cap = WATER_HAZARD_CAP, now = () => Date.now() } = {}) {
+    this.ttlMs = ttlMs
+    this.radius = radius
+    this.yBand = yBand
+    this.cap = cap
+    this.now = typeof now === 'function' ? now : () => Date.now()
+    this.hazards = []
+  }
+
+  /** Record a hazard cell; returns the number of live entries after the write. */
+  record (pos) {
+    this.hazards = recordWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, cap: this.cap })
+    return this.hazards.length
+  }
+
+  /** Nearest live hazard within the radius/y-band of pos - { hazard, d } or null. */
+  near (pos) {
+    return nearWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, radius: this.radius, yBand: this.yBand })
+  }
+
+  /** Live-entry count (expired entries are pruned lazily by record's filter). */
+  get size () {
+    return this.hazards.length
+  }
+}

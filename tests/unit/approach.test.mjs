@@ -187,3 +187,31 @@ test('walk: the goal position is honored even when it is a plain object', async 
   const res = await approachWalk(bot, { x: 40, y: 64, z: 0.5 }, { rawWalk })
   assert.equal(res.walked, true, 'plain {x,y,z} goals work - no Vec3 required at the boundary')
 })
+
+// (v0.62.0) the PHANTOM RAW CURE - run60: 13/13 approach chains ended
+// 'stalled (no position delta)' at the same ring d=24.5-27.0 around the chests
+// (F5 three separate attempts at d=24.5-24.9). A raw walk that REPORTS walked
+// while the bot stood still used to eat the segment with no pathfinder try.
+
+test('walk: a phantom raw success (reports walked, moves nothing) still gets the pathfinder', async () => {
+  const bot = makeBot({ gotoMoves: true })
+  const target = new Vec3(40, 64, 0.5)
+  const rawWalk = async (b, seg) => {
+    // the raw walker REPORTS success but the bot never moved (stalled against
+    // a ledge) - the position delta is the only truth, so A* must get a shot
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, target, { rawWalk })
+  assert.equal(bot.gotoCalls.length, 1, 'the pathfinder fallback ran despite the raw walked=true')
+  assert.equal(res.segments, 1)
+  assert.equal(res.walked, true, 'the pathfinder lands the segment the raw walker phantom-reported')
+})
+
+test('walk: phantom raw + a stalled pathfinder segment still ends the chain (anti-spin survives)', async () => {
+  const bot = makeBot() // gotoMoves=false: the pathfinder resolves without moving the bot
+  const target = new Vec3(40, 64, 0.5)
+  const rawWalk = async () => ({ walked: true }) // phantom success
+  const res = await approachWalk(bot, target, { rawWalk })
+  assert.equal(res.segments, 1, 'one fully immobile segment still ends the loop')
+  assert.equal(res.walked, false, 'honest: the caller ladder owns the rest')
+})

@@ -17,7 +17,8 @@ import { pocketTotals, lootLedger } from '../src/lib/pocketline.mjs'
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
-import { ClaimBoard, attachClaimSync } from '../src/fleet/claims.mjs'
+import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/claims.mjs'
+import { HazardLedger } from '../src/lib/drowning.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
@@ -89,6 +90,11 @@ map.startAutosave({ everyMs: 300000, log: m => console.log(`[worldmap] ${m}`) })
 // measured single-beach pile-up (38x 'map trip skipped: unreachable', sand=0 @ sand=110)
 // is what this stops. Shared by reference exactly like the map; TTL-bound, death-safe.
 const board = new ClaimBoard()
+// (v0.62.0) the shared WATER HAZARD ledger: one bot's rescue immunizes the whole
+// fleet (the pre-walk veto in mapTargetFor skips wet targets BEFORE the walk -
+// run60 paid 42 arrival-then-refuse walks). Shared by reference like the board;
+// cross-process hearing rides the same PVB2 chat line family.
+const hazardLedger = new HazardLedger()
 const HEADINGS = ['east', 'south', 'west', 'north']
 
 let need = {}
@@ -294,6 +300,7 @@ async function runBot (name, target, index) {
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
+    let hazardSync = null // (v0.62.0) cross-process PVB2|hazard hearing, attached after login
     try {
       miner = createMiner({
         host: '127.0.0.1',
@@ -303,9 +310,11 @@ async function runBot (name, target, index) {
         fly: false, // flight is off: bots walk (see README)
         map, // shared scout -> miner resource map
         board, // shared trip-claim board (target distribution, v0.15.0)
+        hazardLedger, // (v0.62.0) shared water-hazard ledger: one rescue vets targets for the fleet
         // cross-process claims (a scout in a second terminal): broadcast our trips as
         // PVB2 chat lines; claimSync is attached right after the bot logs in
         broadcastClaim: SYNC ? pos => { try { claimSync?.broadcast(pos) } catch { /* chat never kills a trip */ } } : null,
+        broadcastHazard: SYNC ? pos => { try { hazardSync?.broadcast(pos) } catch { /* chat never kills a rescue */ } } : null,
         // bot-level logs are too chatty for a fleet run, but COMBAT events are the
         // field evidence the next iteration needs (the v0.11.0 verification run
         // counted fights=2 while printing nothing - invisible, useless evidence);
@@ -358,6 +367,8 @@ async function runBot (name, target, index) {
       const sync = SYNC ? attachChatSync(miner.bot, map, { flushEveryMs: 5000, maxPerFlush: 30, log: () => {} }) : null
       // (v0.15.0) same channel, claims half: other processes' PVB2 lines land on the board
       claimSync = SYNC ? attachClaimSync(miner.bot, board, { selfUsername: name, log: () => {} }) : null
+      // (v0.62.0) same channel, hazards half: other processes' PVB2|hazard lines land in the ledger
+      hazardSync = SYNC ? attachHazardSync(miner.bot, hazardLedger, { selfUsername: name, log: () => {} }) : null
 
       // Deploy on foot: with allow-flight=false vanilla kicks a bot that hovers for 80 ticks,
       // so sustained flight is not usable. The actual spreading happens while working: every
@@ -1225,7 +1236,7 @@ function printFinalReport (reason) {
   const s = fleetStats(list)
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size}`)
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)

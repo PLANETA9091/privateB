@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ClaimBoard, chooseTarget, encodeClaimLine, decodeClaimLine,
-  attachClaimSync, CLAIM_PENALTY, CLAIM_RADIUS, CLAIM_TTL_MS
+  attachClaimSync, encodeHazardLine, decodeHazardLine, attachHazardSync, CLAIM_PENALTY, CLAIM_RADIUS, CLAIM_TTL_MS
 } from '../../src/fleet/claims.mjs'
 import { WorldMap } from '../../src/fleet/worldmap.mjs'
 import { Vec3 } from 'vec3'
@@ -250,4 +250,73 @@ test('fleet constants stay sane (claim budget vs trip cadence)', () => {
   assert.ok(CLAIM_TTL_MS >= 90_000, 'a claim must outlive walk + harvest')
   assert.ok(CLAIM_PENALTY >= 64, 'the penalty must exceed a typical hop so a claimed cluster loses')
   assert.ok(CLAIM_RADIUS >= 16 && CLAIM_RADIUS <= 64, 'the bubble must cover a cluster, not the horizon')
+})
+
+// -------------------------------------------------------------- hazard transport (v0.62.0)
+
+test('hazard codec: the wire line round-trips, garbage is rejected', () => {
+  const line = encodeHazardLine({ owner: 'F7', pos: at(-127.4, 52, 411.9) })
+  assert.equal(line, 'PVB2|hazard|F7|-128,52,411', 'floor coordinates (toward -inf), fixed field order')
+  const back = decodeHazardLine(line)
+  assert.equal(back.owner, 'F7')
+  assert.equal(back.pos.x, -128)
+  assert.equal(back.pos.y, 52)
+  assert.equal(back.pos.z, 411)
+  // every parser rejects: claims are NOT hazards, PVB1 is not PVB2, junk is junk
+  assert.equal(decodeHazardLine('PVB2|claim|F1|1,2,3'), null, 'a claim line is not a hazard')
+  assert.equal(decodeClaimLine('PVB2|hazard|F1|1,2,3'), null, 'a hazard line is not a claim')
+  assert.equal(decodeHazardLine('PVB1|0/1|sand@1,64,2'), null)
+  assert.equal(decodeHazardLine('hello fleet'), null)
+  assert.equal(decodeHazardLine(null), null)
+  assert.equal(decodeHazardLine('PVB2|hazard|F1|1,2'), null, 'truncated coordinates')
+  assert.equal(decodeHazardLine('PVB2|hazard|F1|1,2,notanumber'), null)
+  // coordinate sanity mirrors the claim codec
+  assert.equal(decodeHazardLine('PVB2|hazard|F1|30000001,2,3'), null, 'beyond the world border')
+  assert.equal(decodeHazardLine('PVB2|hazard|F1|1,9999,3'), null, 'y out of range')
+  assert.equal(encodeHazardLine({ owner: null, pos: at(1, 2, 3) }), null)
+  assert.equal(encodeHazardLine({ owner: 'F1', pos: null }), null)
+  assert.equal(encodeHazardLine({ owner: 'F1', pos: at(1, 2, 3) }).length <= 240, true)
+})
+
+test('attachHazardSync: end-to-end over two fake bots and one shared ledger', () => {
+  const makeBot = name => {
+    const listeners = new Map()
+    return {
+      username: name,
+      sent: [],
+      chat (msg) { this.sent.push(msg) },
+      on (ev, fn) { (listeners.get(ev) ?? listeners.set(ev, []).get(ev)).push(fn) },
+      removeListener (ev, fn) {
+        const l = listeners.get(ev)
+        if (l) listeners.set(ev, l.filter(f => f !== fn))
+      },
+      emit (ev, ...args) { for (const fn of listeners.get(ev) ?? []) fn(...args) }
+    }
+  }
+  // a duck-typed ledger: counts what lands (no real HazardLedger needed here)
+  const seen = []
+  const ledger = { record: pos => { seen.push(pos); return seen.length } }
+
+  const f1 = makeBot('F1')
+  const f2 = makeBot('F2')
+  const hazardsF1 = attachHazardSync(f1, ledger, { selfUsername: 'F1' })
+  attachHazardSync(f2, ledger, { selfUsername: 'F2' })
+
+  // F2 nearly drowned and broadcasts the cell; F1 hears it and the ledger records
+  assert.ok(hazardsF1.broadcast(at(-127, 52, 411), 'F2'))
+  assert.ok(f1.sent[0].startsWith('PVB2|hazard|F2|'))
+  f1.emit('messagestr', 'F2', f1.sent[0])
+  assert.equal(seen.length, 1, 'the fleet-mate hazard landed in the ledger')
+  assert.equal(seen[0].x, -127)
+  assert.equal(hazardsF1.stats.applied, 1)
+
+  // own echo is ignored, garbage never records, the listener is removable
+  f1.emit('messagestr', 'F1', 'PVB2|hazard|F1|1,2,3')
+  f1.emit('chat', 'F2', 'some regular chat text')
+  f1.emit('messagestr', 'F2', 'PVB2|hazard|F2|not,even,close')
+  assert.equal(seen.length, 1, 'own echoes and garbage record nothing')
+  assert.equal(hazardsF1.stats.ignoredSelf, 1, 'the own line was counted, not applied')
+  hazardsF1.stop()
+  f1.emit('messagestr', 'F2', 'PVB2|hazard|F2|5,6,7')
+  assert.equal(seen.length, 1, 'a stopped listener hears nothing')
 })

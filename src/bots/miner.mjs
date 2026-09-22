@@ -31,7 +31,7 @@ import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK,
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
-  rescueDone, fleePlan, recordWaterHazard, nearWaterHazard, verifyShoreCell
+  rescueDone, fleePlan, verifyShoreCell, HazardLedger
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -61,6 +61,8 @@ export function createMiner ({
   map = null, // WorldMap: scouts (and this bot itself) fill it, we consume it when the local scan is empty
   board = null, // ClaimBoard (src/fleet/claims.mjs): trip claims so bots do not all walk to the same cluster
   broadcastClaim = null, // (pos) => void - cross-process claim broadcast (PVB2 over chat), optional
+  hazardLedger = null, // (v0.62.0) shared HazardLedger (src/lib/drowning.mjs): one bot's rescue immunizes the fleet
+  broadcastHazard = null, // (pos) => void - cross-process hazard broadcast (PVB2|hazard over chat), optional
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -108,6 +110,13 @@ export function createMiner ({
   // Where does the fleet KNOW a target is? Verify through blockAt so stale entries
   // (already mined by another bot) are dropped from the map as a side effect.
   const failedTrips = new Set() // "x,y,z" the pathfinder could not handle - do not retry forever
+  // (v0.62.0) the PRE-WALK hazard veto: digShaft's in-place guard refuses a wet
+  // column only AFTER the walk is paid (run59: 42x 'refusing this column' = 42
+  // walks to water the ledger already knew about). Filtering candidates at
+  // SELECTION time keeps the walk in the pocket - and with the shared ledger
+  // another bot's rescue vets the target for the whole fleet. This is a veto,
+  // never a map prune: far/unloaded chunks must not lose their map entries here.
+  const wetTrip = pos => waterHazards.near(pos) != null
   function mapTargetFor (names, { maxDistance = 96, verify = true } = {}) {
     if (!map) return null
     // verify=true deletes entries the current chunks can no longer confirm - good
@@ -126,13 +135,14 @@ export function createMiner ({
         owner: username,
         maxDistance,
         verifyWith,
-        skip: pos => failedTrips.has(`${pos.x},${pos.y},${pos.z}`)
+        skip: pos => failedTrips.has(`${pos.x},${pos.y},${pos.z}`) || wetTrip(pos)
       })
     }
     let best = null
     for (const name of names) {
       const pos = map.nearest(name, bot.entity.position, { maxDistance, verifyWith })
       if (pos && failedTrips.has(`${pos.x},${pos.y},${pos.z}`)) continue
+      if (pos && wetTrip(pos)) continue
       if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
     }
     return best
@@ -689,7 +699,11 @@ export function createMiner ({
   // planner (digShaft) refuses to send the bot back into a live hazard cell.
   // Fleet 35657683920: F16 completed four rescues in a row and died in the
   // fifth cycle - the work loop had zero memory of the water it kept re-entering.
-  let waterHazards = []
+  // (v0.62.0) the memory left the per-bot scale: without a shared ledger the
+  // other 18 bots walk into the same lake blind (run58 drowned SEVEN different
+  // bots in one region; run59 paid 42 arrival-then-refuse walks). The ledger is
+  // shared by reference like the ClaimBoard; a private one keeps solo runs honest.
+  const waterHazards = hazardLedger ?? new HazardLedger()
   function waterRead () {
     if (!bot.entity?.position) return { feet: null, head: null, oxygen: 20 }
     const base = bot.entity.position.floored()
@@ -705,14 +719,39 @@ export function createMiner ({
     lastRescueAt = Date.now()
     stats.rescues++
     let standingWet = false // exited via the standing-in-shallow-water policy
+    // (v0.62.0) the HAZARD CELL is tracked from the start and refreshed only
+    // while the bot is actually wet: the finally used to read
+    // bot.entity.position, and a bot that DIED mid-rescue respawned before the
+    // finally unblocked - run60 recorded three y=72-73 'hazard memorized' lines
+    // at the WORLD SPAWN ([-144,73,399] / [-138,72,392] / [-128,72,411]), so the
+    // ledger then vetoed legit spawn-area targets for a full TTL. The last live
+    // wet cell is the true hazard; the spawn point is nobody's hazard.
+    let hazardCell = bot.entity?.position
+      ? { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
+      : null
     log(`${tag} water: drowning rescue start (${verdict}, oxygen ${bot.oxygenLevel ?? '?'})`)
     try {
       try { bot.pathfinder.setGoal(null) } catch { /* idle already */ }
       try { bot.clearControlStates() } catch { /* nothing held */ }
       const sample = (x, y, z) => { try { return bot.blockAt(new Vec3(x, y, z))?.name ?? null } catch { return null } }
+      // (v0.62.0) race-bounded settle - the v0.24.0 climb lesson, applied to the
+      // rescue at last: a dead connection stops physics ticks and a RAW
+      // waitForTicks hangs the whole rescue. Run60 measured it twice:
+      // 'rescue timeout (still wet) in 173.5s' and 'rescue complete in 159.8s'
+      // (RESCUE_MAX_MS is 25!) - the finally fired only when the reconnect
+      // unblocked the awaits, by which time the bot had died and respawned.
+      const settle = async n => {
+        try { await withTimeout(bot.waitForTicks(n), 2000, 'rescue settle') } catch { /* dead physics: the loop budget ends the rescue */ }
+      }
       while (bot.entity && Date.now() - lastRescueAt < RESCUE_MAX_MS) {
+        // (v0.62.0) a dead bot cannot swim: exit now. The tracked wet cell is
+        // already the death spot - the hazard is exactly where the water won.
+        if ((bot.health ?? 20) <= 0) break
         const read = waterRead()
         const inWater = isWaterName(read.feet) || isWaterName(read.head)
+        if (inWater && bot.entity?.position) {
+          hazardCell = { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
+        }
         if (!inWater && bot.entity.onGround) break // out and standing: done
         if (!isWaterName(read.head)) {
           // head in air: surface reached - swim for the nearest shore (the raw
@@ -722,7 +761,7 @@ export function createMiner ({
             bot.setControlState('jump', true) // stay at the surface while swimming
             try { await bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false) } catch { /* keep the bearing */ }
             bot.setControlState('forward', true)
-            await bot.waitForTicks(8)
+            await settle(8)
             bot.setControlState('forward', false)
           } else {
             // (CI 35511474490) no shore in sight - two honest outcomes. The old
@@ -734,24 +773,26 @@ export function createMiner ({
             // drowning, raw swimming can never leave a 1x1 hole, and a renewed
             // submersion re-fires this rescue after the cooldown.
             bot.setControlState('jump', false)
-            await bot.waitForTicks(2) // onGround needs physics ticks to settle
+            await settle(2) // onGround needs physics ticks to settle
             if (!bot.entity) break
             if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
               standingWet = true
               break
             }
-            await bot.waitForTicks(8) // floating in open water: tread and stay alive
+            await settle(8) // floating in open water: tread and stay alive
           }
         } else {
           bot.setControlState('jump', true) // submerged: ascending is everything
-          await bot.waitForTicks(5)
+          await settle(5)
         }
       }
       const done = !bot.entity
         ? 'aborted (bot gone)'
-        : standingWet
-          ? 'complete (standing wet - shallow water is not drowning)'
-          : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
+        : ((bot.health ?? 20) <= 0)
+          ? 'aborted (dead - the hazard stays at the death spot)'
+          : standingWet
+            ? 'complete (standing wet - shallow water is not drowning)'
+            : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
     } catch (err) {
       // (v0.59.0) an honest exit: a thrown rescue used to vanish silently (no
@@ -760,16 +801,15 @@ export function createMiner ({
       log(`${tag} water: rescue aborted (${err?.message ?? 'error'})`)
     } finally {
       try { bot.clearControlStates() } catch { /* nothing held */ }
-      // (v0.59.0) the WATER MEMORY write happens on EVERY exit path (complete,
-      // timeout, abort): the water the bot nearly drowned in is real whether
-      // or not the escape was clean. The digShaft guard below reads this list.
-      const rescueCell = bot.entity?.position
-        ? { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
-        : null
-      if (rescueCell) {
-        waterHazards = recordWaterHazard(waterHazards, rescueCell, Date.now())
-        const f = bot.entity.position.floored()
-        log(`${tag} water: hazard memorized at [${f.x},${f.y},${f.z}] (${waterHazards.length} live)`)
+      // (v0.59.0 + v0.62.0) the WATER MEMORY write happens on EVERY exit path
+      // (complete, timeout, abort, death) - but it records the TRACKED wet
+      // cell, never the entity position at finally time (a dead-then-respawned
+      // bot stands at the spawn point there). The digShaft guard and the
+      // mapTargetFor pre-walk veto both read this ledger.
+      if (hazardCell) {
+        const live = waterHazards.record(hazardCell)
+        log(`${tag} water: hazard memorized at [${Math.floor(hazardCell.x)},${Math.floor(hazardCell.y)},${Math.floor(hazardCell.z)}] (${live} live, fleet-wide)`)
+        if (broadcastHazard) { try { broadcastHazard(hazardCell) } catch { /* chat never kills a rescue */ } }
       }
       bot._waterRescue = false
       swimming = false
@@ -1883,7 +1923,7 @@ export function createMiner ({
       if (hp < lastHealth - 0.5) {
         log(`${tag} digShaft: health dropped ${lastHealth.toFixed(1)} -> ${hp.toFixed(1)}, pausing descent`)
         try { await defendSelf('digShaft') } catch { /* never let defense break the dig loop */ }
-        await bot.waitForTicks(30)
+        try { await withTimeout(bot.waitForTicks(30), 2000, 'digShaft settle') } catch { /* dead physics: the budget ends the dig */ }
         lastHealth = bot.health ?? 20
         if (hp < 6) {
           // badly hurt: STOP this shaft entirely. Climbing out mid-shaft used to
@@ -1894,12 +1934,18 @@ export function createMiner ({
             const g = standGoalNear(bot, goals, bot.entity.position.x + 6, bot.entity.position.y, bot.entity.position.z + 6, { range: 2 })
             await gotoSafe(bot, g, { timeoutMs: 12000, label: 'hurt retreat' })
           } catch { /* stay and heal here instead */ }
-          await bot.waitForTicks(40)
+          try { await withTimeout(bot.waitForTicks(40), 2000, 'digShaft heal settle') } catch { /* dead physics: the budget ends the dig */ }
           break
         }
         continue
       }
       lastHealth = hp
+
+      // (v0.62.0) a running rescue owns the controls: an in-flight shaft that
+      // keeps digging while the rescue swims is the F1 dual-owner class - the
+      // run60 F16 log shows a digShaft hazard refusal BETWEEN two rescue lines.
+      // Break per-iteration; the caller's rotate logic redeploys us later.
+      if (swimming || bot._waterRescue) break
 
       const pos = bot.entity.position.floored().offset(0, -1, 0)
       if (pos.y <= floor) break
@@ -1911,9 +1957,9 @@ export function createMiner ({
       // caller rotates/hops 24-32 blocks out, and the memory keeps the new
       // spot honest too. The record is the rescue's own position, so a bot
       // digging a DRY shaft 5+ blocks from the lake edge is unaffected.
-      const hazard = nearWaterHazard(waterHazards, bot.entity.position, Date.now())
+      const hazard = waterHazards.near(bot.entity.position)
       if (hazard) {
-        log(`${tag} digShaft: water hazard ${hazard.d.toFixed(1)}b away (live ${waterHazards.length}) - refusing this column, the caller rotates`)
+        log(`${tag} digShaft: water hazard ${hazard.d.toFixed(1)}b away (live ${waterHazards.size}) - refusing this column, the caller rotates`)
         break
       }
       // fluid guard: a column that opens into lava/water within 4 blocks is a death trap

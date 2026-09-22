@@ -12,7 +12,7 @@ import {
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
-  recordWaterHazard, nearWaterHazard, verifyShoreCell
+  recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -294,4 +294,46 @@ test('verifyShoreCell: F1\'s imagined shore dies here, a real bank passes', () =
   assert.equal(verifyShoreCell(() => null, { x: 20, y: 64, z: 10 }), false, 'unreadable world is not a verified shore')
   assert.equal(verifyShoreCell(null, { x: 10, y: 64, z: 10 }), false, 'junk sample is false')
   assert.equal(verifyShoreCell((x, y, z) => grid[`${x},${y},${z}`] ?? null, null), false, 'junk cell is false')
+})
+
+// -------------------------------------------------------------- HazardLedger (v0.62.0)
+
+test('HazardLedger: shared-by-reference record/near/size with an injected clock', () => {
+  const clock = { t: 50_000 }
+  const ledger = new HazardLedger({ now: () => clock.t })
+  assert.equal(ledger.size, 0, 'a fresh ledger holds nothing')
+  assert.equal(ledger.near({ x: 10, y: 64, z: 10 }), null, 'an empty ledger never hits')
+  assert.equal(ledger.record({ x: 10.7, y: 64.2, z: -3.9 }), 1, 'record returns the live count')
+  assert.equal(ledger.size, 1, 'the entry is in')
+  const hit = ledger.near({ x: 10, y: 64, z: -4 })
+  assert.ok(hit, 'a live hazard hits near the recorded cell')
+  assert.equal(hit.hazard.x, 10, 'the cell was floored on the way in')
+  // the FLEET property: a second reader (another bot object) sees the same entry
+  // through the same instance - the per-bot array of v0.60.0 could never do this
+  const sameLedger = ledger
+  assert.ok(sameLedger.near({ x: 11, y: 63, z: -4 }), 'a fleet-mate reading the shared ledger hits too')
+  // expiry: past the TTL the same query is clean
+  clock.t += WATER_HAZARD_TTL_MS + 1
+  assert.equal(ledger.near({ x: 10, y: 64, z: -4 }), null, 'an expired hazard never fires')
+})
+
+test('HazardLedger: junk positions are ignored, the cap keeps the newest', () => {
+  const clock = { t: 1_000 }
+  const ledger = new HazardLedger({ now: () => clock.t, cap: 3 })
+  assert.equal(ledger.record(null), 0, 'junk position records nothing')
+  assert.equal(ledger.record({ x: Number.NaN, y: 1, z: 2 }), 0, 'NaN coordinates record nothing')
+  assert.equal(ledger.size, 0)
+  for (let i = 0; i < 5; i++) ledger.record({ x: i * 10, y: 64, z: 0 })
+  assert.equal(ledger.size, 3, 'the cap bounds the ledger')
+  assert.equal(ledger.hazards[0].x, 20, 'the OLDEST entries were dropped first (newest kept)')
+  assert.ok(ledger.near({ x: 40, y: 64, z: 0 }), 'the newest entries survive')
+})
+
+test('HazardLedger: defaults ride the module constants', () => {
+  const ledger = new HazardLedger()
+  assert.equal(ledger.ttlMs, WATER_HAZARD_TTL_MS)
+  assert.equal(ledger.radius, WATER_HAZARD_RADIUS)
+  assert.equal(ledger.yBand, WATER_HAZARD_Y_BAND)
+  assert.equal(ledger.cap, WATER_HAZARD_CAP)
+  assert.equal(typeof ledger.now(), 'number', 'the default clock is Date.now')
 })

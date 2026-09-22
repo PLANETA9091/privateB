@@ -229,3 +229,98 @@ export function attachClaimSync (bot, board, { selfUsername = bot?.username ?? n
     stats
   }
 }
+
+// ---------------------------------------------------------------- hazard transport (PVB2)
+
+// (v0.62.0) The water-memory half of the channel: a rescue recorded into a shared
+// HazardLedger (src/lib/drowning.mjs) immunizes the in-process fleet, but a scout
+// in a second terminal cannot see it. Same wire discipline as claims - one short
+// line per hazard, unknown lines ignored by every parser:
+//
+//   PVB2|hazard|<owner>|<x>,<y>,<z>
+//
+// The owner is kept for chat-log forensics (which bot nearly drowned there); the
+// ledger itself does not care. TTL is the ledger's own business (120s default),
+// so no expiry bookkeeping travels on the wire.
+export function encodeHazardLine ({ owner, pos }) {
+  if (!owner || typeof owner !== 'string' || !/^\S{1,16}$/.test(owner) || !pos) return null
+  const x = Math.floor(pos.x)
+  const y = Math.floor(pos.y)
+  const z = Math.floor(pos.z)
+  if (![x, y, z].every(Number.isFinite)) return null
+  if (Math.abs(x) > CLAIM_MAX_COORD || Math.abs(z) > CLAIM_MAX_COORD || y < -2048 || y > 2048) return null
+  const line = `${CLAIM_TAG}|hazard|${owner}|${x},${y},${z}`
+  return line.length <= 240 ? line : null
+}
+
+// Parse one chat line into { owner, pos } - null for every line that is not a valid
+// PVB2 hazard (PVB1 payloads, PVB2 claims, other players' chat, hostile garbage).
+export function decodeHazardLine (text) {
+  if (typeof text !== 'string') return null
+  const m = /^PVB2\|hazard\|(\S{1,16})\|(-?\d+),(-?\d+),(-?\d+)$/.exec(text.trim())
+  if (!m) return null
+  const owner = m[1]
+  const x = Number(m[2])
+  const y = Number(m[3])
+  const z = Number(m[4])
+  if (![x, y, z].every(Number.isFinite)) return null
+  if (Math.abs(x) > CLAIM_MAX_COORD || Math.abs(z) > CLAIM_MAX_COORD || y < -2048 || y > 2048) return null
+  return { owner, pos: new Vec3(x, y, z) }
+}
+
+/**
+ * Attach cross-process hazard hearing to a bot (the PVB2 counterpart of the
+ * ledger's in-process sharing):
+ *   const sync = attachHazardSync(bot, ledger, { selfUsername: 'F1' })
+ *   sync.broadcast(pos)            // tell the fleet we nearly drowned at pos
+ * Incoming PVB2|hazard lines from OTHER bots are applied via `ledger.record(pos)`
+ * (duck-typed - any object with a record() works, so tests need no real ledger);
+ * own lines are skipped (the sender's ledger already holds its own rescue).
+ * The ledger dedups by floor-cell and caps its size, so a re-heard line is at
+ * worst a harmless re-record of the same cell.
+ */
+export function attachHazardSync (bot, ledger, { selfUsername = bot?.username ?? null, log = () => {} } = {}) {
+  const stats = { received: 0, applied: 0, ignoredSelf: 0, malformed: 0, sent: 0 }
+
+  const onMessage = (...args) => {
+    try {
+      const text = typeof args[0] === 'string' && typeof args[1] === 'string' ? args[1] : (args[0]?.text ?? args[0]?.toString?.() ?? '')
+      const hazard = decodeHazardLine(text)
+      if (!hazard) return
+      stats.received++
+      if (hazard.owner === selfUsername) {
+        stats.ignoredSelf++
+        return
+      }
+      if (!ledger || typeof ledger.record !== 'function') return
+      ledger.record(hazard.pos)
+      stats.applied++
+    } catch (e) {
+      stats.malformed++
+      log(`hazard line error: ${e.message}`)
+    }
+  }
+
+  bot.on('messagestr', onMessage)
+  bot.on('chat', onMessage)
+
+  return {
+    broadcast (pos, owner = selfUsername) {
+      const line = encodeHazardLine({ owner, pos })
+      if (!line) return false
+      try {
+        bot.chat(line)
+        stats.sent++
+        return true
+      } catch (e) {
+        log(`hazard broadcast failed: ${e.message}`)
+        return false
+      }
+    },
+    stop () {
+      bot.removeListener('messagestr', onMessage)
+      bot.removeListener('chat', onMessage)
+    },
+    stats
+  }
+}
