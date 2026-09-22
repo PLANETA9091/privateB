@@ -217,6 +217,7 @@ export async function smeltBatch (bot, {
   let lastWalkError = 'never attempted'
   let walked = false
   let rescueWaited = false // (v0.18.2) one bounded clear-wait per visit
+  let governorWaited = false // (v0.79.0) one bounded churn-cooldown wait per visit
   for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
     const ms = walkSlice()
     if (ms <= 0) { lastWalkError = 'visit budget spent (walk slice)'; break }
@@ -235,6 +236,25 @@ export async function smeltBatch (bot, {
         rescueWaited = true
         const cleared = await waitForWaterRescueClear(bot)
         log(`${tag} walk refused by a water rescue - ${cleared ? 'rescue cleared, walking again' : 'wait timed out'}`)
+      }
+      // (v0.79.0) THE GOVERNOR WAIT - same shape as the rescue branch. The
+      // churn governor's refusal ('bot churned 4 goals without progress -
+      // refused for 11s') is a bounded cooldown, NOT a terminal verdict: the
+      // bot may have escaped the stall via its raw-control rungs (measured
+      // in the CI 35732767677 integration failure - the bot hauled itself 37
+      // blocks out of a 'No path' pocket while its governor evidence was
+      // still live, and the visit then died on the refusal instead of
+      // walking one block to its own furnace). Wait the named cooldown out
+      // (bounded by the visit's own slice), then let the loop retry.
+      if (!governorWaited && /walk governor|fleet churn ceiling/.test(e.message)) {
+        governorWaited = true
+        const m = /refused for (\d+)s/.exec(e.message)
+        const asked = (m ? Number(m[1]) : 5) * 1000 + 1000
+        const slice = visitDeadline == null ? Math.min(asked, 13000) : Math.min(asked, 13000, Math.max(0, visitDeadline - Date.now()))
+        if (slice > 0) {
+          log(`${tag} walk refused by the churn governor - waiting ${Math.round(slice / 1000)}s out`)
+          await new Promise(r => setTimeout(r, slice))
+        }
       }
       await new Promise(r => setTimeout(r, 500)) // let the interrupting path/control settle
     }

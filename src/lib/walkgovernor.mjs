@@ -71,7 +71,7 @@ export function createWalkGovernor ({
   const outcomes = [] // { at, progress } - progress null = unmeasurable (kept but never counted)
   let openUntil = 0 // 0 = closed
   let openPos = null // the bot's position when the stall opened (for the early-close check)
-  const stats = { records: 0, refusals: 0, opens: 0, earlyCloses: 0, progressClears: 0 }
+  const stats = { records: 0, refusals: 0, opens: 0, earlyCloses: 0, progressClears: 0, noops: 0 }
 
   const prune = now => {
     while (outcomes.length > 0 && now - outcomes[0].at > windowMs) outcomes.shift()
@@ -79,16 +79,26 @@ export function createWalkGovernor ({
 
   return {
     /** Record one settled walk. progress = displacement in blocks, or null
-     * when the funnel could not measure it (junk entity, mock). A real
+     * when the funnel could not measure it (junk entity, mock). ok = whether
+     * the walk SUCCEEDED (v0.79.0 THE NO-OP DISCRIMINATION: a zero-progress
+     * walk that SUCCEEDED is 'already at goal' - the goal_reached check fires
+     * without any A* and without fighting physics; it costs nothing and is
+     * NOT churn. Only zero-progress FAILURES - the stalled re-issue class -
+     * feed the verdict; they are what a runaway loop produces). A real
      * progress walk clears the churn streak AND closes an open stall early -
      * for the per-bot governor a progress outcome cannot arrive while the
      * stall refuses (the refused bot records nothing), but the FLEET ceiling
      * is fed by exempt bank-priority walks mid-storm: their real movement is
      * the fleet's honest relief valve, not just evidence hygiene. */
-    recordOutcome (progress, now) {
+    recordOutcome (progress, now, { ok = null } = {}) {
       stats.records++
       if (!Number.isFinite(progress)) return // unmeasurable: evidence, not fuel
       prune(now)
+      if (progress < minProgress && ok === true) {
+        // the no-op class: succeeded without moving - free by definition
+        stats.noops++
+        return
+      }
       outcomes.push({ at: now, progress })
       if (progress >= minProgress) {
         // real movement: the walker works - drop the churn evidence entirely

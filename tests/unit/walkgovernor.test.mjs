@@ -157,11 +157,11 @@ test('jobqueue wiring: a stalled bot gets its walks refused at the funnel for ze
   }
   assert.equal(gotoCalls, 4)
   assert.equal(walkGovernorStatsFor().opens, 0, 'a working walker never opens a stall')
-  // now the bot wedges: walks settle but the position never changes
+  // now the bot wedges: walks FAIL (budget kill) and the position never changes
   bot.entity.position = pos(17, 64, 5)
-  bot.pathfinder.goto = async () => { gotoCalls++; return 'done' } // walks settle, bot does not move
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('stalled walk: timeout after 500ms') }
   for (let i = 0; i < 4; i++) {
-    await assert.doesNotReject(() => gotoSafe(bot, goal, { timeoutMs: 500, label: 'stalled walk' }))
+    await gotoSafe(bot, goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {}) // the walk fails; the funnel counts the failed stall
   }
   assert.equal(gotoCalls, 8, 'the four stalled walks still ran (the evidence was still short)')
   // the fifth walk now dies at the consult - the pathfinder is never touched
@@ -184,16 +184,17 @@ test('jobqueue wiring: progress closes the stall early - a rescued walker walks 
   const bot = {
     _waterRescue: false,
     entity: { position: pos(0, 64, 0) },
-    pathfinder: { goto: async () => { gotoCalls++; return 'done' }, stop () {}, setGoal () {}, isMoving () { return false } },
+    pathfinder: { goto: async () => { gotoCalls++; throw new Error('stalled walk: timeout after 500ms') }, stop () {}, setGoal () {}, isMoving () { return false } },
     waitForTicks: async () => {},
     on () {}, removeListener () {}
   }
   const goal = { x: 200, y: 64, z: 200 }
   bot.entity.position = pos(0, 64, 0)
-  for (let i = 0; i < 4; i++) await gotoSafe(bot, goal, { timeoutMs: 500, label: 'stalled walk' }) // churn builds
+  for (let i = 0; i < 4; i++) await gotoSafe(bot, goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {}) // failed stalls build the churn
   await assert.rejects(async () => gotoSafe(bot, goal, { timeoutMs: 500, label: 'refused' }), /walk governor/) // the 5th opens+refuses
-  // a rescue hauls the bot 10 blocks while the stall is open
+  // a rescue hauls the bot 10 blocks while the stall is open; its next walk succeeds
   bot.entity.position = pos(10, 64, 0)
+  bot.pathfinder.goto = async () => { gotoCalls++; return 'done' }
   await gotoSafe(bot, goal, { timeoutMs: 500, label: 'post-rescue walk' })
   assert.equal(gotoCalls, 5, 'the moved bot must walk again (early close) - 4 stalled + 1 post-rescue')
   const wgs = walkGovernorStatsFor()
@@ -209,7 +210,7 @@ function freshBot (n) {
   return {
     _waterRescue: false,
     entity: { position: pos(0, 64, n) }, // distinct cells: the doomed-goal ledger must stay out of the way
-    pathfinder: { goto: async () => { return 'done' }, stop () {}, setGoal () {}, isMoving () { return false } },
+    pathfinder: { goto: async () => { throw new Error('stalled walk: timeout after 500ms') }, stop () {}, setGoal () {}, isMoving () { return false } },
     waitForTicks: async () => {},
     on () {}, removeListener () {}
   }
@@ -223,7 +224,7 @@ test('the fleet ceiling: churn on 12 DIFFERENT bots still opens (the aggregate b
   // (one outcome each), the FLEET ceiling accumulates the whole storm
   for (let i = 0; i < FLEET_CHURN_LIMIT; i++) {
     const b = freshBot(i)
-    await gotoSafe(b, goal, { timeoutMs: 500, label: 'stalled walk' }) // settles, zero displacement
+    await gotoSafe(b, goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {}) // fails, zero displacement
   }
   const wgs = walkGovernorStatsFor()
   assert.equal(wgs.opens, 0, 'the per-bot governors must not have opened')
@@ -242,11 +243,13 @@ test('the bank walks are EXEMPT: stock must flow even mid-storm', async () => {
   resetDoomedGoalLedger()
   const goal = { x: 600, y: 64, z: 600 }
   for (let i = 0; i < FLEET_CHURN_LIMIT; i++) {
-    await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' })
+    await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {})
   }
   // the ceiling is now open - a BANK-priority walk still runs (it is the only
   // walk that turns mined blocks into banked stock)
-  await gotoSafe(freshBot(200), goal, { timeoutMs: 500, label: 'bank walk', priority: PATH_PRIO_BANK })
+  const bankBot = freshBot(200)
+  bankBot.pathfinder.goto = async () => { return 'done' } // the bank walk succeeds (a no-op at-goal arrival)
+  await gotoSafe(bankBot, goal, { timeoutMs: 500, label: 'bank walk', priority: PATH_PRIO_BANK })
   assert.equal(walkGovernorStatsFor().fleetRefusals, 0, 'the exempt walk must not count as a ceiling refusal')
   // the ceiling's evidence feeds only from settled walks; the bank walk ran, so
   // the NEXT normal walk is still refused (the bank walk settled zero-progress here)
@@ -261,7 +264,7 @@ test('a real progress walk clears an OPEN fleet ceiling (the bank-walk relief va
   resetDoomedGoalLedger()
   const goal = { x: 700, y: 64, z: 700 }
   for (let i = 0; i < FLEET_CHURN_LIMIT; i++) {
-    await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' })
+    await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {})
   }
   // the 13th normal walk refuses (the ceiling opens at the consult)
   await assert.rejects(
@@ -274,7 +277,11 @@ test('a real progress walk clears an OPEN fleet ceiling (the bank-walk relief va
   walker.pathfinder.goto = async () => { walker.entity.position = pos(9, 64, 300); return 'done' }
   await gotoSafe(walker, goal, { timeoutMs: 500, label: 'bank walk', priority: PATH_PRIO_BANK })
   // normal walks flow again without waiting out the cooldown
-  await gotoSafe(freshBot(302), goal, { timeoutMs: 500, label: 'normal walk' })
+  let ran302 = 0
+  const b302 = freshBot(302)
+  b302.pathfinder.goto = async () => { ran302++; throw new Error('timeout after 500ms') }
+  await gotoSafe(b302, goal, { timeoutMs: 500, label: 'normal walk' }).catch(() => {})
+  assert.equal(ran302, 1, 'the walk RAN (the ceiling closed)')
   const wgs = walkGovernorStatsFor()
   assert.equal(wgs.fleetRefusals, 1)
   assert.equal(wgs.fleetOpens, 1)
@@ -284,6 +291,29 @@ test(`the cooldown is short (${FLEET_COOLDOWN_MS}ms) and the refusal names the a
   resetWalkGovernors()
   resetDoomedGoalLedger()
   const goal = { x: 800, y: 64, z: 800 }
-  for (let i = 0; i < FLEET_CHURN_LIMIT; i++) await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' })
+  for (let i = 0; i < FLEET_CHURN_LIMIT; i++) await gotoSafe(freshBot(i), goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {})
   await assert.rejects(async () => gotoSafe(freshBot(400), goal, { timeoutMs: 500, label: 'x' }), /refused for 6s/)
+})
+
+test('the no-op discrimination: zero-progress SUCCESS walks are not churn (v0.79.0)', async () => {
+  resetWalkGovernors()
+  resetDoomedGoalLedger()
+  const goal = { x: 900, y: 64, z: 900 }
+  // 6 at-goal arrivals: the walk succeeds, the bot never moves - the run71
+  // placement-scan class. They must not open anything.
+  for (let i = 0; i < 6; i++) {
+    const b = freshBot(500 + i)
+    b.pathfinder.goto = async () => { return 'done' } // succeeds at zero displacement
+    await gotoSafe(b, goal, { timeoutMs: 500, label: 'at-goal walk' })
+  }
+  assert.equal(walkGovernorStatsFor().opens, 0, 'no-op successes never open a stall')
+  assert.equal(walkGovernorStatsFor().fleetOpens, 0, 'no-op successes never open the ceiling')
+  // one failing stall feeds the funnel as before
+  let ran600 = 0
+  const b600 = freshBot(600)
+  b600.pathfinder.goto = async () => { ran600++; throw new Error('timeout after 500ms') }
+  await gotoSafe(b600, goal, { timeoutMs: 500, label: 'stalled walk' }).catch(() => {})
+  assert.equal(ran600, 1, 'the failing stall ran (no-ops never blocked it)')
+  const g = walkGovernorStatsFor()
+  assert.equal(g.opens, 0, 'one failure alone does not open (the limit is 4)')
 })

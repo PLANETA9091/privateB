@@ -193,6 +193,11 @@ import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
+// (v0.79.0) THE REFUSAL PACE - see gotoSafe's comment. One 25ms yield per
+// refusal: invisible to legitimate callers, lethal to pathological retry
+// loops whose only pacing was the walk's own duration.
+export const REFUSAL_PACE_MS = 25
+
 // (v0.72.0) THE DOOMED-GOAL LEDGER - the spiral breaker at the gotoSafe funnel.
 // MEASURED (run68, dispatch 35698977810, the v0.70.0 600s fleet, HARD KILL):
 // TWO main-thread freezes (mainLate 150559ms at ts=461s + 63973ms at ts=661s,
@@ -324,8 +329,10 @@ function walkPosOf (bot) {
 }
 
 /** Record one settled walk outcome into the bot's governor (never throws).
- * progress = displacement in blocks between the walk's start and end. */
-function recordWalkOutcome (bot, startPos) {
+ * progress = displacement in blocks between the walk's start and end; ok =
+ * whether the walk SUCCEEDED (v0.79.0: zero-progress successes are no-ops,
+ * not churn fuel). */
+function recordWalkOutcome (bot, startPos, ok) {
   try {
     const g = walkGovernorFor(bot)
     const endPos = walkPosOf(bot)
@@ -334,8 +341,8 @@ function recordWalkOutcome (bot, startPos) {
       const d = startPos.distanceTo(endPos)
       if (Number.isFinite(d)) progress = d
     }
-    g.recordOutcome(progress, Date.now())
-    fleetCeiling.recordOutcome(progress, Date.now()) // the aggregate breaker feeds on every walk
+    g.recordOutcome(progress, Date.now(), { ok })
+    fleetCeiling.recordOutcome(progress, Date.now(), { ok }) // the aggregate breaker feeds on every walk
   } catch { /* a governor record must never mask the walk's own result */ }
 }
 
@@ -406,12 +413,26 @@ function clearStaleStop (bot) {
 }
 
 export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0 } = {}) {
+  // (v0.79.0) THE REFUSAL PACE - every funnel refusal costs the caller one
+  // real event-loop yield before the throw. MEASURED (run73's CI integration
+  // sibling, the 13:32:00 window): once the doomed-goal ledger + the governor
+  // made the failure path FREE, caller loops whose only pacing was the
+  // walk's own duration spun at ~5ms per cycle ('queue: no reachable job' x
+  // 17836 in one run, 'batch done' + consult-throw + re-loop back to back) -
+  // and a 5ms sync cycle starves the timers phase EXACTLY like an A* storm
+  // did. The pace is invisible to legitimate callers (one 25ms yield per
+  // refusal) and caps a pathological loop's rate at ~40 cycles/s per
+  // refused walk instead of thousands.
+  const refuse = async message => {
+    await new Promise(r => setTimeout(r, REFUSAL_PACE_MS))
+    throw new Error(message)
+  }
   // (v0.13.0) drowning rescue gate: while a swim rescue is in flight the
   // pathfinder must NOT issue new goals - each one re-engages its own control
   // states and fights the raw swim controls (the same lesson as tunnel/shelter:
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
-  if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
+  if (bot._waterRescue) return refuse(`water rescue in progress (${label} refused)`)
   // (v0.72.0) THE DOOMED-GOAL CONSULT - before the queue, before the A*.
   // A ledgered cell dies here for 0 cost: no queue slot, no think window, no
   // spiral fuel. The refusal message names the age so the caller's own verdict
@@ -421,7 +442,7 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     const doomed = nearDoomedGoal(gcell, Date.now(), { radius: DOOMED_GOAL_RADIUS })
     if (doomed.hit) {
       doomedStats.refusals++
-      throw new Error(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
+      return refuse(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
     }
   }
   // (v0.74.0) THE STALL GOVERNOR CONSULT - the churn breaker, after the
@@ -437,10 +458,10 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     const verdict = gov.consult(walkPosOf(bot), Date.now())
     if (verdict.open) {
       walkGovernorStats.refusals++
-      throw new Error(`walk governor: bot churned ${verdict.churn} goals without progress - ${label} refused for ${Math.round(verdict.remainingMs / 1000)}s`)
+      return refuse(`walk governor: bot churned ${verdict.churn} goals without progress - ${label} refused for ${Math.round(verdict.remainingMs / 1000)}s`)
     }
   } catch (e) {
-    if (e && /walk governor/.test(e.message)) throw e // the refusal itself
+    if (e && /walk governor/.test(e.message)) return refuse(e.message) // the refusal itself, paced
     /* governor failures never block the walk they precede */
   }
   // (v0.77.0) THE FLEET CHURN CEILING - the aggregate breaker, after the
@@ -452,10 +473,10 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     const fv = fleetCeiling.consult(null, Date.now())
     if (fv.open && priority < PATH_PRIO_BANK) {
       walkGovernorStats.fleetRefusals++
-      throw new Error(`fleet churn ceiling: ${fv.churn} zero-progress walks fleet-wide - ${label} refused for ${Math.round(fv.remainingMs / 1000)}s`)
+      return refuse(`fleet churn ceiling: ${fv.churn} zero-progress walks fleet-wide - ${label} refused for ${Math.round(fv.remainingMs / 1000)}s`)
     }
   } catch (e) {
-    if (e && /fleet churn ceiling/.test(e.message)) throw e // the refusal itself
+    if (e && /fleet churn ceiling/.test(e.message)) return refuse(e.message) // the refusal itself, paced
     /* the ceiling never blocks the walk it precedes */
   }
   // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
@@ -469,14 +490,16 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // (v0.21.0) priority rides through to the fleet queue: bank walks (PATH_PRIO_BANK)
   // jump ahead of mining-column walks under saturation - a queued bank walk burns
   // its dist-scaled budget in line while a mining delay costs nothing at all.
+  let walkOk = false
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
     noteGlobal(`pf:goal ${label}`)
     const startPos = walkPosOf(bot) // (v0.74.0) the walk's displacement feeds the stall governor
     return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+      .then(r => { walkOk = true; return r })
       .finally(() => {
         noteGlobal(`pf:done ${label}`)
-        recordWalkOutcome(bot, startPos)
+        recordWalkOutcome(bot, startPos, walkOk)
       })
   }, { priority }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
