@@ -449,7 +449,14 @@ export const PILLAR_BLOCKS = [
 
 // blocks the climb never digs through (fastDig would refuse or the drop is
 // worthless; lava/water stop the climb because digging under them floods it)
-export const UNDIGGABLE = ['bedrock', 'barrier', 'reinforced_deepslate', 'obsidian', 'crying_obsidian']
+// (v0.81.0) the unbreakable structure set joined: run75 (35740810293) measured
+// F9 dug=64 at ONE end_portal_frame [-158,66,408] - the server can never break
+// it (hardness -1), so every retry was a whole climb dig budget burned on one
+// cell. Portals/commands/jigsaws are the same class: stop, never dig.
+export const UNDIGGABLE = ['bedrock', 'barrier', 'reinforced_deepslate', 'obsidian', 'crying_obsidian',
+  'end_portal_frame', 'end_portal', 'end_gateway', 'nether_portal',
+  'command_block', 'chain_command_block', 'repeating_command_block',
+  'structure_block', 'jigsaw', 'moving_piston']
 export const FLUIDS = ['lava', 'water', 'bubble_column']
 
 /**

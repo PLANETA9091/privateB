@@ -15,7 +15,10 @@ import {
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
   SURFACE_SAFE_DRY_MS, TRANSIT_RESCAN_TICKS, TRANSIT_MAP_RANGE,
-  surfaceSafeRelease, transitBearing
+  surfaceSafeRelease, transitBearing,
+  openWaterRelease, surfaceStability,
+  STANDING_PROBE_BUDGET, STABILITY_WINDOW, STABILITY_MIN_DRY_SHARE, STABILITY_TAIL_DRY,
+  RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -460,4 +463,87 @@ test('REGRESSION PIN: the run74 wiring shape - the release reopens the walk gate
   assert.ok(b2 && Math.abs(Math.hypot(b2.dx, b2.dz) - 1) < 1e-9, 'a real land hit gives a UNIT bearing')
   assert.equal(TRANSIT_RESCAN_TICKS, 8, 'pinned: the transit re-scans every 8 ticks')
   assert.equal(TRANSIT_MAP_RANGE, 128, 'pinned: the map lookup range')
+})
+
+// ---- v0.81.0: THE SURFACE-STABILITY RELEASE + THE BLACKBOX CONSTANTS ----
+// Run75 (35740810293) measured the v0.80.0 release UNREACHABLE: 23 timeouts,
+// zero releases - the loop's own standing probe sank the bot and reset the
+// continuous dry clock every pass. The windowed verdict is the cure.
+
+test('surfaceStability: the bobbing window releases where the continuous clock starves', () => {
+  // THE run75 treadmill shape: the probe-sink cycle wets the head roughly
+  // every fourth pass while the bot bobs at the surface. 6 dry of 8 with a
+  // dry tail is a surface bot with a recovering air bar - release it.
+  const treadmill = [
+    { wet: true, atMs: 0 }, { wet: false, atMs: 400 }, { wet: false, atMs: 800 },
+    { wet: false, atMs: 1200 }, { wet: true, atMs: 1600 }, { wet: false, atMs: 2000 },
+    { wet: false, atMs: 2400 }, { wet: false, atMs: 2800 }
+  ]
+  assert.equal(surfaceStability({ reads: treadmill }), true,
+    '6/8 dry with the tail dry - the bobbing surface bot is release-eligible')
+  assert.equal(surfaceStability({ reads: treadmill.slice(0, STABILITY_WINDOW - 1) }), false,
+    'a short window is unproven, never a guess')
+  // dragged under: the share HOLDS (6/8) but the TAIL is wet - mid-drag, locked
+  const dragged = [...treadmill.slice(0, 7), { wet: true, atMs: 2800 }]
+  assert.equal(surfaceStability({ reads: dragged }), false, 'a wet tail never releases')
+  // share starved: 5/8 dry is below the 0.75 line even with a dry tail
+  const starved = [{ wet: true, atMs: 0 }, { wet: true, atMs: 400 }, { wet: false, atMs: 800 },
+    { wet: false, atMs: 1200 }, { wet: true, atMs: 1600 }, { wet: false, atMs: 2000 },
+    { wet: false, atMs: 2400 }, { wet: false, atMs: 2800 }]
+  assert.equal(surfaceStability({ reads: starved }), false, 'mostly-wet water stays locked')
+  assert.equal(surfaceStability({ reads: treadmill.map(r => ({ wet: true, atMs: r.atMs })) }), false,
+    'all-wet is the deep cell, never a release')
+})
+
+test('surfaceStability: junk reads are LOST readings, not dry ones (the three-strike lesson)', () => {
+  const good = { wet: false, atMs: 0 }
+  assert.equal(surfaceStability({ reads: null }), false, 'no reads -> no release')
+  assert.equal(surfaceStability({ reads: [] }), false)
+  assert.equal(surfaceStability({ reads: Array(8).fill(good).concat([null]) }), false,
+    'a null record poisons the window (Number(null)=0 earned this gate three times)')
+  assert.equal(surfaceStability({ reads: [...Array(7).fill(good), { wet: undefined, atMs: 1 }] }), false,
+    'a non-boolean wet flag is junk - unproven, never counted dry')
+  assert.equal(surfaceStability({ reads: [...Array(7).fill(good), 'wet'] }), false,
+    'a string record is junk')
+  assert.equal(surfaceStability({ reads: [...Array(7).fill(good), { atMs: 1 }] }), false,
+    'a missing wet flag is junk')
+})
+
+test('openWaterRelease: the continuous clock OR the stability window, both behind the drowning gate', () => {
+  const bobbingWindow = [
+    { wet: true, atMs: 0 }, { wet: false, atMs: 400 }, { wet: false, atMs: 800 },
+    { wet: false, atMs: 1200 }, { wet: true, atMs: 1600 }, { wet: false, atMs: 2000 },
+    { wet: false, atMs: 2400 }, { wet: false, atMs: 2800 }
+  ]
+  // the v0.80.0 path alone (run74's shape: a real continuous stretch exists)
+  assert.equal(openWaterRelease({ headDryMs: 2000, oxygen: 16, shore: null }), true,
+    'the continuous clock still releases on its own')
+  // the v0.81.0 path alone (run75's shape: the clock keeps resetting, the window decides)
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 16, shore: null, reads: bobbingWindow }), true,
+    'the stability window releases where the continuous clock cannot accumulate')
+  // both starved: no release
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 16, shore: null, reads: null }), false,
+    'neither path proven -> the rescue keeps the bot')
+  // the gates hold on BOTH paths
+  assert.equal(openWaterRelease({ headDryMs: 99999, oxygen: 5, shore: null }), false,
+    'a drowning bot never releases via the clock')
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: 5, shore: null, reads: bobbingWindow }), false,
+    'a drowning bot never releases via the window either')
+  assert.equal(openWaterRelease({ headDryMs: 99999, oxygen: 16, shore: { dx: 1, dz: 0 } }), false,
+    'a shore plan owns the bot (the swim is the exit)')
+  // junk air reads as full - the clocks carry the decision (the v0.16.0 doctrine)
+  assert.equal(openWaterRelease({ headDryMs: 2000, oxygen: 'junk', shore: null }), true,
+    'junk oxygen -> full -> the clock decides')
+  assert.equal(openWaterRelease({ headDryMs: 0, oxygen: undefined, shore: null, reads: bobbingWindow }), true,
+    'junk oxygen -> full -> the window decides')
+})
+
+test('REGRESSION PIN: the run75 blackbox constants - the wiring cannot silently rot', () => {
+  assert.equal(STANDING_PROBE_BUDGET, 3, 'three standing probes, then hold the surface')
+  assert.equal(STABILITY_WINDOW, 8, 'the window reads 8 passes')
+  assert.equal(STABILITY_MIN_DRY_SHARE, 0.75, 'mostly dry means 6 of 8')
+  assert.equal(STABILITY_TAIL_DRY, 3, 'the tail must be dry now')
+  assert.equal(RESCUE_READS_CAP, 24, 'the record buffer caps at 24')
+  assert.equal(PASS_LOG_INTERVAL_MS, 2000, 'the pass line prints at most every 2s')
+  assert.equal(PASS_LOG_MAX_PER_RESCUE, 10, 'at most 10 pass lines per rescue (19 bots share the log)')
 })

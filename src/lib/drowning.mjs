@@ -266,6 +266,89 @@ export function surfaceSafeRelease ({ headDryMs = 0, oxygen = 20, shore = null }
   return o2 >= OXYGEN_RESCUE_LEVEL
 }
 
+// ---- v0.81.0: THE SURFACE-STABILITY RELEASE + THE RESCUE BLACKBOX ----
+// Run75 (35740810293) measured the v0.80.0 release UNREACHABLE: 23 'rescue
+// timeout (still wet)' lines and ZERO 'rescue released' - F4 burned SEVEN
+// back-to-back 25s budgets at one flooded cell [-131,48,398] and neither the
+// transit nor the release ever logged a line. The mechanism: the loop's own
+// standing probe releases the jump control, the bot sinks (no buoyancy), the
+// head re-submerges, and headDrySince resets - in water whose surface bobs
+// the head, a CONTINUOUS 1500ms dry stretch can never accumulate. The
+// windowed read below is the bobbing-tolerant gate; the constants feed the
+// per-pass blackbox that names which branch ate every rescue budget.
+
+/** Standing-probe budget: how often the open-water branch may release the jump to test for footing before it must hold the surface instead. */
+export const STANDING_PROBE_BUDGET = 3
+/** The stability window reads this many recent pass records. */
+export const STABILITY_WINDOW = 8
+/** At least this share of the window must be head-dry. */
+export const STABILITY_MIN_DRY_SHARE = 0.75
+/** The last N reads must ALL be dry (dry now, not mid-drag under). */
+export const STABILITY_TAIL_DRY = 3
+/** The rescue keeps at most this many pass records (the window reads the tail). */
+export const RESCUE_READS_CAP = 24
+/** The blackbox pass line prints at most this often (per rescue). */
+export const PASS_LOG_INTERVAL_MS = 2000
+/** ...and at most this many times per rescue (the log must survive 19 bots). */
+export const PASS_LOG_MAX_PER_RESCUE = 10
+
+/**
+ * May a bobbing-at-the-surface bot be released although no CONTINUOUS dry
+ * stretch exists? (v0.81.0, pure.) Run75 proved the continuous clock alone
+ * is defeated by the loop's own probe-sink cycle: headDryMs resets every
+ * submersion and the release starves while the bot bobs at the surface with
+ * a recovering air bar. The windowed verdict: over the last STABILITY_WINDOW
+ * pass records, MOSTLY dry (share >= dryShare) with the TAIL dry (the head
+ * is dry NOW - a bot being dragged under reads wet to the end) is as safe
+ * as the continuous clock. Junk never releases: a non-boolean wet flag is a
+ * LOST reading, not a dry one - the window stays unproven (the v0.75.1
+ * Number(null) lesson, now earned three times, lives in every gate).
+ *
+ * @param {object} [p]
+ * @param {Array<{wet: boolean, atMs: number}>|null} [p.reads] pass records, oldest first
+ * @param {number} [p.minReads] window fill floor (default STABILITY_WINDOW)
+ * @param {number} [p.dryShare] minimum dry share (default STABILITY_MIN_DRY_SHARE)
+ * @param {number} [p.tailDry] trailing dry reads required (default STABILITY_TAIL_DRY)
+ * @returns {boolean} true -> the rescue may hand the bot back
+ */
+export function surfaceStability ({ reads = null, minReads = STABILITY_WINDOW, dryShare = STABILITY_MIN_DRY_SHARE, tailDry = STABILITY_TAIL_DRY } = {}) {
+  const min = Number.isFinite(minReads) && minReads > 0 ? Math.floor(minReads) : STABILITY_WINDOW
+  if (!Array.isArray(reads) || reads.length < min) return false
+  const window = reads.slice(-min)
+  let dry = 0
+  for (const raw of window) {
+    if (raw == null || typeof raw !== 'object' || typeof raw.wet !== 'boolean') return false
+    if (!raw.wet) dry++
+  }
+  if (dry / window.length < (Number.isFinite(dryShare) ? dryShare : STABILITY_MIN_DRY_SHARE)) return false
+  const tail = Number.isFinite(tailDry) && tailDry >= 0 ? Math.floor(tailDry) : STABILITY_TAIL_DRY
+  for (let i = window.length - tail; i < window.length; i++) {
+    if (window[i].wet) return false
+  }
+  return true
+}
+
+/**
+ * The combined open-water release decision (pure): the v0.80.0 continuous
+ * dry clock OR the v0.81.0 stability window - both behind the same gates
+ * (no shore plan exists, air at/above the rescue line). A drowning bot never
+ * releases on either path; junk oxygen reads as full (the clocks decide).
+ * Keeping the combination pure keeps the wiring a one-call branch.
+ *
+ * @param {object} [p]
+ * @param {number} [p.headDryMs] continuous dry clock (the v0.80.0 path)
+ * @param {number} [p.oxygen] bot.oxygenLevel (junk -> full)
+ * @param {object|null} [p.shore] a shoreDirection hit (any plan -> false)
+ * @param {Array<{wet: boolean, atMs: number}>|null} [p.reads] pass records (the v0.81.0 path)
+ * @returns {boolean} true -> release the bot to the walk gate
+ */
+export function openWaterRelease ({ headDryMs = 0, oxygen = 20, shore = null, reads = null } = {}) {
+  if (shore) return false
+  const o2 = oxygenInDomain(oxygen) ? Number(oxygen) : 20
+  if (o2 < OXYGEN_RESCUE_LEVEL) return false
+  return surfaceSafeRelease({ headDryMs, oxygen: o2, shore: null }) || surfaceStability({ reads })
+}
+
 /**
  * The unit XZ bearing toward a known land position (pure). Null when any
  * coordinate is junk (the rescue keeps its old behavior) or the land is

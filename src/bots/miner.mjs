@@ -32,7 +32,9 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   rescueDone, fleePlan, verifyShoreCell, HazardLedger,
-  surfaceSafeRelease, transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE
+  transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
+  openWaterRelease,
+  STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -799,6 +801,18 @@ export function createMiner ({
     // on every submerged read) and the surface-safe release flag.
     let headDrySince = null
     let releasedSafe = false
+    // (v0.81.0) THE RESCUE BLACKBOX state: per-pass reads feed the stability
+    // window and the rate-limited pass line. Run75 (35740810293) timed out 23
+    // rescues with ZERO transit/release lines - which branch ate each 25s
+    // budget was unanswerable from the log. One line per pass names it: the
+    // y-trajectory (ascent vs snag vs frozen physics), the head pattern (the
+    // bobbing treadmill), the shore/map verdicts, the probe spend.
+    const rescueReads = []
+    let standingProbes = 0
+    let passNo = 0
+    let passLogAt = 0
+    let passLogs = 0
+    let mapMissLogged = false
     // The fleet map knows land the raw 12-block shore scan cannot: a tree log
     // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
     // known land cell, or null (no map / no entries / junk) - the caller then
@@ -813,8 +827,16 @@ export function createMiner ({
         const b = transitBearing({ hx: here.x, hz: here.z, lx: p.x, lz: p.z })
         if (b) {
           log(`${tag} water: transit toward known land (${name}) at [${p.x},${p.z}] d=${b.dist.toFixed(0)}`)
-          return b
+          return { ...b, name }
         }
+      }
+      // (v0.81.0) the map-miss evidence, once per rescue: run75 could not tell
+      // 'the transit never ran' from 'the map knows no land here' - this line
+      // settles it for the next fleet read.
+      if (!mapMissLogged) {
+        mapMissLogged = true
+        const counts = LAND_PROXIES.map(n => `${n}=${typeof map.size === 'function' ? map.size(n) : '?'}`).join(' ')
+        log(`${tag} water: no map land within ${TRANSIT_MAP_RANGE} (proxies ${counts})`)
       }
       return null
     }
@@ -852,45 +874,73 @@ export function createMiner ({
           hazardCell = { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
         }
         if (!inWater && bot.entity.onGround) break // out and standing: done
-        if (!isWaterName(read.head)) {
+        const headWet = isWaterName(read.head)
+        // (v0.81.0) the verdicts are computed BEFORE the pass line so the line
+        // names the branch that owns this pass; the wet branch keeps its
+        // headDrySince reset (a real submersion re-pages the dry clock).
+        let dir = null
+        let land = null
+        if (!headWet) {
           // head in air: surface reached - swim for the nearest shore (the raw
           // tunnel/shelter lesson: no pathfinder while conditions are hostile)
           if (headDrySince == null) headDrySince = Date.now()
-          const dir = shoreDirection(sample, bot.entity.position.floored())
+          dir = shoreDirection(sample, bot.entity.position.floored())
+          if (!dir) land = landBearingFromMap()
+        } else {
+          headDrySince = null // submerged again: the dry clock restarts
+        }
+        // (v0.81.0) THE BLACKBOX PASS LINE - rate-limited to survive 19 bots.
+        if (Date.now() - passLogAt >= PASS_LOG_INTERVAL_MS && passLogs < PASS_LOG_MAX_PER_RESCUE) {
+          passLogAt = Date.now()
+          passLogs++
+          const p = bot.entity.position
+          log(`${tag} water: pass ${passNo} head=${headWet ? 'wet' : 'dry'} shore=${dir ? `hit r=${dir.dist}` : 'none'} land=${land ? `${land.name} d=${land.dist.toFixed(0)}` : (headWet ? 'n/a' : 'none')} y=${p.y.toFixed(1)} o2=${read.oxygen} probes=${standingProbes} at=[${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}]`)
+        }
+        passNo++
+        rescueReads.push({ wet: headWet, atMs: Date.now() })
+        if (rescueReads.length > RESCUE_READS_CAP) rescueReads.shift()
+        if (!headWet) {
           if (dir) {
             bot.setControlState('jump', true) // stay at the surface while swimming
             try { await withTimeout(bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false), 2000, 'rescue look') } catch { /* keep the bearing */ }
             bot.setControlState('forward', true)
             await settle(8)
             bot.setControlState('forward', false)
-          } else {
-            // (CI 35511474490) no shore in the 12-block scan. (v0.80.0) THREE
-            // honest outcomes now - run74 measured the old two burning 56 x 25s
-            // in open lakes (F7 x23, F10 x18): the map may know land (TRANSIT),
-            // a surface-safe bot may leave (RELEASE), or the legacy tread runs.
-            const land = landBearingFromMap()
-            if (land) {
-              bot.setControlState('jump', true) // stay at the surface while swimming
-              try { await withTimeout(bot.lookAt(bot.entity.position.offset(land.dx, 0, land.dz), false), 2000, 'transit look') } catch { /* keep the bearing */ }
-              bot.setControlState('forward', true)
-              await settle(TRANSIT_RESCAN_TICKS) // each settle swims ~1-2 blocks; the shore scan re-runs next pass
-              bot.setControlState('forward', false)
-            } else if (surfaceSafeRelease({ headDryMs: Date.now() - headDrySince, oxygen: read.oxygen, shore: null })) {
-              releasedSafe = true
+          } else if (land) {
+            bot.setControlState('jump', true) // stay at the surface while swimming
+            try { await withTimeout(bot.lookAt(bot.entity.position.offset(land.dx, 0, land.dz), false), 2000, 'transit look') } catch { /* keep the bearing */ }
+            bot.setControlState('forward', true)
+            await settle(TRANSIT_RESCAN_TICKS) // each settle swims ~1-2 blocks; the shore scan re-runs next pass
+            bot.setControlState('forward', false)
+          } else if (openWaterRelease({ headDryMs: Date.now() - headDrySince, oxygen: read.oxygen, shore: null, reads: rescueReads })) {
+            // (v0.80.0) the continuous-clock release OR (v0.81.0) the stability
+            // window - reachable now that the probe budget below stops the
+            // loop's own sink from resetting the clock forever.
+            releasedSafe = true
+            break
+          } else if (standingProbes < STANDING_PROBE_BUDGET) {
+            // the shallow-water standing test: release the jump, settle, read
+            // onGround. BUDGETED (v0.81.0): run75's open-water cycle probed
+            // EVERY pass - each probe sank the bot and reset the dry clock,
+            // which is exactly what starved the release above.
+            standingProbes++
+            bot.setControlState('jump', false)
+            await settle(2) // onGround needs physics ticks to settle
+            if (!bot.entity) break
+            if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
+              standingWet = true
               break
-            } else {
-              bot.setControlState('jump', false)
-              await settle(2) // onGround needs physics ticks to settle
-              if (!bot.entity) break
-              if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
-                standingWet = true
-                break
-              }
-              await settle(8) // floating in open water: tread and stay alive
             }
+            await settle(8) // floating in open water: tread and stay alive
+          } else {
+            // probe budget spent: HOLD THE SURFACE (v0.81.0). The head stays
+            // at the air line, the reads go dry, the stability window fills,
+            // and the release fires - instead of sinking against the clock
+            // until RESCUE_MAX_MS.
+            bot.setControlState('jump', true)
+            await settle(TRANSIT_RESCAN_TICKS)
           }
         } else {
-          headDrySince = null // submerged again: the dry clock restarts
           bot.setControlState('jump', true) // submerged: ascending is everything
           await settle(5)
         }
@@ -903,7 +953,9 @@ export function createMiner ({
             ? 'complete (standing wet - shallow water is not drowning)'
             : releasedSafe
               ? 'released (surface-safe, open water - no land known; the walk gate reopens)'
-              : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
+              : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head))
+                ? 'complete'
+                : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
     } catch (err) {
       // (v0.59.0) an honest exit: a thrown rescue used to vanish silently (no

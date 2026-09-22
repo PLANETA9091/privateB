@@ -85,6 +85,21 @@ test('climbableCeiling: undiggable blocks stop the climb honestly', () => {
   }
 })
 
+test('REGRESSION PIN: the run75 unbreakable dig burner - end_portal_frame is stop, never dig', () => {
+  // run75 (35740810293): F9 dug=64 at ONE end_portal_frame [-158,66,408] -
+  // the server can never break it (hardness -1), so the climb burned its
+  // whole dig budget retrying one cell. The unbreakable structure set rides
+  // UNDIGGABLE now: stepDigPlan classifies it 'stop' and the blocked path
+  // ends the level attempt with the refusal named.
+  assert.equal(climbableCeiling({ name: 'end_portal_frame', boundingBox: 'block' }), 'stop',
+    'the exact run75 burner cell')
+  assert.equal(climbableCeiling({ name: 'end_portal', boundingBox: 'block' }), 'stop')
+  assert.equal(climbableCeiling({ name: 'nether_portal', boundingBox: 'block' }), 'stop')
+  assert.equal(climbableCeiling({ name: 'command_block', boundingBox: 'block' }), 'stop')
+  assert.equal(climbableCeiling({ name: 'structure_block', boundingBox: 'block' }), 'stop')
+  assert.equal(UNDIGGABLE.includes('end_portal_frame'), true, 'the list itself carries the set')
+})
+
 test('climbableCeiling: junk telemetry stops (never a silent true)', () => {
   assert.equal(climbableCeiling(null), 'stop')
   assert.equal(climbableCeiling(undefined), 'stop')
