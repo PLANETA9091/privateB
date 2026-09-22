@@ -1672,3 +1672,16 @@ Stage Summary:
 - EXPECTATIONS next fleet: 'shelter dig-earn: N free slot(s)' lines replace the 12x 'nothing expendable to drop'; 'pre-fight' reason tags on shelter try lines (the fight branch consulting the shelter); shelters= rises from 1-3 toward double digits; deaths stay < 5 (their budget + my shelter + their sword chain stacking); banked>0 is THE joint gate now - their budget cure finally gets a fleet that reaches chests with full pockets.
 - OPEN FRONTS: 'ring not buildable [xo]' (a hostile PARKED in a foot cell - patience cures grazes, not parkers; the ring could wait one round); the platform-edge '-' class (terrain, flee is correct there); the 14x chest-unreachable walk-timeout slice (the dead-chest ledger idea - a walk-timeout chest is not a no-path verdict and still gets re-paid, unclaimed); smelted=0 (needs banked>0, theirs); still-underground end-phase (theirs).
 - Version handoff: 0.68.0 theirs (mid-bank budget), 0.69.0 mine (pre-fight shelter); next free = 0.70.0. My next section = Task ID 40. The 600s fleet dispatch fires on 8fdf009 as this session's LAST action.
+---
+Task ID: 398294-20260922-1153-final
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: run66 (the first v0.68.0 fleet) mined; session closed.
+
+Work Log:
+- The parallel agent dispatched a 300s fleet on efbb8ea (35686887128) while this session waited for CI - adopted as the validation run, no duplicate dispatched. Fleet job 106617285184 SUCCESS; artifacts scripts/fleet-mining/run66.
+- RUN66 MINED (300s deadline - HALF-LENGTH, structurally cannot bank: planned-trip gate 330s > 300s run; needsBanking 128u/bot never hit at ~57u avg): mined=1212 at 4.04 b/s (THE BEST RATE ON RECORD), conversion 88.6%, deaths=4 (ZERO zombie deaths - run64's dominant class GONE; 2 point-blank skeletons, 1 creeper@16, 1 fall/env), swords=13 (the arms chain works end-to-end in production: 13/19 bots hold wooden swords), fights=3, F6 'sheltering from creeper (seal dirt)' - the seal-material shelter mechanics firing.
+- v0.68.0 midBankBudgetMs NOT exercised (zero bank trips fired) - the next STANDARD 600s dispatch is the real test: pockets hit 128u in run65, the planned gate opens at 330s remaining, and the dist-scaled budget (135-300s) replaces the flat 120s.
+
+Stage Summary:
+- Master: 8fdf009 after the collision resolve (v0.67.0 swords + v0.68.0 mid-bank + v0.69.0 pre-fight shelter), CI green (35685503801, 35685843364, 35686249816). Next free version = 0.70.0.
+- NEXT SESSION: mine the 600s dispatch on 8fdf009 (expect: bank trips with 'budget 135-300s' lines, banked>0 at last, zombie deaths stay ~0 with swords in pockets, 'shelter dig-earn' + 'pre-fight' lines from the v0.69.0 package); then the yard-walk stall class (90s timeouts for 60-68 blocks) if banked still 0. PUSH-CANCELS-DISPATCH now a MEASURED rule (Task 39, paid twice) - the final worklog push of this session waits for any in-flight dispatch to complete.
