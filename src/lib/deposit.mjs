@@ -366,6 +366,48 @@ export function bankTripBudgetMs ({ yardDist = 0, floorMs = BANK_TRIP_FLOOR_MS, 
   return Math.min(Math.max(raw, floor), cap)
 }
 
+// (v0.68.0) THE MID-BANK BUDGET - one arithmetic for BOTH trip paths.
+//
+// MEASURED (run65, dispatch 35682159103, the second v0.66.0 fleet, NORMAL END):
+// mined=2263 at 3.77 b/s (the best rate on record), deaths down to 4, conversion
+// 97.1% - the pockets held 2197u at t-0 - and STILL banked=0. Every one of the
+// 10 bank trips printed 'pockets full budget 120s' (the needsBanking path) and
+// 17/23 chest hops died 'budget exhausted (walk floor)': the climb out (~90s)
+// plus the yard walk (90-98s TIMEOUTS for 60-68 block walks, water rescues
+// interleaving) consumed the flat 120s chain before the first chest hop. The
+// dist-scaled PLANNED trip (up to 300s) never fired once - needsBanking resets
+// lastBankAt on every attempt, so the 150s cadence never accumulates while the
+// pockets are full. The flat cap was built (v0.28.0) for a bank "right next to
+// the deadline"; a mid-run bank 200 blocks out is a different animal and it
+// starves by construction.
+//
+// THE CURE: both paths take the dist-scaled trip budget whenever the run can
+// still afford it (the chain + the return-home margin fit inside remainingMs);
+// near the deadline the flat floor semantics stay (the hard-kill margin is
+// sacred). Pure policy; the caller keeps printing the budget it got.
+export const MID_BANK_RETURN_MARGIN_MS = 90000 // the walk home after the deposit (the measured yard-walk scale)
+
+export function midBankBudgetMs ({
+  yardDist = 0,
+  remainingMs = Infinity,
+  floorMs = BANK_TRIP_FLOOR_MS,
+  capMs = BANK_TRIP_CAP_MS,
+  returnMs = MID_BANK_RETURN_MARGIN_MS
+} = {}) {
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BANK_TRIP_FLOOR_MS
+  const want = bankTripBudgetMs({ yardDist, floorMs: floor, capMs })
+  const left = Number.isFinite(remainingMs) ? remainingMs : Infinity
+  if (!Number.isFinite(left)) return want // no deadline in play - the dist-scaled budget
+  if (left <= 0) return 0
+  // Near the deadline the run cannot spend a bigger chain: keep the flat floor
+  // (clamped by what is left - the walk floor would refuse a doomed chain anyway).
+  const guard = floor + (Number.isFinite(returnMs) && returnMs > 0 ? returnMs : MID_BANK_RETURN_MARGIN_MS)
+  if (left <= guard) return Math.min(floor, left)
+  // Mid-run: the dist-scaled budget, never eating the return-home margin
+  // (chain + returnMs <= left  =>  B <= left - returnMs; the floor still applies).
+  return Math.max(floor, Math.min(want, left - guard + floor))
+}
+
 // (v0.34.0) THE FINAL bank chain budget: distance-scaled, margin-aware.
 //
 // MEASURED (dispatch 35560497949, 600s on 4c7802b): mined=1274, every bot's

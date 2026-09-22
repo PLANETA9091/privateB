@@ -20,7 +20,7 @@ import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/claims.mjs'
 import { HazardLedger } from '../src/lib/drowning.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankTripBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -713,9 +713,18 @@ async function runBot (name, target, index) {
           // a PLANNED trip (start-gated by minRemainingMs) may use the dist-scaled
           // budget; a needsBanking bank can fire right next to the deadline and
           // keeps the v0.28.0 120s cap that fits the hard-kill margin
-          const bankBudgetMs = tripPlanned && !needsBanking(miner.bot)
-            ? bankTripBudgetMs({ yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0 })
-            : MID_BANK_BUDGET
+          // (v0.68.0) ONE budget for BOTH paths: dist-scaled mid-run (climb +
+          // deposit + there-and-back + the return home affordable), the flat
+          // floor only near the deadline. MEASURED (run65, 35682159103): all 10
+          // trips ran 'pockets full' on the flat 120s and 17/23 hops died
+          // 'budget exhausted (walk floor)' - climb 90s + yard walk 90s+ left
+          // nothing for the chest hops, and the dist-scaled planned trip never
+          // fired once (needsBanking resets lastBankAt on every attempt).
+          const bankBudgetMs = midBankBudgetMs({
+            yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
+            remainingMs: deadline - Date.now(),
+            floorMs: MID_BANK_BUDGET
+          })
           console.log(`${name} bank trip: ${tripPlanned ? 'planned' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           if (await ensureSurface('bank')) {
