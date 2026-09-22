@@ -87,3 +87,62 @@ test('rememberSkip: bounded amnesia drops the oldest half', () => {
   rememberSkip(set, undefined) // junk key must not throw
   rememberSkip(null, 'x') // junk set must not throw
 })
+
+// (v0.81.0) THE IRON PRIORITY: distance-only election let 660 known coal records
+// out-elect 98 iron records forever (run75: 12 iron steers yielded ONE iron_ore).
+// The plan's deficit order must lead the election: (tier, dist, name).
+test('ore steer priorities: the plan-urgent vein beats a NEARER lower-priority one', () => {
+  const t = pickOreTarget({
+    candidates: [
+      { name: 'coal_ore', pos: pos(103, 50, 100) }, // dist 3 - the run75 election winner
+      { name: 'iron_ore', pos: pos(140, 50, 100) } // dist 40 - in reach, in band
+    ],
+    from: FROM,
+    priorities: ['iron_ore', 'copper_ore', 'coal_ore']
+  })
+  assert.ok(t, 'steered')
+  assert.equal(t.name, 'iron_ore', 'iron wins despite 13x the distance')
+  assert.equal(t.dist, 40)
+})
+
+test('ore steer priorities: absent priorities keep the legacy distance-only shape', () => {
+  const cands = [
+    { name: 'coal_ore', pos: pos(103, 50, 100) },
+    { name: 'iron_ore', pos: pos(140, 50, 100) }
+  ]
+  for (const priorities of [null, undefined]) {
+    const t = pickOreTarget({ candidates: cands, from: FROM, priorities })
+    assert.equal(t.name, 'coal_ore', 'legacy: nearest wins when no priorities given')
+  }
+})
+
+test('ore steer priorities: unlisted names lose to listed ones, ties stay distance-ordered', () => {
+  const t = pickOreTarget({
+    candidates: [
+      { name: 'coal_ore', pos: pos(104, 50, 100) }, // dist 4, unlisted in priorities
+      { name: 'copper_ore', pos: pos(130, 50, 100) } // dist 30, tier 1
+    ],
+    from: FROM,
+    priorities: ['iron_ore', 'copper_ore'] // copper listed, coal not
+  })
+  assert.equal(t.name, 'copper_ore', 'listed tier beats unlisted Infinity tier')
+  // equal tier: distance decides (the pre-v0.81.0 rule inside a tier)
+  const t2 = pickOreTarget({
+    candidates: [
+      { name: 'copper_ore', pos: pos(130, 50, 100) },
+      { name: 'copper_ore', pos: pos(112, 50, 101) }
+    ],
+    from: FROM,
+    priorities: ['iron_ore', 'copper_ore', 'coal_ore']
+  })
+  assert.equal(t2.dist, Math.round(Math.sqrt(12 * 12 + 1) * 10) / 10, 'nearer copper wins inside the tier')
+})
+
+test('ore steer priorities: junk priorities arrays degrade to legacy, never throw', () => {
+  const cands = [{ name: 'coal_ore', pos: pos(103, 50, 100) }]
+  for (const priorities of [[], 'iron_ore', 42, {}]) {
+    const t = pickOreTarget({ candidates: cands, from: FROM, priorities })
+    assert.ok(t, `steers with priorities=${JSON.stringify(priorities)}`)
+    assert.equal(t.name, 'coal_ore')
+  }
+})

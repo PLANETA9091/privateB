@@ -20,9 +20,23 @@
 //     (3-8 blocks wide) to still touch the tunnel line.
 //   - skip: positions this bot already failed to reach (bounded set, the caller's
 //     failedTrips discipline) - never steer at the same wall twice.
-export function pickOreTarget ({ candidates, from, reach = 48, yBand = 8, crossTolerance = 4, skip = null } = {}) {
+//   - priorities (v0.81.0): an ordered array of ore names, earlier = more plan-
+//     urgent. THE IRON PRIORITY: distance-only election lets 660 known coal
+//     records out-elect 98 iron records forever (run75: 12 iron steers yielded
+//     ONE iron_ore while the plan starved for it) - the plan's deficit order
+//     (materialplan.oreSteerOrder) must beat raw distance. Election becomes
+//     (tier, dist, name): a known iron vein within reach beats ANY nearer coal.
+//     null/absent keeps the legacy distance-only shape (backward compatibility).
+export function pickOreTarget (opts = {}) {
+  // (v0.81.0) the BODY guard, not a destructuring default: pickOreTarget(null)
+  // would throw on the destructure itself (the Number(null) lesson, fourth strike)
+  const { candidates, from, reach = 48, yBand = 8, crossTolerance = 4, skip = null, priorities = null } = opts || {}
   if (!Array.isArray(candidates) || !from || typeof from.x !== 'number') return null
+  const tierOf = Array.isArray(priorities)
+    ? name => { const i = priorities.indexOf(name); return i === -1 ? Infinity : i }
+    : () => 0
   let best = null
+  let bestTier = Infinity
   for (const c of candidates) {
     const p = c?.pos
     if (!p || typeof p.x !== 'number' || typeof p.y !== 'number' || typeof p.z !== 'number') continue
@@ -39,7 +53,11 @@ export function pickOreTarget ({ candidates, from, reach = 48, yBand = 8, crossT
     const cross = horiz ? Math.abs(dz) : Math.abs(dx)
     if (cross > crossTolerance) continue
     const cand = { name: c.name ?? 'ore', pos: p, dist: Math.round(dist * 10) / 10, axis: horiz ? 'x' : 'z', dir: horiz ? Math.sign(dx) : Math.sign(dz), cross }
-    if (!best || cand.dist < best.dist || (cand.dist === best.dist && cand.name < best.name)) best = cand
+    const tier = tierOf(cand.name)
+    if (!best || tier < bestTier || (tier === bestTier && (cand.dist < best.dist || (cand.dist === best.dist && cand.name < best.name)))) {
+      best = cand
+      bestTier = tier
+    }
   }
   return best
 }

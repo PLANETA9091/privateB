@@ -111,3 +111,39 @@ export function mapTripTargets ({ progress, mapCounts, minDeficit = 64, minMapCo
   }
   return out
 }
+
+/**
+ * (v0.81.0) Plan-deficit priority order for the UNDERGROUND ores - the pickOreTarget
+ * `priorities` array. mapTripTargets cannot serve the ore steer directly: it filters
+ * by map coverage and a 64-unit deficit floor and mixes surface blocks in, while the
+ * steer only ever sees the ore trio the tunnel names carry. This helper takes exactly
+ * the caller's ore block list and orders it by the plan deficit of the resource each
+ * block provides (reverse MINABLE_OF lookup: iron_ore -> iron), most-deficit first.
+ * Blocks whose resource is unknown or unlisted in the plan keep their input order at
+ * the tail (stable) - the geometry filter still gates them, this only breaks the
+ * 660-coal-out-elect-98-iron tie of run75. Pure: unit-testable, no bot required.
+ *
+ * @param {object} p
+ * @param {object} p.progress { [resource]: { required, have } } (materialsProgress())
+ * @param {string[]} p.ores ore block names the steer may aim at
+ * @returns {string[]} the same names, plan-deficit order
+ */
+export function oreSteerOrder (p = {}) {
+  // (v0.81.0) the BODY guard, not a destructuring default: oreSteerOrder(null)
+  // would throw on the destructure itself (the Number(null) lesson, fourth strike)
+  const ores = p && p.ores
+  const progress = p && p.progress
+  if (!Array.isArray(ores)) return []
+  const blockRes = new Map()
+  for (const [res, blocks] of Object.entries(MINABLE_OF ?? {})) {
+    for (const b of blocks ?? []) if (!blockRes.has(b)) blockRes.set(b, res)
+  }
+  const deficitOf = name => {
+    const m = progress?.[blockRes.get(name) ?? '']
+    return (m?.required ?? 0) - (m?.have ?? 0)
+  }
+  return ores
+    .map((name, i) => ({ name, i, deficit: deficitOf(name) }))
+    .sort((a, b) => b.deficit - a.deficit || a.i - b.i)
+    .map(e => e.name)
+}

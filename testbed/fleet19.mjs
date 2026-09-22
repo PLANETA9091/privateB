@@ -22,7 +22,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
-import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
+import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
@@ -495,6 +495,74 @@ async function runBot (name, target, index) {
       let lastSwordAttempt = 0 // (v0.67.0) sword-craft cooldown
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
+      let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
+      const STEER_ORES = ['iron_ore', 'copper_ore', 'coal_ore'] // the underground trio the tunnel names can collect
+      // (v0.81.0) THE STEERED TUNNEL, once - the floor-lock block and the new ore
+      // detour share one body: elect a plan-priority vein, dig a 12-block gallery
+      // toward it, remember failures, back off on dead tunnels.
+      const runSteeredTunnel = async reason => {
+        // (v0.10.3) namesFor(TRUE) unconditionally: the tunnel's first job is
+        // MOVEMENT - a pickless bot digging stone bare-handed gains no drops but
+        // breaks the seal, keeps the map recording and can surface to re-tool.
+        // Gating the tunnel names by hasPickNow() is what kept 0-pick bots churning
+        // 'tunnel: 0 blocks' 21763 times in run 35481439229 (soft-only names vs
+        // sealed stone = instant else-break). Pick-holders collect as before.
+        // (v0.18.8) ORE-STEERED BRANCH MINING: aim the gallery at known ore.
+        // Fleet #128 mined iron_ore=2 in 600s while the map held 84..126 iron
+        // records (coal 575): the rotating direction walked PAST veins the fleet
+        // already knows. The bot is already in the ore's Y band - it just has to
+        // dig TOWARD the record. nearestK (no verify - a verify would erase far
+        // buckets on unloaded chunks, mapTargetFor's lesson) feeds up to 4 nearest
+        // positions per ore into the geometry filter; a steer that fails is
+        // remembered (bounded amnesia) so the wall is never retried forever.
+        // (v0.81.0) THE IRON PRIORITY: distance-only election let 660 known coal
+        // records out-elect 98 iron records for the whole project (run75: 12 iron
+        // steers, ONE iron_ore collected, plan 2/31, iron pickaxes=0). The plan's
+        // own deficit order (oreSteerOrder) now leads the election - a known iron
+        // vein within reach beats ANY nearer coal.
+        const steerFrom = miner.bot.entity?.position
+        let steer = null
+        if (steerFrom && miner.map) {
+          const oreCands = []
+          for (const on of STEER_ORES) {
+            try {
+              for (const p of miner.map.nearestK(on, steerFrom, { maxDistance: 48, k: 4 })) oreCands.push({ name: on, pos: p })
+            } catch { /* map read must never break the branch mine */ }
+          }
+          steer = pickOreTarget({
+            candidates: oreCands,
+            from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
+            skip: veerSkipped,
+            priorities: oreSteerOrder({ progress: materialsProgress(), ores: STEER_ORES })
+          })
+        }
+        const tdir = steer
+          ? new Vec3(steer.axis === 'x' ? steer.dir : 0, 0, steer.axis === 'z' ? steer.dir : 0)
+          : [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
+        if (steer) console.log(`${name} tunnel: steering ${steer.name} @ ${steer.dist}b (axis ${steer.axis}${steer.dir > 0 ? '+' : '-'}${steer.dir < 0 ? steer.dir : ''}, cross ${steer.cross}, ${reason})`)
+        try {
+          const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
+          console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''}, ${reason})`)
+          if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+          // (v0.18.1) ZERO-PROGRESS BACKOFF - the fleet freeze, measured live
+          // (run 2026-09-20 20:05): a bot sealed in wet stone made
+          // (digShaft instant 0 -> tunnel instant 0 - the FLUID early-break
+          // awaits nothing -> print) a ~97/s sync spin: 41,686 'tunnel: 0
+          // blocks' lines in 430s, the 15s reporter starved the whole time
+          // and all 8 bots froze with it (mined +19 in the last 7 minutes).
+          // Three dead tunnels buy a REAL yield (setTimeout is a macrotask:
+          // the event loop reaches its timers, other bots dig again).
+          if ((tres.done ?? 0) > 0) zeroTunnels = 0
+          else if (++zeroTunnels >= 3) {
+            zeroTunnels = 0
+            console.log(`${name} tunnel: 0 blocks x3 - sealed or flooded, cooling down 15s`)
+            await new Promise(r => setTimeout(r, 15000))
+          }
+        } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
+        // no continue: tunneling bots still need consolidation (pockets fill while
+        // branch mining), recordToMap and the trip gate - the only thing that must
+        // NOT run down here is the pathfinder (see the walk guard below)
+      }
       while (!(Date.now() > deadline) && miner.bot.entity) {
         // (v0.36.0) PRE-POSITION: inside the last window a far bot walks home
         // on MINING time instead of digging loot it cannot deliver. MEASURED
@@ -620,65 +688,26 @@ async function runBot (name, target, index) {
         // row mean we are sealed in at the floor: branch-mine sideways instead of
         // idling. The direction rotates each attempt so 19 bots spread their galleries.
         if (interrupted) continue
-        if ((shaftRes.done ?? 0) === 0) emptyShafts++
-        else emptyShafts = 0
+        const productiveShaft = (shaftRes.done ?? 0) > 0
+        if (productiveShaft) {
+          productiveShafts++
+          emptyShafts = 0 // a productive shaft still resets the seal counter (the v0.10.1 semantics kept)
+        } else emptyShafts++
+        // (v0.81.0) TWO doors into the steered tunnel now:
+        //  - the v0.10.1 FLOOR LOCK (two empty shafts = sealed in, branch-mine out);
+        //  - THE ORE DETOUR (every 2nd PRODUCTIVE shaft): a productive shaft resets
+        //    emptyShafts, so under the old shape a bot that never sealed NEVER
+        //    tunneled - run75's 98 known iron veins got exactly 12 steered visits
+        //    (yield: one iron_ore) because 660 coal records kept winning the
+        //    distance election on the rare floor locks. The detour pays the visit
+        //    the plan is starving for: the bot stands at its own shaft floor (the
+        //    ore band), the gallery is 12 blocks toward the most-deficit vein, and
+        //    the zeroTunnels backoff + the skip ledger keep it bounded.
         if (emptyShafts >= 2) {
           emptyShafts = 0
-          // (v0.10.3) namesFor(TRUE) unconditionally: the tunnel's first job is
-          // MOVEMENT - a pickless bot digging stone bare-handed gains no drops but
-          // breaks the seal, keeps the map recording and can surface to re-tool.
-          // Gating the tunnel names by hasPickNow() is what kept 0-pick bots churning
-          // 'tunnel: 0 blocks' 21763 times in run 35481439229 (soft-only names vs
-          // sealed stone = instant else-break). Pick-holders collect as before.
-          // (v0.18.8) ORE-STEERED BRANCH MINING: aim the gallery at known ore.
-          // Fleet #128 mined iron_ore=2 in 600s while the map held 84..126 iron
-          // records (coal 575): the rotating direction walked PAST veins the fleet
-          // already knows. The bot is already in the ore's Y band - it just has to
-          // dig TOWARD the record. nearestK (no verify - a verify would erase far
-          // buckets on unloaded chunks, mapTargetFor's lesson) feeds up to 4 nearest
-          // positions per ore into the geometry filter; a steer that fails is
-          // remembered (bounded amnesia) so the wall is never retried forever.
-          const steerFrom = miner.bot.entity?.position
-          let steer = null
-          if (steerFrom && miner.map) {
-            const oreCands = []
-            for (const on of ['iron_ore', 'copper_ore', 'coal_ore']) {
-              try {
-                for (const p of miner.map.nearestK(on, steerFrom, { maxDistance: 48, k: 4 })) oreCands.push({ name: on, pos: p })
-              } catch { /* map read must never break the branch mine */ }
-            }
-            steer = pickOreTarget({
-              candidates: oreCands,
-              from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
-              skip: veerSkipped
-            })
-          }
-          const tdir = steer
-            ? new Vec3(steer.axis === 'x' ? steer.dir : 0, 0, steer.axis === 'z' ? steer.dir : 0)
-            : [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
-          if (steer) console.log(`${name} tunnel: steering ${steer.name} @ ${steer.dist}b (axis ${steer.axis}${steer.dir > 0 ? '+' : '-'}${steer.dir < 0 ? steer.dir : ''}, cross ${steer.cross})`)
-          try {
-            const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
-            console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''})`)
-            if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
-            // (v0.18.1) ZERO-PROGRESS BACKOFF - the fleet freeze, measured live
-            // (run 2026-09-20 20:05): a bot sealed in wet stone made
-            // (digShaft instant 0 -> tunnel instant 0 - the FLUID early-break
-            // awaits nothing -> print) a ~97/s sync spin: 41,686 'tunnel: 0
-            // blocks' lines in 430s, the 15s reporter starved the whole time
-            // and all 8 bots froze with it (mined +19 in the last 7 minutes).
-            // Three dead tunnels buy a REAL yield (setTimeout is a macrotask:
-            // the event loop reaches its timers, other bots dig again).
-            if ((tres.done ?? 0) > 0) zeroTunnels = 0
-            else if (++zeroTunnels >= 3) {
-              zeroTunnels = 0
-              console.log(`${name} tunnel: 0 blocks x3 - sealed or flooded, cooling down 15s`)
-              await new Promise(r => setTimeout(r, 15000))
-            }
-          } catch (e) { console.log(`${name} tunnel failed: ${e.message}`) }
-          // no continue: tunneling bots still need consolidation (pockets fill while
-          // branch mining), recordToMap and the trip gate - the only thing that must
-          // NOT run down here is the pathfinder (see the walk guard below)
+          await runSteeredTunnel('floor lock')
+        } else if (productiveShafts % 2 === 0) {
+          await runSteeredTunnel('ore detour')
         }
         if (Date.now() > deadline || !miner.bot.entity) break
         // pockets nearly full: merge fragmented planks into sticks (KEEP keeps planks,

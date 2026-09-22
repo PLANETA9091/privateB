@@ -4,7 +4,7 @@
 // diggers. mapTripTargets is that missing link; these tests pin its policy.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DROP_OF, MINABLE_OF, mapTripTargets } from '../../src/fleet/materialplan.mjs'
+import { DROP_OF, MINABLE_OF, mapTripTargets, oreSteerOrder } from '../../src/fleet/materialplan.mjs'
 
 const progressFrom = entries => Object.fromEntries(entries.map(([res, required, have]) => [res, { required, have, item: DROP_OF[res] ?? res }]))
 
@@ -137,4 +137,41 @@ test('ITEMS_OF self-check: every list holds distinct non-empty strings', () => {
     assert.equal(new Set(names).size, names.length, `${res} has duplicate items`)
     for (const n of names) assert.equal(typeof n, 'string')
   }
+})
+
+// (v0.81.0) oreSteerOrder: the pickOreTarget `priorities` array from the plan's own
+// deficit order. run75 mined ONE iron_ore while the map held 98 iron veins and the
+// plan starved for iron - the steer must aim where the plan hurts.
+test('oreSteerOrder: most-deficit resource first (iron starves, coal overflows)', () => {
+  // deficits: iron 4096-1=4095 > copper 2048-19=2029 > coal 7668-7000=668
+  const progress = progressFrom([
+    ['iron', 4096, 1],
+    ['coal', 7668, 7000],
+    ['copper', 2048, 19]
+  ])
+  const ores = ['iron_ore', 'copper_ore', 'coal_ore']
+  assert.deepEqual(oreSteerOrder({ progress, ores }), ['iron_ore', 'copper_ore', 'coal_ore'])
+  // a satisfied iron (deficit 1096) with a starving copper (2048) re-orders
+  const progress2 = progressFrom([
+    ['iron', 4096, 3000],
+    ['coal', 7668, 7000],
+    ['copper', 2048, 0]
+  ])
+  assert.deepEqual(oreSteerOrder({ progress, ores: ores })[0], 'iron_ore')
+  assert.deepEqual(oreSteerOrder({ progress: progress2, ores }), ['copper_ore', 'iron_ore', 'coal_ore'])
+})
+
+test('oreSteerOrder: unknown blocks keep their input order at the tail (stable)', () => {
+  const progress = progressFrom([['coal', 7668, 0]])
+  const ores = ['deepslate_coal_ore', 'coal_ore', 'mystery_ore']
+  // coal_ore maps to the 'coal' resource via MINABLE_OF; the others have no plan resource
+  const out = oreSteerOrder({ progress, ores })
+  assert.equal(out[0], 'coal_ore', 'the planned block leads')
+  assert.deepEqual(out.slice(1), ['deepslate_coal_ore', 'mystery_ore'], 'unknowns keep input order at the tail')
+})
+
+test('oreSteerOrder: junk input degrades safely', () => {
+  assert.deepEqual(oreSteerOrder({ ores: ['coal_ore'] }), ['coal_ore'], 'missing progress = zero deficits, input order')
+  assert.deepEqual(oreSteerOrder({ progress: { coal: { required: 5, have: 0 } } }), [], 'missing ores')
+  assert.deepEqual(oreSteerOrder(null), [], 'junk object')
 })
