@@ -1717,3 +1717,34 @@ Work Log:
 Stage Summary:
 - Master: 863d34b (package.json v0.86.0; the tree stacks the stale-window refusal + the low-o2 yield on top of their water table/vein sweep and the hazard zone). Next free version = 0.87.0.
 - THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@863d34b - the FULL stack: the stale-window refusal (v0.86.0) + the low-o2 yield (v0.85.0) + the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + their water table + vein sweep (c59d9f3) + the ingot bridge (their v0.82.0) + the rescue blackbox/stability/probe-budget/unbreakable-guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
+
+---
+Task ID: 398294-20260923-0253
+Agent: Z.ai Code (cron session, 02:53 +08)
+Task: mine run79 (the v0.86.0 fleet) when its queue turn comes; ship the cure the code-reading named; push; re-dispatch.
+
+Work Log:
+- Repo alive; master d09d921 (v0.86.0) pulled clean, no parallel pushes. Run79 (35771116108, dispatched last session) still PENDING behind my own push CI 35771105978 (in_progress) - the cancel-in-progress: false QUEUE, not a failure. This session waits for the queue to drain before mining.
+- CODE-READING WHILE WAITING - the banked-halving culprit found without any run: the bank lines show 'bank: yard walk attempt 1 failed: doomed goal (ledgered 55s ago at [-143,73,410]) - walk to yard refused' then immediate give-up. The doomed-goal ledger (v0.72.0, the spiral breaker) is FLEET-WIDE on the GOAL cell, but the doomed geometry is the FAILED BOT'S START: one quarry bot's failed yard walk blacklists the yard for all 19 bots, every fresh failure re-records the cell ('ledgered 0s/1s ago' in run77 = a self-sustaining refresh), and walkRetryPlan had NO doomed branch (first refusal = give-up). The victim bot (maybe at the surface, 20 blocks from the chests) never walks. The smelt lane is a downstream casualty: 'smelting locally if a furnace is near' fires with no furnace near (bots are underground), 'end-bank budget spent - smelt skipped' finishes the chain.
+- v0.87.0 THE YARD RE-ARM (jobqueue.mjs + testbed/fleet19.mjs):
+  (1) walkRetryPlan gains the doomed branch: /doomed goal/i -> 'doomed-retry' (attempt budget still bounds the ladder);
+  (2) gotoSafe gains doomedRearm (opt-in, SHARED destinations only): the consult hit no longer refuses - it counts doomedStats.rearms and lets the walk queue honestly from THIS bot's start; every other goal keeps the free refusal;
+  (3) the yard ladder handles 'doomed-retry': re-issues once with doomedRearm: true, the retry line names the re-arm; a SECOND doomed verdict = the geometry is real from here too -> honest give-up;
+  (4) the deposit chain untouched (unknown action falls through to its give-up - per-chest verdicts stay honest).
+- Test discipline: 3 blocks in walk-retry.test.mjs (doomed a1/a2 -> doomed-retry + the budget give-up; the deposit-chain name-stability pin; the doomedGoalStats rearms counter). Spot checks limited to check-syntax (171 files, 0 broken) - jobqueue imports vec3 and the sandbox has no node_modules (protocol: CI validates).
+- PUSH DISCIPLINE: run79 (pending) sits between my push CI and my dispatch in the queue - the push does NOT cancel it (cancel-in-progress: false). Order: run79 (v0.86.0 live measurement) -> my v0.87.0 push CI -> the dispatch as the ABSOLUTE LAST action. NO PUSHES after it.
+
+Stage Summary:
+- Master: 1f1b64c (package.json v0.87.0, the yard re-arm). Next free version = 0.88.0.
+- EXPECTATIONS run79 (v0.86.0 stack): 'climb wet escape: oxygen N at the floor' where F7/F15/F16 drowned; zero drowned deaths; 'drop of 4+ below'/'fluid below' firing on blind windows; fall/env deaths down from 8; deaths total < 13; their vein sweep's raw_iron reaching pockets (smelted > 0); banked recovering; rescues under 70.
+- EXPECTATIONS run80 (v0.87.0 stack): 'yard walk retry N/3 (doomed re-arm ...)' lines where run78's immediate give-ups lived; doomedGoalStats rearms > 0 in the FLEET RESULT; yard walk arrivals up; banked recovering toward 2024+; the smelt lane getting real furnace walks (smelted > 0); the kite still armed (8 runs).
+- OPEN FRONTS: the zombie trio (the quarry = mob trap); the tunnel/walk zone-veto hole (target vetoes in, path crossings not); 'cannot leave the shaft' x30 (the worldmap lane); the dig-adjacent water class ('post=water STILL THERE'); smelted=0's remaining root (bots never reaching the yard - the re-arm is the first lever).
+
+---
+Task ID: 398294-20260923-0253 (dispatch record)
+Agent: Z.ai Code (cron session, 02:53 +08)
+Task: session close - CI verdict + the fleet dispatch record.
+
+Work Log:
+- Push CI on 1f1b64c (v0.87.0 the yard re-arm): (verdict in the next session's worklog).
+- THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@1f1b64c - the FULL stack: the yard re-arm (v0.87.0) + the stale-window refusal (v0.86.0) + the low-o2 yield (v0.85.0) + the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + their water table/vein sweep (c59d9f3) + the ingot bridge (their v0.82.0) + the rescue blackbox/stability/probe-budget/unbreakable-guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
