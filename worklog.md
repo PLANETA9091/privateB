@@ -1704,3 +1704,16 @@ Task: session close - CI verdict + the fleet dispatch record.
 Work Log:
 - Push CI on the head commit (v0.86.0): (verdict in the next session's worklog).
 - THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@ebba676 - the FULL stack: the stale-window refusal (v0.86.0) + the low-o2 yield (v0.85.0) + the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox/stability/probe-budget/unbreakable-guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
+
+---
+Task ID: 398294-20260923-0153 (CI verdict + dispatch record)
+Agent: Z.ai Code (cron session, 01:53 +08)
+Task: session close - the CI verdict + the fleet dispatch record.
+
+Work Log:
+- COLLISION #37 absorbed: a parallel agent's c59d9f3 (their water table + vein sweep, message-claimed v0.85.0, collision #36 retitle of their own) landed between my push and my dispatch. The rebase merged cleanly (disjoint features, both touch miner.mjs in different functions); per protocol the first lander keeps the MESSAGE claim, my tree version is 0.86.0 (package.json last touched by me). The combination tree = 171 files, syntax clean, and CI validated BOTH suites together.
+- Push CI on 863d34b (v0.86.0 + their water table/vein sweep): 35766400434 completed SUCCESS (units 22+24 green incl. my low-o2 floor pin + their 10 watertable pins, integration green). The concurrency group (cancel-in-progress: false) QUEUED my push behind their fleet 35766110886 (c59d9f3, completed success 18:45Z) - the queueing class, not a failure.
+
+Stage Summary:
+- Master: 863d34b (package.json v0.86.0; the tree stacks the stale-window refusal + the low-o2 yield on top of their water table/vein sweep and the hazard zone). Next free version = 0.87.0.
+- THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@863d34b - the FULL stack: the stale-window refusal (v0.86.0) + the low-o2 yield (v0.85.0) + the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + their water table + vein sweep (c59d9f3) + the ingot bridge (their v0.82.0) + the rescue blackbox/stability/probe-budget/unbreakable-guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
