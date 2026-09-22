@@ -14,9 +14,10 @@ import { Vec3 } from 'vec3'
 import {
   isWetCell, traverseStep,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
-  TRAVERSE_ROTATE_LIMIT,
+  TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR,
   WET_PLANT_NAMES, FLUIDS, UNDIGGABLE
 } from '../../src/lib/surface.mjs'
+import { OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL } from '../../src/lib/drowning.mjs'
 
 // A block factory that mimics the two prismarine fields the policy reads
 const B = (name, opts = {}) => ({ name, boundingBox: opts.box ?? 'block', waterlogged: opts.wl ?? false })
@@ -201,6 +202,19 @@ test('traverse budgets: bounded per climb, generous per gallery', () => {
   // (v0.29.0) the escape rotates through the bearings on a refusal: 4 = one
   // full circle, so every cardinal is tried at most once per gallery
   assert.ok(TRAVERSE_ROTATE_LIMIT === 4, 'a full circle, no bearing probed twice')
+})
+
+// ---- v0.85.0: THE LOW-O2 YIELD (run77 F7 'drowned@0.8' AT SURFACE, inside an escape) ----
+
+test('the low-o2 yield floor sits between the rescue line and the death line', () => {
+  // the yield must fire while the rescue lane still has air to work with:
+  // ABOVE the critical line the rescue pages instantly; at/below it a surface
+  // hold may already be too late. The floor belongs strictly between them.
+  assert.ok(CLIMB_ESCAPE_O2_FLOOR > OXYGEN_CRITICAL_LEVEL,
+    'the yield fires BEFORE the critical bar - the sentry must win with air left')
+  assert.ok(CLIMB_ESCAPE_O2_FLOOR <= OXYGEN_RESCUE_LEVEL,
+    'the yield never fires above the rescue line - the escape keeps its job')
+  assert.ok(CLIMB_ESCAPE_O2_FLOOR === 6, 'run77 pinned: ~3s of air beats blind digging')
 })
 
 test('a wet escape plus the normal fail limit stays bounded (worst-case climbs end)', () => {

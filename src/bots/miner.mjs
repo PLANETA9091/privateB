@@ -22,7 +22,7 @@ import {
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
-  TRAVERSE_ROTATE_LIMIT,
+  TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
@@ -2135,13 +2135,21 @@ export function createMiner ({
    */
   const DANGEROUS = SHAFT_FLUID_NAMES // lava kills, water drowns: a shaft punched into an aquifer floods into a 1x1 well with no shore and no climb
   function lavaAheadBelow (fromPos, { depth = 4 } = {}) {
+    let reads = 0
     for (let dy = 1; dy <= depth; dy++) {
       const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
-      if (!b) continue // unloaded chunk: treat as unknown, not dangerous
+      if (!b) continue // unloaded chunk: not dangerous BY ITSELF, but counted below
+      reads++
       if (DANGEROUS.has(b.name)) return true
       if (b.boundingBox !== 'empty') return false // solid ground seals the column
     }
-    return false
+    // (v0.86.0) THE STALE-WINDOW REFUSAL: run78 measured 13 deaths (8 fall/env)
+    // in the flooded quarry while both probes were live - a window that answers
+    // ZERO real reads is not "safe", it is BLIND (the v0.76.0 stale-read class).
+    // A blind probe refuses the column (sidestep, bounded by SIDESTEP_CAP)
+    // instead of digging into an unread floor. The bot STANDS in this chunk, so
+    // a zero-read window is a server/stale-read event, not normal geography.
+    return reads === 0
   }
 
   // (v0.84.0) The same scan, but it ANSWERS: the y and name of the first fluid
@@ -2167,13 +2175,20 @@ export function createMiner ({
   // this reason; the bot must measure before it digs.
   function dropAheadBelow (fromPos, { depth = 5 } = {}) {
     let air = 0
+    let reads = 0
     for (let dy = 1; dy <= depth; dy++) {
       const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
-      if (!b) break // unloaded chunk below: assume the worst is behind the dug block
+      if (!b) break // (v0.86.0) a null read cannot count as AIR and cannot seal either - counted below
+      reads++
       if (b.boundingBox === 'empty') air++
       else break
     }
-    return air
+    // (v0.86.0) THE STALE-WINDOW REFUSAL, drop tier: zero real reads = blind,
+    // and blind digs are how 8 fall/env deaths happened in run78's quarry
+    // (the guards were live the whole run). Report the WORST (a full-depth
+    // drop) so the fall guard sidesteps; SIDESTEP_CAP keeps the cost bounded
+    // and the caller rotates. The Number(null) lesson in probe form.
+    return reads === 0 ? depth : air
   }
 
   // (v0.10.0) One wall torch at head level in the shaft we are standing in. Wall-
@@ -2493,6 +2508,15 @@ export function createMiner ({
       bot._climbEscape = true
       try {
         while (bot.entity && walked < TRAVERSE_MAX_BLOCKS && rotations < TRAVERSE_ROTATE_LIMIT && !shouldStop?.() && Date.now() - t0 < TRAVERSE_MAX_MS) {
+          // (v0.85.0) THE LOW-O2 YIELD: the sentry yields to this escape, so an
+          // escape that stalls under a wet ceiling drains the bar with nobody
+          // watching (run77 F7 'drowned@0.8' AT SURFACE level inside an escape).
+          // Below the floor the escape stops being the way out: return honestly,
+          // the finally clears _climbEscape, and the sentry re-owns the bot.
+          const o2Top = bot.oxygenLevel
+          if (oxygenInDomain(o2Top) && o2Top <= CLIMB_ESCAPE_O2_FLOOR) {
+            return { walked, resumed: false, reason: 'low-o2', o2: o2Top }
+          }
           const feet = bot.entity.position.floored()
           const plan = traverseStep({ feet, d, read: cell => { try { return bot.blockAt(cell) } catch { return null } } })
           if (!plan.ok) {
@@ -2514,6 +2538,12 @@ export function createMiner ({
             continue
           }
           for (const b of plan.digs) {
+            // (v0.85.0) a submerged dig can burn ~200 ticks (~10s) - the bar
+            // must be checked BETWEEN digs too, not only at the loop top
+            const o2Mid = bot.oxygenLevel
+            if (oxygenInDomain(o2Mid) && o2Mid <= CLIMB_ESCAPE_O2_FLOOR) {
+              return { walked, resumed: false, reason: 'low-o2', o2: o2Mid }
+            }
             let broke = false
             // maxTicks 200: a submerged dig needs ~115+ server ticks (5x
             // underwater penalty, no aqua affinity) - the plain 100-tick
@@ -2658,6 +2688,16 @@ export function createMiner ({
           const esc = await escapeTraverse({ shouldStop })
           traversed += esc.walked
           if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason})`)
+          // (v0.85.0) THE LOW-O2 HANDOFF: the escape yielded at the air floor -
+          // end the climb NOW (an honest 'exhausted'-shape return every caller
+          // already handles) instead of looping into another wet gallery: the
+          // finally has cleared _climbEscape, the drown sentry re-owns the bot
+          // on its next tick and pages the rescue. The climb's own ledger must
+          // NOT record a wall here: the escape did not fail, the air did.
+          if (esc.reason === 'low-o2') {
+            log(`${tag} climb wet escape: oxygen ${esc.o2} at the floor - the escape yields, the rescue lane owns the air`)
+            return { ok: false, reason: 'low-o2', gained: 0, dug, steps, traversed }
+          }
           if (esc.resumed) continue // fresh position - let the main loop re-judge
         }
         // (v0.37.0) SURFACE HANDOFF on the blocked path. Fleet 35566494961 (the

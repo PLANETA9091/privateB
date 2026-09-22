@@ -95,6 +95,17 @@ export const TRAVERSE_STALL_LIMIT = 3
 // genuinely sealed - give up honestly.
 export const TRAVERSE_ROTATE_LIMIT = 4
 
+// (v0.85.0) THE LOW-O2 YIELD: _climbEscape owns the controls and the drown
+// sentry yields to it (the escape IS the way out) - so an escape that stalls
+// under a wet ceiling drains the bar with nobody watching. Run77 measured the
+// death: F7 'drowned@0.8' at [-191,61,471], at SURFACE level, inside a wet
+// escape whose digs kept refusing (the sentry never fired while
+// _climbEscape was up). Below this floor the escape stops being the way out
+// - with ~3s of air left, the rescue lane's surface-hold (jump at the air
+// line) beats blind digging. The escape returns 'low-o2' and the climb hands
+// the bot back: the sentry re-owns it on the next tick and pages the rescue.
+export const CLIMB_ESCAPE_O2_FLOOR = 6
+
 // ---------------------------------------------------------------------------
 // DEEP CLIMB PERSISTENCE (v0.18.0) - a STAGE LADDER across climbOut calls.
 //
