@@ -123,28 +123,67 @@ bot.once('spawn', async () => {
     if (!chestBlock) throw new Error('the console-placed chest never landed in the world view')
     log(`chest confirmed at ${chestPos.floored()}`)
     const cx = Math.round(chestPos.x); const cy = Math.round(chestPos.y); const cz = Math.round(chestPos.z)
-    const readFill0 = cmdRead('item', 'replace', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', '32')
-    await sleep(400)
-    const fill0Lines = readFill0()
-    log(`fill container.0 response: ${fill0Lines.slice(-2).join(' | ') || '(silent - success has no echo on some versions)'}`)
-    // THE UNAMBIGUOUS MARKER: a conditional say that fires ONLY if the server
-    // really holds 32 dirt in container.0 - the console line [Server] PROBE_FILL_OK
-    // is the ground truth no client view can fake. Poll up to 4s for it.
-    const beforeMarker = (() => { try { return fs.statSync(CONSOLE).size } catch { return 0 } })()
-    cmd('execute', 'if', 'items', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', 'run', 'say', 'PROBE_FILL_OK')
-    let markerSeen = false
-    for (let i = 0; i < 8 && !markerSeen; i++) {
-      await sleep(500)
-      try {
-        const st = fs.statSync(CONSOLE)
-        const fd = fs.openSync(CONSOLE, 'r')
-        const buf = Buffer.alloc(Math.max(0, st.size - beforeMarker))
-        fs.readSync(fd, buf, 0, buf.length, beforeMarker)
-        fs.closeSync(fd)
-        if (buf.toString('utf8').includes('PROBE_FILL_OK')) markerSeen = true
-      } catch { /* console not there */ }
+    // THE MARKER HELPER: run `cmdWords`, then poll console.log for `marker`.
+    // v4's marker mechanism is what PROVED the item-replace fill dead
+    // ('Incorrect argument for command ... container.0' - 26.2 rejects the
+    // classic slot path), so every strategy below is VERIFIED, never assumed.
+    const cmdWithMarker = (cmdWords, marker) => new Promise(resolve => {
+      const before = (() => { try { return fs.statSync(CONSOLE).size } catch { return 0 } })()
+      cmd(...cmdWords)
+      let seen = false
+      const tail = []
+      const poll = setInterval(() => {
+        try {
+          const st = fs.statSync(CONSOLE)
+          const fd = fs.openSync(CONSOLE, 'r')
+          const buf = Buffer.alloc(Math.max(0, st.size - before))
+          fs.readSync(fd, buf, 0, buf.length, before)
+          fs.closeSync(fd)
+          const lines = buf.toString('utf8').split('\n').filter(l => l.trim())
+          for (const l of lines) { if (!tail.includes(l)) tail.push(l) }
+          if (buf.toString('utf8').includes(marker)) { seen = true }
+        } catch { /* console missing */ }
+        if (seen || tail.length > 2) { clearInterval(poll); resolve({ seen, tail: tail.slice(0, 4) }) }
+      }, 400)
+      setTimeout(() => { clearInterval(poll); resolve({ seen, tail: tail.slice(0, 4) }) }, 5000)
+    })
+
+    // THE VERIFIER: the conditional say fires ONLY if the server chest really
+    // holds dirt in container.0 - ground truth no client view can fake.
+    const verifyFill = () => cmdWithMarker(['execute', 'if', 'items', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', 'run', 'say', 'PROBE_FILL_OK'], 'PROBE_FILL_OK')
+
+    // STRATEGY 1: item replace block (the 1.17+ syntax) - measured REJECTED on 26.2
+    const s1 = await cmdWithMarker(['item', 'replace', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', '32'], 'PROBE_')
+    const v1 = await verifyFill()
+    log(`fill v1 (item replace block): verified=${v1.seen} echo=${s1.tail.map(l => l.slice(30, 110)).join(' | ')}`)
+    let filled = v1.seen
+    if (!filled) {
+      // STRATEGY 2: setblock with modern item-stack NBT (1.20.5+ count format)
+      const nbt = `{Items:[{Slot:0b,id:"minecraft:dirt",count:32},{Slot:1b,id:"minecraft:cobblestone",count:16}]}`
+      const s2 = await cmdWithMarker(['setblock', cx, cy, cz, `minecraft:chest${nbt}`], 'PROBE_')
+      const v2 = await verifyFill()
+      log(`fill v2 (setblock NBT): verified=${v2.seen} echo=${s2.tail.map(l => l.slice(30, 110)).join(' | ')}`)
+      if (v2.seen) {
+        // the setblock REPLACED the block - the world view must re-find it
+        chestBlock = null
+        for (let i = 0; i < 20 && !chestBlock; i++) {
+          await bot.waitForTicks(10)
+          try { const b = bot.blockAt(chestPos); if (b && b.name === 'chest') chestBlock = b } catch { /* land */ }
+        }
+        filled = !!chestBlock
+      }
     }
-    log(`SERVER MARKER: ${markerSeen ? 'PROBE_FILL_OK seen - the server chest REALLY holds dirt x32' : 'NOT seen in 4s - the fill DID NOT take (command rejected or unsupported)'}`)
+    let gaveBot = false
+    if (!filled) {
+      // STRATEGY 3: /give to the ONLINE bot by name (a diagnostic rig grant -
+      // the same class as kill @e / doMobSpawning false; the FLEET never gets
+      // this). The closed loop then runs give -> deposit -> withdraw.
+      const s3 = await cmdWithMarker(['give', username, 'minecraft:dirt', '32'], 'PROBE_')
+      const v3 = await cmdWithMarker(['execute', 'if', 'items', 'entity', username, 'inventory.*', 'minecraft:dirt', 'run', 'say', 'PROBE_GIVE_OK'], 'PROBE_GIVE_OK')
+      gaveBot = v3.seen
+      log(`fill v3 (give bot): verified=${gaveBot} echo=${s3.tail.map(l => l.slice(30, 110)).join(' | ')}`)
+    }
+    log(`FILL STATE: chestFilled=${filled} botGiven=${gaveBot}`)
     const readData = cmdRead('data', 'get', 'block', cx, cy, cz, 'Items')
     await sleep(600)
     const dataLines = readData().filter(l => /dirt|cobble|Items|count/i.test(l))
@@ -174,9 +213,17 @@ bot.once('spawn', async () => {
     log(`at the chest, d=${bot.entity.position.distanceTo(chestPos).toFixed(1)}`)
 
     // --- 4. open + THE SLOT MAP DUMP (the decisive instrument)
+    // v4 lost 40s to 'Event windowOpen did not fire within 20000ms' - the raw
+    // walk stopped at d=2.6 facing whatever the last step faced. aim BEFORE
+    // every attempt; three tries.
     let window = null
-    for (let a = 1; a <= 2 && !window; a++) {
-      try { window = await bot.openChest(chestBlock); await sleep(700) } catch (e) { log(`open attempt ${a} failed: ${e.message}`); await sleep(800) }
+    for (let a = 1; a <= 3 && !window; a++) {
+      try {
+        await bot.lookAt(chestPos.offset(0.5, 0.5, 0.5), true)
+        await sleep(300)
+        window = await bot.openChest(chestBlock)
+        await sleep(700)
+      } catch (e) { log(`open attempt ${a} failed: ${e.message}`); await sleep(800) }
     }
     if (!window) throw new Error('cannot open the chest')
     const slotList = () => (Array.isArray(window.slots) ? window.slots : (typeof window.slots === 'function' ? window.slots() : []))
