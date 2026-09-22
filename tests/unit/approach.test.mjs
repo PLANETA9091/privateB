@@ -146,7 +146,13 @@ test('walk: the budgetMs clock bounds the loop and the last slice clamps to it',
     return { walked: true }
   }
   const res = await approachWalk(bot, target, { rawWalk, segmentMs: 20, budgetMs: 50 })
-  assert.equal(res.segments, 3, 'a 50ms budget with 20ms slices: two full slices, then a clamped remainder')
+  // (v0.69.1) the boundary sliver, measured (run 35688226298 flaked: segments=4):
+  // the loop admits any slice while left > 0, and after 2 full slices + a clamped
+  // remainder the runner's timer overshoot vs loop overhead race can leave
+  // left = 1-2ms - the design then runs one SUB-2ms sliver before the next check
+  // breaks. The pin is the CLOCK BOUND, not the exact count: 2 full slices, the
+  // clamped remainder, and at most one boundary sliver after it.
+  assert.ok(res.segments >= 3 && res.segments <= 4, `2 full slices + a clamped remainder (+ at most one sub-ms boundary sliver) - got ${res.segments}: ${slices.join(',')}`)
   assert.equal(slices[0], 20)
   assert.equal(slices[1], 20)
   assert.ok(slices[2] > 0 && slices[2] < 20, `the third slice clamped to the remaining clock (got ${slices[2]})`)
