@@ -113,6 +113,23 @@ export function mapTripTargets ({ progress, mapCounts, minDeficit = 64, minMapCo
 }
 
 /**
+ * (v0.82.0) THE INGOT BRIDGE - plan resource names MINABLE_OF cannot see. The plan
+ * (data/base-raw.json rawResources) speaks ITEM names ('iron_ingot'), MINABLE_OF
+ * speaks RAW-resource names ('iron'). run76 steered iron 31x while coal led 117x:
+ * oreSteerOrder read progress['iron'] -> undefined -> deficit 0, so the REAL iron
+ * deficit (2275 - have) never competed and coal's 7668 always won. The alias lets
+ * the deficit lookup fall through iron -> iron_ingot (copper -> copper_ingot) so
+ * the steer orders by the plan's REAL numbers. Deliberately NOT wired into
+ * mapTripTargets: a trip would WALK to a sealed iron_ore cell, gotoSafe fails
+ * 'unreachable' and blacklists the position (the oresteer docblock's warning) -
+ * the tunnel steer is the only honest delivery path for underground ore.
+ */
+export const PLAN_ALIAS_OF = {
+  iron: 'iron_ingot',
+  copper: 'copper_ingot'
+}
+
+/**
  * (v0.81.0) Plan-deficit priority order for the UNDERGROUND ores - the pickOreTarget
  * `priorities` array. mapTripTargets cannot serve the ore steer directly: it filters
  * by map coverage and a 64-unit deficit floor and mixes surface blocks in, while the
@@ -139,7 +156,9 @@ export function oreSteerOrder (p = {}) {
     for (const b of blocks ?? []) if (!blockRes.has(b)) blockRes.set(b, res)
   }
   const deficitOf = name => {
-    const m = progress?.[blockRes.get(name) ?? '']
+    const res = blockRes.get(name) ?? ''
+    // (v0.82.0) the ingot bridge: the plan's resource name may be the ITEM form
+    const m = progress?.[res] ?? progress?.[PLAN_ALIAS_OF[res] ?? '']
     return (m?.required ?? 0) - (m?.have ?? 0)
   }
   return ores

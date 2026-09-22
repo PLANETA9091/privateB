@@ -175,3 +175,34 @@ test('oreSteerOrder: junk input degrades safely', () => {
   assert.deepEqual(oreSteerOrder({ progress: { coal: { required: 5, have: 0 } } }), [], 'missing ores')
   assert.deepEqual(oreSteerOrder(null), [], 'junk object')
 })
+
+// (v0.82.0) THE INGOT BRIDGE: the plan speaks ITEM names ('iron_ingot'), MINABLE_OF
+// speaks raw names ('iron'). run76 steered iron 31x while coal led 117x because
+// progress['iron'] was undefined -> deficit 0. The bridge reads the REAL deficit.
+test('oreSteerOrder: the ingot bridge reads the plan under its ITEM name', () => {
+  // the REAL plan shape: rawResources keys are 'coal' and 'iron_ingot' (no 'iron')
+  const progress = {
+    coal: { required: 7668, have: 37 },
+    iron_ingot: { required: 2275, have: 3 }
+  }
+  const ores = ['iron_ore', 'copper_ore', 'coal_ore']
+  // coal deficit 7631 > iron deficit 2272 > copper (no plan resource at all) 0
+  assert.deepEqual(oreSteerOrder({ progress, ores }), ['coal_ore', 'iron_ore', 'copper_ore'])
+})
+
+test('oreSteerOrder: the bridge flips the run76 failure into iron leadership when coal is satisfied', () => {
+  const progress = {
+    coal: { required: 7668, have: 7000 },
+    iron_ingot: { required: 2275, have: 3 }
+  }
+  assert.deepEqual(oreSteerOrder({ progress, ores: ['coal_ore', 'iron_ore'] }), ['iron_ore', 'coal_ore'])
+})
+
+test('oreSteerOrder: the raw resource name still wins when the plan carries both forms', () => {
+  const progress = {
+    iron: { required: 100, have: 0 },
+    iron_ingot: { required: 2275, have: 3 }
+  }
+  assert.equal(oreSteerOrder({ progress, ores: ['iron_ore'] })[0], 'iron_ore')
+  // and the deficit used the RAW entry (100), not the bridged one - direct hit first
+})
