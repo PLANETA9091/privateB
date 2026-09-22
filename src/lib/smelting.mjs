@@ -637,8 +637,18 @@ export async function smeltInventory (bot, {
     // machine chain too, so the zero verdict names WHICH machines were scanned.)
     let kindsTried = 0
     let kindsWithBlocks = 0
+    // (v0.93.0) THE SPENT-SLICE STOP: run82's F3 zero line refused EIGHT machines
+    // 'visit budget spent (walk slice)' - the walk loop breaks per machine, but the
+    // scan kept feeding machines into a visit whose walk clock was already dead.
+    // The walk slice IS the visit's remaining wall clock: once it reads 0, no
+    // machine can be WALKED to, and every further attempt is an identical refusal
+    // (the instant kind - the walk loop dies at its own slice check before any
+    // goto pays). Close the scan on the first spent refusal; the entry is recorded
+    // (the honest attempts), the clock and the log stay clean.
+    let sliceSpent = false
     for (const machineKind of machineChainFor(name)) {
       if (Date.now() - started > maxSeconds * 1000) break
+      if (sliceSpent) break
       if (left() <= 0) break
       kindsTried++
       const blocks = findMachineBlocks(bot, [machineKind], { maxDistance })
@@ -674,10 +684,13 @@ export async function smeltInventory (bot, {
           // used to vanish between smeltBatch and the fleet leg's log - recorded
           // now, so a zero verdict names every machine it lost to.
           attempts.push({ name, machine: machineKind, reason: res.reason })
+          // (v0.93.0) the spent walk slice closes the scan (see the flag above)
+          if (/visit budget spent \(walk slice\)/.test(res.reason)) { sliceSpent = true; break }
         }
         if (left() <= 0) break
         // busy / unreachable / broken machine: try the next one of this kind
       }
+      if (sliceSpent) break
       if (left() <= 0) break
     }
     // every kind of this input's machine chain scanned, zero machines found: the

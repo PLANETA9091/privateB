@@ -20,6 +20,15 @@ import { fileURLToPath } from 'node:url'
 import { withTimeout, gotoSafe } from '../../src/lib/jobqueue.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+
+// (v0.93.0) the craft-recovery helpers live in tools.mjs and the test body
+// destructures them for its own uses - but the MODULE-LEVEL craftItem helper
+// below needs its OWN handle: a bare recoverCraftWindow(bot, log) reference
+// inside craftItem's catch is a module-scope miss, invisible while every craft
+// succeeds and fatal exactly when the recovery is needed (CI 35796697308 on
+// ba63208: a craft oak_planks timeout died 'ReferenceError: recoverCraftWindow
+// is not defined' instead of sweeping the poisoned grid).
+const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
 const HOST = process.env.MC_HOST || '127.0.0.1'
 const PORT = Number(process.env.MC_PORT || 25565)
 
@@ -59,10 +68,17 @@ async function craftItem (bot, itemName, times, table, { tries = 3 } = {}) {
         log(`craft ${itemName} failed: ${e.message}`)
         // the full recovery dance (same as tools.mjs craft): a timed-out or desynced
         // craft leaves the window open with the grid poisoned - every later attempt
-        // would fail "missing ingredient" forever unless the window is closed + swept
-        recoverCraftWindow(bot, log)
-        const swept = await sweepGridItems(bot)
-        if (swept) log(`swept ${swept} ghost grid slot(s) back into the inventory`)
+        // would fail "missing ingredient" forever unless the window is closed + swept.
+        // (v0.93.0) the helpers ride the module handle (the bare references were a
+        // module-scope miss) and the dance is try-caught: the recovery must never
+        // mask the original craft error.
+        try {
+          toolsMod.recoverCraftWindow(bot, log)
+          const swept = await toolsMod.sweepGridItems(bot)
+          if (swept) log(`swept ${swept} ghost grid slot(s) back into the inventory`)
+        } catch (re) {
+          log(`craft recovery failed: ${re.message}`)
+        }
       }
     }
   }

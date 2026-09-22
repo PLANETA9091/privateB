@@ -459,6 +459,21 @@ test('smeltInventory: the visit budget threads into every batch it starts', asyn
   assert.ok(seen.length <= 2, `the visit budget cut the walk retries (got ${seen.length})`)
 })
 
+test('smeltInventory: a spent walk slice closes the machine scan (run82: 8 x visit budget spent)', async () => {
+  // run82's F3 zero line refused EIGHT machines 'visit budget spent (walk slice)'
+  // - the walk loop breaks per machine but the scan kept feeding machines into a
+  // dead visit. One slow goto burns the visit clock below the 1s walk-slice floor:
+  // machine 1 pays the goto, its attempt 2 reads slice 0 and refuses - machines
+  // 2..4 must NEVER re-refuse (the v0.93.0 spent-slice stop closes the scan).
+  const machines = [0, 1, 2, 3].map(i => new MockFurnace({ position: new Vec3(40 + i, 64, 40 + i) }))
+  const bot = makeMockBot({ machines, items: [item('sand', 6), item('coal', 2)] })
+  bot.pathfinder.goto = async () => { await new Promise(r => setTimeout(r, 2100)); throw new Error('walk to furnace: timeout after Nms') }
+  const res = await smeltInventory(bot, { ...FAST, maxSeconds: 3 })
+  assert.equal(res.smelted, 0)
+  assert.equal(res.attempts.length, 1, `the scan closes on the first spent slice (got ${res.attempts.length}: ${JSON.stringify(res.attempts)})`)
+  assert.match(res.attempts[0].reason, /visit budget spent \(walk slice\)/)
+})
+
 // --------------------------------------------------- v0.89.0 THE HONEST SMELT LEG
 
 test('SMELT_REACH_OPEN_DISTANCE is the arm\'s reach the reach-open trusts', () => {
