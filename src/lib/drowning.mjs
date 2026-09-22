@@ -210,6 +210,91 @@ export function rescueDone ({ headWet = false, shore = null, onGround = false } 
   return !!onGround
 }
 
+// ---- v0.80.0: THE OPEN-WATER TRANSIT ----
+// Run74 (dispatch 35733236816, the v0.78.0 fleet, NORMAL END 19/19) measured
+// the rescue machinery eating itself in open water: 79 rescue starts, 56
+// 'rescue timeout (still wet) in ~25.0s' - F7 x23 + F10 x18 starts (F7 burned
+// ~575s of its 600s run inside rescue locks, F10 ~450s; the bank trips F11/F15
+// watched their 14s/28s budgets die while bot._waterRescue gated every fleet
+// walk - banked=0 at pockets 911u). Every start carried HEALTHY oxygen (12-20)
+// and the verdict came from the headWetMs clock: the rescue releases the jump
+// control to run the standing-wet test, the bot SINKS (mineflayer physics has
+// no buoyancy without jump), the head re-submerges, 5s later the clock re-pages
+// - a treadmill the rescue cannot win. The structural gap: shoreDirection
+// scans 12 raw blocks; a lake wider than that returns null FOREVER, so the
+// loop has NO plan - it treads against its own physics until the budget dies.
+//
+// The cure is transit, not escape, in two layers:
+// - while the rescue holds the bot and the head is DRY at the surface, swim
+//   toward the nearest KNOWN land (the fleet WorldMap: tree logs stand on
+//   land, sand/gravel line shores - map.nearest gives a bearing the raw
+//   12-block scan cannot). Each settle swims ~1-2 blocks; across re-fire
+//   cycles the transit CONVERGES on land, and once the shore scan sees a
+//   beach the proven shore-swim path finishes the job.
+// - when NO land is known at all, a surface-safe bot (head dry long enough,
+//   air at/above the rescue line) is released: the walk gate reopens NOW, the
+//   pathfinder's liquidCost plans routes out of water the raw scan cannot,
+//   and a re-submersion re-pages through the headWetMs clock as before.
+//   Compare the old exit: the same bot in the same water was released by the
+//   TIMEOUT 25s later - the release is strictly earlier, never less safe.
+
+/** The head must have been continuously dry this long before a release. */
+export const SURFACE_SAFE_DRY_MS = 1500
+/** The transit re-scans the shore and the map bearing every N settled ticks. */
+export const TRANSIT_RESCAN_TICKS = 8
+/** Map buckets that stand on (or line) dry land, best proxy first. */
+export const LAND_PROXIES = ['oak_log', 'birch_log', 'spruce_log', 'sand', 'gravel']
+/** Max map lookup distance for a land bearing (blocks). */
+export const TRANSIT_MAP_RANGE = 128
+
+/**
+ * May the rescue hand a bot standing at the surface back to the work loop?
+ * True only when NO shore is in scan (a plan exists -> keep swimming), the
+ * head has been dry for SURFACE_SAFE_DRY_MS (not bobbing under), and the air
+ * bar is at/above the rescue line (a real reading, in-domain; junk reads as
+ * full - the clock carries the decision). A drowning bot NEVER releases.
+ * @param {object} [p]
+ * @param {number} [p.headDryMs] how long the head has been continuously dry
+ * @param {number} [p.oxygen] bot.oxygenLevel (junk -> full, the clock decides)
+ * @param {object|null} [p.shore] a shoreDirection hit (any plan -> false)
+ */
+export function surfaceSafeRelease ({ headDryMs = 0, oxygen = 20, shore = null } = {}) {
+  if (shore) return false
+  const dry = Number(headDryMs)
+  if (!Number.isFinite(dry) || dry < SURFACE_SAFE_DRY_MS) return false
+  const o2 = oxygenInDomain(oxygen) ? Number(oxygen) : 20
+  return o2 >= OXYGEN_RESCUE_LEVEL
+}
+
+/**
+ * The unit XZ bearing toward a known land position (pure). Null when any
+ * coordinate is junk (the rescue keeps its old behavior) or the land is
+ * closer than 2 blocks (the shore scan owns the last meters).
+ * @param {object} [p]
+ * @param {number} [p.hx] bot x (junk -> null)
+ * @param {number} [p.hz] bot z (junk -> null)
+ * @param {number} [p.lx] land x (junk -> null)
+ * @param {number} [p.lz] land z (junk -> null)
+ * @returns {{dx:number,dz:number,dist:number}|null} unit bearing + distance
+ */
+export function transitBearing ({ hx = null, hz = null, lx = null, lz = null } = {}) {
+  // (the v0.75.1 lesson, third strike) a MISSING coordinate activates the
+  // default null and Number(null) is 0 - a FINITE phantom land point at the
+  // world origin. Explicit null/undefined check BEFORE the coercion; a legit
+  // 0 coordinate passes (0 == null is false).
+  if (hx == null || hz == null || lx == null || lz == null) return null
+  const bx = Number(hx)
+  const bz = Number(hz)
+  const tx = Number(lx)
+  const tz = Number(lz)
+  if (!Number.isFinite(bx) || !Number.isFinite(bz) || !Number.isFinite(tx) || !Number.isFinite(tz)) return null
+  const dx = tx - bx
+  const dz = tz - bz
+  const d = Math.hypot(dx, dz)
+  if (!Number.isFinite(d) || d < 2) return null
+  return { dx: dx / d, dz: dz / d, dist: d }
+}
+
 /** digShaft fluid scan set: what may NEVER open under a shaft we are about to
  * dig. Lava kills, water drowns (a shaft punched into an aquifer floods, the
  * bot sinks into a 1x1 well with water walls - no shore, no climb). */

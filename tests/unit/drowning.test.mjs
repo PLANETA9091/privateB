@@ -13,7 +13,9 @@ import {
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
-  recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger
+  recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
+  SURFACE_SAFE_DRY_MS, TRANSIT_RESCAN_TICKS, TRANSIT_MAP_RANGE,
+  surfaceSafeRelease, transitBearing
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -395,4 +397,67 @@ test('waterVerdict: in-domain critical bars keep the v0.16.0 behavior unchanged'
   assert.equal(waterVerdict({ feet: 'water', head: null, oxygen: 2 }), 'drowning', 'real critical bar over unknown head: act')
   assert.equal(waterVerdict({ feet: 'stone', head: null, oxygen: 0 }), 'drowning', 'real 0 over definite-dry is the counted glitch class - still a verdict (telemetry gate lives in the sentry)')
   assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: OXYGEN_CRITICAL_LEVEL }), 'drowning', 'the line itself fires for real bars')
+})
+
+// ---- v0.80.0: THE OPEN-WATER TRANSIT (run74: 79 starts, 56 timeouts, F7 x23 / F10 x18) ----
+
+test('surfaceSafeRelease: the run74 treadmill shape - healthy air, head dry, NO shore in scan', () => {
+  assert.equal(SURFACE_SAFE_DRY_MS, 1500, 'pinned: 1.5s of continuous dry air')
+  assert.equal(surfaceSafeRelease({ headDryMs: 1500, oxygen: 15, shore: null }), true,
+    'the F7/F10 state (oxygen 12-20 at every start, head at surface, lake wider than 12) = release')
+  assert.equal(surfaceSafeRelease({ headDryMs: 2000, oxygen: OXYGEN_RESCUE_LEVEL, shore: null }), true,
+    'exactly at the rescue line with air recovered = release')
+})
+
+test('surfaceSafeRelease: a drowning bot NEVER releases', () => {
+  assert.equal(surfaceSafeRelease({ headDryMs: 9999, oxygen: 4, shore: null }), false,
+    'below the rescue line: the rescue keeps the bot')
+  assert.equal(surfaceSafeRelease({ headDryMs: 9999, oxygen: 9, shore: null }), false,
+    'just under the line: keep swimming')
+  assert.equal(surfaceSafeRelease({ headDryMs: 9999, oxygen: 15, shore: { dx: 2, dz: 0, step: 0 } }), false,
+    'a shore plan exists: keep swimming to it')
+  assert.equal(surfaceSafeRelease({ headDryMs: 100, oxygen: 20, shore: null }), false,
+    'head not dry long enough: the bob window must pass first')
+})
+
+test('surfaceSafeRelease: junk-safe - the clock and the bar cannot lie the release open', () => {
+  assert.equal(surfaceSafeRelease({ headDryMs: NaN, oxygen: 20, shore: null }), false)
+  assert.equal(surfaceSafeRelease({ headDryMs: 'junk', oxygen: 20, shore: null }), false)
+  assert.equal(surfaceSafeRelease({ headDryMs: -1, oxygen: 20, shore: null }), false)
+  assert.equal(surfaceSafeRelease({ headDryMs: 9999, oxygen: OXYGEN_RESET_SENTINEL, shore: null }), true,
+    'the -1 reset sentinel reads FULL (the run60 lesson) - the clock carries the decision')
+  assert.equal(surfaceSafeRelease({ headDryMs: 9999, oxygen: NaN, shore: null }), true,
+    'a missing bar reads full: the headWetMs clock still pages a real re-submersion')
+  assert.equal(surfaceSafeRelease({}), false, 'no dry clock = no release')
+})
+
+test('transitBearing: one unit bearing toward known land, junk stays null', () => {
+  const t = transitBearing({ hx: 0, hz: 0, lx: 30, lz: 40 })
+  assert.ok(t && Math.abs(t.dx - 0.6) < 1e-9 && Math.abs(t.dz - 0.8) < 1e-9 && Math.abs(t.dist - 50) < 1e-9,
+    '3-4-5 lake: the unit bearing and the distance come out exact')
+  assert.equal(transitBearing({ hx: 10, hz: 10, lx: 10, lz: 11 }), null,
+    'closer than 2 blocks: the shore scan owns the last meters')
+  assert.equal(transitBearing({ hx: 10, hz: 10, lx: 10, lz: 12 })?.dist, 2,
+    'exactly 2 blocks: a real (tiny) transit step is still returned')
+  assert.equal(transitBearing({ hx: NaN, hz: 0, lx: 30, lz: 40 }), null, 'junk bot x')
+  assert.equal(transitBearing({ hx: 0, hz: 0, lx: undefined, lz: 40 }), null, 'junk land x')
+  assert.equal(transitBearing({}), null, 'empty params')
+})
+
+test('REGRESSION PIN: the run74 wiring shape - the release reopens the walk gate the budget died behind', () => {
+  // F11: bank trip budget 14s, six 25s rescue locks before it - the yard walk
+  // never got a turn. The release must fire for the exact state F7/F10 tread in:
+  // surface (head dry), healthy air, no shore, no map land. The SAME state with
+  // a shore hit keeps the proven shore-swim; the same state drowning keeps the rescue.
+  const treading = { headDryMs: 2000, oxygen: 14, shore: null }
+  assert.equal(surfaceSafeRelease(treading), true, 'the treadmill state releases')
+  assert.equal(surfaceSafeRelease({ ...treading, oxygen: 3 }), false, 'low air never releases')
+  assert.equal(surfaceSafeRelease({ ...treading, shore: { dx: -1, dz: 0, step: 1 } }), false, 'a beach keeps the swim')
+  // the transit bearing the map feeds: a log 40 blocks NE
+  const b = transitBearing({ hx: -120, hz: 400, lx: -92, lz: undefined })
+  assert.equal(b, null, 'junk in the land read -> null (the release policy decides, no guess)')
+  const b2 = transitBearing({ hx: -120, hz: 400, lx: -92, lz: 428 })
+  assert.ok(b2 && Math.abs(Math.hypot(b2.dx, b2.dz) - 1) < 1e-9, 'a real land hit gives a UNIT bearing')
+  assert.equal(TRANSIT_RESCAN_TICKS, 8, 'pinned: the transit re-scans every 8 ticks')
+  assert.equal(TRANSIT_MAP_RANGE, 128, 'pinned: the map lookup range')
 })

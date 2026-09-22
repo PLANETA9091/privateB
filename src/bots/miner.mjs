@@ -31,7 +31,8 @@ import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK,
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
-  rescueDone, fleePlan, verifyShoreCell, HazardLedger
+  rescueDone, fleePlan, verifyShoreCell, HazardLedger,
+  surfaceSafeRelease, transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -794,6 +795,29 @@ export function createMiner ({
     stats.rescues++
     noteGlobal('water:rescue') // (v0.62.0) run53's OOM and run60's 150s freeze both began mid-rescue - mark the site
     let standingWet = false // exited via the standing-in-shallow-water policy
+    // (v0.80.0) THE OPEN-WATER TRANSIT state: the continuous-dry clock (reset
+    // on every submerged read) and the surface-safe release flag.
+    let headDrySince = null
+    let releasedSafe = false
+    // The fleet map knows land the raw 12-block shore scan cannot: a tree log
+    // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
+    // known land cell, or null (no map / no entries / junk) - the caller then
+    // falls through to the release policy.
+    const landBearingFromMap = () => {
+      if (!map || !bot.entity?.position) return null
+      const here = bot.entity.position
+      for (const name of LAND_PROXIES) {
+        let p = null
+        try { p = map.nearest(name, here, { maxDistance: TRANSIT_MAP_RANGE }) } catch { /* junk map read */ }
+        if (!p) continue
+        const b = transitBearing({ hx: here.x, hz: here.z, lx: p.x, lz: p.z })
+        if (b) {
+          log(`${tag} water: transit toward known land (${name}) at [${p.x},${p.z}] d=${b.dist.toFixed(0)}`)
+          return b
+        }
+      }
+      return null
+    }
     // (v0.62.0) the HAZARD CELL is tracked from the start and refreshed only
     // while the bot is actually wet: the finally used to read
     // bot.entity.position, and a bot that DIED mid-rescue respawned before the
@@ -831,6 +855,7 @@ export function createMiner ({
         if (!isWaterName(read.head)) {
           // head in air: surface reached - swim for the nearest shore (the raw
           // tunnel/shelter lesson: no pathfinder while conditions are hostile)
+          if (headDrySince == null) headDrySince = Date.now()
           const dir = shoreDirection(sample, bot.entity.position.floored())
           if (dir) {
             bot.setControlState('jump', true) // stay at the surface while swimming
@@ -839,24 +864,33 @@ export function createMiner ({
             await settle(8)
             bot.setControlState('forward', false)
           } else {
-            // (CI 35511474490) no shore in sight - two honest outcomes. The old
-            // loop just treaded here for the FULL RESCUE_MAX_MS; in a flooded
-            // 1x1 shaft (feet wet, head dry, walls everywhere) that 25 s held
-            // the _waterRescue walk-gate and refused every fleet goal while
-            // the bot was SAFE. Release the swim controls, let physics settle,
-            // and a STANDING bot goes back to work - shallow water is not
-            // drowning, raw swimming can never leave a 1x1 hole, and a renewed
-            // submersion re-fires this rescue after the cooldown.
-            bot.setControlState('jump', false)
-            await settle(2) // onGround needs physics ticks to settle
-            if (!bot.entity) break
-            if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
-              standingWet = true
+            // (CI 35511474490) no shore in the 12-block scan. (v0.80.0) THREE
+            // honest outcomes now - run74 measured the old two burning 56 x 25s
+            // in open lakes (F7 x23, F10 x18): the map may know land (TRANSIT),
+            // a surface-safe bot may leave (RELEASE), or the legacy tread runs.
+            const land = landBearingFromMap()
+            if (land) {
+              bot.setControlState('jump', true) // stay at the surface while swimming
+              try { await withTimeout(bot.lookAt(bot.entity.position.offset(land.dx, 0, land.dz), false), 2000, 'transit look') } catch { /* keep the bearing */ }
+              bot.setControlState('forward', true)
+              await settle(TRANSIT_RESCAN_TICKS) // each settle swims ~1-2 blocks; the shore scan re-runs next pass
+              bot.setControlState('forward', false)
+            } else if (surfaceSafeRelease({ headDryMs: Date.now() - headDrySince, oxygen: read.oxygen, shore: null })) {
+              releasedSafe = true
               break
+            } else {
+              bot.setControlState('jump', false)
+              await settle(2) // onGround needs physics ticks to settle
+              if (!bot.entity) break
+              if (rescueDone({ headWet: false, shore: null, onGround: !!bot.entity.onGround })) {
+                standingWet = true
+                break
+              }
+              await settle(8) // floating in open water: tread and stay alive
             }
-            await settle(8) // floating in open water: tread and stay alive
           }
         } else {
+          headDrySince = null // submerged again: the dry clock restarts
           bot.setControlState('jump', true) // submerged: ascending is everything
           await settle(5)
         }
@@ -867,7 +901,9 @@ export function createMiner ({
           ? 'aborted (dead - the hazard stays at the death spot)'
           : standingWet
             ? 'complete (standing wet - shallow water is not drowning)'
-            : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
+            : releasedSafe
+              ? 'released (surface-safe, open water - no land known; the walk gate reopens)'
+              : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head)) ? 'complete' : 'timeout (still wet)')
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
     } catch (err) {
       // (v0.59.0) an honest exit: a thrown rescue used to vanish silently (no
