@@ -19,7 +19,7 @@ import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
-  stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan,
+  stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT,
@@ -2160,6 +2160,7 @@ export function createMiner ({
     let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
+    let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
     // measured the trap (17:05 run): a shaft that turned into a water column
@@ -2297,10 +2298,39 @@ export function createMiner ({
         // blockedWet - the wet escape fires for the hopeless stack instead of
         // the rotate-fail loop.
         for (const { cell: cellPos, block: cellB } of plan.digs) {
-          try {
-            if (await bot.fastDig(cellB, { maxTicks: digWindow })) { dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1 }
-            else { blocked = true; blockedWet = wetContext; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
-          } catch { blocked = true; blockedWet = wetContext; digFailCell = { cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name }; break }
+          let landed = false
+          try { landed = await bot.fastDig(cellB, { maxTicks: digWindow }) } catch { landed = false }
+          if (!landed) {
+            // (v0.76.0) THE STALE-READ RECHECK. A fastDig false means either
+            // 'the server never broke the block' (a genuine refusal) or 'the
+            // server DID break it and the client world never applied the
+            // delta' (a stale read - the run71/72 phantom-stone class: one
+            // ceiling cell refusing the whole run while the bot held a pick).
+            // Settle, re-read, and split the two: a GONE cell was dug - count
+            // it and let the stair proceed; a still-solid cell refuses exactly
+            // as before, now with the forensics suffix (held/ground/post) that
+            // names the class in the fleet log.
+            await settleTicks(12, 'climb dig stale recheck')
+            let post = null
+            try { post = readCell(cellPos) } catch { post = null }
+            if (isDigLanded(post)) {
+              dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1
+              if (staleRecovered++ < 3) log(`${tag} climb dig: stale read recovered at [${cellPos.x},${cellPos.y},${cellPos.z}] (${cellB.name}) - the server removed it, the client world lagged`)
+              continue
+            }
+            digFailCell = {
+              cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name,
+              detail: digRefusalDetail({
+                heldName: (() => { try { return bot.heldItem?.name ?? null } catch { return null } })(),
+                onGround: (() => { try { return bot.entity?.onGround ?? null } catch { return null } })(),
+                postName: post && post.name ? post.name : null,
+                postLanded: false
+              })
+            }
+            blocked = true; blockedWet = wetContext
+            break
+          }
+          dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1
         }
         if (blocked) break
         // let the server's gravity updates land before the next scan: a sunk
@@ -2376,7 +2406,7 @@ export function createMiner ({
           // timeout vs a freshly-placed obstruction.
           const refusal = blockedRefusal && blockedRefusal.blockedCell
             ? ` at [${blockedRefusal.blockedCell.join(',')}] ${blockedRefusal.blockedName} (${blockedRefusal.reason})`
-            : (digFailCell ? ` dig failed at [${digFailCell.cell.join(',')}] ${digFailCell.name}` : '')
+            : (digFailCell ? ` dig failed at [${digFailCell.cell.join(',')}] ${digFailCell.name}${digFailCell.detail ? ` (${digFailCell.detail})` : ''}` : '')
           log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})${refusal}`)
         }
         fails++

@@ -599,6 +599,65 @@ export function climbDigWindow ({ eyeWet = false, feetWet = false, dryTicks = CL
   return eyeWet === true || feetWet === true ? wet : dry
 }
 
+// ---------------------------------------------------------------------------
+// (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
+// and the climb has treated them identically since v0.11.3.
+//
+// MEASURED (fleet 35721411276, master 25dff26, the v0.75.0 overhead-face
+// fleet): the face cure moved the FLEET (banked=187 vs 74, climbs=11 vs 4,
+// mined 2437 @ 4.06 b/s - F7 walked out at +22 levels on dug=68) but the
+// overhead class SURVIVED: 52 of 55 dig failures still name the ceiling cell
+// at feet+2 (3 at feet+1 = the same cell after a gravity sink), F18 held a
+// STONE PICKAXE and still stalled at y=45 on dug=11 - and run71's F3 cell
+// [-111,44,421] had refused the whole 600s across every bearing and retry.
+// Meanwhile F7's climb dug OVERHEAD CELLS SUCCESSFULLY all the way up. Same
+// packets, same server, opposite outcomes - so the refusal is NOT a protocol
+// constant; it is per-cell state. The two candidate mechanisms separate by
+// ONE observation nobody logs today: what does the client world say about the
+// cell RIGHT AFTER the failed window?
+//   (a) STALE CLIENT READ: the server broke the block but the client world
+//       never applied the update (a lagging/lost section delta under 19-bot
+//       CPU contention) - blockAt keeps returning the old stone forever, the
+//       plan re-reads it as solid, the dig 'fails' again, the stair stalls
+//       for the rest of the run (the F3/F18 signature: one cell, all
+//       bearings, every retry).
+//   (b) SERVER REFUSAL: the server never accepted the dig (reach/LOS/face
+//       validation on the overhead cell) - the block is genuinely still
+//       stone, rotation cannot help, the stair is doomed from that cell.
+// THE CURE has two halves. (1) THE STALE-READ RECHECK: after a failed window,
+// settle 12 ticks and re-read the cell - if the block is GONE the dig DID
+// land; count it (mined++ with drops the server already spawned) and let the
+// stair proceed instead of rotating into the same phantom. A genuine refusal
+// still re-reads solid and refuses exactly as before - zero risk to class
+// (b). (2) THE FORENSICS LINE: the surviving refusal logs held item, ground
+// state and the post-settle read, so the NEXT session can split (a)-residual
+// from (b) with no new theory. Pure helpers, junk-safe: mocks and headless
+// callers never throw.
+
+/** Pure: did the dig LAND, i.e. is the cell now empty? null (unloaded read)
+ * and type-0 (air) both count as landed; anything else is still standing.
+ * Junk-tolerant: never throws, junk reads refuse (a false negative only
+ * costs the recheck, never a phantom success). */
+export function isDigLanded (block) {
+  if (block == null) return true
+  try { return block.type === 0 } catch { return false }
+}
+
+/** Pure: the forensics suffix for a SURVIVING dig refusal - what the bot held,
+ * whether it stood on ground, and what the post-settle re-read says. Every
+ * field is optional; junk reads print 'n/a'/'?' placeholders instead of
+ * throwing. The line exists to split stale-client (a) from server-refusal
+ * (b) in the next fleet's log, without a new theory. */
+export function digRefusalDetail ({ heldName = null, onGround = null, postName = null, postLanded = null } = {}) {
+  const held = typeof heldName === 'string' && heldName ? heldName : 'n/a'
+  const ground = onGround === true ? 'grounded' : (onGround === false ? 'airborne' : 'ground?')
+  let post
+  if (postLanded === true) post = `post=${typeof postName === 'string' && postName ? postName : 'air'} LANDED (stale client read)`
+  else if (postLanded === false) post = `post=${typeof postName === 'string' && postName ? postName : '?'} STILL THERE (server never broke it)`
+  else post = 'post=? (re-read failed)'
+  return `held=${held}, ${ground}, ${post}`
+}
+
 /**
  * Plan ONE digging pass of a climb step.
  *
