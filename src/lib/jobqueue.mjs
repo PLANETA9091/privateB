@@ -219,7 +219,7 @@ export const REFUSAL_PACE_MS = 25
 // spiral has no fuel. One process = one fleet, so a module-level array IS the
 // shared ledger (the same shape as the pathThrottle singleton above).
 const doomedGoals = []
-const doomedStats = { records: 0, refusals: 0 }
+const doomedStats = { records: 0, refusals: 0, rearms: 0 }
 
 function goalCellOf (goal) {
   if (!goal || typeof goal !== 'object') return null
@@ -247,7 +247,7 @@ export function nearDoomedGoal (cell, now, opts = {}) {
 
 /** Fleet summary counters for the FLEET RESULT block. */
 export function doomedGoalStats () {
-  return { records: doomedStats.records, refusals: doomedStats.refusals, live: doomedGoals.length }
+  return { records: doomedStats.records, refusals: doomedStats.refusals, rearms: doomedStats.rearms, live: doomedGoals.length }
 }
 
 /** (v0.72.0) The consult match radius (XZ blocks). TIGHT on purpose: the
@@ -412,7 +412,7 @@ function clearStaleStop (bot) {
   } catch { /* diagnostics must never block the walk they precede */ }
 }
 
-export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0 } = {}) {
+export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false } = {}) {
   // (v0.79.0) THE REFUSAL PACE - every funnel refusal costs the caller one
   // real event-loop yield before the throw. MEASURED (run73's CI integration
   // sibling, the 13:32:00 window): once the doomed-goal ledger + the governor
@@ -441,8 +441,24 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   if (gcell) {
     const doomed = nearDoomedGoal(gcell, Date.now(), { radius: DOOMED_GOAL_RADIUS })
     if (doomed.hit) {
-      doomedStats.refusals++
-      return refuse(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
+      // (v0.87.0) THE YARD RE-ARM: the doomed verdict is FLEET-WIDE on the GOAL
+      // cell, but the doomed geometry is the FAILED BOT'S START. Run78 measured
+      // the poisoning: one bot's failed yard walk from the quarry dooms the
+      // yard goal for the WHOLE fleet ('doomed goal (ledgered 55s ago at
+      // [-143,73,410]) - walk to yard refused' on a bot that may stand at the
+      // surface 20 blocks from the chests), every fresh failure re-records the
+      // cell, and the economy hub stays blacklisted while banked halves.
+      // doomedRearm is the opt-out for SHARED destinations only: the caller
+      // (the yard chain) re-issues ONCE per retry with the ledger intact for
+      // every other goal - the walk tries honestly from THIS bot's start, a
+      // bounded A* think replaces the free refusal, and the re-arm is counted
+      // so the run log shows how often the poisoning happened.
+      if (doomedRearm) {
+        doomedStats.rearms++
+      } else {
+        doomedStats.refusals++
+        return refuse(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
+      }
     }
   }
   // (v0.74.0) THE STALL GOVERNOR CONSULT - the churn breaker, after the
@@ -600,6 +616,14 @@ export function walkRetryPlan ({ error, attempt = 1, maxAttempts = 3 } = {}) {
   if (/water rescue/i.test(msg)) return { action: 'wait-rescue', waitMs: RESCUE_MAX_MS + 5000 }
   if (/Path was stopped/i.test(msg)) return { action: 'immediate' }
   if (/timeout after/i.test(msg)) return attempt === 1 ? { action: 'timeout-retry' } : { action: 'give-up' }
+  // (v0.87.0) THE DOOMED-RETRY: a doomed verdict is one bot's start geometry
+  // recorded fleet-wide on the goal cell (run78: the yard blacklisted by the
+  // quarry bots' failures while surface bots stood 20 blocks from the chests).
+  // The caller re-issues ONCE with doomedRearm: true - the ledger stays intact
+  // for every other goal, the walk tries from THIS bot's start. Unknown to the
+  // deposit chain's switch it falls through to its give-up (chest verdicts are
+  // per-chest geometry and stay honest).
+  if (/doomed goal/i.test(msg)) return { action: 'doomed-retry' }
   return { action: 'give-up' }
 }
 

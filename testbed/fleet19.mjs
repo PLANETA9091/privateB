@@ -181,9 +181,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       const spy = reason => console.log(`${miner.username} bank walk path event: ${reason}`)
       const spyStop = () => spy('path_stop (explicit)')
       let walkStart = Date.now()
+      let rearm = false // (v0.87.0) the doomed-goal re-arm: attempt 2/3 re-issue the yard goal with the ledger opt-in
       for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
         try {
-          if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3`)
+          if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3${rearm ? ' (doomed re-arm - the ledger stays for every other goal)' : ''}`)
           // (v0.27.0) the walk fits INSIDE the chain budget: a retry may not
           // restart 120s the chain no longer has (the 35544781892 hang burned
           // 3x120s walks per bot while the margin had 420s for ALL 19 bots).
@@ -200,7 +201,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           miner.bot.on('path_reset', spy)
           miner.bot.on('path_stop', spyStop)
           walkStart = Date.now()
-          await gotoSafe(miner.bot, walkGoal, { timeoutMs: walkMs, label: 'walk to yard', priority: PATH_PRIO_BANK })
+          await gotoSafe(miner.bot, walkGoal, { timeoutMs: walkMs, label: 'walk to yard', priority: PATH_PRIO_BANK, doomedRearm: rearm })
           arrived = true
           console.log(`${miner.username} bank: yard walk arrived in ${((Date.now() - walkStart) / 1000).toFixed(0)}s (${attempt} attempt${attempt > 1 ? 's' : ''})`)
         } catch (e) {
@@ -212,6 +213,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             continue
           }
           if (plan.action === 'immediate' || plan.action === 'timeout-retry') continue
+          // (v0.87.0) THE DOOMED-RETRY: the verdict is one bot's start geometry
+          // recorded fleet-wide - THIS bot's start may have a perfectly fine
+          // path. Re-issue once with the re-arm (the ledger stays for every
+          // other goal); a second doomed verdict means the geometry is real
+          // from here too and the ladder gives up honestly.
+          if (plan.action === 'doomed-retry') {
+            rearm = true
+            continue
+          }
           console.log(`${miner.username} bank: yard walk failed (${e.message}) - smelting locally if a furnace is near`)
           break
         } finally {
