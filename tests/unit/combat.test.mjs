@@ -8,7 +8,9 @@ import assert from 'node:assert/strict'
 import {
   HOSTILE_NAMES, RANGED_HOSTILES, DETECT_RANGE, ENGAGE_RANGE, RANGED_ENGAGE_RANGE,
   CREEPER_FLEE_RANGE, FLEE_HP, SWARM_FLEE_HP, SWARM_SIZE,
-  isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict
+  FLEE_STALEMATE_EPISODES, FLEE_STALEMATE_MARGIN, KITE_ARRIVE_DIST, KITE_HOP_BLOCKS,
+  isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict,
+  fleeStalemate, fleeResponse, kiteHopTarget
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
 
@@ -165,4 +167,74 @@ test('REGRESSION PIN: a pickaxe-only bot is naked for shelterDue', () => {
   // never seals (the shelter is for the naked)
   const swordPocket = [{ name: 'stone_sword', count: 1 }, { name: 'dirt', count: 12 }]
   assert.equal(shelterDue({ night: true, armed: !!pickMeleeWeapon(swordPocket), threatDist: 5 }), false)
+})
+
+// ---- v0.77.0: THE FLEE STALEMATE BREAKER (run73 F6/F18 zombified_piglin chase) ----
+
+test('fleeStalemate: the run73 chase shape - same-speed chaser pins every flee start at ~4 blocks', () => {
+  assert.equal(FLEE_STALEMATE_EPISODES, 3, 'pinned: three episodes prove the hops buy nothing')
+  assert.equal(FLEE_STALEMATE_MARGIN, 1.5, 'pinned: the spread that still reads as stuck')
+  assert.equal(fleeStalemate([4.0, 4.0, 4.0]), true, 'dist 4.0 repeated verbatim = the F18 signature')
+  assert.equal(fleeStalemate([6.8, 5.9, 5.5]), true, 'a 1.3 spread over 3 episodes is still a chase going nowhere')
+  assert.equal(fleeStalemate([4.0, 5.4, 4.0]), true, 'exactly at the margin (spread 1.4 <= 1.5) is stuck')
+})
+
+test('fleeStalemate: a chase that GAINS distance never latches, and the window is the LAST N samples', () => {
+  assert.equal(fleeStalemate([4.0, 7.0, 10.0]), false, 'a real escape grows the start distances')
+  assert.equal(fleeStalemate([4.0, 5.6, 4.0]), false, 'spread 1.6 > margin: not proven stuck')
+  assert.equal(fleeStalemate([10.0, 4.0, 4.2, 4.4]), true,
+    'the early genuine escape is OUTSIDE the window - the recent stuck run is what counts')
+  assert.equal(fleeStalemate([4.0, 4.0]), false, 'fewer than N episodes = no verdict')
+})
+
+test('fleeStalemate: junk-safe - the breaker never fires on a guess', () => {
+  assert.equal(fleeStalemate(null), false)
+  assert.equal(fleeStalemate(undefined), false)
+  assert.equal(fleeStalemate([]), false)
+  assert.equal(fleeStalemate('junk'), false)
+  assert.equal(fleeStalemate([4, 'x', 4]), false, 'a junk sample inside the window = not proven')
+  assert.equal(fleeStalemate([4, NaN, 4]), false)
+  assert.equal(fleeStalemate([4, -1, 4]), false, 'a negative distance is junk, not a reading')
+  assert.equal(fleeStalemate([null, null, null]), false)
+})
+
+test('fleeResponse: the single switch the mechanics execute', () => {
+  assert.equal(fleeResponse({ startDists: [4.0, 4.0, 4.0] }), 'kite', 'the stuck chase kites to the yard')
+  assert.equal(fleeResponse({ startDists: [4.0, 9.0, 14.0] }), 'radial', 'a gaining chase keeps the historical radial flee')
+  assert.equal(fleeResponse({ startDists: [4.0] }), 'radial', 'too few episodes = historical behaviour')
+  assert.equal(fleeResponse({}), 'radial', 'no ledger = historical behaviour')
+  assert.equal(fleeResponse({ startDists: 'junk' }), 'radial')
+})
+
+test('kiteHopTarget: one hop along the bearing to the yard, null near the yard or on junk', () => {
+  assert.equal(KITE_ARRIVE_DIST, 8, 'pinned: the pack owns the fight this close to the yard')
+  assert.equal(KITE_HOP_BLOCKS, 12, 'pinned: the same hop length the radial flee uses')
+  const t = kiteHopTarget({ bx: 100, bz: 100, yx: 100, yz: 40 })
+  assert.ok(t && Math.abs(t.x - 100) < 1e-9 && Math.abs(t.z - 88) < 1e-9,
+    'due -z yard: the hop is 12 blocks toward it')
+  const diag = kiteHopTarget({ bx: 0, bz: 0, yx: 30, yz: 40 })
+  assert.ok(diag && Math.abs(Math.hypot(diag.x, diag.z) - 12) < 1e-9,
+    'the hop length is exactly 12 along the bearing (50-28-96 yard)')
+  assert.equal(kiteHopTarget({ bx: 100, bz: 100, yx: 104, yz: 100 }), null,
+    'already within arrive distance of the yard: no kite, the pack owns it')
+  assert.equal(kiteHopTarget({ bx: 100, bz: 100, yx: 108, yz: 100 }), null,
+    'exactly at arrive distance: no kite')
+  assert.equal(kiteHopTarget({ bx: NaN, bz: 100, yx: 0, yz: 0 }), null, 'junk bot position')
+  assert.equal(kiteHopTarget({ bx: 0, bz: 0, yx: undefined, yz: 0 }), null, 'junk yard anchor -> radial fallback')
+  assert.equal(kiteHopTarget({}), null, 'empty params: no anchor, no kite')
+  assert.equal(kiteHopTarget({ bx: 0, bz: 0, yx: 0, yz: -100, hop: 5 }).z, -5, 'a real hop length is honoured (the default stays the pinned 12)')
+})
+
+test('REGRESSION PIN: the run73 wiring shape - unarmed verdict feeds the ledger, the kite is a different BEARING only', () => {
+  // the exact defendSelf sequence vs run73 F18: pocket [empty] -> armed=false
+  // -> flee verdict at dist 4.0; the SAME stuck reading must flip the response
+  // to 'kite' after 3 episodes while every policy input stays identical
+  const pocket = []
+  const armed = !!pickWeapon(pocket)
+  const v = threatVerdict({ name: 'zombified_piglin', dist: 4.0, hp: 20, attackers: 1, dark: false, armed })
+  assert.equal(v, 'flee', 'unarmed + hostile at 4.0 = flee (the historical verdict is unchanged)')
+  const ledger = [4.0, 4.0]
+  assert.equal(fleeResponse({ startDists: ledger }), 'radial', 'two episodes: historical flee')
+  ledger.push(4.0)
+  assert.equal(fleeResponse({ startDists: ledger }), 'kite', 'the third stuck episode flips to the kite')
 })

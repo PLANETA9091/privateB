@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS } from '../lib/shelter.mjs'
 import {
@@ -243,7 +243,7 @@ export function createMiner ({
   // water column the drowned owns. Wet feet + an aquatic threat -> the hop
   // target is the nearest SHORE cell (on land the drowned walks at zombie
   // speed); a land threat keeps the away-vector (the shore may be behind it).
-  async function runAway (threat, reason) {
+  async function runAway (threat, reason, { kite = false } = {}) {
     const deadline = Date.now() + 12000
     for (let hop = 0; hop < 3 && bot.entity && Date.now() < deadline; hop++) {
       // (v0.59.0) YIELD TO THE RESCUE, every hop: the check at defendSelf entry
@@ -277,6 +277,19 @@ export function createMiner ({
           }
         }
       } catch { /* unreadable world -> the away-vector below */ }
+      if (!goal && kite) {
+        // (v0.77.0) THE KITE HOP: same hop machinery, different bearing - toward
+        // the yard (the spawn-origin fleet hub) instead of radially away. A
+        // same-speed chaser makes the radial criterion (dist > 14) unreachable;
+        // kiting keeps the distance but moves the fight to the armed pack.
+        // junk anchor / already-at-the-yard -> null -> the radial hop below.
+        const yard = yardAnchor()
+        const hopT = yard ? kiteHopTarget({ bx: bot.entity.position.x, bz: bot.entity.position.z, yx: yard.x, yz: yard.z }) : null
+        if (hopT) {
+          goal = new goals.GoalXZ(hopT.x, hopT.z)
+          log(`${tag} combat: flee kite hop toward the yard (${hopT.x.toFixed(0)},${hopT.z.toFixed(0)}) vs ${threat.name} (${reason})`)
+        }
+      }
       if (!goal) {
         const dx = bot.entity.position.x - threat.entity.position.x
         const dz = bot.entity.position.z - threat.entity.position.z
@@ -625,11 +638,30 @@ export function createMiner ({
   }
 
   let defending = false
+  // (v0.77.0) THE FLEE STALEMATE LEDGER: the threat distance at each flee
+  // START (most recent last, capped). fleeResponse reads it: the last 3
+  // samples within 1.5 blocks of each other prove the hops buy nothing ->
+  // the kite. Cleared on a genuine escape (threat gone, or dist > 20 after
+  // an episode) - the breaker never latches on a chase that was won.
+  const fleeStartDists = []
+  // The yard anchor: the world spawn point (setup-yard.mjs builds the fleet
+  // hub at the spawn origin). Junk-safe: a missing read returns null and the
+  // kite dissolves into the plain radial flee.
+  function yardAnchor () {
+    try {
+      const p = bot.game?.spawnPoint ?? bot.spawnPoint ?? null
+      if (p && Number.isFinite(p.x) && Number.isFinite(p.z)) return { x: p.x, z: p.z }
+    } catch { /* junk spawn read -> null */ }
+    return null
+  }
   async function defendSelf (reason = 'guard') {
     if (defending) return { action: 'busy' }
     if (swimming) return { action: 'busy' } // drowning outranks fighting: the rescue owns the controls
     const threat = nearestHostile()
-    if (!threat) return { action: 'none' }
+    if (!threat) {
+      fleeStartDists.length = 0 // the threat is gone: a fresh ledger for the next chase
+      return { action: 'none' }
+    }
     const armed = !!pickWeapon(inventoryItems(bot))
     const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
@@ -639,12 +671,21 @@ export function createMiner ({
       if (verdict === 'flee') {
         // UNARMED AT NIGHT: the chase is lost and the following fight is lost
         // too - seal in instead when the terrain allows (the 7-death streak)
+        fleeStartDists.push(threat.dist)
+        if (fleeStartDists.length > 6) fleeStartDists.shift()
         try {
           if (await tryShelter(reason)) return { action: 'shelter', threat: threat.name }
         } catch { /* shelter is best-effort - fall back to the flee */ }
-        log(`${tag} combat: fleeing ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
-        await runAway(threat, reason)
+        // (v0.77.0) THE STALEMATE SWITCH: stuck distances -> kite to the yard
+        // (run73: F6 x65 + F18 x54 flee lines at dist ~4.0 - the radial hops
+        // bought ZERO blocks for the whole run)
+        const response = fleeResponse({ startDists: fleeStartDists })
+        log(`${tag} combat: fleeing ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason}${response === 'kite' ? ', kite' : ''})`)
+        await runAway(threat, reason, { kite: response === 'kite' })
         await recover()
+        // a genuine escape clears the ledger; a stuck chase keeps it armed
+        const after = nearestHostile()
+        if (!after || after.dist > 20) fleeStartDists.length = 0
         return { action: 'flee', threat: threat.name }
       }
       // (v0.68.0) THE PRE-FIGHT SHELTER: the FIGHT verdict never consulted

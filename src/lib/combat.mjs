@@ -103,6 +103,110 @@ export function pickMeleeWeapon (items) {
   return pickByTypeRanks(items, MELEE_TYPE_RANK)
 }
 
+// ---- v0.77.0: THE FLEE STALEMATE BREAKER ----
+// Run73 (dispatch 35725737486, the v0.76.0 fleet, NORMAL END 19/19, artifact
+// fleet19-log 10694557028) measured the funnel NO governor saw: F6 x65 + F18
+// x54 'combat: fleeing zombified_piglin' lines with the distance STUCK at
+// 4.0-6.8 across the whole 600s. runAway's only success criterion is
+// dist > 14 after 3 hops; a chaser at the bot's own walk speed makes that
+// unreachable (every hop buys 0 blocks - the log shows dist 4.0 repeated
+// verbatim), so the sentry re-fired the same shelter-scan + 3-hop flee every
+// ~4s: F18 mined NOTHING (pocket [empty], 0 tool re-bootstraps), F6 starved
+// the wood chain behind the chase (logs=0, 'no planks recipe' x33, 'spare
+// craft failed' x33), and 2 of 19 bots paid their whole run to a chase that
+// physics forbids escaping. The dig-earn line even printed ('the dig supplies
+// the seal') but the ring's stock gate honestly read 0 blocks - digging 8 dirt
+// by hand (~6s) loses the contact race from dist 4.0, and the pit variant is
+// removed on the v0.48.0 seal-face measurement. The physics-honest response
+// is the KITE: run TOWARD the yard (the spawn-origin fleet hub) instead of
+// radially away. A same-speed chase keeps the distance but MOVES THE FIGHT
+// to where the armed pack (swords=20 at run71, F12/F15 measured fights) kills
+// the chaser; a de-aggro on the way (LOS break at range) is a free win.
+// Sprint is NOT the lever: there is no food chain yet, hunger-gated sprint
+// starves a bot mid-chase.
+//
+// Policy pinned here (the mechanics live in miner.mjs defendSelf/runAway):
+// - every flee episode records the threat distance at flee START; the last
+//   FLEE_STALEMATE_EPISODES samples within FLEE_STALEMATE_MARGIN of each
+//   other prove the hops buy nothing -> 'kite' instead of 'radial';
+// - a genuine escape (threat gone, or dist > 20 after an episode) clears the
+//   ledger - the breaker must never latch on a chase that was won;
+// - the kite is the SAME hop machinery with a different bearing (toward the
+//   yard anchor), no new control owner, no A*-heavy goals - and near the yard
+//   (within KITE_ARRIVE_DIST) it dissolves into the plain radial flee: the
+//   pack owns the fight there, the bot just stops leading the mob in circles.
+
+/** Flee episodes (start-distance samples) that prove a stalemate. */
+export const FLEE_STALEMATE_EPISODES = 3
+/** Max spread (blocks) across the window that still reads as stuck. */
+export const FLEE_STALEMATE_MARGIN = 1.5
+/** The kite dissolves this close to the yard anchor (the pack's fight). */
+export const KITE_ARRIVE_DIST = 8
+/** Default hop length for the kite bearing (runAway's radial hop is 12). */
+export const KITE_HOP_BLOCKS = 12
+
+/**
+ * Is the flee funnel in stalemate? True when the LAST N start-distance
+ * samples sit within MARGIN of each other - every episode began where the
+ * previous one ended, i.e. the hops bought nothing. Any junk sample inside
+ * the window reads NOT proven (the breaker must never fire on a guess).
+ * @param {Array<number>|null|undefined} [startDists] flee-start threat
+ *   distances, oldest first, most recent last
+ */
+export function fleeStalemate (startDists) {
+  if (!Array.isArray(startDists) || startDists.length < FLEE_STALEMATE_EPISODES) return false
+  const window = startDists.slice(-FLEE_STALEMATE_EPISODES)
+  let min = Infinity
+  let max = -Infinity
+  for (const raw of window) {
+    // (the v0.75.1 lesson, re-earned) Number(null) is 0, a FINITE number - a
+    // missing reading is JUNK, not a measurement of zero. Explicit null check
+    // BEFORE the coercion or three lost distance reads "prove" a stalemate.
+    if (raw == null) return false
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0) return false
+    if (n < min) min = n
+    if (n > max) max = n
+  }
+  return max - min <= FLEE_STALEMATE_MARGIN
+}
+
+/**
+ * Radial flee or kite to the yard? The single switch the mechanics execute.
+ * @param {object} [p]
+ * @param {Array<number>|null|undefined} [p.startDists] flee-start distances
+ */
+export function fleeResponse ({ startDists = null } = {}) {
+  return fleeStalemate(startDists) ? 'kite' : 'radial'
+}
+
+/**
+ * One hop target toward the yard anchor, or null when the kite must NOT run:
+ * a junk anchor (no spawn point read) or a bot already at the yard falls back
+ * to the radial flee (near the pack the fight is theirs - no leading a mob in
+ * circles on the yard platform).
+ * @param {object} [p]
+ * @param {number} [p.bx] bot x (junk -> null)
+ * @param {number} [p.bz] bot z (junk -> null)
+ * @param {number} [p.yx] yard anchor x (junk -> null)
+ * @param {number} [p.yz] yard anchor z (junk -> null)
+ * @param {number} [p.hop] hop length in blocks (junk -> KITE_HOP_BLOCKS)
+ * @param {number} [p.arrive] the kite gives up this close to the yard
+ */
+export function kiteHopTarget ({ bx = 0, bz = 0, yx = 0, yz = 0, hop = KITE_HOP_BLOCKS, arrive = KITE_ARRIVE_DIST } = {}) {
+  const ax = Number(bx)
+  const az = Number(bz)
+  const gx = Number(yx)
+  const gz = Number(yz)
+  if (!Number.isFinite(ax) || !Number.isFinite(az) || !Number.isFinite(gx) || !Number.isFinite(gz)) return null
+  const dx = gx - ax
+  const dz = gz - az
+  const d = Math.hypot(dx, dz)
+  if (!Number.isFinite(d) || d <= (Number.isFinite(arrive) ? arrive : KITE_ARRIVE_DIST)) return null
+  const h = Number.isFinite(hop) && hop > 0 ? hop : KITE_HOP_BLOCKS
+  return { x: ax + (dx / d) * h, z: az + (dz / d) * h }
+}
+
 /**
  * Fight, flee, or ignore? The single decision the mechanics layer executes.
  * @param {object} p
