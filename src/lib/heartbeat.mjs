@@ -127,6 +127,24 @@ try { sgTimer.unref && sgTimer.unref() } catch { /* older runtimes */ }
 //   byte 0..3 seq, byte 4..7 capacity, entries at 8+i*16 (Int32 labelIdx,
 //   Float64 ts), label area at 8+cap*16 (Int32 count, then 24B ASCII slots).
 var bbSab = workerData && workerData.bb && workerData.bb.sab
+// (v0.77.0) THE FREEZE OSCILLOSCOPE - the event-loop phase counters written by
+// the main thread (src/lib/looppulse.mjs), read HERE on the worker thread at
+// every beat; the freeze dump prints the per-window deltas so the next freeze
+// NAMES its starving phase (timers ~0 + imm huge = poll/check saturation;
+// both ~0 = a sync block). Junk sab stays harmless.
+var pulseSab = workerData && workerData.pulse && workerData.pulse.sab
+var pulsePrev = null // { timers, immediates } at the previous beat
+function pulseWindow () {
+  if (!pulseSab) return null
+  try {
+    var v = new Int32Array(pulseSab)
+    if (v.length < 3) return null
+    var cur = { timers: v[1], immediates: v[2] }
+    var prev = pulsePrev || { timers: 0, immediates: 0 }
+    pulsePrev = cur
+    return { timers: Math.max(0, cur.timers - prev.timers), immediates: Math.max(0, cur.immediates - prev.immediates) }
+  } catch { return null }
+}
 var bbLastDump = 0
 function bbRead (max) {
   var out = []
@@ -164,7 +182,14 @@ function bbDump (lateNow) {
   var base = ents[0].tsMs
   var parts = []
   for (var k = 0; k < ents.length; k++) parts.push(ents[k].label + ' @+' + ((ents[k].tsMs - base) / 1000).toFixed(1) + 's')
-  try { fs.writeSync(writeFd, '[blackbox] main freeze ~' + Math.round(lateNow / 1000) + 's; last: ' + parts.join(' <- ') + '\\n') } catch { /* stdout closed */ }
+  var suffix = ''
+  var pw = pulseWindow()
+  if (pw) {
+    var exp = Math.round((intervalMs / 1000) / 0.25)
+    var verdict = pw.timers >= exp * 0.5 ? 'healthy' : (pw.immediates > intervalMs / 1000 * 50 ? 'LOOPING - poll/check saturated, the timers phase starved (NOT a sync spin)' : 'NOT LOOPING - a sync block owns the thread')
+    suffix = '; loop: timers=' + pw.timers + ' imm=' + pw.immediates + '/' + Math.round(intervalMs / 1000) + 's (' + verdict + ')'
+  }
+  try { fs.writeSync(writeFd, '[blackbox] main freeze ~' + Math.round(lateNow / 1000) + 's; last: ' + parts.join(' <- ') + suffix + '\\n') } catch { /* stdout closed */ }
 }
 function tick () {
   if (stopped) return
@@ -223,7 +248,7 @@ export function gapNote (prevMs, nowMs, intervalMs, { tolerance = 2.5 } = {}) {
  */
 export const HEARTBEAT_PROBE_MS = 250
 
-export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
+export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, pulse = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
   const hb = { stopped: false, mainLateMax: 0, probeExpected: 0 }
   hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: {
     intervalMs,
@@ -231,7 +256,9 @@ export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBea
     // (v0.62.0) the shared ring: the worker reads it DIRECTLY during a
     // main-thread freeze (postMessage is dead exactly when it matters) and
     // dumps the last activity labels - '[blackbox] main freeze ~Xs; last: ...'
-    bb: blackbox && blackbox.sab ? { sab: blackbox.sab } : null
+    bb: blackbox && blackbox.sab ? { sab: blackbox.sab } : null,
+    // (v0.77.0) the freeze oscilloscope: the event-loop phase counters
+    pulse: pulse && pulse.sab ? { sab: pulse.sab } : null
   } })
   // (v0.62.0) the global note sink: every module can noteGlobal('pf:goal ...')
   // from here on - call sites need zero heartbeat wiring

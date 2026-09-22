@@ -92,7 +92,8 @@ test('start heartbeat: eval worker, unref, guarded listeners, injected ctor', ()
   assert.equal(w.opts.eval, true, 'the worker ships as an eval source - no extra file on disk')
   // (v0.62.0) the blackbox rides workerData (bb: null without a box) - the
   // worker reads the shared ring DIRECTLY during a main-thread freeze
-  assert.deepEqual(w.opts.workerData, { intervalMs: 20000, writeFd: 1, bb: null })
+  // (v0.77.0) the freeze oscilloscope rides the same way (pulse: null without one)
+  assert.deepEqual(w.opts.workerData, { intervalMs: 20000, writeFd: 1, bb: null, pulse: null })
   assert.equal(w.unrefed, true, 'a heartbeat must never extend the fleet life (OOM path included)')
   assert.equal((w.listeners.get('error') ?? []).length, 1, 'an error listener must exist: dead heartbeat != dead fleet')
   // onBeat receives what the worker posts...

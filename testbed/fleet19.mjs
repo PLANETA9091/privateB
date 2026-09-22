@@ -39,6 +39,7 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
+import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
 import { execFile } from 'node:child_process'
@@ -1041,7 +1042,10 @@ const onUnfreeze = lateMs => {
   }
   console.log(unfreezeLine({ lateMs, swept, skipped: left }))
 }
-const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, onUnfreeze })
+const pulseSab = createPulseSab()
+const loopPulse = createLoopPulse({ sab: pulseSab, intervalMs: 250 })
+loopPulse.start() // counters read by the heartbeat worker across any freeze
+const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, onUnfreeze })
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
@@ -1307,6 +1311,7 @@ process.exit(0)
 // ---- the final report, shared by the normal end and the watchdog cliff ----
 function printFinalReport (reason) {
   stopHeartbeat(heartbeat) // no [hb] lines racing the report block; covers both call sites
+  try { loopPulse.stop() } catch { /* diagnostics never hold the teardown */ }
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const s = fleetStats(list)
   const secs = SECONDS
@@ -1344,6 +1349,7 @@ const dgs = doomedGoalStats()
 console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-issues refused at the funnel, ${dgs.live} live at end phase (v0.72.0 spiral breaker)`)
 const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
+console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

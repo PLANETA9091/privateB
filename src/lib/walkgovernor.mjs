@@ -40,6 +40,21 @@ export const STALL_CHURN_LIMIT = 4 // zero-progress settled walks inside the win
 export const STALL_MIN_PROGRESS = 1.0 // blocks of displacement that count as real progress
 export const STALL_COOLDOWN_MS = 12000 // how long the open refuses new walks
 
+// (v0.77.0) THE FLEET CHURN CEILING - the aggregate breaker (a second
+// governor instance keyed by nothing - the whole fleet). MEASURED (run73,
+// dispatch 35725737486, the v0.76.0 fleet): the per-bot governors fired
+// 15 stalls / 976 refusals yet FOUR freezes ran (53s/25s/10s/6s) - the
+// per-bot limit leaves the AGGREGATE burst unbounded: a fresh bot
+// object (every relogin, 24/run) or a cooldown expiry grants free churn
+// walks, and 19 bots x free churns is what starves the timers phase. The
+// ceiling counts zero-progress walks FLEET-WIDE; past the limit it refuses
+// new NORMAL-priority walks for a SHORT cooldown (bank-priority walks stay
+// exempt - the only walks that turn mined blocks into stock must flow even
+// mid-storm). Any real progress walk clears the streak outright.
+export const FLEET_WINDOW_MS = 20000
+export const FLEET_CHURN_LIMIT = 12
+export const FLEET_COOLDOWN_MS = 6000
+
 /**
  * Create one governor (one bot). All times come from the caller (injectable
  * clocks), so tests never sleep and production never trusts a stray clock.
@@ -65,8 +80,11 @@ export function createWalkGovernor ({
   return {
     /** Record one settled walk. progress = displacement in blocks, or null
      * when the funnel could not measure it (junk entity, mock). A real
-     * progress walk clears the churn streak and closes an open stall's
-     * streak (the cooldown itself still runs - the refusal window is short). */
+     * progress walk clears the churn streak AND closes an open stall early -
+     * for the per-bot governor a progress outcome cannot arrive while the
+     * stall refuses (the refused bot records nothing), but the FLEET ceiling
+     * is fed by exempt bank-priority walks mid-storm: their real movement is
+     * the fleet's honest relief valve, not just evidence hygiene. */
     recordOutcome (progress, now) {
       stats.records++
       if (!Number.isFinite(progress)) return // unmeasurable: evidence, not fuel
@@ -74,7 +92,10 @@ export function createWalkGovernor ({
       outcomes.push({ at: now, progress })
       if (progress >= minProgress) {
         // real movement: the walker works - drop the churn evidence entirely
+        // and release an open stall (the bots can walk again)
         outcomes.length = 0
+        openUntil = 0
+        openPos = null
         stats.progressClears++
       }
     },

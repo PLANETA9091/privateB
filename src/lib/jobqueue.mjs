@@ -188,7 +188,8 @@ export class MiningJobQueue {
 import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
-import { createWalkGovernor } from './walkgovernor.mjs'
+import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
+import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
@@ -254,11 +255,23 @@ export function doomedGoalStats () {
  * deposit.mjs). A refused-neighborhood recovers by TTL in 45-90s either way. */
 export const DOOMED_GOAL_RADIUS = 2
 
-/** Test hook: empty the ledger and zero the counters (never used in prod). */
+/** Test hook: empty the ledger and zero the counters (never used in prod).
+ * (v0.77.0) THE FUNNEL RESET FAMILY: this hook also drops the stall-governor
+ * state (the per-bot WeakMap + the fleet churn ceiling + their counters) -
+ * every test file that walks through the funnel calls this in beforeEach, so
+ * each test starts with a clean funnel regardless of how many stationary
+ * mock walks the previous tests accumulated (the ceiling is a module
+ * singleton and would otherwise leak churn evidence across a file's tests). */
 export function resetDoomedGoalLedger () {
   doomedGoals.length = 0
   doomedStats.records = 0
   doomedStats.refusals = 0
+  walkGovernors = new WeakMap()
+  walkGovernorStats.refusals = 0
+  walkGovernorStats.opens = 0
+  walkGovernorStats.fleetRefusals = 0
+  walkGovernorStats.fleetOpens = 0
+  try { fleetCeiling.reset() } catch { /* never fails */ }
 }
 
 // (v0.74.0) THE STALL GOVERNOR - the CHURN breaker, the per-bot sibling of the
@@ -280,7 +293,18 @@ export function resetDoomedGoalLedger () {
 // bot never strangles the fleet; 19 wedged bots each stop feeding the
 // pathfinder and the storm starves.
 let walkGovernors = new WeakMap()
-const walkGovernorStats = { refusals: 0, opens: 0 }
+const walkGovernorStats = { refusals: 0, opens: 0, fleetRefusals: 0, fleetOpens: 0 }
+
+// (v0.77.0) THE FLEET CHURN CEILING - the aggregate breaker: one governor for
+// the whole process (one process = one fleet). See walkgovernor.mjs for the
+// evidence. Bank-priority walks consult it but are never refused by it.
+const fleetCeiling = createWalkGovernor({
+  windowMs: FLEET_WINDOW_MS,
+  churnLimit: FLEET_CHURN_LIMIT,
+  minProgress: STALL_MIN_PROGRESS,
+  cooldownMs: FLEET_COOLDOWN_MS,
+  onOpen: () => { walkGovernorStats.fleetOpens++ }
+})
 
 function walkGovernorFor (bot) {
   let g = walkGovernors.get(bot)
@@ -311,12 +335,18 @@ function recordWalkOutcome (bot, startPos) {
       if (Number.isFinite(d)) progress = d
     }
     g.recordOutcome(progress, Date.now())
+    fleetCeiling.recordOutcome(progress, Date.now()) // the aggregate breaker feeds on every walk
   } catch { /* a governor record must never mask the walk's own result */ }
 }
 
 /** Fleet summary counters for the FLEET RESULT block. */
 export function walkGovernorStatsFor () {
-  return { refusals: walkGovernorStats.refusals, opens: walkGovernorStats.opens }
+  return {
+    refusals: walkGovernorStats.refusals,
+    opens: walkGovernorStats.opens,
+    fleetRefusals: walkGovernorStats.fleetRefusals,
+    fleetOpens: walkGovernorStats.fleetOpens
+  }
 }
 
 /** Test hook: drop every per-bot governor (never used in prod). */
@@ -324,8 +354,10 @@ export function resetWalkGovernors () {
   walkGovernors = new WeakMap()
   walkGovernorStats.refusals = 0
   walkGovernorStats.opens = 0
+  walkGovernorStats.fleetRefusals = 0
+  walkGovernorStats.fleetOpens = 0
+  try { fleetCeiling.reset() } catch { /* never fails */ }
 }
-
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
 // MEASURED: fleet #128 (77 bank attempts, banked=0), the v0.19.0 yard-walk retries
@@ -410,6 +442,21 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   } catch (e) {
     if (e && /walk governor/.test(e.message)) throw e // the refusal itself
     /* governor failures never block the walk they precede */
+  }
+  // (v0.77.0) THE FLEET CHURN CEILING - the aggregate breaker, after the
+  // per-bot consult. The per-bot limit leaves the fleet's AGGREGATE churn
+  // burst unbounded (fresh bot objects from relogins, cooldown expiries); the
+  // ceiling caps the whole process. BANK-priority walks are EXEMPT - the only
+  // walks that turn mined blocks into banked stock must flow even mid-storm.
+  try {
+    const fv = fleetCeiling.consult(null, Date.now())
+    if (fv.open && priority < PATH_PRIO_BANK) {
+      walkGovernorStats.fleetRefusals++
+      throw new Error(`fleet churn ceiling: ${fv.churn} zero-progress walks fleet-wide - ${label} refused for ${Math.round(fv.remainingMs / 1000)}s`)
+    }
+  } catch (e) {
+    if (e && /fleet churn ceiling/.test(e.message)) throw e // the refusal itself
+    /* the ceiling never blocks the walk it precedes */
   }
   // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
   // goal - the A* think that answers is a SYNC main-thread block (up to the
