@@ -109,6 +109,14 @@ jobs:
       - name: Fleet productivity test (ground mode, no flight)
         run: node scripts/run-tests.mjs integration
 
+      - name: Deposit probe (the 26.2 chest click ladder, pure evidence)
+        # run68 (the first 600s fleet) reached chests and delivered ZERO with the
+        # skip reasons swallowed; this rig answers WHY in isolation (one bot, zero
+        # load, a console-placed chest, hand-dug dirt). Exit 0 always: evidence,
+        # not a gate - the verdict line lands in this job's log.
+        run: node testbed/deposit-probe.mjs 127.0.0.1 25565 DepositProbe
+        timeout-minutes: 5
+
       - name: Dump the server console
         if: failure()
         run: tail -80 testbed/server/logs/latest.log || true

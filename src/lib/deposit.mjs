@@ -679,7 +679,8 @@ export async function depositToChest (bot, {
   budgetMs = null, // (v0.27.0) wall-clock cap on the WHOLE attempt (walk retries incl.) - the end-phase chain budget
   exclude = [], // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
   noPathLedger = null, // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
-  fullChestLedger = null // (v0.65.0) a SHARED array across the fleet: 'chest full' verdicts skip the paid walk
+  fullChestLedger = null, // (v0.65.0) a SHARED array across the fleet: 'chest full' verdicts skip the paid walk
+  depositClickTimeoutMs = 5000 // (v0.70.0) per-click wall; tests inject a small value instead of sleeping 5s
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance, exclude, log })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
@@ -911,6 +912,8 @@ export async function depositToChest (bot, {
 
   let deposited = 0
   const skipped = []
+  let timeoutSkips = 0
+  let moved0Skips = 0
   const countOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
     for (const item of bot.inventory.items()) {
@@ -920,20 +923,27 @@ export async function depositToChest (bot, {
       // the deposit call's resolution.
       const before = countOf(item.name)
       try {
-        await withTimeout(window.deposit(item.type, null, item.count), 5000, `deposit ${item.name}`)
+        await withTimeout(window.deposit(item.type, null, item.count), depositClickTimeoutMs, `deposit ${item.name}`)
       } catch {
-        skipped.push(item.name) // chest full or a desynced slot - keep the item, move on
+        timeoutSkips++
+        skipped.push(`${item.name}(timeout)`) // the 5s wall: server lag or a dead window
         continue
       }
       const moved = before - countOf(item.name)
       if (moved > 0) deposited += moved
-      else skipped.push(item.name)
+      else { moved0Skips++; skipped.push(`${item.name}(moved0)`) } // resolved, moved nothing: the ghost click
     }
   } finally {
     try { window.close?.() } catch { /* already closed */ }
   }
   if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
-  return { deposited, reason: deposited > 0 ? 'ok' : 'nothing to deposit' }
+  // (v0.70.0) the zero hop NAMES ITS MECHANISM: run68 (the first 600s fleet)
+  // ended every reached chest with 'nothing to deposit' and the swallowed skip
+  // reasons could not separate a lag timeout from the 26.2 ghost click - two
+  // different cures. The detail rides the reason (the chestDead regex still
+  // matches the prefix) and the caller's hop line prints it for free.
+  const detail = (timeoutSkips || moved0Skips) ? ` (t=${timeoutSkips},m0=${moved0Skips})` : ''
+  return { deposited, reason: deposited > 0 ? 'ok' : `nothing to deposit${detail}` }
 }
 
 /**
