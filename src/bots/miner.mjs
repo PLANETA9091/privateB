@@ -65,6 +65,7 @@ export function createMiner ({
   hazardLedger = null, // (v0.62.0) shared HazardLedger (src/lib/drowning.mjs): one bot's rescue immunizes the fleet
   broadcastHazard = null, // (pos) => void - cross-process hazard broadcast (PVB2|hazard over chat), optional
   noPathLedger = null, // (v0.62.0) the fleet-wide 'No path' verdict array (one process = one shared array); null = the ledger is off
+  fullChestLedger = null, // (v0.65.0) the fleet-wide 'chest full' verdict array (same ride); null = the ledger is off
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -2766,7 +2767,7 @@ export function createMiner ({
     // deposit' after every click was rejected and smeltThenBank reported bank: 0
     // with a full pocket - fleet 35538062596 F18). depositToChests excludes the
     // dead chest and scans again (maxChests bound) until the pockets drain.
-    const res = await depositToChests(bot, { log, noPathLedger, ...opts })
+    const res = await depositToChests(bot, { log, noPathLedger, fullChestLedger, ...opts })
     if (res.deposited > 0) stats.banked = (stats.banked ?? 0) + res.deposited
     const reason = res.deposited > 0
       ? 'ok'

@@ -1022,6 +1022,7 @@ const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, onUnfreeze })
 // think that froze everyone else's digs and walks). deposit.mjs records and
 // reads; the report prints the count as the A*-storm evidence.
 const noPathLedger = []
+const fullChestLedger = [] // (v0.65.0) shared fleet-wide 'chest full' verdicts - one discovery spares the other 18 the walk
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -1310,6 +1311,7 @@ console.log(`kicks handled: ${kicks} (reconnect attempts: ${reconnects})`)
 // blocked every bot; the skips the ledger bought are in the per-bot
 // 'chest skip (no path cached ...)' lines).
 console.log(`no-path ledger: ${noPathLedger.length} live verdict(s) at end phase`)
+console.log(`full-chest ledger: ${fullChestLedger.length} live verdict(s) at end phase`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

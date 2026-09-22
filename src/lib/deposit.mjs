@@ -7,7 +7,7 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from '.
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
-import { recordNoPath, nearNoPath } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger
+import { recordNoPath, nearNoPath } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger)
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -50,6 +50,44 @@ export const PROXIMATE_OPEN_DIST = 4
 export const STALE_VIEW_MIN_UNITS = 24
 export const STALE_VIEW_SETTLE_MS = 500
 export const STALE_VIEW_WINDOW_MS = 90000
+// (v0.65.0) THE FULL-CHEST LEDGER. run61 (dispatch 35677752396, the v0.64.0
+// fleet) mined: EVERY chest hop in the run landed on the y=69 lake-bottom
+// chests left by earlier runs and delivered ZERO - 4x 'nothing to deposit'
+// (the window opened, every click rejected: FULL chests) + 4x 'No path to the
+// goal!' (the pathfinder cannot stand next to a water-bottom chest), while the
+// empty yard row at y=72 was NEVER reached: nearest-first scan walks every bot
+// to the same dead chests, the chain clock dies, banked=0 and 1345u of 2067
+// mined (65%) evaporated as despawned drops from full pockets. The 'No path'
+// verdicts already have their fleet ledger (v0.62.0); a FULL chest had none -
+// each bot re-discovered it with a paid walk + open + doomed clicks. This
+// ledger is the same arithmetic (nopath.mjs's pure cell+TTL functions) under
+// different constants: a full chest is remembered fleet-wide for one window so
+// the scan falls through to the NEXT candidate WITHOUT paying the walk again.
+export const CHEST_SLOTS = 27 // single-chest capacity (stacks occupy one slot each)
+export const FULL_CHEST_TTL_MS = 180000 // chests do not empty mid-run; 3 min covers any chain pattern
+export const FULL_CHEST_CAP = 24 // cap parity with the no-path ledger
+// (v0.65.0) TIGHT hit geometry: the full verdict is about THIS chest's CAPACITY,
+// not the terrain around it (a no-path verdict wants radius 4 - the walkable
+// ring is impassable too). Yard rows pack chests 2 blocks apart: a radius-4
+// hit measured live would skip the 8 NEIGHBORS of one full chest ('chest skip
+// (full cached 0s ago at [3,64,1])' for a chest 1.41b away - the first probe
+// of this ledger caught exactly that). Radius 1 = the same block (findChest
+// may hand back the cell with float noise); dy 2 covers a bot reading the row
+// from a step above/below.
+export const FULL_CHEST_RADIUS = 1
+export const FULL_CHEST_DY = 2
+/** Free slots in a chest window, pure. `chestItems` is the window's item list
+ * (one entry per OCCUPIED slot - mineflayer's chest.items()); a 27-stack single
+ * chest or a 54-stack double reads 0 free. A double chest with 28-53 stacks
+ * reads 0 too - conservative (the scan skips a chest that may have space)
+ * and DELIBERATE: the alternative is another paid walk onto a chest that has
+ * rejected clicks before, and the yard always holds more candidates. Junk
+ * reads as full capacity (never skip on garbage - the skip costs a deposit). */
+export function chestFreeSlots (chestItems = null, capacity = CHEST_SLOTS) {
+  const cap = Number.isFinite(capacity) && capacity > 0 ? Math.floor(capacity) : CHEST_SLOTS
+  if (!Array.isArray(chestItems)) return cap
+  return Math.max(0, cap - chestItems.length)
+}
 
 // (v0.48.0) THE RAW HOP. Fleet 35610870878 (v0.47.1): 85x 'chest unreachable
 // (Took to long to decide path to goal!)' on hops of d=7-12 - WITH the v0.45.0
@@ -598,7 +636,8 @@ export async function depositToChest (bot, {
   timeoutMs = null, // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
   budgetMs = null, // (v0.27.0) wall-clock cap on the WHOLE attempt (walk retries incl.) - the end-phase chain budget
   exclude = [], // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
-  noPathLedger = null // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
+  noPathLedger = null, // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
+  fullChestLedger = null // (v0.65.0) a SHARED array across the fleet: 'chest full' verdicts skip the paid walk
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance, exclude, log })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
@@ -804,6 +843,29 @@ export async function depositToChest (bot, {
   if (!window) {
     return { deposited: 0, reason: `cannot open chest (${openErr && openErr.message ? openErr.message : 'unknown'})` }
   }
+  // (v0.65.0) THE FULL-CHEST VERDICT, read BEFORE the click loop: the window's
+  // item list (one entry per occupied slot) at capacity means every click below
+  // is a doomed 5s timeout - run61 paid walk+open+27 timeouts per bot per chest
+  // for chests an earlier run had filled. Record the verdict for the FLEET (the
+  // same shared-array ride as noPathLedger) and let the caller's scan fall
+  // through to the next candidate. window.items() is defensive: the mock
+  // windows in tests (and any odd wrapper) may not expose it - junk reads as
+  // not-full, the click loop keeps its original semantics.
+  const chestItems = typeof window.items === 'function' ? (() => { try { return window.items() } catch { return null } })() : null
+  const freeSlots = chestFreeSlots(chestItems)
+  if (Array.isArray(chestItems) && freeSlots <= 0) {
+    if (Array.isArray(fullChestLedger) && chest.position) {
+      const fullCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      if (fullCell && Number.isFinite(fullCell.x)) {
+        const fresh = recordNoPath(fullChestLedger, fullCell, Date.now(), { ttl: FULL_CHEST_TTL_MS, cap: FULL_CHEST_CAP })
+        fullChestLedger.length = 0
+        for (const e of fresh) fullChestLedger.push(e)
+        log(`${tag} full-chest ledger: chest at [${fullCell.x ?? '?'},${fullCell.y ?? '?'},${fullCell.z ?? '?'}] cached for the fleet (${fullChestLedger.length} live, ttl ${Math.round(FULL_CHEST_TTL_MS / 1000)}s)`)
+      }
+    }
+    try { window.close?.() } catch { /* already closed */ }
+    return { deposited: 0, reason: `chest full (${CHEST_SLOTS}/${CHEST_SLOTS} slots taken)` }
+  }
 
   let deposited = 0
   const skipped = []
@@ -837,7 +899,7 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null, fullChestLedger = null } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
@@ -930,7 +992,21 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         continue
       }
     }
-    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger })
+    // (v0.65.0) THE FULL-CHEST LEDGER SKIP: another bot opened THIS chest and
+    // read 0 free slots (run61: 4x 'nothing to deposit' on the y=69 chests, each
+    // discovery a paid walk + open; 19 bots = 19 re-discoveries of the same
+    // dead chest). Skip BEFORE the walk - the whole point of a verdict paid for
+    // by someone else - and let the scan pick the next nearest.
+    if (Array.isArray(fullChestLedger) && chest.position) {
+      const skipCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      const fc = skipCell && Number.isFinite(skipCell.x) ? nearNoPath(fullChestLedger, skipCell, Date.now(), { ttl: FULL_CHEST_TTL_MS, radius: FULL_CHEST_RADIUS, dy: FULL_CHEST_DY }) : null
+      if (fc?.hit) {
+        log(`[${bot.username ?? 'bot'}] chest skip (full cached ${Math.round(fc.ageMs / 1000)}s ago at [${skipCell.x},${skipCell.y},${skipCell.z}])`)
+        tried.push(skipCell)
+        continue
+      }
+    }
+    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
       // (v0.39.1) THE FAILED HOP NAMES ITSELF: a zero hop used to vanish into a
@@ -955,7 +1031,7 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       // next nearest, still bounded by maxChests. 'no chest in range' stays a
       // plain break: there is nothing to hop from.
       const r = String(res.reason || '')
-      const chestDead = /nothing to deposit|cannot open chest|chest unreachable/i.test(r)
+      const chestDead = /nothing to deposit|cannot open chest|chest unreachable|chest full/i.test(r)
       if (chestDead && chest.position) {
         tried.push(chest.position.floored())
         continue
