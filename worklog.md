@@ -1634,3 +1634,14 @@ Stage Summary:
 - EXPECTATIONS run77: 'frozen physics (' lines where F17's 14x25s lived (F17's run time freed ~350s); 'repeat wet page at the same cell' where F9's 25 starts lived (F9's burn ~600s -> ~40s); 'transit stalled (d=...' where the 65 shadowed transits lived; 'rescue released (surface-safe' FINALLY firing via the bobbing tier; rescues << 92, timeouts << 53, and the fleet-rate record 7.20 b/s beaten with the freed seconds; banked holding 2774+; smelted growing past 2 (their lane has stock now); the kite still armed (5 runs unvalidated - no persistent chaser yet).
 - OPEN FRONTS: the frozen client's ROOT cause (EPIPE/reconnect lane - the frozen bot's socket dies silently; a frozen-physics verdict could page an immediate reconnect probe instead of waiting for the watchdog); the pocket-scale hazard (WATER_HAZARD_RADIUS=4 vs a wide flooded quarry - F9's rotations landed back inside; a post-still-wet MOVE-AWAY walk of 8-12 blocks is the next lever); the kite live validation; 'map trip skipped: sand,gravel unreachable' x24 (their worldmap lane); the digs-into-aquifer pattern itself (deep shafts at y=42-50 brush aquifer lakes - a water-table-aware dig depth is the durable fix).
 - Push NEXT (pull --rebase first), push CI watch, then the 600s fleet dispatch fires as the session's ABSOLUTE last action. NO PUSHES after it.
+---
+Task ID: 398294-20260922-2353 (dispatch record)
+Agent: Z.ai Code (cron session, 23:53 +08)
+Task: session close - CI verdict + the fleet dispatch record.
+
+Work Log:
+- Push CI on c6956b4 (v0.83.0 the stand-down trio + their 78b173f ingot bridge): 35754245889 completed SUCCESS (units green incl. the 5 new drowning blocks + the run76 constants pin, integration green). Their queued dispatch 35749297410 (on the older 01254a8) is still in_progress behind the concurrency group - my fleet dispatch below will supersede it (the known class, not a failure).
+
+Stage Summary:
+- Master: c6956b4 (package.json v0.83.0, the stand-down trio on top of their ingot bridge). Next free version = 0.84.0.
+- THE FLEET DISPATCH FIRED as the session's absolute LAST action: run id (see the next session's worklog - the dispatch is the final tool call) workflow_dispatch run_fleet=true, fleet_seconds=600 on master@c6956b4 - the FULL stack: the stand-down trio (my v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox / stability window / probe budget / unbreakable guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
