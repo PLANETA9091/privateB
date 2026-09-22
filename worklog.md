@@ -1685,3 +1685,17 @@ Work Log:
 Stage Summary:
 - Master: 8fdf009 after the collision resolve (v0.67.0 swords + v0.68.0 mid-bank + v0.69.0 pre-fight shelter), CI green (35685503801, 35685843364, 35686249816). Next free version = 0.70.0.
 - NEXT SESSION: mine the 600s dispatch on 8fdf009 (expect: bank trips with 'budget 135-300s' lines, banked>0 at last, zombie deaths stay ~0 with swords in pockets, 'shelter dig-earn' + 'pre-fight' lines from the v0.69.0 package); then the yard-walk stall class (90s timeouts for 60-68 blocks) if banked still 0. PUSH-CANCELS-DISPATCH now a MEASURED rule (Task 39, paid twice) - the final worklog push of this session waits for any in-flight dispatch to complete.
+---
+Task ID: 398294-20260922-1153-ci-fix
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: CI red on v0.69.0 -> root-caused -> v0.69.1 fix; session closes with the 600s dispatch.
+
+Work Log:
+- The v0.69.0 push CI (35688226298) FAILED on unit shard 22: 'walk: the budgetMs clock bounds the loop' (approach.test.mjs:149) - expected 3 slices, got 4 (4 !== 3). Integration SUCCESS; fleet skipped. The NEXT run (35688563392, docs-only 1ba68d8) PASSED the same test - the race confirmed by contrast.
+- Root cause: a TIMING RACE, not a regression - approach.mjs and approach.test.mjs are untouched between the green efbb8ea run (04:33) and the red 8fdf009 run (04:47). The loop admits any slice while left > 0; after 2 full slices + the clamped remainder, the runner's timer-overshoot vs loop-overhead race can leave left = 1-2ms and the design runs one sub-2ms boundary sliver before the next clock check breaks. Scaling the test up does NOT fix it (per-iteration overhead is constant, not proportional) - the pin must be the CLOCK BOUND, not the exact count.
+- v0.69.1 (c6a3f2c): the test asserts segments 3..4 (2 full + clamped remainder + at most one boundary sliver), slices[0]/[1] full, slices[2] strictly < 20, walked=false unchanged. CI green (35689029669 SUCCESS).
+
+Stage Summary:
+- Master: c6a3f2c (v0.67.0 swords + v0.68.0 mid-bank + v0.69.0 pre-fight shelter + v0.69.1 flake fix), CI green. Next free version = 0.70.0.
+- The 600s fleet dispatch (run_fleet=true, fleet_seconds=600) fires as this session's ABSOLUTE last action, AFTER this push - nothing may push once it is in flight (the Task 39 measured rule).
+- NEXT SESSION expectations for the 600s run: 'bank trip: ... budget 135-300s' lines (the dist-scaled budgets replacing the flat 120s), banked>0 AT LAST, zombie deaths ~0 (swords), 'shelter dig-earn' + 'pre-fight' lines (the v0.69.0 package), shelters= rising.
