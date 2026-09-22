@@ -26,6 +26,7 @@
 // The reporter annotates its own gaps inline (gapNote) so one
 // log carries the whole matrix without re-reading raw timestamps.
 import { Worker } from 'node:worker_threads'
+import { installNoteSink } from './blackbox.mjs'
 
 // Eval worker (CJS - eval workers are CommonJS by design). It must NEVER throw:
 // a dead heartbeat is a diagnostic loss, not a fleet failure. Every failure path
@@ -88,6 +89,52 @@ function sgTick () {
 }
 sgTimer = setInterval(sgTick, 5000)
 try { sgTimer.unref && sgTimer.unref() } catch { /* older runtimes */ }
+// (v0.62.0) THE FREEZE BLACK BOX - the worker reads the shared ring DIRECTLY
+// while the main thread is frozen (postMessage is dead exactly when it
+// matters). Mirrors src/lib/blackbox.mjs's readSharedBlackBox + dumpLine
+// arithmetic (the CI-tested reference; the eval worker cannot import ESM):
+//   byte 0..3 seq, byte 4..7 capacity, entries at 8+i*16 (Int32 labelIdx,
+//   Float64 ts), label area at 8+cap*16 (Int32 count, then 24B ASCII slots).
+var bbSab = workerData && workerData.bb && workerData.bb.sab
+var bbLastDump = 0
+function bbRead (max) {
+  var out = []
+  try {
+    var cap = new Int32Array(bbSab, 4, 1)[0]
+    var seq = new Int32Array(bbSab, 0, 1)[0]
+    if (!(cap > 0) || bbSab.byteLength < 8 + cap * 16 + 96 * 24) return out
+    var labelArea = 8 + cap * 16
+    var count = new Int32Array(bbSab, labelArea, 1)[0]
+    var f64 = new Float64Array(bbSab)
+    var u8 = new Uint8Array(bbSab)
+    var want = max || 8
+    var n = Math.min(cap, Math.max(seq, 0), want)
+    for (var k = 1; k <= n; k++) {
+      var i = ((seq - k) % cap + cap) % cap
+      var eOff = 8 + i * 16
+      var idx = new Int32Array(bbSab, eOff, 1)[0]
+      var ts = f64[(eOff + 8) / 8]
+      if (!(ts > 0) || idx < 0 || idx >= count || idx >= 96) continue
+      var off = labelArea + 4 + idx * 24
+      var label = ''
+      for (var b = 0; b < 24 && u8[off + b] !== 0; b++) { var c = u8[off + b]; label += (c >= 32 && c < 127) ? String.fromCharCode(c) : '?' }
+      out.push({ label: label || ('lbl#' + idx), tsMs: ts })
+    }
+  } catch { /* forensics never throws */ }
+  return out
+}
+function bbDump (lateNow) {
+  if (!bbSab) return
+  var t = Date.now()
+  if (!(lateNow >= 5000) || t - bbLastDump < 30000) return
+  bbLastDump = t
+  var ents = bbRead(8)
+  if (!ents.length) return
+  var base = ents[0].tsMs
+  var parts = []
+  for (var k = 0; k < ents.length; k++) parts.push(ents[k].label + ' @+' + ((ents[k].tsMs - base) / 1000).toFixed(1) + 's')
+  try { fs.writeSync(writeFd, '[blackbox] main freeze ~' + Math.round(lateNow / 1000) + 's; last: ' + parts.join(' <- ') + '\\n') } catch { /* stdout closed */ }
+}
 function tick () {
   if (stopped) return
   n++
@@ -97,6 +144,7 @@ function tick () {
   if (writeFd >= 0) {
     try { fs.writeSync(writeFd, '[hb] n=' + n + ' ts=' + Math.round(process.uptime()) + 's rss=' + rssM + 'M late=' + late + 'ms mainLate=' + mainLate + 'ms\\n') } catch { /* stdout closed - nothing to diagnose with */ }
   }
+  try { bbDump(mainLate) } catch { /* forensics never throws */ }
   try { parentPort.postMessage({ n: n, ts: now, late: late, rssMb: rssM }) } catch { /* parent gone */ }
   timer = setTimeout(tick, intervalMs)
 }
@@ -140,9 +188,19 @@ export function gapNote (prevMs, nowMs, intervalMs, { tolerance = 2.5 } = {}) {
  */
 export const HEARTBEAT_PROBE_MS = 250
 
-export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS } = {}) {
+export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null } = {}) {
   const hb = { stopped: false, mainLateMax: 0, probeExpected: 0 }
-  hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: { intervalMs, writeFd } })
+  hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: {
+    intervalMs,
+    writeFd,
+    // (v0.62.0) the shared ring: the worker reads it DIRECTLY during a
+    // main-thread freeze (postMessage is dead exactly when it matters) and
+    // dumps the last activity labels - '[blackbox] main freeze ~Xs; last: ...'
+    bb: blackbox && blackbox.sab ? { sab: blackbox.sab } : null
+  } })
+  // (v0.62.0) the global note sink: every module can noteGlobal('pf:goal ...')
+  // from here on - call sites need zero heartbeat wiring
+  try { installNoteSink(blackbox) } catch { /* diagnostics never throw into the fleet */ }
   try { hb.worker.unref?.() } catch { /* fakes may not implement it */ }
   try {
     hb.worker.on?.('message', m => {

@@ -7,6 +7,7 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from '.
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
+import { recordNoPath, nearNoPath } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -596,7 +597,8 @@ export async function depositToChest (bot, {
   log = () => {},
   timeoutMs = null, // null = dist-scaled auto budget (chestWalkBudgetMs); a number pins it (tests)
   budgetMs = null, // (v0.27.0) wall-clock cap on the WHOLE attempt (walk retries incl.) - the end-phase chain budget
-  exclude = [] // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
+  exclude = [], // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
+  noPathLedger = null // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance, exclude, log })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
@@ -746,6 +748,18 @@ export async function depositToChest (bot, {
   }
   if (!walked) {
     const lastMsg = lastError && lastError.message ? lastError.message : 'walk failed'
+    // (v0.62.0) THE FLEET LEDGER RECORD: a 'No path' verdict is paid for by the
+    // WHOLE process (a sync A* exhaustion blocks all 19 bots). Cache it so the
+    // other bots' hops for the same chest skip the search entirely.
+    if (Array.isArray(noPathLedger) && /No path/i.test(lastMsg) && chest.position) {
+      const deadCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      if (deadCell && Number.isFinite(deadCell.x)) {
+        const fresh = recordNoPath(noPathLedger, deadCell, Date.now())
+        noPathLedger.length = 0
+        for (const e of fresh) noPathLedger.push(e)
+        log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live)`)
+      }
+    }
     // (v0.23.1) ONE CHEST MUST NOT STRAND THE DELIVERY. FLEET EVIDENCE (3e21d58,
     // final bank): 5x 'chest unreachable (No path to the goal!)' - the NEAREST
     // chest's walk dead-ends (a pond between, a terrain rim, unloaded chunks) and
@@ -762,7 +776,7 @@ export async function depositToChest (bot, {
         // the nearest chest') when the second candidate also fails, and the second
         // candidate's success when it does not
         // (v0.27.0) the hop inherits the SAME wall clock, not a fresh budget
-        const second = await depositToChest(bot, { keep, maxDistance, log, timeoutMs, budgetMs: remaining(), exclude: [dead] })
+        const second = await depositToChest(bot, { keep, maxDistance, log, timeoutMs, budgetMs: remaining(), exclude: [dead], noPathLedger })
         if (second.deposited > 0) return second
         return { deposited: 0, reason: `chest unreachable (${lastMsg})` }
       }
@@ -823,7 +837,7 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
@@ -902,7 +916,21 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}] d=${hopDist} zero: chest beyond the hop search radius ${HOP_SEARCH_RADIUS} - walking home instead`)
       break
     }
-    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining() })
+    // (v0.62.0) THE FLEET LEDGER SKIP: another bot's 'No path' verdict for THIS
+    // chest is live - the A* exhaustion that produced it blocked all 19 bots
+    // (run60: F4 tried 6 chests, F5 tried 5, several of the SAME chests; 16x
+    // 'No path' at d=21-31 in the end phase). Skip the doomed hop, exclude the
+    // chest, let the scan pick the next nearest.
+    if (Array.isArray(noPathLedger) && chest.position) {
+      const skipCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      const np = skipCell && Number.isFinite(skipCell.x) ? nearNoPath(noPathLedger, skipCell, Date.now()) : null
+      if (np?.hit) {
+        log(`[${bot.username ?? 'bot'}] chest skip (no path cached ${Math.round(np.ageMs / 1000)}s ago at [${skipCell.x},${skipCell.y},${skipCell.z}])`)
+        tried.push(skipCell)
+        continue
+      }
+    }
+    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
       // (v0.39.1) THE FAILED HOP NAMES ITSELF: a zero hop used to vanish into a

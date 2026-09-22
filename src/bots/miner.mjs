@@ -36,6 +36,7 @@ import {
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
+import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
 // sapling replant path calls this from gatherWood - a missing definition threw
@@ -63,6 +64,7 @@ export function createMiner ({
   broadcastClaim = null, // (pos) => void - cross-process claim broadcast (PVB2 over chat), optional
   hazardLedger = null, // (v0.62.0) shared HazardLedger (src/lib/drowning.mjs): one bot's rescue immunizes the fleet
   broadcastHazard = null, // (pos) => void - cross-process hazard broadcast (PVB2|hazard over chat), optional
+  noPathLedger = null, // (v0.62.0) the fleet-wide 'No path' verdict array (one process = one shared array); null = the ledger is off
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -718,6 +720,7 @@ export function createMiner ({
     bot._waterRescue = true // gotoSafe refuses new walk goals from now on
     lastRescueAt = Date.now()
     stats.rescues++
+    noteGlobal('water:rescue') // (v0.62.0) run53's OOM and run60's 150s freeze both began mid-rescue - mark the site
     let standingWet = false // exited via the standing-in-shallow-water policy
     // (v0.62.0) the HAZARD CELL is tracked from the start and refreshed only
     // while the bot is actually wet: the finally used to read
@@ -2054,6 +2057,7 @@ export function createMiner ({
   // always legal). ~2 digs + 1 jump per level, no placement anywhere.
   // Never throws: a failed climb costs the caller its trip/banking, not the bot.
   async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null, force = false } = {}) {
+    noteGlobal('climb') // (v0.62.0) the staircase digs are a per-level A*-free path, but the walkable-surface verdict follows climbs - mark the site
     enablePhysicsMode()
     configureGroundMovements()
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug: 0, steps: 0 }
@@ -2753,7 +2757,7 @@ export function createMiner ({
     // deposit' after every click was rejected and smeltThenBank reported bank: 0
     // with a full pocket - fleet 35538062596 F18). depositToChests excludes the
     // dead chest and scans again (maxChests bound) until the pockets drain.
-    const res = await depositToChests(bot, { log, ...opts })
+    const res = await depositToChests(bot, { log, noPathLedger, ...opts })
     if (res.deposited > 0) stats.banked = (stats.banked ?? 0) + res.deposited
     const reason = res.deposited > 0
       ? 'ok'

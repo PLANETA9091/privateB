@@ -38,6 +38,7 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
+import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import pathfinderPkg from 'mineflayer-pathfinder'
@@ -311,6 +312,7 @@ async function runBot (name, target, index) {
         map, // shared scout -> miner resource map
         board, // shared trip-claim board (target distribution, v0.15.0)
         hazardLedger, // (v0.62.0) shared water-hazard ledger: one rescue vets targets for the fleet
+        noPathLedger, // (v0.62.0) shared fleet-wide 'No path' verdicts (one process = one array)
         // cross-process claims (a scout in a second terminal): broadcast our trips as
         // PVB2 chat lines; claimSync is attached right after the bot logs in
         broadcastClaim: SYNC ? pos => { try { claimSync?.broadcast(pos) } catch { /* chat never kills a trip */ } } : null,
@@ -975,7 +977,24 @@ console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join('
 // real stdout fd, so [hb] lines land even mid-starvation: hb live + reporter silent =
 // main-thread spin; hb dead too = process/machine freeze. Unref'd: it must never hold
 // the process open (the OOM path included). 20s -> 30 lines per 600s run.
-const heartbeat = startHeartbeat({ intervalMs: 20000 })
+// (v0.62.0) THE FREEZE BLACK BOX rides the heartbeat: the ONE process hosting
+// all 19 bots went ~150s without running its own timers in run60 (dispatch
+// 35668657935, mainLate=150742ms) and the log could not name WHAT blocked -
+// the server keepalive-timed-out every client at once, the run lost ~3
+// minutes to the relogin crawl. The box is a shared-memory ring of activity
+// labels (pf:queue / pf:goal / pf:done / water:rescue / climb / report /
+// mapsave); when the worker sees mainLate >= 5s it dumps the newest entries -
+// the LAST activity before the gap names the blocker.
+const blackbox = createSharedBlackBox({})
+const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox })
+// (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
+// (the fleet is one process): the first bot's 'No path' verdict for a chest
+// skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
+// 16x 'chest unreachable (No path to the goal!)', F4 alone tried 6 chests,
+// several of them the SAME cells from different bots, each a ~4.5s sync
+// think that froze everyone else's digs and walks). deposit.mjs records and
+// reads; the report prints the count as the A*-storm evidence.
+const noPathLedger = []
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -1259,7 +1278,13 @@ for (const t of TARGETS) {
 }
 console.log(`materials: ${JSON.stringify(s.byName)}`)
 console.log(`kicks handled: ${kicks} (reconnect attempts: ${reconnects})`)
+// (v0.62.0) the A*-storm evidence: how many chest cells ended the run with a
+// live fleet-wide 'No path' verdict (each one was a sync A* exhaustion that
+// blocked every bot; the skips the ledger bought are in the per-bot
+// 'chest skip (no path cached ...)' lines).
+console.log(`no-path ledger: ${noPathLedger.length} live verdict(s) at end phase`)
 const finalMap = map.report()
+noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)
 map.save() // (v0.18.4) merge-on-save: the union of this run's finds + anything on disk; next fleet starts with this knowledge
 map.stopAutosave() // the final save above is the last word - no timer races after it
@@ -1303,6 +1328,7 @@ const fleetReport = {
   worldmap: finalMap
 }
 try {
+  noteGlobal('report:write') // (v0.62.0) the stringify+writeFileSync is a classic sync block - mark the site BEFORE it
   fs.writeFileSync('data/fleet-report.json', JSON.stringify(fleetReport, null, 2))
   console.log('report: data/fleet-report.json written')
 } catch (e) {

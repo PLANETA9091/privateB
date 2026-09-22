@@ -14,6 +14,7 @@
 // without a Minecraft server.
 
 import { Vec3 } from 'vec3'
+import { noteGlobal } from './blackbox.mjs' // (v0.62.0) freeze forensics at the pathfinder funnel
 
 // Rejects if the promise is still pending after `ms` milliseconds, clears the timer
 // in both cases (the old inline version leaked one setTimeout per call).
@@ -243,12 +244,22 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
+  // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
+  // goal - the A* think that answers is a SYNC main-thread block (up to the
+  // 4.5s think window per search) and run60's 150s freeze had no witness.
+  // The ring note is one interned store; the dump names the last labels
+  // before any future gap. The queue entry + the run start bracket the wait
+  // ('pf:queue walk' then 'pf:goal walk') so a saturated queue and a deep
+  // search leave different fingerprints.
+  noteGlobal(`pf:queue ${label}`)
   // (v0.21.0) priority rides through to the fleet queue: bank walks (PATH_PRIO_BANK)
   // jump ahead of mining-column walks under saturation - a queued bank walk burns
   // its dist-scaled budget in line while a mining delay costs nothing at all.
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
+    noteGlobal(`pf:goal ${label}`)
     return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+      .finally(() => noteGlobal(`pf:done ${label}`))
   }, { priority }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
