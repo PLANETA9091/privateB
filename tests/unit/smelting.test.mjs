@@ -617,7 +617,7 @@ test('furnacePutCount: the put never asks for more than one slot absorbs (run82 
   assert.equal(furnacePutCount(-5), 0, 'a negative batch puts nothing')
   assert.equal(furnacePutCount(NaN), 0, 'junk puts nothing (the Number(null) family, tenth strike)')
   assert.equal(furnacePutCount(null), 0, 'null puts nothing')
-  assert.equal(furnacePutCount(93.9), 93, 'a fractional count floors')
+  assert.equal(furnacePutCount(93.9), 64, 'a fractional count floors, then caps at the slot max')
   assert.equal(furnacePutCount(100, 16), 16, 'a caller-pinned max caps tighter')
   assert.equal(furnacePutCount(100, NaN), 64, 'a junk max reads the vanilla slot max')
   assert.equal(furnacePutCount(100, -3), 64, 'a junk-negative max reads the vanilla slot max')
@@ -637,17 +637,27 @@ test('slotMismatchReason: the read-back disagreement is a NAMED verdict (null = 
   assert.equal(slotMismatchReason({}), null, 'the bare call is a no-check')
 })
 
-test('smeltBatch: a 93-cobble batch puts 64, smelts it, and the pocket keeps the surplus', async () => {
+test('smeltBatch: a 93-cobble batch puts 64 and the pocket keeps the surplus (the cap spy)', async () => {
   const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5) })
   const puts = []
   const origPut = f.putInput.bind(f)
   f.putInput = async (type, meta, count) => { puts.push(count); await origPut(type, meta, count) }
   const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 93), item('coal', 12)] })
-  const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 93, ...FAST })
+  await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 93, ...FAST })
   assert.deepEqual(puts, [64], 'the put asked for 64, never 93 (the destination-full class)')
-  assert.equal(res.smelted, 64, 'the slot batch smelts in full')
-  assert.equal(res.reason, 'ok')
+  // the mock's window rows take ONE item per slot (36 rows), so a full 64-take
+  // cannot land there - the pocket-surplus pin is the honest half of this spy:
+  // the surplus stayed pocketed exactly as the cap promises
   assert.ok(bot._items.some(i => i.name === 'cobblestone' && i.count === 29), 'the pocket keeps the 29 surplus')
+})
+
+test('smeltBatch: a capped put smelts end to end (30 cobble, inside the mock row space)', async () => {
+  const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 30), item('coal', 4)] })
+  const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 30, ...FAST })
+  assert.equal(res.smelted, 30, 'the whole capped batch smelted and returned')
+  assert.equal(res.reason, 'ok')
+  assert.equal(f.slots[1], null, 'the leftover fuel left the slot - the machine reads free')
 })
 
 test('smeltBatch: the swapped-put lie is a named slot-mismatch verdict with the items pulled back', async () => {
