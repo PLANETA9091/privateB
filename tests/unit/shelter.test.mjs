@@ -9,10 +9,10 @@ import assert from 'node:assert/strict'
 import {
   SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, SEAL_PRIORITY,
   EARN_SEAL_MAX_THREAT_DIST, JUNK_DROP_PRIORITY,
-  RING_BLOCKS_NEEDED, RING_SIDE_NORMALS,
+  RING_BLOCKS_NEEDED, RING_SIDE_NORMALS, RING_PLACE_ROUNDS, RING_RETRY_TICKS,
   shelterDue, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
-  ringSideOrder, countSealBlocks
+  ringSideOrder, countSealBlocks, emptySlotCount
 } from '../../src/lib/shelter.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
@@ -227,4 +227,47 @@ test('REGRESSION PIN (run58 F1): open field + rich pocket must be ring-feasible'
   assert.equal(countSealBlocks(f1Pocket) >= RING_BLOCKS_NEEDED, true, 'the stock gate passes')
   assert.equal(ringFeasible([openField(), openField(), openField(), openField()]), true, 'the world gate passes - the ring builds where no wall exists')
   assert.equal(ringSideBuildable(openField()), true, 'every side closes')
+})
+
+// ---- v0.68.0: THE PRE-FIGHT SHELTER + THE DIG-EARN BYPASS + RING PATIENCE ----
+// run64 (dispatch 35682136264) mined 34 shelter lines: 12x 'no seal material,
+// nothing expendable to drop' (the biggest slice), ring incomplete 0/8 + 2/8
+// + 2/8 at zombie 0.6-2.5, ring not buildable [xo] + [.. -o], and exactly ONE
+// success (F10: the wall variant sheltered from a zombie at 1.3 - proof the
+// close race is winnable by the FAST variant only).
+
+test('emptySlotCount: the dig-earn bypass counts FREE cells, junk-safe', () => {
+  // the measured F17-class pocket: tools + food, 13+ free slots, no junk
+  const slots = new Array(36).fill(null)
+  slots[0] = { name: 'stone_pickaxe' }
+  slots[1] = { name: 'bread', count: 6 }
+  assert.equal(emptySlotCount(slots), 34, '34 free cells - the dig drop has somewhere to land')
+  const full = Array.from({ length: 36 }, (_, i) => ({ name: `block${i}` }))
+  assert.equal(emptySlotCount(full), 0, 'a full pocket earns the OLD way (toss) or not at all')
+  assert.equal(emptySlotCount([null, undefined, { name: 'x' }, null]), 3, 'null and undefined both read empty')
+  assert.equal(emptySlotCount(null), 0, 'junk -> 0: never dig-earn on a guess')
+  assert.equal(emptySlotCount('nope'), 0, 'junk -> 0')
+  assert.equal(emptySlotCount([]), 0, 'an empty ARRAY is not free slots - it is no information')
+})
+
+test('REGRESSION PIN (run64 F12): the pre-fight window was shelter-due all along', () => {
+  // F12 met the zombie at dist 1.6 with hp 17.0 and the FIGHT verdict swung
+  // first (tryShelter was never consulted); 4 seconds later the re-verdict
+  // sheltered at hp 5 - too late for every variant. The policy matrix ALREADY
+  // answered the first moment: melee-naked + night + threat in reach = shelter.
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 1.6 }), true, 'the first-sight moment was due')
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 4.4 }), true, 'F11-class: the ring had 4.4 blocks of room, not 0.6')
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 0.6 }), true, 'even 0.6 is due - nothing else wins there either')
+  // the armed bot keeps the v0.67.0 deal: the sword fight is the winner
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 1.6 }), false, 'armed fights, it does not seal')
+})
+
+test('ring patience constants: the sealWaitUnseal pacing, pinned', () => {
+  // run64 measured the single 4-tick retry losing to a mob grazing the build
+  // zone ('ring incomplete 0/8..2/8' x3); sealWaitUnseal has always used
+  // 2 rounds x 6 ticks and it SHELTERED (run63 shelters=3). The ring now
+  // inherits exactly that patience.
+  assert.equal(RING_PLACE_ROUNDS, 2, 'two rounds per cell, like the seal')
+  assert.equal(RING_RETRY_TICKS, 6, '6 ticks between rounds, like the seal')
+  assert.ok(RING_RETRY_TICKS > 4, 'strictly more patient than the old single retry')
 })

@@ -27,7 +27,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -388,16 +388,27 @@ export function createMiner ({
     // junk: the wall dug below respawns its block as a drop INSIDE pickup range
     // and sealWaitUnseal re-reads the inventory, so the fresh block seals the hole.
     if (!pickSealItem(inventoryItems(bot))) {
-      if (!threat || !earnSealDue({ threatDist: threat.dist })) {
+      // (v0.68.0) THE DIG-EARN BYPASS: a FREE slot replaces the toss - the
+      // wall niche dig drops land inside pickup range and sealWaitUnseal
+      // re-reads the inventory. run64 measured the old order refusing
+      // tool-only pockets 12x ('nothing expendable to drop'): those pockets
+      // have SLOTS, not junk. The wall loop digs only after a diggable wall
+      // passes, so an open-field bot pays nothing for the bypass, and the
+      // ring's own stock gate still reads the inventory honestly.
+      const freeSlots = emptySlotCount(bot.inventory.slots.slice(9, 45))
+      const canEarn = !!threat && earnSealDue({ threatDist: threat.dist })
+      if (freeSlots > 0) {
+        log(`${tag} combat: shelter dig-earn: ${freeSlots} free slot(s), the dig supplies the seal`)
+      } else if (!canEarn) {
         log(`${tag} combat: shelter skip (no seal material, ${threat ? `threat@${threat.dist.toFixed(1)} too close to earn` : 'no threat'})`)
         return false
       }
       const junk = pickJunkToDrop(inventoryItems(bot))
-      if (!junk) {
+      if (!junk && freeSlots <= 0) {
         log(`${tag} combat: shelter skip (no seal material, nothing expendable to drop)`)
         return false
       }
-      try {
+      if (junk) try {
         const item = bot.inventory.items().find(i => i.name === junk.name)
         if (item) {
           await bot.toss(item.type, item.metadata ?? 0, 1)
@@ -544,26 +555,26 @@ export function createMiner ({
         const refY = y === here.y ? here.y - 1 : here.y
         const ref = bot.blockAt(new Vec3(s.fx, refY, s.fz))
         if (!ref || ref.boundingBox === 'empty') break // lost the reference
-        const sealName = pickSealItem(inventoryItems(bot))?.name
-        const item = sealName ? bot.inventory.items().find(i => i.name === sealName) : null
-        if (!item) break // stock ran dry mid-build
-        try {
-          await bot.equip(item, 'hand')
-          await bot.placeBlock(ref, new Vec3(0, 1, 0))
-          await bot.waitForTicks(2)
-        } catch {
-          // one measured retry (a mob grazing the cell rejects the click):
-          // a short pause, then the same face once more
+        // (v0.68.0) THE RING PATIENCE: the seal's own pacing (sealWaitUnseal:
+        // 2 rounds x 6 ticks) replaces the single 4-tick retry - run64
+        // measured a mob grazing the build zone for longer than 4 ticks
+        // walking the build dead ('ring incomplete 0/8..2/8' x3). Each round
+        // re-picks the seal item (stock handover) and verifies the block
+        // actually landed before the cell counts as done.
+        let placed = false
+        for (let round = 0; round < RING_PLACE_ROUNDS && !placed; round++) {
+          if (round > 0) await bot.waitForTicks(RING_RETRY_TICKS)
+          const sealName = pickSealItem(inventoryItems(bot))?.name
+          const item = sealName ? bot.inventory.items().find(i => i.name === sealName) : null
+          if (!item) break // stock ran dry mid-build
           try {
-            await bot.waitForTicks(4)
-            const item2 = pickSealItem(inventoryItems(bot))?.name
-            const itemB = item2 ? bot.inventory.items().find(i => i.name === item2) : null
-            if (!itemB) break
-            await bot.equip(itemB, 'hand')
+            await bot.equip(item, 'hand')
             await bot.placeBlock(ref, new Vec3(0, 1, 0))
             await bot.waitForTicks(2)
-          } catch { break }
+            placed = readClass(s.fx, y, s.fz) === 'solid'
+          } catch { /* next round: a grazing mob moves off */ }
         }
+        if (!placed) break // the cell stays contested - an incomplete ring never waits
       }
     }
     // the verify: every one of the 8 cells must be solid - an incomplete ring
@@ -635,6 +646,20 @@ export function createMiner ({
         await runAway(threat, reason)
         await recover()
         return { action: 'flee', threat: threat.name }
+      }
+      // (v0.68.0) THE PRE-FIGHT SHELTER: the FIGHT verdict never consulted
+      // the shelter - run64 measured the melee-naked bot burning its 17-20 hp
+      // window on the losing fist fight (v0.47.0: 17 hp -> 4.3 hp, zombie
+      // alive) and re-verdicting into the shelter at hp 5 with the zombie at
+      // 0.6-2.2, ranges the ring can never outbuild (ring 0/8, 2/8, 2/8
+      // there). The wall variant WINS the close race (F10: sheltered at
+      // 1.3). The shelter runs BEFORE the first swing for a bot without a
+      // real melee weapon; armed bots skip it (the sword fight is the
+      // winner, v0.67.0, and tryShelter refuses them anyway).
+      if (!pickMeleeWeapon(inventoryItems(bot))) {
+        try {
+          if (await tryShelter(`${reason} pre-fight`)) return { action: 'shelter', threat: threat.name }
+        } catch { /* best-effort - fight with what we hold */ }
       }
       log(`${tag} combat: fighting ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
       const weapon = pickWeapon(inventoryItems(bot))

@@ -296,3 +296,46 @@ export function countSealBlocks (items) {
   for (const name of SEAL_PRIORITY) total += held.get(name) ?? 0
   return total
 }
+
+// ---- v0.68.0: THE PRE-FIGHT SHELTER + THE DIG-EARN BYPASS + RING PATIENCE ----
+// run64 (dispatch 35682136264, the v0.66.0 fleet, NORMAL END 19/19, artifacts
+// mined 2026-09-22) logged 34 shelter lines with FOUR failure shapes:
+// (d) 12x 'no seal material, nothing expendable to drop' - the biggest slice.
+//     The v0.50.0 earn assumes the FULL pocket (toss junk to free ONE slot so
+//     the dig drop can land), but the measured refusals are the OPPOSITE
+//     shape: tool-only pockets (F17 x5 around its respawns, F11/F6/F12/F13)
+//     with 13+ FREE slots and nothing the junk list accepts. The refusal is
+//     wrong there: the wall variant digs its own niche, the dug blocks drop
+//     INSIDE pickup range, a free slot swallows one, and sealWaitUnseal
+//     re-reads the inventory - the dig IS the earn. A toss is only needed
+//     when NO slot exists.
+// (structural) defendSelf consulted tryShelter only on the FLEE verdict - the
+//     FIGHT verdict swung first, so the melee-naked bot spent its 17-20 hp
+//     window on the measured losing fist fight (v0.47.0: 17 hp -> 4.3 hp,
+//     zombie alive) and re-verdicted into the shelter at hp 5 with the zombie
+//     at 0.6-2.2 - ranges the ring can never outbuild (run64: ring 0/8, 2/8,
+//     2/8 there). F10 proved the wall variant WINS the close race (sheltered
+//     from a zombie at 1.3). The shelter now runs BEFORE the first swing for
+//     a bot without a real melee weapon.
+// (a) 'ring incomplete' = ONE placement retry (4 ticks) per cell; a mob
+//     grazing the build zone for longer walked the build dead. The seal's own
+//     pacing (sealWaitUnseal: 2 rounds x 6 ticks) is the proven patience -
+//     the ring adopts it as RING_PLACE_ROUNDS / RING_RETRY_TICKS.
+
+/** Free (null) cells in an inventory slot array. The caller slices the range
+ * it means (mineflayer's bot.inventory.slots includes craft/armor/offhand
+ * cells - the miner passes the main+hotbar range). Junk -> 0: never dig-earn
+ * on a guess.
+ * @param {Array<unknown>} [slots] slot cells, empty = null/undefined */
+export function emptySlotCount (slots) {
+  if (!Array.isArray(slots)) return 0
+  let n = 0
+  for (const s of slots) if (s == null) n++
+  return n
+}
+
+/** Placement rounds per ring cell (the sealWaitUnseal patience). */
+export const RING_PLACE_ROUNDS = 2
+/** Ticks between placement rounds - a mob grazing a build cell moves off
+ * within ~0.3-1 s, the single 4-tick retry of run64 did not cover it. */
+export const RING_RETRY_TICKS = 6
