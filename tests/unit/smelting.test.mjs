@@ -13,7 +13,8 @@ import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
-  smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS
+  smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS,
+  furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX
 } from '../../src/lib/smelting.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and a
@@ -598,4 +599,78 @@ test('smeltFuelKeep: a smeltable pocket holds its fuel through the pre-deposit (
   // burns charcoal first-class (8 smelts per unit, same as coal)
   assert.ok('charcoal'.includes('coal'))
   assert.equal(MACHINE_DOOM_TTL_MS, 15000, 'the machine doom TTL is 15s (run81: one failed walk killed a fresh camp furnace for the run)')
+})
+
+// ------------------------------------------------------------------- v0.92.0
+// run82 (dispatch 35789963277 on 0b01214): F15 reach-opened its own fresh furnace,
+// put 93 cobble + 12 coal with both puts "verified" by the row delta - and the
+// output stayed EMPTY through the whole poll (mineflayer threw 'destination full'
+// on the 93-count put; something left the rows, the machine never smelted). Two
+// cures: the put count caps at the vanilla slot max, and the machine's own slots
+// are read back + NAMED after the puts (a disagreement is a verdict, not a wait).
+test('furnacePutCount: the put never asks for more than one slot absorbs (run82 F15 destination full)', () => {
+  assert.equal(FURNACE_SLOT_MAX, 64, 'the vanilla furnace slot max is pinned')
+  assert.equal(furnacePutCount(93), 64, 'a 93-cobble batch puts 64 - the surplus stays pocketed')
+  assert.equal(furnacePutCount(64), 64, 'an exact stack fills the slot')
+  assert.equal(furnacePutCount(10), 10, 'a small batch is untouched')
+  assert.equal(furnacePutCount(0), 0, 'a zero batch puts nothing')
+  assert.equal(furnacePutCount(-5), 0, 'a negative batch puts nothing')
+  assert.equal(furnacePutCount(NaN), 0, 'junk puts nothing (the Number(null) family, tenth strike)')
+  assert.equal(furnacePutCount(null), 0, 'null puts nothing')
+  assert.equal(furnacePutCount(93.9), 93, 'a fractional count floors')
+  assert.equal(furnacePutCount(100, 16), 16, 'a caller-pinned max caps tighter')
+  assert.equal(furnacePutCount(100, NaN), 64, 'a junk max reads the vanilla slot max')
+  assert.equal(furnacePutCount(100, -3), 64, 'a junk-negative max reads the vanilla slot max')
+})
+
+test('slotMismatchReason: the read-back disagreement is a NAMED verdict (null = honest)', () => {
+  assert.equal(slotMismatchReason({ wantName: 'cobblestone', slotInputName: 'cobblestone', slotFuelName: 'coal' }),
+    null, 'an honest put reads null')
+  assert.equal(slotMismatchReason({ wantName: 'cobblestone', slotInputName: 'coal', slotFuelName: 'cobblestone' }),
+    'slot mismatch (input=coal, fuel=cobblestone, want cobblestone)', 'the swapped-put class names both slots')
+  assert.match(slotMismatchReason({ wantName: 'sand', slotInputName: null, slotFuelName: 'coal' }),
+    /input=empty/, 'an unread input slot reads empty, never the wanted name')
+  assert.match(slotMismatchReason({ wantName: 'sand', slotInputName: null, slotFuelName: null }),
+    /fuel=empty/, 'unread fuel reads empty too')
+  assert.equal(slotMismatchReason({ wantName: null, slotInputName: 'coal' }), null, 'no want = no check')
+  assert.equal(slotMismatchReason({ wantName: '', slotInputName: 'coal' }), null, 'an empty want = no check')
+  assert.equal(slotMismatchReason({}), null, 'the bare call is a no-check')
+})
+
+test('smeltBatch: a 93-cobble batch puts 64, smelts it, and the pocket keeps the surplus', async () => {
+  const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5) })
+  const puts = []
+  const origPut = f.putInput.bind(f)
+  f.putInput = async (type, meta, count) => { puts.push(count); await origPut(type, meta, count) }
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 93), item('coal', 12)] })
+  const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 93, ...FAST })
+  assert.deepEqual(puts, [64], 'the put asked for 64, never 93 (the destination-full class)')
+  assert.equal(res.smelted, 64, 'the slot batch smelts in full')
+  assert.equal(res.reason, 'ok')
+  assert.ok(bot._items.some(i => i.name === 'cobblestone' && i.count === 29), 'the pocket keeps the 29 surplus')
+})
+
+test('smeltBatch: the swapped-put lie is a named slot-mismatch verdict with the items pulled back', async () => {
+  const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5) })
+  // simulate the slot-map lie: the input put lands in the FUEL slot, the fuel put in the INPUT slot
+  f.putInput = async (type) => { const e = [...TYPES.entries()].find(([, t]) => t === type); f._absorb('fuel', e?.[0], 20) }
+  f.putFuel = async (type) => { const e = [...TYPES.entries()].find(([, t]) => t === type); f._absorb('input', e?.[0], 3) }
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 20), item('coal', 3)] })
+  const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 20, ...FAST })
+  assert.equal(res.smelted, 0, 'the lie never collects')
+  assert.equal(res.reason, 'slot mismatch (input=coal, fuel=cobblestone, want cobblestone)', 'the verdict names the disagreement')
+  assert.ok(bot._items.some(i => i.name === 'coal' && i.count >= 3), 'the coal rode back to the pocket')
+  assert.ok(bot._items.some(i => i.name === 'cobblestone' && i.count >= 20), 'the cobble rode back too')
+  assert.equal(f.slots[0], null, 'the input slot is clean for the fleet')
+  assert.equal(f.slots[1], null, 'the fuel slot is clean for the fleet')
+})
+
+test('smeltBatch: a completed batch pulls the leftover fuel back (the machine reads free, never busy)', async () => {
+  const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5), fuelUnitsPer: 100 })
+  const bot = makeMockBot({ machines: [f], items: [item('sand', 8), item('coal', 1)] })
+  const res = await smeltBatch(bot, { machineBlock: f, inputName: 'sand', count: 8, ...FAST })
+  assert.equal(res.smelted, 8, 'the batch completed')
+  assert.equal(res.reason, 'ok')
+  assert.equal(f.slots[1], null, 'the unburnable leftover fuel left the slot - no busy-wall for the next visitor')
+  assert.ok(bot._items.some(i => i.name === 'coal' && i.count >= 1), 'the leftover coal rides the pocket again')
 })

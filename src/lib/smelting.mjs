@@ -175,6 +175,44 @@ export function smeltBatchWaitMs ({ maxSeconds = 90, batch = 1, smeltSecondsPerI
   return Math.max(0, Math.min(want, cap))
 }
 
+// (v0.92.0) A vanilla furnace slot holds ONE stack - 64 max. MEASURED (run82,
+// dispatch 35789963277 on 0b01214, F15): the put asked for 93 cobblestone into
+// the fresh input slot and mineflayer threw 'destination full' - the row-delta
+// still read "moved" (something DID leave the rows), the batch logged
+// 'smelting 93 x cobblestone (fuel: 12 x coal)', and the poll waited out its
+// whole budget on an output slot that stayed EMPTY to the last poll. Both
+// batches died 'timeout' with zero collected - the ninth smelted=0, this time
+// with the machine OPEN and the fuel IN. The put count is capped at the slot
+// max so the click can never ask for more than one stack absorbs; the surplus
+// stays pocketed and re-smelts on the next chain (the batch-clock rule: the
+// estimate may fill the budget, the pocket keeps the rest).
+export const FURNACE_SLOT_MAX = 64
+
+/** Pure: the count one furnace-slot put may request. Junk-safe: a junk count
+ * reads 0 (nothing to put - the caller's own verify loop refuses), a junk max
+ * reads FURNACE_SLOT_MAX, a fractional count floors. Never negative. */
+export function furnacePutCount (count, max = FURNACE_SLOT_MAX) {
+  const c = Number(count)
+  if (!Number.isFinite(c) || c <= 0) return 0
+  const m = Number.isFinite(Number(max)) && Number(max) > 0 ? Math.floor(Number(max)) : FURNACE_SLOT_MAX
+  return Math.min(Math.floor(c), m)
+}
+
+/** Pure: the NAMED verdict when the post-put slot read-back disagrees with the
+ * put plan (null = the map is honest). MEASURED (run82, F15): both puts
+ * "verified" by the row delta yet the furnace never smelted - the only way to
+ * know WHERE the items landed is to read the machine's own slots back and NAME
+ * the disagreement instead of polling an empty output for the whole budget.
+ * Junk-safe: an unknown wantName is a no-check (null), an unread slot reads
+ * 'empty' in the verdict text (a null read must not read as the wanted item). */
+export function slotMismatchReason ({ wantName = null, slotInputName = null, slotFuelName = null } = {}) {
+  if (typeof wantName !== 'string' || wantName.length === 0) return null
+  const read = typeof slotInputName === 'string' && slotInputName.length > 0 ? slotInputName : 'empty'
+  if (read === wantName) return null
+  const f = typeof slotFuelName === 'string' && slotFuelName.length > 0 ? slotFuelName : 'empty'
+  return `slot mismatch (input=${read}, fuel=${f}, want ${wantName})`
+}
+
 // smelts per fuel unit (vanilla): coal 8, planks/logs 1.5, stick 0.5 ...
 export const FUEL_YIELD = {
   coal: 8,
@@ -466,7 +504,10 @@ export async function smeltBatch (bot, {
     }
 
     const batch = Math.min(count, invCount(inputName))
-    if (!await putVerified(furnace.putInput.bind(furnace), inputName, batch)) {
+    // (v0.92.0) the put never asks for more than one slot absorbs (run82: a 93-cobble
+    // batch threw 'destination full' and the poll still waited on an empty output)
+    const putCount = furnacePutCount(batch)
+    if (!await putVerified(furnace.putInput.bind(furnace), inputName, putCount)) {
       // permanent diagnostic: on a broken transfer, dump the window view so a slot-map
       // regression in the patched 26.2 stack is visible in CI logs
       try {
@@ -482,7 +523,24 @@ export async function smeltBatch (bot, {
       try { await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
       return { smelted, rescued, reason: 'fuel transfer failed' }
     }
-    log(`${tag} smelting ${batch} x ${inputName} in a ${machineBlock.name} (fuel: ${fuel.count} x ${fuel.name})`)
+    // (v0.92.0) THE SLOT READ-BACK - the row delta proves something LEFT the
+    // pocket, not WHERE it landed. Run82's F15 put 93+fuel into a fresh furnace
+    // with both puts "verified" and the output stayed empty through the whole
+    // poll: the only truth is the machine's own slots. Read them, log them,
+    // and a disagreement (the slot-map lie class) is a NAMED verdict with the
+    // items pulled back - never a silent budget burned on a furnace that
+    // cannot smelt.
+    const readBack = { input: null, fuel: null }
+    try { readBack.input = furnace.inputItem()?.name ?? null } catch { /* dead window */ }
+    try { readBack.fuel = furnace.fuelItem()?.name ?? null } catch { /* dead window */ }
+    log(`${tag} furnace slots after put: input=${readBack.input ?? 'empty'} fuel=${readBack.fuel ?? 'empty'}${putCount < batch ? ` (pocket keeps ${batch - putCount})` : ''}`)
+    const mismatch = slotMismatchReason({ wantName: inputName, slotInputName: readBack.input, slotFuelName: readBack.fuel })
+    if (mismatch) {
+      try { if (furnace.inputItem()) await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
+      try { if (furnace.fuelItem()) await withTimeout(furnace.takeFuel(), 5000, 'take fuel back') } catch { /* lost */ }
+      return { smelted, rescued, reason: mismatch }
+    }
+    log(`${tag} smelting ${putCount} x ${inputName} in a ${machineBlock.name} (fuel: ${fuel.count} x ${fuel.name})`)
 
     // WAIT for the output: ~10s smelt per item, poll, hard deadline.
     // (v0.91.0) THE BATCH CLOCK - run81 (dispatch 35782802480 on ab644e4): F19 held
@@ -501,9 +559,9 @@ export async function smeltBatch (bot, {
     // pocket re-smelts on the next chain. Legacy mid-run calls (visitBudgetMs
     // null) keep the legacy unbounded shape byte for byte.
     const visitRemainingMs = visitDeadline == null ? null : Math.max(0, visitDeadline - Date.now())
-    const deadline = started + smeltBatchWaitMs({ maxSeconds, batch, smeltSecondsPerItem, pollMs, visitRemainingMs })
+    const deadline = started + smeltBatchWaitMs({ maxSeconds, batch: putCount, smeltSecondsPerItem, pollMs, visitRemainingMs })
     const expectOut = SMELT_OUTPUT[inputName]
-    let remaining = batch
+    let remaining = putCount
     while (Date.now() < deadline && remaining > 0) {
       const out = furnace.outputItem()
       if (out && out.count > 0) {
@@ -530,6 +588,11 @@ export async function smeltBatch (bot, {
       // give up cleanly: pull OUR leftovers out so the machine stays free for the fleet
       try { if (furnace.inputItem()) await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
       try { if (furnace.fuelItem()) await withTimeout(furnace.takeFuel(), 5000, 'take fuel back') } catch { /* lost */ }
+    } else {
+      // (v0.92.0) the batch completed - pull OUR leftover fuel back: a fuel item
+      // without input never burns (vanilla), so it would read 'busy' to every
+      // later visitor and wall the machine off for the rest of the run
+      try { if (furnace.fuelItem()) await withTimeout(furnace.takeFuel(), 5000, 'take leftover fuel') } catch { /* lost */ }
     }
   } catch (e) {
     reason = `error (${e.message})`
