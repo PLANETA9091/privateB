@@ -156,7 +156,14 @@ test('walk: the budgetMs clock bounds the loop and the last slice clamps to it',
   assert.equal(slices[0], 20)
   assert.equal(slices[1], 20)
   assert.ok(slices[2] > 0 && slices[2] < 20, `the third slice clamped to the remaining clock (got ${slices[2]})`)
-  assert.equal(res.walked, false, 'the clock spent before the threshold - reported as-is')
+  // (v0.70.1) the walked pin FOLLOWS the geometry instead of contradicting it:
+  // 3 segments end at d=40 (outside the threshold 24), but the boundary-sliver
+  // 4th segment closes to d=20 - INSIDE. v0.69.1 widened the count pin to
+  // 3..4 and kept walked=false, which the 4-segment outcome falsifies; this
+  // exact pair has now flaked twice (35688226298, 35695172343 both on this
+  // test, once per shape). The CLOCK BOUND stays the real pin - walked
+  // derives from the count deterministically.
+  assert.equal(res.walked, res.segments === 4, '3 segments: outside (d=40); the sliver 4th: inside (d=20 <= 24)')
 })
 
 test('walk: a zero budget ends the loop BEFORE any segment starts', async () => {
