@@ -1752,3 +1752,15 @@ Work Log:
 
 Stage Summary:
 - Master at push: 04d68ba. EXPECTATIONS for the next fleet: banked>0 FOR THE FIRST TIME IN PROJECT HISTORY; 'banked N items ... direct=' lines; '(t=,m0=)' counters on zero hops; watch mainLate vs the doomed-goal ledger counts. NEXT: mine the artifact; banked>0 unblocks the smelting chain (smelted>0 next).
+---
+Task ID: 398294-20260922-1553-close
+Agent: Z.ai Code (cron session, 15:53 +08)
+Task: run70 adopted + mined; a fresh 600s dispatch fires as the true last action.
+
+Work Log:
+- Their dispatch 35711725877 on 2afdde5 (the full cure stack) ADOPTED, no duplicate. Units + integration green; fleet SUCCESS.
+- RUN70 MINED: normal end 600s, alive 19/19, mined=1216 (2.03 b/s), pockets 566u (~30u/bot - below the needsBanking gate), banked=0, ZERO bank trips, conversion 46.5%. The environment was broken, not the cures: server losses=24, relogins=25, reboots=7 (the JVM restarted SEVEN times); swords=10, tools=7; a mainLate=43449ms freeze at ts=101s (the spiral shape in the DEPLOY funnel); the hopped chests at y=82. NO bot reached the click layer - the slot-direct + mirror pocket cures stay probe-proven but fleet-unverified.
+- Open fronts: the server stability class (7 reboots) dwarfs everything; the freeze class persists in new funnels; banked>0 still the joint gate.
+
+Stage Summary:
+- Master: 2afdde5. Next free version = 0.74.0. The fresh 600s dispatch (fleet_seconds=600) fires after this push as the session's absolute last action. Next session: mine the artifact first (healthy-server check: losses<<24; bank trips firing; direct=/t=,m0= lines if the click layer is reached; banked>0 the gate), then the server-stability class.
