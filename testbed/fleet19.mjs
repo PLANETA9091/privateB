@@ -26,7 +26,7 @@ import { mapTripTargets, planHave, planItemsOf } from '../src/fleet/materialplan
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
@@ -1342,6 +1342,8 @@ console.log(`no-path ledger: ${noPathLedger.length} live verdict(s) at end phase
 console.log(`full-chest ledger: ${fullChestLedger.length} live verdict(s) at end phase`)
 const dgs = doomedGoalStats()
 console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-issues refused at the funnel, ${dgs.live} live at end phase (v0.72.0 spiral breaker)`)
+const wgs = walkGovernorStatsFor()
+console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

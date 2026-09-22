@@ -188,6 +188,7 @@ export class MiningJobQueue {
 import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
+import { createWalkGovernor } from './walkgovernor.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
@@ -260,6 +261,71 @@ export function resetDoomedGoalLedger () {
   doomedStats.refusals = 0
 }
 
+// (v0.74.0) THE STALL GOVERNOR - the CHURN breaker, the per-bot sibling of the
+// doomed-goal ledger above. MEASURED (run68): the spiral returned with ZERO
+// pathfinder dead verdicts (0 ledger records, 0 'Took to long', 20x budget
+// timeouts) and the blackbox showed goals queued AND done at a ~7.5s cadence
+// INSIDE the 151s freeze - the main thread was churning, not blocked. Fuel:
+// starved physics stalls every walk, each task loop escalates to ANOTHER walk,
+// every re-issue pays setGoal -> resetPath -> an A* burst. The budget timeouts
+// correctly never record (geometry unproven), so the ledger had nothing to
+// catch. The governor judges the WALKER instead: STALL_CHURN_LIMIT settled
+// walks with zero position progress inside STALL_WINDOW_MS open a per-bot
+// stall - gotoSafe refuses new goals for STALL_COOLDOWN_MS at zero cost (no
+// queue slot, no setGoal, no A*) and the caller's ladder falls through to its
+// non-walk rungs. A real progress walk (>1 block) clears the streak; a bot
+// that moves while the stall is open (rescue hauled it, gravity dropped it)
+// closes the stall early - an honest governor never traps a bot that can walk.
+// Per-bot by construction: one state machine per bot in a WeakMap - one wedged
+// bot never strangles the fleet; 19 wedged bots each stop feeding the
+// pathfinder and the storm starves.
+let walkGovernors = new WeakMap()
+const walkGovernorStats = { refusals: 0, opens: 0 }
+
+function walkGovernorFor (bot) {
+  let g = walkGovernors.get(bot)
+  if (!g) {
+    g = createWalkGovernor({ onOpen: () => { walkGovernorStats.opens++ } })
+    walkGovernors.set(bot, g)
+  }
+  return g
+}
+
+/** The bot's floored position, or null when unmeasurable (mocks, teardown). */
+function walkPosOf (bot) {
+  try {
+    const p = bot && bot.entity && bot.entity.position
+    return p && typeof p.floored === 'function' ? p.floored() : null
+  } catch { return null }
+}
+
+/** Record one settled walk outcome into the bot's governor (never throws).
+ * progress = displacement in blocks between the walk's start and end. */
+function recordWalkOutcome (bot, startPos) {
+  try {
+    const g = walkGovernorFor(bot)
+    const endPos = walkPosOf(bot)
+    let progress = null
+    if (startPos && endPos && typeof startPos.distanceTo === 'function') {
+      const d = startPos.distanceTo(endPos)
+      if (Number.isFinite(d)) progress = d
+    }
+    g.recordOutcome(progress, Date.now())
+  } catch { /* a governor record must never mask the walk's own result */ }
+}
+
+/** Fleet summary counters for the FLEET RESULT block. */
+export function walkGovernorStatsFor () {
+  return { refusals: walkGovernorStats.refusals, opens: walkGovernorStats.opens }
+}
+
+/** Test hook: drop every per-bot governor (never used in prod). */
+export function resetWalkGovernors () {
+  walkGovernors = new WeakMap()
+  walkGovernorStats.refusals = 0
+  walkGovernorStats.opens = 0
+}
+
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
 // MEASURED: fleet #128 (77 bank attempts, banked=0), the v0.19.0 yard-walk retries
@@ -326,6 +392,25 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       throw new Error(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
     }
   }
+  // (v0.74.0) THE STALL GOVERNOR CONSULT - the churn breaker, after the
+  // geometry consult, before the queue. A bot mid-stall walks nowhere right
+  // now; its re-issues are pure spiral fuel. The refusal is honest and named
+  // so the caller's log shows WHY the walk never queued. The early close
+  // rides INSIDE consult: a bot that moved on its own (rescue, fall) walks
+  // again immediately - the governor never traps a recoverable walker.
+  try {
+    const gov = walkGovernorFor(bot)
+    // the consult itself OPENS the stall when the churn evidence is already
+    // sufficient - the refusal and the open are one atomic verdict
+    const verdict = gov.consult(walkPosOf(bot), Date.now())
+    if (verdict.open) {
+      walkGovernorStats.refusals++
+      throw new Error(`walk governor: bot churned ${verdict.churn} goals without progress - ${label} refused for ${Math.round(verdict.remainingMs / 1000)}s`)
+    }
+  } catch (e) {
+    if (e && /walk governor/.test(e.message)) throw e // the refusal itself
+    /* governor failures never block the walk they precede */
+  }
   // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
   // goal - the A* think that answers is a SYNC main-thread block (up to the
   // 4.5s think window per search) and run60's 150s freeze had no witness.
@@ -340,8 +425,12 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
     noteGlobal(`pf:goal ${label}`)
+    const startPos = walkPosOf(bot) // (v0.74.0) the walk's displacement feeds the stall governor
     return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
-      .finally(() => noteGlobal(`pf:done ${label}`))
+      .finally(() => {
+        noteGlobal(`pf:done ${label}`)
+        recordWalkOutcome(bot, startPos)
+      })
   }, { priority }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
     // (v0.65.0) THE ZOMBIE GOAL KILL (the source edge of the unfreeze sweep):
