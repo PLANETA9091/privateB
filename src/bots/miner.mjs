@@ -33,7 +33,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
-  openWaterRelease, physicsFrozen, transitStalled,
+  openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../lib/drowning.mjs'
@@ -799,6 +799,14 @@ export function createMiner ({
   let lastStillWet = null // { x, y, z, at } - where the last still-wet rescue ended
   let repeatWetPages = 0 // consecutive gated repeats at the same cell
   let standDownLogAt = 0 // rate-limits the frozen/repeat stand-down lines
+  // (v0.87.0) THE FROZEN-CLIENT RELOG counter: run79's F8 burned 93 stand-downs
+  // in one wet pocket - the physics stalled with the socket ALIVE, so neither
+  // the reconnect lane (EPIPE/timeout driven) nor the server guard (player-list
+  // losses) ever claimed the bot. Consecutive frozen verdicts escalate to a
+  // forced bot.end(): the session loop reconnects, the physics rebuild, the
+  // mined stats ride the carry. Reset on any rescue that ends with living
+  // physics; the per-bot closure dies with the session, so a relog restarts it.
+  let frozenStandDowns = 0
   // (v0.59.0) the WATER MEMORY: every rescue records WHERE it happened; the dig
   // planner (digShaft) refuses to send the bot back into a live hazard cell.
   // Fleet 35657683920: F16 completed four rescues in a row and died in the
@@ -1052,6 +1060,24 @@ export function createMiner ({
                   ? 'complete'
                   : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+      // (v0.87.0) THE FROZEN-CLIENT RELOG ESCALATION: the stand-down hands the
+      // bot to "the reconnect lane", but a live-socket stall never pages that
+      // lane (it waits for EPIPE/timeout) - run79 measured F8 at 93 stand-downs
+      // with reconnects=3 fleet-wide. After FROZEN_RELOG_AFTER consecutive
+      // frozen verdicts the rescue force-ends the session itself: the fleet
+      // session loop reconnects with a fresh client and the physics rebuild.
+      // A dead bot / no entity never escalates (the respawn owns those exits).
+      if (frozenDown) {
+        frozenStandDowns++
+        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20 })
+        if (esc.relog) {
+          frozenStandDowns = 0
+          log(`${tag} water: frozen client relog (${esc.why}) - ending the session, the reconnect lane rebuilds the physics`)
+          try { bot.end() } catch { /* the session loop owns the wreck */ }
+        }
+      } else {
+        frozenStandDowns = 0 // living physics: the escalation restarts
+      }
       // (v0.82.0) THE STAND-DOWN LEDGER: remember where this rescue ended
       // still wet (the frozen stand-down included - its reads are stale but
       // the cell is the truth); a healthy repeat page will stand down instead

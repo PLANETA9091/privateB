@@ -755,6 +755,51 @@ export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FR
   return (maxX - minX) <= e && (maxY - minY) <= e && (maxZ - minZ) <= e
 }
 
+// ---------------------------------------------------------------------------
+// (v0.87.0) THE FROZEN-CLIENT RELOG - the stand-down needs a floor.
+//
+// MEASURED (run79, dispatch 35766110886 on c59d9f3): F8 burned 93 stand-downs
+// in ONE wet pocket [-129,47/48,406] - the frozen verdicts were TRUE (10 flat
+// passes at y=48.2 with o2 FROZEN at 20: the physics really stalled), but the
+// handoff they promise ("the reconnect lane owns a dead client") never
+// happens, because the client is NOT dead - the socket stays healthy (no
+// EPIPE, reconnects=3 fleet-wide) and the server guard only watches
+// player-list losses. Nobody claims the bot; the sentry re-pages 3-5s after
+// every stand-down; the rescue re-detects the same freeze; ~half the run
+// burns in the cycle. The honest escalation: after N CONSECUTIVE frozen
+// verdicts the water rescue force-ends the session (bot.end()) - the fleet
+// session loop reconnects with a fresh client, the physics rebuild, the
+// mined stats ride the carry (v0.18.9). A transient stall recovers within
+// 1-2 verdicts and never reaches the threshold; a persistent one costs the
+// bot ~40s of churn instead of 600s.
+
+/** Consecutive frozen verdicts before the rescue force-hands the bot to the reconnect lane. */
+export const FROZEN_RELOG_AFTER = 3
+
+/**
+ * Should a frozen-physics stand-down escalate to a forced session end (pure,
+ * junk-safe)? The counter counts CONSECUTIVE frozen verdicts - the caller
+ * resets it on every rescue that ends with living physics (and the per-bot
+ * closure dies with the session, so a relog restarts it naturally). A bot
+ * with no entity or a dead one never needs the escalation: the respawn and
+ * the session loop already own those exits.
+ *
+ * @param {object} [p]
+ * @param {number} [p.frozenStandDowns] consecutive frozen verdicts so far (junk -> 0)
+ * @param {boolean} [p.hasEntity] does the bot still have an entity
+ * @param {number} [p.health] the bot's health (junk -> treated as alive)
+ * @param {number} [p.threshold] verdicts required (default FROZEN_RELOG_AFTER)
+ * @returns {{relog: boolean, why: string}}
+ */
+export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, threshold = FROZEN_RELOG_AFTER } = {}) {
+  const t = Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : FROZEN_RELOG_AFTER
+  const n = Number.isFinite(frozenStandDowns) && frozenStandDowns > 0 ? Math.floor(frozenStandDowns) : 0
+  if (!hasEntity) return { relog: false, why: 'no entity - the session loop already owns it' }
+  if (Number.isFinite(health) && health <= 0) return { relog: false, why: 'bot dead - the respawn owns it' }
+  if (n < t) return { relog: false, why: `${n}/${t} flat stand-downs` }
+  return { relog: true, why: `${n} consecutive frozen verdicts` }
+}
+
 /**
  * May a BOBBING-at-the-surface bot be released (pure, the v0.82.0 third
  * tier)? Run76's F9 toggles head dry/wet while bobbing y 48.2-50.2 in a

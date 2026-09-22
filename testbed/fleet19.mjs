@@ -21,7 +21,7 @@ import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/clai
 import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -31,7 +31,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
-import { smeltInventory } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -150,7 +150,20 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   if (hasBudget && budgetMs <= 0) return { deposited: 0, reason: 'budget exhausted' }
   const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
   const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
-  const lootOpts = () => ({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
+  // (v0.87.0) THE SMELT RESERVE: a bot that carries smeltables holds a slice
+  // of the chain budget for the smelt leg, and the PRE-SMELT legs (the
+  // pre-deposit hops, the yard walk) budget from remaining-reserve. Run79
+  // measured 5 bots with 'end-bank budget spent - smelt skipped' and
+  // smelted=0 fleet-wide - the walks ate the clock and the iron_ore never
+  // became an ingot (THE IRON WALL, 6 runs). The smelt leg itself reads
+  // remaining() (unchanged code - the slice survives by construction) and
+  // the final deposit sees the full clock again. Empty pockets: reserve 0,
+  // the legacy shape byte for byte.
+  const carries = SMELT ? smeltablesIn(miner.bot, { reserveCobble: 8 }).length > 0 : false
+  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carries, smeltBudgetSecs: SMELT_BUDGET })
+  if (smeltReserveMs > 0) console.log(`${miner.username} bank: ${reserveWhy}`)
+  const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())
+  const lootOpts = () => ({ keep: keep(), budgetMs: preSmeltRemaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
   const pre = await miner.depositLoot(lootOpts())
@@ -193,7 +206,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           // rule (13x 'budget exhausted' in dispatch 35562867668 even with a
           // dist-scaled chain). effectiveWalkBudget still clamps it into the
           // chain's remaining wall clock, so the margin maths stand.
-          const walkMs = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: decision.dist }), remainingMs: remaining() })
+          const walkMs = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: decision.dist }), remainingMs: preSmeltRemaining() })
           if (walkMs <= 0) {
             console.log(`${miner.username} bank: end-bank budget spent - yard walk cancelled`)
             break
@@ -264,7 +277,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // raw iron are TOOL MATERIALS, not bank stock. After the iron pickaxe exists the
   // surplus flows to the chests as base stock. keep is computed AFTER smelting: a
   // bot that just produced its first ingots keeps them for the iron pickaxe.
-  const res = await miner.depositLoot(lootOpts())
+  // (v0.87.0) the final deposit budgets from the FULL remaining(): the smelt leg
+  // above has run (or was skipped with its slice unspent) - the reserve is wall
+  // clock again and must not starve the click sequence.
+  const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }

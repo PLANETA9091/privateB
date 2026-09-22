@@ -13,7 +13,7 @@ import { test, beforeEach } from 'node:test'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { depositToChest, depositToChests, effectiveWalkBudget, CHEST_WALK_BASE_MS, BUDGET_WALK_FLOOR_MS } from '../../src/lib/deposit.mjs'
+import { depositToChest, depositToChests, effectiveWalkBudget, CHEST_WALK_BASE_MS, BUDGET_WALK_FLOOR_MS, smeltChainReserve, SMELT_CHAIN_SHARE, SMELT_CHAIN_FLOOR_MS } from '../../src/lib/deposit.mjs'
 import { endBankBudgetMs, END_BANK_BUDGET_MS } from '../../src/lib/endphase.mjs'
 
 const TYPES = new Map()
@@ -280,4 +280,44 @@ test('smeltClampSeconds invariant: smelt + reserve never outruns the clock', () 
     if (secs === 0) continue
     assert.ok(secs * 1000 + FINAL_DEPOSIT_RESERVE_MS <= remaining, `remaining=${remaining}`)
   }
+})
+
+test('smeltChainReserve: a smeltable pocket holds a slice for the smelt leg (run79: 5x budget-skipped)', () => {
+  assert.equal(SMELT_CHAIN_SHARE, 0.25)
+  assert.equal(SMELT_CHAIN_FLOOR_MS, 45000)
+  // a 150s chain: share 37.5s < floor 45s -> the floor wins, capped by the smelt budget 90s
+  const r150 = smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(r150.reserveMs, 45000, 'the floor prices lean chains (share would be 37.5s)')
+  assert.match(r150.why, /45s of 150s/)
+  // a fat 280s chain: share 70s > floor -> the share wins, still under the 90s smelt budget
+  const r280 = smeltChainReserve({ budgetMs: 280000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(r280.reserveMs, 70000, 'the share prices fat chains')
+  // the smelt budget itself caps: a 600s legacy clock cannot reserve more than smelt can spend
+  const r600 = smeltChainReserve({ budgetMs: 600000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(r600.reserveMs, 90000, 'the smelt budget is the hard cap')
+})
+
+test('smeltChainReserve: the reserve never touches the final deposit\'s own slice', () => {
+  // a chain barely above the deposit reserve: the cap b - 30s protects the clicks
+  const thin = smeltChainReserve({ budgetMs: 60000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(thin.reserveMs, 30000, '60s chain: max(floor, share) capped at b - FINAL_DEPOSIT_RESERVE_MS')
+  const tooThin = smeltChainReserve({ budgetMs: 25000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(tooThin.reserveMs, 0, 'a chain smaller than the deposit reserve has no smelt slice')
+  assert.equal(tooThin.why, 'chain too small for a smelt slice')
+  // the smelt leg's own clamp still keeps the deposit reserve: reserve - 30s is smelt's usable
+  // (verified against smeltClampSeconds: a 45s reserve at the gate = 15s of smelt)
+})
+
+test('smeltChainReserve: empty pockets and junk keep the legacy shape byte for byte', () => {
+  assert.deepEqual(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: false }),
+    { reserveMs: 0, why: 'nothing to smelt' }, 'no smeltables = zero reserve, the pre-v0.87.0 shape')
+  assert.deepEqual(smeltChainReserve({ carriesSmeltables: true, budgetMs: null }),
+    { reserveMs: 0, why: 'no chain budget' }, 'junk budget = no reserve')
+  assert.deepEqual(smeltChainReserve({ carriesSmeltables: true, budgetMs: 150000, smeltBudgetSecs: 0 }),
+    { reserveMs: 0, why: 'no chain budget' }, 'junk smelt budget = no reserve')
+  assert.equal(smeltChainReserve({ budgetMs: -5, carriesSmeltables: true }).reserveMs, 0)
+  // a junk share falls back to the constant (never NaN into the budget maths)
+  assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, share: NaN }).reserveMs, 45000)
+  assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, share: 2 }).reserveMs, 45000,
+    'a share over 1 is junk - the default prices the slice')
 })

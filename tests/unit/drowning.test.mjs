@@ -22,7 +22,7 @@ import {
   FROZEN_WINDOW, FROZEN_EPS, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW,
   BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
-  hazardZones
+  hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -776,4 +776,36 @@ test('REGRESSION PIN: the run77 hazard-zone constants - the wiring cannot silent
   assert.equal(HAZARD_ZONE_MIN_COUNT, 2, 'a lone pocket stays a point hazard')
   assert.equal(HAZARD_ZONE_MARGIN, 4, 'the envelope pads past the outermost member')
   assert.equal(HAZARD_ZONE_Y_BAND, 16, 'the zone band spans the pit the point band missed')
+})
+
+test('frozenRelogDecision: the threshold escalates only on CONSECUTIVE verdicts (run79 F8 x93)', () => {
+  assert.equal(FROZEN_RELOG_AFTER, 3, 'three flat stand-downs = a persistent stall, not a blip')
+  assert.deepEqual(frozenRelogDecision({ frozenStandDowns: 3 }),
+    { relog: true, why: '3 consecutive frozen verdicts' }, 'the third consecutive verdict force-ends the session')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 2 }).relog, false, 'a transient stall recovers within two verdicts')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1 }).relog, false)
+  const below = frozenRelogDecision({ frozenStandDowns: 1 })
+  assert.match(below.why, /1\/3/, 'the why names the progress toward the threshold')
+})
+
+test('frozenRelogDecision: the respawn and the session loop own the dead exits', () => {
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 9, hasEntity: false }).relog, false,
+    'no entity - the session loop already owns it')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 9, health: 0 }).relog, false,
+    'a dead bot is the respawn\'s exit, not a relog')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 9, health: 1 }).relog, true,
+    'a half-dead frozen bot still gets the fresh client')
+})
+
+test('frozenRelogDecision: junk never condemns (the Number(null) lesson, seventh strike)', () => {
+  assert.equal(frozenRelogDecision({}).relog, false, 'no counter = no escalation')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: null }).relog, false)
+  assert.equal(frozenRelogDecision({ frozenStandDowns: NaN }).relog, false)
+  assert.equal(frozenRelogDecision({ frozenStandDowns: -4 }).relog, false)
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 3, threshold: null }).relog, true,
+    'junk threshold falls back to the constant')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 2, threshold: 2 }).relog, true,
+    'a caller-owned tighter threshold is honoured')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 3, threshold: 0 }).relog, true,
+    'a junk zero threshold keeps the default')
 })

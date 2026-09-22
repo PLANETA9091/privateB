@@ -547,6 +547,66 @@ export function smeltClampSeconds ({ remainingMs = Infinity, budgetSecs = 90, re
   return Math.min(budgetSecs, Math.floor(usable / 1000))
 }
 
+// ---------------------------------------------------------------------------
+// (v0.87.0) THE SMELT RESERVE - smelt must not be the budget's leftover.
+//
+// MEASURED (run79, dispatch 35766110886 on c59d9f3): 5 bots ended the chain
+// with 'end-bank budget spent - smelt skipped' (F5/F6/F7/F9/F10) while the
+// pockets carried smeltables - and smelted=0 for the whole run (the first
+// ingot, run76's F17 fallback, has never repeated). The chain order is
+// pre-deposit -> yard walk -> smelt -> final deposit, and every leg before
+// the smelt reads the SAME remaining(): the doomed wilderness-chest hops
+// (the v0.41.0 lesson) and the dist-scaled yard walk (the v0.36.0 rule)
+// burn the clock first, the smelt gate reads ~0 and skips, the iron_ore the
+// vein sweep dug (run79: 14 collected) never becomes an ingot, and the
+// 6-run-old THE IRON WALL stands (pickaxe tiers at end: iron=0).
+//
+// THE CURE: a reserve computed at CHAIN ENTRY - a bot that carries smeltables
+// holds back min(smeltBudget, max(floor, share*chain)) for the smelt leg, and
+// the PRE-SMELT legs (pre-deposit, yard walk) budget from remaining-reserve.
+// The smelt leg itself stays unchanged (it reads remaining(), which now keeps
+// the slice by construction), and the final deposit sees the full clock (the
+// reserve releases the moment the smelt leg has run - unspent smelt time is
+// simply wall clock again). A bot with empty pockets keeps the legacy shape
+// byte for byte (reserve 0). The v0.39.0 direction is preserved inverted:
+// smelt can no more eat the deposit slice (smeltClampSeconds still keeps
+// FINAL_DEPOSIT_RESERVE_MS), and the walk can no more eat the smelt slice.
+
+/** The chain share a smeltable bot may hold back for the smelt leg. */
+export const SMELT_CHAIN_SHARE = 0.25
+/** Even a lean chain holds at least this much for the smelt when the pocket carries ore. */
+export const SMELT_CHAIN_FLOOR_MS = 45000
+
+/**
+ * How much of the chain budget must the pre-smelt legs leave for the smelt
+ * (pure, junk-safe)? Zero unless the bot actually carries smeltables - the
+ * legacy shape for every other chain. The reserve never touches the final
+ * deposit's own FINAL_DEPOSIT_RESERVE_MS (b - 30s is the hard cap) and never
+ * exceeds the smelt budget itself (a reserve bigger than the smelt could
+ * spend is dead weight the walk would starve for).
+ *
+ * @param {object} [p]
+ * @param {number} [p.budgetMs] the chain budget at entry (junk/negative -> 0)
+ * @param {boolean} [p.carriesSmeltables] does the pocket hold smeltable items
+ * @param {number} [p.smeltBudgetSecs] the fleet's SMELT_BUDGET (seconds, default 90)
+ * @param {number} [p.share] chain share (default SMELT_CHAIN_SHARE)
+ * @param {number} [p.floorMs] minimum reserve when the budget allows (default SMELT_CHAIN_FLOOR_MS)
+ * @returns {{reserveMs: number, why: string}}
+ */
+export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, smeltBudgetSecs = 90, share = SMELT_CHAIN_SHARE, floorMs = SMELT_CHAIN_FLOOR_MS } = {}) {
+  if (!carriesSmeltables) return { reserveMs: 0, why: 'nothing to smelt' }
+  const b = Number.isFinite(budgetMs) && budgetMs > 0 ? Math.floor(budgetMs) : 0
+  const s = Number.isFinite(smeltBudgetSecs) && smeltBudgetSecs > 0 ? Math.floor(smeltBudgetSecs) : 0
+  if (b <= 0 || s <= 0) return { reserveMs: 0, why: 'no chain budget' }
+  const sh = Number.isFinite(share) && share > 0 && share <= 1 ? share : SMELT_CHAIN_SHARE
+  const shareMs = Math.floor(b * sh)
+  const fl = Number.isFinite(floorMs) && floorMs > 0 ? Math.floor(floorMs) : 0
+  const want = Math.max(fl, shareMs)
+  const cap = Math.min(s * 1000, want, Math.max(0, b - FINAL_DEPOSIT_RESERVE_MS))
+  if (cap <= 0) return { reserveMs: 0, why: 'chain too small for a smelt slice' }
+  return { reserveMs: cap, why: `holding ${Math.round(cap / 1000)}s of ${Math.round(b / 1000)}s for the smelt leg` }
+}
+
 // (v0.18.5) The chest walk budget, dist-scaled like mapTrip's (tripplan.walkBudgetMs).
 // FLEET #128 EVIDENCE (19 bots, 600s, the first fully healthy run): 77 bank attempts,
 // banked=0 - the flat timeoutMs=30000 killed every walk to a chest beyond ~25 blocks
