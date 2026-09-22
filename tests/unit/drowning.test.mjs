@@ -20,7 +20,9 @@ import {
   STANDING_PROBE_BUDGET, STABILITY_WINDOW, STABILITY_MIN_DRY_SHARE, STABILITY_TAIL_DRY,
   RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   FROZEN_WINDOW, FROZEN_EPS, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW,
-  BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN
+  BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
+  HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
+  hazardZones
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -659,4 +661,119 @@ test('REGRESSION PIN: the run76 stand-down constants - the wiring cannot silentl
   assert.equal(BOB_RELEASE_O2, 15, 'the healthy band run76 measured as 12-20')
   assert.equal(TRANSIT_STALL_PASSES, 15, 'the transit gets 15 passes of patience')
   assert.equal(TRANSIT_STALL_MARGIN, 2, 'progress means closing two blocks')
+})
+
+// ---- v0.84.0: THE HAZARD ZONE (run77: >= 8 fall/env deaths in ONE flooded quarry) ----
+
+test('hazardZones: scattered singletons stay invisible, a pair clusters (run77 quarry shape)', () => {
+  const t = 1000
+  // a lone pocket is a point hazard: the point tier already covers it
+  const lone = [{ x: 100, y: 48, z: 200, at: t }]
+  assert.deepEqual(hazardZones(lone, t), [], 'one record is not a zone')
+  // two records 6 blocks apart = the same quarry: a zone with an envelope
+  const pair = [
+    { x: -115, y: 48, z: 392, at: t },
+    { x: -121, y: 49, z: 394, at: t }
+  ]
+  const zones = hazardZones(pair, t)
+  assert.equal(zones.length, 1, 'two records within mergeDist join one cluster')
+  assert.equal(zones[0].count, 2)
+  assert.ok(zones[0].r >= HAZARD_ZONE_MARGIN, 'the envelope at least covers the margin')
+  // the centroid sits between the members
+  assert.equal(zones[0].x, -118)
+  assert.equal(zones[0].z, 393)
+  // the envelope radius reaches past the outermost member
+  assert.ok(zones[0].r >= Math.max(
+    Math.hypot(-115 - -118, 392 - 393),
+    Math.hypot(-121 - -118, 394 - 393)
+  ) + HAZARD_ZONE_MARGIN - 1e-9, 'r = max member distance + margin')
+})
+
+test('hazardZones: distant records stay separate, expired and junk prune silently', () => {
+  const t = 1000
+  // two clusters far apart -> two zones (a 50x43 quarry vs an unrelated lake)
+  const two = [
+    { x: -115, y: 48, z: 392, at: t },
+    { x: -120, y: 47, z: 396, at: t },
+    { x: 300, y: 60, z: 300, at: t },
+    { x: 306, y: 61, z: 298, at: t }
+  ]
+  const zones = hazardZones(two, t)
+  assert.equal(zones.length, 2, 'clusters beyond mergeDist never merge')
+  // an expired record is invisible to clustering
+  const stale = [
+    { x: 0, y: 50, z: 0, at: t - WATER_HAZARD_TTL_MS - 1 },
+    { x: 1, y: 50, z: 1, at: t }
+  ]
+  assert.deepEqual(hazardZones(stale, t), [], 'the expired member never clusters')
+  // junk shapes prune (the Number(null) lesson, sixth strike, pinned here too)
+  assert.deepEqual(hazardZones(null, t), [])
+  assert.deepEqual(hazardZones([{ x: NaN, y: 50, z: 0, at: t }, { x: 1, y: 50, z: 1, at: t }], t), [])
+  assert.deepEqual(hazardZones([{ x: 0, y: 50, z: 0 }, { x: 1, y: 50, z: 1, at: t }], t), [], 'a record without `at` is junk')
+})
+
+test('nearWaterHazard: the run77 rim walk dies at the zone tier, not at the point tier', () => {
+  const t = 1000
+  // run77's exact geometry: records at the flooded bottom (y 42-53), the
+  // candidate on the rim (y 56-61) - outside EVERY point record's radius AND band
+  const quarry = [
+    { x: -115, y: 48, z: 392, at: t },
+    { x: -121, y: 49, z: 394, at: t },
+    { x: -110, y: 47, z: 390, at: t }
+  ]
+  const rim = { x: -114, y: 58, z: 391 }
+  // WITHOUT zones: every member is clean (the hole the fall/env deaths walked through)
+  assert.equal(nearWaterHazard(quarry, rim, t), null,
+    'the point tier alone misses the rim - that is the run77 bug')
+  // WITH zones: the envelope owns the whole mouth (zoneYBand 16 covers 58 vs ~48)
+  const zones = hazardZones(quarry, t)
+  const hit = nearWaterHazard(quarry, rim, t, { zones })
+  assert.ok(hit, 'the zone tier vetoes the rim walk')
+  assert.equal(hit.zone, true, 'the hit names its tier (the log stays honest)')
+  // depth still matters: a candidate far BELOW or ABOVE the zone band is clean
+  assert.equal(nearWaterHazard(quarry, { x: -114, y: 48 + HAZARD_ZONE_Y_BAND + 2, z: 391 }, t, { zones }), null,
+    'a candidate outside the zone y-band stays clean')
+  // clean ground far from any cluster stays clean
+  assert.equal(nearWaterHazard(quarry, { x: 500, y: 50, z: 500 }, t, { zones }), null)
+})
+
+test('nearWaterHazard: junk zones are skipped before arithmetic (Number(null) = 0 is FINITE)', () => {
+  const t = 1000
+  const pos = { x: 0, y: 50, z: 0 }
+  const poison = [
+    null,
+    { x: 0, y: 50, z: 0, r: null },        // Number(null)=0 - a null r must NOT swallow the map
+    { x: 0, y: 50, z: 0, r: NaN },
+    { x: NaN, y: 50, z: 0, r: 30 },
+    { x: 0, y: 50, z: 0, r: -5 }           // a non-positive radius is junk
+  ]
+  assert.equal(nearWaterHazard([], pos, t, { zones: poison }), null,
+    'junk zones never veto clean ground')
+  // a REAL zone still fires beside the junk
+  const mixed = [...poison, { x: 2, y: 50, z: 2, r: 10, count: 2 }]
+  assert.ok(nearWaterHazard([], pos, t, { zones: mixed }), 'the healthy zone fires beside junk')
+})
+
+test('HazardLedger: near() derives zones from the live records (the wiring pin)', () => {
+  const now = { t: 1000 }
+  const clock = () => now.t
+  const led = new HazardLedger({ now: clock })
+  // the run77 quarry: three rescues at the bottom
+  led.record({ x: -115, y: 48, z: 392 })
+  led.record({ x: -121, y: 49, z: 394 })
+  led.record({ x: -110, y: 47, z: 390 })
+  // the rim candidate: clean for the point tier, condemned by the zone tier
+  const rim = { x: -114, y: 58, z: 391 }
+  assert.equal(nearWaterHazard(led.hazards, rim, now.t), null, 'the point tier misses the rim (the bug, kept honest)')
+  assert.ok(led.near(rim), 'the ledger zones the rim - mapTargetFor and digShaft inherit the veto')
+  // expiry rotates both tiers together
+  now.t += WATER_HAZARD_TTL_MS + 1
+  assert.equal(led.near(rim), null, 'expired records mean expired zones')
+})
+
+test('REGRESSION PIN: the run77 hazard-zone constants - the wiring cannot silently rot', () => {
+  assert.equal(HAZARD_ZONE_MERGE_DIST, 12, 'records within 12 blocks are one quarry')
+  assert.equal(HAZARD_ZONE_MIN_COUNT, 2, 'a lone pocket stays a point hazard')
+  assert.equal(HAZARD_ZONE_MARGIN, 4, 'the envelope pads past the outermost member')
+  assert.equal(HAZARD_ZONE_Y_BAND, 16, 'the zone band spans the pit the point band missed')
 })

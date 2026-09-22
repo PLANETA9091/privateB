@@ -489,9 +489,9 @@ export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlM
  * @param {Array} hazards current list
  * @param {{x:number,y:number,z:number}|null} [pos] the candidate dig/goal cell
  * @param {number} [now] caller's clock (ms)
- * @param {{ttlMs?:number,radius?:number,yBand?:number}} [opts]
+ * @param {{ttlMs?:number,radius?:number,yBand?:number,zones?:Array|null,zoneYBand?:number}} [opts]
  */
-export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, yBand = WATER_HAZARD_Y_BAND } = {}) {
+export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, radius = WATER_HAZARD_RADIUS, yBand = WATER_HAZARD_Y_BAND, zones = null, zoneYBand = HAZARD_ZONE_Y_BAND } = {}) {
   if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return null
   let best = null
   for (const h of Array.isArray(hazards) ? hazards : []) {
@@ -500,7 +500,103 @@ export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs 
     const d = Math.hypot(pos.x - h.x, pos.z - h.z)
     if (d <= radius && (!best || d < best.d)) best = { hazard: h, d }
   }
+  // (v0.84.0) ZONE TIER: a cluster envelope fires where no single record does.
+  // The run77 rim walk is the shape: records sit at the flooded bottom
+  // (y 42-53) inside radius 4 of each other, the candidate stands on the rim
+  // (y 56-61) - |58-48|=10 > yBand 8 and XZ 6 > radius 4, so every member is
+  // clean while the whole pit is a death trap. Junk zone fields are skipped
+  // BEFORE any arithmetic (the Number(null) lesson, sixth strike: Number(null)
+  // is 0 and FINITE, a null r would swallow the whole map as hazard).
+  if (Array.isArray(zones)) {
+    for (const z of zones) {
+      if (!z || !Number.isFinite(z.x) || !Number.isFinite(z.y) || !Number.isFinite(z.z) ||
+        !Number.isFinite(z.r) || z.r <= 0) continue
+      if (Math.abs(pos.y - z.y) > zoneYBand) continue
+      const d = Math.hypot(pos.x - z.x, pos.z - z.z)
+      if (d <= z.r && (!best || d < best.d)) best = { hazard: z, d, zone: true }
+    }
+  }
   return best
+}
+
+// ---- v0.84.0: THE HAZARD ZONE ----
+// Run77 (35755975607, 2c93d6a): the stand-down trio WORKED (still-wet
+// timeouts 53 -> 3, first surface-safe releases ever, frozen-client episodes
+// 2-17s) - and the freed seconds bought a new headline: >= 8 'fall/env'
+// deaths clustered in ONE flooded quarry [-100..-149, 47-56, 368-411] plus
+// one drowned (F7). The ledger knew about that quarry - 65 rescues recorded
+// it - but the knowledge never connected:
+//   * radius 4 vs a ~50x43 quarry: 24 capped point-records with holes the
+//     walk machinery paths straight through;
+//   * yBand 8 vs a rim at y 56-61 over a bottom at y 42-53: the rim is
+//     OUTSIDE every record's band, so mapTargetFor vetoes nothing and the
+//     pathfinder happily routes across the quarry mouth (fall/env at the
+//     bottom 0s later);
+//   * the death spot itself was NEVER recorded - a dead bot left no memory,
+//     the next bot walked the same rim into the same pit.
+// The cure is CLUSTER MEMORY: hazardZones single-links the live records
+// (greedy, XZ distance) into envelopes that near() consults alongside the
+// point records. A zone spans the pit's whole depth (its own y-band), grows
+// a margin beyond its outermost member, and the death spot joins the ledger
+// (miner wiring) so a fall poisons its own pit for the whole fleet. The
+// point tier keeps the fine-grained early warning; the zone tier is what a
+// WIDE hazard looks like to 19 bots.
+
+/** XZ distance (blocks) under which two live records join one cluster. */
+export const HAZARD_ZONE_MERGE_DIST = 12
+/** Live records in a cluster before it becomes a zone (a lone pocket stays a point). */
+export const HAZARD_ZONE_MIN_COUNT = 2
+/** Envelope padding (blocks) beyond the outermost cluster member. */
+export const HAZARD_ZONE_MARGIN = 4
+/** Vertical half-band (blocks, |dy|) a zone covers. A quarry spans y 42-61
+ * from a bottom-anchored cluster - the point band (8) missed the rim; the
+ * zone band (16) owns the whole mouth. */
+export const HAZARD_ZONE_Y_BAND = 16
+
+/**
+ * Cluster live hazards into zone envelopes (pure: returns a NEW array, the
+ * caller passes it back into nearWaterHazard's `zones`). Greedy single
+ * linkage over XZ distance: each record joins the first cluster it touches,
+ * else founds its own. Clusters under minCount stay invisible (points already
+ * cover them); junk/expired records prune silently first.
+ * @param {Array<{x:number,y:number,z:number,at:number}>} hazards current list
+ * @param {number} [now] caller's clock (ms)
+ * @param {{ttlMs?:number,mergeDist?:number,minCount?:number,margin?:number}} [opts]
+ * @returns {Array<{x:number,y:number,z:number,r:number,count:number}>} zones (centroid + envelope radius)
+ */
+export function hazardZones (hazards, now = Date.now(), {
+  ttlMs = WATER_HAZARD_TTL_MS,
+  mergeDist = HAZARD_ZONE_MERGE_DIST,
+  minCount = HAZARD_ZONE_MIN_COUNT,
+  margin = HAZARD_ZONE_MARGIN
+} = {}) {
+  const live = (Array.isArray(hazards) ? hazards : []).filter(h =>
+    h && Number.isFinite(h.x) && Number.isFinite(h.y) && Number.isFinite(h.z) &&
+    Number.isFinite(h.at) && now - h.at < ttlMs
+  )
+  const clusters = []
+  for (const h of live) {
+    let home = null
+    for (const c of clusters) {
+      const d = Math.hypot(h.x - c.cx, h.z - c.cz)
+      if (d <= mergeDist) { home = c; break }
+    }
+    if (home) {
+      home.members.push(h)
+      home.cx = home.members.reduce((s, m) => s + m.x, 0) / home.members.length
+      home.cz = home.members.reduce((s, m) => s + m.z, 0) / home.members.length
+    } else {
+      clusters.push({ members: [h], cx: h.x, cz: h.z })
+    }
+  }
+  const zones = []
+  for (const c of clusters) {
+    if (c.members.length < minCount) continue
+    const cy = c.members.reduce((s, m) => s + m.y, 0) / c.members.length
+    const r = Math.max(...c.members.map(m => Math.hypot(m.x - c.cx, m.z - c.cz))) + margin
+    zones.push({ x: c.cx, y: cy, z: c.cz, r, count: c.members.length })
+  }
+  return zones
 }
 
 /**
@@ -554,9 +650,15 @@ export class HazardLedger {
     return this.hazards.length
   }
 
-  /** Nearest live hazard within the radius/y-band of pos - { hazard, d } or null. */
+  /** Nearest live hazard within the radius/y-band of pos - { hazard, d } or null.
+   * (v0.84.0) the pos is ALSO checked against the zone envelopes derived from
+   * the live records on every call: the ledger holds up to cap points, the
+   * zones are derived (never stored), so expiry and cap rotate both tiers
+   * together. This is the one gate mapTargetFor's wetTrip and digShaft's
+   * in-place guard both read - a zone here vetoes walks and columns fleet-wide. */
   near (pos) {
-    return nearWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, radius: this.radius, yBand: this.yBand })
+    const zones = hazardZones(this.hazards, this.now(), { ttlMs: this.ttlMs })
+    return nearWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, radius: this.radius, yBand: this.yBand, zones })
   }
 
   /** Live-entry count (expired entries are pruned lazily by record's filter). */

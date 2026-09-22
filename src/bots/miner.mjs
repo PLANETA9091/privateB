@@ -208,6 +208,21 @@ export function createMiner ({
       : `unknown (no hp drop in the last 6s${bot.entity ? ` at [${bot.entity.position.floored().x},${bot.entity.position.floored().y},${bot.entity.position.floored().z}]` : ''})`
     log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1
+    // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
+    // clustered in one flooded quarry - and every dead bot left NO memory
+    // behind, so the next bot walked the same rim into the same pit. The
+    // death spot joins the shared hazard ledger (the zones tier turns
+    // clustered records into a walk-veto envelope fleet-wide), and it is
+    // broadcast like a rescue cell. Guarded: a junk corpse position must
+    // never break the respawn path.
+    try {
+      const dp = bot.entity?.position
+      if (dp && Number.isFinite(dp.x) && Number.isFinite(dp.y) && Number.isFinite(dp.z)) {
+        const live = waterHazards.record({ x: dp.x, y: dp.y, z: dp.z })
+        log(`${tag} water: death spot memorized as a hazard at [${Math.floor(dp.x)},${Math.floor(dp.y)},${Math.floor(dp.z)}] (${live} live, fleet-wide)`)
+        if (broadcastHazard) { try { broadcastHazard({ x: dp.x, y: dp.y, z: dp.z }) } catch { /* chat never kills a respawn */ } }
+      }
+    } catch { /* a death handler must never throw */ }
     lastHarm = null
     lastHp = 20
     setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)

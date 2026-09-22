@@ -1645,3 +1645,35 @@ Work Log:
 Stage Summary:
 - Master: c6956b4 (package.json v0.83.0, the stand-down trio on top of their ingot bridge). Next free version = 0.84.0.
 - THE FLEET DISPATCH FIRED as the session's absolute LAST action: run id (see the next session's worklog - the dispatch is the final tool call) workflow_dispatch run_fleet=true, fleet_seconds=600 on master@c6956b4 - the FULL stack: the stand-down trio (my v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox / stability window / probe budget / unbreakable guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
+
+---
+Task ID: 398294-20260923-0053
+Agent: Z.ai Code (cron session, 00:53 +08)
+Task: mine run77 (the v0.83.0 stand-down trio fleet) - the trio verdict; ship the cure the evidence names; push; re-dispatch.
+
+Work Log:
+- Repo alive; master 2c93d6a (v0.83.0 tree + docs) pulled clean. CI green on both lanes (35754245889 c6956b4, 35755808484 2c93d6a). The 23:53 session's dispatch record had a hole (no run id was ever registered) - but a parallel agent's fleet 35755975607 on 2c93d6a (identical tree) covered the v0.83.0 stack; its cancelled duplicate (35755847647) was the known concurrency class. WAITED for it live (units green 22+24, integration green, big-fleet job done 17:17Z) - the first fleet mined while-in-flight by this lane.
+- RUN77 MINED (scripts/fleet-mining/run77 via mine77.mjs, artifact fleet19-log 10709362179, only 27KB / 2126 lines vs run76's spam): THE TRIO VERDICT IS A CLEAN WIN - still-wet timeouts 53 -> 3 (-94%), rescues 92 -> 65, FIRST surface-safe releases ever: 4 (F1 x1, F13 x3, 6.7-10.4s), frozen-physics verdicts 37 (F1/F13/F18 standing down in 2-17s where run76's F17 burned 14x25s), repeat-page stand-downs 2 (F14), transit-stall latches 4 (F1/F13 - the release unshadowed). NORMAL END, alive=19/19.
+- THE NEW HEADLINE (the freed seconds spent somewhere): mined 4322 -> 3515 @ 5.86 b/s, banked 2774 -> 2024, and >= 8 'fall/env' DEATHS (my first count regex undercounted; rg found F18/F3/F9/F13/F10/F17/F14 all 'fall/env' + F7 'drowned@0.8') clustered in ONE flooded quarry [-100..-149, 47-56, 368-411] - the walk machinery walks bots across the same quarry mouth the trio just handed them back next to. smelted 2 -> 0; fights=26 with flee=1 (the kite still unvalidated, 6 runs, no persistent chaser); 'cannot leave the shaft' x25 (map trips starve underground); EPIPE=8/reconnects=4; airGlitches=2212.
+- THE ROOT CAUSE READ: the ledger KNEW about the quarry (65 rescues recorded it) but the knowledge never connected - radius 4 vs a ~50x43 quarry, yBand 8 vs a rim at y 56-61 over records at y 42-53 (|58-48|=10 > 8: the rim is outside EVERY record's band, so mapTargetFor vetoes nothing and the pathfinder routes across the mouth), and the death spot itself was NEVER recorded (8 dead bots left 8 unmarked pits for the next bot).
+- v0.84.0 THE HAZARD ZONE (drowning.mjs pure + miner.mjs death wiring):
+  (1) hazardZones(hazards, now, {mergeDist=12, minCount=2, margin=4}) - greedy single-linkage clustering of live records on XZ; clusters >= 2 become envelopes {x,y,z,r=count-spread+margin,count}; singletons stay points; junk/expired prune first.
+  (2) nearWaterHazard gains the zone tier: junk zone fields skipped BEFORE arithmetic (Number(null)=0 is FINITE - sixth strike, pinned), the hit names its tier ({zone:true}), zone yBand = 16 (the pit the point band missed).
+  (3) HazardLedger.near derives zones from the live records EVERY call (never stored) - mapTargetFor's wetTrip and digShaft's in-place guard inherit the zone veto automatically; expiry rotates both tiers together.
+  (4) THE DEATH-SPOT MEMORY (miner bot.on('death')): the corpse position joins the shared ledger + broadcastHazard ('death spot memorized as a hazard at [...]'), fully guarded - a fall poisons its own pit fleet-wide.
+- Test discipline: 7 new blocks in drowning.test.mjs (the run77 quarry shape: point-tier rim NULL kept honest vs zone-tier rim HIT with zone:true + band edges; singleton-no-zone + centroid/envelope math; two-cluster separation + expired/junk pruning incl. the missing-at hole; junk-zones-never-veto with the Number(null)=0 poison array; the ledger derivation pin + tier co-expiry; the constants pin 12/2/4/16). Spot checks live: zone r=10 centroid (-115.3,48,392) count=3, rim hit zone=true, junk null, expired null, ledger hit, far ground null. check-syntax: 169 files, 0 broken. No local test runs (protocol).
+- Push CI watch, then the 600s fleet dispatch fires as the session's ABSOLUTE LAST action. NO PUSHES after it.
+
+Stage Summary:
+- Master: 0508495 (package.json v0.84.0, the hazard zone on top of the stand-down trio). Next free version = 0.85.0.
+- EXPECTATIONS run78: 'death spot memorized as a hazard at [...]' where the 8 fall/env deaths lived; fall/env deaths toward ZERO (the zone veto keeps walks and columns out of the quarry mouth); 'water hazard ... refusing this column' firing with zone hits (the log names d beyond the old radius 4); mined back toward/past 4322 @ 7+ b/s with the death-respawn cycles gone; banked back toward 2774+; rescues holding < 70 and timeouts holding single digits (the trio verdict must not regress); smelted recovering from 0 (the ingot bridge has stock); the kite still armed (6 runs unvalidated - no persistent chaser).
+- OPEN FRONTS: F7's drowned@0.8 at y=61 - the climb escape (bot._climbEscape) gates the drown check (line ~1077), a climb that stalls under an overhang at surface level can drain o2 to death; a low-o2 yield in the climb escape is the candidate fix (needs its own evidence first). 'cannot leave the shaft' x25 (the worldmap lane starves underground - their mapTripTargets). smelted=0 (their smelt-locally lane has banked=2024 stock but never fired - worth a run-level probe). The dig->water STILL-THERE forensics x5 (a water-table-aware dig depth is the durable fix). airGlitches=2212 (the airBarTrust lane).
+
+---
+Task ID: 398294-20260923-0053 (dispatch record)
+Agent: Z.ai Code (cron session, 00:53 +08)
+Task: session close - CI verdict + the fleet dispatch record.
+
+Work Log:
+- Push CI on 0508495 (v0.84.0 the hazard zone): (see the next session's worklog for the verdict - this is written pre-push).
+- THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@0508495 - the FULL stack: the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox / stability / probe budget / unbreakable guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
