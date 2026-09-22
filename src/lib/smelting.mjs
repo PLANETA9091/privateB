@@ -109,6 +109,40 @@ export function smeltZeroWhy (attempts) {
   return parts.length ? parts.join('; ') : 'nothing to smelt'
 }
 
+/**
+ * (v0.91.0) THE BATCH CLOCK - pure: how long one smeltBatch may poll for its
+ * output. The batch estimate (batch * smeltSecondsPerItem) may FILL the
+ * caller's visit budget but must never OVERRIDE it: run81 measured F19 sitting
+ * 1155s in the poll loop (a 105-item batch) through the end phase -> the
+ * fleet's hard kill, a smelted=0 measurement lie (6 stone WERE collected), and
+ * the final deposit lost. Junk-safe: a junk maxSeconds reads 0 (no wait floor
+ * from it), a junk batch reads 0 (the batch floor vanishes), a junk pollMs
+ * reads the production default, and a junk/absent visitRemainingMs means the
+ * legacy UNBOUNDED mid-run call (the legacy shape byte for byte).
+ *
+ * @param {object} [p]
+ * @param {number} [p.maxSeconds] the caller's own smelt budget (seconds)
+ * @param {number} [p.batch] items in this batch
+ * @param {number} [p.smeltSecondsPerItem] the per-item estimate (default 11)
+ * @param {number} [p.pollMs] the poll interval (default 1200)
+ * @param {number|null} [p.visitRemainingMs] the visit budget's remaining wall
+ *   clock at poll start - null/undefined = legacy unbounded
+ * @returns {number} the poll wait in ms (never negative)
+ */
+export function smeltBatchWaitMs ({ maxSeconds = 90, batch = 1, smeltSecondsPerItem = 11, pollMs = 1200, visitRemainingMs = null } = {}) {
+  const junk = v => (Number.isFinite(v) && v > 0 ? v : 0)
+  const mx = junk(maxSeconds) * 1000
+  const b = Math.floor(junk(batch))
+  const per = junk(smeltSecondsPerItem)
+  const pmRaw = junk(pollMs)
+  const pm = pmRaw > 0 ? pmRaw : 1200
+  const want = Math.max(mx, b * per * 1000) + pm * 3
+  const cap = Number.isFinite(visitRemainingMs) && visitRemainingMs != null && visitRemainingMs > 0
+    ? Math.floor(visitRemainingMs)
+    : Infinity
+  return Math.max(0, Math.min(want, cap))
+}
+
 // smelts per fuel unit (vanilla): coal 8, planks/logs 1.5, stick 0.5 ...
 export const FUEL_YIELD = {
   coal: 8,
@@ -414,10 +448,24 @@ export async function smeltBatch (bot, {
     }
     log(`${tag} smelting ${batch} x ${inputName} in a ${machineBlock.name} (fuel: ${fuel.count} x ${fuel.name})`)
 
-    // WAIT for the output: ~10s smelt per item, poll, hard deadline. The per-item
-    // estimate is the floor (a 64-batch needs ~11 minutes - no maxSeconds below that
-    // can pretend otherwise); maxSeconds only matters for SMALL batches.
-    const deadline = started + Math.max(maxSeconds * 1000, batch * smeltSecondsPerItem * 1000) + pollMs * 3
+    // WAIT for the output: ~10s smelt per item, poll, hard deadline.
+    // (v0.91.0) THE BATCH CLOCK - run81 (dispatch 35782802480 on ab644e4): F19 held
+    // 120 cobble, built a field furnace (the camp furnace ladder, 17s), reach-opened
+    // it and put a 105-item batch - and the old deadline math
+    // (max(maxSeconds, batch*smeltSecondsPerItem)) priced that batch at 1155s of
+    // poll wait, OVERRIDING the visit/chain budget by twenty minutes. F19 sat in
+    // this loop through the end phase (it HAD collected 6 stone - the 'took' lines
+    // prove the machinery), never returned, so the fleet counter stayed smelted=0
+    // (a measurement lie), the final deposit never ran (banked 965) and the run
+    // ended HARD KILL 'end-phase hang'. The batch estimate may FILL the caller's
+    // budget but must never OVERRIDE it: the visit budget (the walk-slice cap the
+    // v0.41.0 rule set) is the hard ceiling, the batch floor is the wish. On the
+    // clock the existing timeout path pulls OUR input+fuel back out (the machine
+    // stays free for the fleet) and the collected count RETURNS - the un-smelted
+    // pocket re-smelts on the next chain. Legacy mid-run calls (visitBudgetMs
+    // null) keep the legacy unbounded shape byte for byte.
+    const visitRemainingMs = visitDeadline == null ? null : Math.max(0, visitDeadline - Date.now())
+    const deadline = started + smeltBatchWaitMs({ maxSeconds, batch, smeltSecondsPerItem, pollMs, visitRemainingMs })
     const expectOut = SMELT_OUTPUT[inputName]
     let remaining = batch
     while (Date.now() < deadline && remaining > 0) {

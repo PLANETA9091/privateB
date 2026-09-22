@@ -12,7 +12,7 @@ import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
-  smeltWalkReach, machineWithinReach, smeltZeroWhy, SMELT_REACH_OPEN_DISTANCE
+  smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE
 } from '../../src/lib/smelting.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and a
@@ -540,4 +540,39 @@ test('smeltBatch: the walk ladder hugs on attempt 1 and stands off on the retrie
   bot.pathfinder.goto = async goal => { reaches.push(Math.sqrt(goal.rangeSq)); throw new Error('walk to furnace: timeout after Nms') }
   await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
   assert.deepEqual(reaches, [2, 6, 6], 'attempt 1 hugs (2), the retries stand off (6)')
+})
+
+test('smeltBatchWaitMs: the batch estimate FILLS the visit budget, never OVERRIDES it (run81 hard kill)', () => {
+  // run81: F19's 105-item batch priced 1155s of poll wait THROUGH the end phase -
+  // the hard kill, a smelted=0 measurement lie (6 stone WERE collected), banked lost
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 28, batch: 105, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 45000 }),
+    45000, 'the visit budget is the hard ceiling - a 19-minute batch waits 45s')
+  // a batch that fits keeps the legacy floor (batch estimate + the take margin)
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 10, batch: 3, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 600000 }),
+    3 * 11 * 1000 + 1200 * 3, 'a small batch keeps its full estimate inside a fat budget')
+  // the maxSeconds floor matters when the batch estimate is smaller
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 90, batch: 2, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 600000 }),
+    90 * 1000 + 1200 * 3, 'maxSeconds fills a lean batch')
+})
+
+test('smeltBatchWaitMs: the legacy unbounded call keeps its shape byte for byte', () => {
+  // visitBudgetMs null = the legacy mid-run call: unbounded, the old math verbatim
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 105, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: null }),
+    Math.max(45 * 1000, 105 * 11 * 1000) + 1200 * 3)
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 105, smeltSecondsPerItem: 11, pollMs: 1200 }),
+    Math.max(45 * 1000, 105 * 11 * 1000) + 1200 * 3, 'the parameter omitted = the legacy call')
+})
+
+test('smeltBatchWaitMs: junk is capped, not fatal (Number(null) ninth strike)', () => {
+  // a junk batch/maxSeconds never stretches the wait - the floors vanish and the
+  // wait is the take margin only (a cap cannot STRETCH a wait, only bound it)
+  assert.equal(smeltBatchWaitMs({ maxSeconds: NaN, batch: NaN, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 45000 }),
+    1200 * 3, 'all-junk floors = the take margin only, inside the cap')
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: null, smeltSecondsPerItem: null, pollMs: null, visitRemainingMs: null }),
+    30 * 1000 + 1200 * 3, 'junk batch/per vanish, junk pollMs reads the production default')
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: 105, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: -5 }),
+    Math.max(30 * 1000, 105 * 11 * 1000) + 1200 * 3, 'a junk-negative visit budget = the legacy unbounded shape (no cap)')
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: 3, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 0.4 }),
+    0, 'a sub-second cap floors to zero (honest - the loop exits and pulls back)')
+  assert.equal(smeltBatchWaitMs({}), 90 * 1000 + 1200 * 3, 'the bare call = the production defaults')
 })
