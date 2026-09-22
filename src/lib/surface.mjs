@@ -731,3 +731,32 @@ export function tunnelStopReason ({ done = 0, maxBlocks = 12, stalls = 0, stallL
   if (stalls >= safeStall) return 'stalled'
   return null
 }
+
+// ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
+// MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): the blackbox
+// freeze dump read 'climb @+0.0s <- water:rescue @+-1.9s' - a climbOut STARTED
+// 1.9s into a live rescue. Two owners held the same bot: the rescue swam the
+// controls while the staircase loop dug and jumped underneath it - the v0.62.0
+// digShaft dual-owner class, one level up. The polarity is already fixed by
+// v0.17.0: a wet-escape traverse (bot._climbEscape) makes the SENTRY yield
+// because the escape IS the way out. This gate is the mirror edge: a LIVE
+// rescue (bot._waterRescue) makes the CLIMB yield - the rescue's shore swim or
+// standing-wet policy owns the exit, and a climb that fights it re-dives the
+// bot into the very column the rescue is leaving. Pure so the matrix is
+// pinnable; the wiring is one refusal at climbOut entry (the 'exhausted'
+// refusal shape the callers already handle).
+/**
+ * Who owns the bot right now? Pure, junk-safe.
+ * @param {{waterRescue?: boolean, climbEscape?: boolean}} s live ownership flags
+ * @returns {{refuse: boolean, reason: string}} refuse=true means the caller
+ *   must NOT start a climb (the rescue owns the controls); reason names it for
+ *   the caller's log line.
+ */
+export function climbOwnerGate (s = {}) {
+  const waterRescue = s && s.waterRescue
+  const climbEscape = s && s.climbEscape
+  if (waterRescue === true && climbEscape !== true) {
+    return { refuse: true, reason: 'rescue owns the bot' }
+  }
+  return { refuse: false, reason: '' }
+}

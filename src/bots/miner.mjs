@@ -18,7 +18,7 @@ import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.m
 import { torchDue } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
-  climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface,
+  climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
@@ -793,7 +793,7 @@ export function createMiner ({
           const dir = shoreDirection(sample, bot.entity.position.floored())
           if (dir) {
             bot.setControlState('jump', true) // stay at the surface while swimming
-            try { await bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false) } catch { /* keep the bearing */ }
+            try { await withTimeout(bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false), 2000, 'rescue look') } catch { /* keep the bearing */ }
             bot.setControlState('forward', true)
             await settle(8)
             bot.setControlState('forward', false)
@@ -2096,6 +2096,19 @@ export function createMiner ({
     enablePhysicsMode()
     configureGroundMovements()
     if (!bot.entity) return { ok: false, reason: 'no entity', gained: 0, dug: 0, steps: 0 }
+    // (v0.70.0) THE CLIMB-RESCUE OWNERSHIP GATE. MEASURED (run67, dispatch
+    // 35692049905): the blackbox freeze dump read 'climb @+0.0s <-
+    // water:rescue @+-1.9s' - a climbOut started 1.9s INTO a live rescue, two
+    // owners on one bot (the v0.62.0 digShaft dual-owner class, one level
+    // up). A live rescue owns the controls; the staircase's digs and jumps
+    // under it re-dive the bot into the column the rescue is leaving. The
+    // mirror edge is already settled (v0.17.0): a wet-escape traverse
+    // (_climbEscape) makes the SENTRY yield because the escape IS the way
+    // out. The refusal reuses the 'exhausted' shape every caller handles.
+    const owner = climbOwnerGate({ waterRescue: bot._waterRescue === true, climbEscape: bot._climbEscape === true })
+    if (owner.refuse) {
+      return { ok: false, reason: owner.reason, gained: 0, dug: 0, steps: 0 }
+    }
     const feet0 = bot.entity.position.floored()
     const blockAtDy = dy => {
       try { return bot.blockAt(feet0.offset(0, dy, 0)) } catch { return null }

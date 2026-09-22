@@ -12,7 +12,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  climbEntry, climbLedgerUpdate, climbStarted,
+  climbEntry, climbLedgerUpdate, climbStarted, climbOwnerGate,
   CLIMB_STAGE_BUDGETS, CLIMB_EXHAUSTED_STAGE, CLIMB_EXHAUST_COOLDOWN_MS, CLIMB_RESCUE_MIN_GAIN,
   PILLAR_FAIL_LIMIT, TRAVERSE_MAX_ATTEMPTS
 } from '../../src/lib/surface.mjs'
@@ -254,4 +254,35 @@ test('climbStarted: the never-tried matrix - every zero means "no ledger touch"'
   assert.equal(climbStarted({ fails: 1 }), true) // a burned fail IS an attempt
   assert.equal(climbStarted({ traversed: 5 }), true)
   assert.equal(climbStarted({ wetTries: 1 }), true)
+})
+
+// ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
+// MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): the
+// blackbox freeze dump read 'climb @+0.0s <- water:rescue @+-1.9s' - a
+// climbOut STARTED 1.9s into a live rescue, two owners on one bot (the
+// v0.62.0 digShaft dual-owner class, one level up). The gate mirrors the
+// settled v0.17.0 polarity: a wet-escape traverse makes the SENTRY yield
+// (the escape IS the way out); a live rescue makes the CLIMB yield.
+
+test('owner gate: a live rescue refuses the climb (the run67 interleave)', () => {
+  const g = climbOwnerGate({ waterRescue: true, climbEscape: false })
+  assert.equal(g.refuse, true)
+  assert.equal(g.reason, 'rescue owns the bot')
+})
+
+test('owner gate: the wet-escape polarity is preserved - the escape outranks the rescue', () => {
+  // v0.17.0: bot._climbEscape makes the drown sentry yield because the
+  // traverse IS the escape; if both flags are up the climb keeps working
+  const g = climbOwnerGate({ waterRescue: true, climbEscape: true })
+  assert.equal(g.refuse, false)
+  assert.equal(g.reason, '')
+})
+
+test('owner gate: a free bot climbs; junk flags never refuse', () => {
+  assert.equal(climbOwnerGate({ waterRescue: false, climbEscape: false }).refuse, false)
+  assert.equal(climbOwnerGate({}).refuse, false, 'no flags = no owner = climb allowed')
+  assert.equal(climbOwnerGate(null).refuse, false)
+  assert.equal(climbOwnerGate({ waterRescue: 'truthy junk' }).refuse, false, 'strict === true: junk is not a rescue')
+  assert.equal(climbOwnerGate({ waterRescue: 1 }).refuse, false)
+  assert.equal(climbOwnerGate({ waterRescue: true, climbEscape: 1 }).refuse, true, 'junk escape flag does not override a REAL rescue')
 })

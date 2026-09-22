@@ -42,6 +42,37 @@ export const NOPATH_DY = 4
  * cap parity). */
 export const NOPATH_CAP = 24
 
+/** (v0.70.0) How long a TIMEOUT verdict lives. MEASURED (run67, dispatch
+ * 35692049905, the v0.69.1 600s fleet): 24x 'chest unreachable (Took to long
+ * to decide path to goal!)' on the same y=69-72 lake-bottom chests - the
+ * no-path ledger only recorded /No path/i, so every bot re-paid the walk AND
+ * the full A* exhaustion for the same dead geometry, and those exhaustions
+ * are exactly the fuel of the run's one 44s main-thread freeze (the blackbox
+ * named 'pf:goal walk to chest' in the blocker chain). A timeout is WEAKER
+ * evidence than a clean 'No path' (a stalled main thread can time out a
+ * reachable chest), so its verdict lives HALF as long: long enough to cover
+ * the end-phase chain that keeps re-finding the chest, short enough that a
+ * load-flaked verdict expires before it starves a real delivery. */
+export const NOPATH_TIMEOUT_TTL_MS = 45000
+
+/**
+ * (v0.70.0) Parse a chest-walk failure message into a dead-chest verdict.
+ * Pure, junk-safe. Two dead shapes exist:
+ *  - /No path/i          - the pathfinder PROVED the geometry (strong, 90s)
+ *  - /took to long/i     - the pathfinder's calc timeout (weak, 45s)
+ * Everything else (rescues, budget exhaustion, 'Path was stopped') is NOT a
+ * dead-chest verdict - those exits are transient state, not geometry.
+ * @param {string|null} [msg] the caught error's message
+ * @returns {{dead: boolean, timeout: boolean}} dead=true means the chest may
+ *   be ledgered; timeout=true selects the short TTL.
+ */
+export function isDeadChestVerdict (msg) {
+  const s = typeof msg === 'string' ? msg : ''
+  if (/No path/i.test(s)) return { dead: true, timeout: false }
+  if (/took to long/i.test(s)) return { dead: true, timeout: true }
+  return { dead: false, timeout: false }
+}
+
 function floorCell (cell) {
   if (!cell || typeof cell !== 'object') return null
   const x = Math.floor(Number(cell.x))
@@ -75,10 +106,18 @@ export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = N
   const t = Number.isFinite(now) ? now : 0
   const life = Number.isFinite(ttl) && ttl >= 0 ? ttl : NOPATH_TTL_MS
   const keep = Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : NOPATH_CAP
-  const fresh = prev.filter(e => e && Number.isFinite(e.at) && t - e.at < life)
+  // (v0.70.0) per-entry lifetime: each entry carries the ttl IT was recorded
+  // with (a 45s timeout verdict expires on its own clock while a 90s 'No
+  // path' verdict beside it stays live); entries without one (pre-v0.70.0
+  // shapes, junk) fall back to the caller's ttl.
+  const fresh = prev.filter(e => {
+    if (!e || !Number.isFinite(e.at)) return false
+    const eLife = Number.isFinite(e.ttl) && e.ttl >= 0 ? e.ttl : life
+    return t - e.at < eLife
+  })
   const f = floorCell(cell)
   if (!f) return fresh
-  fresh.push({ x: f.x, y: f.y, z: f.z, at: t })
+  fresh.push({ x: f.x, y: f.y, z: f.z, at: t, ttl: life })
   return fresh.length > keep ? fresh.slice(fresh.length - keep) : fresh
 }
 
@@ -109,7 +148,10 @@ export function nearNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, radius = 
   for (const e of prev) {
     if (!e || !Number.isFinite(e.at) || !Number.isFinite(e.x) || !Number.isFinite(e.y) || !Number.isFinite(e.z)) continue
     const age = t - e.at
-    if (age < 0 || age >= life) continue
+    // (v0.70.0) honor the entry's own ttl first (the timeout verdict's 45s);
+    // entries without one ride the caller's ttl as before.
+    const eLife = Number.isFinite(e.ttl) && e.ttl >= 0 ? e.ttl : life
+    if (age < 0 || age >= eLife) continue
     if (Math.abs(e.y - f.y) > yTol) continue
     if (distXZ(e, f) > r) continue
     if (!best.hit || age < best.ageMs) best = { hit: true, ageMs: age }

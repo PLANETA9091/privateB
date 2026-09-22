@@ -10,8 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  NOPATH_TTL_MS, NOPATH_RADIUS, NOPATH_DY, NOPATH_CAP,
-  recordNoPath, nearNoPath
+  NOPATH_TTL_MS, NOPATH_RADIUS, NOPATH_DY, NOPATH_CAP, NOPATH_TIMEOUT_TTL_MS,
+  recordNoPath, nearNoPath, isDeadChestVerdict
 } from '../../src/lib/nopath.mjs'
 
 test('policy constants stay sane', () => {
@@ -81,4 +81,79 @@ test('nearNoPath: junk never skips a chest (a skip costs the deposit, the hop on
   assert.equal(nearNoPath([{ x: 1, y: 1, z: 1 }], { x: 1, y: 1, z: 1 }, 1000).hit, false, 'an entry without .at is junk')
   assert.equal(nearNoPath([{ x: 1, y: 1, z: 1, at: 900 }], 'chest', 1000).hit, false, 'a junk query cell never hits')
   assert.equal(nearNoPath([{ x: NaN, y: 1, z: 1, at: 900 }], { x: 1, y: 1, z: 1 }, 1000).hit, false, 'a junk entry never hits')
+})
+
+// ---- v0.70.0: THE TIMEOUT VERDICT JOINS THE LEDGER ----
+// MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): 24x 'chest
+// unreachable (Took to long to decide path to goal!)' on the same y=69-72
+// lake-bottom chests while the ledger only recorded /No path/i - every bot
+// re-paid the walk AND the full A* exhaustion for the same dead geometry, and
+// the exhaustion storm is the fuel of the run's one 44s main-thread freeze
+// (the blackbox named 'pf:goal walk to chest' in the blocker chain).
+
+test('v0.70.0 policy: the timeout verdict lives 45s - half the proven shape', () => {
+  assert.equal(NOPATH_TIMEOUT_TTL_MS, 45000)
+  assert.ok(NOPATH_TIMEOUT_TTL_MS < NOPATH_TTL_MS, 'a timeout is WEAKER evidence than a clean No path')
+})
+
+test('isDeadChestVerdict: the run67 message matrix', () => {
+  // the exact run67 verdict strings
+  assert.deepEqual(isDeadChestVerdict('Took to long to decide path to goal!'), { dead: true, timeout: true })
+  assert.deepEqual(isDeadChestVerdict('No path to the goal!'), { dead: true, timeout: false })
+  // a compound verdict (the hop line wraps the raw error) still parses
+  assert.deepEqual(isDeadChestVerdict('chest unreachable (Took to long to decide path to goal!)'), { dead: true, timeout: true })
+  assert.deepEqual(isDeadChestVerdict('chest unreachable (No path to the goal!)'), { dead: true, timeout: false })
+  // transient exits are NOT geometry - the chest stays live
+  assert.deepEqual(isDeadChestVerdict('water rescue in progress (walk to chest refused)'), { dead: false, timeout: false })
+  assert.deepEqual(isDeadChestVerdict('Path was stopped before it could be completed!'), { dead: false, timeout: false })
+  assert.deepEqual(isDeadChestVerdict('budget exhausted (walk floor)'), { dead: false, timeout: false })
+  // junk never kills a chest
+  assert.deepEqual(isDeadChestVerdict(''), { dead: false, timeout: false })
+  assert.deepEqual(isDeadChestVerdict(null), { dead: false, timeout: false })
+  assert.deepEqual(isDeadChestVerdict(undefined), { dead: false, timeout: false })
+  assert.deepEqual(isDeadChestVerdict(42), { dead: false, timeout: false })
+  // 'No path' wins when both shapes appear in one message (the stronger proof)
+  assert.deepEqual(isDeadChestVerdict('No path (took to long)'), { dead: true, timeout: false })
+})
+
+test('per-entry ttl: a timeout verdict expires on its own clock while a No path beside it stays live', () => {
+  const t0 = 5000000
+  const lake = { x: -121, y: 72, z: 400 } // a run67 lake-bottom chest
+  // the exact v0.70.0 wiring shapes: timeout rides 45s, the clean verdict 90s
+  let led = recordNoPath(undefined, lake, t0, { ttl: NOPATH_TIMEOUT_TTL_MS })
+  led = recordNoPath(led, { x: -140, y: 69, z: 412 }, t0 + 1000) // a proven dead chest
+  assert.equal(led.length, 2)
+  assert.equal(led[0].ttl, NOPATH_TIMEOUT_TTL_MS, 'the entry carries its own ttl')
+  assert.equal(led[1].ttl, NOPATH_TTL_MS)
+  // t+46s: the timeout verdict expired, the No path verdict lives
+  const mid = recordNoPath(led, null, t0 + 46000) // a junk record still prunes
+  assert.equal(mid.length, 1, 'the timeout verdict expired at 45s')
+  assert.equal(mid[0].x, -140)
+  // nearNoPath agrees: the lake chest is skippable at t+10s, fresh again at t+46s
+  assert.equal(nearNoPath(led, lake, t0 + 10000).hit, true)
+  assert.equal(nearNoPath(led, lake, t0 + 46000).hit, false, 'the weak verdict does not outlive its 45s')
+  assert.equal(nearNoPath(led, { x: -140, y: 69, z: 412 }, t0 + 46000).hit, true, 'the proven verdict rides its 90s')
+})
+
+test('per-entry ttl is backward compatible: entries without ttl ride the caller ttl (pre-v0.70.0 ledgers)', () => {
+  const t0 = 5000000
+  // a hand-built pre-v0.70.0 entry: {x,y,z,at} with NO ttl field
+  const legacy = [{ x: -116, y: 72, z: 400, at: t0 }]
+  // the default caller ttl keeps it alive at t+89s
+  assert.equal(nearNoPath(legacy, { x: -116, y: 72, z: 400 }, t0 + 89000, {}).hit, true)
+  // a recordNoPath prune with the default ttl keeps it too
+  assert.equal(recordNoPath(legacy, null, t0 + 89000).length, 1)
+  // and it dies at 90s exactly like before
+  assert.equal(recordNoPath(legacy, null, t0 + 90000).length, 0)
+})
+
+test('the run67 regression shape: the FIRST timeout verdict ledgered means bot #2 never re-pays', () => {
+  const t0 = 6000000
+  const chest = { x: -156, y: 72, z: 410 } // F7's d=47 lake-bottom chest
+  // F6 pays the walk + A* and records the timeout verdict (the deposit.mjs wiring)
+  let led = recordNoPath(undefined, chest, t0, { ttl: NOPATH_TIMEOUT_TTL_MS })
+  // F7's scan checks BEFORE the walk: within 45s the chest is skipped fleet-wide
+  assert.equal(nearNoPath(led, chest, t0 + 30000).hit, true, 'the hop is skipped, the A* never runs')
+  // at t+50s the chest is live again (a load-flaked verdict recovers)
+  assert.equal(nearNoPath(led, chest, t0 + 50000).hit, false)
 })

@@ -7,7 +7,7 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from '.
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
-import { recordNoPath, nearNoPath } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger)
+import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger)
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -833,13 +833,23 @@ export async function depositToChest (bot, {
     // (v0.62.0) THE FLEET LEDGER RECORD: a 'No path' verdict is paid for by the
     // WHOLE process (a sync A* exhaustion blocks all 19 bots). Cache it so the
     // other bots' hops for the same chest skip the search entirely.
-    if (Array.isArray(noPathLedger) && /No path/i.test(lastMsg) && chest.position) {
-      const deadCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
-      if (deadCell && Number.isFinite(deadCell.x)) {
-        const fresh = recordNoPath(noPathLedger, deadCell, Date.now())
-        noPathLedger.length = 0
-        for (const e of fresh) noPathLedger.push(e)
-        log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live)`)
+    // (v0.70.0) THE TIMEOUT VERDICT JOINS THE LEDGER: run67 (dispatch
+    // 35692049905) measured 24x 'chest unreachable (Took to long to decide
+    // path to goal!)' on the SAME y=69-72 lake-bottom chests while the ledger
+    // only matched /No path/i - every bot re-paid the walk + the full A*
+    // exhaustion, and that exhaustion storm is the fuel of the run's one 44s
+    // main-thread freeze. isDeadChestVerdict routes BOTH dead shapes here;
+    // the timeout shape (weak evidence) rides the shorter NOPATH_TIMEOUT_TTL_MS.
+    if (Array.isArray(noPathLedger) && chest.position) {
+      const verdict = isDeadChestVerdict(lastMsg)
+      if (verdict.dead) {
+        const deadCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+        if (deadCell && Number.isFinite(deadCell.x)) {
+          const fresh = recordNoPath(noPathLedger, deadCell, Date.now(), verdict.timeout ? { ttl: NOPATH_TIMEOUT_TTL_MS } : {})
+          noPathLedger.length = 0
+          for (const e of fresh) noPathLedger.push(e)
+          log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live${verdict.timeout ? ', timeout verdict' : ''})`)
+        }
       }
     }
     // (v0.23.1) ONE CHEST MUST NOT STRAND THE DELIVERY. FLEET EVIDENCE (3e21d58,
@@ -851,7 +861,7 @@ export async function depositToChest (bot, {
     // rescue), exclude exactly that chest and scan again - once (exclude.length
     // guard): two dead chests mean the terrain is the problem, not the slot.
     // A caller who pinned chestBlock gets their failure back: their choice is final.
-    if (!chestBlock && exclude.length === 0 && /No path/i.test(lastMsg) && chest.position) {
+    if (!chestBlock && exclude.length === 0 && isDeadChestVerdict(lastMsg).dead && chest.position) {
       const dead = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
       if (dead && Number.isFinite(dead.x)) {
         // the hop is a resilience attempt: report the PRIMARY failure ('No path to
