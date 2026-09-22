@@ -656,6 +656,67 @@ export function yardWalkBudgetMs ({ yardDist = 0, floorMs = CHEST_WALK_BASE_MS, 
   return Math.min(Math.max(raw, floor), cap)
 }
 
+// (v0.72.0) THE SLOT-DIRECT DEPOSIT MACHINERY. The probe finally named the
+// wall: mineflayer's Chest.deposit misroutes its destination for 26.2's
+// generic_9x3 (8 of 9 withdrawn dirt landed on window slot 27 - the first
+// PLAYER slot, one past the chest range). The transport and the window view
+// are PROVEN truthful (the raw packet, the slot map and the server NBT
+// agreed per slot), so the cure clicks with our own arithmetic against the
+// measured view: chest range = total slots - 36 player slots.
+export function chestSlotCount (window) {
+  const slots = Array.isArray(window?.slots)
+    ? window.slots
+    : (typeof window?.slots === 'function' ? window.slots() : null)
+  const len = Array.isArray(slots) ? slots.length : 0
+  if (!len || len <= 36) return 0 // a player-only view has no chest range
+  return len - 36
+}
+
+/** Pure: the click pair for ONE whole-stack move - the first pocket stack of
+ * `itemType` (indices >= chestSlots) and the first chest slot (indices < chestSlots)
+ * that accepts it (empty, or a matching stack with room). Junk-safe: an
+ * unreadable view yields null (the legacy pathway keeps its semantics). */
+export function pickDirectSlots ({ window, itemType, chestSlots }) {
+  const slots = Array.isArray(window?.slots)
+    ? window.slots
+    : (typeof window?.slots === 'function' ? window.slots() : null)
+  if (!Array.isArray(slots) || !Number.isFinite(chestSlots) || chestSlots <= 0 || chestSlots >= slots.length) return null
+  if (!Number.isFinite(itemType)) return null
+  let srcIdx = -1
+  for (let i = chestSlots; i < slots.length; i++) {
+    const s = slots[i]
+    if (s && s.type === itemType && s.count > 0) { srcIdx = i; break }
+  }
+  if (srcIdx < 0) return null
+  let dstIdx = -1
+  for (let i = 0; i < chestSlots; i++) {
+    const s = slots[i]
+    if (!s || s.count <= 0) { dstIdx = i; break } // an empty chest slot
+    if (s.type === itemType && s.count < (s.stackSize ?? 64)) { dstIdx = i; break } // matching stack with room
+  }
+  if (dstIdx < 0) return null
+  return { srcIdx, dstIdx }
+}
+
+/** ONE whole-stack move by raw window clicks - both indices come from the
+ * measured window view, the cursor returns home if the put fails. Throws on
+ * any refusal; the caller's verified inventory diff stays the only truth. */
+export async function depositStackDirect (bot, window, { itemType, chestSlots, clickTimeoutMs = 5000 } = {}) {
+  const pair = pickDirectSlots({ window, itemType, chestSlots })
+  if (!pair) throw new Error('no direct pair (no source stack or no accepting chest slot)')
+  const click = async (idx, what) => {
+    await withTimeout(Promise.resolve(bot.clickWindow(idx, 0, 0)), clickTimeoutMs, `click ${what} slot ${idx}`)
+  }
+  await click(pair.srcIdx, 'source') // pick up the whole pocket stack
+  try {
+    await click(pair.dstIdx, 'dest') // put it down in the chest slot
+  } catch (e) {
+    try { await click(pair.srcIdx, 'return') } catch { /* the diff reports honestly */ }
+    throw e
+  }
+  return pair
+}
+
 /**
  * Deposit everything non-essential into a chest. Steps: pick a chest (the nearest one
  * unless given), walk to it on foot, open the window, deposit item by item (a full or
@@ -924,6 +985,23 @@ export async function depositToChest (bot, {
   const skipped = []
   let timeoutSkips = 0
   let moved0Skips = 0
+  let directMoves = 0
+  let directFalls = 0
+  // (v0.72.0) THE SLOT-DIRECT CURE: the probe (run e0fbe24/32131a4, job
+  // 106670204727) finally named the banked=0 wall of ~130 fleets. Transport
+  // (the raw window_items packet) MATCHED the server truth exactly, the
+  // mapped window.slots MATCHED the packet, the withdraw clicks moved items
+  // server-side - and Chest.deposit STILL misrouted its put: 8 of 9 withdrawn
+  // dirt landed on WINDOW SLOT 27, the FIRST PLAYER-INVENTORY slot, one past
+  // the single-chest range [0,27). mineflayer's Chest destination arithmetic
+  // is off for 26.2's generic_9x3, so every fleet deposit either stacked one
+  // item or landed in the bot's own pocket - and the verified diff read
+  // moved=0 forever. The cure routes the put DIRECTLY: both click indices
+  // come from the MEASURED window view (proven truthful), the chest range is
+  // derived from the view (total slots - 36 player slots), and the inventory
+  // diff keeps the verified-transfer semantics.
+  const chestSlots = chestSlotCount(window)
+  if (chestSlots > 0) log(`${tag} direct deposit: ${chestSlots} chest slots derived from the ${(() => { const s = Array.isArray(window.slots) ? window.slots.length : (typeof window.slots === 'function' ? window.slots().length : 0); return s })()}-slot view`)
   const countOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
     for (const item of bot.inventory.items()) {
@@ -932,13 +1010,22 @@ export async function depositToChest (bot, {
       // truth is the inventory afterwards, so count before/after instead of trusting
       // the deposit call's resolution.
       const before = countOf(item.name)
-      try {
-        await withTimeout(window.deposit(item.type, null, item.count), depositClickTimeoutMs, `deposit ${item.name}`)
-      } catch {
-        timeoutSkips++
-        skipped.push(`${item.name}(timeout)`) // the 5s wall: server lag or a dead window
-        continue
+      let done = false
+      if (chestSlots > 0 && typeof bot.clickWindow === 'function') {
+        try {
+          await withTimeout(depositStackDirect(bot, window, { itemType: item.type, chestSlots, clickTimeoutMs: depositClickTimeoutMs }), depositClickTimeoutMs * 2, `direct deposit ${item.name}`)
+          done = true
+        } catch { directFalls++ /* the legacy pathway gets the stack */ }
       }
+      if (!done) {
+        try {
+          await withTimeout(window.deposit(item.type, null, item.count), depositClickTimeoutMs, `deposit ${item.name}`)
+        } catch {
+          timeoutSkips++
+          skipped.push(`${item.name}(timeout)`) // the 5s wall: server lag or a dead window
+          continue
+        }
+      } else directMoves++
       const moved = before - countOf(item.name)
       if (moved > 0) deposited += moved
       else { moved0Skips++; skipped.push(`${item.name}(moved0)`) } // resolved, moved nothing: the ghost click
@@ -946,7 +1033,7 @@ export async function depositToChest (bot, {
   } finally {
     try { window.close?.() } catch { /* already closed */ }
   }
-  if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
+  if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (direct=${directMoves} fallback=${directFalls} kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
   // (v0.70.0) the zero hop NAMES ITS MECHANISM: run68 (the first 600s fleet)
   // ended every reached chest with 'nothing to deposit' and the swallowed skip
   // reasons could not separate a lag timeout from the 26.2 ghost click - two

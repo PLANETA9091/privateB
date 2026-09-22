@@ -260,10 +260,20 @@ bot.once('spawn', async () => {
 
     // --- 5. THE LADDER v3: the CLOSED LOOP - withdraw first (server-confirmed
     // stock), then deposit the withdrawn items BACK. No pickup phantom involved.
+    // (v0.72.0) THE FLEET'S CURE RIDES THE LADDER: depositStackDirect is the
+    // exact function depositToChest now uses - proven live here BEFORE the
+    // fleet pays for it.
+    let direct = null
+    try { direct = await import('../src/lib/deposit.mjs') } catch (e) { log(`direct import failed: ${e.message}`) }
+    const cSlots = direct ? direct.chestSlotCount(window) : 0
+    log(`fleet cure import: ${direct ? `ok (chestSlots=${cSlots})` : 'unavailable - ladder runs legacy-only'}`)
     await rung('withdraw dirt 8', async () => { await window.withdraw(dirtId, null, 8) })
-    await rung('deposit withdrawn dirt 8', async () => {
+    if (direct && cSlots > 0) {
+      await rung('depositStackDirect dirt', async () => { await direct.depositStackDirect(bot, window, { itemType: dirtId, chestSlots: cSlots }) })
+    }
+    await rung('deposit withdrawn dirt 8 (legacy)', async () => {
       const have = invCountOf('dirt')
-      if (!have) throw new Error('nothing withdrawn - the loop cannot close')
+      if (!have) throw new Error('nothing left to deposit')
       await window.deposit(dirtId, null, Math.min(have, 8))
     })
     await rung('withdraw cobble 8', async () => { await window.withdraw(cobbleId, null, 8) })
