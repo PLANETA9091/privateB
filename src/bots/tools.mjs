@@ -4,6 +4,7 @@ import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
 import { torchCraftPlan } from '../lib/torch.mjs'
+import { smeltablesIn, findMachineBlocks } from '../lib/smelting.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 
@@ -376,6 +377,219 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
     } catch { /* give up below */ }
   }
   return find()
+}
+
+// ---------------------------------------------------------------------------
+// (v0.89.0) THE CAMP FURNACE - the smelt leg must never depend on the yard bay.
+//
+// MEASURED (run80, fleet 35773697160 on 2cb2088): 6 yard arrivals vs 10 yard-walk
+// failures, raw_iron in 62 inventory dumps, the v0.88.0 reserve held - and
+// smelted=0 fleet-wide with ZERO output lines. The smelt leg runs WHERE THE BOT
+// STOOD (smeltInventory -> findMachineBlocks within 48b): a bot stranded in the
+// quarry has NO machine in reach, and NOTHING in the codebase ever crafted or
+// placed one - "smelting locally if a furnace is near" (v0.19.0) has been a
+// false promise for seven runs (THE IRON WALL: iron pickaxe=0 since run74).
+//
+// THE CURE: 8 cobblestone + a table (4 planks, itself craftable in the 2x2) =
+// a furnace ANYWHERE. campFurnaceAction is the pure ladder (junk-safe - the
+// Number(null) lesson, eighth strike); ensureCampFurnace executes it with the
+// SAME measured pacing placeTable paid for (pre-click ticks, verify ticks,
+// carve, relocate, the vanish-aware tail). placeTable itself is UNTOUCHED -
+// the tool lane keeps its own live-verified code path byte for byte.
+
+/** The vanilla furnace recipe eats exactly this much cobblestone. */
+export const FURNACE_COBBLE = 8
+/** A crafting table is 4 planks (2x2, no table needed). */
+export const TABLE_PLANKS = 4
+
+/**
+ * The pure camp-furnace decision ladder (no bot, no world reads - unit-pinned).
+ * Junk-safe: every numeric input floors to a non-negative integer, null/NaN/
+ * negative counts can never reach the comparison arithmetic.
+ *
+ * @param {object} [p]
+ * @param {number} [p.smeltables] total smeltable units in the pocket
+ * @param {boolean} [p.machinesNear] a furnace/blast furnace already within reach
+ * @param {number} [p.furnaceItem] furnace items already crafted (unplaced)
+ * @param {number} [p.cobble] cobblestone in the pocket (the raw count - the
+ *   smelt plan's reserveCobble keeps 8 aside exactly so the machine can be built)
+ * @param {number} [p.planks] all plank types combined
+ * @param {number} [p.tableItem] crafting_table items held but not placed
+ * @param {boolean} [p.tableNear] a table within craft reach
+ * @returns {{action: string, why: string}} action: 'none' | 'place-furnace' |
+ *   'place-table' | 'craft-table' | 'craft-furnace'
+ */
+export function campFurnaceAction ({ smeltables = 0, machinesNear = false, furnaceItem = 0, cobble = 0, planks = 0, tableItem = 0, tableNear = false } = {}) {
+  const junk = v => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0)
+  if (machinesNear) return { action: 'none', why: 'machine near' }
+  if (junk(smeltables) <= 0) return { action: 'none', why: 'nothing to smelt' }
+  if (junk(furnaceItem) > 0) return { action: 'place-furnace', why: `furnace item x${junk(furnaceItem)} held - place it` }
+  if (junk(cobble) < FURNACE_COBBLE) return { action: 'none', why: `cobble ${junk(cobble)}/${FURNACE_COBBLE}` }
+  if (tableNear) return { action: 'craft-furnace', why: `${junk(cobble)} cobble + table in reach - craft the furnace` }
+  if (junk(tableItem) > 0) return { action: 'place-table', why: 'table item held - place it first' }
+  if (junk(planks) >= TABLE_PLANKS) return { action: 'craft-table', why: `${junk(cobble)} cobble + ${junk(planks)} planks - table first` }
+  return { action: 'none', why: `no table and planks ${junk(planks)}/${TABLE_PLANKS}` }
+}
+
+// The placement core, GENERALIZED from placeTable (which keeps its own copy for
+// the tool lane). The pacing below is measured-live and must not be "cleaned up":
+//   - the 5-tick pre-click wait: vanilla drops right-clicks <4 game ticks apart
+//   - the 10-tick verify wait: placeBlock resolves on the SENT packet, the block
+//     update lands ticks later (stale chunk reads killed the first tables)
+//   - the carve branch: every neighbour cell water/wall (beach, 1x1 pit) needs a
+//     fastDig'd cell (bot.dig is a no-op under the digTime=0 patch)
+//   - the vanish-aware tail: the item may leave the inventory while the chunk
+//     read still serves stale air - re-scan at 1.2s, then a wider ring
+export async function placeItemBlock (bot, itemName, { rounds = 8, maxMs = 22000 } = {}) {
+  const itemReach = 4.5
+  const findPlaced = () => {
+    try {
+      const me = bot.entity?.position
+      if (!me) return null
+      return bot.findBlock({
+        matching: b => b.name === itemName && (b.position == null || me.distanceTo(b.position) <= itemReach),
+        maxDistance: itemReach
+      })
+    } catch { return null }
+  }
+  const itemCount = () => inventoryItems(bot).filter(i => i.name === itemName).reduce((a, i) => a + i.count, 0)
+  const itemsAtEntry = itemCount()
+  const started = Date.now()
+  for (let round = 0; round < rounds; round++) {
+    if (Date.now() - started > maxMs) break
+    const existing = findPlaced()
+    if (existing) return existing
+    const item = inventoryItems(bot).find(i => i.name === itemName)
+    if (!item) return null
+    if (isWetOrFloating(bot)) {
+      try { await relocateToSolidGround(bot) } catch { /* try placement anyway */ }
+      if (findPlaced()) continue
+    }
+    try {
+      await withTimeout(bot.equip(item, 'hand'), EQUIP_FENCE_MS, `equip ${itemName}`)
+      const feet = bot.entity.position.floored()
+      let placed = false
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const cell = feet.offset(dx, 0, dz)
+        const cellB = bot.blockAt(cell)
+        const floorB = bot.blockAt(cell.offset(0, -1, 0))
+        if (!floorB || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') continue
+        if (cellB && cellB.boundingBox === 'empty') {
+          try {
+            await tickWait(bot, 5, `placeItemBlock ${itemName} pre-click`)
+            await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), PLACE_FENCE_MS, `placeBlock ${itemName}`)
+            await tickWait(bot, 10, `placeItemBlock ${itemName} verify`)
+            const placedB = bot.blockAt(cell)
+            if (placedB && placedB.name === itemName) return placedB
+            placed = true
+          } catch { /* next neighbour */ }
+        } else if (cellB && cellB.boundingBox === 'block' && bot.fastDig) {
+          try {
+            await tickWait(bot, 5, `placeItemBlock ${itemName} carve pre`)
+            await withTimeout(bot.fastDig(cellB), 10000, `carve ${itemName} cell ${cell}`)
+            const freed = bot.blockAt(cell)
+            if (freed && freed.boundingBox === 'empty') {
+              await withTimeout(bot.equip(item, 'hand'), EQUIP_FENCE_MS, `equip ${itemName} (carve)`)
+              await tickWait(bot, 5, `placeItemBlock ${itemName} carve place`)
+              await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), PLACE_FENCE_MS, `placeBlock ${itemName} (carve)`)
+              await tickWait(bot, 10, `placeItemBlock ${itemName} carve verify`)
+              const placedB = bot.blockAt(cell)
+              if (placedB && placedB.name === itemName) return placedB
+              placed = true
+            }
+          } catch { /* next neighbour */ }
+        }
+      }
+      if (placed) continue
+      // nowhere to place: eat the block below and fall to the terrain (treetop/mid-air)
+      const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
+      if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
+        await withTimeout(bot.fastDig ? bot.fastDig(below) : bot.dig(below), 10000, `dig below for ${itemName} placement`)
+        await tickWait(bot, 15, `placeItemBlock ${itemName} settle`)
+      } else {
+        await tickWait(bot, 10, `placeItemBlock ${itemName} wait`)
+      }
+    } catch { /* fall through to the next round */ }
+  }
+  // VANISH-AWARE last look (same class as placeTable's): the place packet LANDED
+  // (the item left the inventory) but the verify reads kept serving stale air.
+  const first = findPlaced()
+  if (first) return first
+  if (itemCount() < itemsAtEntry) {
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    const second = findPlaced()
+    if (second) return second
+    try {
+      const me = bot.entity?.position
+      if (me) {
+        const wide = bot.findBlock({
+          matching: b => b.name === itemName && (b.position == null || me.distanceTo(b.position) <= 8),
+          maxDistance: 8
+        })
+        if (wide) return wide
+      }
+    } catch { /* give up below */ }
+  }
+  return findPlaced()
+}
+
+/**
+ * Executes the camp-furnace ladder against a live bot. Never throws. Returns
+ * { built, why } - built=true means a furnace block now stands within placement
+ * reach, so the smelt leg's findMachineBlocks will find it (the smelt position
+ * IS the placement position).
+ */
+export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48, log = () => {} } = {}) {
+  const started = Date.now()
+  const step = m => log(m)
+  const timeLeft = () => Math.max(0, maxMs - (Date.now() - started))
+  try {
+    if (!bot.entity?.position) return { built: false, why: 'no entity' }
+    const smeltPlan = smeltablesIn(bot, { reserveCobble: 8 })
+    const smeltTotal = smeltPlan.reduce((a, s) => a + (Number.isFinite(s.count) ? s.count : 0), 0)
+    const planksTotal = () => inventoryItems(bot)
+      .filter(i => /_planks$/.test(i.name))
+      .reduce((a, i) => a + (Number.isFinite(i.count) ? i.count : 0), 0)
+    const near = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
+    // the palette-trap class: findBlock CAN throw on a desynced chunk - the ladder
+    // must read that as "no table" and keep going (placeTable wraps its own find
+    // for exactly this reason)
+    let tableNear = false
+    try { tableNear = !!reachableTable(bot) } catch { tableNear = false }
+    const action = campFurnaceAction({
+      smeltables: smeltTotal,
+      machinesNear: near.length > 0,
+      furnaceItem: countItem(bot, 'furnace'),
+      cobble: countItem(bot, 'cobblestone'),
+      planks: planksTotal(),
+      tableItem: countItem(bot, 'crafting_table'),
+      tableNear
+    })
+    if (action.action === 'none') return { built: false, why: action.why }
+    step(`${action.action} (${action.why})`)
+    if (action.action === 'place-table' || action.action === 'craft-table') {
+      if (action.action === 'craft-table') {
+        if (timeLeft() < 8000) return { built: false, why: 'budget gone before the table craft' }
+        const tableOk = await craftUntil(bot, 'crafting_table', { times: 1, want: 1, tries: 2, log: step })
+        if (!tableOk) return { built: false, why: 'crafting_table craft failed' }
+      }
+      const table = await placeTable(bot, { maxMs: Math.min(22000, timeLeft()) })
+      if (!table) return { built: false, why: 'the table never became reachable' }
+    }
+    if (countItem(bot, 'furnace') <= 0) {
+      const table = reachableTable(bot)
+      if (!table) return { built: false, why: 'no reachable table for the furnace craft' }
+      if (timeLeft() < 8000) return { built: false, why: 'budget gone before the furnace craft' }
+      const ok = await craftUntil(bot, 'furnace', { times: 1, want: 1, table, tries: 2, log: step })
+      if (!ok) return { built: false, why: 'furnace craft failed' }
+    }
+    const placed = await placeItemBlock(bot, 'furnace', { rounds: 6, maxMs: Math.min(18000, timeLeft()) })
+    if (!placed) return { built: false, why: 'furnace placement failed' }
+    const p = placed.position
+    return { built: true, why: `furnace at ${p ? `${p.x},${p.y},${p.z}` : '?'}` }
+  } catch (e) {
+    return { built: false, why: `error: ${e.message}` }
+  }
 }
 
 // feet or head inside fluid, or no solid block directly below us

@@ -417,10 +417,21 @@ export async function smeltInventory (bot, {
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
     if (left() <= 0) continue
     if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) { attempts.push({ name, reason: 'no fuel' }); continue }
+    // (v0.89.0) THE SILENT ZERO: seven runs (run74..run80) ended smelted=0 with no
+    // line saying why - the machine loop below just fell through when
+    // findMachineBlocks came back empty (a bot stranded in the quarry, the yard
+    // bay unreachable). Name the miss per input; the fleet harness prints the
+    // attempts when smelted=0.
+    let kindsTried = 0
+    let kindsWithBlocks = 0
     for (const machineKind of machineChainFor(name)) {
       if (Date.now() - started > maxSeconds * 1000) break
       if (left() <= 0) break
-      for (const block of findMachineBlocks(bot, [machineKind], { maxDistance })) {
+      kindsTried++
+      const blocks = findMachineBlocks(bot, [machineKind], { maxDistance })
+      if (!blocks.length) continue
+      kindsWithBlocks++
+      for (const block of blocks) {
         if (Date.now() - started > maxSeconds * 1000) break
         // (v0.41.0) the visit budget: what the smeltInventory clock still has
         // is the hard cap for the batch's walk + open (smeltBatch's own
@@ -450,6 +461,12 @@ export async function smeltInventory (bot, {
         // busy / unreachable / broken machine: try the next one of this kind
       }
       if (left() <= 0) break
+    }
+    // every kind of this input's machine chain scanned, zero machines found: the
+    // input never even reached a furnace - say so (the fleet harness prints
+    // attempts when smelted=0; produced>0 must never be condemned)
+    if (kindsTried > 0 && kindsWithBlocks === 0 && !(produced.get(name) > 0)) {
+      attempts.push({ name, reason: `no machine in reach (${machineChainFor(name).join('/')} within ${maxDistance}b)` })
     }
   }
   return { smelted: total, rescued, outputs, attempts }

@@ -25,7 +25,7 @@ import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, 
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
-import { ensureTools, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
+import { ensureTools, ensureCampFurnace, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
@@ -264,10 +264,32 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     if (smeltSecs <= 0) {
       console.log(`${miner.username} end-bank budget spent - smelt skipped`)
     } else try {
-      const res = await smeltInventory(miner.bot, { maxSeconds: smeltSecs, log: m => console.log(m) })
+      // (v0.89.0) THE CAMP FURNACE: run80 (35773697160) held the reserve, carried
+      // raw_iron (62 inventory dumps) - and ended smelted=0 with ZERO output lines:
+      // the smelt leg ran WHERE THE BOT STOOD, nothing within 48 was a machine, the
+      // yard bay unreachable behind 10 failed yard walks, and nothing in the
+      // codebase ever crafted or placed a furnace ("smelting locally if a furnace
+      // is near" has been a false promise since v0.19.0). Build the machine
+      // camp-side first: 8 cobble + a table (4 planks) = a furnace ANYWHERE. The
+      // build spends the smelt leg's own clock (the slice the v0.88.0 reserve
+      // carved); smeltInventory's budget shrinks by the build time.
+      const buildStart = Date.now()
+      try {
+        const built = await ensureCampFurnace(miner.bot, { log: m => console.log(`${miner.username} camp furnace: ${m}`) })
+        if (built.built) console.log(`${miner.username} camp furnace: BUILT (${built.why}) in ${((Date.now() - buildStart) / 1000).toFixed(0)}s`)
+        else console.log(`${miner.username} camp furnace: no build (${built.why})`)
+      } catch (e) {
+        console.log(`${miner.username} camp furnace: error (kept alive): ${e.message}`)
+      }
+      const buildSpent = (Date.now() - buildStart) / 1000
+      const res = await smeltInventory(miner.bot, { maxSeconds: Math.max(5, smeltSecs - buildSpent), log: m => console.log(m) })
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
         console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)
+      } else if (res.attempts?.length) {
+        // (v0.89.0) the silent zero speaks: seven runs ended smelted=0 with no line
+        // saying why - the per-input attempts now name the blocker
+        console.log(`${miner.username} smelted 0 (${res.attempts.map(a => `${a.name}: ${a.reason}`).join(' | ')})`)
       }
     } catch (e) {
       console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)
