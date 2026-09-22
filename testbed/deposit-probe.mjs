@@ -79,6 +79,24 @@ bot.on('error', e => log(`error: ${e.message}`))
 bot.on('kicked', r => log(`kicked: ${typeof r === 'string' ? r : JSON.stringify(r)}`))
 bot.on('end', r => log(`disconnected: ${r}`))
 
+// THE RAW TAP (v4): the window packets BEFORE mineflayer's window handling
+// touches them - this separates TRANSPORT (did the server send the items?)
+// from WINDOW MAPPING (did mineflayer put them into the right slots?).
+// v3 measured the mapped view only: all 63 slots empty while the console
+// echoed the fill command - one layer below still unnamed.
+try {
+  bot._client.on('window_items', data => {
+    const items = Array.isArray(data.items) ? data.items : []
+    const nonEmpty = []
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      if (it && (it.itemId > 0 || it.itemCount > 0)) nonEmpty.push(`[${i}]=id${it.itemId}x${it.itemCount}`)
+    }
+    log(`RAW window_items: windowId=${data.windowId} stateId=${data.stateId} count=${items.length} nonEmpty=${nonEmpty.join(' ') || 'NONE'}`)
+  })
+  bot._client.on('open_screen', data => log(`RAW open_screen: windowId=${data.windowId} type=${data.inventoryType} title=${JSON.stringify(data.windowTitle || '').slice(0, 80)}`))
+} catch (e) { log(`raw tap setup failed: ${e.message}`) }
+
 const invSummary = () => bot.inventory.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty)'
 const chestSummary = w => {
   try { return w.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty chest)' } catch { return '(unreadable)' }
@@ -109,8 +127,26 @@ bot.once('spawn', async () => {
     await sleep(400)
     const fill0Lines = readFill0()
     log(`fill container.0 response: ${fill0Lines.slice(-2).join(' | ') || '(silent - success has no echo on some versions)'}`)
+    // THE UNAMBIGUOUS MARKER: a conditional say that fires ONLY if the server
+    // really holds 32 dirt in container.0 - the console line [Server] PROBE_FILL_OK
+    // is the ground truth no client view can fake. Poll up to 4s for it.
+    const beforeMarker = (() => { try { return fs.statSync(CONSOLE).size } catch { return 0 } })()
+    cmd('execute', 'if', 'items', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', 'run', 'say', 'PROBE_FILL_OK')
+    let markerSeen = false
+    for (let i = 0; i < 8 && !markerSeen; i++) {
+      await sleep(500)
+      try {
+        const st = fs.statSync(CONSOLE)
+        const fd = fs.openSync(CONSOLE, 'r')
+        const buf = Buffer.alloc(Math.max(0, st.size - beforeMarker))
+        fs.readSync(fd, buf, 0, buf.length, beforeMarker)
+        fs.closeSync(fd)
+        if (buf.toString('utf8').includes('PROBE_FILL_OK')) markerSeen = true
+      } catch { /* console not there */ }
+    }
+    log(`SERVER MARKER: ${markerSeen ? 'PROBE_FILL_OK seen - the server chest REALLY holds dirt x32' : 'NOT seen in 4s - the fill DID NOT take (command rejected or unsupported)'}`)
     const readData = cmdRead('data', 'get', 'block', cx, cy, cz, 'Items')
-    await sleep(400)
+    await sleep(600)
     const dataLines = readData().filter(l => /dirt|cobble|Items|count/i.test(l))
     log(`SERVER TRUTH (data get block): ${dataLines.slice(0, 4).join(' | ') || '(no response captured)'}`)
     await sleep(400)
