@@ -412,7 +412,7 @@ function clearStaleStop (bot) {
   } catch { /* diagnostics must never block the walk they precede */ }
 }
 
-export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false } = {}) {
+export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false, doomTtl = null } = {}) {
   // (v0.79.0) THE REFUSAL PACE - every funnel refusal costs the caller one
   // real event-loop yield before the throw. MEASURED (run73's CI integration
   // sibling, the 13:32:00 window): once the doomed-goal ledger + the governor
@@ -537,10 +537,15 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     // cell so the fleet's re-issues die at the consult above. Walk-budget
     // timeouts ('timeout after Nms') are transient saturation, NOT geometry -
     // they never record (isDeadChestVerdict returns dead:false for them).
+    // (v0.92.0) THE CALLER'S TTL: a finite doomTtl >= 0 overrides BOTH verdict
+    // lifetimes - the machine walk passes MACHINE_DOOM_TTL_MS (15s) because a
+    // furnace is static and known-good, its doom is saturation not geometry,
+    // and a 90s blacklist killed a fresh camp furnace for a whole run (run81).
     const doomedVerdict = isDeadChestVerdict(e && e.message)
     if (doomedVerdict.dead && gcell) {
       try {
-        recordDoomedGoal(gcell, Date.now(), doomedVerdict.timeout ? { ttl: NOPATH_TIMEOUT_TTL_MS } : {})
+        const callerTtl = Number.isFinite(doomTtl) && doomTtl >= 0 ? { ttl: doomTtl } : null
+        recordDoomedGoal(gcell, Date.now(), callerTtl ?? (doomedVerdict.timeout ? { ttl: NOPATH_TIMEOUT_TTL_MS } : {}))
       } catch { /* a ledger record must never mask the walk's own error */ }
     }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the

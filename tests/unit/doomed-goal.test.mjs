@@ -116,3 +116,34 @@ test('doomed-goal ledger: the water-rescue gate still outranks everything (uncha
   // and a doomed consult never fires for a rescue-gated bot: the rescue throws first
   assert.equal(doomedGoalStats().refusals, 0)
 })
+
+// -------------------------------------------------- v0.92.0 the machine doom ttl
+test('doomed-goal ledger: the caller ttl - a machine cell verdict lives 15s, not 45/90 (run81: 15 machines refused ledgered-1s-ago, a fresh camp furnace killed for the run)', async () => {
+  resetDoomedGoalLedger()
+  const cell = { x: -130, y: FLOOR + 10, z: 380 }
+  const { bot } = mockBot({ gotoError: 'Took to long to decide path to goal!' })
+  // the machine walk records with the caller's short ttl
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomTtl: 15000 }), /Took to long/)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 14000).hit, true, 'live inside the 15s window - the spiral breaker still works')
+  assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, false, 'dead at 16s - the next chain finds the static machine walkable again')
+  // the default verdict would still be live at 16s (45s) - the override is real
+  resetDoomedGoalLedger()
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace' }), /Took to long/)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, true, 'no caller ttl = the legacy 45s timeout verdict')
+})
+
+test('doomed-goal ledger: the caller ttl overrides the STRONG 90s No path verdict too (the machine is static, its geometry changes under the diggers)', async () => {
+  resetDoomedGoalLedger()
+  const cell = { x: -126, y: FLOOR + 11, z: 381 }
+  const { bot } = mockBot({ gotoError: 'No path to the goal!' })
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomTtl: 15000 }), /No path/)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 14000).hit, true)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, false, 'a proven No path on a machine cell still expires in 15s')
+  // junk ttls fall back to the legacy lifetimes (negative / NaN / junk)
+  resetDoomedGoalLedger()
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomTtl: -5 }), /No path/)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, true, 'a negative ttl is junk - the legacy 90s stands')
+  resetDoomedGoalLedger()
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomTtl: NaN }), /No path/)
+  assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, true, 'a NaN ttl is junk - the legacy 90s stands')
+})

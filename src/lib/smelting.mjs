@@ -109,6 +109,38 @@ export function smeltZeroWhy (attempts) {
   return parts.length ? parts.join('; ') : 'nothing to smelt'
 }
 
+// (v0.92.0) THE MACHINE DOOM TTL - a machine cell's doomed verdict lives 15s,
+// not the chest ledger's 45/90s. Run81 measured the cost of the long verdicts
+// on machines: F4 tried FIFTEEN bay machines, every walk refused 'doomed goal
+// (ledgered 1s ago)' (a self-sustaining refresh - each failed walk re-records
+// the cell), and F14's ONE failed walk doom-ledgered the freshly built camp
+// furnace for the rest of the run. A furnace is STATIC and known-good (the
+// fleet built it minutes ago); its doom is CPU saturation ('Took to long'),
+// not geometry, and saturation recovers in seconds. The machine walk keeps its
+// own spiral bound (3 attempts per machine, smeltInventory's machine loop
+// bounded by the scan), so a 15s verdict still breaks the re-issue spiral
+// while the NEXT chain finds the bay walkable again.
+export const MACHINE_DOOM_TTL_MS = 15000
+
+// (v0.92.0) THE FUEL SLICE - the time-slice reserve (v0.88.0) held the smelt
+// leg's CLOCK but not its FUEL: coal is not in the deposit KEEP list, so the
+// pre-deposit banked it and the smelt leg arrived at the machine with
+// smeltables and 'no fuel' (run81: F4/F3/F8 - the ninth silent-zero teacher).
+// While the pocket carries smeltables the PRE-deposit keeps the solid fuels
+// pickFuel burns first (coal/charcoal - planks/logs/sticks already ride KEEP
+// with their own pickFuel reserves); the final deposit banks whatever the
+// batch left. Pure: returns a FRESH array (the caller spreads it into a keep
+// list - a shared const must never be mutated by a caller).
+export const SMELT_FUEL_KEEP = ['coal', 'charcoal']
+
+/** Pure, junk-safe: the keep-list extension that holds the smelt leg's fuel.
+ * Plain param + body guard (the Number(null) strikes: a destructuring default
+ * does NOT fire on null - the oreSteerOrder v0.81.0 lesson, tenth round). */
+export function smeltFuelKeep (p) {
+  const carries = !!(p && p.carriesSmeltables)
+  return carries ? SMELT_FUEL_KEEP.slice() : []
+}
+
 /**
  * (v0.91.0) THE BATCH CLOCK - pure: how long one smeltBatch may poll for its
  * output. The batch estimate (batch * smeltSecondsPerItem) may FILL the
@@ -321,7 +353,11 @@ export async function smeltBatch (bot, {
       // - then the funnel closes again (the spiral breaker stays in charge).
       // + the goal ladder: attempt 1 hugs the machine, the retries stand off -
       // the tight bay needs looser approach cells to defeat the A* think wall.
-      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(attempt + 1)), { timeoutMs: ms, label: 'walk to furnace', doomedRearm: attempt === 1 })
+      // (v0.92.0) + THE MACHINE DOOM TTL: a machine is static and known-good -
+      // its doomed verdict lives 15s (MACHINE_DOOM_TTL_MS), not the chest
+      // ledger's 45/90s (run81: 15 machines refused 'ledgered 1s ago', a fresh
+      // camp furnace killed for the run by ONE failed walk).
+      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(attempt + 1)), { timeoutMs: ms, label: 'walk to furnace', doomedRearm: attempt === 1, doomTtl: MACHINE_DOOM_TTL_MS })
       walked = true
     } catch (e) {
       lastWalkError = e.message

@@ -12,7 +12,8 @@ import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
-  smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE
+  smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
+  smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS
 } from '../../src/lib/smelting.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and a
@@ -575,4 +576,26 @@ test('smeltBatchWaitMs: junk is capped, not fatal (Number(null) ninth strike)', 
   assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: 3, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 0.4 }),
     0, 'a sub-second cap floors to zero (honest - the loop exits and pulls back)')
   assert.equal(smeltBatchWaitMs({}), 90 * 1000 + 1200 * 3, 'the bare call = the production defaults')
+})
+
+// ------------------------------------------------------- v0.92.0 the fuel slice
+test('smeltFuelKeep: a smeltable pocket holds its fuel through the pre-deposit (run81: F4/F3/F8 arrived no fuel)', () => {
+  // the v0.88.0 reserve held the smelt leg's CLOCK; the pre-deposit still banked
+  // its FUEL (coal is not in the deposit KEEP list) - the bot arrived at the
+  // machine with smeltables and 'no fuel'. The keep-list extension fixes the
+  // pocket, not the clock.
+  assert.deepEqual(smeltFuelKeep({ carriesSmeltables: true }), ['coal', 'charcoal'])
+  // a pocket without smeltables banks the coal as before - the base stock drains
+  assert.deepEqual(smeltFuelKeep({ carriesSmeltables: false }), [])
+  assert.deepEqual(smeltFuelKeep({}), [], 'the flag omitted = the legacy keep list')
+  assert.deepEqual(smeltFuelKeep(null), [], 'junk opts are safe (the destructuring default)')
+  // fresh arrays: a caller mutating its keep list must never poison the const
+  const a = smeltFuelKeep({ carriesSmeltables: true })
+  a.push('dirt')
+  assert.deepEqual(SMELT_FUEL_KEEP, ['coal', 'charcoal'], 'the shared const stays untouched')
+  // charcoal contains the substring 'coal' - the deposit matcher (includes)
+  // would keep it anyway; the explicit list is belt and braces, and pickFuel
+  // burns charcoal first-class (8 smelts per unit, same as coal)
+  assert.ok('charcoal'.includes('coal'))
+  assert.equal(MACHINE_DOOM_TTL_MS, 15000, 'the machine doom TTL is 15s (run81: one failed walk killed a fresh camp furnace for the run)')
 })

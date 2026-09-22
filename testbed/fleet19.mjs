@@ -31,7 +31,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -142,7 +142,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // (v0.18.5) no flat timeoutMs pinning: depositToChest scales its walk budget with
   // the real distance now (fleet #128: the flat 30s killed every far-chest walk,
   // banked=0 with 77 attempts), and waits out one rescue window on refusal.
-  const keep = () => [...DEPOSIT_KEEP, ...keepForIron(miner.bot)]
+  // (v0.92.0) THE FUEL SLICE rides the same keep list: the time reserve holds
+  // the smelt leg's CLOCK, the fuel hold keeps its FUEL - coal/charcoal stay
+  // in the pocket through the PRE-deposit while the bot carries smeltables
+  // (run81: the pre-deposit banked the coal, the smelt leg arrived at the
+  // machine with smeltables and 'no fuel' - F4/F3/F8). The FINAL deposit
+  // passes withFuel=false: the smelt leg has run (or was skipped), no further
+  // smelt leg exists this run, so the leftover fuel drains to the chests.
+  // carriesSmelt (defined below, TDZ-safe: keep() is first CALLED at
+  // lootOpts()) is the chain-entry snapshot - the same snapshot the time
+  // reserve reads.
+  const keep = (withFuel = false) => [...DEPOSIT_KEEP, ...keepForIron(miner.bot), ...smeltFuelKeep({ carriesSmeltables: withFuel && carriesSmelt })]
   // (v0.27.0) the chain budget: a finite budgetMs > 0 sets a deadline every
   // deposit/smelt step must fit (Infinity passes through the deposit chain
   // unchanged - junk-safe legacy behavior for the mid-run caller).
@@ -159,11 +169,11 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // remaining() (unchanged code - the slice survives by construction) and
   // the final deposit sees the full clock again. Empty pockets: reserve 0,
   // the legacy shape byte for byte.
-  const carries = SMELT ? smeltablesIn(miner.bot, { reserveCobble: 8 }).length > 0 : false
-  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carries, smeltBudgetSecs: SMELT_BUDGET })
+  const carriesSmelt = SMELT ? smeltablesIn(miner.bot, { reserveCobble: 8 }).length > 0 : false
+  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, smeltBudgetSecs: SMELT_BUDGET })
   if (smeltReserveMs > 0) console.log(`${miner.username} bank: ${reserveWhy}`)
   const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())
-  const lootOpts = () => ({ keep: keep(), budgetMs: preSmeltRemaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
+  const lootOpts = () => ({ keep: keep(true), budgetMs: preSmeltRemaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
   const pre = await miner.depositLoot(lootOpts())
