@@ -23,6 +23,7 @@
 import mineflayer from 'mineflayer'
 import { Vec3 } from 'vec3'
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 
 const host = process.argv[2] || '127.0.0.1'
 const port = Number(process.argv[3] || 25565)
@@ -35,8 +36,42 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 const timeout = setTimeout(() => { log('FAIL: overall timeout (150s)'); process.exit(1) }, 150000)
 
+// The server console file: scripts/server.sh start pipes the JVM's stdout
+// here (console command echo + feedback included). The probe reads it to
+// CONFIRM the fill executed - v2 skipped that and its '(empty)' result was
+// ambiguous (broken parse vs a fill that never ran).
+const CONSOLE = 'testbed/server/console.log'
+let consoleSize = 0
+try { consoleSize = fs.statSync(CONSOLE).size } catch { /* fresh boot */ }
+const consoleTail = (bytes = 3000) => {
+  try {
+    const st = fs.statSync(CONSOLE)
+    const start = Math.max(0, st.size - bytes)
+    const fd = fs.openSync(CONSOLE, 'r')
+    const buf = Buffer.alloc(st.size - start)
+    fs.readSync(fd, buf, 0, buf.length, start)
+    fs.closeSync(fd)
+    return buf.toString('utf8')
+  } catch { return '' }
+}
+
 const cmd = (...words) => {
   try { execFileSync('scripts/server.sh', ['cmd', words.join(' ')], { stdio: 'pipe', timeout: 15000 }) } catch (e) { log(`cmd ${words.join(' ')} failed: ${e.message}`) }
+}
+// run a command and return the console lines it produced (the response tail)
+const cmdRead = (...words) => {
+  const before = (() => { try { return fs.statSync(CONSOLE).size } catch { return consoleSize } })()
+  cmd(...words)
+  return () => {
+    try {
+      const st = fs.statSync(CONSOLE)
+      const fd = fs.openSync(CONSOLE, 'r')
+      const buf = Buffer.alloc(st.size - before)
+      fs.readSync(fd, buf, 0, buf.length, before)
+      fs.closeSync(fd)
+      return buf.toString('utf8').split('\n').filter(l => l.trim())
+    } catch { return [] }
+  }
 }
 
 const bot = mineflayer.createBot({ host, port, username, version: VERSION, auth: 'offline' })
@@ -70,10 +105,15 @@ bot.once('spawn', async () => {
     if (!chestBlock) throw new Error('the console-placed chest never landed in the world view')
     log(`chest confirmed at ${chestPos.floored()}`)
     const cx = Math.round(chestPos.x); const cy = Math.round(chestPos.y); const cz = Math.round(chestPos.z)
-    cmd('item', 'replace', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', '32')
-    cmd('item', 'replace', 'block', cx, cy, cz, 'container.1', 'minecraft:cobblestone', '16')
-    await sleep(800) // the item commands execute; the chest now holds 48 items SERVER-SIDE
-    log('server truth commanded: container.0 = dirt x32, container.1 = cobblestone x16')
+    const readFill0 = cmdRead('item', 'replace', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', '32')
+    await sleep(400)
+    const fill0Lines = readFill0()
+    log(`fill container.0 response: ${fill0Lines.slice(-2).join(' | ') || '(silent - success has no echo on some versions)'}`)
+    const readData = cmdRead('data', 'get', 'block', cx, cy, cz, 'Items')
+    await sleep(400)
+    const dataLines = readData().filter(l => /dirt|cobble|Items|count/i.test(l))
+    log(`SERVER TRUTH (data get block): ${dataLines.slice(0, 4).join(' | ') || '(no response captured)'}`)
+    await sleep(400)
 
     // --- 2. a light dig for the deposit rung (the chest itself needs no pocket)
     const DIGGABLE = ['grass_block', 'dirt', 'coarse_dirt', 'sand', 'gravel']
@@ -117,6 +157,11 @@ bot.once('spawn', async () => {
 
     const dirt = bot.registry.itemsByName.dirt
     const cobble = bot.registry.itemsByName.cobblestone
+    // registry Items carry .id (numeric protocol id); .type exists only on
+    // prismarine-item instances - v2 passed undefined ('Invalid itemType')
+    const dirtId = dirt ? (dirt.id ?? dirt.type) : null
+    const cobbleId = cobble ? (cobble.id ?? cobble.type) : null
+    log(`registry ids: dirt=${dirtId} cobble=${cobbleId}`)
     const invCountOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
     const chestCountOf = name => { try { return window.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0) } catch { return -1 } }
 
@@ -130,14 +175,15 @@ bot.once('spawn', async () => {
       dumpSlots(`after-${name.replace(/\s+/g, '-').toLowerCase()}`)
     }
 
-    // --- 5. THE LADDER v2
-    await rung('withdraw dirt 8', async () => { await window.withdraw(dirt.type, null, 8) })
-    await rung('withdraw cobble 8', async () => { await window.withdraw(cobble.type, null, 8) })
-    await rung('deposit pocket item', async () => {
-      const it = bot.inventory.items()[0]
-      if (!it) throw new Error('pocket empty - the dig pickup never landed in the client view')
-      await window.deposit(it.type, null, it.count)
+    // --- 5. THE LADDER v3: the CLOSED LOOP - withdraw first (server-confirmed
+    // stock), then deposit the withdrawn items BACK. No pickup phantom involved.
+    await rung('withdraw dirt 8', async () => { await window.withdraw(dirtId, null, 8) })
+    await rung('deposit withdrawn dirt 8', async () => {
+      const have = invCountOf('dirt')
+      if (!have) throw new Error('nothing withdrawn - the loop cannot close')
+      await window.deposit(dirtId, null, Math.min(have, 8))
     })
+    await rung('withdraw cobble 8', async () => { await window.withdraw(cobbleId, null, 8) })
     await rung('shift-click slot0 quick-move', async () => { await window.click(0, 0, 1) })
     await rung('pick-place mode0 slot0->slot2', async () => { await window.click(0, 0, 0); await sleep(250); await window.click(2, 0, 0) })
 
