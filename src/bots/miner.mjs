@@ -27,7 +27,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -530,12 +530,6 @@ export function createMiner ({
   async function tryRingShelter (reason) {
     const threat = nearestHostile()
     if (!threat || !bot.entity) return false
-    // cheap stock gate BEFORE the world reads: the ring spends up to 8 blocks
-    const stock = countSealBlocks(inventoryItems(bot))
-    if (stock < RING_BLOCKS_NEEDED) {
-      log(`${tag} combat: shelter skip (open field: need ${RING_BLOCKS_NEEDED} wall blocks, have ${stock})`)
-      return false
-    }
     const here = bot.entity.position.floored()
     // read the four lateral sides: foot/head cell class + the ground under
     // the foot cell (the foot placement's reference) + hostile occupancy
@@ -575,6 +569,73 @@ export function createMiner ({
       const mark = s => `${s.foot === 'solid' ? 'B' : s.foot === 'empty' ? (s.groundSolid ? 'o' : '-') : 'x'}${s.head === 'solid' ? 'B' : s.head === 'empty' ? 'o' : 'x'}`
       log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}] vs ${threat.name}@${threat.dist.toFixed(1)})`)
       return false
+    }
+    // (v0.91.0) THE HONEST STOCK GATE: compare the held blocks to the REAL
+    // need - ringBlocksNeeded counts only the cells the terrain leaves empty,
+    // every natural solid cell (a boulder, a trunk, a wall) is a free cell.
+    // run80 measured the old worst-case gate refusing 'need 8 wall blocks,
+    // have 4' BEFORE the terrain was read: a bot standing against terrain
+    // that already supplies 4 cells could seal completely with its 4 blocks,
+    // and the refusal sent it into the measured mob death instead.
+    const needed = ringBlocksNeeded(sides)
+    let stock = countSealBlocks(inventoryItems(bot))
+    if (stock < needed) {
+      // (v0.91.0) THE RING DIG-EARN: the wall variant has earned its seal
+      // since v0.50.0 (the dig supplies the seal) - the ring earns the
+      // deficit out of the grounds under ALREADY-SOLID foot cells. That side
+      // stays closed at foot level no matter what its ground reads
+      // (ringSideBuildable consults groundSolid only for empty feet), so the
+      // dig can never break the ring it feeds; empty-foot grounds are never
+      // touched (digging there removes the foot placement's own reference).
+      const earnDue = threat.dist > 0 && threat.dist <= EARN_SEAL_MAX_THREAT_DIST
+      if (!earnDue) {
+        log(`${tag} combat: shelter skip (open field: ring stock ${stock}/${needed}, threat@${threat.dist.toFixed(1)} beyond the earn edge - the flee wins)`)
+        return false
+      }
+      const solidFootSides = sides.filter(s => s.foot === 'solid')
+      const diggableGrounds = solidFootSides.map(s => {
+        try { const g = bot.blockAt(new Vec3(s.fx, here.y - 1, s.fz)); return g ? g.name : null } catch { return null }
+      })
+      const supply = ringDigEarnSupply({ stock, needed, diggableGrounds })
+      if (supply <= 0) {
+        log(`${tag} combat: shelter skip (open field: ring stock ${stock}/${needed}, ground earns nothing)`)
+        return false
+      }
+      // the v0.68.0 free-slot lesson: a drop needs somewhere to land - a
+      // free slot first, the cheapest junk toss second, the honest refusal last
+      let freeSlots = emptySlotCount(bot.inventory.slots.slice(9, 45))
+      if (freeSlots <= 0) {
+        const junk = pickJunkToDrop(inventoryItems(bot))
+        if (!junk) {
+          log(`${tag} combat: shelter skip (open field: ring stock ${stock}/${needed}, no slot, nothing expendable)`)
+          return false
+        }
+        try {
+          const item = bot.inventory.items().find(i => i.name === junk.name)
+          if (!item) throw new Error(`${junk.name} vanished`)
+          await bot.toss(item.type, item.metadata ?? 0, 1)
+          freeSlots = 1
+        } catch (e) {
+          log(`${tag} combat: shelter skip (open field: ring earn toss failed: ${e.message})`)
+          return false
+        }
+      }
+      let earned = 0
+      for (const s of solidFootSides) {
+        if (earned >= supply) break
+        try {
+          const g = bot.blockAt(new Vec3(s.fx, here.y - 1, s.fz))
+          if (!g || !RING_DIG_EARN_OK.has(g.name)) continue
+          await bot.fastDig(g)
+          earned++
+        } catch { continue }
+      }
+      stock = countSealBlocks(inventoryItems(bot))
+      if (stock < needed) {
+        log(`${tag} combat: shelter skip (open field: ring stock ${stock}/${needed} after digging ${earned})`)
+        return false
+      }
+      log(`${tag} combat: shelter ring dig-earn: dug ${earned}, stock ${stock}/${needed}`)
     }
     const order = ringSideOrder({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z })
     log(`${tag} combat: shelter ring try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${order.map(i => ['+x', '-x', '+z', '-z'][i]).join('')} first, ${reason})`)

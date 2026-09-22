@@ -10,9 +10,10 @@ import {
   SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, SEAL_PRIORITY,
   EARN_SEAL_MAX_THREAT_DIST, JUNK_DROP_PRIORITY,
   RING_BLOCKS_NEEDED, RING_SIDE_NORMALS, RING_PLACE_ROUNDS, RING_RETRY_TICKS,
+  RING_DIG_EARN_OK, RING_EARN_MAX_DIGS,
   shelterDue, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
-  ringSideOrder, countSealBlocks, emptySlotCount
+  ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply
 } from '../../src/lib/shelter.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
@@ -270,4 +271,71 @@ test('ring patience constants: the sealWaitUnseal pacing, pinned', () => {
   assert.equal(RING_PLACE_ROUNDS, 2, 'two rounds per cell, like the seal')
   assert.equal(RING_RETRY_TICKS, 6, '6 ticks between rounds, like the seal')
   assert.ok(RING_RETRY_TICKS > 4, 'strictly more patient than the old single retry')
+})
+
+// ---- v0.91.0: THE HONEST RING STOCK + THE RING DIG-EARN ----
+// run80 (v0.88.0 fleet) mined the biggest single shelter refusal:
+// 'need 8 wall blocks, have 4' - and shelters=0 ALL RUN while mob deaths
+// became the majority class (zombie x2 + skeleton x2 of 6). Two defects:
+// the gate compared stock to the WORST-CASE constant 8 before the terrain
+// was read (the build only spends ringBlocksNeeded - every natural solid
+// cell is a free cell), and the ring had no dig-earn (the wall variant has
+// had one since v0.50.0).
+
+test('REGRESSION PIN (run80): the honest gate passes the measured refusal shape', () => {
+  // the exact measured line: 'need 8 wall blocks, have 4'. The same bot next
+  // to terrain that already supplies two full sides (a boulder, a house wall)
+  // needs only 4 placements - the old gate refused on the constant, the
+  // honest gate lets the build start.
+  const have4 = [{ name: 'dirt', count: 4 }]
+  const halfWalled = [
+    { foot: 'solid', head: 'solid' },
+    { foot: 'solid', head: 'solid' },
+    { foot: 'empty', head: 'empty', groundSolid: true },
+    { foot: 'empty', head: 'empty', groundSolid: true }
+  ]
+  const needed = ringBlocksNeeded(halfWalled)
+  assert.equal(needed, 4, 'two pre-walled sides leave exactly 4 placements')
+  assert.equal(countSealBlocks(have4) >= needed, true, 'the measured 4-block pocket SEALS this ring - the old gate refused it')
+  // and the old worst-case shape for contrast: the constant stays 8
+  assert.equal(RING_BLOCKS_NEEDED, 8, 'the worst case is still the worst case - it is just no longer the gate')
+})
+
+test('ringDigEarnSupply: the measured deficit is earnable, bounded and junk-safe', () => {
+  const dirt4 = ['dirt', 'dirt', 'grass_block', 'stone']
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 8, diggableGrounds: dirt4 }), 4, 'the measured shape: have 4, need 8, four diggable grounds -> 4 digs')
+  assert.equal(ringDigEarnSupply({ stock: 6, needed: 8, diggableGrounds: dirt4 }), 2, 'bounded by the deficit, not by the grounds')
+  assert.equal(ringDigEarnSupply({ stock: 0, needed: 8, diggableGrounds: Array(8).fill('dirt') }), RING_EARN_MAX_DIGS, 'capped by RING_EARN_MAX_DIGS - an earn beyond 4 digs loses the race on any terrain')
+  assert.equal(ringDigEarnSupply({ stock: 8, needed: 8, diggableGrounds: dirt4 }), 0, 'no deficit, no earn')
+  assert.equal(ringDigEarnSupply({ stock: 9, needed: 8, diggableGrounds: dirt4 }), 0, 'surplus stock earns nothing')
+})
+
+test('ringDigEarnSupply: only grounds whose DROP is seal material earn', () => {
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 8, diggableGrounds: ['sand', 'gravel', 'oak_log'] }), 0, 'gravity columns and trunks never earn - the measured shelter walls never dig those')
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 8, diggableGrounds: [null, undefined, 42, 'dirt', '', 'stone'] }), 2, 'junk entries are skipped, real grounds still count')
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 8, diggableGrounds: 'dirt' }), 0, 'a bare string is not a grounds list')
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 8 }), 0, 'no grounds array -> no earn (never dig on a guess)')
+})
+
+test('ringDigEarnSupply: junk stock and junk need read as zero', () => {
+  assert.equal(ringDigEarnSupply({}), 0, 'nothing set -> nothing earned')
+  assert.equal(ringDigEarnSupply({ stock: NaN, needed: 8, diggableGrounds: ['dirt'] }), 0, 'NaN stock is no stock')
+  assert.equal(ringDigEarnSupply({ stock: -3, needed: 8, diggableGrounds: ['dirt'] }), 0, 'negative stock is no stock')
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: NaN, diggableGrounds: ['dirt'] }), 0, 'junk need -> no earn')
+  assert.equal(ringDigEarnSupply({ stock: 4, needed: 0, diggableGrounds: ['dirt'] }), 0, 'a zero need has no deficit')
+  assert.equal(ringDigEarnSupply(null), 0, 'null input -> zero')
+  assert.equal(ringDigEarnSupply({ stock: 4.9, needed: 8, diggableGrounds: ['dirt', 'dirt', 'dirt', 'dirt'] }), 4, 'fractional stock floors (4.9 held blocks is 4 whole ones)')
+})
+
+test('RING_DIG_EARN_OK / RING_EARN_MAX_DIGS: the policy surfaces, pinned', () => {
+  assert.equal(RING_DIG_EARN_OK.has('grass_block'), true, 'grass drops dirt - the priority seal')
+  assert.equal(RING_DIG_EARN_OK.has('stone'), true, 'stone drops cobblestone - a pickaxe holder digs it in ~1.2s')
+  assert.equal(RING_DIG_EARN_OK.has('cobbled_deepslate'), true, 'deepslate grounds earn their cobble')
+  assert.equal(RING_DIG_EARN_OK.has('sand'), false, 'gravity columns stay out')
+  assert.equal(RING_DIG_EARN_OK.has('gravel'), false, 'gravel stays out')
+  assert.equal(RING_DIG_EARN_OK.has('oak_log'), false, 'trunks stay out')
+  for (const name of RING_DIG_EARN_OK) {
+    assert.equal(SEAL_PRIORITY.includes(name === 'grass_block' || name === 'podzol' ? 'dirt' : name === 'stone' ? 'cobblestone' : name === 'deepslate' ? 'cobbled_deepslate' : name), true, `${name}'s dig drop is SEAL_PRIORITY material`)
+  }
+  assert.equal(RING_EARN_MAX_DIGS, 4, 'the measured deficit class + the race arithmetic: 4 fist digs ~3s vs a zombie at the 8-block earn edge ~3.2s')
 })

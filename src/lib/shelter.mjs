@@ -339,3 +339,88 @@ export const RING_PLACE_ROUNDS = 2
 /** Ticks between placement rounds - a mob grazing a build cell moves off
  * within ~0.3-1 s, the single 4-tick retry of run64 did not cover it. */
 export const RING_RETRY_TICKS = 6
+
+// ---- v0.91.0: THE HONEST RING STOCK + THE RING DIG-EARN ----
+// Fleet 35783710615-class evidence (run80, v0.88.0, mined by the 03:53
+// session): mob deaths are the majority class (zombie x2 + skeleton x2 of 6),
+// shelters=0 ALL RUN, and the log names the biggest single refusal:
+// 'need 8 wall blocks, have 4'. Two independent defects hide in that line:
+// (1) THE WORST-CASE GATE - the stock gate compared the held blocks against
+//     the RING_BLOCKS_NEEDED constant (8) BEFORE the terrain was read. The
+//     build only spends ringBlocksNeeded(sides) - every natural solid cell
+//     (a boulder, a tree trunk, a house wall next to the bot) is a free cell.
+//     A 'have 4' bot standing against terrain that already supplies 4 cells
+//     could seal COMPLETELY with its 4 blocks - the gate refused on the
+//     worst-case constant and the bot fled into a measured death instead.
+// (2) NO RING EARN - the wall variant has the dig-earn (v0.50.0: the dig
+//     supplies the seal; v0.68.0: a free slot replaces the toss). The ring
+//     had no equivalent: stock < need was a bare refusal even when the bot
+//     STOOD ON the deficit (surface dirt/stone everywhere).
+// The cure keeps the module's founding rule (a partial ring never waits):
+// the honest gate compares stock to the REAL need; the earn digs the deficit
+// out of grounds that CANNOT break feasibility - the block under an already-
+// SOLID foot cell (that side is closed at foot level regardless of its
+// ground: ringSideBuildable consults groundSolid only for empty feet). The
+// drop lands inside vanilla pickup range (the same ~1.5-block race the wall
+// earn has measured winning since v0.50.0) and a free slot swallows it - the
+// v0.68.0 free-slot lesson applies unchanged. Empty-foot grounds are NEVER
+// dug (digging there removes the foot placement's own reference).
+
+/** Ground blocks whose dig drop is seal material (SEAL_PRIORITY accepts the
+ * drop of every name here: dirt-family drops dirt, stone drops cobblestone,
+ * deepslate drops cobbled_deepslate, the stone-likes drop themselves).
+ * Gravity columns (sand/gravel) and logs stay out - the measured shelter
+ * walls never dig those, and the ring earns from the same families. */
+export const RING_DIG_EARN_OK = new Set([
+  'dirt', 'grass_block', 'coarse_dirt', 'podzol', 'rooted_dirt', 'mud',
+  'stone', 'cobblestone', 'andesite', 'diorite', 'granite', 'tuff',
+  'deepslate', 'cobbled_deepslate'
+])
+
+/** Hard cap on earn digs per shelter attempt. The measured deficit class is
+ * 4 ('need 8, have 4'); a naked fist dig on dirt costs ~0.75 s, so four digs
+ * spend ~3 s - the window a zombie at the earn edge (8 blocks, ~2.5 b/s)
+ * needs to arrive. Beyond the cap the earn loses its race on ANY terrain and
+ * the honest refusal is the better verdict (the flee takes over). */
+export const RING_EARN_MAX_DIGS = 4
+
+/**
+ * How many of the ring's missing blocks the surroundings can supply via
+ * digs, for a bot that holds `stock` and needs `needed` placements. Every
+ * entry in diggableGrounds is ONE diggable ground block (the block under a
+ * solid-foot side); only names RING_DIG_EARN_OK accepts earn a block. The
+ * supply is bounded by the deficit AND RING_EARN_MAX_DIGS - an earn beyond
+ * four digs loses its race against the closing mob. Junk inputs read as
+ * zero: never dig on a guess. (Plain `p` param + body guards: a destructuring
+ * signature crashes on ringDigEarnSupply(null) BEFORE any guard - defaults
+ * fire on undefined only, the oreSteerOrder v0.81.0 lesson.)
+ * @param {object} [p]
+ * @param {number} [p.stock] seal blocks held (junk -> 0)
+ * @param {number} [p.needed] placements still required, ringBlocksNeeded's
+ *   output (junk -> no earn)
+ * @param {Array<string|null|undefined>} [p.diggableGrounds] one entry per
+ *   solid-foot side: the ground block's name (junk entries skipped)
+ */
+export function ringDigEarnSupply (p = {}) {
+  const stock = p && p.stock
+  const needed = p ? p.needed : undefined
+  const diggableGrounds = p ? p.diggableGrounds : null
+  // the Number(null) lesson, ninth strike (pinned by the junk-stock test):
+  // junk stock must refuse the earn, NOT read as 0 held - 0 held against a
+  // real need is the FULL deficit, the exact opposite of safe. Guards first,
+  // arithmetic after.
+  if (!Array.isArray(diggableGrounds)) return 0
+  if (!Number.isFinite(stock) || !Number.isFinite(needed)) return 0
+  if (stock < 0) return 0 // a negative read is a caller bug, not an empty pocket
+  const have = stock > 0 ? Math.floor(stock) : 0
+  const need = Math.ceil(needed)
+  const deficit = need - have
+  if (deficit <= 0) return 0
+  let supply = 0
+  for (const name of diggableGrounds) {
+    if (supply >= deficit || supply >= RING_EARN_MAX_DIGS) break
+    if (typeof name !== 'string') continue
+    if (RING_DIG_EARN_OK.has(name)) supply++
+  }
+  return supply
+}
