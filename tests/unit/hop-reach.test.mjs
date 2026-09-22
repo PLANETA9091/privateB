@@ -9,9 +9,16 @@
 // reach (nearest-first scan means one miss = all miss), and withHopPathfinder
 // runs the hop walk under a temporary wider budget (48 / 4500ms), restored in
 // a finally.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { hopReachable, withHopPathfinder, HOP_SEARCH_RADIUS, HOP_THINK_TIMEOUT_MS, PROXIMATE_OPEN_DIST, STALE_VIEW_MIN_UNITS, STALE_VIEW_SETTLE_MS, STALE_VIEW_WINDOW_MS } from '../../src/lib/deposit.mjs'
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('hopReachable: the boundary and the junk contract', () => {
   assert.equal(hopReachable(0), true, 'at the chest')

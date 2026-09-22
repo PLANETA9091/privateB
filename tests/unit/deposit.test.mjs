@@ -1,6 +1,7 @@
 // Chest deposits: bots bank their loot into the yard's chest rows and keep their kit.
 // Driven with a mock bot/window - no server needed.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { inventoryLoad, findChest, depositToChest, depositToChests } from '../../src/lib/deposit.mjs'
@@ -47,6 +48,12 @@ function makeMockBot ({
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('inventoryLoad reports slots and free space', () => {
   const bot = makeMockBot({ items: [item('dirt', 64), item('stone', 32)] })

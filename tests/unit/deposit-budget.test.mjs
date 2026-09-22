@@ -9,7 +9,8 @@
 // printed. These tests pin the cure: a finite budgetMs caps every hop, a walk
 // that cannot fit its floor refuses with a named reason, junk = legacy
 // unbounded behavior.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { depositToChest, depositToChests, effectiveWalkBudget, CHEST_WALK_BASE_MS, BUDGET_WALK_FLOOR_MS } from '../../src/lib/deposit.mjs'
@@ -52,6 +53,12 @@ function makeMockBot ({ items = [], chest = null, gotoScript = [] } = {}) {
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('effectiveWalkBudget: pass-through when no deadline is in play', () => {
   assert.equal(effectiveWalkBudget({ distBudget: 60000, remainingMs: Infinity }), 60000)
@@ -129,8 +136,15 @@ test('depositToChest: the walk fits inside the remaining budget', async () => {
 })
 
 test('depositToChest: the No-path hop inherits the same wall clock', async () => {
-  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
-  const bot = makeMockBot({ items: [item('cobblestone', 40)], chest, gotoScript: [new Error('No path to the goal!')] })
+  // (v0.72.0) honest geometry: the exclusion retry walks a DIFFERENT chest's
+  // goal cell, far outside the doomed-goal consult radius (2) - the old stub
+  // collapsed both chests into one cell, which the fleet's spiral breaker now
+  // (correctly) refuses at the funnel for 0 cost.
+  const chestA = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const chestB = { name: 'chest', position: new Vec3(130, 64, 130) }
+  const bot = makeMockBot({ items: [item('cobblestone', 40)], chest: chestA, gotoScript: [new Error('No path to the goal!')] })
+  let scans = 0
+  bot.findBlock = () => (scans++ === 0 ? chestA : chestB)
   // 6000ms: above the 5000ms floor (a smaller budget refuses BEFORE any walk -
   // that is the floor-guard test's job), below two full walks - the hop gets
   // the leftover, not a fresh budget.

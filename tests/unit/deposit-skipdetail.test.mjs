@@ -6,7 +6,8 @@
 // moved nothing) were indistinguishable. Two different cures. The reason now
 // carries the counters - '(t=N,m0=M)' - while the chestDead regex still
 // matches the prefix, so the fleet skip/exclude semantics are untouched.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { depositToChest } from '../../src/lib/deposit.mjs'
@@ -30,6 +31,12 @@ function makeAtChestBot ({ items, window }) {
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('a hanging deposit names itself: timeout counters ride the reason', async () => {
   const window = {

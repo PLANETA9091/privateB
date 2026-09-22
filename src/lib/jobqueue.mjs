@@ -186,9 +186,79 @@ export class MiningJobQueue {
 // fleet-wide throttle; the per-call timeout starts on ACTIVATION (queued time is
 // free), and callers already treat goto as best-effort so a bounded wait is safe.
 import { createPathThrottle } from './pathsemaphore.mjs'
+import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
+
+// (v0.72.0) THE DOOMED-GOAL LEDGER - the spiral breaker at the gotoSafe funnel.
+// MEASURED (run68, dispatch 35698977810, the v0.70.0 600s fleet, HARD KILL):
+// TWO main-thread freezes (mainLate 150559ms at ts=461s + 63973ms at ts=661s,
+// the second inside the end phase -> the margin kill), 12 reconnects behind
+// them (the server keepalive-killed the frozen transports), mined halved to
+// 1508 (run67: 3100) - and the blackbox named the same funnel both times:
+// 'pf:queue next column <- pf:queue walk <- pf:goal walk <- pf:done climb
+// rise assi', with goal->queue->done cycles ~7.5s apart = a RE-ISSUE SPIRAL:
+// a task loop whose walk goal cannot close re-issues it, and EVERY re-issue
+// pays a full A* think window on the main thread. path=6a/11q at the freeze -
+// the queue fed the spiral. The v0.65.0 unfreeze sweep can only act at the
+// FIRST probe fire after 8s late - under a saturated queue the probe itself
+// starves (the sweep fired at 151s, not at 13s). The cure is the v0.70.0
+// dead-chest pattern applied to EVERY walk goal: the FIRST pathfinder dead
+// verdict ('No path' = proven geometry, 'Took to long' = the A* calc timeout,
+// WEAK evidence - walk budgets like 'timeout after 4500ms' are transient
+// saturation and NEVER record) ledgered the goal cell fleet-wide; the
+// re-issue then dies at the funnel for 0 cost (no queue slot, no A*), and the
+// spiral has no fuel. One process = one fleet, so a module-level array IS the
+// shared ledger (the same shape as the pathThrottle singleton above).
+const doomedGoals = []
+const doomedStats = { records: 0, refusals: 0 }
+
+function goalCellOf (goal) {
+  if (!goal || typeof goal !== 'object') return null
+  const x = Number(goal.x)
+  const y = Number(goal.y)
+  const z = Number(goal.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
+  return { x, y, z }
+}
+
+/** Record a dead-geometry verdict for a walk goal cell (fleet-wide). Mutates
+ * the singleton in place (the deposit.mjs reassign pattern). */
+export function recordDoomedGoal (cell, now, { ttl } = {}) {
+  const fresh = recordNoPath(doomedGoals, cell, now, ttl !== undefined ? { ttl } : {})
+  doomedGoals.length = 0
+  for (const e of fresh) doomedGoals.push(e)
+  doomedStats.records++
+  return doomedGoals.length
+}
+
+/** Is this walk goal cell a LIVE doomed verdict? Same hit shape as nearNoPath. */
+export function nearDoomedGoal (cell, now, opts = {}) {
+  return nearNoPath(doomedGoals, cell, now, opts)
+}
+
+/** Fleet summary counters for the FLEET RESULT block. */
+export function doomedGoalStats () {
+  return { records: doomedStats.records, refusals: doomedStats.refusals, live: doomedGoals.length }
+}
+
+/** (v0.72.0) The consult match radius (XZ blocks). TIGHT on purpose: the
+ * re-issue spiral re-issues the SAME computed goal cell (the task state that
+ * produced it is unchanged), so radius 2 covers the same-cell retry plus a
+ * small snap-wander - while a wider radius would over-skip LEGIT neighbors:
+ * the run68-shaped yard rows pack chests 2 blocks apart, and the v0.65.0
+ * lesson measured a radius-4 probe skipping a GOOD chest 1.41 blocks away
+ * (the deposit scan therefore uses the even tighter radius 1 - see
+ * deposit.mjs). A refused-neighborhood recovers by TTL in 45-90s either way. */
+export const DOOMED_GOAL_RADIUS = 2
+
+/** Test hook: empty the ledger and zero the counters (never used in prod). */
+export function resetDoomedGoalLedger () {
+  doomedGoals.length = 0
+  doomedStats.records = 0
+  doomedStats.refusals = 0
+}
 
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
@@ -244,6 +314,18 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) throw new Error(`water rescue in progress (${label} refused)`)
+  // (v0.72.0) THE DOOMED-GOAL CONSULT - before the queue, before the A*.
+  // A ledgered cell dies here for 0 cost: no queue slot, no think window, no
+  // spiral fuel. The refusal message names the age so the caller's own verdict
+  // log shows WHY the walk never queued.
+  const gcell = goalCellOf(goal)
+  if (gcell) {
+    const doomed = nearDoomedGoal(gcell, Date.now(), { radius: DOOMED_GOAL_RADIUS })
+    if (doomed.hit) {
+      doomedStats.refusals++
+      throw new Error(`doomed goal (ledgered ${Math.round(doomed.ageMs / 1000)}s ago at [${gcell.x},${gcell.y},${gcell.z}]) - ${label} refused`)
+    }
+  }
   // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
   // goal - the A* think that answers is a SYNC main-thread block (up to the
   // 4.5s think window per search) and run60's 150s freeze had no witness.
@@ -275,6 +357,17 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       const pf = bot.pathfinder
       if (pf && typeof pf.setGoal === 'function') pf.setGoal(null)
     } catch { /* the flag from stop() still bounds the damage */ }
+    // (v0.72.0) THE DEAD-GEOMETRY RECORD: the pathfinder's own dead verdicts
+    // ('No path' proven / 'Took to long' the A* calc timeout) ledger the goal
+    // cell so the fleet's re-issues die at the consult above. Walk-budget
+    // timeouts ('timeout after Nms') are transient saturation, NOT geometry -
+    // they never record (isDeadChestVerdict returns dead:false for them).
+    const doomedVerdict = isDeadChestVerdict(e && e.message)
+    if (doomedVerdict.dead && gcell) {
+      try {
+        recordDoomedGoal(gcell, Date.now(), doomedVerdict.timeout ? { ttl: NOPATH_TIMEOUT_TTL_MS } : {})
+      } catch { /* a ledger record must never mask the walk's own error */ }
+    }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
     // next physics tick - or, for a standing bot, at the NEXT goto's setGoal
     // (v0.20.0: clearStaleStop above is what now actually defuses that case;

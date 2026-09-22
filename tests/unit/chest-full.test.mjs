@@ -7,7 +7,8 @@
 // chain clock died, banked=0, and 1345u of 2067 mined evaporated as despawned
 // drops. These pins freeze the verdict path: the window-full read BEFORE the
 // click loop, the fleet ledger record, and the skip-before-walk.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { recordNoPath, nearNoPath, NOPATH_TTL_MS } from '../../src/lib/nopath.mjs'
@@ -21,6 +22,12 @@ function item (name, count = 1) {
   if (!TYPES.has(name)) TYPES.set(name, TYPES.size + 1)
   return { name, count, type: TYPES.get(name) }
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('full-chest constants: 27 slots, 180s ttl, cap 24, TIGHT radius - and NOT the no-path ttl', () => {
   assert.strictEqual(CHEST_SLOTS, 27)

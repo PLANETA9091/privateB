@@ -6,15 +6,21 @@
 // refused x3 at 500 ms apart, ALL inside the rescue's 25 s window, and the
 // visit aborted 'machine unreachable' while the rescue would have cleared.
 // The gate itself (gotoSafe) must stay fail-fast; retrying callers wait.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { waitForWaterRescueClear } from '../../src/lib/jobqueue.mjs'
+import { waitForWaterRescueClear, resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import { RESCUE_MAX_MS } from '../../src/lib/drowning.mjs'
 
 // mock bot factory: every test injects its own fake clock (or forbids sleeping)
 function mockBot () {
   return { bot: { _waterRescue: true }, slices: [] }
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('rescue already clear: returns true without sleeping', async () => {
   const { bot, slices } = mockBot()

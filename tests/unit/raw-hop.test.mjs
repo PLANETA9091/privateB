@@ -5,7 +5,8 @@
 // pathfinder thinkTimeout measures wall time and A* on an open platform
 // explodes its frontier exactly when 19 bots think at once. A straight
 // look-and-forward needs no decision at all.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import {
@@ -62,6 +63,12 @@ function makeConvergingBot ({ chest, startX = 0.5, startZ = 0.5, y = 64 } = {}) 
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('rawHopDue: visible + close walks raw, everything else refuses', () => {
   assert.equal(rawHopDue({ dist: 7, visible: true }), true, 'the measured starved cell: a 7-block visible hop')

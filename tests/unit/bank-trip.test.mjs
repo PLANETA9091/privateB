@@ -6,13 +6,20 @@
 // banked=0 for the whole fleet. These tests pin the pure policy: a planned trip
 // fires only when loot, cadence and remaining time all agree, and its chain
 // budget scales with the yard distance inside a hard [floor, cap] clamp.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import {
   bankTripDue, bankTripBudgetMs, finalBankBudgetMs,
   BANK_TRIP_EVERY_MS, BANK_TRIP_MIN_UNITS, BANK_TRIP_MIN_REMAINING_MS,
   BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS
 } from '../../src/lib/deposit.mjs'
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('bankTripDue: junk and empty input never trip', () => {
   assert.equal(bankTripDue(), false)

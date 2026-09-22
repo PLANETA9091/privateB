@@ -8,7 +8,8 @@
 // ever land. The cure walks ONE segment (max 20 blocks, always inside the
 // global searchRadius 32) toward the chest first. These tests pin the pure
 // planner and the injected-mechanism walk.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import {
@@ -18,6 +19,12 @@ import {
   APPROACH_SEGMENT_MAX,
   APPROACH_MIN_REMAINING
 } from '../../src/lib/approach.mjs'
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('planner: a close goal needs no approach (null inside the envelope)', () => {
   const from = { x: 0, y: 0, z: 0 }

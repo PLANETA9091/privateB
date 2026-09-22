@@ -1,8 +1,15 @@
 // (v0.16.4) bankFallback - the deposit-failure decision table. Pure arithmetic:
 // every branch is exact, no server, no bot, no timing.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { bankFallback } from '../../src/lib/deposit.mjs'
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('a successful deposit is always done', () => {
   assert.equal(bankFallback({ deposited: 12, reason: 'ok', yardDist: 10 }).action, 'done')

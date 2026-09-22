@@ -5,9 +5,10 @@
 // ONE input item into output (when fuel remains). That makes the production poll
 // loop advance deterministically with zero timers - each poll sees one more item
 // ready, exactly like a real furnace at ~1 item per 10s, just a million times faster.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory
@@ -167,6 +168,12 @@ function makeMockBot ({ items = [], machines = [], gotoFails = false, openThrows
 }
 
 // ------------------------------------------------------------------ mappings
+// the doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs -
+// one process = one fleet. Walk-verdict records from one test must not refuse
+// the walks of the next (the mocks reuse furnace positions), so every test
+// starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
+
 test('SMELT_OUTPUT covers the base-plan recipes', () => {
   assert.equal(SMELT_OUTPUT.sand, 'glass')
   assert.equal(SMELT_OUTPUT.iron_ore, 'iron_ingot')
@@ -404,14 +411,30 @@ test('smeltBatch: a visit budget stops the walk retries when the clock is out', 
   assert.ok(elapsed < 8000, `the visit stays inside its budget wall (elapsed ${elapsed}ms)`)
 })
 
-test('smeltBatch: no visit budget keeps the legacy 3 walk attempts', async () => {
+test('smeltBatch: no visit budget keeps the legacy 3 walk attempts for TRANSIENT failures', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
   const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
   let calls = 0
-  bot.pathfinder.goto = async () => { calls++ ; throw new Error('no path') }
+  // (v0.72.0) the legacy 3-attempt loop applies to TRANSIENT walk failures
+  // (saturation timeouts, interrupted walks) - a dead-geometry verdict ('no
+  // path') now ledgered the cell at attempt 1 and the funnel refuses the
+  // re-issues (the next test pins that), because the retry spiral feeding the
+  // run68 freezes was exactly this loop re-paying the same A*.
+  bot.pathfinder.goto = async () => { calls++ ; throw new Error('walk to furnace: timeout after Nms') }
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(calls, 3, 'legacy behavior: 3 bounded walk attempts')
+  assert.equal(calls, 3, 'legacy behavior: 3 bounded walk attempts on transient errors')
   assert.match(res.reason, /machine unreachable/)
+})
+
+test('smeltBatch: a dead-geometry verdict ends the retry loop at the funnel (v0.72.0 spiral breaker)', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  let calls = 0
+  bot.pathfinder.goto = async () => { calls++ ; throw new Error('No path to the goal!') }
+  const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
+  assert.equal(calls, 1, 'attempt 1 pays the A* verdict; attempts 2-3 die at the doomed-goal consult')
+  assert.match(res.reason, /machine unreachable/)
+  assert.match(res.reason, /doomed goal/, 'the refusal names the ledger')
 })
 
 test('smeltInventory: the visit budget threads into every batch it starts', async () => {

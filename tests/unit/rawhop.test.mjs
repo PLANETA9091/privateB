@@ -7,7 +7,8 @@
 // every bot (28 mid-run disconnects; 1.81 b/s vs the 6.53 best). The yard is
 // a BUILT FLAT PLATFORM: the hop now walks RAW CONTROLS first (look + forward
 // + step-jump, zero A*), and the pathfinder hop becomes the fallback.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { rawHopEligible, walkRawToward, RAW_HOP_MAX_DIST, depositToChest, PROXIMATE_OPEN_DIST } from '../../src/lib/deposit.mjs'
@@ -59,6 +60,12 @@ function makeRawBot ({ pos = new Vec3(0.5, 74, 0.5), speed = 2.5, chest = null, 
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('rawHopEligible: the gate is distance + the water-rescue owner', () => {
   assert.equal(rawHopEligible({ dist: 27 }), true, 'the F4 fleet case (d=27-30 hops)')

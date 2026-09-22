@@ -7,11 +7,18 @@
 // the digging inside the last window (prePositionDue, endphase.mjs) and the
 // yard-walk budget that finally scales with the distance instead of the flat
 // 120s pin (yardWalkBudgetMs, deposit.mjs).
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { prePositionDue, PRE_POSITION_WINDOW_MS, PRE_POSITION_MIN_DIST, END_BANK_BUDGET_CAP_MS, HARD_KILL_MARGIN_MS } from '../../src/lib/endphase.mjs'
 import { yardWalkBudgetMs, YARD_WALK_CAP_MS, CHEST_WALK_BASE_MS, finalBankBudgetMs } from '../../src/lib/deposit.mjs'
 import { effectiveWalkBudget } from '../../src/lib/deposit.mjs'
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('window: the gate fires only inside the last 90s', () => {
   // a far bot at t-200s keeps digging - the window is not open yet

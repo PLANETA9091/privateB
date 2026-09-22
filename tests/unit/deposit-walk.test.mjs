@@ -5,7 +5,8 @@
 // flat 30s budget cannot cover a far chest behind shaft-mouth escape + terrain
 // detours - and 'chest unreachable (water rescue in progress (walk to chest refused))'
 // - the fail-fast rescue gate burned the attempt while the bot was still swimming.
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS, CHEST_WALK_SHORT_MS, findChest } from '../../src/lib/deposit.mjs'
@@ -47,6 +48,12 @@ function makeMockBot ({ items = [], chest = null, gotoScript = [] } = {}) {
   }
   return bot
 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('chestWalkBudgetMs: short-hop pin 15s (d<=16), floor knee, 500 ms/block, cap at 60s', () => {
   // (v0.56.0) THE SHORT-HOP PIN: F2 (run51/35639593200) stood d=10..11 from the

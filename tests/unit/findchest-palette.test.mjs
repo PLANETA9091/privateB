@@ -7,7 +7,8 @@
 // (measured: dispatch 35591877408 F10, 13 blocks from the yard, 24x
 // 'scan: no chest within 64b (bankable 126)', banked=0). The rule: a palette
 // block is a CANDIDATE (pass), a real block is a TARGET (the filter applies).
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
+import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { findChest, chestNearYard } from '../../src/lib/deposit.mjs'
 
@@ -28,6 +29,12 @@ function matcherBot () {
 const paletteChest = { name: 'chest', position: null } // Block.fromStateId shape
 const realChest = (x, y, z, name = 'chest') => ({ name, position: { x, y, z } })
 const yard = { x: 0, y: 64, z: 0 }
+
+// The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
+// (one process = one fleet). A dead verdict recorded by one test's walk must
+// not refuse the next test's walks (the mocks reuse chest/furnace positions),
+// so every test here starts from an empty ledger.
+beforeEach(() => resetDoomedGoalLedger())
 
 test('palette fast-path: a position-less chest block is a CANDIDATE (passes)', () => {
   const { bot, matcher } = matcherBot()

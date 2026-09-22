@@ -3,7 +3,7 @@
 // input rows of chests at spawn, so the walk-back is short for fleet bots working
 // around the origin. No op, no commands - vanilla chest windows only.
 import pathfinderPkg from 'mineflayer-pathfinder'
-import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan } from './jobqueue.mjs'
+import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan, nearDoomedGoal } from './jobqueue.mjs'
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
@@ -1151,6 +1151,23 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       const fc = skipCell && Number.isFinite(skipCell.x) ? nearNoPath(fullChestLedger, skipCell, Date.now(), { ttl: FULL_CHEST_TTL_MS, radius: FULL_CHEST_RADIUS, dy: FULL_CHEST_DY }) : null
       if (fc?.hit) {
         log(`[${bot.username ?? 'bot'}] chest skip (full cached ${Math.round(fc.ageMs / 1000)}s ago at [${skipCell.x},${skipCell.y},${skipCell.z}])`)
+        tried.push(skipCell)
+        continue
+      }
+    }
+    // (v0.72.0) THE DOOMED-GOAL SKIP: the walk goal toward THIS chest died in
+    // the fleet's gotoSafe ledger (a 'No path' / 'Took to long' verdict from
+    // ANY walk whose goal cell landed on this chest). Skip before the
+    // queue: the gotoSafe consult would refuse it anyway, but a clean scan
+    // skip keeps the hop loop quiet and the tried-set honest.
+    if (chest.position) {
+      const skipCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
+      // radius 1 TIGHT (the v0.65.0 full-chest lesson: yard rows pack 2 blocks
+      // apart and a wider probe skipped a GOOD chest 1.41 blocks away; a doomed
+      // verdict recorded from a walk to chest A must never skip chest B)
+      const dg = skipCell && Number.isFinite(skipCell.x) ? nearDoomedGoal(skipCell, Date.now(), { radius: 1, dy: 2 }) : null
+      if (dg?.hit) {
+        log(`[${bot.username ?? 'bot'}] chest skip (doomed goal cached ${Math.round(dg.ageMs / 1000)}s ago at [${skipCell.x},${skipCell.y},${skipCell.z}])`)
         tried.push(skipCell)
         continue
       }
