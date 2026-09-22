@@ -92,7 +92,9 @@ test('pickDirectSlots: a matching stack with room wins over nothing else, junk-s
   assert.equal(pair.srcIdx, 27)
   assert.equal(pair.dstIdx, 0, 'the empty slot 0 comes first in index order')
   assert.equal(pickDirectSlots({ window: w, itemType: 999, chestSlots: 27 }), null, 'no such pocket stack')
-  const full = makeWindow({ chest: [item('dirt', 64), item('stone', 64)], pocket: [item('dirt', 8)] })
+  // a genuinely FULL chest: all 27 slots hold full same-type-hostile stacks
+  const fullChest = new Array(CHEST_SLOTS).fill(null).map((_, i) => item(i % 2 ? 'stone' : 'cobblestone', 64))
+  const full = makeWindow({ chest: fullChest, pocket: [item('dirt', 8)] })
   assert.equal(pickDirectSlots({ window: full, itemType: full.slots[27].type, chestSlots: 27 }), null, 'no accepting chest slot')
   assert.equal(pickDirectSlots({ window: null, itemType: 1, chestSlots: 27 }), null)
   assert.equal(pickDirectSlots({ window: w, itemType: null, chestSlots: 27 }), null)
@@ -103,9 +105,9 @@ test('depositStackDirect clicks source then dest, the prediction moves the stack
   const w = makeWindow({ chest: [item('dirt', 24)], pocket: [dirt] })
   const bot = makeBot({ window: w })
   const pair = await depositStackDirect(bot, w, { itemType: dirt.type, chestSlots: 27 })
-  assert.deepEqual(pair, { srcIdx: 27, dstIdx: 1 })
-  assert.deepEqual(bot.clicks, [27, 1], 'pick up, then put down')
-  assert.equal(w.slots[1].count, 33, 'the stack merged into the chest view')
+  assert.deepEqual(pair, { srcIdx: 27, dstIdx: 0 }, 'slot 0 holds a matching stack WITH ROOM - it accepts before the empty slot 1')
+  assert.deepEqual(bot.clicks, [27, 0], 'pick up, then put down')
+  assert.equal(w.slots[0].count, 33, 'the stack merged into the chest view at slot 0 (24 + 9)')
   assert.equal(w.slots[27], null, 'the pocket slot emptied')
   assert.equal(bot._pocket.reduce((a, i) => a + i.count, 0), 0, 'the pocket is empty in the bot view')
 })
@@ -116,11 +118,11 @@ test('depositStackDirect: a failing dest click returns the cursor home and rethr
   const bot = makeBot({ window: w })
   const orig = bot.clickWindow
   bot.clickWindow = async (idx) => {
-    if (idx === 0) throw new Error('chest slot refused')
+    if (idx === 0) { bot.clicks.push(idx); throw new Error('chest slot refused') }
     return orig(idx)
   }
   await assert.rejects(depositStackDirect(bot, w, { itemType: dirt.type, chestSlots: 27 }), /refused/)
-  assert.deepEqual(bot.clicks, [27, 0, 27], 'pick up, refused put, return home')
+  assert.deepEqual(bot.clicks, [27, 0, 27], 'pick up, refused put AT the dest slot, return home')
   assert.equal(bot._pocket.reduce((a, i) => a + i.count, 0), 9, 'the stack is back in the pocket')
 })
 

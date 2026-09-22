@@ -668,8 +668,10 @@ export function chestSlotCount (window) {
     ? window.slots
     : (typeof window?.slots === 'function' ? window.slots() : null)
   const len = Array.isArray(slots) ? slots.length : 0
-  if (!len || len <= 36) return 0 // a player-only view has no chest range
-  return len - 36
+  if (len <= 36 || len > 90) return 0 // player-only (46), junk, or absurd
+  const rem = len - 36
+  if (rem % 9 !== 0) return 0 // chest rows are 9 wide (9x1..9x6); 46 = player window (46-36=10) is NOT one
+  return rem
 }
 
 /** Pure: the click pair for ONE whole-stack move - the first pocket stack of
