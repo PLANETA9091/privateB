@@ -1004,9 +1004,26 @@ export async function depositToChest (bot, {
   // diff keeps the verified-transfer semantics.
   const chestSlots = chestSlotCount(window)
   if (chestSlots > 0) log(`${tag} direct deposit: ${chestSlots} chest slots derived from the ${(() => { const s = Array.isArray(window.slots) ? window.slots.length : (typeof window.slots === 'function' ? window.slots().length : 0); return s })()}-slot view`)
-  const countOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
+  // (v0.73.0) THE MIRROR POCKET: while a chest window is open, bot.inventory
+  // (the standalone player window object) goes STALE - the probe measured it
+  // directly (windowId=1 mirror [54]=dirtx9 vs bot.inventory dirtx1) and
+  // mineflayer's own window.items() reads the MIRROR range too (its 26.2
+  // layout constants are shifted by 27 - the same root as the misroute). The
+  // chest window's slots [chestSlots..] mirror the SERVER's player inventory
+  // exactly, so the honest pocket - both the iteration and the verified diff -
+  // reads from the mirror when a chest-shaped window is open.
+  const pocketItems = () => {
+    try {
+      const slots = Array.isArray(window.slots) ? window.slots : (typeof window.slots === 'function' ? window.slots() : null)
+      if (Array.isArray(slots) && chestSlots > 0 && slots.length > chestSlots) {
+        return slots.slice(chestSlots).filter(s => s && s.count > 0)
+      }
+    } catch { /* a dead window falls back */ }
+    return bot.inventory.items()
+  }
+  const countOf = name => pocketItems().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
-    for (const item of bot.inventory.items()) {
+    for (const item of pocketItems()) {
       if (keep.some(k => item.name.includes(k))) { skipped.push(item.name); continue }
       // VERIFIED TRANSFER (the 26.2 stack silently drops some window clicks): the only
       // truth is the inventory afterwards, so count before/after instead of trusting
@@ -1035,7 +1052,7 @@ export async function depositToChest (bot, {
   } finally {
     try { window.close?.() } catch { /* already closed */ }
   }
-  if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (direct=${directMoves} fallback=${directFalls} kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
+  if (deposited > 0) log(`${tag} banked ${deposited} items at ${chest.position.floored()} (direct=${directMoves} fallback=${directFalls} mirror=true kept: ${skipped.slice(0, 4).join(', ') || 'nothing'})`)
   // (v0.70.0) the zero hop NAMES ITS MECHANISM: run68 (the first 600s fleet)
   // ended every reached chest with 'nothing to deposit' and the swallowed skip
   // reasons could not separate a lag timeout from the 26.2 ghost click - two

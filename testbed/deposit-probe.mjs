@@ -245,8 +245,26 @@ bot.once('spawn', async () => {
     const dirtId = dirt ? (dirt.id ?? dirt.type) : null
     const cobbleId = cobble ? (cobble.id ?? cobble.type) : null
     log(`registry ids: dirt=${dirtId} cobble=${cobbleId}`)
-    const invCountOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
-    const chestCountOf = name => { try { return window.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0) } catch { return -1 } }
+    // (v0.73.0) the honest counters: mineflayer's window.items() reads the
+    // MIRROR range for 26.2 (its layout constants are shifted by 27), and
+    // bot.inventory goes stale while a chest window is open. Both counters
+    // read the slot array directly: chest = [0, chestSlots), pocket = the rest.
+    const cSlotsNow = () => (Array.isArray(window.slots) ? window.slots.length : (typeof window.slots === 'function' ? window.slots().length : 63)) - 36
+    const invCountOf = name => {
+      try {
+        const cs = cSlotsNow()
+        const s = Array.isArray(window.slots) ? window.slots : window.slots()
+        return s.slice(cs).filter(i => i && i.name === name).reduce((a, i) => a + i.count, 0)
+      } catch { return invCountOfStale(name) }
+    }
+    const invCountOfStale = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
+    const chestCountOf = name => {
+      try {
+        const cs = cSlotsNow()
+        const s = Array.isArray(window.slots) ? window.slots : window.slots()
+        return s.slice(0, cs).filter(i => i && i.name === name).reduce((a, i) => a + i.count, 0)
+      } catch { return -1 }
+    }
 
     const rung = async (name, fn) => {
       const t = Date.now()
@@ -254,7 +272,7 @@ bot.once('spawn', async () => {
       try { await fn() } catch (e) { outcome = `ERR ${e.message}` }
       const ms = Date.now() - t
       await sleep(500)
-      log(`RUNG ${name}: ${outcome} ${ms}ms | inv dirt=${invCountOf('dirt')} cobble=${invCountOf('cobblestone')} | chest dirt=${chestCountOf('dirt')} cobble=${chestCountOf('cobblestone')}`)
+      log(`RUNG ${name}: ${outcome} ${ms}ms | inv(mirror) dirt=${invCountOf('dirt')} cobble=${invCountOf('cobblestone')} | chest(true) dirt=${chestCountOf('dirt')} cobble=${chestCountOf('cobblestone')}`)
       dumpSlots(`after-${name.replace(/\s+/g, '-').toLowerCase()}`)
     }
 
@@ -280,8 +298,8 @@ bot.once('spawn', async () => {
     await rung('shift-click slot0 quick-move', async () => { await window.click(0, 0, 1) })
     await rung('pick-place mode0 slot0->slot2', async () => { await window.click(0, 0, 0); await sleep(250); await window.click(2, 0, 0) })
 
-    log(`FINAL: chest view=${chestSummary(window)}`)
-    log(`FINAL: inventory view=${invSummary()}`)
+    log(`FINAL: chest TRUE view=${chestCountOf('dirt') > 0 || chestCountOf('cobblestone') > 0 ? `dirt x${chestCountOf('dirt')}, cobble x${chestCountOf('cobblestone')}` : '(empty)'}`)
+    log(`FINAL: pocket(mirror) view=${invCountOf('dirt') > 0 || invCountOf('cobblestone') > 0 ? `dirt x${invCountOf('dirt')}, cobble x${invCountOf('cobblestone')}` : '(empty)'}`)
     const sawTruth = chestCountOf('dirt') >= 32 || chestCountOf('cobblestone') >= 16
     log(sawTruth
       ? 'VERDICT: the chest view MATCHES server truth - the window READING works; click targeting/protocol is the broken layer'
