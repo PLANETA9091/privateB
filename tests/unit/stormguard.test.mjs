@@ -102,3 +102,43 @@ test('reset clears the window', () => {
   assert.strictEqual(g.window(), 0)
   assert.strictEqual(g.sample(1500).storm, false)
 })
+
+// ---------------------------------------------------------------------------
+// (v0.64.0) THE STORM PROBE - the two-strike response policy. run61 (dispatch
+// 35674589517) measured the first-strike SIGTERM too hasty: rss 393M -> 1451M
+// in ONE 5s window (211MB/s) with the main thread still ticking (mainLate
+// 1728ms, heap 106M) - a transient burst killed a 376s/600s fleet that was
+// producing valid data. The response is now: first verdict probes (survive +
+// write the story), second verdict or hard ceiling kills.
+import { stormResponse, STORM_CEIL_MB_DEFAULT } from '../../src/lib/stormguard.mjs'
+
+test('stormResponse: first strike probes, second strike kills, ceiling always kills', () => {
+  assert.strictEqual(STORM_CEIL_MB_DEFAULT, 3000, 'the hard ceiling default (run53 terminal storm passed 3GB)')
+  // the run61 burst exactly: rss 1451 at the first verdict -> SURVIVE
+  let r = stormResponse({ probeUsed: false, rssMb: 1451 })
+  assert.strictEqual(r.action, 'probe')
+  assert.strictEqual(r.probeUsed, true, 'the probe is spent by the response')
+  assert.match(r.reason, /soft first strike/)
+  // the storm RENEWS (second verdict, probe already spent) -> kill
+  r = stormResponse({ probeUsed: true, rssMb: 1600 })
+  assert.strictEqual(r.action, 'kill')
+  assert.match(r.reason, /second strike/)
+  // the hard ceiling kills even on a FIRST verdict (the machine is dying anyway)
+  r = stormResponse({ probeUsed: false, rssMb: 3000 })
+  assert.strictEqual(r.action, 'kill')
+  assert.match(r.reason, /hard ceiling/)
+  r = stormResponse({ probeUsed: false, rssMb: 4500 })
+  assert.strictEqual(r.action, 'kill', 'past the ceiling the answer is always kill')
+  // below the ceiling and below the probe: probe; junk rss: none
+  r = stormResponse({ probeUsed: true, rssMb: 2999 })
+  assert.strictEqual(r.action, 'kill', 'the LAST survivable block is already spent -> second strike')
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: 1200 }).action, 'probe')
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: Number.NaN }).action, 'none')
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: 0 }).action, 'none')
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: -5 }).action, 'none')
+})
+
+test('stormResponse: a custom ceiling rides the FLEET_STORM_CEIL_MB knob shape', () => {
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: 2600, ceilMb: 2500 }).action, 'kill', 'a lowered ceiling kills earlier')
+  assert.strictEqual(stormResponse({ probeUsed: false, rssMb: 2400, ceilMb: 2500 }).action, 'probe', 'below a lowered ceiling the first strike still probes')
+})

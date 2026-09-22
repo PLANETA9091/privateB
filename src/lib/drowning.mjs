@@ -37,6 +37,24 @@ export const OXYGEN_RESCUE_LEVEL = 10
 /** Below this the rescue fires even when the block reads disagree with the air
  * bar (kelp-covered eyes, stale metadata): the air bar is the ground truth. */
 export const OXYGEN_CRITICAL_LEVEL = 4
+/** (v0.64.0) The 26.2 metadata RESET sentinel, measured live in run60 (fleet
+ * 35668657935): immediately after 'rescue complete' AND after 'died - respawning'
+ * the air_supply metadata arrives as -1 - a value OUTSIDE the 0..20 sensor domain.
+ * run60 counted 395 of these fleet-wide ('oxygen -1 on dry land', bursts of 250+
+ * on F2), every single one within seconds of a rescue/death event. The old read
+ * path treated -1 as a FINITE critical reading, so waterVerdict saw o2=-1 <= 4
+ * with wet/unknown post-rescue reads and paged the rescue AGAIN - the re-dive
+ * chain mechanic behind run58's F16 4-rescue loop, surviving every memory cure.
+ * A negative bar is never a real reading: out-of-domain values read as FULL
+ * (same policy as NaN), and a genuinely submerged bot still pages through the
+ * headWetMs clock (HEAD_SUBMERGED_RESCUE_MS), which needs no bar at all. */
+export const OXYGEN_RESET_SENTINEL = -1
+/** Is this oxygen value a REAL sensor reading (finite, inside the 0..20 domain)?
+ * The reset sentinel (-1), NaN, undefined and +-Infinity all read false: none of
+ * them may drive a rescue decision or a death-cause label. */
+export function oxygenInDomain (raw) {
+  return Number.isFinite(raw) && raw >= 0
+}
 /** Metadata fallback: if oxygenLevel never updates on this version, a bot whose
  * head has been under for this long drowns anyway - rescue on the clock. */
 export const HEAD_SUBMERGED_RESCUE_MS = 5000
@@ -93,7 +111,11 @@ export function airBarTrust ({ feet = null, head = null } = {}) {
  */
 export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs = 0 } = {}) {
   const raw = Number(oxygen)
-  const o2 = Number.isFinite(raw) ? raw : 20 // NaN/undefined/junk air bar reads as FULL - a false 0 would swim-loop a dry bot
+  // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
+  // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
+  // false critical bar would swim-loop a bot standing in the shallows it just
+  // climbed out of. Real submersion still pages via the headWetMs clock below.
+  const o2 = oxygenInDomain(raw) ? raw : 20
   const headWet = isWaterName(head)
   const feetWet = isWaterName(feet)
   // The air bar overrides everything except DEFINITE dry contact (v0.16.0):

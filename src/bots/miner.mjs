@@ -30,7 +30,7 @@ import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringSideOrder, countSealBlocks } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
-  RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
+  oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   rescueDone, fleePlan, verifyShoreCell, HazardLedger
 } from '../lib/drowning.mjs'
 import { craftTorches } from './tools.mjs'
@@ -180,7 +180,12 @@ export function createMiner ({
       const hp = bot.health
       if (bot.entity && Number.isFinite(hp) && hp < lastHp) {
         const h = nearestHostile({ range: 16 })
-        const drowning = (bot.oxygenLevel ?? 20) <= 0
+        // (v0.64.0) oxygenInDomain gate: the -1 reset sentinel arrives right
+        // after a rescue/respawn (run60, 395x) - a bot killed by fall/env in
+        // that window was labeled 'drowning' (-1 <= 0) and skewed the death
+        // map that drives the whole water program. Only a REAL bar 0 counts.
+        const o2 = bot.oxygenLevel
+        const drowning = oxygenInDomain(o2) && o2 <= 0
         lastHarm = {
           name: h ? h.name : (drowning ? 'drowning' : 'fall/env'),
           dist: h ? h.dist : 0,
@@ -835,8 +840,12 @@ export function createMiner ({
       // cancelling a walk goal the work loop had just issued. A critical bar on
       // DEFINITE dry contact is a glitch: count it, log it rate-limited, do not
       // swim. waterVerdict applies the same gate, so this is pure telemetry.
+      // (v0.64.0) the -1 RESET SENTINEL is no longer counted here: run60 proved
+      // it arrives as a burst right after 'rescue complete' / respawn (395
+      // fleet-wide, F2 x250+) and waterVerdict now reads it as FULL - counting
+      // it made airGlitches a rescue-counter, not a sensor-anomaly counter.
       const o2raw = Number(read.oxygen)
-      if (Number.isFinite(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry') {
+      if (oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry') {
         stats.airGlitches++
         if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
           lastGlitchLogAt = now

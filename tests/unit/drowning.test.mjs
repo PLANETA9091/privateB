@@ -11,6 +11,7 @@ import {
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
+  OXYGEN_RESET_SENTINEL, oxygenInDomain,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger
 } from '../../src/lib/drowning.mjs'
@@ -336,4 +337,62 @@ test('HazardLedger: defaults ride the module constants', () => {
   assert.equal(ledger.yBand, WATER_HAZARD_Y_BAND)
   assert.equal(ledger.cap, WATER_HAZARD_CAP)
   assert.equal(typeof ledger.now(), 'number', 'the default clock is Date.now')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.64.0) THE OXYGEN RESET SENTINEL. run60 (fleet 35668657935) counted 395
+// 'oxygen -1 on dry land' events fleet-wide, every burst arriving within seconds
+// of 'rescue complete' / 'died - respawning' (F2 x250+, F16 x101+). The metadata
+// reset value is OUTSIDE the 0..20 sensor domain, yet the old read path treated
+// it as a FINITE critical reading: waterVerdict saw o2=-1 <= 4 over post-rescue
+// wet/unknown reads and paged the rescue again - the re-dive chain mechanic.
+// These pins freeze the domain gate: a negative bar is never a real reading.
+test('oxygenInDomain: the reset sentinel and every junk value is out of domain', () => {
+  assert.equal(OXYGEN_RESET_SENTINEL, -1, 'the measured 26.2 reset value')
+  assert.equal(oxygenInDomain(OXYGEN_RESET_SENTINEL), false, '-1 is the sentinel: out')
+  assert.equal(oxygenInDomain(-0.001), false, 'any negative is out')
+  assert.equal(oxygenInDomain(Number.NaN), false)
+  assert.equal(oxygenInDomain(undefined), false)
+  assert.equal(oxygenInDomain(null), false)
+  assert.equal(oxygenInDomain(Number.POSITIVE_INFINITY), false)
+  assert.equal(oxygenInDomain(Number.NEGATIVE_INFINITY), false)
+  assert.equal(oxygenInDomain(0), true, 'a real empty bar IS in domain - real drowning')
+  assert.equal(oxygenInDomain(4), true, OXYGEN_CRITICAL_LEVEL + ' (critical line) in domain')
+  assert.equal(oxygenInDomain(20), true, 'full bar in domain')
+  assert.equal(oxygenInDomain(10.5), true, 'fractional real reads are in domain')
+})
+
+test('waterVerdict: the -1 reset sentinel never pages a rescue, even over wet reads', () => {
+  // the exact run60 F2/F16 shape: rescue complete, bot in the shallows, the
+  // metadata resets to -1, feet still wet / head unknown - the old path read
+  // this as a critical bar over non-dry contact and re-fired the rescue.
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: OXYGEN_RESET_SENTINEL }), 'wet', 'sentinel over wet feet: monitor, never rescue')
+  assert.equal(waterVerdict({ feet: 'water', head: null, oxygen: OXYGEN_RESET_SENTINEL }), 'wet', 'sentinel over unknown head: still not a page')
+  assert.equal(waterVerdict({ feet: null, head: null, oxygen: OXYGEN_RESET_SENTINEL }), 'none', 'sentinel over unknown everything: dry policy')
+  assert.equal(waterVerdict({ feet: 'sand', head: 'air', oxygen: OXYGEN_RESET_SENTINEL }), 'none', 'sentinel on dry land: nothing')
+  assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: OXYGEN_RESET_SENTINEL }), 'wet', 'sentinel with head submerged but ZERO headWetMs: the bar is meaningless, the clock has not run yet')
+})
+
+test('waterVerdict: the headWetMs clock pages through the sentinel without any bar', () => {
+  // the safety net the sentinel fix leans on: a genuinely submerged bot pages
+  // on the CLOCK, no bar needed - the sentinel cannot mask a real drowning.
+  assert.equal(
+    waterVerdict({ feet: 'water', head: 'water', oxygen: OXYGEN_RESET_SENTINEL, headWetMs: HEAD_SUBMERGED_RESCUE_MS }),
+    'drowning', 'submerged past HEAD_SUBMERGED_RESCUE_MS with a reset bar: rescue NOW'
+  )
+  assert.equal(
+    waterVerdict({ feet: null, head: 'water', oxygen: OXYGEN_RESET_SENTINEL, headWetMs: HEAD_SUBMERGED_RESCUE_MS + 1 }),
+    'drowning', 'even unknown feet cannot block the clock page'
+  )
+  assert.equal(
+    waterVerdict({ feet: 'water', head: 'water', oxygen: OXYGEN_RESET_SENTINEL, headWetMs: HEAD_SUBMERGED_RESCUE_MS - 1 }),
+    'wet', 'one tick under the clock line: still only wet'
+  )
+})
+
+test('waterVerdict: in-domain critical bars keep the v0.16.0 behavior unchanged', () => {
+  // the sentinel gate must not desensitize REAL readings
+  assert.equal(waterVerdict({ feet: 'water', head: null, oxygen: 2 }), 'drowning', 'real critical bar over unknown head: act')
+  assert.equal(waterVerdict({ feet: 'stone', head: null, oxygen: 0 }), 'drowning', 'real 0 over definite-dry is the counted glitch class - still a verdict (telemetry gate lives in the sentry)')
+  assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: OXYGEN_CRITICAL_LEVEL }), 'drowning', 'the line itself fires for real bars')
 })

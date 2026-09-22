@@ -52,6 +52,15 @@ const t0 = Date.now()
 // (the CI-tested reference; the eval worker cannot import it).
 var sgRate = Math.max(5, Number(process.env.FLEET_STORM_MB_S) || 40)
 var sgFloor = Math.max(100, Number(process.env.FLEET_STORM_FLOOR_MB) || 1200)
+// (v0.64.0) THE STORM PROBE - two-strike response (mirrors src/lib/stormguard.mjs
+// stormResponse). run61 (35674589517) measured the first-strike kill too hasty:
+// rss 393M -> 1451M in one 5s window (211MB/s) with the main thread STILL
+// TICKING (mainLate 1728ms, heap 106M) - a transient burst, but the SIGTERM
+// erased a 376s/600s fleet. Now: first verdict SURVIVES with a probe line
+// (rss story + blackbox labels); a SECOND verdict (renewed growth - a recede
+// resets the streak, a plateau never re-fires) or rss >= sgCeil kills as before.
+var sgCeil = Math.max(sgFloor + 200, Number(process.env.FLEET_STORM_CEIL_MB) || 3000)
+var sgProbeUsed = false
 var sgWin = [] // {ts, rss}
 var sgTimer = null
 function sgVerdict () {
@@ -68,6 +77,17 @@ function sgVerdict () {
   }
   return null
 }
+// (v0.64.0) the blackbox activity labels for the probe/FATAL lines - the SAME
+// read the freeze dump uses (bbRead is hoisted; bbSab is assigned by the time
+// any verdict can fire). Empty string when the ring has nothing.
+function sgStory (max) {
+  var ents = bbRead(max || 8)
+  if (!ents.length) return ''
+  var base = ents[0].tsMs
+  var parts = []
+  for (var k = 0; k < ents.length; k++) parts.push(ents[k].label + ' @+' + ((ents[k].tsMs - base) / 1000).toFixed(1) + 's')
+  return '; last: ' + parts.join(' <- ')
+}
 function sgTick () {
   if (stopped) return
   try {
@@ -77,13 +97,24 @@ function sgTick () {
     sgWin.push({ ts: t, rss: r })
     var v = sgVerdict()
     if (v && !stopped) {
-      stopped = true // no further lines race the emergency report
-      try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
-      try {
-        fs.writeSync(writeFd, '[stormguard] FATAL: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s >= ' + sgRate + 'MB/s at rss >= ' + sgFloor + 'M floor)\\n')
-        fs.writeSync(writeFd, '[stormguard] the MAIN thread is allocating itself to death while frozen (run53/35647216505 OOM class: unsymbolized exit 134, mainLate was ' + mainLate + 'ms) - emergency SIGTERM keeps the story readable (exit 143)\\n')
-      } catch { /* stdout closed - kill anyway */ }
-      try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
+      // (v0.64.0) the two-strike response, mirrored from stormguard.stormResponse:
+      // junk rss -> none; rss >= sgCeil -> kill (hard ceiling); first survivable
+      // verdict -> probe (write the story, SURVIVE); anything after that -> kill.
+      var act = 'none'
+      var why = ''
+      if (v.rss >= sgCeil) { act = 'kill'; why = 'hard ceiling ' + sgCeil + 'M' } else if (!sgProbeUsed) { act = 'probe'; why = 'soft first strike' } else { act = 'kill'; why = 'second strike' }
+      if (act === 'probe') {
+        sgProbeUsed = true // one survival per process lifetime
+        try { fs.writeSync(writeFd, '[stormguard] STORM PROBE: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s, mainLate ' + mainLate + 'ms' + sgStory(8) + ') - SURVIVING the first strike (run61 burst class: one window, main thread still ticking); a SECOND verdict or rss >= ' + sgCeil + 'M kills\\n') } catch { /* stdout closed */ }
+      } else if (act === 'kill') {
+        stopped = true // no further lines race the emergency report
+        try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+        try {
+          fs.writeSync(writeFd, '[stormguard] FATAL (' + why + '): rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s >= ' + sgRate + 'MB/s at rss >= ' + sgFloor + 'M floor' + sgStory(8) + ')\\n')
+          fs.writeSync(writeFd, '[stormguard] the MAIN thread is allocating itself to death while frozen (run53/35647216505 OOM class: unsymbolized exit 134, mainLate was ' + mainLate + 'ms) - emergency SIGTERM keeps the story readable (exit 143)\\n')
+        } catch { /* stdout closed - kill anyway */ }
+        try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
+      }
     }
   } catch { /* never throw from a guard */ }
 }

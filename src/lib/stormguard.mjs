@@ -30,6 +30,21 @@
 //     keeps the log readable, the CI budget bounded, and the next session gets
 //     an attributed storm instead of an unsymbolized stack.
 //
+// (v0.64.0) THE STORM PROBE - kill-on-first-sight was measured too hasty: run61
+// (dispatch 35674589517, mined 2026-09-22) died to the SAME verdict arithmetic
+// (rss 393M -> 1451M in 5s = 211MB/s) while the main thread was STILL TICKING
+// (mainLate 1451-1728ms, far under the 5s freeze class, heap small at 106M,
+// path=2a/0q) - the burst ended within the very window the guard sampled, and
+// the SIGTERM erased a fleet that was 376s/600s in and producing valid data.
+// The response is now TWO-STRIKE: the FIRST verdict SURVIVES - the worker
+// writes the probe line (rss story + the blackbox activity labels, the same
+// read the freeze dump uses) and the run goes on; a SECOND verdict (renewed
+// growth - the streak arithmetic already resets on a recede, so a plateau
+// never re-fires) or rss past the HARD CEILING (FLEET_STORM_CEIL_MB, default
+// 3000M - run53's terminal storm passed 3GB) kills exactly as before. A
+// terminal storm now dies 5-10s later than v0.55.0, WITH the probe story in
+// the log; a transient burst finishes the run and pays data instead of death.
+//
 // This module is the CI-tested reference implementation of the detector. The
 // eval worker cannot import it (the worker source is a string, CJS, no
 // imports) - the worker carries a hand-rolled copy of the same arithmetic,
@@ -38,6 +53,25 @@
 export const STORM_RATE_MB_S_DEFAULT = 40 // same knob as the main-thread heap watchdog
 export const STORM_FLOOR_MB_DEFAULT = 1200 // healthy run53 rss was 367M; OOM cliff 3584M
 export const STORM_WINDOW_MS = 10000 // two 5s samples minimum before a verdict
+export const STORM_CEIL_MB_DEFAULT = 3000 // the hard ceiling: run53's terminal storm passed 3GB
+
+/**
+ * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
+ * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
+ * rss and whether the soft probe was already spent:
+ *   'probe' - first strike at a survivable rss: write the story, keep running
+ *   'kill'  - second strike, or the hard ceiling (the machine is dying anyway)
+ *   'none'  - junk rss (the caller just keeps sampling)
+ * @param {{probeUsed?: boolean, rssMb?: number, ceilMb?: number}} s
+ * @returns {{action: 'probe'|'kill'|'none', probeUsed: boolean, reason: string}}
+ */
+export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CEIL_MB_DEFAULT } = {}) {
+  const rss = Number(rssMb)
+  if (!Number.isFinite(rss) || rss <= 0) return { action: 'none', probeUsed, reason: 'junk rss' }
+  if (rss >= ceilMb) return { action: 'kill', probeUsed, reason: 'hard ceiling ' + Math.round(ceilMb) + 'M' }
+  if (!probeUsed) return { action: 'probe', probeUsed: true, reason: 'soft first strike' }
+  return { action: 'kill', probeUsed, reason: 'second strike' }
+}
 
 /**
  * Pure sliding-window storm detector.
