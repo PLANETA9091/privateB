@@ -221,3 +221,43 @@ test('gotoSafe: a throwing setGoal(null) never blocks the real walk', async () =
   const r = await gotoSafe(bot, { x: 1 }, { timeoutMs: 500 })
   assert.equal(r, 'walked', 'diagnostics are best-effort; the walk proceeds')
 })
+
+// (v0.65.0) THE ZOMBIE GOAL KILL: a timeout's stop() only SETS a flag - the
+// unreachable goal's recompute loop consumes it and re-engages on the next
+// tick (run63: 'main freeze ~51s; last: pf:goal deploy @+0.0s', pf:done
+// never came, 39 transport losses behind the freeze). The catch must clear
+// the goal SLOT itself, after the flag-setting stop().
+test('gotoSafe: a timeout clears the goal slot (setGoal(null) after stop())', async () => {
+  const calls = []
+  const bot = {
+    pathfinder: {
+      goal: { x: 1 }, // the wedged slot: the A* can never close this goal
+      goto: () => new Promise(() => {}),
+      stop: () => { calls.push('stop') },
+      setGoal: g => { calls.push(['setGoal', g]) }
+    }
+  }
+  await assert.rejects(gotoSafe(bot, { x: 1 }, { timeoutMs: 25 }), /timeout/)
+  assert.equal(calls[0], 'stop', 'stop() first: the flag is set before the slot clears')
+  assert.deepEqual(calls[1], ['setGoal', null], 'then setGoal(null): the re-spiral loses its goal')
+})
+
+test('gotoSafe: a rejected goto also clears the goal slot (No path failures too)', async () => {
+  const calls = []
+  const bot = {
+    pathfinder: {
+      goto: () => Promise.reject(new Error('No path to the goal!')),
+      stop: () => { calls.push('stop') },
+      setGoal: g => { calls.push(['setGoal', g]) }
+    }
+  }
+  await assert.rejects(gotoSafe(bot, { x: 1 }, { timeoutMs: 500 }), /No path/)
+  assert.equal(calls[0], 'stop')
+  assert.deepEqual(calls[1], ['setGoal', null], 'a refused walk leaves an empty slot behind')
+})
+
+test('gotoSafe: the goal-slot clear survives a pathfinder without setGoal (bare mock)', async () => {
+  const bot = { pathfinder: { goto: () => new Promise(() => {}), stop: () => {} } }
+  await assert.rejects(gotoSafe(bot, { x: 1 }, { timeoutMs: 25 }), /timeout/)
+  // no throw from the catch path: the typeof guard skipped the clear, the timeout still surfaced
+})

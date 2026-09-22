@@ -136,6 +136,50 @@ test('stop heartbeat: never called twice through the public helper', () => {
   assert.deepEqual(w.messages, ['stop'])
 })
 
+// (v0.65.0) THE UNFREEZE HOOK: the 250ms lag probe is the ONLY main-thread
+// code that runs across a freeze - its first post-freeze fire carries the
+// full drift, and THAT is when the zombie-goto sweep may run (run63: a 51s
+// freeze behind a wedged 'deploy' goal, 39 transport losses). The hook must
+// fire once the drift crosses the threshold, and the callback's own throw
+// must never escape the probe.
+test('unfreeze hook: the lag probe fires onUnfreeze with the full post-freeze drift', async () => {
+  const fires = []
+  const hb = startHeartbeat({
+    intervalMs: 20000,
+    WorkerCtor: FakeWorker,
+    probeMs: 25,
+    unfreezeLateMs: 50,
+    onUnfreeze: d => fires.push(d)
+  })
+  try {
+    const t = Date.now()
+    while (Date.now() - t < 120) { /* a 120ms sync block: timers cannot fire inside it */ }
+    await sleep(60) // the pending probe timer fires AFTER the block, carrying the drift
+    assert.ok(fires.length >= 1, `expected >=1 unfreeze fire after a 120ms block, got ${fires.length}`)
+    assert.ok(fires[0] >= 50, `the first post-freeze drift (${fires[0]}ms) must cross the 50ms threshold`)
+  } finally {
+    hb.stop(0)
+  }
+})
+
+test('unfreeze hook: a throwing sweep never escapes the probe (the fleet outlives the cure)', async () => {
+  const hb = startHeartbeat({
+    intervalMs: 20000,
+    WorkerCtor: FakeWorker,
+    probeMs: 25,
+    unfreezeLateMs: 50,
+    onUnfreeze: () => { throw new Error('the sweep exploded') }
+  })
+  try {
+    const t = Date.now()
+    while (Date.now() - t < 120) { /* the block that produces the drift */ }
+    await sleep(60)
+    // reaching here IS the assertion: the interval callback swallowed the throw
+  } finally {
+    hb.stop(0)
+  }
+})
+
 test('REAL worker smoke: boots from the eval source, beats, and exits on stop', async () => {
   const beats = []
   const hb = startHeartbeat({ intervalMs: 60, writeFd: -1, onBeat: b => beats.push(b) })

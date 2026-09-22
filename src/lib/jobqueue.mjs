@@ -262,6 +262,19 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       .finally(() => noteGlobal(`pf:done ${label}`))
   }, { priority }).catch(e => {
     try { bot.pathfinder.stop() } catch { /* already stopped / never started */ }
+    // (v0.65.0) THE ZOMBIE GOAL KILL (the source edge of the unfreeze sweep):
+    // stop() only SETS a flag, and an unreachable goal's recompute loop
+    // CONSUMES that flag and re-engages on the next physics tick - run63
+    // (dispatch 35677752396) measured the result: '[blackbox] main freeze
+    // ~51s; last: pf:goal deploy @+0.0s' with pf:done never coming, 39
+    // transport losses behind it. The timed-out walk OWNS the goal slot
+    // (nothing else can legitimately hold it - the rescue gate refuses new
+    // gotos while _waterRescue runs), so clearing the slot itself is the
+    // kill the flag alone can never be.
+    try {
+      const pf = bot.pathfinder
+      if (pf && typeof pf.setGoal === 'function') pf.setGoal(null)
+    } catch { /* the flag from stop() still bounds the damage */ }
     // (CI 35491904900) stop() only SETS a flag; the library consumes it on the
     // next physics tick - or, for a standing bot, at the NEXT goto's setGoal
     // (v0.20.0: clearStaleStop above is what now actually defuses that case;

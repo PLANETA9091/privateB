@@ -214,12 +214,16 @@ export function gapNote (prevMs, nowMs, intervalMs, { tolerance = 2.5 } = {}) {
  *   onBeat      - optional parent-side callback({n, ts, late, rssMb}); never throws
  *   writeFd     - fd the worker writeSync's to (default 1 = real stdout; tests
  *                 pass -1 for a silent postMessage-only worker)
+ *   onUnfreeze  - optional (driftMs) => {} fired ONCE per main-thread freeze
+ *                 when the lag probe's first post-freeze fire crosses
+ *                 unfreezeLateMs (the v0.65.0 zombie-goto sweep hook)
+ *   unfreezeLateMs - the drift threshold that counts as a freeze (default 8000)
  * Returns { worker, stop(stopGraceMs) }. The worker is UNREF'D: a heartbeat
  * must never extend the fleet's life, even if stop() is never reached (OOM).
  */
 export const HEARTBEAT_PROBE_MS = 250
 
-export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null } = {}) {
+export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
   const hb = { stopped: false, mainLateMax: 0, probeExpected: 0 }
   hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: {
     intervalMs,
@@ -259,6 +263,18 @@ export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBea
       const drift = Math.max(0, now - hb.probeExpected)
       if (drift > hb.mainLateMax) hb.mainLateMax = drift
       hb.probeExpected = now + probeMs
+      // (v0.65.0) THE UNFREEZE HOOK: the probe is the ONLY main-thread code
+      // that runs across a freeze - it cannot fire DURING the spiral (the
+      // timers are the starved resource), so its first post-freeze fire
+      // carries the FULL drift magnitude (run63: 51122ms). That fire is the
+      // fleet's one chance to clear the pathfinder goals that re-spiral once
+      // physics resumes (run60: one freeze class, 150s - the goal survived
+      // the break and re-wedged). Fires at most once per freeze by
+      // construction (the next fires have ~probeMs drift); the callback owns
+      // its own sweep and its own logging.
+      if (typeof onUnfreeze === 'function' && drift >= unfreezeLateMs) {
+        try { onUnfreeze(drift) } catch { /* the sweep never kills the fleet */ }
+      }
     } catch { /* never throw from a diagnostic */ }
   }, probeMs)
   try { hb.probe.unref?.() } catch { /* fakes may return a bare object */ }

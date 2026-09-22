@@ -39,6 +39,7 @@ import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
+import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
 import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import pathfinderPkg from 'mineflayer-pathfinder'
@@ -986,7 +987,33 @@ console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join('
 // mapsave); when the worker sees mainLate >= 5s it dumps the newest entries -
 // the LAST activity before the gap names the blocker.
 const blackbox = createSharedBlackBox({})
-const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox })
+// (v0.65.0) THE UNFREEZE SWEEP - the post-freeze edge of the zombie-goto
+// cure. run63 (dispatch 35677752396) finally NAMED the freeze blocker: the
+// black box printed 'main freeze ~51s; last: pf:goal deploy @+0.0s' - a goal
+// the A* could never close re-spiralized on every physics tick, starved the
+// main thread's timers for 51s (mainLate=51122ms), and the server
+// keepalive-killed 39 transports behind it (32 relogins, 20 deaths, the end
+// phase burned its whole 420s margin on rescue/combat chaos - HARD KILL).
+// The lag probe below is the ONLY main-thread code that runs across a
+// freeze; its first post-freeze fire carries the full drift, and THAT is
+// when every goal still held across the freeze gets cleared - a legitimate
+// mid-freeze walk rejects and its caller re-plans (one walk is the cheapest
+// thing in a fleet that just lost a minute to a re-spiraling A*).
+const onUnfreeze = lateMs => {
+  let swept = 0
+  let left = 0
+  for (const [, entry] of bots) {
+    const b = entry?.miner?.bot
+    const verdict = unfreezeTarget(b, { lateMs })
+    if (!verdict.sweep) { if (b?.pathfinder) left++; continue }
+    try { b.pathfinder.setGoal(null) } catch { /* stop() below still bounds it */ }
+    try { b.pathfinder.stop() } catch { /* already stopped */ }
+    console.log(`${entry.miner.username ?? '?'} [unfreeze] goal cleared (${verdict.why})`)
+    swept++
+  }
+  console.log(unfreezeLine({ lateMs, swept, skipped: left }))
+}
+const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, onUnfreeze })
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
