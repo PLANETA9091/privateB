@@ -1677,3 +1677,30 @@ Task: session close - CI verdict + the fleet dispatch record.
 Work Log:
 - Push CI on 0508495 (v0.84.0 the hazard zone): (see the next session's worklog for the verdict - this is written pre-push).
 - THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@0508495 - the FULL stack: the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox / stability / probe budget / unbreakable guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
+
+---
+Task ID: 398294-20260923-0153
+Agent: Z.ai Code (cron session, 01:53 +08)
+Task: mine run78 (the v0.84.0 hazard-zone fleet) - the zone verdict; ship the cures the evidence names; push; re-dispatch.
+
+Work Log:
+- Repo alive; master fe91de7 (v0.84.0) pulled clean, no parallel pushes. Push CI 35761326352 green. WAITED for run78 (35762459325) live (units 22+24 green, integration green, big-fleet done 18:07Z) and mined it (mine78.mjs, artifact 10711199670, 29KB/2298 lines).
+- RUN78 VERDICT - the machinery FIRES, the trap still kills: death spots 13/13 memorized ('death spot memorized as a hazard' everywhere a bot died), zone-tier refusals 22 with d>4b (the envelope reach works), EPIPE=0/reconnects=0 (cleanest health lane in 5 runs), still-wet timeouts holding at 7, releases 4, frozen 47, repeat 4, stall 4. BUT: deaths 8 -> 13 (8 fall/env in the SAME quarry [-113..-141, 43-58, 394-428], 3 NEW zombie deaths [-136..-141, 410-418] + F4 rim y=66, 2 drowned AT SURFACE y=61-62), rescues 65 -> 81, banked 2024 -> 1028 (halved), mined 3916 @ 6.53 b/s (up from 3515 but below run76's 4322 record), smelted=0 again, fights=10 with flee=1 (kite unvalidated 7 runs).
+- THE DEATH GEOMETRY READ: (a) the drowned pair = the climb-escape class (the sentry yields to _climbEscape, a stalled escape drains the bar with nobody watching) - the v0.85.0 low-o2 yield was coded in this session BEFORE run78 finished and lands now; (b) the fall/env octet = digShaft's fluid+drop probes were live but BLIND: null reads were 'continue'/'break'ed as safe, so a zero-read window dug into an unread floor - the v0.86.0 stale-window refusal lands now; (c) the zombie trio = the quarry is a mob trap (fights=10, swords=22 exist) - deferred; the region quarantine subsumes it if the fall/drown cures drain the traffic.
+- v0.85.0 THE LOW-O2 YIELD (surface.mjs const + miner.mjs escape wiring): CLIMB_ESCAPE_O2_FLOOR=6 strictly between OXYGEN_CRITICAL_LEVEL (4) and OXYGEN_RESCUE_LEVEL (10), checked at the escape loop top AND between digs (a submerged dig burns ~200 ticks); the climb returns the honest exhausted-shape 'low-o2' BEFORE the ledger update; the finally clears _climbEscape and the sentry re-owns the bot. Floor pin added (3 assertions).
+- v0.86.0 THE STALE-WINDOW REFUSAL (miner.mjs probes): lavaAheadBelow counts real reads (zero = dangerous -> sidestep); dropAheadBelow counts real reads (zero = report full depth -> sidestep); SIDESTEP_CAP + caller rotate bound the cost. The Number(null) lesson in probe form. The bot STANDS in the probed chunk - a zero-read window is a server/stale-read event, not geography.
+- check-syntax 169/0. Push CI watch, then the 600s fleet dispatch fires as the session's ABSOLUTE LAST action. NO PUSHES after it.
+
+Stage Summary:
+- Master: ebba676 (package.json v0.86.0 = the low-o2 yield v0.85.0 + the stale-window refusal v0.86.0 on top of the hazard zone v0.84.0). Next free version = 0.87.0.
+- EXPECTATIONS run79: 'climb wet escape: oxygen N at the floor - the escape yields' where F7/F15/F16 drowned; zero drowned deaths; 'drop of 4+ below' / 'fluid below' firing on blind windows; fall/env deaths DOWN from 8 (the readable-probe share of the class); deaths total < 13; banked recovering toward 2024+; mined toward 4322; rescues back under 70; smelted still the open zero; the kite still armed (7 runs).
+- OPEN FRONTS: the zombie trio (the quarry = mob trap; shelters=0 all run - the night/shelter lane never fired); the tunnel/walk zone-veto hole (target vetoes are in, PATH crossings are not - the ore steer still walks the quarry, 85 steer lines); smelted=0 despite banked stock (their smelt lane silent 2 runs); 'cannot leave the shaft' x30 (the worldmap lane); the dig-adjacent water class ('post=water STILL THERE' - a dig that floods from the SIDE, not below).
+
+---
+Task ID: 398294-20260923-0153 (dispatch record)
+Agent: Z.ai Code (cron session, 01:53 +08)
+Task: session close - CI verdict + the fleet dispatch record.
+
+Work Log:
+- Push CI on the head commit (v0.86.0): (verdict in the next session's worklog).
+- THE FLEET DISPATCH FIRED as the session's absolute LAST action (run id in the next session's worklog): workflow_dispatch run_fleet=true, fleet_seconds=600 on master@ebba676 - the FULL stack: the stale-window refusal (v0.86.0) + the low-o2 yield (v0.85.0) + the hazard zone (v0.84.0) + the stand-down trio (v0.83.0) + the ingot bridge (their v0.82.0) + the rescue blackbox/stability/probe-budget/unbreakable-guard (v0.81.0) + the open-water transit (v0.80.0) + the governor pace (v0.79.0) + the flee kite (v0.78.0) + the oscilloscope/ceiling (v0.77.0) + the dig forensics (v0.76.0). NO PUSHES after it - this note rides the next session's push.
