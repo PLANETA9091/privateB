@@ -112,7 +112,11 @@ bot.once('spawn', async () => {
       try { window = await bot.openChest(chestBlock); await sleep(600) } catch (e) { log(`open attempt ${a} failed: ${e.message}`); await sleep(800) }
     }
     if (!window) throw new Error('cannot open the chest')
-    log(`window open: type=${window.type} slots=${window.slots().length} chestItems=${chestSummary(window)}`)
+    // mineflayer's Window stores slots as an ARRAY PROPERTY (not a method) -
+    // the first probe run died 'window.slots is not a function' at exactly this
+    // line (job 106643098859). Read it either way, defensively.
+    const slotList = () => (Array.isArray(window.slots) ? window.slots : (typeof window.slots === 'function' ? window.slots() : []))
+    log(`window open: type=${window.type} slots=${slotList().length} chestItems=${chestSummary(window)}`)
     log(`inventory BEFORE ladder: ${invSummary()}`)
 
     const item = pocket.find(i => DIGGABLE.includes(i.name)) ?? pocket[0]
@@ -137,16 +141,16 @@ bot.once('spawn', async () => {
     moved1 += await rung('1 Chest.deposit bulk', async () => { await window.deposit(item.type, null, item.count) })
     if (moved1 === 0) {
       // 2. shift-click quick move: find the source slot index in the window map
-      const srcIdx = window.slots().findIndex(s => s && s.name === item.name && s.count > 0)
-      const destIdx = window.slots().findIndex((s, i) => i < 27 && !s)
-      log(`shift-click plan: srcIdx=${srcIdx} destIdx=${destIdx} (of ${window.slots().length})`)
+      const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
+      const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
+      log(`shift-click plan: srcIdx=${srcIdx} destIdx=${destIdx} (of ${slotList().length})`)
       if (srcIdx >= 0 && destIdx >= 0) {
         moved1 += await rung('2 shift-click quick-move', async () => { await window.click(srcIdx, 0, 1) })
       }
     }
     if (moved1 === 0) {
-      const srcIdx = window.slots().findIndex(s => s && s.name === item.name && s.count > 0)
-      const destIdx = window.slots().findIndex((s, i) => i < 27 && !s)
+      const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
+      const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
       if (srcIdx >= 0 && destIdx >= 0) {
         moved1 += await rung('3 pick/place mode0', async () => { await window.click(srcIdx, 0, 0); await sleep(250); await window.click(destIdx, 0, 0) })
       }
@@ -156,9 +160,9 @@ bot.once('spawn', async () => {
     }
     if (moved1 === 0) {
       moved1 += await rung('5 bot.transfer explicit', async () => {
-        const srcIdx = window.slots().findIndex(s => s && s.name === item.name && s.count > 0)
+        const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
         if (srcIdx < 0) throw new Error('no source slot')
-        const destIdx = window.slots().findIndex((s, i) => i < 27 && !s)
+        const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
         if (destIdx < 0) throw new Error('no dest slot')
         await bot.transfer({ window, itemType: item.type, sourceStart: srcIdx, sourceEnd: srcIdx + 1, destStart: destIdx, destEnd: destIdx + 1, count: 1 })
       })
