@@ -31,7 +31,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -286,10 +286,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
         console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)
-      } else if (res.attempts?.length) {
-        // (v0.89.0) the silent zero speaks: seven runs ended smelted=0 with no line
-        // saying why - the per-input attempts now name the blocker
-        console.log(`${miner.username} smelted 0 (${res.attempts.map(a => `${a.name}: ${a.reason}`).join(' | ')})`)
+      } else {
+        // (v0.89.0) THE HONEST ZERO: run80's smelt legs returned silent zeros
+        // (24 reserves held, 6 yard arrivals, ZERO furnace walks visible) - the
+        // machine failures died between smeltBatch and this log. The zero now
+        // names every attempt: 'iron_ore@blast_furnace: machine unreachable (...)'.
+        // (Collision #39 union: smeltZeroWhy reads BOTH entry shapes - theirs
+        // {name, reason} and mine {name, machine, reason} - and the empty
+        // attempts array reads 'nothing to smelt', the plan-empty case.)
+        console.log(`${miner.username} smelt: 0 (${smeltZeroWhy(res.attempts)})`)
       }
     } catch (e) {
       console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)

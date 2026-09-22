@@ -59,6 +59,56 @@ export function machineChainFor (inputName) {
   return want === 'furnace' ? ['furnace'] : [want, 'furnace']
 }
 
+// (v0.89.0) THE HONEST SMELT LEG - run80 (dispatch 35773697160 on 2cb2088) held
+// the smelt reserve (24 'holding ... for the smelt leg' lines), walked 6 bots to
+// the yard, and still ended smelted=0 fleet-wide with ZERO 'walk to furnace'
+// attempts visible: the furnace walk died silently on the yard's path sickness
+// (the doomed ledger recorded on the bay's own cells, water-rescue interlocks,
+// 'Took to long to decide' in the tight bay) AND smeltInventory threw every
+// machine-loop failure away - the attempts array only ever recorded 'no fuel',
+// and the fleet's smelt leg only logged smelted>0. A silent zero is a verdict
+// nobody can mine. Three cures, all in this file:
+//   1. THE REACH-OPEN: a machine within arm's reach needs no pathfinder at all.
+//   2. THE SHARED-MACHINE WALK: doomedRearm (the bay is THE shared destination,
+//      v0.87.0 semantics) + a goal ladder - the tight bay wants looser approach
+//      cells on the retries (attempt 1 hugs the machine, the retries stand off).
+//   3. THE HONEST ATTEMPTS: every machine-loop failure lands in the attempts
+//      array (machine + reason), 'no machine in reach' included, and the fleet
+//      leg prints the zero verdict verbatim.
+export const SMELT_REACH_OPEN_DISTANCE = 4.5
+
+/** Pure: the GoalNear reach for the furnace walk's nth attempt (1-based).
+ * Attempt 1 hugs the machine (2); the retries stand off (6) - more candidate
+ * approach cells defeat 'Took to long to decide' in a compact bay. Junk -> 6
+ * (the looser goal is the safe default: a refused walk retries looser). */
+export function smeltWalkReach (attempt) {
+  return attempt === 1 ? 2 : 6
+}
+
+/** Pure predicate: may the bot open this machine WITHOUT a walk? Junk-safe:
+ * a missing position on either side is a no (an unknown distance is a walk). */
+export function machineWithinReach ({ from = null, pos = null, reach = SMELT_REACH_OPEN_DISTANCE } = {}) {
+  if (!from || !pos) return false
+  const r = Number.isFinite(reach) && reach > 0 ? reach : SMELT_REACH_OPEN_DISTANCE
+  if (!Number.isFinite(from.x) || !Number.isFinite(from.y) || !Number.isFinite(from.z)) return false
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return false
+  const dx = pos.x - from.x
+  const dy = pos.y - from.y
+  const dz = pos.z - from.z
+  return Math.sqrt(dx * dx + dy * dy + dz * dz) <= r
+}
+
+/** Pure: the fleet leg's zero-verdict line body from the attempts array -
+ * 'iron_ore@blast_furnace: machine unreachable (...); cobblestone@-: no fuel'.
+ * Empty/junk plans read 'nothing to smelt' (an honest plan-empty, not a failure). */
+export function smeltZeroWhy (attempts) {
+  if (!Array.isArray(attempts) || attempts.length === 0) return 'nothing to smelt'
+  const parts = attempts
+    .filter(a => a && typeof a === 'object')
+    .map(a => `${a.name ?? '?'}@${a.machine ?? '-'}: ${a.reason ?? 'unknown'}`)
+  return parts.length ? parts.join('; ') : 'nothing to smelt'
+}
+
 // smelts per fuel unit (vanilla): coal 8, planks/logs 1.5, stick 0.5 ...
 export const FUEL_YIELD = {
   coal: 8,
@@ -218,11 +268,26 @@ export async function smeltBatch (bot, {
   let walked = false
   let rescueWaited = false // (v0.18.2) one bounded clear-wait per visit
   let governorWaited = false // (v0.79.0) one bounded churn-cooldown wait per visit
+  // (v0.89.0) THE REACH-OPEN: run80's bots stood IN the bay with the furnace
+  // 2-4 blocks away and still died on the walk (the yard paths were sick).
+  // Reach needs no path - open directly, the open's own timeout still guards.
+  if (machineWithinReach({ from: bot.entity?.position, pos: machineBlock.position })) {
+    walked = true
+    log(`${tag} ${machineBlock.name} within reach - opening without a walk`)
+  }
   for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
     const ms = walkSlice()
     if (ms <= 0) { lastWalkError = 'visit budget spent (walk slice)'; break }
     try {
-      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, 2), { timeoutMs: ms, label: 'walk to furnace' })
+      // (v0.89.0) THE SHARED-MACHINE WALK: the bay is a SHARED destination -
+      // one bot's failed approach ledgered the furnace cell and every later
+      // bot's smelt walk died at the consult (run80's silent zeros). The
+      // v0.87.0 yard semantics, bounded: exactly ONE honest re-issue (attempt 2)
+      // - the doomed geometry is the failed bot's start, this bot's may be fine
+      // - then the funnel closes again (the spiral breaker stays in charge).
+      // + the goal ladder: attempt 1 hugs the machine, the retries stand off -
+      // the tight bay needs looser approach cells to defeat the A* think wall.
+      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(attempt + 1)), { timeoutMs: ms, label: 'walk to furnace', doomedRearm: attempt === 1 })
       walked = true
     } catch (e) {
       lastWalkError = e.message
@@ -416,12 +481,13 @@ export async function smeltInventory (bot, {
     if (Date.now() - started > maxSeconds * 1000) break
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
     if (left() <= 0) continue
-    if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) { attempts.push({ name, reason: 'no fuel' }); continue }
+    if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
     // (v0.89.0) THE SILENT ZERO: seven runs (run74..run80) ended smelted=0 with no
     // line saying why - the machine loop below just fell through when
     // findMachineBlocks came back empty (a bot stranded in the quarry, the yard
     // bay unreachable). Name the miss per input; the fleet harness prints the
-    // attempts when smelted=0.
+    // attempts when smelted=0. (Collision #39 union: the entry carries the
+    // machine chain too, so the zero verdict names WHICH machines were scanned.)
     let kindsTried = 0
     let kindsWithBlocks = 0
     for (const machineKind of machineChainFor(name)) {
@@ -456,6 +522,11 @@ export async function smeltInventory (bot, {
           produced.set(name, (produced.get(name) ?? 0) + res.smelted)
           const out = SMELT_OUTPUT[name]
           outputs[out] = (outputs[out] ?? 0) + res.smelted
+        } else if (res.reason && res.reason !== 'ok') {
+          // (v0.89.0) THE HONEST ATTEMPTS: busy / unreachable / broken machines
+          // used to vanish between smeltBatch and the fleet leg's log - recorded
+          // now, so a zero verdict names every machine it lost to.
+          attempts.push({ name, machine: machineKind, reason: res.reason })
         }
         if (left() <= 0) break
         // busy / unreachable / broken machine: try the next one of this kind
@@ -466,7 +537,7 @@ export async function smeltInventory (bot, {
     // input never even reached a furnace - say so (the fleet harness prints
     // attempts when smelted=0; produced>0 must never be condemned)
     if (kindsTried > 0 && kindsWithBlocks === 0 && !(produced.get(name) > 0)) {
-      attempts.push({ name, reason: `no machine in reach (${machineChainFor(name).join('/')} within ${maxDistance}b)` })
+      attempts.push({ name, machine: machineChainFor(name).join('/'), reason: `no machine in reach (${machineChainFor(name).join('/')} within ${maxDistance}b)` })
     }
   }
   return { smelted: total, rescued, outputs, attempts }

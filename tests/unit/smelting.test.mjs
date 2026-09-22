@@ -11,7 +11,8 @@ import { Vec3 } from 'vec3'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
-  pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory
+  pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
+  smeltWalkReach, machineWithinReach, smeltZeroWhy, SMELT_REACH_OPEN_DISTANCE
 } from '../../src/lib/smelting.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and a
@@ -426,15 +427,15 @@ test('smeltBatch: no visit budget keeps the legacy 3 walk attempts for TRANSIENT
   assert.match(res.reason, /machine unreachable/)
 })
 
-test('smeltBatch: a dead-geometry verdict ends the retry loop at the funnel (v0.72.0 spiral breaker)', async () => {
+test('smeltBatch: a dead-geometry verdict gets ONE shared-bay re-arm, then the funnel closes (v0.72.0 + v0.89.0)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
   const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
   let calls = 0
   bot.pathfinder.goto = async () => { calls++ ; throw new Error('No path to the goal!') }
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(calls, 1, 'attempt 1 pays the A* verdict; attempts 2-3 die at the doomed-goal consult')
+  assert.equal(calls, 2, 'attempt 1 pays the A* verdict; attempt 2 re-arms ONCE (the bay is shared); attempt 3 dies at the consult again')
   assert.match(res.reason, /machine unreachable/)
-  assert.match(res.reason, /doomed goal/, 'the refusal names the ledger')
+  assert.match(res.reason, /doomed goal/, 'the final refusal names the ledger')
 })
 
 test('smeltInventory: the visit budget threads into every batch it starts', async () => {
@@ -454,4 +455,89 @@ test('smeltInventory: the visit budget threads into every batch it starts', asyn
   assert.equal(res.smelted, 0)
   assert.ok(elapsed < 9000, `the smelt leg respects its wall clock (elapsed ${elapsed}ms)`)
   assert.ok(seen.length <= 2, `the visit budget cut the walk retries (got ${seen.length})`)
+})
+
+// --------------------------------------------------- v0.89.0 THE HONEST SMELT LEG
+
+test('SMELT_REACH_OPEN_DISTANCE is the arm\'s reach the reach-open trusts', () => {
+  assert.equal(SMELT_REACH_OPEN_DISTANCE, 4.5)
+})
+
+test('smeltWalkReach: attempt 1 hugs the machine, the retries stand off, junk is loose', () => {
+  assert.equal(smeltWalkReach(1), 2)
+  assert.equal(smeltWalkReach(2), 6)
+  assert.equal(smeltWalkReach(3), 6)
+  assert.equal(smeltWalkReach(0), 6, '0 is not a 1-based attempt - the loose default')
+  assert.equal(smeltWalkReach(undefined), 6)
+  assert.equal(smeltWalkReach(null), 6)
+  assert.equal(smeltWalkReach('junk'), 6)
+})
+
+test('machineWithinReach: the reach-open predicate is junk-safe', () => {
+  const from = { x: 0, y: 64, z: 0 }
+  assert.equal(machineWithinReach({ from, pos: { x: 3, y: 64, z: 3 } }), true, '~4.24 <= 4.5')
+  assert.equal(machineWithinReach({ from, pos: { x: 5, y: 64, z: 5 } }), false, '~7.07 > 4.5')
+  assert.equal(machineWithinReach({ from: null, pos: { x: 1, y: 1, z: 1 } }), false)
+  assert.equal(machineWithinReach({ from, pos: null }), false)
+  assert.equal(machineWithinReach({}), false)
+  assert.equal(machineWithinReach({ from: { x: NaN, y: 64, z: 0 }, pos: { x: 1, y: 64, z: 1 } }), false)
+  assert.equal(machineWithinReach({ from, pos: { x: 1, y: 64, z: 1 }, reach: Number.NaN }), true, 'junk reach -> the 4.5 default; 1.41 away')
+  assert.equal(machineWithinReach({ from, pos: { x: 3, y: 64, z: 3 }, reach: 4 }), false, 'a real reach is honored (4.24 > 4)')
+})
+
+test('smeltZeroWhy: the zero verdict names every attempt, junk-safe', () => {
+  assert.equal(smeltZeroWhy([]), 'nothing to smelt')
+  assert.equal(smeltZeroWhy(null), 'nothing to smelt')
+  assert.equal(smeltZeroWhy(undefined), 'nothing to smelt')
+  assert.equal(smeltZeroWhy('junk'), 'nothing to smelt')
+  assert.equal(
+    smeltZeroWhy([
+      { name: 'iron_ore', machine: 'blast_furnace', reason: 'machine unreachable (NoPath: No path to the goal!)' },
+      { name: 'cobblestone', machine: null, reason: 'no fuel' }
+    ]),
+    'iron_ore@blast_furnace: machine unreachable (NoPath: No path to the goal!); cobblestone@-: no fuel'
+  )
+  assert.equal(smeltZeroWhy([{ name: 'sand', machine: 'furnace', reason: 'no machine in reach' }]),
+    'sand@furnace: no machine in reach')
+  assert.equal(smeltZeroWhy([null, 42, { machine: 'furnace' }]), '?@furnace: unknown', 'junk entries degrade, they never crash the verdict')
+})
+
+test('smeltInventory: a zero records WHY per machine - the honest attempts (v0.89.0)', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  bot.pathfinder.goto = async () => { throw new Error('No path to the goal!') }
+  const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30 })
+  assert.equal(res.smelted, 0)
+  assert.ok(res.attempts.length >= 1, 'the machine failure is recorded, not discarded')
+  const a = res.attempts[0]
+  assert.equal(a.name, 'sand')
+  assert.equal(a.machine, 'furnace')
+  assert.match(a.reason, /machine unreachable/)
+})
+
+test('smeltInventory: an empty machine scan is a verdict - no machine in reach (collision #39 union shape)', async () => {
+  const bot = makeMockBot({ machines: [], items: [item('sand', 4), item('coal', 1)] })
+  const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30 })
+  assert.equal(res.smelted, 0)
+  assert.deepEqual(res.attempts, [{ name: 'sand', machine: 'furnace', reason: 'no machine in reach (furnace within 48b)' }])
+})
+
+test('smeltBatch: the reach-open skips the walk entirely - sick yard paths cannot starve the bay', async () => {
+  const near = new MockFurnace({ position: new Vec3(3.5, 64, 3.5) }) // ~4.24 from the bot
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  let gotoCalls = 0
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('No path to the goal!') }
+  const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST })
+  assert.equal(gotoCalls, 0, 'a machine within 4.5 needs no pathfinder')
+  assert.equal(res.smelted, 4, 'the batch smelted via the reach-open')
+  assert.equal(res.reason, 'ok')
+})
+
+test('smeltBatch: the walk ladder hugs on attempt 1 and stands off on the retries', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)] })
+  const reaches = []
+  bot.pathfinder.goto = async goal => { reaches.push(Math.sqrt(goal.rangeSq)); throw new Error('walk to furnace: timeout after Nms') }
+  await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
+  assert.deepEqual(reaches, [2, 6, 6], 'attempt 1 hugs (2), the retries stand off (6)')
 })
