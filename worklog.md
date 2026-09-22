@@ -1639,3 +1639,16 @@ Stage Summary:
 - EXPECTATIONS next fleet: swords=N > 0; open-field zombie deaths drop (the fight loop closes kills with a real weapon); 'fighting' verdicts resolve inside the 10s deadline; deaths 15 -> single digits; conversion holds >= 90% with fewer pocket-emptying deaths.
 - OPEN FRONTS: v0.68.0 the mid-bank budget (the walk floor now owns banked=0); the yard-walk stall class (90s timeouts for 60-68 blocks - water rescues interleave); smelted=0 (needs banked>0); full-chest ledger 0 verdicts this run (chests were NOT full - the reach/empty-pocket classes own the wall).
 - Version handoff: next free = 0.68.0.
+---
+Task ID: 398294-20260922-1153-addendum
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: v0.68.0 shipped in the same session (the sketch became code while CI ran).
+
+Work Log:
+- v0.67.0 push CI 35685503801 SUCCESS (unit incl. arms.test.mjs green on the first pass).
+- midBankBudgetMs landed: deposit.mjs pure helper (both trip paths take the dist-scaled chain when remainingMs covers chain + the 90s return margin; flat floor only near the deadline; junk-tolerant), fleet19 branch collapsed into the one call, 8 test pins, node -e arithmetic verified (8/8 PASS), version 0.68.0 (a40294d).
+- Note for the next miner: the dispatched fleet tests TWO cures at once - swords (swords=N counter; open-field zombie deaths) and the mid-bank budget (banked=N; 'bank trip: ... budget Ns' lines now show dist-scaled values 135-300s instead of a flat 120s). The counters disambiguate independently.
+
+Stage Summary:
+- Master: a40294d (v0.67.0 swords + v0.68.0 mid-bank). Next free version = 0.69.0.
+- EXPECTATIONS: banked>0 finally testable on a fleet that digs at 3.77/s with 97% pocket conversion; deaths stay single-digit if the swords land.
