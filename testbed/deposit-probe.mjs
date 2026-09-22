@@ -1,21 +1,24 @@
 #!/usr/bin/env node
-// THE DEPOSIT PROBE (v0.70.0) - the first live evidence about the 26.2 chest
-// click machinery, ever. WHAT MEASURED (dispatch 35692049905, run68, the first
-// 600s fleet): planned bank trips FIRED (the v0.68.0 dist-scaled budgets work),
-// bots REACHED chests (hops at d=8-24 opened windows with free slots) and the
-// click loop still delivered ZERO - 'nothing to deposit' 0x 'banked N items'
-// in the whole run, full-chest ledger empty. The skip reasons are swallowed in
-// the fleet loop, so nothing distinguishes a 5s deposit timeout from a resolved
-// click that moved nothing - and banked>0 has NEVER happened in ~130 fleets.
-// The probe answers the binary question in isolation: ONE bot, ZERO load, a
-// console-placed chest (the diag-findchest rig pattern), a pocket of real
-// hand-dug dirt. It then walks the click ladder and measures EVERY rung:
-//   1. Chest.deposit(type, null, count) - the fleet's bulk pathway
-//   2. shift-click quick-move (window.click slot,0,1) - the human pathway
-//   3. pick/place mode-0 clicks - the rawest carried-item pathway
-//   4. Chest.deposit count=1 - single-item clicks
-//   5. bot.transfer with explicit slot ranges
-// PURE EVIDENCE (drop-probe rules): no assertions, exit 0, everything logged.
+// THE DEPOSIT PROBE v2 (v0.71.0) - the slot-map comparison rig.
+//
+// v1's ladder (job 106648926397) delivered THE answer shape: a console-placed,
+// NEVER-FILLED chest read dirtx1 the moment it opened (a GHOST - the server
+// chest was empty by construction), and Chest.deposit count=1 refused with
+// "Can't find dirt in slots [27 - 63]" while bot.inventory.items() held the
+// dirt. Two windows disagreeing about the same inventory = the 26.2 window
+// PARSING is broken, clicks aim at wrong slots, the server silently drops
+// every one - banked=0 across ~130 fleets with zero 'banked N items' ever.
+//
+// v2 measures the mapping DIRECTLY against SERVER TRUTH: the console fills
+// the chest (item replace block container.N - infrastructure, same class as
+// the yard build), the probe dumps the client's full 63-slot view, then walks
+// withdraw and deposit ladders with a dump after EVERY step:
+//   - chest view EMPTY while the server holds 48 items -> the READING is
+//     broken (the window_items parse maps wrong slots) - no click can work
+//   - chest view correct + withdraw moves -> clicks WORK, deposit's slot
+//     targeting is the bug - the cure is a mapping fix
+//   - chest view correct + withdraw dead -> clicks dropped (stateId/protocol)
+// Pure evidence (drop-probe rules): no assertions, exit 0, everything logged.
 // Usage: node testbed/deposit-probe.mjs [host] [port] [username]
 import mineflayer from 'mineflayer'
 import { Vec3 } from 'vec3'
@@ -32,16 +35,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 const timeout = setTimeout(() => { log('FAIL: overall timeout (150s)'); process.exit(1) }, 150000)
 
-// The console pipe (scripts/server.sh cmd) - the diag-findchest rig: setblock,
-// time, mob rules. A throwaway path is fine: the server ignores everything it
-// cannot parse and the probe polls the world view for the actual result.
 const cmd = (...words) => {
   try { execFileSync('scripts/server.sh', ['cmd', words.join(' ')], { stdio: 'pipe', timeout: 15000 }) } catch (e) { log(`cmd ${words.join(' ')} failed: ${e.message}`) }
-}
-
-const invSummary = () => bot.inventory.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty)'
-const chestSummary = w => {
-  try { return w.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty chest)' } catch { return '(unreadable)' }
 }
 
 const bot = mineflayer.createBot({ host, port, username, version: VERSION, auth: 'offline' })
@@ -49,16 +44,21 @@ bot.on('error', e => log(`error: ${e.message}`))
 bot.on('kicked', r => log(`kicked: ${typeof r === 'string' ? r : JSON.stringify(r)}`))
 bot.on('end', r => log(`disconnected: ${r}`))
 
+const invSummary = () => bot.inventory.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty)'
+const chestSummary = w => {
+  try { return w.items().map(i => `${i.name}x${i.count}`).join(' ') || '(empty chest)' } catch { return '(unreadable)' }
+}
+
 bot.once('spawn', async () => {
   try {
     log(`spawned at ${bot.entity.position.floored()}`)
     cmd('time', 'set', 'day')
     cmd('kill', '@e[type=zombie]')
     cmd('kill', '@e[type=skeleton]')
-    cmd('gamerule', 'doMobSpawning', 'false') // a repro rig, not survival (diag e2e lesson)
+    cmd('gamerule', 'doMobSpawning', 'false')
     await bot.waitForTicks(40)
 
-    // --- 1. a REAL chest 3 blocks away (console-placed, chunk-keeper online)
+    // --- 1. a REAL chest 3 blocks away, then SERVER TRUTH into its slots
     const p0 = bot.entity.position.floored()
     const chestPos = new Vec3(p0.x + 3, p0.y, p0.z)
     cmd('setblock', Math.round(chestPos.x), Math.round(chestPos.y), Math.round(chestPos.z), 'minecraft:chest')
@@ -69,32 +69,23 @@ bot.once('spawn', async () => {
     }
     if (!chestBlock) throw new Error('the console-placed chest never landed in the world view')
     log(`chest confirmed at ${chestPos.floored()}`)
+    const cx = Math.round(chestPos.x); const cy = Math.round(chestPos.y); const cz = Math.round(chestPos.z)
+    cmd('item', 'replace', 'block', cx, cy, cz, 'container.0', 'minecraft:dirt', '32')
+    cmd('item', 'replace', 'block', cx, cy, cz, 'container.1', 'minecraft:cobblestone', '16')
+    await sleep(800) // the item commands execute; the chest now holds 48 items SERVER-SIDE
+    log('server truth commanded: container.0 = dirt x32, container.1 = cobblestone x16')
 
-    // --- 2. real pocket items: hand-dig 4 dirt/grass blocks nearby (no gifts)
+    // --- 2. a light dig for the deposit rung (the chest itself needs no pocket)
     const DIGGABLE = ['grass_block', 'dirt', 'coarse_dirt', 'sand', 'gravel']
-    let pocketItem = null
-    for (let n = 0; n < 8 && !pocketItem; n++) {
-      let target = null
-      for (const [dx, dy, dz] of [[1, -1, 0], [-1, -1, 0], [0, -1, 1], [0, -1, -1], [1, -1, 1], [0, -1, 0]]) {
-        const b = bot.blockAt(bot.entity.position.floored().offset(dx, dy, dz))
-        if (b && DIGGABLE.includes(b.name)) { target = b; break }
-      }
-      if (!target) {
-        target = bot.findBlock({ matching: b => DIGGABLE.includes(b.name), maxDistance: 6 })
-        if (!target) break
-      }
-      try {
-        log(`dig ${n}: ${target.name} at ${target.position.floored()}`)
-        await bot.dig(target)
-        await bot.waitForTicks(15)
-      } catch (e) { log(`dig ${n} failed: ${e.message}`); await sleep(500); continue }
-      if (bot.inventory.items().length > 0) { pocketItem = bot.inventory.items()[0]; break }
+    for (let n = 0; n < 3; n++) {
+      const target = bot.findBlock({ matching: b => DIGGABLE.includes(b.name), maxDistance: 6 })
+      if (!target) break
+      try { await bot.dig(target); await bot.waitForTicks(15) } catch (e) { log(`dig ${n} failed: ${e.message}`); break }
+      if (bot.inventory.items().length > 0) break
     }
-    const pocket = bot.inventory.items()
-    if (!pocket.length) throw new Error(`no pocket items after digging (inv=${invSummary()}) - cannot probe`)
-    log(`pocket: ${invSummary()}`)
+    log(`pocket after dig: ${invSummary()}`)
 
-    // --- 3. walk to the chest (raw controls, 3 blocks - no pathfinder here)
+    // --- 3. walk to the chest
     for (let k = 0; k < 20; k++) {
       const d = bot.entity.position.distanceTo(chestPos.offset(0.5, 0.5, 0.5))
       if (d <= 2.2) break
@@ -106,71 +97,56 @@ bot.once('spawn', async () => {
     }
     log(`at the chest, d=${bot.entity.position.distanceTo(chestPos).toFixed(1)}`)
 
-    // --- 4. open + the diagnostic ladder
+    // --- 4. open + THE SLOT MAP DUMP (the decisive instrument)
     let window = null
     for (let a = 1; a <= 2 && !window; a++) {
-      try { window = await bot.openChest(chestBlock); await sleep(600) } catch (e) { log(`open attempt ${a} failed: ${e.message}`); await sleep(800) }
+      try { window = await bot.openChest(chestBlock); await sleep(700) } catch (e) { log(`open attempt ${a} failed: ${e.message}`); await sleep(800) }
     }
     if (!window) throw new Error('cannot open the chest')
-    // mineflayer's Window stores slots as an ARRAY PROPERTY (not a method) -
-    // the first probe run died 'window.slots is not a function' at exactly this
-    // line (job 106643098859). Read it either way, defensively.
     const slotList = () => (Array.isArray(window.slots) ? window.slots : (typeof window.slots === 'function' ? window.slots() : []))
-    log(`window open: type=${window.type} slots=${slotList().length} chestItems=${chestSummary(window)}`)
-    log(`inventory BEFORE ladder: ${invSummary()}`)
+    const dumpSlots = tag => {
+      const s = slotList()
+      const nonEmpty = []
+      for (let i = 0; i < s.length; i++) if (s[i] && s[i].name) nonEmpty.push(`[${i}]=${s[i].name}x${s[i].count}`)
+      log(`SLOTMAP ${tag}: ${s.length} slots, non-empty: ${nonEmpty.join(' ') || 'NONE'}`)
+    }
+    log(`window open: type=${window.type} slots=${slotList().length}`)
+    dumpSlots('at-open')
+    log(`chest view at open: ${chestSummary(window)}`)
+    log(`inventory view at open: ${invSummary()}`)
 
-    const item = pocket.find(i => DIGGABLE.includes(i.name)) ?? pocket[0]
-    const invCount = () => bot.inventory.items().filter(i => i.name === item.name).reduce((a, i) => a + i.count, 0)
-    const chestCount = () => { try { return window.items().filter(i => i.name === item.name).reduce((a, i) => a + i.count, 0) } catch { return -1 } }
-    const beforeInv = invCount()
-    const beforeChest = chestCount()
-    log(`probe item: ${item.name}x${item.count} type=${item.type} | inv=${beforeInv} chest=${beforeChest}`)
+    const dirt = bot.registry.itemsByName.dirt
+    const cobble = bot.registry.itemsByName.cobblestone
+    const invCountOf = name => bot.inventory.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
+    const chestCountOf = name => { try { return window.items().filter(i => i.name === name).reduce((a, i) => a + i.count, 0) } catch { return -1 } }
 
     const rung = async (name, fn) => {
       const t = Date.now()
       let outcome = 'ok'
       try { await fn() } catch (e) { outcome = `ERR ${e.message}` }
       const ms = Date.now() - t
-      await sleep(400) // let the server state settle, then measure BOTH sides
-      const inv = invCount(); const ch = chestCount()
-      log(`RUNG ${name}: ${outcome} ${ms}ms | inv ${beforeInv}->${inv} chest ${beforeChest}->${ch} => moved ${Math.max(0, beforeInv - inv)}/${Math.max(0, ch - beforeChest)}`)
-      return beforeInv - inv
+      await sleep(500)
+      log(`RUNG ${name}: ${outcome} ${ms}ms | inv dirt=${invCountOf('dirt')} cobble=${invCountOf('cobblestone')} | chest dirt=${chestCountOf('dirt')} cobble=${chestCountOf('cobblestone')}`)
+      dumpSlots(`after-${name.replace(/\s+/g, '-').toLowerCase()}`)
     }
 
-    let moved1 = 0
-    moved1 += await rung('1 Chest.deposit bulk', async () => { await window.deposit(item.type, null, item.count) })
-    if (moved1 === 0) {
-      // 2. shift-click quick move: find the source slot index in the window map
-      const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
-      const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
-      log(`shift-click plan: srcIdx=${srcIdx} destIdx=${destIdx} (of ${slotList().length})`)
-      if (srcIdx >= 0 && destIdx >= 0) {
-        moved1 += await rung('2 shift-click quick-move', async () => { await window.click(srcIdx, 0, 1) })
-      }
-    }
-    if (moved1 === 0) {
-      const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
-      const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
-      if (srcIdx >= 0 && destIdx >= 0) {
-        moved1 += await rung('3 pick/place mode0', async () => { await window.click(srcIdx, 0, 0); await sleep(250); await window.click(destIdx, 0, 0) })
-      }
-    }
-    if (moved1 === 0) {
-      moved1 += await rung('4 Chest.deposit count=1', async () => { await window.deposit(item.type, null, 1) })
-    }
-    if (moved1 === 0) {
-      moved1 += await rung('5 bot.transfer explicit', async () => {
-        const srcIdx = slotList().findIndex(s => s && s.name === item.name && s.count > 0)
-        if (srcIdx < 0) throw new Error('no source slot')
-        const destIdx = slotList().findIndex((s, i) => i < 27 && !s)
-        if (destIdx < 0) throw new Error('no dest slot')
-        await bot.transfer({ window, itemType: item.type, sourceStart: srcIdx, sourceEnd: srcIdx + 1, destStart: destIdx, destEnd: destIdx + 1, count: 1 })
-      })
-    }
+    // --- 5. THE LADDER v2
+    await rung('withdraw dirt 8', async () => { await window.withdraw(dirt.type, null, 8) })
+    await rung('withdraw cobble 8', async () => { await window.withdraw(cobble.type, null, 8) })
+    await rung('deposit pocket item', async () => {
+      const it = bot.inventory.items()[0]
+      if (!it) throw new Error('pocket empty - the dig pickup never landed in the client view')
+      await window.deposit(it.type, null, it.count)
+    })
+    await rung('shift-click slot0 quick-move', async () => { await window.click(0, 0, 1) })
+    await rung('pick-place mode0 slot0->slot2', async () => { await window.click(0, 0, 0); await sleep(250); await window.click(2, 0, 0) })
 
-    log(`FINAL: chest=${chestSummary(window)}`)
-    log(`FINAL: inventory=${invSummary()}`)
-    log(moved1 > 0 ? 'VERDICT: the 26.2 chest click WORKS in isolation - the fleet failure is load/context shaped' : 'VERDICT: every pathway moved ZERO - the 26.2 click protocol itself is broken')
+    log(`FINAL: chest view=${chestSummary(window)}`)
+    log(`FINAL: inventory view=${invSummary()}`)
+    const sawTruth = chestCountOf('dirt') >= 32 || chestCountOf('cobblestone') >= 16
+    log(sawTruth
+      ? 'VERDICT: the chest view MATCHES server truth - the window READING works; click targeting/protocol is the broken layer'
+      : 'VERDICT: the chest view MISSES the server-filled items - the 26.2 window_items parse is broken; no click can ever aim right')
     clearTimeout(timeout)
     process.exit(0)
   } catch (e) {
