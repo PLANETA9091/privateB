@@ -39,6 +39,11 @@ export const FACE_TOP = 1
 export const FACE_BOTTOM = 0
 
 export function digFaceFor ({ eyeY = null, blockCenterY = null } = {}) {
+  // null/undefined mean "no eye read" (mocks, headless callers) - Number(null)
+  // is 0, a FINITE number, so the isFinite guard alone would read a missing
+  // eye as y=0 and push every block to the BOTTOM face (CI 35719701977 caught
+  // exactly that). Explicit missing-check first, numeric junk second.
+  if (eyeY == null || blockCenterY == null) return FACE_TOP
   const eye = Number(eyeY)
   const center = Number(blockCenterY)
   if (!Number.isFinite(eye) || !Number.isFinite(center)) return FACE_TOP
