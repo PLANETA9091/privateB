@@ -32,6 +32,7 @@ import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
+import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
@@ -118,6 +119,7 @@ let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
 let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (v0.8.0/v0.7.5)
+let swordsCrafted = 0 // (v0.67.0) swords landed by the arms chain - the fleet stopped fist-fighting
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
 
@@ -489,6 +491,7 @@ async function runBot (name, target, index) {
       let emptyShafts = 0 // (v0.10.1) consecutive digShaft calls with zero progress
       let zeroTunnels = 0 // (v0.18.1) consecutive zero-progress tunnels - the freeze budget
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
+      let lastSwordAttempt = 0 // (v0.67.0) sword-craft cooldown
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       while (!(Date.now() > deadline) && miner.bot.entity) {
@@ -573,6 +576,22 @@ async function runBot (name, target, index) {
             lastSpareAttempt = Date.now()
             console.log(`${name} spare pick due: ${sp.reason}`)
             await craftSparePickaxe(miner.bot, { log: m => console.log(`${name} ${m}`) })
+          }
+        }
+        // SWORD (v0.67.0, arms.mjs): the v0.66.0 fleet fist-fighted its way to 15
+        // deaths (10 zombie bites at point-blank after doomed open-field shelters,
+        // ZERO 'sword' lines in the whole log). 2 planks + 1 stick buy a wooden
+        // sword - pickWeapon then equips it over every tool (rank 5) and the
+        // pickMeleeWeapon shelter gate flips the armed bot to the fight it wins.
+        // Cooldown mirrors the spare-pick rhythm so a stuck table cannot burn budget.
+        if (Date.now() - lastSwordAttempt > 60000) {
+          const sw = swordCheck(miner.bot)
+          if (sw.due) {
+            lastSwordAttempt = Date.now()
+            console.log(`${name} sword due: ${sw.reason}`)
+            const swr = await craftSword(miner.bot, { log: m => console.log(`${name} ${m}`) })
+            if (swr.ok) swordsCrafted++
+            if (swr.ok || swr.reason) console.log(`${name} sword: ${swr.ok ? 'OK' : 'failed'} (${swr.tier || swr.reason || 'none'})`)
           }
         }
         let interrupted = false
@@ -1283,7 +1302,7 @@ function printFinalReport (reason) {
   const s = fleetStats(list)
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size}`)
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)
@@ -1332,6 +1351,7 @@ const fleetReport = {
   toolsRecovered,
   toolsUpgraded,
   toolsReboot,
+  swordsCrafted,
   climbs: list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0),
   torched: list.reduce((a, m) => a + (m.stats.torched ?? 0), 0),
   banked,
