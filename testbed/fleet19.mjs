@@ -19,6 +19,7 @@ import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
 import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/claims.mjs'
 import { HazardLedger } from '../src/lib/drowning.mjs'
+import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
@@ -99,6 +100,11 @@ const board = new ClaimBoard()
 // run60 paid 42 arrival-then-refuse walks). Shared by reference like the board;
 // cross-process hearing rides the same PVB2 chat line family.
 const hazardLedger = new HazardLedger()
+// (v0.84.0) the shared WATER TABLE: one bot's fluid strike (water found at
+// depth by the digShaft fluid guard) ceilings every shaft in that 64x64 region
+// for the WHOLE fleet - the aquifer is regional, the old memory was cellular.
+// Seed-constant world -> no TTL, only the LRU region cap bounds it.
+const waterTableBoard = new WaterTableBoard()
 const HEADINGS = ['east', 'south', 'west', 'north']
 
 let need = {}
@@ -316,6 +322,7 @@ async function runBot (name, target, index) {
         map, // shared scout -> miner resource map
         board, // shared trip-claim board (target distribution, v0.15.0)
         hazardLedger, // (v0.62.0) shared water-hazard ledger: one rescue vets targets for the fleet
+        waterTableBoard, // (v0.84.0) shared aquifer ceiling: one strike stops every shaft above the water in the region
         noPathLedger, // (v0.62.0) shared fleet-wide 'No path' verdicts (one process = one array)
         // cross-process claims (a scout in a second terminal): broadcast our trips as
         // PVB2 chat lines; claimSync is attached right after the bot logs in
@@ -544,6 +551,12 @@ async function runBot (name, target, index) {
           const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
           console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''}, ${reason})`)
           if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+          // (v0.84.0) THE VEIN SWEEP: the gallery digs the LINE, the vein sits
+          // BESIDE it (run78: 29 iron steers at cross 0.3-3.3, raw_iron ZERO -
+          // the smelt/ingot/pickaxe chain starved at the first link). Eat every
+          // steered ore exposed within reach before leaving the gallery.
+          const veinDug = await miner.veinSweep(STEER_ORES, { shouldStop: () => Date.now() > deadline })
+          if (veinDug > 0) console.log(`${name} vein sweep: ${veinDug} ores dug beside the gallery (${reason})`)
           // (v0.18.1) ZERO-PROGRESS BACKOFF - the fleet freeze, measured live
           // (run 2026-09-20 20:05): a bot sealed in wet stone made
           // (digShaft instant 0 -> tunnel instant 0 - the FLUID early-break
@@ -552,7 +565,7 @@ async function runBot (name, target, index) {
           // and all 8 bots froze with it (mined +19 in the last 7 minutes).
           // Three dead tunnels buy a REAL yield (setTimeout is a macrotask:
           // the event loop reaches its timers, other bots dig again).
-          if ((tres.done ?? 0) > 0) zeroTunnels = 0
+          if ((tres.done ?? 0) > 0 || veinDug > 0) zeroTunnels = 0
           else if (++zeroTunnels >= 3) {
             zeroTunnels = 0
             console.log(`${name} tunnel: 0 blocks x3 - sealed or flooded, cooling down 15s`)
@@ -1345,7 +1358,7 @@ function printFinalReport (reason) {
   const s = fleetStats(list)
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
-console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size}`)
+console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size} wt=${waterTableBoard.size}`)
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)

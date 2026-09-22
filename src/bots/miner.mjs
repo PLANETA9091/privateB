@@ -37,6 +37,7 @@ import {
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../lib/drowning.mjs'
+import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
@@ -68,6 +69,7 @@ export function createMiner ({
   broadcastClaim = null, // (pos) => void - cross-process claim broadcast (PVB2 over chat), optional
   hazardLedger = null, // (v0.62.0) shared HazardLedger (src/lib/drowning.mjs): one bot's rescue immunizes the fleet
   broadcastHazard = null, // (pos) => void - cross-process hazard broadcast (PVB2|hazard over chat), optional
+  waterTableBoard = null, // (v0.84.0) shared WaterTableBoard (src/lib/watertable.mjs): one bot's fluid strike ceilings every shaft in the region
   noPathLedger = null, // (v0.62.0) the fleet-wide 'No path' verdict array (one process = one shared array); null = the ledger is off
   fullChestLedger = null, // (v0.65.0) the fleet-wide 'chest full' verdict array (same ride); null = the ledger is off
   log = () => {}
@@ -806,6 +808,7 @@ export function createMiner ({
   // bots in one region; run59 paid 42 arrival-then-refuse walks). The ledger is
   // shared by reference like the ClaimBoard; a private one keeps solo runs honest.
   const waterHazards = hazardLedger ?? new HazardLedger()
+  const waterTables = waterTableBoard ?? new WaterTableBoard() // (v0.84.0) fleet-shared aquifer ceiling
   function waterRead () {
     if (!bot.entity?.position) return { feet: null, head: null, oxygen: 20 }
     const base = bot.entity.position.floored()
@@ -1618,6 +1621,40 @@ export function createMiner ({
     return { done, secs, rate: secs > 0 ? done / secs : 0, stopped }
   }
 
+  // (v0.84.0) THE VEIN SWEEP: a straight 1x2 gallery digs the LINE, never the
+  // wall beside it - run78 (dispatch 35755975607) fired 29 iron steers at cross
+  // 0.3-3.3 (the vein sits BESIDE the axis, targets 2.1-5.2b away) and raw_iron
+  // still read ZERO, so the whole smelt -> ingot -> pickaxe chain died at the
+  // first link. After a tunnel stops, sweep the named ores within reach and
+  // fastDig them: the gallery just exposed the wall faces, fastDig equips the
+  // harvesting tool, and its false-resolve keeps the count honest (a sealed or
+  // out-of-reach ore is simply not counted - the tunnel lesson 1). A second
+  // sweep catches veins that hide behind the first dug ore. stats-mirroring
+  // like the tunnel: every dig lands in stats.mined / stats.byName.
+  async function veinSweep (names, { reach = 4.5, sweeps = 2, shouldStop = null } = {}) {
+    if (!Array.isArray(names) || !names.length) return 0
+    let dug = 0
+    try {
+      for (let sweep = 0; sweep < sweeps; sweep++) {
+        const batch = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: reach, count: 12 })
+        let progressed = false
+        for (const pos of batch) {
+          if (shouldStop?.()) return dug
+          const blk = bot.blockAt(pos)
+          if (!blk || blk.type === 0) continue
+          if (await bot.fastDig(blk)) {
+            dug++
+            stats.mined++
+            stats.byName[blk.name] = (stats.byName[blk.name] || 0) + 1
+            progressed = true
+          }
+        }
+        if (!progressed) break
+      }
+    } catch { /* a sweep is a bonus - never a failure */ }
+    return dug
+  }
+
   // Bore in a straight line (dir is one of up/down/north/...): dig the next cell,
   // step into it, dig again. No travel time and the drops land exactly where the bot
   // steps, so nothing can be lost. This is the max-throughput, zero-loss mode.
@@ -2107,6 +2144,21 @@ export function createMiner ({
     return false
   }
 
+  // (v0.84.0) The same scan, but it ANSWERS: the y and name of the first fluid
+  // below the dig cell. lavaAheadBelow stays boolean for the guard; this one
+  // feeds the water table - a strike is the one observation that makes the
+  // regional ceiling real (the hazard ledger remembers WHERE a rescue
+  // happened, the table remembers HOW DEEP the water sits BEFORE anyone drowns).
+  function fluidStrikeBelow (fromPos, { depth = 4 } = {}) {
+    for (let dy = 1; dy <= depth; dy++) {
+      const b = bot.blockAt(new Vec3(fromPos.x, fromPos.y - dy, fromPos.z))
+      if (!b) continue // unloaded chunk: no strike to claim
+      if (DANGEROUS.has(b.name)) return { y: fromPos.y - dy, name: b.name }
+      if (b.boundingBox !== 'empty') return null // solid ground seals the column
+    }
+    return null
+  }
+
   // How many AIR blocks start directly below `fromPos` (which is ABOUT TO BE dug).
   // A 4+ block fall deals damage and a shaft that punches through a cave ceiling
   // drops the bot into a dark pit full of whatever lives there - measured live:
@@ -2234,9 +2286,29 @@ export function createMiner ({
         log(`${tag} digShaft: water hazard ${hazard.d.toFixed(1)}b away (live ${waterHazards.size}) - refusing this column, the caller rotates`)
         break
       }
+      // (v0.84.0) THE WATER TABLE ceiling: a fluid strike recorded anywhere in
+      // this region (by ANY bot, in ANY earlier shaft - the board is fleet-shared)
+      // binds every later descent here. The shaft stops WT_MARGIN above the
+      // strike and the tunnel doors (floor lock / ore detour) turn the stopped
+      // shaft into horizontal mining at the dry level. MEASURED (run76): the
+      // hazard ledger remembers WHERE a rescue happened but the aquifer is
+      // REGIONAL - the next shaft 24-32 blocks away digs into the same lake
+      // (53 still-wet timeouts, F6+F9 owned 19/26 hazard refusals in the same
+      // y band). A strike at/above the entry is a LID, not a ceiling -
+      // shaftCeiling returns null then and the fluid guard stays the backstop.
+      const ceiling = waterTables.ceilingFor(pos, stats.shaftEntryY)
+      if (ceiling != null && pos.y - 1 <= ceiling) {
+        log(`${tag} digShaft: water table y=${ceiling} (region strike) - stopping above the aquifer, the tunnel owns this level (regions ${waterTables.size})`)
+        break
+      }
       // fluid guard: a column that opens into lava/water within 4 blocks is a death trap
-      if (lavaAheadBelow(pos)) {
-        log(`${tag} digShaft: fluid below ${pos.floored()} - moving sideways`)
+      const strike = fluidStrikeBelow(pos)
+      if (strike) {
+        // (v0.84.0) record the strike BEFORE the sidestep: the world is
+        // seed-constant, so this y is a regional truth - every later shaft in
+        // this region stops above it instead of paying the flood + the rescue
+        const regions = waterTables.record({ x: pos.x, y: strike.y, z: pos.z })
+        log(`${tag} digShaft: ${strike.name} strike at y=${strike.y} -> water table (regions ${regions}); fluid below ${pos.floored()} - moving sideways`)
         const dir = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][sidestepRounds % 4]
         sidestepRounds++
         if (++consecSidesteps >= SIDESTEP_CAP) {
@@ -3077,7 +3149,7 @@ export function createMiner ({
     return { deposited: res.deposited, reason, chestsUsed: res.chestsUsed ?? 0, chestReport: res.chestReport ?? [] }
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, veinSweep, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, waterTables, username }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.
