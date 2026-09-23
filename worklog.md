@@ -2393,3 +2393,15 @@ Stage Summary:
 - OPEN FRONTS: (a) iron=0 pickaxes (the 3-ingot craft walk - iron_ore 28 mined this run, the ladder keeps waiting); (b) F17-class chronic liars still burn ladder-paced rescues (10/run - is the 40 bound the right ceiling? one more run of evidence); (c) conversion 85.2% / unaccounted 515 (the pocket-heavy shape); (d) plan 1/31; (e) worldmap idle (1623 positions but iron_ore=90 mapped - the miners do not consume the map's iron targets); (f) the witch ceiling unmeasured (zero witch lines again).
 - THE FLEET: run104 = 35899827086 discovered ALREADY IN FLIGHT on 399f761 (v0.118.0) - fired by the parallel lane's 01:05 session. NOT re-dispatched (one fleet per flight). run104 therefore measures v0.118.0 (the liar ladder + the death-cause truth) WITHOUT my frozen-return gate (c0ce208 lands after their dispatch head) - the gate rides the NEXT fleet (run105) once run104 completes. My EXPECTATIONS text above was written before the discovery: read them as RUN105 expectations instead; for run104 the lane's own expectations stand (the server-truth death lines, the liar ladder pacing, the suffocation truth-teller).
 - The NEXT session (or the lane, whoever ends next with no fleet in flight) dispatches run105 on this head.
+
+---
+Task ID: 398294-20260924-0154 (dispatch record)
+Agent: Z.ai Code (cron session, 01:54 +08)
+Task: the run105 dispatch record.
+
+Work Log:
+- run104 (35899827086, the v0.118.0 fleet on 399f761) completed SUCCESS at ~18:35Z; the push-CI on f1927e0 (v0.119.0) = SUCCESS (run 35900098202). The fleet dispatch fired as the ABSOLUTE LAST action: run105 = 35903689955... corrected id 35903689995 (workflow_dispatch run_fleet=true, fleet_seconds=600) POSTed at 18:36:53Z, confirmed in_progress on f1927e0 = the FULL v0.119.0 stack (the liar ladder + the death-cause truth + the frozen-return gate). This record pushes ONLY after the in_progress status (the 17:53-proven shape).
+
+Stage Summary:
+- run105 = the first fleet of v0.119.0. The next session mines BOTH run104 (v0.118.0: the server-truth death lines, the suffocation class proof) and run105 (v0.119.0: 'frozen client relog (#N consecutive)' holds, F14-class cyclers 12 -> ~2-4 relogs, 'frozen-return gate holds/clears' lines, relogins 40 -> <15, the liar ladder pacing, NORMAL END).
+- Next free version = 0.120.0.
