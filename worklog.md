@@ -1989,3 +1989,20 @@ Task: session close - the fleet dispatch record.
 Work Log:
 - THE FLEET DISPATCH FIRED as the session's ABSOLUTE LAST ACTION: run88 = workflow_dispatch (run_fleet=true, fleet_seconds=600, master@0b84bf7, pending). NO PUSHES after it.
 - run88 = the first measurement of the v0.98.0 stack (the vein fall fence + the place settle verify) on top of v0.97.0.
+
+---
+Task ID: 398567-20260923-1205 (fuel commons)
+Agent: Z.ai Code (cron session, 12:05 +08, trace 1a0ba4f4e39d1a4d-cron-agent-loop-202609231205)
+Task: continue privateB - close the fuel-less smelt class (the top unclaimed front from run86's zeros), keep CI green.
+
+Work Log:
+- Sandbox died overnight (repo gone, my-project worklog survived) - re-cloned. Started from the parallel lane's d292ed7 (their v0.97.0: the spent-visit batch stop + the dig tick guard, the run86 HARD KILL's two hostage classes closed). Environment rebuilt from zero: JDK 25.0.4.1 (adoptium), server.jar sha1-verified 823e2250..., npm install + setup-26.2.mjs, server.sh start (JAVA=~/jdk/bin/java - the bare ~/jdk layout; note a backgrounded (cmd)& npm install dies with the tool session - run installs foreground).
+- Target: run86's zero lines named the fuel-less class 3x (F5/F10/F8 at the machines, inputs in pocket, 'no fuel'). THE KEY FACT from the code: coal/charcoal are NOT in the deposit KEEP list - the fleet's surplus fuel is ALREADY banked in the yard chests every real run (660 coal in run75's era). The commons exists; nothing ever withdrew (deposit.mjs is deposit-only, pickFuel reads the pocket only).
+- THE FUEL COMMONS (v0.98.0): smeltInventory takes an optional fuelResupply callback, called ONCE between the empty pickFuel and the 'no fuel' verdict - throw/still-empty falls through to the EXACT legacy shape (byte for byte). fleet19 wires withdrawFuelCommons (src/lib/fuelbank.mjs): findChest (yard filter) -> gotoSafe (chestWalkBudgetMs inside the leg's own slice, cap 30s) -> fuelWithdrawPlan (pure: want = min(cap 6, fuelNeeded('coal', plan)); coal before charcoal; same-name rows merge; junk-safe) -> raw clicks (pickWithdrawSlots = pickDirectSlots mirrored; withdrawStackMove: lift, right-click singles for a partial take, leftover returns home on refusal) -> booked ONLY by the per-type pocket diff (my first draft booked the PLANNED count - my own ghost-click test caught taken=5 vs pocket=0 before push). Leftover drains back at the final deposit (keep(false)): bank -> withdraw -> burn-or-return, self-healing.
+- COLLISION #35 mid-session: the parallel lane shipped their OWN v0.98.0 (0b84bf7: the vein fall fence after run87's fall/env x8 record; + the place settle verify - the 35813406318 integration red diagnosed as the place-race flake) + docs 0aaf139; run88 (their dispatch, 35817410592) completed SUCCESS on 0aaf139. Rebased on top, pushed mine as 54cdc47.
+- Local gates: check-syntax 174/0, unit 75/75 files (fuelbank 18/18, smelting 46/46), integration 2/2 live (fresh world). Push CI 35818686687 on 54cdc47: SUCCESS.
+
+Stage Summary:
+- Master: 54cdc47 = the COMBINED v0.98.0 stack (their vein fall fence + place settle verify + my fuel commons). Next free version = 0.99.0.
+- NEXT SESSION FIRST READ: mine the dispatch fired after this section (run89 on 54cdc47) - THE FUEL COMMONS field test: grep 'fuel commons' (took N units / commons empty / no chest in range / the clicks lied) and the 'no fuel' zero lines vs run86's 3x; their vein fall fence vs run87's fall/env x8; the place settle verify vs repeat integration reds. Then candidates: the dedicated charcoal leg (fleet-level fuel poverty), blaze rods/chorus for base-raw.json, iron=0 watch (raw_iron + fuel + a live machine now all reachable).
+- Version handoff: 0.98.0 SHARED (mine 54cdc47 the fuel commons, theirs 0b84bf7 the vein fall fence + place settle verify). Next free = 0.99.0.
