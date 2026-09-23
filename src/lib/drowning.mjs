@@ -52,6 +52,47 @@ export const OXYGEN_CRITICAL_LEVEL = 4
 export const AIR_FALL_MIN_DROP = 2
 /** How many in-domain readings the falling-bar verdict needs at minimum. */
 export const AIR_FALL_MIN_READS = 3
+
+/** (v0.127.0) THE HISTORY GUARD - the cap of the sentry's falling-bar history
+ * (the same 12 the miner wiring has always used; now exported so the guard and
+ * the cap ship together). */
+export const O2_HISTORY_CAP = 12
+/**
+ * (v0.127.0) THE HISTORY GUARD (pure): may this oxygen reading enter the
+ * falling-bar history that airBarFalling judges?
+ *
+ * run525 (35927155318) mined the poisoning: F14/F11/F15 died of drown with
+ * ZERO water lines - all three were RESPAWNED clients whose air metadata reads
+ * ~0 on dry land (the glitch page class), and the sentry's history pushed
+ * every in-domain read, glitch 0s included. When the real drain started, the
+ * history's tail led with those 0s, so airBarFalling's `first - last` read
+ * NEGATIVE (0 - 8 = -8) and the falling-bar lane - the one lane built for
+ * exactly this shape (fresh flood, stale dry block reads) - never fired. The
+ * critical-on-dry streak lane was laddered to the cap (40 reads = 24 s of
+ * fresh counting after the 20 s dry-land-proof gate) by the same bot's
+ * confirmed glitch pages: the drain-to-death clock outruns it.
+ *
+ * THE CURE: a critical-on-dry read is the GLITCH PAGE's evidence - the liar
+ * ladder already counts it - and it carries NO trend information (a stuck 0
+ * has no slope). It never enters the history. A critical read on WET contact
+ * (a real drain) or on UNKNOWN contact (lag, kelp, unloaded chunk) still
+ * enters - those are exactly the readings the falling lane exists for. Junk
+ * trust judges nothing (the read stays admissible; the domain gate below
+ * still applies). Junk-safe: non-finite/negative reads are never admissible
+ * (the -1 reset sentinel, NaN, +-Infinity).
+ * @param {number} [o2] the raw oxygen reading
+ * @param {string|null} [trust] the airBarTrust verdict for the same moment
+ *   ('wet' | 'dry' | 'unknown' | junk)
+ * @param {object} [p]
+ * @param {number} [p.critical] the critical level (default OXYGEN_CRITICAL_LEVEL)
+ * @returns {boolean} true = the read may enter the falling-bar history
+ */
+export function historyAdmissible (o2, trust, { critical = OXYGEN_CRITICAL_LEVEL } = {}) {
+  if (!oxygenInDomain(o2)) return false
+  const crit = Number.isFinite(critical) ? critical : OXYGEN_CRITICAL_LEVEL
+  if (trust === 'dry' && Number(o2) <= crit) return false
+  return true
+}
 /** (v0.64.0) The 26.2 metadata RESET sentinel, measured live in run60 (fleet
  * 35668657935): immediately after 'rescue complete' AND after 'died - respawning'
  * the air_supply metadata arrives as -1 - a value OUTSIDE the 0..20 sensor domain.

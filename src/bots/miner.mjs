@@ -34,6 +34,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
+  historyAdmissible, O2_HISTORY_CAP,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   frozenReturnGate, frozenReturnBypass,
@@ -1396,8 +1397,18 @@ export function createMiner ({
       // (v0.119.0) feed the falling-bar history - in-domain readings only
       // (the -1 reset sentinel and NaN never enter; the verdict's trend lane
       // needs an honest tail). Capped so the window stays recent.
+      // (v0.127.0) THE HISTORY GUARD: a critical-on-DRY read never enters -
+      // the glitch page (a respawned client's stuck 0 on dry land) is the liar
+      // ladder's evidence, not a trend: run525's F14/F11/F15 drowned with
+      // ZERO water lines because their history tails led with the glitch 0s,
+      // so airBarFalling's first-last read NEGATIVE and the falling lane -
+      // the one lane built for the stale-dry-blocks flood - never fired while
+      // the streak lane sat behind its laddered cap. A critical read on WET
+      // or UNKNOWN contact still enters (a real drain's slope). The trust
+      // read ONCE here and reused below - same reads, one verdict.
+      const contactTrust = airBarTrust(read)
       const o2Now = bot.oxygenLevel
-      if (oxygenInDomain(o2Now)) { o2History.push(o2Now); if (o2History.length > 12) o2History.shift() }
+      if (historyAdmissible(o2Now, contactTrust)) { o2History.push(o2Now); if (o2History.length > O2_HISTORY_CAP) o2History.shift() }
       // (v0.16.0) the 26.2 oxygen sensor can read ~0 on dry land - fleet #120
       // measured 140 rescue starts with zero real drownings, every one of them
       // cancelling a walk goal the work loop had just issued. A critical bar on
@@ -1412,10 +1423,10 @@ export function createMiner ({
       // no longer ABSOLUTE - run84a's F17 was ignored 675+ times across its
       // run and the server drowned it anyway: a SUSTAINED zero bar on 'dry
       // land' is a real air bar draining somewhere the block reads miss.
-      const criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry'
+      const criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && contactTrust === 'dry'
       // (v0.117.0) the liar ladder resets on WET contact - a bot that touches
       // water is a new page class (the confirmations were about a DRY lie).
-      if (airBarTrust(read) === 'wet' && glitchConfirmed > 0) {
+      if (contactTrust === 'wet' && glitchConfirmed > 0) {
         glitchConfirmed = 0
         log(`${tag} water: liar ladder resets - wet contact, the page class is new`)
       }

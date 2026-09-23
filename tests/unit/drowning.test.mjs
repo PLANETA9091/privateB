@@ -12,6 +12,7 @@ import {
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
+  historyAdmissible, O2_HISTORY_CAP,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
   airBarFalling, AIR_FALL_MIN_DROP, AIR_FALL_MIN_READS,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
@@ -1127,8 +1128,8 @@ test('the liar-ladder wiring: the miner holds the streak in the gate, ratchets o
     'the fire site carries the page class (a wet-lane page never ratchets)')
   assert.ok(src.includes('liar ladder ratchets - confirmed no-op glitch page'),
     'the ratchet names itself so the next mine reads the lane')
-  assert.ok(src.includes("airBarTrust(read) === 'wet' && glitchConfirmed > 0"),
-    'wet contact resets the ladder (a new page class)')
+  assert.ok(src.includes("contactTrust === 'wet' && glitchConfirmed > 0"),
+    'wet contact resets the ladder (a new page class) - v0.127.0 shares the single trust read')
   assert.ok(src.includes('the rescue kept its water/long record'),
     'the non-proof exit resets the ladder (the real-drain shape keeps the fast lane)')
 })
@@ -1317,4 +1318,71 @@ test('the deep-pocket ascend wiring: the submerged branch asks the stall, digs t
   assert.ok(src.includes('deep-pocket ascend'), 'the lane names itself so the next mine can count the digs')
   assert.ok(src.includes("'ascend dig'"), 'the dig rides the withTimeout fence (a lost race never hangs the rescue)')
   assert.ok(src.includes('let ascendDigs = 0'), 'the budget is per-rescue state (a fresh rescue restarts it)')
+})
+
+// (v0.127.0) THE HISTORY GUARD - run525 (35927155318) mined the poisoning:
+// F14/F11/F15 died of drown with ZERO water lines. All three were respawned
+// clients whose air metadata reads ~0 on dry land; the sentry pushed every
+// in-domain read into the falling-bar history, so when the real drain started
+// the history's tail led with those 0s and airBarFalling's first-last read
+// NEGATIVE - the one lane built for the stale-dry-blocks flood never fired,
+// and the streak lane sat behind its laddered cap (40 fresh reads). The guard
+// keeps the glitch page out of the trend: a critical-on-DRY read is the liar
+// ladder's evidence, never a slope.
+test('historyAdmissible: the glitch page never enters the falling-bar history', () => {
+  // the glitch page: critical on dry - no trend information, never enters
+  assert.equal(historyAdmissible(0, 'dry'), false)
+  assert.equal(historyAdmissible(2, 'dry'), false)
+  assert.equal(historyAdmissible(4, 'dry'), false, 'the critical boundary itself is a page')
+  // a critical read on wet/unknown contact is a REAL drain's slope - it enters
+  assert.equal(historyAdmissible(0, 'wet'), true)
+  assert.equal(historyAdmissible(2, 'unknown'), true)
+  // above-critical reads always enter (any trust) - they are honest trend data
+  assert.equal(historyAdmissible(20, 'dry'), true)
+  assert.equal(historyAdmissible(12, 'dry'), true)
+  assert.equal(historyAdmissible(5, 'dry'), true)
+  assert.equal(historyAdmissible(9, 'wet'), true)
+  // junk trust judges nothing - the read stays admissible (the domain gate still applies)
+  assert.equal(historyAdmissible(0, null), true)
+  assert.equal(historyAdmissible(0, undefined), true)
+  assert.equal(historyAdmissible(0, 'WET'), true, 'junk trust never reads as dry')
+  // the domain gate holds (the -1 reset sentinel, NaN, +-Infinity)
+  assert.equal(historyAdmissible(-1, 'wet'), false)
+  assert.equal(historyAdmissible(NaN, 'wet'), false)
+  assert.equal(historyAdmissible(Infinity, 'wet'), false)
+  assert.equal(historyAdmissible(-0.5, 'unknown'), false)
+  // a junk critical option reads the default (4)
+  assert.equal(historyAdmissible(4, 'dry', { critical: NaN }), false)
+  assert.equal(historyAdmissible(5, 'dry', { critical: NaN }), true)
+})
+
+test('the run525 poisoning shape: the guard un-poisons the falling lane end to end', () => {
+  // the old shape: glitch 0s (on dry) fill the history, the drain starts,
+  // airBarFalling reads first(0) - last(8) NEGATIVE - dead silent.
+  const glitchReads = [0, 0, 0, 0, 0, 0]
+  const drainReads = [20, 14, 8]
+  const raw = [...glitchReads, ...drainReads]
+  assert.equal(airBarFalling(raw), false, 'the poisoned history never trends (the run525 shape)')
+  // the guard: the glitch reads never entered (dry + critical), the refill and
+  // the above-critical drain did (dry + >4) - the tail is a pure countdown.
+  const guarded = raw.filter((o2, i) => historyAdmissible(o2, i < glitchReads.length ? 'dry' : 'dry' === 'dry' && o2 <= 4 ? 'dry' : 'dry'))
+  assert.deepEqual(guarded, drainReads, 'only the above-critical drain readings survive the guard')
+  assert.equal(airBarFalling(guarded), true, 'the falling lane fires on the guarded history')
+  // the stale-dry-blocks flood (run104 F3 class): the head cell reads air the
+  // whole way down, so every read is on DRY contact - the drain still trends
+  // through its above-critical readings and pages at o2 <= RESCUE_LEVEL.
+  const staleFlood = [20, 16, 12, 9].filter(o2 => historyAdmissible(o2, 'dry'))
+  assert.deepEqual(staleFlood, [20, 16, 12, 9])
+  assert.equal(airBarFalling(staleFlood), true)
+  assert.equal(9 <= OXYGEN_RESCUE_LEVEL, true, 'the verdict fires the moment the falling lane and the rescue level meet')
+})
+
+test('the history guard wiring: the sentry pushes through historyAdmissible with one shared trust read', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('historyAdmissible(o2Now, contactTrust)'), 'the push reads the guard')
+  assert.ok(src.includes('O2_HISTORY_CAP) o2History.shift()'), 'the cap rides the export (guard + cap ship together)')
+  assert.ok(src.includes('const contactTrust = airBarTrust(read)'), 'the trust is read once per tick')
+  assert.ok(src.includes('criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && contactTrust'), 'the streak reuses the same verdict (one read, one truth)')
+  assert.ok(!src.includes('if (oxygenInDomain(o2Now)) { o2History.push'), 'the old unguarded push is gone')
 })
