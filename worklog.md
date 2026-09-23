@@ -2343,3 +2343,15 @@ Stage Summary:
 - EXPECTATIONS run103: F3-class chronic liars cost ONE no-op rescue per ladder rung instead of one per ~25s ('liar ladder ratchets - confirmed no-op glitch page #N' lines, overrides shrink from 11 toward the honest ladder count, frozen relogs shrink from 4); airGlitches may stay high (the sensor still lies) but the RESCUE churn is the metric; the queue-pressure arm keeps its early closes; NORMAL END holds; the witch ceiling stays unmeasured until witches engage.
 - OPEN FRONTS (evidence-ranked handoff): (a) fall/env x3 deaths (the new top death class - the final-climb/bridge wall); (b) iron=0 pickaxes (the 3-ingot craft walk, mobility-bound); (c) tool repair/replacement lane; (d) plan 1/31 regression (resource mix); (e) worldmap idle 25+ runs; (f) the witch potion-drop economy (needs witch engagements first).
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API).
+
+---
+Task ID: 398294-20260924-0053 (dispatch record)
+Agent: Z.ai Code (cron session, 00:53 +08)
+Task: the run103 dispatch record.
+
+Work Log:
+- The push-CI on e74c9dd (v0.117.0) = SUCCESS (run 35894476795). The fleet dispatch fired as the ABSOLUTE LAST action: run103 = 35895546754 (workflow_dispatch run_fleet=true, fleet_seconds=600) POSTed at 17:25:55Z, confirmed in_progress on e74c9dd. This record line pushes ONLY after the in_progress status (the 17:53-proven shape).
+
+Stage Summary:
+- run103 = the first fleet of v0.117.0 (the chronic-liar ladder). The next session mines it: 'liar ladder ratchets' lines wherever a chronic liar pages, glitch-class overrides shrink from run102's 11 toward the honest ladder count, F3-class frozen relogs shrink from 4, rescue churn down while airGlitches may stay high (the sensor still lies - the RESCUE churn is the metric), NORMAL END holds, the queue-pressure arm keeps its early closes.
+- Next free version = 0.118.0.
