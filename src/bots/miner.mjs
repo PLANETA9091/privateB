@@ -39,7 +39,7 @@ import {
   frozenReturnGate, frozenReturnBypass,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
-  airBarFalling
+  airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES
 } from '../lib/drowning.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches } from './tools.mjs'
@@ -1053,6 +1053,7 @@ export function createMiner ({
     const rescueReads = []
     const passPoints = [] // (v0.82.0) per-pass positions feed the frozen-physics detector
     let standingProbes = 0
+    let ascendDigs = 0 // (v0.125.0) the deep-pocket ascend ceiling-dig budget
     let passNo = 0
     let passLogAt = 0
     let passLogs = 0
@@ -1231,6 +1232,27 @@ export function createMiner ({
           }
         } else {
           bot.setControlState('jump', true) // submerged: ascending is everything
+          // (v0.125.0) THE DEEP-POCKET ASCEND: the jump is producing nothing
+          // (K flat passes on y) and the head is WET - a ceiling owns the
+          // pocket (run108 F7/F11: y=54.2 flat pass over pass while o2 fell
+          // 0 -> -1 - alive physics, no shore, no exit, dead bot). The human
+          // playbook: surface to the ceiling and dig up. A failed/absent/
+          // undiggable read keeps the jump-only shape byte for byte; the
+          // frozen detector still owns the true freeze and RESCUE_MAX_MS
+          // caps the lane.
+          if (ascendDigs < ASCEND_DIG_BUDGET && ascendStalled({ points: passPoints })) {
+            const cell = ceilingCell(bot.entity?.position)
+            const ceil = cell
+              ? (() => { try { return bot.blockAt(new Vec3(cell.x, cell.y, cell.z)) } catch { return null } })()
+              : null
+            if (ceil && ceil.diggable === true) {
+              ascendDigs++
+              try {
+                await withTimeout(bot.dig(ceil), 6000, 'ascend dig')
+                log(`${tag} water: deep-pocket ascend - dug the ceiling ${ceil.name} at [${cell.x},${cell.y},${cell.z}] (jump stalled ${ASCEND_STALL_PASSES}+ passes, o2 ${read.oxygen})`)
+              } catch { /* the dig lost the race: the jump-only shape carries on */ }
+            }
+          }
           await settle(5)
         }
       }

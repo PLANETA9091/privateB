@@ -1048,6 +1048,92 @@ export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FR
 }
 
 // ---------------------------------------------------------------------------
+// (v0.125.0) THE DEEP-POCKET ASCEND - the ceiling class the jump-only lane
+// cannot own.
+//
+// MEASURED (run108, dispatch 35919773515, the v0.123.0 fleet): F7 and F11
+// died the run104 F10 shape exactly - the rescue START already at o2=0 (the
+// glitch bar hid the real drain until it was gone), 'shore=none', and the
+// submerged branch's jump+settle produced ZERO y movement pass over pass
+// (F7: pass 0 y=54.2 -> pass 7 y=54.2 flat while o2 fell 0 -> -1): a
+// CEILING owned the pocket. The o2 kept FALLING, so the physics were alive
+// - physicsFrozen must never condemn this bot (and did not: the frozen
+// verdict needs 10 flat passes, the drown clock outran it). The human
+// playbook in a flooded cave is what the lane was missing: surface to the
+// ceiling and DIG UP.
+//
+// ascendStalled is the pure stall question (y flat for K passes = the jump
+// is producing nothing); ceilingCell is the pure ceiling answer (the block
+// ABOVE the head: the bot occupies floor(y) and floor(y)+1, the head is the
+// +1 cell and it reads water - the ceiling is floor(y)+2). The miner's
+// submerged branch asks both: stalled + a diggable ceiling block = dig,
+// rise through our own hole; a failed/absent/undiggable read falls back to
+// the jump-only shape byte for byte. The frozen detector still owns the
+// true freeze (a dead client never digs either) and RESCUE_MAX_MS caps the
+// whole lane - the dig can never extend the budget, only spend it better.
+
+/** Flat-pass count before the submerged lane tries the ceiling dig. */
+export const ASCEND_STALL_PASSES = 4
+/** Per-pass y movement below which a submerged pass counts as stalled (blocks). */
+export const ASCEND_STALL_EPS = 0.15
+/** Ceiling digs one rescue may attempt (a thick roof climbs one block per
+ * pass; the budget stops a tunnel-dig from eating the whole 25s). */
+export const ASCEND_DIG_BUDGET = 8
+
+/**
+ * Did the bot's y FLATTEN across the last `minPasses` submerged passes
+ * (pure)? Run108's F7 held y=54.2 through 7+ jump passes with the o2 bar
+ * falling - the jump was producing nothing. Unlike physicsFrozen (all axes,
+ * 10 passes, condemns the client), this watches ONLY y: a bot swimming
+ * sideways along a ceiling is as stuck for the ascend as a frozen one, and
+ * the K is deliberately below the frozen window so the dig gets its chance
+ * before the stand-down. Junk never stalls: a null/short/NaN reading is a
+ * LOST reading, not a stalled one (the Number(null) lesson - fifth strike).
+ *
+ * @param {object} [p]
+ * @param {Array<{x:number,y:number,z:number}>|null} [p.points] per-pass positions, oldest first
+ * @param {number} [p.minPasses] flat passes required (default ASCEND_STALL_PASSES)
+ * @param {number} [p.epsilon] per-pass y movement floor (default ASCEND_STALL_EPS)
+ * @returns {boolean} true -> the ascend is stalled, try the ceiling
+ */
+export function ascendStalled ({ points = null, minPasses = ASCEND_STALL_PASSES, epsilon = ASCEND_STALL_EPS } = {}) {
+  const k = Number.isFinite(minPasses) && minPasses > 1 ? Math.floor(minPasses) : ASCEND_STALL_PASSES
+  const e = Number.isFinite(epsilon) && epsilon >= 0 ? epsilon : ASCEND_STALL_EPS
+  if (!Array.isArray(points) || points.length < k + 1) return false
+  const tail = points.slice(-(k + 1))
+  for (let i = 1; i < tail.length; i++) {
+    const prev = tail[i - 1]
+    const cur = tail[i]
+    if (prev == null || cur == null || typeof prev !== 'object' || typeof cur !== 'object') return false
+    if (prev.y == null || cur.y == null) return false
+    const py = Number(prev.y)
+    const cy = Number(cur.y)
+    if (!Number.isFinite(py) || !Number.isFinite(cy)) return false
+    if (Math.abs(cy - py) >= e) return false
+  }
+  return true
+}
+
+/**
+ * The cell ABOVE the head (pure). The bot's entity position is its feet: it
+ * occupies floor(y) and floor(y)+1; with the head cell reading WATER (the
+ * lane only calls this submerged) the first solid above is floor(y)+2.
+ * Junk positions read null - the caller keeps the jump-only shape.
+ *
+ * @param {{x:number,y:number,z:number}|null} [pos] entity feet position
+ * @returns {{x:number,y:number,z:number}|null} the ceiling cell, or null
+ */
+export function ceilingCell (pos) {
+  if (!pos || typeof pos !== 'object') return null
+  if (pos.x == null || pos.y == null || pos.z == null) return null
+  const x = Number(pos.x)
+  const y = Number(pos.y)
+  const z = Number(pos.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
+  return { x: Math.floor(x), y: Math.floor(y) + 2, z: Math.floor(z) }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.87.0) THE FROZEN-CLIENT RELOG - the stand-down needs a floor.
 //
 // MEASURED (run79, dispatch 35766110886 on c59d9f3): F8 burned 93 stand-downs

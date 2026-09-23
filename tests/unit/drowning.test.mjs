@@ -27,7 +27,8 @@ import {
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
   glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
-  frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS
+  frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
+  ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -1244,4 +1245,76 @@ test('waterVerdict: the falling-bar lane pages a real drain through dry block re
   assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: 'junk' }), 'none')
   assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: [-1, -1, -1] }), 'none',
     'a history of reset sentinels is not drain evidence')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.125.0) THE DEEP-POCKET ASCEND - run108 (35919773515) F7/F11: the
+// submerged lane's jump+settle produced ZERO y movement (y=54.2 flat pass
+// over pass, o2 falling 0 -> -1) under a CEILING - alive physics, no shore,
+// no exit, dead bot (the run104 F10 shape). The lane gains the human
+// playbook: surface to the ceiling and dig up. The pure pair: ascendStalled
+// (the stall question) + ceilingCell (the ceiling answer).
+
+test('ascendStalled: the flat-y question (the run108 F7 pin)', () => {
+  // rising = never stalled (the lane keeps its jump-only shape)
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 50, z: 0 }, { x: 0, y: 50.3, z: 0 }, { x: 0, y: 50.6, z: 0 }, { x: 0, y: 51.0, z: 0 }, { x: 0, y: 51.4, z: 0 }] }), false,
+    'a live ascent is not a stall')
+  // the run108 shape: y flat across 4+ passes = stalled
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.2, z: 0 }] }), true,
+    'the F7 ceiling shape reads stalled')
+  // sideways along the ceiling (x moves, y flat) is as stuck for the ascend
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54.2, z: 0 }, { x: 1, y: 54.2, z: 0 }, { x: 2, y: 54.2, z: 0 }, { x: 3, y: 54.2, z: 0 }, { x: 4, y: 54.2, z: 0 }] }), true,
+    'only y is watched: a ceiling crawl is a stall for the ascend')
+  // sinking slowly (|dy| < eps) is a stall too (the jump is not holding)
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54.1, z: 0 }, { x: 0, y: 54.0, z: 0 }, { x: 0, y: 53.9, z: 0 }, { x: 0, y: 53.8, z: 0 }, { x: 0, y: 53.7, z: 0 }] }), true,
+    'a sinking bot is as stalled as a flat one')
+  // a real jump bounce (|dy| >= eps) breaks the stall
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54.0, z: 0 }, { x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.0, z: 0 }, { x: 0, y: 54.2, z: 0 }, { x: 0, y: 54.0, z: 0 }] }), false,
+    'jump movement above the epsilon breaks the stall')
+  // short sequences never stall (the frozen family's junk philosophy)
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }] }), false)
+  assert.equal(ascendStalled({ points: [] }), false)
+  // junk never stalls (a LOST reading is not a stalled one - the Number(null) lesson)
+  assert.equal(ascendStalled({ points: null }), false)
+  assert.equal(ascendStalled({ points: 'junk' }), false)
+  assert.equal(ascendStalled({ points: 42 }), false)
+  assert.equal(ascendStalled({}), false)
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: null, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }] }), false,
+    'a missing y inside the window is a lost reading, not a stall')
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: NaN, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }, { x: 0, y: 54, z: 0 }] }), false)
+  // custom knobs honoured
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }], minPasses: 2 }), true)
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 1, z: 0 }, { x: 0, y: 1.2, z: 0 }, { x: 0, y: 1.4, z: 0 }], minPasses: 2 }), false,
+    'movement above the epsilon breaks the stall')
+  assert.equal(ascendStalled({ points: [{ x: 0, y: 1, z: 0 }, { x: 0, y: 1.04, z: 0 }, { x: 0, y: 1.08, z: 0 }], minPasses: 2, epsilon: 0.05 }), true,
+    'a bigger epsilon distinguishes drift from stall')
+})
+
+test('ceilingCell: the block above the head (the submerged lane calls it under water only)', () => {
+  // feet y=54.2: the bot occupies 54 and 55, the head cell reads water,
+  // the ceiling is 56 = floor(y)+2
+  assert.deepEqual(ceilingCell({ x: -137.4, y: 54.2, z: 427.9 }), { x: -138, y: 56, z: 427 },
+    'a negative position floors DOWN into its block (the -137.4 cell IS block -138)')
+  assert.deepEqual(ceilingCell({ x: 0, y: 0, z: 0 }), { x: 0, y: 2, z: 0 })
+  assert.deepEqual(ceilingCell({ x: 12, y: 45, z: -9 }), { x: 12, y: 47, z: -9 })
+  // junk positions read null - the caller keeps the jump-only shape
+  assert.equal(ceilingCell(null), null)
+  assert.equal(ceilingCell(undefined), null)
+  assert.equal(ceilingCell('junk'), null)
+  assert.equal(ceilingCell({}), null)
+  assert.equal(ceilingCell({ x: 1, y: null, z: 3 }), null, 'a missing coordinate is a lost read (the Number(null) lesson)')
+  assert.equal(ceilingCell({ x: NaN, y: 54, z: 3 }), null)
+  assert.equal(ceilingCell({ x: 1, y: Infinity, z: 3 }), null)
+})
+
+test('the deep-pocket ascend wiring: the submerged branch asks the stall, digs the ceiling, budgets the dig', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('ascendStalled({ points: passPoints })'), 'the submerged branch reads the pass history')
+  assert.ok(src.includes('ceilingCell(bot.entity?.position)'), 'the ceiling answer feeds blockAt')
+  assert.ok(src.includes('ascendDigs < ASCEND_DIG_BUDGET'), 'the dig is budgeted (a thick roof cannot eat the whole 25s)')
+  assert.ok(src.includes('ceil.diggable === true'), 'only explicitly diggable blocks are dug (junk/absent reads fall back)')
+  assert.ok(src.includes('deep-pocket ascend'), 'the lane names itself so the next mine can count the digs')
+  assert.ok(src.includes("'ascend dig'"), 'the dig rides the withTimeout fence (a lost race never hangs the rescue)')
+  assert.ok(src.includes('let ascendDigs = 0'), 'the budget is per-rescue state (a fresh rescue restarts it)')
 })
