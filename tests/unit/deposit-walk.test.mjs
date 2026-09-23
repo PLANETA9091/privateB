@@ -6,7 +6,7 @@
 // detours - and 'chest unreachable (water rescue in progress (walk to chest refused))'
 // - the fail-fast rescue gate burned the attempt while the bot was still swimming.
 import { test, beforeEach } from 'node:test'
-import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { depositToChest, chestWalkBudgetMs, CHEST_WALK_BASE_MS, CHEST_WALK_CAP_MS, CHEST_WALK_SHORT_MS, findChest } from '../../src/lib/deposit.mjs'
@@ -106,6 +106,39 @@ test('a water-rescue refusal waits out the window and retries ONCE', async () =>
   assert.equal(res.deposited, 5, 'the retry after the cleared rescue must bank')
   assert.equal(bot.gotoCalls.length, 2, 'exactly one retry - no open-ended loop')
   assert.ok(bot.closed)
+})
+
+// ------------------------------------------------------- (v0.101.0) the bank doomed-retry
+// run91 (35825270253): 13x 'pockets full budget 120s', banked=266 (a record
+// low) while mined 3078 @ 5.13 - the storm dooms the yard, walkRetryPlan
+// answers 'doomed-retry', and the deposit chain's switch let it FALL THROUGH
+// to give-up (its own v0.87.0 docstring admits it). The retry is now ONE
+// honest re-issue from THIS bot's start.
+test('a doomed-goal refusal on the bank walk gets ONE honest re-issue that banks (the run91 cure)', async () => {
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: ['ok'] })
+  recordDoomedGoal({ x: 30, y: 64, z: 30 }, Date.now()) // the storm's verdict on the yard cell
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 5, 'the honest re-issue banks the loot')
+  assert.equal(bot.gotoCalls.length, 1, 'attempt 1 died at the consult (no A* paid); attempt 2 walked')
+  assert.equal(doomedGoalStats().refusals, 1, 'exactly one consult refusal')
+  assert.ok(doomedGoalStats().rearms >= 1, 'the retry re-armed the consult')
+  assert.ok(bot.closed)
+})
+
+test('a doomed-refused re-issue that honestly fails stays bounded and records the chest', async () => {
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: [new Error('No path to the goal!')] })
+  recordDoomedGoal({ x: 30, y: 64, z: 30 }, Date.now())
+  const res = await depositToChest(bot)
+  assert.equal(res.deposited, 0)
+  assert.match(res.reason, /chest unreachable/)
+  // one honest re-issue PER VISIT: the main visit pays 1 goto; the mock's
+  // findBlock ignores the exclude list, so the v0.23.1 same-chest rescan may
+  // pay one more - the per-visit 2-attempt bound is what must hold
+  assert.ok(bot.gotoCalls.length >= 1 && bot.gotoCalls.length <= 2, `the honest re-issues stay bounded (got ${bot.gotoCalls.length})`)
+  assert.ok(doomedGoalStats().rearms >= 1)
+  assert.match(res.reason, /No path/, 'the honest walk\'s verdict names the geometry, not the ledger')
 })
 
 test('a rescue returning mid-retry still cannot loop the walk open-ended', async () => {

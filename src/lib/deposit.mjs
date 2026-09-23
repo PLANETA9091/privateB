@@ -858,7 +858,17 @@ export async function depositToChest (bot, {
   // next-column walks (fleet v0.19.2: path=6a/10q at final-bank time, banked=0).
   // (v0.27.0) each attempt re-clamps into the remaining wall clock - a retry may
   // not restart the full budget after the first attempt already ate most of it.
-  const walkOnce = async label => {
+  // (v0.101.0) THE BANK DOOMED-RETRY: run91 (35825270253) measured the bank
+  // chain dying at the doomed-goal consult - 13x 'pockets full budget 120s',
+  // 11x 'budget exhausted', banked=266 (a record low) while the fleet mined
+  // 3078 @ 5.13 b/s: the storm dooms the yard, walkRetryPlan answers a doomed
+  // refusal with 'doomed-retry', and the deposit chain's switch - as its own
+  // v0.87.0 docstring admits - let that action FALL THROUGH to give-up. The
+  // rearm flag threads into walkOnce's gotoSafe: the retry is ONE honest
+  // re-issue from THIS bot's start (the v0.87.0 semantics, finally wired for
+  // the walks that turn mined blocks into banked stock). A failed honest walk
+  // still records the dead geometry (the ledger stays truthful).
+  const walkOnce = async (label, { rearm = false } = {}) => {
     let ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
     if (ms <= 0) throw new Error('budget exhausted (walk floor)')
     // (v0.56.0) THE APPROACH SEGMENT - the run51 F17 cure. F17 surfaced d=33..43
@@ -918,7 +928,7 @@ export async function depositToChest (bot, {
     // FALLBACK: the raw walk owns the flat platform, the pathfinder owns
     // whatever a straight line cannot cross.
     return withHopPathfinder(bot, () =>
-      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK }))
+      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK, doomedRearm: rearm }))
   }
   // (v0.46.0) THE PROXIMITY FAST-PATH (their 19:53 sketch item 1): a bot that
   // ALREADY stands within reach of the chest must not spend a pathfinder hop
@@ -964,9 +974,10 @@ export async function depositToChest (bot, {
   //     walk, not on real distance); still bounded: max 2 walks x 60s cap
   //   everything else (no path, ...) -> give up, the geometry is real
   let lastError = null
+  let rearm = false // (v0.101.0) the doomed-retry's one honest re-issue
   for (let attempt = 1; attempt <= 2 && !walked; attempt++) {
     try {
-      await walkOnce(attempt === 1 ? 'walk to chest' : 'walk to chest (retry)')
+      await walkOnce(attempt === 1 ? 'walk to chest' : 'walk to chest (retry)', { rearm })
       walked = true
     } catch (e) {
       lastError = e
@@ -977,6 +988,11 @@ export async function depositToChest (bot, {
         continue
       }
       if (plan.action === 'immediate' || plan.action === 'timeout-retry') continue
+      // (v0.101.0) THE BANK DOOMED-RETRY: the doomed verdict is another bot's
+      // start geometry (run91: the storm-doomed yard starved every bank walk
+      // at the consult). One honest re-issue with doomedRearm - the loop's
+      // own 2-attempt bound keeps the spiral breaker's teeth.
+      if (plan.action === 'doomed-retry') { rearm = true; continue }
       break // give-up: real geometry or the attempt budget is spent
     }
   }
@@ -1078,6 +1094,7 @@ export async function depositToChest (bot, {
   let moved0Skips = 0
   let directMoves = 0
   let directFalls = 0
+  let titheLogs = 0 // (v0.101.0) the tithe's bounded self-naming (first 2 + a count line)
   // (v0.72.0) THE SLOT-DIRECT CURE: the probe (run e0fbe24/32131a4, job
   // 106670204727) finally named the banked=0 wall of ~130 fleets. Transport
   // (the raw window_items packet) MATCHED the server truth exactly, the
@@ -1133,8 +1150,16 @@ export async function depositToChest (bot, {
           continue
         }
         const titheMoved = titheBefore - countOf(item.name)
-        if (titheMoved > 0) deposited += titheMoved
-        else moved0Skips++
+        if (titheMoved > 0) {
+          deposited += titheMoved
+          // (v0.101.0) THE TITHE OBSERVABILITY: run91 mined fine but never
+          // reached a deposit, and the tithe had no line of its own - a cure
+          // nobody can mine. The first 2 firings name themselves; the rest ride
+          // the banked total.
+          if (titheLogs < 2) log(`${tag} fuel tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FUEL_TITHE_BOUND})`)
+          else if (titheLogs === 2) log(`${tag} fuel tithe: more firings ride the banked total`)
+          titheLogs++
+        } else moved0Skips++
         continue
       }
       // VERIFIED TRANSFER (the 26.2 stack silently drops some window clicks): the only

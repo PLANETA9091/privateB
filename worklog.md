@@ -2042,3 +2042,21 @@ Stage Summary:
 - EXPECTATIONS run91: the tithe fires ('tithe' deposit lines / coal reaching the yard chests) -> the commons starts finding fuel ('took N units' lines) -> 'no fuel' zeros shrink; the yard-adjacent re-arm's first measurement ('yard-adjacent' lines, the F17/F4 all-machines-doomed zeros shrink); NORMAL END x4; the iron ladder (raw_iron@blast_furnace walks now doubly funded: fuel + honest walks).
 - OPEN FRONTS: the mob deaths (creeper/drowned-mob); fall/env x1 per run (the vein fence holds but not at zero); the worldmap lane (idle 16+ runs); plan progress 2/31 (slow); the final-climb wall.
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API). NO PUSHES after it.
+
+---
+Task ID: 398294-20260923-1453
+Agent: Z.ai Code (cron session, 14:53 +08)
+Task: mine run91 (the first fleet of v0.100.0 - the fuel tithe + the yard-adjacent re-arm's first measurement); ship the cure the evidence names; push; dispatch.
+
+Work Log:
+- Sandbox died - re-cloned to fcf15ad. run91 (35825270253, the full CI on the v0.100.0 tree) SUCCESS: unit + integration + fleet all green - the check-syntax red era is over.
+- RUN91 MINED (artifact via the fixed miner): NORMAL END x4, alive 19/19, mined 3078 @ 5.13 b/s, coal_ore=292 (a rich coal world). BUT banked=266 (a RECORD LOW; was 1237/2172), smelted=7, conversion=52.8%, unaccounted=1454. Deaths 12 (zombie x6 - the night storm, fall/env x2, drowned-mob x2, enderman x2) - and 12 deaths x ~120u pocket drops = the unaccounted ledger DECODED (death despawns; a reporting gap, not a new loot leak).
+- THE CURES' FIELD REPORT: 'no fuel' = 0 and 'fuel commons' asks = 0 (the fuel-less class is GONE - bots keep their 6 and their legs burned it); 'yard-adjacent' fired 2x; the tithe NEVER FIRED - and honestly: it had no log line AND no deposit reached a chest all run (only 4 'direct deposit' lines vs run89's 27+).
+- THE REAL FRONT NAMED (the bank chain collapse): 13x 'bank: pockets full budget 120s', 11x 'bank: none (budget exhausted)', 7x 'chest unreachable (budget exhausted (walk floor))', banked=266 while mined 3078 - the storm-doomed yard (280 recorded, 995 re-issues refused at the funnel) starved the BANK walks, and the deposit chain's own v0.87.0 docstring admits the gap: walkRetryPlan's 'doomed-retry' action was UNKNOWN to the chain's switch and fell through to give-up.
+- SHIPPED THE BANK DOOMED-RETRY (v0.101.0): the deposit chain's retry loop now handles 'doomed-retry' - ONE honest re-issue from THIS bot's start (rearm threads into walkOnce's gotoSafe), the 2-attempt bound keeps the spiral breaker's teeth, a failed honest walk still records the dead geometry. +2 walk test blocks (the re-issue banks; the honest failure stays bounded and names the geometry). ALSO the tithe observability: bounded self-naming lines (first 2 firings + a count line) - a cure nobody can mine is a bug of its own. deposit-walk 19/19, full unit 75/75 files green locally (pure node --test only); check-syntax 175/0.
+
+Stage Summary:
+- Master: v0.101.0 (the bank doomed-retry + the tithe observability on top of v0.100.0). Next free version = 0.102.0.
+- EXPECTATIONS run92: 'doomed-retry' bank walks that bank ('fuel tithe: banked N x coal' lines when deposits finally land); banked recovers toward 1200+; conversion back toward 100%; NORMAL END x5. The night storm (zombie x6) and the wet world (rescues=338) remain the rate eaters.
+- OPEN FRONTS: (a) the mob storm - 6 zombie kills in one run, shelters=2 (the shelter builder still underused); (b) the death-drop ledger (12 deaths -> unaccounted=1454 - the loot ledger should name death losses); (c) the worldmap lane (idle 17+ runs); (d) 'no machine in reach' x2 (F5: no furnace within 48b - a world-layout artifact worth a camp-furnace build rule look); (e) the final-climb wall.
+- The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API). NO PUSHES after it.
