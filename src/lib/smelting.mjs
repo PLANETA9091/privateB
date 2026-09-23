@@ -294,6 +294,20 @@ export function fuelNeeded (fuelName, itemCount) {
   return Math.ceil(itemCount / yieldPer)
 }
 
+// (v0.109.0) COMPLETE items a fuel plan can produce. Vanilla yields are the truth
+// (FUEL_YIELD; a fractional tail never finishes an item - a stick burns 0.5 of
+// one smelt, so ONE stick completes ZERO items). Junk-safe: a nameless/unknown
+// fuel, a non-finite or sub-1 count all read as capacity 0 - a plan that cannot
+// complete one item is not a fuel plan (the ONE-ITEM FLOOR below).
+export function fuelCapacity (fuel) {
+  if (!fuel || typeof fuel.name !== 'string' || !Number.isFinite(fuel.count)) return 0
+  const n = Math.floor(fuel.count)
+  if (n < 1) return 0
+  const y = fuelYieldOf(fuel.name)
+  if (!(y > 0)) return 0
+  return Math.floor(n * y)
+}
+
 const inventoryItems = bot => bot.inventory.items()
 export const countItem = (bot, name) => inventoryItems(bot).filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
 const countMatching = (bot, re) => inventoryItems(bot).filter(i => re.test(i.name)).reduce((a, i) => a + i.count, 0)
@@ -323,24 +337,33 @@ const largestStack = (bot, pred) => inventoryItems(bot).filter(pred).sort((a, b)
 // chain closes: junk windows stop eating the coal -> coal survives to the next
 // deposit -> the tithe/bank lands it in chests -> the commons finally has a
 // supply for the F13s.
+//
+// (v0.109.0, the fuel-aware batch line) THE ONE-ITEM FLOOR wraps EVERY branch:
+// a plan that cannot COMPLETE one item (the clipped { stick, 1 } spare - yield
+// 0.5) is not a fuel plan. It reads as NO fuel: the ladder falls through to the
+// next candidate class, and the smeltInventory gate asks the fuel commons
+// BEFORE any machine walk (run108's F13 needed exactly that - the fleet held
+// surplus coal that day). The smeltBatch that follows never exceeds the plan's
+// real capacity (fuelCapacity + the batch clamp).
 export function pickFuel (bot, { itemsNeeded = 1, reservePlanks = 8, reserveLogs = 6, reserveSticks = 2, metalWindow = false } = {}) {
+  const usable = plan => (fuelCapacity(plan) >= 1 ? plan : null)
   const woodPick = () => {
     const plankTotal = countMatching(bot, /_planks$/)
     if (plankTotal > reservePlanks) {
       const spare = plankTotal - reservePlanks
       const stack = largestStack(bot, i => i.name.endsWith(PLANK_SUFFIX))
-      return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
+      return usable({ name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) })
     }
     const logTotal = countMatching(bot, LOG_RE)
     if (logTotal > reserveLogs) {
       const spare = logTotal - reserveLogs
       const stack = largestStack(bot, i => LOG_RE.test(i.name))
-      return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
+      return usable({ name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) })
     }
     const sticks = countItem(bot, 'stick')
     if (sticks > reserveSticks) {
       const spare = sticks - reserveSticks
-      return { name: 'stick', count: Math.min(spare, fuelNeeded('stick', itemsNeeded)) }
+      return usable({ name: 'stick', count: Math.min(spare, fuelNeeded('stick', itemsNeeded)) })
     }
     return null
   }
@@ -351,7 +374,7 @@ export function pickFuel (bot, { itemsNeeded = 1, reservePlanks = 8, reserveLogs
       .sort((a, b) => b.count - a.count)
     if (!solid.length) return null
     const f = solid[0]
-    return { name: f.name, count: Math.min(f.count, fuelNeeded(f.name, itemsNeeded)) }
+    return usable({ name: f.name, count: Math.min(f.count, fuelNeeded(f.name, itemsNeeded)) })
   }
   // junk window: wood first, coal last (the v0.109.0 reorder); metal window:
   // the legacy coal-first order stands byte for byte. STRICT true: only the
@@ -581,8 +604,20 @@ export async function smeltBatch (bot, {
     // legacy coal-first order (the ladder), junk inputs burn spare wood first (the
     // run97 misallocation: junk windows ate the pocket coal below the tithe bound
     // before any chest contact, the metal windows got sticks)
-    const fuel = pickFuel(bot, { itemsNeeded: Math.min(count, invCount(inputName)), metalWindow: METAL_INPUTS.has(inputName), ...(fuelReserve ?? {}) })
+    const batch0 = Math.min(count, invCount(inputName))
+    const fuel = pickFuel(bot, { itemsNeeded: batch0, metalWindow: METAL_INPUTS.has(inputName), ...(fuelReserve ?? {}) })
     if (!fuel) return { smelted, rescued, reason: 'no fuel' }
+    // (v0.109.0) THE FUEL-AWARE BATCH: the batch never exceeds what the fuel
+    // plan actually COMPLETES. pickFuel's ONE-ITEM FLOOR already refuses
+    // capacity-0 plans (the commons resupply fires upstream, before any walk);
+    // this clamp is the second belt for the clipped-but-completing plans
+    // (2 spare planks = 3 complete items - the honest partial beats the
+    // guaranteed zero, and the uncovered remainder re-smelts on the next chain
+    // exactly like the putCount slot clip already does).
+    const fuelCap = fuelCapacity(fuel)
+    if (fuelCap < 1) return { smelted, rescued, reason: 'no fuel' }
+    if (fuelCap < batch0) log(`${tag} fuel clips the batch: ${fuel.count} x ${fuel.name} completes ${fuelCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
+    const batch = Math.min(batch0, fuelCap)
 
     // VERIFIED input+fuel transfer: retry, then give up (the window is desynced).
     // Counted on the LIVE rows: putInput's click promises resolve on the client-side
@@ -608,7 +643,6 @@ export async function smeltBatch (bot, {
       return false
     }
 
-    const batch = Math.min(count, invCount(inputName))
     // (v0.92.0) the put never asks for more than one slot absorbs (run82: a 93-cobble
     // batch threw 'destination full' and the poll still waited on an empty output)
     const putCount = furnacePutCount(batch)

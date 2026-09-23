@@ -457,7 +457,12 @@ async function runBot (name, target, index) {
           // matched 'hop failed', so the artifact showed ONLY the pathfinder
           // results and the walk diagnostics were mined from nothing. 'approach'
           // brings the v0.56.0 segment walk's lines to the same visibility.
-          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit/.test(m)) console.log(`${name} ${m}`)
+          // (v0.109.0) 'torch|craft|smelt|fuel' joins: run94's mine lost an hour
+          // because 'craft torches' matched NOTHING (torched=0 while F11 carried
+          // 12), and run108's iron-pickaxe watch needs the smelt/fuel verdicts
+          // ('fuel clips the batch', 'smelt: 0 (...)' was only visible by luck).
+          // Shelter lines already ride 'combat'. 
+          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })

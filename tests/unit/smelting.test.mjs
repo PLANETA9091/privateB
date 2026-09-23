@@ -12,6 +12,7 @@ import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats } from '../../
 import { KEEP } from '../../src/lib/deposit.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
+  fuelCapacity,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
@@ -347,7 +348,14 @@ test('findMachineBlocks filters by kind, sorts by distance, returns real blocks'
 // ---------------------------------------------------------------- smeltBatch
 test('smeltBatch happy path: verified input, fuel and output', async () => {
   const furnace = new MockFurnace({})
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 10), item('coal', 1), item('stick', 4)] })
+  // Collision #40 merge (both v0.109.0 lines): the pocket wood is 16 planks, not
+  // 4 sticks - the wood-first junk pick takes the spare planks (spare 8 above the
+  // reserve) whose REAL vanilla capacity (floor(6 x 1.5) = 9) covers the whole
+  // 8-batch, so the machinery test stays full-size AND vanilla-honest. The old
+  // stick pocket would now honestly clamp to 1 (2 sticks complete ONE item - the
+  // exact F13 class the fuel-aware batch cures; the mock is coal-quantized and
+  // would have pretended 8).
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 10), item('coal', 1), item('oak_planks', 16)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 8, ...FAST })
   assert.equal(res.smelted, 8)
   assert.equal(res.reason, 'ok')
@@ -356,10 +364,10 @@ test('smeltBatch happy path: verified input, fuel and output', async () => {
   assert.equal(counts('glass'), 8, 'output must be IN the inventory (verified)')
   assert.equal(counts('sand'), 2, 'only the batch left the inventory')
   // (v0.109.0) the JUNK-window wood-first pick: sand is not a metal, so the
-  // fuel pick chose the spare sticks (woodPick first) and the COAL SURVIVES for
+  // fuel pick chose the spare planks (woodPick first) and the COAL SURVIVES for
   // the metal windows and the tithe/bank chain (the run97 F13 cure). The mock
   // is coal-quantized (fuelUnitsPer=8) and pulls the whole leftover fuel stack
-  // back at the end, so the sticks read 4 again - the observable here is the
+  // back at the end, so the planks read 16 again - the observable here is the
   // COAL that never left the pocket (the legacy order would have consumed it 0).
   assert.equal(counts('coal'), 1, 'coal survived - the junk window must not eat it')
 })
@@ -925,4 +933,78 @@ test('smeltBatch: a completed batch pulls the leftover fuel back (the machine re
   assert.equal(res.reason, 'ok')
   assert.equal(f.slots[1], null, 'the unburnable leftover fuel left the slot - no busy-wall for the next visitor')
   assert.ok(bot._items.some(i => i.name === 'coal' && i.count >= 1), 'the leftover coal rides the pocket again')
+})
+
+// ------------------------------------------------------------ fuel-aware batch
+// run108 (35853190562): F13 put 6 x raw_iron into a blast_furnace with
+// 'fuel: 1 x stick' - a guaranteed zero (yield 0.5) that burned the whole visit
+// budget on a timeout, and the fleet ended iron_pickaxe=0 on 2 total ingots
+// while 41 iron_ore rode pockets.
+
+test('fuelCapacity: complete items a plan can produce, junk-safe', () => {
+  assert.equal(fuelCapacity({ name: 'coal', count: 1 }), 8)
+  assert.equal(fuelCapacity({ name: 'oak_planks', count: 3 }), 4, '4.5 floors to 4')
+  assert.equal(fuelCapacity({ name: 'stick', count: 1 }), 0, '0.5 completes nothing')
+  assert.equal(fuelCapacity({ name: 'stick', count: 2 }), 1)
+  assert.equal(fuelCapacity({ name: 'stick', count: 5 }), 2, '2.5 floors to 2')
+  assert.equal(fuelCapacity({ name: 'unobtainium', count: 9 }), 0, 'unknown fuel')
+  assert.equal(fuelCapacity(null), 0)
+  assert.equal(fuelCapacity(undefined), 0)
+  assert.equal(fuelCapacity({ name: 'coal', count: NaN }), 0)
+  assert.equal(fuelCapacity({ name: 'coal', count: 0 }), 0)
+  assert.equal(fuelCapacity({ name: 'coal', count: 0.5 }), 0)
+  assert.equal(fuelCapacity({ count: 5 }), 0, 'nameless fuel')
+})
+
+test('pickFuel ONE-ITEM FLOOR: a capacity-0 plan is not a fuel plan (run108 F13)', () => {
+  // 3 sticks = spare 1 over the reserve -> the old shape returned { stick, 1 }
+  // (a guaranteed zero); null now, so the commons resupply is asked BEFORE any
+  // machine walk.
+  const bot = makeMockBot({ items: [item('stick', 3)] })
+  assert.equal(pickFuel(bot, { itemsNeeded: 6 }), null, 'the exact run108 F13 pocket')
+  assert.equal(pickFuel(bot, { itemsNeeded: 1 }), null, 'even one item cannot complete')
+  const bot4 = makeMockBot({ items: [item('stick', 4)] })
+  assert.deepEqual(pickFuel(bot4, { itemsNeeded: 1 }), { name: 'stick', count: 2 }, '2 sticks complete 1 item')
+  const botPlanks = makeMockBot({ items: [item('oak_planks', 10)] })
+  assert.deepEqual(pickFuel(botPlanks, { itemsNeeded: 6 }), { name: 'oak_planks', count: 2 }, 'the clipped-but-completing plank shape stands (cap 3)')
+  const botCoal = makeMockBot({ items: [item('coal', 1), item('sand', 6)] })
+  assert.deepEqual(pickFuel(botCoal, { itemsNeeded: 6 }), { name: 'coal', count: 1 }, 'one coal covers 8 - the legacy solid shape byte for byte')
+})
+
+test('smeltBatch: the fuel clips the batch to what actually completes', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('oak_planks', 10)] })
+  const lines = []
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 6, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 3, '2 spare planks complete exactly 3 items')
+  assert.equal(res.reason, 'ok')
+  assert.ok(!furnace.inputItem(), 'the clipped batch fully consumed (the clip shows in the pocket remainder, not the slot)')
+  assert.ok(lines.some(l => /fuel clips the batch: 2 x oak_planks completes 3 of 6 x sand/.test(l)), 'the mine reads the clip from the log')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('sand'), 3, 'the uncovered remainder stayed in the pocket')
+  assert.equal(counts('glass'), 3)
+})
+
+test('smeltBatch: a stick-only pocket is an honest no-fuel verdict, nothing enters the machine', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('stick', 3)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 6, ...FAST })
+  assert.equal(res.smelted, 0)
+  assert.equal(res.reason, 'no fuel')
+  assert.ok(!furnace.inputItem() && !furnace.fuelItem(), 'the machine slots stay clean')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('sand'), 6, 'the ore stays for the next funded chain')
+})
+
+test('smeltInventory: a starved pocket asks the commons and the withdrawn coal smelts (run108 F13 cure)', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('stick', 3)] })
+  const asks = []
+  const res = await smeltInventory(bot, {
+    ...FAST,
+    fuelResupply: ({ itemsNeeded }) => { asks.push(itemsNeeded); bot._items.push(item('coal', 1)) }
+  })
+  assert.deepEqual(asks, [6], 'the starved gate asked with the live plan count, before any walk')
+  assert.equal(res.smelted, 6, 'the withdrawn coal covers the whole batch')
+  assert.ok(!res.attempts.some(a => a.reason === 'no fuel'), 'no false verdict')
 })
