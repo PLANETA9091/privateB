@@ -38,7 +38,8 @@ import {
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   frozenReturnGate, frozenReturnBypass,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
-  STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
+  STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
+  airBarFalling
 } from '../lib/drowning.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches } from './tools.mjs'
@@ -1352,6 +1353,13 @@ export function createMiner ({
     }
   }
 
+  // (v0.119.0) THE FALLING-BAR HISTORY: the recent in-domain oxygen readings
+  // (oldest first, junk/-1 sentinel never pushed). The verdict's falling-bar
+  // lane judges the TREND - a genuinely draining bar (fresh flood through a
+  // dig, the head cell still reading stale air) pages the rescue from the
+  // rescue level down, instead of waiting for the critical ladder that run104
+  // proved arrives with no shore left to swim to.
+  const o2History = []
   const drownTimer = setInterval(() => {
     try {
       // (v0.17.0) bot._climbEscape: the wet-escape traverse owns the controls -
@@ -1363,6 +1371,11 @@ export function createMiner ({
       const read = waterRead()
       const headWet = isWaterName(read.head)
       if (headWet) { if (!headWetSince) headWetSince = now } else headWetSince = 0
+      // (v0.119.0) feed the falling-bar history - in-domain readings only
+      // (the -1 reset sentinel and NaN never enter; the verdict's trend lane
+      // needs an honest tail). Capped so the window stays recent.
+      const o2Now = bot.oxygenLevel
+      if (oxygenInDomain(o2Now)) { o2History.push(o2Now); if (o2History.length > 12) o2History.shift() }
       // (v0.16.0) the 26.2 oxygen sensor can read ~0 on dry land - fleet #120
       // measured 140 rescue starts with zero real drownings, every one of them
       // cancelling a walk goal the work loop had just issued. A critical bar on
@@ -1404,7 +1417,7 @@ export function createMiner ({
       } else {
         dryGlitchStreak = 0
       }
-      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed) })
+      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
       if (verdict === 'drowning') {
         // (v0.104.0) THE DRY-LAND BACKOFF - the glitch class only. A bot the
         // dry-land proof just cleared re-fires its critical-on-dry page

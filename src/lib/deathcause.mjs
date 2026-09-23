@@ -30,6 +30,10 @@ const KINDS = [
   { re: /\btried to swim in lava\b/, kind: 'lava' },
   { re: /\bdiscovered (the floor was|that the floor was) lava\b/, kind: 'lava' },
   { re: /\bblew up\b/, kind: 'explosion' },
+  // (v0.119.0) the passive form the server actually broadcasts for a creeper
+  // kill - run104 (35899827086) mined 'F15 was blown up by Creeper' landing
+  // in the honest-'other' bucket because only the active 'blew up' matched
+  { re: /\bwas blown up by (\w+)\b/, kind: 'explosion', group: 1 },
   { re: /\bwas killed by (?:an?\s+)?(?:magic|trying to hurt)\b/, kind: 'other' },
   { re: /\bstarved to death\b/, kind: 'starve' },
   { re: /\bfroze to death\b/, kind: 'freeze' },

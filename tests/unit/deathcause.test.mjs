@@ -44,6 +44,11 @@ test('parseDeathMessage: the other vanilla templates the fleet can hit', () => {
   assert.equal(parseDeathMessage('F4 fell while climbing', 'F4')?.kind, 'fall')
   assert.equal(parseDeathMessage('F4 tried to swim in lava', 'F4').kind, 'lava')
   assert.equal(parseDeathMessage('F4 blew up', 'F4').kind, 'explosion')
+  // (v0.119.0) the run104 F15 line: the server's passive form - the active
+  // 'blew up' matched nothing and the death landed in the honest-other bucket
+  const f15 = parseDeathMessage('F15 was blown up by Creeper', 'F15')
+  assert.equal(f15.kind, 'explosion', 'the passive creeper form is an explosion')
+  assert.equal(f15.attacker, 'Creeper')
   assert.equal(parseDeathMessage('F4 starved to death', 'F4').kind, 'starve')
   assert.equal(parseDeathMessage('F4 froze to death', 'F4').kind, 'freeze')
   assert.equal(parseDeathMessage('F4 was slain by Witch', 'F4').attacker, 'Witch', 'the witch front names its killer')

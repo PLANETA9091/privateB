@@ -13,6 +13,7 @@ import {
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
+  airBarFalling, AIR_FALL_MIN_DROP, AIR_FALL_MIN_READS,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
   SURFACE_SAFE_DRY_MS, TRANSIT_RESCAN_TICKS, TRANSIT_MAP_RANGE,
   surfaceSafeRelease, transitBearing,
@@ -1188,4 +1189,59 @@ test('the frozen-return wiring: the streak rides the relog, the gate arms at the
     'the sentry holds the page unless the bar is genuinely critical')
   assert.ok(src.includes('frozen-return gate holds the page'),
     'the hold names itself so the next mine reads the lane')
+})
+
+// ---- (v0.119.0) THE FALLING-BAR LANE - run104 (35899827086) mined F3
+// drowning at o2=2 with the head block reading DRY (a fresh flood through a
+// dig; the chunk still read air). o2 in 5..10 with dry cells read 'none'
+// until the critical ladder at o2<=4 - and by then the deep pocket had no
+// shore (rescue start at o2=2, 'shore=none', dead). A REAL drain is a
+// FALLING bar; the 26.2 glitch bar is stuck or flapping and never descends.
+test('airBarFalling: a real drain descends, a glitch never does', () => {
+  assert.equal(AIR_FALL_MIN_DROP, 2, 'pinned: two levels of real drain inside the window')
+  assert.equal(AIR_FALL_MIN_READS, 3, 'pinned: three readings minimum - no verdicts off one or two samples')
+  // the run104 F3 shape: the bar counting down under a stale-dry head cell
+  assert.equal(airBarFalling([20, 18, 16, 13, 11, 9]), true, 'the countdown signature')
+  assert.equal(airBarFalling([12, 11, 10]), true, 'a 2-level loss over the minimum window')
+  assert.equal(airBarFalling([19, 18, 17, 16, 15, 14, 13, 12]), true, 'a longer history still reads its TAIL (window 6)')
+  // the glitch shapes: stuck and flapping never page through this lane
+  assert.equal(airBarFalling([0, 0, 0, 0]), false, 'the stuck bar (the 395x glitch shape)')
+  assert.equal(airBarFalling([0, 19, 0, 19]), false, 'the flapping bar (metadata reset bursts)')
+  assert.equal(airBarFalling([9, 9, 9, 9, 9]), false, 'a constant bar at the rescue level is not a drain')
+  assert.equal(airBarFalling([2, 15, 3, 16]), false, 'refill bursts rise - no page')
+  // windows and junk
+  assert.equal(airBarFalling([20, 19]), false, 'fewer than AIR_FALL_MIN_READS in-domain readings = no verdict')
+  assert.equal(airBarFalling([]), false)
+  assert.equal(airBarFalling(null), false)
+  assert.equal(airBarFalling(undefined), false)
+  assert.equal(airBarFalling('junk'), false)
+  assert.equal(airBarFalling([-1, -1, 20, 19, 18]), true, 'the -1 sentinel entries are skipped, not counted as drain evidence')
+  assert.equal(airBarFalling([NaN, NaN, 20, 19, 18]), true)
+  assert.equal(airBarFalling([20, 19, 18], { drop: 5 }), false, 'a custom drop requirement is honoured')
+  assert.equal(airBarFalling([20, 19, 18], { window: 2 }), false, 'a tiny window starves the minimum reads')
+})
+
+test('waterVerdict: the falling-bar lane pages a real drain through dry block reads', () => {
+  // THE run104 F3 CLASS: head cells read dry (stale chunk after a fresh
+  // flood), o2 descends through the rescue band - the legacy verdict read
+  // 'none' the whole way down
+  const staleFlood = { feet: 'air', head: 'air', oxygen: 9, airHistory: [20, 17, 14, 11, 9] }
+  assert.equal(waterVerdict(staleFlood), 'drowning', 'a draining bar outranks stale block reads')
+  assert.equal(waterVerdict({ ...staleFlood, oxygen: 5, airHistory: [14, 11, 9, 7, 5] }), 'drowning')
+  // the same dry cells with a NON-falling bar keep the legacy 'none' - the
+  // glitch bar must not re-arm through this lane
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: [9, 9, 9, 9, 9] }), 'none')
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9 }), 'none', 'no history = the legacy shape byte for byte')
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: [] }), 'none')
+  // above the rescue level the lane does not fire (full bar + dry = work on)
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 15, airHistory: [20, 19, 18, 17, 15] }), 'none',
+    'a falling bar still ABOVE the rescue level is not an emergency yet')
+  // the critical lane still outranks everything (o2<=4 + non-dry trust)
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: 3 }), 'drowning', 'the critical lane is untouched')
+  // a wet page with a falling bar still pages (it always did, differently)
+  assert.equal(waterVerdict({ feet: 'water', head: 'water', oxygen: 9, airHistory: [20, 17, 14, 11, 9] }), 'drowning')
+  // junk history reads as absent - the legacy shape
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: 'junk' }), 'none')
+  assert.equal(waterVerdict({ feet: 'air', head: 'air', oxygen: 9, airHistory: [-1, -1, -1] }), 'none',
+    'a history of reset sentinels is not drain evidence')
 })

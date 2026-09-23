@@ -37,6 +37,21 @@ export const OXYGEN_RESCUE_LEVEL = 10
 /** Below this the rescue fires even when the block reads disagree with the air
  * bar (kelp-covered eyes, stale metadata): the air bar is the ground truth. */
 export const OXYGEN_CRITICAL_LEVEL = 4
+/** (v0.119.0) THE FALLING-BAR LANE - run104 (35899827086) mined F3 drowning
+ * at o2=2 with the head block reading DRY (the water flooded in through a dig
+ * a moment before; the chunk read was still air). The verdict lanes between
+ * the rescue level and the critical level all trust the block reads: o2 in
+ * 5..10 with dry/unknown head cells reads 'none' until the critical ladder
+ * takes over at o2<=4 - and by then the deep pocket has no shore to swim to
+ * (run104 F3: rescue start at o2=2, 'shore=none', dead). THE SIGNATURE: a
+ * REAL drain is a FALLING bar - the metadata counts down monotonic under
+ * water; the 26.2 glitch bar is STUCK at one value or FLAPPING (the run99
+ * 395x 'oxygen -1/0 on dry land' pages never descended). A bar that lost
+ * AIR_FALL_MIN_DROP levels inside the history window is a genuine countdown
+ * - the lanes may believe it even where the blocks lie. */
+export const AIR_FALL_MIN_DROP = 2
+/** How many in-domain readings the falling-bar verdict needs at minimum. */
+export const AIR_FALL_MIN_READS = 3
 /** (v0.64.0) The 26.2 metadata RESET sentinel, measured live in run60 (fleet
  * 35668657935): immediately after 'rescue complete' AND after 'died - respawning'
  * the air_supply metadata arrives as -1 - a value OUTSIDE the 0..20 sensor domain.
@@ -121,6 +136,32 @@ export function airBarTrust ({ feet = null, head = null, feetWaterlogged = false
 }
 
 /**
+ * (v0.119.0) Is the air bar genuinely DRAINING? Pure: the last readings
+ * (oldest first, junk already skipped by the caller's push rule) lost at
+ * least AIR_FALL_MIN_DROP levels from the window's start to its end. The
+ * glitch bar is stuck or flapping - it never descends - so a falling read
+ * is a real countdown even where the block reads lie (the stale-air head
+ * cell of a fresh flood). A refill (resurface, metadata reset) reads as a
+ * rise and resets the signature honestly.
+ * @param {number[]|null|undefined} [reads] recent in-domain oxygen readings,
+ *   oldest first (the caller pushes only oxygenInDomain values)
+ * @param {object} [p]
+ * @param {number} [p.window] judge only the last N readings (default 6)
+ * @param {number} [p.drop] required loss across the window (default AIR_FALL_MIN_DROP)
+ * @returns {boolean} true = the bar is draining for real
+ */
+export function airBarFalling (reads, { window = 6, drop = AIR_FALL_MIN_DROP } = {}) {
+  if (!Array.isArray(reads)) return false
+  const w = Number.isFinite(window) && window > 0 ? Math.floor(window) : 6
+  const need = Number.isFinite(drop) && drop > 0 ? drop : AIR_FALL_MIN_DROP
+  const tail = reads.slice(-w).filter(r => oxygenInDomain(r))
+  if (tail.length < AIR_FALL_MIN_READS) return false
+  const first = tail[0]
+  const last = tail[tail.length - 1]
+  return first - last >= need
+}
+
+/**
  * (v0.104.0) THE DRY-LAND PROOF (pure): did this rescue complete with zero
  * water contact fast enough to disprove 'sustained drain' at that moment?
  * wetPasses counts the loop's water-contact passes (feet/head water-named or
@@ -156,7 +197,7 @@ export function dryLandProof ({ wetPasses = null, elapsedMs = null } = {}) {
  *                broke surface with air to spare) - monitor, no emergency
  *   'drowning' - rescue NOW
  */
-export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0, dryGlitchCap = AIR_GLITCH_STREAK_CAP } = {}) {
+export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0, dryGlitchCap = AIR_GLITCH_STREAK_CAP, airHistory = null } = {}) {
   const raw = Number(oxygen)
   // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
   // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
@@ -176,6 +217,15 @@ export function waterVerdict ({ feet = null, head = null, feetWaterlogged = fals
   // here - a real F17-class drain pages WITHOUT the streak ladder, and the
   // streak stays a fallback for blocks whose state is unreadable.
   if (o2 <= OXYGEN_CRITICAL_LEVEL && airBarTrust({ feet, head, feetWaterlogged, headWaterlogged }) !== 'dry') return 'drowning'
+  // (v0.119.0) THE FALLING-BAR LANE: a bar at or under the rescue level that
+  // is genuinely DESCENDING is a real countdown no matter what the block
+  // reads say (the run104 F3 class: head flooded through a fresh dig, the
+  // chunk still reads air, o2 drains 10 -> 2 with verdict 'none' the whole
+  // way). The glitch bar never descends (stuck/flapping), so this lane
+  // cannot re-arm the dry-land lie the liar ladder polices; it rides BELOW
+  // the critical lane above and ABOVE the block-trust gates below on
+  // purpose - fresh evidence outranks stale cells.
+  if (o2 <= OXYGEN_RESCUE_LEVEL && airBarFalling(airHistory)) return 'drowning'
   // (v0.95.0) THE GLITCH ESCALATION: the dry out-vote is no longer ABSOLUTE -
   // a SUSTAINED critical-on-dry streak means the server is draining a real
   // air bar the block reads miss (run84a F17: 675+ ignored reads, then dead
