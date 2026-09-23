@@ -332,3 +332,53 @@ test('chestNearYard: junk-tolerant pure predicate', async () => {
   assert.equal(chestNearYard({ chestPos: { x: 9999, y: 1, z: 2 }, yardCenter: { x: NaN, y: 0, z: 0 } }), true, 'junk yard cannot filter')
   assert.equal(chestNearYard({ chestPos: { x: 40, y: 0, z: 0 }, yardCenter: yard, radius: NaN }), false, 'junk radius -> the default 64 still applies')
 })
+
+// ------------------------------------------------- (v0.113.0) the chest doom half-life
+// run100 (35874523075, the v0.112.0 fleet): the yard chest row was doom-ledgered
+// by ONE bot's far-start 'No path' (F8 proved it from d=46, F16 from d=17!) and
+// the verdict then refused the fuel commons walks ('ledgered 16s/11s ago'), the
+// hop probes ('ledgered 19s/7s ago') and the final banks ('budget exhausted',
+// F13's 173u pocket stranded). A chest is a static known-good destination - the
+// v0.92.0 machine ttl semantics (15s) now apply to chest walks too.
+test('the chest walk dooms with the 15s CHEST ttl - the verdict expires while the next chain is still walking', async () => {
+  const { nearDoomedGoal } = await import('../../src/lib/jobqueue.mjs')
+  const { CHEST_DOOM_TTL_MS } = await import('../../src/lib/deposit.mjs')
+  assert.equal(CHEST_DOOM_TTL_MS, 15000, 'the pin: chest verdicts live 15s - the machine ttl semantics')
+  const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: [new Error('No path to the goal!')] })
+  const t0 = Date.now()
+  const res = await depositToChest(bot)
+  assert.match(res.reason, /chest unreachable/)
+  const cell = { x: 30, y: 64, z: 30 }
+  assert.equal(nearDoomedGoal(cell, t0 + 14000).hit, true, 'the verdict is live inside its 15s window (the storm evidence stays recorded)')
+  assert.equal(nearDoomedGoal(cell, t0 + 16000).hit, false, 'at 16s the verdict is GONE - the legacy 90s poison refused run100\'s commons at 16s/19s/25s of age')
+})
+
+test('the deposit chain\'s own no-path ledger rides the same 15s half-life (one truth about a cell)', async () => {
+  const { nearNoPath } = await import('../../src/lib/nopath.mjs')
+  const chest = { name: 'chest', position: new Vec3(42, 70, 42) }
+  const bot = makeMockBot({ chest, items: [item('dirt', 3)], gotoScript: [new Error('No path to the goal!')] })
+  const ledger = []
+  const t0 = Date.now()
+  const res = await depositToChest(bot, { noPathLedger: ledger })
+  assert.match(res.reason, /chest unreachable/)
+  assert.ok(ledger.length >= 1, 'the failed walk cached the chest cell')
+  const cell = { x: 42, y: 70, z: 42 }
+  assert.equal(nearNoPath(ledger, cell, t0 + 14000).hit, true, 'the scan still skips the chest inside the 15s window')
+  assert.equal(nearNoPath(ledger, cell, t0 + 16000).hit, false, 'at 16s the scan re-admits the chest - the 90s skip outlived every bank chain that recorded it')
+})
+
+test('the re-doom backoff keeps the FIRST failure\'s clock - a retry storm cannot immortalize the 15s verdict', async () => {
+  const { nearNoPath, recordNoPath } = await import('../../src/lib/nopath.mjs')
+  const { CHEST_DOOM_TTL_MS } = await import('../../src/lib/deposit.mjs')
+  const ledger = []
+  const cell = { x: 7, y: 64, z: 7 }
+  const t0 = Date.now()
+  // the first failure records at t0; every later failure inside the window is absorbed
+  const fresh1 = recordNoPath(ledger, cell, t0, { ttl: CHEST_DOOM_TTL_MS })
+  ledger.length = 0; for (const e of fresh1) ledger.push(e)
+  const fresh2 = recordNoPath(ledger, cell, t0 + 5000, { ttl: CHEST_DOOM_TTL_MS })
+  const fresh3 = recordNoPath(fresh2, cell, t0 + 10000, { ttl: CHEST_DOOM_TTL_MS })
+  assert.equal(nearNoPath(fresh3, cell, t0 + 14000).hit, true, 'absorbed retries never refresh the clock')
+  assert.equal(nearNoPath(fresh3, cell, t0 + 16000).hit, false, 'the verdict dies at 15s DESPITE three failures - the cell recovers on schedule')
+})

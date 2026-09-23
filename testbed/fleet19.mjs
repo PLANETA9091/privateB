@@ -21,7 +21,7 @@ import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/clai
 import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -244,7 +244,11 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           miner.bot.on('path_reset', spy)
           miner.bot.on('path_stop', spyStop)
           walkStart = Date.now()
-          await gotoSafe(miner.bot, walkGoal, { timeoutMs: walkMs, label: 'walk to yard', priority: PATH_PRIO_BANK, doomedRearm: rearm })
+          // (v0.113.0) the yard walk's doom rides the CHEST DOOM HALF-LIFE (15s):
+          // run100's F8 proved 'No path' from d=46 and the verdict then starved
+          // the NEXT chains' commons/hops/final-banks at 'ledgered 16-25s ago' -
+          // the yard is a static known-good destination, the machine ttl semantics.
+          await gotoSafe(miner.bot, walkGoal, { timeoutMs: walkMs, label: 'walk to yard', priority: PATH_PRIO_BANK, doomedRearm: rearm, doomTtl: CHEST_DOOM_TTL_MS })
           arrived = true
           console.log(`${miner.username} bank: yard walk arrived in ${((Date.now() - walkStart) / 1000).toFixed(0)}s (${attempt} attempt${attempt > 1 ? 's' : ''})`)
         } catch (e) {

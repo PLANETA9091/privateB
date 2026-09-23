@@ -36,7 +36,7 @@
 
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
-import { findChest, chestSlotCount, chestWalkBudgetMs, YARD_CHEST_RADIUS } from './deposit.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
 
 const { goals } = pathfinderPkg
@@ -245,7 +245,10 @@ export async function withdrawFuelCommons (bot, {
       // destination class (run89: F9's commons walks refused 'doomed goal
       // (ledgered 1s ago)' - other bots' failed bank walks had poisoned the
       // chest cells). Same semantics as the bank chain and the furnace walk.
-      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: c === 0 })
+      // (v0.113.0) + the CHEST DOOM HALF-LIFE: the commons was run100's starved
+      // class ('ledgered 16s/11s ago' refused the resupply while the pockets
+      // held raw metal) - the doom now lives 15s, not 90s.
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: c === 0, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
       log(`fuel commons: chest walk failed (${e?.message || e})`)
       exclude.push(chest.position.floored ? chest.position.floored() : chest.position)

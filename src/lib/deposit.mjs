@@ -7,7 +7,7 @@ import { gotoSafe, withTimeout, waitForWaterRescueClear, walkRetryPlan, nearDoom
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
-import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger)
+import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS)
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -715,6 +715,25 @@ export function effectiveWalkBudget ({ distBudget = CHEST_WALK_BASE_MS, remainin
 export const CHEST_WALK_SHORT_DIST = 16
 export const CHEST_WALK_SHORT_MS = 15000
 
+// (v0.113.0) THE CHEST DOOM HALF-LIFE - a chest cell's walk-verdict lives 15s,
+// not the no-path ledger's 45/90s. Run100 (35874523075, the v0.112.0 fleet)
+// named the class: the yard chest row [-113..-143,70,398-408] was doom-ledgered
+// by ONE laggy bot's 'No path' (F8 proved it from d=46, F16 from d=17!) and the
+// verdict then refused the FUEL COMMONS walks ('ledgered 16s/11s ago'), the
+// hop probes ('ledgered 19s/7s ago') and the FINAL BANKS ('budget exhausted',
+// F13's 173u pocket stranded) - refusals recorded 16s/19s/25s AFTER the
+// recording bot's failure. A chest is a STATIC and known-good destination (the
+// fleet built the yard); its doom is the WALK's sickness - one bot's far-start
+// A* exhaustion under lag, water hazards, mobs - not the destination's
+// geometry, and the sickness recovers in seconds. The v0.92.0 machine semantics
+// (MACHINE_DOOM_TTL_MS = 15s) apply verbatim: the same 15s life, the same
+// re-doom backoff guard (the v0.96.0 absorption keeps the FIRST failure's
+// clock - a retry storm can never immortalize the verdict - the cell recovers
+// on schedule no matter how many honest walks re-doom it), and the walk loops'
+// own 2-attempt bounds stay the spiral breakers. The half-life also rides the
+// deposit chain's own no-path ledger below: one truth about a cell, not two.
+export const CHEST_DOOM_TTL_MS = 15000
+
 export function chestWalkBudgetMs (dist) {
   // (v0.56.0) THE SHORT-HOP PIN (the run51 F2 class): F2 stood d=10..11 from the
   // chest rows and its 2 walks ate 30s each ('walk to chest (retry): timeout
@@ -945,7 +964,12 @@ export async function depositToChest (bot, {
     // FALLBACK: the raw walk owns the flat platform, the pathfinder owns
     // whatever a straight line cannot cross.
     return withHopPathfinder(bot, () =>
-      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK, doomedRearm: rearm }))
+      // (v0.113.0) the walk's doom rides CHEST_DOOM_TTL_MS (15s): a failed walk
+      // poisons the chest for the 90s default today, and run100's refusals
+      // landed 16-25s AFTER the recording bot's failure - inside the poison,
+      // across the fuel commons and the final banks. Static known-good
+      // destination = the machine ttl semantics (v0.92.0), now for chests too.
+      gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 3), { timeoutMs: ms, label, priority: PATH_PRIO_BANK, doomedRearm: rearm, doomTtl: CHEST_DOOM_TTL_MS }))
   }
   // (v0.46.0) THE PROXIMITY FAST-PATH (their 19:53 sketch item 1): a bot that
   // ALREADY stands within reach of the chest must not spend a pathfinder hop
@@ -1030,10 +1054,15 @@ export async function depositToChest (bot, {
       if (verdict.dead) {
         const deadCell = typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position
         if (deadCell && Number.isFinite(deadCell.x)) {
-          const fresh = recordNoPath(noPathLedger, deadCell, Date.now(), verdict.timeout ? { ttl: NOPATH_TIMEOUT_TTL_MS } : {})
+          // (v0.113.0) BOTH shapes ride the 15s chest half-life now: the entry
+          // carries its own ttl (nearNoPath honors it first), the v0.96.0
+          // absorption keeps the first failure's clock, and one truth about a
+          // chest cell serves the whole scan (a 90s skip outlived every bank
+          // chain that recorded it - run100's row-wide starvation).
+          const fresh = recordNoPath(noPathLedger, deadCell, Date.now(), { ttl: CHEST_DOOM_TTL_MS })
           noPathLedger.length = 0
           for (const e of fresh) noPathLedger.push(e)
-          log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live${verdict.timeout ? ', timeout verdict' : ''})`)
+          log(`${tag} no-path ledger: chest at [${deadCell.x ?? '?'},${deadCell.y ?? '?'},${deadCell.z ?? '?'}] cached for the fleet (${noPathLedger.length} live, ttl 15s${verdict.timeout ? ', timeout verdict' : ''})`)
         }
       }
     }
