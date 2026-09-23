@@ -32,6 +32,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
+import { withdrawFuelCommons } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -298,7 +299,22 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         console.log(`${miner.username} camp furnace: error (kept alive): ${e.message}`)
       }
       const buildSpent = (Date.now() - buildStart) / 1000
-      const res = await smeltInventory(miner.bot, { maxSeconds: Math.max(5, smeltSecs - buildSpent), log: m => console.log(m) })
+      // (v0.98.0) THE FUEL COMMONS: a fuel-empty pocket asks the yard chests
+      // BEFORE the 'no fuel' verdict (run86: F5/F10/F8 stood at the machines
+      // 'no fuel' while other bots' surplus coal sat banked - coal is not in
+      // the deposit KEEP list, the commons exists in every real run). The
+      // withdrawal is modest (cap 6 units) and budgeted inside the leg's own
+      // slice; the leftover drains back at the final deposit (keep(false)).
+      const res = await smeltInventory(miner.bot, {
+        maxSeconds: Math.max(5, smeltSecs - buildSpent),
+        fuelResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
+          itemsNeeded,
+          yardCenter: yardGoal,
+          budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
+          log: m => console.log(`${miner.username} ${m}`)
+        }),
+        log: m => console.log(m)
+      })
       if (res.smelted > 0 || res.rescued > 0) {
         smelted += res.smelted
         console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)

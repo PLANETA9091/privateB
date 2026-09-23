@@ -384,6 +384,45 @@ test('smeltInventory with no fuel records the attempt and never throws', async (
   assert.ok(res.attempts.some(a => a.reason === 'no fuel'))
 })
 
+// (v0.98.0) THE FUEL COMMONS - the resupply hook between the empty pickFuel and
+// the 'no fuel' verdict.
+test('smeltInventory asks the fuelResupply hook before the no-fuel verdict, and a funded pocket smelts', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8)] }) // fuel-empty pocket
+  const asks = []
+  const res = await smeltInventory(bot, {
+    ...FAST,
+    fuelResupply: ({ itemsNeeded }) => {
+      asks.push(itemsNeeded)
+      bot._items.push(item('coal', 2)) // the commons answers
+    }
+  })
+  assert.deepEqual(asks, [8], 'the hook read the live plan count')
+  assert.equal(res.smelted, 8, 'the withdrawn fuel burned the batch')
+  assert.ok(!res.attempts.some(a => a.reason === 'no fuel'), 'no false verdict')
+})
+
+test('smeltInventory survives a throwing fuelResupply (the legacy no-fuel shape stands)', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8)] })
+  const res = await smeltInventory(bot, {
+    ...FAST,
+    fuelResupply: () => { throw new Error('commons dead') }
+  })
+  assert.equal(res.smelted, 0)
+  assert.ok(res.attempts.some(a => a.reason === 'no fuel'), 'the honest verdict, byte for byte')
+})
+
+test('smeltInventory: a resupply that lands nothing still reads no fuel', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8)] })
+  let calls = 0
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => { calls++ } })
+  assert.equal(calls, 1, 'exactly one resupply attempt per starved input')
+  assert.equal(res.smelted, 0)
+  assert.ok(res.attempts.some(a => a.reason === 'no fuel'))
+})
+
 test('smeltInventory stops instantly with a negative time budget', async () => {
   const furnace = new MockFurnace({})
   const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8), item('coal', 1)] })

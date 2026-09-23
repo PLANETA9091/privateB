@@ -653,6 +653,7 @@ export async function smeltInventory (bot, {
   pollMs = 1200,
   smeltSecondsPerItem = 11,
   fuelReserve = null, // passed to every pickFuel call (see smeltBatch)
+  fuelResupply = null, // (v0.98.0) async ({ itemsNeeded }) => void - the FUEL COMMONS: called ONCE when the pocket is fuel-empty, BEFORE the 'no fuel' verdict (fleet19 wires withdrawFuelCommons); undefined/null = the legacy shape byte for byte
   log = () => {}
 } = {}) {
   const started = Date.now()
@@ -668,7 +669,21 @@ export async function smeltInventory (bot, {
     if (Date.now() - started > maxSeconds * 1000) break
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
     if (left() <= 0) continue
-    if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
+    if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) {
+      // (v0.98.0) THE FUEL COMMONS: run86's zeros named the class 3x - bots stood
+      // AT the machines with smeltables and an empty fuel pocket while OTHER bots'
+      // surplus coal sat in the yard chests (coal/charcoal are not in the deposit
+      // KEEP list, the commons exists in every real run). One bounded resupply
+      // attempt before the verdict: a throw or a still-empty pocket falls
+      // through to the EXACT legacy shape (attempt entry, continue) - the
+      // no-callback runs are byte for byte.
+      let resupplied = false
+      if (typeof fuelResupply === 'function') {
+        try { await fuelResupply({ itemsNeeded: left() }) } catch { /* a dead commons never kills the chain */ }
+        resupplied = !!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })
+      }
+      if (!resupplied) { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
+    }
     // (v0.89.0) THE SILENT ZERO: seven runs (run74..run80) ended smelted=0 with no
     // line saying why - the machine loop below just fell through when
     // findMachineBlocks came back empty (a bot stranded in the quarry, the yard
