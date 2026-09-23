@@ -2460,3 +2460,16 @@ Stage Summary:
 - EXPECTATIONS run107: 'craft: pre-flight cleared stale <type> window' lines when a lane poisons (and the healed probe lands instead of a 4->5 re-arm); F7-class whole-run craft death disappears; iron pickaxe chain gets another lane of headroom (table crafts start clean too); NORMAL END holds; the valve arms keep (queue-pressure + funnel probe); airGlitches stays 0.
 - OPEN FRONTS: (a) iron=0 - the smelt/craft chain (iron_ore=30 mined, worldmap iron_ore=95 unconsumed; smelted=4 total - the furnace lane is the wall); (b) the drown inference lie (server kind= vs inferred fall/env x2 - the truth teller works, the inference template needs the wet-at-death override); (c) F2-class water rescue timeout (73 passes, 25.1s still wet - the stand-down hands the exit to the walk machinery); (d) unaccounted 503; (e) plan 2/31; (f) worldmap consumption; (g) the F10 Ender-at-spawn anomaly (kind=mob by Ender at [100,49,0]).
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API).
+
+---
+Task ID: 398294-20260924-0354 (dispatch record)
+Agent: Z.ai Code (cron session, 03:54 +08)
+
+Work Log:
+- Push-CI on d39f6de (v0.122.0) = 35913659618 SUCCESS; push-CI on 5197123 (master head, the worklog union fix) = 35913806652 SUCCESS. Both green before the dispatch.
+- WORKLOG UNION FIX (5197123): the session's first worklog push (86f3c6f) accidentally REPLACED the repo worklog with the my-project mirror and deleted the 398567 lane's entries (the 22:05 poison-lens session, the collision records, the 00:05 witch-ceiling session) - restored the full union and appended the 03:54 entry on top. The repo worklog is the multi-lane union; mirrors must APPEND, never replace.
+- run107 = 35915999513 dispatched as the ABSOLUTE LAST action (workflow_dispatch run_fleet=true, fleet_seconds=600) POSTed at 20:26:50Z, in_progress on 5197123.
+
+Stage Summary:
+- run107 = the first fleet of v0.122.0 (the craft pre-flight). The next session mines it: 'craft: pre-flight cleared stale <type> window' lines on poisoned lanes, F7-class whole-run craft death gone (the healed probe lands instead of the 4->5 re-arm), iron=0 measured again, NORMAL END holds, the valve arms keep, airGlitches stays 0.
+- Next free version = 0.123.0.
