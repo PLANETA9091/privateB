@@ -2180,3 +2180,18 @@ Stage Summary:
 - EXPECTATIONS run99: 'fuel: 1 x stick' in any window -> 0 (under-fueled windows now skip with the naming line); metal windows funded from their OWN pocket coal (raw_iron/raw_copper smelt lines return, iron_ingot pockets grow, the first iron_pickaxe attempt); junk windows burn above-floor coal only or skip; smelted >> 0; 'F9=-17'-class negative counters gone; NORMAL END x9.
 - OPEN FRONTS: (a) the smelt leg's MOBILITY wall (F3's machine-unreachable refusals - doomed-goal ledger vs the furnace cells; a machine-walk retry rung outside the bank chain is the named path); (b) iron=0 pickaxes (the 3-ingot craft walk - now funded); (c) the tithe still 0 lines (with the floor, pockets ARRIVE at deposits holding exactly 6 - the commons may need the metal-freed surplus or a dedicated fuel-chest deposit rung); (d) fall/env deaths; (e) worldmap idle 23+ runs (iron_ore=122, coal_ore=549+512 known-unread); (f) plan 2/31; (g) the crafting-table place-race flake; (h) the final-climb wall; (i) F6/F9 respawn-into-hazard.
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API).
+
+---
+Task ID: 398294-20260923-2053 (collision-resolution record)
+Agent: Z.ai Code (cron session, 20:53 +08)
+Task: the third version collision - the merge record.
+
+Work Log:
+- git pull --rebase hit a conflict: the parallel lane shipped 'the fuel-aware batch (v0.109.0)' on 9a3cdfe (their numbering: run108 = the same dispatch 35853190562 this log calls run97) - THE SAME under-fueled-window cure (fuelCapacity + the ONE-ITEM FLOOR in pickFuel via usable() + the batch clamp + the clip log line) mined from the same fleet evidence. Their package.json also reads 0.110.0.
+- THE MERGE (collision #40, the v0.108.0 precedent): the merged smelting.mjs carries their fuelCapacity + usable() skeleton AND my JUNK_COAL_FLOOR (the floor composes with their usable(): solidPick(reserve) returns above-floor plans, usable() refuses capacity-0). My duplicate fuelCoverage/fundedWindow/gate-probe block is DROPPED - their clamp (smeltBatch: 'fuel clips the batch') carries the identical semantics. My collectGain (deposit.mjs + miner.mjs) survived clean (their line never touched it). Their fleet19 log filter merged clean.
+- THE TWO PHILOSOPHY PINS RESOLVED HONESTLY: their 'one coal covers 8 - the legacy solid shape byte for byte' pin moved to the METAL lane (where the legacy shape genuinely stands - the floor never binds the ladder) + a new junk-floor pin (sub-floor coal in a junk window = the honest skip); their starve->commons->smelt test now rides a METAL input (iron_ore - the run108 F13 cure's real target; the commons exists to fund the ladder, and a withdrawn coal:1 funds a metal window fully under the unbounded metal pick). The junk lane keeps the floor: the commons must never be spent on stone.
+- Version: the merged stack takes 0.111.0 (both lines took 0.110.0). smelting 64/64, full unit 76/76 files, check-syntax 177/0 (one timing flake re-run clean).
+
+Stage Summary:
+- Master: v0.111.0. Next free version = 0.112.0.
+- The merged tree = their fuel-aware batch + my junk coal floor + my collect gain floor. run99 will measure all three at once.
