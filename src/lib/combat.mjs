@@ -46,6 +46,63 @@ export const FLEE_HP = 8             // 4 hearts - one skeleton volley from deat
 export const SWARM_FLEE_HP = 14      // 7 hearts against 3+ attackers is losing
 export const SWARM_SIZE = 3
 
+// (v0.112.0) THE POISON LENS - run99 (35869329042) named the witch the new top
+// mob front (3 deaths, spider x0): the splash poison drains the bar UNDER the
+// verdicts' feet. F10 fled at hp 5.3 (the verdict fired, but by then the drain
+// had already won - the flee bearing rotated 180deg into the water veto and the
+// witch finished it at 3.7); F1 died at 8.7 with ZERO verdict lines - the raw
+// read saw a fightable bar while the poison was already sinking it. The lens
+// charges the expected drain of the live effect against the thresholds: the
+// verdicts spend the health the NEXT seconds still own. POISON_HP_BUDGET = the
+// vanilla level-1 drain over the flee/shelter decision window (~5s at 1 dmg per
+// 1.25s = 4): conservative by design - the budget must push a MID bar (11-12)
+// over the FLEE_HP line, not turn every scratch into a flee.
+export const POISON_HP_BUDGET = 4
+/** Legacy numeric poison id - stable across the flattened effect registry;
+ * the registry lookup in isPoisoned outranks it when the data ships a name. */
+export const POISON_EFFECT_ID = 19
+
+/** The health the verdicts may still spend: the bar minus the live poison's
+ * expected drain. Junk-safe by contract: a non-finite health passes through
+ * UNCHANGED (null stays null - the shelter gate's 'never shelter on a guess'
+ * refuses junk downstream), poisoned=false is the identity, and the finite
+ * result is clamped into the vanilla 0..20 bar so the lens can never invent
+ * health above the ceiling or below the death line. */
+export function effectiveHp ({ health = 20, poisoned = false } = {}) {
+  if (!Number.isFinite(health)) return health
+  const base = Math.max(0, Math.min(20, health))
+  if (poisoned !== true) return base
+  return Math.max(0, base - POISON_HP_BUDGET)
+}
+
+/** Does this bot carry a live poison effect? Reads bot.entity.effects - the
+ * mineflayer shape is a map keyed by effect id ({ id, amplifier, duration }),
+ * but the read tolerates every junk shape the library hands out: a name- or
+ * displayName-carrying entry matches too (registry versions differ in what
+ * they populate), the poison id resolves from the bot's registry when the
+ * data ships it and falls back to the legacy numeric id otherwise. No bot,
+ * no entity, no effects map, junk entries - all judge NOT poisoned (false),
+ * because a guessed lens must never flee a healthy bot. */
+export function isPoisoned (bot) {
+  if (!bot || typeof bot !== 'object') return false
+  const entity = bot.entity
+  if (!entity || typeof entity !== 'object') return false
+  const effs = entity.effects
+  if (!effs || typeof effs !== 'object') return false
+  let poisonId = POISON_EFFECT_ID
+  try {
+    const named = bot.registry && bot.registry.effectsByName && bot.registry.effectsByName.poison
+    if (named && Number.isFinite(named.id)) poisonId = named.id
+  } catch { /* junk registry -> the legacy fallback id */ }
+  for (const e of Object.values(effs)) {
+    if (!e || typeof e !== 'object') continue
+    if (Number.isFinite(e.id) && Number(e.id) === Number(poisonId)) return true
+    if (typeof e.name === 'string' && e.name.toLowerCase() === 'poison') return true
+    if (typeof e.displayName === 'string' && e.displayName.toLowerCase() === 'poison') return true
+  }
+  return false
+}
+
 /** Is this prismarine entity something the fleet must defend against?
  * Tolerates palette-less/junk entities (mineflayer hands those out freely). */
 export function isHostileEntity (e) {
@@ -224,20 +281,25 @@ export function kiteHopTarget ({ bx = 0, bz = 0, yx = 0, yz = 0, hop = KITE_HOP_
  *   swing, a zombie has 20 hp and swings 2.5 back per second - the live combat
  *   logs measured unarmed fights ending 17 hp -> 4.3 hp with the zombie alive.
  *   Within RANGED_ENGAGE_RANGE a naked bot FLEES; beyond it there is no urgency.
+ * @param {boolean} [p.poisoned=false] is a poison effect live on the bot? (v0.112.0)
+ *   The witch front: the raw bar at 11-12 reads fightable while the drain is
+ *   already sinking it - the flee lanes judge effectiveHp (the lens) so a
+ *   poisoned mid bar disengages BEFORE the 1-hp poison bottom.
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
   const crowd = Number.isFinite(attackers) && attackers > 0 ? attackers : 1
+  const seen = effectiveHp({ health, poisoned })
   if (name === 'creeper' && dist <= CREEPER_FLEE_RANGE) return 'flee'
   // daylight spiders are peaceful bystanders UNLESS they are already on top of us
   // (collide/provoke) - the flee decision they used to trigger wasted trips
   if (name === 'spider' && dark !== true && dist > 2.5) return 'ignore'
   if (armed !== true) return dist <= RANGED_ENGAGE_RANGE ? 'flee' : 'ignore'
-  if (health < FLEE_HP) return 'flee'
-  if (crowd >= SWARM_SIZE && health < SWARM_FLEE_HP) return 'flee'
+  if (seen < FLEE_HP) return 'flee'
+  if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
   if (dist <= engage) return 'fight'
   return 'ignore'

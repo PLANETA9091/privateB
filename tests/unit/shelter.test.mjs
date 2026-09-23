@@ -124,8 +124,12 @@ test('the miner wires the losing-fight inputs into the shelter gate (source pin)
   const minerSrc = await import('node:fs').then(fs => fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8'))
   const m = minerSrc.match(/shelterDue\(\{[^}]*hp:\s*hpNow[^}]*attackers:\s*crowd[^}]*\}\)/)
   assert.ok(m, 'tryShelter passes hp: hpNow + attackers: crowd to shelterDue')
-  assert.ok(/const hpNow = bot\.health \?\? null/.test(minerSrc), 'the hp read stays junk-safe (null, not a guessed 20)')
-  assert.ok(/hp=\$\{hpNow \?\? '\?'\} attackers=\$\{crowd\}/.test(minerSrc), 'the skip line names hp + attackers - the next mine reads the gate without re-deriving it')
+  // (v0.112.0) the read now rides the POISON LENS: hpNow is effectiveHp over the
+  // raw junk-safe read - a non-finite health passes through null unchanged, so
+  // the 'never shelter on a guess' contract survives the lens byte for byte
+  assert.ok(/const hpNow = effectiveHp\(\{ health: bot\.health \?\? null, poisoned: poisonLens \}\)/.test(minerSrc), 'the hp read stays junk-safe (null passthrough) through the poison lens')
+  assert.ok(/const poisonLens = isPoisoned\(bot\)/.test(minerSrc), 'the lens reads the live effect, never a guess')
+  assert.ok(/hp=\$\{hpNow \?\? '\?'\} attackers=\$\{crowd\} poison=\$\{poisonLens \? 'on' : 'off'\}/.test(minerSrc), 'the skip line names hp + attackers + the lens state - the next mine reads the gate without re-deriving it')
 })
 
 test('pickSealItem: dirt family first, craft-critical items never spent', () => {

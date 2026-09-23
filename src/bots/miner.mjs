@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
@@ -444,10 +444,16 @@ export function createMiner ({
     // fight (the policy + boundaries live in shelter.mjs losingFight). Junk
     // hp (bot.health unread) keeps the legacy refusal - never shelter on a
     // guess. countHostiles is the same read the fight verdict consumes.
-    const hpNow = bot.health ?? null
+    // (v0.112.0) THE POISON LENS: hpNow is the health the NEXT seconds still
+    // own - a live poison effect (the run99 witch front) charges its expected
+    // drain (POISON_HP_BUDGET) against the gate before the bar physically
+    // sinks. Junk health passes through null: the lens never shelters on a
+    // guess, and the skip line names the lens state so the mine reads it.
+    const poisonLens = isPoisoned(bot)
+    const hpNow = effectiveHp({ health: bot.health ?? null, poisoned: poisonLens })
     const crowd = countHostiles()
     if (!threat || !shelterDue({ night, armed, threatDist: threat ? threat.dist : Infinity, hp: hpNow, attackers: crowd })) {
-      log(`${tag} combat: shelter skip (night=${night} armed=${armed} hp=${hpNow ?? '?'} attackers=${crowd} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
+      log(`${tag} combat: shelter skip (night=${night} armed=${armed} hp=${hpNow ?? '?'} attackers=${crowd} poison=${poisonLens ? 'on' : 'off'} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
       return false
     }
     // no seal material: (v0.50.0) EARN one instead of skipping - the measured
@@ -780,7 +786,7 @@ export function createMiner ({
       return { action: 'none' }
     }
     const armed = !!pickWeapon(inventoryItems(bot))
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -828,7 +834,7 @@ export function createMiner ({
         if (!cur) break // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)) })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot) })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }

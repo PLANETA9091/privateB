@@ -10,7 +10,8 @@ import {
   CREEPER_FLEE_RANGE, FLEE_HP, SWARM_FLEE_HP, SWARM_SIZE,
   FLEE_STALEMATE_EPISODES, FLEE_STALEMATE_MARGIN, KITE_ARRIVE_DIST, KITE_HOP_BLOCKS,
   isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict,
-  fleeStalemate, fleeResponse, kiteHopTarget
+  fleeStalemate, fleeResponse, kiteHopTarget,
+  effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
 
@@ -237,4 +238,73 @@ test('REGRESSION PIN: the run73 wiring shape - unarmed verdict feeds the ledger,
   assert.equal(fleeResponse({ startDists: ledger }), 'radial', 'two episodes: historical flee')
   ledger.push(4.0)
   assert.equal(fleeResponse({ startDists: ledger }), 'kite', 'the third stuck episode flips to the kite')
+})
+
+// (v0.112.0) THE POISON LENS - run99 (35869329042) mined the witch as the new
+// top mob front: the splash poison drains the bar UNDER the verdicts' feet
+// (F1 died at 8.7 with zero verdict lines; F10's flee fired at 5.3 - already
+// inside the drain). The lens charges the expected drain against the flee
+// thresholds so a poisoned MID bar disengages before the 1-hp poison bottom.
+test('effectiveHp: the lens is the identity without poison and charges the drain with it', () => {
+  assert.equal(POISON_HP_BUDGET, 4, 'the budget is the vanilla level-1 drain over the ~5s decision window')
+  assert.equal(effectiveHp({ health: 12 }), 12, 'no poison: the identity')
+  assert.equal(effectiveHp({ health: 12, poisoned: false }), 12, 'poisoned=false is the identity')
+  assert.equal(effectiveHp({ health: 12, poisoned: true }), 8, 'poisoned 12 -> the FLEE_HP boundary exactly')
+  assert.equal(effectiveHp({ health: 11.5, poisoned: true }), 7.5, 'poisoned mid bar dips under the flee line')
+  assert.equal(effectiveHp({ health: 3, poisoned: true }), 0, 'the lens clamps at the death line, never negative')
+  assert.equal(effectiveHp({ health: 25, poisoned: true }), 16, 'the lens clamps at the vanilla ceiling')
+  assert.equal(effectiveHp({ health: 20, poisoned: true }), 16, 'full bar minus the drain')
+  // junk passthrough: a non-finite health is NOT the caller's to guess
+  assert.equal(effectiveHp({ health: null, poisoned: true }), null, 'null passes through null - the shelter gate refuses junk downstream')
+  assert.equal(effectiveHp({ health: NaN, poisoned: false }), NaN, 'NaN passes through (Number.isFinite guard, not an implicit default)')
+  assert.equal(effectiveHp({}), 20, 'empty params default to the full bar')
+})
+
+test('threatVerdict: the poison lens flips the poisoned mid bar from fight to flee (the F1/F10 class)', () => {
+  // THE F10 POCKET: raw hp 11.5 vs a zombie at melee range reads 'fight' on
+  // the raw bar - the exact shape that sank to the 1-hp poison bottom and died
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 11.5, attackers: 1, dark: true, armed: true, poisoned: true }), 'flee', 'poisoned 11.5 = flee (the raw bar would fight)')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 11.5, attackers: 1, dark: true, armed: true, poisoned: false }), 'fight', 'unpoisoned 11.5 keeps the historical fight verdict')
+  // THE EXACT BOUNDARY: poisoned 12 lenses to 8 - 8 < 8 is false, so the hp
+  // lane does NOT fire; the verdict falls through to the engage check
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 12, attackers: 1, dark: true, armed: true, poisoned: true }), 'fight', 'poisoned 12 sits exactly ON the flee line: the budget is conservative by design')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3, hp: 11.9, attackers: 1, dark: true, armed: true, poisoned: true }), 'flee', 'poisoned 11.9 (one tick of drain) crosses it')
+  // THE SWARM LANE THROUGH THE LENS: raw 17 vs 3 attackers reads fight (17 >= 14);
+  // the lensed 13 dips under SWARM_FLEE_HP - a poisoned bot in a swarm is losing
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2, hp: 17, attackers: 3, dark: true, armed: true, poisoned: true }), 'flee', 'poisoned swarm: 17 - 4 = 13 < 14 = flee')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2, hp: 17, attackers: 3, dark: true, armed: true, poisoned: false }), 'fight', 'unpoisoned swarm at 17 keeps the fight')
+  // a FULL bar still fights through the lens - the budget must not turn every
+  // scratch into a flee (the run97 lesson: cowardice wastes trips too)
+  assert.equal(threatVerdict({ name: 'witch', dist: 10, hp: 20, attackers: 1, dark: true, armed: true, poisoned: true }), 'fight', 'poisoned full bar still engages the witch at range')
+  // the lens never touches the other lanes: creeper proximity and unarmed flee
+  assert.equal(threatVerdict({ name: 'creeper', dist: 5, hp: 20, attackers: 1, dark: true, armed: true, poisoned: true }), 'flee', 'creeper proximity outranks any lens state')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 4, hp: 20, attackers: 1, dark: true, armed: false, poisoned: true }), 'flee', 'unarmed flee unchanged')
+})
+
+test('isPoisoned: the read tolerates every junk shape mineflayer hands out', () => {
+  assert.equal(isPoisoned(null), false, 'no bot')
+  assert.equal(isPoisoned(undefined), false, 'undefined bot')
+  assert.equal(isPoisoned('bot'), false, 'junk bot')
+  assert.equal(isPoisoned({}), false, 'no entity')
+  assert.equal(isPoisoned({ entity: null }), false, 'null entity')
+  assert.equal(isPoisoned({ entity: {} }), false, 'entity without effects')
+  assert.equal(isPoisoned({ entity: { effects: null } }), false, 'null effects map')
+  assert.equal(isPoisoned({ entity: { effects: {} } }), false, 'empty effects map')
+  assert.equal(isPoisoned({ entity: { effects: { 5: { id: 5, amplifier: 0, duration: 900 } } } }), false, 'an unrelated effect (speed=5) is not poison')
+  // the mineflayer shape: a map keyed by effect id, entries { id, amplifier, duration }
+  assert.equal(isPoisoned({ entity: { effects: { 19: { id: 19, amplifier: 0, duration: 900 } } } }), true, 'the legacy numeric id hits without a registry')
+  // the registry lookup outranks the fallback (a future flattened id)
+  assert.equal(isPoisoned({ registry: { effectsByName: { poison: { id: 27 } } }, entity: { effects: { 27: { id: 27, duration: 100 } } } }), true, 'the registry-resolved id hits')
+  assert.equal(isPoisoned({ registry: { effectsByName: { poison: { id: 27 } } }, entity: { effects: { 19: { id: 19, duration: 100 } } } }), false, 'the fallback id does NOT hit when the registry names a different one')
+  // name-shaped entries (registry versions that populate names)
+  assert.equal(isPoisoned({ entity: { effects: { x: { name: 'Poison', duration: 100 } } } }), true, 'a name entry hits')
+  assert.equal(isPoisoned({ entity: { effects: { x: { displayName: 'Poison', duration: 100 } } } }), true, 'a displayName entry hits')
+  assert.equal(isPoisoned({ entity: { effects: { x: { name: 'Wither', duration: 100 } } } }), false, 'wither is a different drain - not this lens')
+  // junk entries inside the map never crash the read
+  assert.equal(isPoisoned({ entity: { effects: { a: null, b: 'junk', c: 19 } } }), false, 'junk entries are skipped, not poisoned')
+  assert.equal(isPoisoned({ registry: null, entity: { effects: { 19: { id: 19 } } } }), true, 'a null registry falls back to the legacy id')
+})
+
+test('POISON_EFFECT_ID: the fallback stays the legacy numeric poison', () => {
+  assert.equal(POISON_EFFECT_ID, 19, 'the legacy id - the registry lookup outranks it, the fallback must stay pinned')
 })
