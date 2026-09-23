@@ -11,7 +11,8 @@ import {
   FLEE_STALEMATE_EPISODES, FLEE_STALEMATE_MARGIN, KITE_ARRIVE_DIST, KITE_HOP_BLOCKS,
   isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict,
   fleeStalemate, fleeResponse, kiteHopTarget,
-  effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID
+  effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
+  WITCH_CHASE_CEILING, witchFightStep
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
 
@@ -307,4 +308,54 @@ test('isPoisoned: the read tolerates every junk shape mineflayer hands out', () 
 
 test('POISON_EFFECT_ID: the fallback stays the legacy numeric poison', () => {
   assert.equal(POISON_EFFECT_ID, 19, 'the legacy id - the registry lookup outranks it, the fallback must stay pinned')
+})
+
+// ---- (v0.115.0) THE WITCH CHASE CEILING - run99's other half of the witch front ----
+// The lens disengages the drained bot, but the witch itself stayed un-punished:
+// the fight loop's moving GoalFollow re-paths toward a retreating witch every
+// round (F1 died AT witch@8.7 inside that churn; F10's drain finished the drag).
+// The handoff: "close to melee through the potion range, don't chase beyond ~6".
+test('witchFightStep: the close through the splash band happens, the retreat chase is capped', () => {
+  assert.equal(WITCH_CHASE_CEILING, 6, 'pinned: ~6 walked blocks of chase per episode (the handoff number)')
+  // THE F1 SHAPE: the witch hovers at 8.7 to throw - the close MUST happen or
+  // the melee never crosses the splash band and the drain never ends
+  assert.equal(witchFightStep({ dist: 8.7, chased: 0 }), 'close', 'the F1 hover distance is closed on')
+  assert.equal(witchFightStep({ dist: 11.9, chased: 0 }), 'close', 'the verdict engage edge still closes (through the potion range)')
+  // in swing range: no follow, and no budget spent on reach rounds
+  assert.equal(witchFightStep({ dist: 3.2, chased: 0 }), 'reach')
+  assert.equal(witchFightStep({ dist: 2.0, chased: 9 }), 'reach', 'reach outranks a spent budget - the swings land while they can')
+  // the retreat: the CUMULATIVE walked chase gates the follow
+  assert.equal(witchFightStep({ dist: 8.0, chased: 5.9 }), 'close', 'just under the ceiling: one more bounded step')
+  assert.equal(witchFightStep({ dist: 8.0, chased: 6.0 }), 'hold', 'exactly at the ceiling: the chase holds (the episode breaks)')
+  assert.equal(witchFightStep({ dist: 12, chased: 9 }), 'hold', 'beyond the ceiling: never chased')
+  // junk safety: an unreadable distance never chases a guess; a junk budget
+  // reads unspent because the walk measurement owns the truth
+  assert.equal(witchFightStep({}), 'hold', 'no distance: hold')
+  assert.equal(witchFightStep({ dist: NaN }), 'hold')
+  assert.equal(witchFightStep({ dist: undefined, chased: 0 }), 'hold')
+  assert.equal(witchFightStep({ dist: -3 }), 'hold', 'a negative distance is junk, not a reading')
+  assert.equal(witchFightStep({ dist: 8, chased: NaN }), 'close', 'junk budget reads as unspent')
+  assert.equal(witchFightStep({ dist: 8, chased: null }), 'close')
+  assert.equal(witchFightStep({ dist: 8, chased: -4 }), 'close', 'a negative budget is junk, not debt')
+})
+
+test('REGRESSION PIN: the miner fight loop wires the witch lane (snapshot close + budget + the hold break)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the policy helper is consulted with the LIVE dist and the spent budget
+  assert.ok(/witchFightStep\(\{ dist: cur\.dist, chased: witchChased \}\)/.test(minerSrc),
+    'the loop asks witchFightStep with the live distance and the walked budget')
+  // the close targets the witch's STANDING cell - a snapshot goal, never the
+  // moving follow (the moving follow is the F1/F10 churn this lane exists to kill)
+  assert.ok(/GoalXZ\(cur\.entity\.position\.x, cur\.entity\.position\.z\)/.test(minerSrc),
+    'the witch close is a snapshot GoalXZ, not a moving GoalFollow')
+  assert.ok(/closing witch/.test(minerSrc), 'the snapshot close labels itself for the run logs')
+  // the budget spends the WALKED displacement (measured, not the intention)
+  assert.ok(/witchChased \+= before\.distanceTo\(bot\.entity\.position\)/.test(minerSrc),
+    'the budget accumulates the actual walked displacement')
+  // the hold names itself - the next mine reads the lane without re-deriving it
+  assert.ok(/witch chase ceiling held/.test(minerSrc),
+    'the hold break logs the ceiling with the spent budget and the witch distance')
+  // the budget is per-episode: declared inside the fight (reset per defendSelf call)
+  assert.ok(/let witchChased = 0/.test(minerSrc), 'the budget starts at zero each episode')
 })

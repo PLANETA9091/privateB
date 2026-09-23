@@ -264,6 +264,41 @@ export function kiteHopTarget ({ bx = 0, bz = 0, yx = 0, yz = 0, hop = KITE_HOP_
   return { x: ax + (dx / d) * h, z: az + (dz / d) * h }
 }
 
+// (v0.115.0) THE WITCH CHASE CEILING - run99's other half of the witch front.
+// The poison lens (v0.113.0) disengages the drained bot, but the witch itself
+// stayed un-punished: the fight loop's moving GoalFollow re-paths toward a
+// retreating witch every round, dragging the bot through the splash band on
+// every re-verdict (F1 died AT witch@8.7 inside that churn; F10's 180deg flee
+// rotation finished the job at 3.7). The handoff names the cure: "close to
+// melee through the potion range, don't chase beyond ~6". The witch hovers at
+// 8-10 to throw - the melee MUST cross that band once or the drain never ends;
+// but the RETREAT is chased for at most ~6 walked blocks per fight episode,
+// then the follow holds and the episode breaks. The next health drop reopens
+// the episode with a fresh budget (the poison tick fires the sentry every
+// ~1.25s, so the swings keep landing); the lens owns the drained bar.
+export const WITCH_CHASE_CEILING = 6
+
+/**
+ * One follow decision inside a witch fight episode. The close through the
+ * splash band happens (the witch stands to throw - the snapshot close reaches
+ * it); the cumulative walked chase is capped per episode. Junk-safe: a
+ * unreadable distance never chases, a junk budget reads as unspent (the
+ * walk measurement owns the truth, not the caller's guess).
+ * @param {object} p
+ * @param {number} [p.dist] metres to the witch (junk -> hold)
+ * @param {number} [p.chased] blocks actually walked on prior follow steps this
+ *   episode (junk -> 0: the first close is always affordable)
+ * @returns {'reach'|'close'|'hold'} 'reach' = swing range, swing; 'close' = the
+ *   follow may step; 'hold' = the budget is spent, the episode breaks
+ */
+export function witchFightStep ({ dist, chased = 0 } = {}) {
+  if (!Number.isFinite(dist) || dist < 0) return 'hold'
+  if (dist <= 3.2) return 'reach'
+  const spent = Number.isFinite(chased) && chased > 0 ? chased : 0
+  if (spent >= WITCH_CHASE_CEILING) return 'hold'
+  return 'close'
+}
+
 /**
  * Fight, flee, or ignore? The single decision the mechanics layer executes.
  * @param {object} p

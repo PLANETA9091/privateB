@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
@@ -829,6 +829,11 @@ export function createMiner ({
       const weapon = pickWeapon(inventoryItems(bot))
       if (weapon) { try { await bot.equip(weapon, 'hand') } catch { /* fists are still something */ } }
       const deadline = Date.now() + 10000
+      // (v0.115.0) the witch lane's per-episode chase budget: the blocks the
+      // follow steps ACTUALLY walk vs the witch. The close through the splash
+      // band spends it too - the first close is the affordable one, the retreat
+      // is what the ceiling exists to stop.
+      let witchChased = 0
       while (bot.entity && Date.now() < deadline) {
         const cur = nearestHostile()
         if (!cur) break // the threat died or wandered off
@@ -843,13 +848,31 @@ export function createMiner ({
           return { action: 'flee', threat: cur.name }
         }
         if (v === 'ignore') break
-        try {
-          if (cur.dist > 3.2) {
-            // shooters (skeleton at 10 blocks) cannot be hit from here: close the
-            // distance first, bounded so a chase cannot drag us across the map
-            await gotoSafe(bot, new goals.GoalFollow(cur.entity, 2), { timeoutMs: 2500, label: `closing ${cur.name}` })
+        if (cur.dist > 3.2) {
+          if (cur.name === 'witch') {
+            // (v0.115.0) THE WITCH LANE: the moving GoalFollow re-paths toward
+            // a retreating witch every round - F1 died AT witch@8.7 inside that
+            // churn and F10's drain finished the drag. The close goes to the
+            // witch's STANDING cell (a snapshot, not a moving goal), the
+            // cumulative walked chase is capped at WITCH_CHASE_CEILING per
+            // episode, and a spent budget breaks the episode: the next health
+            // drop reopens it with a fresh budget, the lens owns the drained bar.
+            const step = witchFightStep({ dist: cur.dist, chased: witchChased })
+            if (step === 'hold') {
+              log(`${tag} combat: witch chase ceiling held (chased ${witchChased.toFixed(1)}b, witch @${cur.dist.toFixed(1)}) - the episode breaks, the next drop reopens it`)
+              break
+            }
+            const before = bot.entity.position.clone()
+            try { await gotoSafe(bot, new goals.GoalXZ(cur.entity.position.x, cur.entity.position.z), { timeoutMs: 2500, label: 'closing witch' }) } catch { /* swing anyway when in reach */ }
+            if (bot.entity) witchChased += before.distanceTo(bot.entity.position)
+          } else {
+            try {
+              // shooters (skeleton at 10 blocks) cannot be hit from here: close the
+              // distance first, bounded so a chase cannot drag us across the map
+              await gotoSafe(bot, new goals.GoalFollow(cur.entity, 2), { timeoutMs: 2500, label: `closing ${cur.name}` })
+            } catch { /* swing anyway when in reach */ }
           }
-        } catch { /* swing anyway when in reach */ }
+        }
         if (!bot.entity) break
         try {
           await bot.lookAt(cur.entity.position.offset(0, (cur.entity.height ?? 1.8) * 0.9, 0), true)
