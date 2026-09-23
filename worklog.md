@@ -2583,3 +2583,14 @@ Stage Summary:
 - EXPECTATIONS run528+: the F14/F11/F15 class (respawned-then-drowned with ZERO water lines) shrinks - a respawned client's real drain now pages through the falling lane ('rescue start' lines on bots that previously died silently); airGlitches stays high ONLY as the respawn-page noise (the pages still count; they just no longer poison the trend); drown deaths shrink from x3; NORMAL END holds; the valve arms keep.
 - OPEN FRONTS (evidence-ranked): (a) the commons WALK-STARVE - 'Took to long to decide path to goal!' x13 starved every commons read while the anchor sat unfunded ('fuel anchor: delivered' x0; the tithe leg either never ran or no pocket crossed the bound - wire a named log line on the skip reasons so the next mine can split never-ran from never-over-bound); (b) iron=0 (wooden=17 stone=11 iron=0; smelted=20 but the ingots scatter - a pickaxe needs 3 in ONE pocket); (c) the suffocate x2 class (F4, F17); (d) the death-cause inference lie x5 this run; (e) unaccounted 638; (f) plan 2/31 (no advance in six runs) + worldmap idle (1593p banked); (g) the integration table-place flake (run527) - one occurrence, watch it.
 - The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI on 1f2f1dd is green; one fleet per head stands).
+---
+Task ID: 398294-20260924-0654 (dispatch record)
+Agent: Z.ai Code (cron session, 06:54 +08)
+
+Work Log:
+- Push-CI on 8ea77f4/1f2f1dd (v0.127.0) = run528 SUCCESS (also the re-verification of the run527 integration flake - the same suite passed clean on the fresh head); push-CI on d7cee1a (master head, worklog appended) = run529 SUCCESS. The head was green before any dispatch.
+- run530 = 35933537636 dispatched as the ABSOLUTE LAST action (workflow_dispatch run_fleet=true, fleet_seconds=600, the correct .github/workflows/ci.yml path) - in_progress on d7cee1a.
+
+Stage Summary:
+- run530 = the first fleet of v0.127.0 (the history guard). The next session mines it: the F14/F11/F15 respawned-then-drowned class shrinks (real drains page through the falling lane with 'rescue start' lines where run525 had silence), drown deaths < 3, airGlitches stays high only as respawn-page noise, NORMAL END holds, the valve arms keep. Cross-check the anchor front (delivered x0, commons walk-starve x13) and the smelted/banked bands.
+- Next free version = 0.128.0. The mine order: run530 first, then any interim fleet the lane dispatched on top.
