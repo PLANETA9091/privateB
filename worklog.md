@@ -2524,6 +2524,7 @@ Stage Summary:
 - OPEN FRONTS: (a) the climb-out reliability (run108's 'final climb: failed - stalled' burned F8's iron chain; 15/45 run107) - the chain budget dies underground; (b) the suffocate class (x1 run104 -> x2 run108 -> x2 run109, mid-wall y=59-60, mechanism unnamed); (c) the respawn-storm o2 sensor (drowned bots' air bar reads 0-on-dry forever - the liar ladder holds, the noise grows: 0 -> 95 -> 767 -> 1210); (d) the drown inference lie (server kind= vs inferred mob/zombie x3 this run); (e) iron=0 (the anchor + the ascend both feed this lane; a pickaxe needs 3 ingots in ONE bot's pocket); (f) unaccounted ~500/run; (g) plan 2/31.
 - The fleet dispatch fires as the ABSOLUTE LAST action (after the push CI on 87588d6 is green; the run109 dispatch's own concurrency queue applies).
 
+
 ---
 Task ID: 398567-20260924-0505
 Agent: Z.ai Code (cron session, 05:05 +08, trace 1a0ba4f4e39d1a4d-cron-agent-loop-202609240505, Job 398567)
@@ -2551,3 +2552,15 @@ Work Log:
 
 Stage Summary:
 - THE FLEET OF RECORD for the 05:05 session is run #525 = 35927155318 on 48f4e1e (NOT the cancelled #523 named in the section above - mine by head_sha cross-check: event=workflow_dispatch, head 48f4e1e). The next session mines #525: the fuel-anchor observables + the deep-pocket ascend lines + the yard-approach lines on ONE tree.
+---
+Task ID: 398294-20260924-0554 (dispatch record)
+Agent: Z.ai Code (cron session, 05:54 +08)
+
+Work Log:
+- Push-CI: run522 (a92bf4d, the worklog push) = SUCCESS; the version re-take 87588d6 and the ascend 4532403 were CI-verified through the head (run521/520 superseded by the queue; run519 = the lane's own anchor push completed independently). The head was green before any dispatch decision.
+- THE JOINT FLEET OF RECORD IS run525 = 35927155318 (workflow_dispatch, in_progress on 48f4e1e, POSTed by the parallel 05:05 session at 22:13:53Z): the tree carries BOTH cures (verified by git show: ascendStalled/ceilingCell x4 in drowning.mjs, pickFuelAnchor x4 in fuelbank.mjs) - the fuel anchor + the deep-pocket ascend on one tree, exactly the joint measurement both sessions' run108/109 decodes named.
+- MY DISPATCH ATTEMPT 404'd (wrong workflow path fleet.yml - the correct path is .github/workflows/ci.yml) BEFORE any run was created: no zombie dispatch exists. No re-POST was made: ffae5c2 (the current head) differs from 48f4e1e by the worklog lines only, so one fleet per head already covers the tree - a second dispatch would queue an identical measurement behind run525 for no information.
+
+Stage Summary:
+- run525 (35927155318) = the first JOINT fleet of v0.126.0 (the fuel anchor + the deep-pocket ascend + the doomed-bay stack + the yard approach + the craft pre-flight). The next session mines it: 'deep-pocket ascend - dug the ceiling <block>' lines, the ceiling-drown class gone, 'no fuel' verdicts shrunk, smelted recovered toward the 27-28 band, banked toward the 900-2400 band, NORMAL END holds.
+- Next free version = 0.127.0. The mine order for the next session: run525 first (the joint stack), then cross-check any interim fleet the lane dispatched on top.
