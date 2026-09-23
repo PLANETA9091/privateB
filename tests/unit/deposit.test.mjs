@@ -4,7 +4,7 @@ import { test, beforeEach } from 'node:test'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { inventoryLoad, findChest, depositToChest, depositToChests } from '../../src/lib/deposit.mjs'
+import { inventoryLoad, findChest, depositToChest, depositToChests, fuelTitheOverage, KEEP } from '../../src/lib/deposit.mjs'
 
 // Unique stable numeric type per item name - the REAL code calls window.deposit(item.type),
 // so a mock where every item shares type 1 would remove the WRONG item (that bug made
@@ -39,8 +39,13 @@ function makeMockBot ({
           const it = bot._items.find(i => i.type === type)
           if (it && fullFor.includes(it.name)) throw new Error('chest full')
           if (it && silentFor.includes(it.name)) return // resolved, nothing moved
-          bot.depositCalls.push({ name: it?.name, count })
-          bot._items = bot._items.filter(i => i.type !== type)
+          // (v0.100.0) count-aware: a partial deposit (the fuel tithe) takes
+          // exactly `count` units from the FIRST matching stack - the real
+          // window.deposit(type, meta, count) semantics
+          const take = Number.isFinite(count) && count > 0 ? Math.min(count, it.count) : it.count
+          bot.depositCalls.push({ name: it?.name, count: take })
+          it.count -= take
+          if (it.count <= 0) bot._items = bot._items.filter(i => i !== it)
         },
         close: () => { bot.closed = true }
       }
@@ -184,6 +189,57 @@ test('a ghost click (resolved call, nothing moved) is NOT counted as deposited',
   const res = await depositToChest(bot)
   assert.equal(res.deposited, 4, 'only the gravel actually moved')
   assert.equal(bot._items.map(i => i.name).sort()[0], 'cobblestone', 'the ghosted stack stays with the bot')
+})
+
+// ------------------------------------------------------------------ v0.100.0
+// THE FUEL TITHE - the count-bounded fuel keep. Run89 (35820546630, the fuel
+// commons' first field test) measured the paradox: pockets 20-38 coal per bot,
+// 'fuel commons: chest holds no fuel' x15, F3 'no fuel' - the NAME-based fuel
+// keep (v0.92.0) pocket-locks every bot's whole coal pile while the commons'
+// withdraw cap says 6 is the largest plan. The overage now banks.
+test('the fuel tithe banks a keep-matched coal pile above the bound, keeping exactly 6', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({ chest, items: [item('coal', 37), item('wooden_pickaxe', 1)] })
+  const res = await depositToChest(bot, { keep: [...KEEP, 'coal'] }) // the smeltFuelKeep shape
+  assert.equal(res.deposited, 31, '37 - 6 = 31 units banked')
+  assert.deepEqual(bot.depositCalls, [{ name: 'coal', count: 31 }], 'one partial deposit of the overage')
+  assert.deepEqual(bot._items.map(i => i.name).sort(), ['coal', 'wooden_pickaxe'], 'the reserve stays with the bot')
+  assert.equal(bot._items.filter(i => i.name === 'coal')[0].count, 6)
+})
+
+test('the fuel tithe recomputes per stack: 20+18 deposits 32 and keeps 6', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({ chest, items: [item('coal', 20), item('coal', 18), item('oak_planks', 8)] })
+  const res = await depositToChest(bot, { keep: [...KEEP, 'coal'] })
+  assert.equal(res.deposited, 32)
+  assert.deepEqual(bot.depositCalls, [{ name: 'coal', count: 20 }, { name: 'coal', count: 12 }], '20 then the recomputed 12')
+  const coal = bot._items.filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0)
+  assert.equal(coal, 6, 'exactly the bound stays pocket-locked')
+})
+
+test('the fuel tithe never fires below the bound, on non-fuel keeps, or on coal_ore', async () => {
+  const chest = { position: new Vec3(3, 64, 3) }
+  // 4 coal: below the bound - the legacy absolute keep, nothing to deposit
+  const bot1 = makeMockBot({ chest, items: [item('coal', 4)] })
+  const res1 = await depositToChest(bot1, { keep: [...KEEP, 'coal'] })
+  assert.equal(res1.deposited, 0)
+  assert.deepEqual(bot1._items.map(i => i.name), ['coal'])
+  // planks keep absolutely; coal_ore matches the 'coal' keep entry but is NOT tithe fuel
+  const bot2 = makeMockBot({ chest, items: [item('oak_planks', 32), item('coal_ore', 12)] })
+  const res2 = await depositToChest(bot2, { keep: [...KEEP, 'coal'] })
+  assert.equal(res2.deposited, 0, 'non-fuel keeps and coal_ore stay absolute')
+  assert.deepEqual(bot2._items.map(i => i.name).sort(), ['coal_ore', 'oak_planks'])
+})
+
+test('fuelTitheOverage is junk-safe and exact-name', () => {
+  assert.equal(fuelTitheOverage({ name: 'coal', pocketCount: 38 }), 32)
+  assert.equal(fuelTitheOverage({ name: 'charcoal', pocketCount: 9 }), 3)
+  assert.equal(fuelTitheOverage({ name: 'coal', pocketCount: 6 }), 0, 'at the bound nothing moves')
+  assert.equal(fuelTitheOverage({ name: 'coal', pocketCount: 2 }), 0)
+  assert.equal(fuelTitheOverage({ name: 'coal', pocketCount: 'junk' }), 0)
+  assert.equal(fuelTitheOverage({ name: null, pocketCount: 38 }), 0)
+  assert.equal(fuelTitheOverage({ name: 'coal_ore', pocketCount: 38 }), 0, 'exact names only')
+  assert.equal(fuelTitheOverage({ name: 'cobblestone', pocketCount: 64 }), 0)
 })
 
 // ------------------------------------------------------------------ v0.25.0

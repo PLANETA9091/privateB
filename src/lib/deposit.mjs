@@ -288,6 +288,35 @@ export const KEEP = [
   'carrot', 'potato', 'cooked_', 'sapling'
 ]
 
+// (v0.100.0) THE FUEL TITHE - the count-bounded fuel keep. Run89 (35820546630,
+// the fuel commons' first field test) measured the paradox: the pockets held
+// 20-38 coal per bot (coal:37 x33, coal:38 x15 in the snapshot lines) while the
+// fuel commons read 'chest holds no fuel' x15 - the smelt fuel keep (v0.92.0)
+// is NAME-based, so every bot that carries smeltables (which is every bot -
+// cobblestone is the main mined block) keeps its WHOLE coal pile pocket-locked,
+// and the commons has nothing to withdraw for the fuel-less bots (F3 'no fuel'
+// while other bots carried 38). The keep's own arithmetic says 6 is enough:
+// the commons' withdraw cap is min(6, fuelNeeded) - the largest plan a 600s
+// run carries (48 smeltables -> 6 coal). So a keep-matched FUEL stack is kept
+// only up to this bound; the overage banks into the yard chests and the
+// commons' loop (already multi-chest) can finally feed it back. The tithe is
+// a DEPOSIT-side exception: tools/food/wood keeps stay absolute.
+export const FUEL_TITHE_BOUND = 6
+
+/** Pure, junk-safe: how many units of this fuel name may leave the pocket at
+ * this deposit (the pocket total above the tithe bound). Exact-name matching
+ * ('coal' must not tithe 'coal_ore'); non-fuel names and junk read 0 - the
+ * legacy absolute-keep shape byte for byte. */
+export function fuelTitheOverage ({ name = null, pocketCount = 0 } = {}) {
+  const n = typeof name === 'string' ? name : null
+  if (!n) return 0
+  const total = Number(pocketCount)
+  if (!Number.isFinite(total) || total <= 0) return 0
+  if (n !== 'coal' && n !== 'charcoal') return 0
+  const bound = Number.isFinite(FUEL_TITHE_BOUND) && FUEL_TITHE_BOUND > 0 ? Math.floor(FUEL_TITHE_BOUND) : 6
+  return Math.max(0, Math.floor(total) - bound)
+}
+
 // Rough fullness metric: 36 slots total (27 main + 9 hotbar); stack size 64 makes
 // empty slots carry 64 units of headroom.
 export function inventoryLoad (bot) {
@@ -1084,7 +1113,30 @@ export async function depositToChest (bot, {
   const countOf = name => pocketItems().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
     for (const item of pocketItems()) {
-      if (keep.some(k => item.name.includes(k))) { skipped.push(item.name); continue }
+      if (keep.some(k => item.name.includes(k))) {
+        // (v0.100.0) THE FUEL TITHE: a keep-matched FUEL stack is kept only up
+        // to FUEL_TITHE_BOUND - the overage banks (run89: pockets 20-38 coal,
+        // chests fuel-empty, the commons starved). The overage rides the
+        // LEGACY pathway because the direct path moves whole stacks only; the
+        // verified diff below stays the only truth (a ghost click reads
+        // moved=0 and is skipped honestly). The tithe recomputes per stack
+        // (countOf reads the live mirror): 20+18 -> deposit 20 then 12, keep 6.
+        const over = fuelTitheOverage({ name: item.name, pocketCount: countOf(item.name) })
+        if (over <= 0) { skipped.push(item.name); continue }
+        const units = Math.min(over, item.count)
+        const titheBefore = countOf(item.name)
+        try {
+          await withTimeout(window.deposit(item.type, null, units), depositClickTimeoutMs, `tithe ${item.name}`)
+        } catch {
+          timeoutSkips++
+          skipped.push(`${item.name}(tithe timeout)`)
+          continue
+        }
+        const titheMoved = titheBefore - countOf(item.name)
+        if (titheMoved > 0) deposited += titheMoved
+        else moved0Skips++
+        continue
+      }
       // VERIFIED TRANSFER (the 26.2 stack silently drops some window clicks): the only
       // truth is the inventory afterwards, so count before/after instead of trusting
       // the deposit call's resolution.
