@@ -36,6 +36,7 @@ import {
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
+  frozenReturnGate, frozenReturnBypass,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE
 } from '../lib/drowning.mjs'
@@ -53,6 +54,14 @@ const inventoryItems = bot => bot.inventory.items()
 
 export const BOT_VERSION = '26.2'
 export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 'sand', 'gravel', 'clay', 'soul_sand', 'snow', 'oak_log', 'birch_log', 'spruce_log']
+
+// (v0.119.0) THE FROZEN-RETURN GATE state - per-bot, process-wide (a relog
+// rebuilds the createMiner closure but the bot KEEPS its name, so the Maps
+// ride across reconnects; the fleet's 19 bots share one process). The streak
+// counts consecutive frozen relogs (the ladder fuel), the gate holds the
+// sentry's non-critical pages for frozenReturnGate(streak) after each relog.
+const frozenRelogStreaks = new Map()
+const frozenReturnGates = new Map()
 
 export function createMiner ({
   host = '127.0.0.1',
@@ -1250,11 +1259,31 @@ export function createMiner ({
         const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet })
         if (esc.relog) {
           frozenStandDowns = 0
-          log(`${tag} water: frozen client relog (${esc.why}) - ending the session, the reconnect lane rebuilds the physics`)
+          // (v0.119.0) THE FROZEN-RETURN GATE arms here: run103's F14 relogged
+          // 12 times into the SAME water column [-121,58-59,376] - the fresh
+          // client re-paged within seconds and froze again before the work
+          // loop could ever walk it out. The gate gives the promise the relog
+          // makes ("the rescue swims the bot out") the time it assumed: the
+          // sentry holds non-critical pages frozenReturnGate(streak) while
+          // the hazard-ledgered walk gate moves the bot client-side. A
+          // critical read bypasses (the death clock outranks the hold).
+          const relogStreak = (frozenRelogStreaks.get(username) || 0) + 1
+          frozenRelogStreaks.set(username, relogStreak)
+          const hold = frozenReturnGate({ consecutiveRelogs: relogStreak })
+          frozenReturnGates.set(username, Date.now() + hold)
+          log(`${tag} water: frozen client relog (#${relogStreak} consecutive) (${esc.why}) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages ${Math.round(hold / 1000)}s (the frozen-return gate)`)
           try { bot.end() } catch { /* the session loop owns the wreck */ }
         }
       } else {
         frozenStandDowns = 0 // living physics: the escalation restarts
+        // (v0.119.0) an HONEST completion - the client lived through the whole
+        // budget: the frozen-cycler ladder forgets the bot (the streak and the
+        // armed hold both clear; the next freeze starts from rung one).
+        if ((frozenRelogStreaks.get(username) || 0) > 0) {
+          frozenRelogStreaks.set(username, 0)
+          frozenReturnGates.delete(username)
+          log(`${tag} water: frozen-return gate clears - the rescue completed with living physics`)
+        }
       }
       // (v0.82.0) THE STAND-DOWN LEDGER: remember where this rescue ended
       // still wet (the frozen stand-down included - its reads are stale but
@@ -1384,6 +1413,19 @@ export function createMiner ({
         // the A* storm's pump. A WET page (head in water / waterlogged
         // contact) never waits on this gate - only the stuck-bar class does.
         if (criticalOnDry && Date.now() < noOpRescueGateUntil) return
+        // (v0.119.0) THE FROZEN-RETURN GATE - the sentry side: a page inside
+        // the hold waits UNLESS the bar is genuinely critical (the ~35s
+        // drain-to-death clock outranks any gate). The headWetMs/rescue-level
+        // lanes (the frozen cycler's own page class) hold; the liar ladder's
+        // class keeps pacing itself through the v0.117.0 machinery on top.
+        const frozenGateUntil = frozenReturnGates.get(username) || 0
+        if (Date.now() < frozenGateUntil && !frozenReturnBypass({ oxygen: o2raw })) {
+          if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
+            lastGlitchLogAt = now
+            log(`${tag} water: frozen-return gate holds the page (${Math.round((frozenGateUntil - now) / 1000)}s left) - the fresh client walks the hazard-ledgered column out`)
+          }
+          return
+        }
         rescuePageWasGlitch = criticalOnDry // (v0.117.0) the completion handler ratchets only on the glitch class
         rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
       }

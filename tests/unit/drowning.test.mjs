@@ -25,7 +25,8 @@ import {
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
-  glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX
+  glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
+  frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -1128,4 +1129,63 @@ test('the liar-ladder wiring: the miner holds the streak in the gate, ratchets o
     'wet contact resets the ladder (a new page class)')
   assert.ok(src.includes('the rescue kept its water/long record'),
     'the non-proof exit resets the ladder (the real-drain shape keeps the fast lane)')
+})
+
+// (v0.119.0) THE FROZEN-RETURN GATE - run103 (35895546754): the v0.96.0
+// wet-frozen relog became a LOOP - F14 relogged 12 times into the SAME water
+// column [-121,58-59,376] (12 rescue starts, 12 relogs, zero completions):
+// page at o2 12-13 -> surface (o2 20) -> physics freeze at the surface ->
+// first-verdict wet relog -> reconnect into the SAME column -> re-page. The
+// gate gives the relog's promise ("the rescue swims the bot out") the time it
+// assumed: the sentry holds non-critical pages while the work loop walks the
+// hazard-ledgered column out; a critical bar bypasses (the death clock wins).
+
+test('frozenReturnGate: the ladder doubles 10/20/40 and bounds at 60s', () => {
+  assert.equal(FROZEN_RETURN_GATE_BASE_MS, 10000, 'rung one: one walk-out window')
+  assert.equal(FROZEN_RETURN_GATE_MAX_MS, 60000, 'the bound: a hold, not a residency')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 0 }), 0, 'no relogs = no gate')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 1 }), 10000, 'F14 relog #1')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 2 }), 20000)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 3 }), 40000)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 4 }), 60000, 'the bound lands')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 12 }), 60000, 'F14\'s 12 relogs stay bounded')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 99 }), 60000)
+})
+
+test('frozenReturnGate: junk counts read 0 - a wiring sickness never arms a hold', () => {
+  assert.equal(frozenReturnGate({}), 0)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: null }), 0)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: undefined }), 0)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: NaN }), 0)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: -2 }), 0, 'a negative count is not debt')
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 'x' }), 0)
+  assert.equal(frozenReturnGate({ consecutiveRelogs: 2.9 }), 20000, 'floats floor to whole relogs (2)')
+})
+
+test('frozenReturnBypass: only a genuinely critical bar outranks the hold', () => {
+  assert.equal(frozenReturnBypass({ oxygen: 0 }), true, 'the death clock owns o2=0')
+  assert.equal(frozenReturnBypass({ oxygen: 4 }), true, 'AT the critical level bypasses (<=)')
+  assert.equal(frozenReturnBypass({ oxygen: 5 }), false, 'the F14 page class (o2 12-13 family) holds')
+  assert.equal(frozenReturnBypass({ oxygen: 13 }), false, 'the headWetMs lane holds')
+  assert.equal(frozenReturnBypass({ oxygen: 20 }), false)
+  assert.equal(frozenReturnBypass({ oxygen: NaN }), false, 'a lost read cannot spend an emergency')
+  assert.equal(frozenReturnBypass({ oxygen: -1 }), false, 'the -1 reset sentinel is not a reading')
+  assert.equal(frozenReturnBypass({}), false)
+})
+
+test('the frozen-return wiring: the streak rides the relog, the gate arms at the relog site, the honest completion clears, the sentry holds non-critical pages', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const frozenRelogStreaks = new Map()') && src.includes('const frozenReturnGates = new Map()'),
+    'the gate state is process-wide (a relog rebuilds the closure, the bot keeps its name)')
+  assert.ok(src.includes("frozenRelogStreaks.get(username) || 0) + 1"),
+    'the streak counts consecutive frozen relogs')
+  assert.ok(src.includes('frozenReturnGates.set(username, Date.now() + hold)'),
+    'the gate arms at the relog site')
+  assert.ok(src.includes('frozen-return gate clears - the rescue completed with living physics'),
+    'an honest completion clears the streak and the hold')
+  assert.ok(src.includes('!frozenReturnBypass({ oxygen: o2raw })'),
+    'the sentry holds the page unless the bar is genuinely critical')
+  assert.ok(src.includes('frozen-return gate holds the page'),
+    'the hold names itself so the next mine reads the lane')
 })

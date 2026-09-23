@@ -1066,6 +1066,48 @@ export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, h
   return { relog: true, why: `${n} consecutive frozen verdicts` }
 }
 
+// (v0.119.0) THE FROZEN-RETURN GATE - run103 (35895546754) mined 2026-09-24:
+// the v0.96.0 wet-frozen relog fired 30 times fleet-wide and became a LOOP.
+// F14: 12 rescue starts at the SAME column [-121,58-59,376], 12 relogs, zero
+// completions - every cycle: the headWetMs clock pages at o2 12-13, the bot
+// surfaces (o2 recovers 19-20), the physics FREEZE at the surface with the
+// head still reading wet, the first-verdict wet relog ends the session, the
+// reconnect lane drops the bot back into the SAME water column, the sentry
+// re-pages within seconds - the "the rescue swims the bot out" promise fails
+// when the shore scan reads none and the work loop never gets a tick before
+// the re-page. THE CURE: after a frozen relog the drowning sentry HOLDS its
+// non-critical pages for a laddered window (10s/20s/40s/60s per consecutive
+// relog, bounded) - the fresh client gets the time the promise assumed: the
+// work loop issues a walk (the hazard cell is already memorized) and the bot
+// leaves the column client-side. A genuinely CRITICAL read (o2 <=
+// OXYGEN_CRITICAL_LEVEL, wet or dry) bypasses immediately - the ~35s
+// drain-to-death clock outranks any gate. The per-bot streak resets on an
+// honest rescue completion (living physics through the whole budget).
+
+/** The sentry hold after a bot's Nth consecutive frozen relog (pure,
+ * junk-safe). 0 relogs -> 0 (no gate); junk counts read 0 - a wiring
+ * sickness must never arm a hold. The doubling caps at 60s: one honest
+ * walk-out window, not a residency. */
+export const FROZEN_RETURN_GATE_BASE_MS = 10000
+export const FROZEN_RETURN_GATE_MAX_MS = 60000
+
+export function frozenReturnGate ({ consecutiveRelogs = 0 } = {}) {
+  const n = Number.isFinite(consecutiveRelogs) && consecutiveRelogs > 0 ? Math.floor(consecutiveRelogs) : 0
+  if (n === 0) return 0
+  return Math.min(FROZEN_RETURN_GATE_BASE_MS * Math.pow(2, n - 1), FROZEN_RETURN_GATE_MAX_MS)
+}
+
+/** Does this drowning page BYPASS the frozen-return gate (pure)? Only a
+ * genuinely critical bar does - the ~35s drain-to-death clock outranks the
+ * hold; wet and dry criticals both bypass (a dry critical is the liar
+ * ladder's class, which paces itself; a wet critical is a real drowning).
+ * Junk oxygen never bypasses (the gates-decide convention: a lost read
+ * cannot spend an emergency). */
+export function frozenReturnBypass ({ oxygen = 20 } = {}) {
+  const raw = Number(oxygen)
+  return oxygenInDomain(raw) && raw <= OXYGEN_CRITICAL_LEVEL
+}
+
 /**
  * May a BOBBING-at-the-surface bot be released (pure, the v0.82.0 third
  * tier)? Run76's F9 toggles head dry/wet while bobbing y 48.2-50.2 in a
