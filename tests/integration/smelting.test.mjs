@@ -103,15 +103,30 @@ async function placeMachine (bot, itemName) {
     if (feetB && cell.equals(feetB.position)) continue
     const cellB = bot.blockAt(cell)
     const floorB = bot.blockAt(cell.offset(0, -1, 0))
-    if (!cellB || !floorB) { skipped++; continue }
-    if (cellB.boundingBox !== 'empty' || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') { skipped++; continue }
+    if (!cellB || !floorB) { skipped++; log(`placeMachine skip at ${cell}: null read (client chunk lag)`) ; continue }
+    if (cellB.boundingBox !== 'empty' || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') {
+      skipped++
+      log(`placeMachine skip at ${cell}: cell=${cellB.boundingBox} floor=${floorB.boundingBox} (floor ${floorB.name ?? '?'})`)
+      continue
+    }
     try {
       await bot.equip(stack, 'hand')
       await bot.waitForTicks(5)
       await bot.placeBlock(floorB, new Vec3(0, 1, 0))
-      const placed = bot.blockAt(cell)
-      if (placed && placed.name === itemName) return placed
+      // (v0.98.0) THE SETTLE VERIFY: the block update lags the place on a loaded
+      // runner (CI red 35813406318: THREE carved alcoves, THREE silent rejects -
+      // the single instant read still saw the empty cell and the run died on
+      // 'a crafting table must be placeable'). Re-read briefly before declaring
+      // the cell dead; every rejected attempt now names its verdict.
+      let placed = null
+      for (let settle = 0; settle < 5 && !placed; settle++) {
+        await bot.waitForTicks(2)
+        const b = bot.blockAt(cell)
+        if (b && b.name === itemName) placed = b
+      }
+      if (placed) return placed
       rejected++
+      log(`placeMachine ${itemName} at ${cell}: placeBlock resolved but the verify never read it back (client lag)`)
     } catch (e) { rejected++; log(`placeMachine ${itemName} at ${cell}: ${e.message}`) }
   }
   log(`placeMachine ${itemName}: all 8 cells tried (skipped=${skipped} rejected=${rejected})`)

@@ -11,7 +11,8 @@ import {
   PILLAR_FAIL_LIMIT, PILLAR_TICKS_TO_APEX, PILLAR_LAND_TICKS,
   CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP,
   riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS,
-  CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow
+  CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow,
+  veinDigRefusal, VEIN_DROP_REFUSE
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -327,4 +328,26 @@ test('climbDigWindow: junk window overrides fall back to the module defaults', (
   assert.equal(climbDigWindow({ eyeWet: true, wetTicks: -5 }), CLIMB_DIG_TICKS_WET)
   assert.equal(climbDigWindow({ eyeWet: true, wetTicks: NaN }), CLIMB_DIG_TICKS_WET)
   assert.equal(climbDigWindow({ dryTicks: 0 }), CLIMB_DIG_TICKS)
+})
+
+// ------------------------------------------------- (v0.98.0) the vein fall fence
+test('veinDigRefusal: a drop of 4+ below the cell refuses (the run87 fall/env x8, F4 class)', () => {
+  assert.equal(veinDigRefusal({ airBelow: 0 }), null, 'solid ground beneath - the normal dig')
+  assert.equal(veinDigRefusal({ airBelow: 3 }), null, 'a 3-block hop survives')
+  assert.equal(veinDigRefusal({ airBelow: 4 }), 'drop of 4 below the cell (cave?) - the ore waits for a safe angle',
+    '4+ is the shaft digger\'s own sidestep line - the sweep obeys the same truth')
+  assert.equal(veinDigRefusal({ airBelow: 23 }), 'drop of 23 below the cell (cave?) - the ore waits for a safe angle',
+    'the F4 fall: 20+ blocks from the surface band')
+})
+
+test('veinDigRefusal: blind and junk reads refuse - a bonus sweep never gambles', () => {
+  assert.ok(veinDigRefusal({ blind: true }).includes('blind'), 'the stale window refuses')
+  assert.ok(veinDigRefusal({ airBelow: NaN }).includes('junk'), 'NaN refuses')
+  assert.ok(veinDigRefusal({ airBelow: -1 }).includes('junk'), 'a negative drop refuses')
+  assert.ok(veinDigRefusal({ airBelow: 'junk' }).includes('junk'), 'a string read refuses')
+  assert.equal(veinDigRefusal({}), null, 'the bare call reads solid (0) - legacy shape for the mocks')
+})
+
+test('VEIN_DROP_REFUSE matches the shaft digger\'s sidestep threshold', () => {
+  assert.equal(VEIN_DROP_REFUSE, 4, 'the dropAheadBelow >= 4 line in digShaft is the same truth')
 })

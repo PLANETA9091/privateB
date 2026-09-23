@@ -22,7 +22,7 @@ import {
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
-  TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR,
+  TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
@@ -1761,6 +1761,7 @@ export function createMiner ({
   async function veinSweep (names, { reach = 4.5, sweeps = 2, shouldStop = null } = {}) {
     if (!Array.isArray(names) || !names.length) return 0
     let dug = 0
+    let refused = 0
     try {
       for (let sweep = 0; sweep < sweeps; sweep++) {
         const batch = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: reach, count: 12 })
@@ -1769,6 +1770,19 @@ export function createMiner ({
           if (shouldStop?.()) return dug
           const blk = bot.blockAt(pos)
           if (!blk || blk.type === 0) continue
+          // (v0.98.0) THE VEIN FALL FENCE: run87's F4 dug '8 ores beside the
+          // gallery' then fell 20+ blocks to its death - this sweep dug cells
+          // hanging over caves with no terrain check, while the shaft digger
+          // itself sidesteps exactly these (dropAheadBelow >= 4). An ore is a
+          // bonus, a 20-block fall is a funeral: the same dropAheadBelow the
+          // descent uses now fences every sweep cell (blind reads refuse too).
+          const airBelow = dropAheadBelow(pos)
+          const refusal = veinDigRefusal({ airBelow })
+          if (refusal) {
+            refused++
+            if (refused <= 2) log(`${tag} vein sweep: refused a cell - ${refusal}`)
+            continue
+          }
           if (await bot.fastDig(blk)) {
             dug++
             stats.mined++
@@ -1779,6 +1793,7 @@ export function createMiner ({
         if (!progressed) break
       }
     } catch { /* a sweep is a bonus - never a failure */ }
+    if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)
     return dug
   }
 

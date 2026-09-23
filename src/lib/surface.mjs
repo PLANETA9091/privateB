@@ -107,6 +107,29 @@ export const TRAVERSE_ROTATE_LIMIT = 4
 export const CLIMB_ESCAPE_O2_FLOOR = 6
 
 // ---------------------------------------------------------------------------
+// (v0.98.0) THE VEIN FALL FENCE. run87 (35813478393) fell/env x8 (a record),
+// and the smoking gun is F4's last line: 'vein sweep: 8 ores dug beside the
+// gallery' then death at [-114,43,420] - veinSweep digs ANY ore within reach
+// with NO drop check, while the shaft digger itself refuses exactly these
+// cells (dropAheadBelow >= 4 -> sidestep, v0.86.0 stale-window refusal). An
+// ore hanging over a cave is not worth the fall: the bonus sweep must obey
+// the same terrain truth the digger respects. Pure decision, CI-testable.
+export const VEIN_DROP_REFUSE = 4
+
+/** Pure: why this vein cell must NOT be dug (null = dig it). Junk-safe: a
+ * blind read (zero real block reads under the cell - the stale window) and a
+ * junk/negative drop both refuse - a bonus sweep never gambles on a read it
+ * cannot trust. The feet-support cell with solid ground beneath reads 0 and
+ * stays allowed (the normal 1-block descent mechanic). */
+export function veinDigRefusal ({ airBelow = 0, blind = false } = {}) {
+  if (blind === true) return 'blind read (stale window) - a bonus sweep never digs blind'
+  const a = Number(airBelow)
+  if (!Number.isFinite(a) || a < 0) return 'junk drop read - refuse'
+  if (a >= VEIN_DROP_REFUSE) return `drop of ${a} below the cell (cave?) - the ore waits for a safe angle`
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // DEEP CLIMB PERSISTENCE (v0.18.0) - a STAGE LADDER across climbOut calls.
 //
 // MEASURED (fleet 2026-09-20, 17:05 + verification runs): from the y=42
