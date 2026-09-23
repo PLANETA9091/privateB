@@ -26,6 +26,7 @@ import {
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
+import { parseDeathMessage } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
@@ -183,6 +184,23 @@ export function createMiner ({
   // the death line prints the freshest harm within 6 s.
   let lastHarm = null
   let lastHp = 20
+  // (v0.117.0) THE AUTHORITATIVE DEATH CAUSE - run102 (35889087936) mined
+  // 'fall/env' x3 while the server told the truth: 'F3 drowned', 'F13
+  // drowned', 'F18 suffocated in a wall'. The lastHarm inferrer below cannot
+  // see suffocation (no hostile, dry air) and misses the drowning read when
+  // the oxygen bar is stale at the killing tick - two runs of death maps were
+  // mined on that polluted fallback. The server BROADCASTS every death as a
+  // system chat line: this listener grabs OUR line (parseDeathMessage ignores
+  // every other name) and the death handler prints it as 'server: <verb>' -
+  // the inference stays alongside as the fallback, never silently trusted.
+  let serverDeath = null
+  bot.on('message', (msg) => {
+    try {
+      const text = typeof msg === 'string' ? msg : (msg?.toString?.() ?? null)
+      const p = parseDeathMessage(text, bot.username ?? null)
+      if (p) serverDeath = { ...p, at: Date.now() }
+    } catch { /* a chat listener must never throw */ }
+  })
   bot.on('health', () => {
     try {
       const hp = bot.health
@@ -206,9 +224,17 @@ export function createMiner ({
   })
   bot.on('death', () => {
     const fresh = lastHarm && Date.now() - lastHarm.at < 6000
-    const cause = fresh
+    const inferred = fresh
       ? `${lastHarm.name}${lastHarm.dist ? `@${lastHarm.dist.toFixed(1)}` : ''} (${Math.round((Date.now() - lastHarm.at) / 100) / 10}s before death at [${lastHarm.pos.x},${lastHarm.pos.y},${lastHarm.pos.z}])`
       : `unknown (no hp drop in the last 6s${bot.entity ? ` at [${bot.entity.position.floored().x},${bot.entity.position.floored().y},${bot.entity.position.floored().z}]` : ''})`
+    // (v0.117.0) the server's own death line outranks the inference when it
+    // arrived for THIS bot within 6s - the run102 lesson ('fall/env' x3 where
+    // the server said drowned/drowned/suffocated). Both shapes print so the
+    // next mine can still audit the inference against the truth.
+    const authFresh = serverDeath && Date.now() - serverDeath.at < 6000
+    const cause = authFresh
+      ? `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}] | inferred: ${inferred}`
+      : inferred
     log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
