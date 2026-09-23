@@ -15,7 +15,7 @@ import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../
 import { depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
-import { torchDue } from '../lib/torch.mjs'
+import { torchDue, torchWallDirs } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
@@ -1735,6 +1735,15 @@ export function createMiner ({
     let stalls = 0
     let diglessIters = 0 // (v0.35.0) iterations since the last successful dig - mob shoving resets `stalls` but cannot reset this
     let stopped = null // (v0.35.0) why the loop ended before maxBlocks: 'budget' | 'digless' | 'stalled' | 'shouldStop' | 'no entity'
+    // (v0.107.0) the tunnel-torch rhythm: the galleries this lane digs were the
+    // fleet's dark kill zones (run94: zombie x5 + the creeper ambush pair while
+    // the SHAFT lane already lit itself every TORCH_SPACING digs). Wall candidates
+    // exclude the travel face ONCE (d never changes inside a call) - a torch on
+    // the wall the next cut eats pops into an item and the wasted pickup costs
+    // more than it lights. Stocking stays shaft-entry-owned (craftTorches at the
+    // descent); a tunnel burns only what the pocket already carries.
+    const tunnelTorchDirs = torchWallDirs({ d })
+    let digsSinceTorch = 0
     try {
       while (true) {
         // (v0.35.0) the guard is the LOOP CONDITION now: fleet 35562867668 (F2) ran
@@ -1777,6 +1786,17 @@ export function createMiner ({
             stats.mined++
             stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
           }
+        }
+        // (v0.107.0) the torch rhythm rides the diglessIters reset: 0 here <=> this
+        // cut dug something (either branch resets it, the step below only increments
+        // it; the FIRST cut also reads 0 from the initialization - at worst the very
+        // first rhythm lands one cut early, a rounding error the light gain keeps).
+        // Same contract as the shaft lane: count every successful dig, place a wall
+        // torch every TORCH_SPACING, silent on any failure - a dark gallery is
+        // survivable, a broken loop is not.
+        if (diglessIters === 0) {
+          digsSinceTorch++
+          if (torchDue({ digsSinceTorch }) && await placeTorchHere({ dirs: tunnelTorchDirs })) digsSinceTorch = 0
         }
         if (done >= maxBlocks || shouldStop?.() || !bot.entity) break
         // one-block step by raw CONTROLS (lesson 2): no pathfinder in the hot path
@@ -2391,14 +2411,17 @@ export function createMiner ({
   // with the next fall the torch ends up ABOVE our head, attached to the wall,
   // and lights the column we came down through. Bounded and silent: placement
   // must never break the dig loop.
-  async function placeTorchHere () {
+  // (v0.107.0) optional `dirs` overrides the wall-candidate order: the tunnel lane
+  // excludes its travel face (torchWallDirs({ d })) so the next cut cannot eat the
+  // torch; the shaft lane (and any junk call) keeps the full v0.10.0 base set.
+  async function placeTorchHere ({ dirs = null } = {}) {
     try {
       const torch = inventoryItems(bot).find(i => i.name === 'torch')
       if (!torch) return false
       const cell = bot.entity.position.floored().offset(0, 1, 0)
       const cellB = bot.blockAt(cell)
       if (!cellB || cellB.boundingBox !== 'empty') return false // no free cell right now
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dz] of (Array.isArray(dirs) && dirs.length ? dirs : torchWallDirs({}))) {
         const wall = bot.blockAt(cell.offset(dx, 0, dz))
         if (!wall || wall.boundingBox !== 'block') continue // air / fluid / out of world
         await bot.equip(torch, 'hand')

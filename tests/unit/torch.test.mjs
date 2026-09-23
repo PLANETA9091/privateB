@@ -2,8 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS,
-  torchesCraftable, torchCraftPlan, torchDue, countTorches
+  TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS, TORCH_WALL_BASE_DIRS,
+  torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs
 } from '../../src/lib/torch.mjs'
 
 test('torchesCraftable: vanilla yield is 4 torches per stick+coal pair', () => {
@@ -96,4 +96,55 @@ test('policy constants: spacing/light stay in the spawn-proof regime', () => {
   assert.ok(TORCH_SPACING <= 8, `spacing ${TORCH_SPACING} would let the shaft go dark`)
   assert.equal(MIN_SHAFT_LIGHT, 7)
   assert.ok(RESERVED_STICKS >= 0 && RESERVED_STICKS <= 4)
+})
+
+// --- v0.107.0 the tunnel-torch rhythm: torchWallDirs ---
+
+test('torchWallDirs: the tunnel travel face is EXCLUDED from the candidates', () => {
+  // the run94 disease: the fleet dug TUNNELS in the dark while only the shaft
+  // lane placed torches. The cure lights galleries - but a torch attached to
+  // the wall the next cut eats pops the very next iteration, so the travel
+  // face must never be a candidate.
+  const d = { x: 1, z: 0 }
+  const dirs = torchWallDirs({ d })
+  assert.ok(!dirs.some(c => c[0] === 1 && c[1] === 0), `travel face [1,0] must be excluded, got ${JSON.stringify(dirs)}`)
+  assert.deepEqual([...dirs].sort(), [[-1, 0], [0, -1], [0, 1]].sort())
+})
+
+test('torchWallDirs: every unit travel direction excludes exactly its own face', () => {
+  for (const [tx, tz] of [[-1, 0], [0, 1], [0, -1], [1, 0]]) {
+    const dirs = torchWallDirs({ d: { x: tx, z: tz } })
+    assert.equal(dirs.length, 3, `d=(${tx},${tz}) must leave 3 candidates`)
+    assert.ok(!dirs.some(c => c[0] === tx && c[1] === tz), `d=(${tx},${tz}) still offered its own face`)
+  }
+})
+
+test('torchWallDirs: junk d judges nothing - the full v0.10.0 base set returns', () => {
+  // the shaft lane calls the placement with NO dirs: the fallback must be the
+  // exact historical base order, byte for byte (the digShaft compatibility pin)
+  const base = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+  assert.deepEqual(torchWallDirs({}), base)
+  assert.deepEqual(torchWallDirs({ d: null }), base)
+  assert.deepEqual(torchWallDirs({ d: 'junk' }), base)
+  assert.deepEqual(torchWallDirs({ d: { x: NaN, z: 0 } }), base)
+  assert.deepEqual(torchWallDirs({ d: { x: 1, z: Infinity } }), base)
+  assert.equal(TORCH_WALL_BASE_DIRS.length, 4)
+})
+
+test('torchWallDirs: deterministic base order is preserved minus the excluded face', () => {
+  // [1,0] excluded -> [-1,0],[0,1],[0,-1] survive IN ORDER (deterministic so a
+  // field log can name the wall that took the torch)
+  assert.deepEqual(torchWallDirs({ d: { x: 1, z: 0 } }), [[-1, 0], [0, 1], [0, -1]])
+  assert.deepEqual(torchWallDirs({ d: { x: 0, z: -1 } }), [[1, 0], [-1, 0], [0, 1]])
+  // fresh arrays every call - a caller mutating its list must not poison the base
+  const a = torchWallDirs({ d: null })
+  a[0][0] = 99
+  assert.equal(TORCH_WALL_BASE_DIRS[0][0], 1)
+})
+
+test('torchWallDirs: the rhythm constants still pin the spawn-proof regime (v0.107.0 unchanged)', () => {
+  // spacing 8 with wall torches at head level keeps a 1x2 gallery inside the
+  // light-14 spread - the tunnel rhythm reuses the SAME TORCH_SPACING as the shaft
+  assert.equal(TORCH_SPACING, 8)
+  assert.equal(MIN_SHAFT_LIGHT, 7)
 })

@@ -83,3 +83,28 @@ export function countTorches (items) {
   if (!Array.isArray(items)) return 0
   return items.reduce((a, it) => (it?.name === 'torch' && Number.isFinite(it.count) ? a + it.count : a), 0)
 }
+
+// The base wall-candidate order around the head cell (dx, dz pairs), shared by
+// every torch lane: the two x walls, then the two z walls. Deterministic so a
+// test can pin the order and a field log can name the wall that took the torch.
+export const TORCH_WALL_BASE_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
+/**
+ * Wall-candidate directions for ONE torch placement, with the lane's travel
+ * direction EXCLUDED (v0.107.0 the tunnel-torch rhythm). A torch attached to
+ * the wall the next cut eats pops into an item the very next iteration - the
+ * wasted pickup and re-place cost more light than they buy. The shaft lane
+ * digs DOWN, so its candidates keep the full base set (travel is -y, never a
+ * wall here); the tunnel lane digs ALONG d, so d's wall is the dig face.
+ * Junk-safe: a missing / non-finite / junk d judges nothing and returns the
+ * full base set - the placement proceeds exactly like the v0.10.0 shaft shape.
+ * @param {object} p
+ * @param {{x: number, z: number}|null} [p.d] the lane's unit travel direction
+ * @returns {Array<[number, number]>} ordered [dx, dz] wall candidates
+ */
+export function torchWallDirs ({ d = null } = {}) {
+  const dx = Number(d?.x)
+  const dz = Number(d?.z)
+  if (!Number.isFinite(dx) || !Number.isFinite(dz)) return TORCH_WALL_BASE_DIRS.map(c => [...c])
+  return TORCH_WALL_BASE_DIRS.filter(c => !(c[0] === dx && c[1] === dz)).map(c => [...c])
+}
