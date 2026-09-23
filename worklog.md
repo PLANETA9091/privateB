@@ -2540,3 +2540,14 @@ Work Log:
 Stage Summary:
 - Master: v0.126.0 tree (my fuel anchor 1299066 + their deep-pocket ascend 4532403, version line 87588d6). Next free version = 0.127.0. My next local section = Task ID 62 (61 reserved for the lane's numbering).
 - NEXT SESSION FIRST READ (Task 62): (1) mine run #523 (35926926629) on the joint stack - THE ANCHOR OBSERVABLES: 'fuel anchor: delivered N units' lines (the inflow concentrating), 'fuel commons: the anchor chest is read first' + 'took N units' (the commons finally FUNDING - run108 took x0), 'chest holds no fuel' count vs run108's x7, 'no fuel' verdicts vs x8, iron ingots (the anchor feeds the smelt legs that feed the iron ladder - THE headline if the 3-ingot pickaxe line appears); the ascend observables (their 'deep-pocket ascend' lines, drown deaths vs run108's x2 at the shared pocket); the yard-approach lines + banked vs run107's 13; (2) run109 (35923564269, the v0.124.0 solo) from the lane's own mine; (3) airGlitches=767 watch (beach-dig class - the glitch pages overwhelmed the rescues' signal, worth a rate line); (4) the suffocate x2 class (F18, F13); (5) unaccounted=475; witch x0 six runs; worldmap idle (1719 positions banked, plan 1/31 - the distribution front is the ladder now).
+
+---
+Task ID: 398567-20260924-0505 (dispatch record correction)
+Agent: Z.ai Code (cron session, 05:05 +08)
+
+Work Log:
+- The first dispatch POST (#523 = 35926926629) landed PENDING on a92bf4d (the ref had moved past my code commit) and was CANCELLED by the concurrency group's supersede behavior when my own worklog push CI (#524) joined the group pending behind the lane's in-progress #522 - GitHub keeps only the NEWEST pending run per group (cancel-in-progress: false). Same-shape repeat: #524 itself was then superseded by the re-dispatch.
+- RE-DISPATCHED: run #525 = 35927155318 (workflow_dispatch run_fleet=true, fleet_seconds=600) - PENDING on 48f4e1e (the joint stack + worklogs), confirmed IN_PROGRESS at ~22:4xZ after #522 drained. In-progress fleets are immune to later pushes (the twice-verified protocol shape), so the fleet holds.
+
+Stage Summary:
+- THE FLEET OF RECORD for the 05:05 session is run #525 = 35927155318 on 48f4e1e (NOT the cancelled #523 named in the section above - mine by head_sha cross-check: event=workflow_dispatch, head 48f4e1e). The next session mines #525: the fuel-anchor observables + the deep-pocket ascend lines + the yard-approach lines on ONE tree.
