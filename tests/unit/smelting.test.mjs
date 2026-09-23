@@ -250,9 +250,44 @@ test('smeltablesIn lists piles biggest-first, reserves cobble, drops logs', () =
   assert.ok(!names.includes('dirt'))
   // cobble reserve (8) leaves 4 smeltable
   assert.equal(plan.find(p => p.name === 'cobblestone').count, 4)
-  // biggest pile first
-  assert.equal(names[0], 'sand')
-  assert.ok(names.indexOf('iron_ore') < names.indexOf('cobblestone'), 'iron 5 sorts above cobble 4')
+  // (v0.106.0) THE METAL PRECEDENCE: iron_ore is a metal and leads the plan
+  assert.equal(names[0], 'iron_ore')
+  // the non-metals keep the legacy count-desc order behind the metal class
+  assert.ok(names.indexOf('sand') < names.indexOf('cobblestone'), 'sand 30 sorts above cobble 4')
+})
+
+// (v0.106.0) THE METAL PRECEDENCE - run94 (35841864758) measured the ladder
+// starvation: 7 smelt calls fleet-wide, 5 cobblestone (239u), 1 sand, ZERO metal,
+// pockets carrying raw_copper:17 next to cobblestone:79, iron=0 at end, plan
+// progress 1/31. The count-only sort lets junk dwarfs eat the coal first; metals
+// as a CLASS now rank above everything else.
+test('smeltablesIn METAL PRECEDENCE: junk dwarfs cannot eat the coal first (run94)', () => {
+  const bot = makeMockBot({
+    items: [item('cobblestone', 79), item('raw_copper', 17), item('sand', 10), item('raw_iron', 3)]
+  })
+  const plan = smeltablesIn(bot)
+  const names = plan.map(p => p.name)
+  assert.deepEqual(names.slice(0, 2), ['raw_copper', 'raw_iron'], 'metals lead, count-desc inside the class')
+  // the non-metals keep count-desc: cobble 71 (79 - 8 reserve) > sand 10
+  assert.equal(names[2], 'cobblestone')
+  assert.equal(names[3], 'sand')
+  assert.equal(plan.find(p => p.name === 'cobblestone').count, 71, 'the cobble reserve still applies')
+})
+
+test('smeltablesIn METAL PRECEDENCE: a metal-less pocket sorts exactly as before (the legacy pin)', () => {
+  const bot = makeMockBot({ items: [item('sand', 30), item('cobblestone', 12), item('clay_ball', 5)] })
+  const plan = smeltablesIn(bot)
+  // the reserve drops cobble to 4 -> the legacy count-desc order: sand, clay, cobble
+  assert.deepEqual(plan.map(p => p.name), ['sand', 'clay_ball', 'cobblestone'])
+  assert.deepEqual(plan.map(p => p.count), [30, 5, 4])
+})
+
+test('smeltablesIn METAL PRECEDENCE: junk-safe - unknown names never rank as metals', () => {
+  const bot = makeMockBot({ items: [item('mystery_ball', 9), item('raw_gold', 2), item('sand', 40)] })
+  const plan = smeltablesIn(bot)
+  const names = plan.map(p => p.name)
+  assert.ok(!names.includes('mystery_ball'), 'not smeltable at all')
+  assert.equal(names[0], 'raw_gold', 'the metal leads even with 2 units')
 })
 
 test('findMachineBlocks filters by kind, sorts by distance, returns real blocks', () => {

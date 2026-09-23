@@ -273,6 +273,44 @@ const reachableTable = bot => {
   })
 }
 
+// (v0.106.0) THE PLANK RUNG, shared: run94 (35841864758) killed the tool lane 8
+// times with 'no craftable recipe variant' while the pockets held LOGS (F1
+// oak_log:5, F10 logs=3) - every stick/table/pick recipe consumes PLANKS and the
+// mid-run lanes (upgradeTools, craftSparePickaxe) never performed the log->plank
+// conversion the bootstrap (ensureTools) owns. Converts the DOMINANT log type
+// (the same one-type semantics every recipe cares about) until the largest
+// same-type plank stack reaches `need` or the logs run out; one craft = 4 planks.
+// Verified: the one-type count must actually rise (the 26.2 stack drops clicks).
+// Returns { ok, plankName, made, why } - junk-safe, never throws.
+export async function craftPlanksFromLogs (bot, { need = 4, log = null, deps = {} } = {}) {
+  try {
+    const step = log ?? (() => {})
+    const craftUntilFn = deps.craftUntil ?? craftUntil
+    const maxSameType = () => {
+      const stacks = inventoryItems(bot)
+        .filter(i => PLANK_TYPES.includes(i.name))
+        .map(i => (Number.isFinite(i.count) ? i.count : 0))
+      return stacks.length ? Math.max(...stacks) : 0
+    }
+    const before = maxSameType()
+    if (before >= need) return { ok: true, plankName: null, made: 0, why: 'planks already sufficient' }
+    const dominantLog = Object.entries(PLANK_OF).sort((a, b) => countItem(bot, b[0]) - countItem(bot, a[0]))[0]
+    if (!dominantLog || countItem(bot, dominantLog[0]) <= 0) return { ok: false, plankName: null, made: 0, why: 'no logs' }
+    const [logName, plankName] = dominantLog
+    const crafts = Math.min(countItem(bot, logName), Math.ceil((need - before) / 4))
+    for (let i = 0; i < crafts; i++) {
+      if (!(await craftUntilFn(bot, plankName, { times: 1, want: 4, tries: 2, log: step }))) break
+      if (maxSameType() >= need) break
+    }
+    const after = maxSameType()
+    const ok = after >= need
+    step(`plank rung: ${ok ? 'converted' : 'fell short'} ${before}->${after} same-type planks (need ${need}, from ${logName})`)
+    return { ok, plankName, made: after - before, why: ok ? 'converted' : 'fell short' }
+  } catch (e) {
+    return { ok: false, plankName: null, made: 0, why: `error: ${e.message}` }
+  }
+}
+
 export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
   const find = () => {
     try { return reachableTable(bot) } catch { return null } // a throw here must not kill ensureTools

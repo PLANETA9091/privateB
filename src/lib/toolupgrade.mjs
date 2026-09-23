@@ -18,7 +18,7 @@
 //
 // This module is the POLICY layer (when to upgrade, to which tier). The MECHANISM
 // (phantom-safe crafting, table placement, grid sweeps) stays in src/bots/tools.mjs.
-import { countItem, hasKind, craftUntil, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
+import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
 
 // Tier ladder, worst to best. Index order IS the comparison order.
 export const PICK_TIERS = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe']
@@ -152,6 +152,7 @@ export async function upgradeTools (bot, {
   const craft = deps.craftUntil ?? craftUntil
   const tableOf = deps.placeTable ?? placeTable
   const toolsUpgrade = deps.toolsUpgrade ?? toolsUpgradeFlow
+  const planksFrom = deps.planksFrom ?? craftPlanksFromLogs
   const started = Date.now()
   const step = msg => log(`[toolupgrade] ${msg}`)
   try {
@@ -167,7 +168,16 @@ export async function upgradeTools (bot, {
 
     // sticks first: every tier needs 2, planks are the renewable source
     if (countItem(bot, 'stick') < PICK_STICKS) {
-      const made = await craft(bot, 'stick', { want: PICK_STICKS, log: step })
+      let made = await craft(bot, 'stick', { want: PICK_STICKS, log: step })
+      // (v0.106.0) THE PLANK RUNG: run94's F1 held oak_log:5 with ZERO planks -
+      // the stick craft died 'no craftable recipe variant' and the upgrade lane
+      // gave up while the raw material sat in the pocket. One log -> 4 same-type
+      // planks on the 2x2 (no table needed), then ONE honest retry; a failed
+      // conversion still returns the legacy verdict.
+      if (!made && countItem(bot, 'stick') < PICK_STICKS) {
+        const rung = await planksFrom(bot, { need: PICK_STICKS, log: step })
+        if (rung.ok) made = await craft(bot, 'stick', { want: PICK_STICKS, log: step })
+      }
       step(`sticks: ${made ? 'crafted' : 'FAILED'} (have ${countItem(bot, 'stick')})`)
       if (!made && countItem(bot, 'stick') < PICK_STICKS) {
         return { ok: false, tier: null, detail: 'cannot make sticks (no planks?)' }
@@ -179,7 +189,14 @@ export async function upgradeTools (bot, {
     // diag 2026-09-19: 'no crafting table placeable' at the dig site with 12 planks in
     // the pockets). The spare table is 4 planks of one type, crafted on the 2x2.
     if (!hasKind(bot, 'crafting_table')) {
-      const made = await craft(bot, 'crafting_table', { want: 1, log: step })
+      let made = await craft(bot, 'crafting_table', { want: 1, log: step })
+      // (v0.106.0) THE PLANK RUNG at the table step: run94's F2 died 'craft
+      // crafting_table: no craftable recipe variant' -> 'spare table: FAILED' -
+      // the same logs-without-planks pocket shape. Convert, then ONE retry.
+      if (!made && !hasKind(bot, 'crafting_table')) {
+        const rung = await planksFrom(bot, { need: 4, log: step })
+        if (rung.ok) made = await craft(bot, 'crafting_table', { want: 1, log: step })
+      }
       step(`spare table: ${made ? 'crafted' : 'FAILED'}`)
       if (!made && !hasKind(bot, 'crafting_table')) {
         return { ok: false, tier: null, detail: 'cannot make a spare table (no 4 planks of one type?)' }
@@ -249,6 +266,7 @@ export async function craftSparePickaxe (bot, { log = null, maxSpares = 2, deps 
   const step = log ?? (() => {})
   const craftUntilFn = deps.craftUntil ?? craftUntil
   const tableOf = deps.placeTable ?? placeTable
+  const planksFrom = deps.planksFrom ?? craftPlanksFromLogs
   try {
     const chk = sparePickCheck(bot, { maxSpares })
     if (!chk.due) {
@@ -264,8 +282,19 @@ export async function craftSparePickaxe (bot, { log = null, maxSpares = 2, deps 
     // eats 2 planks MORE into those sticks, so the one-type stack must hold 5
     // before the conversion can unlock the craft; stone/iron tiers only need 2.
     if (countItem(bot, 'stick') < PICK_STICKS) {
-      const oneType = countMaxPlankType(bot)
-      const enoughPlanks = chk.tier === 'wooden_pickaxe' ? oneType >= 5 : oneType >= 2
+      let oneType = countMaxPlankType(bot)
+      const need = chk.tier === 'wooden_pickaxe' ? 5 : 2
+      let enoughPlanks = oneType >= need
+      // (v0.106.0) THE PLANK RUNG: run94's F10 (logs=3, no planks) read 'spare
+      // (planks available)' at the check, then died 'no craftable recipe
+      // variant' - the spare path skipped instead of converting the logs it
+      // held. Convert first (wooden needs 5 same-type: 2 for sticks + 3 for the
+      // pick body), then the legacy guard judges the REAL pocket.
+      if (!enoughPlanks) {
+        const rung = await planksFrom(bot, { need, log: step })
+        if (rung.ok) oneType = countMaxPlankType(bot)
+        enoughPlanks = oneType >= need
+      }
       if (!enoughPlanks) {
         step(`spare pick: skip (sticks ${countItem(bot, 'stick')} < 2, one-type planks ${oneType} cannot unlock the craft)`)
         return { ok: false, tier: chk.tier, reason: 'not enough planks to make sticks' }

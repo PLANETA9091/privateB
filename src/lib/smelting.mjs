@@ -353,9 +353,18 @@ export function smeltablesIn (bot, { reserveCobble = 8 } = {}) {
   for (const name of [...totals.keys()]) {
     if (LOG_RE.test(name)) totals.delete(name)
   }
+  // (v0.106.0) THE METAL PRECEDENCE: run94 (35841864758) measured the ladder
+  // starvation exactly - 7 smelt calls fleet-wide, 5 of them cobblestone (239u),
+  // 1 sand, ZERO metal, while pockets carried raw_copper:17 next to
+  // cobblestone:79 (the count-only sort lets junk dwarfs eat the coal first) and
+  // the run ended iron=0 with plan progress 1/31. The plan's iron ingots (2,275
+  // needed) can never exist while every furnace window goes to stone. Metals as a
+  // CLASS rank above everything else; within a class the legacy count-desc order
+  // stands byte for byte (a metal-less pocket sorts exactly as before).
   return [...totals.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
+    .map(([name, count]) => ({ name, count, metal: METAL_INPUTS.has(name) ? 0 : 1 }))
+    .sort((a, b) => (a.metal - b.metal) || (b.count - a.count))
+    .map(({ name, count }) => ({ name, count }))
 }
 
 // All smelting machines of the wanted kinds in reach, closest first, as REAL blocks

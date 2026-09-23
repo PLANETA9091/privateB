@@ -434,3 +434,209 @@ test('craftSparePickaxe: sticks in the pocket skip the top-up entirely', async (
   assert.deepEqual(calls, ['stone_pickaxe'], 'no stick craft may run when 2 sticks are already held')
   assert.equal(res.ok, true)
 })
+
+
+// ------------------------------------------- (v0.106.0) THE PLANK RUNG
+// run94 (35841864758) killed the tool lane 8 times with 'no craftable recipe
+// variant' while the pockets held LOGS (F1 oak_log:5, F10 logs=3): every
+// stick/table/pick recipe consumes PLANKS and the mid-run lanes never converted.
+import { craftPlanksFromLogs } from '../../src/bots/tools.mjs'
+
+test('plank rung: converts the DOMINANT log type until the need is met', async () => {
+  const items = [it('oak_log', 5), it('birch_log', 2)]
+  const bot = fakeBot(items)
+  const calls = []
+  const res = await craftPlanksFromLogs(bot, {
+    need: 4,
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name) => {
+        calls.push(name)
+        items.push(it('oak_planks', 4))
+        return true
+      }
+    }
+  })
+  assert.equal(res.ok, true)
+  assert.equal(res.plankName, 'oak_planks', 'oak 5 > birch 2 - the dominant type converts')
+  assert.equal(calls.length, 1, 'one craft = 4 planks: 0 -> 4 meets need 4 immediately')
+  assert.equal(res.made, 4)
+})
+
+test('plank rung: planks already sufficient is an honest ok with zero crafts', async () => {
+  const bot = fakeBot([it('oak_log', 5), it('oak_planks', 4)])
+  const calls = []
+  const res = await craftPlanksFromLogs(bot, {
+    need: 4,
+    deps: { craftUntil: async (b, name) => { calls.push(name); return true } }
+  })
+  assert.equal(res.ok, true)
+  assert.equal(res.made, 0)
+  assert.deepEqual(calls, [])
+})
+
+test('plank rung: no logs is a named false, nothing is attempted', async () => {
+  const bot = fakeBot([it('cobblestone', 9)])
+  const calls = []
+  const res = await craftPlanksFromLogs(bot, {
+    need: 4,
+    deps: { craftUntil: async (b, name) => { calls.push(name); return true } }
+  })
+  assert.equal(res.ok, false)
+  assert.match(res.why, /no logs/)
+  assert.deepEqual(calls, [])
+})
+
+test('plank rung: a failed conversion craft reads the REAL pocket (fell short)', async () => {
+  const items = [it('oak_log', 1)]
+  const bot = fakeBot(items)
+  const res = await craftPlanksFromLogs(bot, {
+    need: 8,
+    deps: { craftUntil: async () => false }
+  })
+  assert.equal(res.ok, false)
+  assert.match(res.why, /fell short/)
+})
+
+test('plank rung: junk inventory shapes never throw', async () => {
+  const res = await craftPlanksFromLogs(null, { need: 4 })
+  assert.equal(res.ok, false)
+  assert.match(res.why, /error|no logs/)
+})
+
+test('upgradeTools: the plank rung converts logs and the upgrade lands (run94 F1 class)', async () => {
+  // F1's real shape: the check fired honestly ('cobble available' - the pocket
+  // read 2 one-type planks at check time), but the REAL craft path found no
+  // craftable pocket (the 26.2 stale-mirror divergence) and starved - with
+  // oak_log:5 still in the pocket. The mock array models the CHECK read; the
+  // craft mock models the real craft path. The rung converts and cures.
+  const items = [it('wooden_pickaxe', 1, { max: 59, used: 50 }), it('cobblestone', 10), it('oak_planks', 2), it('oak_log', 5)]
+  const bot = fakeBot(items)
+  const calls = []
+  let stickFailed = false
+  const res = await upgradeTools(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name, opts = {}) => {
+        calls.push(name)
+        if (name === 'stick') {
+          if (!stickFailed) { stickFailed = true; return false }
+          items.push(it('stick', 4))
+          return true
+        }
+        if (name === 'crafting_table') { items.push(it('crafting_table', 1)); return true }
+        if (name === 'stone_pickaxe') { items.push(it('stone_pickaxe', 1, { max: 131 })); return true }
+        return false
+      },
+      planksFrom: async (b, { need }) => {
+        calls.push(`planksFrom(${need})`)
+        items.push(it('oak_planks', 4))
+        return { ok: true, plankName: 'oak_planks', made: 4, why: 'converted' }
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, true, `detail: ${res.detail}`)
+  assert.equal(res.tier, 'stone_pickaxe')
+  // the order IS the cure: stick craft starves -> rung converts -> stick retries -> table -> pick
+  // (the table craft succeeds on the first try here, so the table rung never consults)
+  assert.deepEqual(calls, ['stick', 'planksFrom(2)', 'stick', 'crafting_table', 'stone_pickaxe'])
+})
+
+test('upgradeTools: the table rung converts when the spare-table craft starves (run94 F2 class)', async () => {
+  // F2: 'craft crafting_table: no craftable recipe variant' -> 'spare table:
+  // FAILED' -> 'tool upgrade: failed -> none (no table material)'. Logs convert,
+  // the table craft retries once, the upgrade completes.
+  const items = [it('wooden_pickaxe', 1, { max: 59, used: 50 }), it('cobblestone', 10), it('stick', 4), it('oak_log', 2)]
+  const bot = fakeBot(items)
+  const calls = []
+  let tableFailed = false
+  const res = await upgradeTools(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name) => {
+        calls.push(name)
+        if (name === 'crafting_table') {
+          if (!tableFailed) { tableFailed = true; return false }
+          items.push(it('crafting_table', 1))
+          return true
+        }
+        if (name === 'stone_pickaxe') { items.push(it('stone_pickaxe', 1, { max: 131 })); return true }
+        return false
+      },
+      planksFrom: async (b, { need }) => {
+        calls.push(`planksFrom(${need})`)
+        items.push(it('oak_planks', 4))
+        return { ok: true, plankName: 'oak_planks', made: 4, why: 'converted' }
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, true, `detail: ${res.detail}`)
+  assert.equal(res.tier, 'stone_pickaxe')
+  assert.deepEqual(calls, ['crafting_table', 'planksFrom(4)', 'crafting_table', 'stone_pickaxe'])
+})
+
+test('upgradeTools: a failed rung keeps the legacy honest verdict (no planks for sticks, no logs)', async () => {
+  // the check fires honestly (2 one-type planks unlock sticks, cobble >= 3),
+  // the stick craft starves, the rung finds no logs - the legacy verdict stands.
+  const items = [it('wooden_pickaxe', 1, { max: 59, used: 50 }), it('cobblestone', 10), it('oak_planks', 2)]
+  const bot = fakeBot(items)
+  const calls = []
+  const res = await upgradeTools(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name) => { calls.push(name); return false },
+      planksFrom: async () => ({ ok: false, plankName: null, made: 0, why: 'no logs' }),
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, false)
+  assert.match(res.detail, /cannot make sticks/)
+  assert.deepEqual(calls, ['stick'], 'exactly one stick attempt, no table or pick crafts after it')
+})
+
+test('craftSparePickaxe: the rung unlocks the spare when one-type planks fall short (run94 F10 class)', async () => {
+  // F10: main pick healthy, 3 one-type planks (check read 'planks available'),
+  // zero sticks, logs in the pocket. Wooden spare needs 5 one-type planks.
+  const items = [it('stone_pickaxe', 1, { max: 131 }), it('oak_planks', 3), it('oak_log', 3)]
+  const bot = fakeBot(items)
+  const calls = []
+  const res = await craftSparePickaxe(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name) => {
+        calls.push(name)
+        if (name === 'stick') { items.push(it('stick', 4)); return true }
+        if (name === 'wooden_pickaxe') { items.push(it('wooden_pickaxe', 1, { max: 59 })); return true }
+        return false
+      },
+      planksFrom: async (b, { need }) => {
+        calls.push(`planksFrom(${need})`)
+        items.push(it('oak_planks', 2))
+        return { ok: true, plankName: 'oak_planks', made: 2, why: 'converted' }
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, true, `reason: ${res.reason}`)
+  assert.equal(res.tier, 'wooden_pickaxe')
+  assert.deepEqual(calls, ['planksFrom(5)', 'stick', 'wooden_pickaxe'])
+})
+
+test('craftSparePickaxe: a failed rung keeps the legacy skip verdict byte for byte', async () => {
+  const items = [it('stone_pickaxe', 1, { max: 131 }), it('oak_planks', 3)]
+  const bot = fakeBot(items)
+  const calls = []
+  const res = await craftSparePickaxe(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name) => { calls.push(name); return true },
+      planksFrom: async () => ({ ok: false, plankName: null, made: 0, why: 'no logs' }),
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, false)
+  assert.match(res.reason, /not enough planks to make sticks/)
+  assert.deepEqual(calls, [], 'no craft may run when the conversion fails and the guard refuses')
+})
