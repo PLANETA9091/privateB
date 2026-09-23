@@ -21,5 +21,5 @@ for (const a of arts.artifacts || []) {
   execSync(`curl -sL -H "Authorization: token ${token}" -o "${outDir}/${a.name}.zip" "https://api.github.com/repos/PLANETA9091/privateB/actions/artifacts/${a.id}/zip"`);
 }
 if (!found) { console.error('no fleet artifacts on run', runId); process.exit(1); }
-execSync(`cd "${outDir}" && for z in *.zip; do unzip -o -q "$z" -d "x${z%.zip}"; done && ls -la`, { shell: '/bin/bash', stdio: 'inherit' });
+execSync(`cd "${outDir}" && for z in *.zip; do unzip -o -q "$z" -d "x$(basename "$z" .zip)"; done && ls -la`, { shell: '/bin/bash', stdio: 'inherit' });
 console.log('done ->', outDir);
