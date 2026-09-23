@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  craft, craftBackoffMs, craftStormVerdict,
+  craft, craftBackoffMs, craftStormVerdict, preflightClearWindow,
   CRAFT_STORM_GIVE_UP, CRAFT_STORM_BASE_MS, CRAFT_STORM_CAP_MS
 } from '../../src/bots/tools.mjs'
 
@@ -122,4 +122,85 @@ test('craft storm: a probe craft after the cooldown re-arms a deeper cooldown on
   assert.equal(bot._craftStorm.consecutive, CRAFT_STORM_GIVE_UP + 1, 'the probe timeout deepens the counter')
   assert.ok(bot._craftStorm.cooldownUntil > t0, 'a fresh, deeper cooldown is armed')
   assert.match(lines.join('\n'), /craft storm: 4 consecutive craft timeouts - cooldown 80ms/)
+})
+
+// (v0.122.0) THE PRE-FLIGHT. run106 (35907836654): F7's craft lane died for the
+// whole run (3 -> 4 -> 5 consecutive timeouts on HAND recipes) while the server
+// was demonstrably alive - the dance hung on a stale window that the recovery
+// only closed AFTER the failure. The pre-flight closes it BEFORE the dance.
+
+test('craft pre-flight: a real stale window is closed BEFORE the dance', async () => {
+  const bot = stormBot()
+  bot.craft = () => Promise.resolve()
+  const closes = []
+  bot.currentWindow = { type: 'minecraft:chest' }
+  bot.closeWindow = w => closes.push(w.type)
+  const lines = []
+  const ok = await craft(bot, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok, true)
+  assert.deepEqual(closes, ['minecraft:chest'], 'the stale window closed before the dance')
+  assert.match(lines.join('\n'), /craft: pre-flight cleared stale minecraft:chest window/)
+})
+
+test('craft pre-flight: a clean lane is a strict no-op (no close, no line)', async () => {
+  const bot = stormBot()
+  bot.craft = () => Promise.resolve()
+  let closes = 0
+  bot.closeWindow = () => { closes++ }
+  const lines = []
+  const ok = await craft(bot, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok, true)
+  assert.equal(closes, 0, 'nothing to close - the craft ran without touching windows')
+  assert.doesNotMatch(lines.join('\n'), /pre-flight/, 'no pre-flight line on a clean lane')
+})
+
+test('craft pre-flight: the F7 healing shape - a poisoned lane heals on the FIRST probe', async () => {
+  const bot = stormBot()
+  bot._craftStorm = { consecutive: CRAFT_STORM_GIVE_UP, cooldownUntil: 0 } // probe allowed
+  bot.craft = () => Promise.resolve() // the dance lands on the cleaned state
+  const closes = []
+  bot.currentWindow = { type: 'minecraft:inventory' }
+  bot.closeWindow = w => closes.push(w.type)
+  const lines = []
+  const ok = await craft(bot, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok, true, 'the probe craft LANDED - the lane healed instead of re-arming')
+  assert.deepEqual(closes, ['minecraft:inventory'])
+  assert.equal(bot._craftStorm.consecutive, 0, 'a landed probe resets the storm')
+  assert.equal(bot._craftStorm.cooldownUntil, 0, 'no deeper cooldown armed')
+})
+
+test('craft pre-flight: a cooldown refusal stays side-effect-free (no close)', async () => {
+  const bot = stormBot()
+  bot._craftStorm = { consecutive: CRAFT_STORM_GIVE_UP, cooldownUntil: Date.now() + 60000 }
+  bot.craft = () => Promise.resolve()
+  let closes = 0
+  bot.currentWindow = { type: 'minecraft:chest' }
+  bot.closeWindow = () => { closes++ }
+  const lines = []
+  const ok = await craft(bot, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok, false)
+  assert.equal(closes, 0, 'the refusal closes no window - zero side effects')
+})
+
+test('craft pre-flight: junk-safe - a throwing accessor or close never kills the craft', async () => {
+  const bot = stormBot()
+  bot.craft = () => Promise.resolve()
+  bot.currentWindow = new Proxy({}, { get () { throw new Error('window corpse') } })
+  const lines = []
+  const ok1 = await craft(bot, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok1, true, 'a throwing window accessor flows - the dance proceeds')
+  const bot2 = stormBot()
+  bot2.craft = () => Promise.resolve()
+  bot2.currentWindow = { type: 'minecraft:chest' }
+  bot2.closeWindow = () => { throw new Error('close corpse') }
+  const ok2 = await craft(bot2, 'stick', 1, null, l => lines.push(l))
+  assert.equal(ok2, true, 'a throwing close flows - the dance proceeds')
+})
+
+test('craft pre-flight: the exported helper returns the verdict shape directly', () => {
+  const bot = { currentWindow: { type: 'minecraft:chest' }, closeWindow: () => {} }
+  assert.equal(preflightClearWindow(bot), true)
+  const clean = { currentWindow: null, closeWindow: () => { throw new Error('never') } }
+  assert.equal(preflightClearWindow(clean), false, 'a clean lane returns false without closing')
+  assert.equal(preflightClearWindow({}), false, 'no window state at all -> false')
 })

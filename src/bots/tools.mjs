@@ -138,6 +138,36 @@ export function craftStormVerdict (bot, { now = Date.now() } = {}) {
   return { allowed: true, waitMs: 0, consecutive: s.consecutive }
 }
 
+// (v0.122.0) THE PRE-FLIGHT. run106 (35907836654, the v0.121.0 fleet, SUCCESS but
+// holed): F5/F6/F7 hit the craft storm on HAND recipes (stick, oak_planks) - F7
+// three separate episodes (3 -> 4 -> 5 consecutive), tool upgrade dead the whole
+// run - while the server was demonstrably ALIVE (other bots' tunnels marched, bank
+// trips flowed). THE DECODE: the click dance hung on clicks the server never
+// confirmed because a STALE window was already open when the dance started (a bank
+// window, the inventory state of an earlier dance) - and the recovery only runs
+// AFTER a failure, so the FIRST dance of every episode paid the full 7000ms fence
+// plus one storm count for a poison that closing the window BEFORE the dance
+// removes for free. The cure: every craft starts from a VERIFIED-CLEAN window
+// state. A real stale window (bot.currentWindow non-null) is closed before the
+// recipe loop; when the lane is clean the pre-flight is a strict no-op (no click,
+// no line) and the craft behaves byte-for-byte as before. The storm's verdict
+// becomes honest: with the poison removed up front, a probe timeout now really
+// means the server stalled (the v0.43.0 semantics hold unchanged); a poisoned lane
+// heals on the FIRST probe instead of burning the run. Junk-safe: a throwing
+// window accessor or close never kills the craft - the dance flows as before.
+// Exported for tests.
+export function preflightClearWindow (bot, log = null) {
+  try {
+    const w = bot.currentWindow
+    if (w) {
+      ;(log ?? (() => {}))?.(`craft: pre-flight cleared stale ${w.type} window`)
+      bot.closeWindow(w)
+      return true
+    }
+  } catch { /* window already gone */ }
+  return false
+}
+
 export async function craft (bot, itemName, times, table = null, log = null, opts = {}) {
   const { timeoutMs = CRAFT_TIMEOUT_MS, stormBaseMs = CRAFT_STORM_BASE_MS, stormCapMs = CRAFT_STORM_CAP_MS } = opts
   const step = log ?? (() => {})
@@ -147,6 +177,10 @@ export async function craft (bot, itemName, times, table = null, log = null, opt
     step(`craft ${itemName}: storm cooldown ${verdict.waitMs}ms left (${verdict.consecutive} consecutive timeouts) - refusing`)
     return false
   }
+  // THE PRE-FLIGHT (v0.122.0): normalize the window state BEFORE the dance (see
+  // above). Skipped for a refused craft - a cooldown refusal stays free of side
+  // effects, exactly as before.
+  preflightClearWindow(bot, step)
   const id = bot.registry.itemsByName[itemName]?.id
   if (id == null) return false
   const recipes = bot.recipesFor(id, null, 1, table ?? null) || []
