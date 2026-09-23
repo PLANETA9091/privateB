@@ -12,7 +12,8 @@ import {
   FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
   newCommonsMemory, rememberEmptyChest, liveEmptyCells,
   COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS,
-  pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe
+  pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe,
+  freshEmptyCells, ANCHOR_FRESH_EMPTY_MS
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -690,7 +691,7 @@ test('withdrawFuelCommons: without a yardCenter the legacy nearest-first shape h
 test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy deposit, the anchor read is chest #0', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
-  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe \} from '\.\.\/src\/lib\/fuelbank\.mjs'/)
+  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage \} from '\.\.\/src\/lib\/fuelbank\.mjs'/)
   assert.match(fleetSrc, /await deliverFuelTithe\(miner\.bot, \{/)
   assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*budgetMs: anchorBudgetMs,/)
   assert.match(fleetSrc, /remaining\(\) > 8000 \? Math\.min\(15000, Math\.floor\(remaining\(\) \/ 4\)\) : 0/, 'the budget guard: a dead chain never pays the delivery')
@@ -701,4 +702,101 @@ test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy d
   assert.match(bankSrc, /export function scanYardChests/)
   assert.match(bankSrc, /export function fuelPocketOverage/)
   assert.match(bankSrc, /export async function deliverFuelTithe/)
+})
+
+// --------------------------------------------------- v0.128.0 the anchor fresh window
+test('freshEmptyCells: only the JUST-seen-empty chest rides the anchor exclude, an old observation cannot un-anchor', () => {
+  const mem = newCommonsMemory()
+  const now = 1_000_000
+  rememberEmptyChest(mem, 'F2', { x: 30, y: 64, z: 30 }, now) // observed NOW
+  rememberEmptyChest(mem, 'F2', { x: 3, y: 64, z: 3 }, now - 60000) // observed 60s ago
+  assert.deepEqual(freshEmptyCells(mem, 'F2', now), [{ x: 30, y: 64, z: 30 }],
+    'the 60s-old empty memory is not fresh - the anchor cell re-opens for the tithe refill')
+})
+
+test('freshEmptyCells: the 15s boundary is inclusive, the junk family reads empty, pruning mirrors liveEmptyCells', () => {
+  const mem = newCommonsMemory()
+  const now = 1_000_000
+  rememberEmptyChest(mem, 'F2', { x: 1, y: 2, z: 3 }, now - ANCHOR_FRESH_EMPTY_MS)
+  assert.deepEqual(freshEmptyCells(mem, 'F2', now), [{ x: 1, y: 2, z: 3 }], 'an observation exactly freshMs old is still fresh (the >= contract)')
+  for (const junk of [null, undefined, {}, { F9: 'junk' }, { F9: 42 }]) {
+    assert.deepEqual(freshEmptyCells(junk, 'F9', now), [], 'junk memory reads empty')
+  }
+  assert.deepEqual(freshEmptyCells(mem, 42, now), [], 'junk name reads empty')
+  assert.deepEqual(freshEmptyCells(mem, 'F9', 'junk'), [], 'junk clock reads empty')
+  const mem2 = newCommonsMemory()
+  rememberEmptyChest(mem2, 'F3', { x: 9, y: 9, z: 9 }, now - COMMONS_EMPTY_TTL_MS - 1)
+  assert.deepEqual(freshEmptyCells(mem2, 'F3', now), [], 'an expired entry is neither fresh nor kept')
+  assert.equal(mem2.F3 instanceof Map && mem2.F3.size, 0, 'the expired entry was pruned in place')
+})
+
+test('scanYardChests: the scan retry - one transient palette throw no longer voids the anchor ask (the v0.38.0 lesson re-learned)', () => {
+  const near = { name: 'chest', position: new Vec3(2.5, 64, 2.5) }
+  let calls = 0
+  const flaky = {
+    entity: { position: new Vec3(0, 64, 0) },
+    findBlocks: () => { if (calls++ === 0) throw new Error('palette desync'); return [near] }
+  }
+  const lines = []
+  assert.deepEqual(scanYardChests(flaky, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => lines.push(l) }), [{ x: 2, y: 64, z: 2 }],
+    'the second attempt answers')
+  assert.equal(calls, 2, 'exactly two attempts')
+  assert.equal(lines.length, 1, 'the swallow named itself once')
+  assert.match(lines[0], /fuel anchor scan swallowed: palette desync at \[0,64,0\] \(attempt 1\/2\)/)
+  const dead = { findBlocks: () => { throw new Error('palette desync') } }
+  const deadLines = []
+  assert.deepEqual(scanYardChests(dead, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => deadLines.push(l) }), [], 'two throws still read empty')
+  assert.equal(deadLines.length, 2, 'BOTH attempts named themselves - no bare swallow')
+})
+
+test('withdrawFuelCommons: the fresh-empty memory cannot un-anchor - a chest seen empty a minute ago is STILL read first', async () => {
+  const world = mockAnchorSweepWorld()
+  const yard = { x: 32, y: 64, z: 32 }
+  const mem = newCommonsMemory()
+  rememberEmptyChest(mem, 'AnchorSweepBot', { x: 30, y: 64, z: 30 }, Date.now() - 60000) // the anchor seen empty 60s ago
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: yard, memory: mem })
+  assert.equal(res.reason, 'ok', 'the anchor read funded despite the old empty memory')
+  assert.equal(res.taken, 5)
+  assert.equal(world.opened['30,64,30'], 1, 'the anchor chest was read first')
+  assert.equal(world.opened['3,64,3'], undefined, 'the nearest junk chest was never walked')
+})
+
+test('withdrawFuelCommons: a chest seen empty JUST now stays fresh-excluded - the honest no-re-walk shape holds', async () => {
+  const world = mockAnchorSweepWorld()
+  const yard = { x: 32, y: 64, z: 32 }
+  const mem = newCommonsMemory()
+  rememberEmptyChest(mem, 'AnchorSweepBot', { x: 30, y: 64, z: 30 }, Date.now() - 5000) // seen empty 5s ago
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: yard, memory: mem })
+  assert.equal(world.opened['30,64,30'], undefined, 'a 5s-old empty observation still excludes the anchor')
+  assert.equal(world.opened['3,64,3'], 1, 'the sweep fell through to the nearest chest')
+  assert.equal(res.taken, 0)
+})
+
+test('withdrawFuelCommons: the anchor null exits NAME themselves (the smelt-zero honesty shape)', async () => {
+  const world = mockAnchorSweepWorld()
+  world.bot.findBlocks = () => { throw new Error('dead world') } // both scan attempts die
+  const lines = []
+  await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines.push(l) })
+  const joined = lines.join('\n')
+  assert.match(joined, /fuel anchor scan swallowed: dead world( at \[\d+,\d+,\d+\])? \(attempt 1\/2\)/, 'the scan retry named itself')
+  assert.match(joined, /the anchor scan saw 0 chest\(s\), 0 usable after the empty memory - no anchor/, 'the no-anchor exit names the scan size and the memory pressure')
+  const world2 = mockAnchorSweepWorld()
+  world2.bot.blockAt = () => null // the anchor cell reads null (chunk not loaded)
+  const lines2 = []
+  await withdrawFuelCommons(world2.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines2.push(l) })
+  assert.match(lines2.join('\n'), /the anchor cell \[30,64,30\] reads null - no anchor/, 'the unreadable-block exit names the cell')
+})
+
+test('REGRESSION PIN: the v0.128.0 named exits ride the fleet and the bank sources', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /fuel anchor: 0 delivered \(\$\{anchorRes\.why\}\) - the legacy scatter carries the tithe/, 'every non-delivery exit names its why')
+  assert.match(fleetSrc, /anchorRes\.why !== 'no overage'/, 'the healthy lean pocket stays quiet')
+  assert.match(fleetSrc, /fuel anchor: skipped - the final leg clock \(\$\{Math\.round\(remaining\(\)\)\}s\) cannot afford the walk while the pocket holds \$\{overage\} over the bound/, 'the thin-clock guard skip names the overage it strands')
+  assert.match(fleetSrc, /const overage = fuelPocketOverage\(miner\.bot\)/, 'the caller pre-reads the overage so the skip is honest')
+  assert.match(bankSrc, /export const ANCHOR_FRESH_EMPTY_MS = 15000/)
+  assert.match(bankSrc, /export function freshEmptyCells/)
+  assert.match(bankSrc, /the anchor scan saw \$\{cells\.length\} chest\(s\), \$\{usable\.length\} usable after the empty memory - no anchor/)
+  assert.match(bankSrc, /the anchor cell \[\$\{anchor\.x\},\$\{anchor\.y\},\$\{anchor\.z\}\] reads \$\{block \? block\.name : 'null'\} - no anchor/)
+  assert.match(bankSrc, /const freshEmpty = freshEmptyCells\(memory, bot\?\.username, started\)/, 'the anchor read excludes only the FRESH empties')
 })

@@ -33,7 +33,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
-import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -434,6 +434,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // the legacy tithe into whatever chest the deposit opens (the scatter that
   // fed run108's sweeps is still the floor, never a regression).
   try {
+    const overage = fuelPocketOverage(miner.bot)
     const anchorBudgetMs = remaining() > 8000 ? Math.min(15000, Math.floor(remaining() / 4)) : 0
     if (anchorBudgetMs >= 5000) {
       const anchorRes = await deliverFuelTithe(miner.bot, {
@@ -442,6 +443,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         log: m => console.log(`${miner.username} ${m}`)
       })
       if (anchorRes.delivered > 0) console.log(`${miner.username} fuel anchor: delivered ${anchorRes.delivered} fuel overage (${anchorRes.why})`)
+      // (v0.128.0) THE NAMED EXITS: run525 proved 2 tithe deposits (17+13 coal
+      // pockets) while the anchor logged ZERO lines - every non-delivery exit
+      // (walk failed, open failed, unreadable block) was silent at BOTH the
+      // function and the caller, so the mine could not tell skipped from
+      // failed from never-tried. Every exit now names itself; 'no overage'
+      // (the healthy lean pocket) stays quiet - it fires every chain.
+      else if (anchorRes.why !== 'no overage') console.log(`${miner.username} fuel anchor: 0 delivered (${anchorRes.why}) - the legacy scatter carries the tithe`)
+    } else if (overage > 0) {
+      console.log(`${miner.username} fuel anchor: skipped - the final leg clock (${Math.round(remaining())}s) cannot afford the walk while the pocket holds ${overage} over the bound`)
     }
   } catch { /* the legacy scatter is the fallback */ }
   const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })

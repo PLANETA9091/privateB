@@ -81,6 +81,41 @@ export const COMMONS_SWEEP_CHESTS = 8
 // must not outlive the world it describes.
 export const COMMONS_EMPTY_TTL_MS = 90000
 
+/** (v0.128.0) THE ANCHOR FRESH WINDOW. The 90s empty memory exists so a
+ * repeat ask walks ONWARD instead of re-walking known-empty chests - but the
+ * anchor is THE tithe's dedicated target, the one yard chest that REFILLS
+ * between two asks (run525: the tithe's 11+7 coal landed while the sweeps
+ * starved, and 0 'anchor chest is read first' lines all run). A chest this
+ * bot saw empty a minute ago must not un-anchor the read: 15s (the doom
+ * half-life cadence) is the honest window - fresh enough to skip a chest
+ * seen empty JUST now, old enough that the tithe's refill re-opens it. */
+export const ANCHOR_FRESH_EMPTY_MS = 15000
+
+/** (v0.128.0) Pure-ish, junk-safe: the remembered-empty cells for `name`
+ * observed within the last `freshMs` (the LIVE expiry contract is unchanged:
+ * expired entries are pruned in place). An entry recorded at r with the full
+ * ttl reads fresh iff (expiry - now) >= (fullTtl - freshMs). Unknown/junk
+ * name reads as an empty array; the shape mirrors liveEmptyCells exactly. */
+export function freshEmptyCells (memory, name, now, freshMs = ANCHOR_FRESH_EMPTY_MS, fullTtlMs = COMMONS_EMPTY_TTL_MS) {
+  if (!memory || typeof memory !== 'object') return []
+  if (typeof name !== 'string' || name.length === 0) return []
+  const bucket = memory[name]
+  if (!(bucket instanceof Map)) return []
+  const t = Number(now)
+  if (!Number.isFinite(t)) return []
+  const fresh = Number.isFinite(freshMs) && freshMs >= 0 ? freshMs : ANCHOR_FRESH_EMPTY_MS
+  const full = Number.isFinite(fullTtlMs) && fullTtlMs >= 0 ? fullTtlMs : COMMONS_EMPTY_TTL_MS
+  const floor = full - fresh
+  const out = []
+  for (const [key, expiry] of bucket) {
+    if (!Number.isFinite(expiry) || expiry <= t) { bucket.delete(key); continue }
+    if (expiry - t < floor) continue // observed longer than freshMs ago - not the anchor's problem
+    const [x, y, z] = key.split(',').map(s => Number(s))
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+  }
+  return out
+}
+
 /** (v0.99.0) A fresh per-fleet empty-chest memory: { [botName]: Map('x,y,z' ->
  * expiryMs) }. Plain object, no clock reads at construction. */
 export function newCommonsMemory () {
@@ -165,45 +200,77 @@ export function pickFuelAnchor (chests, yardCenter) {
  * The palette-candidate rule rides here too (a positionless probe block is a
  * CANDIDATE: the real per-block filter re-runs with true positions). Never
  * throws: a missing findBlocks, a throw, a junk return all read as an EMPTY
- * scan (the caller falls back to the legacy nearest-first shape). */
-export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS } = {}) {
-  try {
-    if (typeof bot?.findBlocks !== 'function') return []
-    const raw = bot.findBlocks({
-      matching: b => {
-        if (!b) return false
-        if (!isChestName(b.name)) return false
-        if (!b.position) return true // the palette candidate rule (v0.43.0)
-        return chestNearYard({ chestPos: b.position, yardCenter, radius })
-      },
-      maxDistance,
-      count: 256
-    })
-    if (!Array.isArray(raw)) return []
-    const out = []
-    for (const b of raw) {
-      if (!b || !b.position) continue
-      const x = Math.floor(Number(b.position.x))
-      const y = Math.floor(Number(b.position.y))
-      const z = Math.floor(Number(b.position.z))
-      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+ * scan (the caller falls back to the legacy nearest-first shape).
+ * (v0.128.0) THE SCAN RETRY: one attempt per findBlocks call was the findChest
+ * v0.38.0 lesson UNLEARNED - a transient palette desync under 19-bot load threw
+ * and the bare catch read an EMPTY scan, killing the anchor for that ask with
+ * no line and no retry (run525: 0 'anchor chest is read first' lines all run
+ * while the same loop's findChest opened chest after chest). TWO attempts, the
+ * swallow names itself (bot position included, the v0.38.0 shape). */
+export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS, log = () => {} } = {}) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      if (typeof bot?.findBlocks !== 'function') return []
+      const raw = bot.findBlocks({
+        matching: b => {
+          if (!b) return false
+          if (!isChestName(b.name)) return false
+          if (!b.position) return true // the palette candidate rule (v0.43.0)
+          return chestNearYard({ chestPos: b.position, yardCenter, radius })
+        },
+        maxDistance,
+        count: 256
+      })
+      if (!Array.isArray(raw)) return []
+      const out = []
+      for (const b of raw) {
+        if (!b || !b.position) continue
+        const x = Math.floor(Number(b.position.x))
+        const y = Math.floor(Number(b.position.y))
+        const z = Math.floor(Number(b.position.z))
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+      }
+      return out
+    } catch (e) {
+      const at = (() => {
+        try {
+          const p = bot?.entity?.position
+          return p && Number.isFinite(p.x) ? ` at [${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}]` : ''
+        } catch { return '' }
+      })()
+      try { log(`fuel anchor scan swallowed: ${e?.message || e}${at} (attempt ${attempt}/2)`) } catch { /* log never kills a scan */ }
     }
-    return out
-  } catch { return [] }
+  }
+  return []
 }
 
 /** (v0.124.0) The anchor chest as a real Block for openChest, or null. The
  * remembered-empty cells (the sweep memory) are pre-excluded so the anchor
- * read never re-walks a chest this bot just saw empty. */
-function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude }) {
+ * read never re-walks a chest this bot just saw empty.
+ * (v0.128.0) the caller passes the FRESH empty cells only (freshEmptyCells,
+ * ANCHOR_FRESH_EMPTY_MS) - a chest this bot saw empty a minute ago must not
+ * un-anchor the read, because the anchor is the one chest the tithe REFILLS.
+ * Every null exit NAMES itself (the smelt-zero honesty shape): the next run's
+ * mine reads the exit distribution instead of inferring it. */
+function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude, log = () => {} }) {
   try {
-    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance })
+    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance, log })
     const usable = cells.filter(p => !exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z))
     const anchor = pickFuelAnchor(usable, yardCenter)
-    if (!anchor) return null
+    if (!anchor) {
+      log(`fuel commons: the anchor scan saw ${cells.length} chest(s), ${usable.length} usable after the empty memory - no anchor`)
+      return null
+    }
     const block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null
-    return block && isChestName(block.name) ? block : null
-  } catch { return null }
+    if (!block || !isChestName(block.name)) {
+      log(`fuel commons: the anchor cell [${anchor.x},${anchor.y},${anchor.z}] reads ${block ? block.name : 'null'} - no anchor`)
+      return null
+    }
+    return block
+  } catch (e) {
+    log(`fuel commons: the anchor read threw (${e?.message || e}) - no anchor`)
+    return null
+  }
 }
 
 /** (v0.124.0) Pure-ish: the pocket fuel OVER the tithe bound, summed across
@@ -437,8 +504,15 @@ export async function withdrawFuelCommons (bot, {
   // opened 7 nearest chests and took 0 while the tithe's 19 coal sat in three
   // OTHER bots' nearest chests - the anchor makes the first open pay. A dead
   // scan/unreadable block reads null and the legacy shape runs untouched.
+  // (v0.128.0) the anchor read excludes only the FRESH empty cells
+  // (freshEmptyCells, ANCHOR_FRESH_EMPTY_MS): the 90s memory keeps the sweep
+  // honest (no re-walking known-empty chests) but must NOT un-anchor the
+  // read - the anchor is the one chest the tithe refills between asks.
+  // run525: 0 'anchor chest is read first' lines while the same loop's
+  // findChest opened chest after chest - the anchor died in this exclude.
+  const freshEmpty = freshEmptyCells(memory, bot?.username, started)
   const anchorBlock = (anchorScan && yardCenter)
-    ? anchorChestBlock(bot, { yardCenter, radius: yardRadius, maxDistance, exclude })
+    ? anchorChestBlock(bot, { yardCenter, radius: yardRadius, maxDistance, exclude: freshEmpty, log })
     : null
   if (anchorBlock) log('fuel commons: the anchor chest is read first')
   for (let c = 0; c < maxChests; c++) {
