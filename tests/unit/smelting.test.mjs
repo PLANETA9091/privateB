@@ -12,13 +12,12 @@ import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats } from '../../
 import { KEEP } from '../../src/lib/deposit.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
-  fuelCapacity,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
-  JUNK_COAL_FLOOR
+  fuelCapacity, clockCapItems, JUNK_COAL_FLOOR
 } from '../../src/lib/smelting.mjs'
 import { FUEL_TITHE_BOUND } from '../../src/lib/deposit.mjs'
 
@@ -1001,6 +1000,46 @@ test('pickFuel ONE-ITEM FLOOR: a capacity-0 plan is not a fuel plan (run108 F13)
   // cobblestone BEFORE any chest contact). The commons' job is the ladder -
   // a resupply of coal:1 funds a METAL window, never a junk one.
   assert.equal(pickFuel(botCoal, { itemsNeeded: 6 }), null, 'sub-floor coal in a junk window is the honest skip')
+})
+
+// (v0.112.0) THE CLOCK CAP - the third belt (run99 F3: 64 x cobblestone on a
+// 90s clock = a guaranteed timeout-zero)
+test('clockCapItems: the poll window bounds the put, junk-safe', () => {
+  // production shape: 90s at 11s/item = 8 items per window
+  assert.equal(clockCapItems({ maxSeconds: 90, smeltSecondsPerItem: 11 }), 8)
+  // a finite visit bounds it harder: 45s left = 4 items
+  assert.equal(clockCapItems({ maxSeconds: 90, smeltSecondsPerItem: 11, visitRemainingMs: 45000 }), 4)
+  // a spent visit still gets ONE attempt (the v0.97.0 shape handles the rest)
+  assert.equal(clockCapItems({ maxSeconds: 90, smeltSecondsPerItem: 11, visitRemainingMs: 0 }), 1)
+  assert.equal(clockCapItems({ maxSeconds: 90, smeltSecondsPerItem: 11, visitRemainingMs: -5 }), 1)
+  // the visit can be LONGER than maxSeconds - maxSeconds wins
+  assert.equal(clockCapItems({ maxSeconds: 30, smeltSecondsPerItem: 11, visitRemainingMs: 600000 }), 2)
+  // junk shapes: no maxSeconds and no visit = the legacy unbounded shape
+  assert.equal(clockCapItems({ maxSeconds: 0 }), Infinity)
+  assert.equal(clockCapItems({ maxSeconds: NaN }), Infinity)
+  assert.equal(clockCapItems({}), 8, 'the production defaults ride (90/11)')
+  assert.equal(clockCapItems({ maxSeconds: 90, smeltSecondsPerItem: 0 }), 8, 'junk per reads the 11 default')
+})
+
+test('smeltBatch: the clock clips the batch to what the window can finish (run99 F3)', async () => {
+  const furnace = new MockFurnace({})
+  const puts = []
+  const origPut = furnace.putInput.bind(furnace)
+  furnace.putInput = async (type, meta, count) => { puts.push(count); await origPut(type, meta, count) }
+  const bot = makeMockBot({ machines: [furnace], items: [item('cobblestone', 64), item('coal', 8)] })
+  const lines = []
+  // the mock's verified take settles 200ms per item, so the clock funds a cap
+  // of 4 via 2.2s at 0.5s/item - the put must ASK FOR 4, never 64 (the run99
+  // monster shape), and the poll must END fully consumed
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'cobblestone', count: 64, maxSeconds: 2.2, smeltSecondsPerItem: 0.5, pollMs: 5, log: m => lines.push(m) })
+  assert.deepEqual(puts, [4], 'the put asked for the clock-funded 4, never 64')
+  assert.equal(res.smelted, 4, 'the whole clock-funded batch completed')
+  assert.equal(res.reason, 'ok')
+  assert.ok(!furnace.inputItem(), 'the machine reads free (no half-batch left in the slot)')
+  assert.ok(lines.some(l => /the clock clips the batch: the 2s window completes ~4 of 64 x cobblestone/.test(l)), 'the mine reads the clock clip from the log')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('cobblestone'), 60, 'the remainder stays pocketed for the next chain')
+  assert.equal(counts('stone'), 4)
 })
 
 test('smeltBatch: the fuel clips the batch to what actually completes', async () => {

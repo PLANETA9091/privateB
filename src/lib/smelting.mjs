@@ -308,6 +308,34 @@ export function fuelCapacity (fuel) {
   return Math.floor(n * y)
 }
 
+// (v0.112.0) THE CLOCK CAP - run99 (35869329042, the v0.111.0 fleet) named the
+// third over-commit: F3 walked to a furnace, put 64 x cobblestone with 9 x coal
+// (the fuel was REAL, the fuel-aware batch had nothing to clip) - and 64 items
+// need 640s of smelting while the poll clock is 90s. The window died
+// 'smelt: 0 (cobblestone@furnace: timeout)', the pull-back churn re-put the
+// same monster next chain, and smelted=1 fleet-wide (only the copper window
+// landed 1/10 before its clock cut it). The fuel clamp sizes the batch to what
+// the fuel completes; the CLOCK CAP sizes it to what the WINDOW can finish:
+// floor(waitSeconds / smeltSecondsPerItem). A finite visit budget bounds the
+// wait (the v0.91.0/v0.97.0 caps); mid-run calls bound it with maxSeconds -
+// which also retires the v0.91.0 F19-class wait stretch (batch*per can no
+// longer exceed maxSeconds because the put itself never exceeds the cap).
+// The remainder stays pocketed and re-smelts on the next chain - the same
+// honest partial the fuel clamp already names. Junk-safe: non-finite max
+// seconds with no visit reads Infinity (the legacy unbounded shape).
+export function clockCapItems ({ maxSeconds = 90, smeltSecondsPerItem = 11, visitRemainingMs = null } = {}) {
+  const per = Number.isFinite(smeltSecondsPerItem) && smeltSecondsPerItem > 0 ? smeltSecondsPerItem : 11
+  const mx = Number.isFinite(maxSeconds) && maxSeconds > 0 ? maxSeconds : null
+  const vr = visitRemainingMs == null
+    ? null
+    : (Number.isFinite(visitRemainingMs) ? Math.max(0, visitRemainingMs) : null)
+  const waitSecs = vr == null
+    ? (mx == null ? Infinity : mx)
+    : (mx == null ? vr / 1000 : Math.min(mx, vr / 1000))
+  if (!Number.isFinite(waitSecs)) return Infinity
+  return Math.max(1, Math.floor(waitSecs / per))
+}
+
 // (v0.110.0, merged) THE JUNK COAL FLOOR - the junk lane's coal last resort
 // gains the tithe bound. Run98 (35859636312) measured the hole in the
 // wood-first pick: a pocket WITHOUT wood (the late-run majority - logs got
@@ -634,7 +662,18 @@ export async function smeltBatch (bot, {
     const fuelCap = fuelCapacity(fuel)
     if (fuelCap < 1) return { smelted, rescued, reason: 'no fuel' }
     if (fuelCap < batch0) log(`${tag} fuel clips the batch: ${fuel.count} x ${fuel.name} completes ${fuelCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
-    const batch = Math.min(batch0, fuelCap)
+    // (v0.112.0) THE CLOCK CAP - the third belt: the batch never exceeds what
+    // the poll WINDOW can finish (run99 F3: 64 x cobblestone on a 90s clock =
+    // a guaranteed timeout-zero, the pull-back churn re-put the monster next
+    // chain). The wait the poll will actually spend bounds the put; the
+    // remainder stays pocketed for the next chain, same honest partial.
+    const visitRemainingAtPut = visitDeadline == null ? null : Math.max(0, visitDeadline - Date.now())
+    const clockCap = clockCapItems({ maxSeconds, smeltSecondsPerItem, visitRemainingMs: visitRemainingAtPut })
+    if (clockCap < batch0) {
+      const waitSecs = Math.round(visitRemainingAtPut == null ? maxSeconds : Math.min(maxSeconds, visitRemainingAtPut / 1000))
+      log(`${tag} the clock clips the batch: the ${waitSecs}s window completes ~${clockCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
+    }
+    const batch = Math.min(batch0, fuelCap, clockCap)
 
     // VERIFIED input+fuel transfer: retry, then give up (the window is desynced).
     // Counted on the LIVE rows: putInput's click promises resolve on the client-side
