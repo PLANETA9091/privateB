@@ -34,9 +34,27 @@
 // the veto; the first chest walk now re-arms (doomedRearm, the v0.87.0
 // shared-destination semantics the bank and furnace walks already use).
 
+// (v0.124.0) THE FUEL ANCHOR - run108 (35919773515, the v0.123.0 fleet) closed
+// the loop's last open end: the TITHE now banks (F3:2, F7:8, F16:9 coal, the
+// v0.100.0 inflow works) but the coal landed in three bots' NEAREST chests and
+// the sweeps never found it - F8 opened 3 chests ('chest holds no fuel' x3),
+// F16 banked 9 coal and LATER opened 4 empty chests itself, the fleet took 0
+// from the commons while 8 'no fuel' verdicts starved smelt legs. The scatter
+// IS the disease: findChest is nearest-first, so tithe coal lands wherever the
+// depositing bot stands, thinly spread across ~50 chests. The cure is a
+// fleet-wide deterministic FUEL CHEST: pickFuelAnchor picks the yard chest
+// nearest the YARD CENTER (coordinates as the tie-break - pure, no comms,
+// every bot derives the SAME anchor from the same scan). Two read/write sides
+// wire it: (a) deliverFuelTithe - the pocket fuel OVER the FUEL_TITHE_BOUND
+// rides to the anchor BEFORE the legacy deposit scatters it (any failure falls
+// through to the exact legacy shape); (b) withdrawFuelCommons reads the anchor
+// FIRST (scanYardChests + blockAt), then the nearest-first sweep. The commons'
+// first open pays fuel; the inflow concentrates; the loop closes.
+
 import pathfinderPkg from 'mineflayer-pathfinder'
+import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
-import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS } from './deposit.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
 
 const { goals } = pathfinderPkg
@@ -107,6 +125,186 @@ export function liveEmptyCells (memory, name, now) {
     if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
   }
   return out
+}
+
+// (v0.124.0) THE FUEL ANCHOR CORE - a fleet-wide deterministic fuel chest.
+// Pure, junk-safe, communication-free: every bot that scans the same yard
+// derives the SAME anchor (distance to the yard center is the primary key,
+// the floored coordinates are the tie-break), so the tithe's inflow and the
+// commons' first read meet at one chest without a single chat packet.
+const isChestName = name => (Array.isArray(CHEST_NAMES) && CHEST_NAMES.includes(name)) || (typeof name === 'string' && /_chest$/.test(name))
+
+export function pickFuelAnchor (chests, yardCenter) {
+  if (!Array.isArray(chests)) return null
+  let cx = null; let cy = null; let cz = null
+  if (yardCenter && typeof yardCenter === 'object') {
+    const nx = Number(yardCenter.x); const ny = Number(yardCenter.y); const nz = Number(yardCenter.z)
+    if (Number.isFinite(nx) && Number.isFinite(ny) && Number.isFinite(nz)) { cx = nx; cy = ny; cz = nz }
+  }
+  const hasCenter = cx !== null
+  let best = null
+  for (const p of chests) {
+    if (!p || typeof p !== 'object') continue
+    const x = Math.floor(Number(p.x))
+    const y = Math.floor(Number(p.y))
+    const z = Math.floor(Number(p.z))
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue
+    const d = hasCenter
+      ? (x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz)
+      : 0
+    const closer = best == null || d < best.d
+    const tie = best != null && d === best.d &&
+      (x < best.x || (x === best.x && (y < best.y || (y === best.y && z < best.z))))
+    if (closer || tie) best = { x, y, z, d }
+  }
+  if (!best) return null
+  return { x: best.x, y: best.y, z: best.z }
+}
+
+/** (v0.124.0) Scan the yard for chest positions - the anchor's candidate list.
+ * The palette-candidate rule rides here too (a positionless probe block is a
+ * CANDIDATE: the real per-block filter re-runs with true positions). Never
+ * throws: a missing findBlocks, a throw, a junk return all read as an EMPTY
+ * scan (the caller falls back to the legacy nearest-first shape). */
+export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS } = {}) {
+  try {
+    if (typeof bot?.findBlocks !== 'function') return []
+    const raw = bot.findBlocks({
+      matching: b => {
+        if (!b) return false
+        if (!isChestName(b.name)) return false
+        if (!b.position) return true // the palette candidate rule (v0.43.0)
+        return chestNearYard({ chestPos: b.position, yardCenter, radius })
+      },
+      maxDistance,
+      count: 256
+    })
+    if (!Array.isArray(raw)) return []
+    const out = []
+    for (const b of raw) {
+      if (!b || !b.position) continue
+      const x = Math.floor(Number(b.position.x))
+      const y = Math.floor(Number(b.position.y))
+      const z = Math.floor(Number(b.position.z))
+      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+    }
+    return out
+  } catch { return [] }
+}
+
+/** (v0.124.0) The anchor chest as a real Block for openChest, or null. The
+ * remembered-empty cells (the sweep memory) are pre-excluded so the anchor
+ * read never re-walks a chest this bot just saw empty. */
+function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude }) {
+  try {
+    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance })
+    const usable = cells.filter(p => !exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z))
+    const anchor = pickFuelAnchor(usable, yardCenter)
+    if (!anchor) return null
+    const block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null
+    return block && isChestName(block.name) ? block : null
+  } catch { return null }
+}
+
+/** (v0.124.0) Pure-ish: the pocket fuel OVER the tithe bound, summed across
+ * the FUEL_COMMON_ORDER (coal + charcoal - exact-name matching, so 'coal_ore'
+ * never tithes). Junk-safe: a dead inventory reads 0. */
+export function fuelPocketOverage (bot) {
+  let over = 0
+  for (const name of FUEL_COMMON_ORDER) {
+    let pocket = 0
+    try { pocket = countItem(bot, name) } catch { pocket = 0 }
+    over += fuelTitheOverage({ name, pocketCount: pocket })
+  }
+  return over
+}
+
+/**
+ * (v0.124.0) THE ANCHOR DELIVERY - the tithe's dedicated inflow. The pocket
+ * fuel over FUEL_TITHE_BOUND rides to the fleet's ONE fuel chest BEFORE the
+ * legacy deposit scatters it into the nearest chest. Never throws; any
+ * failure (no scan, dead walk, dead window, ghost clicks) is NAMED and the
+ * caller falls through to the exact legacy shape - the overage then rides
+ * the legacy tithe into whatever chest the deposit opens. The verified
+ * pocket diff (the mirror read while the window is open - the v0.73.0
+ * lesson) stays the only truth.
+ */
+export async function deliverFuelTithe (bot, {
+  yardCenter = null,
+  radius = YARD_CHEST_RADIUS,
+  maxDistance = 64,
+  budgetMs = 15000,
+  clickTimeoutMs = 5000,
+  log = () => {}
+} = {}) {
+  const over = fuelPocketOverage(bot)
+  if (!(over > 0)) return { delivered: 0, why: 'no overage' }
+  const started = Date.now()
+  const remainingMs = () => budgetMs - (Date.now() - started)
+  let anchor = null
+  try {
+    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance })
+    anchor = pickFuelAnchor(cells, yardCenter)
+  } catch { anchor = null }
+  if (!anchor) return { delivered: 0, why: 'no anchor chest' }
+  const dist = (() => {
+    try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return 8 }
+  })()
+  try {
+    // the anchor walk re-arms (the yard is THE shared destination class -
+    // the v0.87.0 semantics the bank, furnace and commons walks already use)
+    await gotoSafe(bot, new goals.GoalNear(anchor.x, anchor.y, anchor.z, 2), {
+      timeoutMs: Math.max(2000, Math.min(chestWalkBudgetMs(dist), remainingMs())),
+      label: 'fuel anchor walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS
+    })
+  } catch (e) {
+    return { delivered: 0, why: `walk failed (${e?.message || e})` }
+  }
+  if (remainingMs() <= 0) return { delivered: 0, why: 'budget spent after walk' }
+  let block = null
+  try { block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null } catch { block = null }
+  if (!block || !isChestName(block.name)) return { delivered: 0, why: 'anchor block unreadable' }
+  let window = null
+  try {
+    window = await withTimeout(bot.openChest(block), 10000, 'open fuel anchor')
+  } catch (e) {
+    return { delivered: 0, why: `open failed (${e?.message || e})` }
+  }
+  try {
+    const chestSlots = chestSlotCount(window)
+    // the MIRROR pocket read (v0.73.0): bot.inventory goes stale while a chest
+    // window is open - the window's own tail slots mirror the server truth
+    const mirrorCount = name => {
+      try {
+        const slots = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null)
+        if (Array.isArray(slots) && chestSlots > 0 && slots.length > chestSlots) {
+          return slots.slice(chestSlots).filter(s => s && s.count > 0 && s.name === name).reduce((a, s) => a + s.count, 0)
+        }
+      } catch { /* a dead window falls back */ }
+      return countItem(bot, name)
+    }
+    let delivered = 0
+    for (const fuelName of FUEL_COMMON_ORDER) {
+      if (delivered >= over) break
+      const stack = (() => {
+        try { return bot.inventory.items().find(i => i.name === fuelName && i.count > 0) ?? null } catch { return null }
+      })()
+      if (!stack) continue
+      const units = Math.min(fuelTitheOverage({ name: fuelName, pocketCount: mirrorCount(fuelName) }), over - delivered)
+      if (!(units > 0)) continue
+      const before = mirrorCount(fuelName)
+      try {
+        await withTimeout(window.deposit(stack.type, null, units), clickTimeoutMs, `anchor tithe ${fuelName}`)
+      } catch { continue }
+      const moved = before - mirrorCount(fuelName)
+      if (moved > 0) delivered += moved
+    }
+    if (delivered > 0) log(`fuel anchor: delivered ${delivered} units over the tithe bound (pocket keeps ${FUEL_TITHE_BOUND})`)
+    else log('fuel anchor: the clicks lied - nothing left the pocket (ghost clicks)')
+    return { delivered, why: delivered > 0 ? 'ok' : 'ghost clicks' }
+  } finally {
+    try { window.close?.() } catch { /* already closed */ }
+  }
 }
 
 /**
@@ -215,6 +413,7 @@ export async function withdrawFuelCommons (bot, {
   budgetMs = 30000,
   clickTimeoutMs = 5000,
   memory = null,
+  anchorScan = true, // (v0.124.0) read the fleet's fuel anchor FIRST (then the nearest-first sweep); false = the legacy shape byte for byte
   log = () => {}
 } = {}) {
   const ask = Number(itemsNeeded)
@@ -231,10 +430,23 @@ export async function withdrawFuelCommons (bot, {
   let taken = 0
   let chestsVisited = 0
   const planAll = []
+  // (v0.124.0) THE ANCHOR FIRST READ: the tithe's delivery target is the
+  // fleet's one deterministic fuel chest - when a yardCenter is known, the
+  // anchor is tried as chest #0 (the same budget, the same re-arm, the same
+  // memory) and the nearest-first sweep continues from #1. Run108: the sweeps
+  // opened 7 nearest chests and took 0 while the tithe's 19 coal sat in three
+  // OTHER bots' nearest chests - the anchor makes the first open pay. A dead
+  // scan/unreadable block reads null and the legacy shape runs untouched.
+  const anchorBlock = (anchorScan && yardCenter)
+    ? anchorChestBlock(bot, { yardCenter, radius: yardRadius, maxDistance, exclude })
+    : null
+  if (anchorBlock) log('fuel commons: the anchor chest is read first')
   for (let c = 0; c < maxChests; c++) {
     if (taken >= wantTotal) break
     if (remainingMs() <= 0) { log(`fuel commons: budget spent (${taken}/${wantTotal} units)`); break }
-    const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
+    const chest = (c === 0 && anchorBlock)
+      ? anchorBlock
+      : findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
     if (!chest) { if (c === 0) log('fuel commons: no yard chest in range'); break }
     const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
     // the walk fits INSIDE the resupply slice (the smelt leg's own clock) -

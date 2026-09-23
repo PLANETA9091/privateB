@@ -33,7 +33,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
-import { withdrawFuelCommons, newCommonsMemory } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -420,6 +420,30 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // (v0.87.0) the final deposit budgets from the FULL remaining(): the smelt leg
   // above has run (or was skipped with its slice unspent) - the reserve is wall
   // clock again and must not starve the click sequence.
+  // (v0.124.0) THE FUEL ANCHOR DELIVERY - the tithe's dedicated inflow: pocket
+  // fuel over the FUEL_TITHE_BOUND rides to the fleet's ONE deterministic fuel
+  // chest (pickFuelAnchor: the yard chest nearest the yard center, coordinates
+  // as the tie-break) BEFORE the legacy deposit scatters it into the nearest
+  // chest. Run108 measured the scatter: the tithe banked 19 coal into three
+  // bots' nearest chests while the commons sweeps opened 7 chests and took 0
+  // ('chest holds no fuel' x7, 8 'no fuel' verdicts starved smelt legs). The
+  // anchor concentrates the inflow so the commons' first read pays. Junk-safe
+  // and budget-safe: the slice is a quarter of what the chain still holds
+  // (min 5s, capped 15s, skipped when the chain is nearly dead), and ANY
+  // failure falls through to the EXACT legacy shape - the overage then rides
+  // the legacy tithe into whatever chest the deposit opens (the scatter that
+  // fed run108's sweeps is still the floor, never a regression).
+  try {
+    const anchorBudgetMs = remaining() > 8000 ? Math.min(15000, Math.floor(remaining() / 4)) : 0
+    if (anchorBudgetMs >= 5000) {
+      const anchorRes = await deliverFuelTithe(miner.bot, {
+        yardCenter: yardGoal,
+        budgetMs: anchorBudgetMs,
+        log: m => console.log(`${miner.username} ${m}`)
+      })
+      if (anchorRes.delivered > 0) console.log(`${miner.username} fuel anchor: delivered ${anchorRes.delivered} fuel overage (${anchorRes.why})`)
+    }
+  } catch { /* the legacy scatter is the fallback */ }
   const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }

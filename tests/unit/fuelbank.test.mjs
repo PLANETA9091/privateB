@@ -4,13 +4,15 @@
 // driven with mock windows + a mock chest world, no server needed.
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
 import { resetDoomedGoalLedger, recordDoomedGoal } from '../../src/lib/jobqueue.mjs'
 import {
   fuelWithdrawPlan, pickWithdrawSlots, withdrawStackMove, withdrawFuelCommons,
   FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
   newCommonsMemory, rememberEmptyChest, liveEmptyCells,
-  COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS
+  COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS,
+  pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -458,4 +460,245 @@ test('withdrawFuelCommons: the FIRST chest walk re-arms a doomed cell, later wal
   assert.equal(res2.taken, 0)
   assert.equal(res2.reason, 'commons empty', 'the later walk stayed vetoed (the cobble chest was opened, the coal one never was)')
   assert.equal(world2.opened['8,64,3'], undefined, 'the doomed coal chest was never opened')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.124.0) THE FUEL ANCHOR: run108 measured the scatter - the tithe banked
+// 19 coal into three bots' NEAREST chests while the commons sweeps opened 7
+// chests and took 0. The cure is a fleet-wide deterministic fuel chest
+// (pickFuelAnchor: the yard chest nearest the YARD CENTER, coordinates as the
+// tie-break - pure, no comms) with two sides: deliverFuelTithe concentrates
+// the inflow, the commons reads the anchor FIRST.
+test('pickFuelAnchor: deterministic - every shuffle of the same list picks the same chest', () => {
+  const chests = [
+    { x: 10, y: 64, z: 10 }, { x: -4, y: 64, z: 3 }, { x: 2, y: 65, z: -7 },
+    { x: 0, y: 64, z: 0 }, { x: 5, y: 63, z: 1 }
+  ]
+  const yard = { x: 0, y: 64, z: 0 }
+  const first = pickFuelAnchor(chests, yard)
+  assert.deepEqual(first, { x: 0, y: 64, z: 0 }, 'the chest nearest the yard center wins')
+  for (let i = 0; i < 20; i++) {
+    const shuffled = [...chests].sort(() => Math.random() - 0.5)
+    assert.deepEqual(pickFuelAnchor(shuffled, yard), first, `shuffle #${i} agrees`)
+  }
+})
+
+test('pickFuelAnchor: distance is primary, the coordinates are the tie-break', () => {
+  const yard = { x: 0, y: 64, z: 0 }
+  // equal distance to the yard: (3,64,4) and (4,64,3) - the lexicographically
+  // smaller x wins, then y, then z
+  assert.deepEqual(pickFuelAnchor([{ x: 4, y: 64, z: 3 }, { x: 3, y: 64, z: 4 }], yard), { x: 3, y: 64, z: 4 })
+  assert.deepEqual(pickFuelAnchor([{ x: 3, y: 64, z: 4 }, { x: 4, y: 64, z: 3 }], yard), { x: 3, y: 64, z: 4 }, 'order-independent')
+  // same x: the smaller y wins; same x,y: the smaller z wins
+  assert.deepEqual(pickFuelAnchor([{ x: 2, y: 70, z: 0 }, { x: 2, y: 64, z: 5 }], yard), { x: 2, y: 64, z: 5 })
+  assert.deepEqual(pickFuelAnchor([{ x: 2, y: 64, z: 5 }, { x: 2, y: 64, z: 1 }], yard), { x: 2, y: 64, z: 1 })
+  // fractional positions floor (the block grid owns the identity)
+  assert.deepEqual(pickFuelAnchor([{ x: 2.9, y: 64.4, z: 1.7 }], yard), { x: 2, y: 64, z: 1 })
+})
+
+test('pickFuelAnchor: the junk family reads null, junk entries are skipped', () => {
+  for (const junk of [null, undefined, 'junk', 42, {}]) {
+    assert.equal(pickFuelAnchor(junk, { x: 0, y: 0, z: 0 }), null)
+  }
+  assert.equal(pickFuelAnchor([], { x: 0, y: 0, z: 0 }), null, 'an empty yard has no anchor')
+  assert.equal(pickFuelAnchor([null, 'junk', { x: NaN, y: 1, z: 2 }, {}], { x: 0, y: 0, z: 0 }), null, 'every entry junk -> null')
+  // a junk yardCenter reads as no-center: the coordinates alone decide
+  const chests = [{ x: 5, y: 64, z: 5 }, { x: 1, y: 62, z: 3 }]
+  assert.deepEqual(pickFuelAnchor(chests, null), { x: 1, y: 62, z: 3 })
+  assert.deepEqual(pickFuelAnchor(chests, 'junk'), { x: 1, y: 62, z: 3 })
+  assert.deepEqual(pickFuelAnchor(chests, { x: NaN, y: NaN, z: NaN }), { x: 1, y: 62, z: 3 })
+})
+
+test('scanYardChests: junk bots and dead scans read empty (the v0.38 swallow lesson)', () => {
+  for (const junk of [null, undefined, {}, { findBlocks: 'junk' }]) {
+    assert.deepEqual(scanYardChests(junk, { yardCenter: { x: 0, y: 0, z: 0 } }), [])
+  }
+  assert.deepEqual(scanYardChests({ findBlocks: () => { throw new Error('palette desync') } }, { yardCenter: { x: 0, y: 0, z: 0 } }), [], 'a throw reads empty, never kills')
+  assert.deepEqual(scanYardChests({ findBlocks: () => 'junk' }, { yardCenter: { x: 0, y: 0, z: 0 } }), [], 'a junk return reads empty')
+})
+
+test('scanYardChests: the matcher keeps the palette-candidate rule, the yard filter applies per block, positions floor', () => {
+  const far = { name: 'chest', position: new Vec3(500.2, 64.1, 500.7) }
+  const near = { name: 'barrel', position: new Vec3(2.6, 64.4, -3.9) }
+  const cobble = { name: 'cobblestone', position: new Vec3(1, 64, 1) }
+  const probe = { name: 'chest', position: null } // the palette probe: no position
+  let sawProbe = false
+  const bot = {
+    findBlocks: ({ matching }) => {
+      sawProbe = matching(probe)
+      return [far, near, cobble, probe].filter(b => matching(b))
+    }
+  }
+  const out = scanYardChests(bot, { yardCenter: { x: 0, y: 64, z: 0 }, radius: 64 })
+  assert.equal(sawProbe, true, 'a positionless block is a CANDIDATE (the v0.43.0 rule)')
+  assert.deepEqual(out, [{ x: 2, y: 64, z: -4 }], 'the far chest is yard-filtered, the non-chest skipped, the probe dropped, the near chest floored')
+})
+
+test('fuelPocketOverage: the pocket sum over the tithe bound, junk-safe', () => {
+  const mk = items => ({ inventory: { items: () => items } })
+  assert.equal(fuelPocketOverage(mk([item('coal', 14)])), 8, '14 coal - 6 bound = 8')
+  assert.equal(fuelPocketOverage(mk([item('coal', 6)])), 0, 'at the bound: nothing tithes')
+  assert.equal(fuelPocketOverage(mk([item('coal_ore', 40)])), 0, 'exact-name matching: coal_ore never tithes')
+  assert.equal(fuelPocketOverage(mk([item('coal', 7), item('charcoal', 8)])), 3, '7-6=1 coal + 8-6=2 charcoal')
+  assert.equal(fuelPocketOverage(mk([])), 0)
+  assert.equal(fuelPocketOverage({}), 0, 'a dead inventory reads 0')
+  assert.equal(fuelPocketOverage({ inventory: { items: () => { throw new Error('dead') } } }), 0, 'a throwing inventory reads 0')
+})
+
+// A mock for the anchor DELIVERY: the pocket holds coal over the bound, the
+// yard holds the anchor chest, window.deposit moves with real mirror
+// semantics (the pocket tail IS the inventory - the v0.73.0 lesson shape).
+function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false } = {}) {
+  let current = null
+  let closedCount = 0
+  const chestSlots = Array.from({ length: 27 }, () => null)
+  const pocket = Array.from({ length: 36 }, () => null)
+  if (pocketCoal > 0) pocket[0] = item('coal', pocketCoal)
+  if (pocketCharcoal > 0) pocket[1] = item('charcoal', pocketCharcoal)
+  const slots = [...chestSlots, ...pocket]
+  const chestBlock = { name: 'chest', position: new Vec3(10.5, 64, 10.5) }
+  const bot = {
+    username: 'AnchorBot',
+    entity: { position: new Vec3(1.5, 64, 1.5) },
+    inventory: { items: () => (current ? current.slots.slice(27) : slots.slice(27)).filter(Boolean) },
+    findBlocks: noScan ? undefined : ({ matching }) => [chestBlock].filter(b => matching(b)),
+    blockAt: () => (blockAtNull ? null : chestBlock),
+    pathfinder: { goto: async () => { if (walkFails) throw new Error('NoPath: no path') } },
+    openChest: async () => {
+      if (openFails) throw new Error('window dead')
+      current = {
+        slots,
+        deposit: async (type, _dest, count) => {
+          if (ghost) return // the ghost-click lie: the packet dies quietly
+          const idx = slots.slice(27).findIndex(s => s && s.type === type && s.count > 0)
+          if (idx < 0) return
+          const s = slots[27 + idx]
+          const take = Math.min(count, s.count)
+          s.count -= take
+          if (s.count <= 0) slots[27 + idx] = null
+          const dst = slots.slice(0, 27).findIndex(x => x && x.type === type && x.count < (x.stackSize ?? 64))
+          if (dst >= 0) slots[dst].count += take
+          else {
+            const free = slots.slice(0, 27).findIndex(x => x == null)
+            if (free >= 0) slots[free] = { name: s.name, type: s.type, count: take, stackSize: s.stackSize ?? 64 }
+          }
+        },
+        close () { this.closed = true; closedCount++; current = null }
+      }
+      return current
+    }
+  }
+  return { bot, slots, chestBlock, currentPeek: () => current, closedPeek: () => closedCount }
+}
+
+test('deliverFuelTithe: the overage rides to the anchor, the pocket keeps the bound, the mirror diff is the truth', async () => {
+  const world = mockAnchorWorld({ pocketCoal: 14 })
+  const res = await deliverFuelTithe(world.bot, { yardCenter: { x: 0, y: 64, z: 0 }, budgetMs: 20000, log: () => {} })
+  assert.equal(res.delivered, 8, '14 - 6 = 8 coal delivered')
+  assert.equal(res.why, 'ok')
+  const kept = world.bot.inventory.items().filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0)
+  assert.equal(kept, 6, 'the pocket keeps FUEL_TITHE_BOUND')
+  assert.equal(world.slots[0].count, 8, 'the anchor chest holds the overage')
+  assert.equal(world.closedPeek(), 1, 'the window closed')
+})
+
+test('deliverFuelTithe: the junk family is named, never thrown', async () => {
+  const noOverage = mockAnchorWorld({ pocketCoal: 6 })
+  assert.deepEqual(await deliverFuelTithe(noOverage.bot, { yardCenter: { x: 0, y: 64, z: 0 } }), { delivered: 0, why: 'no overage' }, 'at the bound the anchor is never walked')
+  const noScan = mockAnchorWorld({ noScan: true })
+  assert.deepEqual(await deliverFuelTithe(noScan.bot, { yardCenter: { x: 0, y: 64, z: 0 } }), { delivered: 0, why: 'no anchor chest' })
+  const walkDead = mockAnchorWorld({ walkFails: true })
+  const rw = await deliverFuelTithe(walkDead.bot, { yardCenter: { x: 0, y: 64, z: 0 } })
+  assert.equal(rw.delivered, 0)
+  assert.match(rw.why, /^walk failed \(NoPath/, 'a dead walk is named')
+  const blockDead = mockAnchorWorld({ blockAtNull: true })
+  assert.deepEqual(await deliverFuelTithe(blockDead.bot, { yardCenter: { x: 0, y: 64, z: 0 } }), { delivered: 0, why: 'anchor block unreadable' })
+  const openDead = mockAnchorWorld({ openFails: true })
+  assert.match((await deliverFuelTithe(openDead.bot, { yardCenter: { x: 0, y: 64, z: 0 } })).why, /^open failed/)
+  const ghost = mockAnchorWorld({ ghost: true })
+  assert.deepEqual(await deliverFuelTithe(ghost.bot, { yardCenter: { x: 0, y: 64, z: 0 }, budgetMs: 20000 }), { delivered: 0, why: 'ghost clicks' }, 'the clicks said 8, the pocket said 0 - the pocket wins')
+  const ghostKept = ghost.bot.inventory.items().filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0)
+  assert.equal(ghostKept, 14, 'the pocket kept everything (the legacy tithe gets the real try)')
+})
+
+test('deliverFuelTithe: charcoal rides after coal, mixed overage sums', async () => {
+  const world = mockAnchorWorld({ pocketCoal: 7, pocketCharcoal: 8 })
+  const res = await deliverFuelTithe(world.bot, { yardCenter: { x: 0, y: 64, z: 0 }, budgetMs: 20000 })
+  assert.equal(res.delivered, 3, '1 coal + 2 charcoal')
+  const kept = world.bot.inventory.items()
+  assert.equal(kept.filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0), 6)
+  assert.equal(kept.filter(i => i.name === 'charcoal').reduce((a, i) => a + i.count, 0), 6)
+})
+
+// The anchor-first READ on the commons side: a dedicated mock (the sweep
+// world has no findBlocks/blockAt - the legacy tests must stay untouched).
+function mockAnchorSweepWorld () {
+  const pocket = Array.from({ length: 36 }, () => null)
+  const opened = {}
+  let current = null
+  const junkChest = { name: 'chest', position: new Vec3(3.5, 64, 3.5) } // nearest to the bot
+  const coalChest = { name: 'chest', position: new Vec3(30.5, 64, 30.5) } // nearest to the yard center
+  junkChest.__item = item('cobblestone', 30)
+  coalChest.__item = item('coal', 30)
+  const bot = {
+    username: 'AnchorSweepBot',
+    entity: { position: new Vec3(0.5, 64, 0.5) },
+    inventory: { items: () => (current ? current.slots.slice(27) : pocket).filter(Boolean) },
+    clickWindow: async (idx, button) => current?.clickWindow(idx, button),
+    pathfinder: { goto: async () => {} },
+    findBlock: ({ matching }) => [junkChest, coalChest].filter(b => matching(b))
+      .map(b => ({ b, d: b.position.distanceTo(bot.entity.position) }))
+      .sort((p, q) => p.d - q.d)[0]?.b ?? null,
+    findBlocks: ({ matching }) => [junkChest, coalChest].filter(b => matching(b)),
+    blockAt: pos => [junkChest, coalChest].find(b =>
+      Math.floor(b.position.x) === Math.floor(pos.x) && Math.floor(b.position.y) === Math.floor(pos.y) && Math.floor(b.position.z) === Math.floor(pos.z)) ?? null,
+    openChest: async block => {
+      const key = `${Math.floor(block.position.x)},${Math.floor(block.position.y)},${Math.floor(block.position.z)}`
+      opened[key] = (opened[key] ?? 0) + 1
+      if (current) for (let i = 0; i < 36; i++) pocket[i] = current.slots[27 + i] ?? null
+      const chestSlots = Array.from({ length: 27 }, () => null)
+      if (block.__item) chestSlots[0] = block.__item
+      const slots = [...chestSlots, ...pocket]
+      const win = { slots, clickWindow: makeClicker(slots), close () { this.closed = true; current = null } }
+      current = win
+      return win
+    }
+  }
+  return { bot, opened }
+}
+
+test('withdrawFuelCommons: the ANCHOR is read first - the yard-center chest funds before the nearest junk', async () => {
+  const world = mockAnchorSweepWorld()
+  const yard = { x: 32, y: 64, z: 32 }
+  // maxChests=1 sharpens the contrast: the ONE open must be the anchor
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: yard })
+  assert.equal(res.reason, 'ok', 'the anchor read funded on the first open')
+  assert.equal(res.taken, 5)
+  assert.equal(world.opened['30,64,30'], 1, 'the coal chest (nearest the yard center) was the anchor read')
+  assert.equal(world.opened['3,64,3'], undefined, 'the nearest junk chest was never walked')
+})
+
+test('withdrawFuelCommons: without a yardCenter the legacy nearest-first shape holds byte for byte', async () => {
+  const world = mockAnchorSweepWorld()
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1 })
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'commons empty')
+  assert.equal(world.opened['3,64,3'], 1, 'the legacy sweep opened the NEAREST chest (the junk one)')
+  assert.equal(world.opened['30,64,30'], undefined, 'the coal chest was never reached')
+})
+
+test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy deposit, the anchor read is chest #0', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe \} from '\.\.\/src\/lib\/fuelbank\.mjs'/)
+  assert.match(fleetSrc, /await deliverFuelTithe\(miner\.bot, \{/)
+  assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*budgetMs: anchorBudgetMs,/)
+  assert.match(fleetSrc, /remaining\(\) > 8000 \? Math\.min\(15000, Math\.floor\(remaining\(\) \/ 4\)\) : 0/, 'the budget guard: a dead chain never pays the delivery')
+  assert.match(bankSrc, /const anchorBlock = \(anchorScan && yardCenter\)/)
+  assert.match(bankSrc, /\? anchorBlock\s*\n\s*: findChest\(bot, \{ maxDistance, exclude, yardCenter, yardRadius, log \}\)/)
+  assert.match(bankSrc, /the anchor chest is read first/)
+  assert.match(bankSrc, /export function pickFuelAnchor/)
+  assert.match(bankSrc, /export function scanYardChests/)
+  assert.match(bankSrc, /export function fuelPocketOverage/)
+  assert.match(bankSrc, /export async function deliverFuelTithe/)
 })
