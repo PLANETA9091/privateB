@@ -103,13 +103,17 @@ export function airBarTrust ({ feet = null, head = null } = {}) {
  *   oxygen    : bot.oxygenLevel ?? 20 (never trust a missing bar with a 0)
  *   headWetMs : how long the head has been continuously submerged (caller's
  *               clock; 0 right now)
+ *   dryGlitchStreak : consecutive critical-on-dry readings the caller has
+ *               counted (junk -> 0 = the legacy never-believe-a-dry-glitch
+ *               shape); at AIR_GLITCH_STREAK_CAP the bar is believed (run84a
+ *               F17: a sustained zero on dry land was a real drowning)
  * Verdicts:
  *   'none'     - dry, nothing to do
  *   'wet'      - water contact but breathing fine (feet-only, or head just
  *                broke surface with air to spare) - monitor, no emergency
  *   'drowning' - rescue NOW
  */
-export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs = 0 } = {}) {
+export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0 } = {}) {
   const raw = Number(oxygen)
   // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
   // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
@@ -126,6 +130,12 @@ export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs
   // bar; the wiring counts the glitch so the next fleet run tells us whether
   // the sensor or the water table was lying.
   if (o2 <= OXYGEN_CRITICAL_LEVEL && airBarTrust({ feet, head }) !== 'dry') return 'drowning'
+  // (v0.95.0) THE GLITCH ESCALATION: the dry out-vote is no longer ABSOLUTE -
+  // a SUSTAINED critical-on-dry streak means the server is draining a real
+  // air bar the block reads miss (run84a F17: 675+ ignored reads, then dead
+  // of drowning). Junk streak -> 0 -> the legacy shape, byte for byte.
+  const streak = Number.isFinite(dryGlitchStreak) && dryGlitchStreak > 0 ? Math.floor(dryGlitchStreak) : 0
+  if (o2 <= OXYGEN_CRITICAL_LEVEL && streak >= AIR_GLITCH_STREAK_CAP) return 'drowning'
   if (!headWet && !feetWet) return 'none'
   if (headWet) {
     if (o2 <= OXYGEN_RESCUE_LEVEL) return 'drowning'
@@ -445,6 +455,16 @@ export function fleePlan ({ threatName = null, feetWet = false, headWet = false,
 // a standstill, so all-blocked keeps the legacy hop (gotoSafe owns the walk,
 // the next loop iteration's wet detection owns the arrival-wet case).
 
+/** The streak of consecutive critical-on-dry readings after which the air bar
+ * is BELIEVED despite definite dry contact (run84a: F17 spent its whole run
+ * glitch-ignored - 675+ reads - and the server drowned it anyway: a SUSTAINED
+ * zero bar on 'dry land' is the server draining a real air bar the feet/head
+ * reads miss, not a sensor artifact). 8 consecutive sentry passes (~0.6s
+ * cadence) is ~5s of sustained critical-on-dry - far past any measured glitch
+ * burst, and the rescue ladder's own stand-downs (frozen verdict, repeat-page)
+ * absorb the false alarms a wasted swim would cost. */
+export const AIR_GLITCH_STREAK_CAP = 8
+
 /** One quarter turn of an XZ bearing, counter-clockwise on the map plane:
  * (1,0) -> (0,1). turns wraps mod 4 (negative turns normalize); junk turns
  * fall back to 0. */
@@ -502,6 +522,44 @@ export function fleeTargetBlocked ({ sample = null, hazardNear = null, x, y, z }
   return false
 }
 
+/** Does the STRAIGHT LINE from the anchor toward this target cross water?
+ * Samples the line at 25/50/75% (the target cell itself is judged separately
+ * by fleeTargetBlocked), each sample probed 3 deep (y, y-1, y-2 - the flee
+ * path can descend a slope into a lake whose surface reads dry at the anchor
+ * plane). Run84a measured four bots dying drowned@7.8-14.4 WHILE FLEEING a
+ * drowned across the quarry lakes: the target veto passed (the far shore was
+ * dry) but the PATH swam. Junk-safe: a non-finite sample point or a
+ * throwing/null read skips that sample - never vetoes on junk.
+ * @param {object} p
+ * @param {Function|null} [p.sample] (x,y,z) -> block name string|null
+ * @param {number} p.ax anchor x (the fleeing bot's position)
+ * @param {number} p.ay anchor y (the sample plane)
+ * @param {number} p.az anchor z
+ * @param {number} p.tx candidate target x
+ * @param {number} p.tz candidate target z
+ * @returns {boolean} true = this straight hop swims
+ */
+export function fleePathBlocked ({ sample = null, ax, ay, az, tx, tz } = {}) {
+  if (typeof sample !== 'function') return false
+  if (!Number.isFinite(ax) || !Number.isFinite(ay) || !Number.isFinite(az) ||
+      !Number.isFinite(tx) || !Number.isFinite(tz)) return false
+  for (const f of [0.25, 0.5, 0.75]) {
+    const x = ax + (tx - ax) * f
+    const z = az + (tz - az) * f
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue
+    const rx = Math.round(x)
+    const rz = Math.round(z)
+    for (const dy of [0, -1, -2]) {
+      let name = null
+      try {
+        name = sample(rx, ay + dy, rz)
+      } catch { continue }
+      if (isWaterName(name)) return true
+    }
+  }
+  return false
+}
+
 /** Pick the flee hop target: the caller's target first, then quarter-turn
  * rotations of the (target - anchor) offset (same length, deterministic
  * order 0/+90/-90/180); the first target that passes fleeTargetBlocked wins.
@@ -528,7 +586,12 @@ export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay,
     const r = rotateBearingXZ(odx, odz, turns)
     const x = ax + r.x
     const z = az + r.z
-    if (!fleeTargetBlocked({ sample, hazardNear, x, y: ay, z })) return { x, z, turns }
+    // (v0.95.0) the PATH veto rides the target veto: a dry far shore across a
+    // lake is still a swim (run84a's four flee-into-water deaths). A candidate
+    // must be water-free at the target AND along the straight line to it.
+    if (fleeTargetBlocked({ sample, hazardNear, x, y: ay, z })) continue
+    if (fleePathBlocked({ sample, ax, ay, az, tx: x, tz: z })) continue
+    return { x, z, turns }
   }
   return { x: ax + odx, z: az + odz, turns: 0 }
 }

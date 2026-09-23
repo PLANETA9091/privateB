@@ -23,7 +23,8 @@ import {
   BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
-  rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs
+  rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
+  AIR_GLITCH_STREAK_CAP
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -894,4 +895,67 @@ test('vettedFleeTargetAbs: the ledger tier and the junk shape', () => {
     'a non-finite target = no candidates = null (the caller keeps its legacy shape)')
   assert.equal(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: NaN, az: 0, tx: 12, tz: 0 }), null,
     'a non-finite anchor y = null (the sample plane is unreadable)')
+})
+
+// ---- v0.95.0: THE FLEE PATH VETO + THE GLITCH ESCALATION ----
+// Run84a (35801416480, the v0.94.0 fleet, NORMAL END 19/19): smelted=3 (the
+// 11-run wall cracked), the flee-dry veto fired 4x - but (a) four bots died
+// drowned@7.8-14.4 WHILE FLEEING a drowned: the target veto passed (the far
+// shore was dry) and the PATH swam the quarry lakes; (b) F17 was glitch-
+// ignored 675+ reads (oxygen 0 on dry land) and the server drowned it anyway.
+
+test('fleePathBlocked: a straight line over water vetoes at any of the 3 depths', () => {
+  const dry = () => 'grass_block'
+  // water column at x=6 (the 50% sample of a 12-block hop from 0 to 12)
+  const lake = (x, y, z) => (x === 6 ? 'water' : 'grass_block')
+  assert.equal(fleePathBlocked({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), false, 'dry line = free')
+  assert.equal(fleePathBlocked({ sample: lake, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), true, 'water AT the plane vetoes')
+  // water 2 below the plane (the descend-into-lake case): the surface cells read dry
+  const sunkLake = (x, y, z) => (x === 6 ? (y === 62 ? 'water' : 'air') : 'grass_block')
+  assert.equal(fleePathBlocked({ sample: sunkLake, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), true,
+    'water at y-2 under a dry surface vetoes (the hop descends the slope into the lake)')
+  // the TARGET itself is not this function's business (the target veto owns it)
+  const farWater = (x, y, z) => (x >= 10 ? 'water' : 'grass_block')
+  assert.equal(fleePathBlocked({ sample: farWater, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), false,
+    'water only AT the target passes here - fleeTargetBlocked owns the target cell')
+})
+
+test('fleePathBlocked: junk never vetoes (null reads, throws, non-finite)', () => {
+  assert.equal(fleePathBlocked({ ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), false, 'no sample = nothing to judge')
+  assert.equal(fleePathBlocked({ sample: () => null, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), false, 'unloaded chunks = not blocked')
+  assert.equal(fleePathBlocked({ sample: () => { throw new Error('boom') }, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }), false, 'a throwing world read is not a veto')
+  assert.equal(fleePathBlocked({ sample: () => 'water', ax: 0, ay: NaN, az: 0, tx: 12, tz: 0 }), false, 'non-finite plane judges nothing')
+  assert.equal(fleePathBlocked({ sample: () => 'water', ax: 0, ay: 64, az: 0, tx: Infinity, tz: 0 }), false, 'non-finite target judges nothing')
+})
+
+test('vettedFleeTargetAbs: a dry far shore across a lake ROTATES (the path veto rides)', () => {
+  // the lake sits at x 4..8 - the +x target (12,0) has a dry target cell but a wet path
+  const lake = (x, y, z) => (x >= 4 && x <= 8 ? 'water' : 'grass_block')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: lake, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 0, z: 12, turns: 1 }, 'the east hop swims -> rotates to the dry south bearing')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: lake, ax: 0, ay: 64, az: 0, tx: 0, tz: -12 }),
+    { x: 0, z: -12, turns: 0 }, 'a dry path rides unchanged (no over-veto on land)')
+  // a cross-shaped lake on all four axes: every rotation's path swims while
+  // every target cell (12+ blocks out) is dry - the original stands (a
+  // chasing mob beats a standstill)
+  const moat = (x, y, z) => ((Math.abs(z) <= 1 && Math.abs(x) >= 3 && Math.abs(x) <= 9) ||
+    (Math.abs(x) <= 1 && Math.abs(z) >= 3 && Math.abs(z) <= 9) ? 'water' : 'grass_block')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: moat, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'all four paths swim = the legacy original stands')
+})
+
+test('waterVerdict: the glitch escalation - a sustained critical-on-dry streak believes the bar', () => {
+  const dry = { feet: 'stone', head: 'air' }
+  assert.equal(AIR_GLITCH_STREAK_CAP, 8, 'eight consecutive reads = sustained, not a burst')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0 }), 'none', 'legacy shape: one critical-on-dry read is still ignored')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 7 }), 'none', 'just under the cap = still ignored')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8 }), 'drowning', 'AT the cap the bar is believed')
+  assert.equal(waterVerdict({ ...dry, oxygen: 3, dryGlitchStreak: 12 }), 'drowning', 'past the cap at any critical level')
+  assert.equal(waterVerdict({ ...dry, oxygen: 20, dryGlitchStreak: 99 }), 'none', 'a healthy bar with a junk-long streak is fine')
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: 0, dryGlitchStreak: 0 }), 'drowning', 'wet reads page at critical regardless of the streak')
+  // junk streaks fall back to the legacy shape, byte for byte
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: NaN }), 'none')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: -3 }), 'none')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: null }), 'none')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8.9 }), 'drowning', 'a fractional streak past the cap floors in')
 })

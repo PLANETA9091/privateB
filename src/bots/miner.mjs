@@ -32,7 +32,7 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
-  vettedFleeTargetAbs,
+  vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
@@ -877,6 +877,7 @@ export function createMiner ({
   let lastRescueAt = 0
   let lastGlitchLogAt = 0
   let headWetSince = 0
+  let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
   // (v0.82.0) THE STAND-DOWN STATE: run76's F9 (25 starts, one flooded pocket)
   // and F17 (14 starts, one frozen client) ate their runs in 25s slices - the
   // watch re-pages 3s (cooldown) + 5s (head-wet clock) after every still-wet
@@ -1221,14 +1222,25 @@ export function createMiner ({
       // fleet-wide, F2 x250+) and waterVerdict now reads it as FULL - counting
       // it made airGlitches a rescue-counter, not a sensor-anomaly counter.
       const o2raw = Number(read.oxygen)
-      if (oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry') {
+      // (v0.95.0) the streak: consecutive critical-on-dry reads. The ignore is
+      // no longer ABSOLUTE - run84a's F17 was ignored 675+ times across its
+      // run and the server drowned it anyway: a SUSTAINED zero bar on 'dry
+      // land' is a real air bar draining somewhere the block reads miss.
+      const criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry'
+      if (criticalOnDry) {
+        dryGlitchStreak++
         stats.airGlitches++
         if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
           lastGlitchLogAt = now
           log(`${tag} water: air-bar glitch ignored (oxygen ${o2raw} on dry land, ${stats.airGlitches} total)`)
         }
+        if (dryGlitchStreak === AIR_GLITCH_STREAK_CAP) {
+          log(`${tag} water: air-bar glitch override - ${dryGlitchStreak} consecutive critical-on-dry reads, believing the bar`)
+        }
+      } else {
+        dryGlitchStreak = 0
       }
-      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0 })
+      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak })
       if (verdict === 'drowning') rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
     } catch { /* never kill the interval */ }
   }, 600)
