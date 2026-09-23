@@ -123,3 +123,89 @@ test('ensureCampFurnace: a throwing findBlock reads as "no table", never a crash
   // refusal or a caught-error verdict, but NEVER a throw
   assert.equal(r.built, false)
 })
+
+// ---------------------------------------------------------------------------
+// (v0.102.0) THE PLANK CONSOLIDATION RUNG - run91 named both killers:
+//   F4 camp furnace: no build (no table and planks 3/4) - a raw_iron carrier ONE
+//   plank short, while the fleet felled 200+ logs that same run;
+//   F5 camp furnace: craft crafting_table: no craftable recipe variant - on FOUR
+//   planks SPLIT 2 oak + 2 birch (every plank recipe exists once PER TYPE).
+// A log is 4 same-type planks in the 2x2, so any single log unlocks both shapes.
+
+test('campFurnaceAction: the consolidation rung - one plank short WITH logs crafts planks (F4 shape)', () => {
+  const r = campFurnaceAction({ smeltables: 3, cobble: 12, planks: 3, tableNear: false, logs: 2, maxSameTypePlanks: 3 })
+  assert.equal(r.action, 'craft-planks')
+  assert.match(r.why, /2 log\(s\)/)
+  assert.match(r.why, /largest same-type stack 3\/4/)
+})
+
+test('campFurnaceAction: the consolidation rung - 4 MIXED planks never reach craft-table (F5 shape)', () => {
+  // the pre-v0.102.0 read said "4 planks - table first" and the craft died on the
+  // per-type recipes; the honest per-type view routes to the rung instead
+  const r = campFurnaceAction({ smeltables: 3, cobble: 12, planks: 4, tableNear: false, logs: 1, maxSameTypePlanks: 2 })
+  assert.equal(r.action, 'craft-planks')
+})
+
+test('campFurnaceAction: a real 4-stack of ONE type skips the rung (craft-table stands)', () => {
+  const r = campFurnaceAction({ smeltables: 3, cobble: 12, planks: 4, tableNear: false, logs: 6, maxSameTypePlanks: 4 })
+  assert.equal(r.action, 'craft-table')
+  assert.match(r.why, /4 planks - table first/)
+})
+
+test('campFurnaceAction: legacy shape - no logs input means the rung never fires (pinned verdicts stand)', () => {
+  // the v0.89.0 callers/tests pass no logs: planks 3/4 must stay the honest 'none'
+  assert.deepEqual(campFurnaceAction({ smeltables: 3, cobble: 12, planks: 3 }),
+    { action: 'none', why: 'no table and planks 3/4' })
+  // a junk logs read is a zero read - the Number(null) lesson
+  assert.deepEqual(campFurnaceAction({ smeltables: 3, cobble: 12, planks: 3, logs: NaN }),
+    { action: 'none', why: 'no table and planks 3/4' })
+  assert.deepEqual(campFurnaceAction({ smeltables: 3, cobble: 12, planks: 3, logs: -2 }),
+    { action: 'none', why: 'no table and planks 3/4' })
+  // maxSameTypePlanks junk while logs exist: null = the combined-count read (4 -> table);
+  // a STRING is not a count (the junk doctrine) -> reads 0 -> the safe rung fires
+  assert.equal(campFurnaceAction({ smeltables: 3, cobble: 12, planks: 4, logs: 1, maxSameTypePlanks: null }).action, 'craft-table')
+  assert.equal(campFurnaceAction({ smeltables: 3, cobble: 12, planks: 4, logs: 1, maxSameTypePlanks: '4' }).action, 'craft-planks')
+})
+
+test('ensureCampFurnace: the F4 cure end-to-end - 3 planks + 1 log builds the table path (light fake bot)', async () => {
+  const items = [
+    { name: 'raw_iron', count: 8 },
+    { name: 'cobblestone', count: 20 },
+    { name: 'oak_planks', count: 3 },
+    { name: 'oak_log', count: 1 }
+  ]
+  const lines = []
+  const bot = {
+    entity: { position: { distanceTo: () => 2 } },
+    inventory: { items: () => items },
+    findBlocks: () => [],
+    findBlock: () => null,
+    registry: { itemsByName: { oak_planks: { id: 12 } } },
+    recipesFor: () => [{}],
+    craft: async () => { items.find(i => i.name === 'oak_planks').count += 4 }
+  }
+  const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+  // the rung fired, the consolidation LANDED (3+4=7 oak planks), and the ladder
+  // moved past it to craft-table - the mock registry holds no crafting_table, so
+  // the chain ends at the honest table-craft verdict, but NO LONGER one plank short
+  assert.equal(r.why, 'crafting_table craft failed')
+  assert.equal(items.find(i => i.name === 'oak_planks').count, 7, 'the log became 4 planks - the consolidation LANDED (the successful craft is silent, the count is the evidence)')
+  assert.ok(lines.some(l => /craft-planks/.test(l) && /1 log\(s\)/.test(l)), `rung line logged: ${lines.join(' | ')}`)
+  assert.ok(lines.some(l => /craft-table \(20 cobble \+ 7 planks/.test(l)), `the ladder re-read the pocket and moved on: ${lines.join(' | ')}`)
+})
+
+test('ensureCampFurnace: a failed plank craft is an honest named verdict (no recipes)', async () => {
+  const bot = {
+    entity: { position: { distanceTo: () => 2 } },
+    inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }, { name: 'oak_log', count: 2 }] },
+    findBlocks: () => [],
+    findBlock: () => null,
+    registry: { itemsByName: { oak_planks: { id: 12 } } },
+    recipesFor: () => [], // no craftable variant - the recipe gate refuses
+    craft: async () => {}
+  }
+  const lines = []
+  const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+  assert.deepEqual(r, { built: false, why: 'plank craft failed' })
+  assert.ok(lines.some(l => /no craftable recipe variant/.test(l)), `the recipe miss is named: ${lines.join(' | ')}`)
+})

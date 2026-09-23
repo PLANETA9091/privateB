@@ -416,10 +416,15 @@ export const TABLE_PLANKS = 4
  * @param {number} [p.planks] all plank types combined
  * @param {number} [p.tableItem] crafting_table items held but not placed
  * @param {boolean} [p.tableNear] a table within craft reach
+ * @param {number} [p.logs] log blocks in the pocket (the consolidation fuel; 0 by
+ *   default = the legacy shape - the rung can never fire without a caller that
+ *   measures logs)
+ * @param {number} [p.maxSameTypePlanks] the LARGEST single plank-type stack; null
+ *   (default) = assume the combined count is one stack (the pre-v0.102.0 read)
  * @returns {{action: string, why: string}} action: 'none' | 'place-furnace' |
- *   'place-table' | 'craft-table' | 'craft-furnace'
+ *   'place-table' | 'craft-table' | 'craft-furnace' | 'craft-planks'
  */
-export function campFurnaceAction ({ smeltables = 0, machinesNear = false, furnaceItem = 0, cobble = 0, planks = 0, tableItem = 0, tableNear = false } = {}) {
+export function campFurnaceAction ({ smeltables = 0, machinesNear = false, furnaceItem = 0, cobble = 0, planks = 0, tableItem = 0, tableNear = false, logs = 0, maxSameTypePlanks = null } = {}) {
   const junk = v => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0)
   if (machinesNear) return { action: 'none', why: 'machine near' }
   if (junk(smeltables) <= 0) return { action: 'none', why: 'nothing to smelt' }
@@ -427,6 +432,17 @@ export function campFurnaceAction ({ smeltables = 0, machinesNear = false, furna
   if (junk(cobble) < FURNACE_COBBLE) return { action: 'none', why: `cobble ${junk(cobble)}/${FURNACE_COBBLE}` }
   if (tableNear) return { action: 'craft-furnace', why: `${junk(cobble)} cobble + table in reach - craft the furnace` }
   if (junk(tableItem) > 0) return { action: 'place-table', why: 'table item held - place it first' }
+  // (v0.102.0) THE PLANK CONSOLIDATION RUNG - run91 named both killers:
+  //   F4 'no build (no table and planks 3/4)' - a raw_iron carrier ONE plank short
+  //   while the fleet had felled 200+ logs that run; F5 'craft crafting_table: no
+  //   craftable recipe variant' on planks 4 SPLIT 2 oak + 2 birch (every plank
+  //   recipe exists once PER TYPE - 4 mixed planks craft nothing). A log is 4
+  //   same-type planks in the 2x2, so any single log unlocks both shapes. Legacy
+  //   calls (no logs input) never reach this rung - the pinned verdicts stand.
+  const maxSame = maxSameTypePlanks == null ? junk(planks) : junk(maxSameTypePlanks)
+  if (junk(logs) >= 1 && maxSame < TABLE_PLANKS) {
+    return { action: 'craft-planks', why: `${junk(logs)} log(s) in pocket - craft planks (largest same-type stack ${maxSame}/${TABLE_PLANKS})` }
+  }
   if (junk(planks) >= TABLE_PLANKS) return { action: 'craft-table', why: `${junk(cobble)} cobble + ${junk(planks)} planks - table first` }
   return { action: 'none', why: `no table and planks ${junk(planks)}/${TABLE_PLANKS}` }
 }
@@ -556,15 +572,43 @@ export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48,
     // for exactly this reason)
     let tableNear = false
     try { tableNear = !!reachableTable(bot) } catch { tableNear = false }
-    const action = campFurnaceAction({
+    // (v0.102.0) the ladder reads the REAL plank-type distribution now: the v0.89.0
+    // shape counted all plank types COMBINED, so a 2+2 mixed pocket read '4 planks',
+    // the craft-table rung fired, and the craft died 'no craftable recipe variant'
+    // (F5, run91). maxSameTypePlanks is the honest per-type view.
+    const maxSameTypePlanks = () => {
+      const stacks = inventoryItems(bot)
+        .filter(i => PLANK_TYPES.includes(i.name))
+        .map(i => (Number.isFinite(i.count) ? i.count : 0))
+      return stacks.length ? Math.max(...stacks) : 0
+    }
+    const ladder = () => campFurnaceAction({
       smeltables: smeltTotal,
       machinesNear: near.length > 0,
       furnaceItem: countItem(bot, 'furnace'),
       cobble: countItem(bot, 'cobblestone'),
       planks: planksTotal(),
       tableItem: countItem(bot, 'crafting_table'),
-      tableNear
+      tableNear,
+      logs: countLogs(bot),
+      maxSameTypePlanks: maxSameTypePlanks()
     })
+    let action = ladder()
+    // THE PLANK CONSOLIDATION RUNG (executor side): one log -> 4 same-type planks
+    // in the 2x2 (no table needed), then the ladder re-reads the pocket. Bounded
+    // at 2 iterations (one craft always lands >= 4 planks; the second pass exists
+    // so the re-read, not the assumption, decides the next rung). A failed plank
+    // craft is an honest named verdict - never a silent fall-through into a
+    // craft-table attempt the pocket cannot feed.
+    for (let iter = 0; iter < 2 && action.action === 'craft-planks'; iter++) {
+      step(`${action.action} (${action.why})`)
+      if (timeLeft() < 8000) return { built: false, why: 'budget gone before the plank craft' }
+      const logType = LOG_BLOCKS.find(n => countItem(bot, n) > 0)
+      const plankName = logType ? PLANK_OF[logType] : null
+      const ok = plankName ? await craftUntil(bot, plankName, { times: 1, want: TABLE_PLANKS, tries: 2, log: step }) : false
+      if (!ok) return { built: false, why: 'plank craft failed' }
+      action = ladder()
+    }
     if (action.action === 'none') return { built: false, why: action.why }
     step(`${action.action} (${action.why})`)
     if (action.action === 'place-table' || action.action === 'craft-table') {
