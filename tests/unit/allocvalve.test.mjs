@@ -17,7 +17,7 @@ import {
   STORM_CELL_MAGIC, STORM_CELL_SLOTS,
   ALLOC_VALVE_FLOOR_MB_DEFAULT, ALLOC_VALVE_COOLDOWN_MS_DEFAULT,
   ALLOC_VALVE_ESCALATED_MS_DEFAULT, ALLOC_VALVE_RECLOSE_WINDOW_MS,
-  ALLOC_VALVE_NEAR_BLOCKS_DEFAULT
+  ALLOC_VALVE_NEAR_BLOCKS_DEFAULT, PATH_QUEUE_ARM_DEFAULT, PATH_QUEUE_SUSTAINED_TICKS_DEFAULT
 } from '../../src/lib/allocvalve.mjs'
 import { STORM_FLOOR_MB_DEFAULT } from '../../src/lib/stormguard.mjs'
 
@@ -70,12 +70,13 @@ test('alloc valve: healthy growth under the rate never closes', () => {
   assert.equal(s.strikes, 0)
 })
 
-test('alloc valve: sub-floor growth never closes (the floor is the layering)', () => {
+test('alloc valve: sub-floor growth never closes (the floor is the layering; v0.115.0 the floor is 450)', () => {
   const ck = fakeClock()
   const v = createAllocValve({ now: ck.now, floorMb: ALLOC_VALVE_FLOOR_MB_DEFAULT })
+  assert.equal(ALLOC_VALVE_FLOOR_MB_DEFAULT, 450, 'the pin: the run101 floor drop (the 600M arm landed inside the first burst)')
   v.sample(100)
   ck.tick(1000)
-  const s = v.sample(500) // 400MB/s >= rate BUT rss 500 < floor 600 - a burst under the floor is not a verdict
+  const s = v.sample(350) // 250MB/s >= rate BUT rss 350 < floor 450 - a burst under the floor is not a verdict
   assert.equal(s.closed, false, 'the rate alone never closes - the floor gates it')
 })
 
@@ -410,4 +411,101 @@ test('startAllocValve: one close, one line - the sampled close and the poll neve
     assert.equal(lines.filter(l => l.includes('CLOSED')).length, 1, 'one close, one line')
     assert.ok(lines[0].includes('CLOSED (worker probe):'), 'the line names the worker-probe feeder')
   } finally { h.stop() }
+})
+
+// ------------------------------------- (v0.115.0) the queue-pressure arm
+// run101 (35881462426, the v0.114.0 fleet): the pathfinder queue sat at
+// 6a/8-12q for 80s+ (mined FROZEN at 92, mainLate 1.9-3.0s) while rss read a
+// healthy 356-360M - then +1039M in 5s killed the run (the stormguard's
+// two-strike SIGTERM, exit 143). The queue was the earliest signal; the rss
+// valve's 600M floor armed only inside the first burst. The arm closes the
+// valve on the SUSTAINED queue wall - run100's SUCCESS shape (isolated 10-11q
+// ticks) must never close it.
+test('queue-pressure arm: sustained 10q+ for 30 ticks closes the valve with the pressure story', () => {
+  const ck = fakeClock()
+  const seen = []
+  const v = createAllocValve({ now: ck.now, onState: st => seen.push(st) })
+  for (let i = 0; i < 29; i++) {
+    const s = v.sample(360, { queued: 11 }) // the run101 wall: rss healthy, queue saturated
+    ck.tick(1000)
+    assert.equal(s.closed, false, 'no close before the sustained tick count')
+  }
+  const s = v.sample(360, { queued: 11 }) // the 30th consecutive saturated tick
+  assert.equal(s.closed, true, 'the sustained saturation closes the valve')
+  assert.equal(s.lastSource, 'queue-pressure')
+  assert.equal(s.lastQueued, 11)
+  assert.equal(v.stats().queueCloses, 1, 'the close is the queue-pressure one')
+  assert.equal(v.stats().closes, 1)
+  assert.equal(seen.length, 1, 'onState fired exactly once')
+  assert.equal(seen[0].source, 'queue-pressure')
+})
+
+test('queue-pressure arm: an isolated burst resets the streak (the run100 healthy shape)', () => {
+  const ck = fakeClock()
+  const v = createAllocValve({ now: ck.now })
+  // run100's ticker: one 10-11q tick amid 0-8q readings
+  for (let i = 0; i < 29; i++) {
+    v.sample(360, { queued: 2 })
+    ck.tick(1000)
+  }
+  v.sample(360, { queued: 11 }) // the isolated burst
+  ck.tick(1000)
+  for (let i = 0; i < 40; i++) {
+    const s = v.sample(360, { queued: 2 })
+    ck.tick(1000)
+    assert.equal(s.closed, false, 'the reset streak never closes - a healthy run must never lose its long walks')
+  }
+  assert.equal(v.stats().queueCloses, 0)
+})
+
+test('queue-pressure arm: junk/no-reading queued HOLDS the streak (never advances, never resets)', () => {
+  const ck = fakeClock()
+  const v = createAllocValve({ now: ck.now })
+  for (let i = 0; i < 29; i++) { v.sample(360, { queued: 10 }); ck.tick(1000) }
+  v.sample(360, { queued: NaN }) // junk reading - holds
+  ck.tick(1000)
+  v.sample(360, { queued: null }) // no reading (the reader threw) - Number(null) is 0, it must NOT masquerade as '0 queued'
+  ck.tick(1000)
+  v.sample(360) // no reading at all - holds
+  ck.tick(1000)
+  assert.equal(v.consult().pressureStreak, 29, 'the junk/no readings never touched the streak')
+  const s = v.sample(360, { queued: 10 }) // the 30th REAL saturated tick
+  assert.equal(s.closed, true, '30 saturated ticks close - the junk ones were skipped, not counted and not reset')
+  assert.equal(s.lastSource, 'queue-pressure')
+})
+
+test('queue-pressure arm: a re-close within the window escalates 12s -> 30s', () => {
+  const ck = fakeClock()
+  const v = createAllocValve({ now: ck.now })
+  for (let i = 0; i < 30; i++) { v.sample(360, { queued: 12 }); ck.tick(1000) }
+  assert.equal(v.consult().closed, true)
+  ck.tick(12000) // the cooldown expires while the wall persists
+  let closed = false
+  for (let i = 0; i < 30 && !closed; i++) { closed = v.sample(360, { queued: 12 }).closed; ck.tick(1000) }
+  assert.equal(closed, true, 'the persistent wall re-closes')
+  assert.ok(v.consult().remainingMs > 15000, 'the reclose inside the window rides the ESCALATED 30s')
+  assert.equal(v.stats().escalations, 1)
+})
+
+test('queue-pressure arm: the transition line names the queue, not a fake rate (the pure pin)', () => {
+  // the ticker clamps intervalMs to 250ms - 30 sustained ticks = 7.5s of wall
+  // time, so the LINE format is pinned on the pure builder the ticker calls
+  const line = valveTransitionLine({
+    wasClosed: false,
+    st: { closed: true, lastSource: 'queue-pressure', lastQueued: 12, pressureStreak: 30, lastRate: 0, lastRss: 360, remainingMs: 12000, strikes: 1 },
+    rssM: 360,
+    uptimeS: 200
+  })
+  assert.ok(line, 'the pressure close renders a line')
+  assert.ok(line.includes('path queue 12q sustained'), 'the line names the sustained queue depth')
+  assert.ok(line.includes('[allocvalve] CLOSED:'), 'the prefix the log readers parse stays intact')
+  assert.ok(!line.includes('MB/s'), 'no fake rate on a pressure close')
+  // the rss flavor stays byte for byte (the log readers parse both)
+  const rssLine = valveTransitionLine({
+    wasClosed: false,
+    st: { closed: true, lastSource: 'sample', lastQueued: 0, pressureStreak: 0, lastRate: 145, lastRss: 1711, remainingMs: 12000, strikes: 1 },
+    rssM: 1711,
+    uptimeS: 576
+  })
+  assert.ok(rssLine.includes('CLOSED: rss 1711M (+145MB/s storm)'), 'the rss flavor unchanged')
 })

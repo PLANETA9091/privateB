@@ -316,7 +316,7 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   assert.equal(vc.consult().closed, true)
   resetWalkGovernors()
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0 })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0 })
 })
 
 // ---- (v0.104.0) THE AQUIFER GATE at the funnel ----

@@ -69,11 +69,33 @@
 //     worker probe is the freeze-class backstop.
 import { createStormGuard, STORM_RATE_MB_S_DEFAULT, STORM_WINDOW_MS } from './stormguard.mjs'
 
-export const ALLOC_VALVE_FLOOR_MB_DEFAULT = 600 // healthy run92 rss was 375-383M; the worker's floor is 1200M
+// (v0.115.0) THE FLOOR DROP 600 -> 450 - run101 (35881462426, the v0.114.0
+// fleet) measured the healthy band at 356-360M and the spike at +208MB/s:
+// rss crossed 600M already INSIDE the first burst (+1039M in 5s), so the
+// 600M floor armed the valve only after the burst had mostly landed. 450M
+// sits 17% over the run92 healthy top (383M) - the earliest arm that cannot
+// fire on a healthy run's fluctuation (the storm verdict still needs the
+// SUSTAINED 40MB/s rate, and the window resets on every rss dip - a healthy
+// run oscillates, a storm only climbs). The worker's kill floor stays 1200M.
+export const ALLOC_VALVE_FLOOR_MB_DEFAULT = 450 // healthy run92 rss was 375-383M, run101's 356-360M; the worker's floor is 1200M
 export const ALLOC_VALVE_COOLDOWN_MS_DEFAULT = 12000 // one closure = a bounded walk outage
 export const ALLOC_VALVE_ESCALATED_MS_DEFAULT = 30000 // a re-close within the window escalates
 export const ALLOC_VALVE_RECLOSE_WINDOW_MS = 60000 // two closures inside this window = a sustained storm
 export const ALLOC_VALVE_NEAR_BLOCKS_DEFAULT = 24 // straight-line bot->goal: rescues/climbs/next-columns flow, chest walks stop
+// (v0.115.0) THE QUEUE-PRESSURE ARM - run101's storm had a 60-90s WARNING the
+// rss side never saw: the pathfinder queue sat at 6a/8-12q from ts=141 to the
+// ts=221 kill (mined FROZEN at 92 the whole minute, mainLate 1.9-3.0s), while
+// rss read a healthy 356-360M until the burst itself. A healthy run's queue
+// PEAKS are momentary (run100 SUCCESS: 10-11q seen exactly once each, the
+// fleet's 19 bots issuing in the same tick); a STORM's saturation is SUSTAINED
+// (run101: >=10q on every visible ticker tick for 80s+). The arm closes the
+// valve on the SUSTAINED shape: queued >= PATH_QUEUE_ARM_DEFAULT for
+// PATH_QUEUE_SUSTAINED_TICKS_DEFAULT consecutive 1s ticks - run100's isolated
+// bursts reset the streak before 30, run101's wall closes the valve ~50s
+// BEFORE the burst. The close reuses the storm semantics (long walks refused,
+// short walks flow, escalate on reclose) - the fuel is the same long A*.
+export const PATH_QUEUE_ARM_DEFAULT = 10
+export const PATH_QUEUE_SUSTAINED_TICKS_DEFAULT = 30
 // (v0.104.0) THE AQUIFER GATE - run93 (35835942682) mined 2026-09-23: the
 // storm came back THROUGH the near exemption. The kill-window blackbox was
 // all short walks (water:rescue r=1-3, pf:goal relocate, next column alt) -
@@ -199,6 +221,13 @@ export function valveTransitionLine ({ wasClosed = false, st = {}, rssM = 0, upt
     const rate = Number.isFinite(st.lastRate) ? st.lastRate : 0
     const rem = Number.isFinite(st.remainingMs) ? Math.round(st.remainingMs / 1000) : 0
     const strikes = Number.isFinite(st.strikes) ? st.strikes : 0
+    // (v0.115.0) the queue-pressure flavor: the sustained pathfinder saturation
+    // closed the valve BEFORE any rss storm - name the pressure, not a fake rate.
+    if (st.lastSource === 'queue-pressure') {
+      const queued = Number.isFinite(st.lastQueued) ? st.lastQueued : 0
+      const streak = Number.isFinite(st.pressureStreak) ? st.pressureStreak : 0
+      return `[allocvalve] CLOSED: path queue ${queued}q sustained ${streak}s (the run101 feeder cut) - long walks refused ${rem}s (strike ${strikes}; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${uptimeS}s`
+    }
     return `[allocvalve] CLOSED: rss ${rss}M (+${rate}MB/s storm) - long walks refused ${rem}s (strike ${strikes}, the A* fuel cut; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${uptimeS}s`
   }
   if (!closed && wasClosed) {
@@ -220,15 +249,22 @@ export function valveTransitionLine ({ wasClosed = false, st = {}, rssM = 0, upt
  * @param {{rateMbS?: number, floorMb?: number, windowMs?: number, cooldownMs?: number, escalatedMs?: number, recloseWindowMs?: number, now?: Function, onState?: Function}} opts
  * @returns {{sample: Function, consult: Function, forceClose: Function, stats: Function, reset: Function}}
  */
-export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, windowMs = STORM_WINDOW_MS, cooldownMs = ALLOC_VALVE_COOLDOWN_MS_DEFAULT, escalatedMs = ALLOC_VALVE_ESCALATED_MS_DEFAULT, recloseWindowMs = ALLOC_VALVE_RECLOSE_WINDOW_MS, now = () => Date.now(), onState = null } = {}) {
+export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, windowMs = STORM_WINDOW_MS, cooldownMs = ALLOC_VALVE_COOLDOWN_MS_DEFAULT, escalatedMs = ALLOC_VALVE_ESCALATED_MS_DEFAULT, recloseWindowMs = ALLOC_VALVE_RECLOSE_WINDOW_MS, queueArm = PATH_QUEUE_ARM_DEFAULT, queueSustainedTicks = PATH_QUEUE_SUSTAINED_TICKS_DEFAULT, now = () => Date.now(), onState = null } = {}) {
   const guard = createStormGuard({ rateMbS, floorMb, windowMs, now })
-  const stats = { closes: 0, escalations: 0, workerCloses: 0 }
+  const stats = { closes: 0, escalations: 0, workerCloses: 0, queueCloses: 0 }
   let closedUntil = 0
   let lastCloseAt = -Infinity
   let lastRate = 0
   let lastRss = 0
   let lastSource = 'sample'
   let strikes = 0
+  // (v0.115.0) the queue-pressure streak: consecutive samples with the
+  // pathfinder queue at/above the arm. Any sub-arm sample resets it (the
+  // healthy run100 shape: an isolated 10-11q burst never reaches 30).
+  const qArm = Number.isFinite(queueArm) && queueArm >= 1 ? Math.floor(queueArm) : PATH_QUEUE_ARM_DEFAULT
+  const qTicks = Number.isFinite(queueSustainedTicks) && queueSustainedTicks >= 1 ? Math.floor(queueSustainedTicks) : PATH_QUEUE_SUSTAINED_TICKS_DEFAULT
+  let pressureStreak = 0
+  let lastQueued = 0
 
   function snapshot (t) {
     const closed = t < closedUntil
@@ -239,32 +275,66 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       lastRate,
       lastRss,
       lastSource,
+      lastQueued,
+      pressureStreak,
       closes: stats.closes
     }
   }
 
+  function doClose (t, { source, rate, rss, queued, verdict = null }) {
+    const escalate = (t - lastCloseAt) <= recloseWindowMs
+    if (escalate) stats.escalations++
+    strikes++
+    stats.closes++
+    if (source === 'worker-probe') stats.workerCloses++
+    if (source === 'queue-pressure') stats.queueCloses++
+    lastCloseAt = t
+    lastRate = Number.isFinite(rate) ? Math.round(rate) : 0
+    lastRss = Number.isFinite(rss) ? Math.round(rss) : 0
+    lastQueued = Number.isFinite(queued) ? Math.round(queued) : lastQueued
+    lastSource = source
+    closedUntil = t + (escalate ? escalatedMs : cooldownMs)
+    const snap = snapshot(t)
+    if (typeof onState === 'function') {
+      try { onState({ ...snap, escalated: escalate, source, ...(verdict ? { verdict } : {}) }) } catch { /* the valve never kills the fleet */ }
+    }
+    return snap
+  }
+
   return {
-    /** Feed one rss sample (MB). A storm verdict NOT while already closed
-     * closes the valve for cooldownMs (escalated after a fresh reclose).
-     * Junk rss never enters the window (the guard's contract). */
-    sample (rssMb) {
+    /** Feed one rss sample (MB) - and optionally the pathfinder queue depth.
+     * A storm verdict NOT while already closed closes the valve for cooldownMs
+     * (escalated after a fresh reclose). Junk rss never enters the window (the
+     * guard's contract). (v0.115.0) the QUEUE-PRESSURE ARM rides the same
+     * sample: queued >= arm on SUSTAINED_TICKS consecutive samples closes the
+     * valve with source 'queue-pressure' (the run101 feeder cut ~50s before
+     * the rss burst); any sub-arm sample resets the streak. Junk queued judges
+     * nothing (the streak just does not advance). */
+    sample (rssMb, { queued = null } = {}) {
       const t = now()
       const v = guard.sample(rssMb)
       if (v && v.storm && t >= closedUntil) {
-        const escalate = (t - lastCloseAt) <= recloseWindowMs
-        if (escalate) stats.escalations++
-        strikes++
-        stats.closes++
-        lastCloseAt = t
-        lastRate = Number.isFinite(v.rate) ? Math.round(v.rate) : 0
-        lastRss = Number.isFinite(v.rss) ? Math.round(v.rss) : 0
-        lastSource = 'sample'
-        closedUntil = t + (escalate ? escalatedMs : cooldownMs)
-        const snap = snapshot(t)
-        if (typeof onState === 'function') {
-          try { onState({ ...snap, escalated: escalate, verdict: { rate: v.rate, gain: v.gain, rss: v.rss } }) } catch { /* the valve never kills the fleet */ }
+        return doClose(t, { source: 'sample', rate: v.rate, rss: v.rss, queued, verdict: { rate: v.rate, gain: v.gain, rss: v.rss } })
+      }
+      // (v0.115.0) the sustained queue-pressure arm - the earliest storm signal
+      // NO reading (null/undefined - the reader absent or it threw) HOLDS the
+      // streak: absence of evidence is not evidence of a drained queue. A junk
+      // reading (NaN/negative) also holds. Only a FINITE reading advances or
+      // resets (Number(null) is 0 - the null must never masquerade as '0 queued',
+      // the funnel-test lesson).
+      if (queued !== null && queued !== undefined) {
+        const q = Number(queued)
+        if (Number.isFinite(q) && q >= 0) {
+          if (q >= qArm) {
+            pressureStreak++
+            lastQueued = Math.round(q)
+          } else {
+            pressureStreak = 0
+          }
+          if (pressureStreak >= qTicks && t >= closedUntil) {
+            return doClose(t, { source: 'queue-pressure', rate: v && v.rate ? v.rate : 0, rss: v && v.rss ? v.rss : lastRss, queued: q })
+          }
         }
-        return snap
       }
       return snapshot(t)
     },
@@ -307,9 +377,12 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       lastRss = 0
       lastSource = 'sample'
       strikes = 0
+      pressureStreak = 0
+      lastQueued = 0
       stats.closes = 0
       stats.escalations = 0
       stats.workerCloses = 0
+      stats.queueCloses = 0
     }
   }
 }
@@ -334,15 +407,23 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
  * @param {{intervalMs?: number, onLine?: Function, valve?: object, stormCell?: SharedArrayBuffer}} opts plus createAllocValve opts
  * @returns {{valve: object, stop: Function}}
  */
-export function startAllocValve ({ intervalMs = 1000, onLine = null, valve = null, stormCell = null, ...opts } = {}) {
+export function startAllocValve ({ intervalMs = 1000, onLine = null, valve = null, stormCell = null, queueDepth = null, ...opts } = {}) {
   const v = valve || createAllocValve(opts)
   let wasClosed = false
   let lastSeq = 0
   const timer = setInterval(() => {
     let rssM = 0
     try { rssM = process.memoryUsage().rss / 1048576 } catch { return }
+    // (v0.115.0) the queue-pressure arm rides the same tick: the caller injects
+    // the live queue depth (the jobqueue singleton owns the path semaphore -
+    // the valve module cannot import it back). Junk/throwing reader = null =
+    // the streak just does not advance.
+    let queued = null
+    if (typeof queueDepth === 'function') {
+      try { queued = queueDepth() } catch { queued = null }
+    }
     let st
-    try { st = v.sample(rssM) } catch { return }
+    try { st = v.sample(rssM, { queued }) } catch { return }
     if (typeof onLine === 'function') {
       try {
         const line = valveTransitionLine({ wasClosed, st, rssM, uptimeS: Math.round(process.uptime()) })

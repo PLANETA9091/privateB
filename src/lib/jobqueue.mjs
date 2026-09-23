@@ -408,14 +408,25 @@ export function allocValveControl () {
  * stormCell } (stormCell = the worker-probe SAB channel, the freeze-class
  * backstop feeder). */
 export function startFleetValveTicker (opts = {}) {
-  return startAllocValve({ valve: fleetValve, ...opts })
+  // (v0.115.0) the queue-pressure arm rides the fleet ticker: the singleton
+  // semaphore's live queue depth feeds the valve's sample - the sustained
+  // saturation (run101: 8-12q for 80s+ while rss still read healthy) closes
+  // the valve BEFORE the A* allocation burst, not after it.
+  return startAllocValve({
+    valve: fleetValve,
+    queueDepth: () => {
+      const s = fleetPaths.stats()
+      return s && Number.isFinite(s.queued) ? s.queued : null
+    },
+    ...opts
+  })
 }
 
 /** Fleet valve counters for the FLEET RESULT block. */
 export function allocValveStatsFor () {
   const st = valveStats
   const snap = fleetValve.consult()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses }
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -599,7 +610,11 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       } else {
         valveStats.refusals++
         if (goalHazardNear) valveStats.hazardRefusals++
-        return refuse(`alloc valve: closed (storm ${vs.lastRate}MB/s at rss ${vs.lastRss}M) - ${label} refused${goalHazardNear ? ' (goal in live hazard water, the aquifer gate)' : ''} for ${Math.round(vs.remainingMs / 1000)}s`)
+        // (v0.115.0) the pressure flavor names the sustained queue, not a fake rate
+        const cause = vs.lastSource === 'queue-pressure'
+          ? `path queue ${vs.lastQueued}q sustained`
+          : `storm ${vs.lastRate}MB/s at rss ${vs.lastRss}M`
+        return refuse(`alloc valve: closed (${cause}) - ${label} refused${goalHazardNear ? ' (goal in live hazard water, the aquifer gate)' : ''} for ${Math.round(vs.remainingMs / 1000)}s`)
       }
     }
   } catch (e) {
