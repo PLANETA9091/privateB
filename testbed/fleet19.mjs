@@ -42,7 +42,7 @@ import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
 import { startAllocValve } from '../src/lib/allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
-import { allocValveStatsFor } from '../src/lib/jobqueue.mjs'
+import { allocValveStatsFor, setFleetHazardNear } from '../src/lib/jobqueue.mjs'
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
@@ -103,6 +103,12 @@ const board = new ClaimBoard()
 // run60 paid 42 arrival-then-refuse walks). Shared by reference like the board;
 // cross-process hearing rides the same PVB2 chat line family.
 const hazardLedger = new HazardLedger()
+// (v0.104.0) THE AQUIFER BOARD for the alloc valve: the closed valve's near
+// exemption reads the SAME shared ledger the digs and walks vetoes read - a
+// near walk into live hazard water is refused while the valve is closed
+// (run93: the storm returned through the near class across the flooded
+// quarry). One ledger, one truth, no copied state.
+setFleetHazardNear(pos => hazardLedger.near(pos))
 // (v0.84.0) the shared WATER TABLE: one bot's fluid strike (water found at
 // depth by the digShaft fluid guard) ceilings every shaft in that 64x64 region
 // for the WHOLE fleet - the aquifer is regional, the old memory was cellular.

@@ -379,7 +379,14 @@ export function walkGovernorStatsFor () {
 // reopens after 12s (30s escalated). Short walks (rescues <=12, climbs, next-
 // column steps) still flow - a drowning bot never waits on a memory valve.
 const fleetValve = createAllocValve({})
-const valveStats = { refusals: 0, nearPasses: 0 }
+const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0 }
+// (v0.104.0) THE AQUIFER BOARD - fleet19 sets this at boot (the shared
+// HazardLedger's near()); the closed valve's near exemption consults it so a
+// near walk into live hazard water is refused too (near is not cheap in a
+// flooded region - run93). Null/unset board = the v0.102.0 distance-only
+// shape, byte for byte; a throwing/junk reader judges NOTHING (admits).
+let fleetHazardNear = null
+export function setFleetHazardNear (fn) { fleetHazardNear = typeof fn === 'function' ? fn : null }
 
 /** Test/fleet control surface for the valve singleton. */
 export function allocValveControl () {
@@ -394,7 +401,7 @@ export function allocValveControl () {
 export function allocValveStatsFor () {
   const st = valveStats
   const snap = fleetValve.consult()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed }
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -566,11 +573,19 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   try {
     const vs = fleetValve.consult()
     if (vs && vs.closed) {
-      if (valveAdmits({ closed: true, distanceBlocks: walkDistanceOf(bot, goal), nearBlocks: ALLOC_VALVE_NEAR_BLOCKS_DEFAULT })) {
+      // (v0.104.0) the aquifer board read: is this walk's GOAL in live hazard
+      // water? Junk goal (goalCellOf null), unset board and a throwing reader
+      // all judge NOTHING (false) - the v0.102.0 distance-only admission.
+      let goalHazardNear = false
+      if (fleetHazardNear) {
+        try { goalHazardNear = fleetHazardNear(goalCellOf(goal)) != null } catch { goalHazardNear = false }
+      }
+      if (valveAdmits({ closed: true, distanceBlocks: walkDistanceOf(bot, goal), nearBlocks: ALLOC_VALVE_NEAR_BLOCKS_DEFAULT, goalHazardNear })) {
         valveStats.nearPasses++
       } else {
         valveStats.refusals++
-        return refuse(`alloc valve: closed (storm ${vs.lastRate}MB/s at rss ${vs.lastRss}M) - ${label} refused for ${Math.round(vs.remainingMs / 1000)}s`)
+        if (goalHazardNear) valveStats.hazardRefusals++
+        return refuse(`alloc valve: closed (storm ${vs.lastRate}MB/s at rss ${vs.lastRss}M) - ${label} refused${goalHazardNear ? ' (goal in live hazard water, the aquifer gate)' : ''} for ${Math.round(vs.remainingMs / 1000)}s`)
       }
     }
   } catch (e) {

@@ -24,7 +24,7 @@ import {
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
-  AIR_GLITCH_STREAK_CAP
+  AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -995,4 +995,66 @@ test('waterVerdict: the glitch escalation - a sustained critical-on-dry streak b
   assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: -3 }), 'none')
   assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: null }), 'none')
   assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8.9 }), 'drowning', 'a fractional streak past the cap floors in')
+})
+
+// ---- (v0.104.0) THE WATERLOG STATE + THE DRY-LAND PROOF ----
+// run93 (35835942682): F9/F15 stood DRY on the quarry rim with a bar stuck
+// at 0 - the v0.95.0 streak escalation paged 'drowning', the rescue broke out
+// 0.0s later (dry + on ground), recorded the DRY cell as a hazard, and the
+// sentry re-fired every 3s - 45+ walk-cancel/hazard-poison cycles per bot
+// feeding the A* storm that killed the run. And the REAL sustained-drain
+// class (run84a F17) was waterlogged blocks reading their base names - the
+// blockstate flag is the truth the streak ladder was guessing at.
+
+test('airBarTrust: the waterlog blockstate is water contact (the F17 class reads wet)', () => {
+  assert.equal(airBarTrust({ feet: 'oak_stairs', head: 'air', feetWaterlogged: true }), 'wet', 'a waterlogged stair underfoot reads its base name - the state does not lie')
+  assert.equal(airBarTrust({ feet: 'stone', head: 'oak_slab', headWaterlogged: true }), 'wet', 'a waterlogged block at head height is submersion')
+  assert.equal(airBarTrust({ feet: 'water', head: 'air', headWaterlogged: false }), 'wet', 'an explicit false flag judges nothing - the name already said water')
+})
+
+test('airBarTrust: missing or junk flags keep every legacy verdict byte for byte', () => {
+  assert.equal(airBarTrust({ feet: 'sand', head: 'air' }), 'dry', 'the v0.16.0 shape: no flags, two dry reads')
+  assert.equal(airBarTrust({ feet: 'oak_stairs', head: 'air' }), 'dry', 'a stair NAME alone is still dry - only the state flag speaks for waterlogging')
+  assert.equal(airBarTrust({ feet: 'sand', head: 'air', feetWaterlogged: undefined }), 'dry', 'an undefined flag judges nothing')
+  assert.equal(airBarTrust({ feet: 'sand', head: 'air', headWaterlogged: 'yes' }), 'dry', 'a truthy NON-boolean never invents water')
+  assert.equal(airBarTrust({ feet: null, head: null, feetWaterlogged: false }), 'unknown', 'missing reads stay unknown')
+})
+
+test('waterVerdict: a critical bar behind waterlogged contact pages WITHOUT the streak ladder', () => {
+  const wl = { feet: 'oak_stairs', head: 'air', feetWaterlogged: true }
+  assert.equal(waterVerdict({ ...wl, oxygen: 0, dryGlitchStreak: 0 }), 'drowning', 'run84a F17: the drain was real, the rescue now swims immediately')
+  assert.equal(waterVerdict({ ...wl, oxygen: 0, dryGlitchStreak: 3 }), 'drowning', 'the streak is irrelevant when the state says wet')
+  assert.equal(waterVerdict({ feet: 'sand', head: 'air', headWaterlogged: true, oxygen: 0 }), 'drowning')
+})
+
+test('waterVerdict: the dry glitch class is unchanged (the proof and the gate own it now)', () => {
+  const dry = { feet: 'sand', head: 'air' }
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 0 }), 'none', 'no flags, dry reads: the legacy ignore')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, feetWaterlogged: false, headWaterlogged: false, dryGlitchStreak: 0 }), 'none', 'explicit false flags read exactly like no flags')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: AIR_GLITCH_STREAK_CAP }), 'drowning', 'the v0.95.0 escalation stays for unreadable states')
+})
+
+test('dryLandProof: only the fast zero-contact completion proves dry (run93 F9/F15 shape)', () => {
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: 0 }), true, 'the 0.0s no-op rescue: the proof')
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: 1999 }), true, 'inside the bound')
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: DRY_PROOF_MAX_MS }), true, 'AT the bound admits (<=)')
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: 2001 }), false, 'a long dry flail is not proven - the legacy hazard record stays')
+  assert.equal(dryLandProof({ wetPasses: 1, elapsedMs: 0 }), false, 'any water contact disproves the proof (a swim-out records its hazard)')
+  assert.equal(dryLandProof({ wetPasses: 3, elapsedMs: 120000 }), false)
+})
+
+test('dryLandProof: junk inputs judge NOTHING (false = legacy path)', () => {
+  assert.equal(dryLandProof({}), false)
+  assert.equal(dryLandProof({ wetPasses: null, elapsedMs: 100 }), false)
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: null }), false)
+  assert.equal(dryLandProof({ wetPasses: NaN, elapsedMs: 100 }), false)
+  assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: -5 }), false)
+  assert.equal(dryLandProof({ wetPasses: -1, elapsedMs: 100 }), false)
+})
+
+test('the dry-land constants: the backoff stays under the drain-to-death clock', () => {
+  assert.ok(DRY_PROOF_MAX_MS === 2000, 'the proof window covers the 0.0s/1.3s no-op shapes')
+  assert.ok(DRY_PROOF_BACKOFF_MS === 20000, 'the re-fire backoff')
+  assert.ok(DRY_PROOF_BACKOFF_MS < 35000, 'a real stuck-sensor drain still gets its page before the ~35s death clock')
+  assert.ok(DRY_PROOF_BACKOFF_MS > RESCUE_COOLDOWN_MS, 'the backoff is a real step beyond the 3s cooldown')
 })

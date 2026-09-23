@@ -197,3 +197,29 @@ test('valveTransitionLine: no transition, no line', () => {
   assert.equal(valveTransitionLine({ wasClosed: false, st: { closed: false }, rssM: 400, uptimeS: 1 }), null)
   assert.equal(valveTransitionLine({ wasClosed: true, st: { closed: true }, rssM: 1400, uptimeS: 2 }), null)
 })
+
+// ---- (v0.104.0) THE AQUIFER GATE: near is not cheap in a flooded region ----
+// run93 (35835942682): the storm returned THROUGH the near exemption - the
+// kill-window blackbox was all short walks (water:rescue r=1-3, relocate,
+// next column alt) across the flooded quarry (24 live hazard cells, rss
+// 542M -> 2626M in ~20s). While closed, a near walk whose GOAL sits in live
+// hazard water is refused too; the flag comes from the hazard ledger.
+
+test('valveAdmits: the aquifer gate - a near goal in live hazard water is refused while closed (run93 relocation class)', () => {
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: true }), false, 'the F9 relocation into the flooded quarry: near but flooded')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 1, goalHazardNear: true }), false, 'even a 1-block step into the flooded cells waits out the closure')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 141, goalHazardNear: true }), false, 'a LONG flooded walk was already refused (v0.102.0)')
+})
+
+test('valveAdmits: the aquifer gate never touches the dry near class or an open valve', () => {
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: false }), true, 'dry near walks flow exactly as v0.102.0')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5 }), true, 'no flag = the legacy byte-for-byte shape')
+  assert.equal(valveAdmits({ closed: false, distanceBlocks: 5, goalHazardNear: true }), true, 'an open valve is a no-op even on a flooded goal')
+})
+
+test('valveAdmits: the aquifer flag is junk-safe - only a POSITIVE true refuses', () => {
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: undefined }), true, 'missing flag judges nothing')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: null }), true, 'null flag judges nothing')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: 'yes' }), true, 'a truthy NON-boolean never invents ledger knowledge')
+  assert.equal(valveAdmits({ closed: true, distanceBlocks: 5, goalHazardNear: 1 }), true)
+})

@@ -316,5 +316,80 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   assert.equal(vc.consult().closed, true)
   resetWalkGovernors()
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, closes: 0, strikes: 0, closedNow: false })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false })
+})
+
+// ---- (v0.104.0) THE AQUIFER GATE at the funnel ----
+// run93 (35835942682): the storm returned THROUGH the near exemption - the
+// kill window was all SHORT walks (relocations, next-column alts) across the
+// flooded quarry. While closed, the near exemption consults the fleet hazard
+// board (setFleetHazardNear): a near goal in live hazard water is refused
+// with its own named clause; a missing/throwing/junk-null board judges
+// NOTHING (the v0.102.0 distance-only shape).
+
+import { setFleetHazardNear } from '../../src/lib/jobqueue.mjs'
+
+test('alloc valve at the funnel: a NEAR walk into live hazard water is refused while closed (the aquifer gate)', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500) // closed
+  setFleetHazardNear(pos => (pos && pos.x === 3 && pos.z === 4) ? { hazard: { x: 3, y: 64, z: 4, at: Date.now() }, d: 0.5 } : null)
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    await assert.rejects(gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 }), /aquifer gate/, 'the refusal names the gate so the log reader can count it')
+    const st = allocValveStatsFor()
+    assert.ok(st.refusals >= 1 && st.hazardRefusals >= 1, 'the aquifer refusal is counted separately')
+  } finally {
+    setFleetHazardNear(null)
+    resetWalkGovernors()
+  }
+})
+
+test('alloc valve at the funnel: a NEAR walk on a DRY goal flows while closed even with the board wired', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500)
+  setFleetHazardNear(() => null) // a wired board that knows no hazards
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'the v0.102.0 near class is untouched by the gate')
+  } finally {
+    setFleetHazardNear(null)
+    resetWalkGovernors()
+  }
+})
+
+test('alloc valve at the funnel: a throwing or junk-answer board judges NOTHING (admits near)', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500)
+  const bot = {
+    entity: { position: { x: 0, y: 64, z: 0 } },
+    pathfinder: { goto: async () => 'done', stop: () => {} }
+  }
+  setFleetHazardNear(() => { throw new Error('board on fire') })
+  try {
+    const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'a throwing reader never refuses a walk the distance gate would admit')
+  } finally {
+    setFleetHazardNear(null)
+  }
+  setFleetHazardNear('junk') // non-function: the setter nulls it
+  try {
+    const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'a non-function board is the unset board')
+  } finally {
+    setFleetHazardNear(null)
+    resetWalkGovernors()
+  }
 })

@@ -50,6 +50,18 @@ export const ALLOC_VALVE_COOLDOWN_MS_DEFAULT = 12000 // one closure = a bounded 
 export const ALLOC_VALVE_ESCALATED_MS_DEFAULT = 30000 // a re-close within the window escalates
 export const ALLOC_VALVE_RECLOSE_WINDOW_MS = 60000 // two closures inside this window = a sustained storm
 export const ALLOC_VALVE_NEAR_BLOCKS_DEFAULT = 24 // straight-line bot->goal: rescues/climbs/next-columns flow, chest walks stop
+// (v0.104.0) THE AQUIFER GATE - run93 (35835942682) mined 2026-09-23: the
+// storm came back THROUGH the near exemption. The kill-window blackbox was
+// all short walks (water:rescue r=1-3, pf:goal relocate, next column alt) -
+// and in a flooded quarry (24 live hazard cells, water table y=55) a short
+// walk is NOT a cheap walk: the A* explores the flooded geometry and the
+// storm re-armed (rss 542M -> 2626M in ~20 s, worker FATAL). Distance does
+// not know water; the hazard board does. While the valve is CLOSED, a near
+// walk whose GOAL sits in live hazard water is refused too - the fleet's own
+// "hazard memorized" ledger (the same one digShaft and mapTargetFor read)
+// names the flooded cells. The 12-30 s outage now covers the flooded class;
+// the valve reopening restores it, exactly like the long-walk gate.
+export const ALLOC_VALVE_AQUIFER_GATE = true // documentation constant: the near exemption is hazard-aware since v0.104.0
 
 /**
  * Pure admission: while the valve is CLOSED, does THIS walk still flow?
@@ -57,17 +69,25 @@ export const ALLOC_VALVE_NEAR_BLOCKS_DEFAULT = 24 // straight-line bot->goal: re
  * that are PROVABLY near - an unmeasurable distance (no entity, junk goal,
  * junk position) is not provably near and is refused (honest default; the
  * caller's retry ladder handles a refused walk exactly like any other).
- * @param {{closed?: boolean, distanceBlocks?: number|null, nearBlocks?: number}} s
+ * (v0.104.0) THE AQUIFER GATE: a near goal sitting in live hazard water is
+ * refused while closed - near is not cheap in a flooded region (run93). The
+ * flag comes from the fleet's hazard ledger; junk/missing flags judge
+ * NOTHING (false = the v0.102.0 distance-only shape, byte for byte).
+ * @param {{closed?: boolean, distanceBlocks?: number|null, nearBlocks?: number, goalHazardNear?: boolean}} s
  * @returns {boolean}
  */
-export function valveAdmits ({ closed = false, distanceBlocks = null, nearBlocks = ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } = {}) {
+export function valveAdmits ({ closed = false, distanceBlocks = null, nearBlocks = ALLOC_VALVE_NEAR_BLOCKS_DEFAULT, goalHazardNear = false } = {}) {
   if (!closed) return true
   // typeof gate FIRST: Number(null) is 0 and Number('') is 0 - a null distance
   // would masquerade as "0 blocks away" and be admitted (the funnel test
   // caught exactly this). Only a real finite number is measurable.
   const d = typeof distanceBlocks === 'number' ? distanceBlocks : NaN
   if (!Number.isFinite(d) || d < 0) return false
-  return d <= nearBlocks
+  if (d > nearBlocks) return false
+  // (v0.104.0) the aquifer gate: only a POSITIVE board hit refuses - junk
+  // flags never invent knowledge the ledger does not have.
+  if (goalHazardNear === true) return false
+  return true
 }
 
 /**

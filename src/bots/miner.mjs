@@ -32,7 +32,7 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
-  vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP,
+  vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
@@ -878,6 +878,7 @@ export function createMiner ({
   let lastGlitchLogAt = 0
   let headWetSince = 0
   let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
+  let noOpRescueGateUntil = 0 // (v0.104.0) the dry-land proof's re-fire gate (the glitch-class backoff)
   // (v0.82.0) THE STAND-DOWN STATE: run76's F9 (25 starts, one flooded pocket)
   // and F17 (14 starts, one frozen client) ate their runs in 25s slices - the
   // watch re-pages 3s (cooldown) + 5s (head-wet clock) after every still-wet
@@ -910,7 +911,15 @@ export function createMiner ({
     const base = bot.entity.position.floored()
     const feetB = bot.blockAt(base)
     const headB = bot.blockAt(base.offset(0, 1, 0))
-    return { feet: feetB?.name ?? null, head: headB?.name ?? null, oxygen: bot.oxygenLevel ?? 20 }
+    // (v0.104.0) the WATERLOG STATE rides with the read: a waterlogged
+    // stair/slab reads its base name, not water - the blockstate flag is the
+    // truth airBarTrust/waterVerdict/rescue all share now. Junk (missing
+    // properties, unloaded chunk) reads false and judges nothing (legacy).
+    return {
+      feet: feetB?.name ?? null, head: headB?.name ?? null, oxygen: bot.oxygenLevel ?? 20,
+      feetWaterlogged: feetB?.properties?.waterlogged === true,
+      headWaterlogged: headB?.properties?.waterlogged === true
+    }
   }
 
   async function rescueFromWater (verdict) {
@@ -949,6 +958,7 @@ export function createMiner ({
     stats.rescues++
     noteGlobal('water:rescue') // (v0.62.0) run53's OOM and run60's 150s freeze both began mid-rescue - mark the site
     let standingWet = false // exited via the standing-in-shallow-water policy
+    let sawWater = false // (v0.104.0) the dry-land proof's water-contact latch
     // (v0.80.0) THE OPEN-WATER TRANSIT state: the continuous-dry clock (reset
     // on every submerged read) and the surface-safe release flag.
     let headDrySince = null
@@ -1026,9 +1036,16 @@ export function createMiner ({
         // already the death spot - the hazard is exactly where the water won.
         if ((bot.health ?? 20) <= 0) break
         const read = waterRead()
-        const inWater = isWaterName(read.feet) || isWaterName(read.head)
+        // (v0.104.0) waterlogged contact counts: a bot standing in a
+        // waterlogged stair IS in water (the F17 class) - the rescue must swim
+        // it out, not break out 0.0 s later and re-page forever. sawWater
+        // feeds the dry-land proof at the finally: a rescue that never saw
+        // contact proved the page false and records no hazard.
+        const inWater = isWaterName(read.feet) || isWaterName(read.head) ||
+          read.feetWaterlogged === true || read.headWaterlogged === true
         if (inWater && bot.entity?.position) {
           hazardCell = { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
+          sawWater = true
         }
         if (!inWater && bot.entity.onGround) break // out and standing: done
         const headWet = isWaterName(read.head)
@@ -1193,7 +1210,23 @@ export function createMiner ({
       // cell, never the entity position at finally time (a dead-then-respawned
       // bot stands at the spawn point there). The digShaft guard and the
       // mapTargetFor pre-walk veto both read this ledger.
-      if (hazardCell) {
+      // (v0.104.0) THE DRY-LAND PROOF gates the write: run93's F9/F15 stood
+      // DRY on the quarry rim with a stuck-at-0 bar - each 0.0 s no-op rescue
+      // recorded the DRY cell as a live hazard (the ledger filled with rim
+      // cells vetoes legit mining columns fleet-wide for a full TTL and feeds
+      // the relocation A*). A rescue that saw ZERO water contact inside
+      // DRY_PROOF_MAX_MS records NOTHING, restarts the critical-on-dry
+      // streak (the sustained-drain evidence is disproven for this moment)
+      // and arms the sentry's DRY_PROOF_BACKOFF_MS re-fire gate. Wet exits
+      // (a swim-out included) and long/frozen exits keep the legacy record.
+      const proof = dryLandProof({ wetPasses: sawWater ? 1 : 0, elapsedMs: Date.now() - lastRescueAt })
+      if (proof) {
+        if (dryGlitchStreak > 0) {
+          dryGlitchStreak = 0
+          log(`${tag} water: dry-land proof (rescue saw no water in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s) - the critical-on-dry streak restarts, the next glitch page waits ${Math.round(DRY_PROOF_BACKOFF_MS / 1000)}s`)
+        }
+        noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
+      } else if (hazardCell) {
         const live = waterHazards.record(hazardCell)
         log(`${tag} water: hazard memorized at [${Math.floor(hazardCell.x)},${Math.floor(hazardCell.y)},${Math.floor(hazardCell.z)}] (${live} live, fleet-wide)`)
         if (broadcastHazard) { try { broadcastHazard(hazardCell) } catch { /* chat never kills a rescue */ } }
@@ -1243,7 +1276,16 @@ export function createMiner ({
         dryGlitchStreak = 0
       }
       const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak })
-      if (verdict === 'drowning') rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
+      if (verdict === 'drowning') {
+        // (v0.104.0) THE DRY-LAND BACKOFF - the glitch class only. A bot the
+        // dry-land proof just cleared re-fires its critical-on-dry page
+        // DRY_PROOF_BACKOFF_MS later, not every RESCUE_COOLDOWN_MS: run93's
+        // 3 s-cadence no-op rescues (each a setGoal(null) walk cancel) were
+        // the A* storm's pump. A WET page (head in water / waterlogged
+        // contact) never waits on this gate - only the stuck-bar class does.
+        if (criticalOnDry && Date.now() < noOpRescueGateUntil) return
+        rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
+      }
     } catch { /* never kill the interval */ }
   }, 600)
   bot.on('end', () => { try { clearInterval(drownTimer) } catch { /* process teardown */ } })

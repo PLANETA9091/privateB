@@ -69,6 +69,21 @@ export const SHORE_MAX_RADIUS = 12
 /** After a rescue, the sentry waits this long before re-firing (a bot treading
  * in a flooded shaft re-triggers otherwise every 5 s and starves the work loop). */
 export const RESCUE_COOLDOWN_MS = 3000
+// (v0.104.0) THE DRY-LAND PROOF - run93 (35835942682) mined 2026-09-23: F9/F15
+// stood DRY on the quarry rim with a bar stuck at 0; the v0.95.0 streak
+// escalation paged 'drowning', the rescue broke out in 0.0 s (dry + on
+// ground - no water anywhere), recorded the DRY cell as a hazard, and the
+// sentry re-fired 3 s later - 45+ cycles per bot of walk-goal cancels
+// (setGoal(null)) and hazard-ledger poisoning feeding the pathfinder A* that
+// detonated the run (stormguard FATAL at rss 2626M). A rescue that completes
+// with ZERO water contact inside DRY_PROOF_MAX_MS is the disproof of
+// 'sustained drain' for that moment: the streak restarts and the next
+// critical-on-dry page waits DRY_PROOF_BACKOFF_MS. A genuinely draining bot
+// still outruns this: the drain-to-death clock is ~35 s from o2 = 0, the
+// backoff is 20 s - and with the waterlog-state read (v0.104.0) the real
+// F17 class now reads WET at airBarTrust and never touches this gate.
+export const DRY_PROOF_MAX_MS = 2000
+export const DRY_PROOF_BACKOFF_MS = 20000
 
 export function isWaterName (name) {
   return typeof name === 'string' && WATER_NAMES.has(name)
@@ -89,11 +104,39 @@ export function isWaterName (name) {
  * Verdicts: 'wet' - water contact, 'dry' - both cells definitely not water,
  * 'unknown' - any read missing.
  */
-export function airBarTrust ({ feet = null, head = null } = {}) {
+export function airBarTrust ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false } = {}) {
   if (isWaterName(feet) || isWaterName(head)) return 'wet'
+  // (v0.104.0) THE WATERLOG STATE: a waterlogged stair/slab/fence reads its
+  // BASE name, not water - run84a F17 drowned behind 'dry' reads while the
+  // server drained a real bar (the v0.95.0 streak escalation paged a rescue
+  // that broke out 0.0 s later, because the rescue's own water test read the
+  // same dry names and never swam). The blockstate does not lie: a true
+  // waterlogged flag IS water contact ('wet' - the rescue loop swims, the
+  // sentry pages without the streak ladder). A missing/junk flag judges
+  // nothing - every legacy caller (no flags) keeps its verdict byte for byte.
+  if (feetWaterlogged === true || headWaterlogged === true) return 'wet'
   const dry = n => n != null && !isWaterName(n)
   if (dry(feet) && dry(head)) return 'dry'
   return 'unknown'
+}
+
+/**
+ * (v0.104.0) THE DRY-LAND PROOF (pure): did this rescue complete with zero
+ * water contact fast enough to disprove 'sustained drain' at that moment?
+ * wetPasses counts the loop's water-contact passes (feet/head water-named or
+ * waterlogged-flagged); elapsedMs is the rescue's own wall clock. Only the
+ * fast zero-contact shape proves dry - a long airborne flail or a frozen
+ * stand-down keeps the legacy hazard record (the caller decides).
+ * Junk-safe: junk inputs judge NOTHING (false = no proof, legacy path).
+ * @param {{wetPasses?: number, elapsedMs?: number}} p
+ * @returns {boolean}
+ */
+export function dryLandProof ({ wetPasses = null, elapsedMs = null } = {}) {
+  const w = Number.isFinite(wetPasses) ? wetPasses : NaN
+  const e = Number.isFinite(elapsedMs) ? elapsedMs : NaN
+  if (!Number.isFinite(w) || w < 0) return false
+  if (!Number.isFinite(e) || e < 0) return false
+  return w === 0 && e <= DRY_PROOF_MAX_MS
 }
 
 /**
@@ -113,7 +156,7 @@ export function airBarTrust ({ feet = null, head = null } = {}) {
  *                broke surface with air to spare) - monitor, no emergency
  *   'drowning' - rescue NOW
  */
-export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0 } = {}) {
+export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0 } = {}) {
   const raw = Number(oxygen)
   // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
   // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
@@ -129,7 +172,10 @@ export function waterVerdict ({ feet = null, head = null, oxygen = 20, headWetMs
   // oxygen metadata can read ~0 on land. Two definite dry reads out-vote the
   // bar; the wiring counts the glitch so the next fleet run tells us whether
   // the sensor or the water table was lying.
-  if (o2 <= OXYGEN_CRITICAL_LEVEL && airBarTrust({ feet, head }) !== 'dry') return 'drowning'
+  // (v0.104.0) the waterlog flags ride through: waterlogged contact is 'wet'
+  // here - a real F17-class drain pages WITHOUT the streak ladder, and the
+  // streak stays a fallback for blocks whose state is unreadable.
+  if (o2 <= OXYGEN_CRITICAL_LEVEL && airBarTrust({ feet, head, feetWaterlogged, headWaterlogged }) !== 'dry') return 'drowning'
   // (v0.95.0) THE GLITCH ESCALATION: the dry out-vote is no longer ABSOLUTE -
   // a SUSTAINED critical-on-dry streak means the server is draining a real
   // air bar the block reads miss (run84a F17: 675+ ignored reads, then dead
