@@ -41,7 +41,7 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
-import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board
+import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetValveStormCell, setFunnelProbeLogger } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { STORM_CELL_MAGIC } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
@@ -1224,6 +1224,16 @@ const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pu
 // itself, and the stormCell poll applies the worker probe's verdict when the
 // main thread could not sample its own storm (the FATAL named it FROZEN).
 const allocValve = startFleetValveTicker({ onLine: line => console.log(line), stormCell })
+// (v0.121.0) THE FUNNEL PROBE WIRING - run105 (35903689995) died with the
+// valve never closing: the worker's first-strike verdict was published into
+// this cell at ts=415s but BOTH pollers (the 1s ticker + the cell poll inside
+// it) live on the main thread's TIMER phase, and the storm starves exactly
+// that phase (the funnel's pf notes marched through the kill window). The
+// funnel now polls the cell ITSELF on every gotoSafe consult and carries its
+// own rss storm verdict (floor 450M, bar 80MB/s over a 150ms+ gap) - the
+// close lines ride the fleet log through the same console funnel.
+setFleetValveStormCell(stormCell)
+setFunnelProbeLogger(line => console.log(line))
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
@@ -1530,7 +1540,7 @@ const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
 const avs = allocValveStatsFor()
-console.log(`alloc valve: ${avs.closes} close(s) (${avs.workerCloses} by the worker probe, ${avs.queueCloses} by the queue-pressure arm), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed, ${avs.hazardRefusals} aquifer-gate refusals (v0.105.0 one valve two feeders + the aquifer gate - the run93 fix: the ticker feeds the consulted singleton, the worker's probe verdict rides the storm cell for the freeze class, and while closed the near exemption refuses live-hazard goals - near is not cheap in a flooded region; v0.115.0 the queue-pressure arm closes on the SUSTAINED pathfinder saturation - run101's 8-12q wall warned 80s before the rss burst)`)
+console.log(`alloc valve: ${avs.closes} close(s) (${avs.workerCloses} by the worker probe, ${avs.queueCloses} by the queue-pressure arm, ${avs.funnelCloses + avs.funnelCellCloses} by the funnel probe), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed, ${avs.hazardRefusals} aquifer-gate refusals (v0.105.0 one valve two feeders + the aquifer gate - the run93 fix: the ticker feeds the consulted singleton, the worker's probe verdict rides the storm cell for the freeze class, and while closed the near exemption refuses live-hazard goals - near is not cheap in a flooded region; v0.115.0 the queue-pressure arm closes on the SUSTAINED pathfinder saturation - run101's 8-12q wall warned 80s before the rss burst; v0.121.0 the funnel probe - run105's storm starved the timers that carried both feeders while the walk funnel itself marched through the kill window, so the funnel now carries its own verdict and applies the worker's cell inline)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

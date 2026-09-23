@@ -316,7 +316,7 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   assert.equal(vc.consult().closed, true)
   resetWalkGovernors()
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0 })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0, funnelCloses: 0, funnelCellCloses: 0 })
 })
 
 // ---- (v0.104.0) THE AQUIFER GATE at the funnel ----
@@ -433,4 +433,139 @@ test('the fleet valve ticker: a forceClose through the control surface also clos
   assert.equal(allocValveControl().consult().closed, true)
   assert.equal(allocValveControl().consult().lastSource, 'worker-probe')
   resetWalkGovernors()
+})
+
+// ---- (v0.121.0) THE FUNNEL PROBE at the funnel ----
+// run105 (35903689995, the v0.119.0 fleet) died of the run92 OOM class with
+// the valve NEVER closing: both feeders (the 1s rss ticker + the storm-cell
+// poll inside it) live on the main thread's TIMER phase, and the storm
+// starves exactly that phase - while the funnel's pf notes marched through
+// the kill window. The worker published the verdict into the cell and it
+// died there. The cure: the funnel polls the cell and carries its own rss
+// verdict on EVERY consult - the one path that cannot starve while walks
+// are being issued. These blocks pin the whole wiring WITHOUT any ticker.
+import { setFleetValveStormCell, setFunnelProbeLogger, funnelProbeControl } from '../../src/lib/jobqueue.mjs'
+
+test('funnel probe: the worker verdict published into the cell is applied at the funnel with NO ticker alive (the run105 regression pin)', async () => {
+  resetWalkGovernors()
+  const cell = new SharedArrayBuffer(32)
+  new Int32Array(cell)[0] = STORM_CELL_MAGIC
+  stormCellPublish({ cell, rate: 223, rss: 1750, tsS: 415 }) // the run105 first-strike verdict
+  setFleetValveStormCell(cell)
+  const lines = []
+  setFunnelProbeLogger(l => lines.push(l))
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    // NO startFleetValveTicker call - in run105 the ticker starved; the funnel
+    // is the only witness. The FIRST consult must apply the verdict inline.
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the funnel closed the valve itself')
+    assert.equal(allocValveControl().consult().lastSource, 'worker-probe', 'the close rides the worker verdict')
+    assert.equal(funnelProbeControl().stats().cellCloses, 1, 'the cell apply is booked')
+    assert.ok(lines.length >= 1 && lines[0].includes('CLOSED (funnel probe)'), 'the named line rode the fleet log')
+    assert.ok(lines[0].includes('the worker verdict rss 1750M (+223MB/s)'), 'the line names the verdict numbers')
+  } finally {
+    setFleetValveStormCell(null)
+    setFunnelProbeLogger(null)
+    resetWalkGovernors()
+  }
+})
+
+test('funnel probe: the funnel\'s own rss storm closes the valve on the consult path (the timers never needed)', async () => {
+  resetWalkGovernors()
+  const clock = { t: 1000 }
+  let rssM = 449
+  funnelProbeControl().setSources({ rssReader: () => rssM * 1048576, nowMs: () => clock.t })
+  const lines = []
+  setFunnelProbeLogger(l => lines.push(l))
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    // walk 1: rss 449 - the anchor is recorded, the walk flows
+    const r = await gotoSafe(bot, { x: 30, y: 64, z: 40 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'a healthy rss never refuses')
+    // the kill window: 449 -> 1750 over a real 5s gap (the run105 shape)
+    rssM = 1750
+    clock.t = 6000
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the funnel saw the storm the starved timers could not')
+    assert.equal(funnelProbeControl().stats().stormCloses, 1, 'the funnel close is booked')
+    assert.ok(lines.some(l => l.includes('CLOSED (funnel probe): rss 1750M')), 'the storm line rode the fleet log')
+  } finally {
+    funnelProbeControl().setSources({})
+    setFunnelProbeLogger(null)
+    resetWalkGovernors()
+  }
+})
+
+test('funnel probe: a sub-gap jump records without a verdict and keeps the anchor (the GC-noise pin)', async () => {
+  resetWalkGovernors()
+  const clock = { t: 1000 }
+  let rssM = 449
+  funnelProbeControl().setSources({ rssReader: () => rssM * 1048576, nowMs: () => clock.t })
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    await gotoSafe(bot, { x: 30, y: 64, z: 40 }, { timeoutMs: 500 }) // anchor at rss 449, t=1000
+    // 50ms later rss reads 1750 - GC noise territory, the min-gap refuses to judge
+    rssM = 1750
+    clock.t = 1050
+    const r = await gotoSafe(bot, { x: 34, y: 64, z: 40 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'a sub-gap spike never closes')
+    assert.equal(funnelProbeControl().stats().stormCloses, 0)
+    // the anchor was KEPT (min-gap never rewrites it): the real 5s gap still catches the storm
+    clock.t = 6000
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the rate over the real gap still fires')
+    assert.equal(funnelProbeControl().stats().stormCloses, 1)
+  } finally {
+    funnelProbeControl().setSources({})
+    resetWalkGovernors()
+  }
+})
+
+test('funnel probe: a throwing rss reader judges nothing - the walk flows (the junk contract)', async () => {
+  resetWalkGovernors()
+  funnelProbeControl().setSources({ rssReader: () => { throw new Error('reader on fire') } })
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    const r = await gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'a dead reader never blocks the walk it precedes')
+    assert.ok(funnelProbeControl().stats().junkReads >= 1, 'the junk read is counted')
+    assert.equal(funnelProbeControl().stats().stormCloses, 0)
+  } finally {
+    funnelProbeControl().setSources({})
+    resetWalkGovernors()
+  }
+})
+
+test('funnel probe: resetWalkGovernors keeps the cell seq - an applied verdict is never re-applied (the stale-seq pin)', async () => {
+  resetWalkGovernors()
+  const cell = new SharedArrayBuffer(32)
+  new Int32Array(cell)[0] = STORM_CELL_MAGIC
+  stormCellPublish({ cell, rate: 183, rss: 2626, tsS: 581 })
+  setFleetValveStormCell(cell)
+  try {
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/)
+    assert.equal(funnelProbeControl().stats().cellCloses, 1)
+    resetWalkGovernors() // the test hygiene reset - the counter zeroes, the SEQ must not
+    assert.equal(allocValveControl().consult().closed, false, 'the valve reopens')
+    const r = await gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 })
+    assert.equal(r, 'done', 'the stale verdict is not re-applied - the seq space lives with the cell')
+    assert.equal(funnelProbeControl().stats().cellCloses, 0, 'the reset zeroed the counter and the walk re-applied NOTHING (a seq reset here would have closed the valve again)')
+  } finally {
+    setFleetValveStormCell(null)
+    resetWalkGovernors()
+  }
 })

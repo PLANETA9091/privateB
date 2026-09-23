@@ -189,7 +189,7 @@ import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
-import { createAllocValve, valveAdmits, startAllocValve, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
+import { createAllocValve, valveAdmits, startAllocValve, stormCellApply, funnelStormVerdict, valveFunnelCloseLine, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve; (v0.121.0) the funnel probe rides the same module
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
@@ -388,6 +388,111 @@ const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0 }
 let fleetHazardNear = null
 export function setFleetHazardNear (fn) { fleetHazardNear = typeof fn === 'function' ? fn : null }
 
+// (v0.121.0) THE FUNNEL PROBE - the storm sentinel ON the walk funnel.
+// run105 (35903689995) died with the valve never closing: BOTH feeders (the 1s
+// rss ticker + the storm-cell poll inside it) live on the main thread's TIMER
+// phase, and the allocation storm starves exactly that phase - while the
+// funnel's own pf:goal/pf:done notes marched at 0.2s cadence THROUGH the kill
+// window. The worker probed the storm and published the verdict into the cell
+// - and the verdict died there: nobody on the timer side ever applied it.
+// THE CURE: every gotoSafe consult first (a) polls the storm cell and applies
+// a fresh worker verdict INLINE (the funnel reads the SAB directly - the
+// publish survives the frozen timers), then (b) reads rss on the consult path
+// and closes the valve on the funnel's own storm verdict (the pure arithmetic
+// lives in allocvalve.funnelStormVerdict: floor 450M, bar 80MB/s over a real
+// 150ms+ gap - the full gain, GC noise never clears it). The probe is the
+// same path that marched through run105's kill window - it cannot starve
+// while walks are being issued. Junk/throwing readers and a dead cell never
+// block the walk they precede; the probe NEVER samples the queue arm (that
+// stays the ticker's job - the funnel's gap arithmetic knows nothing of
+// depth). State rides module scope: the cell wiring is boot-time (a seq reset
+// would re-apply a STALE verdict - never reset the seq, only the reading and
+// the counters), the prev reading is per-storm (resetWalkGovernors clears it).
+let funnelPrev = null // { ts, rss } - the last REAL reading (junk reads leave it, dips replace it)
+let funnelCell = null // the worker-probe SAB (testbed/fleet19 wires it at boot)
+let funnelCellSeq = 0 // the last applied seq - NEVER reset while the cell lives (a reset re-applies a stale verdict)
+let funnelLogger = null // the close lines ride the fleet's log through this (fleet19 wires console.log)
+let funnelRssReader = null // test injection; default process.memoryUsage
+let funnelNow = null // test injection; default Date.now
+const funnelStats = { stormCloses: 0, cellCloses: 0, reads: 0, junkReads: 0 }
+
+/** (v0.121.0) fleet19 boot wiring: hand the funnel the SAME storm cell the
+ * ticker polls. A junk/missing sab degrades to no cell (the funnel's own rss
+ * verdict still works); re-setting a cell resets the seq - a NEW cell's seq
+ * space starts at 0 by contract (the writer increments from whatever it finds). */
+export function setFleetValveStormCell (sab) { funnelCell = sab || null; funnelCellSeq = 0 }
+
+/** (v0.121.0) the funnel probe's close lines ride the fleet log through this. */
+export function setFunnelProbeLogger (fn) { funnelLogger = typeof fn === 'function' ? fn : null }
+
+/** Test/boot control surface for the funnel probe (the state machine is
+ * module scope - one funnel per process, by construction). */
+export function funnelProbeControl () {
+  return {
+    stats: () => ({ ...funnelStats }),
+    setSources ({ rssReader = null, nowMs = null } = {}) {
+      funnelRssReader = typeof rssReader === 'function' ? rssReader : null
+      funnelNow = typeof nowMs === 'function' ? nowMs : null
+    },
+    reset () {
+      funnelPrev = null
+      funnelStats.stormCloses = 0
+      funnelStats.cellCloses = 0
+      funnelStats.reads = 0
+      funnelStats.junkReads = 0
+      // funnelCellSeq is deliberately NOT reset: the cell lives, its seq space
+      // lives - a reset here would re-apply an already-applied verdict
+    }
+  }
+}
+
+/** The probe itself: cell poll + rss verdict, called on EVERY gotoSafe
+ * consult before the valve's state read. Never throws, never blocks the walk
+ * it precedes - every subsystem below is individually guarded. */
+function funnelValveProbe () {
+  // (a) the worker verdict cell poll - the run105 gap: the verdict was
+  // published at ts=415s and died in the cell because the ONLY poller lived
+  // on the starved timer phase. The funnel applies it inline.
+  if (funnelCell) {
+    try {
+      const r = stormCellApply({ cell: funnelCell, lastSeq: funnelCellSeq, forceClose: a => fleetValve.forceClose(a) })
+      if (r.applied) {
+        funnelCellSeq = r.seq
+        funnelStats.cellCloses++
+        if (funnelLogger && r.snapshot) {
+          try { funnelLogger(valveFunnelCloseLine({ st: r.snapshot, tsS: r.tsS, who: 'cell' })) } catch { /* logging never kills the fleet */ }
+        }
+      }
+    } catch { /* the channel never blocks the walk */ }
+  }
+  // (b) the funnel's own rss reading - the storm the timers never saw
+  let rssM = 0
+  try {
+    rssM = (funnelRssReader ? funnelRssReader() : process.memoryUsage().rss) / 1048576
+  } catch {
+    funnelStats.junkReads++
+    return // a dead reader judges nothing - the walk flows
+  }
+  funnelStats.reads++
+  const t = funnelNow ? funnelNow() : Date.now()
+  const v = funnelStormVerdict({ prevTs: funnelPrev ? funnelPrev.ts : null, prevRss: funnelPrev ? funnelPrev.rss : null, rss: rssM, nowMs: t })
+  // the anchor update: everything except a junk NOW reading and a sub-gap
+  // record measures from here (a dip REPLACES the anchor - the streak resets;
+  // a min-gap keeps the old anchor so the rate is measured over a real gap)
+  if (v.reason !== 'junk-now' && v.reason !== 'min-gap') funnelPrev = { ts: t, rss: rssM }
+  if (!v.storm) return
+  const before = fleetValve.stats().closes
+  const snap = fleetValve.forceClose({ rate: v.rate, rss: v.rss, source: 'funnel-probe' })
+  if (fleetValve.stats().closes > before) { // the close actually fired (an already-closed valve absorbs silently)
+    funnelStats.stormCloses++
+    if (funnelLogger) {
+      let tsS = 0
+      try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
+      try { funnelLogger(valveFunnelCloseLine({ st: snap, tsS, who: 'storm' })) } catch { /* logging never kills the fleet */ }
+    }
+  }
+}
+
 /** Test/fleet control surface for the valve singleton. */
 export function allocValveControl () {
   return {
@@ -426,7 +531,8 @@ export function startFleetValveTicker (opts = {}) {
 export function allocValveStatsFor () {
   const st = valveStats
   const snap = fleetValve.consult()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses }
+  const fs = funnelProbeControl().stats()
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -454,6 +560,7 @@ export function resetWalkGovernors () {
   walkGovernorStats.fleetOpens = 0
   try { fleetCeiling.reset() } catch { /* never fails */ }
   try { fleetValve.reset() } catch { /* never fails */ }
+  try { funnelProbeControl().reset() } catch { /* (v0.121.0) the probe reset never fails */ }
   valveStats.refusals = 0
   valveStats.nearPasses = 0
 }
@@ -595,6 +702,7 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // fuel IS the long A*, and a bank walk through the flooded region is
   // exactly the walk that detonated run92 - banking pauses 12-30s, the run
   // survives. An open valve is a no-op (junk state never refuses).
+  try { funnelValveProbe() } catch { /* (v0.121.0) the probe never blocks the walk it precedes */ }
   try {
     const vs = fleetValve.consult()
     if (vs && vs.closed) {

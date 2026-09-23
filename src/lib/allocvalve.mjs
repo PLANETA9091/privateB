@@ -96,6 +96,75 @@ export const ALLOC_VALVE_NEAR_BLOCKS_DEFAULT = 24 // straight-line bot->goal: re
 // short walks flow, escalate on reclose) - the fuel is the same long A*.
 export const PATH_QUEUE_ARM_DEFAULT = 10
 export const PATH_QUEUE_SUSTAINED_TICKS_DEFAULT = 30
+// (v0.121.0) THE FUNNEL PROBE - run105 (35903689995, the v0.119.0 fleet) died
+// of the run92/run53 OOM class with the valve NEVER closing (zero [allocvalve]
+// lines for the third time): the storm ramped 449M -> 635M over ~14s (13MB/s,
+// sub-threshold - the ticker's window honestly saw nothing), then 635M ->
+// 1750M in one 5s window (223MB/s). The worker probed it on its own thread and
+// PUBLISHED the verdict into the storm cell - and the verdict still died in
+// the cell: BOTH of the valve's feeders live on the main thread's TIMER phase
+// (the 1s ticker + the cell poll inside it), and the storm starves exactly
+// that phase (run105's blackbox labels - pf:goal/pf:done notes - marched at
+// 0.2s cadence THROUGH the kill window: the walk FUNNEL is a microtask-side
+// witness that never starves, the timers around it do).
+// THE CURE: the funnel probes ITSELF. Every gotoSafe consult (the same path
+// that marched through run105's kill window) (a) polls the storm cell and
+// applies a fresh worker verdict via forceClose INLINE - the publish survives
+// the frozen timers because the funnel reads the cell directly; (b) reads rss
+// on the consult path and closes the valve on the storm shape measured over
+// the gap since its last real reading. The funnel's window is ONE inter-walk
+// gap (150ms+), not the worker's 5s ring - GC noise at the floor is real, so
+// the funnel's rate bar is 2x the worker's (80MB/s: every field storm measured
+// 158-223MB/s, run53/92/101/105) and the sustained check demands the FULL
+// rate over the gap (gain >= rate*dt), not the ring's half. A false close
+// costs a 12-30s long-walk outage; a missed close costs the whole run - the
+// bar sits far under every field storm and far over every plausible spike.
+export const FUNNEL_RATE_MB_S_DEFAULT = 80 // the funnel's storm bar: 2x the worker's 40, under every field storm (158-223MB/s)
+export const FUNNEL_PROBE_MIN_GAP_MS = 150 // back-to-back consults record only - a rate needs a real gap
+
+/**
+ * Pure funnel-probe verdict (v0.121.0): is the rss growth since the LAST REAL
+ * reading a storm? Junk-safe by contract - every degenerate input reads as a
+ * named non-storm the caller can act on (record / reset / wait), never as a
+ * close and never as a throw. The dip is the honest reset (the guard's own
+ * streak shape): a recede breaks the growth, the next climb measures fresh.
+ * @param {{prevTs?: number|null, prevRss?: number|null, rss?: number, nowMs?: number, floorMb?: number, rateMbS?: number, minGapMs?: number}} a
+ * @returns {{storm: boolean, reason: string, rate: number, gain: number, rss: number, dtS: number, dipped?: boolean}}
+ */
+export function funnelStormVerdict ({ prevTs = null, prevRss = null, rss = 0, nowMs = 0, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, rateMbS = FUNNEL_RATE_MB_S_DEFAULT, minGapMs = FUNNEL_PROBE_MIN_GAP_MS } = {}) {
+  const r = Number(rss)
+  const t = Number(nowMs)
+  if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(t)) return { storm: false, reason: 'junk-now', rate: 0, gain: 0, rss: 0, dtS: 0 }
+  const pt = Number(prevTs)
+  const pr = Number(prevRss)
+  if (!Number.isFinite(pt) || !Number.isFinite(pr) || pr <= 0) return { storm: false, reason: 'first-read', rate: 0, gain: 0, rss: r, dtS: 0 }
+  const dtS = (t - pt) / 1000
+  if (dtS <= 0) return { storm: false, reason: 'backwards-clock', rate: 0, gain: 0, rss: r, dtS: 0 }
+  if (dtS * 1000 < minGapMs) return { storm: false, reason: 'min-gap', rate: 0, gain: 0, rss: r, dtS: 0 }
+  if (r < pr) return { storm: false, reason: 'dip', dipped: true, rate: 0, gain: 0, rss: r, dtS: 0 }
+  const gain = r - pr
+  const rate = gain / dtS
+  // the full rate over the gap (not the ring's half): the funnel's window is
+  // one inter-walk gap - a shorter bar here would close on GC noise
+  const storm = r >= floorMb && rate >= rateMbS && gain >= rateMbS * dtS
+  return { storm, reason: storm ? 'storm' : 'sub-threshold', rate: Math.round(rate * 10) / 10, gain: Math.round(gain), rss: r, dtS }
+}
+
+/** Pure log-line builder for the funnel probe's close (v0.121.0). TWO named
+ * flavors the mine must tell apart: who='storm' (the funnel's own rss verdict)
+ * and who='cell' (the WORKER's verdict, applied at the funnel because the
+ * timers were starved - the run105 gap). Kept pure so the tests pin it. */
+export function valveFunnelCloseLine ({ st = {}, tsS = 0, who = 'storm' } = {}) {
+  const rss = Number.isFinite(st.lastRss) ? st.lastRss : 0
+  const rate = Number.isFinite(st.lastRate) ? st.lastRate : 0
+  const rem = Number.isFinite(st.remainingMs) ? Math.round(st.remainingMs / 1000) : 0
+  const strikes = Number.isFinite(st.strikes) ? st.strikes : 0
+  const ts = Number.isFinite(tsS) ? tsS : 0
+  if (who === 'cell') {
+    return `[allocvalve] CLOSED (funnel probe): the worker verdict rss ${rss}M (+${rate}MB/s) applied at the walk funnel - long walks refused ${rem}s (strike ${strikes}; the starved timers never got the cell, the funnel did; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
+  }
+  return `[allocvalve] CLOSED (funnel probe): rss ${rss}M (+${rate}MB/s on the walk funnel) - long walks refused ${rem}s (strike ${strikes}, the funnel saw the storm the starved timers could not; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
+}
 // (v0.104.0) THE AQUIFER GATE - run93 (35835942682) mined 2026-09-23: the
 // storm came back THROUGH the near exemption. The kill-window blackbox was
 // all short walks (water:rescue r=1-3, pf:goal relocate, next column alt) -
@@ -251,7 +320,7 @@ export function valveTransitionLine ({ wasClosed = false, st = {}, rssM = 0, upt
  */
 export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, windowMs = STORM_WINDOW_MS, cooldownMs = ALLOC_VALVE_COOLDOWN_MS_DEFAULT, escalatedMs = ALLOC_VALVE_ESCALATED_MS_DEFAULT, recloseWindowMs = ALLOC_VALVE_RECLOSE_WINDOW_MS, queueArm = PATH_QUEUE_ARM_DEFAULT, queueSustainedTicks = PATH_QUEUE_SUSTAINED_TICKS_DEFAULT, now = () => Date.now(), onState = null } = {}) {
   const guard = createStormGuard({ rateMbS, floorMb, windowMs, now })
-  const stats = { closes: 0, escalations: 0, workerCloses: 0, queueCloses: 0 }
+  const stats = { closes: 0, escalations: 0, workerCloses: 0, queueCloses: 0, funnelCloses: 0 }
   let closedUntil = 0
   let lastCloseAt = -Infinity
   let lastRate = 0
@@ -342,7 +411,12 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
      * field-proven detector). Same close semantics as a sampled verdict:
      * the reclose window escalates, onState fires, an already-closed valve
      * absorbs it (closes stays put). Junk numbers are clamped to 0 - the
-     * close decision was the WORKER's, the numbers are for the story. */
+     * close decision was the WORKER's, the numbers are for the story.
+     * (v0.121.0) the FUNNEL PROBE rides this too: source 'funnel-probe' is
+     * preserved in lastSource (the refusal cause line names the real feeder)
+     * and booked into stats.funnelCloses - the funnel's own rss verdict is a
+     * close the starved timers could never have made. Any other source falls
+     * back to 'sample' (the legacy shape, byte for byte). */
     forceClose ({ rate = 0, rss = 0, source = 'worker-probe' } = {}) {
       const t = now()
       if (t < closedUntil) return snapshot(t) // already closed - absorb
@@ -351,10 +425,11 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       strikes++
       stats.closes++
       if (source === 'worker-probe') stats.workerCloses++
+      if (source === 'funnel-probe') stats.funnelCloses++
       lastCloseAt = t
       lastRate = Number.isFinite(rate) ? Math.round(rate) : 0
       lastRss = Number.isFinite(rss) ? Math.round(rss) : 0
-      lastSource = source === 'worker-probe' ? 'worker-probe' : 'sample'
+      lastSource = (source === 'worker-probe' || source === 'funnel-probe') ? source : 'sample'
       closedUntil = t + (escalate ? escalatedMs : cooldownMs)
       const snap = snapshot(t)
       if (typeof onState === 'function') {
@@ -383,6 +458,7 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       stats.escalations = 0
       stats.workerCloses = 0
       stats.queueCloses = 0
+      stats.funnelCloses = 0
     }
   }
 }

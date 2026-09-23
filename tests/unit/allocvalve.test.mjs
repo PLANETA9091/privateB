@@ -14,6 +14,7 @@ import assert from 'node:assert/strict'
 import {
   valveAdmits, valveTransitionLine, valveWorkerCloseLine, createAllocValve,
   stormCellPublish, stormCellApply, startAllocValve,
+  funnelStormVerdict, valveFunnelCloseLine, FUNNEL_RATE_MB_S_DEFAULT, FUNNEL_PROBE_MIN_GAP_MS,
   STORM_CELL_MAGIC, STORM_CELL_SLOTS,
   ALLOC_VALVE_FLOOR_MB_DEFAULT, ALLOC_VALVE_COOLDOWN_MS_DEFAULT,
   ALLOC_VALVE_ESCALATED_MS_DEFAULT, ALLOC_VALVE_RECLOSE_WINDOW_MS,
@@ -508,4 +509,83 @@ test('queue-pressure arm: the transition line names the queue, not a fake rate (
     uptimeS: 576
   })
   assert.ok(rssLine.includes('CLOSED: rss 1711M (+145MB/s storm)'), 'the rss flavor unchanged')
+})
+
+// (v0.121.0) THE FUNNEL PROBE - run105 (35903689995) died with the valve never
+// closing: both feeders lived on the starved TIMER phase while the walk funnel
+// itself marched through the kill window. These blocks pin the funnel's own
+// detector arithmetic (allocvalve.funnelStormVerdict) and the named close line.
+test('funnel probe verdict: the run105 shape - the 14s sub-threshold ramp never lies, the 5s kill window fires (the field pin)', () => {
+  // the ramp the ticker honestly saw nothing in: 449M -> 635M over ~14s = 13MB/s
+  const ramp = funnelStormVerdict({ prevTs: 1000, prevRss: 449, rss: 635, nowMs: 15000 })
+  assert.equal(ramp.storm, false, 'the 13MB/s ramp is sub-threshold at the 80MB/s bar')
+  assert.equal(ramp.reason, 'sub-threshold')
+  // the kill window: 635M -> 1750M in 5s = 223MB/s at rss 1750 >= 450 floor
+  const kill = funnelStormVerdict({ prevTs: 15000, prevRss: 635, rss: 1750, nowMs: 20000 })
+  assert.equal(kill.storm, true, 'the 223MB/s kill window is a storm')
+  assert.equal(kill.reason, 'storm')
+  assert.equal(kill.rate, 223)
+  assert.equal(kill.gain, 1115)
+})
+
+test('funnel probe verdict: the gap shapes - min-gap records only, the 150ms bar closes on real growth, GC noise never clears it', () => {
+  // back-to-back consults (the storm cadence): no verdict, no anchor update
+  const gap = funnelStormVerdict({ prevTs: 1000, prevRss: 449, rss: 1750, nowMs: 1100 })
+  assert.equal(gap.storm, false)
+  assert.equal(gap.reason, 'min-gap')
+  // the bar boundary at the min gap: 12M gain in 150ms = exactly 80MB/s -> storm
+  const atBar = funnelStormVerdict({ prevTs: 1000, prevRss: 460, rss: 472, nowMs: 1150 })
+  assert.equal(atBar.storm, true, '12M in 150ms is exactly the 80MB/s bar')
+  // one megabyte under the bar: noise territory, no close
+  const underBar = funnelStormVerdict({ prevTs: 1000, prevRss: 460, rss: 471.9, nowMs: 1150 })
+  assert.equal(underBar.storm, false, '11.9M in 150ms stays under the bar')
+  // sub-floor storm shape: rss 400M below the 450M floor never closes
+  const subFloor = funnelStormVerdict({ prevTs: 1000, prevRss: 360, rss: 400, nowMs: 2000 })
+  assert.equal(subFloor.storm, false, 'the floor holds even at storm-grade rate')
+})
+
+test('funnel probe verdict: the degenerate matrix - junk never closes, a dip is the honest reset', () => {
+  assert.equal(funnelStormVerdict({ rss: 500, nowMs: 2000 }).reason, 'first-read', 'no prev anchor reads as first-read')
+  assert.equal(funnelStormVerdict({ prevTs: 1000, prevRss: 0, rss: 500, nowMs: 2000 }).reason, 'first-read', 'a zero prev rss is no anchor')
+  assert.equal(funnelStormVerdict({ prevTs: 1000, prevRss: 449, rss: NaN, nowMs: 2000 }).reason, 'junk-now')
+  assert.equal(funnelStormVerdict({ prevTs: 1000, prevRss: 449, rss: 500, nowMs: NaN }).reason, 'junk-now')
+  assert.equal(funnelStormVerdict({ prevTs: 1000, prevRss: 449, rss: -5, nowMs: 2000 }).reason, 'junk-now')
+  assert.equal(funnelStormVerdict({ prevTs: 2000, prevRss: 449, rss: 500, nowMs: 1000 }).reason, 'backwards-clock')
+  const dip = funnelStormVerdict({ prevTs: 1000, prevRss: 500, rss: 480, nowMs: 2000 })
+  assert.equal(dip.storm, false)
+  assert.equal(dip.reason, 'dip')
+  assert.equal(dip.dipped, true, 'the dip is named so the caller resets the anchor')
+})
+
+test('funnel probe close: forceClose preserves the funnel-probe source, books the stat, absorbs while closed', () => {
+  const ck = fakeClock()
+  const v = createAllocValve({ now: ck.now })
+  const snap = v.forceClose({ rate: 223, rss: 1750, source: 'funnel-probe' })
+  assert.equal(snap.closed, true)
+  assert.equal(snap.lastSource, 'funnel-probe', 'the refusal cause line names the real feeder')
+  assert.equal(v.stats().funnelCloses, 1, 'the close is booked to the funnel feeder')
+  assert.equal(v.stats().workerCloses, 0, 'the worker feeder is untouched')
+  // an already-closed valve absorbs: no double strike, no stat inflation
+  v.forceClose({ rate: 200, rss: 2000, source: 'funnel-probe' })
+  assert.equal(v.stats().funnelCloses, 1)
+  assert.equal(v.stats().closes, 1)
+  // an unknown source falls back to sample (the legacy shape)
+  ck.tick(60000)
+  v.forceClose({ rate: 100, rss: 900, source: 'mystery' })
+  assert.equal(v.consult().lastSource, 'sample')
+  assert.equal(v.stats().funnelCloses, 1)
+})
+
+test('funnel probe close: the named line, both flavors, the junk shape (the pure pin)', () => {
+  const storm = valveFunnelCloseLine({ st: { lastRss: 1750, lastRate: 223, remainingMs: 12000, strikes: 1 }, tsS: 415, who: 'storm' })
+  assert.ok(storm.includes('[allocvalve] CLOSED (funnel probe): rss 1750M (+223MB/s on the walk funnel)'))
+  assert.ok(storm.includes('long walks refused 12s'), 'the outage is named')
+  assert.ok(storm.includes('the funnel saw the storm the starved timers could not'), 'the story names run105')
+  assert.ok(storm.includes('short walks <= 24b still flow'), 'the near exemption stays on the line')
+  assert.ok(storm.includes('ts=415s'))
+  const cell = valveFunnelCloseLine({ st: { lastRss: 2626, lastRate: 183, remainingMs: 12000, strikes: 2 }, tsS: 581, who: 'cell' })
+  assert.ok(cell.includes('the worker verdict rss 2626M (+183MB/s) applied at the walk funnel'))
+  assert.ok(cell.includes('the starved timers never got the cell, the funnel did'))
+  const junk = valveFunnelCloseLine({ st: {}, tsS: NaN })
+  assert.ok(junk.includes('rss 0M (+0MB/s'), 'junk state renders zeros, never throws')
 })
