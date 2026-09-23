@@ -1,7 +1,7 @@
 // Tool bootstrap: no op, no gifts - the bot chops wood and crafts its own kit.
 // logs -> planks -> sticks -> crafting table -> wooden pickaxe/shovel -> stone tools.
 import { Vec3 } from 'vec3'
-import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
+import { gotoSafe, withTimeout, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
 import { torchCraftPlan } from '../lib/torch.mjs'
 import { smeltablesIn, findMachineBlocks } from '../lib/smelting.mjs'
@@ -474,6 +474,41 @@ export const FURNACE_COBBLE = 8
 /** A crafting table is 4 planks (2x2, no table needed). */
 export const TABLE_PLANKS = 4
 
+// (v0.123.0) THE DOOMED-BAY FILTER - run106 (35907836654, the v0.121.0 fleet,
+// SUCCESS but smelt-starved: smelted=4 fleet-wide) named the veto that starves
+// the camp furnace: F12 stood at the yard bay with fuel in pocket and raw_iron
+// + raw_copper to smelt - and the ladder refused to build ('camp furnace: no
+// build (machine near)' x2 fleet-wide x15) because findMachineBlocks saw the
+// bay's 11 machines within 48b. Every one of those walks was doomed-ledgered
+// ('doomed goal (ledgered 1-5s ago)' x17 across 11 machines - the bay was
+// PROVEN dead geometry) and the leg burned its visit budget on the refusals
+// while F15 died the same death one budget over. "Machines near" must mean
+// machines a bot can REACH, not machines that exist: a machine whose cell is a
+// LIVE doomed-goal verdict does not count toward machinesNear, so an all-doomed
+// bay reads as empty and the ladder may build a camp furnace where the bot
+// stands (the smelt position IS the placement position - no doomed walk ever
+// happens). Junk-safe: a non-array near list reads as all-usable-empty, a
+// throwing doom consult reads as NOT doomed (the machine counts - the legacy
+// shape byte for byte), a positionless/NaN block is never doomed on junk
+// evidence. Pure (the verdict rides the isDoomed callback) - unit-pinned.
+export function usableMachines (near, isDoomed) {
+  if (!Array.isArray(near)) return { usable: [], doomed: 0 }
+  const usable = []
+  let doomed = 0
+  for (const b of near) {
+    let dead = false
+    try {
+      const pos = b?.position
+      if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)) {
+        dead = isDoomed({ x: pos.x, y: pos.y, z: pos.z }) === true
+      }
+    } catch { dead = false }
+    if (dead) doomed++
+    else usable.push(b)
+  }
+  return { usable, doomed }
+}
+
 /**
  * The pure camp-furnace decision ladder (no bot, no world reads - unit-pinned).
  * Junk-safe: every numeric input floors to a non-negative integer, null/NaN/
@@ -639,6 +674,15 @@ export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48,
       .filter(i => /_planks$/.test(i.name))
       .reduce((a, i) => a + (Number.isFinite(i.count) ? i.count : 0), 0)
     const near = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
+    // (v0.123.0) THE DOOMED-BAY FILTER: the veto reads USABLE machines only - a
+    // LIVE doomed-goal verdict on every near machine is an empty bay for this
+    // bot (run106's F12/F15 class). The consult is the SAME shape the walk
+    // funnel consults (DOOMED_GOAL_RADIUS), so the filter can never call a
+    // machine usable that the walk would refuse for free.
+    const machineVerdict = usableMachines(near, cell => nearDoomedGoal(cell, Date.now(), { radius: DOOMED_GOAL_RADIUS }).hit === true)
+    if (machineVerdict.doomed > 0 && machineVerdict.usable.length === 0) {
+      step(`${machineVerdict.doomed} near machine(s) all doomed-ledgered - the bay reads as empty, the camp ladder decides on its own merits`)
+    }
     // the palette-trap class: findBlock CAN throw on a desynced chunk - the ladder
     // must read that as "no table" and keep going (placeTable wraps its own find
     // for exactly this reason)
@@ -656,7 +700,7 @@ export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48,
     }
     const ladder = () => campFurnaceAction({
       smeltables: smeltTotal,
-      machinesNear: near.length > 0,
+      machinesNear: machineVerdict.usable.length > 0,
       furnaceItem: countItem(bot, 'furnace'),
       cobble: countItem(bot, 'cobblestone'),
       planks: planksTotal(),

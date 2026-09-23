@@ -9,7 +9,9 @@
 // dance is placeTable's measured pacing, live-verified in CI).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { campFurnaceAction, ensureCampFurnace, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
+import fs from 'node:fs'
+import { campFurnaceAction, ensureCampFurnace, usableMachines, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
+import { recordDoomedGoal, resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 
 test('camp furnace constants: the vanilla recipe and the table cost (pinned)', () => {
   assert.equal(FURNACE_COBBLE, 8, 'a furnace is 8 cobblestone in a ring')
@@ -208,4 +210,87 @@ test('ensureCampFurnace: a failed plank craft is an honest named verdict (no rec
   const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
   assert.deepEqual(r, { built: false, why: 'plank craft failed' })
   assert.ok(lines.some(l => /no craftable recipe variant/.test(l)), `the recipe miss is named: ${lines.join(' | ')}`)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.123.0) THE DOOMED-BAY FILTER - run106 (35907836654, the v0.121.0 fleet,
+// SUCCESS but smelt-starved: smelted=4 fleet-wide). F12 stood at the yard bay
+// with fuel in pocket and raw_iron + raw_copper to smelt while EVERY machine
+// walk died 'doomed goal (ledgered 1-5s ago)' (x17 across 11 machines) - and
+// the ladder STILL refused to build ('camp furnace: no build (machine near)'
+// x15 fleet-wide; F15 died one budget over the same wall). Machines near must
+// mean machines REACHABLE: a LIVE doomed-goal verdict does not count toward
+// machinesNear, an all-doomed bay reads as empty, and the camp ladder decides
+// on its own merits (wood permitting - the honest planks gate otherwise).
+
+test('usableMachines: an all-doomed bay reads as empty (the F12 flip)', () => {
+  const near = [{ position: { x: -144, y: 71, z: 384 } }, { position: { x: -142, y: 71, z: 384 } }]
+  const v = usableMachines(near, () => true)
+  assert.deepEqual(v, { usable: [], doomed: 2 })
+})
+
+test('usableMachines: a mixed bay keeps the live machines (the veto stands)', () => {
+  const a = { position: { x: 1, y: 64, z: 1 } }
+  const b = { position: { x: 9, y: 64, z: 9 } }
+  const v = usableMachines([a, b], cell => cell.x === 1)
+  assert.equal(v.doomed, 1)
+  assert.deepEqual(v.usable, [b], 'the live machine survives the filter - the yard is still worth trying')
+})
+
+test('usableMachines: junk never dooms - a throwing consult, a positionless block, NaN coords', () => {
+  const junky = [null, { position: null }, { position: { x: NaN, y: 64, z: 1 } }, { position: { x: 2, y: 64, z: 2 } }]
+  const v = usableMachines(junky, () => { throw new Error('ledger exploded') })
+  assert.equal(v.doomed, 0, 'a throwing doom consult judges nothing - the legacy shape byte for byte')
+  assert.equal(v.usable.length, 4)
+  assert.deepEqual(usableMachines('not an array', () => true), { usable: [], doomed: 0 })
+})
+
+test('ensureCampFurnace: the doomed bay no longer vetoes the build (the F12 wiring)', async () => {
+  resetDoomedGoalLedger()
+  try {
+    recordDoomedGoal({ x: 3, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
+    const lines = []
+    const bot = {
+      entity: { position: { distanceTo: () => 2 } },
+      inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }] },
+      findBlocks: () => [{ x: 3, y: 64, z: 3 }],
+      blockAt: p => ({ name: 'furnace', position: p }),
+      findBlock: () => null,
+      craft: async () => {}
+    }
+    const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+    assert.equal(r.why, 'no table and planks 0/4', `the ladder got past the doomed machine to the honest wood gate: got '${r.why}'`)
+    assert.ok(lines.some(l => /all doomed-ledgered/.test(l)), `the flip is named: ${lines.join(' | ')}`)
+  } finally { resetDoomedGoalLedger() }
+})
+
+test('ensureCampFurnace: a LIVE machine near still vetoes (the legacy shape byte for byte)', async () => {
+  resetDoomedGoalLedger()
+  try {
+    const bot = {
+      entity: { position: { distanceTo: () => 2 } },
+      inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }] },
+      findBlocks: () => [{ x: 3, y: 64, z: 3 }],
+      blockAt: p => ({ name: 'furnace', position: p }),
+      findBlock: () => null,
+      craft: async () => {}
+    }
+    const r = await ensureCampFurnace(bot, { log: () => {} })
+    assert.deepEqual(r, { built: false, why: 'machine near' })
+  } finally { resetDoomedGoalLedger() }
+})
+
+test('wiring: the doomed-bay consult rides the SAME radius the walk funnel consults (tools.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  assert.match(src, /usableMachines \(near, isDoomed\)/, 'the pure filter is exported and the executor composes it')
+  assert.match(src, /nearDoomedGoal\(cell, Date\.now\(\), \{ radius: DOOMED_GOAL_RADIUS \}\)\.hit === true/, 'the consult shape matches the walk funnel\'s own')
+  assert.match(src, /machinesNear: machineVerdict\.usable\.length > 0/, 'the ladder reads the FILTERED list')
+  assert.match(src, /all doomed-ledgered/, 'the flip carries a named line so the mine can count it')
+})
+
+test('wiring: the build-fits gate skips the camp build on a thin leg (fleet19.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /CAMP_BUILD_FIT_SECS = 40/, 'the gate: 24s worst-case build + 15s smelt floor + 1s margin')
+  assert.match(src, /smeltSecs < CAMP_BUILD_FIT_SECS/, 'the gate reads the SAME smeltSecs the leg spends')
+  assert.match(src, /camp furnace: build skipped - the leg clock/, 'the skip is named so the mine can count it')
 })

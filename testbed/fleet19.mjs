@@ -298,6 +298,20 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     if (smeltSecs <= 0) {
       console.log(`${miner.username} end-bank budget spent - smelt skipped`)
     } else try {
+      // (v0.123.0) THE BUILD-FITS GATE - run106's F1 paid a 24s camp build out
+      // of a thin end-phase leg ('F1 camp furnace: BUILT ... in 24s') and the
+      // poll window died at the run deadline mid-wait ('F1 smelt: 0
+      // (raw_iron@furnace: timeout)' one tick after the t-0 tally). A build
+      // that cannot be followed by a REAL smelt slice is a clock fire, not a
+      // cure: below 24s (the worst-case build F1 measured) + the 15s smelt
+      // floor the build SKIPS honestly - the metal rides the pocket to the
+      // next chain and the clock feeds the deposit legs instead. A fat leg
+      // (>= 40s) builds exactly as before - byte for byte.
+      const CAMP_BUILD_FIT_SECS = 40
+      const buildStart = Date.now()
+      if (smeltSecs < CAMP_BUILD_FIT_SECS) {
+        console.log(`${miner.username} camp furnace: build skipped - the leg clock (${smeltSecs}s) cannot afford a 24s build + the 15s smelt floor`)
+      } else {
       // (v0.89.0) THE CAMP FURNACE: run80 (35773697160) held the reserve, carried
       // raw_iron (62 inventory dumps) - and ended smelted=0 with ZERO output lines:
       // the smelt leg ran WHERE THE BOT STOOD, nothing within 48 was a machine, the
@@ -307,13 +321,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // camp-side first: 8 cobble + a table (4 planks) = a furnace ANYWHERE. The
       // build spends the smelt leg's own clock (the slice the v0.88.0 reserve
       // carved); smeltInventory's budget shrinks by the build time.
-      const buildStart = Date.now()
       try {
         const built = await ensureCampFurnace(miner.bot, { log: m => console.log(`${miner.username} camp furnace: ${m}`) })
         if (built.built) console.log(`${miner.username} camp furnace: BUILT (${built.why}) in ${((Date.now() - buildStart) / 1000).toFixed(0)}s`)
         else console.log(`${miner.username} camp furnace: no build (${built.why})`)
       } catch (e) {
         console.log(`${miner.username} camp furnace: error (kept alive): ${e.message}`)
+      }
       }
       const buildSpent = (Date.now() - buildStart) / 1000
       // (v0.98.0) THE FUEL COMMONS: a fuel-empty pocket asks the yard chests
