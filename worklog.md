@@ -2195,3 +2195,14 @@ Work Log:
 Stage Summary:
 - Master: v0.111.0. Next free version = 0.112.0.
 - The merged tree = their fuel-aware batch + my junk coal floor + my collect gain floor. run99 will measure all three at once.
+
+---
+Task ID: 398294-20260923-2053 (dispatch record)
+Agent: Z.ai Code (cron session, 20:53 +08)
+Task: the run99 dispatch record.
+
+Work Log:
+- The fleet dispatch fired as the ABSOLUTE LAST action: run99 = 35869329042 (workflow_dispatch run_fleet=true, fleet_seconds=600, master@3b05066 = v0.111.0). It went in_progress ~1 min after the POST. This record line pushed ONLY after the in_progress status (the 17:53-proven shape). The concurrent push-CI (run 477) was queue-cancelled by the dispatch - the harmless, expected shape.
+
+Stage Summary:
+- run99 = the first fleet of v0.111.0 (the fuel-aware batch + the junk coal floor + the collect gain floor, the merged stack). The next session mines it: under-fueled windows GONE (no 'fuel: 1 x stick' completes-zero), metal windows funded from pocket coal above the junk floor, 'F9=-17'-class negative counters gone, smelted >> 0, iron_ingot pockets grow, NORMAL END x9.
