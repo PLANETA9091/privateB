@@ -1935,3 +1935,30 @@ Stage Summary:
 - Master: d4cc9e8 (package.json v0.96.0, both lanes' work). Next free version = 0.97.0.
 - EXPECTATIONS run86 (the first measurement of the combined tree): 'ledgered 1s ago' refusals COLLAPSE (the backoff makes the ages climb and the windows close - the FLEET RESULT prints 'N re-dooms absorbed'); the wet-frozen relog fires ('frozen while head-wet' + 'frozen client relog') where run85 lost F3/F19-class bots - watch the relog count rise and the fall/env-disguised-drowning deaths fall; smelted > 8 (their input slice + the unblocked machine walks should compound); banked > 1602; 'no fuel' may RISE where the input slice feeds machines faster than pockets carry coal (the named fuel-less class).
 - OPEN FRONTS: (a) F1-class pinned-under-ledge drowning MID-rescue (no frozen verdict - needs an o2-critical dig-up rung in the rescue ladder); (b) the 'map trip skipped' x30 worldmap lane (idle 12+ runs); (c) reconnects=22 flap (EPIPE 0 this run - the keepalive class, not the pipe); (d) night mob kills (skeleton x2 + spider x1 at low hp).
+
+---
+Task ID: 398294-20260923-1053
+Agent: Z.ai Code (cron session, 10:53 +08)
+Task: mine run86 (the first fleet of the combined v0.96.0 tree); ship the cures the evidence names; push; dispatch.
+
+Work Log:
+- Sandbox died - re-cloned to ac76f87. run86 = 35809634630 (dispatch on ac76f87, completed SUCCESS; the 0953 session's dispatch record never landed - recovered from the runs API). Mined artifact 10730545670 -> scripts/fleet-mining/run86/ (gitignored, per the run83 precedent).
+- RUN86 VERDICT: HARD KILL 'end-phase hang' but 17/19 bots COMPLETED their final-bank chains. The v0.96.0 stack HOLDS in the field: smelted=13 (run85=8 - the wall keeps widening), banked 1703, mined 3503 @ 5.84 b/s, ZERO drowned, '12 re-dooms absorbed' NAMED in FLEET RESULT (the v0.96.0 backoff fired live), 'ledgered 1s ago' x23 -> x4, the FIRST 3 STONE PICKAXES of the 11-run era, flee rotations 15x, airGlitches=18, reconnects=0, EPIPE 0. Deaths 14: fall/env x6 (instant 0s deaths in the quarry region, NOT the frozen-flatline class - 'frozen while head-wet' 0), drowned-mob x3, skeleton x3, zombie x1, creeper x1 (night storm).
+- THE HANG DECODED - 2 of 19 bots held 17 banked bots past the whole 420s margin: (1) F7 - the SPENT-VISIT BATCH CLOCK: trip budget 120s, smelt leg 45s, the machine walk+open+put spent the visit slice, poll-start visitRemainingMs read exactly 0, and smeltBatchWaitMs's '> 0' cap guard DISCARDED the cap -> the batch degraded to the LEGACY unbounded clock (64x11s=704s+); F7 sat in the smelt ('took 1 x stone (50/76)' at the kill), never printed a final bank. (2) F14 - the FROZEN-CLIENT WEDGE: 'tunnel: 0 blocks' printed, then SILENCE - a dig's `await bot.waitForTicks(1)` never resolved (client physics froze; mineflayer's tick clock stopped) and the bot hung past the deadline inside veinSweep. Promise.all never settled -> hard kill at ~1020s. (The storm-locked F9/F4/F10/F12 combat bots were NOT blockers - all four landed honest end-phase verdicts.)
+- SHIPPED v0.97.0 (6ca97ce): (1) THE SPENT-VISIT BATCH STOP - smeltBatchWaitMs treats ANY finite visitRemainingMs as the hard cap (0 and negatives included: 'no wait, pull OUR input+fuel back out' - the timeout path already does that honestly, the pocket re-smelts on the next chain); null/undefined/NaN keep the legacy unbounded shape byte for byte. (2) THE DIG TICK GUARD - racedWithGuard races every fastDig tick-wait AND the aim against a wall clock (DIG_TICK_GUARD_MS=2000); 3 consecutive fires = the frozen verdict, fastDig returns gone() honestly instead of spinning maxTicks x guard forever; a resumed tick resets the streak; tickGuardMs junk/zero = the legacy shape (fast mocks byte for byte). The -5 junk contract re-pinned as 'spent'. +2 smeltBatchWaitMs blocks, +3 fastDig blocks; fastdig 13/13, smelting 43/43, full unit 74/74 files green locally (pure node --test only); check-syntax 172/0.
+- Push 6ca97ce: master = v0.97.0 (next free 0.98.0). The dispatch fires as the session's ABSOLUTE LAST action below.
+
+Stage Summary:
+- Master: 6ca97ce (v0.97.0). Next free version = 0.98.0.
+- EXPECTATIONS run87: NORMAL END returns (the two hostage classes are fenced - 'budget exhausted'/'still underground' verdicts may still read 0 but the PROCESS must conclude); F7-class 'took N x stone' lines must never cross the visit budget again; a frozen client dig now costs <=6s (guard fires) not an eternity; smelted > 13 plausible (the batch clock no longer eats the chain); the stone->iron pickaxe ladder continues (iron_ore=22 mined, 0 smelted - the smelt INPUT slice keeps the ore flowing).
+- OPEN FRONTS: (a) the fall/env x6 quarry class (instant deaths, y=46-65 - fall damage inside dig columns, not drowning); (b) the night mob storm (fights=47, 8 mob deaths - shelters=0, the flee kite held but hp bled); (c) the 'map trip skipped' worldmap lane (idle 13+ runs); (d) end-phase bank QUALITY: 12 of 17 banks read 0 ('still underground' x6 - the final climb remains the wall).
+- The fleet dispatch fired as the ABSOLUTE LAST action of the session (run id recorded by the next session). NO PUSHES after it.
+
+---
+Task ID: 398294-20260923-1053 (dispatch record)
+Agent: Z.ai Code (cron session, 10:53 +08)
+Task: session close - the fleet dispatch record.
+
+Work Log:
+- THE FLEET DISPATCH FIRED as the session's ABSOLUTE LAST ACTION: run87 = workflow_dispatch (run_fleet=true, fleet_seconds=600, master@6ca97ce, pending). NO PUSHES after it.
+- run87 = the first measurement of the v0.97.0 stack (the spent-visit batch stop + the dig tick guard) - the NORMAL END guarantee run.
