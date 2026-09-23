@@ -2224,3 +2224,14 @@ Stage Summary:
 - EXPECTATIONS run100: no timeout-zero windows ('smelt: 0 (...timeout)' -> ~0; every started window completes or honestly clips), smelted counts real collections (8-item windows), the monster-put churn gone; the fuel cures continue (stick windows stay gone, the tithe fires, the floor holds).
 - OPEN FRONTS (evidence-ranked): (a) THE AIR-BAR GLITCH STORM (835 glitches / 787 phantom reads / 108 rescues / F19's 44-pass loop - the rescue machinery vs the 26.2 sensor desync needs a stronger latch: once the glitch page is confirmed, suppress the drowning rescue for a bounded window, not just the next page); (b) THE DOOMED BAY FENCE (7 furnaces refused 'ledgered 1s ago' - a systemic ledger fence vs individual geometry; the yard-adjacent re-arm only helps bots already in the bay); (c) the yard-walk degradation (banked 586 - 'No path' + 'timeout' + 'beyond the hop search radius 48'); (d) iron=0 pickaxes (the 3-ingot craft walk - 41 iron_ore rode pockets in their run108; the fuel is now honest, the walk is the next rung); (e) unaccounted=1274 at zero deaths (the end snapshot's pocket read suspects - the stale-view flip at ledger time); (f) the tithe fired 1x - the commons needs the NEXT deposit to fire it more; (g) worldmap idle 24+ runs; (h) plan 2/31.
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API).
+
+---
+Task ID: 398294-20260923-2153 (dispatch record)
+Agent: Z.ai Code (cron session, 21:53 +08)
+Task: the run100 dispatch record.
+
+Work Log:
+- The fleet dispatch fired as the ABSOLUTE LAST action: run100 = 35874523075 (workflow_dispatch run_fleet=true, fleet_seconds=600, master@c70c487 = v0.112.0). It queued ~8 min behind the push-CI (run 480, the expected concurrency shape) and went in_progress. This record line pushed ONLY after the in_progress status (the 17:53-proven shape).
+
+Stage Summary:
+- run100 = the first fleet of v0.112.0 (the clock cap). The next session mines it: no timeout-zero windows, every started window completes or honestly clips ('the clock clips the batch' lines), smelted counts real collections, the fuel cures continue (the tithe, the floor, no stick windows), NORMAL END x10.
