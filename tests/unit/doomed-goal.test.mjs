@@ -147,3 +147,31 @@ test('doomed-goal ledger: the caller ttl overrides the STRONG 90s No path verdic
   await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomTtl: NaN }), /No path/)
   assert.equal(nearDoomedGoal(cell, Date.now() + 16000).hit, true, 'a NaN ttl is junk - the legacy 90s stands')
 })
+
+// ---------------------------------------------- v0.96.0 THE RE-DOOM BACKOFF
+test('doomed-goal ledger: the re-doom backoff - a storm of machine failures cannot out-pace the 15s ttl anymore (run85: F5/F14/F16 refused seven yard machines ledgered-1s-ago x23)', async () => {
+  resetDoomedGoalLedger()
+  const cell = { x: -135, y: FLOOR + 12, z: 382 }
+  const { bot } = mockBot({ gotoError: 'Took to long to decide path to goal!' })
+  // the first failure records the 15s verdict through the funnel
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomedRearm: true, doomTtl: 15000 }), /Took to long/)
+  assert.equal(doomedGoalStats().records, 1)
+  assert.equal(doomedGoalStats().absorbed, 0)
+  // the storm: every rearmed re-failure inside the window is ABSORBED - the
+  // counter names it, and the entry is NOT refreshed ('ledgered 1s ago'
+  // cannot recur: the age keeps running from the FIRST failure)
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomedRearm: true, doomTtl: 15000 }), /Took to long/)
+  await assert.rejects(() => gotoSafe(bot, { x: cell.x, y: cell.y, z: cell.z }, { timeoutMs: 500, label: 'walk to furnace', doomedRearm: true, doomTtl: 15000 }), /Took to long/)
+  assert.equal(doomedGoalStats().records, 3, 'every failure still counts as an attempt to record')
+  assert.equal(doomedGoalStats().absorbed, 2, 'the FLEET RESULT names the absorbed re-dooms')
+  // direct pin: the absorbed verdict expires on schedule even mid-storm
+  resetDoomedGoalLedger()
+  recordDoomedGoal(cell, 9000000, { ttl: 15000 })
+  recordDoomedGoal(cell, 9001000, { ttl: 15000 })
+  recordDoomedGoal(cell, 9002000, { ttl: 15000 })
+  assert.equal(nearDoomedGoal(cell, 9014999).hit, true)
+  assert.equal(nearDoomedGoal(cell, 9015100).hit, false, 'the ttl expires DESPITE three re-dooms (the run85 spiral is dead)')
+  // and past the expiry the next failure records a FRESH verdict again
+  recordDoomedGoal(cell, 9016000, { ttl: 15000 })
+  assert.equal(nearDoomedGoal(cell, 9016500).hit, true, 're-terrain recovery intact')
+})

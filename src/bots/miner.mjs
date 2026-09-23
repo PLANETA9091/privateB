@@ -969,6 +969,7 @@ export function createMiner ({
     let transitPlan = null // (v0.82.0) the progress latch: { key, d0, atPass, logged }
     let transitStalledFlag = false // once the walls own the swim, the release owns the pass
     let frozenDown = false // (v0.82.0) the physics flatlined - the reconnect lane owns the bot
+    let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
     // The fleet map knows land the raw 12-block shore scan cannot: a tree log
     // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
     // known land cell, or null (no map / no entries / junk) - the caller then
@@ -1067,9 +1068,10 @@ export function createMiner ({
           if (physicsFrozen({ points: passPoints })) {
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
-              log(`${tag} water: frozen physics (${FROZEN_WINDOW} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}) - standing down, the reconnect lane owns this`)
+              log(`${tag} water: frozen physics (${FROZEN_WINDOW} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}${headWet ? ', head WET' : ''}) - standing down, the reconnect lane owns this`)
             }
             frozenDown = true
+            frozenDownWet = headWet === true
             break
           }
         }
@@ -1157,7 +1159,7 @@ export function createMiner ({
       // A dead bot / no entity never escalates (the respawn owns those exits).
       if (frozenDown) {
         frozenStandDowns++
-        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20 })
+        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet })
         if (esc.relog) {
           frozenStandDowns = 0
           log(`${tag} water: frozen client relog (${esc.why}) - ending the session, the reconnect lane rebuilds the physics`)

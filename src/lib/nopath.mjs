@@ -101,7 +101,7 @@ function distXZ (a, b) {
  * @param {number} [p.cap] max live entries (default NOPATH_CAP)
  * @returns {Array} the new ledger
  */
-export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = NOPATH_CAP } = {}) {
+export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = NOPATH_CAP, absorbStats = null } = {}) {
   const prev = Array.isArray(entries) ? entries : []
   const t = Number.isFinite(now) ? now : 0
   const life = Number.isFinite(ttl) && ttl >= 0 ? ttl : NOPATH_TTL_MS
@@ -117,6 +117,22 @@ export function recordNoPath (entries, cell, now, { ttl = NOPATH_TTL_MS, cap = N
   })
   const f = floorCell(cell)
   if (!f) return fresh
+  // (v0.96.0) THE RE-DOOM BACKOFF: a fresh failure for a cell that ALREADY
+  // holds a LIVE verdict is ABSORBED - the verdict keeps its ORIGINAL clock.
+  // MEASURED (run85, dispatch 35806079822): F5/F14/F16 refused yard machines
+  // 'ledgered 1s ago' x23 while every failed walk re-recorded the cell and
+  // nearNoPath kept answering the FRESHEST entry - the 15s machine ttl never
+  // expired because the refresh out-paced it BY CONSTRUCTION (each retry
+  // resets the age to 1s, run81's shape at fleet scale). The FIRST failure
+  // of a storm owns the verdict's lifetime: a genuinely re-proven dead cell
+  // re-records only after the old verdict expired (the prune above removed
+  // it first), so the ledger still recovers on re-terrain - it just never
+  // IMMORTALIZES itself. `fresh` is pruned, so any entry left in it is live
+  // by construction; junk entries never equal a finite floored triple.
+  if (fresh.some(e => e && e.x === f.x && e.y === f.y && e.z === f.z)) {
+    if (absorbStats && typeof absorbStats === 'object' && Number.isFinite(absorbStats.absorbed)) absorbStats.absorbed++
+    return fresh
+  }
   fresh.push({ x: f.x, y: f.y, z: f.z, at: t, ttl: life })
   return fresh.length > keep ? fresh.slice(fresh.length - keep) : fresh
 }

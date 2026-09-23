@@ -942,6 +942,21 @@ export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FR
 /** Consecutive frozen verdicts before the rescue force-hands the bot to the reconnect lane. */
 export const FROZEN_RELOG_AFTER = 3
 
+// (v0.96.0) THE WET-FROZEN RELOG - the threshold is for DRY clients only.
+// MEASURED (run85, dispatch 35806079822): the 'fall/env' death class was
+// DROWNING IN DISGUISE - F3 (o2 -1/0, head wet) and F19 (o2 -1) flatlined at
+// the quarry-lake level y=51-56, the frozen-physics verdict stood the rescue
+// down ('the reconnect lane owns a dead client'), and the SERVER kept
+// ticking the drowning clock nobody was swimming against - both died within
+// seconds, labeled fall/env by the respawn cause parser. The v0.87.0
+// escalation exists for exactly this but waits THREE consecutive verdicts
+// (~75s of rescue windows) - a head-wet bot on a real drowning clock has
+// ~15s of air. A frozen verdict while HEAD-WET therefore escalates on the
+// FIRST verdict: the relog is the only lane that can beat the clock (the
+// fresh client rebuilds the physics, the sentry re-pages, the rescue swims
+// the bot out). A DRY frozen bot is harmless where it stands - the legacy
+// threshold keeps protecting it from a premature session end.
+
 /**
  * Should a frozen-physics stand-down escalate to a forced session end (pure,
  * junk-safe)? The counter counts CONSECUTIVE frozen verdicts - the caller
@@ -954,15 +969,24 @@ export const FROZEN_RELOG_AFTER = 3
  * @param {number} [p.frozenStandDowns] consecutive frozen verdicts so far (junk -> 0)
  * @param {boolean} [p.hasEntity] does the bot still have an entity
  * @param {number} [p.health] the bot's health (junk -> treated as alive)
+ * @param {boolean} [p.headWet] is the head under water at the verdict (junk -> false:
+ *   only a boolean TRUE accelerates - the gates-decide convention)
  * @param {number} [p.threshold] verdicts required (default FROZEN_RELOG_AFTER)
  * @returns {{relog: boolean, why: string}}
  */
-export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, threshold = FROZEN_RELOG_AFTER } = {}) {
+export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, headWet = false, threshold = FROZEN_RELOG_AFTER } = {}) {
   const t = Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : FROZEN_RELOG_AFTER
   const n = Number.isFinite(frozenStandDowns) && frozenStandDowns > 0 ? Math.floor(frozenStandDowns) : 0
   if (!hasEntity) return { relog: false, why: 'no entity - the session loop already owns it' }
   if (Number.isFinite(health) && health <= 0) return { relog: false, why: 'bot dead - the respawn owns it' }
-  if (n < t) return { relog: false, why: `${n}/${t} flat stand-downs` }
+  if (n < t) {
+    // (v0.96.0) THE WET-FROZEN RELOG: a head-wet frozen bot is on the
+    // drowning clock - the stand-down would hand a DYING bot to a lane that
+    // takes ~75s to arm. One verdict is proof enough (the bot cannot swim
+    // out client-side and the server does not care about client excuses).
+    if (headWet === true) return { relog: true, why: `frozen while head-wet (${n} verdict${n === 1 ? '' : 's'}) - the drowning clock owns this client` }
+    return { relog: false, why: `${n}/${t} flat stand-downs` }
+  }
   return { relog: true, why: `${n} consecutive frozen verdicts` }
 }
 

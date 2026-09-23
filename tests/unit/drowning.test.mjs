@@ -812,6 +812,43 @@ test('frozenRelogDecision: junk never condemns (the Number(null) lesson, seventh
     'a junk zero threshold keeps the default')
 })
 
+// ---- v0.96.0: THE WET-FROZEN RELOG ----
+// MEASURED (run85, dispatch 35806079822): the 'fall/env' deaths of F3 (o2
+// -1/0, head wet) and F19 (o2 -1) were DROWNING IN DISGUISE - the
+// frozen-physics verdict stood the rescue down, the server kept ticking the
+// drowning clock, and both bots died within seconds while the v0.87.0
+// escalation waited for THREE consecutive verdicts (~75s). A head-wet
+// flatline escalates on the FIRST verdict now.
+
+test('v0.96.0 the wet-frozen relog: a head-wet frozen verdict escalates IMMEDIATELY (the drowning clock beats the 3-verdict threshold)', () => {
+  const first = frozenRelogDecision({ frozenStandDowns: 1, headWet: true })
+  assert.equal(first.relog, true, 'one wet verdict is proof enough - the bot has ~15s of air')
+  assert.match(first.why, /head-wet/, 'the why names the class')
+  assert.match(first.why, /drowning clock/, 'the why names the urgency')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 2, headWet: true }).relog, true,
+    'the second wet verdict still escalates (the threshold never downgrades it)')
+})
+
+test('v0.96.0 the wet-frozen relog: junk wetness NEVER accelerates (the gates-decide convention) and the dry threshold stands', () => {
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1, headWet: false }).relog, false,
+    'a dry frozen bot is harmless where it stands - the legacy threshold protects it')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 2, headWet: false }).relog, false)
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1, headWet: 'wet' }).relog, false,
+    'a string is junk - only a boolean TRUE accelerates')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1 }).relog, false,
+    'no wetness flag = the legacy shape, byte for byte')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1, headWet: null }).relog, false)
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 3, headWet: false }).relog, true,
+    'the dry escalation still fires at the threshold')
+})
+
+test('v0.96.0 the wet-frozen relog: the dead exits outrank the acceleration (the respawn owns them)', () => {
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1, headWet: true, hasEntity: false }).relog, false,
+    'no entity - the session loop already owns it')
+  assert.equal(frozenRelogDecision({ frozenStandDowns: 1, headWet: true, health: 0 }).relog, false,
+    'a dead bot is the respawn\'s exit')
+})
+
 // ---- v0.94.0: THE FLEE-DRY VETO ----
 // Run80 (35773697160) named the class: F5 was released surface-safe, then the
 // flee verdict walked it into the flooded quarry - drowned@7.9. The dry flee

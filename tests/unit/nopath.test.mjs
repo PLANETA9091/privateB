@@ -66,13 +66,93 @@ test('nearNoPath: the radius, the Y band and the TTL decide the hit', () => {
   assert.equal(nearNoPath(ledger, { x: -129, y: 72, z: 415 }, t0 + NOPATH_TTL_MS).hit, false, 'AT the TTL: dead (age < ttl is the contract)')
 })
 
-test('nearNoPath: the ageMs names the FRESHEST matching verdict', () => {
+test('nearNoPath: the ageMs names the FRESHEST matching verdict (different cells since v0.96.0 - the same cell re-records are ABSORBED)', () => {
   const t0 = 3000000
+  // (v0.96.0) the same-cell double record no longer lands (the re-doom
+  // backoff), so the freshest-wins contract now lives on DISTINCT cells
+  // inside the hit radius: chest A at t0, chest B (3 blocks away, within
+  // radius 4) 5s later - a query at A matches both, the freshest wins.
   let ledger = recordNoPath([], { x: 10, y: 64, z: 10 }, t0)
-  ledger = recordNoPath(ledger, { x: 10, y: 64, z: 10 }, t0 + 5000)
+  ledger = recordNoPath(ledger, { x: 10, y: 64, z: 13 }, t0 + 5000)
+  assert.equal(ledger.length, 2, 'two DIFFERENT cells both recorded')
   const r = nearNoPath(ledger, { x: 10, y: 64, z: 10 }, t0 + 6000)
   assert.equal(r.hit, true)
   assert.equal(r.ageMs, 1000, 'the freshest entry wins, not the first seen')
+  // and the same-cell re-record is absorbed: B keeps its ORIGINAL clock - a
+  // refreshed B would answer 1s here, the backoff keeps it at 3s
+  ledger = recordNoPath(ledger, { x: 10, y: 64, z: 13 }, t0 + 7000)
+  assert.equal(ledger.length, 2, 'the re-doom of chest B changed nothing')
+  assert.equal(nearNoPath(ledger, { x: 10, y: 64, z: 10 }, t0 + 8000).ageMs, 3000, 'the ORIGINAL verdict clock, not a refreshed one')
+})
+
+// ---- v0.96.0: THE RE-DOOM BACKOFF ----
+// MEASURED (run85, dispatch 35806079822): F5/F14/F16 refused yard machines
+// 'ledgered 1s ago' x23 - each failed walk re-recorded the cell, the age
+// reset to 1s, and the 15s machine ttl never expired (run81's shape at
+// fleet scale). The verdict now lives from the FIRST failure of its storm:
+// a live twin absorbs the re-record, the ledger recovers on re-terrain
+// exactly at ttl, and it can no longer IMMORTALIZE itself under pressure.
+
+test('v0.96.0 the re-doom backoff: a re-record of a LIVE cell is absorbed - the verdict keeps its ORIGINAL clock', () => {
+  const t0 = 7000000
+  const cell = { x: -135, y: 70, z: 382 } // a run85-refused yard machine
+  let led = recordNoPath([], cell, t0, { ttl: 15000 })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].at, t0)
+  // the storm: three more failures at 1s, 5s, 10s - ALL absorbed
+  led = recordNoPath(led, cell, t0 + 1000, { ttl: 15000 })
+  led = recordNoPath(led, cell, t0 + 5000, { ttl: 15000 })
+  led = recordNoPath(led, cell, t0 + 10000, { ttl: 15000 })
+  assert.equal(led.length, 1, 'the storm never grew the ledger')
+  assert.equal(led[0].at, t0, 'the FIRST failure owns the verdict clock')
+  // the 15s ttl finally means 15s: live inside, dead at the boundary
+  assert.equal(nearNoPath(led, cell, t0 + 14999).hit, true)
+  assert.equal(nearNoPath(led, cell, t0 + 15000).hit, false, 'the ttl expires DESPITE the storm (the refresh cannot out-pace it anymore)')
+})
+
+test('v0.96.0 the re-doom backoff: after expiry a fresh failure records a NEW verdict (re-terrain recovery intact)', () => {
+  const t0 = 7500000
+  const cell = { x: -137, y: 70, z: 382 }
+  let led = recordNoPath([], cell, t0, { ttl: 15000 })
+  led = recordNoPath(led, cell, t0 + 5000, { ttl: 15000 }) // absorbed
+  assert.equal(led.length, 1)
+  // past the ttl: the old verdict pruned, the fresh failure records
+  led = recordNoPath(led, cell, t0 + 16000, { ttl: 15000 })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].at, t0 + 16000, 'a genuinely re-proven dead cell re-records on its own clock')
+  assert.equal(nearNoPath(led, cell, t0 + 30000).hit, true, 'the new verdict is live again')
+})
+
+test('v0.96.0 the re-doom backoff: a DIFFERENT cell is never absorbed and the absorbStats sink counts honestly', () => {
+  const t0 = 8000000
+  const a = { x: -112, y: 46, z: 411 }
+  const b = { x: -143, y: 70, z: 382 } // a DIFFERENT run85-refused machine
+  const sink = { absorbed: 0 }
+  let led = recordNoPath([], a, t0, { ttl: 15000, absorbStats: sink })
+  led = recordNoPath(led, a, t0 + 2000, { ttl: 15000, absorbStats: sink })
+  led = recordNoPath(led, b, t0 + 3000, { ttl: 15000, absorbStats: sink })
+  assert.equal(led.length, 2, 'the neighbor verdict appended')
+  assert.equal(sink.absorbed, 1, 'exactly one re-doom absorbed')
+  // junk sinks are harmless (the telemetry must never break the ledger)
+  led = recordNoPath(led, a, t0 + 4000, { ttl: 15000, absorbStats: null })
+  led = recordNoPath(led, a, t0 + 5000, { ttl: 15000, absorbStats: 'junk' })
+  led = recordNoPath(led, a, t0 + 6000, { ttl: 15000, absorbStats: { absorbed: NaN } })
+  assert.equal(led.length, 2, 'absorption works with junk telemetry too')
+})
+
+test('v0.96.0 the re-doom backoff: per-entry ttl variety - a weak twin absorbed, a STRONGER re-verdict waits for expiry too', () => {
+  const t0 = 8500000
+  const cell = { x: -121, y: 72, z: 400 }
+  // a weak 15s machine verdict first, then a full-strength 90s failure 5s later
+  let led = recordNoPath([], cell, t0, { ttl: 15000 })
+  led = recordNoPath(led, cell, t0 + 5000, { ttl: NOPATH_TTL_MS })
+  assert.equal(led.length, 1)
+  assert.equal(led[0].ttl, 15000, 'the absorbed re-record did not UPGRADE the live verdict - its own ttl stands')
+  assert.equal(nearNoPath(led, cell, t0 + 16000).hit, false, 'the weak verdict still expires at 15s')
+  // only after expiry can the strong verdict land
+  led = recordNoPath(led, cell, t0 + 17000, { ttl: NOPATH_TTL_MS })
+  assert.equal(led[0].ttl, NOPATH_TTL_MS)
+  assert.equal(nearNoPath(led, cell, t0 + 100000).hit, true)
 })
 
 test('nearNoPath: junk never skips a chest (a skip costs the deposit, the hop only costs CPU)', () => {

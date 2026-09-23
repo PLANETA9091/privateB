@@ -219,7 +219,7 @@ export const REFUSAL_PACE_MS = 25
 // spiral has no fuel. One process = one fleet, so a module-level array IS the
 // shared ledger (the same shape as the pathThrottle singleton above).
 const doomedGoals = []
-const doomedStats = { records: 0, refusals: 0, rearms: 0 }
+const doomedStats = { records: 0, refusals: 0, rearms: 0, absorbed: 0 }
 
 function goalCellOf (goal) {
   if (!goal || typeof goal !== 'object') return null
@@ -231,12 +231,20 @@ function goalCellOf (goal) {
 }
 
 /** Record a dead-geometry verdict for a walk goal cell (fleet-wide). Mutates
- * the singleton in place (the deposit.mjs reassign pattern). */
+ * the singleton in place (the deposit.mjs reassign pattern). (v0.96.0) THE
+ * RE-DOOM BACKOFF: a re-doom of a cell that already holds a LIVE verdict is
+ * ABSORBED - the verdict keeps its ORIGINAL clock (the first failure of a
+ * storm owns the expiry). MEASURED (run85): F5/F14/F16 refused seven yard
+ * machines 'ledgered 1s ago' x23 - each failed walk re-recorded the cell and
+ * reset the age, so the 15s machine ttl never expired. The absorbed counter
+ * names the spiral in the FLEET RESULT. */
 export function recordDoomedGoal (cell, now, { ttl } = {}) {
-  const fresh = recordNoPath(doomedGoals, cell, now, ttl !== undefined ? { ttl } : {})
+  const sink = { absorbed: 0 }
+  const fresh = recordNoPath(doomedGoals, cell, now, ttl !== undefined ? { ttl, absorbStats: sink } : { absorbStats: sink })
   doomedGoals.length = 0
   for (const e of fresh) doomedGoals.push(e)
   doomedStats.records++
+  doomedStats.absorbed += sink.absorbed
   return doomedGoals.length
 }
 
@@ -247,7 +255,7 @@ export function nearDoomedGoal (cell, now, opts = {}) {
 
 /** Fleet summary counters for the FLEET RESULT block. */
 export function doomedGoalStats () {
-  return { records: doomedStats.records, refusals: doomedStats.refusals, rearms: doomedStats.rearms, live: doomedGoals.length }
+  return { records: doomedStats.records, refusals: doomedStats.refusals, rearms: doomedStats.rearms, absorbed: doomedStats.absorbed, live: doomedGoals.length }
 }
 
 /** (v0.72.0) The consult match radius (XZ blocks). TIGHT on purpose: the
@@ -271,6 +279,8 @@ export function resetDoomedGoalLedger () {
   doomedGoals.length = 0
   doomedStats.records = 0
   doomedStats.refusals = 0
+  doomedStats.rearms = 0
+  doomedStats.absorbed = 0
   walkGovernors = new WeakMap()
   walkGovernorStats.refusals = 0
   walkGovernorStats.opens = 0
