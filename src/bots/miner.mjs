@@ -32,7 +32,7 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
-  vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS,
+  vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
@@ -917,6 +917,13 @@ export function createMiner ({
   let headWetSince = 0
   let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
   let noOpRescueGateUntil = 0 // (v0.104.0) the dry-land proof's re-fire gate (the glitch-class backoff)
+  // (v0.117.0) THE CHRONIC-LIAR LADDER state: glitchConfirmed counts the
+  // dry-land proofs of the GLITCH class (each one is a confirmed lie) and
+  // raises the fresh-streak bar for the next override; rescuePageWasGlitch
+  // carries the page class from the fire site to the completion handler (a
+  // wet-lane page that happens to end dry must never ratchet the ladder).
+  let glitchConfirmed = 0
+  let rescuePageWasGlitch = false
   // (v0.82.0) THE STAND-DOWN STATE: run76's F9 (25 starts, one flooded pocket)
   // and F17 (14 starts, one frozen client) ate their runs in 25s slices - the
   // watch re-pages 3s (cooldown) + 5s (head-wet clock) after every still-wet
@@ -1263,12 +1270,28 @@ export function createMiner ({
           dryGlitchStreak = 0
           log(`${tag} water: dry-land proof (rescue saw no water in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s) - the critical-on-dry streak restarts, the next glitch page waits ${Math.round(DRY_PROOF_BACKOFF_MS / 1000)}s`)
         }
+        // (v0.117.0) THE RATCHET: a dry-land proof of the GLITCH class is a
+        // confirmed lie - the next override needs a FRESH streak past a
+        // laddered cap (8/16/24... bounded 40); the real-drain shape
+        // (run84a F17's 675+ sustained reads) still outruns the ladder.
+        if (rescuePageWasGlitch) {
+          glitchConfirmed++
+          log(`${tag} water: liar ladder ratchets - confirmed no-op glitch page #${glitchConfirmed}, the next override needs ${glitchStreakCap(glitchConfirmed)} fresh critical-on-dry reads`)
+        }
         noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
       } else if (hazardCell) {
         const live = waterHazards.record(hazardCell)
         log(`${tag} water: hazard memorized at [${Math.floor(hazardCell.x)},${Math.floor(hazardCell.y)},${Math.floor(hazardCell.z)}] (${live} live, fleet-wide)`)
         if (broadcastHazard) { try { broadcastHazard(hazardCell) } catch { /* chat never kills a rescue */ } }
+        // (v0.117.0) the legacy hazard record means the page was NOT disproven
+        // (water contact or a long flail) - the real-drain shape keeps the
+        // fast lane, the ladder forgets its confirmations.
+        if (glitchConfirmed > 0) {
+          glitchConfirmed = 0
+          log(`${tag} water: liar ladder resets - the rescue kept its water/long record (the page was not disproven)`)
+        }
       }
+      rescuePageWasGlitch = false
       bot._waterRescue = false
       swimming = false
     }
@@ -1300,20 +1323,33 @@ export function createMiner ({
       // run and the server drowned it anyway: a SUSTAINED zero bar on 'dry
       // land' is a real air bar draining somewhere the block reads miss.
       const criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && airBarTrust(read) === 'dry'
+      // (v0.117.0) the liar ladder resets on WET contact - a bot that touches
+      // water is a new page class (the confirmations were about a DRY lie).
+      if (airBarTrust(read) === 'wet' && glitchConfirmed > 0) {
+        glitchConfirmed = 0
+        log(`${tag} water: liar ladder resets - wet contact, the page class is new`)
+      }
       if (criticalOnDry) {
-        dryGlitchStreak++
+        // (v0.117.0) the gate window HOLDS the streak: the dry-land proof
+        // restarted it to 0, and the reads arriving while the no-op gate is
+        // armed are the SAME disproven page - counting them let the stale
+        // streak (~33 reads) re-fire the rescue the moment the 20 s gate
+        // expired (run102 F3: 15 starts, 10 proofs, 4 relogs - a rescue every
+        // ~25 s for the whole run). Fresh evidence only.
+        if (Date.now() >= noOpRescueGateUntil) dryGlitchStreak++
         stats.airGlitches++
         if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
           lastGlitchLogAt = now
           log(`${tag} water: air-bar glitch ignored (oxygen ${o2raw} on dry land, ${stats.airGlitches} total)`)
         }
-        if (dryGlitchStreak === AIR_GLITCH_STREAK_CAP) {
+        const streakCap = glitchStreakCap(glitchConfirmed)
+        if (dryGlitchStreak === streakCap) {
           log(`${tag} water: air-bar glitch override - ${dryGlitchStreak} consecutive critical-on-dry reads, believing the bar`)
         }
       } else {
         dryGlitchStreak = 0
       }
-      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak })
+      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed) })
       if (verdict === 'drowning') {
         // (v0.104.0) THE DRY-LAND BACKOFF - the glitch class only. A bot the
         // dry-land proof just cleared re-fires its critical-on-dry page
@@ -1322,6 +1358,7 @@ export function createMiner ({
         // the A* storm's pump. A WET page (head in water / waterlogged
         // contact) never waits on this gate - only the stuck-bar class does.
         if (criticalOnDry && Date.now() < noOpRescueGateUntil) return
+        rescuePageWasGlitch = criticalOnDry // (v0.117.0) the completion handler ratchets only on the glitch class
         rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })
       }
     } catch { /* never kill the interval */ }

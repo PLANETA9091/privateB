@@ -24,7 +24,8 @@ import {
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
-  AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS
+  AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
+  glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -1057,4 +1058,74 @@ test('the dry-land constants: the backoff stays under the drain-to-death clock',
   assert.ok(DRY_PROOF_BACKOFF_MS === 20000, 'the re-fire backoff')
   assert.ok(DRY_PROOF_BACKOFF_MS < 35000, 'a real stuck-sensor drain still gets its page before the ~35s death clock')
   assert.ok(DRY_PROOF_BACKOFF_MS > RESCUE_COOLDOWN_MS, 'the backoff is a real step beyond the 3s cooldown')
+})
+
+// (v0.117.0) THE CHRONIC-LIAR LADDER - run102 (35889087936): F3 read 151+
+// critical-on-dry pages, fired 11 overrides, 15 rescue starts, 10 dry-land
+// proofs (every page disproven) and 4 frozen relogs - the proof restarts the
+// streak but the gate window kept COUNTING, so the stale streak (~33 reads)
+// re-fired the rescue the moment the 20s gate expired: a no-op rescue every
+// ~25s for the whole run. The cure: confirmed no-op pages ladder the FRESH
+// evidence bar for the next override.
+
+test('glitchStreakCap: the ladder climbs 8 per confirmed no-op page, bounded at 40', () => {
+  assert.equal(GLITCH_LADDER_STEP, 8, 'one page per ladder rung')
+  assert.equal(GLITCH_LADDER_MAX, 40, 'the bound (~24s of sustained critical-on-dry at the 600ms cadence)')
+  assert.equal(glitchStreakCap(0), 8, 'no confirmations = the legacy cap')
+  assert.equal(glitchStreakCap(1), 16, 'one confirmed lie doubles the evidence bar')
+  assert.equal(glitchStreakCap(2), 24)
+  assert.equal(glitchStreakCap(3), 32)
+  assert.equal(glitchStreakCap(4), 40, 'the bound lands')
+  assert.equal(glitchStreakCap(10), 40, 'F3\'s 10 proofs stay bounded')
+  assert.equal(glitchStreakCap(99), 40, 'the ladder never grows past the bound')
+})
+
+test('glitchStreakCap: junk confirmations read the legacy cap (never a lockout)', () => {
+  assert.equal(glitchStreakCap(), 8, 'no argument')
+  assert.equal(glitchStreakCap(null), 8)
+  assert.equal(glitchStreakCap(undefined), 8)
+  assert.equal(glitchStreakCap(NaN), 8)
+  assert.equal(glitchStreakCap(-5), 8, 'a negative count is not debt')
+  assert.equal(glitchStreakCap('x'), 8)
+  assert.equal(glitchStreakCap(1.9), 16, 'floats floor to a whole confirmation (1)')
+})
+
+test('waterVerdict: the laddered cap governs the override page (the stale streak refuses)', () => {
+  const dry = { feet: 'sand', head: 'air' }
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8, dryGlitchCap: 24 }), 'none',
+    'the F3 shape: a first-override-sized streak on a twice-confirmed liar does NOT page')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 23, dryGlitchCap: 24 }), 'none', 'just under the rung')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 24, dryGlitchCap: 24 }), 'drowning', 'at the rung the page fires')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 50, dryGlitchCap: 40 }), 'drowning', 'past the bound the sustained drain still pages')
+})
+
+test('waterVerdict: a junk cap reads the legacy cap; the wet lane never waits on the ladder', () => {
+  const dry = { feet: 'sand', head: 'air' }
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8, dryGlitchCap: NaN }), 'drowning', 'junk cap = the legacy 8')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8, dryGlitchCap: null }), 'drowning')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: 8, dryGlitchCap: -3 }), 'drowning')
+  assert.equal(waterVerdict({ feet: 'water', head: 'air', oxygen: 0, dryGlitchStreak: 0, dryGlitchCap: 40 }), 'drowning',
+    'a WET critical read pages without any streak - the ladder only ever governs the DRY override')
+  assert.equal(waterVerdict({ feet: 'sand', head: 'water', oxygen: 2, dryGlitchStreak: 0, dryGlitchCap: 40 }), 'drowning',
+    'the head-wet rescue level likewise ignores the cap')
+  assert.equal(waterVerdict({ ...dry, oxygen: 0, dryGlitchStreak: AIR_GLITCH_STREAK_CAP }), 'drowning',
+    'the legacy call (no cap argument) keeps the v0.95.0 escalation byte for byte')
+})
+
+test('the liar-ladder wiring: the miner holds the streak in the gate, ratchets on the glitch-class proof, resets on wet/non-proof', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('glitchStreakCap'), 'the miner imports the laddered cap')
+  assert.ok(src.includes('if (Date.now() >= noOpRescueGateUntil) dryGlitchStreak++'),
+    'the gate window HOLDS the streak - stale reads never re-arm the page')
+  assert.ok(src.includes('dryGlitchCap: glitchStreakCap(glitchConfirmed)'),
+    'the verdict reads the laddered cap')
+  assert.ok(src.includes('rescuePageWasGlitch = criticalOnDry'),
+    'the fire site carries the page class (a wet-lane page never ratchets)')
+  assert.ok(src.includes('liar ladder ratchets - confirmed no-op glitch page'),
+    'the ratchet names itself so the next mine reads the lane')
+  assert.ok(src.includes("airBarTrust(read) === 'wet' && glitchConfirmed > 0"),
+    'wet contact resets the ladder (a new page class)')
+  assert.ok(src.includes('the rescue kept its water/long record'),
+    'the non-proof exit resets the ladder (the real-drain shape keeps the fast lane)')
 })

@@ -156,7 +156,7 @@ export function dryLandProof ({ wetPasses = null, elapsedMs = null } = {}) {
  *                broke surface with air to spare) - monitor, no emergency
  *   'drowning' - rescue NOW
  */
-export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0 } = {}) {
+export function waterVerdict ({ feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, oxygen = 20, headWetMs = 0, dryGlitchStreak = 0, dryGlitchCap = AIR_GLITCH_STREAK_CAP } = {}) {
   const raw = Number(oxygen)
   // (v0.64.0) oxygenInDomain gates the read: NaN/undefined AND the -1 reset
   // sentinel (measured post-rescue/post-death in run60) all read as FULL - a
@@ -181,7 +181,11 @@ export function waterVerdict ({ feet = null, head = null, feetWaterlogged = fals
   // air bar the block reads miss (run84a F17: 675+ ignored reads, then dead
   // of drowning). Junk streak -> 0 -> the legacy shape, byte for byte.
   const streak = Number.isFinite(dryGlitchStreak) && dryGlitchStreak > 0 ? Math.floor(dryGlitchStreak) : 0
-  if (o2 <= OXYGEN_CRITICAL_LEVEL && streak >= AIR_GLITCH_STREAK_CAP) return 'drowning'
+  // (v0.117.0) the effective cap: the chronic-liar ladder raises the evidence
+  // bar per CONFIRMED no-op page (glitchStreakCap); a junk cap reads the
+  // legacy 8 - the escalation never locks itself out on a wiring sickness.
+  const cap = Number.isFinite(dryGlitchCap) && dryGlitchCap > 0 ? Math.floor(dryGlitchCap) : AIR_GLITCH_STREAK_CAP
+  if (o2 <= OXYGEN_CRITICAL_LEVEL && streak >= cap) return 'drowning'
   if (!headWet && !feetWet) return 'none'
   if (headWet) {
     if (o2 <= OXYGEN_RESCUE_LEVEL) return 'drowning'
@@ -510,6 +514,32 @@ export function fleePlan ({ threatName = null, feetWet = false, headWet = false,
  * burst, and the rescue ladder's own stand-downs (frozen verdict, repeat-page)
  * absorb the false alarms a wasted swim would cost. */
 export const AIR_GLITCH_STREAK_CAP = 8
+
+// (v0.117.0) THE CHRONIC-LIAR LADDER - run102 (35889087936) mined 2026-09-24:
+// F3 read 151+ 'oxygen 0 on dry land' pages, fired 11 streak overrides, 15
+// rescue starts, 10 dry-land proofs (EVERY page disproven) and 4 frozen-client
+// relogs - the proof restarts the streak, but the gate window keeps COUNTING
+// critical-on-dry ticks, so the stale streak (~33 reads) re-arms the page the
+// moment the 20 s gate expires: a no-op rescue every ~25 s for the whole run.
+// THE CURE: every dry-land proof for a critical-on-dry page CONFIRMS the bar
+// lies for this bot - the FRESH streak required for the next override ladders
+// up by GLITCH_LADDER_STEP per confirmation, bounded at GLITCH_LADDER_MAX
+// (~24 s of sustained critical-on-dry at the 600 ms sentry cadence). A
+// genuinely draining bar still outruns the ladder: run84a F17's real drain was
+// 675+ sustained reads. The confirmation count resets on any WET contact (a
+// bot that touches water is a new page class) and on a rescue that does NOT
+// prove dry (the real-drain shape keeps the fast lane).
+export const GLITCH_LADDER_STEP = 8
+export const GLITCH_LADDER_MAX = 40
+
+/** The streak cap for the override verdict after `confirmed` dry-land proofs
+ * of the glitch class. Junk/zero confirmations read the legacy cap (8) - a
+ * first page is always trusted at the old weight; the ladder only ever GROWS
+ * the evidence bar, never past GLITCH_LADDER_MAX. */
+export function glitchStreakCap (confirmed = 0) {
+  const n = Number.isFinite(confirmed) && confirmed > 0 ? Math.floor(confirmed) : 0
+  return Math.min(AIR_GLITCH_STREAK_CAP + n * GLITCH_LADDER_STEP, GLITCH_LADDER_MAX)
+}
 
 /** One quarter turn of an XZ bearing, counter-clockwise on the map plane:
  * (1,0) -> (0,1). turns wraps mod 4 (negative turns normalize); junk turns
