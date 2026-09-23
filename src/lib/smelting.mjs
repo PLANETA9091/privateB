@@ -305,33 +305,59 @@ const largestStack = (bot, pred) => inventoryItems(bot).filter(pred).sort((a, b)
 //   3. logs ONLY above the reserve (re-bootstrapping after death needs logs)
 //   4. sticks above 2
 // Returns { name, count } - the exact fuel plan - or null when nothing is spare.
-export function pickFuel (bot, { itemsNeeded = 1, reservePlanks = 8, reserveLogs = 6, reserveSticks = 2 } = {}) {
-  const solid = ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']
-    .map(name => ({ name, count: countItem(bot, name) }))
-    .filter(f => f.count > 0)
-    .sort((a, b) => b.count - a.count)
-  if (solid.length) {
+//
+// (v0.109.0) THE JUNK-WINDOW WOOD-FIRST PICK - the window class reorders the
+// same candidates. Run97 (35853190562, the v0.108.0 fleet) measured the
+// misallocation exactly: junk windows (6-7 x 64 cobblestone + sand) burned the
+// pocket coal (8 coal per 64 cobble) down to <= 6 BEFORE any chest contact, so
+// the tithe never had an overage to bank (0 tithe lines), the yard chests
+// stayed fuel-empty ('chest holds no fuel' x22), the commons could not feed the
+// fuel-poor bots, and the METAL windows - the ladder the whole plan waits on -
+// burned 'fuel: 1 x stick' (0.5 smelts: F13's raw_iron x6 window never landed,
+// the pocket still held raw_iron:6 at end). Wood is renewable (the plank rung
+// converts logs at the starving tool step; the reserves below protect exactly
+// that lane), coal is not. So a NON-metal window burns spare wood FIRST and
+// touches coal only when the pocket has no spare wood (the honest last resort -
+// the legacy tail); a METAL window keeps the legacy coal-first order byte for
+// byte (the ladder is the plan's priority and coal smelts 8:1). The transport
+// chain closes: junk windows stop eating the coal -> coal survives to the next
+// deposit -> the tithe/bank lands it in chests -> the commons finally has a
+// supply for the F13s.
+export function pickFuel (bot, { itemsNeeded = 1, reservePlanks = 8, reserveLogs = 6, reserveSticks = 2, metalWindow = false } = {}) {
+  const woodPick = () => {
+    const plankTotal = countMatching(bot, /_planks$/)
+    if (plankTotal > reservePlanks) {
+      const spare = plankTotal - reservePlanks
+      const stack = largestStack(bot, i => i.name.endsWith(PLANK_SUFFIX))
+      return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
+    }
+    const logTotal = countMatching(bot, LOG_RE)
+    if (logTotal > reserveLogs) {
+      const spare = logTotal - reserveLogs
+      const stack = largestStack(bot, i => LOG_RE.test(i.name))
+      return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
+    }
+    const sticks = countItem(bot, 'stick')
+    if (sticks > reserveSticks) {
+      const spare = sticks - reserveSticks
+      return { name: 'stick', count: Math.min(spare, fuelNeeded('stick', itemsNeeded)) }
+    }
+    return null
+  }
+  const solidPick = () => {
+    const solid = ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']
+      .map(name => ({ name, count: countItem(bot, name) }))
+      .filter(f => f.count > 0)
+      .sort((a, b) => b.count - a.count)
+    if (!solid.length) return null
     const f = solid[0]
     return { name: f.name, count: Math.min(f.count, fuelNeeded(f.name, itemsNeeded)) }
   }
-  const plankTotal = countMatching(bot, /_planks$/)
-  if (plankTotal > reservePlanks) {
-    const spare = plankTotal - reservePlanks
-    const stack = largestStack(bot, i => i.name.endsWith(PLANK_SUFFIX))
-    return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
-  }
-  const logTotal = countMatching(bot, LOG_RE)
-  if (logTotal > reserveLogs) {
-    const spare = logTotal - reserveLogs
-    const stack = largestStack(bot, i => LOG_RE.test(i.name))
-    return { name: stack.name, count: Math.min(stack.count, spare, fuelNeeded(stack.name, itemsNeeded)) }
-  }
-  const sticks = countItem(bot, 'stick')
-  if (sticks > reserveSticks) {
-    const spare = sticks - reserveSticks
-    return { name: 'stick', count: Math.min(spare, fuelNeeded('stick', itemsNeeded)) }
-  }
-  return null
+  // junk window: wood first, coal last (the v0.109.0 reorder); metal window:
+  // the legacy coal-first order stands byte for byte. STRICT true: only the
+  // METAL_INPUTS.has() verdict may open the metal lane - junk truthiness
+  // judges nothing (the Number(null) strikes: a truthy string is not a plan).
+  return metalWindow === true ? (solidPick() || woodPick()) : (woodPick() || solidPick())
 }
 
 // What in this inventory is worth smelting (biggest piles first). Cobblestone is
@@ -551,7 +577,11 @@ export async function smeltBatch (bot, {
       return { smelted, rescued, reason: 'busy' }
     }
 
-    const fuel = pickFuel(bot, { itemsNeeded: Math.min(count, invCount(inputName)), ...(fuelReserve ?? {}) })
+    // (v0.109.0) the window class rides EVERY pickFuel call: metal inputs keep the
+    // legacy coal-first order (the ladder), junk inputs burn spare wood first (the
+    // run97 misallocation: junk windows ate the pocket coal below the tithe bound
+    // before any chest contact, the metal windows got sticks)
+    const fuel = pickFuel(bot, { itemsNeeded: Math.min(count, invCount(inputName)), metalWindow: METAL_INPUTS.has(inputName), ...(fuelReserve ?? {}) })
     if (!fuel) return { smelted, rescued, reason: 'no fuel' }
 
     // VERIFIED input+fuel transfer: retry, then give up (the window is desynced).
@@ -704,7 +734,7 @@ export async function smeltInventory (bot, {
     if (Date.now() - started > maxSeconds * 1000) break
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
     if (left() <= 0) continue
-    if (!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })) {
+    if (!pickFuel(bot, { itemsNeeded: left(), metalWindow: METAL_INPUTS.has(name), ...(fuelReserve ?? {}) })) {
       // (v0.98.0) THE FUEL COMMONS: run86's zeros named the class 3x - bots stood
       // AT the machines with smeltables and an empty fuel pocket while OTHER bots'
       // surplus coal sat in the yard chests (coal/charcoal are not in the deposit
@@ -715,7 +745,7 @@ export async function smeltInventory (bot, {
       let resupplied = false
       if (typeof fuelResupply === 'function') {
         try { await fuelResupply({ itemsNeeded: left() }) } catch { /* a dead commons never kills the chain */ }
-        resupplied = !!pickFuel(bot, { itemsNeeded: left(), ...(fuelReserve ?? {}) })
+        resupplied = !!pickFuel(bot, { itemsNeeded: left(), metalWindow: METAL_INPUTS.has(name), ...(fuelReserve ?? {}) })
       }
       if (!resupplied) { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
     }

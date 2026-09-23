@@ -218,22 +218,62 @@ test('fuelYieldOf / fuelNeeded follow vanilla values', () => {
   assert.equal(fuelNeeded('stone', 5), Infinity)
 })
 
-test('pickFuel prefers coal and respects wood reserves', () => {
+test('pickFuel METAL window keeps the legacy coal-first order byte for byte', () => {
+  // (v0.109.0) the metal lane is the plan's priority - coal smelts 8:1 and the
+  // raw_iron window must never see a stick while coal exists (the run97 F13 pin)
   const bot = makeMockBot({ items: [item('coal', 2), item('oak_planks', 10), item('oak_log', 3)] })
-  const fuel = pickFuel(bot, { itemsNeeded: 20 })
+  const fuel = pickFuel(bot, { itemsNeeded: 20, metalWindow: true })
   assert.equal(fuel.name, 'coal')
   assert.equal(fuel.count, 2) // ceil(20/8)=3 wanted, but only 2 coal are held
-  // planks: only the amount ABOVE the 8 reserve is burnable
-  const bot2 = makeMockBot({ items: [item('oak_planks', 10)] })
-  const fuel2 = pickFuel(bot2, { itemsNeeded: 20 })
+  // a metal window with NO coal falls to wood exactly like the legacy tail
+  const botNoCoal = makeMockBot({ items: [item('oak_planks', 10)] })
+  const fuel2 = pickFuel(botNoCoal, { itemsNeeded: 20, metalWindow: true })
   assert.equal(fuel2.name, 'oak_planks')
   assert.equal(fuel2.count, 2)
-  // at-or-below the reserve nothing is offered
+})
+
+test('pickFuel JUNK window (default) burns spare wood FIRST - the run97 misallocation cure', () => {
+  // the same pocket the legacy order sent to coal: the junk window now takes
+  // the renewable planks above the reserve and the coal survives for the metal
+  // windows and the tithe/bank chain
+  const bot = makeMockBot({ items: [item('coal', 2), item('oak_planks', 10), item('oak_log', 3)] })
+  const fuel = pickFuel(bot, { itemsNeeded: 20 })
+  assert.equal(fuel.name, 'oak_planks')
+  assert.equal(fuel.count, 2) // only the amount ABOVE the 8 reserve is burnable
+})
+
+test('pickFuel JUNK window: no spare wood -> the solid pick is the honest last resort', () => {
+  // the legacy behavior the pockets WITHOUT wood already lived - byte for byte
+  const bot = makeMockBot({ items: [item('coal', 2)] })
+  const fuel = pickFuel(bot, { itemsNeeded: 20 })
+  assert.equal(fuel.name, 'coal')
+  assert.equal(fuel.count, 2)
+})
+
+test('pickFuel JUNK window: wood at or below reserves -> coal, the tool lane survives', () => {
+  // the reserves protect the plank rung's and bootstrap's exact needs: a pocket
+  // holding only reserve-level wood does NOT feed its wood to a junk window
+  const bot = makeMockBot({ items: [item('coal', 2), item('oak_planks', 8), item('stick', 2)] })
+  const fuel = pickFuel(bot, { itemsNeeded: 5 })
+  assert.equal(fuel.name, 'coal')
+})
+
+test('pickFuel junk-window truthiness is judged STRICTLY (only ===true opens the metal lane)', () => {
+  // the Number(null) strikes: a truthy junk value is not a plan - only the
+  // METAL_INPUTS.has() boolean verdict may reorder the pick
+  const bot = makeMockBot({ items: [item('coal', 2), item('oak_planks', 10)] })
+  const junk = pickFuel(bot, { itemsNeeded: 20, metalWindow: 'junk' })
+  assert.equal(junk.name, 'oak_planks')
+  const junkNull = pickFuel(bot, { itemsNeeded: 20, metalWindow: null })
+  assert.equal(junkNull.name, 'oak_planks')
+})
+
+test('pickFuel METAL window: reserves and the at-or-below pin stand unchanged', () => {
+  // the v0.109.0 reorder must not touch the reserve arithmetic in either lane
   const bot3 = makeMockBot({ items: [item('oak_planks', 8), item('stick', 2)] })
-  assert.equal(pickFuel(bot3, { itemsNeeded: 5 }), null)
-  // logs above reserve are used when planks are not spare
+  assert.equal(pickFuel(bot3, { itemsNeeded: 5, metalWindow: true }), null)
   const bot4 = makeMockBot({ items: [item('birch_log', 8)] })
-  const fuel4 = pickFuel(bot4, { itemsNeeded: 20, reserveLogs: 6 })
+  const fuel4 = pickFuel(bot4, { itemsNeeded: 20, reserveLogs: 6, metalWindow: true })
   assert.equal(fuel4.name, 'birch_log')
   assert.equal(fuel4.count, 2)
 })
@@ -315,7 +355,13 @@ test('smeltBatch happy path: verified input, fuel and output', async () => {
   const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
   assert.equal(counts('glass'), 8, 'output must be IN the inventory (verified)')
   assert.equal(counts('sand'), 2, 'only the batch left the inventory')
-  assert.equal(counts('coal'), 0, 'fuel was consumed')
+  // (v0.109.0) the JUNK-window wood-first pick: sand is not a metal, so the
+  // fuel pick chose the spare sticks (woodPick first) and the COAL SURVIVES for
+  // the metal windows and the tithe/bank chain (the run97 F13 cure). The mock
+  // is coal-quantized (fuelUnitsPer=8) and pulls the whole leftover fuel stack
+  // back at the end, so the sticks read 4 again - the observable here is the
+  // COAL that never left the pocket (the legacy order would have consumed it 0).
+  assert.equal(counts('coal'), 1, 'coal survived - the junk window must not eat it')
 })
 
 test('smeltBatch refuses a busy machine without losing items', async () => {
