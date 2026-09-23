@@ -19,6 +19,20 @@
 // misroute destinations on 26.2's generic_9x3: 8 of 9 moved items landed one past
 // the chest range) - every move is our OWN slot arithmetic against the measured
 // window view, and the verified inventory diff stays the only truth.
+//
+// (v0.99.0) THE SWEEP - run89 (35820546630, the commons' first field test) named
+// the gap three ways: (1) 'chest holds no fuel' x10 - the yard holds ~50 chests,
+// deposits fill them one at a time, the coal chest sits DEEP in the row, and
+// maxChests=3 stopped at the nearest cobble - the sweep widens the scan to 8
+// chests (still budget-bounded: the loop breaks on remainingMs() <= 0, the walk
+// budget still scales with distance). (2) F3 logged SIX identical 'chest holds
+// no fuel' lines - every invocation re-walked the SAME empty chests because the
+// exclude list was per-invocation; the empty-chest memory (short TTL, per bot)
+// skips known-empty chests ACROSS invocations so a repeat ask walks ONWARD.
+// (3) F9's chest walks were refused 'doomed goal (ledgered 1s ago)' - other
+// bots' failed bank walks poisoned the chest cells, and the commons inherited
+// the veto; the first chest walk now re-arms (doomedRearm, the v0.87.0
+// shared-destination semantics the bank and furnace walks already use).
 
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
@@ -35,6 +49,65 @@ export const FUEL_WITHDRAW_CAP = 6
 // charcoal the renewable one (a future dedicated leg). Order is policy, not
 // physics - tests pin it.
 export const FUEL_COMMON_ORDER = ['coal', 'charcoal']
+
+// (v0.99.0) How many yard chests ONE resupply ask may walk through. run89: the
+// deposits fill the ~50-chest yard one chest at a time, so the fuel sits deep
+// in the row; 3 nearest misses proved nothing. 8 with the SAME budget: the
+// loop still breaks on remainingMs() <= 0, so a far commons costs nothing
+// extra when the walk slice is already spent.
+export const COMMONS_SWEEP_CHESTS = 8
+
+// (v0.99.0) The empty-chest memory's lifetime. SHORT on purpose: the commons
+// refills continuously (other bots' deposits, the final deposit's leftover
+// drain-back), so a chest empty at t-200s may hold coal at t-100s - the memory
+// must not outlive the world it describes.
+export const COMMONS_EMPTY_TTL_MS = 90000
+
+/** (v0.99.0) A fresh per-fleet empty-chest memory: { [botName]: Map('x,y,z' ->
+ * expiryMs) }. Plain object, no clock reads at construction. */
+export function newCommonsMemory () {
+  return {}
+}
+
+/** Pure-ish, junk-safe: record that `cell` was opened and held no fuel for
+ * `name` at `now`. Junk memory/name/cell is a no-op; re-remembering a live
+ * cell refreshes its clock (the newest observation owns the expiry). */
+export function rememberEmptyChest (memory, name, cell, now, ttlMs = COMMONS_EMPTY_TTL_MS) {
+  if (!memory || typeof memory !== 'object') return false
+  if (typeof name !== 'string' || name.length === 0) return false
+  if (!cell || typeof cell !== 'object') return false
+  const x = Number(cell.x)
+  const y = Number(cell.y)
+  const z = Number(cell.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+  const t = Number(now)
+  if (!Number.isFinite(t)) return false
+  const ttl = Number.isFinite(ttlMs) && ttlMs >= 0 ? ttlMs : COMMONS_EMPTY_TTL_MS
+  let bucket = memory[name]
+  if (!(bucket instanceof Map)) { bucket = new Map(); memory[name] = bucket }
+  bucket.set(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`, t + ttl)
+  return true
+}
+
+/** Pure-ish, junk-safe: the LIVE remembered cells for `name` at `now` -
+ * expired entries are pruned in place (the bucket never grows unbounded),
+ * the returned cells are fresh plain {x,y,z} objects safe to push into a
+ * findChest exclude list. Unknown/junk name reads as an empty array. */
+export function liveEmptyCells (memory, name, now) {
+  if (!memory || typeof memory !== 'object') return []
+  if (typeof name !== 'string' || name.length === 0) return []
+  const bucket = memory[name]
+  if (!(bucket instanceof Map)) return []
+  const t = Number(now)
+  if (!Number.isFinite(t)) return []
+  const out = []
+  for (const [key, expiry] of bucket) {
+    if (!Number.isFinite(expiry) || expiry <= t) { bucket.delete(key); continue }
+    const [x, y, z] = key.split(',').map(s => Number(s))
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+  }
+  return out
+}
 
 /**
  * Pure, junk-safe: what to withdraw from ONE chest view to fuel `itemsNeeded`
@@ -134,13 +207,14 @@ export async function withdrawStackMove (bot, window, { srcIdx, dstIdx, take, st
  */
 export async function withdrawFuelCommons (bot, {
   itemsNeeded = 0,
-  maxChests = 3,
+  maxChests = COMMONS_SWEEP_CHESTS,
   maxDistance = 48,
   yardCenter = null,
   yardRadius = YARD_CHEST_RADIUS,
   cap = FUEL_WITHDRAW_CAP,
   budgetMs = 30000,
   clickTimeoutMs = 5000,
+  memory = null,
   log = () => {}
 } = {}) {
   const ask = Number(itemsNeeded)
@@ -149,6 +223,11 @@ export async function withdrawFuelCommons (bot, {
   const remainingMs = () => budgetMs - (Date.now() - started)
   const wantTotal = Math.min(Number(cap) > 0 ? Math.floor(Number(cap)) : FUEL_WITHDRAW_CAP, fuelNeeded('coal', Math.ceil(ask)))
   const exclude = []
+  // (v0.99.0) the sweep memory: known-empty chests are pre-excluded so a
+  // repeat ask walks ONWARD instead of re-walking the same cobble (run89:
+  // F3 'chest holds no fuel' x6 - the same chests, every time)
+  const remembered = liveEmptyCells(memory, bot?.username, started)
+  for (const cell of remembered) exclude.push(cell)
   let taken = 0
   let chestsVisited = 0
   const planAll = []
@@ -162,7 +241,11 @@ export async function withdrawFuelCommons (bot, {
     // chestWalkBudgetMs scales with distance, effectiveWalkBudget clamps into
     // what is actually left
     try {
-      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk' })
+      // (v0.99.0) the FIRST chest walk re-arms: the yard is THE shared
+      // destination class (run89: F9's commons walks refused 'doomed goal
+      // (ledgered 1s ago)' - other bots' failed bank walks had poisoned the
+      // chest cells). Same semantics as the bank chain and the furnace walk.
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: c === 0 })
     } catch (e) {
       log(`fuel commons: chest walk failed (${e?.message || e})`)
       exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
@@ -186,7 +269,12 @@ export async function withdrawFuelCommons (bot, {
       const plan = fuelWithdrawPlan({ itemsNeeded: ask - taken, chestItems, cap: wantTotal - taken })
       if (!plan) {
         log('fuel commons: chest holds no fuel')
-        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        const cell = chest.position.floored ? chest.position.floored() : chest.position
+        exclude.push(cell)
+        // (v0.99.0) remember it: ONLY a chest that was opened and READ empty
+        // earns a memory entry - a walk failure is transient saturation (the
+        // weak-evidence lesson) and a funded chest is the opposite of empty
+        rememberEmptyChest(memory, bot?.username, cell, Date.now())
         continue
       }
       // per-TYPE pocket snapshots: the verified diff (not the clicks) is the

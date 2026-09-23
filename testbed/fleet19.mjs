@@ -32,7 +32,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
-import { withdrawFuelCommons } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -125,6 +125,11 @@ let reconnects = 0
 let kicks = 0 // (v0.16.3) server-side kicks/ECONNRESETs, counted ONCE (the old loop double-counted every kick: once in catch, once as a retry)
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
+// (v0.99.0) the fuel commons' empty-chest memory: one fleet-wide map, keyed per
+// bot - a chest opened and read empty is skipped by that bot's NEXT resupply
+// ask (90s TTL - the commons refills continuously, the memory must not outlive
+// the world it describes)
+const fuelCommonsMemory = newCommonsMemory()
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
 let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (v0.8.0/v0.7.5)
 let swordsCrafted = 0 // (v0.67.0) swords landed by the arms chain - the fleet stopped fist-fighting
@@ -310,6 +315,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         fuelResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
           itemsNeeded,
           yardCenter: yardGoal,
+          memory: fuelCommonsMemory,
           budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
           log: m => console.log(`${miner.username} ${m}`)
         }),

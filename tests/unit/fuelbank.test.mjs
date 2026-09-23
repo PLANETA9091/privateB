@@ -5,10 +5,12 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, recordDoomedGoal } from '../../src/lib/jobqueue.mjs'
 import {
   fuelWithdrawPlan, pickWithdrawSlots, withdrawStackMove, withdrawFuelCommons,
-  FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER
+  FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
+  newCommonsMemory, rememberEmptyChest, liveEmptyCells,
+  COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -284,4 +286,176 @@ test('withdrawFuelCommons: a partial commons stock is taken honestly, then the s
   assert.deepEqual(res.plan, [{ name: 'coal', count: 2 }])
   const inPocket = world.bot.inventory.items().reduce((a, i) => a + i.count, 0)
   assert.equal(inPocket, 2)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.99.0) THE SWEEP: run89's commons came up empty three ways - maxChests=3
+// stopped at the nearest cobble while the coal sat deep in the ~50-chest row,
+// F3 re-walked the SAME empty chests six times (per-invocation exclude list),
+// and F9's chest walks inherited other bots' doom-ledger poison. The sweep:
+// 8 chests per ask, an empty-chest memory across asks (read-empty only, short
+// TTL), and a doomedRearm on the FIRST chest walk.
+function makeClicker (slots) {
+  return async (idx, button) => {
+    const s = slots[idx]
+    if (button === 0) {
+      const held = slots.__held
+      if (held != null) {
+        if (s == null) { slots[idx] = held; slots.__held = null; held.__cursor = false; return }
+        if (s.type === held.type && s.count < (s.stackSize ?? 64)) {
+          s.count = Math.min(s.stackSize ?? 64, s.count + held.count)
+          slots.__held = null
+          held.__cursor = false
+          return
+        }
+        return // refusal: the held stack stays held (the diff reports it)
+      }
+      if (s == null) return
+      if (s.__cursor) return
+      s.__cursor = true
+      slots[idx] = null
+      slots.__held = s
+    } else if (button === 2) {
+      const held = slots.__held
+      if (held == null || held.count <= 0) return
+      if (s && s.type === held.type && s.count < (s.stackSize ?? 64)) s.count += 1
+      else if (s == null) slots[idx] = { ...held, count: 1 }
+      else return
+      held.count -= 1
+    }
+  }
+}
+
+function mockSweepWorld ({ botPos = [0.5, 64, 0.5], chests = [], walkFailsAt = null } = {}) {
+  const pocket = Array.from({ length: 36 }, () => null)
+  const opened = {}
+  let current = null // the open window - withdrawStackMove clicks at the BOT level
+  const chestBlocks = chests.map(c => {
+    const block = { name: 'chest', position: new Vec3(...c.pos) }
+    if (c.item) block.__item = { ...c.item }
+    return block
+  })
+  const bot = {
+    username: 'SweepBot',
+    entity: { position: new Vec3(...botPos) },
+    inventory: { items: () => (current ? current.slots.slice(27) : pocket).filter(Boolean) },
+    clickWindow: async (idx, button) => current?.clickWindow(idx, button),
+    pathfinder: { goto: async goal => {
+      if (walkFailsAt && Math.floor(goal.x) === Math.floor(walkFailsAt[0]) && Math.floor(goal.z) === Math.floor(walkFailsAt[2])) {
+        throw new Error('NoPath: no path')
+      }
+    } },
+    findBlock: ({ matching }) => {
+      const cands = chestBlocks
+        .filter(b => matching(b))
+        .map(b => ({ b, d: b.position.distanceTo(bot.entity.position) }))
+        .sort((p, q) => p.d - q.d)
+      return cands.length ? cands[0].b : null
+    },
+    openChest: async block => {
+      const key = `${Math.floor(block.position.x)},${Math.floor(block.position.y)},${Math.floor(block.position.z)}`
+      opened[key] = (opened[key] ?? 0) + 1
+      // adopt the previous window's pocket tail - items placed there live in
+      // the window array until close
+      if (current) for (let i = 0; i < 36; i++) pocket[i] = current.slots[27 + i] ?? null
+      const chestSlots = Array.from({ length: 27 }, () => null)
+      if (block.__item) chestSlots[0] = block.__item
+      const slots = [...chestSlots, ...pocket]
+      const win = { slots, clickWindow: makeClicker(slots), close () { this.closed = true; current = null } }
+      current = win
+      return win
+    }
+  }
+  return { bot, pocket, opened }
+}
+
+test('commons memory: the pure family is junk-safe, floors cells, TTL-prunes in place', () => {
+  const mem = newCommonsMemory()
+  assert.deepEqual(liveEmptyCells(mem, 'F1', 1000), [])
+  // the junk families no-op (the Number(null) lesson)
+  assert.equal(rememberEmptyChest(null, 'F1', { x: 1, y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberEmptyChest(mem, '', { x: 1, y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberEmptyChest(mem, 'F1', null, 1000), false)
+  assert.equal(rememberEmptyChest(mem, 'F1', { x: 'junk', y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberEmptyChest(mem, 'F1', { x: 1, y: 2, z: 3 }, 'junk'), false)
+  assert.deepEqual(liveEmptyCells(null, 'F1', 1000), [])
+  assert.deepEqual(liveEmptyCells(mem, null, 1000), [])
+  assert.deepEqual(liveEmptyCells(mem, 'F1', 'junk'), [])
+  // a live cell round-trips floored and floored-stable
+  rememberEmptyChest(mem, 'F1', { x: 1.7, y: 64.2, z: -3.9 }, 1000)
+  assert.deepEqual(liveEmptyCells(mem, 'F1', 1001), [{ x: 1, y: 64, z: -4 }])
+  // expiry prunes IN PLACE - the bucket never grows unbounded
+  assert.deepEqual(liveEmptyCells(mem, 'F1', 1000 + COMMONS_EMPTY_TTL_MS + 1), [])
+  assert.equal(mem.F1.size, 0, 'pruned in place')
+  // re-remembering refreshes the clock (the newest observation owns the expiry)
+  rememberEmptyChest(mem, 'F2', { x: 5, y: 64, z: 5 }, 1000, 5000)
+  rememberEmptyChest(mem, 'F2', { x: 5, y: 64, z: 5 }, 3000, 5000)
+  assert.deepEqual(liveEmptyCells(mem, 'F2', 5000), [{ x: 5, y: 64, z: 5 }])
+  assert.deepEqual(liveEmptyCells(mem, 'F2', 8000), [], 'expired by the refreshed clock')
+})
+
+test('withdrawFuelCommons: the sweep reaches the deep coal chest (run89: maxChests=3 missed it)', async () => {
+  const world = mockSweepWorld({
+    chests: [
+      { pos: [3.5, 64, 3.5], item: item('cobblestone', 30) },
+      { pos: [8.5, 64, 3.5], item: item('dirt', 30) },
+      { pos: [13.5, 64, 3.5], item: item('sand', 30) },
+      { pos: [18.5, 64, 3.5], item: item('coal', 30) }
+    ]
+  })
+  // the legacy shape control: 3 chests stop at the nearest junk
+  const legacy = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 3 })
+  assert.equal(legacy.taken, 0)
+  assert.equal(legacy.reason, 'commons empty')
+  // the v0.99.0 default sweep finds the coal
+  const swept = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000 })
+  assert.equal(swept.reason, 'ok')
+  assert.equal(swept.taken, 5, 'ceil(40/8) = 5 coal')
+  assert.equal(COMMONS_SWEEP_CHESTS, 8, 'the sweep width is pinned')
+})
+
+test('withdrawFuelCommons: the memory skips known-empty chests across asks (the F3 repeat-walk cure)', async () => {
+  const world = mockSweepWorld({
+    chests: [
+      { pos: [3.5, 64, 3.5], item: item('cobblestone', 30) },
+      { pos: [8.5, 64, 3.5], item: item('coal', 30) }
+    ]
+  })
+  const mem = newCommonsMemory()
+  const r1 = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, memory: mem })
+  assert.equal(r1.reason, 'ok')
+  assert.equal(world.opened['3,64,3'], 1, 'the empty chest was opened exactly once')
+  const r2 = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, memory: mem })
+  assert.equal(r2.reason, 'ok', 'the second ask still funds (the chest refilled nothing - the coal chest is deep)')
+  assert.equal(world.opened['3,64,3'], 1, 'the remembered-empty chest was NOT re-walked')
+  // ONLY a chest that was opened and READ empty earns a memory entry: a walk
+  // failure is weak evidence (transient saturation), never remembered
+  const failWorld = mockSweepWorld({ chests: [{ pos: [3.5, 64, 3.5], item: item('coal', 30) }], walkFailsAt: [3.5, 64, 3.5] })
+  const mem2 = newCommonsMemory()
+  const rf = await withdrawFuelCommons(failWorld.bot, { itemsNeeded: 40, budgetMs: 60000, memory: mem2, maxChests: 1 })
+  assert.equal(rf.taken, 0)
+  assert.equal(rf.reason, 'no chest reached')
+  assert.deepEqual(liveEmptyCells(mem2, failWorld.bot.username, Date.now()), [], 'a walk failure is not remembered')
+})
+
+test('withdrawFuelCommons: the FIRST chest walk re-arms a doomed cell, later walks stay vetoed (the F9 cure)', async () => {
+  const world = mockSweepWorld({ chests: [{ pos: [3.5, 64, 3.5], item: item('coal', 30) }] })
+  // another bot's failed bank walk poisoned the coal chest's cell (run89 F9)
+  recordDoomedGoal({ x: 3, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000 })
+  assert.equal(res.reason, 'ok', 'the re-arm walked honestly and funded the pocket')
+  assert.equal(res.taken, 5)
+  // control: the same poison on a LATER chest is still honored - one honest
+  // re-arm per ask, no blind veto-bypass
+  const world2 = mockSweepWorld({
+    chests: [
+      { pos: [3.5, 64, 3.5], item: item('cobblestone', 30) },
+      { pos: [8.5, 64, 3.5], item: item('coal', 30) }
+    ]
+  })
+  recordDoomedGoal({ x: 8, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
+  const res2 = await withdrawFuelCommons(world2.bot, { itemsNeeded: 40, budgetMs: 60000 })
+  assert.equal(res2.taken, 0)
+  assert.equal(res2.reason, 'commons empty', 'the later walk stayed vetoed (the cobble chest was opened, the coal one never was)')
+  assert.equal(world2.opened['8,64,3'], undefined, 'the doomed coal chest was never opened')
 })
