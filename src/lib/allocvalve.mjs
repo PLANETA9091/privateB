@@ -43,6 +43,30 @@
 // The detector REUSES src/lib/stormguard.mjs's createStormGuard (the
 // CI-tested sliding window) with the valve's own knobs - one arithmetic, two
 // layers, no hand-copied divergence.
+//
+// (v0.104.0) THE RUN93 LESSON - ONE VALVE, TWO FEEDERS. run93 (dispatch
+// 35835942682, the valve's first field test) died of the EXACT run92 OOM
+// class (worker second strike at rss 2626M, ts~581s, no FLEET RESULT) and
+// the log carried ZERO [allocvalve] lines. Two defects, both found:
+//   D1 (certain, in the code): TWO INSTANCES SHIPPED. jobqueue's funnel
+//     consults its `fleetValve` singleton; fleet19's startAllocValve call
+//     created and fed a PRIVATE instance (startAllocValve always built its
+//     own). The ticker fed one valve, the funnel consulted the other - the
+//     consulted valve was never sampled, closed:false forever, the cure
+//     could not refuse a single walk. startAllocValve now accepts the
+//     caller's instance ({ valve }) and jobqueue exposes
+//     startFleetValveTicker - the singleton owns its ticker.
+//   D2 (field-proven): the main-thread ticker is starved by the very storm
+//     it cures (the FATAL line names the main thread FROZEN; mainLate
+//     1034ms). The worker's 5s probe runs on its OWN thread and detected
+//     both storms (run92+run93) - it is the reliable detector. A SAB cell
+//     (stormCell) now carries the worker's first-strike verdict to the
+//     main thread: the ticker applies it via forceClose on the first
+//     post-freeze tick (refusals only matter when the funnel resumes
+//     anyway), the growth is cut, GC drains, the worker's streak resets
+//     on the dip and the kill never arms. The main ticker keeps its own
+//     1s sampling - the faster detector when the main is healthy; the
+//     worker probe is the freeze-class backstop.
 import { createStormGuard, STORM_RATE_MB_S_DEFAULT, STORM_WINDOW_MS } from './stormguard.mjs'
 
 export const ALLOC_VALVE_FLOOR_MB_DEFAULT = 600 // healthy run92 rss was 375-383M; the worker's floor is 1200M
@@ -62,6 +86,78 @@ export const ALLOC_VALVE_NEAR_BLOCKS_DEFAULT = 24 // straight-line bot->goal: re
 // names the flooded cells. The 12-30 s outage now covers the flooded class;
 // the valve reopening restores it, exactly like the long-walk gate.
 export const ALLOC_VALVE_AQUIFER_GATE = true // documentation constant: the near exemption is hazard-aware since v0.104.0
+
+// (v0.104.0) THE STORM CELL - the worker->main verdict channel (one SAB, 8
+// Int32 slots). The worker's stormguard (its own thread, 5s cadence, never
+// starved by the main thread's sync A*) publishes its first-strike verdict
+// here; the main ticker applies it via forceClose. Layout (Int32Array):
+//   [0] MAGIC - the writer's init check (the main writes it at creation; an
+//       uninitialized cell is silently skipped - degraded to no channel,
+//       never to a false storm)
+//   [1] SEQ   - the writer increments it LAST (fields first, seq last), the
+//       reader applies only a double-read-stable snapshot, exactly once
+//   [2] RATE  - MB/s of the worker's verdict
+//   [3] RSS   - MB at the verdict
+//   [4] TS_S  - process.uptime() seconds at the verdict (the worker and the
+//       main share one process uptime - the line shows WHEN it fired, the
+//       line order shows how late a frozen main applied it)
+export const STORM_CELL_MAGIC = 0x53544F52 // 'STOR'
+export const STORM_CELL_SLOTS = 8
+
+/** Pure writer (the CI-tested reference; the eval worker hand-mirrors it -
+ * it cannot import ESM). Fields first, seq last: a reader that catches the
+ * seq mid-write simply skips the torn snapshot and applies the next one.
+ * Junk numbers and a missing/uninitialized cell never throw, never write. */
+export function stormCellPublish ({ cell, rate = 0, rss = 0, tsS = 0 } = {}) {
+  if (!cell) return false
+  try {
+    const c = new Int32Array(cell)
+    if (c.length < 5 || c[0] !== STORM_CELL_MAGIC) return false
+    const r = Math.round(Number(rate))
+    const m = Math.round(Number(rss))
+    const t = Math.round(Number(tsS))
+    if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(m) || m <= 0 || !Number.isFinite(t) || t < 0) return false
+    c[2] = r
+    c[3] = m
+    c[4] = t
+    c[1] = c[1] + 1 // seq LAST - the publish is atomic enough for the double-read contract
+    return true
+  } catch { return false }
+}
+
+/** Pure reader: apply the cell's newest verdict exactly once per seq via the
+ * given forceClose. Returns { applied, seq, snapshot } - applied=false on a
+ * stable already-applied seq, a torn snapshot, junk numbers or a dead cell
+ * (the caller just polls again on the next tick - nothing is ever lost, the
+ * cell holds the LATEST verdict until a newer one overwrites it). */
+export function stormCellApply ({ cell, lastSeq = 0, forceClose = null } = {}) {
+  if (!cell || typeof forceClose !== 'function') return { applied: false, seq: lastSeq, snapshot: null }
+  try {
+    const c = new Int32Array(cell)
+    if (c.length < 5 || c[0] !== STORM_CELL_MAGIC) return { applied: false, seq: lastSeq, snapshot: null }
+    const s1 = c[1]
+    if (s1 === lastSeq) return { applied: false, seq: lastSeq, snapshot: null }
+    const rate = c[2]
+    const rss = c[3]
+    const tsS = c[4]
+    const s2 = c[1]
+    if (s1 !== s2) return { applied: false, seq: lastSeq, snapshot: null } // torn - retry next tick
+    const snap = forceClose({ rate, rss, source: 'worker-probe', tsS })
+    return { applied: true, seq: s1, snapshot: snap, tsS }
+  } catch { return { applied: false, seq: lastSeq, snapshot: null } }
+}
+
+/** Pure log-line builder for the worker-probe close (a DIFFERENT named line
+ * from the ticker's CLOSED - the log-reading agents must be able to tell
+ * WHICH feeder armed the cure). Kept pure so the tests pin it. */
+export function valveWorkerCloseLine ({ st = {}, tsS = 0 } = {}) {
+  const rss = Number.isFinite(st.lastRss) ? st.lastRss : 0
+  const rate = Number.isFinite(st.lastRate) ? st.lastRate : 0
+  const rem = Number.isFinite(st.remainingMs) ? Math.round(st.remainingMs / 1000) : 0
+  const strikes = Number.isFinite(st.strikes) ? st.strikes : 0
+  const ts = Number.isFinite(tsS) ? tsS : 0
+  return `[allocvalve] CLOSED (worker probe): rss ${rss}M (+${rate}MB/s storm) - long walks refused ${rem}s (strike ${strikes}, the worker's field-proven verdict applied at the funnel; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
+}
 
 /**
  * Pure admission: while the valve is CLOSED, does THIS walk still flow?
@@ -118,16 +214,20 @@ export function valveTransitionLine ({ wasClosed = false, st = {}, rssM = 0, upt
  * it every 1s; tests call it directly with a fake clock); read it via
  * consult() (gotoSafe calls it on every walk - a pure state read, never
  * samples, never throws on junk). onState fires on every CLOSE.
+ * forceClose (v0.104.0) applies an EXTERNAL field-proven verdict (the
+ * worker probe's storm) with the same close semantics - the freeze-class
+ * backstop for a main thread too starved to sample its own storm.
  * @param {{rateMbS?: number, floorMb?: number, windowMs?: number, cooldownMs?: number, escalatedMs?: number, recloseWindowMs?: number, now?: Function, onState?: Function}} opts
- * @returns {{sample: Function, consult: Function, stats: Function, reset: Function}}
+ * @returns {{sample: Function, consult: Function, forceClose: Function, stats: Function, reset: Function}}
  */
 export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, windowMs = STORM_WINDOW_MS, cooldownMs = ALLOC_VALVE_COOLDOWN_MS_DEFAULT, escalatedMs = ALLOC_VALVE_ESCALATED_MS_DEFAULT, recloseWindowMs = ALLOC_VALVE_RECLOSE_WINDOW_MS, now = () => Date.now(), onState = null } = {}) {
   const guard = createStormGuard({ rateMbS, floorMb, windowMs, now })
-  const stats = { closes: 0, escalations: 0 }
+  const stats = { closes: 0, escalations: 0, workerCloses: 0 }
   let closedUntil = 0
   let lastCloseAt = -Infinity
   let lastRate = 0
   let lastRss = 0
+  let lastSource = 'sample'
   let strikes = 0
 
   function snapshot (t) {
@@ -138,6 +238,7 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       strikes,
       lastRate,
       lastRss,
+      lastSource,
       closes: stats.closes
     }
   }
@@ -155,8 +256,9 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
         strikes++
         stats.closes++
         lastCloseAt = t
-        lastRate = v.rate
+        lastRate = Number.isFinite(v.rate) ? Math.round(v.rate) : 0
         lastRss = Number.isFinite(v.rss) ? Math.round(v.rss) : 0
+        lastSource = 'sample'
         closedUntil = t + (escalate ? escalatedMs : cooldownMs)
         const snap = snapshot(t)
         if (typeof onState === 'function') {
@@ -165,6 +267,30 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
         return snap
       }
       return snapshot(t)
+    },
+    /** (v0.104.0) Apply an EXTERNAL verdict (the worker probe's storm - the
+     * field-proven detector). Same close semantics as a sampled verdict:
+     * the reclose window escalates, onState fires, an already-closed valve
+     * absorbs it (closes stays put). Junk numbers are clamped to 0 - the
+     * close decision was the WORKER's, the numbers are for the story. */
+    forceClose ({ rate = 0, rss = 0, source = 'worker-probe' } = {}) {
+      const t = now()
+      if (t < closedUntil) return snapshot(t) // already closed - absorb
+      const escalate = (t - lastCloseAt) <= recloseWindowMs
+      if (escalate) stats.escalations++
+      strikes++
+      stats.closes++
+      if (source === 'worker-probe') stats.workerCloses++
+      lastCloseAt = t
+      lastRate = Number.isFinite(rate) ? Math.round(rate) : 0
+      lastRss = Number.isFinite(rss) ? Math.round(rss) : 0
+      lastSource = source === 'worker-probe' ? 'worker-probe' : 'sample'
+      closedUntil = t + (escalate ? escalatedMs : cooldownMs)
+      const snap = snapshot(t)
+      if (typeof onState === 'function') {
+        try { onState({ ...snap, escalated: escalate, source }) } catch { /* the valve never kills the fleet */ }
+      }
+      return snap
     },
     /** The gotoSafe consult: a pure read of the current state. */
     consult () {
@@ -179,9 +305,11 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
       lastCloseAt = -Infinity
       lastRate = 0
       lastRss = 0
+      lastSource = 'sample'
       strikes = 0
       stats.closes = 0
       stats.escalations = 0
+      stats.workerCloses = 0
     }
   }
 }
@@ -191,17 +319,30 @@ export function createAllocValve ({ rateMbS = STORM_RATE_MB_S_DEFAULT, floorMb =
  * worker cannot refuse walks; only the thread that owns the funnel can),
  * emit the transition lines through onLine (fleet19 logs them; tests pass
  * null). UNREF'd - the valve must never extend the fleet's life.
- * @param {{intervalMs?: number, onLine?: Function}} opts plus createAllocValve opts
+ * (v0.104.0) TWO FEEDERS, ONE VALVE:
+ *   { valve }  - feed the CALLER'S instance (run93 D1: the ticker used to
+ *     build a private valve while the funnel consulted jobqueue's singleton -
+ *     the consulted valve was never sampled and the cure could not fire);
+ *     without it a private instance is created (the legacy shape, tests).
+ *   { stormCell } - poll the worker's verdict cell every tick and apply a
+ *     fresh verdict via forceClose (run93 D2: the main ticker is starved by
+ *     the very storm it cures; the worker's own-thread probe is the reliable
+ *     detector - run92 AND run93's storms were caught by it, never by the
+ *     main sampler). A worker close logs the named
+ *     '[allocvalve] CLOSED (worker probe)' line - the two feeders stay
+ *     distinguishable in the mine.
+ * @param {{intervalMs?: number, onLine?: Function, valve?: object, stormCell?: SharedArrayBuffer}} opts plus createAllocValve opts
  * @returns {{valve: object, stop: Function}}
  */
-export function startAllocValve ({ intervalMs = 1000, onLine = null, ...opts } = {}) {
-  const valve = createAllocValve(opts)
+export function startAllocValve ({ intervalMs = 1000, onLine = null, valve = null, stormCell = null, ...opts } = {}) {
+  const v = valve || createAllocValve(opts)
   let wasClosed = false
+  let lastSeq = 0
   const timer = setInterval(() => {
     let rssM = 0
     try { rssM = process.memoryUsage().rss / 1048576 } catch { return }
     let st
-    try { st = valve.sample(rssM) } catch { return }
+    try { st = v.sample(rssM) } catch { return }
     if (typeof onLine === 'function') {
       try {
         const line = valveTransitionLine({ wasClosed, st, rssM, uptimeS: Math.round(process.uptime()) })
@@ -209,10 +350,25 @@ export function startAllocValve ({ intervalMs = 1000, onLine = null, ...opts } =
       } catch { /* logging never kills the fleet */ }
     }
     wasClosed = !!(st && st.closed)
+    // (v0.104.0) the worker-probe poll: apply a fresh verdict exactly once
+    // per seq. Only when the valve is still OPEN - a same-tick sampled close
+    // absorbs the verdict (one close, one line, no double-count).
+    if (stormCell && !wasClosed) {
+      try {
+        const r = stormCellApply({ cell: stormCell, lastSeq, forceClose: a => v.forceClose(a) })
+        if (r.applied) {
+          lastSeq = r.seq
+          wasClosed = true
+          if (typeof onLine === 'function' && r.snapshot) {
+            try { onLine(valveWorkerCloseLine({ st: r.snapshot, tsS: r.tsS })) } catch { /* logging never kills the fleet */ }
+          }
+        }
+      } catch { /* the channel never kills the fleet */ }
+    }
   }, Math.max(250, intervalMs))
   try { timer.unref?.() } catch { /* older runtimes */ }
   return {
-    valve,
+    valve: v,
     stop () { try { clearInterval(timer) } catch { /* already gone */ } }
   }
 }

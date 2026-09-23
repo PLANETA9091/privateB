@@ -63,6 +63,37 @@ var sgCeil = Math.max(sgFloor + 200, Number(process.env.FLEET_STORM_CEIL_MB) || 
 var sgProbeUsed = false
 var sgWin = [] // {ts, rss}
 var sgTimer = null
+// (v0.104.0) THE STORM CELL - the worker->main verdict channel. The main
+// thread's alloc valve ticker is starved by the very storm it cures (run93:
+// the FATAL named the main thread FROZEN; the valve fired ZERO lines); this
+// worker's 5s probe is the field-proven detector (it caught run92 AND run93).
+// On the first-strike PROBE (the survivable verdict) the verdict is
+// published into the shared SAB cell: the main ticker applies it via
+// forceClose on the first post-freeze tick - refusals only matter when the
+// funnel resumes anyway, and the applied closure cuts the A* fuel so the
+// worker's own streak resets on the dip and the second strike never arms.
+// Layout + semantics mirror src/lib/allocvalve.mjs stormCellPublish (the
+// CI-tested reference; this eval worker cannot import ESM):
+//   [0] MAGIC 0x53544F52 (the main writes it at creation; absent -> never
+//       publish, the channel degrades to no-op, never to a false storm)
+//   [1] SEQ (incremented LAST - the reader applies only stable snapshots)
+//   [2] rate MB/s, [3] rss MB, [4] process.uptime() seconds
+var stormSab = workerData && workerData.storm && workerData.storm.sab
+function stormPublish (rate, rss, tsS) {
+  if (!stormSab) return
+  try {
+    var c = new Int32Array(stormSab)
+    if (c.length < 5 || c[0] !== 0x53544F52) return
+    var r = Math.round(rate)
+    var m = Math.round(rss)
+    var t = Math.round(tsS)
+    if (!(r > 0) || !(m > 0) || !(t >= 0)) return
+    c[2] = r
+    c[3] = m
+    c[4] = t
+    c[1] = c[1] + 1 // seq LAST - the reader's double-read contract
+  } catch { /* a dead channel never kills the guard */ }
+}
 function sgVerdict () {
   var t = Date.now()
   while (sgWin.length > 1 && t - sgWin[0].ts > 10000) sgWin.shift()
@@ -106,6 +137,7 @@ function sgTick () {
       if (act === 'probe') {
         sgProbeUsed = true // one survival per process lifetime
         try { fs.writeSync(writeFd, '[stormguard] STORM PROBE: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s, mainLate ' + mainLate + 'ms' + sgStory(8) + ') - SURVIVING the first strike (run61 burst class: one window, main thread still ticking); a SECOND verdict or rss >= ' + sgCeil + 'M kills\\n') } catch { /* stdout closed */ }
+        stormPublish(v.rate, v.rss, process.uptime()) // (v0.104.0) the verdict rides the storm cell to the main valve
       } else if (act === 'kill') {
         stopped = true // no further lines race the emergency report
         try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
@@ -248,7 +280,7 @@ export function gapNote (prevMs, nowMs, intervalMs, { tolerance = 2.5 } = {}) {
  */
 export const HEARTBEAT_PROBE_MS = 250
 
-export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, pulse = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
+export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, pulse = null, storm = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
   const hb = { stopped: false, mainLateMax: 0, probeExpected: 0 }
   hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: {
     intervalMs,
@@ -258,7 +290,11 @@ export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBea
     // dumps the last activity labels - '[blackbox] main freeze ~Xs; last: ...'
     bb: blackbox && blackbox.sab ? { sab: blackbox.sab } : null,
     // (v0.77.0) the freeze oscilloscope: the event-loop phase counters
-    pulse: pulse && pulse.sab ? { sab: pulse.sab } : null
+    pulse: pulse && pulse.sab ? { sab: pulse.sab } : null,
+    // (v0.104.0) the storm cell: the worker's first-strike probe verdict
+    // rides this SAB to the main valve (the freeze-class backstop feeder -
+    // the main ticker cannot be trusted to detect its own freeze)
+    storm: storm && storm.sab ? { sab: storm.sab } : null
   } })
   // (v0.62.0) the global note sink: every module can noteGlobal('pf:goal ...')
   // from here on - call sites need zero heartbeat wiring

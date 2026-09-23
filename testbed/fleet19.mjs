@@ -41,9 +41,9 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
-import { startAllocValve } from '../src/lib/allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
-import { allocValveStatsFor, setFleetHazardNear } from '../src/lib/jobqueue.mjs'
+import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
+import { STORM_CELL_MAGIC } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
 import { execFile } from 'node:child_process'
@@ -1184,9 +1184,18 @@ const onUnfreeze = lateMs => {
   console.log(unfreezeLine({ lateMs, swept, skipped: left }))
 }
 const pulseSab = createPulseSab()
+// (v0.104.0) THE STORM CELL - the worker->main verdict channel. The worker's
+// stormguard (its own thread, never starved by the main thread's sync A*)
+// publishes its first-strike probe verdict here; the fleet valve ticker
+// applies it via forceClose on the first post-freeze tick. run93's FATAL
+// caught the main thread FROZEN - the main sampler cannot be the only
+// detector. The MAGIC is written HERE at creation (an uninitialized cell
+// degrades the channel to a no-op, never to a false storm).
+const stormCell = new SharedArrayBuffer(32)
+new Int32Array(stormCell)[0] = STORM_CELL_MAGIC
 const loopPulse = createLoopPulse({ sab: pulseSab, intervalMs: 250 })
 loopPulse.start() // counters read by the heartbeat worker across any freeze
-const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, onUnfreeze })
+const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, storm: { sab: stormCell }, onUnfreeze })
 // (v0.102.0) THE ALLOCATION VALVE - the main thread watches its OWN rss every
 // 1s. The worker stormguard (floor 1200M, 5s, two-strike SIGTERM) amputates;
 // the valve (floor 600M, 1s) CURES: on the storm signature gotoSafe refuses
@@ -1197,7 +1206,15 @@ const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pu
 // closure drops the growth, the worker's streak resets on the dip, and the
 // kill never arms; if allocation continues anyway, the valve oscillates
 // closed (escalated) and the worker still kills exactly as before.
-const allocValve = startAllocValve({ onLine: line => console.log(line) })
+// (v0.104.0) THE RUN93 FIX - ONE VALVE, TWO FEEDERS: run93 (35835942682)
+// shipped TWO instances - this call built a PRIVATE valve (startAllocValve
+// always created its own) while gotoSafe consulted jobqueue's never-sampled
+// singleton: the cure could not refuse a single walk, zero [allocvalve]
+// lines, and run92's OOM class killed the run again (worker second strike,
+// rss 2626M, no FLEET RESULT). startFleetValveTicker feeds the SINGLETON
+// itself, and the stormCell poll applies the worker probe's verdict when the
+// main thread could not sample its own storm (the FATAL named it FROZEN).
+const allocValve = startFleetValveTicker({ onLine: line => console.log(line), stormCell })
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
@@ -1504,7 +1521,7 @@ const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
 const avs = allocValveStatsFor()
-console.log(`alloc valve: ${avs.closes} close(s), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed (v0.102.0 - the run92 allocation-storm cure: cut the A* fuel at the first storm signature, reopen when GC drains)`)
+console.log(`alloc valve: ${avs.closes} close(s) (${avs.workerCloses} by the worker probe), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed, ${avs.hazardRefusals} aquifer-gate refusals (v0.105.0 one valve two feeders + the aquifer gate - the run93 fix: the ticker feeds the consulted singleton, the worker's probe verdict rides the storm cell for the freeze class, and while closed the near exemption refuses live-hazard goals - near is not cheap in a flooded region)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

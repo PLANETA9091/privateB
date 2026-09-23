@@ -189,7 +189,7 @@ import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
-import { createAllocValve, valveAdmits, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
+import { createAllocValve, valveAdmits, startAllocValve, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
@@ -393,15 +393,29 @@ export function allocValveControl () {
   return {
     sample: rssMb => fleetValve.sample(rssMb),
     consult: () => fleetValve.consult(),
+    forceClose: a => fleetValve.forceClose(a), // (v0.104.0) the external-verdict backstop (tests, future feeders)
     reset: () => fleetValve.reset()
   }
+}
+
+/** (v0.104.0) THE FLEET VALVE TICKER - the SINGLETON's own feeder. fleet19
+ * calls this instead of startAllocValve's bare form: run93 (35835942682)
+ * shipped TWO instances - the ticker fed a private valve while this module's
+ * funnel consulted the never-sampled singleton, so the cure could not refuse
+ * a single walk and run92's OOM class killed the run again (zero [allocvalve]
+ * lines, worker second strike at rss 2626M). The ticker now feeds the SAME
+ * instance gotoSafe consults. opts pass through: { intervalMs, onLine,
+ * stormCell } (stormCell = the worker-probe SAB channel, the freeze-class
+ * backstop feeder). */
+export function startFleetValveTicker (opts = {}) {
+  return startAllocValve({ valve: fleetValve, ...opts })
 }
 
 /** Fleet valve counters for the FLEET RESULT block. */
 export function allocValveStatsFor () {
   const st = valveStats
   const snap = fleetValve.consult()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed }
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable

@@ -316,7 +316,7 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   assert.equal(vc.consult().closed, true)
   resetWalkGovernors()
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0 })
 })
 
 // ---- (v0.104.0) THE AQUIFER GATE at the funnel ----
@@ -327,7 +327,8 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
 // with its own named clause; a missing/throwing/junk-null board judges
 // NOTHING (the v0.102.0 distance-only shape).
 
-import { setFleetHazardNear } from '../../src/lib/jobqueue.mjs'
+import { setFleetHazardNear, startFleetValveTicker } from '../../src/lib/jobqueue.mjs'
+import { stormCellPublish, STORM_CELL_MAGIC } from '../../src/lib/allocvalve.mjs'
 
 test('alloc valve at the funnel: a NEAR walk into live hazard water is refused while closed (the aquifer gate)', async () => {
   resetWalkGovernors()
@@ -392,4 +393,44 @@ test('alloc valve at the funnel: a throwing or junk-answer board judges NOTHING 
     setFleetHazardNear(null)
     resetWalkGovernors()
   }
+})
+
+// (v0.104.0) THE RUN93 WIRING REGRESSION TEST: run93 (35835942682) shipped
+// TWO valve instances - the fleet19 ticker fed a private one while the
+// funnel consulted jobqueue's never-sampled singleton: the cure could not
+// refuse a single walk (zero [allocvalve] lines) and run92's OOM class
+// killed the run again. startFleetValveTicker is the fix: the ticker feeds
+// the SINGLETON, and the worker's probe verdict rides the storm cell. This
+// test pins the WHOLE chain end to end: publish -> ticker poll -> singleton
+// closed -> gotoSafe refuses the long walk.
+test('the fleet valve ticker feeds the CONSULTED singleton: publish -> poll -> closed -> the funnel refuses (run93 regression pin)', async () => {
+  resetWalkGovernors()
+  const cell = new SharedArrayBuffer(32)
+  new Int32Array(cell)[0] = STORM_CELL_MAGIC
+  stormCellPublish({ cell, rate: 183, rss: 2626, tsS: 581 }) // the run93 worker verdict
+  const h = startFleetValveTicker({ intervalMs: 250, stormCell: cell, onLine: null })
+  try {
+    await new Promise(r => setTimeout(r, 800)) // one 250ms tick minimum
+    const snap = allocValveControl().consult()
+    assert.equal(snap.closed, true, 'the SINGLETON is closed - the ticker fed the consulted instance')
+    assert.equal(snap.lastSource, 'worker-probe')
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      pathfinder: { goto: async () => 'done', stop: () => {} }
+    }
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the cure refuses the long walk at the funnel')
+    assert.ok(allocValveStatsFor().refusals >= 1)
+    assert.equal(allocValveStatsFor().workerCloses, 1, 'the close is booked to the worker-probe feeder')
+  } finally {
+    h.stop()
+    resetWalkGovernors()
+  }
+})
+
+test('the fleet valve ticker: a forceClose through the control surface also closes the singleton (the backstop path)', () => {
+  resetWalkGovernors()
+  allocValveControl().forceClose({ rate: 145, rss: 1711 })
+  assert.equal(allocValveControl().consult().closed, true)
+  assert.equal(allocValveControl().consult().lastSource, 'worker-probe')
+  resetWalkGovernors()
 })

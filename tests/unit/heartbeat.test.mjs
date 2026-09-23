@@ -60,6 +60,22 @@ test('heartbeat source: writes STRAIGHT to fd 1 (the whole point of the design)'
   assert.match(HEARTBEAT_WORKER_SRC, /m === 'stop'/, 'worker must self-exit on stop')
 })
 
+test('heartbeat source: the storm cell publish mirrors allocvalve.stormCellPublish (v0.104.0)', () => {
+  // The eval worker cannot import ESM - the publish is hand-mirrored. If the
+  // mirror drifts (layout, write order, magic, the probe-branch call site),
+  // the main valve loses its freeze-class feeder exactly when it matters.
+  assert.match(HEARTBEAT_WORKER_SRC, /var stormSab = workerData && workerData\.storm && workerData\.storm\.sab/, 'the cell arrives through workerData.storm')
+  assert.match(HEARTBEAT_WORKER_SRC, /0x53544F52/, 'the magic matches STORM_CELL_MAGIC')
+  assert.match(HEARTBEAT_WORKER_SRC, /c\[1\] = c\[1\] \+ 1/, 'seq is written LAST (the reader double-read contract)')
+  assert.match(HEARTBEAT_WORKER_SRC, /stormPublish\(v\.rate, v\.rss, process\.uptime\(\)\)/, 'the probe verdict is the publish site')
+  // the publish must sit INSIDE the probe branch (the survivable verdict),
+  // after the probe line - a kill-path publish would be a lie (the process dies)
+  const probeIdx = HEARTBEAT_WORKER_SRC.indexOf("act === 'probe'")
+  const pubIdx = HEARTBEAT_WORKER_SRC.indexOf('stormPublish(v.rate')
+  const killIdx = HEARTBEAT_WORKER_SRC.indexOf("act === 'kill'")
+  assert.ok(probeIdx > 0 && pubIdx > probeIdx && (killIdx < 0 || pubIdx < killIdx), 'the publish rides the PROBE branch, between probe and kill')
+})
+
 test('gap note: silent within tolerance, loud past it, never on bad clocks', () => {
   const IV = 15000
   assert.equal(gapNote(0, IV, IV), null, 'a normal tick is no gap')
@@ -93,7 +109,8 @@ test('start heartbeat: eval worker, unref, guarded listeners, injected ctor', ()
   // (v0.62.0) the blackbox rides workerData (bb: null without a box) - the
   // worker reads the shared ring DIRECTLY during a main-thread freeze
   // (v0.77.0) the freeze oscilloscope rides the same way (pulse: null without one)
-  assert.deepEqual(w.opts.workerData, { intervalMs: 20000, writeFd: 1, bb: null, pulse: null })
+  // (v0.104.0) the storm cell rides the same way (storm: null without one)
+  assert.deepEqual(w.opts.workerData, { intervalMs: 20000, writeFd: 1, bb: null, pulse: null, storm: null })
   assert.equal(w.unrefed, true, 'a heartbeat must never extend the fleet life (OOM path included)')
   assert.equal((w.listeners.get('error') ?? []).length, 1, 'an error listener must exist: dead heartbeat != dead fleet')
   // onBeat receives what the worker posts...
