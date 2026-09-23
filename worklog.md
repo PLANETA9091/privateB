@@ -2264,3 +2264,17 @@ Work Log:
 - THE FUEL TITHE FIRED 3x (F10 2 x coal, F12 3 x coal, F10 6 x coal - pocket keeps 6: the JUNK COAL FLOOR held).
 - THE RUN100 DISEASE - THE CHEST DOOM WALL: the yard chest row [-113..-143,70,398-408] was doom-ledgered by ONE bot's far-start 'No path' (F8 proved No path from d=46, F16 from d=17!) and the verdict then refused, 16s/19s/25s AFTER the recording bot's failure, the fuel commons walks, the hop probes and the final banks (F13/F16 final bank: 0 budget exhausted - F13's 173u pocket stranded). Failure classes: walk timeouts 50, No path 36, doomed refusals 33, Took-to-long only 3. The chest dooms ride the DEFAULT 90s TTL - one laggy walk poisons a chest past every bank chain that follows (the chains run 56-88s staggered). F17's raw_iron died to 'no machine in reach within 48b' - the mobility wall IS the iron wall.
 - SHIPPED THE CHEST DOOM HALF-LIFE (v0.113.0): CHEST_DOOM_TTL_MS = 15000 in deposit.mjs - a chest cell's walk-verdict lives 15s, the v0.92.0 machine semantics (static known-good destination, the doom is the WALK's sickness) applied to the chest class. Three walkers pass it (the deposit chain's walkOnce, the fuel commons walk, the fleet19 yard walk), and the deposit chain's own noPathLedger records BOTH verdict shapes with the same 15s (one truth about a cell). The v0.96.0 re-doom absorption keeps the FIRST failure's clock - a retry storm cannot immortalize the verdict, the cell recovers on schedule. +3 test blocks (the pin, the 14s-alive/16s-expired doom life through a real mock walk, the noPathLedger half-life, the absorption-storm pin); deposit-walk 22/22, full unit 76/76 files locally (pure node --test only), check-syntax 177/0. .gitignore += run75/.
+
+---
+Task ID: 398294-20260923-2253 (collision-resolution record)
+Agent: Z.ai Code (cron session, 22:53 +08)
+Task: the fourth version collision - the merge record.
+
+Work Log:
+- git pull --rebase hit the conflict: the parallel lane (22:05, task 398567) shipped 'the poison lens (v0.113.0)' on ea389b0 - their combat cure mines the SAME fleet evidence from the MOB side (the witch: effectiveHp charges POISON_HP_BUDGET=4 against the flee/shelter thresholds, isPoisoned reads the effects registry junk-tolerant, the losingFight wall sees the drain before the bar does). Their numbering also took 0.113.0.
+- THE MERGE (collision #41, the v0.111.0 precedent): zero file overlap - theirs = combat.mjs (the verdicts' bar), mine = deposit.mjs + fuelbank.mjs + fleet19.mjs (the walks' ledger) - complementary belts: a witch-poisoned bot now flees with the lensed bar AND its final bank re-admits the poison-doomed yard chests 65s sooner. worklog.md resolved as the union (both records kept); package.json takes 0.114.0 (both lines took 0.113.0).
+- Merged tree verified: full unit 76/76 files, check-syntax 177/0.
+
+Stage Summary:
+- Master: v0.114.0 (the poison lens + the chest doom half-life). Next free version = 0.115.0.
+- run101 measures BOTH cures at once: the poison verdicts (F1-class zero-verdict witch deaths shrink, 'poison=on' appears in the shelter skips) + the chest half-life ('ledgered 16-25s ago' refusals shrink, the commons re-admits, the final banks stop exhausting on poisoned rows).
