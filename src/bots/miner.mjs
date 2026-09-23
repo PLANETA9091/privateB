@@ -12,7 +12,7 @@ import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
 import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
-import { depositToChests, inventoryLoad } from '../lib/deposit.mjs'
+import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
 import { torchDue, torchWallDirs } from '../lib/torch.mjs'
@@ -2282,7 +2282,11 @@ export function createMiner ({
             }
             throw e
           }
-          const gained = inventoryCount() - before
+          // (v0.110.0) THE COLLECT GAIN FLOOR: the delta can read negative when
+          // anything consumes pocket items while the collect runs (a breaking
+          // tool, food under mob pressure, the 26.2 stale-view flip) - run98's
+          // F9 mined its way to -17. A loss is not a negative mine.
+          const gained = collectGain(before, inventoryCount())
           areaStats.mined += gained
           areaStats.byName[block.name] = (areaStats.byName[block.name] || 0) + 1
           // the miner's main stats must see this too (fleetStats and the fleet reporter read it)

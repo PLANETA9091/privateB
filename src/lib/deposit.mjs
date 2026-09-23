@@ -317,6 +317,23 @@ export function fuelTitheOverage ({ name = null, pocketCount = 0 } = {}) {
   return Math.max(0, Math.floor(total) - bound)
 }
 
+// (v0.110.0) THE COLLECT GAIN FLOOR - the collectArea/gatherWood job queue reads
+// its loot as the pocket DELTA (count after minus count before the collect).
+// Run98 (35859636312) showed the delta can go NEGATIVE: anything that consumes
+// pocket items while the collect runs (a tool breaking mid-collect, food eaten
+// under mob pressure, the 26.2 stale-view flip) reads as negative gain and the
+// bot's stats.mined counter DRIFTED DOWN - F9's fleet snapshot printed
+// 'F9=-17[empty]', a mined counter below zero, and every negative drift also
+// corrupts the loot-ledger conversion math. The honest floor: a collect either
+// gained pocket units (the count) or did not (0) - a concurrent LOSS is not a
+// negative mine. Pure, junk-safe: non-finite reads 0.
+export function collectGain (before = 0, after = 0) {
+  const b = Number(before)
+  const a = Number(after)
+  if (!Number.isFinite(b) || !Number.isFinite(a)) return 0
+  return Math.max(0, a - b)
+}
+
 // Rough fullness metric: 36 slots total (27 main + 9 hotbar); stack size 64 makes
 // empty slots carry 64 units of headroom.
 export function inventoryLoad (bot) {

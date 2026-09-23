@@ -4,7 +4,7 @@ import { test, beforeEach } from 'node:test'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { inventoryLoad, findChest, depositToChest, depositToChests, fuelTitheOverage, KEEP } from '../../src/lib/deposit.mjs'
+import { inventoryLoad, findChest, depositToChest, depositToChests, fuelTitheOverage, collectGain, KEEP } from '../../src/lib/deposit.mjs'
 
 // Unique stable numeric type per item name - the REAL code calls window.deposit(item.type),
 // so a mock where every item shares type 1 would remove the WRONG item (that bug made
@@ -240,6 +240,24 @@ test('fuelTitheOverage is junk-safe and exact-name', () => {
   assert.equal(fuelTitheOverage({ name: null, pocketCount: 38 }), 0)
   assert.equal(fuelTitheOverage({ name: 'coal_ore', pocketCount: 38 }), 0, 'exact names only')
   assert.equal(fuelTitheOverage({ name: 'cobblestone', pocketCount: 64 }), 0)
+})
+
+// (v0.110.0) THE COLLECT GAIN FLOOR - run98's F9 printed 'F9=-17[empty]': the
+// collectArea job queue read its loot as the pocket delta and a concurrent
+// pocket loss (a breaking tool, the 26.2 stale-view flip) drifted the mined
+// counter BELOW ZERO. A loss is not a negative mine.
+test('collectGain floors at zero - a concurrent pocket loss is not a negative mine', () => {
+  assert.equal(collectGain(10, 13), 3, 'an honest gain counts')
+  assert.equal(collectGain(10, 10), 0, 'no gain, no fiction')
+  assert.equal(collectGain(10, 7), 0, 'the F9 class: a loss never subtracts')
+  assert.equal(collectGain(10, 0), 0, 'a whole-pocket read of zero (stale view) is not -10')
+  assert.equal(collectGain(0, 0), 0)
+  assert.equal(collectGain(0, 5), 5)
+  // junk shapes read 0
+  assert.equal(collectGain(NaN, 5), 0)
+  assert.equal(collectGain(5, undefined), 0)
+  assert.equal(collectGain('junk', 10), 0)
+  assert.equal(collectGain(), 0)
 })
 
 // ------------------------------------------------------------------ v0.25.0

@@ -17,8 +17,10 @@ import {
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
-  furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX
+  furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
+  JUNK_COAL_FLOOR
 } from '../../src/lib/smelting.mjs'
+import { FUEL_TITHE_BOUND } from '../../src/lib/deposit.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and a
 // mock where two items share type 1 moves the WRONG stack (the deposit.test lesson).
@@ -243,20 +245,28 @@ test('pickFuel JUNK window (default) burns spare wood FIRST - the run97 misalloc
   assert.equal(fuel.count, 2) // only the amount ABOVE the 8 reserve is burnable
 })
 
-test('pickFuel JUNK window: no spare wood -> the solid pick is the honest last resort', () => {
-  // the legacy behavior the pockets WITHOUT wood already lived - byte for byte
-  const bot = makeMockBot({ items: [item('coal', 2)] })
-  const fuel = pickFuel(bot, { itemsNeeded: 20 })
-  assert.equal(fuel.name, 'coal')
-  assert.equal(fuel.count, 2)
+test('pickFuel JUNK window: coal AT the floor is the honest skip (the v0.110.0 floor)', () => {
+  // run98's F4 class: a wood-less pocket burned its coal to nothing on junk
+  // windows BEFORE any chest contact - the tithe never had an overage and the
+  // fuel-less bots stayed unfunded. The floor keeps the tithe bound in every
+  // pocket; a junk window with only floor-level coal now skips honestly.
+  const bot = makeMockBot({ items: [item('coal', JUNK_COAL_FLOOR)] })
+  assert.equal(pickFuel(bot, { itemsNeeded: 20 }), null)
+  const below = makeMockBot({ items: [item('coal', 2)] })
+  assert.equal(pickFuel(below, { itemsNeeded: 20 }), null)
 })
 
-test('pickFuel JUNK window: wood at or below reserves -> coal, the tool lane survives', () => {
-  // the reserves protect the plank rung's and bootstrap's exact needs: a pocket
-  // holding only reserve-level wood does NOT feed its wood to a junk window
-  const bot = makeMockBot({ items: [item('coal', 2), item('oak_planks', 8), item('stick', 2)] })
-  const fuel = pickFuel(bot, { itemsNeeded: 5 })
+test('pickFuel JUNK window: coal ABOVE the floor burns only the above-floor amount', () => {
+  // the overage above the floor is the tithe's rightful prey - a junk window
+  // may burn it, but never the floor itself; the amount also stays bounded by
+  // the batch's real fuel need (the legacy fuelNeeded min)
+  const bot = makeMockBot({ items: [item('coal', 22)] })
+  const fuel = pickFuel(bot, { itemsNeeded: 64 }) // 64 cobble need 8 coal
   assert.equal(fuel.name, 'coal')
+  assert.equal(fuel.count, 8) // min(22-6, 8)
+  const big = makeMockBot({ items: [item('coal', 22)] })
+  const fuelBig = pickFuel(big, { itemsNeeded: 400 }) // a huge batch may take ALL the overage
+  assert.equal(fuelBig.count, 16)
 })
 
 test('pickFuel junk-window truthiness is judged STRICTLY (only ===true opens the metal lane)', () => {
@@ -269,6 +279,16 @@ test('pickFuel junk-window truthiness is judged STRICTLY (only ===true opens the
   assert.equal(junkNull.name, 'oak_planks')
 })
 
+test('pickFuel METAL window: the floor does NOT bind - the ladder outranks it', () => {
+  // the metal lane keeps the legacy UNBOUNDED solid pick: a pocket with only
+  // floor-level coal still funds its raw_copper window (the F16 rescue - the
+  // pocket's own coal is the metal ladder's first funder)
+  const bot = makeMockBot({ items: [item('coal', JUNK_COAL_FLOOR)] })
+  const fuel = pickFuel(bot, { itemsNeeded: 20, metalWindow: true })
+  assert.equal(fuel.name, 'coal')
+  assert.equal(fuel.count, Math.ceil(20 / 8))
+})
+
 test('pickFuel METAL window: reserves and the at-or-below pin stand unchanged', () => {
   // the v0.109.0 reorder must not touch the reserve arithmetic in either lane
   const bot3 = makeMockBot({ items: [item('oak_planks', 8), item('stick', 2)] })
@@ -277,6 +297,12 @@ test('pickFuel METAL window: reserves and the at-or-below pin stand unchanged', 
   const fuel4 = pickFuel(bot4, { itemsNeeded: 20, reserveLogs: 6, metalWindow: true })
   assert.equal(fuel4.name, 'birch_log')
   assert.equal(fuel4.count, 2)
+})
+
+// (v0.110.0) THE JUNK COAL FLOOR - the pair pin
+ test('JUNK_COAL_FLOOR is the tithe bound - the two cures share one number', () => {
+  assert.equal(JUNK_COAL_FLOOR, FUEL_TITHE_BOUND)
+  assert.equal(JUNK_COAL_FLOOR, 6)
 })
 
 // ---------------------------------------------------------------- smeltables
@@ -386,7 +412,7 @@ test('smeltBatch refuses a busy machine without losing items', async () => {
 
 test('smeltBatch rescues abandoned output from an idle machine first', async () => {
   const furnace = new MockFurnace({ startOutput: item('glass', 5) })
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 7)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST })
   assert.equal(res.rescued, 5, 'the 5 abandoned glass are fleet property')
   assert.equal(res.smelted, 4, 'and our own batch still smelted')
@@ -396,19 +422,19 @@ test('smeltBatch rescues abandoned output from an idle machine first', async () 
 
 test('smeltBatch timeout gives input and fuel back, machine left clean', async () => {
   const furnace = new MockFurnace({ mode: 'never' }) // output never appears
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('coal', 7)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 6, maxSeconds: 0.15, ...FAST })
   assert.equal(res.smelted, 0)
   assert.equal(res.reason, 'timeout')
   const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
   assert.equal(counts('sand'), 6, 'input pulled back out')
-  assert.equal(counts('coal'), 1, 'unburned fuel pulled back out')
+  assert.equal(counts('coal'), 7, 'unburned fuel pulled back out')
   assert.ok(furnace.closed)
 })
 
 test('smeltBatch detects ghost input transfers (26.2 desync)', async () => {
   const furnace = new MockFurnace({ mode: 'ghostInput' })
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('coal', 7)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 6, ...FAST })
   assert.equal(res.smelted, 0)
   assert.equal(res.reason, 'input transfer failed')
@@ -430,10 +456,10 @@ test('smeltBatch without fuel leaves the inventory untouched', async () => {
 test('smeltBatch survives a dead window and an unreachable machine', async () => {
   const dead = new MockFurnace({})
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [dead], items: [item('sand', 4), item('coal', 1)], openThrows: true })
+  const bot = makeMockBot({ machines: [dead], items: [item('sand', 4), item('coal', 7)], openThrows: true })
   const res = await smeltBatch(bot, { machineBlock: dead, inputName: 'sand', count: 4, ...FAST })
   assert.equal(res.reason, 'cannot open (window dead)')
-  const bot2 = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot2 = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   const res2 = await smeltBatch(bot2, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
   assert.match(res2.reason, /machine unreachable/)
 })
@@ -445,7 +471,7 @@ test('smeltInventory smelts several input types and skips busy machines', async 
   const blast = new MockFurnace({ name: 'blast_furnace', position: new Vec3(4, 64, 4) })
   const bot = makeMockBot({
     machines: [busy, blast, free],
-    items: [item('sand', 8), item('iron_ore', 4), item('coal', 2)]
+    items: [item('sand', 8), item('iron_ore', 4), item('coal', 8)]
   })
   const res = await smeltInventory(bot, { ...FAST })
   assert.equal(res.smelted, 12)
@@ -458,7 +484,7 @@ test('smeltInventory smelts several input types and skips busy machines', async 
 test('smeltInventory routes food to a smoker before plain furnaces', async () => {
   const smoker = new MockFurnace({ name: 'smoker', position: new Vec3(2, 64, 2) })
   const furnace = new MockFurnace({ position: new Vec3(8, 64, 8) })
-  const bot = makeMockBot({ machines: [smoker, furnace], items: [item('beef', 3), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [smoker, furnace], items: [item('beef', 3), item('coal', 7)] })
   const res = await smeltInventory(bot, { ...FAST })
   assert.equal(res.outputs.cooked_beef, 3)
   assert.ok(smoker.opened > 0)
@@ -483,7 +509,7 @@ test('smeltInventory asks the fuelResupply hook before the no-fuel verdict, and 
     ...FAST,
     fuelResupply: ({ itemsNeeded }) => {
       asks.push(itemsNeeded)
-      bot._items.push(item('coal', 2)) // the commons answers
+      bot._items.push(item('coal', 7)) // the commons answers (above the junk floor)
     }
   })
   assert.deepEqual(asks, [8], 'the hook read the live plan count')
@@ -514,7 +540,7 @@ test('smeltInventory: a resupply that lands nothing still reads no fuel', async 
 
 test('smeltInventory stops instantly with a negative time budget', async () => {
   const furnace = new MockFurnace({})
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8), item('coal', 7)] })
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: -1 })
   assert.equal(res.smelted, 0, 'no budget -> no smelting, no crash')
 })
@@ -527,7 +553,7 @@ test('smeltInventory stops instantly with a negative time budget', async () => {
 // every walk attempt into the caller's remaining wall clock.
 test('smeltBatch: a visit budget stops the walk retries when the clock is out', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   const slices = []
   // a slow-failing walk: each attempt burns ~1.6s of the visit's wall clock
   bot.pathfinder.goto = async goal => {
@@ -546,7 +572,7 @@ test('smeltBatch: a visit budget stops the walk retries when the clock is out', 
 
 test('smeltBatch: no visit budget keeps the legacy 3 walk attempts for TRANSIENT failures', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   let calls = 0
   // (v0.72.0) the legacy 3-attempt loop applies to TRANSIENT walk failures
   // (saturation timeouts, interrupted walks) - a dead-geometry verdict ('no
@@ -561,7 +587,7 @@ test('smeltBatch: no visit budget keeps the legacy 3 walk attempts for TRANSIENT
 
 test('smeltBatch: a dead-geometry verdict gets ONE shared-bay re-arm, then the funnel closes (v0.72.0 + v0.89.0)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   let calls = 0
   bot.pathfinder.goto = async () => { calls++ ; throw new Error('No path to the goal!') }
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
@@ -581,7 +607,7 @@ test('smeltBatch: a dead-geometry verdict gets ONE shared-bay re-arm, then the f
 test('smeltBatch: a yard-adjacent bot re-arms the doomed consult on EVERY attempt (the F17 cure, v0.99.0)', async () => {
   // dist((0.5,64,0.5) -> (6,64,6)) = 7.78 <= 10 (adjacent), > 4.5 (no reach-open)
   const yard = new MockFurnace({ position: new Vec3(6, 64, 6) })
-  const bot = makeMockBot({ machines: [yard], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [yard], items: [item('sand', 4), item('coal', 7)] })
   assert.ok(SMELT_YARD_NEAR_DISTANCE === 10)
   recordDoomedGoal({ x: 6, y: 64, z: 6 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS }) // another bot's storm verdict
   let calls = 0
@@ -595,7 +621,7 @@ test('smeltBatch: a yard-adjacent bot re-arms the doomed consult on EVERY attemp
 
 test('smeltBatch: a FAR bot keeps the v0.89.0 shape on a doomed cell (refuse, one re-arm, refuse)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
   recordDoomedGoal({ x: 50, y: 64, z: 50 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS })
   let calls = 0
   bot.pathfinder.goto = async () => { calls++; return undefined } // the storm cleared: the honest re-arm walk SUCCEEDS
@@ -608,7 +634,7 @@ test('smeltBatch: a FAR bot keeps the v0.89.0 shape on a doomed cell (refuse, on
 
 test('smeltBatch: junk positions never unlock the yard re-arm (the legacy shape byte for byte)', async () => {
   const yard = new MockFurnace({ position: new Vec3(6, 64, 6) })
-  const bot = makeMockBot({ machines: [yard], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [yard], items: [item('sand', 4), item('coal', 7)] })
   bot.entity.position = new Vec3(NaN, 64, NaN) // an unknown position is a FAR bot
   assert.equal(machineWithinReach({ from: bot.entity.position, pos: yard.position, reach: SMELT_YARD_NEAR_DISTANCE }), false)
   recordDoomedGoal({ x: 6, y: 64, z: 6 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS })
@@ -622,7 +648,7 @@ test('smeltBatch: junk positions never unlock the yard re-arm (the legacy shape 
 
 test('smeltInventory: the visit budget threads into every batch it starts', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
   const seen = []
   bot.pathfinder.goto = async goal => {
     seen.push(goal)
@@ -646,7 +672,7 @@ test('smeltInventory: a spent walk slice closes the machine scan (run82: 8 x vis
   // machine 1 pays the goto, its attempt 2 reads slice 0 and refuses - machines
   // 2..4 must NEVER re-refuse (the v0.93.0 spent-slice stop closes the scan).
   const machines = [0, 1, 2, 3].map(i => new MockFurnace({ position: new Vec3(40 + i, 64, 40 + i) }))
-  const bot = makeMockBot({ machines, items: [item('sand', 6), item('coal', 2)] })
+  const bot = makeMockBot({ machines, items: [item('sand', 6), item('coal', 7)] })
   bot.pathfinder.goto = async () => { await new Promise(r => setTimeout(r, 2100)); throw new Error('walk to furnace: timeout after Nms') }
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: 3 })
   assert.equal(res.smelted, 0)
@@ -701,7 +727,7 @@ test('smeltZeroWhy: the zero verdict names every attempt, junk-safe', () => {
 
 test('smeltInventory: a zero records WHY per machine - the honest attempts (v0.89.0)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   bot.pathfinder.goto = async () => { throw new Error('No path to the goal!') }
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30 })
   assert.equal(res.smelted, 0)
@@ -713,7 +739,7 @@ test('smeltInventory: a zero records WHY per machine - the honest attempts (v0.8
 })
 
 test('smeltInventory: an empty machine scan is a verdict - no machine in reach (collision #39 union shape)', async () => {
-  const bot = makeMockBot({ machines: [], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [], items: [item('sand', 4), item('coal', 7)] })
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30 })
   assert.equal(res.smelted, 0)
   assert.deepEqual(res.attempts, [{ name: 'sand', machine: 'furnace', reason: 'no machine in reach (furnace within 48b)' }])
@@ -721,7 +747,7 @@ test('smeltInventory: an empty machine scan is a verdict - no machine in reach (
 
 test('smeltBatch: the reach-open skips the walk entirely - sick yard paths cannot starve the bay', async () => {
   const near = new MockFurnace({ position: new Vec3(3.5, 64, 3.5) }) // ~4.24 from the bot
-  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 1)], gotoFails: true })
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   let gotoCalls = 0
   bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('No path to the goal!') }
   const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST })
@@ -732,7 +758,7 @@ test('smeltBatch: the reach-open skips the walk entirely - sick yard paths canno
 
 test('smeltBatch: the walk ladder hugs on attempt 1 and stands off on the retries', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
-  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
   const reaches = []
   bot.pathfinder.goto = async goal => { reaches.push(Math.sqrt(goal.rangeSq)); throw new Error('walk to furnace: timeout after Nms') }
   await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
@@ -892,7 +918,7 @@ test('smeltBatch: a 93-cobble batch puts 64 and the pocket keeps the surplus (th
   const puts = []
   const origPut = f.putInput.bind(f)
   f.putInput = async (type, meta, count) => { puts.push(count); await origPut(type, meta, count) }
-  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 93), item('coal', 12)] })
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 93), item('coal', 18)] })
   await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 93, ...FAST })
   assert.deepEqual(puts, [64], 'the put asked for 64, never 93 (the destination-full class)')
   // the mock's window rows take ONE item per slot (36 rows), so a full 64-take
@@ -903,7 +929,7 @@ test('smeltBatch: a 93-cobble batch puts 64 and the pocket keeps the surplus (th
 
 test('smeltBatch: a capped put smelts end to end (30 cobble, inside the mock row space)', async () => {
   const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5) })
-  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 30), item('coal', 4)] })
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 30), item('coal', 10)] })
   const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 30, ...FAST })
   assert.equal(res.smelted, 30, 'the whole capped batch smelted and returned')
   assert.equal(res.reason, 'ok')
@@ -915,7 +941,7 @@ test('smeltBatch: the swapped-put lie is a named slot-mismatch verdict with the 
   // simulate the slot-map lie: the input put lands in the FUEL slot, the fuel put in the INPUT slot
   f.putInput = async (type) => { const e = [...TYPES.entries()].find(([, t]) => t === type); f._absorb('fuel', e?.[0], 20) }
   f.putFuel = async (type) => { const e = [...TYPES.entries()].find(([, t]) => t === type); f._absorb('input', e?.[0], 3) }
-  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 20), item('coal', 3)] })
+  const bot = makeMockBot({ machines: [f], items: [item('cobblestone', 20), item('coal', 9)] })
   const res = await smeltBatch(bot, { machineBlock: f, inputName: 'cobblestone', count: 20, ...FAST })
   assert.equal(res.smelted, 0, 'the lie never collects')
   assert.equal(res.reason, 'slot mismatch (input=coal, fuel=cobblestone, want cobblestone)', 'the verdict names the disagreement')
@@ -927,7 +953,7 @@ test('smeltBatch: the swapped-put lie is a named slot-mismatch verdict with the 
 
 test('smeltBatch: a completed batch pulls the leftover fuel back (the machine reads free, never busy)', async () => {
   const f = new MockFurnace({ position: new Vec3(1.5, 64, 0.5), fuelUnitsPer: 100 })
-  const bot = makeMockBot({ machines: [f], items: [item('sand', 8), item('coal', 1)] })
+  const bot = makeMockBot({ machines: [f], items: [item('sand', 8), item('coal', 7)] })
   const res = await smeltBatch(bot, { machineBlock: f, inputName: 'sand', count: 8, ...FAST })
   assert.equal(res.smelted, 8, 'the batch completed')
   assert.equal(res.reason, 'ok')
@@ -968,7 +994,13 @@ test('pickFuel ONE-ITEM FLOOR: a capacity-0 plan is not a fuel plan (run108 F13)
   const botPlanks = makeMockBot({ items: [item('oak_planks', 10)] })
   assert.deepEqual(pickFuel(botPlanks, { itemsNeeded: 6 }), { name: 'oak_planks', count: 2 }, 'the clipped-but-completing plank shape stands (cap 3)')
   const botCoal = makeMockBot({ items: [item('coal', 1), item('sand', 6)] })
-  assert.deepEqual(pickFuel(botCoal, { itemsNeeded: 6 }), { name: 'coal', count: 1 }, 'one coal covers 8 - the legacy solid shape byte for byte')
+  assert.deepEqual(pickFuel(botCoal, { itemsNeeded: 6, metalWindow: true }), { name: 'coal', count: 1 }, 'one coal covers 8 - the METAL lane keeps the legacy solid shape byte for byte (the floor never binds the ladder)')
+  // (v0.110.0, merged) the JUNK COAL FLOOR: a wood-less JUNK window with only
+  // sub-floor coal is the honest skip - the floor's 6 stay for the metal
+  // windows and the tithe/bank chain (run98 F4: coal:22 burned to nothing on
+  // cobblestone BEFORE any chest contact). The commons' job is the ladder -
+  // a resupply of coal:1 funds a METAL window, never a junk one.
+  assert.equal(pickFuel(botCoal, { itemsNeeded: 6 }), null, 'sub-floor coal in a junk window is the honest skip')
 })
 
 test('smeltBatch: the fuel clips the batch to what actually completes', async () => {
@@ -997,8 +1029,12 @@ test('smeltBatch: a stick-only pocket is an honest no-fuel verdict, nothing ente
 })
 
 test('smeltInventory: a starved pocket asks the commons and the withdrawn coal smelts (run108 F13 cure)', async () => {
+  // (v0.110.0, merged) the input is a METAL - the commons exists to fund the
+  // ladder (run108's F13 was a raw_iron window), and the junk coal floor must
+  // not starve it: a metal window rides the UNBOUNDED solid pick, so the
+  // withdrawn coal:1 funds it fully.
   const furnace = new MockFurnace({})
-  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('stick', 3)] })
+  const bot = makeMockBot({ machines: [furnace], items: [item('iron_ore', 6), item('stick', 3)] })
   const asks = []
   const res = await smeltInventory(bot, {
     ...FAST,

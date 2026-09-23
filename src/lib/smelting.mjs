@@ -308,6 +308,20 @@ export function fuelCapacity (fuel) {
   return Math.floor(n * y)
 }
 
+// (v0.110.0, merged) THE JUNK COAL FLOOR - the junk lane's coal last resort
+// gains the tithe bound. Run98 (35859636312) measured the hole in the
+// wood-first pick: a pocket WITHOUT wood (the late-run majority - logs got
+// crafted, planks got burned) fell through to the unbounded solid pick and
+// F4's coal:22 burned to nothing on cobblestone windows BEFORE any chest
+// contact (units 173->178 - burned, not banked) - the tithe never had an
+// overage and the fuel-less bots (F16 raw_copper:5, F18 raw_copper:19) stayed
+// 'no fuel' x22. The floor keeps FUEL_TITHE_BOUND coal in every pocket -
+// exactly one commons withdrawal (min(6, fuelNeeded)) - so a metal window in
+// the SAME pocket is always funded. A METAL window keeps the solid pick
+// UNBOUNDED (the ladder outranks the floor). Kept equal to deposit.mjs's
+// FUEL_TITHE_BOUND; a test pins the pair.
+export const JUNK_COAL_FLOOR = 6
+
 const inventoryItems = bot => bot.inventory.items()
 export const countItem = (bot, name) => inventoryItems(bot).filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
 const countMatching = (bot, re) => inventoryItems(bot).filter(i => re.test(i.name)).reduce((a, i) => a + i.count, 0)
@@ -367,20 +381,23 @@ export function pickFuel (bot, { itemsNeeded = 1, reservePlanks = 8, reserveLogs
     }
     return null
   }
-  const solidPick = () => {
+  const solidPick = (reserve = 0) => {
+    const r = Number.isFinite(reserve) && reserve > 0 ? Math.floor(reserve) : 0
     const solid = ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']
       .map(name => ({ name, count: countItem(bot, name) }))
-      .filter(f => f.count > 0)
+      .filter(f => f.count > r)
       .sort((a, b) => b.count - a.count)
     if (!solid.length) return null
     const f = solid[0]
-    return usable({ name: f.name, count: Math.min(f.count, fuelNeeded(f.name, itemsNeeded)) })
+    return usable({ name: f.name, count: Math.min(f.count - r, fuelNeeded(f.name, itemsNeeded)) })
   }
-  // junk window: wood first, coal last (the v0.109.0 reorder); metal window:
-  // the legacy coal-first order stands byte for byte. STRICT true: only the
-  // METAL_INPUTS.has() verdict may open the metal lane - junk truthiness
-  // judges nothing (the Number(null) strikes: a truthy string is not a plan).
-  return metalWindow === true ? (solidPick() || woodPick()) : (woodPick() || solidPick())
+  // junk window: wood first, coal last AND only above the floor (the v0.109.0
+  // reorder + the v0.110.0 floor); metal window: the legacy coal-first order
+  // stands byte for byte (reserve 0 = the legacy unbounded solid pick).
+  // STRICT true: only the METAL_INPUTS.has() verdict may open the metal lane -
+  // junk truthiness judges nothing (the Number(null) strikes: a truthy string
+  // is not a plan).
+  return metalWindow === true ? (solidPick() || woodPick()) : (woodPick() || solidPick(JUNK_COAL_FLOOR))
 }
 
 // What in this inventory is worth smelting (biggest piles first). Cobblestone is
@@ -768,6 +785,9 @@ export async function smeltInventory (bot, {
     if (Date.now() - started > maxSeconds * 1000) break
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
     if (left() <= 0) continue
+    // (v0.110.0, merged) the probe is honest by construction: pickFuel's
+    // ONE-ITEM FLOOR (the usable() wrapper) already refuses capacity-0 plans
+    // (1 x stick against any batch reads as no fuel) - the walk is not spent
     if (!pickFuel(bot, { itemsNeeded: left(), metalWindow: METAL_INPUTS.has(name), ...(fuelReserve ?? {}) })) {
       // (v0.98.0) THE FUEL COMMONS: run86's zeros named the class 3x - bots stood
       // AT the machines with smeltables and an empty fuel pocket while OTHER bots'
