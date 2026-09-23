@@ -21,7 +21,8 @@ import { ClaimBoard, attachClaimSync, attachHazardSync } from '../src/fleet/clai
 import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS } from '../src/lib/deposit.mjs'
+import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -225,6 +226,44 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       const spyStop = () => spy('path_stop (explicit)')
       let walkStart = Date.now()
       let rearm = false // (v0.87.0) the doomed-goal re-arm: attempt 2/3 re-issue the yard goal with the ledger opt-in
+      // (v0.124.0) THE YARD APPROACH: run107 (35915999513, NORMAL END but
+      // banked=13 on 3485 mined, unaccounted 1284): the bank chains climbed out
+      // (F2: +14 levels, 116s of a 162s budget) and the yard walk then died
+      // 'chest unreachable (No path to the goal!) (51 blocks from yard)' -
+      // 51 > searchRadius 48, a walk doomed BY CONSTRUCTION, x31 fleet-wide,
+      // and each failure doom-ledgered the chest cells for 15s (1074 funnel
+      // re-issues refused, 5x run106's 206) so the fuel commons and the final
+      // banks starved behind them. The deposit chain has carried the approach
+      // segment since v0.56.0 (the run51 F17 cure) - the yard walk never got
+      // it. Before the direct ladder: when the yard stands beyond the
+      // APPROACH_THRESHOLD and the pre-smelt clock affords one segment + the
+      // walk floor, walk approach segments toward the yard FIRST (raw-first,
+      // bounded), then re-clamp the walk slice from the new distance - the
+      // ladder now routes a goal it can actually reach. Junk-safe: a failed
+      // approach leaves the legacy shape byte for byte (the ladder runs from
+      // wherever the approach reached).
+      const yardApproach = async attempt => {
+        const d0 = (() => { try { return miner.bot.entity?.position?.distanceTo?.(yardGoal) } catch { return null } })()
+        const walkMsNow = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: Number.isFinite(d0) ? d0 : decision.dist }), remainingMs: preSmeltRemaining() })
+        const plan = yardApproachPlan({ yardDist: d0, remainingMs: preSmeltRemaining(), walkMs: walkMsNow })
+        if (!plan.approach) {
+          if (d0 != null && d0 > APPROACH_THRESHOLD) console.log(`${miner.username} yard approach: skipped (${plan.why})`)
+          return { walked: false }
+        }
+        console.log(`${miner.username} yard approach: ${plan.why} (attempt ${attempt})`)
+        try {
+          const r = await approachWalk(miner.bot, yardGoal, {
+            rawWalk: walkRawToward,
+            segmentMs: plan.segmentMs,
+            budgetMs: plan.budgetMs,
+            log: m => console.log(`${miner.username} yard approach: ${m}`)
+          })
+          return r
+        } catch (e) {
+          console.log(`${miner.username} yard approach: failed (${e.message}) - the direct ladder runs from here`)
+          return { walked: false }
+        }
+      }
       for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
         try {
           if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3${rearm ? ' (doomed re-arm - the ledger stays for every other goal)' : ''}`)
@@ -236,7 +275,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           // rule (13x 'budget exhausted' in dispatch 35562867668 even with a
           // dist-scaled chain). effectiveWalkBudget still clamps it into the
           // chain's remaining wall clock, so the margin maths stand.
-          const walkMs = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: decision.dist }), remainingMs: preSmeltRemaining() })
+          // (v0.124.0) the approach rides BEFORE the slice is fixed: a far
+          // yard (the run107 d=51 > radius 48 construction) gets its segments
+          // first, then the slice re-clamps from the reached distance.
+          if (attempt === 1) await yardApproach(attempt)
+          else {
+            const dR = (() => { try { return miner.bot.entity?.position?.distanceTo?.(yardGoal) } catch { return null } })()
+            if (Number.isFinite(dR) && dR <= APPROACH_THRESHOLD) { /* inside - the ladder owns it */ }
+            else await yardApproach(attempt)
+          }
+          const dApproach = (() => { try { return miner.bot.entity?.position?.distanceTo?.(yardGoal) } catch { return null } })()
+          const walkMs = effectiveWalkBudget({ distBudget: yardWalkBudgetMs({ yardDist: Number.isFinite(dApproach) ? dApproach : decision.dist }), remainingMs: preSmeltRemaining() })
           if (walkMs <= 0) {
             console.log(`${miner.username} bank: end-bank budget spent - yard walk cancelled`)
             break

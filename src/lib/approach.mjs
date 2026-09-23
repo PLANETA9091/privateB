@@ -169,3 +169,50 @@ export async function approachWalk (bot, targetPos, {
   if (segmentsUsed.length) log(`approach: ${segmentsUsed.length} segment(s) walked in ${((Date.now() - started) / 1000).toFixed(1)}s, goal now d=${Number.isFinite(d) ? d.toFixed(1) : '?'} (${ok ? 'inside the direct envelope' : `still outside - ${endWhy}`})`)
   return { walked: ok, d, segments: segmentsUsed.length }
 }
+
+// (v0.124.0) THE YARD APPROACH PLAN - the pure gate the fleet's yard walk
+// consults before its direct ladder. run107 (35915999513, NORMAL END but
+// banked=13 on 3485 mined, unaccounted 1284): the bank chains climbed out
+// (F2: +14 levels, 116s of a 162s budget) and then the yard walk died
+// 'chest unreachable (No path to the goal!) (51 blocks from yard)' - 51 >
+// searchRadius 48, a walk doomed BY CONSTRUCTION, x31 fleet-wide, and every
+// failure doom-ledgered the chest cells for 15s (1074 funnel re-issues
+// refused, 5x run106's 206) so the fuel commons and the final banks starved
+// behind them. The deposit chain has carried the approach segment since
+// v0.56.0 (the run51 F17 cure) - the yard walk never got it. The plan keeps
+// every junk shape honest: no distance / inside the envelope / the unbounded
+// legacy clock (the deposit chain's own byte-identical rule - no deadline in
+// play means no approach) / a clock that cannot afford one segment + the
+// walk floor never start a doomed hop with extra steps.
+export const YARD_APPROACH_FLOOR_MS = 5000 // matches deposit.mjs BUDGET_WALK_FLOOR_MS; the caller passes its own
+
+export function yardApproachPlan ({
+  yardDist = null,
+  remainingMs = null,
+  walkMs = 0,
+  threshold = APPROACH_THRESHOLD,
+  segmentMs = APPROACH_SEGMENT_MS,
+  floorMs = YARD_APPROACH_FLOOR_MS
+} = {}) {
+  const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : null
+  if (d == null) return { approach: false, why: 'no yard distance' }
+  if (d <= threshold) return { approach: false, why: 'inside the direct envelope' }
+  // The unbounded legacy: the deposit chain skips the approach when no chain
+  // clock exists - the yard walk keeps the same byte-identical rule.
+  const left = Number.isFinite(remainingMs) ? remainingMs : null
+  if (left == null) return { approach: false, why: 'unbounded clock (legacy shape)' }
+  const seg = Number.isFinite(segmentMs) && segmentMs > 0 ? segmentMs : APPROACH_SEGMENT_MS
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : YARD_APPROACH_FLOOR_MS
+  if (left < seg + floor) return { approach: false, why: 'the clock cannot afford a segment + the walk floor' }
+  // The walk slice only CLAMPS the segment downward (a thin slice must not
+  // start a segment it cannot pay); junk reads as the segment cap - the real
+  // constraint is the budget clock, and approachWalk itself treats a 0 slice
+  // as its default.
+  const slice = Math.max(0, Math.min(Number.isFinite(walkMs) && walkMs > 0 ? walkMs : seg, seg))
+  return {
+    approach: true,
+    why: `${Math.round(d)}b beyond the ${Math.round(threshold)}b envelope`,
+    segmentMs: slice,
+    budgetMs: Math.max(0, left - floor)
+  }
+}

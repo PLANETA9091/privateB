@@ -9,14 +9,18 @@
 // global searchRadius 32) toward the chest first. These tests pin the pure
 // planner and the injected-mechanism walk.
 import { test, beforeEach } from 'node:test'
+import fs from 'node:fs'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import {
   approachTargetPos,
   approachWalk,
+  yardApproachPlan,
+  YARD_APPROACH_FLOOR_MS,
   APPROACH_THRESHOLD,
   APPROACH_SEGMENT_MAX,
+  APPROACH_SEGMENT_MS,
   APPROACH_MIN_REMAINING
 } from '../../src/lib/approach.mjs'
 
@@ -234,4 +238,56 @@ test('walk: phantom raw + a stalled pathfinder segment still ends the chain (ant
   const res = await approachWalk(bot, target, { rawWalk })
   assert.equal(res.segments, 1, 'one fully immobile segment still ends the loop')
   assert.equal(res.walked, false, 'honest: the caller ladder owns the rest')
+})
+
+// (v0.124.0) THE YARD APPROACH PLAN - run107 (35915999513, NORMAL END but
+// banked=13): the yard walk died 'No path to the goal!' at d=51 - 51 > the
+// pathfinder's searchRadius 48, doomed BY CONSTRUCTION, x31 fleet-wide - and
+// every failure doom-ledgered the chest cells (1074 funnel re-issues refused).
+// The plan gates the approach segment the yard walk never had.
+test('yardApproachPlan: the run107 construction - d=51 beyond the radius-48 envelope approaches', () => {
+  const plan = yardApproachPlan({ yardDist: 51, remainingMs: 90000, walkMs: 30000 })
+  assert.equal(plan.approach, true)
+  assert.match(plan.why, /51b beyond the 24b envelope/)
+  assert.equal(plan.segmentMs, APPROACH_SEGMENT_MS, 'a fat walk slice never raises the segment cap')
+  assert.equal(plan.budgetMs, 90000 - YARD_APPROACH_FLOOR_MS, 'the budget is the clock minus the walk floor')
+})
+
+test('yardApproachPlan: a close yard never approaches (the legacy shape byte for byte)', () => {
+  assert.equal(yardApproachPlan({ yardDist: 24, remainingMs: 90000, walkMs: 30000 }).approach, false, 'AT the threshold the direct ladder owns it')
+  assert.equal(yardApproachPlan({ yardDist: 10, remainingMs: 90000, walkMs: 30000 }).why, 'inside the direct envelope')
+})
+
+test('yardApproachPlan: junk-safe - no distance, unbounded clock, thin clock, no args', () => {
+  assert.equal(yardApproachPlan({ yardDist: null, remainingMs: 90000 }).approach, false)
+  assert.equal(yardApproachPlan({ yardDist: 'junk', remainingMs: 90000 }).why, 'no yard distance')
+  assert.equal(yardApproachPlan({ yardDist: -5, remainingMs: 90000 }).why, 'no yard distance', 'negative junk reads as no distance')
+  assert.equal(yardApproachPlan({ yardDist: NaN, remainingMs: 90000 }).why, 'no yard distance')
+  const unb = yardApproachPlan({ yardDist: 51, remainingMs: null })
+  assert.equal(unb.approach, false, 'the unbounded legacy never approaches (the deposit chain rule)')
+  assert.equal(unb.why, 'unbounded clock (legacy shape)')
+  const thin = yardApproachPlan({ yardDist: 51, remainingMs: APPROACH_SEGMENT_MS + YARD_APPROACH_FLOOR_MS - 1, walkMs: 30000 })
+  assert.equal(thin.approach, false, 'a clock that cannot afford a segment + the floor never starts a doomed hop with extra steps')
+  assert.match(thin.why, /cannot afford/)
+  assert.equal(yardApproachPlan({}).approach, false, 'no args at all')
+  assert.equal(yardApproachPlan({ yardDist: 51, remainingMs: Infinity }).why, 'unbounded clock (legacy shape)', 'Infinity is the unbounded legacy too')
+})
+
+test('yardApproachPlan: the walk slice clamps the segment downward, junk reads as the cap', () => {
+  const small = yardApproachPlan({ yardDist: 51, remainingMs: 90000, walkMs: 3000 })
+  assert.equal(small.approach, true)
+  assert.equal(small.segmentMs, 3000, 'a thin walk slice shrinks the segment, never grows it')
+  assert.equal(small.budgetMs, 90000 - YARD_APPROACH_FLOOR_MS)
+  const junk = yardApproachPlan({ yardDist: 51, remainingMs: 90000, walkMs: 'junk' })
+  assert.equal(junk.approach, true)
+  assert.equal(junk.segmentMs, APPROACH_SEGMENT_MS, 'junk walkMs reads as the segment cap (the budget clock is the real constraint)')
+})
+
+test('wiring: the yard walk consults the approach plan (fleet19.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /yardApproachPlan\(\{ yardDist: d0/, 'the yard walk consults the pure plan')
+  assert.match(src, /approachWalk\(miner\.bot, yardGoal/, 'the approach walks toward the YARD, not a proxy goal')
+  assert.match(src, /rawWalk: walkRawToward/, 'the raw walker is injected (the deposit chain shape)')
+  assert.match(src, /yard approach: /, 'the named evidence line exists for the mine')
+  assert.match(src, /if \(attempt === 1\) await yardApproach/, 'attempt 1 always consults the plan')
 })
