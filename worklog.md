@@ -2494,3 +2494,16 @@ Stage Summary:
 - EXPECTATIONS run109: 'yard approach: Nb beyond the 24b envelope' lines when the yard walk starts far; the d>48 'No path' class shrinks; doomed-goal ledger pressure drops (the 1074-refusal shape should not return); banked recovers toward the 1100-2400 band; NORMAL END holds. ALSO the v0.123.0 doomed-bay filter + the v0.122.0 craft pre-flight ride this fleet (their first joint measurement).
 - OPEN FRONTS: (a) iron=0 (iron_ore=42 mined, worldmap iron_ore=102; the smelt lane runs through the doomed bay + the clock caps); (b) the climb-out reliability (15/45 failed) and its entry-level vs yard-level target question; (c) the drown inference lie (run106's x2); (d) airGlitches=95 watch; (e) unaccounted; (f) plan 2/31; (g) the F10 Ender-at-spawn anomaly.
 - run109 (the next dispatch) must wait for run108 (35919773515, in flight on 894ed9a) - one fleet per head; my dispatch rides the v0.124.0 head and queues behind run108 (cancel-in-progress: false, the expected concurrency shape).
+
+---
+Task ID: 398294-20260924-0454 (dispatch record)
+Agent: Z.ai Code (cron session, 04:54 +08)
+
+Work Log:
+- Push-CI on fc71b6e (v0.124.0) was cancelled by the queue (the b4313f8 worklog push superseded it 4 min later); push-CI on b4313f8 (master head, the full v0.124.0 tree + worklog) = 35920446173 SUCCESS - the code is CI-verified through the head commit.
+- run108 (35919773515, the v0.123.0 fleet, the parallel lane's) = SUCCESS - mined next session together with run109.
+- run109 = 35923564269 dispatched as the ABSOLUTE LAST action (workflow_dispatch run_fleet=true, fleet_seconds=600) POSTed at 21:37:15Z, in_progress on b4313f8.
+
+Stage Summary:
+- run109 = the first fleet of v0.124.0 (the yard approach) AND the first joint measurement of v0.122.0 (craft pre-flight) + v0.123.0 (doomed-bay filter + build-fits gate) + v0.124.0 on one tree. The next session mines run108 (the v0.123.0 solo) + run109 (the full stack): banked recovery toward the 1100-2400 band, the 'yard approach:' lines, the d>48 No-path class shrink, the doomed-ledger pressure drop, the craft pre-flight lines, iron=0 progress.
+- Next free version = 0.125.0.
