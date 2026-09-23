@@ -41,6 +41,8 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
+import { startAllocValve } from '../src/lib/allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
+import { allocValveStatsFor } from '../src/lib/jobqueue.mjs'
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
@@ -1179,6 +1181,17 @@ const pulseSab = createPulseSab()
 const loopPulse = createLoopPulse({ sab: pulseSab, intervalMs: 250 })
 loopPulse.start() // counters read by the heartbeat worker across any freeze
 const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, onUnfreeze })
+// (v0.102.0) THE ALLOCATION VALVE - the main thread watches its OWN rss every
+// 1s. The worker stormguard (floor 1200M, 5s, two-strike SIGTERM) amputates;
+// the valve (floor 600M, 1s) CURES: on the storm signature gotoSafe refuses
+// LONG walks (bot->goal > 24 blocks) at the funnel - the A* loses its fuel,
+// GC drains the garbage, the valve reopens in 12-30s. run92 (35829873166):
+// 375M for 441s, then +1.9GB in 10s while still ticking (mainLate 2006ms) -
+// second strike, SIGTERM, a probable NORMAL END erased at 510/600s. The
+// closure drops the growth, the worker's streak resets on the dip, and the
+// kill never arms; if allocation continues anyway, the valve oscillates
+// closed (escalated) and the worker still kills exactly as before.
+const allocValve = startAllocValve({ onLine: line => console.log(line) })
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
@@ -1444,6 +1457,7 @@ process.exit(0)
 // ---- the final report, shared by the normal end and the watchdog cliff ----
 function printFinalReport (reason) {
   stopHeartbeat(heartbeat) // no [hb] lines racing the report block; covers both call sites
+  try { allocValve.stop() } catch { /* diagnostics never hold the teardown */ }
   try { loopPulse.stop() } catch { /* diagnostics never hold the teardown */ }
   const list = [...bots.values()].map(e => e.miner).filter(Boolean)
   const s = fleetStats(list)
@@ -1483,6 +1497,8 @@ console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-iss
 const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
+const avs = allocValveStatsFor()
+console.log(`alloc valve: ${avs.closes} close(s), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed (v0.102.0 - the run92 allocation-storm cure: cut the A* fuel at the first storm signature, reopen when GC drains)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

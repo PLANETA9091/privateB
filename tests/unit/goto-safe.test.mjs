@@ -261,3 +261,60 @@ test('gotoSafe: the goal-slot clear survives a pathfinder without setGoal (bare 
   await assert.rejects(gotoSafe(bot, { x: 1 }, { timeoutMs: 25 }), /timeout/)
   // no throw from the catch path: the typeof guard skipped the clear, the timeout still surfaced
 })
+
+// (v0.102.0) THE ALLOCATION VALVE at the funnel: while closed, LONG walks
+// (straight-line bot->goal > 24 blocks) are refused honestly with the storm
+// numbers; short walks (rescues/climbs/next-columns) flow; an unmeasurable
+// distance is not provably near and is refused. The default-OPEN valve must
+// leave every test above untouched (no consult behavior while open).
+import { allocValveControl, allocValveStatsFor, resetWalkGovernors } from '../../src/lib/jobqueue.mjs'
+
+test('alloc valve at the funnel: a closed valve refuses a LONG walk with the storm numbers', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500) // the run92 signature (real clock, dt<1s -> rate 1000MB/s >= 40 at rss >= 600)
+  assert.equal(vc.consult().closed, true, 'the singleton is closed')
+  const bot = {
+    entity: { position: { x: 0, y: 64, z: 0 } },
+    pathfinder: { goto: async () => 'done', stop: () => {} }
+  }
+  await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/)
+  assert.ok(allocValveStatsFor().refusals >= 1, 'the refusal is counted')
+  resetWalkGovernors()
+})
+
+test('alloc valve at the funnel: a NEAR walk still flows (the rescue/climb class)', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500)
+  const bot = {
+    entity: { position: { x: 0, y: 64, z: 0 } },
+    pathfinder: { goto: async () => 'done', stop: () => {} }
+  }
+  const r = await gotoSafe(bot, { x: 3, y: 64, z: 4 }, { timeoutMs: 500 }) // d = 5 <= 24
+  assert.equal(r, 'done', 'a drowning bot never waits on a memory valve')
+  assert.ok(allocValveStatsFor().nearPasses >= 1, 'the near pass is counted')
+  resetWalkGovernors()
+})
+
+test('alloc valve at the funnel: an unmeasurable distance is refused while closed', async () => {
+  resetWalkGovernors()
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500)
+  const bot = { pathfinder: { goto: async () => 'done', stop: () => {} } } // no entity.position
+  await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/)
+  resetWalkGovernors()
+})
+
+test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes the counters (test hygiene)', () => {
+  const vc = allocValveControl()
+  vc.sample(500)
+  vc.sample(1500)
+  assert.equal(vc.consult().closed, true)
+  resetWalkGovernors()
+  assert.equal(allocValveControl().consult().closed, false)
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, closes: 0, strikes: 0, closedNow: false })
+})

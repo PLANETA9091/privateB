@@ -189,6 +189,7 @@ import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
+import { createAllocValve, valveAdmits, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
@@ -366,6 +367,52 @@ export function walkGovernorStatsFor () {
   }
 }
 
+// (v0.102.0) THE ALLOCATION VALVE - the fleet-scoped singleton (one process =
+// one fleet, the fleetCeiling shape). run92 (35829873166): the main thread
+// allocated ~1.9GB in 10s (190MB/s) at ts~445s while STILL TICKING (mainLate
+// 2006ms) - the pathfinder A* fed by the end-phase mass chest walks across a
+// flooded region - and the worker stormguard's second-strike SIGTERM erased a
+// probable NORMAL END at 510/600s. The valve watches the main thread's OWN
+// rss every 1s (startAllocValve in fleet19) and gotoSafe consults it here:
+// while closed, LONG walks (straight-line bot->goal > 24 blocks) are refused
+// at the funnel - the A* loses its fuel, GC drains the garbage, the valve
+// reopens after 12s (30s escalated). Short walks (rescues <=12, climbs, next-
+// column steps) still flow - a drowning bot never waits on a memory valve.
+const fleetValve = createAllocValve({})
+const valveStats = { refusals: 0, nearPasses: 0 }
+
+/** Test/fleet control surface for the valve singleton. */
+export function allocValveControl () {
+  return {
+    sample: rssMb => fleetValve.sample(rssMb),
+    consult: () => fleetValve.consult(),
+    reset: () => fleetValve.reset()
+  }
+}
+
+/** Fleet valve counters for the FLEET RESULT block. */
+export function allocValveStatsFor () {
+  const st = valveStats
+  const snap = fleetValve.consult()
+  return { refusals: st.refusals, nearPasses: st.nearPasses, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed }
+}
+
+/** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
+ * (no entity, junk goal, junk position - mocks, teardown). The valve's near
+ * exemption is measured on THIS: provably near, or refused while closed. */
+function walkDistanceOf (bot, goal) {
+  try {
+    const p = bot && bot.entity && bot.entity.position
+    const c = goalCellOf(goal)
+    if (!p || !c) return null
+    const dx = Number(p.x) - c.x
+    const dy = Number(p.y) - c.y
+    const dz = Number(p.z) - c.z
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    return Number.isFinite(d) ? d : null
+  } catch { return null }
+}
+
 /** Test hook: drop every per-bot governor (never used in prod). */
 export function resetWalkGovernors () {
   walkGovernors = new WeakMap()
@@ -374,6 +421,9 @@ export function resetWalkGovernors () {
   walkGovernorStats.fleetRefusals = 0
   walkGovernorStats.fleetOpens = 0
   try { fleetCeiling.reset() } catch { /* never fails */ }
+  try { fleetValve.reset() } catch { /* never fails */ }
+  valveStats.refusals = 0
+  valveStats.nearPasses = 0
 }
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
@@ -504,6 +554,28 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   } catch (e) {
     if (e && /fleet churn ceiling/.test(e.message)) return refuse(e.message) // the refusal itself, paced
     /* the ceiling never blocks the walk it precedes */
+  }
+  // (v0.102.0) THE ALLOCATION VALVE CONSULT - the memory breaker, after the
+  // churn breakers, before the queue. While closed, only PROVABLY near walks
+  // flow (straight-line <= 24 blocks: rescues/climbs/next-columns); every
+  // LONG walk is refused with the storm numbers in the message so the
+  // caller's own log shows WHY. No bank-priority exemption BY DESIGN: the
+  // fuel IS the long A*, and a bank walk through the flooded region is
+  // exactly the walk that detonated run92 - banking pauses 12-30s, the run
+  // survives. An open valve is a no-op (junk state never refuses).
+  try {
+    const vs = fleetValve.consult()
+    if (vs && vs.closed) {
+      if (valveAdmits({ closed: true, distanceBlocks: walkDistanceOf(bot, goal), nearBlocks: ALLOC_VALVE_NEAR_BLOCKS_DEFAULT })) {
+        valveStats.nearPasses++
+      } else {
+        valveStats.refusals++
+        return refuse(`alloc valve: closed (storm ${vs.lastRate}MB/s at rss ${vs.lastRss}M) - ${label} refused for ${Math.round(vs.remainingMs / 1000)}s`)
+      }
+    }
+  } catch (e) {
+    if (e && /alloc valve/.test(e.message)) return refuse(e.message) // the refusal itself, paced
+    /* the valve never blocks the walk it precedes */
   }
   // (v0.62.0) FREEZE FORENSICS: gotoSafe is THE funnel for every pathfinder
   // goal - the A* think that answers is a SYNC main-thread block (up to the
