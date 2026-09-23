@@ -2235,3 +2235,19 @@ Work Log:
 
 Stage Summary:
 - run100 = the first fleet of v0.112.0 (the clock cap). The next session mines it: no timeout-zero windows, every started window completes or honestly clips ('the clock clips the batch' lines), smelted counts real collections, the fuel cures continue (the tithe, the floor, no stick windows), NORMAL END x10.
+Task ID: 398567-20260923-2205
+Agent: Z.ai Code (cron session, 22:05 +08)
+Task: continue privateB - read run99's mob evidence (the lane's session mined the smelting side), ship the cure the MOB front names, keep CI green, dispatch.
+
+Work Log:
+- Sandbox DIED between cycles (repo, JDK, server.jar all gone): full rebuild - clone, npm install, adoptium JDK 25.0.4.1, server.jar sha1 823e2250 verified, fresh world, server up.
+- Independent run99 re-read (35869329042) from the MOB/death side (the lane's 21:53 session already took the smelting side - the clock cap): 14 deaths = zombie x6, WITCH x3 (NEW front - the run96/run108 spider watch resolved itself: spider x0 this run), fall x3, drowned x2, skeleton x1. The witch evidence: F1 died at witch@8.7 with ZERO verdict lines (the raw bar read fightable while the splash poison was already sinking it); F10's flee fired at hp 5.3 but the drain had already won (flee bearing rotated 180deg into the water veto, the witch finished at 3.7); F15 died at 2.1 inside a water pass.
+- THE DECODE: the flee/shelter thresholds read bot.health RAW - a poisoned bar at 11-12 reads fightable while the vanilla level-1 drain (1 dmg per 1.25s) is eating it toward the 1-hp poison bottom where any hit lands. The verdicts spend health the poison already owns.
+- SHIPPED THE POISON LENS (v0.113.0): effectiveHp({health, poisoned}) charges POISON_HP_BUDGET=4 (the expected level-1 drain over the ~5s flee/shelter decision window; conservative - it must push a MID bar over FLEE_HP=8, not turn every scratch into a flee) against the flee lanes; isPoisoned(bot) reads bot.entity.effects tolerating every junk shape (registry-resolved poison id outranks the legacy numeric 19 fallback; name/displayName entries hit; junk entries never crash). threatVerdict judges the lensed bar (the swarm lane rides it: poisoned 17 vs 3 = 13 < 14 = flee); the miner feeds the lens at all three verdict sites (pre-fight, per-round re-verdict, tryShelter's shelterDue hp - the v0.106.0 losingFight wall sees the drain BEFORE the bar does); junk health passes through null byte for byte (never shelter on a guess); the shelter skip line names poison=on/off. +3 test blocks; the v0.107.0 wiring pin re-pinned honestly. Collision #41 with c70c487 (their clock cap) - complementary belts (theirs = the batch's clock, mine = the verdicts' bar), zero file overlap, merged clean over autostash; version re-taken 0.113.0.
+- Gates on the merged tree: check-syntax 177/0, unit 76/76 (combat +5 cases, shelter re-pin green), integration 2/2 (fresh world).
+
+Stage Summary:
+- Master: v0.113.0 (my poison lens on top of their clock cap). Next free version = 0.114.0.
+- EXPECTATIONS next fleet: 'poison=on' visible on shelter skip lines where witches engage; fewer deaths INSIDE the drain (the F1 class - zero-verdict witch deaths should gain a flee line first); unpoisoned verdicts byte-identical (the lens is the identity without the effect).
+- FRONT HANDOFF (the lane's (a)-(h) list stands, + one): (i) the witch's OTHER half - the poison lens disengages the drained bot, but the witch itself remains un-punished: an armed bot still retreats from a 16-hp witch it could out-sword; a witch-specific engage ceiling (close to melee through the potion range, don't chase beyond ~6) is the next rung. (ii) The air-bar glitch storm (835/787/108) stands as the top NON-mob front - the stronger latch (suppress the drowning rescue for a bounded window once the glitch page is confirmed) is named and unowned.
+- The fleet dispatch fires as the ABSOLUTE LAST action of the session (after this push's CI goes green).
