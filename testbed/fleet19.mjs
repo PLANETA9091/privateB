@@ -31,7 +31,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden } from '../src/lib/nightsafety.mjs'
@@ -149,10 +149,16 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // machine with smeltables and 'no fuel' - F4/F3/F8). The FINAL deposit
   // passes withFuel=false: the smelt leg has run (or was skipped), no further
   // smelt leg exists this run, so the leftover fuel drains to the chests.
+  // (v0.96.0) THE INPUT SLICE rides it too: the pre-deposit also banked the
+  // smeltables THEMSELVES (cobblestone/sand are not in the deposit KEEP list)
+  // and the reserved leg arrived 'nothing to smelt' (run84b: F4/F8/F11/F13
+  // held 45s each, 4x 'smelt: 0 (nothing to smelt)', smelted=0 fleet-wide).
+  // The input hold keeps the smeltables the scan would plan; the final
+  // deposit drains what the batch left.
   // carriesSmelt (defined below, TDZ-safe: keep() is first CALLED at
   // lootOpts()) is the chain-entry snapshot - the same snapshot the time
   // reserve reads.
-  const keep = (withFuel = false) => [...DEPOSIT_KEEP, ...keepForIron(miner.bot), ...smeltFuelKeep({ carriesSmeltables: withFuel && carriesSmelt })]
+  const keep = (withFuel = false) => [...DEPOSIT_KEEP, ...keepForIron(miner.bot), ...smeltFuelKeep({ carriesSmeltables: withFuel && carriesSmelt }), ...smeltInputKeep({ carriesSmeltables: withFuel && carriesSmelt })]
   // (v0.27.0) the chain budget: a finite budgetMs > 0 sets a deadline every
   // deposit/smelt step must fit (Infinity passes through the deposit chain
   // unchanged - junk-safe legacy behavior for the mid-run caller).

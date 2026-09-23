@@ -141,6 +141,36 @@ export function smeltFuelKeep (p) {
   return carries ? SMELT_FUEL_KEEP.slice() : []
 }
 
+// (v0.96.0) THE INPUT SLICE - the fuel slice (v0.92.0) held the smelt leg's
+// FUEL, but the pre-deposit still banked the smeltables THEMSELVES: cobblestone
+// and sand are not in the deposit KEEP list (tools/food/wood only), so the bot
+// held its reserve clock (45s of chain budget), arrived at the machine with an
+// empty smeltable scan, and the slice drained standing. Run84b (dispatch
+// 35801476714, the v0.94.0 tree): FOUR bots (F4/F8/F11/F13) logged 'holding
+// 45s of ~120-180s for the smelt leg' followed by 'smelt: 0 (nothing to
+// smelt)' - the same silent starvation the fuel slice cured, one layer up.
+// While the pocket carries smeltables the PRE-deposit keeps the smeltable
+// inputs too (the substring matcher makes the ore entries cover their
+// deepslate variants and 'raw_' covers every raw metal); the final deposit
+// (keep(false)) drains whatever the batch left. Deliberately NOT here: logs
+// (smeltablesIn excludes them - the tool-bootstrap lifeline) and the raw
+// meats beef/porkchop (already ride the deposit KEEP).
+export const SMELT_INPUT_KEEP = [
+  'cobblestone', 'stone', 'sand',
+  'iron_ore', 'copper_ore', 'gold_ore', 'raw_',
+  'clay_ball', 'netherrack', 'chorus_fruit', 'ancient_debris',
+  'chicken', 'mutton', 'rabbit', 'cod', 'salmon', 'kelp'
+]
+
+/** Pure, junk-safe: the keep-list extension that holds the smelt leg's INPUTS.
+ * Same contract as smeltFuelKeep - plain param + body guard (the Number(null)
+ * strikes: a destructuring default does NOT fire on null), fresh array per
+ * call (a shared const must never be mutated by a caller). */
+export function smeltInputKeep (p) {
+  const carries = !!(p && p.carriesSmeltables)
+  return carries ? SMELT_INPUT_KEEP.slice() : []
+}
+
 /**
  * (v0.91.0) THE BATCH CLOCK - pure: how long one smeltBatch may poll for its
  * output. The batch estimate (batch * smeltSecondsPerItem) may FILL the

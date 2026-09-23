@@ -9,11 +9,13 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
+import { KEEP } from '../../src/lib/deposit.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS,
+  smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX
 } from '../../src/lib/smelting.mjs'
 
@@ -614,6 +616,43 @@ test('smeltFuelKeep: a smeltable pocket holds its fuel through the pre-deposit (
   // burns charcoal first-class (8 smelts per unit, same as coal)
   assert.ok('charcoal'.includes('coal'))
   assert.equal(MACHINE_DOOM_TTL_MS, 15000, 'the machine doom TTL is 15s (run81: one failed walk killed a fresh camp furnace for the run)')
+})
+
+// ------------------------------------------------------ v0.96.0 the input slice
+test('smeltInputKeep: a smeltable pocket holds its INPUTS through the pre-deposit (run84b: F4/F8/F11/F13 held 45s and arrived nothing to smelt)', () => {
+  // the v0.92.0 fuel slice held the smelt leg's FUEL; the pre-deposit still
+  // banked the smeltables THEMSELVES (cobblestone/sand are not in the deposit
+  // KEEP list) - the bot held the reserve clock, arrived at the machine with
+  // an empty smeltable scan, and the slice drained standing. Run84b measured
+  // the shape end to end: 4 reserves held, 4x 'smelt: 0 (nothing to smelt)',
+  // smelted=0 fleet-wide. The keep-list extension fixes the pocket one layer
+  // up from the fuel slice - same contract, same junk-safety.
+  assert.deepEqual(smeltInputKeep({ carriesSmeltables: true }), SMELT_INPUT_KEEP)
+  // a pocket without smeltables banks everything as before - the legacy shape
+  assert.deepEqual(smeltInputKeep({ carriesSmeltables: false }), [])
+  assert.deepEqual(smeltInputKeep({}), [], 'the flag omitted = the legacy keep list')
+  assert.deepEqual(smeltInputKeep(null), [], 'junk opts are safe (the body-guard, not the destructuring default)')
+  assert.deepEqual(smeltInputKeep(undefined), [])
+  assert.deepEqual(smeltInputKeep(42), [])
+  assert.deepEqual(smeltInputKeep('junk'), [])
+  // fresh arrays: a caller mutating its keep list must never poison the const
+  const a = smeltInputKeep({ carriesSmeltables: true })
+  a.push('dirt')
+  assert.ok(SMELT_INPUT_KEEP.includes('cobblestone'), 'spare cobblestone (the run84b dominant smeltable) rides the hold')
+  assert.ok(SMELT_INPUT_KEEP.includes('sand'), 'sand (the glass lane input) rides the hold')
+  assert.ok(!SMELT_INPUT_KEEP.includes('log'), 'logs stay out: smeltablesIn excludes them, the tool-bootstrap lifeline')
+})
+
+test('smeltInputKeep: every SMELT_OUTPUT input survives the combined pre-deposit keep list', () => {
+  // the combined keep the pre-deposit rides: the deposit KEEP + the iron keep
+  // (keepForIron keeps raw_iron until the pickaxe - the smelt leg may run
+  // after it, so the input slice must carry raw_ itself) + the fuel slice +
+  // the input slice. Every input the smelt scan could plan must survive the
+  // deposit matcher (keep.some(k => name.includes(k))) - one miss re-creates
+  // the run84b starvation for that input exactly.
+  const combined = [...KEEP, ...['iron_ingot', 'raw_iron'], ...SMELT_FUEL_KEEP, ...SMELT_INPUT_KEEP]
+  const misses = Object.keys(SMELT_OUTPUT).filter(name => !combined.some(k => name.includes(k)))
+  assert.deepEqual(misses, [], 'every smeltable input must ride the combined keep list')
 })
 
 // ------------------------------------------------------------------- v0.92.0
