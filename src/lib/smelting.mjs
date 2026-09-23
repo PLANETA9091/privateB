@@ -199,8 +199,18 @@ export function smeltBatchWaitMs ({ maxSeconds = 90, batch = 1, smeltSecondsPerI
   const pmRaw = junk(pollMs)
   const pm = pmRaw > 0 ? pmRaw : 1200
   const want = Math.max(mx, b * per * 1000) + pm * 3
-  const cap = Number.isFinite(visitRemainingMs) && visitRemainingMs != null && visitRemainingMs > 0
-    ? Math.floor(visitRemainingMs)
+  // (v0.97.0) THE SPENT-VISIT BATCH STOP: any FINITE visitRemainingMs is the hard
+  // cap - INCLUDING 0 and negatives. run86 (35809634630) F7: the machine walk +
+  // open + put spent the visit slice, the poll-start remaining read exactly 0,
+  // and the old `> 0` guard DISCARDED the cap - the batch degraded to the legacy
+  // unbounded clock (64 x 11s = 704s+), the bot never left the smelt, its work
+  // loop never reached the final bank, and 17 banked bots hung into the hard
+  // kill behind it (2 bots held the whole fleet past the 420s margin). A spent
+  // visit must read as "no wait - pull OUR input+fuel back out" (the timeout
+  // path already does that honestly and the pocket re-smelts on the next
+  // chain). null/undefined/non-finite = the legacy unbounded call, byte for byte.
+  const cap = visitRemainingMs != null && Number.isFinite(visitRemainingMs)
+    ? Math.max(0, Math.floor(visitRemainingMs))
     : Infinity
   return Math.max(0, Math.min(want, cap))
 }

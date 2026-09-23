@@ -589,11 +589,29 @@ test('smeltBatchWaitMs: junk is capped, not fatal (Number(null) ninth strike)', 
     1200 * 3, 'all-junk floors = the take margin only, inside the cap')
   assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: null, smeltSecondsPerItem: null, pollMs: null, visitRemainingMs: null }),
     30 * 1000 + 1200 * 3, 'junk batch/per vanish, junk pollMs reads the production default')
-  assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: 105, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: -5 }),
-    Math.max(30 * 1000, 105 * 11 * 1000) + 1200 * 3, 'a junk-negative visit budget = the legacy unbounded shape (no cap)')
   assert.equal(smeltBatchWaitMs({ maxSeconds: 30, batch: 3, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 0.4 }),
     0, 'a sub-second cap floors to zero (honest - the loop exits and pulls back)')
   assert.equal(smeltBatchWaitMs({}), 90 * 1000 + 1200 * 3, 'the bare call = the production defaults')
+})
+
+// ------------------------------------------------- v0.97.0 the spent-visit batch stop
+test('smeltBatchWaitMs: a SPENT visit (remaining 0) reads as zero wait, never the legacy unbounded clock (run86 F7 hard kill)', () => {
+  // run86 (35809634630) F7: the machine walk + open + put spent the visit slice,
+  // the poll-start remaining read exactly 0, and the old `> 0` guard DISCARDED the
+  // cap - the batch degraded to the legacy unbounded clock (64 x 11s = 704s+), the
+  // bot never reached its final bank, 17 banked bots hung into the hard kill.
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 76, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 0 }),
+    0, 'the run86 regression: a spent visit must exit immediately (the timeout path pulls the input+fuel back)')
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 76, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: -5 }),
+    0, 'a negative remaining is spent too - a debt cannot mean "unbounded"')
+  // one tick of budget left: the cap floors and bounds - the wait is the cap
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 76, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: 2500 }),
+    2500, 'a finite remaining always wins over the batch estimate, however small')
+  // the LEGACY shape stays byte for byte: null, undefined and non-finite = no cap
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 76, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: null }),
+    Math.max(45 * 1000, 76 * 11 * 1000) + 1200 * 3, 'null = the legacy unbounded call')
+  assert.equal(smeltBatchWaitMs({ maxSeconds: 45, batch: 76, smeltSecondsPerItem: 11, pollMs: 1200, visitRemainingMs: NaN }),
+    Math.max(45 * 1000, 76 * 11 * 1000) + 1200 * 3, 'NaN = no budget was measurable - the legacy shape, not zero')
 })
 
 // ------------------------------------------------------- v0.92.0 the fuel slice

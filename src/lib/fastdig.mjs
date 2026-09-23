@@ -50,6 +50,29 @@ export function digFaceFor ({ eyeY = null, blockCenterY = null } = {}) {
   return center > eye ? FACE_BOTTOM : FACE_TOP
 }
 
+// (v0.97.0) THE DIG TICK GUARD - the frozen-client wedge, killed at the dig
+// primitive. run86 (35809634630) F14: `tunnel: 0 blocks` printed, then SILENCE -
+// the next dig's `await bot.waitForTicks(1)` never resolved (the client physics
+// froze mid-veinSweep; mineflayer's tick clock stopped) and the bot hung PAST
+// the 600s deadline with no final bank, holding 17 banked bots in the hard kill
+// behind it (F7's smelt wedge was the second hostage). waitForTicks has NO
+// wall-clock bound of its own: a frozen client = an infinite await. The guard
+// races every tick-wait (and the aim) against a wall clock; DIG_FROZEN_GUARDS
+// consecutive fires = the client is frozen, fastDig returns gone() honestly
+// (best-effort: the STOP spam may still have broken it) instead of spinning
+// maxTicks x guard forever. Healthy ticks reset the streak byte for byte.
+export const DIG_TICK_GUARD_MS = 2000
+export const DIG_FROZEN_GUARDS = 3
+
+// Race p against a wall clock; the loser's timer is always cleared so a guard
+// never holds the process open. A junk/zero guard disables the race (legacy).
+function racedWithGuard (p, ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return p
+  let t
+  const guard = new Promise(resolve => { t = setTimeout(() => resolve('dig-tick-guard-fire'), ms) })
+  return Promise.race([p, guard]).finally(() => clearTimeout(t))
+}
+
 export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {} } = {}) {
   if (bot.fastDig) return bot.fastDig
 
@@ -66,7 +89,7 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
   // pick needs ~115 ticks underwater, which the plain window refuses. The
   // wet-escape traverse (surface.mjs) uses the extended window because the
   // alternative is a bot that drowns in its own flooded shaft.
-  bot.fastDig = async function fastDig (block, { maxTicks = 100 } = {}) {
+  bot.fastDig = async function fastDig (block, { maxTicks = 100, tickGuardMs = DIG_TICK_GUARD_MS } = {}) {
     if (!block || block.type === 0) return true
     // EQUIP THE HARVESTING TOOL FIRST. fastDig never cared what the hand holds, and
     // vanilla punishes that: stone/diorite/ores broken without a pickaxe DO break
@@ -86,7 +109,8 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
     const eyeY = (() => { try { return bot.entity.position.y + 1.62 } catch { return null } })()
     const face = digFaceFor({ eyeY, blockCenterY: pos.y + 0.5 })
 
-    await bot.lookAt(pos.offset(0.5, 0.5, 0.5), true)
+    // (v0.97.0) the aim is raced too: a frozen client hangs lookAt the same way
+    await racedWithGuard(bot.lookAt(pos.offset(0.5, 0.5, 0.5), true), tickGuardMs)
     send(0, pos, face) // START_DESTROY_BLOCK
     bot.swingArm()
 
@@ -95,10 +119,17 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
       return !b || b.type === 0
     }
 
+    let frozenGuards = 0
     for (let tick = 0; tick < maxTicks; tick++) {
       for (let s = 0; s < stopSpamPerTick; s++) send(2, pos, face) // STOP_DESTROY_BLOCK spam
       if (gone()) return true
-      await bot.waitForTicks(1)
+      const tickRes = await racedWithGuard(bot.waitForTicks(1), tickGuardMs)
+      if (tickRes === 'dig-tick-guard-fire') {
+        // no tick arrived inside the wall clock: the client physics may be frozen
+        if (++frozenGuards >= DIG_FROZEN_GUARDS) return gone()
+        continue
+      }
+      frozenGuards = 0
       if (gone()) return true
     }
     return gone()

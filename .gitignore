@@ -25,3 +25,4 @@ data/fleet-report.json
 testbed/server/.start-stamp
 .fleet-analysis/
 scripts/fleet-mining/run83/
+scripts/fleet-mining/run86/
