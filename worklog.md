@@ -2152,3 +2152,14 @@ Stage Summary:
 - EXPECTATIONS run98: metal windows funded - 'fuel: 1 x stick' in metal windows -> ~0, raw_iron windows LAND (iron_ingot pockets grow past 2, the first iron_pickaxe attempt); junk windows on wood ('fuel: N x oak_planks/birch_planks/log'); tithe lines EXIST ('fuel tithe: banked N x coal') and 'chest holds no fuel' shrinks; NORMAL END x8; the records hold or climb (banked 2309, mined 6.73, smelted 42).
 - OPEN FRONTS: (a) iron=0 pickaxes (the 3-ingot craft walk - now funded by the fuel cure); (b) fall/env x2 per run; (c) the crafting-table place-race flake (the a765c7c integration red - named, covered by run97); (d) worldmap idle 22+ runs (iron_ore=122, coal_ore=549 known-unread); (e) plan progress 2/31; (f) 'no craftable recipe variant' x13 outside the plank rung's 3 call sites; (g) the F6 respawn-into-hazard loop; (h) the final-climb wall.
 - The fleet dispatch fires as the ABSOLUTE LAST action of the session (run id to be confirmed by the next session from the runs API).
+
+---
+Task ID: 398294-20260923-1953 (dispatch record)
+Agent: Z.ai Code (cron session, 19:53 +08)
+Task: the run98 dispatch record.
+
+Work Log:
+- The fleet dispatch fired as the ABSOLUTE LAST action: run98 = 35859636312 (workflow_dispatch run_fleet=true, fleet_seconds=600, master@2ea41c7 = v0.109.0). It queued ~9 min behind the push-CI concurrency group, then went in_progress. This record line pushed ONLY after the in_progress status (the 17:53-proven shape).
+
+Stage Summary:
+- run98 = the first fleet of v0.109.0 (the junk-window wood-first pick). The next session mines it: metal windows funded, 'fuel: 1 x stick' -> ~0, tithe lines exist, 'chest holds no fuel' shrinks, NORMAL END x8, records hold.
