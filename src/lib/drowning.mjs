@@ -430,6 +430,109 @@ export function fleePlan ({ threatName = null, feetWet = false, headWet = false,
   return { kind: 'away' }
 }
 
+// ---- v0.94.0: THE FLEE-DRY VETO ----
+// Run80 (35773697160, artifact 10716448682) named the class: F5 was released
+// surface-safe, then the flee verdict (drowned + creeper, hp 6.2) WALKED it
+// into the flooded quarry - drowned@7.9. runAway's wet branches are water-aware
+// (the shore plan + verifyShoreCell), but a hop chosen for a DRY bot - the
+// radial away-vector and the yard kite - never judged its own TARGET: the
+// away-vector and the yard bearing cross whatever lies ~12 blocks out, the
+// flooded quarry included, and the fleet's own death memory (the hazard
+// records + the v0.84.0 zone envelopes) sat unused by every flee branch.
+// The veto: a flee hop target must be water-free by the live world AND
+// outside the hazard ledger; a blocked bearing rotates a quarter turn (the
+// order: 0, +90, -90, 180) before the original stands - a chasing mob beats
+// a standstill, so all-blocked keeps the legacy hop (gotoSafe owns the walk,
+// the next loop iteration's wet detection owns the arrival-wet case).
+
+/** One quarter turn of an XZ bearing, counter-clockwise on the map plane:
+ * (1,0) -> (0,1). turns wraps mod 4 (negative turns normalize); junk turns
+ * fall back to 0. */
+export function rotateBearingXZ (dx, dz, turns = 1) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dz)) return { x: dx, z: dz }
+  let t = Number.isFinite(turns) ? Math.trunc(turns) % 4 : 0
+  if (t < 0) t += 4
+  // the `|| 0` on the negated slots normalizes -0 -> 0 (the negation of a 0
+  // bearing component is -0, which deepStrictEqual - and the target math -
+  // treat as a distinct value; a flee bearing has no signed zero)
+  if (t === 0) return { x: dx || 0, z: dz || 0 }
+  if (t === 1) return { x: -dz || 0, z: dx || 0 }
+  if (t === 2) return { x: -dx || 0, z: -dz || 0 }
+  return { x: dz || 0, z: -dx || 0 }
+}
+
+/** Is this flee hop target water by the live world, or inside the fleet's
+ * hazard memory? Junk-safe end to end: non-finite coords judge NOTHING
+ * (false - the caller falls back to the legacy target), a throwing sample or
+ * ledger read degrades to the remaining tier, null blocks (unloaded chunks)
+ * read as not-blocked (the hop tries; the wet detection owns the arrival).
+ * @param {object} p
+ * @param {Function|null} [p.sample] (x,y,z) -> block name string|null
+ * @param {Function|null} [p.hazardNear] (pos) -> hazard record|null (the ledger's near)
+ * @param {number} p.x target cell x (finite required to judge)
+ * @param {number} p.y the fleeing bot's floored y (the sample plane)
+ * @param {number} p.z target cell z
+ * @returns {boolean} true = this bearing walks the bot into water / a known hazard
+ */
+export function fleeTargetBlocked ({ sample = null, hazardNear = null, x, y, z } = {}) {
+  // no coordinate defaults: a destructuring default FIRES on undefined and
+  // would manufacture a judgeable coordinate out of junk (the eleventh strike
+  // of the Number(null) class) - and a 0 default would judge the world origin
+  // as a real target. The finiteness guard alone owns every junk shape.
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+  // tier 1: the fleet's death memory - a live hazard record or zone envelope
+  // at the target vetoes the bearing even when the world read says dry (the
+  // chunks at 12 blocks out may not hold the water the fleet already died in)
+  if (typeof hazardNear === 'function') {
+    try {
+      if (hazardNear({ x: Math.round(x), y: Math.round(y), z: Math.round(z) }) != null) return true
+    } catch { /* a ledger read failure degrades to the world tier */ }
+  }
+  // tier 2: the live world - the target cell or its FLOOR is water (a water
+  // floor under an air cell is the pool the walk steps into on arrival)
+  if (typeof sample === 'function') {
+    let at = null
+    let floor = null
+    try {
+      at = sample(x, y, z)
+      floor = sample(x, y - 1, z)
+    } catch { return false }
+    if (isWaterName(at) || isWaterName(floor)) return true
+  }
+  return false
+}
+
+/** Pick the flee hop target: the caller's target first, then quarter-turn
+ * rotations of the (target - anchor) offset (same length, deterministic
+ * order 0/+90/-90/180); the first target that passes fleeTargetBlocked wins.
+ * ALL candidates blocked (or the offset is junk) -> the original stands
+ * (null only when the offset itself is non-finite - the caller keeps its
+ * legacy target, which gotoSafe's own guards then own).
+ * @param {object} p
+ * @param {Function|null} [p.sample] the live-world reader (see fleeTargetBlocked)
+ * @param {Function|null} [p.hazardNear] the ledger reader (see fleeTargetBlocked)
+ * @param {number} p.ax anchor x (the fleeing bot's position)
+ * @param {number} p.ay anchor y (floored - the sample plane)
+ * @param {number} p.az anchor z
+ * @param {number} p.tx the raw hop target x (radial away or kite hop)
+ * @param {number} p.tz the raw hop target z
+ * @returns {{x:number,z:number,turns:number}|null}
+ */
+export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay, az, tx, tz } = {}) {
+  // no coordinate defaults (see fleeTargetBlocked): an omitted field must be
+  // junk, never a silently manufactured 0 that turns into a judgeable bearing
+  const odx = tx - ax
+  const odz = tz - az
+  if (!Number.isFinite(odx) || !Number.isFinite(odz) || !Number.isFinite(ax) || !Number.isFinite(az) || !Number.isFinite(ay)) return null
+  for (const turns of [0, 1, 3, 2]) {
+    const r = rotateBearingXZ(odx, odz, turns)
+    const x = ax + r.x
+    const z = az + r.z
+    if (!fleeTargetBlocked({ sample, hazardNear, x, y: ay, z })) return { x, z, turns }
+  }
+  return { x: ax + odx, z: az + odz, turns: 0 }
+}
+
 // ---- v0.59.0: the WATER MEMORY ----
 // Fleet 35657683920 (the v0.58.1 tip, NORMAL END) flipped the death map: 7 of
 // 10 deaths were DROWNINGS, all clustered in one lake region (x -99..-155,

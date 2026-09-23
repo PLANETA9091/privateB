@@ -22,7 +22,8 @@ import {
   FROZEN_WINDOW, FROZEN_EPS, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW,
   BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
-  hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER
+  hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
+  rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs
 } from '../../src/lib/drowning.mjs'
 
 test('waterVerdict: the dry and the merely wet never page the rescue', () => {
@@ -808,4 +809,89 @@ test('frozenRelogDecision: junk never condemns (the Number(null) lesson, seventh
     'a caller-owned tighter threshold is honoured')
   assert.equal(frozenRelogDecision({ frozenStandDowns: 3, threshold: 0 }).relog, true,
     'a junk zero threshold keeps the default')
+})
+
+// ---- v0.94.0: THE FLEE-DRY VETO ----
+// Run80 (35773697160) named the class: F5 was released surface-safe, then the
+// flee verdict walked it into the flooded quarry - drowned@7.9. The dry flee
+// branches (radial away-vector + yard kite) never judged their hop TARGET;
+// the fleet's own death memory sat unused by every flee branch.
+
+test('rotateBearingXZ: quarter turns are exact and wrap mod 4', () => {
+  assert.deepEqual(rotateBearingXZ(1, 0, 0), { x: 1, z: 0 }, 'zero turns = the bearing itself')
+  assert.deepEqual(rotateBearingXZ(1, 0, 1), { x: 0, z: 1 }, '+90: east -> south')
+  assert.deepEqual(rotateBearingXZ(1, 0, 2), { x: -1, z: 0 }, '180: east -> west')
+  assert.deepEqual(rotateBearingXZ(1, 0, 3), { x: 0, z: -1 }, '-90 (as 3): east -> north')
+  assert.deepEqual(rotateBearingXZ(1, 0, 4), { x: 1, z: 0 }, '4 turns = a full circle')
+  assert.deepEqual(rotateBearingXZ(1, 0, -1), { x: 0, z: -1 }, 'negative turns normalize (−1 = 3)')
+  assert.deepEqual(rotateBearingXZ(1, 0, 7), { x: 0, z: -1 }, '7 mod 4 = 3 (the -90 turn: east -> north)')
+  assert.deepEqual(rotateBearingXZ(0, 2, 1), { x: -2, z: 0 }, 'length is preserved (south -> west)')
+  assert.deepEqual(rotateBearingXZ(NaN, 1, 1), { x: NaN, z: 1 }, 'junk bearing passes through untouched (the caller owns it)')
+  assert.deepEqual(rotateBearingXZ(1, 1, NaN), { x: 1, z: 1 }, 'junk turns = zero turns')
+})
+
+test('fleeTargetBlocked: the live world tier - cell or floor water vetoes', () => {
+  const dryWorld = () => 'grass_block'
+  const wetCell = (x, y, z) => (z > 0 ? 'water' : 'grass_block')
+  const wetFloor = (x, y, z) => (z > 0 ? (y === 62 ? 'water' : 'air') : 'grass_block')
+  assert.equal(fleeTargetBlocked({ sample: dryWorld, x: 10, y: 64, z: 20 }), false, 'solid cell + solid floor = free')
+  assert.equal(fleeTargetBlocked({ sample: wetCell, x: 10, y: 64, z: 20 }), true, 'water AT the target cell vetoes')
+  assert.equal(fleeTargetBlocked({ sample: wetFloor, x: 10, y: 63, z: 20 }), true, 'water UNDER an air target vetoes (the pool the walk steps into)')
+  assert.equal(fleeTargetBlocked({ sample: () => null, x: 10, y: 64, z: 20 }), false, 'unloaded chunks read as not-blocked (the hop tries, the wet detection owns the arrival)')
+  assert.equal(fleeTargetBlocked({ x: 10, y: 64, z: 20 }), false, 'no sample at all = nothing to judge')
+})
+
+test('fleeTargetBlocked: the ledger tier - the death memory outranks a dry world read', () => {
+  const dryWorld = () => 'grass_block'
+  const hit = () => ({ x: -120, y: 48, z: 390, t: 1 })
+  assert.equal(fleeTargetBlocked({ sample: dryWorld, hazardNear: hit, x: 10, y: 64, z: 20 }), true,
+    'a live hazard record/zone at the target vetoes even a dry-land read (the chunks at 12 blocks may not hold the water the fleet died in)')
+  assert.equal(fleeTargetBlocked({ sample: dryWorld, hazardNear: () => null, x: 10, y: 64, z: 20 }), false,
+    'a null ledger read falls through to the world tier')
+  assert.equal(fleeTargetBlocked({ sample: dryWorld, hazardNear: () => { throw new Error('ledger boom') }, x: 10, y: 64, z: 20 }), false,
+    'a throwing ledger read degrades to the world tier, never throws')
+  assert.equal(fleeTargetBlocked({ hazardNear: hit, x: 10, y: 64, z: 20 }), true,
+    'the ledger vetoes even with no world reader at all')
+})
+
+test('fleeTargetBlocked: junk never vetoes and never throws (the Number(null) class)', () => {
+  assert.equal(fleeTargetBlocked({}), false, 'no readers, junk coords = nothing to judge')
+  assert.equal(fleeTargetBlocked({ sample: () => 'water', x: NaN, y: 64, z: 20 }), false, 'non-finite x judges nothing')
+  assert.equal(fleeTargetBlocked({ sample: () => 'water', x: 10, y: Infinity, z: 20 }), false, 'non-finite y judges nothing')
+  assert.equal(fleeTargetBlocked({ sample: () => 'water', x: 10, y: 64, z: undefined }), false, 'undefined z judges nothing (Number(null) eleventh strike)')
+  assert.equal(fleeTargetBlocked({ sample: () => { throw new Error('world boom') }, x: 10, y: 64, z: 20 }), false, 'a throwing world read is not a veto')
+})
+
+test('vettedFleeTargetAbs: the first free candidate wins, order 0/+90/-90/180', () => {
+  const dry = () => 'grass_block'
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'a free original target rides unchanged')
+  // the original target (+12 x) is water; the +90 rotation (0,+12 z) is dry
+  const wetEast = (x, y, z) => (x > 6 ? 'water' : 'grass_block')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: wetEast, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 0, z: 12, turns: 1 }, 'the blocked east bearing rotates to south (+90), same hop length')
+  // east AND south water -> -90 (north) wins
+  const wetEastSouth = (x, y, z) => (x > 6 || z > 6 ? 'water' : 'grass_block')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: wetEastSouth, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 0, z: -12, turns: 3 }, 'two blocked quarters rotate to north (−90 as turns 3)')
+  // everything water -> the original stands (a chasing mob beats a standstill)
+  const ocean = () => 'water'
+  assert.deepEqual(vettedFleeTargetAbs({ sample: ocean, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'all four blocked = the legacy original stands')
+  // rotation preserves the hop length exactly
+  const v = vettedFleeTargetAbs({ sample: wetEast, ax: 3, ay: 64, az: -4, tx: 15, tz: -4 })
+  assert.equal(Math.round(Math.hypot(v.x - 3, v.z + 4)), 12, 'the rotated target keeps the 12-block hop length')
+})
+
+test('vettedFleeTargetAbs: the ledger tier and the junk shape', () => {
+  const dry = () => 'grass_block'
+  const hit = p => (p && p.x === 12 && p.z === 0 ? { x: 12, y: 64, z: 0, t: 1 } : null)
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, hazardNear: hit, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 0, z: 12, turns: 1 }, 'a ledgered target rotates like a water target (the death memory outranks the world)')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, hazardNear: hit, ax: 0, ay: 64, az: 0, tx: 0, tz: -12 }),
+    { x: 0, z: -12, turns: 0 }, 'a free bearing rides unchanged under a live ledger')
+  assert.equal(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: NaN, tz: 0 }), null,
+    'a non-finite target = no candidates = null (the caller keeps its legacy shape)')
+  assert.equal(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: NaN, az: 0, tx: 12, tz: 0 }), null,
+    'a non-finite anchor y = null (the sample plane is unreadable)')
 })

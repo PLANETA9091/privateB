@@ -32,6 +32,7 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
+  vettedFleeTargetAbs,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
@@ -266,6 +267,10 @@ export function createMiner ({
   // speed); a land threat keeps the away-vector (the shore may be behind it).
   async function runAway (threat, reason, { kite = false } = {}) {
     const deadline = Date.now() + 12000
+    // (v0.94.0) THE FLEE-DRY VETO's ledger reader - the same fleet death memory
+    // the wetTrip walk-veto and digShaft's guard read; defined per-call so the
+    // closure resolves after the factory's full setup (the wetTrip precedent).
+    const fleeHazardNear = pos => waterHazards.near(pos)
     for (let hop = 0; hop < 3 && bot.entity && Date.now() < deadline; hop++) {
       // (v0.59.0) YIELD TO THE RESCUE, every hop: the check at defendSelf entry
       // cannot see a rescue that STARTS mid-flee. Fleet 35657683920 measured the
@@ -275,9 +280,11 @@ export function createMiner ({
       // state"). The rescue's raw swim IS the escape - on shore the fight re-verdicts.
       if (swimming || bot._waterRescue) return
       let goal = null
+      // (v0.94.0) hoisted above the try: the kite and radial branches judge
+      // their hop targets through the same live-world reader.
+      const here = bot.entity.position.floored()
+      const sample = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name ?? null
       try {
-        const here = bot.entity.position.floored()
-        const sample = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name ?? null
         const feetB = bot.blockAt(here)
         const headB = bot.blockAt(here.offset(0, 1, 0))
         const feetWet = feetB ? isWaterName(feetB.name) : false
@@ -307,15 +314,34 @@ export function createMiner ({
         const yard = yardAnchor()
         const hopT = yard ? kiteHopTarget({ bx: bot.entity.position.x, bz: bot.entity.position.z, yx: yard.x, yz: yard.z }) : null
         if (hopT) {
-          goal = new goals.GoalXZ(hopT.x, hopT.z)
-          log(`${tag} combat: flee kite hop toward the yard (${hopT.x.toFixed(0)},${hopT.z.toFixed(0)}) vs ${threat.name} (${reason})`)
+          // (v0.94.0) THE FLEE-DRY VETO: the yard bearing crosses whatever lies
+          // between - the flooded quarry included (run80's F5 was released
+          // surface-safe and the flee verdict walked it in - drowned@7.9). The
+          // hop target must be water-free by the live world AND outside the
+          // hazard ledger; a blocked bearing rotates a quarter turn before the
+          // original stands (a chasing mob beats a standstill).
+          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z })
+          const fx = v ? v.x : hopT.x
+          const fz = v ? v.z : hopT.z
+          if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the yard target) vs ${threat.name} (${reason})`)
+          goal = new goals.GoalXZ(fx, fz)
+          log(`${tag} combat: flee kite hop toward the yard (${fx.toFixed(0)},${fz.toFixed(0)}) vs ${threat.name} (${reason})`)
         }
       }
       if (!goal) {
         const dx = bot.entity.position.x - threat.entity.position.x
         const dz = bot.entity.position.z - threat.entity.position.z
         const len = Math.hypot(dx, dz) || 1
-        goal = new goals.GoalXZ(bot.entity.position.x + (dx / len) * 12, bot.entity.position.z + (dz / len) * 12)
+        // (v0.94.0) the away-vector is judged too: the raw target must be
+        // water-free by the live world AND outside the hazard ledger before
+        // the hop commits; a blocked bearing rotates a quarter turn (order
+        // 0/+90/-90/180) before the original stands.
+        const raw = { x: bot.entity.position.x + (dx / len) * 12, z: bot.entity.position.z + (dz / len) * 12 }
+        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z })
+        if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the away target) vs ${threat.name} (${reason})`)
+        const fx = v ? v.x : raw.x
+        const fz = v ? v.z : raw.z
+        goal = new goals.GoalXZ(fx, fz)
       }
       try { await gotoSafe(bot, goal, { timeoutMs: 5000, label: 'combat flee' }) } catch { /* hop again from where we are */ }
       const cur = nearestHostile()
