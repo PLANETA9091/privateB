@@ -113,9 +113,42 @@ export const SEAL_PRIORITY = [
 ]
 
 /**
+ * Is this fight already lost? The v0.106.0 gate the armed shelter unlock
+ * rides on - it inherits the FIGHT verdict's own losing boundaries
+ * (combat.mjs) so the two policies cannot disagree about what a losing fight
+ * is:
+ * - hp < SHELTER_HP_FLOOR (8 = FLEE_HP): the bot is one skeleton volley from
+ *   death - threatVerdict already flees this shape;
+ * - attackers >= SHELTER_SWARM_SIZE (3 = SWARM_SIZE) and
+ *   hp < SHELTER_SWARM_HP_CEILING (14 = SWARM_FLEE_HP): "7 hearts against 3+
+ *   attackers is losing" - the swarm constant's own words.
+ * Junk safety: a missing/unreadable hp NEVER reads as a losing fight (the
+ * v0.47.0 premise stands for unread bots); a junk attackers read counts as 1
+ * (threatVerdict's convention). Never throws (p = {} destructure-safe).
+ * @param {object} [p]
+ * @param {number} [p.hp] bot health 0..20 (junk -> not losing)
+ * @param {number} [p.attackers] hostiles within DETECT_RANGE (junk -> 1)
+ */
+export const SHELTER_HP_FLOOR = 8           // = combat.mjs FLEE_HP
+export const SHELTER_SWARM_SIZE = 3         // = combat.mjs SWARM_SIZE
+export const SHELTER_SWARM_HP_CEILING = 14  // = combat.mjs SWARM_FLEE_HP
+
+export function losingFight (p = {}) {
+  const hp = p ? p.hp : 20
+  const attackers = p ? p.attackers : 1
+  if (!Number.isFinite(hp)) return false
+  const health = Math.max(0, hp)
+  const crowd = Number.isFinite(attackers) && attackers > 0 ? Math.floor(attackers) : 1
+  if (health < SHELTER_HP_FLOOR) return true
+  if (crowd >= SHELTER_SWARM_SIZE && health < SHELTER_SWARM_HP_CEILING) return true
+  return false
+}
+
+/**
  * Should the bot dig in and seal instead of fleeing? The measured death
  * patterns get the shelter: a NAKED (melee-naked) bot with a threat close
- * enough to matter. Two classes:
+ * enough to matter, or - since v0.106.0 - an ARMED bot whose fight is
+ * already lost. Three classes:
  * - NIGHT: any threat within 12 (the surface mob class - zombies chase across
  *   the whole surface, the chase is lost before it starts);
  * - (v0.47.1) DAY, ENGAGED: fleet 35605960761 measured F7/F10 dying in
@@ -124,17 +157,33 @@ export const SEAL_PRIORITY = [
  *   blocks is a lost fight for a tool-armed bot AND a lost chase (same speed,
  *   already in swing range); the dig-in beats both. Daylight mobs beyond
  *   contact keep walking past - no shelter for shadows.
+ * - (v0.106.0) ARMED, LOSING: run94 (35841864758) mined the end-phase zombie
+ *   strip eating FIVE bots through the same gate - 'shelter skip (night=true
+ *   armed=true threat=zombie@6.6)' (hp 6.3, 3 nearby) then the flee, then
+ *   dead at zombie@0.5-1.5. The unconditional armed refusal ran the v0.67.0
+ *   premise (the sword fight is the winner) past its own boundary:
+ *   threatVerdict refuses to fight that bot (hp 6.3 < FLEE_HP, or 3 attackers
+ *   at hp 7 < SWARM_FLEE_HP) but the shelter gate never saw those inputs, so
+ *   the policy sent an armed bot at 7 hp against a pack into the one escape
+ *   the run measured failing (the night chase: 20s 'raw hop failed' timeouts,
+ *   the kite bearing vetoed by the flooded rim). The wall beats the lost
+ *   fight - v0.68.0's own field proof (F10 sheltered from a zombie at 1.3)
+ *   never depended on being unarmed. The unlock fires only when losingFight
+ *   reads TRUE from a finite hp read; a healthy sword keeps every legacy
+ *   verdict byte for byte.
  * @param {object} p
  * @param {boolean} [p.night] night by the vanilla clock (junk -> false)
  * @param {boolean} [p.armed] does the bot hold a REAL melee weapon (sword/axe)?
- *   (junk -> true: shelter is for the melee-naked)
+ *   (junk -> true: shelter is for the melee-naked, or the LOSING)
  * @param {number} [p.threatDist] metres to the nearest hostile (junk -> far)
+ * @param {number} [p.hp] bot health 0..20 (junk -> the armed path stays shut)
+ * @param {number} [p.attackers] hostiles within DETECT_RANGE (junk -> 1)
  */
 export const DAY_ENGAGE_DIST = 3.5
 
-export function shelterDue ({ night = false, armed = true, threatDist = Infinity } = {}) {
-  if (armed !== false) return false
+export function shelterDue ({ night = false, armed = true, threatDist = Infinity, hp = 20, attackers = 1 } = {}) {
   if (!Number.isFinite(threatDist) || threatDist > 12) return false
+  if (armed !== false && !losingFight({ hp, attackers })) return false
   if (night === true) return true
   if (threatDist <= DAY_ENGAGE_DIST) return true
   return false

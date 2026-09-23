@@ -437,8 +437,17 @@ export function createMiner ({
     // fists do; only a sword/axe (4-9 dmg) counts as armed here.
     const armed = !!pickMeleeWeapon(inventoryItems(bot))
     const night = isNight(bot.time?.timeOfDay)
-    if (!threat || !shelterDue({ night, armed, threatDist: threat ? threat.dist : Infinity })) {
-      log(`${tag} combat: shelter skip (night=${night} armed=${armed} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
+    // (v0.106.0) the losing-fight inputs: the armed refusal keeps the v0.67.0
+    // premise (the sword fight is the winner) only for fights that CAN be won.
+    // run94 (35841864758) mined the end-phase zombie strip eating five armed
+    // bots at hp 6-7 through this exact skip line; the wall beats the lost
+    // fight (the policy + boundaries live in shelter.mjs losingFight). Junk
+    // hp (bot.health unread) keeps the legacy refusal - never shelter on a
+    // guess. countHostiles is the same read the fight verdict consumes.
+    const hpNow = bot.health ?? null
+    const crowd = countHostiles()
+    if (!threat || !shelterDue({ night, armed, threatDist: threat ? threat.dist : Infinity, hp: hpNow, attackers: crowd })) {
+      log(`${tag} combat: shelter skip (night=${night} armed=${armed} hp=${hpNow ?? '?'} attackers=${crowd} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
       return false
     }
     // no seal material: (v0.50.0) EARN one instead of skipping - the measured

@@ -11,7 +11,8 @@ import {
   EARN_SEAL_MAX_THREAT_DIST, JUNK_DROP_PRIORITY,
   RING_BLOCKS_NEEDED, RING_SIDE_NORMALS, RING_PLACE_ROUNDS, RING_RETRY_TICKS,
   RING_DIG_EARN_OK, RING_EARN_MAX_DIGS,
-  shelterDue, pickSealItem, pickJunkToDrop, earnSealDue,
+  SHELTER_HP_FLOOR, SHELTER_SWARM_SIZE, SHELTER_SWARM_HP_CEILING,
+  shelterDue, losingFight, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
   ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply
 } from '../../src/lib/shelter.mjs'
@@ -45,6 +46,86 @@ test('shelterDue: the day-engaged cell (zombie already chewing) gets the shelter
   assert.equal(shelterDue({ night: false, armed: true, threatDist: 1.8 }), false, 'an armed bot never seals, day or night')
   assert.equal(shelterDue({ night: false, armed: 0, threatDist: 1.8 }), false, 'armed junk stays junk')
   assert.equal(shelterDue({ night: true, armed: false, threatDist: 3.6 }), true, 'night keeps its full 12-block radius')
+})
+
+// ---- v0.106.0: THE LOSING-FIGHT SHELTER ----
+// run94 (dispatch 35841864758) mined the end-phase zombie strip eating FIVE
+// armed bots through the same gate: 'shelter skip (night=true armed=true
+// threat=zombie@6.6)' (F9: hp 6.3, 3 nearby) -> the flee -> dead at
+// zombie@1.5; F11 hp 7.0 threat@4.5 -> dead @0.5; F8 fought to hp 7, the
+// verdict flipped to flee, the skip refused the wall, the raw hop timed out
+// (20s), dead @1.3. The armed refusal ran the v0.67.0 premise (the sword
+// fight is the winner) past its own boundary - threatVerdict refuses to
+// fight that bot (hp < FLEE_HP=8, or 3 attackers at hp < SWARM_FLEE_HP=14)
+// but the shelter gate never saw those inputs. The wall beats the lost fight.
+test('shelterDue: the losing-fight armed bot gets the wall (the run94 shapes)', () => {
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: 6.3, attackers: 3 }), true, 'F9: hp 6.3, 3 zombies, night, threat 6.6')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 4.5, hp: 7.0, attackers: 3 }), true, 'F11: hp 7.0, threat 4.5')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 1.8, hp: 7, attackers: 2 }), true, "F8's flip: hp 7 below the floor carries it without the swarm")
+  assert.equal(shelterDue({ night: false, armed: true, threatDist: 1.8, hp: 6, attackers: 2 }), true, 'the day-engaged losing fight too (run64 boundary, now with hp)')
+})
+
+test('shelterDue: the losing boundaries inherit the fight verdict, not their own mood', () => {
+  // the swarm lane: hp 13 vs 3 attackers is losing (SWARM_FLEE_HP=14), 14 is not
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 10, hp: 13, attackers: 3 }), true, '13 hp vs 3 attackers: the swarm constant says losing')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 10, hp: 14, attackers: 3 }), false, '14 hp vs 3 attackers: the fight is still on')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 10, hp: 14, attackers: 4 }), false, 'a 4-pack at 14 hp: still the ceiling boundary')
+  // the hp-floor lane is attacker-independent
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 10, hp: 8, attackers: 1 }), false, '8 hp exactly: FLEE_HP is a strict floor')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 10, hp: 7.9, attackers: 1 }), true, '7.9 hp vs ONE zombie: one volley from death')
+})
+
+test('shelterDue: a healthy sword keeps every legacy verdict byte for byte', () => {
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 5 }), false, 'the legacy default (hp 20, 1 attacker) stays refused')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: 20, attackers: 1 }), false, 'hp 20 vs 1 zombie: the sword fight is the winner (v0.67.0 stands)')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: 10, attackers: 1 }), false, 'hp 10 vs 1 zombie: still a winnable fight')
+  assert.equal(shelterDue({ night: false, armed: true, threatDist: 6, hp: 6, attackers: 1 }), false, 'day + losing but beyond contact: keep walking')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 13, hp: 6.3, attackers: 3 }), false, 'beyond the detect edge: no shelter, losing or not')
+})
+
+test('shelterDue: junk reads never open the armed wall (and the unarmed paths are untouched)', () => {
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: null, attackers: 3 }), false, 'an unread hp never reads as a losing fight')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: NaN, attackers: 3 }), false, 'NaN hp: the v0.47.0 premise stands')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: undefined, attackers: 3 }), false, 'missing hp: legacy refusal')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: 6.3, attackers: null }), true, 'junk attackers reads as 1 - the hp floor still carries it')
+  assert.equal(shelterDue({ night: true, armed: true, threatDist: 6.6, hp: 20, attackers: 'many' }), false, 'junk attackers + healthy hp: no shelter')
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 5, hp: 20, attackers: 1 }), true, 'the unarmed night shelter is byte-identical')
+  assert.equal(shelterDue({ night: true, armed: false, threatDist: 5, hp: null, attackers: 3 }), true, 'the unarmed path never consults hp')
+})
+
+test('losingFight: the pure gate behind the unlock (junk-safe, never throws)', () => {
+  assert.equal(losingFight({ hp: 6.3, attackers: 3 }), true, 'the F9 read')
+  assert.equal(losingFight({ hp: 7, attackers: 2 }), true, 'below the floor, no swarm needed')
+  assert.equal(losingFight({ hp: 13, attackers: 3 }), true, 'the swarm lane inside')
+  assert.equal(losingFight({ hp: 14, attackers: 3 }), false, 'the swarm ceiling')
+  assert.equal(losingFight({ hp: 8, attackers: 3 }), true, '8 hp vs 3 attackers: the swarm lane catches what the strict floor misses')
+  assert.equal(losingFight({ hp: 8, attackers: 2 }), false, '8 hp vs 2: floor missed (strict) and swarm missed (crowd < 3)')
+  assert.equal(losingFight({ hp: null }), false, 'junk hp: not losing')
+  assert.equal(losingFight({}), false, 'empty input: not losing (default 20 hp)')
+  assert.equal(losingFight(null), false, 'null input: not losing (destructure-safe)')
+  assert.equal(losingFight({ hp: -1, attackers: 1 }), true, 'a negative read clamps to dying')
+  assert.equal(losingFight({ hp: 7.9, attackers: 'junk' }), true, 'junk attackers reads as 1 (threatVerdict convention)')
+})
+
+test('SHELTER_* constants: the losing boundaries ARE the fight verdict boundaries', () => {
+  // the module comment promises inheritance from combat.mjs - pin the values
+  // so a silent drift in EITHER file fails here (the two policies must not
+  // disagree about what a losing fight is)
+  assert.equal(SHELTER_HP_FLOOR, 8, '= combat.mjs FLEE_HP')
+  assert.equal(SHELTER_SWARM_SIZE, 3, '= combat.mjs SWARM_SIZE')
+  assert.equal(SHELTER_SWARM_HP_CEILING, 14, '= combat.mjs SWARM_FLEE_HP')
+})
+
+test('the miner wires the losing-fight inputs into the shelter gate (source pin)', async () => {
+  // the mechanics must FEED the policy: tryShelter reads bot.health and
+  // countHostiles() and passes both to shelterDue - a wiring regression would
+  // silently restore the run94 refusal (the policy never sees the losing
+  // state and the strip eats the next fleet)
+  const minerSrc = await import('node:fs').then(fs => fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8'))
+  const m = minerSrc.match(/shelterDue\(\{[^}]*hp:\s*hpNow[^}]*attackers:\s*crowd[^}]*\}\)/)
+  assert.ok(m, 'tryShelter passes hp: hpNow + attackers: crowd to shelterDue')
+  assert.ok(/const hpNow = bot\.health \?\? null/.test(minerSrc), 'the hp read stays junk-safe (null, not a guessed 20)')
+  assert.ok(/hp=\$\{hpNow \?\? '\?'\} attackers=\$\{crowd\}/.test(minerSrc), 'the skip line names hp + attackers - the next mine reads the gate without re-deriving it')
 })
 
 test('pickSealItem: dirt family first, craft-critical items never spent', () => {
