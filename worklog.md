@@ -1962,3 +1962,30 @@ Task: session close - the fleet dispatch record.
 Work Log:
 - THE FLEET DISPATCH FIRED as the session's ABSOLUTE LAST ACTION: run87 = workflow_dispatch (run_fleet=true, fleet_seconds=600, master@6ca97ce, pending). NO PUSHES after it.
 - run87 = the first measurement of the v0.97.0 stack (the spent-visit batch stop + the dig tick guard) - the NORMAL END guarantee run.
+
+---
+Task ID: 398294-20260923-1153
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: mine run87 (the first fleet of v0.97.0 - the NORMAL END guarantee run); cure the red integration CI; ship the cures the evidence names; push; dispatch.
+
+Work Log:
+- Sandbox died - re-cloned to d292ed7. run87 = 35813478393 (dispatch on d292ed7) completed SUCCESS. CI first: the v0.97.0 code push CI 35813406318 was RED (Integration: 'a crafting table must be placeable at the shaft bottom' - THREE carved alcoves, THREE silent placeMachine rejects), but run87's own Integration job on the SAME TREE passed minutes later -> flake, not regression. The silent path got cured instead of re-run-and-hope (see below).
+- RUN87 MINED (artifact 10731471841): NORMAL END - the v0.97.0 hostage fences HELD (all 19 bots concluded their final-bank chains; the hard-kill margin returned to reserve). The wet-frozen relog fired 7x in the field and SAVED F17/F18/F10 ('frozen while head-wet (1 verdict) - the drowning clock owns this client') - all three re-entered and banked (F17 +215). Smelt tooks all in-budget (9 x 'took 1 x stone' - no batch marathon). re-dooms absorbed 8x. Stone pickaxes 3 -> 7. BUT: banked 730 (was 1703), mined 2823 @ 4.71 (was 5.84), rescues=120 (was 36), wet=24 (was 7), airGlitches=105 (was 18) - a WET-HEAVY world (fresh seed each CI run; the fleet spent the run in water handling). Deaths 16: fall/env x8 (RECORD), drowned-mob x4, zombie x2, skeleton x1.
+- THE FALL/ENV X8 DECODED - F4's last line is the smoking gun: 'vein sweep: 8 ores dug beside the gallery' then death at [-114,43,420]. veinSweep dug ANY ore within reach 4.5 with NO terrain check, while the shaft digger itself sidesteps exactly these cells (dropAheadBelow >= 4). The y=41-43 cluster = 20+ block falls from surface/gallery into caves. SHIPPED THE VEIN FALL FENCE: the same dropAheadBelow now fences every sweep cell via the pure veinDigRefusal (drop >= 4 refuses, blind/junk reads refuse; the feet-support with solid ground beneath stays the normal descent); refusals log (first 2 + a count line). +3 test blocks (surface 42 green).
+- ALSO SHIPPED THE PLACE SETTLE VERIFY (the red-CI cure): placeMachine's single instant blockAt read raced the async block update on a loaded runner and saw the still-empty cell -> a phantom reject x3. The verify now re-reads up to 5x2 ticks, and every skip/reject names its verdict - the next red is diagnosable, not silent.
+- F18 died MID-RESCUE ('drowning rescue start... y=47.3 o2=0' -> fall/env label) - the F1-class pinned-under-ledge drowning named twice now; the o2-critical dig-up rung remains the rescue ladder's open front. Push 0b84bf7: master = v0.98.0 (next free 0.99.0). Full unit 74/74 files green locally (pure node --test only); check-syntax 172/0.
+
+Stage Summary:
+- Master: 0b84bf7 (v0.98.0). Next free version = 0.99.0.
+- EXPECTATIONS run88: fall/env collapses from x8 (the vein fence - watch 'vein sweep: refused a cell' lines); NORMAL END holds; the stone->iron ladder continues (iron_ore=32 mined last run, 0 smelted - the iron ingot needs the smelt chain to reach ore pockets); integration green on the first try (the settle verify).
+- OPEN FRONTS: (a) the F1-class mid-rescue drowning (o2-critical dig-up rung - named in two runs now); (b) the wet-world economy (rescues=120, wet=24 - water handling ate ~20% of the run's rate); (c) the worldmap lane (idle 14+ runs); (d) the final-climb wall ('still underground' x5 again).
+- The fleet dispatch fired as the ABSOLUTE LAST action of the session (run id recorded by the next session). NO PUSHES after it.
+
+---
+Task ID: 398294-20260923-1153 (dispatch record)
+Agent: Z.ai Code (cron session, 11:53 +08)
+Task: session close - the fleet dispatch record.
+
+Work Log:
+- THE FLEET DISPATCH FIRED as the session's ABSOLUTE LAST ACTION: run88 = workflow_dispatch (run_fleet=true, fleet_seconds=600, master@0b84bf7, pending). NO PUSHES after it.
+- run88 = the first measurement of the v0.98.0 stack (the vein fall fence + the place settle verify) on top of v0.97.0.
