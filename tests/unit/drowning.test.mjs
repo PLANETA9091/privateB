@@ -13,6 +13,7 @@ import {
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   historyAdmissible, O2_HISTORY_CAP,
+  surfaceRearmHolds, SURFACE_REARM_MS,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
   airBarFalling, AIR_FALL_MIN_DROP, AIR_FALL_MIN_READS,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
@@ -1385,4 +1386,55 @@ test('the history guard wiring: the sentry pushes through historyAdmissible with
   assert.ok(src.includes('const contactTrust = airBarTrust(read)'), 'the trust is read once per tick')
   assert.ok(src.includes('criticalOnDry = oxygenInDomain(o2raw) && o2raw <= OXYGEN_CRITICAL_LEVEL && contactTrust'), 'the streak reuses the same verdict (one read, one truth)')
   assert.ok(!src.includes('if (oxygenInDomain(o2Now)) { o2History.push'), 'the old unguarded push is gone')
+})
+
+// (v0.129.0) THE SURFACE-RELEASE RE-ARM - run530 (35933537636) mined F15
+// floating an open lake for the whole run: 39 'drowning rescue start' pages,
+// 36 'rescue released (surface-safe, open water - no land known)' - each
+// cycle a walk-goal cancel plus 2.5-5.3 s of rescue, then the 3 s cooldown
+// re-armed the sentry and the bar hovering at the rescue level paged again.
+// The release is CORRECT (the bot lived, 19/19); the pacing is the waste.
+// The re-arm holds rescue-level re-pages for 12 s after a surface-safe
+// release; only a genuinely sinking bar (o2 <= critical) pages inside it.
+test('surfaceRearmHolds: the float owns the pacing, the drain never waits', () => {
+  // no release record never holds (the legacy shape, byte for byte)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: null, oxygen: 10 }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: undefined, oxygen: 10 }), false)
+  assert.equal(surfaceRearmHolds({ oxygen: 10 }), false)
+  // junk clocks never hold
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: NaN, oxygen: 10 }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: -5, oxygen: 10 }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 'soon', oxygen: 10 }), false)
+  // inside the window: a bar at/above the rescue level holds (the float's own shape)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 3000, oxygen: 10 }), true)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 8000, oxygen: 12 }), true)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 0, oxygen: 20 }), true)
+  // inside the window: a genuinely sinking bar pages (the drain outranks the pacing)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 3000, oxygen: 4 }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 8000, oxygen: 2 }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 11000, oxygen: 0 }), false)
+  // the window expires: the legacy cadence returns
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: SURFACE_REARM_MS, oxygen: 10 }), false, 'the boundary is ago > win')
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: SURFACE_REARM_MS + 1, oxygen: 10 }), false)
+  // a junk bar never breaks a hold (a missing bar never drives a page)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 4000, oxygen: -1 }), true)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 4000, oxygen: NaN }), true)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 4000 }), true)
+  // a junk rearm option reads the default; a junk critical reads 4
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: SURFACE_REARM_MS - 100, oxygen: 10, rearmMs: NaN }), true)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: SURFACE_REARM_MS + 100, oxygen: 10, rearmMs: NaN }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 5000, oxygen: 4, critical: NaN }), false)
+  assert.equal(surfaceRearmHolds({ releasedAgoMs: 5000, oxygen: 5, critical: NaN }), true)
+})
+
+test('the surface re-arm wiring: the release arms it, the sentry consults it, the sinking bar bypasses', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('if (releasedSafe) surfaceReleaseAt = Date.now()'), 'the surface-safe release arms the pacing')
+  assert.ok(src.includes('surfaceRearmHolds({ releasedAgoMs: surfaceReleaseAt ? now - surfaceReleaseAt : null, oxygen: o2raw })'), 'the sentry consults the re-arm with the same bar it pages on')
+  assert.ok(src.includes('surface re-arm holds the page'), 'the hold names itself so the next mine can count the pacing')
+  assert.ok(src.includes('let surfaceReleaseAt = 0'), 'the release clock is per-bot sentry state (0 = no release ever)')
+  const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  assert.ok(lib.includes('export function surfaceRearmHolds'), 'the pure verdict lives in the drowning policy module')
+  assert.ok(lib.includes('export const SURFACE_REARM_MS = 12000'), 'the window rides the export (policy + constant ship together)')
 })

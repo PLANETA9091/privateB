@@ -93,6 +93,52 @@ export function historyAdmissible (o2, trust, { critical = OXYGEN_CRITICAL_LEVEL
   if (trust === 'dry' && Number(o2) <= crit) return false
   return true
 }
+
+/** (v0.129.0) THE SURFACE-RELEASE RE-ARM - how long after a surface-safe
+ * release the sentry paces its re-pages. run530 (35933537636, the v0.127.0
+ * fleet, SUCCESS) mined F15 floating an open lake for the whole run: 39
+ * 'drowning rescue start' pages, 36 'rescue released (surface-safe, open
+ * water - no land known)' - each cycle a setGoal(null) walk cancel plus
+ * 2.5-5.3 s of rescue, then RESCUE_COOLDOWN_MS (3 s) re-armed the sentry and
+ * the bar hovering at the rescue level (10-12) paged again. The release is
+ * CORRECT (the bot lived - 19/19); the pacing is the waste: a bot the
+ * release just certified surface-safe is floating, breathing, refilling -
+ * not drowning. THE CURE: after a surface-safe release the sentry holds
+ * rescue-level re-pages for SURFACE_REARM_MS (12 s - two full refill
+ * windows); inside the window only a genuinely SINKING bar (o2 at or under
+ * the critical level) pages - the drain-to-death clock (~35 s from o2 = 0)
+ * outruns the remaining window with room to spare. Junk-safe: no release
+ * record, a junk clock, or an expired window never hold. */
+export const SURFACE_REARM_MS = 12000
+/**
+ * (v0.129.0) THE SURFACE-RELEASE RE-ARM (pure): should the sentry hold this
+ * page because a surface-safe release just certified the bot as floating?
+ * @param {object} [p]
+ * @param {number|null} [p.releasedAgoMs] ms since the last surface-safe
+ *   release (null/undefined = no release record)
+ * @param {number} [p.oxygen] the raw oxygen read (junk/-1 read FULL - a
+ *   missing bar never drives a page, so it never breaks the hold either)
+ * @param {number} [p.critical] the critical level (default OXYGEN_CRITICAL_LEVEL)
+ * @param {number} [p.rearmMs] the pacing window (default SURFACE_REARM_MS)
+ * @returns {boolean} true = the page holds (the float owns the pacing)
+ */
+export function surfaceRearmHolds ({ releasedAgoMs = null, oxygen = 20, critical = OXYGEN_CRITICAL_LEVEL, rearmMs = SURFACE_REARM_MS } = {}) {
+  // null/undefined both mean "no release record" - Number(null) is 0, which
+  // would otherwise masquerade as a release that just happened (the wiring's
+  // `releasedAgoMs ? ... : null` keeps the shape, the guard keeps the truth).
+  if (releasedAgoMs == null) return false
+  const ago = Number(releasedAgoMs)
+  if (!Number.isFinite(ago) || ago < 0) return false
+  const win = Number.isFinite(rearmMs) && rearmMs > 0 ? rearmMs : SURFACE_REARM_MS
+  if (ago >= win) return false
+  const crit = Number.isFinite(critical) ? critical : OXYGEN_CRITICAL_LEVEL
+  const o2 = Number(oxygen)
+  // only an IN-DOMAIN sinking bar breaks the hold: the -1 reset sentinel and
+  // NaN read FULL (v0.64.0 semantics - a missing bar never drives a page),
+  // so they never break one either.
+  if (oxygenInDomain(o2) && o2 <= crit) return false
+  return true
+}
 /** (v0.64.0) The 26.2 metadata RESET sentinel, measured live in run60 (fleet
  * 35668657935): immediately after 'rescue complete' AND after 'died - respawning'
  * the air_supply metadata arrives as -1 - a value OUTSIDE the 0..20 sensor domain.

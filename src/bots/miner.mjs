@@ -35,6 +35,7 @@ import {
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   historyAdmissible, O2_HISTORY_CAP,
+  surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
   frozenReturnGate, frozenReturnBypass,
@@ -961,6 +962,10 @@ export function createMiner ({
   // wet-lane page that happens to end dry must never ratchet the ladder).
   let glitchConfirmed = 0
   let rescuePageWasGlitch = false
+  // (v0.129.0) THE SURFACE-RELEASE RE-ARM state: the wall clock of the last
+  // surface-safe release (0 = none) and the hold line's rate limiter.
+  let surfaceReleaseAt = 0
+  let lastSurfaceHoldLogAt = 0
   // (v0.82.0) THE STAND-DOWN STATE: run76's F9 (25 starts, one flooded pocket)
   // and F17 (14 starts, one frozen client) ate their runs in 25s slices - the
   // watch re-pages 3s (cooldown) + 5s (head-wet clock) after every still-wet
@@ -1271,6 +1276,12 @@ export function createMiner ({
                   ? 'complete'
                   : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
       log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+      // (v0.129.0) a surface-safe release certifies the bot as FLOATING and
+      // breathing - arm the sentry's re-arm pacing from here (the F15 class:
+      // 39 starts / 36 releases on one open lake, every cycle a walk cancel
+      // plus 2.5-5.3 s of rescue, re-paged by a bar hovering at the rescue
+      // level 3 s after each release).
+      if (releasedSafe) surfaceReleaseAt = Date.now()
       // (v0.87.0) THE FROZEN-CLIENT RELOG ESCALATION: the stand-down hands the
       // bot to "the reconnect lane", but a live-socket stall never pages that
       // lane (it waits for EPIPE/timeout) - run79 measured F8 at 93 stand-downs
@@ -1459,6 +1470,21 @@ export function createMiner ({
         // the A* storm's pump. A WET page (head in water / waterlogged
         // contact) never waits on this gate - only the stuck-bar class does.
         if (criticalOnDry && Date.now() < noOpRescueGateUntil) return
+        // (v0.129.0) THE SURFACE-RELEASE RE-ARM - the sentry side. A bot a
+        // surface-safe release just certified as floating (head dry, open
+        // water, no shore anywhere) re-fills its bar while the walk gate
+        // walks it - a bar hovering at the rescue level is the float's own
+        // shape, not a new drowning. The hold paces the re-page for
+        // SURFACE_REARM_MS; a genuinely sinking bar (o2 at/under critical,
+        // the ~35 s drain-to-death clock) bypasses and pages immediately.
+        // Junk-bar reads judge nothing (a missing bar never breaks a hold).
+        if (surfaceRearmHolds({ releasedAgoMs: surfaceReleaseAt ? now - surfaceReleaseAt : null, oxygen: o2raw })) {
+          if (now - lastSurfaceHoldLogAt >= AIR_GLITCH_LOG_MS) {
+            lastSurfaceHoldLogAt = now
+            log(`${tag} water: surface re-arm holds the page (${Math.max(0, Math.round((surfaceReleaseAt + SURFACE_REARM_MS - now) / 1000))}s left) - the open-water float owns the pacing; a sinking bar still pages`)
+          }
+          return
+        }
         // (v0.119.0) THE FROZEN-RETURN GATE - the sentry side: a page inside
         // the hold waits UNLESS the bar is genuinely critical (the ~35s
         // drain-to-death clock outranks any gate). The headWetMs/rescue-level
