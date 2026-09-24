@@ -26,7 +26,7 @@ import {
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
-import { parseDeathMessage } from '../lib/deathcause.mjs'
+import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
@@ -246,9 +246,22 @@ export function createMiner ({
     // the server said drowned/drowned/suffocated). Both shapes print so the
     // next mine can still audit the inference against the truth.
     const authFresh = serverDeath && Date.now() - serverDeath.at < 6000
-    const cause = authFresh
-      ? `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}] | inferred: ${inferred}`
-      : inferred
+    // (v0.136.0) THE INFERENCE VERDICT: the annotation lie gets named in the
+    // line - four mines re-adjudicated 'kind=drown | inferred: zombie@12.0'
+    // by hand. The server kind stays the authority (v0.117.0); the verdict
+    // only labels the relationship so the decode reads it, not re-derives it.
+    const VERDICT_NOTE = {
+      corroborates: 'corroborates the server verdict',
+      contradicts: 'CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)',
+      blind: 'is blind to this kind - the hint is noise by construction (the server kind stays the authority)'
+    }
+    let cause = inferred
+    if (authFresh) {
+      const verdict = inferenceVerdict(serverDeath, lastHarm ? lastHarm.name : null)
+      const note = VERDICT_NOTE[verdict]
+      cause = `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}] | inferred: ${inferred}`
+      if (note) cause += ` [the inference ${note}]`
+    }
     log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths

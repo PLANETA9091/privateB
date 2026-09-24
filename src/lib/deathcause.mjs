@@ -34,6 +34,13 @@ const KINDS = [
   // kill - run104 (35899827086) mined 'F15 was blown up by Creeper' landing
   // in the honest-'other' bucket because only the active 'blew up' matched
   { re: /\bwas blown up by (\w+)\b/, kind: 'explosion', group: 1 },
+  // (v0.136.0) THE KNOCKOFF TEMPLATE: 'was doomed to fall by X' is vanilla's
+  // assisted-fall kill (the attacker knocked the victim from a height). run550
+  // (35950649305) measured F7 'was doomed to fall by Drowned' landing in the
+  // honest-'other' bucket - the generic mob family matches 'was doomed by'
+  // but the actual verb carries 'to fall' between, so the attacker was LOST
+  // and a mob kill left the death map (mob pressure undercounted, again).
+  { re: /\bwas doomed to fall by (\w+)\b/, kind: 'mob', group: 1 },
   { re: /\bwas killed by (?:an?\s+)?(?:magic|trying to hurt)\b/, kind: 'other' },
   { re: /\bstarved to death\b/, kind: 'starve' },
   { re: /\bfroze to death\b/, kind: 'freeze' },
@@ -98,4 +105,52 @@ export function parseDeathMessage (text, botName = null) {
   // handler prints it; a future vanilla phrasing must never fall back to the
   // polluted inference silently)
   return { kind: 'other', attacker: null, verb: m[1] }
+}
+
+// (v0.136.0) THE INFERENCE VERDICT - the annotation lie gets a NAMED verdict.
+//
+// Four consecutive mines (run530 through run550) spent decode time re-adjudicating
+// the same shape: the death line prints 'server: drowned [kind=drown] | inferred:
+// zombie@12.0' and every session had to re-derive that a zombie 12 blocks away is
+// NOT the killer (the server kind stays the authority - the v0.117.0 doctrine).
+// The worst faces: F16 'kind=drown | inferred: zombie@12.0' (contradiction), F10
+// 'kind=suffocate | inferred: drowned@9.7' (the hp inferrer is BLIND to suffocation
+// - no hostile touch, dry air - so the hint is noise by construction), F7
+// 'kind=other | inferred: fall/env' (half-right: the fall WAS assisted - see the
+// knockoff template above). This function names the relationship once, in the line:
+// corroborates / contradicts / blind - the next mine reads the verdict, not the
+// whole argument again.
+//
+// Pure string work, junk-safe: a junk server verdict or a junk inferred name never
+// throws - junk reads as 'unknown' / 'blind'.
+export function inferenceVerdict (server, inferredName) {
+  if (!server || typeof server.kind !== 'string' || !server.kind.length) return 'unknown'
+  const kind = server.kind
+  // 'blind' kinds: the lastHarm inferrer structurally cannot see these deaths
+  // (suffocation has no hostile touch and dry air; lava/starve/freeze have no
+  // hp-drop signature the nearest-hostile heuristic can name) - the hint is
+  // noise by construction, whatever it says.
+  if (kind === 'suffocate' || kind === 'lava' || kind === 'starve' || kind === 'freeze') return 'blind'
+  if (typeof inferredName !== 'string' || !inferredName.length) return 'blind'
+  const name = inferredName.trim()
+  if (!name.length) return 'blind'
+  // the two non-hostile fallback names the inferrer prints (miner.mjs lastHarm):
+  // 'drowning' = the oxygen state, 'fall/env' = the gravity fallback. Any OTHER
+  // name is a hostile entity's name (Zombie, Drowned, Skeleton, ...).
+  const isDrownHint = name === 'drowning'
+  const isFallHint = name === 'fall/env' || name === 'fall'
+  const attacker = typeof server.attacker === 'string' ? server.attacker.toLowerCase() : null
+  if (kind === 'drown') {
+    // the server saw NO attacker (plain 'drowned') - a nearby mob (even a
+    // Drowned MOB: the melee kill broadcasts 'was slain by Drowned') is not
+    // the killer; only the oxygen state itself corroborates.
+    return isDrownHint ? 'corroborates' : 'contradicts'
+  }
+  if (kind === 'fall') return isFallHint ? 'corroborates' : 'contradicts'
+  if (kind === 'mob' || kind === 'explosion') {
+    // the killer is named - the hint corroborates only when it names THE killer
+    if (attacker && name.toLowerCase() === attacker) return 'corroborates'
+    return 'contradicts'
+  }
+  return 'unknown'
 }

@@ -8,7 +8,7 @@
 // suffers, the other-bot isolation (one shared chat), and the junk family.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseDeathMessage } from '../../src/lib/deathcause.mjs'
+import { parseDeathMessage, inferenceVerdict } from '../../src/lib/deathcause.mjs'
 
 test('parseDeathMessage: the run102 death lines parse to the SERVER truth', () => {
   // the exact server lines that the fleet log mis-attributed to fall/env
@@ -87,4 +87,86 @@ test('parseDeathMessage: the junk family never throws, never claims', () => {
 test('parseDeathMessage: regex metachars in a name never break the match', () => {
   const p = parseDeathMessage('bot(F3)+ drowned', 'bot(F3)+')
   assert.equal(p?.kind, 'drown', 'a metachar-laden username is escaped, not interpreted')
+})
+
+// (v0.136.0) THE KNOCKOFF TEMPLATE - run550 (35950649305) measured F7
+// 'was doomed to fall by Drowned' landing in the honest-'other' bucket: the
+// generic mob family matches 'was doomed by' but the actual verb carries
+// 'to fall' between, so the attacker was LOST and a mob kill left the death
+// map (mob pressure undercounted - the fleet's top death front, undercounted).
+test('parseDeathMessage: the assisted-fall kill keeps its killer (the run550 F7 pin)', () => {
+  const f7 = parseDeathMessage('F7 was doomed to fall by Drowned', 'F7')
+  assert.equal(f7.kind, 'mob', 'the knockoff is a mob kill, not an honest other')
+  assert.equal(f7.attacker, 'Drowned', 'the killer survives the parse')
+  assert.equal(f7.verb, 'was doomed to fall by Drowned')
+  // the other assisted-fall actors parse too
+  const z = parseDeathMessage('F9 was doomed to fall by Zombie', 'F9')
+  assert.equal(z.kind, 'mob')
+  assert.equal(z.attacker, 'Zombie')
+})
+
+// (v0.136.0) THE INFERENCE VERDICT - the annotation lie gets a NAMED verdict
+// in the line. Four mines (run530 -> run550) re-adjudicated the same shape by
+// hand; the matrix below pins every relationship the line can now name.
+test('inferenceVerdict: the run550 death matrix names every face', () => {
+  // F16: kind=drown, the nearest harm was a Zombie 12.0 blocks away - contradiction
+  assert.equal(inferenceVerdict({ kind: 'drown', attacker: null }, 'Zombie'), 'contradicts')
+  // a nearby Drowned MOB is not the drowning state either (the melee kill
+  // would broadcast 'was slain by Drowned' - kind=mob)
+  assert.equal(inferenceVerdict({ kind: 'drown', attacker: null }, 'Drowned'), 'contradicts')
+  // the oxygen state itself corroborates a plain drown
+  assert.equal(inferenceVerdict({ kind: 'drown', attacker: null }, 'drowning'), 'corroborates')
+  // F10: kind=suffocate - the hp inferrer is STRUCTURALLY blind to suffocation
+  assert.equal(inferenceVerdict({ kind: 'suffocate', attacker: null }, 'drowned'), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'suffocate', attacker: null }, 'fall/env'), 'blind')
+  // the other blind kinds
+  assert.equal(inferenceVerdict({ kind: 'lava', attacker: null }, 'drowning'), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'starve', attacker: null }, 'Zombie'), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'freeze', attacker: null }, 'Zombie'), 'blind')
+  // F13/F11: kind=mob by Zombie, the hint names the same killer - corroborates
+  assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Zombie' }, 'Zombie'), 'corroborates')
+  // case-insensitive: the inferrer prints the entity name as-is
+  assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Zombie' }, 'zombie'), 'corroborates')
+  // F9: kind=mob by Drowned, the hint says drowning (the STATE) - contradiction
+  assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Drowned' }, 'drowning'), 'contradicts')
+  // the wrong killer name contradicts
+  assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Skeleton' }, 'Zombie'), 'contradicts')
+  // explosions: the creeper's passive form carries the attacker
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Creeper'), 'corroborates')
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Zombie'), 'contradicts')
+  // falls: only the gravity fallback corroborates
+  assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'fall/env'), 'corroborates')
+  assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'Zombie'), 'contradicts')
+})
+
+test('inferenceVerdict: junk-safe (no throw, honest unknown/blind)', () => {
+  // junk server verdicts
+  assert.equal(inferenceVerdict(null, 'Zombie'), 'unknown')
+  assert.equal(inferenceVerdict(undefined, 'Zombie'), 'unknown')
+  assert.equal(inferenceVerdict({}, 'Zombie'), 'unknown')
+  assert.equal(inferenceVerdict({ kind: '' }, 'Zombie'), 'unknown')
+  // junk inferred names read blind (there is no hint to weigh)
+  assert.equal(inferenceVerdict({ kind: 'drown' }, null), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'drown' }, undefined), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'drown' }, ''), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'drown' }, '   '), 'blind')
+  // non-string junk never throws
+  assert.equal(inferenceVerdict(42, 17), 'unknown')
+  assert.equal(inferenceVerdict({ kind: 'drown' }, 17), 'blind')
+  // the honest-other bucket stays unknown (no doctrine can label it)
+  assert.equal(inferenceVerdict({ kind: 'other', attacker: null }, 'fall/env'), 'unknown')
+})
+
+// (v0.136.0) THE WIRING PIN (the witch-lane pin style): the death handler must
+// actually consult the verdict - an import without the call would leave the lie
+// unnamed in the field.
+test('REGRESSION PIN: the miner death handler wires the inference verdict', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/inferenceVerdict\(serverDeath, lastHarm \? lastHarm\.name : null\)/.test(minerSrc),
+    'the death handler asks the verdict with the live server death and the last-harm name')
+  assert.ok(/the inference \$\{note\}/.test(minerSrc) || /` \[the inference \$\{note\}\]`/.test(minerSrc),
+    'the verdict note lands in the printed cause line')
+  assert.ok(/CONTRADICTS the server verdict/.test(minerSrc), 'the contradiction names itself loudly')
+  assert.ok(/is blind to this kind/.test(minerSrc), 'the blind class names itself')
 })
