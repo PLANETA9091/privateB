@@ -23,6 +23,7 @@ import {
   STANDING_PROBE_BUDGET, STABILITY_WINDOW, STABILITY_MIN_DRY_SHARE, STABILITY_TAIL_DRY,
   RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   FROZEN_WINDOW, FROZEN_EPS, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW,
+  frozenWindowFor, WET_FROZEN_WINDOW,
   BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
@@ -1480,4 +1481,43 @@ test('the drowning witness wiring: the sentry tracks the class health max, the v
   const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
   assert.ok(lib.includes('export function drowningCorroborated'), 'the pure witness lives in the drowning policy module')
   assert.ok(lib.includes('export const DROWN_CORROBORATION_HP = 2'), 'the corroboration bar rides the export (policy + constant ship together)')
+})
+
+test('frozenWindowFor: the wet-critical fast window (run538: F8/F12/F17/F10 died mid-relog-ladder, ~5-6s of connected drowning per 10-pass diagnosis)', () => {
+  assert.equal(WET_FROZEN_WINDOW, 4, '4 passes ~ 2-2.5s - the diagnosis stops donating 10 hp per cycle')
+  assert.equal(FROZEN_WINDOW, 10, 'the legacy dry window stays calibrated (run76 F17: 90+ flat passes, no urgency)')
+  // the killer shape: head WET, bar critical - the fast window owns it
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: 0 }), WET_FROZEN_WINDOW, 'o2 0 + head wet = the fast window')
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: 2 }), WET_FROZEN_WINDOW, 'o2 2 + head wet = the fast window')
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: 4 }), WET_FROZEN_WINDOW, 'the boundary: o2 AT critical is still fast')
+  // not yet on the death clock: the calibrated window keeps its say
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: 5 }), FROZEN_WINDOW, 'o2 5 (rescue level) is above critical - legacy window')
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: 20 }), FROZEN_WINDOW, 'a healthy bar under water is not urgent')
+  assert.equal(frozenWindowFor({ headWet: false, oxygen: 0 }), FROZEN_WINDOW, 'a DRY head is harmless where it stands - legacy window')
+  assert.equal(frozenWindowFor({ oxygen: 0 }), FROZEN_WINDOW, 'a missing headWet is not wet - the gates-decide convention')
+  // junk never accelerates: the legacy window is the safe default
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: null }), FROZEN_WINDOW, 'a missing bar judges nothing')
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: NaN }), FROZEN_WINDOW, 'NaN bar judges nothing')
+  assert.equal(frozenWindowFor({ headWet: true, oxygen: -1 }), FROZEN_WINDOW, 'the -1 reset sentinel reads FULL (the run60 lesson)')
+  assert.equal(frozenWindowFor(), FROZEN_WINDOW, 'the bare call is the legacy shape')
+})
+
+test('physicsFrozen honors the fast window: 4 flat passes condemn a wedged wet client', () => {
+  const flat4 = [{ x: -140, y: 51.2, z: 415 }, { x: -140, y: 51.2, z: 415 }, { x: -140, y: 51.2, z: 415 }, { x: -140, y: 51.2, z: 415 }]
+  assert.equal(physicsFrozen({ points: flat4, window: WET_FROZEN_WINDOW }), true, 'the F12 shape condems at 4 passes')
+  assert.equal(physicsFrozen({ points: flat4 }), false, 'the same 4 points under the legacy 10-window do NOT condemn (short window is a lost reading)')
+  const drifting = [{ x: -140, y: 51.2, z: 415 }, { x: -140, y: 51.8, z: 415 }, { x: -140, y: 52.4, z: 415 }, { x: -140, y: 53.0, z: 415 }]
+  assert.equal(physicsFrozen({ points: drifting, window: WET_FROZEN_WINDOW }), false, 'a live swimmer rising 0.6/pass is not frozen even at the fast window')
+})
+
+test('the wet-frozen fast window wiring: the sentry passes the oxygen-gated window, the log names the lane', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('frozenWindowFor, WET_FROZEN_WINDOW,'), 'the import line rides the drowning policy module')
+  assert.ok(src.includes('const frozenWindow = frozenWindowFor({ headWet, oxygen: read.oxygen })'), 'the sentry gates the window on its own reads')
+  assert.ok(src.includes('physicsFrozen({ points: passPoints, window: frozenWindow })'), 'the freeze verdict consumes the gated window')
+  assert.ok(src.includes('the wet-critical fast window'), 'the stand-down line names the lane so the next mine can count the cycles saved')
+  const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  assert.ok(lib.includes('export function frozenWindowFor'), 'the pure gate lives in the drowning policy module')
+  assert.ok(lib.includes('export const WET_FROZEN_WINDOW = 4'), 'the fast window rides the export (policy + constant ship together)')
 })

@@ -35,6 +35,7 @@ import {
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   drowningCorroborated, DROWN_CORROBORATION_HP,
+  frozenWindowFor, WET_FROZEN_WINDOW,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
@@ -1178,10 +1179,17 @@ export function createMiner ({
           const pp = bot.entity.position
           passPoints.push({ x: pp.x, y: pp.y, z: pp.z })
           if (passPoints.length > RESCUE_READS_CAP) passPoints.shift()
-          if (physicsFrozen({ points: passPoints })) {
+          // (v0.132.0) THE WET-FROZEN FAST WINDOW - a head-wet bot at/under
+          // critical air is on the vanilla drowning clock (~2 hp/s connected);
+          // the 10-pass diagnosis donated ~10 hp per frozen-wet cycle (run538:
+          // F8/F12/F17/F10 all died mid-ladder). 4 passes condemn a wedged
+          // client ~3s sooner; a false positive costs one SAFE relog (air and
+          // health freeze during the down window), a false negative costs hp.
+          const frozenWindow = frozenWindowFor({ headWet, oxygen: read.oxygen })
+          if (physicsFrozen({ points: passPoints, window: frozenWindow })) {
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
-              log(`${tag} water: frozen physics (${FROZEN_WINDOW} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}${headWet ? ', head WET' : ''}) - standing down, the reconnect lane owns this`)
+              log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)
             }
             frozenDown = true
             frozenDownWet = headWet === true

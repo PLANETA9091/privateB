@@ -1105,6 +1105,35 @@ export class HazardLedger {
 export const FROZEN_WINDOW = 10
 /** Total drift under this (blocks, per axis) across the window = frozen. */
 export const FROZEN_EPS = 0.5
+
+// (v0.132.0) THE WET-FROZEN FAST WINDOW - run538 (35945938164, the union
+// fleet through v0.131.0) mined FOUR drown deaths of one shape (F8 relog #5,
+// F12 #3, F17 #2, F10): a bot reconnects into a deep pocket, the client
+// physics wedge within a pass or two (flat y with head WET), and the freeze
+// DIAGNOSIS then burns FROZEN_WINDOW=10 passes (~5-6s) of CONNECTED drowning
+// before the stand-down hands the bot to the relog lane. The disconnect
+// itself is safe (a disconnected entity does not tick - air and health
+// freeze), so every connected second at o2 <= critical is pure vanilla
+// drowning damage (~2 hp/s): the 10-pass window donates ~10 hp per cycle to
+// the clock. The v0.96.0 wet-frozen relog already escalates on the FIRST wet
+// verdict; this window cuts the verdict's own latency to WET_FROZEN_WINDOW=4
+// passes (~2-2.5s) whenever the head is WET and the bar is at/under
+// OXYGEN_CRITICAL_LEVEL - the asymmetry is honest: a false-positive relog
+// costs one reconnect (air frozen during the down window, the safe lane), a
+// false-negative costs 10+ hp of connected dying. The DRY class keeps the
+// calibrated 10-pass window (run76's F17: 90+ flat passes, no urgency - a
+// dry bot is harmless where it stands). Junk oxygen or a non-wet head reads
+// the legacy window - the gates-decide convention.
+export const WET_FROZEN_WINDOW = 4
+
+export function frozenWindowFor ({ headWet = false, oxygen = null } = {}) {
+  if (headWet !== true) return FROZEN_WINDOW
+  // the Number(null) lesson - Number(null) is 0, which would read a MISSING
+  // bar as the death clock: only a GENUINE finite number >= 0 gates the fast
+  // window (null/undefined/NaN/-1 all read the legacy 10-pass window)
+  if (!Number.isFinite(oxygen) || oxygen < 0) return FROZEN_WINDOW
+  return oxygen <= OXYGEN_CRITICAL_LEVEL ? WET_FROZEN_WINDOW : FROZEN_WINDOW
+}
 /** A page within this window after a still-wet end at the same cell is a repeat. */
 export const REPEAT_PAGE_WINDOW_MS = 90000
 /** Full rescues allowed per repeat episode before the stand-down owns the page. */
