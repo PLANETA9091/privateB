@@ -747,12 +747,55 @@ test('ironCommunePlan: the set-completion matrix', () => {
 
 test('withdrawIronCommune: junk bots never touch the world', async () => {
   const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  // (v0.151.0) held=0 keeps the legacy stand-down by DEFAULT - the
+  // seed-then-withdraw sequence needs it (taking the just-seeded fragments
+  // back would undo the seed in the same call). The pool-funded completion
+  // rides the explicit allowEmptyPocket arm (its own tests below).
   for (const held of [0, 3, 5]) {
     world.setPocket(held)
     const res = await withdrawIronCommune(world.bot, {})
     assert.equal(res.taken, 0)
     assert.equal(world.opened, 0, `pocket ${held}: no chest window ever opened`)
   }
+})
+
+test('withdrawIronCommune: THE POOL-FUNDED COMPLETION - an h=0 seeder takes the full set', async () => {
+  // (v0.151.0) the v0.150.0 seed arm creates the h=0 seeder class by
+  // construction: every bot that rode the chest holds 0. When the pool
+  // reaches 3 someone must TAKE it - or the fragments strand in the chest
+  // the same way they stranded in the pockets. The plan math bounds the
+  // take: exactly 3 from a funded chest.
+  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true })
+  assert.equal(res.taken, 3)
+  assert.equal(res.pocketNow, 3)
+  assert.equal(res.reason, 'ok')
+})
+
+test('withdrawIronCommune: a short pool funds an h=0 partial (the take rule is universal)', async () => {
+  // h=0, chest 2: the walk enters (the recheck sent it), the plan takes the
+  // 2 fragments (need = min(3, 2) - the SAME partial-take rule every h=1-2
+  // bot lives by), the pocket rides 2 and the next smelt leg (or the next
+  // seed handoff) completes it
+  const world = mockCommuneWorld({ chestItem: ironItem(2) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true })
+  assert.equal(res.taken, 2)
+  assert.equal(res.pocketNow, 2)
+  assert.equal(res.reason, 'ok')
+})
+
+test('withdrawIronCommune: the h=0 stand-down holds by default (the union sequence stays intact)', async () => {
+  // the seeder's own withdraw (allowEmptyPocket unset) reads an h=0 pocket
+  // and stands down WITHOUT opening a chest - the just-seeded fragments
+  // stay in the pool
+  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, {})
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'nothing to commune')
+  assert.equal(world.opened, 0, 'the default arm never walks on an empty pocket')
 })
 
 test('withdrawIronCommune: the run49 F3 shape - 2 held, chest 1, the set completes', async () => {

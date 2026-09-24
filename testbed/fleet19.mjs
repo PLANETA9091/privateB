@@ -123,6 +123,11 @@ try {
 } catch { /* plan is optional for the report */ }
 
 const deadline = Date.now() + SECONDS * 1000
+// (v0.151.0) THE POOL-FUNDED RECHECK ledger: the v0.150.0 seed arm creates
+// the h=0 seeder class by construction (a bot that rode the chest holds 0);
+// when the pool reaches 3 someone must TAKE it - once per bot per run, past
+// the midpoint (the seeds need time to land).
+const ironCommuneRechecked = new WeakSet()
 // (v0.34.0) the wall clock the hard kill fires at, minus a safety slice for the
 // final report + bot quits: no end-phase chain may budget past this line.
 const RUN_KILL_AT = Date.now() + hardKillDelayMs({ runSeconds: SECONDS })
@@ -460,9 +465,9 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // set actually completed).
       try {
         const heldNow = countItem(miner.bot, 'iron_ingot')
-        // (v0.151.0) THE COMPLETE-SET MOMENT: the guard drops the `< 3` arm.
-        // run87 (36030165587) measured the blind spot - F8 smelted 3
-        // (iron_ingot:3) at ts~560s and the old guard skipped the block
+        // (v0.151.0, the lane) THE COMPLETE-SET MOMENT: the guard drops the
+        // `< 3` arm. run87 (36030165587) measured the blind spot - F8 smelted
+        // 3 (iron_ingot:3) at ts~560s and the old guard skipped the block
         // (heldNow=3 is not < 3), leaving the craft to the loop cadence that
         // then starved on the stick gate (v0.151.0's stick rung cures the
         // gate; this guard cures the MOMENT): a bot standing yard-side with a
@@ -470,23 +475,37 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         // withdrawIronCommune's own guard ('nothing to commune',
         // pocketNow=3) and the craft fires below; heldNow=1-2 keeps the
         // v0.150.0 seed + withdraw sequence.
-        if (heldNow > 0) {
-          // (v0.150.0) THE POOL SEED FIRST: run86 (36025029805) measured the
-          // commune's 9 asks all reading 'chest holds 0 ingot(s)' - nothing
-          // ever deposits iron_ingot (keepForIron pockets every fragment
-          // until an iron pick exists; no bot ever had one), so the withdraw
-          // asks an always-empty chest. The seed arm runs before the
-          // withdraw: a pocket the pool CANNOT complete rides the chest (the
-          // pool grows for the next bot's visit), a pocket the pool CAN
-          // complete leaves the chest untouched for the withdraw below.
-          await seedIronPool(miner.bot, {
-            yardCenter: yardGoal,
-            budgetMs: 12000,
-            log: m => console.log(`${miner.username} iron commune: ${m}`)
-          })
+        // (v0.151.0 -> v0.152.0, the union) THE POOL-FUNDED RECHECK: an h=0
+        // bot (the seeder class) re-checks the pool once per run, past the
+        // midpoint - the seeds need time to land. The withdraw's own plan
+        // math bounds the take (need = min(3 - pocket, chest)), so a short
+        // pool costs one read; the funded pool pays the full set and the
+        // craft fires on the spot - the pool's third fragment finally has a
+        // taker. allowEmptyPocket stays FALSE for every heldNow > 0 call
+        // (a seeder's own withdraw must stand down - the union-sequence pin).
+        const midRun = Date.now() > deadline - (SECONDS * 1000) / 2
+        const recheckDue = heldNow === 0 && !ironCommuneRechecked.has(miner.bot) && midRun
+        if (heldNow > 0 || recheckDue) {
+          if (recheckDue) ironCommuneRechecked.add(miner.bot)
+          if (heldNow > 0) {
+            // (v0.150.0) THE POOL SEED FIRST: run86 (36025029805) measured the
+            // commune's 9 asks all reading 'chest holds 0 ingot(s)' - nothing
+            // ever deposits iron_ingot (keepForIron pockets every fragment
+            // until an iron pick exists; no bot ever had one), so the withdraw
+            // asks an always-empty chest. The seed arm runs before the
+            // withdraw: a pocket the pool CANNOT complete rides the chest (the
+            // pool grows for the next bot's visit), a pocket the pool CAN
+            // complete leaves the chest untouched for the withdraw below.
+            await seedIronPool(miner.bot, {
+              yardCenter: yardGoal,
+              budgetMs: 12000,
+              log: m => console.log(`${miner.username} iron commune: ${m}`)
+            })
+          }
           const comm = await withdrawIronCommune(miner.bot, {
             yardCenter: yardGoal,
             budgetMs: 15000,
+            allowEmptyPocket: heldNow === 0, // (v0.151.0) only the h=0 recheck enters a funded pool - a seeder's own withdraw must stand down
             log: m => console.log(`${miner.username} iron commune: ${m}`)
           })
           if (comm.pocketNow >= 3) {

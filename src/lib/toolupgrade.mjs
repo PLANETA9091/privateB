@@ -379,17 +379,34 @@ export function ironCommunePlan ({ pocketCount = 0, chestCount = 0, target = IRO
  * the re-arming doomed walk -> openChest -> the verified click diff -> close)
  * with the commune's plan and a tighter chest budget (3 chests, one item
  * type). Junk bot / a complete set / no chest / empty chest / ghost clicks
- * all read honestly and never throw. */
+ * all read honestly and never throw.
+ * (v0.151.0) THE POOL-FUNDED COMPLETION: held === 0 may now ENTER the walk
+ * behind `allowEmptyPocket: true` - a chest holding the full set funds an
+ * EMPTY pocket (the v0.150.0 seed arm creates the h=0 seeder class by
+ * construction; when the pool reaches 3 someone must TAKE it, or the
+ * fragments strand in the chest the same way they stranded in the pockets).
+ * The flag DEFAULTS FALSE and must stay false in the seed-then-withdraw
+ * sequence: a seeder's own withdraw reading an empty pocket must stand down
+ * (taking the just-seeded fragments back would undo the seed in the same
+ * call - the union-sequence pin). The dedicated recheck (the fleet's
+ * once-per-run mid-run h=0 visit) is the arm that passes it. */
 export async function withdrawIronCommune (bot, {
   yardCenter = null,
   maxDistance = 48,
   yardRadius = YARD_CHEST_RADIUS,
   budgetMs = 20000,
   clickTimeoutMs = 5000,
+  allowEmptyPocket = false,
   log = () => {}
 } = {}) {
   const held = countItem(bot, 'iron_ingot')
-  if (!Number.isFinite(held) || held <= 0 || held >= IRON_PICK_INGOTS) return { taken: 0, pocketNow: held, reason: 'nothing to commune' }
+  if (!Number.isFinite(held) || held < 0 || held >= IRON_PICK_INGOTS) return { taken: 0, pocketNow: held, reason: 'nothing to commune' }
+  // (v0.151.0) the empty pocket stands down unless the caller armed the
+  // pool-funded completion (the recheck): the plan math bounds the take
+  // (need = min(3 - pocket, chest)), so a funded chest pays out exactly 3
+  // and a short one pays its fragments to the SAME universal take rule
+  // every h=1-2 bot lives by.
+  if (held === 0 && !allowEmptyPocket) return { taken: 0, pocketNow: held, reason: 'nothing to commune' }
   const started = Date.now()
   const remainingMs = () => budgetMs - (Date.now() - started)
   const exclude = []
