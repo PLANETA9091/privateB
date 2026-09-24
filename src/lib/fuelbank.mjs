@@ -214,7 +214,22 @@ export function pickFuelAnchor (chests, yardCenter) {
  * THROW class, so the empty return killed the anchor silently (0 'the anchor
  * chest is read first' lines across run525/530/536: the anchor has never once
  * delivered in the field). An empty result now re-queries once; EVERY empty
- * names itself (the throw shape's 'BOTH attempts named themselves'). */
+ * names itself (the throw shape's 'BOTH attempts named themselves').
+ * (v0.133.0) THE SINGULAR PROBE RESCUE: run546 named the retry's limits - F5
+ * stood AT the yard, the anchor scans returned empty 2/2 TWICE (the tithe path
+ * and the commons' anchor read), and seconds later the SAME bot's findChest
+ * found and OPENED a chest ('chest holds no fuel') and the findChest-based
+ * deposit banked +154. Same bot, same minute, same yard: the plural scan
+ * (bot.findBlocks, count 256) lies empty while the singular find (bot.findBlock,
+ * the engine's own count-1 shape) works - the field has never shown the
+ * reverse. So after BOTH attempts read empty, the scan falls back to the
+ * PROVEN shape: one findChest probe (the same engine path that opens yard
+ * chests all run long); its chest becomes a one-cell list and the anchor
+ * finally has a target. Every rescue names itself, a rescue-less empty keeps
+ * the honest [], the probe's throw is swallowed (the rescue never kills the
+ * scan), and the empty line now carries the bot's position + the yard distance
+ * so the next mine can split the range face (bot 64+ blocks out) from the
+ * engine face (empty at the yard) at a glance. */
 export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS, log = () => {} } = {}) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
@@ -229,7 +244,7 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
         maxDistance,
         count: 256
       })
-      if (!Array.isArray(raw)) return []
+      if (!Array.isArray(raw)) raw = [] // (v0.133.0) a junk return joins the empty face - the retry and the rescue both apply
       const out = []
       for (const b of raw) {
         if (!b || !b.position) continue
@@ -241,10 +256,14 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
       // (v0.130.0) the empty return is the desync's SILENT face - re-query once,
       // every empty names itself (a legit empty pays one extra bounded query;
       // the yard is known to hold dozens of chests, an empty is a lie until
-      // proven twice).
+      // proven twice). (v0.133.0) the empty line carries the bot's position and
+      // the yard distance - run546 could not tell '64 too small from the wild'
+      // from 'empty at the yard'; the next mine can.
       if (out.length === 0) {
-        try { log(`fuel anchor scan returned empty (attempt ${attempt}/2)${attempt === 1 ? ' - the palette empty-return class, re-querying' : ''}`) } catch { /* log never kills a scan */ }
+        const at = yardWhere(bot, yardCenter)
+        try { log(`fuel anchor scan returned empty (attempt ${attempt}/2)${at}${attempt === 1 ? ' - the palette empty-return class, re-querying' : ''}`) } catch { /* log never kills a scan */ }
         if (attempt === 1) continue
+        break // (v0.133.0) both plural attempts read empty - fall through to the singular probe rescue
       }
       return out
     } catch (e) {
@@ -257,7 +276,44 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
       try { log(`fuel anchor scan swallowed: ${e?.message || e}${at} (attempt ${attempt}/2)`) } catch { /* log never kills a scan */ }
     }
   }
+  // (v0.133.0) THE SINGULAR PROBE RESCUE - both plural attempts read empty and
+  // the field says the singular shape still works in that exact window (F5,
+  // run546: scans 0/0, findChest open + bank +154 seconds later). One probe,
+  // the proven path; its chest is a one-cell list, the anchor walk and the
+  // tithe deposit run unchanged from there.
+  try {
+    const rescue = findChest(bot, { maxDistance, yardCenter, yardRadius: radius, log })
+    const cell = (() => {
+      if (!rescue || !rescue.position) return null
+      const x = Math.floor(Number(rescue.position.x))
+      const y = Math.floor(Number(rescue.position.y))
+      const z = Math.floor(Number(rescue.position.z))
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
+      return { x, y, z }
+    })()
+    if (cell) {
+      try { log(`fuel anchor scan empty x2 - the singular probe rescued the scan (chest at [${cell.x},${cell.y},${cell.z}])`) } catch { /* log never kills a scan */ }
+      return [cell]
+    }
+    try { log('fuel anchor scan empty x2 - the singular probe found nothing either') } catch { /* log never kills a scan */ }
+  } catch { /* the rescue never kills the scan - the honest empty stands */ }
   return []
+}
+
+/** (v0.133.0) Pure-ish, junk-safe: where the bot stands relative to the yard,
+ * for the scan's named-empty line. '' when either position is unreadable (the
+ * legacy bare shape), ' at [x,y,z] yard d=N' otherwise. */
+function yardWhere (bot, yardCenter) {
+  try {
+    const p = bot?.entity?.position
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) return ''
+    const at = ` at [${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}]`
+    if (!yardCenter || !Number.isFinite(yardCenter.x) || !Number.isFinite(yardCenter.y) || !Number.isFinite(yardCenter.z)) return at
+    const dx = p.x - yardCenter.x
+    const dy = p.y - yardCenter.y
+    const dz = p.z - yardCenter.z
+    return `${at} yard d=${Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz))}`
+  } catch { return '' }
 }
 
 /** (v0.124.0) The anchor chest as a real Block for openChest, or null. The

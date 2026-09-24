@@ -535,6 +535,51 @@ test('scanYardChests: the matcher keeps the palette-candidate rule, the yard fil
   assert.deepEqual(out, [{ x: 2, y: 64, z: -4 }], 'the far chest is yard-filtered, the non-chest skipped, the probe dropped, the near chest floored')
 })
 
+// (v0.133.0) THE SINGULAR PROBE RESCUE - the run546 shape: the plural scan
+// (findBlocks, count 256) lies empty 2/2 while the singular find (findBlock,
+// the engine's count-1 shape) still opens chests in the same window. The
+// rescue borrows the proven path; every exit names itself; junk never throws.
+test('scanYardChests: the singular probe rescues the empty scan (the run546 F5 shape)', () => {
+  const lines = []
+  const log = m => lines.push(m)
+  const rescued = { name: 'chest', position: new Vec3(12.4, 63.8, -7.2) }
+  const bot = {
+    entity: { position: new Vec3(30.5, 64, 30.5) },
+    findBlocks: () => [], // the plural lie: 2/2 empty, the run546 shape
+    findBlock: ({ matching }) => (matching(rescued) ? rescued : null) // the proven path
+  }
+  const out = scanYardChests(bot, { yardCenter: { x: 0, y: 64, z: 0 }, radius: 64, log })
+  assert.deepEqual(out, [{ x: 12, y: 63, z: -8 }], 'the rescue chest becomes the one-cell list, floored')
+  assert.equal(lines.filter(l => l.includes("returned empty (attempt 1/2) at [31,64,31] yard d=43")).length, 1, 'the empty line names the position and the yard distance')
+  assert.equal(lines.filter(l => l.includes("returned empty (attempt 2/2)")).length, 1, 'both attempts named themselves before the rescue')
+  assert.equal(lines.filter(l => l.includes('the singular probe rescued the scan (chest at [12,63,-8])')).length, 1, 'the rescue names itself and its chest')
+})
+
+test('scanYardChests: the rescue finds nothing / throws - the honest empty stands, never throws', () => {
+  const lines = []
+  const log = m => lines.push(m)
+  const empty = { entity: { position: new Vec3(1.5, 64, 1.5) }, findBlocks: () => [], findBlock: () => null }
+  assert.deepEqual(scanYardChests(empty, { yardCenter: { x: 0, y: 64, z: 0 }, log }), [], 'a rescue-less yard keeps the honest empty')
+  assert.equal(lines.filter(l => l.includes('the singular probe found nothing either')).length, 1, 'the rescue-less empty names the probe')
+  const throwing = { findBlocks: () => [], findBlock: () => { throw new Error('dead probe') } }
+  assert.deepEqual(scanYardChests(throwing, { yardCenter: { x: 0, y: 64, z: 0 }, log }), [], 'a throwing rescue never kills the scan')
+  const junkRescue = { findBlocks: () => [], findBlock: () => ({ name: 'chest', position: { x: NaN, y: 0, z: 0 } }) }
+  assert.deepEqual(scanYardChests(junkRescue, { yardCenter: null, log }), [], 'a junk rescue position is dropped')
+  assert.equal(lines.filter(l => l.includes('the singular probe found nothing either')).length, 3, 'all three rescue-less exits (empty, throwing, junk) name the probe - findChest swallows its own throws into a null')
+})
+
+test('scanYardChests: a healthy scan never pays the rescue tax', () => {
+  let findBlockCalls = 0
+  const chest = { name: 'chest', position: new Vec3(1.2, 64.3, 2.7) }
+  const bot = {
+    findBlocks: ({ matching }) => [chest].filter(matching),
+    findBlock: () => { findBlockCalls++ ; return null }
+  }
+  const out = scanYardChests(bot, { yardCenter: { x: 0, y: 64, z: 0 } })
+  assert.deepEqual(out, [{ x: 1, y: 64, z: 2 }])
+  assert.equal(findBlockCalls, 0, 'the plural result stands alone - no probe on the green path')
+})
+
 test('fuelPocketOverage: the pocket sum over the tithe bound, junk-safe', () => {
   const mk = items => ({ inventory: { items: () => items } })
   assert.equal(fuelPocketOverage(mk([item('coal', 14)])), 8, '14 coal - 6 bound = 8')
@@ -746,7 +791,10 @@ test('scanYardChests: the scan retry - one transient palette throw no longer voi
   const dead = { findBlocks: () => { throw new Error('palette desync') } }
   const deadLines = []
   assert.deepEqual(scanYardChests(dead, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => deadLines.push(l) }), [], 'two throws still read empty')
-  assert.equal(deadLines.length, 2, 'BOTH attempts named themselves - no bare swallow')
+  assert.equal(deadLines.length, 5, 'BOTH scan swallows + the probe\'s two internal swallows + the rescue miss named themselves - no bare swallow')
+  assert.match(deadLines[0], /fuel anchor scan swallowed: palette desync \(attempt 1\/2\)/)
+  assert.match(deadLines[1], /fuel anchor scan swallowed: palette desync \(attempt 2\/2\)/)
+  assert.match(deadLines[4], /the singular probe found nothing either/, 'the rescue closes the throw face too (v0.133.0)')
 })
 
 test('scanYardChests: the empty-return retry - the palette desync\'s SILENT face no longer voids the anchor ask (the run536 class, v0.130.0)', () => {
@@ -766,12 +814,13 @@ test('scanYardChests: the empty-return retry - the palette desync\'s SILENT face
     'the re-query answers after one empty scan')
   assert.equal(calls, 2, 'exactly two attempts')
   assert.equal(lines.length, 1, 'the empty named itself once')
-  assert.match(lines[0], /fuel anchor scan returned empty \(attempt 1\/2\) - the palette empty-return class, re-querying/)
+  assert.match(lines[0], /fuel anchor scan returned empty \(attempt 1\/2\) at \[0,64,0\] yard d=0 - the palette empty-return class, re-querying/, 'the empty line names the position and the yard distance (v0.133.0)')
   const dead = { entity: { position: new Vec3(0, 64, 0) }, findBlocks: () => [] }
   const deadLines = []
   assert.deepEqual(scanYardChests(dead, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => deadLines.push(l) }), [], 'two empties still read empty')
-  assert.equal(deadLines.length, 2, 'BOTH empties named themselves - no bare swallow')
-  assert.match(deadLines[1], /fuel anchor scan returned empty \(attempt 2\/2\)$/, 'the second empty does not promise a re-query')
+  assert.equal(deadLines.length, 5, 'BOTH empties + the probe\'s two internal swallows + the rescue miss named themselves - no bare swallow')
+  assert.match(deadLines[1], /fuel anchor scan returned empty \(attempt 2\/2\) at \[0,64,0\] yard d=0$/, 'the second empty does not promise a re-query')
+  assert.match(deadLines[4], /the singular probe found nothing either/, 'the rescue-less empty names the probe (v0.133.0)')
 })
 
 test('withdrawFuelCommons: the fresh-empty memory cannot un-anchor - a chest seen empty a minute ago is STILL read first', async () => {
@@ -798,18 +847,33 @@ test('withdrawFuelCommons: a chest seen empty JUST now stays fresh-excluded - th
 })
 
 test('withdrawFuelCommons: the anchor null exits NAME themselves (the smelt-zero honesty shape)', async () => {
+  // (v0.133.0) the SINGULAR PROBE RESCUE reshapes the first world: the plural
+  // scan dies ('dead world' x2), the singular probe (bot.findBlock, the
+  // field-proven findChest shape) finds the nearest chest and the anchor LIVES
+  // - that IS the run546 cure. The rescue-less shape (both probes dead) keeps
+  // the old named exit.
   const world = mockAnchorSweepWorld()
-  world.bot.findBlocks = () => { throw new Error('dead world') } // both scan attempts die
+  world.bot.findBlocks = () => { throw new Error('dead world') } // both plural attempts die
   const lines = []
-  await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines.push(l) })
+  const rescued = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines.push(l) })
   const joined = lines.join('\n')
   assert.match(joined, /fuel anchor scan swallowed: dead world( at \[\d+,\d+,\d+\])? \(attempt 1\/2\)/, 'the scan retry named itself')
-  assert.match(joined, /the anchor scan saw 0 chest\(s\), 0 usable after the empty memory - no anchor/, 'the no-anchor exit names the scan size and the memory pressure')
+  assert.match(joined, /the singular probe rescued the scan \(chest at \[3,64,3\]\)/, 'the singular probe names its rescue chest')
+  assert.equal(rescued.taken, 0, 'the rescued anchor chest held no fuel (the nearest-to-bot shape, not the yard-nearest one)')
+  assert.match(joined, /chest holds no fuel/, 'the rescue-funded anchor read named its empty honestly')
   const world2 = mockAnchorSweepWorld()
-  world2.bot.blockAt = () => null // the anchor cell reads null (chunk not loaded)
+  world2.bot.findBlocks = () => { throw new Error('dead world') }
+  world2.bot.findBlock = () => null // the rescue probes and finds nothing
   const lines2 = []
   await withdrawFuelCommons(world2.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines2.push(l) })
-  assert.match(lines2.join('\n'), /the anchor cell \[30,64,30\] reads null - no anchor/, 'the unreadable-block exit names the cell')
+  const joined2 = lines2.join('\n')
+  assert.match(joined2, /the anchor scan saw 0 chest\(s\), 0 usable after the empty memory - no anchor/, 'the no-anchor exit names the scan size and the memory pressure')
+  assert.match(joined2, /the singular probe found nothing either/, 'the rescue-less empty names the probe')
+  const world3 = mockAnchorSweepWorld()
+  world3.bot.blockAt = () => null // the anchor cell reads null (chunk not loaded)
+  const lines3 = []
+  await withdrawFuelCommons(world3.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines3.push(l) })
+  assert.match(lines3.join('\n'), /the anchor cell \[30,64,30\] reads null - no anchor/, 'the unreadable-block exit names the cell')
 })
 
 test('REGRESSION PIN: the v0.128.0 named exits ride the fleet and the bank sources', () => {
