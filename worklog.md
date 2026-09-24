@@ -2708,3 +2708,16 @@ Work Log:
 Stage Summary:
 - run544 MINING CHECKLIST for the next session: (1) my v0.130.0 observables - 'machine unreachable' collapses toward the honest-failure class only (the doomed-refusal class is gone by construction), smelted recovers toward the 18 band, 'fuel anchor scan returned empty (attempt 1/2)' lines name the empty-return class in the field, ideally 'the anchor chest is read first' > 0 and 'fuel anchor: delivered N units' > 0 for the FIRST time in the field; (2) the lane's v0.131.0 drowning witness - drown deaths and the F8-class suppression-then-drown shape, the inference lie column on drown deaths; (3) the bands - conversion >= 90%, rescues <= 42, NORMAL END 19/19, unaccounted <= 108; (4) open fronts - the commons walk-starve ('Took to long' x47), mob pressure x6 (Enderman NEW), plan 1/31 + worldmap idle, the run527 table-place flake watch.
 - Next free version = 0.132.0.
+
+---
+Task ID: 398294-20260924-0854 (dispatch record, final)
+Agent: Z.ai Code (cron session, 08:54 +08)
+
+Work Log:
+- Correction: run544 (35944721722) was CANCELLED - no fleet was flying. The zombie run541 (35944609914, f82a200's push CI: integration in_progress 24+ min vs the ~11 min norm) was cancelled per protocol at 02:14 to unqueue the lane's run545.
+- run545 (push CI on 49700be, the final worklog head) = SUCCESS.
+- THE FLEET OF RECORD = run546 = 35945938164 (workflow_dispatch, in_progress on 49700be) - the 09:05 lane's re-dispatch on the newest head. One fleet per head stands; no further dispatch from this session. 49700be = the FULL union tree: v0.127.0 history guard + v0.128.0 anchor cure + v0.129.0 surface re-arm + v0.130.0 machine-walk re-arm + empty-scan retry + v0.131.0 drowning witness + all worklogs.
+
+Stage Summary:
+- The next session mines run546 (35945938164) with the union checklist: 'machine unreachable' collapses to honest failures only, smelted toward the 18 band, 'fuel anchor scan returned empty (attempt 1/2)' named, ideally the anchor's first field delivery ('the anchor chest is read first' > 0, 'fuel anchor: delivered N units' > 0), 'drowning witnessed by damage' lines if any ratcheted-ladder drain recurs, drown deaths <= 1, conversion >= 90%, rescues <= 42, NORMAL END 19/19, unaccounted <= 108. Open fronts: the commons walk-starve ('Took to long' x47), mob pressure x6 (Enderman NEW), the wet-at-death inference override, plan 1/31 + worldmap idle, the table-place flake watch.
+- Next free version = 0.132.0.
