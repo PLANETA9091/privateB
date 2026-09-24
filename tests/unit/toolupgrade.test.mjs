@@ -19,7 +19,7 @@ function ironItem (count = 1) {
   return { name: 'iron_ingot', count, type: 251, stackSize: 64 }
 }
 
-function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = false } = {}) {
+function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = false, botPos = null, gotoScript = null } = {}) {
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = { ...chestItem }
   const pocket = Array.from({ length: 36 }, () => null)
@@ -27,6 +27,7 @@ function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = f
   const chestBlock = { name: 'chest', position: new Vec3(3.5, 64, 3.5) }
   const world = {
     opened: 0,
+    gotoCalls: [],
     setPocket (n) {
       // slots (not pocket) is the live view: slots was SPREAD-built once, so
       // the pocket rows the bot inventory reads live at slots[27..]
@@ -35,9 +36,19 @@ function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = f
   }
   world.bot = {
     username: 'CommuneBot',
-    entity: { position: { distanceTo: () => 4 } },
+    entity: { position: botPos ?? { distanceTo: () => 4 } },
     inventory: { items: () => slots.slice(27).filter(Boolean) },
-    pathfinder: { goto: async () => { if (walkFails) throw new Error('NoPath: no path') } },
+    pathfinder: { goto: async goal => {
+      const i = world.gotoCalls.length
+      world.gotoCalls.push({ x: goal.x, y: goal.y, z: goal.z })
+      if (gotoScript) {
+        const beh = gotoScript[Math.min(i, gotoScript.length - 1)]
+        if (beh?.throw) throw new Error(beh.throw)
+        if (beh?.move) world.bot.entity.position = new Vec3(goal.x + 1, goal.y, goal.z + 1)
+        return
+      }
+      if (walkFails) throw new Error('NoPath: no path')
+    } },
     findBlock: ({ matching }) => chestItem || !walkFails ? (matching(chestBlock) ? chestBlock : null) : null,
     openChest: async () => {
       world.opened++
@@ -832,6 +843,74 @@ test('withdrawIronCommune: a walk failure tries the next chest, the verdict stay
   assert.equal(world.opened, 0, 'a refused walk never opens a window')
 })
 
+// (v0.155.0) THE YARD DECIDE-CLASS NUDGE: the commune walks died the path-
+// geometry classes in the field (F4 x3, F9 x3 'refused for 12s', F3 x3,
+// F14 x3 - the 01:05 lane's run92 reads) with NO start change on this path.
+// The nudge is the fuel-commons v0.147.0 shape: one bounded approachWalk on
+// the decide verdicts, then ONE honest re-goto to the SAME chest.
+test('withdrawIronCommune: the decide class gets the path nudge - the start changes and the chest pays', async () => {
+  // the far-start shape: the bot stands ~52b out (beyond the 24b envelope),
+  // the first walk dies 'Took to long to decide path to goal!', the nudge
+  // walks approach segments (each goto MOVES the mock bot), the re-goto
+  // lands and the take completes
+  const world = mockCommuneWorld({
+    chestItem: ironItem(8),
+    botPos: new Vec3(40, 64, 40),
+    gotoScript: [
+      { throw: 'Took to long to decide path to goal!' },
+      { move: true }, { move: true }, { move: true }
+    ]
+  })
+  world.setPocket(1)
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { log: m => lines.push(m) })
+  assert.equal(res.taken, 2, 'pocket 1 + chest 8 -> the set completes through the nudge')
+  assert.equal(res.pocketNow, 3)
+  assert.equal(res.reason, 'ok')
+  assert.equal(world.opened, 1, 'the nudge retry landed the same chest')
+  assert.ok(lines.some(l => l.includes('iron commune: path nudge')), 'the nudge names itself for the field read')
+  assert.ok(lines.some(l => l.includes('the nudge retry landed')))
+  assert.ok(world.gotoCalls.length >= 3, 'the decide walk + the approach segment(s) + the retry fired')
+})
+
+test('withdrawIronCommune: a nudge retry that still fails keeps the honest verdict', async () => {
+  // the nudge moved the bot, the re-goto STILL dies the decide class - the
+  // chest is excluded, the loop ends honestly, the window never opened
+  const world = mockCommuneWorld({
+    chestItem: ironItem(8),
+    botPos: new Vec3(40, 64, 40),
+    gotoScript: [
+      { throw: 'No path to the goal!' },
+      { move: true },
+      { throw: 'No path to the goal!' }
+    ]
+  })
+  world.setPocket(1)
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { log: m => lines.push(m) })
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'no ingot reached the pocket')
+  assert.equal(world.opened, 0, 'a failed nudge retry never opens a window')
+  assert.ok(lines.some(l => l.includes('chest walk failed after the nudge')))
+})
+
+test('withdrawIronCommune: the churn refusal keeps the exclude (time-boxed, not start-bound)', async () => {
+  // 'refused for Ns' is the walk governor's TIME-BOXED verdict - the window
+  // expiry is a real change, an approachWalk is not the cure; the chest is
+  // excluded exactly as before the nudge existed
+  const world = mockCommuneWorld({
+    chestItem: ironItem(8),
+    botPos: new Vec3(40, 64, 40),
+    gotoScript: [{ throw: 'walk governor: bot churned 4 goals without progress - iron commune walk refused for 12s' }]
+  })
+  world.setPocket(1)
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { log: m => lines.push(m) })
+  assert.equal(res.taken, 0)
+  assert.ok(!lines.some(l => l.includes('path nudge')), 'the refusal class never nudges')
+  assert.equal(world.opened, 0)
+})
+
 // ------------------------------------------------------- THE POOL SEED
 // (v0.150.0) run86 (36025029805, the v0.148.0 composite) measured the
 // commune's 9 asks ALL reading 'chest holds 0 ingot(s)': keepForIron pockets
@@ -896,6 +975,28 @@ test('seedIronPool: the run86 shape - 1 held, the chest reads 0, the pocket ride
   w.close()
   assert.equal(chestNow, 1, 'the chest holds the seed')
   assert.equal(pocketNow, 0, 'the pocket rode the pool')
+})
+
+test('seedIronPool: the decide class rides the same nudge - the far seed lands', async () => {
+  // (v0.155.0) the seed walk is the same yard family: a far-start decide
+  // failure gets ONE approachWalk shot, then the SAME chest gets the honest
+  // re-goto and the fragment rides the pool
+  const world = mockCommuneWorld({
+    chestItem: null,
+    botPos: new Vec3(40, 64, 40),
+    gotoScript: [
+      { throw: 'Took to long to decide path to goal!' },
+      { move: true }, { move: true }, { move: true }
+    ]
+  })
+  world.setPocket(1)
+  const lines = []
+  const res = await seedIronPool(world.bot, { log: m => lines.push(m) })
+  assert.equal(res.deposited, 1)
+  assert.equal(res.action, 'seeded')
+  assert.equal(world.opened, 1, 'the nudge retry landed the same chest')
+  assert.ok(lines.some(l => l.includes('pool seed: path nudge')))
+  assert.ok(lines.some(l => l.includes('the nudge retry landed')))
 })
 
 test('seedIronPool: the pool funds the set - the seed stands down, the chest is untouched', async () => {

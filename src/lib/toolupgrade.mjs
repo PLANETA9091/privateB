@@ -21,6 +21,7 @@
 import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, depositStackDirect } from './deposit.mjs'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
+import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
 import { withdrawStackMove, pickWithdrawSlots } from './fuelbank.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 
@@ -411,6 +412,7 @@ export async function withdrawIronCommune (bot, {
   const remainingMs = () => budgetMs - (Date.now() - started)
   const exclude = []
   let taken = 0
+  let nudgeUsed = false // (v0.155.0) one approachWalk shot per call - the budget is the bound
   for (let c = 0; c < 3; c++) {
     if (remainingMs() <= 0) { log(`budget spent (${taken}/${IRON_PICK_INGOTS - held} units)`); break }
     const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
@@ -422,8 +424,39 @@ export async function withdrawIronCommune (bot, {
       // for this bot's start.
       await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'iron commune walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
-      log(`chest walk failed (${e?.message || e})`)
-      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      // (v0.155.0) THE YARD DECIDE-CLASS NUDGE: the commune walks died the
+      // path-geometry classes in the field (F4 x3, F9 x3, F3 x3, F14 x3 -
+      // the 01:05 lane's run92 reads) and this path had NO start change:
+      // the walk failed, the chest was excluded, the ingots stayed locked.
+      // The decide verdicts are about the FAILED START (the v0.147.0
+      // doctrine): one bounded approachWalk (the proven fuel-commons shape)
+      // changes the start and the SAME chest gets one honest re-goto before
+      // the exclude. The churn-refusal class ('refused for Ns') is
+      // time-boxed, not start-bound - it keeps the exclude (the next chest
+      // may route where this one refused).
+      let arrived = false
+      if (!nudgeUsed && PATH_GEOMETRY_RE.test(e?.message || '')) {
+        nudgeUsed = true
+        const nudgeMs = Math.min(remainingMs(), 15000)
+        if (nudgeMs > 1000) {
+          try {
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`iron commune: path nudge ${m}`) })
+            log(`iron commune: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
+            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+            try {
+              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron commune walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+              log('iron commune: the nudge retry landed')
+              arrived = true
+            } catch (e2) {
+              log(`iron commune: chest walk failed after the nudge (${e2?.message || e2})`)
+            }
+          } catch { /* the nudge never kills the chain */ }
+        }
+      }
+      if (!arrived) {
+        log(`chest walk failed (${e?.message || e})`)
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      }
       continue
     }
     let window = null
@@ -534,6 +567,7 @@ export async function seedIronPool (bot, {
   const started = Date.now()
   const remainingMs = () => budgetMs - (Date.now() - started)
   const exclude = []
+  let nudgeUsed = false // (v0.155.0) one approachWalk shot per call - the budget is the bound
   for (let c = 0; c < 3; c++) {
     if (remainingMs() <= 0) { log('the seed budget is spent'); break }
     const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
@@ -545,8 +579,34 @@ export async function seedIronPool (bot, {
       // speaks for this bot's start.
       await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'iron pool seed walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
-      log(`chest walk failed (${e?.message || e})`)
-      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      // (v0.155.0) THE YARD DECIDE-CLASS NUDGE: the seed walk rides the same
+      // cure as the commune walk above - the decide verdicts are about the
+      // FAILED START, one bounded approachWalk changes it and the SAME chest
+      // gets one honest re-goto before the exclude. The refusal class keeps
+      // the exclude (time-boxed, not start-bound).
+      let arrived = false
+      if (!nudgeUsed && PATH_GEOMETRY_RE.test(e?.message || '')) {
+        nudgeUsed = true
+        const nudgeMs = Math.min(remainingMs(), 15000)
+        if (nudgeMs > 1000) {
+          try {
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`pool seed: path nudge ${m}`) })
+            log(`pool seed: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
+            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+            try {
+              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron pool seed walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+              log('pool seed: the nudge retry landed')
+              arrived = true
+            } catch (e2) {
+              log(`pool seed: chest walk failed after the nudge (${e2?.message || e2})`)
+            }
+          } catch { /* the nudge never kills the chain */ }
+        }
+      }
+      if (!arrived) {
+        log(`chest walk failed (${e?.message || e})`)
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      }
       continue
     }
     let window = null

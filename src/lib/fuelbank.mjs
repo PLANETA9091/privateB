@@ -389,7 +389,7 @@ export async function deliverFuelTithe (bot, {
     anchor = pickFuelAnchor(cells, yardCenter)
   } catch { anchor = null }
   if (!anchor) return { delivered: 0, why: 'no anchor chest' }
-  const dist = (() => {
+  let dist = (() => {
     try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return 8 }
   })()
   try {
@@ -418,6 +418,27 @@ export async function deliverFuelTithe (bot, {
     if (refusedFor) {
       const waitMs = Math.min(Number(refusedFor[1]) * 1000 + 500, Math.max(0, remainingMs()))
       if (waitMs > 0) await sleep(waitMs)
+    } else if (PATH_GEOMETRY_RE.test(msg)) {
+      // (v0.155.0) THE YARD DECIDE-CLASS NUDGE: run92 (36044268292, the
+      // v0.153.0 field test) measured the retry re-issuing the decide class
+      // from an UNMOVED start x2 - 'F3 fuel anchor: 0 delivered (walk failed
+      // (Took to long to decide path to goal!))' twice, the deterministic
+      // re-failure the v0.153.0 comment itself warned about ('a re-issue
+      // from the identical start is the deterministic re-failure ONLY when
+      // nothing moved'). The decide verdicts are about the FAILED START (the
+      // v0.147.0 doctrine): before the retry, one bounded approachWalk (the
+      // proven segment machinery, the fuel-commons v0.147.0 shape) CHANGES
+      // the start, and the re-issue below runs from the new position. The
+      // refusal class keeps its wait-out above (the window expiry is a REAL
+      // change); the nudge never kills the chain.
+      const nudgeMs = Math.min(remainingMs(), 15000)
+      if (nudgeMs > 1000) {
+        try {
+          const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, log: m => log(`fuel anchor: path nudge ${m}`) })
+          log(`fuel anchor: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying from the new start`}`)
+        } catch { /* the nudge never kills the chain */ }
+        try { dist = Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { /* the stale dist still bounds the retry */ }
+      }
     }
     if (remainingMs() > 2000) {
       try {

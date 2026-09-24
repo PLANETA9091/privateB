@@ -659,7 +659,7 @@ test('fuelPocketOverage: the pocket sum over the tithe bound, junk-safe', () => 
 // A mock for the anchor DELIVERY: the pocket holds coal over the bound, the
 // yard holds the anchor chest, window.deposit moves with real mirror
 // semantics (the pocket tail IS the inventory - the v0.73.0 lesson shape).
-function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false, walkFailTimes = 0, firstWalkError = 'NoPath: no path' } = {}) {
+function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false, walkFailTimes = 0, firstWalkError = 'NoPath: no path', botPos = null, moveOnGoto = false } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   let current = null
   let closedCount = 0
@@ -672,13 +672,17 @@ function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = fal
   const chestBlock = { name: 'chest', position: new Vec3(10.5, 64, 10.5) }
   const bot = {
     username: 'AnchorBot',
-    entity: { position: new Vec3(1.5, 64, 1.5) },
+    entity: { position: botPos ?? new Vec3(1.5, 64, 1.5) },
     inventory: { items: () => (current ? current.slots.slice(27) : slots.slice(27)).filter(Boolean) },
     findBlocks: noScan ? undefined : ({ matching }) => [chestBlock].filter(b => matching(b)),
     blockAt: () => (blockAtNull ? null : chestBlock),
-    pathfinder: { goto: async () => {
+    pathfinder: { goto: async goal => {
       gotoCalls++
       if (walkFails || gotoCalls <= walkFailTimes) throw new Error(firstWalkError)
+      // (v0.155.0) the nudge test shape: a successful goto MOVES the bot to
+      // the goal (the approach segment walk needs a real position delta -
+      // the phantom-raw doctrine: the position delta is the only truth)
+      if (moveOnGoto && goal && Number.isFinite(goal.x)) bot.entity.position = new Vec3(goal.x + 1, goal.y, goal.z + 1)
     } },
     openChest: async () => {
       if (openFails) throw new Error('window dead')
@@ -772,7 +776,9 @@ test('THE TITHE RETRY: a time-boxed churn refusal waits out the window and re-is
 
 test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge class)', async () => {
   // 'Took to long to decide path to goal!' is start-bound, not time-boxed -
-  // no sleep, one re-goto from the (possibly moved) start
+  // no sleep; the v0.155.0 nudge runs but the near-chest start (d=12.7) is
+  // already inside the 24b envelope, so the approach fires ZERO segments and
+  // the re-goto runs from the unchanged (already-routable) start
   const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!' })
   const sleeps = []
   const res = await deliverFuelTithe(world.bot, {
@@ -783,6 +789,48 @@ test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge cla
   assert.equal(res.delivered, 8, 'the re-issue from the new start landed')
   assert.equal(sleeps.length, 0, 'no refusal window to wait out')
   assert.equal(world.gotoPeek(), 2)
+})
+
+test('THE DECIDE-CLASS NUDGE (v0.155.0): a far decide failure walks an approach segment and the retry lands', async () => {
+  // the run92 shape escalated: the v0.153.0 retry re-issued the decide class
+  // from an UNMOVED start x2 ('F3 fuel anchor: 0 delivered (walk failed
+  // (Took to long to decide path to goal!))' twice) - the deterministic
+  // re-failure the comment itself warned about. The cure: the decide verdict
+  // is about the FAILED START - one bounded approachWalk (a real segment
+  // move, ~42b -> inside the 24b envelope) changes it, the retry re-issues
+  // from the new position and the tithe lands.
+  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(40, 64, 40), walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!', moveOnGoto: true })
+  const sleeps = []
+  const lines = []
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 20000,
+    deps: { sleep: async ms => { sleeps.push(ms) } },
+    log: m => lines.push(m)
+  })
+  assert.equal(res.delivered, 8, 'the nudge moved the start, the retry landed the deposit')
+  assert.equal(res.why, 'ok')
+  assert.equal(world.gotoPeek(), 3, 'the decide walk + the approach segment + the retry')
+  assert.equal(sleeps.length, 0, 'the decide class never waits out a window')
+  assert.ok(lines.some(l => l.includes('fuel anchor: path nudge')), 'the nudge names itself for the field read')
+})
+
+test('THE DECIDE-CLASS NUDGE (v0.155.0): the churn refusal never nudges (the wait-out stays)', async () => {
+  // the refusal class is TIME-BOXED - the window expiry is the real change;
+  // the far start does not turn it into a nudge class
+  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(40, 64, 40), walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 4s' })
+  const sleeps = []
+  const lines = []
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 20000,
+    deps: { sleep: async ms => { sleeps.push(ms) } },
+    log: m => lines.push(m)
+  })
+  assert.equal(res.delivered, 8)
+  assert.equal(world.gotoPeek(), 2, 'wait-out + re-issue, no approach segments')
+  assert.ok(sleeps.length === 1 && sleeps[0] > 4000, 'the refusal window was waited out')
+  assert.ok(!lines.some(l => l.includes('path nudge')), 'no nudge on the refusal class')
 })
 
 test('THE TITHE RETRY: a second failure reads honestly, the scatter keeps its try', async () => {
