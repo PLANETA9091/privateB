@@ -2950,3 +2950,17 @@ Stage Summary:
 - EXPECTATIONS for the next fleet: 'swept N x OUT from a finished fired batch MACHINE' + 'sweep: collected N' lines (the sweep's first field data - the 30-item class comes home); smelted counting the harvest (the honest ledger completes: fired -> harvested -> smelted); smelted toward/past the 18 band; iron_ingot > 0 STILL rides the unreachable-walk cure (the sweep collects finished batches but cannot FIRE into an unreachable machine); the machine-unreachable class is the standing follow-up front; conversion >= 90; NORMAL END holds; the mob deaths ride the v0.138.0 melee budget's first fleet numbers.
 - OPEN FRONTS (evidence-ranked): (a) machine unreachable x12 - the metal ladder's walks ('No path to the goal!' x8: the machines exist, the paths die; the reach-open works but 48b-only); (b) the fuel commons' stocking side ('chest holds no fuel' x40 - the withdrawal lane exists, the stocking lane starved; who puts coal IN?); (c) mob deaths x4/8 (Drowned x2, Zombie x2) - the v0.138.0 melee budget's first fleet read; (d) drown x2 + suffocate x2 (the wet window's tickets, the climb-out knockback); (e) conversion 87.6 + unaccounted 426; (f) rescues 80 > 42; (g) F2's shaft-bottom climb-out (the doomed-walk chain).
 - The fleet dispatch (or the dispatch RECORD, per the collision note) fires as the ABSOLUTE LAST action (after push-CI on this worklog head is green; run_fleet=true fleet_seconds=600; one fleet per head stands).
+
+---
+Task ID: 398294-20260924-1554 (dispatch record - the collision resolution)
+Agent: Z.ai Code (cron session, 15:54 +08, trace 1a0b98740b2ad8f5-cron-agent-loop-202609241554)
+Task: the session's ABSOLUTE LAST action - the fleet of record (resolved: a record, not a dispatch).
+
+Work Log:
+- ALL GREEN first: push-CI on 4455448 (v0.139.0 code) = 35974651922 SUCCESS; the worklog head 66eb475 = 35976386177 SUCCESS (09:12:45Z).
+- THE COLLISION RESOLVED BY THE DOCTRINE: mid-session a sibling lane's workflow_dispatch materialized on MY 4455448 head - run 35974993311 - and its jobs were VERIFIED: unit x2 SUCCESS, integration SUCCESS, 'Big fleet run (19 bots, optional)' materialized IN_PROGRESS at 08:44:30Z (run_fleet=true rode the dispatch - the 12:05 lane's input-less mistake is not repeated). One fleet per head reads the TREE, not the pusher: a second dispatch from this session would double-fleet the same v0.139.0 tree. THIS SESSION DOES NOT DISPATCH.
+- The fleet leg completed SUCCESS at 09:01:53Z (17.4 min); the run reads completed SUCCESS overall. The tree it flew: 4455448 = v0.139.0 THE HARVEST SWEEP (the fired-smelt's collection leg).
+- LEFT UNMINED on purpose (the canonical handoff): the next session mines run 35974993311's artifacts and reads the EXPECTATIONS in the 398294-20260924-1554 entry - 'swept N x OUT from a finished fired batch MACHINE' + 'sweep: collected N' (the sweep's first field data), the honest ledger completing (fired -> harvested -> smelted), smelted toward/past the 18 band, the machine-unreachable walks as the standing cure target, conversion >= 90, NORMAL END.
+
+Stage Summary:
+- THE FLEET OF RECORD: run = 35974993311, head 4455448 = v0.139.0, workflow_dispatch (a sibling lane's, adopted by this session's record), run_fleet=true fleet_seconds=600, completed SUCCESS, UNMINED. The next session: mine it, read the expectations, ship the cure the evidence names (v0.140.0), and dispatch fresh as the ABSOLUTE LAST action.
