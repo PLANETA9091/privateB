@@ -903,3 +903,93 @@ test('seedIronPool: the seeded pocket reads nothing-to-commune to the withdraw (
   assert.equal(comm.reason, 'nothing to commune')
   assert.equal(world.opened, openedAfterSeed, 'the withdraw guards skip the walk on an empty pocket')
 })
+
+// ------------------------------------------------------- THE STICK RUNG
+// (v0.151.0) run87 (36030165587, the v0.149.0 fleet) ended iron=0 with a
+// COMPLETE SET riding a pocket: F8 smelted 3 (iron_ingot:3) and the upgrade
+// check never offered the iron tier - sticks=1, planks<2-of-one-type, logs in
+// the pocket -> 'no sticks and no planks for sticks' returned tier -1 BEFORE
+// the flow's proven plank rung could convert. The gate now counts logs as
+// stick potential (1 log -> 4 planks -> 2 sticks); the F8 shape reads iron-due.
+
+test('upgradeCheck: the stick rung - the run87 F8 shape (3 ingots, 1 stick, logs, no planks) -> iron due', () => {
+  const bot = fakeBot([
+    it('stone_pickaxe', 1, { max: 131, used: 0 }),
+    it('iron_ingot', 3),
+    it('stick', 1),
+    it('birch_log', 2),
+    it('cobblestone', 13),
+    it('raw_iron', 5)
+  ])
+  const r = upgradeCheck(bot)
+  assert.equal(r.due, true, `reason: ${r.reason}`)
+  assert.equal(r.target, 'iron_pickaxe')
+  assert.equal(r.reason, 'iron available')
+})
+
+test('upgradeCheck: the stick rung - a log alone unlocks the iron tier (sticks are craftable mid-flow)', () => {
+  const bot = fakeBot([it('stone_pickaxe', 1, { max: 131, used: 0 }), it('iron_ingot', 3), it('oak_log', 1)])
+  const r = upgradeCheck(bot)
+  assert.equal(r.due, true, `reason: ${r.reason}`)
+  assert.equal(r.target, 'iron_pickaxe')
+})
+
+test('upgradeCheck: the stick gate still refuses a stickless logless plankless pocket', () => {
+  const bot = fakeBot([it('stone_pickaxe', 1, { max: 131, used: 0 }), it('iron_ingot', 3), it('cobblestone', 13)])
+  const r = upgradeCheck(bot)
+  assert.equal(r.due, false, '3 ingots with NO stick potential are not an upgrade (the craft would burn the table trip)')
+  assert.match(r.reason, /healthy|no sticks/)
+})
+
+test('upgradeCheck: a log does NOT unlock the wooden body (the one-type plank accounting keeps its say)', () => {
+  // 1 log -> 4 planks -> the BODY is fundable in principle, but the gate only
+  // answers 'can sticks exist'; the body keeps its own one-type >= 3 rule (a
+  // log funds sticks AND the body only when converted - the conservative read
+  // avoids burning the last log on sticks with no body planks behind them)
+  const bot = fakeBot([it('wooden_pickaxe', 1, { max: 59, used: 0 }), it('oak_log', 1)])
+  const r = upgradeCheck(bot)
+  assert.equal(r.due, false, `reason: ${r.reason}`)
+})
+
+test('upgradeCheck: a worn stone pick + logs + no sticks/planks still replaces (the rung rides the wear path too)', () => {
+  const bot = fakeBot([it('stone_pickaxe', 1, { max: 131, used: 125 }), it('oak_log', 1), it('cobblestone', 10)])
+  const r = upgradeCheck(bot)
+  assert.equal(r.due, true, `reason: ${r.reason}`)
+  assert.equal(r.target, 'stone_pickaxe')
+  assert.equal(r.worn, true)
+})
+
+test('upgradeTools flow: the F8 shape reaches the plank rung and crafts the iron pickaxe', async () => {
+  const items = [
+    it('stone_pickaxe', 1, { max: 131, used: 0 }),
+    it('iron_ingot', 3),
+    it('stick', 1),
+    it('birch_log', 2),
+    it('cobblestone', 13),
+    it('raw_iron', 5)
+  ]
+  const bot = fakeBot(items)
+  const calls = []
+  const res = await upgradeTools(bot, {
+    log: () => {},
+    deps: {
+      craftUntil: async (b, name, opts = {}) => {
+        calls.push(name)
+        if (name === 'stick') { items.push(it('stick', 4)); return true }
+        if (name === 'crafting_table') { items.push(it('crafting_table', 1)); return true }
+        if (name === 'iron_pickaxe') { items.push(it('iron_pickaxe', 1, { max: 250 })); return true }
+        return false
+      },
+      planksFrom: async (b, { need }) => {
+        calls.push(`planksFrom(${need})`)
+        return { ok: true, plankName: 'birch_planks', made: 4, why: 'converted' }
+      },
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, true, `detail: ${res.detail}`)
+  assert.equal(res.tier, 'iron_pickaxe')
+  // the stick gate passed on the LOGS (no planksFrom needed at the stick step:
+  // the real craft makes them), the table item crafts, the pick lands
+  assert.deepEqual(calls, ['stick', 'crafting_table', 'iron_pickaxe'])
+})

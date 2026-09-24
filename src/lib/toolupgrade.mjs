@@ -79,7 +79,18 @@ function craftablePickTier (bot) {
   // in tools.mjs was built for. Summing plank types lies; the max of one type is
   // the only number the recipe cares about.
   const oneType = countMaxPlankType(bot)
-  const stickOkViaPlanks = stickOk || oneType >= 2
+  // (v0.151.0) THE STICK RUNG: run87 (36030165587, the v0.149.0 fleet) ended
+  // iron=0 with a COMPLETE SET riding a pocket - F8=180[cobblestone:13
+  // raw_iron:5 iron_ingot:3], smelted 3 (iron_ingot:3) at ts~560s, and the
+  // upgrade check never offered the iron tier: sticks=1, planks<2-of-one-type,
+  // birch_log:2 in the pocket -> 'no sticks and no planks for sticks' returned
+  // tier -1 BEFORE the flow's proven plank rung (v0.106.0) could convert. One
+  // log -> 4 same-type planks -> 2 sticks with 2 planks spare: a pocket that
+  // holds ANY log can always make its sticks (the pickaxe body and the spare
+  // table keep their own one-type accounting below - the gate only answers
+  // 'can sticks exist', the plank rung owns the conversion).
+  const logs = invItems(bot).filter(i => i && i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)
+  const stickOkViaPlanks = stickOk || oneType >= 2 || logs >= 1
   if (!stickOkViaPlanks) return { tier: -1, name: null, reason: 'no sticks and no planks for sticks' }
   const ingots = countItem(bot, 'iron_ingot')
   const cobble = countItem(bot, 'cobblestone')

@@ -460,7 +460,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // set actually completed).
       try {
         const heldNow = countItem(miner.bot, 'iron_ingot')
-        if (heldNow > 0 && heldNow < 3) {
+        // (v0.151.0) THE COMPLETE-SET MOMENT: the guard drops the `< 3` arm.
+        // run87 (36030165587) measured the blind spot - F8 smelted 3
+        // (iron_ingot:3) at ts~560s and the old guard skipped the block
+        // (heldNow=3 is not < 3), leaving the craft to the loop cadence that
+        // then starved on the stick gate (v0.151.0's stick rung cures the
+        // gate; this guard cures the MOMENT): a bot standing yard-side with a
+        // complete set must craft on the spot. heldNow=3 flows through
+        // withdrawIronCommune's own guard ('nothing to commune',
+        // pocketNow=3) and the craft fires below; heldNow=1-2 keeps the
+        // v0.150.0 seed + withdraw sequence.
+        if (heldNow > 0) {
           // (v0.150.0) THE POOL SEED FIRST: run86 (36025029805) measured the
           // commune's 9 asks all reading 'chest holds 0 ingot(s)' - nothing
           // ever deposits iron_ingot (keepForIron pockets every fragment
