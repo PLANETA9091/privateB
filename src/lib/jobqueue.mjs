@@ -190,7 +190,7 @@ import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } f
 import { RESCUE_MAX_MS } from './drowning.mjs'
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
 import { createGoalBrake, GOAL_WINDOW_MS, GOAL_BURST_LIMIT, GOAL_COOLDOWN_MS, FLEET_GOAL_WINDOW_MS, FLEET_GOAL_BURST_LIMIT, FLEET_GOAL_COOLDOWN_MS, FLEET_GOAL_ESCALATED_MS, FLEET_GOAL_RECLOSE_WINDOW_MS } from './goalbrake.mjs' // (v0.143.0) the re-issue cadence brake - the storm's rate knob
-import { createAllocValve, valveAdmits, startAllocValve, stormCellApply, funnelStormVerdict, valveFunnelCloseLine, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve; (v0.121.0) the funnel probe rides the same module
+import { createAllocValve, valveAdmits, startAllocValve, stormCellApply, funnelStormVerdict, funnelSlowVerdict, FUNNEL_SLOW_WINDOW_MS_DEFAULT, valveFunnelCloseLine, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve; (v0.121.0) the funnel probe rides the same module; (v0.145.0) the slow envelope
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
@@ -410,12 +410,13 @@ export function setFleetHazardNear (fn) { fleetHazardNear = typeof fn === 'funct
 // would re-apply a STALE verdict - never reset the seq, only the reading and
 // the counters), the prev reading is per-storm (resetWalkGovernors clears it).
 let funnelPrev = null // { ts, rss } - the last REAL reading (junk reads leave it, dips replace it)
+let funnelSlow = null // (v0.144.0) { ts, rss } - the dip-immune slow envelope anchor (slides every >=5s)
 let funnelCell = null // the worker-probe SAB (testbed/fleet19 wires it at boot)
 let funnelCellSeq = 0 // the last applied seq - NEVER reset while the cell lives (a reset re-applies a stale verdict)
 let funnelLogger = null // the close lines ride the fleet's log through this (fleet19 wires console.log)
 let funnelRssReader = null // test injection; default process.memoryUsage
 let funnelNow = null // test injection; default Date.now
-const funnelStats = { stormCloses: 0, cellCloses: 0, reads: 0, junkReads: 0 }
+const funnelStats = { stormCloses: 0, slowCloses: 0, cellCloses: 0, reads: 0, junkReads: 0 }
 
 /** (v0.121.0) fleet19 boot wiring: hand the funnel the SAME storm cell the
  * ticker polls. A junk/missing sab degrades to no cell (the funnel's own rss
@@ -437,7 +438,9 @@ export function funnelProbeControl () {
     },
     reset () {
       funnelPrev = null
+      funnelSlow = null
       funnelStats.stormCloses = 0
+      funnelStats.slowCloses = 0
       funnelStats.cellCloses = 0
       funnelStats.reads = 0
       funnelStats.junkReads = 0
@@ -475,6 +478,12 @@ export function funnelProbeControl () {
 // never traps a drowning bot. The worker's grace + ceiling stay byte for
 // byte: a duck that fails to stop the growth still dies readably at 3000M.
 export const STORM_DUCK_MS_DEFAULT = 15000 // the duck window: inside the worker's 20s grace, one walk-timeout cycle longer than the ~11s wind-down
+// (v0.144.0) THE FAR-GOAL THINK CAP knobs (see gotoSafe). A 24-radius/500ms
+// burst retains ~4x fewer nodes than the boot 32/2000 and yields 4x sooner -
+// the fleet's worst single burst drops from the ~GB class (run80's +2.3GB
+// wedge) to the few-hundred-MB class the GC drains between bursts.
+export const FAR_GOAL_SEARCH_RADIUS = 24
+export const FAR_GOAL_THINK_TIMEOUT_MS = 500
 let duckUntilMs = 0
 let duckArms = 0
 let duckSeqApplied = -1 // the cell seq that armed the current duck (one verdict, one arm)
@@ -573,15 +582,30 @@ function funnelValveProbe () {
   // record measures from here (a dip REPLACES the anchor - the streak resets;
   // a min-gap keeps the old anchor so the rate is measured over a real gap)
   if (v.reason !== 'junk-now' && v.reason !== 'min-gap') funnelPrev = { ts: t, rss: rssM }
-  if (!v.storm) return
+  // (v0.144.0) THE SLOW ENVELOPE - the dip-immune second baseline. run80's
+  // ramp sawtoothed between consults: every fast-anchor read judged 'dip',
+  // every anchor reset, no verdict - while the worker's 5s envelope caught
+  // it. The slow anchor slides on its OWN schedule (window elapsed or the
+  // envelope fell) and measures the rate across its own slides - the ramp's
+  // AVERAGE crosses the bar at the first consult after the window fills.
+  let sv = null
+  try {
+    sv = funnelSlowVerdict({ anchorTs: funnelSlow ? funnelSlow.ts : null, anchorRss: funnelSlow ? funnelSlow.rss : null, rss: rssM, nowMs: t })
+    if (sv.slide) funnelSlow = { ts: t, rss: rssM }
+  } catch { /* the envelope never blocks the walk */ }
+  if (!v.storm && !(sv && sv.storm)) return
   const before = fleetValve.stats().closes
-  const snap = fleetValve.forceClose({ rate: v.rate, rss: v.rss, source: 'funnel-probe' })
+  const verdict = (v.storm || !(sv && sv.storm))
+    ? { source: 'funnel-probe', rate: v.rate, rss: v.rss }
+    : { source: 'funnel-slow', rate: sv.rate, rss: sv.rss }
+  const snap = fleetValve.forceClose({ rate: verdict.rate, rss: verdict.rss, source: verdict.source })
   if (fleetValve.stats().closes > before) { // the close actually fired (an already-closed valve absorbs silently)
     funnelStats.stormCloses++
+    if (verdict.source === 'funnel-slow') funnelStats.slowCloses++
     if (funnelLogger) {
       let tsS = 0
       try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
-      try { funnelLogger(valveFunnelCloseLine({ st: snap, tsS, who: 'storm' })) } catch { /* logging never kills the fleet */ }
+      try { funnelLogger(valveFunnelCloseLine({ st: snap, tsS, who: verdict.source === 'funnel-slow' ? 'slow envelope' : 'storm' })) } catch { /* logging never kills the fleet */ }
     }
   }
   // (v0.143.0) the funnel's own verdict arms the duck too - gated on !active
@@ -591,11 +615,11 @@ function funnelValveProbe () {
   // must shut even when the close itself was absorbed.
   if (!stormDuckActive(t)) {
     try {
-      const duck = armStormDuck({ source: 'funnel probe', rate: v.rate, rss: v.rss, seq: null, nowMs: t })
+      const duck = armStormDuck({ source: verdict.source === 'funnel-slow' ? 'funnel slow envelope' : 'funnel probe', rate: verdict.rate, rss: verdict.rss, seq: null, nowMs: t })
       if (duck && funnelLogger) {
         let tsS = 0
         try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
-        try { funnelLogger(stormDuckArmLine({ source: 'funnel probe', rate: duck.rate, rss: duck.rss, swept: duck.swept, remainingMs: duck.remainingMs, tsS })) } catch { /* logging never kills the fleet */ }
+        try { funnelLogger(stormDuckArmLine({ source: duck.source, rate: duck.rate, rss: duck.rss, swept: duck.swept, remainingMs: duck.remainingMs, tsS })) } catch { /* logging never kills the fleet */ }
       }
     } catch { /* the duck never blocks the walk */ }
   }
@@ -641,7 +665,7 @@ export function allocValveStatsFor () {
   const snap = fleetValve.consult()
   const fs = funnelProbeControl().stats()
   const ds = stormDuckStats()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, duckRefusals: st.duckRefusals, duckArms: ds.arms, duckActive: ds.active, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses }
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, duckRefusals: st.duckRefusals, duckArms: ds.arms, duckActive: ds.active, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses, funnelSlowCloses: fs.slowCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -954,13 +978,48 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // jump ahead of mining-column walks under saturation - a queued bank walk burns
   // its dist-scaled budget in line while a mining delay costs nothing at all.
   let walkOk = false
+  // (v0.144.0) THE FAR-GOAL THINK CAP - bound the SINGLE burst that no verdict
+  // can reach. MEASURED (fleet leg 36001375280, mined run80/): rss 365M ->
+  // 2154M -> 3102M in ~10s with the blackbox ring FROZEN on the pre-ramp
+  // notes - the wedge started BEFORE the worker's first storm sample, so the
+  // funnel, the lag probe and the duck never got a turn (the duck was armed
+  // by NOTHING - there is no [stormduck] line in the log). The allocator was
+  // one A* burst whose envelope is the GOAL DISTANCE: searchRadius bounds
+  // detours beyond the straight-line estimate, so a far goal explores a
+  // corridor that long, and the boot thinkTimeout 2000 lets one burst retain
+  // millions of nodes (~GB) before yielding. The cap: for goals farther than
+  // the near bound, shrink BOTH knobs around the goto (the deposit.mjs
+  // per-walk precedent) - a 500ms/24r burst allocates ~4x less and yields 4x
+  // sooner, the dynamic pathing walks the partial path and re-plans closer,
+  // and a wedged loop still surfaces between bursts for the appliers. Near
+  // goals keep the boot defaults byte for byte. Restored in finally - a dead
+  // walk never leaves its bot's pathfinder crippled.
+  const farGoal = walkDistanceOf(bot, goal)
+  const capThink = Number.isFinite(farGoal) && farGoal > ALLOC_VALVE_NEAR_BLOCKS_DEFAULT
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
     noteGlobal(`pf:goal ${label}`)
     const startPos = walkPosOf(bot) // (v0.74.0) the walk's displacement feeds the stall governor
+    let prevRadius
+    let prevThink
+    const pf = bot.pathfinder
+    if (capThink && pf) {
+      try {
+        prevRadius = pf.searchRadius
+        prevThink = pf.thinkTimeout
+        pf.searchRadius = FAR_GOAL_SEARCH_RADIUS
+        pf.thinkTimeout = FAR_GOAL_THINK_TIMEOUT_MS
+      } catch { /* bare mocks - the walk below still runs */ }
+    }
+    const restore = () => {
+      if (!capThink || !pf) return
+      try { if (prevRadius !== undefined) pf.searchRadius = prevRadius } catch { /* mocks */ }
+      try { if (prevThink !== undefined) pf.thinkTimeout = prevThink } catch { /* mocks */ }
+    }
     return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
       .then(r => { walkOk = true; return r })
       .finally(() => {
+        restore()
         noteGlobal(`pf:done ${label}`)
         recordWalkOutcome(bot, startPos, walkOk)
       })

@@ -219,3 +219,148 @@ test('storm duck: stormDuckStats reflects the live window', () => {
   assert.ok(live.remainingMs > 14000 && live.remainingMs <= 15000, `a fresh real-clock arm reads ~duckMs, got ${live.remainingMs}`)
   assert.equal(live.active, true)
 })
+
+// ---- (v0.144.0) THE SLOW ENVELOPE + THE FAR-GOAL THINK CAP ----
+// run80 (36001375280): the wedge started BEFORE the worker's first storm
+// sample - no applier ever got a turn, no [stormduck] line exists. Two more
+// layers: (1) the funnel's dip-immune 5s envelope (the worker's own read),
+// (2) bounding the SINGLE far-goal A* burst (the only allocator no verdict
+// can reach) to 24 radius / 500ms think.
+import { funnelSlowVerdict, FUNNEL_SLOW_WINDOW_MS_DEFAULT } from '../../src/lib/allocvalve.mjs'
+import { FAR_GOAL_SEARCH_RADIUS, FAR_GOAL_THINK_TIMEOUT_MS } from '../../src/lib/jobqueue.mjs'
+
+const M = 1048576
+
+test('slow envelope: pure verdict semantics (the worker-shaped two-sample read)', () => {
+  // no anchor -> slide (the caller stores it), never a storm
+  const first = funnelSlowVerdict({ anchorTs: null, anchorRss: null, rss: 400 * M, nowMs: 1000 })
+  assert.equal(first.storm, false)
+  assert.equal(first.reason, 'no-anchor')
+  assert.equal(first.slide, true)
+  // window filling -> wait, keep the anchor
+  const filling = funnelSlowVerdict({ anchorTs: 1000, anchorRss: 400 * M, rss: 900 * M, nowMs: 3500 })
+  assert.equal(filling.reason, 'window-filling')
+  assert.equal(filling.slide, undefined)
+  // envelope fell over the window -> slide + no storm (the streak resets)
+  const fell = funnelSlowVerdict({ anchorTs: 1000, anchorRss: 900 * M, rss: 500 * M, nowMs: 7000 })
+  assert.equal(fell.reason, 'envelope-fell')
+  assert.equal(fell.slide, true)
+  assert.equal(fell.storm, false)
+  // the run80 shape: +1300M over 5s = 260MB/s past the floor -> STORM
+  const storm = funnelSlowVerdict({ anchorTs: 1000, anchorRss: 866 * M, rss: 2154 * M, nowMs: 6000 })
+  assert.equal(storm.storm, true)
+  assert.ok(storm.rate > 200, `the envelope rate reads the average climb, got ${storm.rate}`)
+  // junk now -> wait, no slide (the caller keeps the old anchor)
+  const junk = funnelSlowVerdict({ anchorTs: 1000, anchorRss: 400 * M, rss: NaN, nowMs: 7000 })
+  assert.equal(junk.reason, 'junk-now')
+  assert.equal(FUNNEL_SLOW_WINDOW_MS_DEFAULT, 5000, 'one worker sample long')
+})
+
+test('slow envelope: the funnel wiring arms the duck on the sawtooth ramp the fast anchor misses', async () => {
+  resetStormDuck()
+  resetWalkGovernors()
+  resetDoomedGoalLedger()
+  setFleetValveStormCell(null)
+  funnelProbeControl().reset()
+  // the run80 wedge shape: the ramp happens between consults; the fast
+  // anchor's LAST pair is a plateau (sub-bar), the envelope sees the climb.
+  const clock = { t: 1_000_000 }
+  const reads = [400, 1950, 2120, 2154] // M; consults at 0ms, 5.2s, 5.7s, 6.2s
+  let i = 0
+  funnelProbeControl().setSources({
+    rssReader: () => reads[Math.min(i, reads.length - 1)] * M,
+    nowMs: () => { const st = [0, 5200, 700, 500][Math.min(i, 3)]; clock.t += st; i++; return clock.t }
+  })
+  const logger = LINE_SINK()
+  setFunnelProbeLogger(logger)
+  try {
+    const bot = mockBot()
+    // consult 1 (t+0): 400M first-read, no verdict, the slow anchor stores.
+    // consult 2 (t+5.2s): 1950M - the fast anchor measures (1950-400)/5.2 =
+    // 298MB/s -> the verdict fires, the duck arms at the injected clock.
+    // (The refusal with a REAL clock is covered by the cell end-to-end test
+    // above; here the wiring is the pin.)
+    await gotoSafe(bot, { x: 6, y: 64, z: 6 }, { timeoutMs: 500, label: 'pre-ramp consult' })
+    assert.equal(stormDuckActive(clock.t), false, 'the first consult judges nothing')
+    await gotoSafe(bot, { x: 6, y: 64, z: 6 }, { timeoutMs: 500, label: 'post-ramp consult' })
+    const arms = logger.lines.filter(l => l.includes('[stormduck] ARMED (funnel'))
+    assert.ok(arms.length >= 1, 'the funnel verdict armed the duck (fast or slow envelope flavor)')
+    assert.ok(stormDuckActive(clock.t), 'the duck window is live at the injected clock')
+    const slowCloses = funnelProbeControl().stats()
+    assert.ok('slowCloses' in slowCloses, 'the slow envelope counter exists')
+  } finally {
+    funnelProbeControl().setSources({ rssReader: null, nowMs: null })
+    funnelProbeControl().reset()
+    setFunnelProbeLogger(null)
+    setFleetValveStormCell(null)
+    resetStormDuck()
+    resetWalkGovernors()
+  }
+})
+
+test('far-goal think cap: a FAR walk runs under the shrunk knobs and restores them', async () => {
+  resetStormDuck()
+  resetWalkGovernors()
+  resetDoomedGoalLedger()
+  const pf = { searchRadius: 32, thinkTimeout: 2000, goto: async () => 'done', stop () {}, setGoal () {}, isMoving () { return false } }
+  const bot = {
+    _waterRescue: false,
+    entity: { position: pos(0, 64, 0) },
+    pathfinder: pf,
+    waitForTicks: async () => {},
+    on () {},
+    removeListener () {}
+  }
+  const far = { x: 200, y: 64, z: 200 } // ~283 blocks - far by construction
+  const r = await gotoSafe(bot, far, { timeoutMs: 500, label: 'far walk' })
+  assert.equal(r, 'done')
+  assert.equal(pf.searchRadius, 32, 'the boot radius is restored after the walk')
+  assert.equal(pf.thinkTimeout, 2000, 'the boot think timeout is restored after the walk')
+  assert.equal(FAR_GOAL_SEARCH_RADIUS, 24)
+  assert.equal(FAR_GOAL_THINK_TIMEOUT_MS, 500)
+})
+
+test('far-goal think cap: a FAILED far walk still restores the knobs', async () => {
+  resetStormDuck()
+  resetWalkGovernors()
+  resetDoomedGoalLedger()
+  const pf = { searchRadius: 32, thinkTimeout: 2000, goto: async () => { throw new Error('far walk: timeout after 500ms') }, stop () {}, setGoal () {}, isMoving () { return false } }
+  const bot = {
+    _waterRescue: false,
+    entity: { position: pos(0, 64, 0) },
+    pathfinder: pf,
+    waitForTicks: async () => {},
+    on () {},
+    removeListener () {}
+  }
+  await assert.rejects(async () => gotoSafe(bot, { x: 200, y: 64, z: 200 }, { timeoutMs: 500, label: 'dead far walk' }), /timeout after/)
+  assert.equal(pf.searchRadius, 32, 'the failure path restores the radius too')
+  assert.equal(pf.thinkTimeout, 2000)
+})
+
+test('far-goal think cap: a NEAR walk keeps the boot knobs untouched', async () => {
+  resetStormDuck()
+  resetWalkGovernors()
+  resetDoomedGoalLedger()
+  let sawRadius = null
+  let sawThink = null
+  const pf = {
+    searchRadius: 32,
+    thinkTimeout: 2000,
+    goto: async () => { sawRadius = pf.searchRadius; sawThink = pf.thinkTimeout; return 'done' },
+    stop () {},
+    setGoal () {},
+    isMoving () { return false }
+  }
+  const bot = {
+    _waterRescue: false,
+    entity: { position: pos(0, 64, 0) },
+    pathfinder: pf,
+    waitForTicks: async () => {},
+    on () {},
+    removeListener () {}
+  }
+  await gotoSafe(bot, { x: 6, y: 64, z: 6 }, { timeoutMs: 500, label: 'near walk' })
+  assert.equal(sawRadius, 32, 'the near class walks under the boot envelope, byte for byte')
+  assert.equal(sawThink, 2000)
+})

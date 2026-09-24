@@ -150,6 +150,52 @@ export function funnelStormVerdict ({ prevTs = null, prevRss = null, rss = 0, no
   return { storm, reason: storm ? 'storm' : 'sub-threshold', rate: Math.round(rate * 10) / 10, gain: Math.round(gain), rss: r, dtS }
 }
 
+// (v0.144.0) THE SLOW ENVELOPE - the funnel's dip-immune second baseline.
+// MEASURED (fleet leg 36001375280, the v0.143.0 union, mined run80/): the
+// storm ramped 365M -> 866M -> 2154M over ~10s with the funnel consults
+// MARCHING (pf:queue walk @+0.0s at the probe) - and the funnel NEVER
+// verdicted. The last consult's pf:queue note proves it: a consult that
+// verdicts arms the duck and refuses BEFORE pf:queue is ever noted. Why no
+// verdict: the fast anchor measures between CONSECUTIVE consults (0.4-3.2s
+// gaps) and the dip rule resets it on EVERY recede - in the ramp's GC-churn
+// phase the rss sawtooths between consults (GC frees between allocation
+// bursts), consecutive reads alternate top/bottom, every read judges 'dip',
+// every anchor resets, and no rate is EVER measured over the climb. The
+// worker (5s samples, monotonic envelope 866 -> 2154) caught what the
+// funnel's fine-grained sampling could not: MORE samples = MORE dips = MORE
+// resets. THE FIX: a second anchor slid every SLOW window (one worker sample
+// long), judged EXACTLY like the worker's two-sample envelope - dips do not
+// reset it (the envelope is measured between its OWN slides, not between
+// consults), so the ramp's average rate crosses the bar at the FIRST consult
+// after the window fills. The fast anchor stays (it catches smooth ramps
+// faster); the slow envelope catches the sawtooth class the dip rule blinds.
+export const FUNNEL_SLOW_WINDOW_MS_DEFAULT = 5000 // one worker sample - the envelope the worker sees, the funnel now sees too
+
+/** Pure slow-envelope verdict: the rate over ONE slid anchor gap (>= window).
+ * Dip-safe by construction: the caller only slides the anchor on this
+ * verdict's own schedule (window elapsed or envelope fell), so the two
+ * samples here are always a real window apart. Same storm shape as the
+ * worker's: rss past floor, rate over the FULL window, gain over the full
+ * bar (not the ring's half). Junk-safe: every degenerate input reads
+ * 'wait' (the caller keeps the old anchor and tries again). */
+export function funnelSlowVerdict ({ anchorTs = null, anchorRss = null, rss = 0, nowMs = 0, floorMb = ALLOC_VALVE_FLOOR_MB_DEFAULT, rateMbS = FUNNEL_RATE_MB_S_DEFAULT, windowMs = FUNNEL_SLOW_WINDOW_MS_DEFAULT } = {}) {
+  const r = Number(rss)
+  const t = Number(nowMs)
+  if (!Number.isFinite(r) || r <= 0 || !Number.isFinite(t)) return { storm: false, reason: 'junk-now', rate: 0, gain: 0, rss: r, dtS: 0 }
+  const at = Number(anchorTs)
+  const ar = Number(anchorRss)
+  if (!Number.isFinite(at) || !Number.isFinite(ar) || ar <= 0) return { storm: false, reason: 'no-anchor', rate: 0, gain: 0, rss: r, dtS: 0, slide: true }
+  const dtMs = t - at
+  if (!Number.isFinite(dtMs) || dtMs <= 0) return { storm: false, reason: 'backwards-clock', rate: 0, gain: 0, rss: r, dtS: 0 }
+  if (dtMs < windowMs) return { storm: false, reason: 'window-filling', rate: 0, gain: 0, rss: r, dtS: dtMs / 1000 }
+  const dtS = dtMs / 1000
+  if (r < ar) return { storm: false, reason: 'envelope-fell', rate: 0, gain: 0, rss: r, dtS, slide: true } // the 5s envelope FELL - the streak resets
+  const gain = r - ar
+  const rate = gain / dtS
+  const storm = r >= floorMb && rate >= rateMbS && gain >= rateMbS * dtS
+  return { storm, reason: storm ? 'storm' : 'sub-threshold', rate: Math.round(rate * 10) / 10, gain: Math.round(gain), rss: r, dtS, slide: true }
+}
+
 /** Pure log-line builder for the funnel probe's close (v0.121.0). TWO named
  * flavors the mine must tell apart: who='storm' (the funnel's own rss verdict)
  * and who='cell' (the WORKER's verdict, applied at the funnel because the
@@ -162,6 +208,9 @@ export function valveFunnelCloseLine ({ st = {}, tsS = 0, who = 'storm' } = {}) 
   const ts = Number.isFinite(tsS) ? tsS : 0
   if (who === 'cell') {
     return `[allocvalve] CLOSED (funnel probe): the worker verdict rss ${rss}M (+${rate}MB/s) applied at the walk funnel - long walks refused ${rem}s (strike ${strikes}; the starved timers never got the cell, the funnel did; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
+  }
+  if (who === 'slow envelope') {
+    return `[allocvalve] CLOSED (funnel slow envelope): rss ${rss}M (+${rate}MB/s over the 5s slide) - long walks refused ${rem}s (strike ${strikes}; the ramp sawtoothed past the fast anchor's dip rule - run80 - the slow envelope is the dip-immune read the worker's 5s window always had; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
   }
   return `[allocvalve] CLOSED (funnel probe): rss ${rss}M (+${rate}MB/s on the walk funnel) - long walks refused ${rem}s (strike ${strikes}, the funnel saw the storm the starved timers could not; short walks <= ${ALLOC_VALVE_NEAR_BLOCKS_DEFAULT}b still flow) ts=${ts}s`
 }

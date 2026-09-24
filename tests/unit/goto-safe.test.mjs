@@ -317,7 +317,7 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   resetWalkGovernors()
   resetStormDuck() // (v0.143.0) the duck rides its own reset - the valve hygiene does not lift it
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0, duckArms: 0, duckActive: false, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0, funnelCloses: 0, funnelCellCloses: 0 })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0, duckArms: 0, duckActive: false, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0, funnelCloses: 0, funnelCellCloses: 0, funnelSlowCloses: 0 })
 })
 
 // ---- (v0.104.0) THE AQUIFER GATE at the funnel ----
