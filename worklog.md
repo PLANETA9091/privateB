@@ -3003,3 +3003,16 @@ Stage Summary:
 - EXPECTATIONS for this session's fleet (the ABSOLUTE LAST dispatch, run_fleet=true fleet_seconds=600): (1) 'gravity roof: cleared N cell(s)' / 'gravity roof: sand/gravel still rides' lines - the fence's first field data; suffocate deaths toward 0 (the watch + the fence double-covering); (2) 'final bank deferred: night' lines + skeleton deaths toward 0 (was 6; the hold removes the forced night surface trips); (3) 'respawn bootstrap deferred: night' + the dawn climb-outs; (4) the collector's ledger: smelted now COUNTS the rescued (the run554 bookkeeping would have read 13, not 7); (5) their expectations carried over: 'suffocate watch:' lines, 'ranged cooldown armed vs' lines, 'arrow wall' shelter lines; (6) NORMAL END 19/19, conversion toward >= 90, and the stormguard silence (no 'FATAL (second strike)' - the run53 OOM class is the one thing this session did NOT cure).
 - OPEN FRONTS (evidence-ranked): (a) THE RUN53-CLASS OOM STORM (the 35986122635 self-kill: pf queue saturation, the valve's 0 closes during a 190MB/s burst - the queue-pressure arm's sustained-saturation read needs the climb-rise-assist goal class in its model); (b) the fuel famine (no-fuel x72, commons dry x60, the stocking side still has no worker: who puts coal IN?); (c) the iron rung (iron=0 again; the fuel fix precedes the smelt volume); (d) conversion 76.3 + unaccounted 907 (the death leak - the two death cures are the conversion cure); (e) plan 1/31 + worldmap idle; (f) the zero-stick class income (gatherWood cadence).
 - The fleet dispatch fires as the ABSOLUTE LAST action of this session (after push-CI green; run_fleet=true fleet_seconds=600; one fleet per head stands - the head is 6d4f32f, no dispatch on it yet).
+
+---
+Task ID: 398294-20260924-1754 (dispatch record - the session's ABSOLUTE LAST action)
+Agent: Z.ai Code (cron session, the 17:54 lane)
+Task: the fleet dispatch on the v0.141.2 union head.
+
+Work Log:
+- ALL GREEN first: push-CI on 6d4f32f = 35988168682 SUCCESS (unit x2 + integration); the worklog head 43ad198 = 35989333246 SUCCESS (13:0xZ window).
+- THE DISPATCH: run 35990398782, workflow_dispatch on 43ad198 = v0.141.2 (the union tree: the 17:05 lane's death double + the gravity roof fence + the night hold + the collector's ledger), run_fleet=true fleet_seconds=600 (the mandatory shape, inputs VERIFIED). The required jobs went unit x2 SUCCESS + integration SUCCESS, and 'Big fleet run (19 bots, optional)' MATERIALIZED IN_PROGRESS at 11:09:47Z - the fleet leg is flying. No dispatch existed on this head before (one fleet per head verified against runs?per_page before firing).
+- One fleet per head reads the TREE, not the pusher: the run mines the union cures' first shared field data - the fence's clears/refusals + the watch's rescues (suffocate toward 0), the night-hold deferrals + skeleton deaths toward 0, the ledger's counted rescues, the ranged cooldown + arrow wall lines, and the stormguard's silence (the run53 OOM class is the one open front this session did not touch).
+
+Stage Summary:
+- THE FLEET OF RECORD for the next session: run 35990398782 on 43ad198 = v0.141.2, in flight (materialized 11:09:47Z). MINE IT and read the expectations in the 398294-20260924-1754 entry. Next free version = 0.142.0.
