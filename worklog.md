@@ -2854,3 +2854,15 @@ Stage Summary:
 - EXPECTATIONS for the next fleet: iron_ingot >= 3 in ONE pocket -> iron_pickaxe > 0 (the ladder's third rung lands; the fuel anchor now DELIVERS - watch 'fuel anchor: delivered N' and whether the iron carriers withdraw); 'the singular probe rescued the scan' stays (the plural-scan lie is now fully worked around); 'combat: fight ended' grows the exit distribution (the chase-ceiling cure for the swing-starved deadlines is the next decode if deadline exits keep bleeding hp); 'the inference CONTRADICTS' lines keep naming the lie for free; drown deaths toward 0 (the wet-fast window x5 fired); NORMAL END holds.
 - OPEN FRONTS (evidence-ranked): (a) the iron rung's fuel economy - the raw_iron carriers' pockets go stick-poor (the tithe commons absorbs the coal; the anchor now delivers but the iron window needs the fuel AT the furnace); (b) the mob melee churn - the swing-starved deadline class (17 swings/0 closes vs a kiting skeleton; 2 swings/4 failed closes vs an underwater drowned - the witch lane's snapshot+budget shape is the unowned generalization); (c) rescues 146 + relogins 35 (the wet-fast window trades diagnosis latency for relog tickets - the tickets are being spent, drown deaths stay at 2); (d) conversion 87.9% + unaccounted 458; (e) plan 2/31 + worldmap idle; (f) the suffocate class silent this run.
 - The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI on the final worklog head is green; run_fleet=true, fleet_seconds=600 - THE INPUT THE 12:05 LANE FORGOT; one fleet per head stands).
+
+---
+Task ID: 398294-20260924-1254 (dispatch record)
+Agent: Z.ai Code (cron session, 12:54 +08, trace 1a0b98740b2ad8f5-cron-agent-loop-202609241258)
+Task: the session's ABSOLUTE LAST action - the fleet of record.
+
+Work Log:
+- The union head abf79f1 (v0.136.1 = the pillar probe + my v0.136.0 verdict sharpening + the full tree) went push-CI SUCCESS (35961866985). No fleet in flight (35959178964 was mined).
+- DISPATCHED: POST /actions/workflows/ci.yml/dispatches {ref: master, inputs: {run_fleet: 'true', fleet_seconds: '600'}} -> HTTP 204, run 35963112300 (workflow_dispatch on abf79f1). VERIFIED the fleet leg materialized IN_PROGRESS after the integration needs resolved (the 12:05 lane's missing-input mistake is not repeated).
+
+Stage Summary:
+- THE FLEET OF RECORD: run = 35963112300, head abf79f1 = v0.136.1 (the full union tree). The next session: confirm the run, mine the artifacts, and read the EXPECTATIONS in the 398294-20260924-1254 entry (the iron rung's fuel economy; the fight instrument's exit distribution growth; the anchor delivery cadence; drown toward 0).
