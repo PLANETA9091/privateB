@@ -8,10 +8,11 @@
 // a BUILT FLAT PLATFORM: the hop now walks RAW CONTROLS first (look + forward
 // + step-jump, zero A*), and the pathfinder hop becomes the fallback.
 import { test, beforeEach } from 'node:test'
-import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, walkRetryPlan } from '../../src/lib/jobqueue.mjs'
+import { isDeadChestVerdict } from '../../src/lib/nopath.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { rawHopEligible, walkRawToward, RAW_HOP_MAX_DIST, depositToChest, PROXIMATE_OPEN_DIST } from '../../src/lib/deposit.mjs'
+import { rawHopEligible, walkRawToward, RAW_HOP_MAX_DIST, RAW_HOP_NETPROGRESS_MS, depositToChest, PROXIMATE_OPEN_DIST } from '../../src/lib/deposit.mjs'
 
 const TYPES = new Map()
 function item (name, count = 1) {
@@ -116,6 +117,86 @@ test('walkRawToward: slow-but-moving times out (the bounded-clock rule)', async 
   assert.equal(bot._controls.forward, false, 'controls cleared on timeout')
 })
 
+// (v0.149.0) THE NET-PROGRESS FLOOR - movement is not approach.
+// The run85 F3 shape (dispatch 36016062585): two raw hops burnt 20.3s + 15.2s
+// ending at d=8.0/8.4 - the bot MOVED every tick (defeating the 2s stall gate)
+// but never approached, and the 20s clock burnt the deposit slice twice.
+test('walkRawToward: the jitter bot aborts at the net-progress floor (~8s, not the full clock)', async () => {
+  const target = new Vec3(8.5, 74, 0.5) // d=8.0 along +x
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0 })
+  bot._target = target
+  let flip = false
+  bot.look = async () => {
+    bot._lookCalls++
+    flip = !flip
+    // oscillate PERPENDICULAR to the target axis: every tick moves 0.8 (the
+    // stall gate's 0.35 bar never fires) but the distance never improves
+    bot.entity.position = new Vec3(0.5, 74, 0.5 + (flip ? 0.4 : -0.4))
+  }
+  let err = null
+  const t0 = Date.now()
+  try { await walkRawToward(bot, target, { tickMs: 20, stallMs: 100000, timeoutMs: 30000, netProgressMs: 400 }) } catch (e) { err = e }
+  assert.ok(err, 'the walk aborted')
+  assert.match(err.message, /no net progress/, 'the floor names itself')
+  assert.match(err.message, /best d=8\.0/, 'the best distance is in the message for the log')
+  assert.ok(Date.now() - t0 < 5000, `the abort cost ~400ms, not the 30s clock (spent ${Date.now() - t0}ms)`)
+  assert.equal(bot._controls.forward, false, 'controls cleared on the abort')
+  // the classification contract: NOT a retry class, NOT a ledger shape
+  assert.doesNotMatch(err.message, /timeout after/, 'walkRetryPlan must not read it as a retry')
+  assert.equal(walkRetryPlan({ error: err, attempt: 1, maxAttempts: 2 }).action, 'give-up', 'no deterministic re-issue of the identical goto')
+  assert.equal(isDeadChestVerdict(err.message).dead, false, 'the verdict is the START\'s, not the chest cell\'s')
+})
+
+test('walkRawToward: a slow-but-APPROACHING walker is never punished by the floor', async () => {
+  const target = new Vec3(4.5, 74, 0.5) // d=4.0 - a short approach
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0.3 })
+  bot._target = target
+  const r = await walkRawToward(bot, target, { tickMs: 20, stallMs: 100000, timeoutMs: 30000, netProgressMs: 200 })
+  assert.equal(r.walked, true, 'the approach completed')
+  assert.ok(r.d <= 3.2, `stops within reach (d=${r.d})`)
+})
+
+test('walkRawToward: the stall gate still fires first for a zero-movement bot', async () => {
+  const target = new Vec3(8.5, 74, 0.5)
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0 })
+  bot._target = target
+  await assert.rejects(
+    () => walkRawToward(bot, target, { tickMs: 20, stallMs: 300, timeoutMs: 30000, netProgressMs: 400 }),
+    /raw walk stalled/,
+    'zero movement stays the stall gate\'s class (2s, not the 8s floor)'
+  )
+})
+
+test('walkRawToward: netProgressMs 0 disables the floor (the legacy shape byte for byte)', async () => {
+  const target = new Vec3(8.5, 74, 0.5)
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0 })
+  bot._target = target
+  await assert.rejects(
+    () => walkRawToward(bot, target, { tickMs: 20, stallMs: 100000, timeoutMs: 300, netProgressMs: 0 }),
+    /raw walk timeout/,
+    'the legacy bounded-clock rule owns the walk when the floor is off'
+  )
+})
+
+test('the net-progress constant and its default wiring', async () => {
+  assert.equal(RAW_HOP_NETPROGRESS_MS, 8000, 'the floor is 8s - twice the stall gate, half a failed pathfinder think-cycle x2')
+  // the default rides through: a jitter bot with NO netProgressMs option still aborts
+  const target = new Vec3(8.5, 74, 0.5)
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0 })
+  bot._target = target
+  let flip = false
+  bot.look = async () => {
+    bot._lookCalls++
+    flip = !flip
+    bot.entity.position = new Vec3(0.5, 74, 0.5 + (flip ? 0.4 : -0.4))
+  }
+  await assert.rejects(
+    () => walkRawToward(bot, target, { tickMs: 10, stallMs: 100000, timeoutMs: 30000, netProgressMs: 100 }),
+    /no net progress/,
+    'the gate is live by default (overridable for tests)'
+  )
+})
+
 test('walkRawToward: junk bot / junk target fails fast, controls still cleared', async () => {
   await assert.rejects(() => walkRawToward({}, new Vec3(1, 1, 1)), /no position/)
   const bot = makeRawBot({})
@@ -140,6 +221,26 @@ test('walkOnce order: a stalled raw walk falls back to the pathfinder (semantics
   assert.ok(r.deposited >= 1, 'the fallback lands the deposit')
   assert.equal(bot.gotoCalls.length, 1, 'the pathfinder hop ran as the fallback')
   assert.ok(lines.some(l => /raw hop failed: raw walk stalled/.test(l)), 'the raw failure names itself in the log')
+})
+
+test('walkOnce order: a net-progress-dead raw walk falls back to the pathfinder and lands (the run85 F3 cure)', async () => {
+  // the F3 shape: d=8.0, the bot jitters in the crowded rows, the raw hop
+  // aborts at the floor INSTEAD of burning 20s - and the pathfinder fallback
+  // gets its slice and lands the deposit the old clock could never afford
+  const chest = { name: 'chest', position: new Vec3(8.5, 74, 0.5) }
+  const bot = makeRawBot({ pos: new Vec3(0.5, 74, 0.5), speed: 0, chest })
+  let flip = false
+  bot.look = async () => {
+    bot._lookCalls++
+    flip = !flip
+    bot.entity.position = new Vec3(0.5, 74, 0.5 + (flip ? 0.4 : -0.4))
+  }
+  bot._gotoScript = ['ok']
+  const lines = []
+  const r = await depositToChest(bot, { log: m => lines.push(String(m)), timeoutMs: 30000, netProgressMs: 300 })
+  assert.ok(r.deposited >= 1, 'the fallback lands the deposit')
+  assert.equal(bot.gotoCalls.length, 1, 'the pathfinder hop ran as the fallback')
+  assert.ok(lines.some(l => /raw hop failed: raw walk: no net progress/.test(l)), 'the abort names itself in the log')
 })
 
 test('walkOnce order: proximate chests skip the raw walk entirely (v0.46.0 rule intact)', async () => {

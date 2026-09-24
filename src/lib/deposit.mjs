@@ -212,6 +212,24 @@ export const RAW_HOP_REACH = 3.2
 export const RAW_HOP_TICK_MS = 250
 export const RAW_HOP_STALL_MS = 2000
 export const RAW_HOP_TIMEOUT_MS = 20000
+// (v0.149.0) THE NET-PROGRESS FLOOR. Run85 (36016062585, the v0.146.0 fleet)
+// F3's final deposit stood 8 blocks from the chest row and burnt 20.3s + 15.2s
+// on TWO raw hops that ended at d=8.0/8.4 - the bot MOVED every tick (the 2s
+// stall gate never fired: a jittering bot in the crowded yard rows shifts
+// >= 0.35/tick) but never APPROACHED, and the 20s timeout clock - the deposit
+// slice's whole worth - evaporated twice before the floor refused the third
+// hop. 'bank: 0 (budget exhausted)' at the yard with 175 cobblestone in the
+// pocket. Movement is not approach: the floor aborts a raw walk whose BEST
+// distance has not improved for this long, leaving the pathfinder fallback
+// and the next chest attempt their slices of the chain clock. The abort's
+// message deliberately matches NEITHER walkRetryPlan's /timeout after/i retry
+// class (a re-issue of the identical goto from the identical start is the
+// deterministic re-failure the doctrine forbids) NOR isDeadChestVerdict's
+// ledger shapes (the verdict is the START's, not the chest cell's - the
+// v0.87.0 doctrine; the fleet must not blacklist a reachable chest because
+// one bot jittered in front of it). 0/negative disables the gate (the legacy
+// shape, byte for byte).
+export const RAW_HOP_NETPROGRESS_MS = 8000
 
 /** Pure: may this hop try the raw walk? Junk-safe - unknown distance passes
  * (the raw walk itself decides with live positions), a water-rescue owner
@@ -230,11 +248,16 @@ export function rawHopEligible ({ dist, waterRescue = false } = {}) {
  * steps / a shoved bot). Progress = position delta over the tick window; a
  * stall longer than stallMs fails honestly (the pathfinder fallback then
  * handles whatever the straight line could not: a furnace wall, a crowd).
+ * (v0.149.0) MOVEMENT IS NOT APPROACH: a bot can move every tick and still
+ * never get closer (the yard-row jitter class) - if the BEST distance seen
+ * has not improved for netProgressMs, the walk aborts early with 'no net
+ * progress' and the pathfinder fallback keeps its slice of the chain clock.
  * Controls are ALWAYS cleared in the finally - a leaked forward key would
  * walk the bot into the sea after the deposit. */
 export async function walkRawToward (bot, targetPos, {
   reach = RAW_HOP_REACH, timeoutMs = RAW_HOP_TIMEOUT_MS,
-  tickMs = RAW_HOP_TICK_MS, stallMs = RAW_HOP_STALL_MS, log = () => {}
+  tickMs = RAW_HOP_TICK_MS, stallMs = RAW_HOP_STALL_MS, log = () => {},
+  netProgressMs = RAW_HOP_NETPROGRESS_MS
 } = {}) {
   if (!bot?.entity?.position?.distanceTo || !targetPos) throw new Error('raw walk: no position')
   const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -242,12 +265,25 @@ export async function walkRawToward (bot, targetPos, {
   let lastPos = null
   let lastProgressAt = started
   let jumpUntil = 0
+  let bestD = null // (v0.149.0) the closest the walk has EVER been to the target
+  let lastBestAt = started // when bestD last improved - the floor's clock
   try {
     while (true) { // eslint-disable-line no-constant-condition
       const now = Date.now()
       const d = bot.entity.position.distanceTo(targetPos)
       if (Number.isFinite(d) && d <= reach) return { walked: true, ms: now - started, d }
       if (now - started > timeoutMs) throw new Error(`raw walk timeout after ${now - started}ms (d=${Number(d).toFixed(1)})`)
+      // (v0.149.0) THE NET-PROGRESS FLOOR: movement is not approach. The
+      // improvement bar is 0.05b so sub-decimeter breathing cannot refresh the
+      // clock; a slow-but-approaching walker improves bestD steadily and is
+      // NEVER punished (the stall gate owns zero movement, the timeout owns
+      // the bounded clock, this owns the circling class between them).
+      if (Number.isFinite(d) && (bestD === null || d < bestD - 0.05)) {
+        bestD = d
+        lastBestAt = now
+      } else if (netProgressMs > 0 && bestD !== null && now - lastBestAt > netProgressMs) {
+        throw new Error(`raw walk: no net progress for ${now - lastBestAt}ms (best d=${bestD.toFixed(1)})`)
+      }
       const moved = lastPos ? bot.entity.position.distanceTo(lastPos) : Infinity
       if (Number.isFinite(moved) && moved < 0.35) {
         if (now - lastProgressAt > stallMs) throw new Error(`raw walk stalled after ${now - lastProgressAt}ms (d=${Number(d).toFixed(1)})`)
@@ -868,7 +904,8 @@ export async function depositToChest (bot, {
   exclude = [], // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
   noPathLedger = null, // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
   fullChestLedger = null, // (v0.65.0) a SHARED array across the fleet: 'chest full' verdicts skip the paid walk
-  depositClickTimeoutMs = 5000 // (v0.70.0) per-click wall; tests inject a small value instead of sleeping 5s
+  depositClickTimeoutMs = 5000, // (v0.70.0) per-click wall; tests inject a small value instead of sleeping 5s
+  netProgressMs // (v0.149.0) the raw hop's net-progress floor; undefined = RAW_HOP_NETPROGRESS_MS (walkRawToward's default)
 } = {}) {
   const chest = chestBlock ?? findChest(bot, { maxDistance, exclude, log })
   if (!chest) return { deposited: 0, reason: 'no chest in range' }
@@ -949,7 +986,7 @@ export async function depositToChest (bot, {
     // owner keeps the pathfinder path too (raw controls are ITS controls).
     if (rawHopEligible({ dist: (() => { try { return bot.entity?.position?.distanceTo?.(chest.position) } catch { return null } })(), waterRescue: bot._waterRescue === true })) {
       try {
-        return await walkRawToward(bot, chest.position, { timeoutMs: Math.min(ms, RAW_HOP_TIMEOUT_MS), log })
+        return await walkRawToward(bot, chest.position, { timeoutMs: Math.min(ms, RAW_HOP_TIMEOUT_MS), netProgressMs, log })
       } catch (e) {
         log?.(`${tag} raw hop failed: ${e.message} - pathfinder retry`)
       }
