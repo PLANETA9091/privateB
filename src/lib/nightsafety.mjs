@@ -48,6 +48,46 @@ export function torchesFrom ({ coal = 0, sticks = 0 } = {}) {
   return Math.min(c, s) * 4
 }
 
+// ---- v0.140.1: THE NIGHT HOLD - the two FORCED surface windows that still shot
+// bots after every other lane learned to defer ----
+//
+// MEASURED (run554, fleet 35974993311, the v0.139.0 HARVEST SWEEP fleet, 19 bots
+// x 600s, mined by the 17:54 session): deaths hit the all-time worst 16 and the
+// skeleton class hit x6 - five of them in the END-PHASE final-bank wave in rapid
+// succession (F2 [-96,66,396], F6 [-155,64,410], F12 [-147,64,411],
+// F7 [-132,64,419], F10 [-140,64,398]; F14 [-136,64,405] followed at t-15), every
+// corpse at the surface yard elevation (y 64-66), every one on a bank/climb/hop
+// line, carrying pockets worth ~840 units - the biggest single slice of the run's
+// unaccounted=907 and the driver of conversion 76.3. The night walk-forbidden
+// window already defers map trips ("a deferred walk turns into more shaft"), but
+// two lanes still FORCE bots onto the night surface:
+// - the FINAL BANK (the end-phase climb + yard walk is mandatory in its lane);
+// - the RESPAWN BOOTSTRAP (an empty pocket must surface-walk to the trees).
+// The hold verdict: when the clock is inside the walk-forbidden window, a bot
+// about to take one of those two forced surface trips holds instead - the
+// final-bank pocket is lost at the hard kill either way, but the DEATH is the
+// only real loss (the re-bootstrap cascade, the fight episodes, the relogins,
+// the next bot's A*). Junk-safe: a missing/unreadable clock never holds (the
+// legacy behavior byte for byte); a junk purpose never holds.
+
+/** The surface trips the night hold gates. */
+export const SURFACE_HOLD_PURPOSES = new Set(['final-bank', 'respawn-bootstrap'])
+
+/**
+ * Should a bot about to take this surface trip hold underground instead?
+ * Pure policy. 'hold' only when the clock is inside the walk-forbidden window
+ * AND the purpose is a measured night kill site; everything else walks.
+ * @param {object} [p]
+ * @param {number} [p.timeOfDay] bot.time.timeOfDay 0..23999 (junk -> 'go')
+ * @param {string} [p.purpose] one of SURFACE_HOLD_PURPOSES (junk -> 'go')
+ * @returns {'hold'|'go'}
+ */
+export function surfaceHoldVerdict ({ timeOfDay = null, purpose = null } = {}) {
+  if (typeof purpose !== 'string' || !SURFACE_HOLD_PURPOSES.has(purpose)) return 'go'
+  if (!Number.isFinite(timeOfDay)) return 'go'
+  return walkForbidden(timeOfDay) ? 'hold' : 'go'
+}
+
 // A shaft lights up every N dug blocks: enough for spawn suppression without
 // burning the coal budget (a 40-block shaft takes 5 torches = 1 coal + 5 sticks).
 export const TORCH_EVERY = 8

@@ -36,7 +36,7 @@ import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKe
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
-import { walkForbidden } from '../src/lib/nightsafety.mjs'
+import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -654,6 +654,12 @@ async function runBot (name, target, index) {
       // has already run during it and the first in-loop recovery fires immediately
       // instead of after another 45s of bare-handed digging.
       let lastBootstrap = Date.now()
+      // the bare-handed dig list (v0.140.1: the night hold digs its starter shaft
+      // with these; the dig-after-shaft names gate reuses the same list below)
+      const soft = ['dirt', 'grass_block', 'sand', 'gravel', 'clay', 'snow', 'soul_sand', 'podzol', 'coarse_dirt']
+      const namesFor = pick => pick
+        ? [...soft, 'stone', 'andesite', 'diorite', 'tuff', 'deepslate', 'granite', 'coal_ore', 'iron_ore', 'copper_ore']
+        : soft
       // (v0.52.0) the hopeless-loop brake: every CONSECUTIVE failed recovery (spare
       // craft AND full bootstrap both failed) stretches the next cooldown 45s -> 90s
       // -> 180s -> 300s. run51: F7 re-ran a doomed ~85s bootstrap every minute for
@@ -661,6 +667,33 @@ async function runBot (name, target, index) {
       let recoveryFailStreak = 0
       const needsTools = !miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
       if (attempt === 0 || needsTools) {
+        // (v0.140.1) THE RESPAWN-BOOTSTRAP NIGHT HOLD - the empty pocket's first
+        // move is a surface walk to the trees, and run554 measured where that walk
+        // ends at night: F2 [-96,66,396] (respawned from its suffocate minutes
+        // earlier) and F14 [-136,64,405] (its third death of the run) were both
+        // shot on the respawned bot's own surface line, at the spawn/yard
+        // elevation, 'ring stock 0/8' honest on an empty pocket, nothing to dig
+        // a shelter from. A tool-less bot CAN still dig soft ground bare-handed
+        // (the soft names list is the bare-handed dig list): dig a 6-block
+        // starter shaft, wait out the walk-forbidden window inside it (arrow-safe:
+        // the head sits below grade), then bootstrap at dawn like every other
+        // deferred surface lane. The wait is bounded by the run deadline.
+        if (attempt > 0 && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'respawn-bootstrap' }) === 'hold') {
+          const holdTod = Math.floor(miner.bot.time.timeOfDay)
+          console.log(`${name} respawn bootstrap deferred: night (tod=${holdTod}) - digging in until dawn (the v0.140.1 night hold)`)
+          try {
+            await miner.digShaft(namesFor(false), { maxBlocks: 6, shouldStop: () => Date.now() > deadline, maxMs: 45000 })
+          } catch { /* the hold waits where the dig stopped */ }
+          while (walkForbidden(miner.bot.time?.timeOfDay) && Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 5000))
+          }
+          // dawn: the hold sits 6 deep - climb the starter shaft the same way
+          // the final bank climbs a real one (the proven pillar-jump exit)
+          try {
+            await miner.climbOut({ dir: direction, force: true, maxMs: 30000, shouldStop: () => Date.now() > deadline })
+          } catch { /* gatherWood's walk retries from wherever the climb stopped */ }
+          console.log(`${name} respawn bootstrap resuming (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - dawn or deadline`)
+        }
         if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
         // spawn -> walk to a tree -> chop -> craft (no op, no gifts). 60s: the stall
         // escape (src/lib/woodplan.mjs) returns craftable bots early, and a bot that
@@ -675,10 +708,8 @@ async function runBot (name, target, index) {
         console.log(`${name} dir=(${direction.x.toFixed(2)},${direction.z.toFixed(2)}) logs=${miner.bot.inventory.items().filter(i => i.name.endsWith('_log')).reduce((a, i) => a + i.count, 0)} tools=${res.kit || 'none'}`)
       }
 
-      const soft = ['dirt', 'grass_block', 'sand', 'gravel', 'clay', 'snow', 'soul_sand', 'podzol', 'coarse_dirt']
-      const namesFor = pick => pick
-        ? [...soft, 'stone', 'andesite', 'diorite', 'tuff', 'deepslate', 'granite', 'coal_ore', 'iron_ore', 'copper_ore']
-        : soft
+      // (the soft/namesFor lists moved above lastBootstrap - the v0.140.1 night
+      // hold reads namesFor(false) inside the bootstrap block)
 
       // Shaft after shaft, on vanilla physics: no flight, no pathfinder stalls, and every bot
       // works its own column so 19 of them can dig at the same time.
@@ -1111,7 +1142,23 @@ async function runBot (name, target, index) {
       // when only KEEP-list items remain (a pointless walk to the yard costs minutes).
       const bankable = miner.bot.entity &&
         miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
-      if (bankable) {
+      // (v0.140.1) THE NIGHT HOLD - the final-bank wave is the surface kill site.
+      // MEASURED (run554, 35974993311, the v0.139.0 fleet): FIVE bots were shot
+      // by skeletons in the end-phase wave in rapid succession (F2 [-96,66,396],
+      // F6 [-155,64,410], F12 [-147,64,411], F7 [-132,64,419], F10 [-140,64,398];
+      // F14 [-136,64,405] followed at t-15) - every corpse at the surface yard
+      // elevation y 64-66, every one on a bank/climb/hop line, the pockets they
+      // carried (~840 units across the five) the single biggest slice of the
+      // run's unaccounted=907 and the driver of conversion 76.3. The end phase
+      // landed inside the night window: the fleet's own doctrine says surface
+      // walks defer at night ("a deferred walk turns into more shaft") - but the
+      // FINAL bank was exempt, and the exemption shot five bots. The pocket is
+      // lost at the hard kill either way; the DEATH is the only real loss (the
+      // re-bootstrap cascade, the fight episodes, the relogins). Hold: stay
+      // underground, alive; the loot rides the respawn rules honestly.
+      if (bankable && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
+        console.log(`${name} final bank deferred: night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the pocket rides out the dark alive (the v0.140.1 night hold)`)
+      } else if (bankable) {
         // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the
         // margin BEFORE the stagger and the climb spend any of it, and the
         // climb is bounded by what the chain does not need. MEASURED (fleet

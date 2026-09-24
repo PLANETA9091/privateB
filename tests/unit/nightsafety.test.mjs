@@ -4,7 +4,8 @@
 // how many torches a coal/stick stock yields, and when a shaft needs lighting.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, isNight, torchesFrom, torchDue } from '../../src/lib/nightsafety.mjs'
+import { readFileSync } from 'node:fs'
+import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES } from '../../src/lib/nightsafety.mjs'
 
 test('walkForbidden: vanilla clock boundaries (dusk margin 12400, dawn margin 23600)', () => {
   assert.equal(walkForbidden(0), false, 'sunrise is a walk time')
@@ -54,4 +55,43 @@ test('torchDue: lights every TORCH_EVERY blocks while torches are held', () => {
   assert.equal(torchDue({ torchesHeld: 1, blocksSinceTorch: NaN }), false, 'junk counter never fires')
   assert.equal(torchDue({ torchesHeld: 3, blocksSinceTorch: 1, torchEvery: 1 }), true, 'custom interval')
   assert.equal(torchDue({ torchesHeld: 3, blocksSinceTorch: 0, torchEvery: 0 }), true, 'disabled interval lights immediately')
+})
+
+// ---- v0.140.1 THE NIGHT HOLD - the two FORCED surface windows ----
+// run554 (35974993311): five skeletons shot the END-PHASE final-bank wave
+// (F2/F6/F12/F7/F10 at y 64-66, ~840 pocket units = the unaccounted spike)
+// and two more shot the RESPAWNED empty pockets on their gatherWood line
+// (F2, F14). The hold verdict defers exactly those two trips inside the
+// walk-forbidden window; every other purpose and every daylight hour walks.
+
+test('surfaceHoldVerdict: the measured kill-site purposes hold inside the night window', () => {
+  assert.deepEqual([...SURFACE_HOLD_PURPOSES].sort(), ['final-bank', 'respawn-bootstrap'], 'the pinned purposes')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'final-bank' }), 'hold', 'midnight final bank holds')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12400, purpose: 'final-bank' }), 'hold', 'the dusk margin already holds')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'respawn-bootstrap' }), 'hold', 'the naked respawn holds')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 23599, purpose: 'respawn-bootstrap' }), 'hold', 'the dawn tail still holds')
+})
+
+test('surfaceHoldVerdict: daylight and the dawn release walk', () => {
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 0, purpose: 'final-bank' }), 'go', 'sunrise banks')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12399, purpose: 'final-bank' }), 'go', 'the last safe tick walks')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 23600, purpose: 'respawn-bootstrap' }), 'go', 'dawn releases the hold')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 1000, purpose: 'respawn-bootstrap' }), 'go', 'morning bootstraps')
+})
+
+test('surfaceHoldVerdict: junk-safe - an unreadable clock or purpose never holds', () => {
+  assert.equal(surfaceHoldVerdict({ timeOfDay: NaN, purpose: 'final-bank' }), 'go', 'junk clock walks (legacy)')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: undefined, purpose: 'final-bank' }), 'go')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'map-trip' }), 'go', 'ungated purposes walk (the trip lane has its own gate)')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: null }), 'go')
+  assert.equal(surfaceHoldVerdict({}), 'go')
+})
+
+test('REGRESSION PIN: the v0.140.1 night hold rides the fleet source', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'final-bank' \}\)/, 'the final-bank wave consults the hold')
+  assert.match(fleetSrc, /final bank deferred: night/, 'the hold names itself in the final-bank lane')
+  assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'respawn-bootstrap' \}\)/, 'the respawn bootstrap consults the hold')
+  assert.match(fleetSrc, /respawn bootstrap deferred: night/, 'the hold names itself in the bootstrap lane')
+  assert.match(fleetSrc, /miner\.climbOut\(\{ dir: direction, force: true, maxMs: 30000/, 'the hold climbs its starter shaft at dawn (the proven pillar-jump exit)')
 })
