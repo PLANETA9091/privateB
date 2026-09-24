@@ -90,3 +90,19 @@ test('recoverCraftWindow: nothing open -> false, never throws', () => {
   const bot = { currentWindow: null, inventory: null }
   assert.equal(recoverCraftWindow(bot), false)
 })
+
+test('REGRESSION PIN: the torch lane funds its own sticks (the v0.137.0 F10 cure)', async () => {
+  const fs = await import('node:fs')
+  const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  // run551: F10 held 20 planks + 19 coal and still skipped every cadence
+  // ('no spare sticks: sticks 1') - the plan read the pocket's current sticks
+  // while the 2-planks -> 4-sticks recipe needed no table. The stick-dry skip
+  // now crafts ONE stick batch first and re-plans.
+  assert.ok(/plan\.reason === 'no spare sticks'/.test(toolsSrc),
+    'the cure gates on the stick-dry skip reason only')
+  assert.ok(/planksTotal > 4/.test(toolsSrc), 'the craft only fires above the fuel/tool plank margin')
+  assert.ok(/one stick batch first/.test(toolsSrc), 'the pre-craft names itself for the run logs')
+  // the re-plan must use the LIVE stick count and the same reserve contract
+  assert.ok(/torchCraftPlan\(\{ sticks: sticks2, coals/.test(toolsSrc), 'the re-plan re-reads the pocket')
+  assert.ok(/await craft\(bot, 'stick', 1, null, step\)/.test(toolsSrc), 'exactly one stick batch is crafted')
+})

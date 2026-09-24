@@ -299,6 +299,49 @@ export function witchFightStep ({ dist, chased = 0 } = {}) {
   return 'close'
 }
 
+// (v0.137.0) THE MELEE BUDGET - run551's fight episodes (the v0.135.0
+// instrument's first field data) named the churn: F9 vs a kiting skeleton
+// swung 17 times, closed ZERO times, and held hp flat for the whole 10s
+// deadline - the moving GoalFollow re-paths every round against a shooter
+// that retreats at the bot's own walk speed; F11 vs a drowned spent 4 failed
+// closes (2.5s each) losing 9.4 hp inside one episode. The witch lane
+// (v0.115.0) already owns the shape: close to the threat's STANDING cell (a
+// snapshot, not a moving goal) and cap the cumulative walked chase per
+// episode. meleeFightStep generalizes it to every non-witch melee: the same
+// contract with its own ceiling constant (an independent tunable - the witch
+// budget stays pinned by its own run99 measurement).
+export const MELEE_CHASE_CEILING = 6
+
+/**
+ * One follow decision inside a general melee fight episode - the witch
+ * lane's snapshot+budget shape on every non-witch threat. Junk-safe by the
+ * witch contract: an unreadable distance never chases, a junk budget reads
+ * as unspent (the walk measurement owns the truth).
+ * @param {object} p
+ * @param {number} [p.dist] metres to the threat (junk -> hold)
+ * @param {number} [p.chased] blocks actually walked on prior close steps this
+ *   episode (junk -> 0: the first close is always affordable)
+ * @returns {'reach'|'close'|'hold'} 'reach' = swing range, swing; 'close' = the
+ *   follow may step; 'hold' = the budget is spent, the episode breaks
+ */
+export function meleeFightStep ({ dist, chased = 0 } = {}) {
+  if (!Number.isFinite(dist) || dist < 0) return 'hold'
+  if (dist <= 3.2) return 'reach'
+  const spent = Number.isFinite(chased) && chased > 0 ? chased : 0
+  if (spent >= MELEE_CHASE_CEILING) return 'hold'
+  return 'close'
+}
+
+// (v0.137.0) THE WATER-MELEE YIELD LINE - F11's fight episode traded
+// 14.7 -> 5.3 hp against a drowned and finished at the bottom of the pool:
+// FLEE_HP (8) is a LAND measurement, and a bot standing in water has no
+// sprint, no crits and the slower bearing - the same trade costs more, and
+// the flee (when it finally fires) runs slower too. The water lens lifts the
+// yield line: standing IN water the verdicts yield below WATER_FLEE_HP
+// (12 = 6 hearts, 4 above the land line - the F11 episode crossed 12 after
+// ~2 rounds, so the flee fires with ~6 hp of margin instead of none).
+export const WATER_FLEE_HP = 12
+
 /**
  * Fight, flee, or ignore? The single decision the mechanics layer executes.
  * @param {object} p
@@ -320,9 +363,14 @@ export function witchFightStep ({ dist, chased = 0 } = {}) {
  *   The witch front: the raw bar at 11-12 reads fightable while the drain is
  *   already sinking it - the flee lanes judge effectiveHp (the lens) so a
  *   poisoned mid bar disengages BEFORE the 1-hp poison bottom.
+ * @param {boolean} [p.inWater=false] is the bot STANDING in water? (v0.137.0)
+ *   The F11 shape: the drowned trade sank 14.7 -> 5.3 inside one episode
+ *   because the land flee line never fired in time. In water the yield line
+ *   lifts to WATER_FLEE_HP - junk-safe: anything but literal true reads dry
+ *   (the legacy shape byte for byte).
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
@@ -334,6 +382,9 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   if (name === 'spider' && dark !== true && dist > 2.5) return 'ignore'
   if (armed !== true) return dist <= RANGED_ENGAGE_RANGE ? 'flee' : 'ignore'
   if (seen < FLEE_HP) return 'flee'
+  // (v0.137.0) THE WATER-MELEE YIELD LINE: in water the same bar yields
+  // earlier (the F11 lesson - the land line fired four rounds too late)
+  if (inWater === true && seen < WATER_FLEE_HP) return 'flee'
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
   if (dist <= engage) return 'fight'

@@ -984,9 +984,28 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
   try {
     const sticks = countItem(bot, 'stick')
     const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
-    const plan = torchCraftPlan({ sticks, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+    let plan = torchCraftPlan({ sticks, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+    // (v0.137.0) THE STICKS-FOR-TORCHES CURE - run551's torch ledger: F10 held
+    // 20 planks + 19 coal and still skipped every cadence ('no spare sticks:
+    // sticks 1') - the plan reads the pocket's CURRENT sticks, but the
+    // 2-planks -> 4-sticks recipe needs no table and the pocket held the
+    // ingredients for 40 sticks. When the plan reads stick-dry AND the pocket
+    // holds planks above the fuel/tool margin, craft ONE stick batch first
+    // and re-plan. Bounded: one batch (4 sticks = 4 torch batches), only
+    // above 4 planks (the tool/fuel keeps stay intact), never throws (the
+    // try below owns the whole chain).
+    if (plan.batches <= 0 && plan.reason === 'no spare sticks') {
+      const planksTotal = inventoryItems(bot).filter(i => /_planks$/.test(i.name)).reduce((a, i) => a + i.count, 0)
+      if (planksTotal > 4) {
+        step(`craft torches: stick-dry but ${planksTotal} planks held - one stick batch first`)
+        if (await craft(bot, 'stick', 1, null, step)) {
+          const sticks2 = countItem(bot, 'stick')
+          plan = torchCraftPlan({ sticks: sticks2, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+        }
+      }
+    }
     if (plan.batches <= 0) {
-      step(`craft torches: skip (${plan.reason}: sticks ${sticks} coals ${coals})`)
+      step(`craft torches: skip (${plan.reason}: sticks ${countItem(bot, 'stick')} coals ${coals})`)
       return { ok: false, batches: 0, torches: 0, reason: plan.reason }
     }
     step(`craft torches: ${plan.batches} batch(es) -> ${plan.torches} torches (sticks ${sticks} coals ${coals})`)

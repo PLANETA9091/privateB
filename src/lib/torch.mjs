@@ -84,6 +84,26 @@ export function countTorches (items) {
   return items.reduce((a, it) => (it?.name === 'torch' && Number.isFinite(it.count) ? a + it.count : a), 0)
 }
 
+// (v0.137.0) THE DRY-POCKET RESTOCK - run551's craft famine: torches are
+// crafted ONCE per shaft entry ('stocking stays shaft-entry-owned'), and the
+// 405-skip entry ledger shows the pocket rarely funds BOTH sides at that one
+// moment ('no spare sticks' x252, 'no coal' x153) - while the tunnel lane
+// STEERS to coal_ore mid-run, so the coal arrives AFTER the entry craft
+// window closed. The mid-lane restock re-attempts the craft when the
+// placement rhythm fires on a pocket holding ZERO torches AND the CURRENT
+// snapshot funds at least one batch. Silent by contract: the entry lane owns
+// the loud skip lines - the restock must not log-spam every torchDue on a
+// genuinely stick-poor bot (the placement ledger's 'dry' class counts the
+// remainder the restock cannot fix). Junk-safe: a junk torch count reads as
+// ZERO? No - as HELD (a guessed dry pocket must not trigger a craft; the
+// next rhythm round re-asks with a fresh read).
+export function torchRestockWanted ({ torches = 0, sticks = 0, coals = 0, reserveSticks } = {}) {
+  if (!Number.isFinite(torches) || torches < 0) return false
+  const held = Math.floor(torches)
+  if (held > 0) return false
+  return torchCraftPlan({ sticks, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) }).batches > 0
+}
+
 // The base wall-candidate order around the head cell (dx, dz pairs), shared by
 // every torch lane: the two x walls, then the two z walls. Deterministic so a
 // test can pin the order and a field log can name the wall that took the torch.

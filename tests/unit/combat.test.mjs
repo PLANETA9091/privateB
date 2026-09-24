@@ -12,7 +12,8 @@ import {
   isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict,
   fleeStalemate, fleeResponse, kiteHopTarget,
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
-  WITCH_CHASE_CEILING, witchFightStep
+  WITCH_CHASE_CEILING, witchFightStep,
+  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
 
@@ -380,4 +381,75 @@ test('REGRESSION PIN: the fight episode ends NAMED (the run550 mob-front instrum
   const endIdx = minerSrc.indexOf('combat: fight ended vs')
   const fleeIdx = minerSrc.indexOf("combat: verdict flipped to flee")
   assert.ok(endIdx > fleeIdx, 'the end line exists below the flee exit in the fight body')
+})
+
+test('meleeFightStep: the general melee chase is a budgeted snapshot close (the v0.137.0 F9 cure)', () => {
+  // the F9 shape: a kiting skeleton held dist ~8-10 for the whole deadline -
+  // 17 swings, ZERO closes. The budget must spend and then HOLD.
+  assert.equal(meleeFightStep({ dist: 8.0, chased: 0 }), 'close', 'the first close is always affordable')
+  assert.equal(meleeFightStep({ dist: 4.5, chased: 2.1 }), 'close', 'a closable zombie needs 1-2 blocks - the budget allows it')
+  assert.equal(meleeFightStep({ dist: 5.9, chased: 5.9 }), 'close', 'just under the ceiling: one more bounded step')
+  assert.equal(meleeFightStep({ dist: 6.0, chased: 6.0 }), 'hold', 'exactly at the ceiling: the chase holds (the episode breaks)')
+  assert.equal(meleeFightStep({ dist: 10, chased: 9 }), 'hold', 'beyond the ceiling: never chased')
+  // reach outranks a spent budget - the swings land while they can
+  assert.equal(meleeFightStep({ dist: 3.2, chased: 0 }), 'reach')
+  assert.equal(meleeFightStep({ dist: 2.0, chased: 9 }), 'reach', 'reach outranks a spent budget - the swings land while they can')
+  // junk-safe by the witch contract
+  assert.equal(meleeFightStep({}), 'hold', 'no distance: hold')
+  assert.equal(meleeFightStep({ dist: NaN }), 'hold')
+  assert.equal(meleeFightStep({ dist: undefined, chased: 0 }), 'hold')
+  assert.equal(meleeFightStep({ dist: -3 }), 'hold', 'a negative distance is junk, not a reading')
+  assert.equal(meleeFightStep({ dist: 8, chased: NaN }), 'close', 'junk budget reads as unspent')
+  assert.equal(meleeFightStep({ dist: 8, chased: null }), 'close')
+  assert.equal(meleeFightStep({ dist: 8, chased: -4 }), 'close', 'a negative budget is junk, not debt')
+  // the witch lane keeps its own tunable (independent constants, same shape)
+  assert.equal(meleeFightStep({ dist: 8.0, chased: 0 }), witchFightStep({ dist: 8.0, chased: 0 }),
+    'the general lane matches the witch shape at the same budget')
+  assert.equal(MELEE_CHASE_CEILING, 6, 'the ceiling mirrors the witch measurement (walked blocks per episode)')
+})
+
+test('threatVerdict: the water-melee yield line (the v0.137.0 F11 cure)', () => {
+  // F11 traded 14.7 -> 5.3 vs a drowned: the land line (8) fired too late.
+  // In water the yield line lifts to 12.
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 14.7, inWater: true }), 'fight',
+    'the episode may START in water at a healthy bar (14.7 > 12)')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 11.9, inWater: true }), 'flee',
+    'crossing the water line mid-episode flips the verdict while margin remains')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 12.0, inWater: true }), 'fight',
+    'exactly at the line: still fight (strictly below yields)')
+  // the land shape is byte for byte (no inWater -> no lift)
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 10 }), 'fight', 'land at 10 still fights (the legacy shape)')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 9.9, inWater: false }), 'fight', 'an explicit dry read is the legacy shape')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 10, inWater: 'yes' }), 'fight', 'a junk water read is DRY (never lift on a guess)')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 2.0, hp: 10, inWater: null }), 'fight')
+  // the land FLEE_HP still binds under the water line
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2.0, hp: 7.9, inWater: true }), 'flee', 'under the land line the verdict flees regardless')
+  // the swarm line still outranks the water line (14 > 12)
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2.0, hp: 13, attackers: 3, inWater: true }), 'flee',
+    'a swarm in water flees on the swarm line')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2.0, hp: 13, attackers: 2, inWater: true }), 'fight',
+    'two attackers in water at 13 keep the fight (the water line owns the decision)')
+  // WATER_FLEE_HP sits 4 above FLEE_HP (the measured margin)
+  assert.equal(WATER_FLEE_HP - FLEE_HP, 4, 'the water margin covers one drowned trade round (~2 hp) twice over')
+})
+
+test('REGRESSION PIN: the fight loop wires the melee budget + the water lens (the v0.137.0 lanes)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the general melee lane asks the budgeted step with the walked ledger
+  assert.ok(/meleeFightStep\(\{ dist: cur\.dist, chased: meleeChased \}\)/.test(minerSrc),
+    'the non-witch close asks meleeFightStep with the live distance and the walked budget')
+  assert.ok(/meleeChased \+= before\.distanceTo\(bot\.entity\.position\)/.test(minerSrc),
+    'the melee budget accumulates the actual walked displacement')
+  assert.ok(/melee chase ceiling held/.test(minerSrc), 'the melee hold names itself for the run logs')
+  assert.ok(/let meleeChased = 0/.test(minerSrc), 'the melee budget starts at zero each episode')
+  // the old unbounded moving follow is GONE from the general lane (the churn
+  // it produced is the F9/F11 evidence) - the witch lane keeps its snapshot.
+  // The constructor call is what counts (the comments mentioning the old churn
+  // must stay - they are the evidence trail).
+  const followCount = (minerSrc.match(/new goals\.GoalFollow/g) || []).length
+  assert.ok(followCount === 0, 'no moving GoalFollow remains in the fight loop (the churn lanes are all snapshot closes)')
+  // both verdict sites read the water lens
+  assert.ok(/inWater: inWaterHere\(\)/.test(minerSrc), 'the verdicts consult the water lens')
+  assert.ok(/function inWaterHere/.test(minerSrc), 'the water lens read exists')
 })

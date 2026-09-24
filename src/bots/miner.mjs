@@ -15,7 +15,7 @@ import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../
 import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
-import { torchDue, torchWallDirs } from '../lib/torch.mjs'
+import { torchDue, torchWallDirs, torchRestockWanted, countTorches } from '../lib/torch.mjs'
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
@@ -46,7 +46,7 @@ import {
   airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES
 } from '../lib/drowning.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
-import { craftTorches } from './tools.mjs'
+import { craftTorches, countItem } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -422,6 +422,18 @@ export function createMiner ({
       const roof = bot.blockAt(bot.entity.position.floored().offset(0, 8, 0))
       return !(roof && roof.boundingBox === 'empty')
     } catch { return true }
+  }
+
+  // (v0.137.0) THE WATER-MELEE LENS's live read: is the bot STANDING in water
+  // right now (the feet cell)? The F11 lesson: the land flee line fired four
+  // rounds too late inside a drowned trade. Junk-safe by the lens contract: an
+  // unreadable block reads DRY - the lens must never lift the yield line on a
+  // guess.
+  function inWaterHere () {
+    try {
+      const b = bot.blockAt(bot.entity.position)
+      return isWaterName(b && b.name) === true
+    } catch { return false }
   }
 
   // ---- shelter (v0.11.3, policy in src/lib/shelter.mjs) ----
@@ -839,7 +851,7 @@ export function createMiner ({
       return { action: 'none' }
     }
     const armed = !!pickWeapon(inventoryItems(bot))
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot) })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere() })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -896,12 +908,15 @@ export function createMiner ({
       // band spends it too - the first close is the affordable one, the retreat
       // is what the ceiling exists to stop.
       let witchChased = 0
+      // (v0.137.0) THE MELEE BUDGET's walked ledger for the general lane (the
+      // witch's own ledger stays above - independent tunables).
+      let meleeChased = 0
       while (bot.entity && Date.now() < deadline) {
         const cur = nearestHostile()
         if (!cur) { exit = 'threat gone'; break } // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot) })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere() })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
@@ -929,11 +944,25 @@ export function createMiner ({
             try { await gotoSafe(bot, new goals.GoalXZ(cur.entity.position.x, cur.entity.position.z), { timeoutMs: 2500, label: 'closing witch' }) } catch { /* swing anyway when in reach */ }
             if (bot.entity) witchChased += before.distanceTo(bot.entity.position)
           } else {
+            // (v0.137.0) THE MELEE BUDGET: the witch lane's snapshot+budget
+            // shape on every non-witch melee. The moving GoalFollow re-pathed
+            // every round - run551's F9 chased a kiting skeleton for the WHOLE
+            // deadline: 17 swings, ZERO closes, hp flat. The close goes to the
+            // threat's STANDING cell, the cumulative walked chase is capped
+            // per episode, and a spent budget breaks the episode: the next
+            // health drop reopens it with a fresh budget (the witch lane's
+            // contract, measured on run99).
+            const step = meleeFightStep({ dist: cur.dist, chased: meleeChased })
+            if (step === 'hold') {
+              log(`${tag} combat: melee chase ceiling held (chased ${meleeChased.toFixed(1)}b, ${cur.name} @${cur.dist.toFixed(1)}) - the episode breaks, the next drop reopens it`)
+              exit = 'chase ceiling'
+              break
+            }
+            const before = bot.entity.position.clone()
             try {
-              // shooters (skeleton at 10 blocks) cannot be hit from here: close the
-              // distance first, bounded so a chase cannot drag us across the map
-              await gotoSafe(bot, new goals.GoalFollow(cur.entity, 2), { timeoutMs: 2500, label: `closing ${cur.name}` })
+              await gotoSafe(bot, new goals.GoalXZ(cur.entity.position.x, cur.entity.position.z), { timeoutMs: 2500, label: `closing ${cur.name}` })
             } catch { /* swing anyway when in reach */ }
+            if (bot.entity) meleeChased += before.distanceTo(bot.entity.position)
           }
         }
         if (!bot.entity) { exit = 'bot down'; break }
@@ -2063,7 +2092,10 @@ export function createMiner ({
         // survivable, a broken loop is not.
         if (diglessIters === 0) {
           digsSinceTorch++
-          if (torchDue({ digsSinceTorch }) && await placeTorchHere({ dirs: tunnelTorchDirs })) digsSinceTorch = 0
+          if (torchDue({ digsSinceTorch })) {
+            await restockTorchesHere()
+            if (await placeTorchHere({ dirs: tunnelTorchDirs })) digsSinceTorch = 0
+          }
         }
         if (done >= maxBlocks || shouldStop?.() || !bot.entity) break
         // one-block step by raw CONTROLS (lesson 2): no pathfinder in the hot path
@@ -2685,26 +2717,67 @@ export function createMiner ({
   // (v0.107.0) optional `dirs` overrides the wall-candidate order: the tunnel lane
   // excludes its travel face (torchWallDirs({ d })) so the next cut cannot eat the
   // torch; the shaft lane (and any junk call) keeps the full v0.10.0 base set.
+  // (v0.137.0) THE TORCH PLACEMENT LEDGER - run551 crafted ~16 torches and
+  // placed FIVE (stats.torched=5): the v0.10.0 'bounded and silent' contract
+  // left every failure class invisible, so the decode cannot tell pocket-dry
+  // from no-free-cell from no-valid-wall from the placeBlock timeout. Each
+  // class counts; the FIRST hit of each class per streak names itself once (a
+  // landing re-arms the naming - one line per class per streak, not one per
+  // dig; the counters stay on for the final-snapshot decode).
+  const torchLedger = { dry: 0, cell: 0, wall: 0, place: 0, named: {} }
+  function torchDidNotLand (cls) {
+    torchLedger[cls] = (torchLedger[cls] ?? 0) + 1
+    if (torchLedger.named[cls]) return
+    torchLedger.named[cls] = true
+    log(`${tag} torch: the placement did not land (${cls}) x${torchLedger[cls]} - the streak names itself once, a landing re-arms it`)
+  }
+
+  // (v0.137.0) THE DRY-POCKET RESTOCK - the craft half of the torch rhythm ran
+  // only at shaft entry, and run551's entry ledger (405 skips: 'no spare
+  // sticks' x252, 'no coal' x153) shows that single moment rarely funds BOTH
+  // sides - the coal arrives from the ore the lane steers to MID-RUN. When the
+  // placement rhythm fires on a dry pocket and the CURRENT snapshot funds a
+  // batch, the craft re-attempts here (silent when nothing funds - the entry
+  // lane owns the skip lines; the ledger's 'dry' class counts the remainder).
+  async function restockTorchesHere () {
+    const sticks = countItem(bot, 'stick')
+    const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
+    if (!torchRestockWanted({ torches: countTorches(inventoryItems(bot)), sticks, coals })) return
+    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`) }) } catch { /* keep digging */ }
+  }
+
   async function placeTorchHere ({ dirs = null } = {}) {
     try {
       const torch = inventoryItems(bot).find(i => i.name === 'torch')
-      if (!torch) return false
+      if (!torch) { torchDidNotLand('dry'); return false }
       const cell = bot.entity.position.floored().offset(0, 1, 0)
       const cellB = bot.blockAt(cell)
-      if (!cellB || cellB.boundingBox !== 'empty') return false // no free cell right now
+      if (!cellB || cellB.boundingBox !== 'empty') { torchDidNotLand('cell'); return false } // no free cell right now
+      let faced = false
       for (const [dx, dz] of (Array.isArray(dirs) && dirs.length ? dirs : torchWallDirs({}))) {
         const wall = bot.blockAt(cell.offset(dx, 0, dz))
         if (!wall || wall.boundingBox !== 'block') continue // air / fluid / out of world
+        faced = true
         await bot.equip(torch, 'hand')
         // vanilla drops right-clicks that arrive <4 ticks apart (the placeTable
         // lesson) - the dig rhythm around this call paces the attempts naturally
         await bot.waitForTicks(5)
-        await withTimeout(bot.placeBlock(wall, new Vec3(-dx, 0, -dz)), 5000, 'shaft torch')
+        try {
+          await withTimeout(bot.placeBlock(wall, new Vec3(-dx, 0, -dz)), 5000, 'shaft torch')
+        } catch {
+          // (v0.137.0) the timeout no longer aborts the remaining faces - the
+          // next wall candidate still gets its try (the old outer catch ended
+          // the whole loop on the first failed face)
+          torchDidNotLand('place')
+          continue
+        }
         stats.torched++
+        torchLedger.named = {} // a landing re-arms every class's naming
         return true
       }
+      if (!faced) torchDidNotLand('wall')
       return false
-    } catch { return false }
+    } catch { torchDidNotLand('place'); return false }
   }
 
   async function digShaft (names, { maxBlocks = Infinity, shouldStop = null, minY = null, maxMs = Infinity, onProgress = null } = {}) {
@@ -2850,7 +2923,10 @@ export function createMiner ({
           // whole column above the hostile-spawn light threshold; torchDue also
           // fires early when the bot can READ darkness. Silent on any failure.
           digsSinceTorch++
-          if (torchDue({ digsSinceTorch }) && await placeTorchHere()) digsSinceTorch = 0
+          if (torchDue({ digsSinceTorch })) {
+            await restockTorchesHere()
+            if (await placeTorchHere()) digsSinceTorch = 0
+          }
           if (onProgress && done % 8 === 0) onProgress(done, stats)
         } catch {
           stats.failed++

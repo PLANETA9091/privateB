@@ -3,7 +3,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS, TORCH_WALL_BASE_DIRS,
-  torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs
+  torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs,
+  torchRestockWanted
 } from '../../src/lib/torch.mjs'
 
 test('torchesCraftable: vanilla yield is 4 torches per stick+coal pair', () => {
@@ -147,4 +148,61 @@ test('torchWallDirs: the rhythm constants still pin the spawn-proof regime (v0.1
   // light-14 spread - the tunnel rhythm reuses the SAME TORCH_SPACING as the shaft
   assert.equal(TORCH_SPACING, 8)
   assert.equal(MIN_SHAFT_LIGHT, 7)
+})
+
+test('torchRestockWanted: a dry pocket with a funding snapshot re-arms the craft (the v0.137.0 famine cure)', () => {
+  // the run551 famine shape: entry found 'no coal', the tunnel steered to
+  // coal_ore mid-run - by the next torchDue the pocket funds a batch and the
+  // restock must fire
+  assert.equal(torchRestockWanted({ torches: 0, sticks: 3, coals: 4 }), true, 'dry pocket + funded snapshot: restock')
+  assert.equal(torchRestockWanted({ torches: 0, sticks: 5, coals: 1 }), true, 'one coal is one batch (4 torches)')
+  // the rhythm owns TOP-UPS: a pocket still holding torches never re-crafts
+  assert.equal(torchRestockWanted({ torches: 1, sticks: 3, coals: 4 }), false, 'torches held: placement territory, not craft')
+  assert.equal(torchRestockWanted({ torches: 4, sticks: 3, coals: 4 }), false)
+  // the honest no-funds shapes stay silent (the entry lane owns the skip lines)
+  assert.equal(torchRestockWanted({ torches: 0, sticks: 3, coals: 0 }), false, 'no coal: nothing to craft with')
+  assert.equal(torchRestockWanted({ torches: 0, sticks: 2, coals: 4 }), false, 'sticks at the reserve: the tools keep them')
+  assert.equal(torchRestockWanted({ torches: 0, sticks: 0, coals: 4 }), false, 'stick-dry: the sticks-for-torches cure in craftTorches owns the plank side')
+  // junk-safe: a guessed read must never fire a craft
+  assert.equal(torchRestockWanted({ torches: NaN, sticks: 3, coals: 4 }), false, 'a junk torch count is not a dry proof')
+  assert.equal(torchRestockWanted({ torches: -2, sticks: 3, coals: 4 }), false, 'a negative count is junk, not dry')
+  assert.equal(torchRestockWanted({ torches: 0, sticks: NaN, coals: 4 }), false, 'junk sticks read as none')
+  assert.equal(torchRestockWanted({}), false, 'no snapshot: no craft')
+})
+
+test('REGRESSION PIN: the miner lanes wire the dry-pocket restock into the torch rhythm', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the restock helper exists and asks the pure policy with a live snapshot
+  assert.ok(/function restockTorchesHere/.test(minerSrc), 'the mid-lane restock helper exists')
+  assert.ok(/torchRestockWanted\(\{ torches: countTorches\(inventoryItems\(bot\)\), sticks, coals \}\)/.test(minerSrc),
+    'the restock consults the policy with the live torch/stick/coal snapshot')
+  // BOTH rhythm call sites (tunnel + shaft) restock BEFORE the placement ask:
+  // the coal arrives mid-run, the craft must re-attempt before the rhythm
+  // gives up for this spacing round
+  const sites = minerSrc.split('await restockTorchesHere()').length - 1
+  assert.equal(sites, 2, 'the restock fires in both torch lanes (tunnel + shaft)')
+  assert.ok(/await restockTorchesHere\(\)\n            if \(await placeTorchHere/.test(minerSrc),
+    'the restock precedes the placement inside the torchDue branch')
+  // the pure policy is imported (no local re-implementation)
+  assert.ok(/torchRestockWanted, countTorches/.test(minerSrc), 'the policy imports ride the torch.mjs module boundary')
+})
+
+test('REGRESSION PIN: the placement ledger names its failure classes (the v0.137.0 run551 decode)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // run551: ~16 torches crafted, stats.torched=5 - the v0.10.0 'bounded and
+  // silent' contract left the starvation class invisible. The ledger counts
+  // all four classes and names the first of each per streak.
+  assert.ok(/torchDidNotLand\('dry'\)/.test(minerSrc), 'the pocket-dry class is named')
+  assert.ok(/torchDidNotLand\('cell'\)/.test(minerSrc), 'the no-free-cell class is named')
+  assert.ok(/torchDidNotLand\('wall'\)/.test(minerSrc), 'the no-valid-wall class is named')
+  assert.ok(/torchDidNotLand\('place'\)/.test(minerSrc), 'the placeBlock-failure class is named')
+  // one line per class per streak: the named flag gates the log, a landing re-arms
+  assert.ok(/torchLedger\.named\[cls\]/.test(minerSrc), 'the naming is gated per streak (no per-dig spam)')
+  assert.ok(/torchLedger\.named = \{\}/.test(minerSrc), 'a landing re-arms every class')
+  // a failed face no longer aborts the remaining candidates (the old outer
+  // catch ended the loop on the first timeout)
+  assert.ok(/torchDidNotLand\('place'\)\s*\n\s*continue/.test(minerSrc),
+    'a failed face continues to the next wall candidate')
 })
