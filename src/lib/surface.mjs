@@ -525,6 +525,56 @@ export function pillarTarget ({ feetY = 0, targetY = null, skyLitAt = null, maxU
   return { ok: true, targetY: y0 + cap, levels: cap, source: 'cap' }
 }
 
+// (v0.158.0) THE VERTICAL DOOM PLAN - the pure gate for the walk ladder's
+// one truly hopeless geometry. run556 (36055223458, the v0.156.0 fleet)
+// decoded F6's whole arc: the bot stood at [-113,41,419] with the yard
+// chests at [-115,80,418] - TWO blocks lateral, THIRTY-NINE levels up - and
+// every yard-walk attempt died the path classes ('Took to long to decide
+// path to goal!' x3+, 'raw walk stalled after 2029ms (d=37.8)', 'stuck' x10,
+// 7 chest hops 'chest unreachable (budget exhausted (walk floor))'): a
+// 1-jump pathfinder cannot route a mostly-vertical goal, and the raw walk's
+// straight-line segment toward a goal that is nearly straight UP walks INTO
+// the ceiling - the zero-delta stalls are CORRECT geometry, not a wedge.
+// The same shape killed F10 ('still underground after 2 climb attempts -
+// the chain from the shaft bottom is doomed walks') and F17 (the hop died
+// the decide class at d=8). The cure has two edges: the climb machinery
+// (which CAN dig a staircase up) gets the yard's level as its target, and
+// the walk ladder stops burning its slice on attempts doomed by arithmetic.
+// Junk-safe: any non-finite input reads as no doom (the legacy shape).
+export const VERTICAL_DOOM_MIN_DY = 20
+
+export function verticalDoomPlan ({ botY = null, yardY = null, lateral = null, minDy = VERTICAL_DOOM_MIN_DY } = {}) {
+  const dy = Number.isFinite(botY) && Number.isFinite(yardY) ? yardY - botY : null
+  if (dy == null) return { doom: false, why: 'no vertical read' }
+  if (dy < (Number.isFinite(minDy) && minDy > 0 ? minDy : VERTICAL_DOOM_MIN_DY)) return { doom: false, why: `the yard stands ${Math.round(dy)} levels up - inside the walkable band` }
+  const lat = Number.isFinite(lateral) && lateral >= 0 ? lateral : null
+  if (lat == null) return { doom: false, why: 'no lateral read' }
+  // The strict shape: the goal is MOSTLY up (lateral < vertical). A hillside
+  // walk (lateral > dy) keeps the legacy ladder - A* can route a staircase
+  // that exists; a goal 2 blocks over and 39 up has no staircase to find.
+  if (lat >= dy) return { doom: false, why: `the yard stands ${Math.round(dy)} levels up over ${Math.round(lat)}b lateral - the ladder may route it` }
+  return {
+    doom: true,
+    dy: Math.round(dy),
+    lateral: Math.round(lat),
+    why: `the yard stands ${Math.round(dy)} levels up over ${Math.round(lat)}b lateral`
+  }
+}
+
+// (v0.158.0) THE RAISED CLIMB TARGET - climbOut's targetY override as a pure
+// gate. The shaft entry level (stats.shaftEntryY) stays the default surface
+// reference; the yard's level may only RAISE it (a climb that stops at a
+// low entry level hands the walk ladder a doomed vertical - the F6 class).
+// A target at/below the entry (the yard downhill) and junk shapes keep the
+// entry record byte for byte.
+export function climbTargetY ({ entryY = null, targetY = null } = {}) {
+  const entry = Number.isFinite(entryY) ? entryY : null
+  const target = Number.isFinite(targetY) ? targetY : null
+  if (target == null) return entry
+  if (entry == null) return target
+  return target > entry ? target : entry
+}
+
 /**
  * May the climb pass through this ceiling cell?
  * @param {{name?: string, boundingBox?: string}|null|undefined} block a

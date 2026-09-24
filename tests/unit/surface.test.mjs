@@ -4,6 +4,7 @@
 // These tests pin the policy that miner.mjs climbOut executes.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import {
   pillarTarget, climbableCeiling, pickPillarBlock, pillarPlacement,
   PILLAR_BLOCKS, UNDIGGABLE, FLUIDS,
@@ -12,7 +13,8 @@ import {
   CEILING_DIG_LIMIT, PILLAR_LEVEL_CAP,
   riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS,
   CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow,
-  veinDigRefusal, VEIN_DROP_REFUSE
+  veinDigRefusal, VEIN_DROP_REFUSE,
+  verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -350,4 +352,75 @@ test('veinDigRefusal: blind and junk reads refuse - a bonus sweep never gambles'
 
 test('VEIN_DROP_REFUSE matches the shaft digger\'s sidestep threshold', () => {
   assert.equal(VEIN_DROP_REFUSE, 4, 'the dropAheadBelow >= 4 line in digShaft is the same truth')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.158.0) THE VERTICAL DOOM PLAN - run556 (36055223458) decoded the F6
+// class: the bot stood 39 levels BELOW the yard over 2 lateral blocks and the
+// walk ladder burned its whole slice ('stuck' x10, zero-delta stalls, the
+// decide class x3+) on a goal no 1-jump pathfinder can route. The gate names
+// that arithmetic so the chains can hand the vertical to the climb machinery.
+test('verticalDoomPlan: the run556 F6 construction - 39 up over 2 lateral is doomed', () => {
+  const p = verticalDoomPlan({ botY: 41, yardY: 80, lateral: 2 })
+  assert.equal(p.doom, true)
+  assert.equal(p.dy, 39)
+  assert.equal(p.lateral, 2)
+  assert.match(p.why, /39 levels up over 2b lateral/)
+})
+
+test('verticalDoomPlan: the hillside shape keeps the legacy ladder', () => {
+  // lateral > dy: a staircase may exist, A* can route it - never doom
+  const p = verticalDoomPlan({ botY: 58, yardY: 80, lateral: 30 })
+  assert.equal(p.doom, false)
+  assert.match(p.why, /the ladder may route it/)
+})
+
+test('verticalDoomPlan: the walkable band (dy below the floor) never dooms', () => {
+  const p = verticalDoomPlan({ botY: 70, yardY: 80, lateral: 5 })
+  assert.equal(p.doom, false, '10 levels up is a 1-jump staircase, not doom')
+  const edge = verticalDoomPlan({ botY: 60, yardY: 80, lateral: 19 })
+  assert.equal(edge.doom, true, 'dy 20 over lateral 19 is the doom shape')
+  assert.equal(verticalDoomPlan({ botY: 80, yardY: 80, lateral: 0 }).doom, false, 'at the yard level the ladder owns it')
+  assert.equal(verticalDoomPlan({ botY: 90, yardY: 80, lateral: 2 }).doom, false, 'the yard DOWNHILL is never the doom (the climb target never lowers)')
+})
+
+test('verticalDoomPlan: junk-safe - no reads, no doom (the legacy shape)', () => {
+  assert.equal(verticalDoomPlan({}).doom, false, 'no args at all')
+  assert.equal(verticalDoomPlan({ botY: NaN, yardY: 80, lateral: 2 }).doom, false)
+  assert.equal(verticalDoomPlan({ botY: 41, yardY: null, lateral: 2 }).doom, false)
+  assert.equal(verticalDoomPlan({ botY: 41, yardY: 80, lateral: 'junk' }).doom, false, 'a missing lateral read refuses to doom')
+  assert.equal(verticalDoomPlan({ botY: 41, yardY: 80, lateral: -5 }).doom, false, 'a negative lateral is junk too')
+})
+
+// (v0.158.0) THE RAISED CLIMB TARGET - the shaft entry stays the default
+// surface reference; the yard's level may only RAISE it. This is the gate
+// climbOut consults (the F6 class: entry 44, yard 80 - the climb stopped at
+// the entry and handed the walk ladder a doomed vertical).
+test('climbTargetY: the yard level raises the entry; nothing ever lowers it', () => {
+  assert.equal(climbTargetY({ entryY: 44, targetY: 80 }), 80, 'the yard ABOVE raises the target')
+  assert.equal(climbTargetY({ entryY: 90, targetY: 80 }), 90, 'the yard below the entry keeps the entry (never lowers)')
+  assert.equal(climbTargetY({ entryY: null, targetY: 80 }), 80, 'no entry record: the yard IS the reference')
+  assert.equal(climbTargetY({ entryY: 44, targetY: null }), 44, 'no override: the entry byte for byte')
+  assert.equal(climbTargetY({ entryY: NaN, targetY: NaN }), null, 'junk reads as no record')
+  assert.equal(climbTargetY({}), null)
+})
+
+test('climbTargetY composes with pillarTarget: the F6 shape climbs toward the yard', () => {
+  // entry 44, feet 41, yard 80: the legacy plan climbed 3 levels and stopped;
+  // the raised plan climbs toward the yard's level (capped by maxUp)
+  const legacy = pillarTarget({ feetY: 41, targetY: climbTargetY({ entryY: 44, targetY: null }) })
+  assert.equal(legacy.levels, 3, 'the legacy shape byte for byte')
+  const raised = pillarTarget({ feetY: 41, targetY: climbTargetY({ entryY: 44, targetY: 80 }), maxUp: 80 })
+  assert.equal(raised.levels, 39, 'the raised plan takes the whole vertical')
+  assert.equal(raised.targetY, 80)
+})
+
+test('wiring: the vertical doom gate rides the fleet sources (fleet19.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /verticalDoomPlan/, 'the pure gate is imported and consulted')
+  assert.match(src, /the climb raises its target to the yard's level/, 'the mid-run trip names the raised climb')
+  assert.match(src, /the walk ladder cannot climb, the pocket rides the next window/, 'the doomed walk skip names the ride')
+  assert.match(src, /climbing toward the yard's level \(the walk ladder cannot\)/, 'the final climb names the doom handover')
+  assert.match(src, /targetY: finalDoom\.doom \? yardGoal\.y : null/, 'both final climb attempts raise the target')
+  assert.match(src, /!doomAtWalk\.doom/, 'the walk loop refuses to enter a doomed vertical')
 })

@@ -30,7 +30,7 @@ import { ensureTools, ensureCampFurnace, countItem, consolidateSurplus } from '.
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -211,13 +211,28 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // pre.reason was - the log could not tell a scan miss from a dead chest on
       // a walk decision. Print the honest reason.
       console.log(`${miner.username} bank: ${pre.reason || 'no chest in range'} (${decision.dist} blocks from yard) - walking back`)
-      // (v0.19.0) the yard walk RETRIES: fleet on v0.18.15 measured 25 walks /
-      // 0 arrivals with 3298 blocks stuck in pockets (banked=0) - 6 walks were
-      // refused by the water-rescue interlock while the rescue still had >20s
-      // of window (waitForWaterRescueClear waits it out), the rest died on
-      // 'Path was stopped' settle-poisoning (a fresh goto re-issues cleanly).
-      // walkRetryPlan owns the policy; runtime stays bounded (3 walk attempts,
-      // wait-rescue grants no extra walks, a real timeout retries once).
+      // (v0.158.0) THE VERTICAL DOOM GATE: the trip's climb already raised its
+      // target to the yard's level (ensureSurface 'bank'); when the yard STILL
+      // stands mostly UP from here, the walk ladder is doomed by arithmetic -
+      // run556's F6 burned 25.5s of approach segments + a 43s walk timeout +
+      // retries on a goal 39 levels up over 2 lateral, every zero-delta stall
+      // CORRECT geometry (the straight line walks into the ceiling). The
+      // honest move names the doom and keeps the slice: the smelt leg runs,
+      // the pocket rides the next cadence window (or the final bank, whose
+      // climb owns the vertical), and the bot keeps MINING instead of standing
+      // still against stone.
+      const doomAtWalk = (() => {
+        try {
+          return verticalDoomPlan({
+            botY: miner.bot.entity?.position?.y,
+            yardY: yardGoal?.y,
+            lateral: miner.bot?.entity && yardGoal ? Math.hypot(miner.bot.entity.position.x - yardGoal.x, miner.bot.entity.position.z - yardGoal.z) : null
+          })
+        } catch { return { doom: false } }
+      })()
+      if (doomAtWalk.doom) {
+        console.log(`${miner.username} bank: ${doomAtWalk.why} - the walk ladder cannot climb, the pocket rides the next window`)
+      }
       const walkGoal = new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24)
       let arrived = false
       // (v0.19.1) EVIDENCE HOOK: v0.19.0's retries fired 19 times, every walk
@@ -269,7 +284,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           return { walked: false }
         }
       }
-      for (let attempt = 1; attempt <= 3 && !arrived; attempt++) {
+      // (v0.158.0) the doom gate keeps the loop honest: a doomed vertical
+      // never enters (the pocket rides; the climb owns the vertical), every
+      // other shape runs the legacy ladder byte for byte.
+      for (let attempt = 1; attempt <= 3 && !arrived && !doomAtWalk.doom; attempt++) {
         try {
           if (attempt > 1) console.log(`${miner.username} bank: yard walk retry ${attempt}/3${rearm ? ' (doomed re-arm - the ledger stays for every other goal)' : ''}`)
           // (v0.27.0) the walk fits INSIDE the chain budget: a retry may not
@@ -855,7 +873,27 @@ async function runBot (name, target, index) {
       // shaft entry level (or daylight) is reached, then surface goals path normally.
       const ensureSurface = async (reason, { chainLeftMs = 0 } = {}) => {
         const climbT0 = Date.now()
-        let r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
+        // (v0.158.0) THE VERTICAL DOOM CLIMB: the recorded shaft entry can sit
+        // tens of levels BELOW the yard (run556's F6: bot y=41, entry 44, yard
+        // 80 - the climb 'OK +3 levels' was CORRECT and the walk ladder then
+        // burned its whole slice on a goal 39 levels up over 2 lateral). When
+        // the trip's yard is mostly UP (the strict verticalDoomPlan shape),
+        // the climb raises its target to the yard's level (climbTargetY - only
+        // ever raises) so the staircase digs TOWARD the bankable ground; the
+        // v0.154.0 fences and the escalation ladder are untouched. 'trip' and
+        // 'pre-position' keep the byte-identical legacy shape.
+        let doom = { doom: false }
+        if (reason === 'bank' && yardGoal && miner.bot?.entity) {
+          try {
+            doom = verticalDoomPlan({
+              botY: miner.bot.entity.position.y,
+              yardY: yardGoal.y,
+              lateral: Math.hypot(miner.bot.entity.position.x - yardGoal.x, miner.bot.entity.position.z - yardGoal.z)
+            })
+          } catch { doom = { doom: false } }
+          if (doom.doom) console.log(`${name} climb out (${reason}): ${doom.why} - the climb raises its target to the yard's level`)
+        }
+        let r = await miner.climbOut({ dir: direction, targetY: doom.doom ? yardGoal.y : null, shouldStop: () => Date.now() > deadline })
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         // (v0.154.0) THE BANK CLIMB RETRY: the mid-run bank trip's climb was
@@ -880,7 +918,7 @@ async function runBot (name, target, index) {
         }
         console.log(`${name} climb out (${reason}): retry (${plan.why})`)
         const retryFenceAt = Date.now() + plan.maxMs
-        r = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, plan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+        r = await miner.climbOut({ dir: direction, targetY: doom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, plan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): retry OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): retry failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         return r.ok
@@ -1360,6 +1398,30 @@ async function runBot (name, target, index) {
           let cr
           let climbAttempts = 0
           const climbSliceStart = Date.now()
+          // (v0.158.0) THE VERTICAL DOOM CLIMB (the final bank): run556's final
+          // banks died 3-fold on the vertical (F6 y=41 vs yard 80 - 7 hops
+          // 'chest unreachable' after 2 climb attempts; F10 'still underground
+          // after 2 climb attempts - the chain from the shaft bottom is doomed
+          // walks'; F17 the decide class at d=8). When the yard stands mostly
+          // UP, the final climb's staircase digs TOWARD the yard (the bearing
+          // points at it, not away) and its target raises to the yard's LEVEL
+          // (climbTargetY) - the walk ladder cannot climb, the climb can. The
+          // fences keep their slice discipline; only the direction and the
+          // target change, both no-ops when the doom is absent.
+          const finalDoom = (() => {
+            if (!yardGoal || !miner.bot?.entity) return { doom: false }
+            try {
+              return verticalDoomPlan({
+                botY: miner.bot.entity.position.y,
+                yardY: yardGoal.y,
+                lateral: Math.hypot(miner.bot.entity.position.x - yardGoal.x, miner.bot.entity.position.z - yardGoal.z)
+              })
+            } catch { return { doom: false } }
+          })()
+          const finalDoomDir = finalDoom.doom && miner.bot?.entity && yardGoal
+            ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
+            : null
+          if (finalDoom.doom) console.log(`${name} final climb: ${finalDoom.why} - climbing toward the yard's level (the walk ladder cannot)`)
           if (schedule.climbSkipped) {
             cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
           } else {
@@ -1376,7 +1438,7 @@ async function runBot (name, target, index) {
             // deeper staircase attempt).
             const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)
             const climbFenceAt = Date.now() + climbFenceMs
-            cr = await miner.climbOut({ dir: direction, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
+            cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
             if (!cr.ok && cr.reason === 'timeout') cr.reason = `timeout (fenced at ${Math.round(climbFenceMs / 1000)}s - the chain keeps its reserve)`
             climbAttempts = 1
             // (v0.50.0) THE FINAL-CLIMB RETRY: fleet 35630279913 measured 13
@@ -1395,7 +1457,7 @@ async function runBot (name, target, index) {
             if (!cr.ok && retryPlan.retry) {
               console.log(`${name} final climb: retry (${retryPlan.why}, ${Math.round(retryPlan.maxMs / 1000)}s fence)`)
               const retryFenceAt = Date.now() + retryPlan.maxMs
-              cr = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+              cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
               climbAttempts = 2
             } else if (!cr.ok) {
               console.log(`${name} final climb: no retry (${retryPlan.why})`)

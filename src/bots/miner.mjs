@@ -23,7 +23,7 @@ import {
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
-  tunnelStopReason, TUNNEL_MAX_MS
+  tunnelStopReason, TUNNEL_MAX_MS, climbTargetY
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
@@ -3192,7 +3192,7 @@ export function createMiner ({
   // diagonally up, then step onto them with forward+jump (vanilla movement,
   // always legal). ~2 digs + 1 jump per level, no placement anywhere.
   // Never throws: a failed climb costs the caller its trip/banking, not the bot.
-  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null, force = false } = {}) {
+  async function climbOut ({ dir = null, maxUp = PILLAR_LEVEL_CAP, maxMs = PILLAR_MAX_MS, shouldStop = null, force = false, targetY = null } = {}) {
     noteGlobal('climb') // (v0.62.0) the staircase digs are a per-level A*-free path, but the walkable-surface verdict follows climbs - mark the site
     enablePhysicsMode()
     configureGroundMovements()
@@ -3222,7 +3222,15 @@ export function createMiner ({
       return (b.skyLight ?? 0) >= 15
     }
     const entryY = Number.isFinite(stats.shaftEntryY) ? stats.shaftEntryY : null
-    const plan = pillarTarget({ feetY: feet0.y, targetY: entryY, skyLitAt, maxUp })
+    // (v0.158.0) THE YARD-RAISED TARGET: the caller (the bank chains) may raise
+    // the surface reference to the YARD's level - the recorded shaft entry can
+    // sit tens of levels BELOW the yard (the F6 class: bot at y=41, entry 44,
+    // yard 80), and a climb that stops at the entry hands the walk ladder a
+    // doomed vertical. climbTargetY only ever RAISES the target: a yard at or
+    // below the entry and every legacy caller (targetY absent) keep the
+    // entry-record shape byte for byte.
+    const raisedTargetY = climbTargetY({ entryY, targetY })
+    const plan = pillarTarget({ feetY: feet0.y, targetY: raisedTargetY, skyLitAt, maxUp })
     if (plan.levels <= 1) {
       // being out proves the climb problem solved: forget any stale exhaustion
       // (v0.18.0) so a later descent never inherits a dead wall's ledger
