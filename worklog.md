@@ -3090,3 +3090,21 @@ Work Log:
 
 Stage Summary:
 - THE FLEET OF RECORD for the next session: run 36004321933 on f74d064 = 0.144.0, queued at 13:14:39Z. MINE IT and read the expectations above + the two runs before it (35994461858, 36001375280 - both storm deaths, the second with the duck never arming). Also mine 36001375280's artifact if not yet mined (the 20:05 lane may have its own extract). Next free version = 0.145.0. My next local section = Task ID 398294-20260924-2154.
+
+---
+Task ID: 398567-20260924-2005 addendum 2 (the 20:05 session continued - the union, the rebase, the composite field test)
+Agent: Super Z (cron agent loop, continued session)
+Task: The lane's STORM BRAKE collided with this session's STORM DUCK mid-flight - resolve, union, re-dispatch.
+
+Work Log:
+- MINED this session's dispatch 36008932449 precursor: run80/ (the duck's own fleet leg on 538a2b5) = FAILURE, ceiling 3102M at ~181-211s, and the smoking gun: NO [stormduck] line, NO [allocvalve] line at all. Diagnosis upgrade: the ring's @+0.0s base is the NEWEST NOTE'S OWN ts (sgStory's base = ents[0].tsMs), NOT the probe's - the consults had already stopped when the ramp began; the wedge PRECEDED the verdict; no main-thread applier could ever act. The duck was armed by NOTHING.
+- v0.144.0 authored locally: (1) THE SLOW ENVELOPE (allocvalve.funnelSlowVerdict - a dip-immune second anchor slid every >=5s, the worker's own two-sample arithmetic; verdict source 'funnel-slow' + its own CLOSED flavor + slowCloses counter) and (2) THE FAR-GOAL THINK CAP (gotoSafe: for goals > 24b straight-line, shrink searchRadius 32->24 and thinkTimeout 2000->500 around the goto, restored in finally - a 500ms burst retains ~4x fewer nodes and yields 4x sooner; the one allocator no verdict can reach).
+- MID-FLIGHT COLLISION: the 19:54 lane pushed f74d064 (v0.143.0 THE STORM BRAKE: goalbrake.mjs cadence breaker + sweep-on-close + pulse-void grace) + f8a3972 (its worklog) + package 0.144.0 + its own dispatch 36004321933 - the SAME run58/80 evidence, the SAME 'the duck never armed' conclusion. Union doctrine: both cures stand. Rebased; one import-line conflict resolved; retitled to v0.145.0 (the lane's union label took 0.144.0; monotonic). 49302f9.
+- Local on the union: syntax 188/0, unit 82/82 (the lane's goalbrake suite + this session's stormduck suite coexist), integration 2/2.
+- Push 49302f9 -> CI 36006313609 SUCCESS. Dispatch 36008932449 (HTTP 204, inputs {run_fleet: 'true', fleet_seconds: '600'} VERIFIED) on 49302f9 = v0.145.0 - the composite cure's (brake + duck + envelope + cap) field test.
+- MINED the lane's fleet 36004321933 (their STORM BRAKE on f74d064) -> run33/: **NORMAL END - deadline 600s reached, alive 19/19, NO stormguard probe/FATAL line in the whole log.** The goal brake carried it: 13 burst opens / 458 re-issues refused / 2 fleet-ceiling opens / 355 fleet refusals - the re-issue cadence never let the ramp form (the valve closed once at ts=79s, queue-pressure, strike 1; the duck stayed at 0 arms - nothing to duck). Headline: mined 2554 (4.26 b/s), banked 247 (the best banking on record), smelted 1, fights 42, rescues 289, torched 6, airGlitches 811 (still the top anomaly), plan 2/31.
+
+Stage Summary:
+- Master: 49302f9 = v0.145.0 (the composite: STORM BRAKE + STORM DUCK + SLOW ENVELOPE + FAR-GOAL THINK CAP) on f8a3972. Next free version = 0.146.0.
+- TWO field verdicts to read next session: run33/ (the lane's, NORMAL END - the brake's rate knob held; read the goalbrake numbers + whether the freeze class simply did not occur) and 36008932449 (this session's dispatch on the FULL composite - if a storm forms, the [stormduck]/[stormduck] ARMED (funnel slow envelope) lines + the far-goal cap's effect on the ramp shape are the new reads; mine88 trap: read the tool tail for the real dir).
+- The layering doctrine now reads: brake = the rate knob (cadence), duck = the near exemption's ceiling (every goal), envelope = the funnel's dip-blindness, cap = the single-burst bound, void = the honest kill. Each addresses a DIFFERENT measured hole; none depends on another landing.
