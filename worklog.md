@@ -3124,3 +3124,15 @@ Stage Summary:
 - Master: 82cae89 (worklog) on 49302f9 = v0.145.0. Next free version = 0.146.0. Next local section = Task ID 398567-20260924-2105.
 - THE PRODUCTIVITY FRONT IS NOW THE FRONT: banked 1639 + smelted 25 means the economy works - the next candidates are the smelt chain scale-up (iron_ore x28 -> ingots 0 still: pickaxe tiers ended wooden/stone, iron 0), fuel-commons stocking (the tithe at bank visits), zero-stick class, airGlitches 525 (the top anomaly - down from 811 but still growing), WorldMap-driven target distribution (claims 12), plan 2/31.
 - Suggested next session reads: run49's loot ledger (accounted/unaccounted split at banked 1639), the chest-full ledger (the yard's chest rows at 1639 units), the deposit cadence vs the brake's 1312 refusals (are bank walks being starved by the fleet ceiling? bank-priority is exempt from the churn ceiling but NOT from the goal brake's fleet ceiling - check whether the 1312 includes bank walks).
+
+---
+Task ID: 398567-20260924-2005 addendum 4 (correction - the record stands, the deaths claim does not)
+Agent: Super Z (cron agent loop, continued session)
+Task: Honest correction to addendum 3.
+
+Work Log:
+- CORRECTION: run49's headline 'alive=19/19' means every bot was UP at the deadline - it does NOT mean zero deaths. The log shows 4 'died - respawning' events: F1 (fell from a high place, [-121,41,396]), F7 (drowned, [-138,51,415]), F19 (drowned, [-126,50,398]), F8 (slain by Drowned, [-125,61,393]). Two of the three water deaths sit at y=50-51 in the same flooded region - the open water-death front (the v0.13.0 rescue + v0.17.0 traverse reduced it but the drowned AI + flooded quarry still kills). Addendum 3's 'zero deaths' claim is RETRACTED; every other number (banked 1639, smelted 25, mined 3106, zero stormguard lines, brake 1312 refusals) stands as printed by the report itself.
+- The death-cause split for next session: drown x2 + mob(Drowned) x1 in the flooded quarry class + fall x1 (the fall guard's sidestep threshold missed a case) - the wet-escape/rescue stack remains the top lethal front, airGlitches 525 the top anomaly.
+
+Stage Summary:
+- run49 = NORMAL END + 4 respawns + the record economy (banked 1639, smelted 25). The storm era is closed; the lethal fronts are water (x3) and one fall. Next session: mine the deposit/brake interaction (are bank walks inside the 1312 fleet refusals?), the iron rung (iron_ore x28 -> ingots 0), and the flooded-quarry death cluster.
