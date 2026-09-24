@@ -19,7 +19,7 @@
 // This module is the POLICY layer (when to upgrade, to which tier). The MECHANISM
 // (phantom-safe crafting, table placement, grid sweeps) stays in src/bots/tools.mjs.
 import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
-import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS } from './deposit.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, depositStackDirect } from './deposit.mjs'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { withdrawStackMove, pickWithdrawSlots } from './fuelbank.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
@@ -445,3 +445,150 @@ export async function withdrawIronCommune (bot, {
   const reason = taken > 0 ? 'ok' : (pocketNow >= IRON_PICK_INGOTS ? 'set complete' : 'no ingot reached the pocket')
   return { taken, pocketNow, reason }
 }
+
+// ---------------------------------------------------------------------------
+// (v0.150.0) THE POOL SEED - the commune's deposit-first arm.
+//
+// MEASURED (run86 = 36025029805, the v0.148.0 composite, the best leg on
+// record): the commune FIRED for the first time - 9 asks - and EVERY ask read
+// 'chest holds 0 ingot(s)'. The pool can never seed itself: keepForIron
+// pockets every iron_ingot until that bot's OWN pick is iron (no bot ever had
+// one), so the deposit legs skip the fragment forever and the withdraw asks
+// an always-empty chest. The chain smelts 1-2 ingots per run and every
+// fragment strands in a pocket (F1's and F19's ingots rode pockets to the end
+// of the run). THE CURE (the lane's named last mile): at the smelt leg's end
+// - the one point the bot stands yard-side with fresh ingots and chests in
+// reach - a pocket the pool CANNOT complete (pocket + chest < 3) rides the
+// chest (the pool grows for the next bot's visit); a pocket the pool CAN
+// complete leaves the chest untouched and the withdraw completes the set.
+// Two fragments in two pockets become one pickaxe between them.
+//
+// The pure plan first, junk-safe end to end. The decision is ONE read: the
+// combined stock (pocket + chest) against the recipe's cost.
+
+export function ironPoolSeedPlan ({ pocketCount = 0, chestCount = 0, target = IRON_PICK_INGOTS } = {}) {
+  const have = Number(pocketCount)
+  const inChest = Number(chestCount)
+  const goal = Number(target)
+  if (!Number.isFinite(goal) || goal <= 0) return { deposit: 0, withdraw: 0 }
+  if (!Number.isFinite(have) || have < 0) return { deposit: 0, withdraw: 0 }
+  if (!Number.isFinite(inChest) || inChest < 0) return { deposit: 0, withdraw: 0 }
+  const pocket = Math.floor(have)
+  const chest = Math.floor(inChest)
+  if (pocket <= 0 || pocket >= goal) return { deposit: 0, withdraw: 0 }
+  // fundable: the pool completes the set THIS visit - the withdraw arm takes
+  // exactly the gap (never overdrawn past the goal); the seed would only
+  // waste clicks. unfundable: the WHOLE pocket rides the chest - fragments
+  // scattered across pockets are invisible to the fleet, the pool is shared.
+  if (pocket + chest >= goal) return { deposit: 0, withdraw: Math.min(chest, goal - pocket) }
+  return { deposit: pocket, withdraw: 0 }
+}
+
+/** The commune's seed walk: deposit the pocket's iron_ingot fragments into a
+ * yard chest when the pool cannot fund the set, and stand down when it can
+ * (the caller's withdrawIronCommune completes it). Same machinery family as
+ * withdrawIronCommune (findChest -> the re-arming doomed walk -> openChest ->
+ * the verified diff -> close) with the DEPOSIT direction: whole stacks via
+ * the direct clicks (depositStackDirect - the v0.72.0 cure), the MIRROR
+ * pocket as the honest source of truth (the v0.73.0 stale-inventory
+ * doctrine), ghost clicks report the lie and stop. Junk bot / no chest /
+ * walk refusal / full chest all read honestly and never throw. */
+export async function seedIronPool (bot, {
+  yardCenter = null,
+  maxDistance = 48,
+  yardRadius = YARD_CHEST_RADIUS,
+  budgetMs = 15000,
+  clickTimeoutMs = 5000,
+  log = () => {}
+} = {}) {
+  const held = countItem(bot, 'iron_ingot')
+  if (!Number.isFinite(held) || held <= 0 || held >= IRON_PICK_INGOTS) return { deposited: 0, chestCount: null, action: 'nothing to seed' }
+  const started = Date.now()
+  const remainingMs = () => budgetMs - (Date.now() - started)
+  const exclude = []
+  for (let c = 0; c < 3; c++) {
+    if (remainingMs() <= 0) { log('the seed budget is spent'); break }
+    const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
+    if (!chest) { if (c === 0) log('no chest in range for the pool seed'); break }
+    const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+    try {
+      // the re-arming doomed walk (the commune/fuel-commons shape): the yard
+      // is THE shared destination class - a sibling bot's failed walk never
+      // speaks for this bot's start.
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'iron pool seed walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+    } catch (e) {
+      log(`chest walk failed (${e?.message || e})`)
+      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      continue
+    }
+    let window = null
+    try {
+      window = await withTimeout(bot.openChest(chest), 10000, 'open seed chest')
+    } catch (e) {
+      log(`open failed (${e?.message || e})`)
+      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      continue
+    }
+    try {
+      const chestSlots = chestSlotCount(window)
+      const slots = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null)
+      const chestIngot = Array.isArray(slots) && chestSlots > 0
+        ? slots.slice(0, chestSlots).reduce((n, s) => n + (s && s.name === 'iron_ingot' && s.count > 0 ? s.count : 0), 0)
+        : 0
+      const plan = ironPoolSeedPlan({ pocketCount: countItem(bot, 'iron_ingot'), chestCount: chestIngot })
+      if (plan.withdraw > 0) {
+        log(`the pool funds the set (${chestIngot} in chest) - the withdraw completes it`)
+        return { deposited: 0, chestCount: chestIngot, action: 'fundable' }
+      }
+      if (plan.deposit <= 0) {
+        // the pocket guard raced to empty, or a junk read - the caller's
+        // withdrawIronCommune re-reads through its own guards either way
+        return { deposited: 0, chestCount: chestIngot, action: 'nothing to seed' }
+      }
+      // THE MIRROR POCKET is the honest source: while a chest window is open
+      // the standalone bot.inventory goes stale (the v0.73.0 probe measured
+      // it directly), the window's slots [chestSlots..] mirror the server's
+      // player inventory exactly.
+      const mirrorPocket = () => {
+        const now = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null)
+        return Array.isArray(now) && chestSlots > 0 && now.length > chestSlots
+          ? now.slice(chestSlots).filter(s => s && s.count > 0)
+          : invItems(bot)
+      }
+      const countOf = name => mirrorPocket().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
+      let deposited = 0
+      while (deposited < plan.deposit) {
+        const stack = mirrorPocket().find(i => i.name === 'iron_ingot')
+        if (!stack) break // the pocket drained faster than the plan's floor
+        // VERIFIED TRANSFER: the only truth is the mirror afterwards - the
+        // 26.2 stack silently drops some window clicks (the ghost-click class
+        // has lied here before, the deposit.mjs founding evidence)
+        const before = countOf('iron_ingot')
+        let done = false
+        if (chestSlots > 0 && typeof bot.clickWindow === 'function') {
+          try {
+            await withTimeout(depositStackDirect(bot, window, { itemType: stack.type, chestSlots, clickTimeoutMs }), clickTimeoutMs * 2, 'seed deposit iron_ingot')
+            done = true
+          } catch { /* the legacy pathway gets the stack */ }
+        }
+        if (!done) {
+          try {
+            await withTimeout(window.deposit(stack.type, null, stack.count), clickTimeoutMs, 'seed deposit iron_ingot')
+          } catch {
+            log('the seed click timed out (the honest stop - the pocket keeps its ingots)')
+            break
+          }
+        }
+        const moved = before - countOf('iron_ingot')
+        if (moved > 0) deposited += moved
+        else { log('the seed click lied - nothing moved (ghost click, the honest stop)'); break }
+      }
+      if (deposited > 0) log(`seeded the pool: +${deposited} iron_ingot into a yard chest (the pocket rides the pool)`)
+      return { deposited, chestCount: chestIngot, action: deposited > 0 ? 'seeded' : 'the seed never landed' }
+    } finally {
+      try { window.close?.() } catch { /* already closed */ }
+    }
+  }
+  return { deposited: 0, chestCount: null, action: 'no seed landed' }
+}
+

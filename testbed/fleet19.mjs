@@ -34,7 +34,7 @@ import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
-import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune } from '../src/lib/toolupgrade.mjs'
+import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
@@ -461,6 +461,19 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       try {
         const heldNow = countItem(miner.bot, 'iron_ingot')
         if (heldNow > 0 && heldNow < 3) {
+          // (v0.150.0) THE POOL SEED FIRST: run86 (36025029805) measured the
+          // commune's 9 asks all reading 'chest holds 0 ingot(s)' - nothing
+          // ever deposits iron_ingot (keepForIron pockets every fragment
+          // until an iron pick exists; no bot ever had one), so the withdraw
+          // asks an always-empty chest. The seed arm runs before the
+          // withdraw: a pocket the pool CANNOT complete rides the chest (the
+          // pool grows for the next bot's visit), a pocket the pool CAN
+          // complete leaves the chest untouched for the withdraw below.
+          await seedIronPool(miner.bot, {
+            yardCenter: yardGoal,
+            budgetMs: 12000,
+            log: m => console.log(`${miner.username} iron commune: ${m}`)
+          })
           const comm = await withdrawIronCommune(miner.bot, {
             yardCenter: yardGoal,
             budgetMs: 15000,

@@ -8,7 +8,7 @@ import Vec3 from 'vec3'
 import {
   PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS,
   pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron,
-  ironCommunePlan, withdrawIronCommune
+  ironCommunePlan, withdrawIronCommune, ironPoolSeedPlan, seedIronPool
 } from '../../src/lib/toolupgrade.mjs'
 
 // The commune's mock chest world - the fuel commons' proven shape
@@ -787,4 +787,119 @@ test('withdrawIronCommune: a walk failure tries the next chest, the verdict stay
   const res = await withdrawIronCommune(world.bot, {})
   assert.equal(res.taken, 0)
   assert.equal(world.opened, 0, 'a refused walk never opens a window')
+})
+
+// ------------------------------------------------------- THE POOL SEED
+// (v0.150.0) run86 (36025029805, the v0.148.0 composite) measured the
+// commune's 9 asks ALL reading 'chest holds 0 ingot(s)': keepForIron pockets
+// every iron_ingot until that bot's own pick is iron (no bot ever had one),
+// so nothing ever deposits iron and the withdraw asks an always-empty chest.
+// The plan is pure inventory math (seed vs fundable); the walk rides the
+// commune's proven machinery shape through the same mock chest world.
+
+test('ironPoolSeedPlan: the seed-vs-fundable matrix', () => {
+  const p = ironPoolSeedPlan
+  // the run86 shape: the ask that read 'chest holds 0 ingot(s)' now seeds
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 0 }), { deposit: 1, withdraw: 0 }, '1 held, empty chest: the whole pocket rides the pool')
+  assert.deepEqual(p({ pocketCount: 2, chestCount: 0 }), { deposit: 2, withdraw: 0 }, '2 held, empty chest: the pool concentrates')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 1 }), { deposit: 1, withdraw: 0 }, 'combined 2 < 3: still a seed, not a take')
+  // the fundable shapes: the pool completes the set - the withdraw arm's math
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 2 }), { deposit: 0, withdraw: 2 }, 'combined 3: the set completes, no seed')
+  assert.deepEqual(p({ pocketCount: 2, chestCount: 1 }), { deposit: 0, withdraw: 1 }, 'the run49 F3 shape rides the legacy commune')
+  assert.deepEqual(p({ pocketCount: 2, chestCount: 2 }), { deposit: 0, withdraw: 1 }, 'never overdrawn past the goal')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 10 }), { deposit: 0, withdraw: 2 }, 'a surplus chest funds exactly the gap')
+  // the junk-safe edges
+  assert.deepEqual(p({ pocketCount: 0, chestCount: 0 }), { deposit: 0, withdraw: 0 }, 'an empty pocket cannot seed')
+  assert.deepEqual(p({ pocketCount: 0, chestCount: 5 }), { deposit: 0, withdraw: 0 }, 'an empty pocket never withdraws either (the caller guards)')
+  assert.deepEqual(p({ pocketCount: 3, chestCount: 0 }), { deposit: 0, withdraw: 0 }, 'a complete set crafts - nothing rides')
+  assert.deepEqual(p({ pocketCount: 5, chestCount: 1 }), { deposit: 0, withdraw: 0 }, 'over-complete reads 0')
+  assert.deepEqual(p({ pocketCount: -1, chestCount: 3 }), { deposit: 0, withdraw: 0 }, 'junk pocket reads 0')
+  assert.deepEqual(p({ pocketCount: NaN, chestCount: 3 }), { deposit: 0, withdraw: 0 }, 'NaN pocket reads 0')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: -3 }), { deposit: 0, withdraw: 0 }, 'negative chest reads 0 (the deposit arm is stricter than the take arm)')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 'junk' }), { deposit: 0, withdraw: 0 }, 'string chest reads 0')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 3, target: 0 }), { deposit: 0, withdraw: 0 }, 'junk target reads 0')
+  assert.deepEqual(p({ pocketCount: 1, chestCount: 3, target: NaN }), { deposit: 0, withdraw: 0 }, 'NaN target reads 0')
+  // fractional pockets floor to whole units (real stacks are integers)
+  assert.deepEqual(p({ pocketCount: 2.9, chestCount: 0 }), { deposit: 2, withdraw: 0 }, 'fractional pockets floor the seed')
+  assert.deepEqual(p({ pocketCount: 1.5, chestCount: 2 }), { deposit: 0, withdraw: 2 }, 'fractional pockets floor the fundable gap')
+  // a custom target scales both arms
+  assert.deepEqual(p({ pocketCount: 2, chestCount: 1, target: 4 }), { deposit: 2, withdraw: 0 }, 'a custom target keeps the seed unfundable')
+  assert.deepEqual(p({ pocketCount: 2, chestCount: 2, target: 4 }), { deposit: 0, withdraw: 2 }, 'a custom target funds the bigger gap')
+})
+
+test('seedIronPool: junk bots never touch the world', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  for (const held of [0, 3, 5]) {
+    world.setPocket(held)
+    const res = await seedIronPool(world.bot, {})
+    assert.equal(res.deposited, 0)
+    assert.equal(res.action, 'nothing to seed')
+    assert.equal(world.opened, 0, `pocket ${held}: no chest window ever opened`)
+  }
+})
+
+test('seedIronPool: the run86 shape - 1 held, the chest reads 0, the pocket rides the pool', async () => {
+  const world = mockCommuneWorld({ chestItem: null })
+  world.setPocket(1)
+  const res = await seedIronPool(world.bot, {})
+  assert.equal(res.deposited, 1)
+  assert.equal(res.action, 'seeded')
+  assert.equal(res.chestCount, 0, 'the chest read 0 at decision time')
+  assert.equal(world.opened, 1)
+  // the pool actually received the fragment (a fresh open reads the chest)
+  const w = await world.bot.openChest()
+  const chestNow = w.slots.slice(0, 27).reduce((n, s) => n + (s && s.name === 'iron_ingot' ? s.count : 0), 0)
+  const pocketNow = w.slots.slice(27).reduce((n, s) => n + (s && s.name === 'iron_ingot' ? s.count : 0), 0)
+  w.close()
+  assert.equal(chestNow, 1, 'the chest holds the seed')
+  assert.equal(pocketNow, 0, 'the pocket rode the pool')
+})
+
+test('seedIronPool: the pool funds the set - the seed stands down, the chest is untouched', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(2) })
+  world.setPocket(1)
+  const res = await seedIronPool(world.bot, {})
+  assert.equal(res.deposited, 0)
+  assert.equal(res.action, 'fundable')
+  assert.equal(res.chestCount, 2)
+  assert.equal(world.opened, 1)
+  // the withdraw completes the set on the SAME world (the driver's sequence)
+  const comm = await withdrawIronCommune(world.bot, {})
+  assert.equal(comm.pocketNow, 3)
+  assert.equal(comm.reason, 'ok')
+})
+
+test('seedIronPool: ghost clicks report the lie, never throw', async () => {
+  const world = mockCommuneWorld({ chestItem: null, clickGhost: true })
+  world.setPocket(1)
+  const res = await seedIronPool(world.bot, {})
+  assert.equal(res.deposited, 0)
+  assert.equal(res.action, 'the seed never landed')
+  const after = await (async () => {
+    const w = await world.bot.openChest()
+    const pocketNow = w.slots.slice(27).reduce((n, s) => n + (s && s.name === 'iron_ingot' ? s.count : 0), 0)
+    w.close()
+    return pocketNow
+  })()
+  assert.equal(after, 1, 'the pocket keeps its fragment (the honest stop)')
+})
+
+test('seedIronPool: a refused walk never opens a window, the verdict stays honest', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(8), walkFails: true })
+  world.setPocket(1)
+  const res = await seedIronPool(world.bot, {})
+  assert.equal(res.deposited, 0)
+  assert.equal(world.opened, 0, 'a refused walk never opens a window')
+})
+
+test('seedIronPool: the seeded pocket reads nothing-to-commune to the withdraw (the union sequence)', async () => {
+  const world = mockCommuneWorld({ chestItem: null })
+  world.setPocket(1)
+  const seed = await seedIronPool(world.bot, {})
+  assert.equal(seed.action, 'seeded')
+  const openedAfterSeed = world.opened
+  const comm = await withdrawIronCommune(world.bot, {})
+  assert.equal(comm.taken, 0)
+  assert.equal(comm.reason, 'nothing to commune')
+  assert.equal(world.opened, openedAfterSeed, 'the withdraw guards skip the walk on an empty pocket')
 })
