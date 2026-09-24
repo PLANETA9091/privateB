@@ -356,10 +356,25 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // floor the build SKIPS honestly - the metal rides the pocket to the
       // next chain and the clock feeds the deposit legs instead. A fat leg
       // (>= 40s) builds exactly as before - byte for byte.
+      // (v0.137.0) THE FIRED SMELT - run552 (35963112300, the v0.136.1 fleet)
+      // starved the smelt economy with the gate itself: 7x build skips on a
+      // 13-37s leg clock (the old 24s-build + 15s-floor arithmetic), 13x
+      // 'machine unreachable', smelted 12 -> 3, F12's raw_iron x7 riding the
+      // pocket to the bank un-smelted. But the furnace is ASYNCHRONOUS: the poll
+      // is the only part that needs the bot's clock. A thin leg fires the batch
+      // (verified puts, then walk away - the machine's own clock does the
+      // burning) and the next chain (or ANY bot - the finished-harvest reads
+      // output-with-empty-input) collects. The BUILD still needs its floor (a
+      // 24s build in a 14s leg still dies mid-place), so the build gate drops
+      // from 40s to 29s (build 24s + the put ~5s) and the poll floor only
+      // applies to fat legs; a thin leg that cannot even BUILD still fires into
+      // any machine already in reach (reach-open + put ~= 7s).
       const CAMP_BUILD_FIT_SECS = 40
+      const CAMP_BUILD_MIN_SECS = 29
+      const fireLeg = smeltSecs < CAMP_BUILD_FIT_SECS
       const buildStart = Date.now()
-      if (smeltSecs < CAMP_BUILD_FIT_SECS) {
-        console.log(`${miner.username} camp furnace: build skipped - the leg clock (${smeltSecs}s) cannot afford a 24s build + the 15s smelt floor`)
+      if (smeltSecs < CAMP_BUILD_MIN_SECS) {
+        console.log(`${miner.username} camp furnace: build skipped - the leg clock (${smeltSecs}s) cannot afford a 24s build + the 5s put (a reachable machine still takes the fired batch)`)
       } else {
       // (v0.89.0) THE CAMP FURNACE: run80 (35773697160) held the reserve, carried
       // raw_iron (62 inventory dumps) - and ended smelted=0 with ZERO output lines:
@@ -387,6 +402,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // slice; the leftover drains back at the final deposit (keep(false)).
       const res = await smeltInventory(miner.bot, {
         maxSeconds: Math.max(5, smeltSecs - buildSpent),
+        fire: fireLeg,
         fuelResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
           itemsNeeded,
           yardCenter: yardGoal,
@@ -396,9 +412,9 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         }),
         log: m => console.log(m)
       })
-      if (res.smelted > 0 || res.rescued > 0) {
-        smelted += res.smelted
-        console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}`)
+      if (res.smelted > 0 || res.rescued > 0 || (res.fired ?? 0) > 0) {
+        smelted += res.smelted // a fired batch is NOT counted until its output is harvested (the honest ledger)
+        console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}${(res.fired ?? 0) > 0 ? ` fired=${res.fired}` : ''}`)
       } else {
         // (v0.89.0) THE HONEST ZERO: run80's smelt legs returned silent zeros
         // (24 reserves held, 6 yard arrivals, ZERO furnace walks visible) - the

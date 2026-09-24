@@ -7,6 +7,7 @@
 // ready, exactly like a real furnace at ~1 item per 10s, just a million times faster.
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
 import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats, nearDoomedGoal } from '../../src/lib/jobqueue.mjs'
 import { KEEP } from '../../src/lib/deposit.mjs'
@@ -1121,4 +1122,94 @@ test('smeltInventory: a starved pocket asks the commons and the withdrawn coal s
   assert.deepEqual(asks, [6], 'the starved gate asked with the live plan count, before any walk')
   assert.equal(res.smelted, 6, 'the withdrawn coal covers the whole batch')
   assert.ok(!res.attempts.some(a => a.reason === 'no fuel'), 'no false verdict')
+})
+
+// ---------------------------------------------------- (v0.137.0) THE FIRED SMELT
+test('smeltBatch fire mode: the verified puts are the whole visit, the batch stays in the machine', async () => {
+  const furnace = new MockFurnace({})
+  // junk window (sand): no wood in the pocket -> the coal pick runs ABOVE the
+  // floor (7 > 6) and the one spare unit completes 8 items (fuelUnitsPer 8) -
+  // the fuel-aware batch clamps 10 -> 8 honestly, fire or not.
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 10), item('coal', 7)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 10, fire: true, ...FAST })
+  assert.equal(res.reason, 'fired', 'the fired visit names itself')
+  assert.equal(res.fired, 8, 'the fired count is the batch the machine took (fuel-clipped)')
+  assert.equal(res.smelted, 0, 'no output was polled - nothing counted yet (the honest ledger)')
+  assert.equal(furnace.slots[0]?.count, 8, 'the input rides the machine now')
+  assert.ok(furnace.slots[1], 'the fuel rides the machine too')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('sand'), 2, 'the pocket keeps the clip remainder (the next chain re-smelts it)')
+  assert.equal(counts('coal'), 6, 'the junk floor kept 6; the spare unit rode the batch')
+  assert.ok(furnace.closed, 'the window closed - the bot walked away')
+})
+
+test('smeltBatch fire mode skips the clock cap: a thin window still funds the full batch', async () => {
+  // (v0.137.0) the poll window cannot strand a fired batch - nothing polls. The
+  // clock cap's guaranteed-timeout-zero protection is poll-only by construction.
+  // METAL window (raw_iron): the unbounded coal pick funds the whole 20-batch
+  // from 4 coal (3 x 8 capacity >= 20) - the ladder's fuel arithmetic.
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 20), item('coal', 4)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_iron', count: 20, maxSeconds: 0.001, fire: true, ...FAST })
+  assert.equal(res.reason, 'fired')
+  assert.equal(res.fired, 20, 'no clock clip on a fired batch - the machine burns at its own pace')
+})
+
+test('THE FINISHED-HARVEST: output + leftover fuel (the fired batch, burned out) is harvested, not busy', async () => {
+  // run552's design flaw caught pre-deployment: the legacy BUSY gate reads
+  // fuel-present as busy, so a fired batch's output would be walled in forever
+  // by its own leftover fuel. The finished-harvest reads output-with-empty-input
+  // as fleet property and pulls the leftover fuel back to the pocket.
+  const furnace = new MockFurnace({ startOutput: item('iron_ingot', 3), startFuel: item('coal', 1) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 4), item('coal', 2)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_iron', count: 4, ...FAST })
+  assert.equal(res.rescued, 3, 'the finished fired batch\'s output is fleet property')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 3, '2 held + 1 harvested leftover - 1 charged into OUR batch + 1 unburned pulled back (the mock is coal-quantized)')
+  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle after the harvest')
+  assert.ok(res.smelted >= 1, 'and our own batch still went in after the harvest')
+})
+
+test('a LIVE burning batch stays sacred: output + input present is still busy, output untouched', async () => {
+  // the finished-harvest's guard rail: input-present means the batch is still
+  // burning - taking the output mid-burn would steal (and vanilla would race).
+  const furnace = new MockFurnace({ startInput: item('gravel', 20), startFuel: item('coal', 2), startOutput: item('glass', 2) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 6), item('coal', 5)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 6, ...FAST })
+  assert.equal(res.reason, 'busy')
+  assert.equal(res.rescued, 0, 'a burning batch\'s output is NOT rescued')
+  assert.equal(furnace.slots[2]?.count, 2, 'the burning batch\'s output stays in the machine')
+  assert.equal(furnace.slots[1]?.count, 2, 'the burning batch\'s fuel stays in the machine')
+})
+
+test('smeltInventory fire mode: fired batches accumulate, never enter smelted, never condenm the attempts', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('iron_ore', 6), item('coal', 7)] })
+  const res = await smeltInventory(bot, { ...FAST, fire: true })
+  assert.equal(res.fired, 6, 'the fired count rides the inventory verdict')
+  assert.equal(res.smelted, 0, 'fired is not smelted until the harvest')
+  assert.equal(res.attempts.length, 0, "'fired' is a success shape, not a loss - no attempt condemnations")
+  assert.equal(furnace.slots[0]?.count, 6, 'the whole plan fired into the machine')
+})
+
+test('smeltInventory fire mode: one fired visit ends the input\'s machine loop (the pocket keeps the slot clip)', async () => {
+  // fire mode puts the batch and walks - a second machine visit would only
+  // re-walk. The remainder (over the 64 slot cap is impossible here, but the
+  // batch/plan delta in general) waits for the next chain, exactly like the
+  // legacy clock-clip remainder.
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 200), item('coal', 70)] })
+  const res = await smeltInventory(bot, { ...FAST, fire: true })
+  assert.equal(res.fired, 64, 'one slot-capped fired batch')
+  assert.ok(furnace.opened <= 1, 'the machine loop closed after the fired visit')
+})
+
+test('REGRESSION PIN: the v0.137.0 fired-smelt gate rides the fleet source', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /const fireLeg = smeltSecs < CAMP_BUILD_FIT_SECS/, 'thin legs fire, fat legs poll')
+  assert.match(fleetSrc, /const CAMP_BUILD_MIN_SECS = 29/, 'the build gate drops to build+put (24s + ~5s), the 15s poll floor is poll-only')
+  assert.match(fleetSrc, /fire: fireLeg/, 'the smelt leg wires the fire verdict through')
+  assert.match(fleetSrc, /fired=\$\{res\.fired\}/, 'the fired count is named in the leg\'s own line')
+  assert.match(fleetSrc, /cannot afford a 24s build \+ the 5s put/, 'the skip line names the NEW arithmetic (the old 15s floor is gone)')
+  assert.doesNotMatch(fleetSrc, /cannot afford a 24s build \+ the 15s smelt floor/, 'the stale 15s-floor line is retired')
 })

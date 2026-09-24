@@ -515,12 +515,13 @@ export async function smeltBatch (bot, {
   pollMs = 1200, // output poll interval (tests shrink it; production 1.2s)
   smeltSecondsPerItem = 11, // vanilla smelts one item in 10s + lag margin
   fuelReserve = null, // { reservePlanks, reserveLogs, reserveSticks } - null = defaults
+  fire = false, // (v0.137.0) fire-and-forget: put input+fuel and WALK AWAY - no poll, no pull-back; the batch smelts on the machine's own clock and the finished-harvest reads the output later
   log = () => {}
 } = {}) {
-  if (!machineBlock?.position || !inputName || count <= 0) return { smelted: 0, rescued: 0, reason: 'nothing to do' }
+  if (!machineBlock?.position || !inputName || count <= 0) return { smelted: 0, rescued: 0, fired: 0, reason: 'nothing to do' }
   const tag = `[${bot.username ?? 'bot'}]`
   const invCount = name => countItem(bot, name)
-  if (invCount(inputName) <= 0) return { smelted: 0, rescued: 0, reason: 'input not in inventory' }
+  if (invCount(inputName) <= 0) return { smelted: 0, rescued: 0, fired: 0, reason: 'input not in inventory' }
 
   // (v0.41.0) THE VISIT BUDGET - the walk is part of the visit, not a freebie.
   // MEASURED (fleet 35582520041, v0.40.1, F3): the chain arrived at the yard
@@ -620,7 +621,7 @@ export async function smeltBatch (bot, {
     }
   }
   if (!walked) {
-    return { smelted: 0, rescued: 0, reason: `machine unreachable (${lastWalkError})` }
+    return { smelted: 0, rescued: 0, fired: 0, reason: `machine unreachable (${lastWalkError})` }
   }
 
   let furnace
@@ -628,7 +629,7 @@ export async function smeltBatch (bot, {
     const openMs = visitDeadline == null ? 10000 : Math.min(10000, Math.max(1000, visitDeadline - Date.now()))
     furnace = await withTimeout(bot.openFurnace(machineBlock), openMs, 'open furnace')
   } catch (e) {
-    return { smelted: 0, rescued: 0, reason: `cannot open (${e.message})` }
+    return { smelted: 0, rescued: 0, fired: 0, reason: `cannot open (${e.message})` }
   }
 
   let smelted = 0
@@ -643,24 +644,38 @@ export async function smeltBatch (bot, {
   const rowItems = () => (furnace.slots ?? []).slice(furnace.inventoryStart ?? 3, furnace.inventoryEnd ?? 39).filter(Boolean)
   const liveCount = name => rowItems().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
-    // RESCUE: output in an idle machine (no input, no fuel) belongs to the fleet -
-    // its owner is gone. Claim it, then this machine is free for OUR batch.
-    // VERIFIED via the live rows (never "read the slot again": a furnace slot REFILLS
-    // between two reads, the rows only grow by what WE took - deposit.mjs rule).
+    // RESCUE + (v0.137.0) THE FINISHED-HARVEST: output with an EMPTY input slot
+    // belongs to the fleet - either the owner is gone (the legacy idle rescue) or
+    // the batch FINISHED and only a fuel leftover remains (the fired-batch shape:
+    // input burned down to nothing while the owner walked away). Claim the output,
+    // then pull the leftover fuel back to the pocket - a fuel item without input
+    // never burns (vanilla) and would read 'busy' to every later visitor, walling
+    // the machine off for the rest of the run. A LIVE input slot stays UNTOUCHED -
+    // taking another bot's burning batch would reset its progress; that shape is
+    // the caller's busy verdict below. VERIFIED via the live rows (never "read the
+    // slot again": a furnace slot REFILLS between two reads, the rows only grow by
+    // what WE took - deposit.mjs rule).
     const out0 = furnace.outputItem()
-    if (out0 && !furnace.inputItem() && !furnace.fuelItem()) {
+    if (out0 && !furnace.inputItem()) {
       const rowsBefore = liveCount(out0.name)
       try { await withTimeout(furnace.takeOutput(), 5000, 'rescue output') } catch { /* keep going */ }
       await sleep(200)
       rescued = liveCount(out0.name) - rowsBefore
-      if (rescued > 0) log(`${tag} rescued ${rescued} x ${out0.name} from an idle ${machineBlock.name}`)
+      if (rescued > 0) {
+        const finished = furnace.fuelItem() ? 'a finished fired batch' : 'an idle'
+        log(`${tag} rescued ${rescued} x ${out0.name} from ${finished} ${machineBlock.name}`)
+      }
+      // the leftover fuel on a finished batch: back to the pocket, the machine reads idle
+      if (furnace.fuelItem()) {
+        try { await withTimeout(furnace.takeFuel(), 5000, 'harvest leftover fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
+      }
     }
 
     // BUSY: another bot's batch is inside (input or fuel present). Vanilla happily
     // lets several players view one furnace and race its slots - walking away is the
     // only safe move; the caller tries the next machine.
     if (furnace.inputItem() || furnace.fuelItem()) {
-      return { smelted, rescued, reason: 'busy' }
+      return { smelted, rescued, fired: 0, reason: 'busy' }
     }
 
     // (v0.109.0) the window class rides EVERY pickFuel call: metal inputs keep the
@@ -678,16 +693,18 @@ export async function smeltBatch (bot, {
     // guaranteed zero, and the uncovered remainder re-smelts on the next chain
     // exactly like the putCount slot clip already does).
     const fuelCap = fuelCapacity(fuel)
-    if (fuelCap < 1) return { smelted, rescued, reason: 'no fuel' }
+    if (fuelCap < 1) return { smelted, rescued, fired: 0, reason: 'no fuel' }
     if (fuelCap < batch0) log(`${tag} fuel clips the batch: ${fuel.count} x ${fuel.name} completes ${fuelCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
     // (v0.112.0) THE CLOCK CAP - the third belt: the batch never exceeds what
     // the poll WINDOW can finish (run99 F3: 64 x cobblestone on a 90s clock =
     // a guaranteed timeout-zero, the pull-back churn re-put the monster next
     // chain). The wait the poll will actually spend bounds the put; the
     // remainder stays pocketed for the next chain, same honest partial.
+    // (v0.137.0) fire batches skip this belt: nothing polls - the machine's own
+    // clock does the burning, so the poll window cannot strand anything.
     const visitRemainingAtPut = visitDeadline == null ? null : Math.max(0, visitDeadline - Date.now())
-    const clockCap = clockCapItems({ maxSeconds, smeltSecondsPerItem, visitRemainingMs: visitRemainingAtPut })
-    if (clockCap < batch0) {
+    const clockCap = fire ? Infinity : clockCapItems({ maxSeconds, smeltSecondsPerItem, visitRemainingMs: visitRemainingAtPut })
+    if (!fire && clockCap < batch0) {
       const waitSecs = Math.round(visitRemainingAtPut == null ? maxSeconds : Math.min(maxSeconds, visitRemainingAtPut / 1000))
       log(`${tag} the clock clips the batch: the ${waitSecs}s window completes ~${clockCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
     }
@@ -729,12 +746,12 @@ export async function smeltBatch (bot, {
           .filter(Boolean).join(' ') || 'empty'
         log(`${tag} transfer failed - cursor=${furnace.selectedItem ? `${furnace.selectedItem.name}x${furnace.selectedItem.count}` : 'empty'} window ${furnace.type} invStart=${furnace.inventoryStart} invEnd=${furnace.inventoryEnd} slots: ${slotDump} | inventory: ${inventoryItems(bot).map(i => `${i.name}x${i.count}`).slice(0, 10).join(' ')}`)
       } catch { /* diagnostics must never throw */ }
-      return { smelted, rescued, reason: 'input transfer failed' }
+      return { smelted, rescued, fired: 0, reason: 'input transfer failed' }
     }
     if (!await putVerified(furnace.putFuel.bind(furnace), fuel.name, fuel.count)) {
       // input already went in - pull it back out, leave the machine clean
       try { await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
-      return { smelted, rescued, reason: 'fuel transfer failed' }
+      return { smelted, rescued, fired: 0, reason: 'fuel transfer failed' }
     }
     // (v0.92.0) THE SLOT READ-BACK - the row delta proves something LEFT the
     // pocket, not WHERE it landed. Run82's F15 put 93+fuel into a fresh furnace
@@ -751,9 +768,21 @@ export async function smeltBatch (bot, {
     if (mismatch) {
       try { if (furnace.inputItem()) await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
       try { if (furnace.fuelItem()) await withTimeout(furnace.takeFuel(), 5000, 'take fuel back') } catch { /* lost */ }
-      return { smelted, rescued, reason: mismatch }
+      return { smelted, rescued, fired: 0, reason: mismatch }
     }
     log(`${tag} smelting ${putCount} x ${inputName} in a ${machineBlock.name} (fuel: ${fuel.count} x ${fuel.name})`)
+
+    // (v0.137.0) THE FIRED SMELT: the puts are verified (the slot read-back is the
+    // truth), so the batch WILL smelt - on the machine's own clock, not ours. A
+    // thin leg cannot afford the poll floor (run552: 7x 'build skipped - the leg
+    // clock cannot afford a 24s build + the 15s smelt floor' while raw_iron rode
+    // the pocket to the bank un-smelted), but it CAN afford the put (~5s). Fire,
+    // close the window, walk away: the next chain (or ANY bot - the harvest reads
+    // output-with-empty-input) collects. No pull-back on this path - the batch is
+    // the machine's now; the pocket keeps whatever the slot clip left.
+    if (fire) {
+      return { smelted, rescued, fired: putCount, reason: 'fired' }
+    }
 
     // WAIT for the output: ~10s smelt per item, poll, hard deadline.
     // (v0.91.0) THE BATCH CLOCK - run81 (dispatch 35782802480 on ab644e4): F19 held
@@ -812,7 +841,7 @@ export async function smeltBatch (bot, {
   } finally {
     try { furnace.close?.() } catch { /* already closed */ }
   }
-  return { smelted, rescued, reason }
+  return { smelted, rescued, fired: 0, reason }
 }
 
 /**
@@ -827,12 +856,14 @@ export async function smeltInventory (bot, {
   smeltSecondsPerItem = 11,
   fuelReserve = null, // passed to every pickFuel call (see smeltBatch)
   fuelResupply = null, // (v0.98.0) async ({ itemsNeeded }) => void - the FUEL COMMONS: called ONCE when the pocket is fuel-empty, BEFORE the 'no fuel' verdict (fleet19 wires withdrawFuelCommons); undefined/null = the legacy shape byte for byte
+  fire = false, // (v0.137.0) fire-and-forget batches: the put is the whole visit, the machine's own clock does the burning, the finished-harvest collects - the thin-leg cure (run552's 7x build-skips + the unreachable walks starved the smelt economy)
   log = () => {}
 } = {}) {
   const started = Date.now()
   const attempts = []
   let total = 0
   let rescued = 0
+  let firedTotal = 0
   const outputs = {}
   // per-INPUT produced counter (NOT per-output): iron_ore and raw_iron both yield
   // iron_ingot - a shared counter would wrongly cap the second input
@@ -902,23 +933,30 @@ export async function smeltInventory (bot, {
           pollMs,
           smeltSecondsPerItem,
           fuelReserve,
+          fire,
           log
         })
         rescued += res.rescued
+        firedTotal += (res.fired ?? 0)
         if (res.smelted > 0) {
           total += res.smelted
           produced.set(name, (produced.get(name) ?? 0) + res.smelted)
           const out = SMELT_OUTPUT[name]
           outputs[out] = (outputs[out] ?? 0) + res.smelted
-        } else if (res.reason && res.reason !== 'ok') {
+        } else if (res.reason && res.reason !== 'ok' && res.reason !== 'fired') {
           // (v0.89.0) THE HONEST ATTEMPTS: busy / unreachable / broken machines
           // used to vanish between smeltBatch and the fleet leg's log - recorded
           // now, so a zero verdict names every machine it lost to.
+          // (v0.137.0) 'fired' is a SUCCESS shape, not a loss - the batch is in
+          // the machine and the harvest reads it later.
           attempts.push({ name, machine: machineKind, reason: res.reason })
           // (v0.93.0) the spent walk slice closes the scan (see the flag above)
           if (/visit budget spent \(walk slice\)/.test(res.reason)) { sliceSpent = true; break }
         }
         if (left() <= 0) break
+        // (v0.137.0) a fired visit put the plan's batch - one visit, done; the
+        // pocket keeps the slot-clip remainder for the next chain
+        if (fire && (res.fired ?? 0) > 0) break
         // busy / unreachable / broken machine: try the next one of this kind
       }
       if (sliceSpent) break
@@ -931,5 +969,5 @@ export async function smeltInventory (bot, {
       attempts.push({ name, machine: machineChainFor(name).join('/'), reason: `no machine in reach (${machineChainFor(name).join('/')} within ${maxDistance}b)` })
     }
   }
-  return { smelted: total, rescued, outputs, attempts }
+  return { smelted: total, rescued, fired: firedTotal, outputs, attempts }
 }
