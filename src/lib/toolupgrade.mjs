@@ -440,7 +440,7 @@ export async function withdrawIronCommune (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`iron commune: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`iron commune: path nudge ${m}`) })
             log(`iron commune: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape): the
             // approach's slice is a budget, not a hard per-segment wall - the
@@ -599,7 +599,7 @@ export async function seedIronPool (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`pool seed: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`pool seed: path nudge ${m}`) })
             log(`pool seed: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape) - the
             // same floor the commune and commons retries hold.

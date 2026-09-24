@@ -319,8 +319,11 @@ test('withdrawFuelCommons: the nudge is ONE shot - after it fails the chest is e
   const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 5000, log: m => lines.push(m) })
   assert.equal(res.taken, 0)
   assert.equal(res.reason, 'no chest reached', 'the walk still failed - the honest terminal')
-  const nudgeLines = lines.filter(l => /path nudge/.test(l))
-  assert.equal(nudgeLines.length, 1, 'one nudge per commons visit - the budget discipline')
+  // (v0.157.0) the count pins the CALLER's nudge decision lines (the ternary
+  // shapes); approachWalk's own 'approach: N segment(s)...' internal line now
+  // rides the close shot and is NOT a second nudge.
+  const nudgeLines = lines.filter(l => /path nudge (inside the direct envelope|closed to)/.test(l))
+  assert.equal(nudgeLines.length, 1, 'one nudge decision per commons visit - the budget discipline')
   assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'a failed retry never claims a landing')
 })
 
@@ -794,9 +797,11 @@ test('THE TITHE RETRY: a time-boxed churn refusal waits out the window and re-is
 
 test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge class)', async () => {
   // 'Took to long to decide path to goal!' is start-bound, not time-boxed -
-  // no sleep; the v0.155.0 nudge runs but the near-chest start (d=12.7) is
-  // already inside the 24b envelope, so the approach fires ZERO segments and
-  // the re-goto runs from the unchanged (already-routable) start
+  // no sleep; the v0.155.0 nudge runs and (v0.157.0) the near-chest start
+  // (d=12.7, inside the 24b envelope - the run58 blind spot) now also fires
+  // the CLOSE SHOT: the segment goto succeeds in the mock (no bot movement -
+  // the stall rule ends the approach), then the re-issue lands. 3 gotos:
+  // walk + shot + retry.
   const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!' })
   const sleeps = []
   const res = await deliverFuelTithe(world.bot, {
@@ -804,9 +809,9 @@ test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge cla
     budgetMs: 20000,
     deps: { sleep: async ms => { sleeps.push(ms) } }
   })
-  assert.equal(res.delivered, 8, 'the re-issue from the new start landed')
+  assert.equal(res.delivered, 8, 'the re-issue from the (attempted) new start landed')
   assert.equal(sleeps.length, 0, 'no refusal window to wait out')
-  assert.equal(world.gotoPeek(), 2)
+  assert.equal(world.gotoPeek(), 3)
 })
 
 test('THE DECIDE-CLASS NUDGE (v0.155.0): a far decide failure walks an approach segment and the retry lands', async () => {

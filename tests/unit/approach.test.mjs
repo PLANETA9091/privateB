@@ -22,7 +22,8 @@ import {
   APPROACH_SEGMENT_MAX,
   APPROACH_SEGMENT_MS,
   APPROACH_MIN_REMAINING,
-  PATH_GEOMETRY_RE
+  PATH_GEOMETRY_RE,
+  closeShotTarget
 } from '../../src/lib/approach.mjs'
 
 // The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
@@ -319,4 +320,59 @@ test('wiring: the smelt + commons nudge consults PATH_GEOMETRY_RE and the proven
   assert.match(fuel, /approachWalk\(bot, chest\.position/, 'the commons nudge walks toward the CHEST')
   const fleet = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleet, /yardSeek: async \(\) =>/, 'the fleet wires the yard-seek into the smelt leg')
+})
+
+// --------------------------------------------------- THE CLOSE SHOT (v0.157.0)
+// run58 (36055223458, the v0.155.0/v0.156.0 fleet): the yard nudge machinery
+// fired and immediately surrendered - 'path nudge inside the direct envelope'
+// then the SAME decide re-failure x5+. The failed bot stood INSIDE the 24b
+// envelope, the planner emitted ZERO segments, the start never changed. The
+// close shot walks straight at the goal and stops 2 blocks short - at ANY
+// distance.
+
+test('closeShotTarget: the straight-at-goal math, stopping 2 short', () => {
+  const t = closeShotTarget({ from: { x: 0, y: 64, z: 0 }, to: { x: 10, y: 64, z: 0 } })
+  assert.deepEqual(t, { x: 8, y: 64, z: 0 }, 'd=10 -> walks 8, stops 2 short')
+  const diag = closeShotTarget({ from: { x: 0, y: 0, z: 0 }, to: { x: 3, y: 4, z: 0 } })
+  assert.ok(Math.abs(diag.x - 1.8) < 1e-9 && Math.abs(diag.y - 2.4) < 1e-9, 'd=5 -> walks 3 (60% of the line)')
+})
+
+test('closeShotTarget: too close / junk reads null (the raw ladder owns it)', () => {
+  assert.equal(closeShotTarget({ from: { x: 0, y: 64, z: 0 }, to: { x: 3, y: 64, z: 0 } }), null, 'd=3 <= stop+1: no shot')
+  assert.equal(closeShotTarget({ from: { x: 0, y: 64, z: 0 }, to: { x: 2.5, y: 64, z: 0 } }), null, 'd=2.5: no shot')
+  assert.equal(closeShotTarget({ from: { x: NaN, y: 64, z: 0 }, to: { x: 10, y: 64, z: 0 } }), null, 'junk from')
+  assert.equal(closeShotTarget({ from: null, to: { x: 10, y: 64, z: 0 } }), null, 'no from')
+  const far = closeShotTarget({ from: { x: 0, y: 64, z: 0 }, to: { x: 40, y: 64, z: 0 }, stop: 5 })
+  assert.deepEqual(far, { x: 35, y: 64, z: 0 }, 'a custom stop is honored')
+})
+
+test('approachWalk closeShot: a segment is emitted INSIDE the envelope and the bot moves (the run58 shape)', async () => {
+  // the bot stands d=12.7 from the chest - the envelope planner would emit
+  // nothing; the close shot walks it to 2 blocks short
+  const bot = { entity: { position: { x: 1.5, y: 64, z: 1.5 } } }
+  const shots = []
+  const rawWalk = async (b, seg, { timeoutMs } = {}) => {
+    shots.push({ seg, timeoutMs })
+    b.entity.position = { x: seg.x, y: seg.y, z: seg.z } // the raw walk moves the bot
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, { x: 10.5, y: 64, z: 10.5 }, { closeShot: true, rawWalk, log: () => {} })
+  assert.equal(shots.length, 1, 'exactly one close shot')
+  assert.ok(shots[0].seg.x > 1.5 && shots[0].seg.x < 10.5, 'the segment sits on the line, short of the goal')
+  assert.equal(res.walked, true, 'the goal is now inside the direct envelope')
+  assert.ok(Math.abs(res.d - 2) < 0.1, `closed to ~2 blocks (got ${res.d})`)
+})
+
+test('approachWalk closeShot: no rawWalk dep still moves via the pathfinder fallback, byte-compat off', async () => {
+  // closeShot=false (default): the envelope planner no-ops at d=12.7 - the
+  // v0.155.0 field shape stays byte-identical for every legacy caller. THE
+  // LIE THE FIELD MEASURED: walked=true (the goal is within the envelope)
+  // while segments=0 - the bot never moved, the re-goto re-failed.
+  let gotoCalls = 0
+  const bot = { entity: { position: { x: 1.5, y: 64, z: 1.5 } }, pathfinder: { goto: async () => { gotoCalls++ } } }
+  const res = await approachWalk(bot, { x: 10.5, y: 64, z: 10.5 }, { log: () => {} })
+  assert.equal(res.segments, 0, 'the legacy planner refuses a close-range segment')
+  assert.equal(gotoCalls, 0, 'nothing was walked')
+  assert.equal(res.walked, true, 'the envelope read says walked - the run58 blind spot pinned here')
+  assert.ok(Math.abs(res.d - 12.7279) < 0.01, `the bot stands where it stood (got ${res.d})`)
 })

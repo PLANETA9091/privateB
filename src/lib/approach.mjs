@@ -67,6 +67,45 @@ export const APPROACH_MAX_SEGMENTS = 8
 // geometry is the failed bot's start, not the destination.
 export const PATH_GEOMETRY_RE = /Took to long to decide path to goal!|No path to the goal!/
 
+// (v0.157.0) THE CLOSE SHOT - the nudge's blind spot, run58's field verdict.
+// MEASURED (dispatch 36055223458, the v0.155.0/v0.156.0 fleet): the yard
+// nudge machinery FIRED and immediately surrendered - 'F2 fuel commons: path
+// nudge inside the direct envelope' then 'chest walk failed after the nudge
+// (Took to long to decide path to goal!)' x5+ (F2/F6/F9/F17), 'iron commune:
+// path nudge inside the direct envelope' + the same re-failure (F2/F17/F9).
+// The mechanism: the failed bot stood INSIDE the 24b approach envelope, so
+// approachTargetPos returned null (its gate is `dist <= maxSegment +
+// minRemaining` = 20+4), the nudge's approachWalk emitted ZERO segments, the
+// start NEVER changed, and the re-goto re-failed the decide class
+// deterministically - the exact disease the nudge was built to cure, alive
+// at close range. The close shot keeps the doctrine honest: the start must
+// change AT ANY DISTANCE. The shot walks straight at the goal and stops
+// `stop` blocks short (2) - close enough that the direct ladder (the
+// proximate fast path, the raw hop) owns the final blocks it can see.
+// Below stop+1 the shot refuses (the raw ladder owns a 2-block walk by
+// construction; a shot there would just push the bot INTO the chest).
+export const CLOSE_SHOT_STOP = 2
+
+/**
+ * Pure: the point `stop` blocks short of `to` along the from->to line, or
+ * null when `from` is too close for the shot to be worth anything. Junk-safe
+ * like approachTargetPos (non-finite coordinates yield null).
+ * @param {{from?: {x?: number, y?: number, z?: number}, to?: {x?: number, y?: number, z?: number},
+ *          stop?: number}} p
+ * @returns {{x: number, y: number, z: number}|null}
+ */
+export function closeShotTarget ({ from, to, stop = CLOSE_SHOT_STOP } = {}) {
+  const fx = Number(from?.x); const fy = Number(from?.y); const fz = Number(from?.z)
+  const tx = Number(to?.x); const ty = Number(to?.y); const tz = Number(to?.z)
+  if (![fx, fy, fz, tx, ty, tz].every(Number.isFinite)) return null
+  const dx = tx - fx; const dy = ty - fy; const dz = tz - fz
+  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  const s = Number.isFinite(stop) && stop >= 0 ? stop : CLOSE_SHOT_STOP
+  if (!Number.isFinite(dist) || dist <= s + 1) return null // too close: the raw ladder owns it
+  const k = (dist - s) / dist
+  return { x: fx + dx * k, y: fy + dy * k, z: fz + dz * k }
+}
+
 /**
  * Pure: the intermediate point one segment toward `to`, or null when `from`
  * is close enough for the direct ladder. Plain {x,y,z} (no Vec3 in the pure
@@ -131,6 +170,7 @@ export async function approachWalk (bot, targetPos, {
   segmentMs = APPROACH_SEGMENT_MS,
   budgetMs = Infinity,
   rawWalk = null,
+  closeShot = false, // (v0.157.0) emit a straight-at-goal segment even INSIDE the envelope (the close-decide cure)
   log = () => {}
 } = {}) {
   const segmentsUsed = []
@@ -144,7 +184,17 @@ export async function approachWalk (bot, targetPos, {
     const left = budget - (Date.now() - started)
     if (left <= 0) { endWhy = 'the approach clock is spent'; break }
     const from = posOf(bot)
-    const seg = approachTargetPos({ from, to: targetPos })
+    // (v0.157.0) THE CLOSE SHOT as a FALLBACK, not a replacement: the legacy
+    // planner owns every goal outside the envelope (the far-decide segments
+    // keep their v0.155.0 targets byte-identical). Only when it returns null
+    // (the goal inside the envelope - the run58 blind spot where the start
+    // never changed) does the close shot emit one straight segment stopping
+    // `stop` blocks short. The segment moves via the loop's own pathfinder
+    // fallback below (the run58 F6 evidence: the segment walk is exactly what
+    // the A* CAN route when the final goal refuses - 1 segment walked in
+    // 0.4s), the move check + the anti-spin rule stay the only truth.
+    let seg = approachTargetPos({ from, to: targetPos })
+    if (!seg && closeShot) seg = closeShotTarget({ from, to: targetPos })
     if (!seg) break // close enough (or unreadable): the direct ladder takes over
     let rawOk = false
     if (typeof rawWalk === 'function') {

@@ -434,7 +434,7 @@ export async function deliverFuelTithe (bot, {
       const nudgeMs = Math.min(remainingMs(), 15000)
       if (nudgeMs > 1000) {
         try {
-          const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, log: m => log(`fuel anchor: path nudge ${m}`) })
+          const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, closeShot: true, log: m => log(`fuel anchor: path nudge ${m}`) })
           log(`fuel anchor: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying from the new start`}`)
         } catch { /* the nudge never kills the chain */ }
         try { dist = Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { /* the stale dist still bounds the retry */ }
@@ -690,7 +690,7 @@ export async function withdrawFuelCommons (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`fuel commons: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`fuel commons: path nudge ${m}`) })
             log(`fuel commons: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD: run555 (36049735813, the
             // v0.154.0 fleet) measured the segment OVERRUNNING its slice -
