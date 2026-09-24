@@ -578,7 +578,14 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // (the healthy lean pocket) stays quiet - it fires every chain.
       else if (anchorRes.why !== 'no overage') console.log(`${miner.username} fuel anchor: 0 delivered (${anchorRes.why}) - the legacy scatter carries the tithe`)
     } else if (overage > 0) {
-      console.log(`${miner.username} fuel anchor: skipped - the final leg clock (${Math.round(remaining())}s) cannot afford the walk while the pocket holds ${overage} over the bound`)
+      // (v0.157.0) THE CLOCK-LABEL FIX: remaining() returns MILLISECONDS (the
+      // run556 reads 'the final leg clock (10075s)', '(12899s)', '(14837s)' on
+      // a 600s run - the 02:54 lane flagged the shape, the field tripled it).
+      // The clock was never miscomputed: 10075 ms is an honest 10.1s - too
+      // thin for the anchor slice, the skip itself correct - but the label
+      // printed raw ms with an 's' suffix and the mine read a five-digit
+      // second count three times. The label now divides.
+      console.log(`${miner.username} fuel anchor: skipped - the final leg clock (${(remaining() / 1000).toFixed(1)}s) cannot afford the walk while the pocket holds ${overage} over the bound`)
     }
   } catch { /* the legacy scatter is the fallback */ }
   const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
@@ -601,7 +608,15 @@ function materialsProgress () {
     // (v0.9.3) planHave counts the drop AND the one-step product (raw_iron toward
     // iron_ingot, any *_planks toward planks) - the old single-item count reported
     // have=0 for resources the fleet was actually making
-    const have = list.reduce((a, m) => a + (m.bot ? planHave(m.bot.inventory.items(), res) : 0), 0)
+    // (v0.157.0) THE RESPAWN-WINDOW GUARD: run556 (36055223458) caught the tick
+    // dead live - "uncaught exception (kept alive): TypeError: Cannot read
+    // properties of undefined (reading 'items') at materialsProgress" - a bot
+    // mid-respawn/relogin owns a bot object whose inventory is not built yet
+    // (the m.bot truthiness check races the spawn window). Each crash killed
+    // the plan tick for that interval; the plan progress the build reports on
+    // stayed starved (2/31 for an era). The optional chain reads the window
+    // honestly: no inventory yet = 0 have from THIS bot, the tick lives.
+    const have = list.reduce((a, m) => a + (m.bot?.inventory ? planHave(m.bot.inventory.items(), res) : 0), 0)
     out[res] = { required, have, item: planItemsOf(res).join('+'), pct: Math.min(100, (have / required) * 100) }
   }
   return out
@@ -1898,7 +1913,10 @@ for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
   // grass_block drops (the first runs reported stone collected=0 while bots held
   // stacks of cobblestone - a reporting lie, not an empty inventory)
-  const got = list.reduce((a, m) => a + (m.bot ? planHave(m.bot.inventory.items(), t) : 0), 0)
+  // (v0.157.0) the SAME respawn-window guard as materialsProgress: this report
+  // line rides the same shape and a crash HERE would kill the final report
+  // print itself (the run's whole summary lost to a spawn race)
+  const got = list.reduce((a, m) => a + (m.bot?.inventory ? planHave(m.bot.inventory.items(), t) : 0), 0)
   const required = need[t]
   console.log(`  ${t.padEnd(13)} collected ${String(got).padStart(7)}${required ? ` (${((got / required) * 100).toFixed(3)}% of ${required.toLocaleString()})` : ''}`)
 }

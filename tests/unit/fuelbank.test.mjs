@@ -1088,7 +1088,7 @@ test('REGRESSION PIN: the v0.128.0 named exits ride the fleet and the bank sourc
   const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /fuel anchor: 0 delivered \(\$\{anchorRes\.why\}\) - the legacy scatter carries the tithe/, 'every non-delivery exit names its why')
   assert.match(fleetSrc, /anchorRes\.why !== 'no overage'/, 'the healthy lean pocket stays quiet')
-  assert.match(fleetSrc, /fuel anchor: skipped - the final leg clock \(\$\{Math\.round\(remaining\(\)\)\}s\) cannot afford the walk while the pocket holds \$\{overage\} over the bound/, 'the thin-clock guard skip names the overage it strands')
+  assert.match(fleetSrc, /fuel anchor: skipped - the final leg clock \(\$\{\(remaining\(\) \/ 1000\)\.toFixed\(1\)\}s\) cannot afford the walk while the pocket holds \$\{overage\} over the bound/, 'the thin-clock guard skip names the overage it strands (v0.157.0: the clock label divides - remaining\(\) is ms, the mine read five-digit seconds x3 in run556)')
   assert.match(fleetSrc, /const overage = fuelPocketOverage\(miner\.bot\)/, 'the caller pre-reads the overage so the skip is honest')
   assert.match(bankSrc, /export const ANCHOR_FRESH_EMPTY_MS = 15000/)
   assert.match(bankSrc, /export function freshEmptyCells/)

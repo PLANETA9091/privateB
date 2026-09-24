@@ -4,6 +4,7 @@
 // diggers. mapTripTargets is that missing link; these tests pin its policy.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { DROP_OF, MINABLE_OF, mapTripTargets, oreSteerOrder } from '../../src/fleet/materialplan.mjs'
 
 const progressFrom = entries => Object.fromEntries(entries.map(([res, required, have]) => [res, { required, have, item: DROP_OF[res] ?? res }]))
@@ -205,4 +206,17 @@ test('oreSteerOrder: the raw resource name still wins when the plan carries both
   }
   assert.equal(oreSteerOrder({ progress, ores: ['iron_ore'] })[0], 'iron_ore')
   // and the deficit used the RAW entry (100), not the bridged one - direct hit first
+})
+
+// (v0.157.0) THE RESPAWN-WINDOW GUARD - run556 (36055223458) caught the fleet's
+// materials tick dead live: "uncaught exception (kept alive): TypeError:
+// Cannot read properties of undefined (reading 'items') at materialsProgress".
+// A bot mid-respawn/relogin owns a bot object whose inventory is not built
+// yet; the m.bot truthiness check raced the spawn window and the crash killed
+// the plan tick (the 2/31 plan progress stayed starved for an era). The
+// optional chain is the cure; the pin holds the guard on the fleet source.
+test('wiring: the materials tick survives the respawn window (fleet19.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /m\.bot\?\.inventory \? planHave\(m\.bot\.inventory\.items\(\), res\) : 0/, 'the inventory read is optional-chained - a bot mid-respawn reads 0 have instead of crashing the tick')
+  assert.doesNotMatch(src, /m\.bot \? planHave\(m\.bot\.inventory/, 'the bare truthiness race is gone')
 })
