@@ -34,7 +34,7 @@ import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
-import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
+import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
@@ -434,6 +434,34 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         // {name, reason} and mine {name, machine, reason} - and the empty
         // attempts array reads 'nothing to smelt', the plan-empty case.)
         console.log(`${miner.username} smelt: 0 (${smeltZeroWhy(res.attempts)})`)
+      }
+      // (v0.146.0) THE IRON COMMUNE - run49 (36008932449, the v0.145.0
+      // composite) smelted the fleet's first iron ingots (F18 1 + F3 2) and
+      // still ended iron=0: thin veins split the output 1-2 per bot, the
+      // chest pools the rest (iron is not KEEP), and no leg ever completed a
+      // set. The moment is HERE: the bot stands yard-side, fresh ingots in
+      // the pocket, the commune chests in reach. Withdraw (3 - pocket) from
+      // a yard chest; a completed set crafts on the SPOT (the table is
+      // yard-side too, and the final deposit's own reserve stays intact -
+      // the commune's walk is budget-bounded, the craft only fires when the
+      // set actually completed).
+      try {
+        const heldNow = countItem(miner.bot, 'iron_ingot')
+        if (heldNow > 0 && heldNow < 3) {
+          const comm = await withdrawIronCommune(miner.bot, {
+            yardCenter: yardGoal,
+            budgetMs: 15000,
+            log: m => console.log(`${miner.username} iron commune: ${m}`)
+          })
+          if (comm.pocketNow >= 3) {
+            console.log(`${miner.username} iron commune: the set is complete (${comm.pocketNow}/3) - crafting the pick on the spot`)
+            const up = await upgradeTools(miner.bot, { maxSeconds: 20, log: m => console.log(`${miner.username} ${m}`) })
+            if (up.ok) toolsUpgraded++
+            console.log(`${miner.username} tool upgrade (commune): ${up.ok ? 'OK' : 'failed'} -> ${up.tier || 'none'} (${up.detail})`)
+          }
+        }
+      } catch (e) {
+        console.log(`${miner.username} iron commune: error (kept alive): ${e.message}`)
       }
       // (v0.139.0) THE HARVEST SWEEP - run553 (35970697452, the v0.137.0 fleet)
       // fired 30 items into machines (F5=10, F3=19, F2=1) and harvested ZERO:

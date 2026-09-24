@@ -19,7 +19,7 @@ import {
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
-  fuelCapacity, clockCapItems, JUNK_COAL_FLOOR
+  fuelCapacity, clockCapItems, JUNK_COAL_FLOOR, WALK_REFUSAL_WAIT_RE,
 } from '../../src/lib/smelting.mjs'
 import { FUEL_TITHE_BOUND } from '../../src/lib/deposit.mjs'
 
@@ -1294,4 +1294,30 @@ test('REGRESSION PIN: the v0.140.2 collector\'s ledger counts the rescue', () =>
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /smelted \+= res\.smelted \+ \(res\.rescued \?\? 0\)/, 'the harvested rescue completes the fired batch on the COLLECTOR\'s ledger (fired -> harvested -> smelted)')
   assert.match(fleetSrc, /THE COLLECTOR'S LEDGER/, 'the ledger fix names its evidence')
+})
+
+// ------------------------------------------------- THE GOVERNORED-WALK FAMILY
+// (v0.146.0) run49 (36008932449): F14's smelt ladder tripped the goal brake on
+// its OWN retry cadence (13 machine candidates in one visit) and every candidate
+// after the 7th died refused - the visit aborted with the raw metal unsmelted.
+// The machine walk's bounded-wait branch now reads the goal brake's named clock
+// (the governor/ceiling branch it already had). The regex IS the contract.
+test('WALK_REFUSAL_WAIT_RE: the bounded-wait family - governor, fleet ceiling, goal brake', () => {
+  const re = WALK_REFUSAL_WAIT_RE
+  assert.ok(re.test('walk governor: bot churned 4 goals without progress - walk to furnace refused for 12s'), 'the governor refusal waits')
+  assert.ok(re.test('fleet churn ceiling: 9 zero-progress walks fleet-wide - walk to furnace refused for 6s'), 'the fleet ceiling refusal waits')
+  assert.ok(re.test('goal brake: 6 goals in 5s - walk to furnace refused for 3s'), 'the goal brake refusal waits (the run49 F14 shape)')
+  assert.ok(!re.test('NoPath: No path to the goal!'), 'a terminal NoPath never waits')
+  assert.ok(!re.test('The goal was changed before it could be completed!'), 'a goal replacement never waits')
+  assert.ok(!re.test('water rescue in progress'), 'the rescue gate keeps its own branch')
+  assert.ok(!re.test('fleet goal ceiling: 31 goals fleet-wide in 5s - walk refused for 20s'), 'the FLEET goal ceiling stays terminal - the fleet-wide storm pause is not a visit hostage clock')
+})
+
+test('WALK_REFUSAL_WAIT_RE: the named-clock extraction feeds the wait slice', () => {
+  const msg = 'goal brake: 6 goals in 5s - walk to furnace refused for 3s'
+  const m = /refused for (\d+)s/.exec(msg)
+  assert.ok(m, 'the brake refusal carries the wait clock')
+  assert.equal(Number(m[1]), 3)
+  const g = /refused for (\d+)s/.exec('walk governor: bot churned 4 goals without progress - walk to furnace refused for 12s')
+  assert.equal(Number(g[1]), 12, 'the governor shape still extracts')
 })

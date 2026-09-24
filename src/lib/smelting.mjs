@@ -126,6 +126,23 @@ export function smeltZeroWhy (attempts) {
 // while the NEXT chain finds the bay walkable again.
 export const MACHINE_DOOM_TTL_MS = 15000
 
+// (v0.146.0) THE GOVERNORED-WALK REFUSAL FAMILY - the bounded-wait verdicts a
+// machine walk may WAIT OUT instead of dying on. MEASURED (run49, 36008932449,
+// the v0.145.0 composite): F14's smelt ladder tripped the goal brake on its OWN
+// retry cadence - 13 machine candidates in one visit burst past the brake's
+// 6-goals/5s window, and every candidate after the 7th died refused ('goal
+// brake: 6 goals in 5s - walk to furnace refused for 3s') - the visit aborted,
+// the raw metal rode home unsmelted, the next visit repeated the dance. The
+// churn governor and the fleet ceiling already had this branch (the CI
+// 35732767677 lesson: the bot hauled itself out of the pocket while its
+// evidence was still live, and the visit died on the refusal anyway); the
+// goal brake's refusal is the same named-clock shape ('refused for Ns') and
+// joins the family. The FLEET goal ceiling deliberately stays OUT: its
+// cooldown is the fleet-wide storm pause (escalating to 20s) - a visit that
+// waits it out holds the bot hostage to the whole fleet's weather; dying fast
+// is the honest verdict there.
+export const WALK_REFUSAL_WAIT_RE = /walk governor|fleet churn ceiling|goal brake/
+
 // (v0.99.0) THE YARD-ADJACENT RE-ARM - run88 (35817410592) named the inverse of
 // the re-doom backoff: F17 stood IN the yard ('camp furnace: no build (machine
 // near)' seconds earlier) with cobblestone in the pocket, and the smelt visit
@@ -607,7 +624,7 @@ export async function smeltBatch (bot, {
       // still live, and the visit then died on the refusal instead of
       // walking one block to its own furnace). Wait the named cooldown out
       // (bounded by the visit's own slice), then let the loop retry.
-      if (!governorWaited && /walk governor|fleet churn ceiling/.test(e.message)) {
+      if (!governorWaited && WALK_REFUSAL_WAIT_RE.test(e.message)) {
         governorWaited = true
         const m = /refused for (\d+)s/.exec(e.message)
         const asked = (m ? Number(m[1]) : 5) * 1000 + 1000

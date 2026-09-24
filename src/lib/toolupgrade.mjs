@@ -19,6 +19,12 @@
 // This module is the POLICY layer (when to upgrade, to which tier). The MECHANISM
 // (phantom-safe crafting, table placement, grid sweeps) stays in src/bots/tools.mjs.
 import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS } from './deposit.mjs'
+import { gotoSafe, withTimeout } from './jobqueue.mjs'
+import { withdrawStackMove, pickWithdrawSlots } from './fuelbank.mjs'
+import pathfinderPkg from 'mineflayer-pathfinder'
+
+const { goals } = pathfinderPkg
 
 // Tier ladder, worst to best. Index order IS the comparison order.
 export const PICK_TIERS = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe']
@@ -319,4 +325,123 @@ export async function craftSparePickaxe (bot, { log = null, maxSpares = 2, deps 
   } catch (e) {
     return { ok: false, tier: null, reason: `error: ${e.message}` }
   }
+}
+
+// ---------------------------------------------------------------------------
+// (v0.146.0) THE IRON COMMUNE - the withdraw leg that completes the pickaxe set.
+//
+// MEASURED (run49, 36008932449, the v0.145.0 composite): the ladder finally
+// SMELTED iron - 'F18 smelted 11 (iron_ingot:1 copper_ingot:10)', 'F3 smelted
+// 3 (iron_ingot:2 stone:1)' - the first ingots in fleet history, and the
+// pickaxe count still read iron=0: the veins are THIN (raw_iron arrives 1-2
+// per smelt window) and every bot's ingots strand one or two short of the
+// recipe's 3, in its own pocket or in the yard chest (iron is NOT on the
+// deposit KEEP list - the chest has been pooling them all along; keepForIron's
+// pocket-lock doctrine was never wired and could only starve the pool anyway).
+// THE CURE: the chest IS the commune. A bot holding 1-2 ingots completes the
+// set from a yard chest (the withdraw machinery the fuel commons proved),
+// and the upgrade flow turns the completed set into the fleet's first iron
+// pickaxe. THE MOMENT: right after a smelt leg - the one point in the chain
+// the bot stands yard-side with fresh ingots and the chests in reach.
+//
+// The pure plan first, junk-safe end to end: a junk pocket/chest reads need 0,
+// a complete set reads 0 (craft, do not withdraw), the chest is never
+// overdrawn past what completes the set, and a partial chest funds a partial
+// withdraw (1 chest ingot toward a 2-ingot gap still lands in the pocket -
+// the NEXT visit or the next bot completes it).
+
+export function ironCommunePlan ({ pocketCount = 0, chestCount = 0, target = IRON_PICK_INGOTS } = {}) {
+  const have = Number(pocketCount)
+  const inChest = Number(chestCount)
+  const goal = Number(target)
+  if (!Number.isFinite(goal) || goal <= 0) return { need: 0 }
+  if (!Number.isFinite(have) || have < 0) return { need: 0 }
+  if (!Number.isFinite(inChest) || inChest <= 0) return { need: 0 }
+  if (have >= goal) return { need: 0 }
+  // the pocket floors before the gap: a fractional read is caller junk (real
+  // stacks are integers) and the gap owes WHOLE units
+  return { need: Math.min(Math.max(0, Math.floor(goal) - Math.floor(have)), Math.floor(inChest)) }
+}
+
+/** The commune's withdraw walk: complete the bot's iron_ingot set from the
+ * yard chests. Same machinery family as withdrawFuelCommons (findChest ->
+ * the re-arming doomed walk -> openChest -> the verified click diff -> close)
+ * with the commune's plan and a tighter chest budget (3 chests, one item
+ * type). Junk bot / a complete set / no chest / empty chest / ghost clicks
+ * all read honestly and never throw. */
+export async function withdrawIronCommune (bot, {
+  yardCenter = null,
+  maxDistance = 48,
+  yardRadius = YARD_CHEST_RADIUS,
+  budgetMs = 20000,
+  clickTimeoutMs = 5000,
+  log = () => {}
+} = {}) {
+  const held = countItem(bot, 'iron_ingot')
+  if (!Number.isFinite(held) || held <= 0 || held >= IRON_PICK_INGOTS) return { taken: 0, pocketNow: held, reason: 'nothing to commune' }
+  const started = Date.now()
+  const remainingMs = () => budgetMs - (Date.now() - started)
+  const exclude = []
+  let taken = 0
+  for (let c = 0; c < 3; c++) {
+    if (remainingMs() <= 0) { log(`budget spent (${taken}/${IRON_PICK_INGOTS - held} units)`); break }
+    const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
+    if (!chest) { if (c === 0) log('no yard chest in range'); break }
+    const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+    try {
+      // the re-arming doomed walk (the fuel commons shape): the yard is THE
+      // shared destination class - a sibling bot's failed walk never speaks
+      // for this bot's start.
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'iron commune walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+    } catch (e) {
+      log(`chest walk failed (${e?.message || e})`)
+      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      continue
+    }
+    let window = null
+    try {
+      window = await withTimeout(bot.openChest(chest), 10000, 'open commune chest')
+    } catch (e) {
+      log(`open failed (${e?.message || e})`)
+      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+      continue
+    }
+    try {
+      const chestSlots = chestSlotCount(window)
+      const slots = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null)
+      const chestIngot = Array.isArray(slots) && chestSlots > 0
+        ? slots.slice(0, chestSlots).reduce((n, s) => n + (s && s.name === 'iron_ingot' && s.count > 0 ? s.count : 0), 0)
+        : 0
+      const plan = ironCommunePlan({ pocketCount: countItem(bot, 'iron_ingot'), chestCount: chestIngot })
+      if (!plan || plan.need <= 0) {
+        log(`chest holds ${chestIngot} ingot(s) - nothing to complete here`)
+        if (chestIngot <= 0) exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
+      // per-TYPE pocket snapshots: the verified diff (not the clicks) is the
+      // only truth - the ghost-click class has lied here before (deposit.mjs)
+      const before = countItem(bot, 'iron_ingot')
+      let moved = 0
+      while (moved < plan.need) {
+        const slotsNow = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null) || []
+        const stack = slotsNow.slice(0, chestSlots).find(s => s && s.name === 'iron_ingot' && s.count > 0)
+        if (!stack) break // this stack drained into pocket stacks mid-move
+        const pair = pickWithdrawSlots({ window, itemType: stack.type, chestSlots })
+        if (!pair) break // no pocket room left - the honest stop
+        await withdrawStackMove(bot, window, { srcIdx: pair.srcIdx, dstIdx: pair.dstIdx, take: plan.need - moved, stackCount: stack.count, clickTimeoutMs })
+        moved += Math.min(plan.need - moved, stack.count)
+      }
+      const got = Math.max(0, countItem(bot, 'iron_ingot') - before)
+      taken += got
+      if (got > 0) log(`took ${got} iron_ingot from a yard chest - the pocket now ${countItem(bot, 'iron_ingot')}/${IRON_PICK_INGOTS}`)
+      else log('the clicks lied - no ingot landed in the pocket (ghost clicks)')
+      if (countItem(bot, 'iron_ingot') >= IRON_PICK_INGOTS) break
+      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+    } finally {
+      try { window.close?.() } catch { /* already closed */ }
+    }
+  }
+  const pocketNow = countItem(bot, 'iron_ingot')
+  const reason = taken > 0 ? 'ok' : (pocketNow >= IRON_PICK_INGOTS ? 'set complete' : 'no ingot reached the pocket')
+  return { taken, pocketNow, reason }
 }

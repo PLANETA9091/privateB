@@ -4,10 +4,85 @@
 // ORDER (sticks first, then table, then the pickaxe) without mocking mineflayer.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import Vec3 from 'vec3'
 import {
   PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS,
-  pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron
+  pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron,
+  ironCommunePlan, withdrawIronCommune
 } from '../../src/lib/toolupgrade.mjs'
+
+// The commune's mock chest world - the fuel commons' proven shape
+// (tests/unit/fuelbank.test.mjs mockChestWorld) retargeted at iron_ingot:
+// findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto, openChest ->
+// a 27-slot chest window whose pocket rows ARE the bot inventory.
+function ironItem (count = 1) {
+  return { name: 'iron_ingot', count, type: 251, stackSize: 64 }
+}
+
+function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = false } = {}) {
+  const chestSlots = Array.from({ length: 27 }, () => null)
+  if (chestItem) chestSlots[0] = { ...chestItem }
+  const pocket = Array.from({ length: 36 }, () => null)
+  const slots = [...chestSlots, ...pocket]
+  const chestBlock = { name: 'chest', position: new Vec3(3.5, 64, 3.5) }
+  const world = {
+    opened: 0,
+    setPocket (n) {
+      // slots (not pocket) is the live view: slots was SPREAD-built once, so
+      // the pocket rows the bot inventory reads live at slots[27..]
+      slots[27] = n > 0 ? ironItem(n) : null
+    }
+  }
+  world.bot = {
+    username: 'CommuneBot',
+    entity: { position: { distanceTo: () => 4 } },
+    inventory: { items: () => slots.slice(27).filter(Boolean) },
+    pathfinder: { goto: async () => { if (walkFails) throw new Error('NoPath: no path') } },
+    findBlock: ({ matching }) => chestItem || !walkFails ? (matching(chestBlock) ? chestBlock : null) : null,
+    openChest: async () => {
+      world.opened++
+      return {
+        slots,
+        close () { this.closed = true }
+      }
+    },
+    clickWindow: async (idx, button) => {
+      if (clickGhost) return // the ghost-click lie: the packet dies quietly
+      const s = slots[idx]
+      if (button === 0) {
+        if (s == null) { /* lift from empty: server refuses, view unchanged */ return }
+        if (s.__cursor) return
+        s.__cursor = true
+        slots[idx] = null
+        slots.__held = s
+      } else if (button === 2) {
+        const held = slots.__held
+        if (held == null || held.count <= 0) return
+        if (s && s.type === held.type && s.count < (s.stackSize ?? 64)) s.count += 1
+        else if (s == null) slots[idx] = { ...held, count: 1 }
+        else return
+        held.count -= 1
+      }
+    }
+  }
+  // the cursor return click (button 0 onto the source slot while holding)
+  const origClick = world.bot.clickWindow
+  world.bot.clickWindow = async (idx, button) => {
+    const held = slots.__held
+    if (button === 0 && held != null) {
+      if (slots[idx] == null) { slots[idx] = held; slots.__held = null; held.__cursor = false; return }
+      if (slots[idx].type === held.type && slots[idx].count < (slots[idx].stackSize ?? 64)) {
+        slots[idx].count = Math.min(slots[idx].stackSize ?? 64, slots[idx].count + held.count)
+        slots.__held = null
+        held.__cursor = false
+        return
+      }
+      return // refusal: the held stack stays held (the diff reports it)
+    }
+    return origClick(idx, button)
+  }
+  return world
+}
 
 // A fake inventory item shaped like mineflayer's Item (name/count/maxDurability/
 // durabilityUsed are all the decision code reads).
@@ -639,4 +714,77 @@ test('craftSparePickaxe: a failed rung keeps the legacy skip verdict byte for by
   assert.equal(res.ok, false)
   assert.match(res.reason, /not enough planks to make sticks/)
   assert.deepEqual(calls, [], 'no craft may run when the conversion fails and the guard refuses')
+})
+
+// ------------------------------------------------------- THE IRON COMMUNE
+// (v0.146.0) run49 (36008932449) smelted the fleet's first iron ingots (F18 1
+// + F3 2) and still ended iron=0 - the thin veins split the output 1-2 per
+// bot, the chest pools the rest, and no leg ever completed a set. The commune
+// plan is pure inventory math; the withdraw walk rides the fuel commons'
+// proven machinery shape through a mock chest world.
+
+test('ironCommunePlan: the set-completion matrix', () => {
+  const p = ironCommunePlan
+  assert.equal(p({ pocketCount: 0, chestCount: 3 }).need, 3, 'empty pocket, full chest: the whole set')
+  assert.equal(p({ pocketCount: 1, chestCount: 10 }).need, 2, '1 held, chest surplus: take 2')
+  assert.equal(p({ pocketCount: 2, chestCount: 2 }).need, 1, '2 held, chest 2: take 1 (the run49 F3 shape)')
+  assert.equal(p({ pocketCount: 2, chestCount: 1 }).need, 1, 'a partial chest funds a partial withdraw')
+  assert.equal(p({ pocketCount: 2, chestCount: 1 }).need, 1, 'never overdraw past the goal')
+  assert.equal(p({ pocketCount: 0, chestCount: 2 }).need, 2, 'chest short of the goal still funds what it has')
+  assert.equal(p({ pocketCount: 3, chestCount: 10 }).need, 0, 'the set is complete - craft, do not withdraw')
+  assert.equal(p({ pocketCount: 5, chestCount: 1 }).need, 0, 'over-complete reads 0')
+  assert.equal(p({ pocketCount: 2, chestCount: 0 }).need, 0, 'an empty chest funds nothing')
+  assert.equal(p({ pocketCount: 1, chestCount: -3 }).need, 0, 'junk chest reads 0')
+  assert.equal(p({ pocketCount: -1, chestCount: 3 }).need, 0, 'junk pocket reads 0')
+  assert.equal(p({ pocketCount: NaN, chestCount: 3 }).need, 0, 'NaN pocket reads 0')
+  assert.equal(p({ pocketCount: 1, chestCount: 'junk' }).need, 0, 'string chest reads 0')
+  assert.equal(p({ pocketCount: 1, chestCount: 3, target: 0 }).need, 0, 'junk target reads 0')
+  assert.equal(p({ pocketCount: 1, chestCount: 3, target: NaN }).need, 0, 'NaN target reads 0')
+  assert.equal(p({ pocketCount: 4, chestCount: 6, target: 4 }).need, 0, 'a custom target respects the completion rule')
+  assert.equal(p({ pocketCount: 2, chestCount: 6, target: 4 }).need, 2, 'a custom target scales the gap')
+  assert.equal(p({ pocketCount: 2.5, chestCount: 6 }).need, 1, 'fractional pockets floor the gap')
+})
+
+test('withdrawIronCommune: junk bots never touch the world', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  for (const held of [0, 3, 5]) {
+    world.setPocket(held)
+    const res = await withdrawIronCommune(world.bot, {})
+    assert.equal(res.taken, 0)
+    assert.equal(world.opened, 0, `pocket ${held}: no chest window ever opened`)
+  }
+})
+
+test('withdrawIronCommune: the run49 F3 shape - 2 held, chest 1, the set completes', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(1) })
+  world.setPocket(2)
+  const res = await withdrawIronCommune(world.bot, {})
+  assert.equal(res.taken, 1)
+  assert.equal(res.pocketNow, 3)
+  assert.equal(res.reason, 'ok')
+  assert.equal(world.opened, 1)
+})
+
+test('withdrawIronCommune: an empty chest is excluded and reported honestly', async () => {
+  const world = mockCommuneWorld({ chestItem: null })
+  world.setPocket(1)
+  const res = await withdrawIronCommune(world.bot, {})
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'no ingot reached the pocket')
+})
+
+test('withdrawIronCommune: ghost clicks report the lie, never throw', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(8), clickGhost: true })
+  world.setPocket(1)
+  const res = await withdrawIronCommune(world.bot, {})
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'no ingot reached the pocket')
+})
+
+test('withdrawIronCommune: a walk failure tries the next chest, the verdict stays honest', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(8), walkFails: true })
+  world.setPocket(1)
+  const res = await withdrawIronCommune(world.bot, {})
+  assert.equal(res.taken, 0)
+  assert.equal(world.opened, 0, 'a refused walk never opens a window')
 })
