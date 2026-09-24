@@ -28,6 +28,7 @@ import {
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
+import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
@@ -1871,10 +1872,72 @@ export function createMiner ({
     }
   }
 
+  // (v0.140.0) THE GRAVITY ROOF FENCE - the dig helper the three dig lanes
+  // (mineBlock's tunnel/gallery face, veinSweep's ore cell, nukeAround's
+  // candidate) consult before the first swing. run554 (35974993311, the
+  // v0.139.0 fleet) buried SIX bots suffocated-in-a-wall (F4/F2/F15/F14/F5/F3,
+  // the mine zone y 42-56, F5+F3 the same pocket five log lines apart): each
+  // dug a block whose above-column held sand/gravel - the column collapsed
+  // INTO the cleared cell and the tunnel's own step-in (or the vein detour's
+  // walk-under) put a bot head inside the landed block. The v0.25.0 climb's
+  // textbook applies verbatim: RE-SCAN and RE-DIG, TOP-DOWN. Each pass reads
+  // the 3 cells above the target and digs the gravity ones highest-first (a
+  // top-down dig can never drop a lower cell's load); a column taller than
+  // the window settles one cell per pass and the next pass catches it; a
+  // column that will not exhaust within GRAVITY_MAX_PASSES refuses THIS dig
+  // (named, the lane moves on) instead of gambling a bot. Junk reads never
+  // fence; the fence's own errors never fence (a cure must not stall the mine).
+  // Returns { ok, cleared, why? } - ok=false means the caller skips the dig.
+  async function gravityClearBefore (pos, { maxAbove = 3 } = {}) {
+    try {
+      let cleared = 0
+      for (let pass = 0; pass < GRAVITY_MAX_PASSES; pass++) {
+        const reads = []
+        for (let k = 1; k <= maxAbove; k++) {
+          let name = null
+          try { name = bot.blockAt(pos.offset(0, k, 0))?.name ?? null } catch { name = null }
+          reads.push(name)
+        }
+        const order = gravityColumnOrder(reads)
+        if (!order.length) return { ok: true, cleared }
+        let clearedThisPass = 0
+        for (const k of order) {
+          let blk = null
+          try { blk = bot.blockAt(pos.offset(0, k, 0)) } catch { blk = null }
+          if (!blk || blk.type === 0 || !GRAVITY_ROOF_BLOCKS.has(blk.name)) continue // settled/shifting
+          try {
+            if (await bot.fastDig(blk)) { cleared++; clearedThisPass++ }
+          } catch { /* the pass verdict decides below */ }
+        }
+        if (!clearedThisPass) break // reads say gravity, digs refuse: re-plan next iteration
+      }
+      // final re-read: any surviving gravity above the target refuses the dig
+      for (let k = 1; k <= maxAbove; k++) {
+        let name = null
+        try { name = bot.blockAt(pos.offset(0, k, 0))?.name ?? null } catch { name = null }
+        if (typeof name === 'string' && GRAVITY_ROOF_BLOCKS.has(name)) {
+          return { ok: false, cleared, why: `gravity roof: sand/gravel still rides this column at +${k} after ${GRAVITY_MAX_PASSES} pass(es) (cleared ${cleared}) - the dig waits` }
+        }
+      }
+      return { ok: true, cleared }
+    } catch { return { ok: true, cleared: 0 } }
+  }
+
   // returns true (mined), false (failed), 'skip' (buried / nothing to stand on yet)
   async function mineBlock (pos) {
     const block = bot.blockAt(pos)
     if (!block || block.type === 0) return false
+
+    const roof = await gravityClearBefore(pos)
+    if (!roof.ok) {
+      stats.gravityRefused = (stats.gravityRefused ?? 0) + 1
+      if (stats.gravityRefused <= 2) log(`${tag} ${roof.why}`)
+      return 'skip'
+    }
+    if (roof.cleared > 0) {
+      stats.gravityCleared = (stats.gravityCleared ?? 0) + 1
+      if (stats.gravityCleared <= 2) log(`${tag} gravity roof: cleared ${roof.cleared} cell(s) above a dig (top-down)`)
+    }
 
     const spot = standSpotFor(pos)
     if (!spot) return 'skip'
@@ -2092,6 +2155,13 @@ export function createMiner ({
         if (dugThisBatch >= sweepEvery) break
         const blk = bot.blockAt(cand.pos)
         if (!blk || blk.type === 0) continue
+        // (v0.140.0) the gravity roof fence before every candidate dig
+        const roof = await gravityClearBefore(cand.pos)
+        if (!roof.ok) {
+          stats.gravityRefused = (stats.gravityRefused ?? 0) + 1
+          if (stats.gravityRefused <= 2) log(`${tag} ${roof.why}`)
+          continue
+        }
         let ok = false
         try {
           ok = await bot.fastDig(blk)
@@ -2178,6 +2248,19 @@ export function createMiner ({
         const headB = bot.blockAt(feetCell.offset(0, 1, 0))
         // lava/water ahead: stop this gallery, the caller rotates the direction
         if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) break
+        // (v0.140.0) THE GRAVITY ROOF FENCE - the gallery face is the suffocate
+        // kill site (run554: six bots buried, F5+F3 in ONE pocket). The bot
+        // STEPS INTO this column: any sand/gravel riding above the head cell
+        // collapses onto the bot's own head the moment the step-in completes.
+        // Clear the column top-down first; a column that will not exhaust
+        // refuses this gallery's advance (the caller rotates) - named.
+        const roof = await gravityClearBefore(feetCell)
+        if (!roof.ok) {
+          stats.gravityRefused = (stats.gravityRefused ?? 0) + 1
+          if (stats.gravityRefused <= 2) log(`${tag} tunnel: ${roof.why}`)
+          break
+        }
+        if (roof.cleared > 0) stats.gravityCleared = (stats.gravityCleared ?? 0) + 1
         // clear the feet cell first (one-type names gate honoured; a refused break
         // is NOT counted - see lesson 1)
         if (feetB && feetB.type !== 0) {
@@ -2265,6 +2348,14 @@ export function createMiner ({
           if (refusal) {
             refused++
             if (refused <= 2) log(`${tag} vein sweep: refused a cell - ${refusal}`)
+            continue
+          }
+          // (v0.140.0) the gravity roof fence: an ore with sand/gravel above it
+          // collapses into the cell (the detour walks the bot under the refill)
+          const roof = await gravityClearBefore(pos)
+          if (!roof.ok) {
+            refused++
+            if (refused <= 2) log(`${tag} vein sweep: refused a cell - ${roof.why}`)
             continue
           }
           if (await bot.fastDig(blk)) {
