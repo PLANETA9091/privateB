@@ -34,6 +34,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
+  drowningCorroborated, DROWN_CORROBORATION_HP,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
@@ -962,6 +963,13 @@ export function createMiner ({
   // wet-lane page that happens to end dry must never ratchet the ladder).
   let glitchConfirmed = 0
   let rescuePageWasGlitch = false
+  // (v0.130.0) THE DROWNING WITNESS state: the highest health seen during the
+  // current critical-on-dry page class (null = no class running). A real
+  // drain hurts; a sensor lie does not - run536's F8 died behind a ratcheted
+  // ladder + the 20 s gate with the bar 'dry' at 0, while vanilla drowning
+  // damage ticked the truth the block reads could not see.
+  let criticalHealthSeen = null
+  let lastWitnessLogAt = 0 // (v0.130.0) the witness line's rate limiter (the AIR_GLITCH_LOG_MS cadence)
   // (v0.129.0) THE SURFACE-RELEASE RE-ARM state: the wall clock of the last
   // surface-safe release (0 = none) and the hold line's rate limiter.
   let surfaceReleaseAt = 0
@@ -1441,7 +1449,13 @@ export function createMiner ({
         glitchConfirmed = 0
         log(`${tag} water: liar ladder resets - wet contact, the page class is new`)
       }
+      // (v0.130.0) THE WITNESS BASELINE - the running health max of the
+      // current critical-on-dry class. The snapshot opens with the class,
+      // regeneration raises it (a healed bot owes a fresh decline), and the
+      // class ending (bar off critical) clears it for the next one.
       if (criticalOnDry) {
+        const hNow = Number.isFinite(bot.health) ? bot.health : null
+        if (hNow !== null && (criticalHealthSeen === null || hNow > criticalHealthSeen)) criticalHealthSeen = hNow
         // (v0.117.0) the gate window HOLDS the streak: the dry-land proof
         // restarted it to 0, and the reads arriving while the no-op gate is
         // armed are the SAME disproven page - counting them let the stale
@@ -1460,8 +1474,21 @@ export function createMiner ({
         }
       } else {
         dryGlitchStreak = 0
+        criticalHealthSeen = null
       }
-      const verdict = waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
+      // (v0.130.0) THE DROWNING WITNESS VERDICT - a critical-on-'dry' bar
+      // corroborated by DROWN_CORROBORATION_HP of real health decline IS a
+      // drowning: the witness outranks the block reads (the suspected liar),
+      // the lie ladder, and every gate below. Without the decline the legacy
+      // verdict machinery keeps its exact shape (the rim-glitch control).
+      const witnessed = drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen })
+      const verdict = witnessed
+        ? 'drowning'
+        : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
+      if (witnessed && now - lastWitnessLogAt >= AIR_GLITCH_LOG_MS) {
+        lastWitnessLogAt = now
+        log(`${tag} water: drowning witnessed by damage (health ${criticalHealthSeen} -> ${bot.health} on a 'dry' critical bar) - the witness outranks the ladder and the gate`)
+      }
       if (verdict === 'drowning') {
         // (v0.104.0) THE DRY-LAND BACKOFF - the glitch class only. A bot the
         // dry-land proof just cleared re-fires its critical-on-dry page
@@ -1469,7 +1496,7 @@ export function createMiner ({
         // 3 s-cadence no-op rescues (each a setGoal(null) walk cancel) were
         // the A* storm's pump. A WET page (head in water / waterlogged
         // contact) never waits on this gate - only the stuck-bar class does.
-        if (criticalOnDry && Date.now() < noOpRescueGateUntil) return
+        if (criticalOnDry && Date.now() < noOpRescueGateUntil && !witnessed) return
         // (v0.129.0) THE SURFACE-RELEASE RE-ARM - the sentry side. A bot a
         // surface-safe release just certified as floating (head dry, open
         // water, no shore anywhere) re-fills its bar while the walk gate

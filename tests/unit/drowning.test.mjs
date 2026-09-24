@@ -29,6 +29,7 @@ import {
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
   glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
+  drowningCorroborated, DROWN_CORROBORATION_HP,
   frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
   ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET
 } from '../../src/lib/drowning.mjs'
@@ -1437,4 +1438,46 @@ test('the surface re-arm wiring: the release arms it, the sentry consults it, th
   const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
   assert.ok(lib.includes('export function surfaceRearmHolds'), 'the pure verdict lives in the drowning policy module')
   assert.ok(lib.includes('export const SURFACE_REARM_MS = 12000'), 'the window rides the export (policy + constant ship together)')
+})
+
+test('drowningCorroborated: a real drain hurts - the F8 shape (run536: 474 glitch suppressions, then the server drowned the bot)', () => {
+  assert.equal(DROWN_CORROBORATION_HP, 2, 'one vanilla drowning tick pair is the corroboration bar')
+  // the F8 death shape: the bar sat 'dry' at 0 across 474 suppressed pages,
+  // the ladder ratcheted toward its cap - and vanilla drowning damage ticked
+  // the truth: 20 -> 16 hp while the block reads swore dry land
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20 }), true, '4 hp gone on a dry critical bar = the drain is real')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 18, healthSeenMax: 20 }), true, 'exactly the bar: 2 hp gone corroborates')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 17.5, healthSeenMax: 20 }), true, 'the >= boundary holds on fractions')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 19, healthSeenMax: 20 }), false, '1 hp is noise, not a drowning tick pair')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 20, healthSeenMax: 20 }), false, 'flat health = the rim-glitch control: still a sensor lie')
+  // regeneration honesty: the witness measures the decline from the PEAK seen
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 19, healthSeenMax: 19 }), false, 'the healed peak owes a fresh decline')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 20, healthSeenMax: 18 }), false, 'health above the seen max is caller junk - no claim')
+})
+
+test('drowningCorroborated: junk-safe end to end - no honest witness, no bypass', () => {
+  assert.equal(drowningCorroborated({ criticalOnDry: false, healthNow: 10, healthSeenMax: 20 }), false, 'a wet/absent page class never consults the witness')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: null, healthSeenMax: 20 }), false, 'a missing health read witnesses nothing')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: null }), false, 'no baseline - the legacy gates keep their say')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: NaN, healthSeenMax: 20 }), false, 'NaN health judges nothing')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 0, healthSeenMax: 20 }), false, 'dead/despawned - the death lane owns the verdict')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 0 }), false, 'a zero baseline is junk, not a 16 hp decline')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: -3, healthSeenMax: 20 }), false, 'a negative read is junk, not evidence')
+  assert.equal(drowningCorroborated(), false, 'the bare call is the legacy shape')
+})
+
+test('the drowning witness wiring: the sentry tracks the class health max, the verdict bypasses, the gate yields', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('drowningCorroborated, DROWN_CORROBORATION_HP,'), 'the import line rides the drowning policy module')
+  assert.ok(src.includes('let criticalHealthSeen = null'), 'the witness baseline is per-bot sentry state (null = no class)')
+  assert.ok(src.includes("hNow > criticalHealthSeen)) criticalHealthSeen = hNow"), 'the baseline tracks the running max (regeneration raises the bar)')
+  assert.ok(src.includes('criticalHealthSeen = null\n      }\n      // (v0.130.0) THE DROWNING WITNESS VERDICT'), 'the class ending clears the baseline')
+  assert.ok(src.includes("drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen })"), 'the sentry consults the witness with its own reads')
+  assert.ok(src.includes("? 'drowning'"), 'a witnessed page IS a drowning verdict (the reads are the suspected liar)')
+  assert.ok(src.includes('drowning witnessed by damage'), 'the witness names itself so the next mine can count the bypasses')
+  assert.ok(src.includes('Date.now() < noOpRescueGateUntil && !witnessed'), 'the 20 s no-op gate yields to the witness (the F8 death lane)')
+  const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  assert.ok(lib.includes('export function drowningCorroborated'), 'the pure witness lives in the drowning policy module')
+  assert.ok(lib.includes('export const DROWN_CORROBORATION_HP = 2'), 'the corroboration bar rides the export (policy + constant ship together)')
 })

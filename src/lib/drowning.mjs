@@ -678,6 +678,36 @@ export function glitchStreakCap (confirmed = 0) {
   return Math.min(AIR_GLITCH_STREAK_CAP + n * GLITCH_LADDER_STEP, GLITCH_LADDER_MAX)
 }
 
+// (v0.130.0) THE DROWNING WITNESS - run536 (35938786076, the v0.129.0 fleet)
+// mined F8's death: 474 'air-bar glitch ignored' suppressions, 13 rescue
+// starts, several 0.0s no-op completions whose dry-land proofs kept
+// CONFIRMING the bar lies (the v0.117.0 ladder ratcheted toward its 40 cap)
+// - and then the server drowned the bot anyway. A ratcheted ladder
+// (cap 40 = ~50 s of fresh reads at the sentry cadence) can no longer be
+// climbed by a real drain inside its ~35 s death clock: the lie history
+// out-votes the truth. The honest witness the block reads cannot fake is
+// DROWNING DAMAGE - vanilla hurts a bot whose air is truly gone, and a bot
+// standing on real dry land takes none. So while the page class sits
+// critical-on-'dry', a health decline of DROWN_CORROBORATION_HP from the
+// highest health seen during the class corroborates a REAL drain: the
+// witness outranks the ladder AND the 20 s gate (the caller bypasses both).
+// The running max (not the class-start value) keeps regeneration honest -
+// a bot that healed mid-class needs the fresh decline measured from its
+// healed peak. Junk-safe end to end: a missing/flat/dead health read
+// witnesses NOTHING (false - the legacy gates keep their say), and a
+// critical bar that is NOT corroborated stays on the lie ladder exactly as
+// before (the rim-glitch control: health flat = still a sensor lie).
+export const DROWN_CORROBORATION_HP = 2
+
+export function drowningCorroborated ({ criticalOnDry = false, healthNow = null, healthSeenMax = null } = {}) {
+  if (!criticalOnDry) return false
+  const now = Number(healthNow)
+  const seen = Number(healthSeenMax)
+  if (!Number.isFinite(now) || now <= 0) return false // dead/despawned - the death lane owns the verdict
+  if (!Number.isFinite(seen) || seen <= 0) return false // no honest witness baseline
+  return seen - now >= DROWN_CORROBORATION_HP
+}
+
 /** One quarter turn of an XZ bearing, counter-clockwise on the map plane:
  * (1,0) -> (0,1). turns wraps mod 4 (negative turns normalize); junk turns
  * fall back to 0. */
