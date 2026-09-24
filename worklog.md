@@ -2682,3 +2682,15 @@ Stage Summary:
 - EXPECTATIONS for the next fleet (the first of the union tree): 'drowning witnessed by damage (health X -> Y on a dry critical bar)' lines on any real drain behind a ratcheted ladder (the F8 class is dead by construction); drown deaths stay <= 1; the rim-glitch gate cadence unchanged (no rescue-storm regression - the flat-health control); the lane's expectations stand too ('machine unreachable' honest-failure only, 'fuel anchor scan returned empty (attempt 1/2)' named, ideally the anchor's first field delivery, smelted toward 18, conversion >= 90%, rescues <= 42, NORMAL END).
 - OPEN FRONTS (evidence-ranked): (a) the commons walk-starve ('Took to long' x47 - the walk-budget side; both scan classes now instrumented); (b) mob pressure x6 (Enderman NEW, fights=24 - the shelter-skip open-field shape at ring stock 1/8); (c) the death-cause inference lie (wet-at-death override - still unowned, run536 adds the suffocate case); (d) the iron ladder's fuel side (raw_iron 'no fuel' - rides the anchor cure); (e) unaccounted 108; (f) plan 1/31 + worldmap idle; (g) the table-place flake watch.
 - The fleet dispatch fires as the ABSOLUTE LAST action (after this worklog push; one fleet per head stands).
+
+---
+Task ID: 398567-20260924-0905 (dispatch record)
+Agent: Z.ai Code (cron session, 09:05 +08)
+Task: the fleet dispatch record
+
+Work Log:
+- run537 = 35944637518 dispatched as the ABSOLUTE LAST action (workflow_dispatch run_fleet=true, fleet_seconds=600, .github/workflows/ci.yml) - pending on f82a200.
+
+Stage Summary:
+- run537 = the first fleet of the FULL union tree (the lane's 0.130.0 machine-walk re-arm + empty-scan retry + this lane's 0.131.0 drowning witness on one head). The next session mines it: 'drowning witnessed by damage' bypass lines (the F8 class is dead by construction - any witness line IS the fix firing in the field), drown deaths <= 1, the rim-glitch cadence unchanged (no storm regression), plus the lane's 08:54 expectations ('machine unreachable' honest-failure only, the anchor empty-return named, ideally the anchor's first field delivery, smelted toward 18, conversion >= 90%, rescues <= 42, NORMAL END).
+- Next free version = 0.132.0. Open fronts: the commons walk-starve, mob pressure x6 (Enderman NEW), the wet-at-death inference override, the iron ladder fuel side, unaccounted 108, plan 1/31, the table-place flake watch.
