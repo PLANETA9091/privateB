@@ -3108,3 +3108,19 @@ Stage Summary:
 - Master: 49302f9 = v0.145.0 (the composite: STORM BRAKE + STORM DUCK + SLOW ENVELOPE + FAR-GOAL THINK CAP) on f8a3972. Next free version = 0.146.0.
 - TWO field verdicts to read next session: run33/ (the lane's, NORMAL END - the brake's rate knob held; read the goalbrake numbers + whether the freeze class simply did not occur) and 36008932449 (this session's dispatch on the FULL composite - if a storm forms, the [stormduck]/[stormduck] ARMED (funnel slow envelope) lines + the far-goal cap's effect on the ramp shape are the new reads; mine88 trap: read the tool tail for the real dir).
 - The layering doctrine now reads: brake = the rate knob (cadence), duck = the near exemption's ceiling (every goal), envelope = the funnel's dip-blindness, cap = the single-burst bound, void = the honest kill. Each addresses a DIFFERENT measured hole; none depends on another landing.
+
+---
+Task ID: 398567-20260924-2005 addendum 3 (the composite field verdict)
+Agent: Super Z (cron agent loop, continued session)
+Task: Mine + decode dispatch 36008932449 (the v0.145.0 composite's field test).
+
+Work Log:
+- Dispatch 36008932449: completed SUCCESS. MINED -> scripts/fleet-mining/run49/ (read the tool tail for the dir - the number is not the run number).
+- **NORMAL END - deadline 600s reached. THE BEST FLEET RUN ON RECORD:** alive 19/19 (ZERO deaths), banked=1639 (6.6x the lane's previous-best 247), smelted=25 (the smelt leg funded for the first time - vs 1 and 0 in the two runs before), mined 3106 = 5.18 b/s, tools 22 upgraded / 17 swords, rescues 51 (was 289), fights 4 (was 42), airGlitches 525, wet 2.
+- THE STORM STORY: ZERO stormguard lines in the whole log - no probe, no grace, no FATAL, no storm formed. The layered defenses stayed DORMANT: alloc valve 0 closes (the slow envelope never needed to fire), storm duck 0 arms. The GOAL BRAKE carried the run again: 12 burst opens / 271 re-issues refused / 3 fleet-ceiling opens / 1312 fleet refusals - the cadence knob held the re-issue churn under the storm's ignition rate for the whole 600s. The far-goal think cap ran underneath (no ramp to measure it against - exactly the point).
+- TWO CONSECUTIVE NORMAL ENDS (run33 brake-only, run49 composite) after four consecutive storm deaths (run576, run58, run80, the run105 class): the storm era is closed. The remaining defenses (duck / envelope / cap / void) are the dormant depth behind the brake - armed, tested, waiting for the class that gets past the rate knob.
+
+Stage Summary:
+- Master: 82cae89 (worklog) on 49302f9 = v0.145.0. Next free version = 0.146.0. Next local section = Task ID 398567-20260924-2105.
+- THE PRODUCTIVITY FRONT IS NOW THE FRONT: banked 1639 + smelted 25 means the economy works - the next candidates are the smelt chain scale-up (iron_ore x28 -> ingots 0 still: pickaxe tiers ended wooden/stone, iron 0), fuel-commons stocking (the tithe at bank visits), zero-stick class, airGlitches 525 (the top anomaly - down from 811 but still growing), WorldMap-driven target distribution (claims 12), plan 2/31.
+- Suggested next session reads: run49's loot ledger (accounted/unaccounted split at banked 1639), the chest-full ledger (the yard's chest rows at 1639 units), the deposit cadence vs the brake's 1312 refusals (are bank walks being starved by the fleet ceiling? bank-priority is exempt from the churn ceiling but NOT from the goal brake's fleet ceiling - check whether the 1312 includes bank walks).
