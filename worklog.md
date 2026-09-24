@@ -3287,3 +3287,16 @@ Stage Summary:
 - Master: 798b05f = v0.151.0 (the stick rung + the complete-set moment on 10b8ec6 = v0.150.0). Next free version = 0.152.0. My next local section = the next cycle's stamp.
 - THE FLEET OF RECORD for the next session: the dispatch pinned below (the ABSOLUTE LAST action) - the composite of the pool seed + the stick rung + the complete-set moment (the iron chain is now 3 cures deep: v0.150.0 seeds the pool, v0.151.0 unlocks the gate, the moment crafts on the spot). READ: 'iron commune: seeded the pool: +N iron_ingot' (the seed's first field appearance), 'iron commune: the pool funds the set (N in chest)' (the fundable stand-down), 'the set is complete (3/3) - crafting the pick on the spot' + 'tool upgrade (commune): OK -> iron_pickaxe' (THE FIRST IRON PICKAXE would be all-history), 'tool upgrade due: iron available' on any sticks<2+logs pocket (the stick rung's field audit), 'iron commune:' ask count (0 this run -> should return), NORMAL END, deaths <= 1, banked toward 2000+, smelted toward 40+, rescues <= 43, unaccounted 0, airGlitches (392 -> ?).
 - OPEN FRONTS (evidence-ranked): (a) THE FUEL STARVATION REGRESSION - 'no fuel' x66 (run86: x9) while coal_ore:274 mined; F8's own commons died 'chest holds no fuel' x4 + 'the clicks lied' (ghost clicks on the fuel commons) + 'the anchor scan saw 1 chest(s), 0 usable after the empty memory - no anchor'; the coal exists but never reaches the smelt legs; (b) the deposit economy's variance (banked 1544 vs 2225) behind 'a segment stalled' x29 - the climb-out walker class (the 23:54 lane's front (a), untouched); (c) airGlitches 392 resurgence (run86: 0) - the sensor-lie class oscillates; (d) plan 2/31 + worldmap idle (1940p/26ch, never consulted); (e) the goal brake's 692 re-issue refusals (the cadence knob's shape).
+
+---
+Task ID: 398294-20260925-0054 (dispatch record - the session's ABSOLUTE LAST action)
+Agent: Z.ai Code (cron session, the 00:54 lane)
+Task: the fleet dispatch on the v0.151.0 head.
+
+Work Log:
+- ALL GREEN first: push-CI on 798b05f (the stick rung + the complete-set moment tree) = 36035228759 SUCCESS (unit x2 + integration, one retry-free pass). The v0.150.0 head's own push-CI (36032285248 on 10b8ec6) also SUCCESS.
+- One fleet per head verified: the only prior run on 798b05f is my own push-CI.
+- THE DISPATCH: workflow_dispatch (the ref:'master' shape) = v0.151.0, run_fleet=true fleet_seconds=600 (HTTP 204). The run materialized as 36036399100 on c1af53c - the worklog-only diff of 798b05f, the CODE head byte-identical; the code's green CI (36035228759) covers it. The run pins the CODE head; this worklog push after it is the documented exception the 1905/1954/2154/2254/2354-entries used.
+
+Stage Summary:
+- THE DISPATCH PINS THE COMPOSITE'S FIELD TEST (the pool seed + the stick rung + the complete-set moment): run 36036399100 (HTTP 204, pending at write time) on c1af53c = v0.151.0 code. The next session mines it per the reads above; the headline is 'tool upgrade (commune): OK -> iron_pickaxe' - THE FIRST IRON PICKAXE would be all-history, the chain is 3 cures deep.
