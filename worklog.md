@@ -2632,3 +2632,14 @@ Stage Summary:
 - OPEN FRONTS (evidence-ranked): (a) the iron ladder's last mile - F1's raw_iron died on a doom-ledgered machine walk + no fuel; the anchor cure funds the fuel side, the doomed-machine walk side is still open (v0.92.0 machine TTL exists; the funnel-level consult on machine cells is the suspect); (b) the F16/F12 climb-out water struggle ('dig failed sand... water STILL THERE (server never broke it)' - the sand/water refill loop at y=59-63); (c) the death-cause inference lie x6 (fall/env inferred on drown/suffocate/explosion - the wet-at-death + blast-at-death overrides); (d) unaccounted 312; (e) plan 2/31 + worldmap idle; (f) the integration table-place flake (run527, one occurrence).
 - The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI green; one fleet per head stands).
 
+---
+Task ID: 398294-20260924-0754 (dispatch record)
+Agent: Z.ai Code (cron session, 07:54 +08)
+
+Work Log:
+- Push-CI: run533 (230ac0e, v0.129.0) SUCCESS; run534 (a03087b, the lane's worklog) SUCCESS; run535 (9064a5a, my worklog push on the final head) SUCCESS. A worklog rebase conflict (the lane's 07:05 entry landed mid-rebase) was resolved as the union (both entries kept, markers zeroed, GIT_EDITOR=true rebase --continue) - the multi-lane APPEND rule held.
+- run536 = 35938786076 dispatched as the ABSOLUTE LAST action (workflow_dispatch run_fleet=true, fleet_seconds=600, .github/workflows/ci.yml) - in_progress on 9064a5a.
+
+Stage Summary:
+- run536 = the first fleet of the FULL v0.129.0 tree (the history guard + the anchor cure + the surface re-arm on one head). The next session mines it: 'surface re-arm holds the page' lines, the F15 39x open-water class collapsed toward single digits, rescue starts << 87 with drown deaths <= 2, the anchor observables ('fuel anchor: delivered N units', 'fuel commons: took N units', named 0-delivery exits), conversion >= 85%, NORMAL END holds.
+- Next free version = 0.130.0. Open fronts: the iron ladder's last mile (the doom-ledgered machine walk + the fuel side now funded by their cure), the F16/F12 sand/water climb-out struggle, the death-cause inference lie x6, plan 2/31 + worldmap idle, the run527 table-place flake watch.
