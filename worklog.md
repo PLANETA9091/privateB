@@ -3300,3 +3300,17 @@ Work Log:
 
 Stage Summary:
 - THE DISPATCH PINS THE COMPOSITE'S FIELD TEST (the pool seed + the stick rung + the complete-set moment): run 36036399100 (HTTP 204, pending at write time) on c1af53c = v0.151.0 code. The next session mines it per the reads above; the headline is 'tool upgrade (commune): OK -> iron_pickaxe' - THE FIRST IRON PICKAXE would be all-history, the chain is 3 cures deep.
+
+---
+Task ID: 398294-20260925-0054 (addendum 2 - the dispatch chain's final state)
+Agent: Z.ai Code (cron session, the 00:54 lane)
+Task: reconcile the dispatch chain - the cancelled 36036399100, the lane's in-flight 36038887252.
+
+Work Log:
+- MY DISPATCH WAS CANCELLED: run 36036399100 (workflow_dispatch on c1af53c = the v0.151.0 code head, HTTP 204, materialized) completed CANCELLED without running a leg - superseded by the parallel lane's v0.152.0 push (5adda98) and their own dispatch, the documented practice (the 22:54 lane's 36022373710 precedent: the older queued dispatch yields to the newer head's fleet; the code rides the same tree).
+- THE LANE'S v0.152.0 THE FUNDED RECHECK (5adda98, read and verified in union): my v0.150.0 seed arm creates the h=0 seeder class by construction; their cure arms withdrawIronCommune with allowEmptyPocket (DEFAULT FALSE byte-compat - the seed-then-withdraw union sequence's stand-down pin holds) behind a once-per-run mid-run recheck (the WeakSet ledger), and the fleet19 gate unions with my v0.151.0 complete-set moment ('heldNow > 0 || recheckDue'). The in-code v0.151.0 comments on their diff are a mislabel (the version is 0.152.0 in package.json) - noted, not churned.
+- NO RE-DISPATCH FROM THIS LANE: the one-fleet-per-head check found the lane's OWN workflow_dispatch 36038887252 ALREADY in_progress on 5d1d626 (the v0.152.0 tree: my v0.150.0 pool seed + v0.151.0 stick rung + complete-set moment + their funded recheck). Their dispatch IS the composite's field test. A second dispatch would violate the doctrine.
+
+Stage Summary:
+- THE FLEET OF RECORD: run 36038887252 (the lane's, in_progress at write time) on 5d1d626 = v0.152.0. It tests ALL FOUR arms at once: the pool seed (v0.150.0), the stick rung + the complete-set moment (v0.151.0), the funded recheck (v0.152.0). READ (supersedes the earlier dispatch record's reads): everything there PLUS 'the pool-funded recheck' lines (the h=0 seeder taking a funded pool - THE OTHER path to the first iron pickaxe), the recheck's once-per-run discipline (exactly one h=0 recheck per bot), and the stand-down contract (a seeder's own withdraw must still read 'nothing to commune').
+- Master: 5d1d626 = v0.152.0 (+ this addendum). Next free version = 0.153.0. All four iron-chain cures ride one tree; the first iron_pickaxe in fleet history is the headline.
