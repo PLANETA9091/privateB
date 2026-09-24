@@ -1521,3 +1521,45 @@ test('the wet-frozen fast window wiring: the sentry passes the oxygen-gated wind
   assert.ok(lib.includes('export function frozenWindowFor'), 'the pure gate lives in the drowning policy module')
   assert.ok(lib.includes('export const WET_FROZEN_WINDOW = 4'), 'the fast window rides the export (policy + constant ship together)')
 })
+
+// ------------------------------------------------------- THE MELEE VETO
+// (v0.147.0) run33 (36004321933): 20 deaths, F3=119 + F10=114 phantom rescue
+// starts, and the witness lane was the pump - its arithmetic compares health
+// against the CLASS MAX, so a bot in a long combat session (hits to hp 3-4,
+// regen back up) never leaves the crosshairs: 'health 20 -> 4 on a 'dry'
+// critical bar' repeats while F3's own death inference reads zombie@13.4.
+// The veto: a hostile inside WITNESS_COMBAT_BAND owns the decline.
+
+test('the melee veto: a hostile in the band owns the decline (the run33 F3 shape)', () => {
+  // the exact witness lines from the log: health 20 -> 16 and 20 -> 4 while a
+  // zombie was landing the hits - combat, not a drain
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: true }), false, 'the 4hp decline with a hostile nearby is combat\'s')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 4, healthSeenMax: 20, hostileNear: true }), false, 'even a 16hp decline never witnesses with a hostile in the band')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 0, healthSeenMax: 20, hostileNear: true }), false, 'the veto precedes the dead-read guard')
+})
+
+test('the melee veto: an empty pocket keeps the full witness (the F8 run536 founding shape)', () => {
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: false }), true, 'nobody in the band: the drain is real, the witness + bypass stand')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 18, healthSeenMax: 20, hostileNear: false }), true, 'exactly the bar, no hostile')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 19, healthSeenMax: 20, hostileNear: false }), false, '1hp is still noise (the rim-glitch control)')
+})
+
+test('the melee veto: junk hostile reads keep the legacy shape byte for byte', () => {
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: null }), true, 'null reads falsy - no veto')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: undefined }), true, 'undefined reads falsy - the legacy default')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: 0 }), true, '0 reads falsy')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20 }), true, 'the bare call is the legacy shape')
+  assert.equal(drowningCorroborated({ criticalOnDry: true, healthNow: 16, healthSeenMax: 20, hostileNear: 'junk' }), false, 'a truthy junk read vetoes - the caller owns the band arithmetic')
+  assert.equal(drowningCorroborated({ criticalOnDry: false, healthNow: 16, healthSeenMax: 20, hostileNear: false }), false, 'non-dry contact never witnesses regardless')
+})
+
+test('the melee veto wiring: the sentry consults the band, the telemetry names the owner', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND,'), 'the band rides the drowning import')
+  assert.ok(src.includes('nearestHostile({ range: WITNESS_COMBAT_BAND })'), 'the sentry consults the band through the same hostile probe the sentries use')
+  assert.ok(src.includes('hostileNear: !!witnessHostile'), 'the verdict consumes the veto')
+  assert.ok(src.includes('witness stands down'), 'the veto line names itself so the next mine can audit the band')
+  const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  assert.ok(lib.includes('export const WITNESS_COMBAT_BAND = 8'), 'the band is a policy constant (shipped with the predicate)')
+})

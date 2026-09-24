@@ -699,8 +699,28 @@ export function glitchStreakCap (confirmed = 0) {
 // before (the rim-glitch control: health flat = still a sensor lie).
 export const DROWN_CORROBORATION_HP = 2
 
-export function drowningCorroborated ({ criticalOnDry = false, healthNow = null, healthSeenMax = null } = {}) {
+// (v0.147.0) THE WITNESS COMBAT BAND - the melee-veto radius. MEASURED (run33,
+// 36004321933, the 0.144.0 union fleet): 20 deaths and a 289-rescue phantom
+// flood (F3=119 + F10=114 starts, 212 'complete in 0.0s'), and the witness
+// lane was the pump. Its arithmetic compares health against the CLASS MAX -
+// a bot in a long combat session (hits down to hp 3-4, food regen back up)
+// NEVER leaves the witness's crosshairs: 'F3 health 20 -> 4 on a 'dry'
+// critical bar' repeats while F3's own death inference reads zombie@13.4 -
+// the declines were a ZOMBIE'S BURSTS, not a drain (vanilla drowning is an
+// unattributed 2hp/s tick; a zombie normal hit is 3hp with an owner). A
+// hostile within this band owns the decline: the witness stands down (the
+// legacy gates + the lie ladder keep their say - the vetted page class is
+// combat's now). A REAL drain in an empty pocket (the F8 run536 shape - the
+// witness's founding evidence) has nobody within the band and keeps the
+// full witness + bypass. Band 8 covers the shamble-reach melee classes
+// (zombie/drowned/spider close to touch); a skeleton at 14b is outside the
+// band - its arrows ride the legacy gates and the ratchet, which held them
+// in every run on record.
+export const WITNESS_COMBAT_BAND = 8
+
+export function drowningCorroborated ({ criticalOnDry = false, healthNow = null, healthSeenMax = null, hostileNear = false } = {}) {
   if (!criticalOnDry) return false
+  if (hostileNear) return false // (v0.147.0) THE MELEE VETO - a hostile in the band owns the decline
   const now = Number(healthNow)
   const seen = Number(healthSeenMax)
   if (!Number.isFinite(now) || now <= 0) return false // dead/despawned - the death lane owns the verdict

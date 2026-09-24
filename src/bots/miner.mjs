@@ -35,7 +35,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
-  drowningCorroborated, DROWN_CORROBORATION_HP,
+  drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND,
   frozenWindowFor, WET_FROZEN_WINDOW,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
@@ -1141,6 +1141,7 @@ export function createMiner ({
   // damage ticked the truth the block reads could not see.
   let criticalHealthSeen = null
   let lastWitnessLogAt = 0 // (v0.130.0) the witness line's rate limiter (the AIR_GLITCH_LOG_MS cadence)
+  let lastWitnessVetoLogAt = 0 // (v0.147.0) the melee-veto line's rate limiter (the same cadence)
   // (v0.129.0) THE SURFACE-RELEASE RE-ARM state: the wall clock of the last
   // surface-safe release (0 = none) and the hold line's rate limiter.
   let surfaceReleaseAt = 0
@@ -1659,13 +1660,24 @@ export function createMiner ({
       // drowning: the witness outranks the block reads (the suspected liar),
       // the lie ladder, and every gate below. Without the decline the legacy
       // verdict machinery keeps its exact shape (the rim-glitch control).
-      const witnessed = drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen })
+      // (v0.147.0) THE MELEE VETO: a hostile inside WITNESS_COMBAT_BAND owns
+      // the health decline (run33: F3 hit 20 -> 4 by a zombie while the bar
+      // lay 0-on-'dry' - the witness fired, the rescue proved dry 0.0s, and
+      // the loop re-fired 119 times). The vetoed class falls back to the
+      // legacy verdict machinery - the lie ladder + the gates keep their say.
+      const witnessHostile = nearestHostile({ range: WITNESS_COMBAT_BAND })
+      const witnessed = drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen, hostileNear: !!witnessHostile })
       const verdict = witnessed
         ? 'drowning'
         : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
       if (witnessed && now - lastWitnessLogAt >= AIR_GLITCH_LOG_MS) {
         lastWitnessLogAt = now
         log(`${tag} water: drowning witnessed by damage (health ${criticalHealthSeen} -> ${bot.health} on a 'dry' critical bar) - the witness outranks the ladder and the gate`)
+      } else if (!witnessed && witnessHostile && drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen }) && now - lastWitnessVetoLogAt >= AIR_GLITCH_LOG_MS) {
+        // the veto telemetry: the decline WOULD have corroborated, but the
+        // band owns it - name the owner so the next mine can audit the band
+        lastWitnessVetoLogAt = now
+        log(`${tag} water: witness stands down - a ${witnessHostile.name} at ${witnessHostile.dist?.toFixed?.(1) ?? '?'}b owns the decline (combat, not a drain)`)
       }
       if (verdict === 'drowning') {
         // (v0.104.0) THE DRY-LAND BACKOFF - the glitch class only. A bot the
