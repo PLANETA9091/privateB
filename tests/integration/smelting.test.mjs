@@ -62,8 +62,21 @@ async function craftItem (bot, itemName, times, table, { tries = 3 } = {}) {
   for (const recipe of recipes) {
     for (let i = 0; i < tries; i++) {
       try {
+        // (v0.134.1) THE VERIFIED CRAFT: bot.craft resolving is NOT the item landing
+        // (CI 35954102604: the table craft resolved, planks 24 in pocket, the
+        // inventory stayed EMPTY, and the placement loop died 'placed=FAILED' x3
+        // with placeMachine's silent !stack exit naming nothing - the quiet-craft
+        // class). Verify the delta; a resolve-without-landing runs the same recovery
+        // dance a thrown craft does and burns the try.
+        const before = countOf(bot, itemName)
         await withTimeout(bot.craft(recipe, times, table ?? null), 15000, `craft ${itemName}`)
-        return true
+        if (countOf(bot, itemName) > before) return true
+        log(`craft ${itemName}: resolved but the inventory never received it (the quiet craft, try ${i + 1}/${tries})`)
+        try {
+          toolsMod.recoverCraftWindow(bot, log)
+          const swept = await toolsMod.sweepGridItems(bot)
+          if (swept) log(`swept ${swept} ghost grid slot(s) back into the inventory`)
+        } catch (re) { log(`craft recovery failed: ${re.message}`) }
       } catch (e) {
         log(`craft ${itemName} failed: ${e.message}`)
         // the full recovery dance (same as tools.mjs craft): a timed-out or desynced
@@ -91,7 +104,13 @@ async function craftItem (bot, itemName, times, table, { tries = 3 } = {}) {
 async function placeMachine (bot, itemName) {
   const { Vec3 } = await import('vec3')
   const stack = bot.inventory.items().find(i => i.name === itemName)
-  if (!stack) return null
+  if (!stack) {
+    // (v0.134.1) the named silent exit: CI 35954102604 died 'placed=FAILED' x3 with
+    // ZERO placeMachine lines - the !stack return was the only mute path in the
+    // helper, so the red run named nothing. Every exit names itself now.
+    log(`placeMachine ${itemName}: the item is not in the inventory (the named silent exit - the craft never landed or the stack was consumed)`)
+    return null
+  }
   const feet = bot.entity.position.floored()
   let skipped = 0
   let rejected = 0
