@@ -32,7 +32,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -424,6 +424,24 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         // {name, reason} and mine {name, machine, reason} - and the empty
         // attempts array reads 'nothing to smelt', the plan-empty case.)
         console.log(`${miner.username} smelt: 0 (${smeltZeroWhy(res.attempts)})`)
+      }
+      // (v0.139.0) THE HARVEST SWEEP - run553 (35970697452, the v0.137.0 fleet)
+      // fired 30 items into machines (F5=10, F3=19, F2=1) and harvested ZERO:
+      // the finished-harvest only runs inside a smelt visit that CARRIES AN
+      // INPUT, and the empty-pocket legs ('nothing to smelt') never open a
+      // machine at all. The sweep rides the leg's LEFTOVER slice (the 5s
+      // deposit reserve stays reserved): every furnace/blast_furnace in reach
+      // gets the fleet-property read - output over an EMPTY input is whoever
+      // arrives' (the fired batch completes on the COLLECTOR's ledger:
+      // fired -> harvested -> smelted) and the leftover fuel comes back so the
+      // machine never reads busy to the fleet. A burning batch stays sacred.
+      const sweepSecs = Math.min(20, smeltSecs - (Date.now() - buildStart) / 1000 - 5)
+      if (sweepSecs >= 5) {
+        const swept = await sweepFinishedSmelts(miner.bot, { maxSeconds: sweepSecs, maxDistance: 48, log: m => console.log(m) })
+        if (swept.collected > 0) {
+          smelted += swept.collected // the harvest completes the fired batch - NOW it counts
+          console.log(`${miner.username} sweep: collected ${swept.collected} (${Object.entries(swept.outputs).map(([k, v]) => `${k}:${v}`).join(' ')})`)
+        }
       }
     } catch (e) {
       console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)

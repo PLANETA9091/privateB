@@ -971,3 +971,96 @@ export async function smeltInventory (bot, {
   }
   return { smelted: total, rescued, fired: firedTotal, outputs, attempts }
 }
+
+/**
+ * (v0.139.0) THE HARVEST SWEEP - run553 (35970697452, the v0.137.0 fleet) fired
+ * 30 items into machines (F5=10, F3=19, F2=1) and harvested ZERO: the
+ * finished-harvest only runs inside a smelt visit that CARRIES AN INPUT, and a
+ * bot whose pocket is empty (the 'nothing to smelt' legs) never opens a machine
+ * at all. The fired-smelt cure moved the starvation from the put to the
+ * collection leg - this sweep IS the collection leg. It opens every
+ * furnace/blast_furnace in reach and applies the fleet-property read: an output
+ * over an EMPTY input slot belongs to whoever arrives (the fired batch's
+ * leftover fuel comes back to the pocket too - a fuel item without input never
+ * burns and would read 'busy' to every later visitor, walling the machine).
+ * A LIVE input slot stays UNTOUCHED (a burning batch is sacred - taking its
+ * output mid-burn would steal, vanilla would race). One walk attempt per
+ * machine (breadth over depth - a sweep is a census, not a siege), a hard
+ * total-clock, and never throws. The COLLECTOR's ledger counts the harvest:
+ * fired -> harvested -> smelted (the honest ledger completes here).
+ * Returns { collected, outputs, attempts } - never throws.
+ */
+export async function sweepFinishedSmelts (bot, {
+  maxSeconds = 20,
+  maxDistance = 48,
+  log = () => {}
+} = {}) {
+  const started = Date.now()
+  const tag = `[${bot.username ?? 'bot'}]`
+  const attempts = []
+  const outputs = {}
+  let collected = 0
+  const machines = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
+  for (const machineBlock of machines) {
+    if (maxSeconds * 1000 - (Date.now() - started) <= 0) break // the sweep's own clock is hard
+    if (!bot.entity) break // died mid-sweep - the pocket rides the respawn rules
+    // ONE walk attempt per machine: a failed approach is a named attempt and the
+    // census moves on (the smelt visit's 3-attempt siege is for a batch WE carry;
+    // a sweep's targets belong to whoever reaches them first)
+    if (!machineWithinReach({ from: bot.entity.position, pos: machineBlock.position })) {
+      try {
+        const leftMs = maxSeconds * 1000 - (Date.now() - started)
+        await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(1)), { timeoutMs: Math.min(leftMs, 15000), label: 'walk to a machine (sweep)', doomedRearm: true, doomTtl: MACHINE_DOOM_TTL_MS })
+      } catch (e) {
+        attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+        continue
+      }
+    }
+    let furnace
+    try {
+      const openMs = Math.min(5000, Math.max(1000, maxSeconds * 1000 - (Date.now() - started)))
+      furnace = await withTimeout(bot.openFurnace(machineBlock), openMs, 'open furnace (sweep)')
+    } catch (e) {
+      attempts.push({ machine: machineBlock.name, reason: `cannot open (${e.message})` })
+      continue
+    }
+    // LIVE rows truth (the deposit rule): while a container window is open,
+    // bot.inventory is a frozen pre-open snapshot - the window's player rows are
+    // the only view that grows by what WE take.
+    const rowItems = () => (furnace.slots ?? []).slice(furnace.inventoryStart ?? 3, furnace.inventoryEnd ?? 39).filter(Boolean)
+    const liveCount = name => rowItems().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
+    try {
+      const out = furnace.outputItem()
+      const hasInput = !!furnace.inputItem()
+      if (out && !hasInput) {
+        // output over an EMPTY input: the fleet-property shape (the fired batch
+        // burned out, or an older visit's owner is gone). VERIFIED take on the
+        // rows - the rows only grow by what WE took.
+        const rowsBefore = liveCount(out.name)
+        try { await withTimeout(furnace.takeOutput(), 5000, 'sweep output') } catch { /* keep going */ }
+        await sleep(200)
+        const moved = liveCount(out.name) - rowsBefore
+        if (moved > 0) {
+          collected += moved
+          outputs[out.name] = (outputs[out.name] ?? 0) + moved
+          const finished = furnace.fuelItem() ? 'a finished fired batch' : 'an idle'
+          log(`${tag} swept ${moved} x ${out.name} from ${finished} ${machineBlock.name}`)
+        }
+      } else if (hasInput) {
+        // a LIVE burning batch is sacred (the honest attempts name the verdict -
+        // the sweep's census records it like every other machine shape)
+        attempts.push({ machine: machineBlock.name, reason: 'busy' })
+      }
+      // the leftover fuel on an input-free machine: back to the pocket, the
+      // machine reads idle (the v0.137.0 wall-off rule, now on the sweep too)
+      if (!furnace.inputItem() && furnace.fuelItem()) {
+        try { await withTimeout(furnace.takeFuel(), 5000, 'sweep leftover fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
+      }
+    } catch (e) {
+      attempts.push({ machine: machineBlock.name, reason: `error (${e.message})` })
+    } finally {
+      try { furnace.close?.() } catch { /* already closed */ }
+    }
+  }
+  return { collected, outputs, attempts }
+}

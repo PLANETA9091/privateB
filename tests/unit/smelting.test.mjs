@@ -14,6 +14,7 @@ import { KEEP } from '../../src/lib/deposit.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
+  sweepFinishedSmelts,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
@@ -1212,4 +1213,79 @@ test('REGRESSION PIN: the v0.137.0 fired-smelt gate rides the fleet source', () 
   assert.match(fleetSrc, /fired=\$\{res\.fired\}/, 'the fired count is named in the leg\'s own line')
   assert.match(fleetSrc, /cannot afford a 24s build \+ the 5s put/, 'the skip line names the NEW arithmetic (the old 15s floor is gone)')
   assert.doesNotMatch(fleetSrc, /cannot afford a 24s build \+ the 15s smelt floor/, 'the stale 15s-floor line is retired')
+})
+
+// ---------------------------------------------------- (v0.139.0) THE HARVEST SWEEP
+test('sweepFinishedSmelts: an idle machine\'s finished batch is fleet property - collected, counted, fuel pulled', async () => {
+  // run553's gap: 30 fired items sat in machines to the end because no leg
+  // without an input ever opened one. The sweep opens them - the fired batch
+  // completes on the COLLECTOR's ledger.
+  const furnace = new MockFurnace({ startOutput: item('iron_ingot', 3), startFuel: item('coal', 1) })
+  const bot = makeMockBot({ machines: [furnace] })
+  const lines = []
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5, log: m => lines.push(m) })
+  assert.equal(res.collected, 3, 'the fired batch\'s output lands in the pocket')
+  assert.deepEqual(res.outputs, { iron_ingot: 3 })
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('iron_ingot'), 3, 'the harvest rode the close-sync into the inventory')
+  assert.equal(counts('coal'), 1, 'the leftover fuel comes back - it would read busy forever otherwise')
+  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle after the sweep')
+  assert.ok(furnace.closed, 'the window closed')
+  assert.ok(lines.some(l => /swept 3 x iron_ingot from a finished fired batch furnace/.test(l)), 'the sweep line names the fired-batch shape')
+})
+
+test('sweepFinishedSmelts: a burning batch (input present) stays sacred - nothing taken, nothing pulled', async () => {
+  // gravel is NOT in SMELT_OUTPUT - the mock\'s lazy outputItem() is a pure read
+  // here, so the slot counts are exact.
+  const furnace = new MockFurnace({ startInput: item('gravel', 8), startFuel: item('coal', 2), startOutput: item('copper_ingot', 2) })
+  const bot = makeMockBot({ machines: [furnace] })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5 })
+  assert.equal(res.collected, 0, 'a burning batch\'s output is NOT swept')
+  assert.equal(furnace.slots[0]?.count, 8, 'the input stays')
+  assert.equal(furnace.slots[1]?.count, 2, 'the fuel stays (taking it would kill the burn)')
+  assert.equal(furnace.slots[2]?.count, 2, 'the output stays')
+  assert.ok(res.attempts.some(a => a.reason === 'busy'), 'the busy verdict is named in the attempts')
+})
+
+test('sweepFinishedSmelts: a fuel leftover with no input never walls the machine - the machine reads idle', async () => {
+  const furnace = new MockFurnace({ startFuel: item('coal', 3) })
+  const bot = makeMockBot({ machines: [furnace] })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5 })
+  assert.equal(res.collected, 0, 'nothing to collect - only the fuel pull')
+  assert.ok(!furnace.fuelItem(), 'the leftover fuel is pulled')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 3, 'the fuel rode back to the pocket')
+})
+
+test('sweepFinishedSmelts: an unreachable machine is a named attempt and the census continues', async () => {
+  const far = new MockFurnace({ name: 'blast_furnace', position: new Vec3(50.5, 64, 50.5) })
+  const near = new MockFurnace({ position: new Vec3(2.5, 64, 2.5), startOutput: item('stone', 4) })
+  const bot = makeMockBot({ machines: [far, near], gotoFails: true })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 10 })
+  assert.equal(res.collected, 4, 'the reachable machine still gets swept')
+  assert.equal(res.attempts.length, 1, 'exactly one named failure')
+  assert.match(res.attempts[0].reason, /machine unreachable/)
+  assert.equal(res.attempts[0].machine, 'blast_furnace')
+})
+
+test('sweepFinishedSmelts: a spent deadline sweeps nothing and never throws; dead windows are named attempts', async () => {
+  const a = new MockFurnace({ startOutput: item('stone', 2) })
+  const botA = makeMockBot({ machines: [a] })
+  const zero = await sweepFinishedSmelts(botA, { maxSeconds: 0 })
+  assert.equal(zero.collected, 0, 'a zero slice sweeps nothing')
+  const b = new MockFurnace({ startOutput: item('iron_ingot', 1) })
+  const botB = makeMockBot({ machines: [b], openThrows: true })
+  const dead = await sweepFinishedSmelts(botB, { maxSeconds: 5 })
+  assert.equal(dead.collected, 0)
+  assert.match(dead.attempts[0].reason, /cannot open/, 'a dead window is a named attempt, not a crash')
+})
+
+test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /sweepFinishedSmelts\(miner\.bot/, 'the sweep rides the smelt leg\'s leftover slice')
+  assert.match(fleetSrc, /sweep: collected/, 'the sweep\'s harvest is named in the leg\'s own line')
+  assert.match(fleetSrc, /smelted \+= swept\.collected/, 'the collector\'s ledger completes the fired batch (the honest ledger)')
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /export async function sweepFinishedSmelts/, 'the sweep is a named export')
+  assert.match(src, /if \(!furnace\.inputItem\(\) && furnace\.fuelItem\(\)\)/, 'the leftover-fuel pull is input-guarded (a burning batch keeps its fuel)')
 })
