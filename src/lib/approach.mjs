@@ -52,6 +52,21 @@ export const APPROACH_SEGMENT_MS = 15000 // a 20-block raw walk ~10s + margin
 // caller's budgetMs keep the loop honest in time, not in segment count.
 export const APPROACH_MAX_SEGMENTS = 8
 
+// (v0.147.0) THE PATH-GEOMETRY ERROR CLASS - the walk failures a nudge can
+// actually cure. run85 (dispatch 36016062585, the v0.146.0 commune's first
+// field test) decomposed the smelt collapse: of the 12 zero verdicts, 10 were
+// the PATH class - 6 'no fuel' whose commons chest walks died
+// 'Took to long to decide path to goal!' x4 + a 1050ms timeout, 3 machine
+// walks 'Took to long to decide path to goal!', 1 'No path to the goal!'.
+// Both strings are mineflayer-pathfinder's OWN verdicts, and both are
+// geometry-honest: the A* explored the failed bot's START and could not
+// route. Retrying the identical goto from the identical position is a
+// deterministic re-failure (run85: the walk loop's 3 attempts all died on
+// it) - the start must change. The nudge (approachWalk, one bounded shot)
+// IS the start change; the v0.87.0 doctrine says it in one line: the doomed
+// geometry is the failed bot's start, not the destination.
+export const PATH_GEOMETRY_RE = /Took to long to decide path to goal!|No path to the goal!/
+
 /**
  * Pure: the intermediate point one segment toward `to`, or null when `from`
  * is close enough for the direct ladder. Plain {x,y,z} (no Vec3 in the pure

@@ -56,6 +56,7 @@ import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
+import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -568,6 +569,7 @@ export async function withdrawFuelCommons (bot, {
   for (const cell of remembered) exclude.push(cell)
   let taken = 0
   let chestsVisited = 0
+  let nudgeUsed = false // (v0.147.0) ONE path-geometry nudge per commons visit
   const planAll = []
   // (v0.124.0) THE ANCHOR FIRST READ: the tithe's delivery target is the
   // fleet's one deterministic fuel chest - when a yardCenter is known, the
@@ -619,9 +621,40 @@ export async function withdrawFuelCommons (bot, {
       // 15s half-life still bounds the poison.
       await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
-      log(`fuel commons: chest walk failed (${e?.message || e})`)
-      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
-      continue
+      let arrived = false // (v0.147.0) the nudge retry may still land this chest
+      // (v0.147.0) THE PATH-GEOMETRY NUDGE + THE SAME-CHEST RETRY: run85
+      // (dispatch 36016062585, the v0.146.0 commune's first field test)
+      // measured the commons itself starving on the path class - F10's ask
+      // logged 'chest walk failed (Took to long to decide path to goal!)'
+      // x4 then 'budget spent (0/4 units)', and SIX fleet 'no fuel' smelt
+      // verdicts died behind it. The pathfinder verdicts are about the
+      // FAILED START: one bounded approachWalk (the proven segment
+      // machinery) changes the start, and the SAME chest gets one honest
+      // re-goto before the exclude - a chest the bot can now route to
+      // keeps its fuel, the ledger stays honest for the rest.
+      if (!nudgeUsed && PATH_GEOMETRY_RE.test(e?.message || '')) {
+        nudgeUsed = true
+        const nudgeMs = Math.min(remainingMs(), 15000)
+        if (nudgeMs > 1000) {
+          try {
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`fuel commons: path nudge ${m}`) })
+            log(`fuel commons: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
+            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+            try {
+              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'fuel commons walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+              // the retry landed: fall through to the open below (do NOT exclude)
+              log('fuel commons: the nudge retry landed')
+              arrived = true
+            } catch (e2) {
+              log(`fuel commons: chest walk failed after the nudge (${e2?.message || e2})`)
+            }
+          } catch { /* the nudge never kills the chain */ }
+        }
+      }
+      if (!arrived) {
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
     }
     let window = null
     try {

@@ -631,7 +631,10 @@ test('smeltBatch: a dead-geometry verdict pays 3 honest walks - the machine goal
   let calls = 0
   bot.pathfinder.goto = async () => { calls++ ; throw new Error('No path to the goal!') }
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(calls, 3, 'all three attempts walk honestly: attempt 0 no longer takes the free doomed refusal')
+  // (v0.147.0) 3 honest machine walks + THE ONE PATH-GEOMETRY NUDGE shot (an
+  // approach segment toward the machine, its own goto inside the count) - the
+  // nudge is the start-change the geometry class needs; it is ONE per visit.
+  assert.equal(calls, 4, 'all three attempts walk honestly AND the nudge pays one segment goto')
   assert.match(res.reason, /machine unreachable/)
   assert.match(res.reason, /No path to the goal/, 'the final error is the honest A* verdict, not a consult refusal')
   assert.ok(nearDoomedGoal({ x: 50, y: 64, z: 50 }, Date.now(), {}).hit, 'the failed honest walks still re-doom the cell - the storm evidence stays for non-machine consults')
@@ -783,6 +786,82 @@ test('smeltInventory: an empty machine scan is a verdict - no machine in reach (
   const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30 })
   assert.equal(res.smelted, 0)
   assert.deepEqual(res.attempts, [{ name: 'sand', machine: 'furnace', reason: 'no machine in reach (furnace within 48b)' }])
+})
+
+// ----------------------------------------------------------------- v0.147.0
+// THE PATH-GEOMETRY NUDGE + THE YARD-SEEK - run85 (dispatch 36016062585, the
+// v0.146.0 commune's first field test): the smelt economy collapsed to
+// smelted=1 (run49: 25) on a PATH-dominated failure class - machine walks and
+// commons walks died 'Took to long to decide path to goal!' from starts the
+// A* could not route, and F4 held raw_copper:28 all run behind one 'no
+// machine in reach (48b)'.
+test('smeltBatch: the path-geometry nudge changes the start and the retry lands (v0.147.0)', async () => {
+  const far = new MockFurnace({ position: new Vec3(40.5, 64, 0.5) }) // 40b: a segment exists, the reach-open cannot
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  let calls = 0
+  bot.pathfinder.goto = async goal => {
+    calls++
+    if (calls === 1) throw new Error('Took to long to decide path to goal!')
+    // the nudge changed the start: a later honest walk MOVES the bot
+    bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+  }
+  const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 4, 'the nudge landed - the batch smelted')
+  assert.ok(lines.some(l => /walk nudge/.test(l)), 'the nudge is logged, not silent')
+})
+
+test('smeltBatch: the nudge is ONE shot per visit (v0.147.0)', async () => {
+  const far = new MockFurnace({ position: new Vec3(40.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  bot.pathfinder.goto = async () => { throw new Error('Took to long to decide path to goal!') }
+  const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 0)
+  assert.match(res.reason, /machine unreachable.*Took to long/)
+  const verdicts = lines.filter(l => /walk nudge: (inside the direct envelope|closed to d=)/.test(l))
+  assert.equal(verdicts.length, 1, 'one nudge verdict per visit - the budget discipline')
+})
+
+test('smeltInventory: the yard-seek rescans after the empty scan and lands the smelt (v0.147.0)', async () => {
+  const machines = [] // the seek's "arrival" populates the scan world
+  const bot = makeMockBot({ machines, items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  let seeks = 0
+  const res = await smeltInventory(bot, {
+    ...FAST, maxSeconds: 30,
+    yardSeek: async () => { seeks++; machines.push(new MockFurnace({ position: new Vec3(10.5, 64, 10.5) })); return true },
+    log: m => lines.push(m)
+  })
+  assert.equal(seeks, 1)
+  assert.equal(res.smelted, 4, 'the seek put the machine inside the scan - the smelt followed')
+  assert.ok(lines.some(l => /yard seek: arrived yard-side - rescanning the machines/.test(l)))
+})
+
+test('smeltInventory: the yard-seek is ONE shot and its failure leaves the honest verdict (v0.147.0)', async () => {
+  const bot = makeMockBot({ machines: [], items: [item('sand', 4), item('beef', 2), item('coal', 7)] })
+  const lines = []
+  let seeks = 0
+  const res = await smeltInventory(bot, {
+    ...FAST, maxSeconds: 30,
+    yardSeek: async () => { seeks++; return false },
+    log: m => lines.push(m)
+  })
+  assert.equal(res.smelted, 0)
+  assert.equal(seeks, 1, 'one seek per visit - two empty inputs never seek twice')
+  assert.equal(res.attempts.filter(a => /no machine in reach/.test(a.reason)).length, 2, 'both inputs keep the honest empty-scan verdict')
+  assert.equal(lines.filter(l => /yard seek: did not land/.test(l)).length, 1)
+})
+
+test('smeltInventory: machines in reach never trigger the seek (v0.147.0)', async () => {
+  const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
+  let seeks = 0
+  bot.pathfinder.goto = async () => { throw new Error('No path to the goal!') }
+  const res = await smeltInventory(bot, { ...FAST, maxSeconds: 30, yardSeek: async () => { seeks++; return true } })
+  assert.equal(res.smelted, 0)
+  assert.equal(seeks, 0, 'machines WERE scanned (the walk failed) - the seek is not the cure for that class')
+  assert.match(res.attempts[0].reason, /machine unreachable/)
 })
 
 test('smeltBatch: the reach-open skips the walk entirely - sick yard paths cannot starve the bay', async () => {

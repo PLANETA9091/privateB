@@ -21,7 +21,8 @@ import {
   APPROACH_THRESHOLD,
   APPROACH_SEGMENT_MAX,
   APPROACH_SEGMENT_MS,
-  APPROACH_MIN_REMAINING
+  APPROACH_MIN_REMAINING,
+  PATH_GEOMETRY_RE
 } from '../../src/lib/approach.mjs'
 
 // The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
@@ -290,4 +291,32 @@ test('wiring: the yard walk consults the approach plan (fleet19.mjs pins)', () =
   assert.match(src, /rawWalk: walkRawToward/, 'the raw walker is injected (the deposit chain shape)')
   assert.match(src, /yard approach: /, 'the named evidence line exists for the mine')
   assert.match(src, /if \(attempt === 1\) await yardApproach/, 'attempt 1 always consults the plan')
+})
+
+test('PATH_GEOMETRY_RE: the two pathfinder geometry verdicts and nothing else (v0.147.0)', () => {
+  assert.ok(PATH_GEOMETRY_RE.test('Took to long to decide path to goal!'), 'the think-timeout verdict')
+  assert.ok(PATH_GEOMETRY_RE.test('machine unreachable (No path to the goal!)'), 'the no-path verdict, wrapped or bare')
+  assert.ok(PATH_GEOMETRY_RE.test('No path to the goal!'))
+  for (const no of [
+    'NoPath: no path', // the mock's generic shape - NOT the geometry class
+    'walk to furnace: timeout after 20000ms', // the caller's own timeout
+    'visit budget spent (walk slice)',
+    'goal brake: 6 goals in 5s - refused for 3s',
+    'doomed goal (ledgered 1s ago)',
+    'water rescue in progress',
+    ''
+  ]) {
+    assert.equal(PATH_GEOMETRY_RE.test(no), false, `not a geometry verdict: ${JSON.stringify(no)}`)
+  }
+})
+
+test('wiring: the smelt + commons nudge consults PATH_GEOMETRY_RE and the proven approachWalk (v0.147.0 pins)', () => {
+  const smelt = fs.readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(smelt, /if \(!nudgeUsed && PATH_GEOMETRY_RE\.test/, 'the nudge gates on the geometry class')
+  assert.match(smelt, /approachWalk\(bot, machineBlock\.position/, 'the machine nudge walks toward the MACHINE')
+  const fuel = fs.readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(fuel, /if \(!nudgeUsed && PATH_GEOMETRY_RE\.test/, 'the commons nudge gates on the same class')
+  assert.match(fuel, /approachWalk\(bot, chest\.position/, 'the commons nudge walks toward the CHEST')
+  const fleet = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleet, /yardSeek: async \(\) =>/, 'the fleet wires the yard-seek into the smelt leg')
 })

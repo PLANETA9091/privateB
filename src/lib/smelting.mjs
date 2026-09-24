@@ -10,6 +10,7 @@
 // window clicks, so inventory counts before/after are the only truth.
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
+import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -560,6 +561,7 @@ export async function smeltBatch (bot, {
   let walked = false
   let rescueWaited = false // (v0.18.2) one bounded clear-wait per visit
   let governorWaited = false // (v0.79.0) one bounded churn-cooldown wait per visit
+  let nudgeUsed = false // (v0.147.0) ONE path-geometry nudge per visit (the budget discipline)
   // (v0.89.0) THE REACH-OPEN: run80's bots stood IN the bay with the furnace
   // 2-4 blocks away and still died on the walk (the yard paths were sick).
   // Reach needs no path - open directly, the open's own timeout still guards.
@@ -632,6 +634,29 @@ export async function smeltBatch (bot, {
         if (slice > 0) {
           log(`${tag} walk refused by the churn governor - waiting ${Math.round(slice / 1000)}s out`)
           await new Promise(r => setTimeout(r, slice))
+        }
+      }
+      // (v0.147.0) THE PATH-GEOMETRY NUDGE - run85 (dispatch 36016062585, the
+      // v0.146.0 commune's first field test) decomposed the smelt collapse
+      // into a PATH-dominated class: 'Took to long to decide path to goal!'
+      // x3 on machine walks + the 6 'no fuel' verdicts whose commons walks
+      // died the same way + 1 'No path to the goal!'. Both strings are the
+      // pathfinder's own verdicts about the FAILED START - the identical
+      // retry from the identical position is a deterministic re-failure
+      // (run85: the walk loop burned all 3 attempts on the same geometry).
+      // ONE bounded approachWalk per visit changes the start (the v0.87.0
+      // doctrine: the doomed geometry is the failed bot's start, not the
+      // destination), and the loop's next attempt re-gotos from a position
+      // the A* may actually route. Bounded by the walk slice; the budget
+      // discipline keeps it one shot per visit.
+      if (!nudgeUsed && PATH_GEOMETRY_RE.test(e.message)) {
+        nudgeUsed = true
+        const ms = walkSlice()
+        if (ms > 1000) {
+          try {
+            const n = await approachWalk(bot, machineBlock.position, { budgetMs: Math.min(ms, 20000), log: m => log(`${tag} walk nudge: ${m}`) })
+            log(`${tag} walk nudge: ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the machine from the new start`}`)
+          } catch { /* the nudge never kills the chain - the loop owns the verdict */ }
         }
       }
       await new Promise(r => setTimeout(r, 500)) // let the interrupting path/control settle
@@ -873,10 +898,12 @@ export async function smeltInventory (bot, {
   smeltSecondsPerItem = 11,
   fuelReserve = null, // passed to every pickFuel call (see smeltBatch)
   fuelResupply = null, // (v0.98.0) async ({ itemsNeeded }) => void - the FUEL COMMONS: called ONCE when the pocket is fuel-empty, BEFORE the 'no fuel' verdict (fleet19 wires withdrawFuelCommons); undefined/null = the legacy shape byte for byte
+  yardSeek = null, // (v0.147.0) async () => boolean - THE YARD-SEEK: called ONCE per visit when an input's machine scan ends EMPTY (the bot mines beyond the 48b envelope of the yard's machine cluster - run85's F4 held raw_copper:28 all run and its visit read 'no machine in reach'); a landed seek re-runs that input's scan. fleet19 wires the proven approachWalk toward the yard center; null = the legacy shape byte for byte
   fire = false, // (v0.137.0) fire-and-forget batches: the put is the whole visit, the machine's own clock does the burning, the finished-harvest collects - the thin-leg cure (run552's 7x build-skips + the unreachable walks starved the smelt economy)
   log = () => {}
 } = {}) {
   const started = Date.now()
+  const tag = `[${bot.username ?? 'bot'}]` // (v0.147.0) the seek log names the bot (smeltBatch's tag is out of scope here)
   const attempts = []
   let total = 0
   let rescued = 0
@@ -886,6 +913,7 @@ export async function smeltInventory (bot, {
   // iron_ingot - a shared counter would wrongly cap the second input
   const produced = new Map()
   const plan = smeltablesIn(bot, { reserveCobble })
+  let seekUsed = false // (v0.147.0) ONE yard-seek per visit (the budget discipline)
   for (const { name, count } of plan) {
     if (Date.now() - started > maxSeconds * 1000) break
     const left = () => Math.min(countItem(bot, name), count - (produced.get(name) ?? 0))
@@ -925,13 +953,23 @@ export async function smeltInventory (bot, {
     // goto pays). Close the scan on the first spent refusal; the entry is recorded
     // (the honest attempts), the clock and the log stay clean.
     let sliceSpent = false
-    for (const machineKind of machineChainFor(name)) {
-      if (Date.now() - started > maxSeconds * 1000) break
-      if (sliceSpent) break
-      if (left() <= 0) break
-      kindsTried++
-      const blocks = findMachineBlocks(bot, [machineKind], { maxDistance })
-      if (!blocks.length) continue
+    // (v0.147.0) the kind loop is a closure so THE YARD-SEEK can re-run it:
+    // run85 (dispatch 36016062585, the v0.146.0 commune's first field test)
+    // measured the empty-scan class live - F4's first smelt visit read
+    // 'no machine in reach (blast_furnace/furnace within 48b)' while its
+    // pocket held raw_copper:28, and the visit ended there. The scan is the
+    // bot's LOCAL 48b envelope; a bot mining beyond it can never see the
+    // yard's machine cluster without MOVING toward it first.
+    const runKindLoop = async () => {
+      let kindsTried = 0
+      let kindsWithBlocks = 0
+      for (const machineKind of machineChainFor(name)) {
+        if (Date.now() - started > maxSeconds * 1000) break
+        if (sliceSpent) break
+        if (left() <= 0) break
+        kindsTried++
+        const blocks = findMachineBlocks(bot, [machineKind], { maxDistance })
+        if (!blocks.length) continue
       kindsWithBlocks++
       for (const block of blocks) {
         if (Date.now() - started > maxSeconds * 1000) break
@@ -978,11 +1016,29 @@ export async function smeltInventory (bot, {
       }
       if (sliceSpent) break
       if (left() <= 0) break
+      }
+      return { kindsTried, kindsWithBlocks }
+    }
+    let kinds = await runKindLoop()
+    // (v0.147.0) THE YARD-SEEK: the empty-scan trigger. One seek per visit,
+    // only when the input produced nothing and the walk clock is alive (a
+    // spent slice makes the re-run an identical refusal - the v0.93.0
+    // stop governs). A landed seek puts the yard's machine cluster inside
+    // the scan envelope and the re-run walks it; the seek never throws
+    // into the visit (fleet19's wiring is failure-tolerant, this guard is
+    // the second belt).
+    if (kinds.kindsTried > 0 && kinds.kindsWithBlocks === 0 && !(produced.get(name) > 0) && !sliceSpent && !seekUsed && typeof yardSeek === 'function') {
+      seekUsed = true
+      try {
+        const seeked = await yardSeek()
+        log(`${tag} yard seek: ${seeked ? 'arrived yard-side - rescanning the machines' : 'did not land - the empty scan stands'}`)
+        if (seeked) kinds = await runKindLoop()
+      } catch { /* a dead seek never kills the chain */ }
     }
     // every kind of this input's machine chain scanned, zero machines found: the
     // input never even reached a furnace - say so (the fleet harness prints
     // attempts when smelted=0; produced>0 must never be condemned)
-    if (kindsTried > 0 && kindsWithBlocks === 0 && !(produced.get(name) > 0)) {
+    if (kinds.kindsTried > 0 && kinds.kindsWithBlocks === 0 && !(produced.get(name) > 0)) {
       attempts.push({ name, machine: machineChainFor(name).join('/'), reason: `no machine in reach (${machineChainFor(name).join('/')} within ${maxDistance}b)` })
     }
   }

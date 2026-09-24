@@ -403,6 +403,19 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       const res = await smeltInventory(miner.bot, {
         maxSeconds: Math.max(5, smeltSecs - buildSpent),
         fire: fireLeg,
+        // (v0.147.0) THE YARD-SEEK: the empty 48b machine scan walks the
+        // proven approach segments toward the yard center once - the
+        // run85 F4 class (raw_copper:28 pocket, 'no machine in reach',
+        // the visit ended there). A landed seek (inside the 24b direct
+        // envelope of the yard) puts the machine cluster inside the scan
+        // and the re-run reaches it. Bounded 20s; failure-tolerant.
+        yardSeek: async () => {
+          if (!yardGoal) return false
+          try {
+            const n = await approachWalk(miner.bot, yardGoal, { budgetMs: 20000, log: m => console.log(`${miner.username} yard seek: ${m}`) })
+            return !!n.walked
+          } catch { return false }
+        },
         fuelResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
           itemsNeeded,
           yardCenter: yardGoal,

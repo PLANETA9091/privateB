@@ -178,18 +178,29 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // --------------------------------------------------------- withdrawFuelCommons
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
-function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false } = {}) {
+function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false, walkPathFails = null } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = chestItem
   const pocket = Array.from({ length: 36 }, () => null)
   const slots = [...chestSlots, ...pocket]
   const chestBlock = { name: 'chest', position: new Vec3(3.5, 64, 3.5) }
+  let pathCalls = 0
   const bot = {
     username: 'FuelBot',
     entity: { position: new Vec3(0.5, 64, 0.5) },
     inventory: { items: () => slots.slice(27).filter(Boolean) },
-    pathfinder: { goto: async () => { if (walkFails) throw new Error('NoPath: no path') } },
+    pathfinder: {
+      goto: async goal => {
+        if (walkFails) throw new Error('NoPath: no path')
+        if (walkPathFails) {
+          pathCalls++
+          if (walkPathFails === 'always' || pathCalls === 1) throw new Error('Took to long to decide path to goal!')
+          // the nudge changed the start: a later honest walk MOVES the bot
+          bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+        }
+      }
+    },
     findBlock: ({ matching }) => (chestItem || !openFails) && matching(chestBlock) ? chestBlock : null,
     openChest: async () => {
       if (openFails) throw new Error('window dead')
@@ -280,6 +291,34 @@ test('withdrawFuelCommons: a dead walk or a dead window is survived (the next ch
   const r2 = await withdrawFuelCommons(opened.bot, { itemsNeeded: 40, budgetMs: 5000 })
   assert.equal(r2.taken, 0)
   assert.equal(r2.reason, 'no chest reached')
+})
+
+// (v0.147.0) THE PATH-GEOMETRY NUDGE - run85's F10 class: the commons walks
+// died 'Took to long to decide path to goal!' x4 then 'budget spent (0/4
+// units)', and SIX fleet 'no fuel' smelt verdicts died behind it. The nudge
+// (one approachWalk shot) changes the failed start; the SAME chest gets one
+// honest re-goto before the exclude.
+test('withdrawFuelCommons: the path-geometry nudge retries the SAME chest and lands (v0.147.0)', async () => {
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'once' })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 5000, log: m => lines.push(m) })
+  assert.equal(res.reason, 'ok', 'the nudge retry landed the walk - the chest is reached')
+  assert.equal(res.taken, 5, 'ceil(40/8) = 5 coal after the retry')
+  assert.ok(lines.some(l => /path nudge/.test(l)), 'the nudge is logged, not silent')
+  assert.ok(lines.some(l => /the nudge retry landed/.test(l)), 'the retry landing is logged')
+  const inPocket = world.bot.inventory.items().reduce((a, i) => a + i.count, 0)
+  assert.equal(inPocket, 5, 'the verified diff agrees')
+})
+
+test('withdrawFuelCommons: the nudge is ONE shot - after it fails the chest is excluded honestly (v0.147.0)', async () => {
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always' })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 5000, log: m => lines.push(m) })
+  assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'no chest reached', 'the walk still failed - the honest terminal')
+  const nudgeLines = lines.filter(l => /path nudge/.test(l))
+  assert.equal(nudgeLines.length, 1, 'one nudge per commons visit - the budget discipline')
+  assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'a failed retry never claims a landing')
 })
 
 test('withdrawFuelCommons: a partial commons stock is taken honestly, then the scan stops', async () => {
