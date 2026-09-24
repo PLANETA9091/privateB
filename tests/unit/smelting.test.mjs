@@ -1289,3 +1289,9 @@ test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => 
   assert.match(src, /export async function sweepFinishedSmelts/, 'the sweep is a named export')
   assert.match(src, /if \(!furnace\.inputItem\(\) && furnace\.fuelItem\(\)\)/, 'the leftover-fuel pull is input-guarded (a burning batch keeps its fuel)')
 })
+
+test('REGRESSION PIN: the v0.140.2 collector\'s ledger counts the rescue', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /smelted \+= res\.smelted \+ \(res\.rescued \?\? 0\)/, 'the harvested rescue completes the fired batch on the COLLECTOR\'s ledger (fired -> harvested -> smelted)')
+  assert.match(fleetSrc, /THE COLLECTOR'S LEDGER/, 'the ledger fix names its evidence')
+})

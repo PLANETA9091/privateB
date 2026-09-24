@@ -413,7 +413,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         log: m => console.log(m)
       })
       if (res.smelted > 0 || res.rescued > 0 || (res.fired ?? 0) > 0) {
-        smelted += res.smelted // a fired batch is NOT counted until its output is harvested (the honest ledger)
+        // (v0.140.2) THE COLLECTOR'S LEDGER: res.rescued counts too. run554
+        // (35974993311, the v0.139.0 fleet) measured the gap: F11's visit
+        // harvested '6 x stone from an idle furnace' (the v0.137.0 finished-
+        // harvest reading output-over-empty-input as fleet property) but the
+        // fleet tally printed smelted=7 while the legs' own lines summed to 7
+        // WITH the rescue invisible - the harvest completed on F11's POCKET
+        // and vanished from the fleet's books. The honest ledger's last leg
+        // closes here: a rescued batch IS the fired batch's completion (fired
+        // -> harvested -> smelted) and counts on the COLLECTOR's ledger -
+        // exactly what the v0.139.0 sweep's collected already does below.
+        smelted += res.smelted + (res.rescued ?? 0) // a fired batch is NOT counted until its output is harvested (the honest ledger)
         console.log(`${miner.username} smelted ${res.smelted} (${Object.entries(res.outputs).map(([k, v]) => `${k}:${v}`).join(' ')}) rescued=${res.rescued}${(res.fired ?? 0) > 0 ? ` fired=${res.fired}` : ''}`)
       } else {
         // (v0.89.0) THE HONEST ZERO: run80's smelt legs returned silent zeros
