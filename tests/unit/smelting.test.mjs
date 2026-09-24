@@ -655,10 +655,17 @@ test('smeltBatch: a yard-adjacent bot re-arms the doomed consult on EVERY attemp
   assert.ok(SMELT_YARD_NEAR_DISTANCE === 10)
   recordDoomedGoal({ x: 6, y: 64, z: 6 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS }) // another bot's storm verdict
   let calls = 0
-  bot.pathfinder.goto = async () => { if (++calls === 1) throw new Error('No path to the goal!') } // the storm hits attempt 1, then clears
+  bot.pathfinder.goto = async goal => { // the storm hits attempt 1, then clears (the bot moves, like the field)
+    if (++calls === 1) throw new Error('No path to the goal!')
+    bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+  }
   const res = await smeltBatch(bot, { machineBlock: yard, inputName: 'sand', count: 4, ...FAST })
   assert.equal(res.smelted, 4, 'the honest attempt-2 walk lands the batch')
-  assert.equal(calls, 2, 'attempt 1 paid the storm, attempt 2 walked - no consult auto-refuse in between')
+  // (v0.160.0) THREE gotos now: attempt 1 paid the storm, the close shot's
+  // segment rode between (d=7.78 is inside the 24b envelope - the shot walks
+  // the bot toward the machine), attempt 2 walked. No consult auto-refuse in
+  // between - the count is the contract, the segment is the cure's own leg.
+  assert.equal(calls, 3, 'attempt 1 paid the storm, the close shot moved the start, attempt 2 walked')
   assert.equal(doomedGoalStats().refusals, 0, 'a PRESENT bot is never auto-refused: every consult re-armed')
   assert.ok(doomedGoalStats().rearms >= 2, `both consults re-armed (got ${doomedGoalStats().rearms})`)
 })
@@ -1399,4 +1406,46 @@ test('WALK_REFUSAL_WAIT_RE: the named-clock extraction feeds the wait slice', ()
   assert.equal(Number(m[1]), 3)
   const g = /refused for (\d+)s/.exec('walk governor: bot churned 4 goals without progress - walk to furnace refused for 12s')
   assert.equal(Number(g[1]), 12, 'the governor shape still extracts')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.160.0) THE MACHINE CLOSE SHOT - run558 (dispatch 36068771258, the
+// v0.159.0 fleet): 'F7 walk nudge: inside the direct envelope' x6 in ONE run -
+// six firings, six ZERO-SEGMENT surrenders (the failed bot stood inside the
+// 24b envelope, the nudge emitted nothing, the start never changed) - and the
+// visit died 'raw_iron@blast_furnace: machine unreachable' x4 + 'raw_iron@
+// furnace: machine unreachable' x3 with the raw metal in the pocket.
+// Fleet-wide: 8 'walk nudge' verdicts, ALL 'inside the direct envelope'. The
+// machine walk is the LAST walk site without the v0.157.0 close shot.
+test('smeltBatch: the nudge INSIDE the envelope fires the close shot - the segment walks and the retry lands (v0.160.0, the F7 cure)', async () => {
+  const near = new MockFurnace({ position: new Vec3(12.5, 64, 0.5) }) // d=12: inside the 24b envelope, outside the 4.5b reach-open
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  let calls = 0
+  bot.pathfinder.goto = async goal => {
+    calls++
+    if (calls === 1) throw new Error('Took to long to decide path to goal!')
+    // the close shot's segment (or the retry) moves the bot honestly
+    bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+  }
+  const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 4, 'the close shot moved the start - the retry landed')
+  assert.ok(lines.some(l => /approach: 1 segment\(s\) walked/.test(l)),
+    'the close shot emitted ONE segment (the discriminator: without closeShot the in-envelope nudge logs NO approach line at all)')
+  assert.ok(lines.some(l => /walk nudge/.test(l)), 'the nudge decision stays logged')
+})
+
+test('smeltBatch: the close shot is ONE segment per visit - a stalled shot breaks, the budget discipline holds (v0.160.0)', async () => {
+  const near = new MockFurnace({ position: new Vec3(12.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  bot.pathfinder.goto = async () => { throw new Error('Took to long to decide path to goal!') }
+  const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 0)
+  assert.match(res.reason, /machine unreachable.*Took to long/)
+  const decisions = lines.filter(l => /walk nudge: (inside the direct envelope|closed to d=)/.test(l))
+  assert.equal(decisions.length, 1, 'one nudge decision per visit')
+  const shots = lines.filter(l => /approach: \d+ segment\(s\) walked/.test(l))
+  assert.equal(shots.length, 1, 'ONE close-shot segment per visit - a stalled shot ends the approach (no anti-spin violation)')
+  assert.ok(!lines.some(l => /timeout after -/.test(l)), 'no negative timeout anywhere')
 })

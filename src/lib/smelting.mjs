@@ -654,7 +654,22 @@ export async function smeltBatch (bot, {
         const ms = walkSlice()
         if (ms > 1000) {
           try {
-            const n = await approachWalk(bot, machineBlock.position, { budgetMs: Math.min(ms, 20000), log: m => log(`${tag} walk nudge: ${m}`) })
+            // (v0.160.0) THE MACHINE CLOSE SHOT - run558 (dispatch 36068771258,
+            // the v0.159.0 fleet) measured the last legacy surrender class:
+            // 'F7 walk nudge: inside the direct envelope' x6 in ONE run - six
+            // nudge firings, six ZERO-SEGMENT surrenders (the failed bot stood
+            // inside the 24b envelope, approachTargetPos returned null, and
+            // without the close shot the nudge emitted nothing, the start
+            // NEVER changed) - and the visit died with raw_iron in the pocket
+            // ('raw_iron@blast_furnace: machine unreachable' x4 + 'raw_iron@
+            // furnace: machine unreachable' x3). Fleet-wide the run logged 8
+            // 'walk nudge' verdicts, ALL 'inside the direct envelope'. The
+            // yard walks have carried the cure since v0.157.0 (the run58
+            // verdict); the machine walk is the last walk site still naked.
+            // closeShot is a FALLBACK: the far-decide segments keep their
+            // v0.147.0 shape byte for byte, only the inside-the-envelope null
+            // gains one straight-at-goal segment (stop 2 short).
+            const n = await approachWalk(bot, machineBlock.position, { budgetMs: Math.min(ms, 20000), closeShot: true, log: m => log(`${tag} walk nudge: ${m}`) })
             log(`${tag} walk nudge: ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the machine from the new start`}`)
           } catch { /* the nudge never kills the chain - the loop owns the verdict */ }
         }
