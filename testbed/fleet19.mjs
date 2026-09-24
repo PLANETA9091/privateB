@@ -23,7 +23,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
@@ -838,10 +838,36 @@ async function runBot (name, target, index) {
       // positions (38x 'map trip skipped: unreachable'). climbOut digs a 45-degree
       // staircase (proven fastDig + raw forward/jump movement) until the recorded
       // shaft entry level (or daylight) is reached, then surface goals path normally.
-      const ensureSurface = async reason => {
-        const r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
+      const ensureSurface = async (reason, { chainLeftMs = 0 } = {}) => {
+        const climbT0 = Date.now()
+        let r = await miner.climbOut({ dir: direction, shouldStop: () => Date.now() > deadline })
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
+        // (v0.154.0) THE BANK CLIMB RETRY: the mid-run bank trip's climb was
+        // SINGLE-SHOT - 'climb out (bank): failed - stalled' x16 + 'timeout' x7
+        // in the run108/run84a logs, F3's 3-of-4 bank trips dead at the climb in
+        // run85 (~20x fleet-wide, the biggest trip killer the floor cannot
+        // reach), each dead trip leaving the pockets riding to the next cadence
+        // window. The escalation ladder is the built-in cure: the failed call
+        // recorded stage+1 (climbLedgerUpdate), so THIS retry inherits 2x
+        // budgets and a ROTATED bearing - the same mechanism the final bank's
+        // retry has run since v0.50.0. The fence is the TRIP's remaining chain
+        // clock (the budget the bank leg still expects), never the deadline;
+        // 'rescue owns the bot'/'low-o2'/'exhausted'/'stopped' never retry (a
+        // live lane owns the bot, the air owns the wet escape, the ledger
+        // cooldown would refuse). Only the 'bank' caller passes a chain clock -
+        // 'trip' and 'pre-position' keep the byte-identical single-shot shape.
+        if (r.ok || !chainLeftMs) return r.ok
+        const plan = bankClimbRetry({ chainLeftMs, spentMs: Date.now() - climbT0, reason: r.reason })
+        if (!plan.retry) {
+          console.log(`${name} climb out (${reason}): no retry (${plan.why})`)
+          return r.ok
+        }
+        console.log(`${name} climb out (${reason}): retry (${plan.why})`)
+        const retryFenceAt = Date.now() + plan.maxMs
+        r = await miner.climbOut({ dir: direction, force: true, maxMs: Math.min(PILLAR_MAX_MS, plan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+        if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): retry OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
+        else if (!r.ok) console.log(`${name} climb out (${reason}): retry failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         return r.ok
       }
       const recoveryDueNow = () => recoveryDue({ hasPick: hasPickNow(), msSinceLast: Date.now() - lastBootstrap, remainingMs: deadline - Date.now(), failStreak: recoveryFailStreak })
@@ -1133,7 +1159,12 @@ async function runBot (name, target, index) {
           })
           console.log(`${name} bank trip: ${tripPlanned ? 'planned' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
-          if (await ensureSurface('bank')) {
+          // (v0.154.0) the bank trip's climb retry fences against the trip's
+          // OWN remaining chain clock: everything spent since lastBankAt
+          // (consolidation included) plus the failed attempt's spend comes off
+          // before the retry may arm (bankClimbRetry's 20s floor holds the
+          // deposit walk's reserve).
+          if (await ensureSurface('bank', { chainLeftMs: Math.max(0, bankBudgetMs - (Date.now() - lastBankAt)) })) {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: bankBudgetMs })
             if (res.deposited > 0) {
               banked += res.deposited

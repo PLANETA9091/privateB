@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS, FINAL_BANK_REF_DIST } from '../../src/lib/endphase.mjs'
-import { finalBankSchedule, climbRetryPlan, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
+import { finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
 
 test('slots: deterministic index spacing, bot 0 banks immediately', () => {
   assert.equal(finalBankDelayMs({ index: 0 }), 0)
@@ -272,4 +272,71 @@ test('climbRetryPlan: the fence arithmetic keeps the chain reserve intact', () =
   const fast = climbRetryPlan({ attempts: 1, reason: 'stalled', sliceLeftMs: slice - 36000 })
   assert.equal(fast.retry, true)
   assert.equal(fast.maxMs, slice - 36000)
+})
+
+// ---- v0.154.0: THE BANK CLIMB RETRY (the mid-run trip's climb decision) ----
+// run108 + run84a fleet logs: 'climb out (bank): failed - stalled' x16 +
+// 'timeout' x7, every one a dead bank trip whose pockets rode to the next
+// cadence window (F3 in run85: 3 of 4 trips dead at the climb, ~20x
+// fleet-wide). The escalation ladder (a failed call records stage+1, the
+// next call inherits 2x budgets + a rotated bearing) is the built-in cure -
+// the same mechanism the final bank's retry has used since v0.50.0. The
+// fence is the TRIP's remaining chain clock; the single-shot legacy stays
+// for callers that pass none.
+test('bankClimbRetry: the stall shape arms the retry inside the chain clock', () => {
+  // the run108 shape: a PILLAR_MAX_MS (90s) stall inside a flat 120s trip -
+  // 30s of chain left, above the 20s floor: retry, fenced to those 30s
+  const r = bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'stalled' })
+  assert.equal(r.retry, true)
+  assert.equal(r.maxMs, 30000, 'the fence is the slice the failed attempt left')
+  assert.match(r.why, /fenced to 30s of the 30s the chain has left/)
+  // the timeout shape: a fast fence inside a dist-scaled trip - the pillar
+  // cap (90s) bounds the retry, not the chain
+  const fast = bankClimbRetry({ chainLeftMs: 180000, spentMs: 60000, reason: 'timeout (fenced at 45s)' })
+  assert.equal(fast.retry, true)
+  assert.equal(fast.maxMs, 90000, 'the historical PILLAR_MAX_MS caps the fence')
+  assert.match(fast.why, /of the 120s the chain has left/)
+})
+
+test('bankClimbRetry: the classes that must never retry (the owner lanes)', () => {
+  // 'rescue owns the bot' x23 in the local logs - a live rescue owns the
+  // controls; re-issuing the climb under it re-dives the bot (the v0.70.0 gate)
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'rescue owns the bot' }).retry, false)
+  // 'low-o2' - the wet escape yielded at the air floor; the rescue lane owns the air
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'low-o2' }).retry, false)
+  // the ledger cooldown would refuse the retry instantly
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'exhausted' }).retry, false)
+  // 'stopped' - shouldStop already fired
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'stopped' }).retry, false)
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 90000, reason: 'no entity' }).retry, false,
+    'unknown reasons stay honest')
+})
+
+test('bankClimbRetry: the thin chain skips the retry, the clock bounds everything', () => {
+  // 85s of a flat 100s trip spent - 15s left < the 20s floor: the retry would
+  // starve the deposit walk exactly like the run65 un-fenced shape
+  const thin = bankClimbRetry({ chainLeftMs: 100000, spentMs: 85000, reason: 'stalled' })
+  assert.equal(thin.retry, false)
+  assert.match(thin.why, /slice left 15s < min 20s/)
+  // the invariant: attempt1 real time + the retry fence never exceed the chain
+  const chain = 150000
+  const spent = 90000
+  const r = bankClimbRetry({ chainLeftMs: chain, spentMs: spent, reason: 'stalled' })
+  if (r.retry) assert.ok(spent + r.maxMs <= chain, 'the total climb time stays inside the trip chain')
+})
+
+test('bankClimbRetry: no chain clock = the single-shot legacy stays byte-identical', () => {
+  // the 'trip' and 'pre-position' call sites pass nothing - no retry, and
+  // the harness skips the block entirely (no new log lines, no behavior shift)
+  for (const junk of [undefined, null, 0, -5, NaN, '120000']) {
+    const r = bankClimbRetry({ chainLeftMs: junk, spentMs: 90000, reason: 'stalled' })
+    assert.equal(r.retry, false, `junk chain clock (${junk}) refuses`)
+    assert.match(r.why, /no chain clock \(the single-shot legacy stays\)/)
+  }
+  // junk spent reads as 0 - the full chain is the slice
+  const r = bankClimbRetry({ chainLeftMs: 120000, spentMs: NaN, reason: 'stalled' })
+  assert.equal(r.retry, true)
+  assert.equal(r.maxMs, 90000, '120s of chain, no spend recorded - the pillar cap bounds it')
+  // the attempt cap passes through from climbRetryPlan
+  assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 1000, reason: 'stalled', attempts: 2 }).retry, false)
 })

@@ -298,3 +298,49 @@ export function climbRetryPlan ({ attempts = 0, reason = '', sliceLeftMs = 0, ma
   if (/stalled|timeout/i.test(r)) return { retry: true, maxMs: left, why: `escalated retry after ${r}` }
   return { retry: false, maxMs: 0, why: `no retry for '${r || 'unknown'}'` }
 }
+
+/**
+ * (v0.154.0) THE BANK CLIMB RETRY - the mid-run bank trip's climb decision,
+ * the sibling of climbRetryPlan (the final bank's, v0.50.0).
+ *
+ * MEASURED (run108 + run84a fleet logs, and the run85 autopsy the 23:54 lane
+ * ranked front (a)): the mid-run bank trip's ensureSurface is SINGLE-SHOT -
+ * 'climb out (bank): failed - stalled' x16 + 'timeout' x7 across the two
+ * local logs, F3's 3-of-4 bank trips dead at the climb in run85 (~20x
+ * fleet-wide). Every dead trip left the pockets riding to the next cadence
+ * window (or the deadline): the deposit chain never ran. The escalation
+ * ladder is the built-in cure - a failed call records stage+1 on the bot
+ * (climbLedgerUpdate), so the NEXT climbOut inherits 2x budgets and a
+ * ROTATED bearing (the same mechanism the final bank's retry has used
+ * since v0.50.0). 'rescue owns the bot' and 'low-o2' must NEVER retry (a
+ * live lane owns the bot; the air owns the wet escape) - climbRetryPlan
+ * already refuses both; 'exhausted' refuses too (the ledger cooldown).
+ *
+ * The fence is the TRIP's remaining chain clock, not the deadline: the
+ * caller passes chainLeftMs (the bank trip's budget minus everything spent
+ * so far); the failed attempt's own spend comes off first, and the retry
+ * cannot start below climbRetryPlan's floor (20s). The returned maxMs is
+ * pre-fenced by the historical PILLAR_MAX_MS (90s) so the harness can pass
+ * it straight to climbOut. No chain clock (junk/0) = the single-shot legacy
+ * stays byte-identical ('trip' and 'pre-position' keep their shape).
+ *
+ * Pure, junk-safe. @param {object} [p]
+ * @param {number} [p.chainLeftMs] the trip chain's remaining wall clock (junk/0 -> single-shot legacy)
+ * @param {number} [p.spentMs] wall clock the failed attempt 1 already burned
+ * @param {string} [p.reason] attempt 1's failure reason ('stalled'|'timeout'|...)
+ * @param {number} [p.attempts] climb attempts already made (default 1 - the failed trip climb)
+ * @param {number} [p.pillarMaxMs] the climb's historical fence (default 90000 = PILLAR_MAX_MS)
+ * @param {number} [p.minRetrySliceMs] below this the retry cannot start (default CLIMB_RETRY_MIN_SLICE_MS)
+ * @returns {{retry: boolean, maxMs: number, why: string}}
+ */
+export function bankClimbRetry ({ chainLeftMs = 0, spentMs = 0, reason = '', attempts = 1, pillarMaxMs = 90000, minRetrySliceMs = CLIMB_RETRY_MIN_SLICE_MS } = {}) {
+  const left = Number.isFinite(chainLeftMs) && chainLeftMs > 0 ? chainLeftMs : 0
+  if (left <= 0) return { retry: false, maxMs: 0, why: 'no chain clock (the single-shot legacy stays)' }
+  const spent = Number.isFinite(spentMs) && spentMs > 0 ? spentMs : 0
+  const sliceLeft = Math.max(0, left - spent)
+  const plan = climbRetryPlan({ attempts, reason, sliceLeftMs: sliceLeft, minRetrySliceMs })
+  if (!plan.retry) return { retry: false, maxMs: 0, why: plan.why }
+  const cap = Number.isFinite(pillarMaxMs) && pillarMaxMs > 0 ? pillarMaxMs : 90000
+  const maxMs = Math.min(cap, plan.maxMs)
+  return { retry: true, maxMs, why: `${plan.why}, fenced to ${Math.round(maxMs / 1000)}s of the ${Math.round(sliceLeft / 1000)}s the chain has left` }
+}
