@@ -1146,3 +1146,43 @@ test('wiring: the cover dig + the verified retry ride the fuel source (fuelbank.
   assert.match(src, /re-firing the same plan once/, 'the verified retry names the re-fire')
   assert.match(src, /the clicks lied twice/, 'the double lie is named honestly')
 })
+
+// ------------------------------------------- v0.159.0 THE CHEST VERTICAL GATE
+// Run15 (36063283715): the smelt leg's commons asks ran from DEEP bots (F4
+// y=43, the yard hill y=82 - dy 39 over 5b lateral) and burned the thin leg
+// clock on guaranteed refusals ('chest unreachable (Took to long to decide
+// path to goal!)' x15+ while smelted=0). The strict arithmetic now gates the
+// walks themselves - the ask rides instead of burning its slice.
+test('withdrawFuelCommons: the vertical gate - a chest 40 levels up over 2 lateral is skipped WITHOUT a walk (the run15 anatomy)', async () => {
+  const world = mockAnchorSweepWorld()
+  world.bot.entity.position = new Vec3(31.5, 20, 31.5) // the bot deep under the yard row (chests at y=64, dy=44 over <=40 lateral)
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 2, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines.push(l) })
+  const joined = lines.join('\n')
+  assert.match(joined, /fuel commons: chest at \[[\d.,]+\] the yard stands 44 levels up over \d+b lateral - the walk ladder cannot climb, the ask ride/, 'the gate names the shape and the ride')
+  assert.equal((joined.match(/the walk ladder cannot climb/g) || []).length, 1, 'ONE doom line per ask - the whole yard row shares one level')
+  assert.equal(res.taken, 0)
+  assert.equal(res.chestsVisited, 0, 'no chest was opened')
+  assert.equal(world.opened['30,64,30'], undefined, 'the anchor chest was never walked to')
+  assert.equal(world.opened['3,64,3'], undefined, 'the junk chest was never walked to')
+})
+
+test('withdrawFuelCommons: the vertical gate keeps the flat world byte for byte - the v0.124.0 anchor shape still funds', async () => {
+  const world = mockAnchorSweepWorld() // the bot at y=64, the chests at y=64: dy=0 -> no doom
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 1, yardCenter: { x: 32, y: 64, z: 32 }, log: l => lines.push(l) })
+  assert.equal(res.reason, 'ok', 'the flat world funds exactly as before')
+  assert.equal(res.taken, 5)
+  assert.equal(world.opened['30,64,30'], 1, 'the anchor read opened first')
+  assert.equal(lines.join('\n').includes('the walk ladder cannot climb'), false, 'no gate line on a walkable world')
+})
+
+test('deliverFuelTithe: the vertical gate skips the doomed anchor walk with the named why - the pocket keeps its coal', async () => {
+  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(1.5, 24, 1.5) }) // dy=40 over ~12 lateral
+  const res = await deliverFuelTithe(world.bot, { yardCenter: { x: 0, y: 64, z: 0 }, budgetMs: 20000, log: () => {} })
+  assert.equal(res.delivered, 0, 'nothing delivered - the walk never started')
+  assert.match(res.why, /^the vertical gate: the yard stands 40 levels up over \d+b lateral - the walk ladder cannot climb$/, 'the named why carries the arithmetic')
+  assert.equal(world.gotoPeek(), 0, 'the anchor walk was never issued')
+  const kept = world.bot.inventory.items().filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0)
+  assert.equal(kept, 14, 'the pocket keeps its overage for a window the bot spends near the yard')
+})

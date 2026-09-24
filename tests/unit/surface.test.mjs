@@ -14,7 +14,8 @@ import {
   riseRecoveryPlan, RISE_ASSIST_TIMEOUT_MS, RISE_LONGHOLD_TICKS,
   CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow,
   veinDigRefusal, VEIN_DROP_REFUSE,
-  verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY
+  verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY,
+  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING, chestVerticalDoom
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -423,4 +424,97 @@ test('wiring: the vertical doom gate rides the fleet sources (fleet19.mjs pins)'
   assert.match(src, /climbing toward the yard's level \(the walk ladder cannot\)/, 'the final climb names the doom handover')
   assert.match(src, /targetY: finalDoom\.doom \? yardGoal\.y : null/, 'both final climb attempts raise the target')
   assert.match(src, /!doomAtWalk\.doom/, 'the walk loop refuses to enter a doomed vertical')
+})
+
+// ------------------------------------------------ v0.159.0 THE WET-BAND LADDER
+// Run15 (36063283715, the v0.157.0/v0.158.0 fleet) decoded the final-bank
+// killer: the staircases WORK (F13 dug=48, +24 levels) and stall IN THE
+// SURFACE WATER BAND (y=59-67) - the legacy shape spent the stage ladder's
+// wetAttempts (2) on ESCAPES THAT MOVED THE BOT (F12: '2 blocks walked' then
+// '5 blocks walked' - real progress, counted as walls). 12/19 final banks
+// died 'still underground after 2 climb attempts'. The cure: an escape that
+// walked feeds its own ladder; only a sealed pocket consumes the sealed one.
+test('wetEscapeGate: the union gate - sealed room first, then the walked ladder, then the honest stop', () => {
+  // the sealed ladder owns the first wetAttempts attempts (the stage shape)
+  assert.deepEqual(wetEscapeGate({ wetTries: 0, wetAttempts: 2, wetWalks: 0 }),
+    { escape: true, why: 'sealed-escape room (0/2)' })
+  assert.equal(wetEscapeGate({ wetTries: 1, wetAttempts: 2, wetWalks: 0 }).escape, true)
+  // the sealed ladder is spent: the walked ladder answers instead (THE cure)
+  assert.deepEqual(wetEscapeGate({ wetTries: 2, wetAttempts: 2, wetWalks: 0 }),
+    { escape: true, why: 'walked-escape room (0/4)' }, 'the walked ladder is the new room - the run15 stall class')
+  assert.equal(wetEscapeGate({ wetTries: 2, wetAttempts: 2, wetWalks: 3 }).escape, true)
+  // both spent: the honest stop (the climb ends, the fences own the rest)
+  assert.deepEqual(wetEscapeGate({ wetTries: 2, wetAttempts: 2, wetWalks: 4 }),
+    { escape: false, why: 'the wet ladder is spent (sealed 2/2, walked 4/4)' })
+  assert.equal(wetEscapeGate({ wetTries: 5, wetAttempts: 2, wetWalks: 9 }).escape, false)
+})
+
+test('wetEscapeGate: junk shapes read as the legacy budget (byte-safe defaults)', () => {
+  assert.equal(wetEscapeGate({}).escape, true, 'fresh climb: room exists')
+  assert.equal(wetEscapeGate({ wetTries: NaN, wetWalks: NaN, wetAttempts: NaN, ceiling: NaN }).escape, true, 'junk reads as zero spent, positive budgets')
+  assert.equal(wetEscapeGate({ wetTries: -3, wetWalks: -2, wetAttempts: 2, ceiling: 4 }).escape, true, 'negative counters clamp to 0')
+  assert.equal(wetEscapeGate({ wetTries: 2, wetAttempts: 0, wetWalks: 4, ceiling: 0 }).escape, false, 'junk budgets fall back to the constants - both spent is both spent')
+})
+
+test('wetEscapeAccount: walked escapes feed the walked ladder, sealed ones the stage ladder (the counter split)', () => {
+  // F12's field shape: a gallery that MOVED the bot is progress, not a wall
+  assert.deepEqual(wetEscapeAccount({ walked: 2, wetTries: 0, wetWalks: 0 }),
+    { wetTries: 0, wetWalks: 1, sealed: false })
+  assert.deepEqual(wetEscapeAccount({ walked: 5, wetTries: 0, wetWalks: 1 }),
+    { wetTries: 0, wetWalks: 2, sealed: false }, 'the sealed budget SURVIVES a walked escape')
+  // a sealed pocket (walked=0) consumes exactly as the legacy shape did
+  assert.deepEqual(wetEscapeAccount({ walked: 0, wetTries: 1, wetWalks: 0 }),
+    { wetTries: 2, wetWalks: 0, sealed: true })
+  assert.deepEqual(wetEscapeAccount({ walked: -1, wetTries: 0, wetWalks: 2 }),
+    { wetTries: 1, wetWalks: 2, sealed: true }, 'junk/negative walked reads as sealed')
+  assert.deepEqual(wetEscapeAccount({}), { wetTries: 1, wetWalks: 0, sealed: true })
+})
+
+test('wiring: the wet ladder rides the climb source (miner.mjs pins)', () => {
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.match(src, /wetEscapeGate\(\{ wetTries, wetAttempts, wetWalks \}\)/, 'the gate is consulted per wet block')
+  assert.match(src, /wetEscapeAccount\(\{ walked: esc\.walked, wetTries, wetWalks \}\)/, 'the account classifies the finished escape')
+  assert.match(src, /let wetWalks = 0/, 'the walked counter lives beside wetTries')
+  assert.match(src, /WET_ESCAPE_WALK_CEILING/, 'the ceiling bounds the walked class')
+})
+
+// --------------------------------------------- v0.159.0 THE CHEST VERTICAL GATE
+// Run15: the smelt leg's yard walks ran from DEEP bots (F4 y=43, the yard
+// hill y=82 - dy 39 over 5b lateral) and burned the thin leg clock on 4-5
+// guaranteed refusals per ask while smelted=0. The same strict arithmetic the
+// bank climbs have gated since v0.158.0 now answers before the walk starts.
+test('chestVerticalDoom: the run15 anatomy dooms the walk, the walkable band and hillside stay legacy', () => {
+  // F4's exact shape: bot y=43, chest y=82, lateral 5.4
+  const doom = chestVerticalDoom({ botPos: { x: -101, y: 43, z: 425 }, chestPos: { x: -103, y: 82, z: 420 } })
+  assert.equal(doom.doom, true, 'the yard hill over a deep bot is the doomed vertical')
+  assert.match(doom.why, /39 levels up over 5b lateral/)
+  // F12's shape: y=64 vs 82 = dy 18 - inside the walkable band, the walk keeps its try
+  assert.equal(chestVerticalDoom({ botPos: { x: -132, y: 64, z: 414 }, chestPos: { x: -133, y: 82, z: 414 } }).doom, false,
+    '18 levels up is the walkable band (the strict minDy holds)')
+  // the hillside: lateral >= dy stays the legacy ladder (the strict shape)
+  assert.equal(chestVerticalDoom({ botPos: { x: 0, y: 60, z: 0 }, chestPos: { x: 30, y: 80, z: 0 } }).doom, false,
+    '30 lateral over 20 up may route - no doom')
+  // the chest at/below the bot: never doom
+  assert.equal(chestVerticalDoom({ botPos: { x: 0, y: 82, z: 0 }, chestPos: { x: 2, y: 64, z: 2 } }).doom, false)
+})
+
+test('chestVerticalDoom: the junk family reads as no doom - the legacy walk attempt runs byte for byte', () => {
+  for (const junk of [null, undefined]) {
+    assert.equal(chestVerticalDoom({ botPos: junk, chestPos: { x: 0, y: 82, z: 0 } }).doom, false)
+    assert.equal(chestVerticalDoom({ botPos: { x: 0, y: 24, z: 0 }, chestPos: junk }).doom, false)
+  }
+  assert.equal(chestVerticalDoom({ botPos: { x: 0, y: NaN, z: 0 }, chestPos: { x: 0, y: 82, z: 0 } }).doom, false, 'junk y reads as no vertical read')
+  assert.equal(chestVerticalDoom({}).doom, false)
+})
+
+test('wiring: the vertical gate rides the four yard walk sources (the fuelbank + toolupgrade pins)', () => {
+  const bankSrc = fs.readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const toolSrc = fs.readFileSync(new URL('../../src/lib/toolupgrade.mjs', import.meta.url), 'utf8')
+  assert.match(bankSrc, /import \{ chestVerticalDoom \} from '\.\/surface\.mjs'/)
+  assert.match(bankSrc, /chestVerticalDoom\(\{ botPos: bot\?\.entity\?\.position \?\? null, chestPos: chest\.position \}\)/, 'the commons gate reads the live positions')
+  assert.match(bankSrc, /the walk ladder cannot climb, the ask rides \(the tithe owns the deep resupply\)/, 'the commons skip names the ride')
+  assert.match(bankSrc, /the vertical gate: \$\{doom\.why\} - the walk ladder cannot climb/, 'the tithe skip names its why')
+  assert.match(toolSrc, /import \{ chestVerticalDoom \} from '\.\/surface\.mjs'/)
+  assert.match(toolSrc, /the walk ladder cannot climb, the fragments ride/, 'the commune skip names the ride')
+  assert.match(toolSrc, /the walk ladder cannot climb, the seed rides/, 'the seed skip names the ride')
 })

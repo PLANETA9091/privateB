@@ -57,6 +57,7 @@ import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
 import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
+import { chestVerticalDoom } from './surface.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -442,6 +443,16 @@ export async function deliverFuelTithe (bot, {
     anchor = pickFuelAnchor(cells, yardCenter)
   } catch { anchor = null }
   if (!anchor) return { delivered: 0, why: 'no anchor chest' }
+  // (v0.159.0) THE VERTICAL GATE (the tithe): a chest mostly ABOVE the bot is
+  // doomed by arithmetic (the run15 anatomy: the yard hill y=82 over bots at
+  // y=43-64). The tithe's OWN evidence is the honest split: F18/F3 banked 4+8
+  // coal when the walk was routable, while the deep asks burned their 15s
+  // budget on guaranteed refusals. The skip returns before the walk - the
+  // pocket keeps its coal for a window the bot spends nearer the yard.
+  {
+    const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: anchor })
+    if (doom.doom) return { delivered: 0, why: `the vertical gate: ${doom.why} - the walk ladder cannot climb` }
+  }
   let dist = (() => {
     try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return 8 }
   })()
@@ -693,6 +704,7 @@ export async function withdrawFuelCommons (bot, {
   let taken = 0
   let chestsVisited = 0
   let nudgeUsed = false // (v0.147.0) ONE path-geometry nudge per commons visit
+  let doomLogged = false // (v0.159.0) ONE vertical-gate line per ask
   const planAll = []
   // (v0.124.0) THE ANCHOR FIRST READ: the tithe's delivery target is the
   // fleet's one deterministic fuel chest - when a yardCenter is known, the
@@ -720,6 +732,25 @@ export async function withdrawFuelCommons (bot, {
       : findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
     if (!chest) { if (c === 0) log('fuel commons: no yard chest in range'); break }
     const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+    // (v0.159.0) THE VERTICAL GATE (the commons): a chest mostly ABOVE the bot
+    // is doomed by arithmetic - the same strict shape the bank climbs have
+    // gated since v0.158.0, now at the walk sites the smelt leg pays for. The
+    // honest skip names the shape ONCE per ask (the whole yard row shares one
+    // level), excludes the chest, and moves on: the thin leg clock keeps its
+    // slice for the machine walk and the build, the ask rides (the tithe owns
+    // the resupply near the yard; the next ask runs from wherever the bot
+    // then stands).
+    {
+      const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      if (doom.doom) {
+        if (!doomLogged) {
+          doomLogged = true
+          log(`fuel commons: chest at [${chest.position.x ?? '?'},${chest.position.y ?? '?'},${chest.position.z ?? '?'}] ${doom.why} - the walk ladder cannot climb, the ask rides (the tithe owns the deep resupply)`)
+        }
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
+    }
     // the walk fits INSIDE the resupply slice (the smelt leg's own clock) -
     // chestWalkBudgetMs scales with distance, effectiveWalkBudget clamps into
     // what is actually left

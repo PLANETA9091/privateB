@@ -23,7 +23,8 @@ import {
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
-  tunnelStopReason, TUNNEL_MAX_MS, climbTargetY
+  tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
+  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
@@ -3267,6 +3268,7 @@ export function createMiner ({
     let steps = 0
     let fails = 0
     let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
+    let wetWalks = 0 // (v0.159.0) wet-escape galleries that MOVED the bot - the walked ladder
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
@@ -3471,22 +3473,38 @@ export function createMiner ({
         // (the ceiling above) is the flooded-shaft signature - rotation cannot
         // fix it and digging up floods the staircase. Dig sideways out from
         // under the water first; the staircase resumes from the dry gallery.
-        if (blockedWet && wetTries < wetAttempts) {
-          wetTries++
-          const esc = await escapeTraverse({ shouldStop })
-          traversed += esc.walked
-          if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason})`)
-          // (v0.85.0) THE LOW-O2 HANDOFF: the escape yielded at the air floor -
-          // end the climb NOW (an honest 'exhausted'-shape return every caller
-          // already handles) instead of looping into another wet gallery: the
-          // finally has cleared _climbEscape, the drown sentry re-owns the bot
-          // on its next tick and pages the rescue. The climb's own ledger must
-          // NOT record a wall here: the escape did not fail, the air did.
-          if (esc.reason === 'low-o2') {
-            log(`${tag} climb wet escape: oxygen ${esc.o2} at the floor - the escape yields, the rescue lane owns the air`)
-            return { ok: false, reason: 'low-o2', gained: 0, dug, steps, traversed }
+        if (blockedWet) {
+          // (v0.159.0) THE WET-BAND LADDER: the gate + the account split the
+          // two escape classes. Run15's anatomy: the legacy shape spent the
+          // stage ladder's wetAttempts (2) on ESCAPES THAT MOVED THE BOT (F12:
+          // 'wet escape: 2 blocks walked' then '5 blocks walked' - real
+          // progress under the lake bed, counted as walls) and the staircase
+          // then died the rotate-fail ladder in the next water column with
+          // dug=32-48 on the clock. Now: a walked escape feeds the walked
+          // ladder (ceiling 4), only a sealed pocket (walked=0) consumes the
+          // stage ladder's sealed budget - the wet band gets crossed by
+          // repeated galleries instead of one, and the maxMs + failLimit
+          // fences bound everything exactly as before.
+          const wetGate = wetEscapeGate({ wetTries, wetAttempts, wetWalks })
+          if (wetGate.escape) {
+            const esc = await escapeTraverse({ shouldStop })
+            const acc = wetEscapeAccount({ walked: esc.walked, wetTries, wetWalks })
+            wetTries = acc.wetTries
+            wetWalks = acc.wetWalks
+            traversed += esc.walked
+            if (esc.walked > 0) log(`${tag} climb wet escape: ${esc.walked} blocks walked (${esc.reason}, walked ${wetWalks}/${WET_ESCAPE_WALK_CEILING})`)
+            // (v0.85.0) THE LOW-O2 HANDOFF: the escape yielded at the air floor -
+            // end the climb NOW (an honest 'exhausted'-shape return every caller
+            // already handles) instead of looping into another wet gallery: the
+            // finally has cleared _climbEscape, the drown sentry re-owns the bot
+            // on its next tick and pages the rescue. The climb's own ledger must
+            // NOT record a wall here: the escape did not fail, the air did.
+            if (esc.reason === 'low-o2') {
+              log(`${tag} climb wet escape: oxygen ${esc.o2} at the floor - the escape yields, the rescue lane owns the air`)
+              return { ok: false, reason: 'low-o2', gained: 0, dug, steps, traversed }
+            }
+            if (esc.resumed) continue // fresh position - let the main loop re-judge
           }
-          if (esc.resumed) continue // fresh position - let the main loop re-judge
         }
         // (v0.37.0) SURFACE HANDOFF on the blocked path. Fleet 35566494961 (the
         // first run whose bank trips finally fired): F2 climbed out, banked at

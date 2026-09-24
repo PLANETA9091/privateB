@@ -22,6 +22,7 @@ import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgrad
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, depositStackDirect } from './deposit.mjs'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
+import { chestVerticalDoom } from './surface.mjs'
 import { withdrawStackMove, pickWithdrawSlots } from './fuelbank.mjs'
 import pathfinderPkg from 'mineflayer-pathfinder'
 
@@ -413,11 +414,30 @@ export async function withdrawIronCommune (bot, {
   const exclude = []
   let taken = 0
   let nudgeUsed = false // (v0.155.0) one approachWalk shot per call - the budget is the bound
+  let doomLogged = false // (v0.159.0) ONE vertical-gate line per call
   for (let c = 0; c < 3; c++) {
     if (remainingMs() <= 0) { log(`budget spent (${taken}/${IRON_PICK_INGOTS - held} units)`); break }
     const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
     if (!chest) { if (c === 0) log('no yard chest in range'); break }
     const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+    // (v0.159.0) THE VERTICAL GATE (the commune): the run15 anatomy - the
+    // commune walks from deep bots died the nudge-then-stall class ('path
+    // nudge approach: 1 segment(s) walked ... goal now d=39.4 (still outside
+    // - a segment stalled)') because the chest stood 27-39 levels UP over a
+    // few lateral. The strict arithmetic gates the walk itself: the skip
+    // names the shape once, excludes the chest, and the ingots wait for a
+    // window the bot spends near the yard (the fragments ride the pocket).
+    {
+      const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      if (doom.doom) {
+        if (!doomLogged) {
+          doomLogged = true
+          log(`iron commune: chest ${doom.why} - the walk ladder cannot climb, the fragments ride (the ask retries near the yard)`)
+        }
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
+    }
     try {
       // the re-arming doomed walk (the fuel commons shape): the yard is THE
       // shared destination class - a sibling bot's failed walk never speaks
@@ -577,11 +597,28 @@ export async function seedIronPool (bot, {
   const remainingMs = () => budgetMs - (Date.now() - started)
   const exclude = []
   let nudgeUsed = false // (v0.155.0) one approachWalk shot per call - the budget is the bound
+  let doomLogged = false // (v0.159.0) ONE vertical-gate line per call
   for (let c = 0; c < 3; c++) {
     if (remainingMs() <= 0) { log('the seed budget is spent'); break }
     const chest = findChest(bot, { maxDistance, exclude, yardCenter, yardRadius, log })
     if (!chest) { if (c === 0) log('no chest in range for the pool seed'); break }
     const dist = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+    // (v0.159.0) THE VERTICAL GATE (the seed): the same run15 shape as the
+    // commune above - a chest 27+ levels up over a few lateral blocks cannot
+    // be walked to, and the seed's clock is the thinnest of the three asks.
+    // The skip names the shape once; the seed fires when the bot next stands
+    // near the yard (the fragments ride the pocket meanwhile).
+    {
+      const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      if (doom.doom) {
+        if (!doomLogged) {
+          doomLogged = true
+          log(`pool seed: chest ${doom.why} - the walk ladder cannot climb, the seed rides (it retries near the yard)`)
+        }
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
+    }
     try {
       // the re-arming doomed walk (the commune/fuel-commons shape): the yard
       // is THE shared destination class - a sibling bot's failed walk never

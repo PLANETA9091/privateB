@@ -1159,3 +1159,50 @@ test('upgradeTools flow: the F8 shape reaches the plank rung and crafts the iron
   // the real craft makes them), the table item crafts, the pick lands
   assert.deepEqual(calls, ['stick', 'crafting_table', 'iron_pickaxe'])
 })
+
+// ------------------------------------------- v0.159.0 THE CHEST VERTICAL GATE
+// Run15: the commune's nudges closed to d=39.4 with the segment stalled - the
+// chest stood 27-39 levels UP over a few lateral (the yard hill class). The
+// strict arithmetic gates the commune and seed walks; the fragments ride.
+test('withdrawIronCommune: the vertical gate - a chest 40 levels up is skipped without a walk (the run15 F4 shape)', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(3), botPos: new Vec3(3.5, 24, 3.5) })
+  world.setPocket(1) // h=1: the commune has something to take for
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { budgetMs: 20000, log: l => lines.push(l) })
+  const joined = lines.join('\n')
+  assert.match(joined, /iron commune: chest the yard stands 40 levels up over 0b lateral - the walk ladder cannot climb, the fragments ride/, 'the gate names the shape and the ride')
+  assert.equal((joined.match(/the walk ladder cannot climb/g) || []).length, 1, 'ONE doom line per call')
+  assert.equal(world.opened, 0, 'the chest was never opened')
+  assert.equal(world.gotoCalls.length, 0, 'the walk was never issued')
+  assert.equal(res.taken, 0)
+})
+
+test('withdrawIronCommune: the flat world keeps the legacy shape byte for byte', async () => {
+  const world = mockCommuneWorld({ chestItem: ironItem(3) }) // the default botPos: no vertical read -> no doom
+  world.setPocket(1) // h=1: the honest ask
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { budgetMs: 20000, log: l => lines.push(l) })
+  assert.equal(res.taken, 3, 'the flat/legacy world takes the chest set exactly as before (the observed legacy value)')
+  assert.equal(lines.join('\n').includes('the walk ladder cannot climb'), false, 'no gate line on a walkable world')
+})
+
+test('seedIronPool: the vertical gate skips the doomed seed walk with the named line', async () => {
+  const world = mockCommuneWorld({ chestItem: null, botPos: new Vec3(3.5, 24, 3.5) })
+  world.setPocket(2) // h=2: 1 short of the set, a seeder's pocket
+  const lines = []
+  const res = await seedIronPool(world.bot, { budgetMs: 15000, log: l => lines.push(l) })
+  const joined = lines.join('\n')
+  assert.match(joined, /pool seed: chest the yard stands 40 levels up over 0b lateral - the walk ladder cannot climb, the seed ride/, 'the gate names the shape and the ride')
+  assert.equal(world.opened, 0, 'no chest was opened')
+  assert.equal(world.gotoCalls.length, 0, 'no walk was issued')
+  assert.equal(res.deposited, 0)
+})
+
+test('seedIronPool: the flat world keeps the legacy shape byte for byte', async () => {
+  const world = mockCommuneWorld({ chestItem: null }) // the default botPos: no vertical read
+  world.setPocket(2)
+  const lines = []
+  const res = await seedIronPool(world.bot, { budgetMs: 15000, log: l => lines.push(l) })
+  assert.equal(lines.join('\n').includes('the walk ladder cannot climb'), false, 'no gate line on a walkable world')
+  assert.equal(res.deposited, 2, 'the seed deposits exactly as before')
+})

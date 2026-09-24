@@ -85,6 +85,71 @@ export const TRAVERSE_MAX_ATTEMPTS = 2
 // no-motion forward steps before a gallery is declared stalled (the tunnel
 // lesson: a blocked lip never unblocks by holding forward)
 export const TRAVERSE_STALL_LIMIT = 3
+// (v0.159.0) THE WET-BAND LADDER. Run15 (36063283715, the v0.157.0/v0.158.0
+// fleet) decoded the final-bank killer precisely: the staircases WORK (F13
+// dug=48, +24 levels from y=41) and then stall IN THE SURFACE WATER BAND
+// (y=59-67): the step cells read water ('stop'), the wet-escape gallery
+// walks 2-5 blocks of proven dry stone under the lake bed, the staircase
+// re-judges into the NEXT water column, and the legacy accounting spends the
+// stage ladder's wetAttempts (2) on ESCAPES THAT MOVED THE BOT - real
+// progress, counted as walls. 12/19 final banks died 'still underground
+// after 2 climb attempts' with dug=24-48 on the clock. The cure splits the
+// two escape classes: an escape that WALKED (moved the bot out of the trap
+// it was in) no longer consumes the sealed-pocket budget - only a walked=0
+// escape (a genuinely sealed pocket) does. The walked class gets its own
+// hard ceiling so a pathological wet maze still ends the climb honestly
+// (the maxMs + failLimit fences never moved).
+export const WET_ESCAPE_WALK_CEILING = 4
+
+/**
+ * Should the climb open another wet-escape gallery? The union gate (pure,
+ * junk-tolerant): a sealed-class attempt has room while wetTries < attempts
+ * (the stage ladder's shape, byte for byte), a walked-class attempt has room
+ * while wetWalks < ceiling. The caller classifies the escape AFTER it runs
+ * (wetEscapeAccount) - the gate only decides whether one more may start.
+ * @param {object} [p]
+ * @param {number} [p.wetTries] sealed escapes spent so far (default 0)
+ * @param {number} [p.wetAttempts] the stage ladder's sealed budget (default TRAVERSE_MAX_ATTEMPTS)
+ * @param {number} [p.wetWalks] walked escapes spent so far (default 0)
+ * @param {number} [p.ceiling] walked-class cap (default WET_ESCAPE_WALK_CEILING)
+ * @returns {{escape: boolean, why: string}}
+ */
+export function wetEscapeGate ({
+  wetTries = 0,
+  wetAttempts = TRAVERSE_MAX_ATTEMPTS,
+  wetWalks = 0,
+  ceiling = WET_ESCAPE_WALK_CEILING
+} = {}) {
+  const tries = Number.isFinite(wetTries) && wetTries >= 0 ? Math.floor(wetTries) : 0
+  const walks = Number.isFinite(wetWalks) && wetWalks >= 0 ? Math.floor(wetWalks) : 0
+  const att = Number.isFinite(wetAttempts) && wetAttempts > 0 ? Math.floor(wetAttempts) : TRAVERSE_MAX_ATTEMPTS
+  const cap = Number.isFinite(ceiling) && ceiling > 0 ? Math.floor(ceiling) : WET_ESCAPE_WALK_CEILING
+  if (tries < att) return { escape: true, why: `sealed-escape room (${tries}/${att})` }
+  if (walks < cap) return { escape: true, why: `walked-escape room (${walks}/${cap})` }
+  return { escape: false, why: `the wet ladder is spent (sealed ${tries}/${att}, walked ${walks}/${cap})` }
+}
+
+/**
+ * Classify a finished wet-escape and advance the matching counter (pure,
+ * junk-tolerant). walked > 0 means the gallery MOVED the bot out of the water
+ * it was trapped in - the next water column is a NEW trap, not the same wall,
+ * so the sealed budget survives; walked <= 0 (a sealed pocket) consumes the
+ * sealed ladder exactly as the legacy shape did.
+ * @param {object} [p]
+ * @param {number} [p.walked] blocks the gallery walked
+ * @param {number} [p.wetTries] sealed escapes spent so far
+ * @param {number} [p.wetWalks] walked escapes spent so far
+ * @returns {{wetTries: number, wetWalks: number, sealed: boolean}}
+ */
+export function wetEscapeAccount ({ walked = 0, wetTries = 0, wetWalks = 0 } = {}) {
+  const moved = Number.isFinite(walked) && walked > 0
+  const tries = Number.isFinite(wetTries) && wetTries >= 0 ? Math.floor(wetTries) : 0
+  const walks = Number.isFinite(wetWalks) && wetWalks >= 0 ? Math.floor(wetWalks) : 0
+  return moved
+    ? { wetTries: tries, wetWalks: walks + 1, sealed: false }
+    : { wetTries: tries + 1, wetWalks: walks, sealed: true }
+}
+
 // (v0.29.0) 4 = a full circle of bearings. Every traverseStep refusal is
 // BEARING-LOCAL (it reads only the cells along d), so a refusing gallery
 // rotates to the next cardinal instead of dying on the first refusal - the
@@ -558,6 +623,32 @@ export function verticalDoomPlan ({ botY = null, yardY = null, lateral = null, m
     dy: Math.round(dy),
     lateral: Math.round(lat),
     why: `the yard stands ${Math.round(dy)} levels up over ${Math.round(lat)}b lateral`
+  }
+}
+
+// (v0.159.0) THE CHEST VERTICAL GATE - the shared wiring helper for the yard
+// chest walks (the commons, the tithe, the commune, the pool seed). Run15
+// measured the class the bank climbs' gate (v0.158.0) never covered: the smelt
+// leg's walks run from DEEP bots (F4 y=43, the yard hill y=82 - dy 39 over 5b
+// lateral) and burn the thin leg clock on 4-5 guaranteed refusals per ask
+// ('chest unreachable (Took to long to decide path to goal!)' x15+ while
+// smelted=0; the commune's nudges closed to d=39.4 with the segment stalled).
+// The same strict verticalDoomPlan arithmetic now gates the chest walks
+// themselves. Junk-safe: any unreadable position reads as no doom - the
+// legacy walk attempt runs byte for byte.
+export function chestVerticalDoom ({ botPos = null, chestPos = null } = {}) {
+  try {
+    if (!botPos || !chestPos) return { doom: false, why: 'no position read' }
+    const y = Number.isFinite(botPos.y) ? botPos.y : null
+    const cy = Number.isFinite(chestPos.y) ? chestPos.y : null
+    if (y == null || cy == null) return { doom: false, why: 'no vertical read' }
+    return verticalDoomPlan({
+      botY: y,
+      yardY: cy,
+      lateral: Math.hypot(botPos.x - chestPos.x, botPos.z - chestPos.z)
+    })
+  } catch {
+    return { doom: false, why: 'no position read' }
   }
 }
 
