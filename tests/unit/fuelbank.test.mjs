@@ -659,10 +659,11 @@ test('fuelPocketOverage: the pocket sum over the tithe bound, junk-safe', () => 
 // A mock for the anchor DELIVERY: the pocket holds coal over the bound, the
 // yard holds the anchor chest, window.deposit moves with real mirror
 // semantics (the pocket tail IS the inventory - the v0.73.0 lesson shape).
-function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false } = {}) {
+function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false, walkFailTimes = 0, firstWalkError = 'NoPath: no path' } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   let current = null
   let closedCount = 0
+  let gotoCalls = 0
   const chestSlots = Array.from({ length: 27 }, () => null)
   const pocket = Array.from({ length: 36 }, () => null)
   if (pocketCoal > 0) pocket[0] = item('coal', pocketCoal)
@@ -675,7 +676,10 @@ function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = fal
     inventory: { items: () => (current ? current.slots.slice(27) : slots.slice(27)).filter(Boolean) },
     findBlocks: noScan ? undefined : ({ matching }) => [chestBlock].filter(b => matching(b)),
     blockAt: () => (blockAtNull ? null : chestBlock),
-    pathfinder: { goto: async () => { if (walkFails) throw new Error('NoPath: no path') } },
+    pathfinder: { goto: async () => {
+      gotoCalls++
+      if (walkFails || gotoCalls <= walkFailTimes) throw new Error(firstWalkError)
+    } },
     openChest: async () => {
       if (openFails) throw new Error('window dead')
       current = {
@@ -700,7 +704,7 @@ function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = fal
       return current
     }
   }
-  return { bot, slots, chestBlock, currentPeek: () => current, closedPeek: () => closedCount }
+  return { bot, slots, chestBlock, currentPeek: () => current, closedPeek: () => closedCount, gotoPeek: () => gotoCalls }
 }
 
 test('deliverFuelTithe: the overage rides to the anchor, the pocket keeps the bound, the mirror diff is the truth', async () => {
@@ -740,6 +744,71 @@ test('deliverFuelTithe: charcoal rides after coal, mixed overage sums', async ()
   const kept = world.bot.inventory.items()
   assert.equal(kept.filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0), 6)
   assert.equal(kept.filter(i => i.name === 'charcoal').reduce((a, i) => a + i.count, 0), 6)
+})
+
+// ------------------------------------------------- THE TITHE RETRY (v0.153.0)
+// run52 (36038887252): 'fuel anchor: 0 delivered (walk failed (walk governor:
+// bot churned 4 goals without progress - fuel anchor walk refused for 4s))'
+// while 35+ coal rode 2 pockets and the commons chest read empty ALL RUN -
+// smelted 1, zero ingots, zero seeds, iron=0. The single-shot give-up is the
+// disease; the refusal is time-boxed and the path classes are start-bound.
+
+test('THE TITHE RETRY: a time-boxed churn refusal waits out the window and re-issues', async () => {
+  // the run52 shape: the governor refuses the FIRST goal for 4s - the retry
+  // waits, re-issues, the deposit lands
+  const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 4s' })
+  const sleeps = []
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 20000,
+    deps: { sleep: async ms => { sleeps.push(ms) } }
+  })
+  assert.equal(res.delivered, 8, 'the retry landed the deposit the single-shot gave up')
+  assert.equal(res.why, 'ok')
+  assert.equal(world.gotoPeek(), 2, 'exactly one retry')
+  assert.equal(sleeps.length, 1)
+  assert.ok(sleeps[0] > 4000 && sleeps[0] <= 4500, `the wait covers the 4s refusal window (got ${sleeps[0]})`)
+})
+
+test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge class)', async () => {
+  // 'Took to long to decide path to goal!' is start-bound, not time-boxed -
+  // no sleep, one re-goto from the (possibly moved) start
+  const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!' })
+  const sleeps = []
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 20000,
+    deps: { sleep: async ms => { sleeps.push(ms) } }
+  })
+  assert.equal(res.delivered, 8, 'the re-issue from the new start landed')
+  assert.equal(sleeps.length, 0, 'no refusal window to wait out')
+  assert.equal(world.gotoPeek(), 2)
+})
+
+test('THE TITHE RETRY: a second failure reads honestly, the scatter keeps its try', async () => {
+  const world = mockAnchorWorld({ pocketCoal: 14, walkFails: true })
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 20000,
+    deps: { sleep: async () => {} }
+  })
+  assert.equal(res.delivered, 0)
+  assert.match(res.why, /^walk failed \(NoPath/, 'the newest failure names itself')
+  assert.equal(world.gotoPeek(), 2, 'the retry fired exactly once')
+})
+
+test('THE TITHE RETRY: the budget bounds the wait (a spent slice skips the retry)', async () => {
+  // a refusal longer than the remaining budget: the wait caps at what is
+  // left, and an empty remainder skips the retry entirely
+  const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 30s' })
+  const res = await deliverFuelTithe(world.bot, {
+    yardCenter: { x: 0, y: 64, z: 0 },
+    budgetMs: 1500,
+    deps: { sleep: async () => {} }
+  })
+  assert.equal(res.delivered, 0)
+  assert.match(res.why, /^walk failed \(/)
+  assert.equal(world.gotoPeek(), 1, 'no retry when the budget is spent')
 })
 
 // The anchor-first READ on the commons side: a dedicated mock (the sweep

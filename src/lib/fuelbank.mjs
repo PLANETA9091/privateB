@@ -375,8 +375,10 @@ export async function deliverFuelTithe (bot, {
   maxDistance = 64,
   budgetMs = 15000,
   clickTimeoutMs = 5000,
+  deps = {},
   log = () => {}
 } = {}) {
+  const sleep = deps.sleep ?? (ms => new Promise(r => setTimeout(r, ms)))
   const over = fuelPocketOverage(bot)
   if (!(over > 0)) return { delivered: 0, why: 'no overage' }
   const started = Date.now()
@@ -398,7 +400,37 @@ export async function deliverFuelTithe (bot, {
       label: 'fuel anchor walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS
     })
   } catch (e) {
-    return { delivered: 0, why: `walk failed (${e?.message || e})` }
+    // (v0.153.0) THE TITHE RETRY: run52 (36038887252, the v0.152.0 fleet)
+    // measured the single-shot give-up: 'fuel anchor: 0 delivered (walk
+    // failed (walk governor: bot churned 4 goals without progress - fuel
+    // anchor walk refused for 4s))' while 35+ coal rode 2 pockets (F10:19,
+    // F15:16) and the commons chest read empty ALL RUN - smelted 1 (run87:
+    // 25), zero ingots, zero seeds, iron=0. The refusal is TIME-BOXED (4s)
+    // and the other walk classes are start-position-dependent (the v0.148.0
+    // nudge doctrine - movement is not approach, but a moved start is a NEW
+    // start; a re-issue from the identical start is the deterministic
+    // re-failure ONLY when nothing moved). ONE retry: wait out a time-boxed
+    // refusal, then re-issue from the new start. The budget bounds the
+    // second attempt like the first; a second failure reads honestly (the
+    // legacy scatter still gets the real try at the next deposit window).
+    const msg = String(e?.message || e)
+    const refusedFor = msg.match(/refused for (\d+)s/)
+    if (refusedFor) {
+      const waitMs = Math.min(Number(refusedFor[1]) * 1000 + 500, Math.max(0, remainingMs()))
+      if (waitMs > 0) await sleep(waitMs)
+    }
+    if (remainingMs() > 2000) {
+      try {
+        await gotoSafe(bot, new goals.GoalNear(anchor.x, anchor.y, anchor.z, 2), {
+          timeoutMs: Math.max(2000, Math.min(chestWalkBudgetMs(dist), remainingMs())),
+          label: 'fuel anchor walk retry', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS
+        })
+      } catch (e2) {
+        return { delivered: 0, why: `walk failed (${e2?.message || e2})` }
+      }
+    } else {
+      return { delivered: 0, why: `walk failed (${msg})` }
+    }
   }
   if (remainingMs() <= 0) return { delivered: 0, why: 'budget spent after walk' }
   let block = null
