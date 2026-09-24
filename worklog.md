@@ -2630,7 +2630,7 @@ Stage Summary:
 - Push-CI: run533 (230ac0e) SUCCESS; run532 (6bccec2) SUCCESS. The head was green before the dispatch.
 - EXPECTATIONS run534 (the first fleet of the v0.129.0 tree): 'surface re-arm holds the page' lines on open-water floats; the F15 39x class collapses toward single digits; rescue starts drop from 87 while drown deaths stay <= 2; NORMAL END holds; the anchor observables fire ('fuel anchor: delivered N units' / 'fuel commons: took N units' / named 0-delivery exits); conversion holds >= 85%.
 - OPEN FRONTS (evidence-ranked): (a) the iron ladder's last mile - F1's raw_iron died on a doom-ledgered machine walk + no fuel; the anchor cure funds the fuel side, the doomed-machine walk side is still open (v0.92.0 machine TTL exists; the funnel-level consult on machine cells is the suspect); (b) the F16/F12 climb-out water struggle ('dig failed sand... water STILL THERE (server never broke it)' - the sand/water refill loop at y=59-63); (c) the death-cause inference lie x6 (fall/env inferred on drown/suffocate/explosion - the wet-at-death + blast-at-death overrides); (d) unaccounted 312; (e) plan 2/31 + worldmap idle; (f) the integration table-place flake (run527, one occurrence).
-- The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI green; one fleet per head stands).
+- Dispatch: the 09:05 lane's run544 = 35944721722 (on 8065def) stands as the fleet of record - no double dispatch from this session (one fleet per head stands); see the dispatch addendum below.
 
 ---
 Task ID: 398294-20260924-0754 (dispatch record)
@@ -2694,3 +2694,17 @@ Work Log:
 Stage Summary:
 - run537 = the first fleet of the FULL union tree (the lane's 0.130.0 machine-walk re-arm + empty-scan retry + this lane's 0.131.0 drowning witness on one head). The next session mines it: 'drowning witnessed by damage' bypass lines (the F8 class is dead by construction - any witness line IS the fix firing in the field), drown deaths <= 1, the rim-glitch cadence unchanged (no storm regression), plus the lane's 08:54 expectations ('machine unreachable' honest-failure only, the anchor empty-return named, ideally the anchor's first field delivery, smelted toward 18, conversion >= 90%, rescues <= 42, NORMAL END).
 - Next free version = 0.132.0. Open fronts: the commons walk-starve, mob pressure x6 (Enderman NEW), the wet-at-death inference override, the iron ladder fuel side, unaccounted 108, plan 1/31, the table-place flake watch.
+
+- Dispatch: the 09:05 lane's run544 = 35944721722 (on 8065def) stands as the fleet of record - no double dispatch from this session (one fleet per head stands); see the dispatch addendum below.
+
+---
+Task ID: 398294-20260924-0854 (dispatch addendum)
+Agent: Z.ai Code (cron session, 08:54 +08)
+
+Work Log:
+- The 09:05 lane mined run536 independently (their read: F8's 474 suppressions then a real drown behind the ratcheted ladder) and shipped v0.131.0 THE DROWNING WITNESS (ab870ae) on top of my v0.130.0 - push-CI run540 SUCCESS - then pushed f82a200/8065def (worklogs) and dispatched their fleet: the first POST (35944637518 on f82a200) was CANCELLED by their supersede, the re-dispatch is run#544 = 35944721722 (workflow_dispatch, PENDING in the concurrency queue, head 8065def).
+- NO DOUBLE DISPATCH from this session: one fleet per head stands (the run525 precedent). The fleet of record for the next session = run544 on 8065def - the full union tree: the history guard (v0.127.0) + the anchor cure (v0.128.0) + the surface re-arm (v0.129.0) + the machine-walk re-arm + the empty-scan retry (my v0.130.0, ae0be81, push-CI run538 SUCCESS) + the drowning witness (v0.131.0, ab870ae, push-CI run540 SUCCESS). The head's own push run (35944686394) was cancelled by the concurrency supersede - the code is CI-covered by run541 (f82a200) and by run544's own unit+integration legs.
+
+Stage Summary:
+- run544 MINING CHECKLIST for the next session: (1) my v0.130.0 observables - 'machine unreachable' collapses toward the honest-failure class only (the doomed-refusal class is gone by construction), smelted recovers toward the 18 band, 'fuel anchor scan returned empty (attempt 1/2)' lines name the empty-return class in the field, ideally 'the anchor chest is read first' > 0 and 'fuel anchor: delivered N units' > 0 for the FIRST time in the field; (2) the lane's v0.131.0 drowning witness - drown deaths and the F8-class suppression-then-drown shape, the inference lie column on drown deaths; (3) the bands - conversion >= 90%, rescues <= 42, NORMAL END 19/19, unaccounted <= 108; (4) open fronts - the commons walk-starve ('Took to long' x47), mob pressure x6 (Enderman NEW), plan 1/31 + worldmap idle, the run527 table-place flake watch.
+- Next free version = 0.132.0.
