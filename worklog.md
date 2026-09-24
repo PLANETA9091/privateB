@@ -2630,7 +2630,7 @@ Stage Summary:
 - Push-CI: run533 (230ac0e) SUCCESS; run532 (6bccec2) SUCCESS. The head was green before the dispatch.
 - EXPECTATIONS run534 (the first fleet of the v0.129.0 tree): 'surface re-arm holds the page' lines on open-water floats; the F15 39x class collapses toward single digits; rescue starts drop from 87 while drown deaths stay <= 2; NORMAL END holds; the anchor observables fire ('fuel anchor: delivered N units' / 'fuel commons: took N units' / named 0-delivery exits); conversion holds >= 85%.
 - OPEN FRONTS (evidence-ranked): (a) the iron ladder's last mile - F1's raw_iron died on a doom-ledgered machine walk + no fuel; the anchor cure funds the fuel side, the doomed-machine walk side is still open (v0.92.0 machine TTL exists; the funnel-level consult on machine cells is the suspect); (b) the F16/F12 climb-out water struggle ('dig failed sand... water STILL THERE (server never broke it)' - the sand/water refill loop at y=59-63); (c) the death-cause inference lie x6 (fall/env inferred on drown/suffocate/explosion - the wet-at-death + blast-at-death overrides); (d) unaccounted 312; (e) plan 2/31 + worldmap idle; (f) the integration table-place flake (run527, one occurrence).
-- Dispatch: the 09:05 lane's run544 = 35944721722 (on 8065def) stands as the fleet of record - no double dispatch from this session (one fleet per head stands); see the dispatch addendum below.
+- The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI green; one fleet per head stands).
 
 ---
 Task ID: 398294-20260924-0754 (dispatch record)
