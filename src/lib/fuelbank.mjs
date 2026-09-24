@@ -325,6 +325,59 @@ function yardWhere (bot, yardCenter) {
  * un-anchor the read, because the anchor is the one chest the tithe REFILLS.
  * Every null exit NAMES itself (the smelt-zero honesty shape): the next run's
  * mine reads the exit distribution instead of inferring it. */
+
+// (v0.159.0) THE CHEST COVER PLAN - the pure gate for the open-timeout cure.
+// run557 (36063283715, the union composite's field test) measured the fuel
+// rung's interaction layer dying under walks that NOW LAND: F12 walked to the
+// anchor chest (the close shot landed the re-goto) and the open timed out x4
+// (10s each = 80s of budget burned), 'budget spent (0/4 units)'; the fleet
+// took ZERO fuel from chests all run while the tithe had banked 12+ coal into
+// the anchor. The classic vanilla shape: a chest with a SOLID block above it
+// (usually another bot standing... no - a placed/dug block) cannot open, and
+// the openChest timeout is its only symptom. Junk-safe: a non-timeout error,
+// a far bot, an unreadable/open/fluid cell above, or another chest above all
+// stand down (the dig must never eat fleet stock or flood the yard).
+export const CHEST_OPEN_DIG_MAX_DIST = 4
+const OPEN_AIR_NAMES = new Set(['air', 'cave_air', 'void_air'])
+
+export function chestCoverPlan ({ openError = '', dist = null, aboveName = null, retries = 0 } = {}) {
+  if (retries > 0) return { dig: false, why: 'the cover dig is a one-shot' }
+  if (!/timeout/i.test(String(openError || ''))) return { dig: false, why: 'the error is not an open timeout' }
+  const d = Number.isFinite(dist) && dist >= 0 ? dist : null
+  if (d == null || d > CHEST_OPEN_DIG_MAX_DIST) return { dig: false, why: 'not at the chest' }
+  const name = typeof aboveName === 'string' && aboveName ? aboveName : null
+  if (!name) return { dig: false, why: 'the cell above is unreadable' }
+  if (OPEN_AIR_NAMES.has(name)) return { dig: false, why: 'the cell above is open - not a blocked top' }
+  if (/water|lava/i.test(name)) return { dig: false, why: 'fluid above - not a diggable cover' }
+  if (/chest|shulker/i.test(name)) return { dig: false, why: 'another chest sits above - never dig fleet stock' }
+  return { dig: true, why: `${name} sits on the chest - the cover dig opens it` }
+}
+
+/**
+ * (v0.159.0) The mechanical cover dig: read the cell above the chest, consult
+ * chestCoverPlan, dig the cover, return whether the open may be retried.
+ * NEVER THROWS - a failed read/dig just stands the cure down (the caller's
+ * legacy shape runs unchanged).
+ */
+async function digChestCover (bot, chestPos, openError, log, label = 'fuel chest') {
+  const dist = (() => { try { return bot.entity.position.distanceTo(new Vec3(chestPos.x, chestPos.y, chestPos.z)) } catch { return null } })()
+  const aboveBlock = (() => { try { return bot.blockAt(new Vec3(chestPos.x, chestPos.y + 1, chestPos.z)) } catch { return null } })()
+  const plan = chestCoverPlan({ openError: openError?.message || openError, dist, aboveName: aboveBlock ? aboveBlock.name : null })
+  if (!plan.dig) {
+    log(`${label}: the cover dig stands down (${plan.why})`)
+    return false
+  }
+  const t0 = Date.now()
+  try {
+    await withTimeout(bot.dig(aboveBlock), 8000, 'dig the chest cover')
+  } catch (e) {
+    log(`${label}: the cover dig failed (${e?.message || e})`)
+    return false
+  }
+  log(`${label}: the cover dug (${plan.why}, ${((Date.now() - t0) / 1000).toFixed(1)}s) - retrying the open`)
+  return true
+}
+
 function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude, log = () => {} }) {
   try {
     const cells = scanYardChests(bot, { yardCenter, radius, maxDistance, log })
@@ -461,7 +514,24 @@ export async function deliverFuelTithe (bot, {
   try {
     window = await withTimeout(bot.openChest(block), 10000, 'open fuel anchor')
   } catch (e) {
-    return { delivered: 0, why: `open failed (${e?.message || e})` }
+    // (v0.159.0) THE COVER DIG: the run557 F12 class - the walk lands (the
+    // close shot's re-goto), the open times out, a solid block sits on the
+    // chest and vanilla refuses to open it. One bounded dig of the cover,
+    // then ONE honest re-open; every other shape keeps the legacy exit.
+    if (await digChestCover(bot, anchor, e, log, 'fuel anchor')) {
+      try { block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null } catch { block = null }
+      if (block && isChestName(block.name)) {
+        try {
+          window = await withTimeout(bot.openChest(block), 10000, 'open fuel anchor (cover dug)')
+        } catch (e2) {
+          return { delivered: 0, why: `open failed after the cover dig (${e2?.message || e2})` }
+        }
+      } else {
+        return { delivered: 0, why: `open failed and the anchor block vanished after the dig (${e?.message || e})` }
+      }
+    } else {
+      return { delivered: 0, why: `open failed (${e?.message || e})` }
+    }
   }
   try {
     const chestSlots = chestSlotCount(window)
@@ -729,9 +799,29 @@ export async function withdrawFuelCommons (bot, {
     try {
       window = await withTimeout(bot.openChest(chest), 10000, 'open fuel chest')
     } catch (e) {
-      log(`fuel commons: open failed (${e?.message || e})`)
-      exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
-      continue
+      // (v0.159.0) THE COVER DIG (the commons edge): the same run557 F12
+      // shape - a landed walk, a timed-out open, a covered chest. One dig,
+      // one re-open; the legacy exclude runs when the cure stands down.
+      if (await digChestCover(bot, chest.position, e, log, 'fuel commons')) {
+        const block2 = (() => { try { return bot.blockAt(chest.position) } catch { return null } })()
+        if (block2 && isChestName(block2.name)) {
+          try {
+            window = await withTimeout(bot.openChest(block2), 10000, 'open fuel chest (cover dug)')
+          } catch (e2) {
+            log(`fuel commons: open failed after the cover dig (${e2?.message || e2})`)
+            exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+            continue
+          }
+        } else {
+          log('fuel commons: the chest block vanished after the cover dig')
+          exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+          continue
+        }
+      } else {
+        log(`fuel commons: open failed (${e?.message || e})`)
+        exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
     }
     chestsVisited++
     try {
@@ -753,29 +843,38 @@ export async function withdrawFuelCommons (bot, {
       }
       // per-TYPE pocket snapshots: the verified diff (not the clicks) is the
       // only truth - the ghost-click class has lied here before (deposit.mjs)
-      const beforeOf = new Map(plan.map(p => [p.name, countItem(bot, p.name)]))
-      for (const { name, count } of plan) {
-        let moved = 0
-        while (moved < count) {
-          const slotsNow = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null) || []
-          const stack = slotsNow.slice(0, chestSlots).find(s => s && s.name === name && s.count > 0)
-          if (!stack) break // this stack drained into pocket stacks mid-move
-          const pair = pickWithdrawSlots({ window, itemType: stack.type, chestSlots })
-          if (!pair) break // no pocket room left - the honest stop
-          await withdrawStackMove(bot, window, { srcIdx: pair.srcIdx, dstIdx: pair.dstIdx, take: count - moved, stackCount: stack.count, clickTimeoutMs })
-          moved += Math.min(count - moved, stack.count)
-        }
-      }
+      // (v0.159.0) THE VERIFIED WITHDRAW RETRY: run557's F18 opened the anchor
+      // that HELD the tithe's coal, the clicks resolved, the pocket never
+      // received ('the clicks lied - nothing landed'), and the chest was
+      // excluded with the fleet's fuel still inside - smelted=0 fleet-wide.
+      // The window is still open and the stacks are still in it: ONE honest
+      // re-fire of the same plan costs zero walks, then the diff stays king.
       let verified = 0
-      for (const { name } of plan) {
-        const got = Math.max(0, countItem(bot, name) - (beforeOf.get(name) ?? 0))
-        if (got > 0) { planAll.push({ name, count: got }); verified += got }
+      for (let attempt = 0; attempt < 2 && verified === 0; attempt++) {
+        const beforeOf = new Map(plan.map(p => [p.name, countItem(bot, p.name)]))
+        for (const { name, count } of plan) {
+          let moved = 0
+          while (moved < count) {
+            const slotsNow = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null) || []
+            const stack = slotsNow.slice(0, chestSlots).find(s => s && s.name === name && s.count > 0)
+            if (!stack) break // this stack drained into pocket stacks mid-move
+            const pair = pickWithdrawSlots({ window, itemType: stack.type, chestSlots })
+            if (!pair) break // no pocket room left - the honest stop
+            await withdrawStackMove(bot, window, { srcIdx: pair.srcIdx, dstIdx: pair.dstIdx, take: count - moved, stackCount: stack.count, clickTimeoutMs })
+            moved += Math.min(count - moved, stack.count)
+          }
+        }
+        for (const { name } of plan) {
+          const got = Math.max(0, countItem(bot, name) - (beforeOf.get(name) ?? 0))
+          if (got > 0) { planAll.push({ name, count: got }); verified += got }
+        }
+        if (verified === 0 && attempt === 0) log('fuel commons: the clicks lied (ghost clicks) - the window is still open, re-firing the same plan once')
       }
       if (verified > 0) {
         taken += verified
         log(`fuel commons: took ${verified} units (${planAll.map(p => `${p.count} x ${p.name}`).join(', ')}) from a yard chest`)
       } else {
-        log('fuel commons: the clicks lied - nothing landed in the pocket (ghost clicks)')
+        log('fuel commons: the clicks lied twice - nothing landed in the pocket (ghost clicks)')
       }
       if (taken >= wantTotal) break
       exclude.push(chest.position.floored ? chest.position.floored() : chest.position)

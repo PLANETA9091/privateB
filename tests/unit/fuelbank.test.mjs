@@ -13,7 +13,8 @@ import {
   newCommonsMemory, rememberEmptyChest, liveEmptyCells,
   COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS,
   pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe,
-  freshEmptyCells, ANCHOR_FRESH_EMPTY_MS
+  freshEmptyCells, ANCHOR_FRESH_EMPTY_MS,
+  chestCoverPlan
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -178,8 +179,9 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // --------------------------------------------------------- withdrawFuelCommons
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
-function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0 } = {}) {
+function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes = 0, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0 } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
+  let ghostClicks = 0 // (v0.159.0) the one-shot ghost: the first N clicks die, the retry lands
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = chestItem
   const pocket = Array.from({ length: 36 }, () => null)
@@ -214,6 +216,10 @@ function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = fal
     },
     clickWindow: async (idx, button) => {
       if (clickGhost) return // the ghost-click lie: the packet dies quietly
+      // (v0.159.0) the one-shot ghost: the first N button-0 packets (the lift
+      // AND the chest return) die - a whole fire leaves no state change, the
+      // re-fire lands. Counting every click would desync the lift/place pair.
+      if (clickGhostTimes > 0 && button === 0 && ghostClicks < clickGhostTimes) { ghostClicks++; return }
       const s = slots[idx]
       if (button === 0) {
         if (s == null) { /* lift from empty: server refuses, view unchanged */ return }
@@ -1095,4 +1101,48 @@ test('REGRESSION PIN: the v0.128.0 named exits ride the fleet and the bank sourc
   assert.match(bankSrc, /the anchor scan saw \$\{cells\.length\} chest\(s\), \$\{usable\.length\} usable after the empty memory - no anchor/)
   assert.match(bankSrc, /the anchor cell \[\$\{anchor\.x\},\$\{anchor\.y\},\$\{anchor\.z\}\] reads \$\{block \? block\.name : 'null'\} - no anchor/)
   assert.match(bankSrc, /const freshEmpty = freshEmptyCells\(memory, bot\?\.username, started\)/, 'the anchor read excludes only the FRESH empties')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.159.0) THE CHEST COVER PLAN - run557 (36063283715) measured the fuel
+// rung's interaction layer dying under walks that NOW LAND: F12's open timed
+// out x4 at the anchor (a solid cover block above a chest refuses to open in
+// vanilla - the timeout is its only symptom) and F18's ghost clicks stranded
+// the tithe's coal inside the chest. The plan gates the cover dig; the
+// verified retry re-fires the same plan once while the window is still open.
+test('chestCoverPlan: the covered-chest shape digs', () => {
+  const p = chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'cobblestone' })
+  assert.equal(p.dig, true)
+  assert.match(p.why, /cobblestone sits on the chest/)
+})
+
+test('chestCoverPlan: every stand-down shape refuses honestly', () => {
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'air' }).dig, false, 'open above - not a blocked top')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'cave_air' }).dig, false)
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'water' }).dig, false, 'fluid above never digs (no yard flood)')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'chest' }).dig, false, 'a chest above - never dig fleet stock')
+  assert.equal(chestCoverPlan({ openError: 'window dead', dist: 1.5, aboveName: 'stone' }).dig, false, 'a non-timeout error is not the cover class')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 9, aboveName: 'stone' }).dig, false, 'a far bot never digs')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: null, aboveName: 'stone' }).dig, false, 'no distance read - stand down')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: null }).dig, false, 'no above read - stand down')
+  assert.equal(chestCoverPlan({ openError: 'open fuel chest: timeout after 10000ms', dist: 1.5, aboveName: 'stone', retries: 1 }).dig, false, 'the one-shot cap')
+  assert.equal(chestCoverPlan({}).dig, false, 'bare junk stands down')
+})
+
+test('withdrawFuelCommons: the ghost-click retry lands the second fire (v0.159.0)', async () => {
+  const world = mockChestWorld({ chestItem: item('coal', 30), clickGhostTimes: 2 })
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 30000 })
+  assert.equal(res.taken, 5, 'the first fire ghosted, the re-fire landed - the verified diff counts it')
+  assert.equal(res.reason, 'ok')
+  const inPocket = world.bot.inventory.items().reduce((a, i) => a + i.count, 0)
+  assert.equal(inPocket, 5, 'the pocket received exactly the verified plan')
+})
+
+test('wiring: the cover dig + the verified retry ride the fuel source (fuelbank.mjs pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(src, /await digChestCover\(bot, anchor, e, log, 'fuel anchor'\)/, 'the anchor open consults the cover dig')
+  assert.match(src, /await digChestCover\(bot, chest\.position, e, log, 'fuel commons'\)/, 'the commons open consults the cover dig')
+  assert.match(src, /open fuel anchor \(cover dug\)/, 'the re-open names its own shape')
+  assert.match(src, /re-firing the same plan once/, 'the verified retry names the re-fire')
+  assert.match(src, /the clicks lied twice/, 'the double lie is named honestly')
 })
