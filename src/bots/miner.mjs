@@ -868,6 +868,15 @@ export function createMiner ({
       log(`${tag} combat: fighting ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason})`)
       const weapon = pickWeapon(inventoryItems(bot))
       if (weapon) { try { await bot.equip(weapon, 'hand') } catch { /* fists are still something */ } }
+      // (v0.135.0) THE FIGHT EPISODE INSTRUMENT - run550's mob front (6 of 8
+      // deaths) ends its losing fights SILENTLY: the decode sees the start
+      // line and the death line but cannot answer armed-vs-naked (the v0.47.0
+      // question), how much hp the fight traded, or how long it dragged. The
+      // episode now ends NAMED; the flee exits keep their own verdict lines.
+      const startHp = bot.health ?? 20
+      let swings = 0
+      let rounds = 0
+      let exit = 'deadline'
       const deadline = Date.now() + 10000
       // (v0.115.0) the witch lane's per-episode chase budget: the blocks the
       // follow steps ACTUALLY walk vs the witch. The close through the splash
@@ -876,7 +885,7 @@ export function createMiner ({
       let witchChased = 0
       while (bot.entity && Date.now() < deadline) {
         const cur = nearestHostile()
-        if (!cur) break // the threat died or wandered off
+        if (!cur) { exit = 'threat gone'; break } // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
         const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot) })
@@ -887,7 +896,7 @@ export function createMiner ({
           await recover()
           return { action: 'flee', threat: cur.name }
         }
-        if (v === 'ignore') break
+        if (v === 'ignore') { exit = 'verdict ignore'; break }
         if (cur.dist > 3.2) {
           if (cur.name === 'witch') {
             // (v0.115.0) THE WITCH LANE: the moving GoalFollow re-paths toward
@@ -900,6 +909,7 @@ export function createMiner ({
             const step = witchFightStep({ dist: cur.dist, chased: witchChased })
             if (step === 'hold') {
               log(`${tag} combat: witch chase ceiling held (chased ${witchChased.toFixed(1)}b, witch @${cur.dist.toFixed(1)}) - the episode breaks, the next drop reopens it`)
+              exit = 'chase ceiling'
               break
             }
             const before = bot.entity.position.clone()
@@ -913,13 +923,16 @@ export function createMiner ({
             } catch { /* swing anyway when in reach */ }
           }
         }
-        if (!bot.entity) break
+        if (!bot.entity) { exit = 'bot down'; break }
         try {
           await bot.lookAt(cur.entity.position.offset(0, (cur.entity.height ?? 1.8) * 0.9, 0), true)
+          swings++
           bot.attack(cur.entity)
         } catch { /* swing again next round */ }
+        rounds++
         await bot.waitForTicks(10) // ~2 swings/s - vanilla cooldown eats DPS but kills all the same
       }
+      log(`${tag} combat: fight ended vs ${threat.name} (${exit}, hp ${startHp.toFixed(1)} -> ${(bot.health ?? 0).toFixed(1)}, swings ${swings}, weapon ${weapon?.name ?? 'fists'}, ${rounds} rounds)`)
       await recover()
       return { action: 'fight', threat: threat.name }
     } finally { defending = false }

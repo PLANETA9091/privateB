@@ -359,3 +359,25 @@ test('REGRESSION PIN: the miner fight loop wires the witch lane (snapshot close 
   // the budget is per-episode: declared inside the fight (reset per defendSelf call)
   assert.ok(/let witchChased = 0/.test(minerSrc), 'the budget starts at zero each episode')
 })
+
+test('REGRESSION PIN: the fight episode ends NAMED (the run550 mob-front instrument)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the episode records what the next mine must know: exit reason, the hp
+  // traded, the swings attempted, the weapon actually held - run550's 6 mob
+  // deaths left the armed-vs-naked question (the v0.47.0 lesson) unanswered
+  assert.ok(/combat: fight ended vs \$\{threat\.name\} \(\$\{exit\}/.test(minerSrc),
+    'the end line names the threat and the exit reason')
+  assert.ok(/hp \$\{startHp\.toFixed\(1\)\} -> \$\{\(bot\.health \?\? 0\)\.toFixed\(1\)\}/.test(minerSrc),
+    'the end line carries the hp trajectory (dead fights read 0, not undefined)')
+  assert.ok(/swings \$\{swings\}/.test(minerSrc), 'the end line carries the swing count')
+  assert.ok(/weapon \$\{weapon\?\.name \?\? 'fists'\}/.test(minerSrc),
+    'the end line names the weapon - a naked fight must be visible in the log')
+  assert.ok(/let swings = 0/.test(minerSrc) && /let rounds = 0/.test(minerSrc) && /let exit = 'deadline'/.test(minerSrc),
+    'the counters are per-episode locals (reset each defendSelf call)')
+  // the flee exit returns early with its own verdict line - the end line must
+  // sit AFTER the loop, not inside the flee branch (no double logging)
+  const endIdx = minerSrc.indexOf('combat: fight ended vs')
+  const fleeIdx = minerSrc.indexOf("combat: verdict flipped to flee")
+  assert.ok(endIdx > fleeIdx, 'the end line exists below the flee exit in the fight body')
+})

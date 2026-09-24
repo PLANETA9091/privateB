@@ -599,14 +599,25 @@ export async function withdrawFuelCommons (bot, {
     // chestWalkBudgetMs scales with distance, effectiveWalkBudget clamps into
     // what is actually left
     try {
-      // (v0.99.0) the FIRST chest walk re-arms: the yard is THE shared
+      // (v0.99.0) the chest walk re-arms: the yard is THE shared
       // destination class (run89: F9's commons walks refused 'doomed goal
       // (ledgered 1s ago)' - other bots' failed bank walks had poisoned the
       // chest cells). Same semantics as the bank chain and the furnace walk.
       // (v0.113.0) + the CHEST DOOM HALF-LIFE: the commons was run100's starved
       // class ('ledgered 16s/11s ago' refused the resupply while the pockets
       // held raw metal) - the doom now lives 15s, not 90s.
-      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: c === 0, doomTtl: CHEST_DOOM_TTL_MS })
+      // (v0.135.0) THE ROW RE-ARM: doomedRearm UNCONDITIONAL (the v0.130.0
+      // machine-walk shape, the v0.87.0 anchor-walk shape) - run550 measured
+      // the dense row starving INSIDE a single ask: 'doomed goal (ledgered 0s
+      // ago)' x40 fleet-wide, F10's sweep met it x4+ - a sibling bot's fresh
+      // failure poisons the row mid-ask and chests 2..N die for free while
+      // the pockets hold raw metal. The doomed verdict is fleet-wide on the
+      // GOAL cell, but the failure geometry is the FAILED BOT'S START - this
+      // sweep walks honestly from where IT stands. The sweep's own per-chest
+      // exclude (the push after every failed walk) keeps the loop honest, the
+      // doom ledger itself stays intact for every other goal class, and the
+      // 15s half-life still bounds the poison.
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
       log(`fuel commons: chest walk failed (${e?.message || e})`)
       exclude.push(chest.position.floored ? chest.position.floored() : chest.position)

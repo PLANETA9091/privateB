@@ -6,7 +6,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
-import { resetDoomedGoalLedger, recordDoomedGoal } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, recordDoomedGoal, gotoSafe } from '../../src/lib/jobqueue.mjs'
 import {
   fuelWithdrawPlan, pickWithdrawSlots, withdrawStackMove, withdrawFuelCommons,
   FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
@@ -297,7 +297,9 @@ test('withdrawFuelCommons: a partial commons stock is taken honestly, then the s
 // F3 re-walked the SAME empty chests six times (per-invocation exclude list),
 // and F9's chest walks inherited other bots' doom-ledger poison. The sweep:
 // 8 chests per ask, an empty-chest memory across asks (read-empty only, short
-// TTL), and a doomedRearm on the FIRST chest walk.
+// TTL), and a doomedRearm on EVERY chest walk (v0.99.0 had it on the first
+// only; v0.135.0 makes it unconditional - the run550 row re-arm, the same
+// shape the anchor walk and the v0.130.0 machine walk already run).
 function makeClicker (slots) {
   return async (idx, button) => {
     const s = slots[idx]
@@ -441,15 +443,19 @@ test('withdrawFuelCommons: the memory skips known-empty chests across asks (the 
   assert.deepEqual(liveEmptyCells(mem2, failWorld.bot.username, Date.now()), [], 'a walk failure is not remembered')
 })
 
-test('withdrawFuelCommons: the FIRST chest walk re-arms a doomed cell, later walks stay vetoed (the F9 cure)', async () => {
+test('withdrawFuelCommons: every chest walk re-arms a doomed cell (the F9 cure, then the run550 row re-arm)', async () => {
   const world = mockSweepWorld({ chests: [{ pos: [3.5, 64, 3.5], item: item('coal', 30) }] })
   // another bot's failed bank walk poisoned the coal chest's cell (run89 F9)
   recordDoomedGoal({ x: 3, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
   const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000 })
   assert.equal(res.reason, 'ok', 'the re-arm walked honestly and funded the pocket')
   assert.equal(res.taken, 5)
-  // control: the same poison on a LATER chest is still honored - one honest
-  // re-arm per ask, no blind veto-bypass
+  // (v0.135.0) RESHAPED - the run550 F10 cure: poison on a LATER chest no
+  // longer starves the sweep. run550 measured 'doomed goal (ledgered 0s ago)'
+  // x40 fleet-wide - a sibling bot's fresh failure poisons the dense row
+  // mid-ask and chests 2..N die for free while the pockets hold raw metal.
+  // The cobble chest is opened first (no fuel in it), the SECOND walk re-arms
+  // the poisoned coal cell and funds the pocket.
   const world2 = mockSweepWorld({
     chests: [
       { pos: [3.5, 64, 3.5], item: item('cobblestone', 30) },
@@ -458,9 +464,23 @@ test('withdrawFuelCommons: the FIRST chest walk re-arms a doomed cell, later wal
   })
   recordDoomedGoal({ x: 8, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
   const res2 = await withdrawFuelCommons(world2.bot, { itemsNeeded: 40, budgetMs: 60000 })
-  assert.equal(res2.taken, 0)
-  assert.equal(res2.reason, 'commons empty', 'the later walk stayed vetoed (the cobble chest was opened, the coal one never was)')
-  assert.equal(world2.opened['8,64,3'], undefined, 'the doomed coal chest was never opened')
+  assert.equal(res2.taken, 5, 'the second walk re-armed and funded (the row re-arm)')
+  assert.equal(res2.reason, 'ok')
+  assert.equal(world2.opened['8,64,3'], 1, 'the poisoned coal chest WAS opened - one honest walk, no blind loop')
+})
+
+test('withdrawFuelCommons: the row re-arm never clears the ledger - other goal classes stay vetoed', async () => {
+  const world = mockSweepWorld({ chests: [{ pos: [3.5, 64, 3.5], item: item('coal', 30) }] })
+  recordDoomedGoal({ x: 3, y: 64, z: 3 }, Date.now(), { ttl: 15000 })
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000 })
+  assert.equal(res.reason, 'ok', 'the re-armed sweep walked honestly over the poisoned cell')
+  // the re-arm BYPASSES the consult, it does not heal the cell: a plain
+  // (non-re-arming) caller - the bank chain, the mine walk - still reads the
+  // doom and takes the free refusal (the v0.87.0 contract, ledger intact)
+  await assert.rejects(
+    () => gotoSafe(world.bot, { x: 3, y: 64, z: 3 }, { timeoutMs: 500, label: 'walk to yard' }),
+    /doomed goal \(ledgered \d+s ago at \[3,64,3\]\) - walk to yard refused/
+  )
 })
 
 // ---------------------------------------------------------------------------
