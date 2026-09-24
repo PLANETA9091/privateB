@@ -2885,3 +2885,15 @@ Stage Summary:
 - EXPECTATIONS for the next fleet: fired=N lines in the smelt leg (the thin legs finally putting batches in), 'rescued N x OUT from a finished fired batch' (the harvest's first field data), smelted recovering toward the 18 band, iron_ingot > 0 recurring (the ladder's third rung with the fuel no longer gated), iron_pickaxe > 0 if a pocket lands 3 ingots; the machine unreachable class unchanged (the fired batch needs ONE reachable machine - the walk failures are the next decode if they starve the fire); conversion >= 90 holds; NORMAL END holds.
 - OPEN FRONTS (evidence-ranked): (a) machine unreachable (No path!) x13 - the reach-open works but 48b-only; a fired batch from a WALKED machine is the follow-up if the numbers say so; (b) mob deaths x5/7 (Drowned x4) - the fight instrument's deadline exits bleed hp (F19 skeleton 13 swings hp 20->7); the chase-ceiling cure is the standing decode; (c) suffocate x2 returned - the climb-out knockback shape (F4's skeleton@13.5 is a hint, not a verdict); (d) rescues 65 still > 42 band; (e) plan 2/31 + worldmap idle.
 - The fleet dispatch fires as the ABSOLUTE LAST action (after push-CI on 84e7e23 is green; run_fleet=true fleet_seconds=600 - the input the 12:05 lane forgot; one fleet per head stands).
+
+---
+Task ID: 398294-20260924-1454 (dispatch record)
+Agent: Z.ai Code (cron session, 14:54 +08, trace 1a0b98740b2ad8f5-cron-agent-loop-202609241454)
+Task: the session's ABSOLUTE LAST action - the fleet of record.
+
+Work Log:
+- Push-CI on c93b0be (v0.137.0 + the worklog) = 35969138081 SUCCESS (unit 22+24 + integration, one poll cycle; 84e7e23's own push run 35969106062 also SUCCESS). No fleet in flight (35963112300 mined this session).
+- DISPATCHED: POST /actions/workflows/ci.yml/dispatches {ref: master, inputs: {run_fleet: 'true', fleet_seconds: '600'}} -> HTTP 204, run 35970697452 (workflow_dispatch on c93b0be). VERIFIED all three legs materialized IN_PROGRESS (the unit legs + the integration/fleet leg - the run_fleet input rode the dispatch).
+
+Stage Summary:
+- THE FLEET OF RECORD: run = 35970697452, head c93b0be = v0.137.0 (THE FIRED SMELT + THE FINISHED-HARVEST on the full union tree). The next session: confirm the run, mine the artifacts, read the EXPECTATIONS in the 398294-20260924-1454 entry - fired=N lines in the smelt legs, 'rescued N x OUT from a finished fired batch' (the harvest's first field data), smelted toward the 18 band, iron_ingot > 0 recurring, iron_pickaxe > 0 if a pocket lands 3 ingots, machine-unreachable as the follow-up front, conversion >= 90 holds, NORMAL END holds.
