@@ -55,6 +55,28 @@ export const STORM_FLOOR_MB_DEFAULT = 1200 // healthy run53 rss was 367M; OOM cl
 export const STORM_WINDOW_MS = 10000 // two 5s samples minimum before a verdict
 export const STORM_CEIL_MB_DEFAULT = 3000 // the hard ceiling: run53's terminal storm passed 3GB
 
+// (v0.141.0) THE SECOND-STRIKE GRACE. MEASURED (fleet leg 35986122635, the
+// v0.140.0 union, mined 2026-09-24): the probe fired at rss 379M -> 1213M
+// (10:36:16) and the second strike killed at 1213M -> 2164M only 5s later
+// (10:36:21) - while mainLate read just 959ms and the worker verdict PUBLISHED
+// into the storm cell at the probe had NOT YET LANDED: every main-thread
+// applier (the 1s ticker, the funnel consults - the blackbox ring shows the
+// last pf notes 0.0s before the probe, then silence) was busy inside the very
+// in-flight A* the storm was made of. The two-strike design's own survival
+// path ("the applied closure cuts the A* fuel, GC drains, the streak resets
+// on the dip and the second strike never arms") needs the closure to LAND:
+// a lag-probe fire (~250ms cadence even starved), the in-flight walks winding
+// down (one timeout cycle, ~11s measured in the same log), a GC drain. 5s is
+// shorter than that wind-down; every storm since run92 died 510-521/600s -
+// 80-90s before a probable NORMAL END - with the closure still in flight.
+// THE GRACE: a second verdict inside GRACE_MS after the probe is HELD (the
+// run survives; fresh verdicts keep being evaluated every sample), the hard
+// ceiling kills IMMEDIATELY as before - a terminal storm cannot outlive
+// 3000M, so the amputation guarantee is byte-for-byte intact. The grace only
+// matters for shapes that stay under the ceiling - exactly the recoverable
+// class. Default 20000ms = four worker samples = the wind-down budget.
+export const STORM_GRACE_MS_DEFAULT = 20000 // probe -> kill: the closure-landing window
+
 /**
  * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
  * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
@@ -62,14 +84,27 @@ export const STORM_CEIL_MB_DEFAULT = 3000 // the hard ceiling: run53's terminal 
  *   'probe' - first strike at a survivable rss: write the story, keep running
  *   'kill'  - second strike, or the hard ceiling (the machine is dying anyway)
  *   'none'  - junk rss (the caller just keeps sampling)
- * @param {{probeUsed?: boolean, rssMb?: number, ceilMb?: number}} s
+ * (v0.141.0) the grace: probeAtMs (the probe's wall clock) + graceMs hold a
+ * second verdict for the closure-landing window; the ceiling kills regardless.
+ * A junk probeAtMs (0/NaN - the caller has no clock) keeps the old contract:
+ * second verdict kills at once.
+ *
+ * @param {{probeUsed?: boolean, rssMb?: number, ceilMb?: number, probeAtMs?: number|null, graceMs?: number, nowMs?: number}} s
  * @returns {{action: 'probe'|'kill'|'none', probeUsed: boolean, reason: string}}
  */
-export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CEIL_MB_DEFAULT } = {}) {
+export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CEIL_MB_DEFAULT, probeAtMs = null, graceMs = STORM_GRACE_MS_DEFAULT, nowMs = 0 } = {}) {
   const rss = Number(rssMb)
   if (!Number.isFinite(rss) || rss <= 0) return { action: 'none', probeUsed, reason: 'junk rss' }
   if (rss >= ceilMb) return { action: 'kill', probeUsed, reason: 'hard ceiling ' + Math.round(ceilMb) + 'M' }
   if (!probeUsed) return { action: 'probe', probeUsed: true, reason: 'soft first strike' }
+  // (v0.141.0) the grace hold - every operand must be FINITE for the hold to
+  // apply (a junk clock kills honestly, the v0.55.0 amputation default)
+  const at = Number(probeAtMs)
+  const grace = Number(graceMs)
+  const now = Number(nowMs)
+  if (Number.isFinite(at) && at > 0 && Number.isFinite(grace) && grace > 0 && Number.isFinite(now) && now - at < grace) {
+    return { action: 'none', probeUsed, reason: 'grace hold' }
+  }
   return { action: 'kill', probeUsed, reason: 'second strike' }
 }
 

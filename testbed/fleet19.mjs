@@ -44,7 +44,7 @@ import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
 import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetValveStormCell, setFunnelProbeLogger } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
-import { STORM_CELL_MAGIC } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init
+import { STORM_CELL_MAGIC, stormCellApply } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init; (v0.141.0) the lag-probe feeder applies the worker verdict
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
 import { unfreezeTarget, unfreezeLine } from '../src/lib/unfreeze.mjs' // (v0.65.0) the zombie-goto kill
 import { execFile } from 'node:child_process'
@@ -1380,6 +1380,52 @@ const onUnfreeze = lateMs => {
   }
   console.log(unfreezeLine({ lateMs, swept, skipped: left }))
 }
+// (v0.141.0) THE STORM GOAL SWEEP - the lag-probe feeder's teeth. The valve
+// closing refuses NEW long walks, but the run 576 storm (fleet leg
+// 35986122635) was allocated by the IN-FLIGHT recompute loops (the blackbox
+// ring: pf notes 0.0s before the probe, then silence - every walk was inside
+// its A*). setGoal(null) clears the goal slot the loops re-engage from (the
+// v0.65.0 zombie-kill mechanics) - the allocation stops within one think
+// window (~2s) instead of one walk-timeout cycle (~11s). One re-planned walk
+// is the cheapest thing in a fleet that just kept its last 80-90s.
+const stormSweepAllGoals = () => {
+  let swept = 0
+  for (const [, entry] of bots) {
+    const b = entry?.miner?.bot
+    if (!b?.pathfinder) continue
+    try { b.pathfinder.setGoal(null) } catch { /* stop() below still bounds it */ }
+    try { b.pathfinder.stop() } catch { /* already stopped */ }
+    swept++
+  }
+  return swept
+}
+// (v0.141.0) THE LAG-PROBE VALVE FEEDER - the applier that survives the storm
+// that starves its rivals. Fleet leg 35986122635 (the v0.140.0 union, mined
+// 2026-09-24): the worker PROBED at rss 1213M (10:36:16) and published into
+// the storm cell, but BOTH existing appliers were deaf - the 1s ticker's
+// timer phase was starved and the funnel only probes BETWEEN walks (every
+// walk was in flight, the 11.4s timeout class) - so the closure never landed
+// and the second strike killed at 2164M five seconds later, 521/600s into a
+// probable NORMAL END. The 250ms lag probe is the one main-thread cadence
+// proven to keep firing inside a storm (mainLate 959ms at the probe: the
+// event loop TURNING) - startHeartbeat forwards every probe fire here, and
+// the FIRST fresh cell verdict is applied at this cadence: forceClose + the
+// storm goal sweep above. One publish per process (the probe is spent) ->
+// one feeder application; the seq guard keeps the ticker's and the funnel's
+// own applications independent and idempotent.
+let lagProbeSeq = 0
+let lagProbeApplied = false
+const onProbeFire = ({ drift } = {}) => {
+  if (lagProbeApplied) return // one worker publish per process - one sweep
+  let r
+  try { r = stormCellApply({ cell: stormCell, lastSeq: lagProbeSeq, forceClose: a => allocValve.valve.forceClose(a) }) } catch { return }
+  if (!r || !r.applied) return
+  lagProbeSeq = r.seq
+  lagProbeApplied = true
+  const snap = r.snapshot || {}
+  const swept = stormSweepAllGoals()
+  console.log(`[allocvalve] CLOSED (lag probe): the worker verdict rss ${Number.isFinite(snap.lastRss) ? snap.lastRss : 0}M (+${Number.isFinite(snap.lastRate) ? snap.lastRate : 0}MB/s) applied at the 250ms lag probe (drift ${Math.round(Number.isFinite(drift) ? drift : 0)}ms) - long walks refused ${Math.round(Number.isFinite(snap.remainingMs) ? snap.remainingMs : 0) / 1000}s AND ${swept} pathfinder goals swept (the in-flight recompute loops die at the source; strike ${Number.isFinite(snap.strikes) ? snap.strikes : 0}) ts=${Math.round(process.uptime())}s`)
+}
 const pulseSab = createPulseSab()
 // (v0.104.0) THE STORM CELL - the worker->main verdict channel. The worker's
 // stormguard (its own thread, never starved by the main thread's sync A*)
@@ -1392,7 +1438,7 @@ const stormCell = new SharedArrayBuffer(32)
 new Int32Array(stormCell)[0] = STORM_CELL_MAGIC
 const loopPulse = createLoopPulse({ sab: pulseSab, intervalMs: 250 })
 loopPulse.start() // counters read by the heartbeat worker across any freeze
-const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, storm: { sab: stormCell }, onUnfreeze })
+const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pulseSab }, storm: { sab: stormCell }, onUnfreeze, onProbeFire })
 // (v0.102.0) THE ALLOCATION VALVE - the main thread watches its OWN rss every
 // 1s. The worker stormguard (floor 1200M, 5s, two-strike SIGTERM) amputates;
 // the valve (floor 600M, 1s) CURES: on the storm signature gotoSafe refuses

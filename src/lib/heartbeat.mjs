@@ -63,6 +63,17 @@ var sgCeil = Math.max(sgFloor + 200, Number(process.env.FLEET_STORM_CEIL_MB) || 
 var sgProbeUsed = false
 var sgWin = [] // {ts, rss}
 var sgTimer = null
+// (v0.141.0) THE SECOND-STRIKE GRACE - mirrored from stormguard.stormResponse
+// (the eval worker cannot import ESM). The probe publishes the verdict into
+// the storm cell, but the main thread's appliers (the 1s ticker, the funnel
+// consults, the NEW lag-probe feeder) were all inside the very in-flight A*
+// the storm is made of when fleet leg 35986122635 died: probe at 10:36:16,
+// kill at 10:36:21, mainLate just 959ms - the closure never landed. The
+// second verdict is now HELD for the grace window (the closure + goal sweep
+// + GC drain need a wind-down); the hard ceiling kills IMMEDIATELY as before.
+var sgGraceMs = Number(process.env.FLEET_STORM_GRACE_MS) || 20000
+var sgProbeAt = 0
+var sgHoldWritten = false
 // (v0.104.0) THE STORM CELL - the worker->main verdict channel. The main
 // thread's alloc valve ticker is starved by the very storm it cures (run93:
 // the FATAL named the main thread FROZEN; the valve fired ZERO lines); this
@@ -130,13 +141,21 @@ function sgTick () {
     if (v && !stopped) {
       // (v0.64.0) the two-strike response, mirrored from stormguard.stormResponse:
       // junk rss -> none; rss >= sgCeil -> kill (hard ceiling); first survivable
-      // verdict -> probe (write the story, SURVIVE); anything after that -> kill.
+      // verdict -> probe (write the story, SURVIVE); a second verdict INSIDE the
+      // (v0.141.0) grace -> HOLD (the closure is still landing; fresh verdicts
+      // keep being evaluated every sample); anything after the grace -> kill.
       var act = 'none'
       var why = ''
-      if (v.rss >= sgCeil) { act = 'kill'; why = 'hard ceiling ' + sgCeil + 'M' } else if (!sgProbeUsed) { act = 'probe'; why = 'soft first strike' } else { act = 'kill'; why = 'second strike' }
-      if (act === 'probe') {
+      if (v.rss >= sgCeil) { act = 'kill'; why = 'hard ceiling ' + sgCeil + 'M' } else if (!sgProbeUsed) { act = 'probe'; why = 'soft first strike' } else if (sgProbeAt > 0 && Date.now() - sgProbeAt < sgGraceMs) { act = 'hold'; why = 'grace hold' } else { act = 'kill'; why = 'second strike' }
+      if (act === 'hold') {
+        if (!sgHoldWritten) {
+          sgHoldWritten = true
+          try { fs.writeSync(writeFd, '[stormguard] GRACE HOLD: rss ' + v.rss + 'M (+' + Math.round(v.rate) + 'MB/s) - the lag-probe closure has ' + Math.round((sgGraceMs - (Date.now() - sgProbeAt)) / 1000) + 's left to land; the kill waits (v0.141.0: the sweep + the wind-down need the window; the hard ceiling still kills at once)\\n') } catch { /* stdout closed */ }
+        }
+      } else if (act === 'probe') {
         sgProbeUsed = true // one survival per process lifetime
-        try { fs.writeSync(writeFd, '[stormguard] STORM PROBE: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s, mainLate ' + mainLate + 'ms' + sgStory(8) + ') - SURVIVING the first strike (run61 burst class: one window, main thread still ticking); a SECOND verdict or rss >= ' + sgCeil + 'M kills\\n') } catch { /* stdout closed */ }
+        sgProbeAt = Date.now() // (v0.141.0) the grace clock starts at the probe
+        try { fs.writeSync(writeFd, '[stormguard] STORM PROBE: rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s, mainLate ' + mainLate + 'ms' + sgStory(8) + ') - SURVIVING the first strike (run61 burst class: one window, main thread still ticking); a SECOND verdict after the ' + Math.round(sgGraceMs / 1000) + 's grace, or rss >= ' + sgCeil + 'M, kills (v0.141.0: the lag-probe closure + the goal sweep need the wind-down - run 576 died 5s after the probe with the closure still in flight)\\n') } catch { /* stdout closed */ }
         stormPublish(v.rate, v.rss, process.uptime()) // (v0.104.0) the verdict rides the storm cell to the main valve
       } else if (act === 'kill') {
         stopped = true // no further lines race the emergency report
@@ -280,7 +299,7 @@ export function gapNote (prevMs, nowMs, intervalMs, { tolerance = 2.5 } = {}) {
  */
 export const HEARTBEAT_PROBE_MS = 250
 
-export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, pulse = null, storm = null, onUnfreeze = null, unfreezeLateMs = 8000 } = {}) {
+export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBeat = null, writeFd = 1, probeMs = HEARTBEAT_PROBE_MS, blackbox = null, pulse = null, storm = null, onUnfreeze = null, unfreezeLateMs = 8000, onProbeFire = null } = {}) {
   const hb = { stopped: false, mainLateMax: 0, probeExpected: 0 }
   hb.worker = new WorkerCtor(HEARTBEAT_WORKER_SRC, { eval: true, workerData: {
     intervalMs,
@@ -326,6 +345,17 @@ export function startHeartbeat ({ intervalMs = 20000, WorkerCtor = Worker, onBea
       const drift = Math.max(0, now - hb.probeExpected)
       if (drift > hb.mainLateMax) hb.mainLateMax = drift
       hb.probeExpected = now + probeMs
+      // (v0.141.0) THE LAG-PROBE VALVE FEEDER HOOK: fires on EVERY probe fire
+      // (250ms nominal) with the measured drift - including the 0.5-3s-late
+      // fires inside a storm (run 576: mainLate 959ms at the probe, the event
+      // loop TURNING while every other main-thread applier was busy inside
+      // the in-flight A*). The fleet passes a callback that polls the storm
+      // cell and applies the worker's verdict + sweeps the pathfinder goals
+      // here - the applier that survives the storm that starves its rivals.
+      // The hook never throws into the probe (the diagnostics contract).
+      if (typeof onProbeFire === 'function') {
+        try { onProbeFire({ drift }) } catch { /* the feeder never kills the fleet */ }
+      }
       // (v0.65.0) THE UNFREEZE HOOK: the probe is the ONLY main-thread code
       // that runs across a freeze - it cannot fire DURING the spiral (the
       // timers are the starved resource), so its first post-freeze fire
