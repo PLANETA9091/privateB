@@ -692,14 +692,30 @@ export async function withdrawFuelCommons (bot, {
           try {
             const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`fuel commons: path nudge ${m}`) })
             log(`fuel commons: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
-            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
-            try {
-              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'fuel commons walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
-              // the retry landed: fall through to the open below (do NOT exclude)
-              log('fuel commons: the nudge retry landed')
-              arrived = true
-            } catch (e2) {
-              log(`fuel commons: chest walk failed after the nudge (${e2?.message || e2})`)
+            // (v0.156.0) THE NUDGE CLOCK GUARD: run555 (36049735813, the
+            // v0.154.0 fleet) measured the segment OVERRUNNING its slice -
+            // 'F11 fuel commons: path nudge approach: 1 segment(s) walked in
+            // 8.4s' then 'chest walk failed after the nudge (fuel commons
+            // walk (nudge retry): timeout after -1474ms)' - the re-goto was
+            // built with a NEGATIVE timeout and died a fake death before it
+            // could even try. The approach's slice is a budget, not a hard
+            // per-segment wall (a segment can overrun into it), so the
+            // re-goto needs its own floor: below 2s of remaining clock the
+            // honest stop names the spend instead of throwing a negative
+            // timeout. (The anchor walk's retry gate has held this floor
+            // since v0.153.0.)
+            if (remainingMs() > 2000) {
+              const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+              try {
+                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'fuel commons walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                // the retry landed: fall through to the open below (do NOT exclude)
+                log('fuel commons: the nudge retry landed')
+                arrived = true
+              } catch (e2) {
+                log(`fuel commons: chest walk failed after the nudge (${e2?.message || e2})`)
+              }
+            } else {
+              log(`fuel commons: the nudge spent the walk slice (${Math.round(remainingMs())}ms left) - no re-goto clock`)
             }
           } catch { /* the nudge never kills the chain */ }
         }

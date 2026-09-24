@@ -43,6 +43,7 @@ function mockCommuneWorld ({ chestItem = null, clickGhost = false, walkFails = f
       world.gotoCalls.push({ x: goal.x, y: goal.y, z: goal.z })
       if (gotoScript) {
         const beh = gotoScript[Math.min(i, gotoScript.length - 1)]
+        if (beh?.slow) await new Promise(r => setTimeout(r, beh.slow))
         if (beh?.throw) throw new Error(beh.throw)
         if (beh?.move) world.bot.entity.position = new Vec3(goal.x + 1, goal.y, goal.z + 1)
         return
@@ -909,6 +910,27 @@ test('withdrawIronCommune: the churn refusal keeps the exclude (time-boxed, not 
   assert.equal(res.taken, 0)
   assert.ok(!lines.some(l => l.includes('path nudge')), 'the refusal class never nudges')
   assert.equal(world.opened, 0)
+})
+
+test('withdrawIronCommune: THE NUDGE CLOCK GUARD (v0.156.0) - the overrun slice stops honestly, never a negative timeout', async () => {
+  // the run555 F11 shape (the fuel commons): the nudge's segment overran its
+  // slice and the re-goto died 'timeout after -1474ms' before it could try.
+  // The guard: below 2s of remaining clock the spend is NAMED, no re-goto.
+  const world = mockCommuneWorld({
+    chestItem: ironItem(8),
+    botPos: new Vec3(40, 64, 40),
+    gotoScript: [
+      { slow: 2400, throw: 'Took to long to decide path to goal!' },
+      { slow: 2400, move: true }
+    ]
+  })
+  world.setPocket(1)
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { budgetMs: 5000, log: m => lines.push(m) })
+  assert.equal(res.taken, 0)
+  assert.equal(world.opened, 0)
+  assert.ok(lines.some(l => l.includes('the nudge spent the walk slice')), 'the spend names itself')
+  assert.ok(!lines.some(l => l.includes('timeout after -')), 'no negative timeout may exist anywhere in the chain')
 })
 
 // ------------------------------------------------------- THE POOL SEED

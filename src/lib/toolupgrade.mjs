@@ -442,13 +442,22 @@ export async function withdrawIronCommune (bot, {
           try {
             const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`iron commune: path nudge ${m}`) })
             log(`iron commune: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
-            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
-            try {
-              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron commune walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
-              log('iron commune: the nudge retry landed')
-              arrived = true
-            } catch (e2) {
-              log(`iron commune: chest walk failed after the nudge (${e2?.message || e2})`)
+            // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape): the
+            // approach's slice is a budget, not a hard per-segment wall - the
+            // run555 F11 overrun ('nudge retry: timeout after -1474ms') never
+            // gave the re-goto a chance. Below 2s of remaining clock the
+            // honest stop names the spend instead of a negative-timeout death.
+            if (remainingMs() > 2000) {
+              const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+              try {
+                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron commune walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                log('iron commune: the nudge retry landed')
+                arrived = true
+              } catch (e2) {
+                log(`iron commune: chest walk failed after the nudge (${e2?.message || e2})`)
+              }
+            } else {
+              log(`iron commune: the nudge spent the walk slice (${Math.round(remainingMs())}ms left) - no re-goto clock`)
             }
           } catch { /* the nudge never kills the chain */ }
         }
@@ -592,13 +601,19 @@ export async function seedIronPool (bot, {
           try {
             const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, log: m => log(`pool seed: path nudge ${m}`) })
             log(`pool seed: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
-            const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
-            try {
-              await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron pool seed walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
-              log('pool seed: the nudge retry landed')
-              arrived = true
-            } catch (e2) {
-              log(`pool seed: chest walk failed after the nudge (${e2?.message || e2})`)
+            // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape) - the
+            // same floor the commune and commons retries hold.
+            if (remainingMs() > 2000) {
+              const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+              try {
+                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron pool seed walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                log('pool seed: the nudge retry landed')
+                arrived = true
+              } catch (e2) {
+                log(`pool seed: chest walk failed after the nudge (${e2?.message || e2})`)
+              }
+            } else {
+              log(`pool seed: the nudge spent the walk slice (${Math.round(remainingMs())}ms left) - no re-goto clock`)
             }
           } catch { /* the nudge never kills the chain */ }
         }

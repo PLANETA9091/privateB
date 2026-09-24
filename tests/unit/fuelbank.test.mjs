@@ -178,7 +178,7 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // --------------------------------------------------------- withdrawFuelCommons
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
-function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false, walkPathFails = null } = {}) {
+function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0 } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = chestItem
@@ -188,10 +188,13 @@ function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = fal
   let pathCalls = 0
   const bot = {
     username: 'FuelBot',
-    entity: { position: new Vec3(0.5, 64, 0.5) },
+    entity: { position: botPos ?? new Vec3(0.5, 64, 0.5) },
     inventory: { items: () => slots.slice(27).filter(Boolean) },
     pathfinder: {
       goto: async goal => {
+        // (v0.156.0) the overrun shape: a slow goto burns REAL clock so the
+        // nudge's segment can eat the whole slice (the run555 F11 class)
+        if (gotoSlowMs > 0) await new Promise(r => setTimeout(r, gotoSlowMs))
         if (walkFails) throw new Error('NoPath: no path')
         if (walkPathFails) {
           pathCalls++
@@ -319,6 +322,21 @@ test('withdrawFuelCommons: the nudge is ONE shot - after it fails the chest is e
   const nudgeLines = lines.filter(l => /path nudge/.test(l))
   assert.equal(nudgeLines.length, 1, 'one nudge per commons visit - the budget discipline')
   assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'a failed retry never claims a landing')
+})
+
+test('THE NUDGE CLOCK GUARD (v0.156.0): the overrun segment leaves no re-goto clock - the honest stop, never a negative timeout', async () => {
+  // the run555 F11 shape: the nudge's segment overran its slice (8.4s) and
+  // the re-goto was built with a NEGATIVE timeout ('timeout after -1474ms').
+  // The cure: below 2s of remaining clock the re-goto is skipped and the
+  // spend is named. The slow goto burns REAL clock so the segment eats the
+  // whole slice; the far start makes the approach fire real segments.
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'once', botPos: new Vec3(40, 64, 40), gotoSlowMs: 2400 })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 5000, log: m => lines.push(m) })
+  assert.equal(res.taken, 0, 'the slice was spent inside the nudge - nothing reached the pocket')
+  assert.ok(lines.some(l => /the nudge spent the walk slice/.test(l)), 'the spend is named for the field read')
+  assert.ok(!lines.some(l => /timeout after -/.test(l)), 'no negative timeout may exist anywhere in the chain')
+  assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'no fake landing')
 })
 
 test('withdrawFuelCommons: a partial commons stock is taken honestly, then the scan stops', async () => {
