@@ -42,7 +42,7 @@ import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
-import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetValveStormCell, setFunnelProbeLogger } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring
+import { startFleetValveTicker, allocValveStatsFor, setFleetHazardNear, setFleetValveStormCell, setFunnelProbeLogger, setFleetDuckSweeper, armStormDuck, stormDuckArmLine } from '../src/lib/jobqueue.mjs' // (v0.104.0) the ticker feeds the SINGLETON it consults + the aquifer board; (v0.121.0) the funnel probe wiring; (v0.143.0) the storm duck wiring
 import { createPulseSab, createLoopPulse } from '../src/lib/looppulse.mjs' // (v0.77.0) the freeze oscilloscope
 import { STORM_CELL_MAGIC, stormCellApply } from '../src/lib/allocvalve.mjs' // (v0.104.0) the storm cell init; (v0.141.0) the lag-probe feeder applies the worker verdict
 import { createSharedBlackBox, noteGlobal } from '../src/lib/blackbox.mjs' // (v0.62.0) the freeze black box
@@ -1424,6 +1424,15 @@ const onProbeFire = ({ drift } = {}) => {
   lagProbeApplied = true
   const snap = r.snapshot || {}
   const swept = stormSweepAllGoals()
+  // (v0.143.0) the same verdict arms the STORM DUCK at the proven cadence -
+  // the funnel would arm it on its next consult, but inside run58's heavy
+  // class that consult may never come (the loop stopped turning). Idempotent
+  // per seq: if the funnel armed first this is a silent null (the sweeper
+  // already ran there).
+  try {
+    const duck = armStormDuck({ source: 'lag probe', rate: snap.lastRate, rss: snap.lastRss, seq: r.seq })
+    if (duck) console.log(stormDuckArmLine({ source: 'lag probe', rate: duck.rate, rss: duck.rss, swept: duck.swept, remainingMs: duck.remainingMs, tsS: Math.round(process.uptime()) }))
+  } catch { /* the duck never kills the feeder */ }
   console.log(`[allocvalve] CLOSED (lag probe): the worker verdict rss ${Number.isFinite(snap.lastRss) ? snap.lastRss : 0}M (+${Number.isFinite(snap.lastRate) ? snap.lastRate : 0}MB/s) applied at the 250ms lag probe (drift ${Math.round(Number.isFinite(drift) ? drift : 0)}ms) - long walks refused ${Math.round(Number.isFinite(snap.remainingMs) ? snap.remainingMs : 0) / 1000}s AND ${swept} pathfinder goals swept (the in-flight recompute loops die at the source; strike ${Number.isFinite(snap.strikes) ? snap.strikes : 0}) ts=${Math.round(process.uptime())}s`)
 }
 const pulseSab = createPulseSab()
@@ -1468,6 +1477,12 @@ const allocValve = startFleetValveTicker({ onLine: line => console.log(line), st
 // close lines ride the fleet log through the same console funnel.
 setFleetValveStormCell(stormCell)
 setFunnelProbeLogger(line => console.log(line))
+// (v0.143.0) THE STORM DUCK WIRING - the duck lives in the funnel (jobqueue),
+// but the bots live here: the arm sweeps through this callback (the same
+// stormSweepAllGoals the lag-probe feeder uses). Registered BEFORE any bot
+// can consult the funnel - an unregistered sweeper still arms the duck (the
+// refusal is the cure, the sweep is the acceleration).
+setFleetDuckSweeper(stormSweepAllGoals)
 // (v0.62.0) THE FLEET NO-PATH LEDGER - one shared array reaches every bot
 // (the fleet is one process): the first bot's 'No path' verdict for a chest
 // skips the SAME doomed A* exhaustion for the other 18 (run60's end phase:
@@ -1775,6 +1790,7 @@ console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn 
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
 const avs = allocValveStatsFor()
 console.log(`alloc valve: ${avs.closes} close(s) (${avs.workerCloses} by the worker probe, ${avs.queueCloses} by the queue-pressure arm, ${avs.funnelCloses + avs.funnelCellCloses} by the funnel probe), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed, ${avs.hazardRefusals} aquifer-gate refusals (v0.105.0 one valve two feeders + the aquifer gate - the run93 fix: the ticker feeds the consulted singleton, the worker's probe verdict rides the storm cell for the freeze class, and while closed the near exemption refuses live-hazard goals - near is not cheap in a flooded region; v0.115.0 the queue-pressure arm closes on the SUSTAINED pathfinder saturation - run101's 8-12q wall warned 80s before the rss burst; v0.121.0 the funnel probe - run105's storm starved the timers that carried both feeders while the walk funnel itself marched through the kill window, so the funnel now carries its own verdict and applies the worker's cell inline)`)
+console.log(`storm duck: ${avs.duckArms} arm(s), ${avs.duckRefusals} walk(s) refused fleet-wide while ducked (v0.143.0 - run58: the storm's next-column class is near BY CONSTRUCTION and rode the closed valve's near exemption to the 3000M ceiling; a live storm verdict now shuts EVERY goal for 15s and sweeps the in-flight goals, the A* starves within one think window, the worker's grace lands the cure instead of the ceiling landing the kill)`)
 const finalMap = map.report()
 noteGlobal('mapsave') // (v0.62.0) the worldmap save is one of the suspects for a main-thread freeze
 console.log(`worldmap: ${finalMap.positions} positions, ${finalMap.chunksScanned} chunks scanned, top: ${finalMap.top.slice(0, 5).map(([n, c]) => `${n}=${c}`).join(' ')}`)

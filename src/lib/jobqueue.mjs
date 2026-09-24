@@ -379,7 +379,7 @@ export function walkGovernorStatsFor () {
 // reopens after 12s (30s escalated). Short walks (rescues <=12, climbs, next-
 // column steps) still flow - a drowning bot never waits on a memory valve.
 const fleetValve = createAllocValve({})
-const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0 }
+const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0 }
 // (v0.104.0) THE AQUIFER BOARD - fleet19 sets this at boot (the shared
 // HazardLedger's near()); the closed valve's near exemption consults it so a
 // near walk into live hazard water is refused too (near is not cheap in a
@@ -446,6 +446,86 @@ export function funnelProbeControl () {
   }
 }
 
+// (v0.143.0) THE STORM DUCK - the near exemption's ceiling. MEASURED (fleet
+// leg 35994461858, the v0.142.0 union, mined 2026-09-24): the storm probe
+// fired at rss 989M -> 2114M (+225MB/s) with the familiar next-column
+// signature (pf:goal next column alt <- pf:queue next column <- pf:done next
+// column <- climb), the v0.141.0 machinery held the kill (GRACE HOLD at
+// 2882M) - and the hard ceiling killed at 3462M anyway, 181s/600s in. TWO
+// holes, both measured in the same log:
+//   (1) the valve was closed since ts=86s (the queue-pressure arm, strike 1)
+//       and the storm STILL ramped - the near exemption (<=24b "still flow")
+//       is exactly the walk class the storm was made of: next-column steering
+//       is a near walk BY CONSTRUCTION, so a closed valve cannot starve it;
+//   (2) the lag-probe feeder (the 250ms applier that survived run 576's
+//       storm at mainLate 959ms) never landed its closure - run58's heavier
+//       class stopped the event loop turning at all after the probe (the
+//       768ms reading predates the probe; the +1125M/5s ramp is the A* thinks
+//       growing until nothing but them runs).
+// THE DUCK: any live storm verdict - the worker's cell (applied at the funnel
+// or the lag probe) OR the funnel's own rss arithmetic - arms a fleet-wide
+// pathfinder pause: for DUCK_MS every gotoSafe consult refuses EVERY walk
+// (near included, bank included - the fuel IS every goal) and the arm sweeps
+// the in-flight goals (the v0.65.0 zombie-kill mechanics). The consults keep
+// coming at the callers' own retry cadence (the 25ms refusal pace bounds them
+// at ~40/s per bot), the A* gets zero new fuel within one think window, GC
+// drains, the worker's streak resets on the dip and the second strike never
+// arms. Rescues do not go through this funnel (raw swim controls) - the duck
+// never traps a drowning bot. The worker's grace + ceiling stay byte for
+// byte: a duck that fails to stop the growth still dies readably at 3000M.
+export const STORM_DUCK_MS_DEFAULT = 15000 // the duck window: inside the worker's 20s grace, one walk-timeout cycle longer than the ~11s wind-down
+let duckUntilMs = 0
+let duckArms = 0
+let duckSeqApplied = -1 // the cell seq that armed the current duck (one verdict, one arm)
+let duckLastSwept = 0
+let duckLastSource = ''
+let duckSweeper = null // fleet19 registers stormSweepAllGoals - the lib never touches the bots directly
+
+/** Register the in-flight goal sweeper the arm calls (once per arm). */
+export function setFleetDuckSweeper (fn) { duckSweeper = typeof fn === 'function' ? fn : null }
+
+/** Arm the duck: every gotoSafe walk refused for duckMs, the sweeper runs
+ * once. Idempotent per cell seq (the same verdict never re-arms); a seq-less
+ * arm is the CALLER's gate - the funnel only arms seq-less when not already
+ * active. Returns { fresh, swept, remainingMs, source, rate, rss } or null
+ * on a duplicate seq. Junk-safe: every degenerate input still arms (the
+ * storm verdicts are too expensive to lose to an arithmetic typo). */
+export function armStormDuck ({ source = 'funnel probe', rate = 0, rss = 0, seq = null, nowMs = Date.now(), duckMs = STORM_DUCK_MS_DEFAULT } = {}) {
+  if (seq !== null) {
+    const s = Number(seq)
+    if (!Number.isFinite(s) || s === duckSeqApplied) return null
+    duckSeqApplied = s
+  }
+  const fresh = duckUntilMs <= nowMs
+  duckUntilMs = nowMs + duckMs
+  duckArms++
+  try { duckLastSwept = duckSweeper ? (duckSweeper() | 0) : 0 } catch { duckLastSwept = 0 }
+  duckLastSource = String(source || 'storm')
+  const r = Number(rate)
+  const m = Number(rss)
+  return { fresh, swept: duckLastSwept, remainingMs: duckMs, source: duckLastSource, rate: Number.isFinite(r) ? r : 0, rss: Number.isFinite(m) ? m : 0 }
+}
+
+export function stormDuckActive (nowMs = Date.now()) { return duckUntilMs > nowMs }
+
+export function stormDuckStats () {
+  return { arms: duckArms, active: stormDuckActive(), remainingMs: Math.max(0, duckUntilMs - Date.now()), source: duckLastSource, lastSwept: duckLastSwept }
+}
+
+/** Test reset - the fleet never calls this (the duck lives once per process). */
+export function resetStormDuck () { duckUntilMs = 0; duckArms = 0; duckSeqApplied = -1; duckLastSwept = 0; duckLastSource = '' }
+
+/** Pure log-line builder for the arm (the funnel and the lag probe both
+ * print it - the mine must be able to tell WHICH cadence armed the duck). */
+export function stormDuckArmLine ({ source = 'storm', rate = 0, rss = 0, swept = 0, remainingMs = STORM_DUCK_MS_DEFAULT, tsS = 0 } = {}) {
+  const r = Number.isFinite(rate) ? Math.round(rate) : 0
+  const m = Number.isFinite(rss) ? Math.round(rss) : 0
+  const sw = Number.isFinite(swept) ? Math.max(0, Math.round(swept)) : 0
+  const rem = Number.isFinite(remainingMs) ? Math.max(0, Math.round(remainingMs / 1000)) : 0
+  const ts = Number.isFinite(tsS) ? Math.max(0, Math.round(tsS)) : 0
+  return `[stormduck] ARMED (${source}): rss ${m}M (+${r}MB/s) - every pathfinder goal refused ${rem}s, ${sw} in-flight goal(s) swept; the near exemption SHUTS (run58: the next-column class is near BY CONSTRUCTION, a closed valve cannot starve it), the A* starves within one think window; rescues flow (raw controls) ts=${ts}s`
+}
+
 /** The probe itself: cell poll + rss verdict, called on EVERY gotoSafe
  * consult before the valve's state read. Never throws, never blocks the walk
  * it precedes - every subsystem below is individually guarded. */
@@ -459,6 +539,18 @@ function funnelValveProbe () {
       if (r.applied) {
         funnelCellSeq = r.seq
         funnelStats.cellCloses++
+        // (v0.143.0) the same verdict arms the STORM DUCK - the valve close
+        // alone cannot starve the near class (run58), so the verdict shuts
+        // EVERY goal for the duck window. Idempotent per seq: the lag probe
+        // may have armed this verdict first, then this is a silent no-op.
+        try {
+          const duck = armStormDuck({ source: 'worker probe', rate: r.snapshot ? r.snapshot.lastRate : 0, rss: r.snapshot ? r.snapshot.lastRss : 0, seq: r.seq, nowMs: funnelNow ? funnelNow() : Date.now() })
+          if (duck && funnelLogger) {
+            let tsS = 0
+            try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
+            try { funnelLogger(stormDuckArmLine({ source: 'worker probe', rate: duck.rate, rss: duck.rss, swept: duck.swept, remainingMs: duck.remainingMs, tsS })) } catch { /* logging never kills the fleet */ }
+          }
+        } catch { /* the duck never blocks the walk */ }
         if (funnelLogger && r.snapshot) {
           try { funnelLogger(valveFunnelCloseLine({ st: r.snapshot, tsS: r.tsS, who: 'cell' })) } catch { /* logging never kills the fleet */ }
         }
@@ -490,6 +582,21 @@ function funnelValveProbe () {
       try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
       try { funnelLogger(valveFunnelCloseLine({ st: snap, tsS, who: 'storm' })) } catch { /* logging never kills the fleet */ }
     }
+  }
+  // (v0.143.0) the funnel's own verdict arms the duck too - gated on !active
+  // so a sustained storm extends the window only after expiry (one arm per
+  // verdict era, no spam at the 40/s consult cadence). An already-closed
+  // valve does NOT skip this: the storm is live evidence, the near class
+  // must shut even when the close itself was absorbed.
+  if (!stormDuckActive(t)) {
+    try {
+      const duck = armStormDuck({ source: 'funnel probe', rate: v.rate, rss: v.rss, seq: null, nowMs: t })
+      if (duck && funnelLogger) {
+        let tsS = 0
+        try { tsS = Math.round(process.uptime()) } catch { /* the line just reads ts=0 */ }
+        try { funnelLogger(stormDuckArmLine({ source: 'funnel probe', rate: duck.rate, rss: duck.rss, swept: duck.swept, remainingMs: duck.remainingMs, tsS })) } catch { /* logging never kills the fleet */ }
+      }
+    } catch { /* the duck never blocks the walk */ }
   }
 }
 
@@ -532,7 +639,8 @@ export function allocValveStatsFor () {
   const st = valveStats
   const snap = fleetValve.consult()
   const fs = funnelProbeControl().stats()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses }
+  const ds = stormDuckStats()
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, duckRefusals: st.duckRefusals, duckArms: ds.arms, duckActive: ds.active, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -563,6 +671,7 @@ export function resetWalkGovernors () {
   try { funnelProbeControl().reset() } catch { /* (v0.121.0) the probe reset never fails */ }
   valveStats.refusals = 0
   valveStats.nearPasses = 0
+  valveStats.duckRefusals = 0
 }
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
@@ -703,6 +812,17 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // exactly the walk that detonated run92 - banking pauses 12-30s, the run
   // survives. An open valve is a no-op (junk state never refuses).
   try { funnelValveProbe() } catch { /* (v0.121.0) the probe never blocks the walk it precedes */ }
+  // (v0.143.0) THE STORM DUCK CONSULT - after the probe (the probe must keep
+  // measuring + arming even while the duck refuses everything), before the
+  // valve consult (a ducked walk must not count as a nearPass). While the
+  // duck is live EVERY walk is refused - near included, bank included: the
+  // fuel IS every goal (run58's storm rode the near exemption to 3462M
+  // through a valve that had been closed for 95s). The refusal is paced by
+  // the same 25ms yield, so the callers' retry loops cost nothing.
+  if (duckUntilMs > Date.now()) {
+    valveStats.duckRefusals++
+    return refuse(`storm duck: fleet-wide pathfinder pause ${Math.max(0, Math.round((duckUntilMs - Date.now()) / 1000))}s left - ${label} refused (a live storm verdict shut the near exemption; every walk waits out the wind-down)`)
+  }
   try {
     const vs = fleetValve.consult()
     if (vs && vs.closed) {

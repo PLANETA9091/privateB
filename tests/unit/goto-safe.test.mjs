@@ -5,7 +5,7 @@
 // failure; standGoalNear must snap walk targets to standable columns.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { gotoSafe, standGoalNear, gotoSafeStats } from '../../src/lib/jobqueue.mjs'
+import { gotoSafe, standGoalNear, gotoSafeStats, resetStormDuck } from '../../src/lib/jobqueue.mjs'
 import { Vec3 } from 'vec3'
 
 const goals = {
@@ -315,8 +315,9 @@ test('alloc valve at the funnel: resetWalkGovernors reopens the valve and zeroes
   vc.sample(1500)
   assert.equal(vc.consult().closed, true)
   resetWalkGovernors()
+  resetStormDuck() // (v0.143.0) the duck rides its own reset - the valve hygiene does not lift it
   assert.equal(allocValveControl().consult().closed, false)
-  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0, funnelCloses: 0, funnelCellCloses: 0 })
+  assert.deepEqual(allocValveStatsFor(), { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0, duckArms: 0, duckActive: false, closes: 0, strikes: 0, closedNow: false, workerCloses: 0, queueCloses: 0, funnelCloses: 0, funnelCellCloses: 0 })
 })
 
 // ---- (v0.104.0) THE AQUIFER GATE at the funnel ----
@@ -448,6 +449,7 @@ import { setFleetValveStormCell, setFunnelProbeLogger, funnelProbeControl } from
 
 test('funnel probe: the worker verdict published into the cell is applied at the funnel with NO ticker alive (the run105 regression pin)', async () => {
   resetWalkGovernors()
+  resetStormDuck() // (v0.143.0) the applied verdict now also ARMS the duck - isolate it per test
   const cell = new SharedArrayBuffer(32)
   new Int32Array(cell)[0] = STORM_CELL_MAGIC
   stormCellPublish({ cell, rate: 223, rss: 1750, tsS: 415 }) // the run105 first-strike verdict
@@ -461,20 +463,30 @@ test('funnel probe: the worker verdict published into the cell is applied at the
     }
     // NO startFleetValveTicker call - in run105 the ticker starved; the funnel
     // is the only witness. The FIRST consult must apply the verdict inline.
-    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the funnel closed the valve itself')
-    assert.equal(allocValveControl().consult().lastSource, 'worker-probe', 'the close rides the worker verdict')
+    // (v0.143.0) the same verdict ARMS THE DUCK, and the duck consult sits
+    // BEFORE the valve consult - the first refusal now names the duck (the
+    // strictest form of the same cure: every goal refused, not just long).
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /storm duck/, 'the armed duck refuses the walk the valve would have refused')
+    assert.equal(allocValveControl().consult().lastSource, 'worker-probe', 'the close still rides the worker verdict')
     assert.equal(funnelProbeControl().stats().cellCloses, 1, 'the cell apply is booked')
-    assert.ok(lines.length >= 1 && lines[0].includes('CLOSED (funnel probe)'), 'the named line rode the fleet log')
-    assert.ok(lines[0].includes('the worker verdict rss 1750M (+223MB/s)'), 'the line names the verdict numbers')
+    assert.ok(lines.length >= 2, 'both lines rode the fleet log')
+    assert.ok(lines[0].includes('[stormduck] ARMED (worker probe)'), 'the arm line rides FIRST (the duck is the strictest refusal)')
+    assert.ok(lines.some(l => l.includes('CLOSED (funnel probe)')), 'the named close line rode the fleet log')
+    assert.ok(lines.some(l => l.includes('the worker verdict rss 1750M (+223MB/s)')), 'the line names the verdict numbers')
+    // with the duck lifted, the SAME verdict's valve close still refuses the long walk (the v0.102.0 contract, unchanged)
+    resetStormDuck()
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the valve close from the same verdict still refuses long walks')
   } finally {
     setFleetValveStormCell(null)
     setFunnelProbeLogger(null)
     resetWalkGovernors()
+    resetStormDuck()
   }
 })
 
 test('funnel probe: the funnel\'s own rss storm closes the valve on the consult path (the timers never needed)', async () => {
   resetWalkGovernors()
+  resetStormDuck() // (v0.143.0) hygiene - a leaked duck from a sibling test would pre-empt the valve refusals
   const clock = { t: 1000 }
   let rssM = 449
   funnelProbeControl().setSources({ rssReader: () => rssM * 1048576, nowMs: () => clock.t })
@@ -498,11 +510,13 @@ test('funnel probe: the funnel\'s own rss storm closes the valve on the consult 
     funnelProbeControl().setSources({})
     setFunnelProbeLogger(null)
     resetWalkGovernors()
+    resetStormDuck()
   }
 })
 
 test('funnel probe: a sub-gap jump records without a verdict and keeps the anchor (the GC-noise pin)', async () => {
   resetWalkGovernors()
+  resetStormDuck()
   const clock = { t: 1000 }
   let rssM = 449
   funnelProbeControl().setSources({ rssReader: () => rssM * 1048576, nowMs: () => clock.t })
@@ -525,11 +539,13 @@ test('funnel probe: a sub-gap jump records without a verdict and keeps the ancho
   } finally {
     funnelProbeControl().setSources({})
     resetWalkGovernors()
+    resetStormDuck()
   }
 })
 
 test('funnel probe: a throwing rss reader judges nothing - the walk flows (the junk contract)', async () => {
   resetWalkGovernors()
+  resetStormDuck()
   funnelProbeControl().setSources({ rssReader: () => { throw new Error('reader on fire') } })
   try {
     const bot = {
@@ -543,11 +559,13 @@ test('funnel probe: a throwing rss reader judges nothing - the walk flows (the j
   } finally {
     funnelProbeControl().setSources({})
     resetWalkGovernors()
+    resetStormDuck()
   }
 })
 
 test('funnel probe: resetWalkGovernors keeps the cell seq - an applied verdict is never re-applied (the stale-seq pin)', async () => {
   resetWalkGovernors()
+  resetStormDuck()
   const cell = new SharedArrayBuffer(32)
   new Int32Array(cell)[0] = STORM_CELL_MAGIC
   stormCellPublish({ cell, rate: 183, rss: 2626, tsS: 581 })
@@ -557,9 +575,10 @@ test('funnel probe: resetWalkGovernors keeps the cell seq - an applied verdict i
       entity: { position: { x: 0, y: 64, z: 0 } },
       pathfinder: { goto: async () => 'done', stop: () => {} }
     }
-    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/)
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /storm duck/, 'the applied verdict arms the duck, the duck refuses first')
     assert.equal(funnelProbeControl().stats().cellCloses, 1)
     resetWalkGovernors() // the test hygiene reset - the counter zeroes, the SEQ must not
+    resetStormDuck() // (v0.143.0) lift the duck the same way the window would expire
     assert.equal(allocValveControl().consult().closed, false, 'the valve reopens')
     const r = await gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 })
     assert.equal(r, 'done', 'the stale verdict is not re-applied - the seq space lives with the cell')
@@ -567,5 +586,6 @@ test('funnel probe: resetWalkGovernors keeps the cell seq - an applied verdict i
   } finally {
     setFleetValveStormCell(null)
     resetWalkGovernors()
+    resetStormDuck()
   }
 })
