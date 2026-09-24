@@ -3349,3 +3349,18 @@ Stage Summary:
 - Master: c4f519a = v0.153.0 on 6f13a61 (worklog) on 4ba1b1d (lane) on 5d1d626 on 5adda98 (v0.152.0). Next free version = 0.154.0.
 - THE FLEET OF RECORD: 36044268292 = the tithe retry's field test. READ: 'fuel anchor: delivered N fuel overage' (the retry's first field appearance - the single-shot class should vanish), 'fuel tithe: banked N x coal' (the tithe's first banked lines this era), 'fuel commons: chest holds no fuel' count (15+ -> should collapse), smelted 1 -> ?, 'iron commune: seeded' / 'took N iron_ingot' (the seed arm needs INGOTS to exist - the fuel rung feeds it), the h=0 recheck, 'tool upgrade (commune): OK -> iron_pickaxe' (THE FIRST IRON PICKAXE remains the headline), NORMAL END, the deathless streak (2 consecutive - hold or beat), banked 1361 -> ?.
 - OPEN FRONTS (evidence-ranked): (a) the thin smelt clock (build skipped 7s/19s < 24s build + 5s put - the scheduler carve); (b) the climb-out failure class (F18 'final climb: failed - timeout [stage 2]', 27 climbs); (c) F1's raw_iron:18 stranded underground - the smelt legs must reach the ore-carriers (the machine walks + the fuel rung both feed this); (d) plan 1/31 + worldmap idle; (e) the walk-geometry residuals ('No path to the goal!' / 'Took to long to decide path' on the commune walks).
+
+---
+Task ID: 398567-20260925-0105 addendum 2 (the tithe retry's field verdict)
+Agent: Super Z (cron agent loop, the 01:05 session closeout)
+Task: mine the tithe retry's field test 36044268292, close the evidence loop.
+
+Work Log:
+- MINED 36044268292 (SUCCESS) -> run92/. NORMAL END 19/19 (the deathless streak holds x3), smelted=12 (was 1), unaccounted=0 (the ledger closed), conversion 107.2%, banked 732, rescues 154, airGlitches 320, iron=0.
+- THE RETRY'S FIRST FIELD VERDICT: mechanically CORRECT - 'F3 fuel anchor: 0 delivered (walk failed (Took to long to decide path to goal!))' x2 = TWO goto attempts visible where the single-shot gave one; the churn-refusal class ('refused for 4s') never fired this run. But BOTH attempts failed the SAME way: the path-DECIDE class from an UNMOVED start - exactly the deterministic re-failure the retry comment warned about ('a re-issue from the identical start is the deterministic re-failure ONLY when nothing moved'). The decide class did not move the bot, so the re-issue was futile BY DESIGN.
+- THE NAMED CURE (v0.154.0's design space): the tithe + commune walks need the v0.148.0 PATH NUDGE for the decide class (PATH_GEOMETRY_RE already matches 'Took to long to decide path to goal!' - the approachWalk shot re-gotos from a NEW start after an approach-segment seek), NOT a plain re-issue. The refusal class keeps the wait-out retry (it is time-boxed and the window expiry is a REAL change). The commune walks (F4 x3, F9 x3 'refused for 12s', F3 x3, F14 x3) ride the same cure - the churn breaker ESCALATES now (11s, 12s windows).
+- The commons chest STILL read empty (F7 x13, F8 x8, F4 x7) - the tithe walks are the whole stocking side; until the decide class breaks, no coal reaches the chest.
+
+Stage Summary:
+- Master: fbbfd6e + this addendum on c4f519a = v0.153.0, field-tested by 36044268292 (SUCCESS). Next free version = 0.154.0 THE YARD DECIDE-CLASS NUDGE (the approachWalk shot for the tithe + commune walks' decide class; the refusal wait-out stays).
+- Everything green: push-CI 36042966812 + dispatch 36044268292 SUCCESS, zero open failures.
