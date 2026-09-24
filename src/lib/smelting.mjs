@@ -536,13 +536,20 @@ export async function smeltBatch (bot, {
     walked = true
     log(`${tag} ${machineBlock.name} within reach - opening without a walk`)
   }
-  // (v0.99.0) THE YARD-ADJACENT RE-ARM: adjacency to THIS machine (the bot
-  // already stands in the yard) re-arms the doomed consult for every attempt -
-  // the ledgered geometry belongs to a far failed bot, not to a bot that can
-  // almost touch the target (run88's F17: seven machines refused while the bot
-  // stood among them). Junk positions read false - the legacy shape stands.
-  const yardAdjacent = machineWithinReach({ from: bot.entity?.position, pos: machineBlock.position, reach: SMELT_YARD_NEAR_DISTANCE })
-  if (yardAdjacent && !walked) log(`${tag} ${machineBlock.name} yard-adjacent (<= ${SMELT_YARD_NEAR_DISTANCE}b) - the doomed consult re-arms every attempt`)
+  // (v0.130.0) THE MACHINE WALK NEVER TAKES THE FREE REFUSAL: the doomed
+  // consult re-arms for EVERY attempt of EVERY machine walk (the v0.99.0
+  // yard-adjacent semantics, unconditional). run536 measured the old
+  // refuse→re-arm→refuse shape starve the smelt economy fleet-wide: the yard
+  // furnace row [-125..-137,71,385] became a dense doom field (every failed
+  // honest walk re-dooms its cell, 15s TTL, the v0.96.0 absorb keeps the FIRST
+  // failure's clock alive), F13 and F11 each burned 6 machines on consult
+  // refusals 'ledgered 1-5s ago' then died 'visit budget spent', 27 'machine
+  // unreachable' visits all run and smelted=1 (run530: 18). The doctrine is
+  // v0.92.0's: a machine is static and known-good - the doomed geometry is the
+  // FAILED bot's start (v0.87.0), not the destination's. The storm breakers
+  // stay: 3 attempts x walkSlice, the visit deadline, the governor, the fleet
+  // ceiling; a failed honest walk still re-dooms the cell (the v0.99.0 note -
+  // the storm evidence stays recorded for every NON-machine consult).
   for (let attempt = 0; attempt < 3 && !walked && bot.entity; attempt++) {
     const ms = walkSlice()
     if (ms <= 0) { lastWalkError = 'visit budget spent (walk slice)'; break }
@@ -550,21 +557,19 @@ export async function smeltBatch (bot, {
       // (v0.89.0) THE SHARED-MACHINE WALK: the bay is a SHARED destination -
       // one bot's failed approach ledgered the furnace cell and every later
       // bot's smelt walk died at the consult (run80's silent zeros). The
-      // v0.87.0 yard semantics, bounded: exactly ONE honest re-issue (attempt 2)
-      // - the doomed geometry is the failed bot's start, this bot's may be fine
-      // - then the funnel closes again (the spiral breaker stays in charge).
-      // + the goal ladder: attempt 1 hugs the machine, the retries stand off -
-      // the tight bay needs looser approach cells to defeat the A* think wall.
+      // v0.87.0 yard semantics, bounded: the doomed geometry is the failed
+      // bot's start, this bot's may be fine.
       // (v0.92.0) + THE MACHINE DOOM TTL: a machine is static and known-good -
-      // its doomed verdict lives 15s (MACHINE_DOOM_TTL_MS), not the chest
+      //   its doomed verdict lives 15s (MACHINE_DOOM_TTL_MS), not the chest
       // ledger's 45/90s (run81: 15 machines refused 'ledgered 1s ago', a fresh
       // camp furnace killed for the run by ONE failed walk).
-      // (v0.99.0) doomedRearm: attempt 2 always (the v0.89.0 shared-machine
-      // semantics) + EVERY attempt when the bot is yard-adjacent to this very
-      // machine - the honest bounded walk replaces the free refusal, and a
-      // failed honest attempt still re-dooms the cell (the storm evidence
-      // stays recorded; only the auto-refuse of a PRESENT bot is lifted).
-      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(attempt + 1)), { timeoutMs: ms, label: 'walk to furnace', doomedRearm: attempt === 1 || yardAdjacent, doomTtl: MACHINE_DOOM_TTL_MS })
+      // (v0.99.0) doomedRearm on attempt 2 (the shared-bay re-issue) + EVERY
+      // attempt when the bot is yard-adjacent to this very machine.
+      // (v0.130.0) doomedRearm UNCONDITIONAL - the machine goal never takes the
+      // free doomed refusal (run536: the refuse-armed attempt 0 starved the
+      // whole row while the bot stood 10 blocks from it; see the block comment
+      // above). A failed honest attempt still re-dooms the cell.
+      await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(attempt + 1)), { timeoutMs: ms, label: 'walk to furnace', doomedRearm: true, doomTtl: MACHINE_DOOM_TTL_MS })
       walked = true
     } catch (e) {
       lastWalkError = e.message

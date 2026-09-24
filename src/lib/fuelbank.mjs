@@ -206,7 +206,15 @@ export function pickFuelAnchor (chests, yardCenter) {
  * and the bare catch read an EMPTY scan, killing the anchor for that ask with
  * no line and no retry (run525: 0 'anchor chest is read first' lines all run
  * while the same loop's findChest opened chest after chest). TWO attempts, the
- * swallow names itself (bot position included, the v0.38.0 shape). */
+ * swallow names itself (bot position included, the v0.38.0 shape).
+ * (v0.130.0) THE EMPTY-RETURN RETRY: run536 measured the desync's SECOND face -
+ * 16/16 anchor scans returned an EMPTY ARRAY (not a throw), 0 swallow lines all
+ * run, while the same loop's findChest (bot.findBlock, singular) kept finding
+ * and opening yard chests in the same window - the retry above covered only the
+ * THROW class, so the empty return killed the anchor silently (0 'the anchor
+ * chest is read first' lines across run525/530/536: the anchor has never once
+ * delivered in the field). An empty result now re-queries once; EVERY empty
+ * names itself (the throw shape's 'BOTH attempts named themselves'). */
 export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS, log = () => {} } = {}) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
@@ -229,6 +237,14 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
         const y = Math.floor(Number(b.position.y))
         const z = Math.floor(Number(b.position.z))
         if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+      }
+      // (v0.130.0) the empty return is the desync's SILENT face - re-query once,
+      // every empty names itself (a legit empty pays one extra bounded query;
+      // the yard is known to hold dozens of chests, an empty is a lie until
+      // proven twice).
+      if (out.length === 0) {
+        try { log(`fuel anchor scan returned empty (attempt ${attempt}/2)${attempt === 1 ? ' - the palette empty-return class, re-querying' : ''}`) } catch { /* log never kills a scan */ }
+        if (attempt === 1) continue
       }
       return out
     } catch (e) {
@@ -310,7 +326,7 @@ export async function deliverFuelTithe (bot, {
   const remainingMs = () => budgetMs - (Date.now() - started)
   let anchor = null
   try {
-    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance })
+    const cells = scanYardChests(bot, { yardCenter, radius, maxDistance, log })
     anchor = pickFuelAnchor(cells, yardCenter)
   } catch { anchor = null }
   if (!anchor) return { delivered: 0, why: 'no anchor chest' }

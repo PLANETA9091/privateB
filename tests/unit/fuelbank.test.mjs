@@ -749,6 +749,31 @@ test('scanYardChests: the scan retry - one transient palette throw no longer voi
   assert.equal(deadLines.length, 2, 'BOTH attempts named themselves - no bare swallow')
 })
 
+test('scanYardChests: the empty-return retry - the palette desync\'s SILENT face no longer voids the anchor ask (the run536 class, v0.130.0)', () => {
+  // run536 measured 16/16 anchor scans returning an EMPTY ARRAY (not a throw),
+  // 0 swallow lines all run, while the same loop's findChest (bot.findBlock,
+  // singular) kept finding and opening yard chests in the same window - the
+  // v0.128.0 retry covered only the THROW class, so the anchor died silently
+  // all run (0 'the anchor chest is read first' lines across run525/530/536).
+  const near = { name: 'chest', position: new Vec3(2.5, 64, 2.5) }
+  let calls = 0
+  const flaky = {
+    entity: { position: new Vec3(0, 64, 0) },
+    findBlocks: () => { if (calls++ === 0) return []; return [near] } // the empty return, then the truth
+  }
+  const lines = []
+  assert.deepEqual(scanYardChests(flaky, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => lines.push(l) }), [{ x: 2, y: 64, z: 2 }],
+    'the re-query answers after one empty scan')
+  assert.equal(calls, 2, 'exactly two attempts')
+  assert.equal(lines.length, 1, 'the empty named itself once')
+  assert.match(lines[0], /fuel anchor scan returned empty \(attempt 1\/2\) - the palette empty-return class, re-querying/)
+  const dead = { entity: { position: new Vec3(0, 64, 0) }, findBlocks: () => [] }
+  const deadLines = []
+  assert.deepEqual(scanYardChests(dead, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => deadLines.push(l) }), [], 'two empties still read empty')
+  assert.equal(deadLines.length, 2, 'BOTH empties named themselves - no bare swallow')
+  assert.match(deadLines[1], /fuel anchor scan returned empty \(attempt 2\/2\)$/, 'the second empty does not promise a re-query')
+})
+
 test('withdrawFuelCommons: the fresh-empty memory cannot un-anchor - a chest seen empty a minute ago is STILL read first', async () => {
   const world = mockAnchorSweepWorld()
   const yard = { x: 32, y: 64, z: 32 }

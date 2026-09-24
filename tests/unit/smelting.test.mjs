@@ -8,7 +8,7 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
-import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, recordDoomedGoal, doomedGoalStats, nearDoomedGoal } from '../../src/lib/jobqueue.mjs'
 import { KEEP } from '../../src/lib/deposit.mjs'
 import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
@@ -584,15 +584,16 @@ test('smeltBatch: no visit budget keeps the legacy 3 walk attempts for TRANSIENT
   assert.match(res.reason, /machine unreachable/)
 })
 
-test('smeltBatch: a dead-geometry verdict gets ONE shared-bay re-arm, then the funnel closes (v0.72.0 + v0.89.0)', async () => {
+test('smeltBatch: a dead-geometry verdict pays 3 honest walks - the machine goal never takes the free refusal (v0.130.0)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
   const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)], gotoFails: true })
   let calls = 0
   bot.pathfinder.goto = async () => { calls++ ; throw new Error('No path to the goal!') }
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(calls, 2, 'attempt 1 pays the A* verdict; attempt 2 re-arms ONCE (the bay is shared); attempt 3 dies at the consult again')
+  assert.equal(calls, 3, 'all three attempts walk honestly: attempt 0 no longer takes the free doomed refusal')
   assert.match(res.reason, /machine unreachable/)
-  assert.match(res.reason, /doomed goal/, 'the final refusal names the ledger')
+  assert.match(res.reason, /No path to the goal/, 'the final error is the honest A* verdict, not a consult refusal')
+  assert.ok(nearDoomedGoal({ x: 50, y: 64, z: 50 }, Date.now(), {}).hit, 'the failed honest walks still re-doom the cell - the storm evidence stays for non-machine consults')
 })
 
 // ------------------------------------------------------- (v0.99.0) the yard-adjacent re-arm
@@ -618,30 +619,29 @@ test('smeltBatch: a yard-adjacent bot re-arms the doomed consult on EVERY attemp
   assert.ok(doomedGoalStats().rearms >= 2, `both consults re-armed (got ${doomedGoalStats().rearms})`)
 })
 
-test('smeltBatch: a FAR bot keeps the v0.89.0 shape on a doomed cell (refuse, one re-arm, refuse)', async () => {
+test('smeltBatch: a FAR bot on a doomed cell walks honestly from the FIRST attempt (v0.130.0)', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
   const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
   recordDoomedGoal({ x: 50, y: 64, z: 50 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS })
   let calls = 0
-  bot.pathfinder.goto = async () => { calls++; return undefined } // the storm cleared: the honest re-arm walk SUCCEEDS
+  bot.pathfinder.goto = async () => { calls++; return undefined } // the storm cleared: the honest walk SUCCEEDS
   const res = await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(res.smelted, 4, 'the attempt-2 re-arm still rescues a far bot')
-  assert.equal(calls, 1, 'attempt 1 died at the consult without paying an A*')
-  assert.equal(doomedGoalStats().refusals, 1, 'exactly the legacy consult refusal')
-  assert.equal(doomedGoalStats().rearms, 1, 'exactly the legacy single re-arm')
+  assert.equal(res.smelted, 4, 'the honest walk lands the batch')
+  assert.equal(calls, 1, 'attempt 0 walked - no consult auto-refuse before it')
+  assert.equal(doomedGoalStats().refusals, 0, 'a machine goal is never auto-refused: the consult re-armed')
+  assert.equal(doomedGoalStats().rearms, 1, 'exactly one re-arm (attempt 0)')
 })
 
-test('smeltBatch: junk positions never unlock the yard re-arm (the legacy shape byte for byte)', async () => {
+test('smeltBatch: a junk-position bot on a doomed cell walks honestly too - the re-arm is unconditional (v0.130.0)', async () => {
   const yard = new MockFurnace({ position: new Vec3(6, 64, 6) })
   const bot = makeMockBot({ machines: [yard], items: [item('sand', 4), item('coal', 7)] })
-  bot.entity.position = new Vec3(NaN, 64, NaN) // an unknown position is a FAR bot
-  assert.equal(machineWithinReach({ from: bot.entity.position, pos: yard.position, reach: SMELT_YARD_NEAR_DISTANCE }), false)
+  bot.entity.position = new Vec3(NaN, 64, NaN) // an unknown position
   recordDoomedGoal({ x: 6, y: 64, z: 6 }, Date.now(), { ttl: MACHINE_DOOM_TTL_MS })
   let calls = 0
   bot.pathfinder.goto = async () => { calls++; return undefined }
   const res = await smeltBatch(bot, { machineBlock: yard, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(res.smelted, 4, 'the legacy attempt-2 re-arm still walks')
-  assert.equal(doomedGoalStats().refusals, 1, 'attempt 1 was refused: junk adjacency reads false')
+  assert.equal(res.smelted, 4, 'the honest walk lands regardless of the bot position')
+  assert.equal(doomedGoalStats().refusals, 0, 'no consult auto-refuse for machine goals, junk position included')
   assert.equal(doomedGoalStats().rearms, 1)
 })
 
