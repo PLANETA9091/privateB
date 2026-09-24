@@ -332,6 +332,60 @@ export function meleeFightStep ({ dist, chased = 0 } = {}) {
   return 'close'
 }
 
+// (v0.140.0) THE RANGED-FIGHT COOLDOWN - run554's skeleton cascade named the
+// reopen shape: "melee chase ceiling held ... the next drop reopens it" armed
+// the budget, and the next ARROW spent it again. F2's episode chain: hp 19.0
+// -> 13.0 (chase ceiling, 4 swings) -> verdict flipped to flee at 7.0 ->
+// shelter skip (ring incomplete 4/8) -> dead; F6/F7/F10/F12/F14 the same
+// class, all surface night (y=64-66). A shooter cannot be chased down (the
+// F9 17-swings-0-hits measurement) and every reopen walks the bot back INTO
+// the arrow band. The cooldown: after a chase-ceiling break vs a NON-WITCH
+// ranged threat the mob is refused 'fight' for RANGED_COOLDOWN_MS - the
+// verdict yields 'flee' where it used to re-open the fight, the ring's arrow
+// wall owns the terrain, the kite owns the open field. The witch keeps her
+// v0.115.0 contract (the poison lens NEEDS the melee through the splash band;
+// a cooldown would strand the drain running on a fleeing bot).
+export const RANGED_COOLDOWN_MS = 10000
+
+/**
+ * The wall-clock until-timestamp for a freshly armed cooldown, or null on a
+ * junk now (the caller then arms nothing - a guessed timestamp must never
+ * close the fight lane forever).
+ * @param {object} [p]
+ * @param {number} [p.now] wall clock ms (junk -> null)
+ * @param {number} [p.ms] cooldown length ms (junk -> RANGED_COOLDOWN_MS)
+ */
+export function rangedCooldownUntil ({ now, ms = RANGED_COOLDOWN_MS } = {}) {
+  // (the Number(null) lesson, tenth strike) Number(null) is 0, a FINITE
+  // number - a missing/junk now must refuse the arm, NOT read as epoch 0:
+  // 0 + RANGED_COOLDOWN_MS would close a lane that was never measured. No
+  // destructuring default here ON PURPOSE: `= 0` silently converts an
+  // undefined now into a real timestamp (the exact arm-on-a-guess this
+  // guard exists to refuse).
+  if (now == null) return null
+  const t = Number(now)
+  if (!Number.isFinite(t) || t < 0) return null
+  const d = Number.isFinite(ms) && ms > 0 ? Math.floor(ms) : RANGED_COOLDOWN_MS
+  return t + d
+}
+
+/**
+ * Is a cooldown window live? Junk on either side reads NOT live (an expired
+ * entry and a missing entry behave identically: the fight lane is open).
+ * @param {object} [p]
+ * @param {number} [p.now] wall clock ms (junk -> false)
+ * @param {number|null|undefined} [p.until] the armed until-timestamp
+ *   (null/undefined/junk -> false)
+ */
+export function rangedCooldownLive ({ now = 0, until = null } = {}) {
+  // (the Number(null) lesson) a junk now must OPEN the lane, not read as
+  // epoch 0 - 0 < until would hold a phantom cooldown forever.
+  if (now == null) return false
+  const t = Number(now)
+  if (!Number.isFinite(t) || !Number.isFinite(until)) return false
+  return t < until
+}
+
 // (v0.137.0) THE WATER-MELEE YIELD LINE - F11's fight episode traded
 // 14.7 -> 5.3 hp against a drowned and finished at the bottom of the pool:
 // FLEE_HP (8) is a LAND measurement, and a bot standing in water has no
@@ -368,9 +422,18 @@ export const WATER_FLEE_HP = 12
  *   because the land flee line never fired in time. In water the yield line
  *   lifts to WATER_FLEE_HP - junk-safe: anything but literal true reads dry
  *   (the legacy shape byte for byte).
+ * @param {boolean} [p.cooldown=false] is the RANGED-FIGHT COOLDOWN live for
+ *   this mob? (v0.140.0) run554's skeleton cascade: every chase-ceiling break
+ *   was re-opened by the next arrow, and the reopen walked the bot back into
+ *   the volley. Live cooldown + a RANGED_HOSTILES threat inside its engage
+ *   range yields 'flee' where it used to return 'fight' - the shooter cannot
+ *   be chased down, the ring's arrow wall and the kite own the response.
+ *   Junk-safe: anything but literal true reads closed (the legacy verdicts
+ *   byte for byte), and MELEE threats never consult it (a zombie at 2 blocks
+ *   is still a fight).
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false, cooldown = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
@@ -387,6 +450,15 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   if (inWater === true && seen < WATER_FLEE_HP) return 'flee'
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
+  // (v0.140.0) THE RANGED COOLDOWN: a mob inside its window is never chased -
+  // the verdict yields 'flee' where it used to re-open the fight. Only the
+  // RANGED classes consult it (the melee band keeps its sword answer), and
+  // only when the verdict would have been 'fight' (the creeper/spider/unarmed
+  // lanes above keep their own verdicts). The witch is EXCLUDED at the pure
+  // layer too (defense in depth: the miner never arms her window, and this
+  // lane must never strand her v0.115.0 poison-drain chase even if a future
+  // call site passes a cooldown by mistake).
+  if (cooldown === true && name !== 'witch' && RANGED_HOSTILES.has(name) && dist <= engage) return 'flee'
   if (dist <= engage) return 'fight'
   return 'ignore'
 }

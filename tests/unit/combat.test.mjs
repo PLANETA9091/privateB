@@ -13,7 +13,8 @@ import {
   fleeStalemate, fleeResponse, kiteHopTarget,
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
-  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP
+  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP,
+  RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
 
@@ -452,4 +453,55 @@ test('REGRESSION PIN: the fight loop wires the melee budget + the water lens (th
   // both verdict sites read the water lens
   assert.ok(/inWater: inWaterHere\(\)/.test(minerSrc), 'the verdicts consult the water lens')
   assert.ok(/function inWaterHere/.test(minerSrc), 'the water lens read exists')
+})
+
+// ---- (v0.140.0) THE RANGED-FIGHT COOLDOWN - run554's skeleton cascade ----
+// F2's chain: hp 19.0 -> 13.0 (chase ceiling, 4 swings) -> verdict flipped to
+// flee at 7.0 -> shelter skip (ring incomplete 4/8) -> dead. Every reopen
+// walked the bot back into the volley; the cooldown closes the fight lane for
+// the shooter while the arrow wall / the kite own the response.
+
+test('rangedCooldownUntil: the armed window, junk now arms nothing', () => {
+  assert.equal(rangedCooldownUntil({ now: 1000 }), 11000, 'the default is RANGED_COOLDOWN_MS')
+  assert.equal(rangedCooldownUntil({ now: 1000, ms: 5000 }), 6000, 'the length is an independent tunable')
+  assert.equal(rangedCooldownUntil({ now: 1000, ms: 0 }), 11000, 'a zero length falls back to the default')
+  assert.equal(rangedCooldownUntil({ now: 1000, ms: -3 }), 11000, 'a negative length falls back to the default')
+  assert.equal(rangedCooldownUntil({ now: -1 }), null, 'a negative now is junk, not an epoch')
+  assert.equal(rangedCooldownUntil({ now: 'soon' }), null, 'a junk now arms nothing')
+  assert.equal(rangedCooldownUntil({ now: null }), null)
+  assert.equal(rangedCooldownUntil({ now: undefined }), null)
+})
+
+test('rangedCooldownLive: junk on either side reads NOT live (the lane opens)', () => {
+  assert.equal(rangedCooldownLive({ now: 1000, until: 2000 }), true, 'inside the window')
+  assert.equal(rangedCooldownLive({ now: 2000, until: 2000 }), false, 'the boundary opens the lane (a bot must not stay cooled forever)')
+  assert.equal(rangedCooldownLive({ now: 3000, until: 2000 }), false, 'expired')
+  assert.equal(rangedCooldownLive({ now: 1000, until: null }), false, 'no armed entry = no cooldown')
+  assert.equal(rangedCooldownLive({ now: 1000, until: undefined }), false)
+  assert.equal(rangedCooldownLive({ now: null, until: 2000 }), false, 'junk now never hides a live lane')
+  assert.equal(rangedCooldownLive({ now: 'x', until: 2000 }), false)
+})
+
+test('threatVerdict cooldown: the shooter yields flee inside the window, the melee band never consults it', () => {
+  const base = { hp: 18, attackers: 1, armed: true }
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 8 }), 'fight', 'no cooldown: the legacy verdict stands')
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 8, cooldown: true }), 'flee', 'live cooldown: the shooter is never chased')
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 12, cooldown: true }), 'flee', 'the whole ranged band yields')
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 12.5, cooldown: true }), 'ignore', 'beyond the band the legacy ignore stands')
+  assert.equal(threatVerdict({ ...base, name: 'zombie', dist: 3, cooldown: true }), 'fight', 'MELEE threats never consult the cooldown')
+  assert.equal(threatVerdict({ ...base, name: 'spider', dist: 4, dark: true, cooldown: true }), 'fight', 'a dark spider is a melee class here')
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 8, cooldown: 'yes' }), 'fight', 'junk cooldown reads closed (byte-for-byte legacy)')
+  assert.equal(threatVerdict({ ...base, name: 'skeleton', dist: 8, cooldown: false }), 'fight')
+  assert.equal(threatVerdict({ ...base, name: 'creeper', dist: 5, cooldown: true }), 'flee', 'the creeper lane fired before the cooldown lane anyway')
+  assert.equal(threatVerdict({ ...base, name: 'witch', dist: 8, cooldown: true }), 'fight', 'the witch keeps her v0.115.0 contract - the melee through the splash band')
+  assert.equal(threatVerdict({ name: 'skeleton', dist: 8, hp: 5, cooldown: true }), 'flee', 'a drained bar flees through the same lane (FLEE_HP) regardless')
+})
+
+test('REGRESSION PIN: the miner arms the cooldown at the melee break + both verdict sites consult it', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/armRangedCooldown\(cur\.entity\?\.id\)/.test(minerSrc), 'the chase-ceiling break arms the mob window')
+  assert.ok(/ranged cooldown armed vs/.test(minerSrc), 'the arm names itself for the run decode')
+  assert.ok((minerSrc.match(/cooldown: rangedCdLive\(/g) || []).length === 2, 'both verdict sites (the sentry consult + the per-round re-verdict) pass the lens')
+  assert.ok(/RANGED_HOSTILES\.has\(cur\.name\) && cur\.name !== 'witch'/.test(minerSrc), 'the witch is excluded from the cooldown lane at the arm site')
 })

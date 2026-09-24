@@ -25,10 +25,10 @@ import {
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
-import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
+import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -45,6 +45,7 @@ import {
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES
 } from '../lib/drowning.mjs'
+import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
 import { chooseTarget } from '../fleet/claims.mjs'
@@ -637,6 +638,16 @@ export function createMiner ({
     const threat = nearestHostile()
     if (!threat || !bot.entity) return false
     const here = bot.entity.position.floored()
+    // (v0.140.0) THE ARROW WALL MODE: a RANGED threat (skeleton/stray/bogged
+    // class, the witch excluded - her splash band needs the melee, not a
+    // wall) is refused by LOS, not by walking, so the full ring's all-4-sides
+    // gate is the wrong contract here: run554 measured F2 dying behind
+    // 'ring incomplete 4/8' and F6 behind 'ring not buildable [Bo -o -o -o]'
+    // - uneven ground refused the cage and the shooter out-shot the flee.
+    // In ranged mode the THREAT side's 2 cells (the arrow wall) are the only
+    // gate; the other three sides build as bonus from leftover stock.
+    const ranged = RANGED_HOSTILES.has(threat.name) && threat.name !== 'witch'
+    const threatIdx = ranged ? ringThreatSideIndex({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z }) : -1
     // read the four lateral sides: foot/head cell class + the ground under
     // the foot cell (the foot placement's reference) + hostile occupancy
     const hostileIn = (x, y, z) => {
@@ -673,8 +684,13 @@ export function createMiner ({
     })
     if (!ringFeasible(sides)) {
       const mark = s => `${s.foot === 'solid' ? 'B' : s.foot === 'empty' ? (s.groundSolid ? 'o' : '-') : 'x'}${s.head === 'solid' ? 'B' : s.head === 'empty' ? 'o' : 'x'}`
-      log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}] vs ${threat.name}@${threat.dist.toFixed(1)})`)
-      return false
+      // (v0.140.0) ranged mode: the full cage may be refused, the ARROW WALL
+      // still has to be buildable - otherwise the same honest skip line
+      if (!ranged || !ringSideBuildable(sides[threatIdx])) {
+        log(`${tag} combat: shelter skip (open field: ring not buildable [${sides.map(mark).join(' ')}]${ranged ? ', no arrow wall either' : ''} vs ${threat.name}@${threat.dist.toFixed(1)})`)
+        return false
+      }
+      log(`${tag} combat: shelter ring ranged mode: the full ring is refused, the arrow wall owns it vs ${threat.name}@${threat.dist.toFixed(1)}`)
     }
     // (v0.91.0) THE HONEST STOCK GATE: compare the held blocks to the REAL
     // need - ringBlocksNeeded counts only the cells the terrain leaves empty,
@@ -683,7 +699,10 @@ export function createMiner ({
     // have 4' BEFORE the terrain was read: a bot standing against terrain
     // that already supplies 4 cells could seal completely with its 4 blocks,
     // and the refusal sent it into the measured mob death instead.
-    const needed = ringBlocksNeeded(sides)
+    // (v0.140.0) ranged mode gates on the ARROW WALL's need (0..2 cells), not
+    // the full ring's - the wall is what must stand, the bonus sides build
+    // from whatever stock is left after it.
+    const needed = ranged ? ringRangedNeeded(sides, threatIdx) : ringBlocksNeeded(sides)
     let stock = countSealBlocks(inventoryItems(bot))
     if (stock < needed) {
       // (v0.91.0) THE RING DIG-EARN: the wall variant has earned its seal
@@ -743,8 +762,12 @@ export function createMiner ({
       }
       log(`${tag} combat: shelter ring dig-earn: dug ${earned}, stock ${stock}/${needed}`)
     }
-    const order = ringSideOrder({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z })
-    log(`${tag} combat: shelter ring try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${order.map(i => ['+x', '-x', '+z', '-z'][i]).join('')} first, ${reason})`)
+    const baseOrder = ringSideOrder({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z })
+    // (v0.140.0) ranged mode: the THREAT side builds FIRST (the arrow wall
+    // blocks the volley before the bonus sides spend stock or time on it);
+    // melee keeps the away-first doctrine (the risky placements last).
+    const order = ranged ? [threatIdx, ...baseOrder.filter(i => i !== threatIdx)] : baseOrder
+    log(`${tag} combat: shelter ring try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${order.map(i => ['+x', '-x', '+z', '-z'][i]).join('')} first, ${ranged ? 'arrow wall' : 'full ring'}, ${reason})`)
     // the build: per side, foot then head; re-pick the seal item each
     // placement (a stack that runs out mid-build hands over to the next
     // priority block); the only reference needed is the ground below the foot
@@ -779,19 +802,29 @@ export function createMiner ({
       }
     }
     // the verify: every one of the 8 cells must be solid - an incomplete ring
-    // NEVER waits (a gap is a door)
+    // NEVER waits (a gap is a door). (v0.140.0) ranged mode verifies the
+    // ARROW WALL only (both threat-side cells): the shooter is beaten by the
+    // wall's line-of-sight break, not by a walk-proof cage.
     let solid = 0
     for (const s of sides) {
       for (const y of [here.y, here.y + 1]) {
         if (readClass(s.fx, y, s.fz) === 'solid') solid++
       }
     }
-    if (solid < RING_BLOCKS_NEEDED) {
+    if (ranged) {
+      const ts = sides[threatIdx]
+      const wallFoot = readClass(ts.fx, here.y, ts.fz)
+      const wallHead = readClass(ts.fx, here.y + 1, ts.fz)
+      if (!ringRangedEnough({ footClass: wallFoot, headClass: wallHead })) {
+        log(`${tag} combat: shelter skip (open field: arrow wall incomplete [${wallFoot}/${wallHead}] vs ${threat.name}@${threat.dist.toFixed(1)})`)
+        return false
+      }
+    } else if (solid < RING_BLOCKS_NEEDED) {
       log(`${tag} combat: shelter skip (open field: ring incomplete ${solid}/${RING_BLOCKS_NEEDED})`)
       return false
     }
     stats.shelters++
-    log(`${tag} combat: sheltering from ${threat.name} (ring ${solid}/${RING_BLOCKS_NEEDED}, ${reason})`)
+    log(`${tag} combat: sheltering from ${threat.name} (${ranged ? `arrow wall, cells ${solid}/${RING_BLOCKS_NEEDED}` : `ring ${solid}/${RING_BLOCKS_NEEDED}`}, ${reason})`)
     // the wait: the same round/cap the dig-in seal uses
     const started = Date.now()
     while (bot.entity && Date.now() - started < SHELTER_MAX_MS) {
@@ -832,6 +865,29 @@ export function createMiner ({
   // the kite. Cleared on a genuine escape (threat gone, or dist > 20 after
   // an episode) - the breaker never latches on a chase that was won.
   const fleeStartDists = []
+  // (v0.140.0) THE RANGED-FIGHT COOLDOWN ledger: mob entity id -> the
+  // wall-clock until-timestamp the mob's fight lane stays closed. Armed ONLY
+  // by a chase-ceiling break vs a non-witch ranged threat (the skeleton
+  // cascade - every reopen walked the bot back into the volley); consulted
+  // by every threatVerdict call site through rangedCdLive. Entries expire
+  // naturally; the map is pruned when it grows past 24 (19 bots x a handful
+  // of shooters is the worst case, the cap just bounds a pathological run).
+  const rangedCooldowns = new Map()
+  function armRangedCooldown (entityId) {
+    if (!Number.isFinite(entityId)) return
+    const until = rangedCooldownUntil({ now: Date.now() })
+    if (until == null) return
+    rangedCooldowns.set(entityId, until)
+    if (rangedCooldowns.size > 24) {
+      for (const [k, v] of rangedCooldowns) {
+        if (!rangedCooldownLive({ now: Date.now(), until: v })) rangedCooldowns.delete(k)
+      }
+    }
+  }
+  function rangedCdLive (entityId) {
+    if (!Number.isFinite(entityId)) return false
+    return rangedCooldownLive({ now: Date.now(), until: rangedCooldowns.get(entityId) })
+  }
   // The yard anchor: the world spawn point (setup-yard.mjs builds the fleet
   // hub at the spawn origin). Junk-safe: a missing read returns null and the
   // kite dissolves into the plain radial flee.
@@ -851,7 +907,7 @@ export function createMiner ({
       return { action: 'none' }
     }
     const armed = !!pickWeapon(inventoryItems(bot))
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere() })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), cooldown: rangedCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -916,7 +972,7 @@ export function createMiner ({
         if (!cur) { exit = 'threat gone'; break } // the threat died or wandered off
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere() })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), cooldown: rangedCdLive(cur.entity?.id) })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
@@ -956,6 +1012,18 @@ export function createMiner ({
             if (step === 'hold') {
               log(`${tag} combat: melee chase ceiling held (chased ${meleeChased.toFixed(1)}b, ${cur.name} @${cur.dist.toFixed(1)}) - the episode breaks, the next drop reopens it`)
               exit = 'chase ceiling'
+              // (v0.140.0) THE RANGED-FIGHT COOLDOWN: run554 measured the
+              // reopen cascade - every chase-ceiling break vs a shooter was
+              // re-opened by the next arrow, and each reopen walked the bot
+              // back into the volley (F2/F6/F7/F10/F12/F14, surface night).
+              // The budget's break is where the chase LOSES: arm the mob's
+              // window so the next verdict yields 'flee' (the arrow wall / the
+              // kite own it) instead of a fresh budget. The witch lane keeps
+              // her v0.115.0 contract above - melee through the splash band.
+              if (RANGED_HOSTILES.has(cur.name) && cur.name !== 'witch') {
+                armRangedCooldown(cur.entity?.id)
+                log(`${tag} combat: ranged cooldown armed vs ${cur.name} (${RANGED_COOLDOWN_MS / 1000}s) - the chase never wins the arrow trade`)
+              }
               break
             }
             const before = bot.entity.position.clone()
@@ -997,6 +1065,52 @@ export function createMiner ({
       if (!threat) return
       defendSelf('sentry').catch(() => { /* the next drop re-primes us */ })
     }, 400)
+  })
+
+  // ---- (v0.140.0) THE SUFFOCATE WATCH (policy in src/lib/suffocate.mjs) ----
+  // run554 named suffocation the TOP death class: SIX of 17 deaths read
+  // 'suffocated in a wall', all inside digging ops, four clustered around
+  // [-167,50,428] (two bots on the SAME cell class). The mechanics: a
+  // rage-mode dig frees a cell under a gravity column or an unstable ceiling;
+  // the falling block lands WHILE the bot walks in and the eye ends inside a
+  // solid cube - vanilla drains the bar while every dig loop keeps looking
+  // DOWN. The watch reads the eye + feet cells every SUFFOCATE_WATCH_EVERY_
+  // TICKS physics ticks and digs the bury out (head first): the death
+  // becomes a one-heart scratch plus a ~1s dig. The physicsTick emitter only
+  // fires with physics enabled, a ready entity and a loaded chunk, so the
+  // unspawned/unloaded shapes never even reach the guards below.
+  let suffocateBusy = false
+  let suffocateWatchTick = 0
+  bot.on('physicsTick', () => {
+    if (suffocateBusy || swimming || bot._waterRescue) return // the swim lane owns the controls (and wet digs are its class)
+    if (++suffocateWatchTick % SUFFOCATE_WATCH_EVERY_TICKS !== 0) return
+    const p = bot.entity?.position
+    if (!p) return
+    const fx = Math.floor(p.x)
+    const fy = Math.floor(p.y)
+    const fz = Math.floor(p.z)
+    let headB = null
+    let feetB = null
+    try {
+      headB = bot.blockAt(new Vec3(fx, fy + 1, fz))
+      feetB = bot.blockAt(new Vec3(fx, fy, fz))
+    } catch { return } // an unreadable cell never digs
+    const targets = suffocateRescueTargets({ headBlock: headB, feetBlock: feetB })
+    if (!targets.length) return
+    suffocateBusy = true
+    ;(async () => {
+      try {
+        for (const which of targets) {
+          if (!bot.entity) return // died mid-rescue: the respawn owns the rest
+          const y = fy + (which === 'head' ? 1 : 0)
+          const b = bot.blockAt(new Vec3(fx, y, fz))
+          if (!b || b.type === 0) continue // the first dig already cleared it (a falling column re-fills -> the next cadence re-plans)
+          log(`${tag} suffocate watch: ${which} buried in ${b.name} at [${fx},${y},${fz}] - digging out`)
+          try { await bot.fastDig(b, { maxTicks: SUFFOCATE_DIG_MAX_TICKS }) } catch { /* re-checked on the next cadence */ }
+          try { await bot.waitForTicks(2) } catch { /* dead physics: the busy flag drops in finally */ }
+        }
+      } finally { suffocateBusy = false }
+    })()
   })
 
   // ---- drowning rescue (v0.13.0, policy in src/lib/drowning.mjs) ----

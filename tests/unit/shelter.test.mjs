@@ -14,7 +14,8 @@ import {
   SHELTER_HP_FLOOR, SHELTER_SWARM_SIZE, SHELTER_SWARM_HP_CEILING,
   shelterDue, losingFight, pickSealItem, pickJunkToDrop, earnSealDue,
   ringCellClass, ringSideBuildable, ringFeasible, ringBlocksNeeded,
-  ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply
+  ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply,
+  ringThreatSideIndex, ringRangedNeeded, ringRangedEnough
 } from '../../src/lib/shelter.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
@@ -423,4 +424,50 @@ test('RING_DIG_EARN_OK / RING_EARN_MAX_DIGS: the policy surfaces, pinned', () =>
     assert.equal(SEAL_PRIORITY.includes(name === 'grass_block' || name === 'podzol' ? 'dirt' : name === 'stone' ? 'cobblestone' : name === 'deepslate' ? 'cobbled_deepslate' : name), true, `${name}'s dig drop is SEAL_PRIORITY material`)
   }
   assert.equal(RING_EARN_MAX_DIGS, 4, 'the measured deficit class + the race arithmetic: 4 fist digs ~3s vs a zombie at the 8-block earn edge ~3.2s')
+})
+
+// ---- (v0.140.0) THE ARROW WALL - the ranged partial ring ----
+// run554's skeleton deaths died OUT of shelter: F2 'ring incomplete 4/8',
+// F6 'ring not buildable [Bo -o -o -o]' - the all-4-sides cage is the melee
+// contract; a shooter is beaten by line-of-sight, so the threat side's two
+// cells ARE the shelter. These tests pin the ranged lane's pure pieces.
+
+test('ringThreatSideIndex: the side the threat stands on, canonical ties', () => {
+  assert.equal(ringThreatSideIndex({ threatDx: 10, threatDz: 0 }), 0, '+x faces the threat')
+  assert.equal(ringThreatSideIndex({ threatDx: -10, threatDz: 0 }), 1, '-x faces the threat')
+  assert.equal(ringThreatSideIndex({ threatDx: 0, threatDz: 10 }), 2, '+z faces the threat')
+  assert.equal(ringThreatSideIndex({ threatDx: 0, threatDz: -10 }), 3, '-z faces the threat')
+  assert.equal(ringThreatSideIndex({ threatDx: 3, threatDz: 4 }), 2, 'the diagonal reads the stronger z side (4 > 3)')
+  assert.equal(ringThreatSideIndex({ threatDx: 4, threatDz: 3 }), 0, 'the diagonal reads the stronger x side')
+  assert.equal(ringThreatSideIndex({}), 0, 'a junk bearing reads +x (a stable answer beats a refusal)')
+  assert.equal(ringThreatSideIndex({ threatDx: 'x', threatDz: null }), 0)
+})
+
+test('ringRangedNeeded: the wall is 0..2 cells, junk demands the honest full 2', () => {
+  const side = (foot, head) => ({ foot, head, groundSolid: true })
+  assert.equal(ringRangedNeeded([side('empty', 'empty')], 0), 2, 'a fully open side needs both cells')
+  assert.equal(ringRangedNeeded([side('solid', 'empty')], 0), 1, 'a pre-solid foot is a free cell (the v0.91.0 honest count)')
+  assert.equal(ringRangedNeeded([side('solid', 'solid')], 0), 0, 'a closed side needs nothing')
+  assert.equal(ringRangedNeeded([side('blocked', 'empty')], 0), 1, 'a mob-occupied foot reads blocked: only the head counts (the build will verify)')
+  assert.equal(ringRangedNeeded(null, 0), 2, 'junk sides demand 2 (never build the wall on a guess it is there)')
+  assert.equal(ringRangedNeeded([side('empty', 'empty')], 'x'), 2, 'junk index demands 2')
+  assert.equal(ringRangedNeeded([side('empty', 'empty')], 1.7), 2, 'a fractional index floors onto the side list')
+})
+
+test('ringRangedEnough: both wall cells solid, junk never waits', () => {
+  assert.equal(ringRangedEnough({ footClass: 'solid', headClass: 'solid' }), true, 'the wall stands')
+  assert.equal(ringRangedEnough({ footClass: 'solid', headClass: 'empty' }), false, 'a 1-high wall does not break the eye line')
+  assert.equal(ringRangedEnough({ footClass: 'empty', headClass: 'solid' }), false)
+  assert.equal(ringRangedEnough({ footClass: 'blocked', headClass: 'solid' }), false, 'a mob standing in the wall cell is not a wall')
+  assert.equal(ringRangedEnough({}), false, 'junk reads not standing (the flee takes over)')
+})
+
+test('REGRESSION PIN: the miner runs the arrow wall lane (the v0.140.0 ranged shelter)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/const ranged = RANGED_HOSTILES\.has\(threat\.name\) && threat\.name !== 'witch'/.test(minerSrc), 'the ranged mode gates on the hostile class and excludes the witch')
+  assert.ok(/ringRangedNeeded\(sides, threatIdx\) : ringBlocksNeeded\(sides\)/.test(minerSrc), 'the stock gate counts the wall, not the cage')
+  assert.ok(/const order = ranged \? \[threatIdx, \.\.\.baseOrder\.filter\(i => i !== threatIdx\)\] : baseOrder/.test(minerSrc), 'the threat side builds FIRST')
+  assert.ok(/arrow wall incomplete/.test(minerSrc), 'the wall verify names itself for the run decode')
+  assert.ok(/ringSideBuildable\(sides\[threatIdx\]\)/.test(minerSrc), 'the ranged feasibility gate demands the wall side only')
 })

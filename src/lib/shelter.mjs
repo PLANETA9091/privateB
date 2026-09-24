@@ -346,6 +346,72 @@ export function countSealBlocks (items) {
   return total
 }
 
+// ---- (v0.140.0) THE ARROW WALL - the ranged partial ring ----
+// run554's skeleton deaths died OUT of shelter: F2 'ring incomplete 4/8',
+// F6 'ring not buildable [Bo -o -o -o]' - the melee doctrine's all-4-sides
+// gate demands a walk-proof cage, but a SKELETON does not walk in, it shoots
+// over whatever it can see through. Two closed cells on the threat side break
+// the arrow's line of sight (a 2-high column from the bot's foot level up is
+// taller than a skeleton's eye line into the bot's cell), and no LOS means
+// no volley - which is the WHOLE fight vs a shooter. The ranged ring builds
+// the THREAT side first (the arrow wall) and waits behind it when the wall
+// stands; the other three sides are best-effort bonus, never a gate. Melee
+// threats keep the full-ring doctrine byte for byte (a gap is a door for a
+// walker). The witch stays EXCLUDED at the call site (her v0.115.0 contract
+// needs the melee through the splash band, not a wall between them).
+
+/**
+ * Which RING_SIDE_NORMALS index faces the threat hardest (max dot with the
+ * bot->threat bearing)? Ties keep the canonical order (+x, -x, +z, -z); a
+ * junk bearing reads as +x (a stable, buildable answer beats a refusal).
+ * @param {object} [p]
+ * @param {number} [p.threatDx] bot->threat bearing x (junk -> 0)
+ * @param {number} [p.threatDz] bot->threat bearing z (junk -> 0)
+ */
+export function ringThreatSideIndex ({ threatDx = 0, threatDz = 0 } = {}) {
+  const dx = Number.isFinite(threatDx) ? threatDx : 0
+  const dz = Number.isFinite(threatDz) ? threatDz : 0
+  let best = 0
+  let bestScore = -Infinity
+  RING_SIDE_NORMALS.forEach((n, i) => {
+    const score = n.dx * dx + n.dz * dz
+    if (score > bestScore) { best = i; bestScore = score }
+  })
+  return best
+}
+
+/**
+ * How many cells on the THREAT side still need a placement (0..2) - the
+ * ranged stock gate compares the held blocks against THIS, not the full
+ * ring's need: the wall is what must stand, the bonus sides build from
+ * whatever stock is left. A junk side read demands the full 2 (the honest
+ * worst case - never build the wall on a guess that it is already there).
+ * @param {Array<object>|null|undefined} [sides] the 4 side reads
+ * @param {number} [threatIdx] ringThreatSideIndex's output (junk -> full 2)
+ */
+export function ringRangedNeeded (sides, threatIdx) {
+  if (!Array.isArray(sides) || !Number.isFinite(threatIdx)) return 2
+  const s = sides[Math.floor(threatIdx)]
+  if (!s || typeof s !== 'object') return 2
+  let n = 0
+  if (ringCellClass(s.foot) === 'empty') n++
+  if (ringCellClass(s.head) === 'empty') n++
+  return n
+}
+
+/**
+ * Is the arrow wall standing? Both threat-side cells solid. The caller reads
+ * the POST-build classes (the same readClass the build loop verifies with)
+ * and passes them here; junk reads as not standing (an incomplete wall never
+ * waits - the flee takes over, the same honest exit the full ring has).
+ * @param {object} [p]
+ * @param {string} [p.footClass] the threat-side foot cell class post-build
+ * @param {string} [p.headClass] the threat-side head cell class post-build
+ */
+export function ringRangedEnough ({ footClass = 'blocked', headClass = 'blocked' } = {}) {
+  return ringCellClass(footClass) === 'solid' && ringCellClass(headClass) === 'solid'
+}
+
 // ---- v0.68.0: THE PRE-FIGHT SHELTER + THE DIG-EARN BYPASS + RING PATIENCE ----
 // run64 (dispatch 35682136264, the v0.66.0 fleet, NORMAL END 19/19, artifacts
 // mined 2026-09-22) logged 34 shelter lines with FOUR failure shapes:
