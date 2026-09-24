@@ -74,6 +74,20 @@ var sgTimer = null
 var sgGraceMs = Number(process.env.FLEET_STORM_GRACE_MS) || 20000
 var sgProbeAt = 0
 var sgHoldWritten = false
+// (v0.143.0) THE PULSE-VOID GRACE - mirrored from stormguard.stormResponse
+// (the eval worker cannot import ESM). The grace exists FOR the closure, and
+// every closure applier lives on the main thread: fleet leg 35994461858's
+// main froze SOLID right after the probe (the FATAL's blackbox ring is
+// byte-for-byte the probe's ring) and the GRACE HOLD waited 10s for a
+// closure that could never land. The main's loop pulse (the 250ms counters
+// the freeze oscilloscope already reads) is the live-process signal: when it
+// has not advanced for sgPulseVoidMs inside the grace, the hold becomes a
+// VOID and the kill fires with the named reason - the grace serves a living
+// main, never the dead one. The ceiling keeps killing first; a live pulse
+// holds exactly as before; a junk/absent pulse reading holds (never a false
+// kill off missing evidence).
+var sgPulseVoidMs = Number(process.env.FLEET_STORM_PULSE_VOID_MS) || 4000
+var sgVoidWritten = false
 // (v0.104.0) THE STORM CELL - the worker->main verdict channel. The main
 // thread's alloc valve ticker is starved by the very storm it cures (run93:
 // the FATAL named the main thread FROZEN; the valve fired ZERO lines); this
@@ -133,6 +147,10 @@ function sgStory (max) {
 function sgTick () {
   if (stopped) return
   try {
+    // (v0.143.0) the pulse-void tracking runs on EVERY guard tick (the state
+    // must stay current between verdicts - the frozen duration is measured
+    // from the last real advance, not from the last hold)
+    var pvFrozen = pulseFrozenMs(Date.now())
     var r = Math.round(process.memoryUsage().rss / 1048576)
     var t = Date.now()
     if (sgWin.length && r < sgWin[sgWin.length - 1].rss) sgWin.length = 0 // growth streak broken
@@ -146,7 +164,13 @@ function sgTick () {
       // keep being evaluated every sample); anything after the grace -> kill.
       var act = 'none'
       var why = ''
-      if (v.rss >= sgCeil) { act = 'kill'; why = 'hard ceiling ' + sgCeil + 'M' } else if (!sgProbeUsed) { act = 'probe'; why = 'soft first strike' } else if (sgProbeAt > 0 && Date.now() - sgProbeAt < sgGraceMs) { act = 'hold'; why = 'grace hold' } else { act = 'kill'; why = 'second strike' }
+      if (v.rss >= sgCeil) { act = 'kill'; why = 'hard ceiling ' + sgCeil + 'M' } else if (!sgProbeUsed) { act = 'probe'; why = 'soft first strike' } else if (sgProbeAt > 0 && Date.now() - sgProbeAt < sgGraceMs) {
+        // (v0.143.0) THE PULSE-VOID CHECK: the hold's premise is a main
+        // thread alive enough to apply the closure. A frozen pulse is the
+        // proof the premise is dead - the kill fires with the named reason;
+        // a live pulse (or a junk/absent reading) holds byte for byte.
+        if (pvFrozen !== null && pvFrozen >= sgPulseVoidMs) { act = 'kill'; why = 'grace void: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's - the closure cannot land' } else { act = 'hold'; why = 'grace hold' }
+      } else { act = 'kill'; why = 'second strike' }
       if (act === 'hold') {
         if (!sgHoldWritten) {
           sgHoldWritten = true
@@ -160,6 +184,12 @@ function sgTick () {
       } else if (act === 'kill') {
         stopped = true // no further lines race the emergency report
         try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+        // (v0.143.0) the one-time VOID line - the mine must read WHY the
+        // grace gave up before the FATAL numbers (the GRACE HOLD precedent)
+        if (why.indexOf('grace void') === 0 && !sgVoidWritten) {
+          sgVoidWritten = true
+          try { fs.writeSync(writeFd, '[stormguard] GRACE VOID: ' + why.slice('grace void: '.length) + ' - every closure applier lives on the frozen main; the grace stops waiting (the grace serves a living main)\\n') } catch { /* stdout closed */ }
+        }
         try {
           fs.writeSync(writeFd, '[stormguard] FATAL (' + why + '): rss ' + v.first + 'M -> ' + v.rss + 'M (+' + Math.round(v.gain) + 'M in ' + v.dtS.toFixed(0) + 's = ' + Math.round(v.rate) + 'MB/s >= ' + sgRate + 'MB/s at rss >= ' + sgFloor + 'M floor' + sgStory(8) + ')\\n')
           fs.writeSync(writeFd, '[stormguard] the MAIN thread is allocating itself to death while frozen (run53/35647216505 OOM class: unsymbolized exit 134, mainLate was ' + mainLate + 'ms) - emergency SIGTERM keeps the story readable (exit 143)\\n')
@@ -185,6 +215,22 @@ var bbSab = workerData && workerData.bb && workerData.bb.sab
 // both ~0 = a sync block). Junk sab stays harmless.
 var pulseSab = workerData && workerData.pulse && workerData.pulse.sab
 var pulsePrev = null // { timers, immediates } at the previous beat
+// (v0.143.0) THE PULSE-VOID TRACKING - how long since the main's loop pulse
+// last advanced. The main writes the counters every 250ms (looppulse); a
+// frozen main stops advancing them - the one live-process signal that the
+// closure appliers are dead (the stormguard void reads it on every guard
+// tick). Junk/absent sab returns null - never a false void.
+var pvLast = { sum: null, at: 0 }
+function pulseFrozenMs (t) {
+  if (!pulseSab) return null
+  try {
+    var v = new Int32Array(pulseSab)
+    if (v.length < 3) return null
+    var sum = v[1] + v[2]
+    if (sum !== pvLast.sum) { pvLast.sum = sum; pvLast.at = t }
+    return t - pvLast.at
+  } catch (e) { return null }
+}
 function pulseWindow () {
   if (!pulseSab) return null
   try {

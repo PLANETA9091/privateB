@@ -157,6 +157,10 @@ test('jobqueue wiring: a stalled bot gets its walks refused at the funnel for ze
   }
   assert.equal(gotoCalls, 4)
   assert.equal(walkGovernorStatsFor().opens, 0, 'a working walker never opens a stall')
+  // (v0.143.0) the goal-rate brake counts ADMISSIONS (the healthy phase used
+  // 4 of the 6-per-5s burst); the stall phase gets its own fresh window so
+  // the governor's own evidence path stays the thing under test here
+  resetWalkGovernors()
   // now the bot wedges: walks FAIL (budget kill) and the position never changes
   bot.entity.position = pos(17, 64, 5)
   bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('stalled walk: timeout after 500ms') }

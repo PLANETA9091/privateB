@@ -28,7 +28,7 @@ import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fle
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
@@ -1467,6 +1467,19 @@ const heartbeat = startHeartbeat({ intervalMs: 20000, blackbox, pulse: { sab: pu
 // itself, and the stormCell poll applies the worker probe's verdict when the
 // main thread could not sample its own storm (the FATAL named it FROZEN).
 const allocValve = startFleetValveTicker({ onLine: line => console.log(line), stormCell })
+// (v0.143.0) THE SWEEP-ON-CLOSE WIRING - the replan loops die at the closure.
+// Fleet leg 35994461858: the valve's appliers that DO survive (the funnel
+// consults, the ticker in the turning phase) now sweep every pathfinder goal
+// slot on every valve close - the library's block-update replan loops
+// re-engage from the goal slot, so clearing the slots at the close starves
+// the replan storm in the same breath the walk funnel stops feeding it (the
+// lag-probe feeder alone was too late: its probe was dead with everything
+// else). Every close sweeps once; the walks re-issue through the closed
+// valve's rules (long refused, near admitted).
+setFleetGoalSweeper(() => {
+  const swept = stormSweepAllGoals()
+  if (swept > 0) console.log(`[allocvalve] GOAL SWEEP: ${swept} pathfinder goal(s) swept at the valve close (the replan loops die at the closure, v0.143.0)`)
+})
 // (v0.121.0) THE FUNNEL PROBE WIRING - run105 (35903689995) died with the
 // valve never closing: the worker's first-strike verdict was published into
 // this cell at ts=415s but BOTH pollers (the 1s ticker + the cell poll inside
@@ -1788,6 +1801,8 @@ console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-iss
 const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)
+const gbs = goalBrakeStatsFor()
+console.log(`goal brake: ${gbs.opens} burst open(s), ${gbs.refusals} re-issues refused, ${gbs.fleetOpens} fleet-ceiling open(s), ${gbs.fleetRefusals} fleet refusals (v0.143.0 - the re-issue CADENCE is the storm's rate knob: run 35994461858's flood walkers progressed 1-3 blocks per walk so the progress-judged governors never fired, and their near goals flowed through the closed valve, while ~90MB searches marched at 2.5 goals/s per walker into a frozen main)`)
 const avs = allocValveStatsFor()
 console.log(`alloc valve: ${avs.closes} close(s) (${avs.workerCloses} by the worker probe, ${avs.queueCloses} by the queue-pressure arm, ${avs.funnelCloses + avs.funnelCellCloses} by the funnel probe), ${avs.strikes} strike(s), ${avs.refusals} long walks refused, ${avs.nearPasses} short walks passed while closed, ${avs.hazardRefusals} aquifer-gate refusals (v0.105.0 one valve two feeders + the aquifer gate - the run93 fix: the ticker feeds the consulted singleton, the worker's probe verdict rides the storm cell for the freeze class, and while closed the near exemption refuses live-hazard goals - near is not cheap in a flooded region; v0.115.0 the queue-pressure arm closes on the SUSTAINED pathfinder saturation - run101's 8-12q wall warned 80s before the rss burst; v0.121.0 the funnel probe - run105's storm starved the timers that carried both feeders while the walk funnel itself marched through the kill window, so the funnel now carries its own verdict and applies the worker's cell inline)`)
 console.log(`storm duck: ${avs.duckArms} arm(s), ${avs.duckRefusals} walk(s) refused fleet-wide while ducked (v0.143.0 - run58: the storm's next-column class is near BY CONSTRUCTION and rode the closed valve's near exemption to the 3000M ceiling; a live storm verdict now shuts EVERY goal for 15s and sweeps the in-flight goals, the A* starves within one think window, the worker's grace lands the cure instead of the ceiling landing the kill)`)

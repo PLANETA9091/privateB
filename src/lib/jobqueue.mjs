@@ -189,6 +189,7 @@ import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
 import { RESCUE_MAX_MS } from './drowning.mjs'
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
+import { createGoalBrake, GOAL_WINDOW_MS, GOAL_BURST_LIMIT, GOAL_COOLDOWN_MS, FLEET_GOAL_WINDOW_MS, FLEET_GOAL_BURST_LIMIT, FLEET_GOAL_COOLDOWN_MS, FLEET_GOAL_ESCALATED_MS, FLEET_GOAL_RECLOSE_WINDOW_MS } from './goalbrake.mjs' // (v0.143.0) the re-issue cadence brake - the storm's rate knob
 import { createAllocValve, valveAdmits, startAllocValve, stormCellApply, funnelStormVerdict, valveFunnelCloseLine, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve; (v0.121.0) the funnel probe rides the same module
 import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
@@ -378,7 +379,7 @@ export function walkGovernorStatsFor () {
 // at the funnel - the A* loses its fuel, GC drains the garbage, the valve
 // reopens after 12s (30s escalated). Short walks (rescues <=12, climbs, next-
 // column steps) still flow - a drowning bot never waits on a memory valve.
-const fleetValve = createAllocValve({})
+const fleetValve = createAllocValve({ onState: () => { try { if (typeof fleetGoalSweeper === 'function') fleetGoalSweeper() } catch { /* a sweep never kills the valve's own verdict */ } } }) // (v0.143.0) the sweep-on-close rides the valve's own close transitions (the storm brake union)
 const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0 }
 // (v0.104.0) THE AQUIFER BOARD - fleet19 sets this at boot (the shared
 // HazardLedger's near()); the closed valve's near exemption consults it so a
@@ -659,6 +660,61 @@ function walkDistanceOf (bot, goal) {
   } catch { return null }
 }
 
+// (v0.143.0) THE GOAL-RATE BRAKE - the rate knob the progress-judged governors
+// and the distance-judged valve all lack. Fleet leg 35994461858: the flood
+// walkers PROGRESSED (1-3 blocks per walk cleared the churn evidence) and
+// their goals were NEAR (admitted while the valve was closed) - the only
+// signal left is the cadence itself: ~2.5 goals/s per walker, each a ~90MB
+// full-box A*, 225MB/s, the main thread frozen solid 10s after the probe.
+// See goalbrake.mjs for the arithmetic. The brake instances live here (the
+// funnel is the one choke point every re-issue shares); per-bot in the
+// WeakMap, the fleet ceiling a module singleton - the walkgovernor shape.
+let goalBrakes = new WeakMap()
+const goalBrakeStats = { refusals: 0, opens: 0, fleetRefusals: 0, fleetOpens: 0 }
+const fleetGoalCeiling = createGoalBrake({
+  windowMs: FLEET_GOAL_WINDOW_MS,
+  burstLimit: FLEET_GOAL_BURST_LIMIT,
+  cooldownMs: FLEET_GOAL_COOLDOWN_MS,
+  escalatedMs: FLEET_GOAL_ESCALATED_MS,
+  recloseWindowMs: FLEET_GOAL_RECLOSE_WINDOW_MS,
+  onOpen: () => { goalBrakeStats.fleetOpens++ }
+})
+
+function goalBrakeFor (bot) {
+  let g = goalBrakes.get(bot)
+  if (!g) {
+    g = createGoalBrake({ onOpen: () => { goalBrakeStats.opens++ } })
+    goalBrakes.set(bot, g)
+  }
+  return g
+}
+
+/** Fleet summary counters for the FLEET RESULT block. */
+export function goalBrakeStatsFor () {
+  return {
+    refusals: goalBrakeStats.refusals,
+    opens: goalBrakeStats.opens,
+    fleetRefusals: goalBrakeStats.fleetRefusals,
+    fleetOpens: goalBrakeStats.fleetOpens
+  }
+}
+
+// (v0.143.0) THE SWEEP-ON-CLOSE HOOK - the replan loops die at the closure,
+// not at the lag-probe's next fire. Fleet leg 35994461858: the worker's GRACE
+// HOLD waited 10s for a closure that could never land - the main thread was
+// frozen solid (the FATAL ring is byte-for-byte the probe's ring) - and the
+// v0.141.0 goal sweep only rode the lag-probe feeder, whose probe was dead
+// with everything else. The valve's appliers that DO survive (the funnel
+// consults marched through the whole kill window in run105; the 1s ticker in
+// the turning phase) now sweep every pathfinder goal slot on EVERY close: the
+// library's block-update replan loops re-engage from the goal slot (the
+// v0.65.0 zombie-kill mechanics), so clearing the slots at the close starves
+// the replan storm in the same breath the walk funnel stops feeding it.
+// fleet19 wires the actual sweep (the bots map lives there); a null/junk hook
+// degrades to the v0.142.0 shape byte for byte.
+let fleetGoalSweeper = null
+export function setFleetGoalSweeper (fn) { fleetGoalSweeper = typeof fn === 'function' ? fn : null }
+
 /** Test hook: drop every per-bot governor (never used in prod). */
 export function resetWalkGovernors () {
   walkGovernors = new WeakMap()
@@ -667,6 +723,12 @@ export function resetWalkGovernors () {
   walkGovernorStats.fleetRefusals = 0
   walkGovernorStats.fleetOpens = 0
   try { fleetCeiling.reset() } catch { /* never fails */ }
+  goalBrakes = new WeakMap()
+  goalBrakeStats.refusals = 0
+  goalBrakeStats.opens = 0
+  goalBrakeStats.fleetRefusals = 0
+  goalBrakeStats.fleetOpens = 0
+  try { fleetGoalCeiling.reset() } catch { /* never fails */ }
   try { fleetValve.reset() } catch { /* never fails */ }
   try { funnelProbeControl().reset() } catch { /* (v0.121.0) the probe reset never fails */ }
   valveStats.refusals = 0
@@ -803,6 +865,33 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     if (e && /fleet churn ceiling/.test(e.message)) return refuse(e.message) // the refusal itself, paced
     /* the ceiling never blocks the walk it precedes */
   }
+  // (v0.143.0) THE GOAL-RATE BRAKE CONSULT - the rate breaker, after the
+  // progress breakers, before the memory breaker. A bot past its burst (6
+  // admitted goals in 5s) is FEEDING the pathfinder, not walking: the refusal
+  // is zero-cost and named so the caller's log shows WHY. Bank-priority walks
+  // are exempt from the FLEET ceiling only (the v0.77.0 contract) - a bot
+  // bursting goals at 6/5s is refused even on a bank errand (one walk per
+  // bank visit never bursts; only the churn does).
+  try {
+    const gbv = goalBrakeFor(bot).consult(Date.now())
+    if (gbv.open) {
+      goalBrakeStats.refusals++
+      return refuse(`goal brake: ${gbv.burst} goals in ${Math.round(GOAL_WINDOW_MS / 1000)}s - ${label} refused for ${Math.round(gbv.remainingMs / 1000)}s`)
+    }
+  } catch (e) {
+    if (e && /goal brake/.test(e.message)) return refuse(e.message) // the refusal itself, paced
+    /* the brake never blocks the walk it precedes */
+  }
+  try {
+    const fgv = fleetGoalCeiling.consult(Date.now())
+    if (fgv.open && priority < PATH_PRIO_BANK) {
+      goalBrakeStats.fleetRefusals++
+      return refuse(`fleet goal ceiling: ${fgv.burst} goals fleet-wide in ${Math.round(FLEET_GOAL_WINDOW_MS / 1000)}s - ${label} refused for ${Math.round(fgv.remainingMs / 1000)}s`)
+    }
+  } catch (e) {
+    if (e && /fleet goal ceiling/.test(e.message)) return refuse(e.message) // the refusal itself, paced
+    /* the ceiling never blocks the walk it precedes */
+  }
   // (v0.102.0) THE ALLOCATION VALVE CONSULT - the memory breaker, after the
   // churn breakers, before the queue. While closed, only PROVABLY near walks
   // flow (straight-line <= 24 blocks: rescues/climbs/next-columns); every
@@ -856,6 +945,10 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // before any future gap. The queue entry + the run start bracket the wait
   // ('pf:queue walk' then 'pf:goal walk') so a saturated queue and a deep
   // search leave different fingerprints.
+  // (v0.143.0) THE ADMISSION RECORD - only an ADMITTED goal feeds the brake
+  // (a refused walk costs no A* and must not reopen the very breaker that
+  // caught it). One record per bot instance + one for the fleet ceiling.
+  try { goalBrakeFor(bot).record(Date.now()); fleetGoalCeiling.record(Date.now()) } catch { /* a brake record never blocks the walk it feeds */ }
   noteGlobal(`pf:queue ${label}`)
   // (v0.21.0) priority rides through to the fleet queue: bank walks (PATH_PRIO_BANK)
   // jump ahead of mining-column walks under saturation - a queued bank walk burns

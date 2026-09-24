@@ -6,7 +6,7 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
-import { resetDoomedGoalLedger, recordDoomedGoal, gotoSafe } from '../../src/lib/jobqueue.mjs'
+import { resetDoomedGoalLedger, recordDoomedGoal, gotoSafe, resetWalkGovernors } from '../../src/lib/jobqueue.mjs' // (v0.143.0) the resets drop the module-level fleet goal ceiling the wall-clock tests would otherwise burst
 import {
   fuelWithdrawPlan, pickWithdrawSlots, withdrawStackMove, withdrawFuelCommons,
   FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
@@ -179,6 +179,7 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
 function mockChestWorld ({ chestItem = null, clickGhost = false, walkFails = false, openFails = false } = {}) {
+  resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = chestItem
   const pocket = Array.from({ length: 36 }, () => null)
@@ -332,6 +333,7 @@ function makeClicker (slots) {
 }
 
 function mockSweepWorld ({ botPos = [0.5, 64, 0.5], chests = [], walkFailsAt = null } = {}) {
+  resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   const pocket = Array.from({ length: 36 }, () => null)
   const opened = {}
   let current = null // the open window - withdrawStackMove clicks at the BOT level
@@ -412,6 +414,10 @@ test('withdrawFuelCommons: the sweep reaches the deep coal chest (run89: maxChes
   const legacy = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000, maxChests: 3 })
   assert.equal(legacy.taken, 0)
   assert.equal(legacy.reason, 'commons empty')
+  // (v0.143.0) fresh brake windows for the second ask - the two sweeps plus
+  // their retries compress 10+ admissions into ~30ms, far past the per-bot
+  // 6-per-5s burst the real cadence (walk+open+take per chest) never reaches
+  resetWalkGovernors()
   // the v0.99.0 default sweep finds the coal
   const swept = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 60000 })
   assert.equal(swept.reason, 'ok')
@@ -615,6 +621,7 @@ test('fuelPocketOverage: the pocket sum over the tithe bound, junk-safe', () => 
 // yard holds the anchor chest, window.deposit moves with real mirror
 // semantics (the pocket tail IS the inventory - the v0.73.0 lesson shape).
 function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = false, openFails = false, ghost = false, blockAtNull = false, noScan = false } = {}) {
+  resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   let current = null
   let closedCount = 0
   const chestSlots = Array.from({ length: 27 }, () => null)
@@ -699,6 +706,7 @@ test('deliverFuelTithe: charcoal rides after coal, mixed overage sums', async ()
 // The anchor-first READ on the commons side: a dedicated mock (the sweep
 // world has no findBlocks/blockAt - the legacy tests must stay untouched).
 function mockAnchorSweepWorld () {
+  resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   const pocket = Array.from({ length: 36 }, () => null)
   const opened = {}
   let current = null

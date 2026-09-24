@@ -77,6 +77,27 @@ export const STORM_CEIL_MB_DEFAULT = 3000 // the hard ceiling: run53's terminal 
 // class. Default 20000ms = four worker samples = the wind-down budget.
 export const STORM_GRACE_MS_DEFAULT = 20000 // probe -> kill: the closure-landing window
 
+// (v0.143.0) THE PULSE-VOID GRACE. MEASURED (fleet leg 35994461858, the
+// v0.142.0 STORM SURVIVAL, mined 2026-09-24): the probe fired at rss 989M ->
+// 2114M (+225MB/s, mainLate 768ms - the main was still turning), the worker
+// published the verdict into the cell and the GRACE HOLD line waited 10s for
+// "the lag-probe closure" - which could NEVER land: the main thread froze
+// SOLID right after the probe (the FATAL's blackbox ring is byte-for-byte
+// the probe's ring - not one main-thread note in the last 10s; no ticker
+// mem line, no probe fire, no beat). The grace exists FOR the closure, and
+// every closure applier (the ticker, the funnel consults, the lag-probe
+// feeder) lives on the main thread - a frozen main means the grace is
+// waiting for the dead. THE CURE: the worker already reads the main's
+// loop-pulse counters (the 250ms main-thread cadence, the freeze
+// oscilloscope's own signal) - when the pulse has not advanced for
+// PULSE_VOID_MS inside the grace, the hold becomes a VOID: the kill fires
+// with the named reason instead of waiting out a window that cannot help.
+// The hard ceiling keeps killing FIRST regardless (byte for byte); a live
+// pulse (the appliers alive, the closure still landing) holds exactly as
+// before; a junk/absent pulse reading holds too (never a false kill).
+
+export const STORM_PULSE_VOID_MS_DEFAULT = 4000 // a main pulse frozen this long cannot run any applier
+
 /**
  * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
  * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
@@ -88,11 +109,16 @@ export const STORM_GRACE_MS_DEFAULT = 20000 // probe -> kill: the closure-landin
  * second verdict for the closure-landing window; the ceiling kills regardless.
  * A junk probeAtMs (0/NaN - the caller has no clock) keeps the old contract:
  * second verdict kills at once.
+ * (v0.143.0) the void: pulseFrozenMs (how long the main's loop pulse has not
+ * advanced) >= pulseVoidMs turns the HOLD into a kill named 'grace void' -
+ * the closure appliers all live on the frozen main, so waiting is a lie.
+ * Junk/null pulseFrozenMs (no pulse sab, no reading) keeps the hold byte for
+ * byte - never a false kill off missing evidence.
  *
- * @param {{probeUsed?: boolean, rssMb?: number, ceilMb?: number, probeAtMs?: number|null, graceMs?: number, nowMs?: number}} s
+ * @param {{probeUsed?: boolean, rssMb?: number, ceilMb?: number, probeAtMs?: number|null, graceMs?: number, nowMs?: number, pulseFrozenMs?: number|null, pulseVoidMs?: number}} s
  * @returns {{action: 'probe'|'kill'|'none', probeUsed: boolean, reason: string}}
  */
-export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CEIL_MB_DEFAULT, probeAtMs = null, graceMs = STORM_GRACE_MS_DEFAULT, nowMs = 0 } = {}) {
+export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CEIL_MB_DEFAULT, probeAtMs = null, graceMs = STORM_GRACE_MS_DEFAULT, nowMs = 0, pulseFrozenMs = null, pulseVoidMs = STORM_PULSE_VOID_MS_DEFAULT } = {}) {
   const rss = Number(rssMb)
   if (!Number.isFinite(rss) || rss <= 0) return { action: 'none', probeUsed, reason: 'junk rss' }
   if (rss >= ceilMb) return { action: 'kill', probeUsed, reason: 'hard ceiling ' + Math.round(ceilMb) + 'M' }
@@ -103,6 +129,16 @@ export function stormResponse ({ probeUsed = false, rssMb = 0, ceilMb = STORM_CE
   const grace = Number(graceMs)
   const now = Number(nowMs)
   if (Number.isFinite(at) && at > 0 && Number.isFinite(grace) && grace > 0 && Number.isFinite(now) && now - at < grace) {
+    // (v0.143.0) THE PULSE-VOID CHECK - the hold's premise is a main thread
+    // alive enough to apply the closure. A frozen pulse >= voidMs is the
+    // proof the premise is dead; the kill fires with the named reason. The
+    // void is measured only INSIDE the grace (the second-strike kill after
+    // the grace needs no extra evidence - the clock alone buries it).
+    const frozen = Number(pulseFrozenMs)
+    const voidMs = Number(pulseVoidMs)
+    if (Number.isFinite(frozen) && frozen >= 0 && Number.isFinite(voidMs) && voidMs > 0 && frozen >= voidMs) {
+      return { action: 'kill', probeUsed, reason: 'grace void: main pulse frozen ' + Math.round(frozen / 1000) + 's - the closure cannot land' }
+    }
     return { action: 'none', probeUsed, reason: 'grace hold' }
   }
   return { action: 'kill', probeUsed, reason: 'second strike' }

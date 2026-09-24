@@ -17,7 +17,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { stormResponse, STORM_GRACE_MS_DEFAULT, STORM_CEIL_MB_DEFAULT } from '../../src/lib/stormguard.mjs'
+import { stormResponse, STORM_GRACE_MS_DEFAULT, STORM_CEIL_MB_DEFAULT, STORM_PULSE_VOID_MS_DEFAULT } from '../../src/lib/stormguard.mjs'
 import { startHeartbeat, HEARTBEAT_WORKER_SRC } from '../../src/lib/heartbeat.mjs'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -93,6 +93,59 @@ test('stormResponse grace: the first strike still probes with the grace armed', 
   assert.strictEqual(r.probeUsed, true)
 })
 
+// (v0.143.0) THE PULSE-VOID GRACE. Fleet leg 35994461858: the GRACE HOLD
+// waited 10s for "the lag-probe closure" while the main thread was frozen
+// SOLID - the FATAL's blackbox ring is byte-for-byte the probe's ring, no
+// ticker mem line, no probe fire. The grace exists FOR the closure; every
+// closure applier lives on the main thread; a frozen pulse is the proof the
+// premise is dead. The hold becomes a VOID kill with the named reason.
+test('stormResponse pulse void: the knob defaults to the 4s applier-death proof', () => {
+  assert.strictEqual(STORM_PULSE_VOID_MS_DEFAULT, 4000, 'the main pulse advances every 250ms when alive; 4s frozen means no timer phase at all')
+})
+
+test('stormResponse pulse void: a frozen pulse inside the grace kills with the named reason', () => {
+  const now = 1_000_000
+  // the run 35994461858 shape: probe at ts=181s, the main froze right after;
+  // the second verdict 5s later reads a 5s-frozen pulse -> the grace is void
+  const voided = stormResponse({ probeUsed: true, rssMb: 2882, probeAtMs: now - 5000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: 5000 })
+  assert.strictEqual(voided.action, 'kill')
+  assert.match(voided.reason, /grace void/, 'the reason names the mechanism (the mine reads it)')
+  assert.match(voided.reason, /main pulse frozen 5s/, 'the reason carries the frozen duration')
+  assert.match(voided.reason, /the closure cannot land/, 'the reason states the premise: the appliers are dead')
+})
+
+test('stormResponse pulse void: a live pulse holds exactly as before (byte for byte)', () => {
+  const now = 1_000_000
+  const held = stormResponse({ probeUsed: true, rssMb: 2164, probeAtMs: now - 5000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: 250 })
+  assert.strictEqual(held.action, 'none')
+  assert.strictEqual(held.reason, 'grace hold', 'a turning main can still apply the closure - the grace serves it')
+  const fresh = stormResponse({ probeUsed: true, rssMb: 2164, probeAtMs: now - 5000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: 3999 })
+  assert.strictEqual(fresh.reason, 'grace hold', 'just under the void bar the hold stands (the boundary is the proof threshold, not a hair trigger)')
+})
+
+test('stormResponse pulse void: junk or absent pulse evidence never voids (never a false kill)', () => {
+  const now = 1_000_000
+  for (const frozen of [null, undefined, Number.NaN, -1, 'junk']) {
+    const r = stormResponse({ probeUsed: true, rssMb: 2164, probeAtMs: now - 5000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: frozen })
+    assert.strictEqual(r.reason, 'grace hold', `pulseFrozenMs ${String(frozen)} judges nothing - missing evidence is not a kill`)
+  }
+  assert.strictEqual(stormResponse({ probeUsed: true, rssMb: 2164, probeAtMs: now - 5000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: 5000, pulseVoidMs: 0 }).reason, 'grace hold', 'a zero void knob disables the void (the junk-knob kills-honestly contract does not apply here: the void is an ACCELERATION, its absence is the legacy shape)')
+})
+
+test('stormResponse pulse void: the hard ceiling still kills FIRST, frozen pulse or not', () => {
+  const now = 1_000_000
+  const r = stormResponse({ probeUsed: true, rssMb: STORM_CEIL_MB_DEFAULT, probeAtMs: now - 1000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: 30000 })
+  assert.strictEqual(r.action, 'kill')
+  assert.match(r.reason, /hard ceiling/, 'the ceiling branch precedes the grace branch - the amputation guarantee is byte for byte')
+})
+
+test('stormResponse pulse void: past the grace the clock alone still kills (the void needs no extra evidence there)', () => {
+  const now = 1_000_000
+  const r = stormResponse({ probeUsed: true, rssMb: 2164, probeAtMs: now - 25000, graceMs: STORM_GRACE_MS_DEFAULT, nowMs: now, pulseFrozenMs: null })
+  assert.strictEqual(r.action, 'kill')
+  assert.strictEqual(r.reason, 'second strike', 'the post-grace kill rides the clock, unchanged')
+})
+
 test('the worker mirror carries the grace arithmetic (the eval worker cannot import ESM)', () => {
   // the hand-rolled copy must name the knob, the clock, the hold branch and
   // the one-time GRACE HOLD line - the same contract the storm cell publish
@@ -110,6 +163,31 @@ test('the worker mirror carries the grace arithmetic (the eval worker cannot imp
   assert.ok(ceilIdx >= 0 && graceIdx >= 0 && ceilIdx < graceIdx, 'the ceiling verdict precedes the grace verdict in the act chain')
   // the probe line must NAME the grace (the next mine reads the story)
   assert.match(HEARTBEAT_WORKER_SRC, /s grace, or rss >= /, 'the probe line names the new kill condition')
+})
+
+test('the worker mirror carries the pulse-void arithmetic (v0.143.0)', () => {
+  // the hand-rolled copy must track the pulse, name the knob, void the hold
+  // with the same reason shape, and print the one-time GRACE VOID line
+  assert.match(HEARTBEAT_WORKER_SRC, /var sgPulseVoidMs = Number\(process\.env\.FLEET_STORM_PULSE_VOID_MS\) \|\| 4000/, 'the void rides the env knob shape with the 4s default')
+  assert.match(HEARTBEAT_WORKER_SRC, /function pulseFrozenMs \(t\)/, 'the worker tracks the main pulse itself (the closure appliers live on that thread)')
+  assert.match(HEARTBEAT_WORKER_SRC, /pvLast\.sum = sum; pvLast\.at = t/, 'the frozen duration is measured from the last real advance')
+  assert.match(HEARTBEAT_WORKER_SRC, /pulseFrozenMs\(Date\.now\(\)\)/, 'the tracking runs on every guard tick (the state stays current between verdicts)')
+  assert.match(HEARTBEAT_WORKER_SRC, /pvFrozen >= sgPulseVoidMs/, 'the void is the frozen-duration verdict inside the grace')
+  assert.match(HEARTBEAT_WORKER_SRC, /grace void: main pulse frozen/, 'the kill reason names the mechanism')
+  assert.match(HEARTBEAT_WORKER_SRC, /GRACE VOID/, 'the one-time void line names itself (the GRACE HOLD precedent)')
+  assert.match(HEARTBEAT_WORKER_SRC, /the grace serves a living main/, 'the void line states the premise')
+  // the ceiling branch must still sit BEFORE the void branch
+  const ceilIdx = HEARTBEAT_WORKER_SRC.indexOf('hard ceiling')
+  const voidIdx = HEARTBEAT_WORKER_SRC.indexOf('grace void: main pulse frozen')
+  assert.ok(ceilIdx >= 0 && voidIdx >= 0 && ceilIdx < voidIdx, 'the ceiling verdict precedes the void verdict in the act chain')
+})
+
+test('the fleet wiring: every valve close sweeps the goal slots (the replan loops die at the closure)', () => {
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const jqSrc = fs.readFileSync(new URL('../../src/lib/jobqueue.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /setFleetGoalSweeper/, 'the fleet wires the sweeper hook')
+  assert.match(jqSrc, /export function setFleetGoalSweeper/, 'the hook is exported from the funnel module')
+  assert.match(jqSrc, /onState: \(\) =>/, 'the valve fires the sweeper on its own close transitions')
 })
 
 test('the fleet wiring: the lag-probe feeder applies the cell verdict and sweeps the goals', () => {
