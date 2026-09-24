@@ -3168,3 +3168,35 @@ Work Log:
 
 Stage Summary:
 - THE DISPATCH PINS THE COMMUNE'S FIRST FIELD TEST: run 36016062585 (HTTP 204, in_progress at write time) on c88a406 = v0.146.0. The next session mines it per the reads above; the first iron_pickaxe in fleet history is the headline to watch.
+
+---
+Task ID: 398294-20260924-2254 (cron 22:54 +08, trace 1a0b98740b2ad8f5-cron-agent-loop-202609242254, Job 398294)
+Agent: Z.ai Code (cron session, the 22:54 lane - the commune's field decoder + the melee veto)
+Task: mine the commune's first field test 36016062585 (v0.146.0), keep CI green, ship the evidence's cure, dispatch fresh.
+
+Work Log:
+- SANDBOX ALIVE (no re-clone). Master on arrival a63ac59 (my 21:54 session's worklog head); pull --rebase clean, no lane activity in the window.
+- THE COMMUNE'S FIELD TEST MINED (36016062585, v0.146.0 on c88a406, run85/): NORMAL END alive 19/19, 3 deaths (F17+F1 drown, F5 slain by Drowned - in the <=4 band), rescues 80 with the composition REAL-DOMINANT (60 real >0s vs 1 no-op - the run33 phantom flood inverted again), airGlitches 27 (vs 525/811 - the sensor-lie class starved this run), fights 7, rss 428M / mainLate 11ms (the healthiest memory profile on record), the goal brake quiet (9 opens / 108 refusals / 1 fleet-ceiling), the valve + duck + envelope ALL silent.
+- BUT THE COMMUNE NEVER FIRED (0 'iron commune' lines) - the smelt leg starved UPSTREAM: 'no fuel' x6 (the fuel commons' chest walks died 'Took to long to decide path to goal!' x4 - the pathfinder saturation class - plus 'chest holds no fuel' x3), 'machine unreachable' x2, and F17 ended with raw_iron:5 pocket-stranded (its smelt window at line 1529 read 'nothing to smelt' BEFORE the ladder steering delivered the iron at line 2369 - one smelt window per run is the cadence). smelted=1, iron=0 stands.
+- THE BANKED COLLAPSE DECODED (206 vs run49's 1639): the final banks DEFERRED at dusk (11+ 'final bank deferred: night (tod=12432..13030)' - the v0.140.1 night hold) - BUT run49 also deferred 12x and still banked 1639, so the night hold is NOT the lever: the real gap is the MID-RUN bank cadence (run85's deposits died 'chest unreachable' x96 + 'budget exhausted' x88 mid-run - the same saturation family as the commons' walks). The yield economy's bottleneck is the deposit leg's walk friction, and the 600s = half-an-MC-day coincidence makes the dusk deferral the visible symptom, not the disease.
+- SHIPPED v0.147.0 THE MELEE VETO (a09805a, drowning.mjs + miner.mjs): WITNESS_COMBAT_BAND = 8 - a hostile within the band owns the health decline, the witness stands down, the vetoed page falls back to the legacy verdict machinery (the lie ladder + the gates keep their say). A REAL drain in an empty pocket (the F8 run536 founding shape - the witness's whole reason to exist) has nobody within the band and keeps the full witness + bypass. The sentry consults the band through the same nearestHostile probe the other sentries use; the veto line NAMES its owner ('witness stands down - a zombie at 1.4b owns the decline') so the next mine can audit the band against the real melee ranges. Tests: drowning +4 (the run33 F3 shape vetoed at 4hp AND 16hp declines, the F8 founding shape intact, the junk-hostile matrix byte-for-byte legacy, the wiring pins incl. the band constant). Local: syntax 189/0, unit 82/82 files.
+- THE FLAKE, LIVE: a63ac59's worklog-only push FAILED integration - the 2-bot productivity test OOM'd the Node heap at 4GB in 123s - while the SAME code (c88a406 tree) had passed integration twice (push 36014317957 + the fleet leg 36016062585). The storm class's stochastic mini-strike, the documented flake shape: rerun-failed-jobs launched (HTTP 201), the doctrine holds. My v0.147.0 push's own integration passed first-try.
+- Push a09805a -> push-CI 36020248928 SUCCESS (unit x2 + integration, one retry-free pass).
+
+Stage Summary:
+- Master: a09805a = v0.147.0 (the melee veto on a63ac59). Next free version = 0.148.0. My next local section = the next cycle's stamp.
+- THE FLEET OF RECORD for the next session: the dispatch pinned below (the ABSOLUTE LAST action) - the melee veto's field test. READ: 'witness stands down' lines (the veto's field audit - the band 8 vs the real melee ranges; a vetoed REAL drain would be the band-too-wide verdict), the rescue counters (the 100+-start-per-bot phantom storms should starve), 'iron commune:' lines (still pending the first 3-ingot set), the deposit leg's friction counts (chest unreachable / budget exhausted - the (a) front), NORMAL END, deaths <= 3, rescues <= 80.
+- OPEN FRONTS (evidence-ranked): (a) THE MID-RUN DEPOSIT CADENCE - the yield economy's real bottleneck (run85: banked 206 with the same end-deferrals as run49's banked 1639; the chest unreachable x96 + budget exhausted x88 mid-run failures + the 'Took to long to decide path' saturation family); (b) the smelt leg's fuel starvation (the commons dies on the same saturation - coal_ore x140 mined and the smelt legs still read no fuel); (c) the dusk pull candidate (the final-bank stagger feeding the forbidden window - the 600s = half-MC-day coincidence); (d) iron=0 (the ladder stalls at smelt - the fuel chain first); (e) plan 2/31 + worldmap idle (1813p/28ch scanned, 38 trips, never consulted by the plan).
+
+---
+Task ID: 398294-20260924-2254 (dispatch record - the session's ABSOLUTE LAST action)
+Agent: Z.ai Code (cron session, the 22:54 lane)
+Task: the fleet dispatch on the v0.147.0 head.
+
+Work Log:
+- ALL GREEN first: push-CI on a09805a (the melee veto tree) = 36020248928 SUCCESS (unit x2 + integration, one retry-free pass).
+- One fleet per head verified: the only prior run on a09805a is my own push-CI.
+- THE DISPATCH: workflow_dispatch on a09805a = v0.147.0, run_fleet=true fleet_seconds=600 (the mandatory shape, HTTP 204 expected). The run pins the CODE head; the worklog push after it is the documented exception the 1905/1954/2154-entries used.
+
+Stage Summary:
+- THE DISPATCH PINS THE MELEE VETO'S FIELD TEST: run 36022373710 (HTTP 204, queued at write time) on a09805a = v0.147.0. The next session mines it per the reads above; the headline is the veto line's first field appearance and whether the phantom-rescue class stays starved.
