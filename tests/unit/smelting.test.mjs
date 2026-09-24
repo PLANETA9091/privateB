@@ -327,17 +327,56 @@ test('smeltablesIn lists piles biggest-first, reserves cobble, drops logs', () =
 // pockets carrying raw_copper:17 next to cobblestone:79, iron=0 at end, plan
 // progress 1/31. The count-only sort lets junk dwarfs eat the coal first; metals
 // as a CLASS now rank above everything else.
+// (v0.134.0) re-pinned by THE IRON LADDER PRECEDENCE: within the metal class the
+// ladder metals (the iron_ingot producers) lead regardless of count - run550
+// (35950649305) measured the fleet smelting 17 copper ingots to iron=0 with
+// raw_copper:31 count-dwarfing raw_iron:6 in the same pockets.
 test('smeltablesIn METAL PRECEDENCE: junk dwarfs cannot eat the coal first (run94)', () => {
   const bot = makeMockBot({
     items: [item('cobblestone', 79), item('raw_copper', 17), item('sand', 10), item('raw_iron', 3)]
   })
   const plan = smeltablesIn(bot)
   const names = plan.map(p => p.name)
-  assert.deepEqual(names.slice(0, 2), ['raw_copper', 'raw_iron'], 'metals lead, count-desc inside the class')
+  // v0.134.0: the ladder metal leads the metal class, the count-dwarf copper follows
+  assert.deepEqual(names.slice(0, 2), ['raw_iron', 'raw_copper'], 'ladder metal leads, copper follows despite the count dwarf')
   // the non-metals keep count-desc: cobble 71 (79 - 8 reserve) > sand 10
   assert.equal(names[2], 'cobblestone')
   assert.equal(names[3], 'sand')
   assert.equal(plan.find(p => p.name === 'cobblestone').count, 71, 'the cobble reserve still applies')
+})
+
+// (v0.134.0) THE IRON LADDER PRECEDENCE - run550 (35950649305) measured the next
+// starvation tier: smelted=26 of which 17 copper_ingot, iron_ore mined=25, pickaxe
+// tiers wooden=17 stone=7 iron=0 (the all-history wall). The count-desc order let
+// the copper piles eat every metal window; the ladder's iron line can never land
+// that way. The ladder metals (iron_ore / deepslate_iron_ore / raw_iron) now lead
+// the metal class regardless of pile size.
+test('smeltablesIn IRON LADDER PRECEDENCE: a count-dwarf raw_iron outranks the copper mountain (run550)', () => {
+  const bot = makeMockBot({
+    items: [item('raw_copper', 31), item('raw_iron', 6), item('copper_ore', 12)]
+  })
+  const plan = smeltablesIn(bot)
+  const names = plan.map(p => p.name)
+  assert.deepEqual(names, ['raw_iron', 'raw_copper', 'copper_ore'], 'the ladder metal leads; copper keeps count-desc behind it')
+})
+
+test('smeltablesIn IRON LADDER PRECEDENCE: iron_ore and raw_iron both lead, junk-safe and legacy-safe', () => {
+  // both iron producers lead; the copper/gold relative order is byte for byte legacy
+  const bot = makeMockBot({
+    items: [item('raw_gold', 40), item('iron_ore', 4), item('raw_copper', 20), item('raw_iron', 9), item('sand', 55)]
+  })
+  const plan = smeltablesIn(bot)
+  const names = plan.map(p => p.name)
+  assert.deepEqual(names.slice(0, 2), ['raw_iron', 'iron_ore'], 'the two ladder metals lead, count-desc between them')
+  assert.deepEqual(names.slice(2, 4), ['raw_gold', 'raw_copper'], 'gold/copper keep the legacy count-desc order behind the ladder')
+  assert.equal(names[4], 'sand', 'the non-metals stay behind the whole metal class')
+  // a pocket with NO ladder metal sorts exactly as v0.106.0 (count-desc in-class)
+  const botNoIron = makeMockBot({ items: [item('raw_copper', 31), item('raw_gold', 5)] })
+  assert.deepEqual(
+    smeltablesIn(botNoIron).map(p => p.name),
+    ['raw_copper', 'raw_gold'],
+    'an iron-less pocket sorts byte for byte as the v0.106.0 tree'
+  )
 })
 
 test('smeltablesIn METAL PRECEDENCE: a metal-less pocket sorts exactly as before (the legacy pin)', () => {

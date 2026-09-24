@@ -47,6 +47,10 @@ export const SMELT_OUTPUT = {
 // chain must never try a blast furnace for sand: the batch would sit there burning fuel)
 export const FOOD_INPUTS = new Set(['beef', 'porkchop', 'chicken', 'mutton', 'rabbit', 'cod', 'salmon', 'potato', 'kelp'])
 export const METAL_INPUTS = new Set(['iron_ore', 'deepslate_iron_ore', 'raw_iron', 'copper_ore', 'deepslate_copper_ore', 'raw_copper', 'gold_ore', 'deepslate_gold_ore', 'raw_gold', 'ancient_debris'])
+// (v0.134.0) THE LADDER METALS - the iron_ingot producers, the pickaxe ladder's
+// third rung (keepForIron holds them as TOOL MATERIALS until the upgrade lands).
+// Inside smeltablesIn's metal class they outrank copper/gold regardless of count.
+export const LADDER_METALS = new Set(['iron_ore', 'deepslate_iron_ore', 'raw_iron'])
 
 export function machineFor (inputName) {
   if (FOOD_INPUTS.has(inputName)) return 'smoker'
@@ -455,9 +459,18 @@ export function smeltablesIn (bot, { reserveCobble = 8 } = {}) {
   // needed) can never exist while every furnace window goes to stone. Metals as a
   // CLASS rank above everything else; within a class the legacy count-desc order
   // stands byte for byte (a metal-less pocket sorts exactly as before).
+  //
+  // (v0.134.0) THE IRON LADDER PRECEDENCE: run550 (35950649305) measured the next
+  // starvation tier - the fleet smelted 26 units of which 17 COPPER ingots, while
+  // iron_ore mined=25 and the pickaxe tiers ended wooden=17 stone=7 IRON=0 (the
+  // all-history wall). The toolupgrade ladder (keepForIron) wants iron_ingot /
+  // raw_iron held as TOOL MATERIALS, and the plan's iron line can never land while
+  // every metal window goes to copper (raw_copper:31 count-dwarfs raw_iron:6).
+  // Within the metal class the LADDER METALS (the iron_ingot producers) now lead;
+  // count-desc keeps the copper/gold relative order byte for byte behind them.
   return [...totals.entries()]
-    .map(([name, count]) => ({ name, count, metal: METAL_INPUTS.has(name) ? 0 : 1 }))
-    .sort((a, b) => (a.metal - b.metal) || (b.count - a.count))
+    .map(([name, count]) => ({ name, count, metal: METAL_INPUTS.has(name) ? 0 : 1, ladder: LADDER_METALS.has(name) ? 0 : 1 }))
+    .sort((a, b) => (a.metal - b.metal) || (a.ladder - b.ladder) || (b.count - a.count))
     .map(({ name, count }) => ({ name, count }))
 }
 
