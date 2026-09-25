@@ -753,7 +753,7 @@ async function runBot (name, target, index) {
           // lessons, measured twice now. The instrument's own prefix is the
           // key, not the refusal message's vocabulary: every instrument line
           // opens with 'vein sweep' - one keyword covers all four shapes.
-          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })

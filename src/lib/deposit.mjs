@@ -8,6 +8,7 @@ import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS)
+import { chestVerticalDoom } from './surface.mjs' // (v0.187.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -1473,6 +1474,34 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       if (dg?.hit) {
         log(`[${bot.username ?? 'bot'}] chest skip (doomed goal cached ${Math.round(dg.ageMs / 1000)}s ago at [${skipCell.x},${skipCell.y},${skipCell.z}])`)
         tried.push(skipCell)
+        continue
+      }
+    }
+    // (v0.187.0) THE HOP VERTICAL DOOM GATE - the last un-gated walk site for
+    // the deep-bot vertical class. MEASURED (run47 = fleet 36181152847, the
+    // triple-union fleet, F19's bank chain): seven hops from y~44 to the y=72
+    // yard rows (dy ~28 over ~24b lateral) - 2x 'Took to long to decide path
+    // to goal!' + 5x 'budget exhausted (walk floor)' - burned the chain so the
+    // smelt leg inherited a skeleton ('camp furnace: build skipped - the leg
+    // clock (18s) cannot afford a 24s build' with 5 logs riding), the smelt
+    // visit died 'machine unreachable (visit budget spent (walk slice))' and
+    // the final deposit 'budget exhausted': the WHOLE chain delivered zero
+    // with raw_copper in the pocket. The strict verticalDoomPlan arithmetic
+    // (the v0.158.0 bank-climbs gate, the v0.159.0 chest-walks gate, the
+    // v0.170.0 machine-walks gate) now gates the hop loop too: a chest MOSTLY
+    // UP (dy >= 20, lateral < dy) has no staircase for A* to find - the
+    // consult is free arithmetic, the walk was a guaranteed burn. A hillside
+    // (lateral >= dy) keeps the legacy ladder; any unreadable position reads
+    // no-doom - the legacy hop runs byte for byte. The skip joins the
+    // tried-set so the scan picks the next nearest chest (a CAMP chest at the
+    // bot's own level stays reachable), and the line rides the fleet
+    // filter-key ('chest skip' joined the regex) so the next decode can count
+    // this class AND the three ledger skips the filter had kept invisible.
+    if (chest.position) {
+      const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      if (doom.doom) {
+        log(`[${bot.username ?? 'bot'}] chest skip (vertical doom: ${doom.why} - the walk ladder cannot climb)`)
+        tried.push(typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position)
         continue
       }
     }
