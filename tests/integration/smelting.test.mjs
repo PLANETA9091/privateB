@@ -165,6 +165,9 @@ async function digAbove (bot, miner, cell) {
 }
 
 // dig ONE wall block at feet level to create a free placement cell underground
+// (v0.184.0) returns the carved CELL (a Vec3) so the caller can dig the gravity
+// column above THE fresh alcove - the scan-for-any-empty-cell shape could target
+// the wrong cell when two are free (the table's cell + the new one)
 async function carveAlcove (bot, miner) {
   const { Vec3 } = await import('vec3')
   const feet = bot.entity.position.floored()
@@ -180,7 +183,7 @@ async function carveAlcove (bot, miner) {
       await withTimeout(bot.fastDig(wall), 15000, `alcove dig ${cell}`)
       await bot.waitForTicks(3)
       const now = bot.blockAt(cell)
-      if (now && now.boundingBox === 'empty') { log(`alcove carved at ${cell}`); return true }
+      if (now && now.boundingBox === 'empty') { log(`alcove carved at ${cell}`); return cell }
     } catch (e) { log(`alcove dig failed at ${cell}: ${e.message}`) }
   }
   return false
@@ -452,14 +455,10 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     for (let attempt = 0; attempt < 3 && !table; attempt++) {
       const carved = await carveAlcove(bot, miner)
       if (carved) {
-        // the carved cell is feet-level: kill any gravity block (sand/gravel) directly
-        // above it BEFORE placing, or the refill race eats the cell (measured live)
-        const feet = bot.entity.position.floored()
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const c = feet.offset(dx, 0, dz)
-          const b = bot.blockAt(c)
-          if (b && b.boundingBox === 'empty') { await digAbove(bot, miner, c); break }
-        }
+        // (v0.184.0) digAbove now targets THE carved cell (carveAlcove returns
+        // it) - the gravity column above the fresh alcove is the refill race
+        // that eats the cell (measured live 2026-09-19)
+        await digAbove(bot, miner, carved)
         table = await placeMachine(bot, 'crafting_table')
         log(`table attempt ${attempt}: carved, placed=${table?.position?.floored() ?? 'FAILED'}`)
       }
@@ -494,15 +493,24 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
 
   // place the furnace into another carved cell (the table already took one)
   let furnaceBlock = await placeMachine(bot, 'furnace')
-  if (!furnaceBlock) {
-    assert.ok(await carveAlcove(bot, miner), 'must be able to carve a cell for the furnace')
-    const feet = bot.entity.position.floored()
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const c = feet.offset(dx, 0, dz)
-      const b = bot.blockAt(c)
-      if (b && b.boundingBox === 'empty') { await digAbove(bot, miner, c); break }
+  // (v0.184.0) THE FURNACE RETRY LADDER: the table placement always had the
+  // 3-attempt ladder; the furnace flow ran carve + digAbove + place ONCE, so a
+  // single gravity refill killed the whole chain on this assert. MEASURED (CI
+  // 36174497274, the v0.183.0 push): the alcove carved at (-114, 42, 421), the
+  // place 0.3s later refused with 'the block is still gravel' - a gravel column
+  // landed in the fresh cell between the carve and the place - placeMachine
+  // scanned the remaining 7 solid cells, returned null, and the assert fired on
+  // a race the table flow would have survived. The ladder mirrors the table's:
+  // each attempt carves again (the refilled cell is solid again - the next
+  // carve digs through the LANDED gravel, no entity race), digs the gravity
+  // column above THE carved cell (carveAlcove now returns it), and re-places.
+  for (let attempt = 0; attempt < 3 && !furnaceBlock; attempt++) {
+    const carved = await carveAlcove(bot, miner)
+    if (carved) {
+      await digAbove(bot, miner, carved)
+      furnaceBlock = await placeMachine(bot, 'furnace')
+      log(`furnace attempt ${attempt}: carved, placed=${furnaceBlock?.position?.floored() ?? 'FAILED'}`)
     }
-    furnaceBlock = await placeMachine(bot, 'furnace')
   }
   assert.ok(furnaceBlock, 'furnace must be placeable on a free neighbour cell')
   log(`furnace placed at ${furnaceBlock.position.floored()}`)
