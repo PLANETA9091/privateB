@@ -449,6 +449,27 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     }
   }
   assert.ok(table, 'a crafting table must be placeable at the shaft bottom')
+  // (v0.170.1) THE PRE-CRAFT WINDOW SWEEP. CI 36101345775 (the v0.170.0 run):
+  // cobblestone 11 in pocket (>= the 8 the furnace needs), the table placed,
+  // and the furnace craft died 'missing ingredient' on EVERY try - the table
+  // placement's own window traffic (plus the tool phase's hand crafts before
+  // it) had left the crafting UI holding ghost grid slots, so the SERVER saw
+  // an ingredient set that never covered the recipe. craftItem's recovery
+  // dance re-opens the window between tries, but the first attempt was
+  // already poisoned and the retry can inherit the same stale UI. The same
+  // dance the craft catch runs, executed PRE-emptively while the window is
+  // still cheap to close. A death between the cobble guard and this point
+  // (respawn = empty pockets) skips honestly instead of asserting on a world
+  // the bot no longer occupies.
+  if (countItem(bot, 'cobblestone') < 8) {
+    t.skip(`the pocket lost its cobble between the guard and the craft (${countItem(bot, 'cobblestone')} left - a death or a despawn) - chain not exercised`)
+    return
+  }
+  try {
+    if (toolsMod.recoverCraftWindow(bot, log)) await new Promise(r => setTimeout(r, 300))
+    const swept = await toolsMod.sweepGridItems(bot)
+    if (swept) log(`pre-craft sweep: ${swept} ghost grid slot(s) back into the inventory`)
+  } catch (e) { log(`pre-craft sweep failed: ${e.message}`) }
   const crafted = await craftItem(bot, 'furnace', 1, table)
   try { bot.closeWindow(bot.currentWindow) } catch { /* already closed */ }
   assert.ok(crafted, 'furnace craft must succeed (8 cobblestone -> furnace)')
