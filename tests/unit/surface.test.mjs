@@ -703,3 +703,65 @@ test('bridgePlan: junk geometry never throws (the junk doctrine)', () => {
   const read = cellWorld({ '10,63,20': STONE, '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR, '11,63,20': STONE })
   assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, maxPlaced: 0 }).ok, true, 'junk maxPlaced falls back to BRIDGE_PLACE_MAX')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.168.0) THE BRIDGE REFUSAL RETRY + FORENSICS. run78 (36091731878, the
+// v0.167.0 union @ the honest 600s) measured the refusal class as TRANSIENT:
+// 7 'server refused the (support|pit) fill' lines, 7 distinct cells (no
+// repeats), 4/7 riding a pit fill placed the TICK before (the support fill's
+// reference IS the just-placed block, one cell farther), and the F16 cell
+// [-113,64,384] refused at ts~701s placed FINE on a later visit. bridgeFillLanded
+// is the shared verify (the v0.76.0 item-leaves doctrine + the chunk read),
+// bridgeRefusalDetail is the surviving refusal's forensics suffix (held /
+// dist / ref / post - splitting reach refusals from stale references from
+// genuine server refusals in the NEXT fleet's log).
+import { bridgeFillLanded, bridgeRefusalDetail, BRIDGE_RECHECK_TICKS } from '../../src/lib/surface.mjs'
+
+test('BRIDGE_RECHECK_TICKS: the recheck window is pinned (mirrors the climb dig stale recheck)', () => {
+  assert.equal(BRIDGE_RECHECK_TICKS, 12)
+})
+
+test('bridgeFillLanded: a solid post read is a landed fill', () => {
+  assert.equal(bridgeFillLanded({ postBlock: blk('cobblestone', 'block'), before: 64, after: 64 }), true)
+})
+
+test('bridgeFillLanded: the item left the pocket is the v0.76.0 truth (even with a stale chunk read)', () => {
+  // the client world never applied the delta but the count dropped - LANDED
+  assert.equal(bridgeFillLanded({ postBlock: blk('air', 'empty'), before: 64, after: 63 }), true)
+  // a fresh chunk read with a full pocket would be a phantom without the count gate
+  assert.equal(bridgeFillLanded({ postBlock: blk('air', 'empty'), before: 64, after: 64 }), false)
+})
+
+test('bridgeFillLanded: junk reads are a false, never a throw', () => {
+  assert.equal(bridgeFillLanded({}), false)
+  assert.equal(bridgeFillLanded({ postBlock: null, before: null, after: null }), false)
+  assert.equal(bridgeFillLanded({ postBlock: { boundingBox: 42 }, before: NaN, after: 'junk' }), false)
+  assert.equal(bridgeFillLanded({ postBlock: undefined, before: -Infinity, after: Infinity }), false)
+  // a junk postBlock with honest counts still converts on the count gate
+  assert.equal(bridgeFillLanded({ postBlock: 'junk', before: 10, after: 9 }), true)
+})
+
+test('bridgeRefusalDetail: the landed-late shape names the class', () => {
+  const s = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 4.83, refName: 'stone', postName: 'cobblestone', postLanded: true })
+  assert.equal(s, 'held=cobblestone, 4.8b, ref=stone, post=cobblestone LANDED (late block update)')
+})
+
+test('bridgeRefusalDetail: the still-open shape names the genuine refusal', () => {
+  const s = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 5.21, refName: 'cobblestone', postName: 'air', postLanded: false })
+  assert.equal(s, 'held=cobblestone, 5.2b, ref=cobblestone, post=air STILL OPEN (refused twice)')
+})
+
+test('bridgeRefusalDetail: a null reference read is the stale self-placed-reference signature', () => {
+  const s = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 4.1, refName: null, postName: 'air', postLanded: false })
+  assert.match(s, /ref=null-read/)
+})
+
+test('bridgeRefusalDetail: junk inputs print placeholders instead of throwing', () => {
+  assert.equal(bridgeRefusalDetail({}), 'held=n/a, d?, ref=null-read, post=? (re-read failed)')
+  assert.equal(bridgeRefusalDetail({ heldName: '', dist: NaN, refName: 42, postName: null, postLanded: null }),
+    'held=n/a, d?, ref=null-read, post=? (re-read failed)')
+  // a true postLanded with a junk postName still names the landing
+  assert.match(bridgeRefusalDetail({ postLanded: true, postName: '' }), /post=block LANDED/)
+  // a false postLanded with a junk postName keeps the placeholder
+  assert.match(bridgeRefusalDetail({ postLanded: false, postName: 7 }), /post=\? STILL OPEN/)
+})

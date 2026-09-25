@@ -25,7 +25,7 @@ import {
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
-  bridgePlan, BRIDGE_PLACE_MAX
+  bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
@@ -3566,21 +3566,60 @@ export function createMiner ({
           if (bp.ok) {
             bridgePlaced = bp.placedNext
             let placedOk = false
+            let lateRecovered = false
+            let heldName = null
+            let dist = null
+            let refName = null
+            let postB = null
             try {
               const countOf = n => inventoryItems(bot).filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
               const before = countOf(bp.item.name)
               await withTimeout(bot.equip(bp.item, 'hand'), 5000, 'climb bridge equip')
               const refB = readCell(bp.refCell)
+              refName = (() => { try { return refB && refB.name ? refB.name : null } catch { return null } })()
+              dist = (() => { try { return bot.entity.position.distanceTo(bp.cell.offset(0.5, 0.5, 0.5)) } catch { return null } })()
+              heldName = (() => { try { return bot.heldItem?.name ?? null } catch { return null } })()
               await withTimeout(bot.placeBlock(refB, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge place')
               await settleTicks(10, 'climb bridge settle')
-              const nowB = readCell(bp.cell)
-              placedOk = (!!nowB && nowB.boundingBox === 'block') || countOf(bp.item.name) < before
+              let nowB = null
+              try { nowB = readCell(bp.cell) } catch { nowB = null }
+              placedOk = bridgeFillLanded({ postBlock: nowB, before, after: countOf(bp.item.name) })
+              if (!placedOk) {
+                // (v0.168.0) THE BRIDGE REFUSAL RETRY. run78 measured the
+                // refusal class as TRANSIENT: 7 refusals, 7 distinct cells,
+                // 4/7 riding a pit fill placed the tick before (the reference
+                // IS the just-placed block), and the F16 cell [-113,64,384]
+                // refused at ts~701s placed FINE on a later visit. The
+                // v0.76.0 stale-recheck doctrine at the placement: settle,
+                // re-verify once (a late block update converts honestly),
+                // re-place ONCE (a lost packet converts), then the honest
+                // refusal - the rotate ladder owns it as before.
+                await settleTicks(BRIDGE_RECHECK_TICKS, 'climb bridge recheck settle')
+                let post = null
+                try { post = readCell(bp.cell) } catch { post = null }
+                postB = post
+                if (bridgeFillLanded({ postBlock: post, before, after: countOf(bp.item.name) })) {
+                  placedOk = true
+                  lateRecovered = true
+                  if (diagLevels < 3) log(`${tag} climb bridge: the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] landed late (the settle raced the block update) - the step re-judges`)
+                } else {
+                  try {
+                    const refB2 = readCell(bp.refCell)
+                    await withTimeout(bot.placeBlock(refB2, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge re-place')
+                    await settleTicks(10, 'climb bridge re-place settle')
+                    let nowB2 = null
+                    try { nowB2 = readCell(bp.cell) } catch { nowB2 = null }
+                    postB = nowB2
+                    placedOk = bridgeFillLanded({ postBlock: nowB2, before, after: countOf(bp.item.name) })
+                  } catch { placedOk = false }
+                }
+              }
             } catch { placedOk = false }
             if (placedOk) {
-              if (diagLevels < 3) log(`${tag} climb bridge: placed ${bp.item.name} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.kind}) - the step re-judges`)
+              if (diagLevels < 3 && !lateRecovered) log(`${tag} climb bridge: placed ${bp.item.name} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.kind}) - the step re-judges`)
               continue
             }
-            if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it`)
+            if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })() })})`)
           } else if (diagLevels < 3 && bridgePlaced === 0) {
             log(`${tag} climb bridge: unavailable (${bp.why})`)
           }

@@ -898,6 +898,53 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   return { ok: false, why: 'the pit floor reads unknown' }
 }
 
+// (v0.168.0) THE BRIDGE REFUSAL RETRY - run78 (36091731878, the v0.167.0 union
+// @ the honest 600s) measured the refusal class as TRANSIENT, not permanent
+// geometry: 7 'server refused the (support|pit) fill' lines, 7 distinct cells
+// (no repeats), 4 of 7 riding a pit fill placed the TICK before (the support
+// fill's reference IS the just-placed block, one cell farther from the bot),
+// and the F16 cell [-113,64,384] refused at ts~701s placed FINE on a later
+// visit. The recheck window (ticks) mirrors the climb dig's stale recheck: a
+// late block update or a lost place packet converts on the re-look instead of
+// burning the rotate ladder's fail budget.
+export const BRIDGE_RECHECK_TICKS = 12
+
+/** (v0.168.0) Pure: the bridge fill's own verify - the placement landed iff
+ * the target cell reads solid OR the item left the inventory (the v0.76.0
+ * doctrine governs: the packet's truth is the ITEM LEAVING THE INVENTORY,
+ * never the client chunk read alone; a stale client world with a dropped item
+ * is a LANDED fill the same way a fresh chunk read with a full pocket is a
+ * phantom). Junk-safe: junk reads are false, never a throw. */
+export function bridgeFillLanded ({ postBlock = null, before = null, after = null } = {}) {
+  try {
+    if (postBlock && postBlock.boundingBox === 'block') return true
+    if (Number.isFinite(before) && Number.isFinite(after) && after < before) return true
+  } catch { /* junk geometry is a false, not a crash */ }
+  return false
+}
+
+/** (v0.168.0) Pure: the forensics suffix for a SURVIVING bridge refusal -
+ * what the bot held, how far the fill cell sits (the reach suspect: the
+ * two-fill's second fill is always ~1 block farther than the first, and the
+ * vanilla server's place reach is finite), what the REFERENCE block read at
+ * place time (a null/missing read is the stale self-placed-reference suspect:
+ * 4 of run78's 7 refusals used a reference placed the tick before), and what
+ * the post-retry re-read says. Splits (a) reach refusals (d large), (b) stale
+ * reference (ref=null-read), (c) genuine server refusals (post STILL OPEN) in
+ * the NEXT fleet's log without a new theory. Junk-safe: placeholders instead
+ * of throws - the dig refusal's digRefusalDetail doctrine at the bridge's own
+ * geometry. */
+export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = null, postName = null, postLanded = null } = {}) {
+  const held = typeof heldName === 'string' && heldName ? heldName : 'n/a'
+  const d = Number.isFinite(dist) ? `${dist.toFixed(1)}b` : 'd?'
+  const ref = typeof refName === 'string' && refName ? refName : 'null-read'
+  let post
+  if (postLanded === true) post = `post=${typeof postName === 'string' && postName ? postName : 'block'} LANDED (late block update)`
+  else if (postLanded === false) post = `post=${typeof postName === 'string' && postName ? postName : '?'} STILL OPEN (refused twice)`
+  else post = 'post=? (re-read failed)'
+  return `held=${held}, ${d}, ref=${ref}, ${post}`
+}
+
 /** Pure: the forensics suffix for a SURVIVING dig refusal - what the bot held,
  * whether it stood on ground, and what the post-settle re-read says. Every
  * field is optional; junk reads print 'n/a'/'?' placeholders instead of
