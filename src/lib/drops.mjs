@@ -23,6 +23,37 @@ export const SWEEP_DROP_CAP = 8 // the same per-batch cap sweep() and chopReacha
 export const SWEEP_DROP_TIMEOUT_MS = 8000 // one drop's walk budget - a sealed gallery fails fast
 export const SWEEP_DROP_TOTAL_MS = 24000 // the whole drop-walk budget - a bonus, never a clock burn
 
+// (v0.178.0) THE DROP GOAL RANGE - the below-plane drops get the forgiving goal.
+// MEASURED (fleet 36131508220, the v0.177.0 run): 44 sweeps / 267 ores dug /
+// 32 '+Nu walked from the drops' - the v0.173.0 harvest CONVERTS (the run64
+// 'zero walks' record stands corrected as the filter artifact the v0.176.0
+// lane called it) - but 52 drop walks still failed, and x33 of them were
+// 'sweep drops: timeout after 8000ms'. An 8s budget for a 2-8 block walk in
+// the bot's own gallery is not slowness - the pathfinder never CONVERGED.
+// The shape: an ore's drop falls INTO the freed cell (or down the fresh
+// shaft) 1-2 blocks BELOW the walk plane, and GoalNear's isEnd is a 3D
+// sphere (dx^2+dy^2+dz^2 <= range^2): range 1 demands a standable cell
+// within 1.0 of the drop's CENTER, but the only standable cells are the
+// gallery lip ABOVE (dy -1.5..-2.5, 3D dist ~1.8-2.2) - every recompute
+// lands partial and the walk spirals into the timeout, and the same cells
+// re-fail on the next sweep (F16 [-114,40,380] then [-114,42,377]).
+// THE CURE: a drop resting BELOW the walk plane (dy < DROP_GOAL_BELOW_DY)
+// walks with range 2 - the lip beside/above the drop counts as arrival
+// (3D dist ~1.8 <= 2), the spiral dies, and a still-unpicked drop rides the
+// next pass (galleries are revisited; the despawn clock is 5 min). At/above
+// the plane keeps range 1 byte-identical - a flat gallery converges INTO the
+// magnet, and the above-plane ledge class is not measured yet (the wide
+// goal would end the walk farther from the drop for no measured gain).
+// Junk input = the legacy 1 - a missing read never widens a goal.
+export const DROP_GOAL_PLANE = 1 // the legacy tight goal (the walk INTO the magnet)
+export const DROP_GOAL_BELOW = 2 // the below-plane goal (the lip counts as arrival)
+export const DROP_GOAL_BELOW_DY = -1 // the plane fence: strictly below the walk plane
+
+export function dropGoalRange ({ dy = 0 } = {}) {
+  const d = Number.isFinite(dy) ? dy : 0
+  return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
+}
+
 export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, cap = SWEEP_DROP_CAP } = {}) {
   if (!entities || typeof entities !== 'object') return []
   if (!from || typeof from.x !== 'number' || typeof from.y !== 'number' || typeof from.z !== 'number') return []

@@ -51,7 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk
+import { dropTargets, dropGoalRange, DROP_GOAL_BELOW, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2473,18 +2473,28 @@ export function createMiner ({
         log(`${tag} vein sweep: ${targets.length} drop(s) in reach (${dug} dug)`)
         const dropFence = Date.now() + SWEEP_DROP_TOTAL_MS
         let dropFails = 0
+        let belowFails = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
+          // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
+          // walk plane (in the freed cell / down the fresh shaft) made GoalNear
+          // range 1 a 3D sphere no standable cell enters - x33 'timeout after
+          // 8000ms' in the v0.177.0 fleet (fleet 36131508220), the same cells
+          // re-failing every sweep. The lip beside/above the drop is a legal
+          // arrival at range 2; a flat drop keeps the legacy range 1.
+          const range = dropGoalRange({ dy: d.y - bot.entity.position.y })
           try {
-            await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, 1), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
+            await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, range), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
           } catch (e) {
             if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message}`)
             dropFails++
+            if (range === DROP_GOAL_BELOW) belowFails++
           }
         }
         const picked = Math.max(0, inventoryLoad(bot).units - load0)
         if (picked > 0) log(`${tag} vein sweep: +${picked}u walked from the drops (${dug} dug)`)
         else if (targets.length > 0) log(`${tag} vein sweep: the drop walks picked nothing (pocket delta 0, ${dropFails} failed walk(s))`)
+        if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)

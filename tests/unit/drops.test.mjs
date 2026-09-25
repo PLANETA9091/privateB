@@ -164,3 +164,53 @@ test("REGRESSION PIN: the harness log filter passes the sweep instrument (the v0
   assert.ok(filter.test('[F14] vein sweep: the drop walks picked nothing (pocket delta 0, 2 failed walk(s))'),
     'the zero-pickup end reaches the artifact')
 })
+
+// ---- (v0.178.0) THE DROP GOAL RANGE ----
+// MEASURED (fleet 36131508220, the v0.177.0 run): the v0.173.0 harvest CONVERTS
+// (32 '+Nu walked', 267 ores swept) but x33 of the 52 failed walks were
+// 'sweep drops: timeout after 8000ms' - an 8s budget for a 2-8 block walk means
+// GoalNear range 1's 3D sphere (dx^2+dy^2+dz^2 <= 1) held NO standable cell:
+// the drop rested 1-2 BELOW the walk plane (in the freed cell / down the fresh
+// shaft), the only standable cells were the gallery lip above, and every
+// recompute spiraled into the timeout. The below-plane drops walk range 2.
+import { dropGoalRange, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY } from '../../src/lib/drops.mjs'
+
+test('dropGoalRange: at/above the walk plane keeps the legacy tight goal (the walk INTO the magnet)', () => {
+  assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'a level drop - the flat gallery converges into the magnet')
+  assert.equal(dropGoalRange({ dy: 0.5 }), DROP_GOAL_PLANE, 'half a block up - within the sphere')
+  assert.equal(dropGoalRange({ dy: 1 }), DROP_GOAL_PLANE, 'the fence boundary: exactly the plane stays tight')
+  assert.equal(dropGoalRange({ dy: 2.5 }), DROP_GOAL_PLANE, 'the above-plane ledge class is NOT measured - no speculative widening')
+  assert.equal(dropGoalRange({ dy: -1 }), DROP_GOAL_PLANE, 'the fence boundary: exactly -1 is AT the plane (dy < fence widens)')
+})
+
+test('dropGoalRange: a drop resting BELOW the walk plane gets the wide goal (the lip counts as arrival)', () => {
+  assert.equal(dropGoalRange({ dy: -1.01 }), DROP_GOAL_BELOW, 'just below the fence widens')
+  assert.equal(dropGoalRange({ dy: -1.5 }), DROP_GOAL_BELOW, 'the freed-cell class (3D dist ~1.8 from the lip <= 2)')
+  assert.equal(dropGoalRange({ dy: -2.5 }), DROP_GOAL_BELOW, 'down the fresh shaft')
+})
+
+test('dropGoalRange: junk input returns the legacy 1 - a missing read never widens a goal', () => {
+  for (const junk of [NaN, Infinity, -Infinity, 'x', null, undefined, {}, []]) {
+    assert.equal(dropGoalRange({ dy: junk }), DROP_GOAL_PLANE, `dy=${String(junk)} -> the legacy tight goal`)
+  }
+  assert.equal(dropGoalRange(), DROP_GOAL_PLANE, 'no argument at all -> the legacy tight goal')
+})
+
+test('dropGoalRange: the constants pin (the planner is the ONLY range source)', () => {
+  assert.equal(DROP_GOAL_PLANE, 1, 'the tight goal is the byte-identical legacy range')
+  assert.equal(DROP_GOAL_BELOW, 2, 'the wide goal - the lip sphere (dy -1.5 + horizontal 1.0 = 1.8) converges')
+  assert.equal(DROP_GOAL_BELOW_DY, -1, 'the plane fence: strictly below the walk plane')
+})
+
+test("REGRESSION PIN: the miner's drop walk reads the planner and names the below-plane verdict", async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('dropGoalRange({ dy: d.y - bot.entity.position.y })'),
+    'the walk goal range comes from the planner (per-drop dy, not a constant)')
+  assert.ok(src.includes('new goals.GoalNear(d.x, d.y, d.z, range)'),
+    'the GoalNear rides the planned range')
+  assert.ok(src.includes('if (range === DROP_GOAL_BELOW) belowFails++'),
+    'a failed wide-goal walk joins the below-plane verdict, not the generic fail count')
+  assert.ok(src.includes('below-plane walk(s) still failed on the wide goal (range 2)'),
+    'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
+})
