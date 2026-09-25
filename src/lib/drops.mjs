@@ -62,7 +62,31 @@ export const SWEEP_DROP_TOTAL_MS = 24000 // the whole drop-walk budget - a bonus
 // Junk input = the legacy 1 - a missing read never widens a goal.
 export const DROP_GOAL_PLANE = 1 // the legacy tight goal (the walk INTO the magnet)
 export const DROP_GOAL_BELOW = 2 // the below-plane goal (the lip counts as arrival)
-export const DROP_GOAL_BELOW_DY = -1 // the plane fence: strictly below the walk plane
+// (v0.191.0) THE FENCE-EDGE BELOW FAMILY - the v0.178.0 fence re-derived on
+// the run190 measurement. MEASURED (fleet 36195869446, the v0.190.0 union run):
+// 59 drop-walk failures, and the range-1 family carries a class the v0.178.0
+// sample never held: dy -1.0 x9 timeouts + x1 'No path to the goal!' + x1
+// doomed-ledged, dy -0.7 x3 - TWELVE walks on SEVEN bots (F12/F19/F6/F13/F2/
+// F15/F1) in disjoint cells. The geometry re-derived from GoalNear's source
+// (the constructor floors the goal, isEnd is a 3D ball of radius `range` around
+// that floored cell): the drop rests in the cell ONE BELOW the walk plane - the
+// ore dug through the gallery floor's face, the item's entity lift reads
+// -0.7..-1.0 relative to the bot's feet - and its column is SEALED FROM ABOVE
+// by the very floor the bot stands on, so the range-1 ball holds only the goal
+// cell itself (every plane stance reads dist sqrt(lateral^2 + 1^2) >= sqrt(2)
+// > 1.0) and NO standable cell - the walk spirals EXACTLY the v0.178.0 shape,
+// one fence-row lower than the sample that calibrated -1. THE CURE: the fence
+// edge moves -1 -> -0.5 (the midpoint of the measured gap between the flat
+// family's dy >= 0 reads and the one-below cell's -0.7): the -0.7/-1.0 classes
+// join the BELOW lip sphere (the plane floor beside the sealed column is a
+// legal arrival, dist sqrt(1^2 + 1^2) <= 2), and a still-unpicked arrival arms
+// the v0.187.0 dig-down - whose family fence reads THIS constant too, so the
+// chain the v0.187.0 design awaited (converge on the lip, then close the last
+// mile by digging) finally opens its window for the most common below class.
+// The flat family (dy >= -0.5: the measured 0.0 x9 + the doomed 0.3 read)
+// keeps the legacy tight goal; the deep fence (-2.0 edge) and the above fence
+// (dy > 0) are untouched. Junk dy = the legacy PLANE.
+export const DROP_GOAL_BELOW_DY = -0.5 // the plane fence: below this the drop rests a cell UNDER the walk plane (the one-below class, v0.191.0; was -1 - the run190 fence-edge class sat exactly at the old edge)
 
 // (v0.189.0) THE ABOVE-PLANE LEDGE GOAL - the v0.178.0 sphere arithmetic
 // MIRRORED UP, now measured. MEASURED (fleet 36191851635, the v0.188.0

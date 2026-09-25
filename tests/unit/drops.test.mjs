@@ -189,7 +189,7 @@ test('dropGoalRange: at/above the walk plane keeps the legacy tight goal (the wa
   assert.equal(dropGoalRange({ dy: 0.5 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: half a block up is the measured ledge family (the +0.2 field class) - the flat legacy only holds AT the plane')
   assert.equal(dropGoalRange({ dy: 1 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: the measured head-height ledge class walks the wide goal')
   assert.equal(dropGoalRange({ dy: 2.5 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: the above-plane ledge class is MEASURED now (fleet 36191851635: dy +1.0 x6, +2.0 x3, +4.0) - the mirror cure ships')
-  assert.equal(dropGoalRange({ dy: -1 }), DROP_GOAL_PLANE, 'the fence boundary: exactly -1 is AT the plane (dy < fence widens)')
+  assert.equal(dropGoalRange({ dy: -1 }), DROP_GOAL_BELOW, 'RE-PINNED v0.191.0: exactly -1 is the measured one-below class (run190: x9 timeouts + the No-path + the doomed on SEVEN bots) - it joins the lip sphere')
 })
 
 test('dropGoalRange: a drop resting BELOW the walk plane gets the wide goal (the lip counts as arrival)', () => {
@@ -223,7 +223,7 @@ test('dropGoalRange: the constants pin (the planner is the ONLY range source)', 
   assert.equal(DROP_GOAL_BELOW, 2, 'the wide goal - the lip sphere (dy -1.5 + horizontal 1.0 = 1.8) converges')
   assert.equal(DROP_GOAL_ABOVE, 2, 'the above goal shares the same wide sphere (the ledge floor is a legal arrival - the v0.189.0 mirror)')
   assert.equal(DROP_GOAL_ABOVE_DY, 0, 'the ledge fence: strictly above the walk plane')
-  assert.equal(DROP_GOAL_BELOW_DY, -1, 'the plane fence: strictly below the walk plane')
+  assert.equal(DROP_GOAL_BELOW_DY, -0.5, 'RE-PINNED v0.191.0: the fence edge sits in the measured gap (the flat family reads >= 0, the one-below cell reads -0.7..-1.0) - was -1, the run190 class sat exactly at that edge')
   assert.equal(DROP_GOAL_DEEP_DY, -2, 'the deep fence: strictly below -2 the lip sphere cannot reach')
 })
 
@@ -358,9 +358,33 @@ test('dropGoalRange: a drop resting ABOVE the walk plane gets the wide goal (the
   assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'dy exactly 0.0 stays the legacy tight goal (the flat family converges INTO the magnet)')
 })
 
+test('dropGoalRange: the fence-edge below family walks the wide goal (the v0.191.0 measured class)', () => {
+  // run190 (fleet 36195869446): dy -1.0 x9 timeouts + x1 'No path' + x1 doomed,
+  // dy -0.7 x3 - the drop rests in the cell ONE BELOW the walk plane, sealed
+  // from above by the gallery floor: the range-1 ball holds no standable cell
+  // (every plane stance reads sqrt(lateral^2 + 1^2) >= sqrt(2) > 1.0) - the
+  // v0.178.0 spiral shape one fence-row lower than the -1 sample.
+  assert.equal(dropGoalRange({ dy: -0.7 }), DROP_GOAL_BELOW, 'the one-below cell with the entity lift joins the lip sphere')
+  assert.equal(dropGoalRange({ dy: -1.0 }), DROP_GOAL_BELOW, 'the one-below cell at the old fence edge joins the lip sphere')
+  assert.equal(dropGoalRange({ dy: -0.4 }), DROP_GOAL_PLANE, 'between the flat family and the new edge stays tight - nothing measured rides it')
+})
+
+test('lipDigWanted: the fence-edge below class arms the dig once it converges (the v0.187.0 window opens)', () => {
+  // the dig-down's family fence reads the SAME constant: a converged -0.7/-1.0
+  // lip arrival is the BELOW family now - the last mile digs.
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -0.7 }), true,
+    'the measured one-below cell: converge on the lip, then dig the last mile')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -1.0 }), true,
+    'the old fence edge: the family fence follows the constant')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -0.5 }), false,
+    'the new edge itself stays the plane family (converges into the magnet - no dig)')
+})
+
 test('dropGoalRange: the fence boundaries hold across all four verdicts (the plane/below/deep/above map)', () => {
   assert.equal(dropGoalRange({ dy: -0.1 }), DROP_GOAL_PLANE, 'just below zero is still the flat family')
-  assert.equal(dropGoalRange({ dy: -1.0 }), DROP_GOAL_PLANE, 'dy exactly -1.0 stays the legacy (the v0.178.0 fence edge)')
+  assert.equal(dropGoalRange({ dy: -0.5 }), DROP_GOAL_PLANE, 'the new fence edge itself reads plane (the fence is strict: dy < -0.5 widens)')
+  assert.equal(dropGoalRange({ dy: -0.7 }), DROP_GOAL_BELOW, 'the measured one-below cell with the entity lift (run190 x3)')
+  assert.equal(dropGoalRange({ dy: -1.0 }), DROP_GOAL_BELOW, 'RE-PINNED v0.191.0: dy exactly -1.0 is the measured fence-edge class (run190 x12 walks) - the old v0.178.0 edge row retired by measurement')
   assert.equal(dropGoalRange({ dy: -1.1 }), DROP_GOAL_BELOW, 'the below family keeps its wide goal')
   assert.equal(dropGoalRange({ dy: -2.0 }), DROP_GOAL_BELOW, 'the sphere edge stays BELOW (the v0.182.0 boundary)')
   assert.equal(dropGoalRange({ dy: -2.1 }), DROP_GOAL_SKIP, 'the deep class still skips')
