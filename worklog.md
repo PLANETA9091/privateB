@@ -4345,3 +4345,20 @@ Stage Summary:
 - FLEET OF RECORD: 36195563088 (the parallel lane's dispatch on 51452cf) - the ledge goal + the torch cap debuts ride it.
 - NEXT SESSION WATCH LIST: (a) the ABOVE-class conversions ('(dy +N, range 2)' successes; the 1.5-2.0 magnet-miss residue = the pillar-up candidate); (b) the torch cap declines + the coal redirected to the smelt leg (smelted 17 -> ?); (c) the dig-down window (count=0 x2 - retire or loosen by evidence if it stays dead); (d) the flat-class timeouts + the goal-brake hits; (e) the iron chain scale (the commune pool needs volume; iron=0 at tiers x12); (f) the climb-out chain + the starving-recovery gather escalation; (g) the creeper/skeleton surface class; NORMAL END.
 - TOOLS: run188/ holds the artifact; the (dy, range) instrument's family split delivered the measurement that derived this lane's cure - the instrument-first discipline works.
+Task ID: cron30-20260926-0600
+Agent: Super Z (cron lane, Job 414125)
+Task: one atomic improvement - the torch surplus (255 held / 6 placed, F16:95).
+
+Work Log:
+- Synced clean (origin 8a1d661). The 05:30 worklog-only push-CI pending (the tree code-verified by the fleet run's own gates) - not a blocker.
+- Baseline: syntax 193/0, unit 84/84.
+- Front pick (evidence): run35's placement ledger = 'dry' x19 and NOTHING else; 255 torches held fleet-wide at end (F16:95) vs torched=6 - a 42:1 hold-to-place ratio; the entry stocking is UNBOUNDED (min(spare, burnable)). The climb-out chain (ranked #1) rejected for the timebox: the v0.50.0 machinery is not an atomic trim. The deep-drop x41: the skips are cheap by design (no walk), conversions won 32 - not a pain.
+- v0.189.0 THE POCKET TORCH CAP shipped (4f0ae8c): torchCraftPlan reads heldTorches and tops the pocket at TORCH_POCKET_CAP=24 (batch-aligned floor((cap-held)/4); TORCH_SPACING 8 x ~18 rhythm slots + margin). Junk-safe: junk held reads 0 (never locks a dry pocket - the v0.137.0 restock self-sustains), junk cap reads NO cap (the true legacy byte for byte). The refusal family keeps its order (spare -> coal -> cap) and the cap-decline names itself ('craft torches: skip (the pocket torch cap: held N of 24 - ...)' - the v0.165.0 shape, rides the torch filter key). The placement rhythm untouched (one wall torch per shaft column is the v0.10.0 design).
+- COLLISION #16: the lane's d6a967d (v0.189.0 THE ABOVE-PLANE LEDGE GOAL - the (dy,range) instrument's own field debut split the failed walks, the plane family is overwhelmingly ABOVE-plane ledge drops) landed mid-flight; the rebase unioned clean (orthogonal files), renumbered to v0.190.0 (51452cf) per protocol p.4 - their refs (miner.mjs x2, drops.mjs x4, drops.test.mjs x7) untouched byte for byte.
+- Local: syntax 193/0, unit 84/84 (the cap family + the re-pinned legacy shape + the wiring pin).
+- DISPATCH NOTE: the first dispatch (36195563088) was superseded-cancelled by the lane's 44db1dd push (the pending-dispatch doctrine, the third field instance) - the re-dispatch rides THIS commit as the newest pending run.
+
+Stage Summary:
+- Master 51452cf -> this worklog commit (v0.190.0 THE POCKET TORCH CAP on the union tree: the ledge goal 0.189.0 + the torch cap 0.190.0 + the 05:00 stack). Next free version = 0.191.0.
+- THE DECODE WATCH LIST for the next fleet: 'the pocket torch cap' lines (held N of 24 - the converter trim's field debut); the torch surplus 255 -> ? (the cap holds pockets at 24); the smelt economy (smelted 17 -> ? with the converter's coal appetite trimmed); 'no coal' x208 -> ?; the lane's ledge-goal family ('timeout after 4000ms' x35 -> ?, the zero-pickup sweeps 4 -> ?); the climb-out chain (5 final-bank zeros - the next front candidate); NORMAL END, deaths 3 -> ?.
+- OPEN FRONTS: the climb-out chain (the shaft-bottom bank class), the coal ARRIVAL root (steering/pocket conversion), the fight economics (the engagement envelope).
