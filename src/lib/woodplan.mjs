@@ -1,4 +1,5 @@
 // Wood-gathering policy helpers (pure, unit-testable - no bot, no server).
+import { walkForbidden } from './nightsafety.mjs'
 //
 // The v0.6.9 Big Fleet exposed two ways a bot wastes its whole run on wood:
 //
@@ -101,3 +102,72 @@ export function tripDue ({ hasPick, emptyShafts, msSinceLast, remainingMs, caden
 // foot (~4 blocks/s plus pathfinding thought time), so every far shore failed as
 // 'unreachable'. 45s spans the licensed range with headroom for one detour.
 export const TRIP_WALK_MS = 45000
+
+// ---- v0.179.0: THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
+//
+// MEASURED (run20, fleet 36131508220, the v0.177.0 fleet, 19 bots x 600s):
+// 'no spare sticks: sticks 1 coals 0' x88 + 'sticks 0 coals 0' x30 - the torch
+// cadence skipped ~118 times and the fleet still only placed 13 torches; 'no fuel'
+// x34+ starved the smelt leg (smelted=13); the zombie x3 deaths sat in DEEP dark
+// shafts (F8 y=34, F4 y=49) - the torch famine feeds the underground death class.
+// The v0.137.0 sticks-for-torches cure needs >4 planks in the pocket - the famine
+// bots hold NO planks either (the pocket wood is CONSUMED, not hoarded), and
+// recoveryDue only fires when the PICKAXE is gone: a bot that holds its pickaxe
+// but burnt through its bootstrap wood in the first ~150s has NO wood lane left
+// for the rest of the run (no torches, no spare-pick sticks, no plank fuel).
+//
+// The cure: when the pocket's stick-equivalent supply runs dry below the floor,
+// the mining loop plans ONE wood trip - climb out, gatherWood (the proven
+// mechanics: map-targeted trunks, stall escape, replant), convert logs ->
+// planks -> sticks, return to the column. The gates mirror the bank trip's
+// discipline (a failed attempt must not retry-storm the loop) and the night
+// hold's lesson (a surface walk inside the walk-forbidden window is the
+// measured kill site - defer it: a deferred walk turns into more shaft).
+
+/** Stick-equivalent supply of one pocket: sticks as-is, 2 planks -> 4 sticks,
+ * 1 log -> 4 planks -> 8 sticks. Junk inputs count as zero. */
+export function stickSupply ({ sticks = 0, planks = 0, logs = 0 } = {}) {
+  const s = Number.isFinite(sticks) && sticks > 0 ? Math.floor(sticks) : 0
+  const p = Number.isFinite(planks) && planks > 0 ? Math.floor(planks) : 0
+  const l = Number.isFinite(logs) && logs > 0 ? Math.floor(logs) : 0
+  return s + 2 * p + 8 * l
+}
+
+/** Below this the bot cannot feed the torch cadence, a spare pickaxe AND an
+ * emergency plank fuel at once (run20's famine class reads 0-1 stick-equivalents;
+ * a healthy bootstrap pocket reads 26+). */
+export const STICK_FAMINE_FLOOR = 12
+/** One famine trip per run segment max - a failed forest scan must not storm the
+ * loop (the bank-trip cadence discipline). */
+export const WOOD_TRIP_EVERY_MS = 240000
+/** Climb out (~45s) + gatherWood (<=60s) + the return walk (~45s) must fit. */
+export const WOOD_TRIP_MIN_REMAINING_MS = 150000
+
+/**
+ * The stick-famine verdict for one mining-loop iteration.
+ * @param {object} p
+ * @param {number} p.sticks sticks held
+ * @param {number} p.planks planks held (all types summed)
+ * @param {number} p.logs logs held (all types summed)
+ * @param {boolean} p.hasPick does the bot hold a pickaxe (tool-less bots have
+ *   their own recovery lane - its bootstrap already gathers wood)
+ * @param {number} p.msSinceLast ms since the last famine attempt (Date.now() - 0
+ *   on a fresh bot = the whole run counts as elapsed)
+ * @param {number} p.remainingMs ms left until the run's deadline
+ * @param {number} p.timeOfDay bot.time.timeOfDay (the night hold reads it)
+ * @returns {'due'|'deferred-night'|false} 'deferred-night' ONLY when the pocket
+ *   is starving but the surface walk is night-gated (the loop logs it once and
+ *   keeps mining - the v0.140.1 hold shape); false = not starving or gated.
+ */
+export function famineDue ({ sticks, planks, logs, hasPick, msSinceLast, remainingMs, timeOfDay, cooldownMs = WOOD_TRIP_EVERY_MS, minRemainingMs = WOOD_TRIP_MIN_REMAINING_MS } = {}) {
+  if (!hasPick) return false
+  if (!Number.isFinite(msSinceLast) || msSinceLast <= cooldownMs) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
+  const supply = stickSupply({ sticks, planks, logs })
+  if (!Number.isFinite(supply) || supply >= STICK_FAMINE_FLOOR) return false
+  // the starving pocket's surface walk is night-gated LAST (the verdict must
+  // still name the famine on the next daylight iteration - the night line is
+  // the loop's deferral log, not a silent swallow)
+  if (typeof walkForbidden === 'function' && walkForbidden(timeOfDay)) return 'deferred-night'
+  return 'due'
+}

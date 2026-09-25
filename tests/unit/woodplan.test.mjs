@@ -6,7 +6,11 @@
 // re-bootstrap loop lives in testbed/fleet19.mjs and is exercised by the CI fleet.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { stalledButCraftable, recoveryDue, recoveryCooldownMs } from '../../src/lib/woodplan.mjs'
+import { stalledButCraftable, recoveryDue, recoveryCooldownMs, famineDue, stickSupply, STICK_FAMINE_FLOOR, WOOD_TRIP_EVERY_MS, WOOD_TRIP_MIN_REMAINING_MS } from '../../src/lib/woodplan.mjs'
+import { NIGHT_WALK_START, NIGHT_WALK_END } from '../../src/lib/nightsafety.mjs'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
 test('stall escape: below goodEnough logs the bot keeps gathering (never crafts a kit from 3 logs)', () => {
   assert.equal(stalledButCraftable({ logs: 0, goodEnough: 4, msSinceGain: 999999, stallMs: 25000 }), false)
@@ -110,4 +114,125 @@ test('recoveryCooldownMs: junk streaks fall back to the base cadence', () => {
   assert.equal(recoveryCooldownMs(undefined), 45000)
   assert.equal(recoveryCooldownMs(NaN), 45000)
   assert.equal(recoveryCooldownMs(-3), 45000)
+})
+
+// ---- v0.179.0: THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
+// run20 (fleet 36131508220, the v0.177.0 fleet) measured the famine class:
+// 'no spare sticks: sticks 1 coals 0' x88 + 'sticks 0 coals 0' x30, 'no fuel' x34,
+// torched=13, and the zombie x3 deaths in deep dark shafts. recoveryDue only owns
+// PICKAXE-LESS bots - a pickaxed bot with a dry wood pocket had no wood lane at all.
+
+test('stickSupply: the stick-equivalent arithmetic (sticks + 2*planks + 8*logs)', () => {
+  assert.equal(stickSupply({ sticks: 1, planks: 0, logs: 0 }), 1, 'run20 famine class: sticks 1 coals 0 planks 0')
+  assert.equal(stickSupply({ sticks: 0, planks: 0, logs: 0 }), 0)
+  assert.equal(stickSupply({ sticks: 2, planks: 12, logs: 0 }), 26, 'a healthy bootstrap pocket')
+  assert.equal(stickSupply({ sticks: 0, planks: 5, logs: 1 }), 18, 'odd planks floor() then 2x, logs 8x')
+  assert.equal(stickSupply({}), 0, 'no args is a dry pocket')
+})
+
+test('stickSupply: junk inputs count as zero (hostile telemetry never poisons the plan)', () => {
+  assert.equal(stickSupply({ sticks: NaN, planks: -5, logs: Infinity }), 0)
+  assert.equal(stickSupply({ sticks: '12', planks: null, logs: undefined }), 0)
+  assert.equal(stickSupply({ sticks: 2.7 }), 2, 'floors, never rounds up')
+})
+
+test('famineDue: the run20 famine class trips (sticks 1 planks 0 logs 0, pickaxe held, overdue, daylight, time to spare)', () => {
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000,
+    timeOfDay: 1000
+  }), 'due')
+})
+
+test('famineDue: a healthy pocket never trips', () => {
+  assert.equal(famineDue({
+    sticks: 2, planks: 12, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: 1000
+  }), false)
+})
+
+test('famineDue: floor boundary - supply 11 trips, supply 12 does not', () => {
+  const args = { hasPick: true, msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: 1000 }
+  assert.equal(STICK_FAMINE_FLOOR, 12)
+  assert.equal(famineDue({ ...args, sticks: 1, planks: 5, logs: 0 }), 'due', '1 + 2*5 = 11 < 12')
+  assert.equal(famineDue({ ...args, sticks: 2, planks: 5, logs: 0 }), false, '2 + 2*5 = 12 = floor: not starving')
+})
+
+test('famineDue: a tool-less bot stays with the recovery lane (its bootstrap gathers wood)', () => {
+  assert.equal(famineDue({
+    sticks: 0, planks: 0, logs: 0, hasPick: false,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: 1000
+  }), false)
+})
+
+test('famineDue: the cadence brake - one trip per WOOD_TRIP_EVERY_MS (a failed forest must not storm the loop)', () => {
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS, remainingMs: 300000, timeOfDay: 1000
+  }), false, 'exactly the cooldown: not due (the bank-trip boundary semantics)')
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS - 1, remainingMs: 300000, timeOfDay: 1000
+  }), false)
+})
+
+test('famineDue: the deadline guard - climb + gather + return must fit', () => {
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: WOOD_TRIP_MIN_REMAINING_MS, timeOfDay: 1000
+  }), false, 'exactly the floor: refuse')
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: WOOD_TRIP_MIN_REMAINING_MS - 1, timeOfDay: 1000
+  }), false)
+})
+
+test('famineDue: the night hold - a starving pocket INSIDE the walk-forbidden window defers (the measured kill site)', () => {
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: NIGHT_WALK_START + 1
+  }), 'deferred-night')
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: NIGHT_WALK_END - 1
+  }), 'deferred-night', 'the window end is exclusive')
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: 300000, timeOfDay: NIGHT_WALK_START - 1
+  }), 'due', 'dusk margin not yet: walk')
+})
+
+test('famineDue: junk clocks never trip and never defer (the legacy byte for byte)', () => {
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: NaN, remainingMs: 300000, timeOfDay: 1000
+  }), false, 'junk cadence clock: not due')
+  assert.equal(famineDue({
+    sticks: 1, planks: 0, logs: 0, hasPick: true,
+    msSinceLast: WOOD_TRIP_EVERY_MS + 1000, remainingMs: NaN, timeOfDay: 1000
+  }), false, 'junk remaining: not due')
+})
+
+test('REGRESSION PIN: the fleet log filter carries the wood trip key + the famine lines ride it (the v0.176.0 filter-blind lesson)', () => {
+  const fleetSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'testbed', 'fleet19.mjs'), 'utf8')
+  assert.ok(/combat\\|died\|KICKED\|error\\|climb\|water\\|scan:\\|hop\\|approach\\|swallowed\\|bank \\|deposit\\|torch\\|craft\\|smelt\\|fuel\\|vein sweep\|wood trip/.test(fleetSrc),
+    "the miner log filter includes 'wood trip' - the famine lines must reach the artifact")
+  for (const shape of [
+    'wood trip: famine (sticks ${woodPocket.sticks} planks ${woodPocket.planks} logs ${woodPocket.logs}) - gathering',
+    'wood trip: deferred night (tod=',
+    'wood trip: gathered (sticks ${after.sticks} planks ${after.planks} logs ${after.logs})',
+    'wood trip: 0 (climb refused)'
+  ]) {
+    assert.ok(fleetSrc.includes(shape), `the fleet emits the line shape: ${shape.slice(0, 40)}...`)
+  }
+  // the wiring shape: the famine gate reads famineDue and feeds the proven chain
+  assert.ok(fleetSrc.includes('famineDue({'), 'the loop calls famineDue')
+  assert.ok(fleetSrc.includes("await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 45 })"),
+    'the trip gathers wood with the bounded budget')
+  assert.ok(fleetSrc.includes("await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 30 })"),
+    'the trip converts logs -> planks -> sticks through the proven ensureTools chain')
+  assert.ok(fleetSrc.includes("await ensureSurface('wood trip')"),
+    'the trip climbs out through the shared ensureSurface gate')
+  assert.ok(fleetSrc.includes("label: 'return to column'") || fleetSrc.includes("'return to column'"),
+    'the trip returns the bot to its column')
 })

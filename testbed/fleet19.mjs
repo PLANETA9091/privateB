@@ -31,7 +31,7 @@ import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan } from '../src/lib/surface.mjs'
-import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS } from '../src/lib/woodplan.mjs'
+import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
@@ -746,7 +746,7 @@ async function runBot (name, target, index) {
           // lessons, measured twice now. The instrument's own prefix is the
           // key, not the refusal message's vocabulary: every instrument line
           // opens with 'vein sweep' - one keyword covers all four shapes.
-          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
@@ -966,6 +966,7 @@ async function runBot (name, target, index) {
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
       let lastSwordAttempt = 0 // (v0.67.0) sword-craft cooldown
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
+      let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
       const STEER_ORES = ['iron_ore', 'copper_ore', 'coal_ore'] // the underground trio the tunnel names can collect
@@ -1252,6 +1253,74 @@ async function runBot (name, target, index) {
               // (v0.16.4) the reason MUST reach the log - the invisible 'no chest in
               // range' zero cost fleet #122 its whole banking chain (v0.16.1 lesson)
               console.log(`${name} bank: 0 (${res.reason})`)
+            }
+          }
+        }
+        // (v0.179.0) THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
+        // run20 (36131508220) measured the famine class: 'no spare sticks: sticks 1
+        // coals 0' x88 + 'sticks 0 coals 0' x30 (the torch cadence skipped ~118x,
+        // torched=13), 'no fuel' x34 (the smelt leg starved, smelted=13), and the
+        // zombie x3 deaths in DEEP dark shafts (F8 y=34, F4 y=49). recoveryDue only
+        // owns PICKAXE-LESS bots - a bot holding its pickaxe but dry of wood had NO
+        // wood lane for the whole run. The pocket reads stick-equivalents (sticks +
+        // 2*planks + 8*logs, src/lib/woodplan.mjs): below the floor the loop climbs
+        // out ONCE, gatherWood (map-targeted trunks, the proven mechanics), converts
+        // logs -> planks -> sticks (ensureTools' chain), returns to the column. The
+        // night hold defers the surface walk ('a deferred walk turns into more
+        // shaft'); every line rides the 'wood trip' filter key (the v0.176.0 lesson).
+        const woodPocket = (() => {
+          try {
+            const inv = miner.bot.inventory.items()
+            const sum = re => inv.filter(i => re.test(i.name) && Number.isFinite(i.count)).reduce((a, i) => a + i.count, 0)
+            return {
+              sticks: sum(/^stick$/),
+              planks: sum(/_planks$/),
+              logs: sum(/_log$/),
+              hasPick: inv.some(i => i.name.includes('pickaxe'))
+            }
+          } catch { return null }
+        })()
+        if (woodPocket) {
+          const woodVerdict = famineDue({
+            sticks: woodPocket.sticks,
+            planks: woodPocket.planks,
+            logs: woodPocket.logs,
+            hasPick: woodPocket.hasPick,
+            msSinceLast: Date.now() - lastWoodAt,
+            remainingMs: deadline - Date.now(),
+            timeOfDay: miner.bot.time?.timeOfDay
+          })
+          if (woodVerdict === 'deferred-night') {
+            // one deferral line per night per bot (the lastNightLog discipline)
+            if (Date.now() - lastNightLog > 60000) {
+              lastNightLog = Date.now()
+              console.log(`${name} wood trip: deferred night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}, sticks ${woodPocket.sticks} planks ${woodPocket.planks} logs ${woodPocket.logs}) - gathering at dawn`)
+            }
+          } else if (woodVerdict === 'due') {
+            lastWoodAt = Date.now() // resets on EVERY attempt - a failed forest must not retry-storm the loop
+            console.log(`${name} wood trip: famine (sticks ${woodPocket.sticks} planks ${woodPocket.planks} logs ${woodPocket.logs}) - gathering`)
+            const preWood = miner.bot.entity.position.clone()
+            if (await ensureSurface('wood trip')) {
+              try {
+                await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 45 })
+              } catch { /* craft with whatever the walk reached */ }
+              // logs -> planks -> sticks + the kit chain: ensureTools is idempotent
+              // when the tools exist and converts the fresh logs the way the
+              // bootstrap always has (the proven craft path, no new mechanics)
+              try { await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 30 }) } catch { /* keep going */ }
+              const after = (() => {
+                try {
+                  const inv = miner.bot.inventory.items()
+                  const sum = re => inv.filter(i => re.test(i.name) && Number.isFinite(i.count)).reduce((a, i) => a + i.count, 0)
+                  return { sticks: sum(/^stick$/), planks: sum(/_planks$/), logs: sum(/_log$/) }
+                } catch { return { sticks: -1, planks: -1, logs: -1 } }
+              })()
+              console.log(`${name} wood trip: gathered (sticks ${after.sticks} planks ${after.planks} logs ${after.logs})`)
+              try {
+                await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, preWood.x, preWood.y, preWood.z, { range: 4 }), { timeoutMs: 60000, label: 'return to column' })
+              } catch { /* dig from wherever the return walk reached */ }
+            } else {
+              console.log(`${name} wood trip: 0 (climb refused)`)
             }
           }
         }
