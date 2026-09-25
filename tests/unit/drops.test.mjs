@@ -42,7 +42,13 @@ test('dropTargets: maxDistance filters, cap truncates the nearest', () => {
   assert.deepEqual(capped[1], pos(102, 50, 100))
   assert.equal(dropTargets(entities, FROM).length, 4, 'defaults keep everything within reach')
   assert.ok(SWEEP_DROP_REACH === 8 && SWEEP_DROP_CAP === 8, 'the sweep constants pin')
-  assert.ok(SWEEP_DROP_TIMEOUT_MS === 8000 && SWEEP_DROP_TOTAL_MS === 24000, 'the walk budgets pin')
+  // (v0.186.0) the probe half-step: the 4s walk budget covers the worst honest
+  // walk (reach 8 blocks x the 2x detour x 500ms/block = 4s, the CHEST_WALK
+  // arithmetic) and lets the 24s fence fit 6 probes; the total stays 24s
+  assert.ok(SWEEP_DROP_TIMEOUT_MS === 4000 && SWEEP_DROP_TOTAL_MS === 24000, 'the walk budgets pin (the v0.186.0 probe half-step)')
+  assert.ok(SWEEP_DROP_TIMEOUT_MS * 2 === 8000, 'the probe is HALF the legacy 8s - the doom class burns half')
+  assert.ok(SWEEP_DROP_TOTAL_MS / SWEEP_DROP_TIMEOUT_MS === 6, 'the fence fits 6 probes (was 3)')
+  assert.ok(SWEEP_DROP_REACH * 500 === SWEEP_DROP_TIMEOUT_MS, 'the probe covers the reach-8 walk at the house 500ms/block (the 2x detour is inside the 500ms, the CHEST_WALK arithmetic)')
 })
 
 test('dropTargets: non-item entities are skipped (mob, arrow, xp orb classes)', () => {

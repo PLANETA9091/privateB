@@ -20,7 +20,22 @@
 //     a capped list keeps the walk bounded like the surface precedents (slice 8).
 export const SWEEP_DROP_REACH = 8 // drops from swept cells sit <=4.5 away; scatter + fall gives margin
 export const SWEEP_DROP_CAP = 8 // the same per-batch cap sweep() and chopReachable use
-export const SWEEP_DROP_TIMEOUT_MS = 8000 // one drop's walk budget - a sealed gallery fails fast
+// (v0.186.0) THE PROBE HALF-STEP: 8000 -> 4000. MEASURED (fleet 36181152847, the
+// v0.185.0 union run): x28 drop walks died 'timeout after 8000ms' - ~224s of the
+// 24s-per-sweep fences burned by walks that NEVER converged - and only 8 of the
+// 28 were below-plane (the v0.178/v0.182 classes); 20 were FLAT range-1 walks to
+// drops within REACH 8, where the house walk arithmetic (500ms/block with the 2x
+// detour inside it - the CHEST_WALK rule) prices the worst honest walk at ~4s.
+// An 8s timeout only
+// ever served walks that were geometrically doomed at their stance (a stall, a
+// sealed face) - and it ate a THIRD of the batch fence per doomed probe. The 4s
+// probe keeps the full-detour geometry covered, lets the 24s SWEEP_DROP_TOTAL_MS
+// fence fit 6 probes instead of 3 (the converging-walk chances per batch DOUBLE),
+// and a walk cut at 4s leaves the drop for the next sweep - the v0.182.0
+// re-classify doctrine (a later sweep at a different stance may reach it); the
+// item despawn (300s) is ample. The same 2x-detour arithmetic as v0.18.5's
+// CHEST_WALK: bounded, never open-ended.
+export const SWEEP_DROP_TIMEOUT_MS = 4000 // one drop's walk budget - a sealed gallery fails faster
 export const SWEEP_DROP_TOTAL_MS = 24000 // the whole drop-walk budget - a bonus, never a clock burn
 
 // (v0.178.0) THE DROP GOAL RANGE - the below-plane drops get the forgiving goal.
