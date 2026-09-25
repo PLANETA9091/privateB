@@ -98,3 +98,32 @@ test('REGRESSION PIN: the tunnel keeps the same map hygiene (the steer eats its 
   // the import rides along - a missing import would throw the whole miner at boot
   assert.ok(minerSrc.includes("from '../lib/drops.mjs'"), 'the drops import is present in miner.mjs')
 })
+
+// ---- (v0.175.0) THE SWEEP DROP INSTRUMENT ----
+// run64 (36118883464): the v0.173.0 drop walk fired ZERO '+Nu walked' lines
+// across 29 sweeps (2-14 ores dug each) - and the walk is silent BOTH when
+// dropTargets sees nothing AND when every gotoSafe refuses into the silent
+// catch. The diag on the live testbed (testbed/diag-item-entities.mjs)
+// proved the item entities ARE tracked and named ('item', type=other), so
+// the pick filter is fine - the missing piece is the VERDICT.
+
+test('REGRESSION PIN: the sweep names its drop verdicts (the v0.175.0 instrument)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/vein sweep: \$\{targets\.length\} drop\(s\) in reach/.test(minerSrc),
+    'the sweep names the drop-target count once per sweep (the [] vs refused split)')
+  assert.ok(/the drop walk to \[\$\{Math\.round\(d\.x\)\}/.test(minerSrc),
+    'the walk failures name the cell and the refusal message (the doomed-goal / governor / water-rescue gate becomes readable)')
+  assert.ok(/the drop walks picked nothing \(pocket delta 0, \$\{dropFails\} failed walk\(s\)\)/.test(minerSrc),
+    'the zero-pickup end names itself with the failure count')
+  assert.ok(/if \(dropFails < 2\)/.test(minerSrc), 'the failure log is bounded (2 per sweep)')
+  assert.ok(/const targets = dropTargets\(bot\.entities, bot\.entity\?\.position, \{ maxDistance: SWEEP_DROP_REACH, cap: SWEEP_DROP_CAP \}\)/.test(minerSrc),
+    'the pick call shape unchanged (the read runs once per sweep, not per drop)')
+})
+
+test('diag-item-entities: the diag script exists for the next blind-run question', async () => {
+  const fs = await import('node:fs')
+  const diag = fs.readFileSync(new URL('../../testbed/diag-item-entities.mjs', import.meta.url), 'utf8')
+  assert.ok(/entitySpawn/.test(diag), 'the diag hooks the spawn events')
+  assert.ok(/name !.*== .player.|e\.name/.test(diag.replace(/\s/g, ' ')) || /e\.name/.test(diag), 'the diag dumps the entity names')
+})

@@ -2456,14 +2456,35 @@ export function createMiner ({
       // only digger that never did. One bounded walk, pocket-delta counted: a
       // sealed drop is left for the despawn, never a clock burn.
       if (dug > 0) {
+        // (v0.175.0) THE SWEEP DROP INSTRUMENT: run64 (36118883464, the union
+        // fleet) measured the v0.173.0 drop walk firing ZERO '+Nu walked'
+        // lines across 29 sweeps (2-14 ores dug each) while the pocket read
+        // coal-zero at every snapshot - and the walk is silent BOTH when
+        // dropTargets sees nothing AND when every gotoSafe refuses (the
+        // doomed-goal consult, the stall governor, the water-rescue gate all
+        // throw into the silent catch). The diag on the live testbed proved
+        // the item entities ARE tracked and named ('item', type=other), so
+        // the pick filter is fine - the missing piece is the VERDICT. Name
+        // the count once per sweep, name the first walk failures with the
+        // refusal message, name the zero-pickup end: the next fleet decodes
+        // WHICH gate eats the drops without another blind run.
         const load0 = inventoryLoad(bot).units
+        const targets = dropTargets(bot.entities, bot.entity?.position, { maxDistance: SWEEP_DROP_REACH, cap: SWEEP_DROP_CAP })
+        log(`${tag} vein sweep: ${targets.length} drop(s) in reach (${dug} dug)`)
         const dropFence = Date.now() + SWEEP_DROP_TOTAL_MS
-        for (const d of dropTargets(bot.entities, bot.entity?.position, { maxDistance: SWEEP_DROP_REACH, cap: SWEEP_DROP_CAP })) {
+        let dropFails = 0
+        for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
-          try { await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, 1), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' }) } catch { /* sealed drop stays behind */ }
+          try {
+            await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, 1), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
+          } catch (e) {
+            if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message}`)
+            dropFails++
+          }
         }
         const picked = Math.max(0, inventoryLoad(bot).units - load0)
         if (picked > 0) log(`${tag} vein sweep: +${picked}u walked from the drops (${dug} dug)`)
+        else if (targets.length > 0) log(`${tag} vein sweep: the drop walks picked nothing (pocket delta 0, ${dropFails} failed walk(s))`)
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)
