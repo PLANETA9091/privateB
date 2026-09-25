@@ -51,7 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip
+import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.186.0) the lip dig-down
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2475,6 +2475,7 @@ export function createMiner ({
         let dropFails = 0
         let belowFails = 0
         let skipDeep = 0
+        let lipDigs = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -2490,14 +2491,48 @@ export function createMiner ({
           // the walk was 8s of guaranteed spiral buying zero pickups. The
           // batch fence gets the 8s back; a later sweep at a different stance
           // may reclassify the same drop into the lip sphere.
-          const range = dropGoalRange({ dy: d.y - bot.entity.position.y })
+          // (v0.186.0) the converged BELOW arrival's last mile is the LIP
+          // DIG-DOWN below - the dig-under that closes the magnet gap.
+          const dyWalk = d.y - bot.entity.position.y
+          const range = dropGoalRange({ dy: dyWalk })
           if (range === DROP_GOAL_SKIP) { skipDeep++; continue }
+          let landed = false
           try {
             await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, range), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
+            landed = true
           } catch (e) {
-            if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message}`)
+            // (v0.186.0) the DY INSTRUMENT: the failed line names its dy family -
+            // the v0.178.0 below-plane cure's residue names only x6 of the run's
+            // x28 timeouts (fleet 36181152847); the rest are plane-range walks
+            // whose failure family is UNMEASURED (water holes? above-plane
+            // ledges? sealed cells?). The next decode splits the class by the
+            // (dy, range) pair it rides and the next cure derives from
+            // measurement, not speculation (the v0.178.0 above-plane stance).
+            if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range})`)
             dropFails++
             if (range === DROP_GOAL_BELOW) belowFails++
+          }
+          // (v0.186.0) THE LIP DIG-DOWN: a BELOW-class walk that CONVERGED parks
+          // the bot on the lip (3D dist ~1.8-2.0, the legal v0.178.0 arrival) -
+          // but the pickup magnet reaches ~1.5, so the drop rides the despawn
+          // outside reach (fleet 36181152847: x8 of the x11 zero-pickup sweeps
+          // logged ZERO failed walks - the arrival happened, the pickup didn't).
+          // Dig the ONE solid block under the lip stance: the bot drops 1-2 into
+          // the hole, the drop is at its feet, the magnet sweeps it. Every guard
+          // is a measured fence (src/lib/drops.mjs): the fall column reads 1..2
+          // air cells, the column reads DRY, the drop sits inside the lip sphere;
+          // junk anywhere refuses the dig (a missing read never arms an action).
+          if (landed && range === DROP_GOAL_BELOW) {
+            const dyLip = d.y - bot.entity.position.y
+            const feet = bot.entity.position.floored()
+            const airBelow = dropAheadBelow(feet, { depth: 3 })
+            const strike = fluidStrikeBelow(feet, { depth: 3 })
+            if (lipDigWanted({ range, airBelow, fluidBelow: strike !== null, dy: dyLip })) {
+              const cover = bot.blockAt(feet.offset(0, -1, 0))
+              if (cover && cover.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(cover.name)) {
+                try { await bot.fastDig(cover); lipDigs++ } catch { /* the dig-down is a bonus - never a failure */ }
+              }
+            }
           }
         }
         const picked = Math.max(0, inventoryLoad(bot).units - load0)
@@ -2505,6 +2540,7 @@ export function createMiner ({
         else if (targets.length > 0) log(`${tag} vein sweep: the drop walks picked nothing (pocket delta 0, ${dropFails} failed walk(s))`)
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
+        if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)

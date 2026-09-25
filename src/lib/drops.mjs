@@ -89,6 +89,47 @@ export function dropGoalRange ({ dy = 0 } = {}) {
   return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
 }
 
+// (v0.186.0) THE LIP DIG-DOWN - the range-2 arrival's LAST MILE. MEASURED
+// (fleet 36181152847, the v0.183.0+0.184.0+0.185.0 triple-union run): the
+// harvest converted (21 '+Nu walked' lines, 264 ores dug by 34 sweeps) but
+// 11 sweeps still ended 'the drop walks picked nothing (pocket delta 0)' -
+// and x8 of them logged ZERO failed walks. The walks CONVERGED and the
+// pocket gained NOTHING: a BELOW-class walk arrives on the lip (the
+// v0.178.0 cure's legal arrival, 3D dist ~1.8-2.0 <= 2.0) but the pickup
+// magnet only reaches ~1.5 (the v0.173.0 reading) - the drop sits OUTSIDE
+// the magnet exactly where the wide goal parked the bot. The v0.178.0 cure
+// traded the spiral for the lip arrival; the last 0.5-1.0 of 3D distance
+// never closed. THE CURE: after a BELOW-class walk CONVERGES with the drop
+// still un-picked, dig the ONE solid block the bot stands on (the lip's
+// floor over the drop's hole) - the bot drops 1-2 into the hole, the drop
+// is at its feet, the magnet sweeps it. The guards are all measured-class
+// fences, never new physics:
+//   - range must be the BELOW verdict (the plane class converges INTO the
+//     magnet already - a plane dig-under would be an unmeasured change);
+//   - the fall column must measure 1..2 air cells (dropAheadBelow's own
+//     probe - the below class IS a 1-2 deep freed cell; 0 = a sealed floor,
+//     3+ = the deep class the v0.182.0 fence already refuses to walk, and a
+//     zero-read window reports the WORST (3) so blind probes never dig -
+//     the v0.86.0 stale-window lesson);
+//   - the column must read DRY (a fluid strike refuses - water counts as
+//     empty to the bounding-box probe, so the wet read is its own guard);
+//   - the drop must still sit inside the lip sphere (dy >= the deep fence).
+// Every input must be MEASURED: a junk/missing read refuses the dig (a
+// missing read never arms an action - the junk-dy-keeps-legacy doctrine,
+// inverted for an actuator).
+export const LIP_DIG_MAX_AIR = 2 // the fall the dig-under may buy (the below class is a 1-2 deep freed cell)
+
+export function lipDigWanted ({ range, airBelow, fluidBelow, dy } = {}) {
+  if (range !== DROP_GOAL_BELOW) return false
+  if (!Number.isFinite(airBelow)) return false
+  const a = Math.floor(airBelow)
+  if (a < 1 || a > LIP_DIG_MAX_AIR) return false
+  if (fluidBelow !== false) return false // an unmeasured wet guard is a blind dig (the v0.86.0 lesson)
+  if (!Number.isFinite(dy)) return false
+  if (dy < DROP_GOAL_DEEP_DY) return false
+  return true
+}
+
 export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, cap = SWEEP_DROP_CAP } = {}) {
   if (!entities || typeof entities !== 'object') return []
   if (!from || typeof from.x !== 'number' || typeof from.y !== 'number' || typeof from.z !== 'number') return []

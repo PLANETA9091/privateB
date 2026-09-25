@@ -179,7 +179,7 @@ test("REGRESSION PIN: the harness log filter passes the sweep instrument (the v0
 // the drop rested 1-2 BELOW the walk plane (in the freed cell / down the fresh
 // shaft), the only standable cells were the gallery lip above, and every
 // recompute spiraled into the timeout. The below-plane drops walk range 2.
-import { dropGoalRange, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
+import { dropGoalRange, lipDigWanted, LIP_DIG_MAX_AIR, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
 
 test('dropGoalRange: at/above the walk plane keeps the legacy tight goal (the walk INTO the magnet)', () => {
   assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'a level drop - the flat gallery converges into the magnet')
@@ -225,7 +225,9 @@ test('dropGoalRange: the constants pin (the planner is the ONLY range source)', 
 test("REGRESSION PIN: the miner's drop walk reads the planner and names the below-plane verdict", async () => {
   const fs = await import('node:fs')
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes('dropGoalRange({ dy: d.y - bot.entity.position.y })'),
+  assert.ok(src.includes('const dyWalk = d.y - bot.entity.position.y'),
+    'the walk reads the per-drop dy once (the v0.186.0 dy instrument rides the same read)')
+  assert.ok(src.includes('dropGoalRange({ dy: dyWalk })'),
     'the walk goal range comes from the planner (per-drop dy, not a constant)')
   assert.ok(src.includes('new goals.GoalNear(d.x, d.y, d.z, range)'),
     'the GoalNear rides the planned range')
@@ -237,4 +239,82 @@ test("REGRESSION PIN: the miner's drop walk reads the planner and names the belo
     'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
   assert.ok(src.includes('deep drop(s) skipped (dy < -2'),
     'the skip verdict names itself under the instrument prefix too')
+})
+
+// ---- v0.186.0: THE LIP DIG-DOWN - the range-2 arrival's last mile.
+// MEASURED (fleet 36181152847, the triple-union run): 11 sweeps ended 'the
+// drop walks picked nothing (pocket delta 0)' and x8 of them logged ZERO
+// failed walks - the BELOW-class walks CONVERGED on the lip (the v0.178.0
+// legal arrival, 3D dist ~1.8-2.0) but the pickup magnet reaches ~1.5, so
+// the drop rode the despawn outside reach. The cure: after a converged
+// BELOW walk, dig the ONE solid block under the lip stance - the bot drops
+// into the hole, the drop is at its feet. Every guard is a measured fence;
+// every input must be MEASURED (a missing read never arms an action).
+
+test('lipDigWanted: a converged BELOW-class lip arrival with a measured dry 1-2 fall digs (the last mile)', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -1.5 }), true)
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 2, fluidBelow: false, dy: -1.7 }), true)
+})
+
+test('lipDigWanted: the plane class never digs (it converges INTO the magnet already)', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_PLANE, airBelow: 1, fluidBelow: false, dy: 0 }), false)
+  assert.equal(lipDigWanted({ range: DROP_GOAL_SKIP, airBelow: 1, fluidBelow: false, dy: -3 }), false)
+  assert.equal(lipDigWanted({ airBelow: 1, fluidBelow: false, dy: -1.5 }), false, 'a missing range refuses')
+})
+
+test('lipDigWanted: the fall fence - a sealed floor and a deep shaft refuse, the 1/2 window digs', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 0, fluidBelow: false, dy: -1.5 }), false,
+    'air 0 = a sealed floor - nothing to fall into')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 3, fluidBelow: false, dy: -1.5 }), false,
+    'air 3+ = the deep class the walk already refuses - no blind descent')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 2.9, fluidBelow: false, dy: -1.5 }), true,
+    'a fractional air read floors to 2 - the fence edge stays inside')
+})
+
+test('lipDigWanted: the wet guard - a fluid strike refuses, and an UNMEASURED guard refuses too (the v0.86.0 lesson)', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: true, dy: -1.5 }), false,
+    'a measured strike refuses the dig-under')
+  for (const junk of [undefined, null, 0, 1, 'dry', NaN]) {
+    assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: junk, dy: -1.5 }), false,
+      `fluidBelow=${String(junk)} is not the explicit false a dig requires`)
+  }
+})
+
+test('lipDigWanted: the junk battery - a missing read never arms an action (the doctrine inverted for an actuator)', () => {
+  for (const junk of [NaN, Infinity, -Infinity, 'x', null, {}, []]) {
+    assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: junk, fluidBelow: false, dy: -1.5 }), false,
+      `airBelow=${String(junk)} refuses the dig`)
+  }
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: NaN }), false,
+    'a junk dy refuses - the drop is not measured inside the lip sphere')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false }), false,
+    'a missing dy refuses')
+})
+
+test('lipDigWanted: the deep fence holds - a drop outside the lip sphere never buys a dig', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -2.1 }), false)
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -2.0 }), true,
+    'dy exactly -2.0 stays inside (the sphere edge, the v0.182.0 boundary)')
+})
+
+test('lipDigWanted: the constants pin', () => {
+  assert.equal(LIP_DIG_MAX_AIR, 2, 'the dig-under buys a 1-2 fall - the below class IS a 1-2 deep freed cell')
+})
+
+test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itself (the v0.186.0 wiring)", async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes("lipDigWanted, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family')
+  const landedAt = src.indexOf('let landed = false')
+  const digAt = src.indexOf('if (landed && range === DROP_GOAL_BELOW) {')
+  assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-class walk only')
+  const gateAt = src.indexOf('lipDigWanted({ range, airBelow, fluidBelow: strike !== null, dy: dyLip })')
+  assert.ok(gateAt > digAt, 'the verdict gates the dig (the probes feed it, nothing is hardcoded)')
+  assert.ok(src.includes('dropAheadBelow(feet, { depth: 3 })'), 'the fall column is the measured probe (zero reads report the worst)')
+  assert.ok(src.includes('fluidStrikeBelow(feet, { depth: 3 })'), 'the wet read is its own guard (fluids count as empty to the air probe)')
+  assert.ok(src.includes('await bot.fastDig(cover); lipDigs++'), 'the dig-under digs the cover block and counts')
+  assert.ok(src.includes('lip dig-down(s) - the range-2 arrival left the drop outside the magnet'),
+    'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
+  assert.ok(/failed - \$\{e\.message\} \(dy \$\{dyWalk\.toFixed\(1\)\}, range \$\{range\}\)/.test(src),
+    'the failed-walk line carries the (dy, range) instrument - the next decode splits the timeout class')
 })
