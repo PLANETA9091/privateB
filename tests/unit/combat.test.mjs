@@ -15,6 +15,7 @@ import {
   WITCH_CHASE_CEILING, witchFightStep,
   MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP,
   meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
+  foughtEntityGone,
   FIGHT_DEADLINE_MS, MELEE_REACH,
   RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive
 } from '../../src/lib/combat.mjs'
@@ -573,8 +574,51 @@ test('REGRESSION PIN: the fight loop wires the finish (v0.169.0)', async () => {
     'every swing resets the knockback ledger (a fresh swing starts a fresh return)')
   assert.ok(/threat\.name === 'witch' \? 10000 : FIGHT_DEADLINE_MS/.test(minerSrc),
     'the melee deadline is the named constant; the witch keeps her 10s drain contract')
-  assert.ok(/Number\.isFinite\(lastTargetId\) && !bot\.entities\.has\(lastTargetId\)/.test(minerSrc),
-    'the kill ledger reads the entity map (the removal IS the death)')
+  assert.ok(/Number\.isFinite\(lastTargetId\) && !bot\.entities\.has\(lastTargetId\)/.test(minerSrc) === false,
+    'the Map-style .has() read is GONE - mineflayer\'s entity index is a plain object, .has threw on the first acquired target (the run74 silent-episode bug)')
+  assert.ok(/foughtEntityGone\(bot\.entities, lastTargetId\)/.test(minerSrc),
+    'the kill ledger reads the plain-object index through the junk-safe pure read')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(/kills=\$\{list\.reduce/.test(fleetSrc), 'the fleet report carries the kill ledger')
+})
+
+// ---- (v0.171.0) THE KILL LEDGER READ - the run74 silent-episode bug ----
+// run74 (36104370574, the union fleet): fights=40, ZERO 'fight ended' lines.
+// The v0.169.0 ledger read bot.entities.has(id) - mineflayer's entity index
+// is a PLAIN OBJECT (entities = {}, numeric keys), so .has threw a TypeError
+// on the first round after a target was acquired; the call-site .catch
+// swallowed it, the finally reset defending, and the next sentry tick
+// re-opened the episode: one swing per episode, forever, no kill ever read.
+
+test('foughtEntityGone: the plain-object entity index read (the v0.171.0 cure)', () => {
+  const idx = { 42: { id: 42, name: 'zombie' }, 7: { id: 7, name: 'skeleton' } }
+  assert.equal(foughtEntityGone(idx, 42), false, 'the fought entity is present: not gone')
+  assert.equal(foughtEntityGone(idx, 99), true, 'the id left the index: THE KILL SIGNAL')
+  const goneIdx = { 7: { id: 7 } }
+  assert.equal(foughtEntityGone(goneIdx, 42), true, 'the mob was removed between rounds')
+  // junk id battery: never claim a kill on a broken ledger
+  assert.equal(foughtEntityGone(idx, null), false, 'no target acquired yet: not gone')
+  assert.equal(foughtEntityGone(idx, undefined), false)
+  assert.equal(foughtEntityGone(idx, NaN), false)
+  assert.equal(foughtEntityGone(idx, '42'), false, 'a string id is junk, not a reading')
+  assert.equal(foughtEntityGone(idx, 42.5), false, 'a fractional id is junk')
+  // junk index battery: an unreadable index never claims a kill
+  assert.equal(foughtEntityGone(null, 42), false, 'null index: the sensor is broken, trust the mob')
+  assert.equal(foughtEntityGone(undefined, 42), false)
+  assert.equal(foughtEntityGone(42, 42), false, 'a non-object index is unreadable')
+  assert.equal(foughtEntityGone([], 42), false, 'an array index is not the entity index')
+  // the real shape: mineflayer inits entities = {} (numeric keys stringify)
+  const live = {}
+  live[42] = { id: 42 }
+  assert.equal(foughtEntityGone(live, 42), false, 'the live plain-object shape reads present')
+  delete live[42]
+  assert.equal(foughtEntityGone(live, 42), true, 'the live plain-object shape reads the removal')
+})
+
+test('REGRESSION PIN: the silent-episode bug class is dead (no Map reads on bot.entities in the fight lane)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(!/bot\.entities\.has\(/.test(minerSrc), 'no .has() on bot.entities anywhere in miner (the index is a plain object)')
+  assert.ok(/exit = 'mob down'/.test(minerSrc), 'the kill exit stands')
+  assert.ok(/stats\.kills\+\+/.test(minerSrc), 'the kill counter stands')
 })

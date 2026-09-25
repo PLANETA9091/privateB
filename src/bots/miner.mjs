@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, cooldownTicksForWeapon, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -984,8 +984,11 @@ export function createMiner ({
         // (v0.169.0) THE KILL LEDGER: the fought entity left bot.entities -
         // the swing landed. The episode ends NAMED ('mob down') and the kill
         // is counted: run78's ten fight-end lines carried ZERO kills and the
-        // mine could not even ask whether the mobs ever died.
-        if (Number.isFinite(lastTargetId) && !bot.entities.has(lastTargetId)) {
+        // mine could not even ask whether the mobs ever died. (v0.171.0) the
+        // read is foughtEntityGone - mineflayer's entity index is a PLAIN
+        // OBJECT, the Map-style .has() call threw on the first acquired
+        // target and run74's forty episodes died silently after one round.
+        if (foughtEntityGone(bot.entities, lastTargetId)) {
           exit = 'mob down'
           stats.kills++
           break

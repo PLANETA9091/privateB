@@ -411,6 +411,34 @@ export function cooldownTicksForWeapon (name) {
   return WEAPON_COOLDOWN_DEFAULT_TICKS
 }
 
+// (v0.171.0) THE KILL LEDGER READ - run74 (36104370574, the union fleet @ the
+// honest 600s) caught the v0.169.0 field test flying BLIND: fights=40, ZERO
+// 'fight ended' lines, the episodes dying silently after one round. The bug:
+// the ledger read bot.entities.has(lastTargetId) - mineflayer's entity index
+// is a PLAIN OBJECT (entities = {}, numeric keys), .has is not a function,
+// the TypeError fired on the first round after a target was acquired, the
+// call-site .catch swallowed it, defending reset in the finally, and the
+// next sentry tick re-opened the episode: one swing per episode, forever.
+// The read is now the plain-object read, extracted so the contract is
+// testable: mineflayer's entity index keyed by entity id (entities[id] is
+// the entity or undefined once the mob is gone).
+/**
+ * Whether the fought entity has left mineflayer's entity index - the kill
+ * signal. Junk-safe: a non-finite id never claims a kill, an unreadable
+ * index never claims one either (the episode keeps running on the nearest
+ * hostile read - never trust a broken sensor over a live mob).
+ * @param {object|Map|null} [entities] mineflayer's bot.entities (a plain
+ *   object keyed by entity id; null/undefined = unreadable)
+ * @param {number|null} [lastId] the fought entity's id (junk -> not gone)
+ * @returns {boolean} true ONLY when the id is finite and the index reads it
+ *   as absent
+ */
+export function foughtEntityGone (entities, lastId) {
+  if (!Number.isInteger(lastId)) return false // entity ids are integers; everything else is junk
+  if (!entities || typeof entities !== 'object' || Array.isArray(entities)) return false
+  return entities[lastId] == null
+}
+
 // (v0.140.0) THE RANGED-FIGHT COOLDOWN - run554's skeleton cascade named the
 // reopen shape: "melee chase ceiling held ... the next drop reopens it" armed
 // the budget, and the next ARROW spent it again. F2's episode chain: hp 19.0
