@@ -1,4 +1,4 @@
-// v0.187.0 THE HOP VERTICAL DOOM GATE - the deposit hop loop's per-chest
+// v0.188.0 THE HOP VERTICAL DOOM GATE - the deposit hop loop's per-chest
 // consult of the strict verticalDoomPlan arithmetic.
 //
 // MEASURED (run47 = fleet 36181152847, the triple-union fleet, F19's bank
@@ -21,7 +21,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const depositSrc = readFileSync(join(here, '../../src/lib/deposit.mjs'), 'utf8')
 const fleetSrc = readFileSync(join(here, '../../testbed/fleet19.mjs'), 'utf8')
 
-test('v0.187.0 wiring: the hop loop consults chestVerticalDoom BEFORE the deposit walk, the skip joins the tried-set', () => {
+test('v0.188.0 wiring: the hop loop consults chestVerticalDoom BEFORE the deposit walk, the skip joins the tried-set', () => {
   const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger })')
   assert.ok(walkIdx > -1, 'the hop loop walk anchor exists')
   const gateIdx = depositSrc.indexOf('const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })')
@@ -34,15 +34,15 @@ test('v0.187.0 wiring: the hop loop consults chestVerticalDoom BEFORE the deposi
   assert.match(depositSrc, /import \{ chestVerticalDoom \} from '\.\/surface\.mjs'/, 'the predicate rides the surface.mjs import')
 })
 
-test('v0.187.0 wiring: the fleet filter-key lets the chest skip lines surface', () => {
+test('v0.188.0 wiring: the fleet filter-key lets the chest skip lines surface', () => {
   // run47 measured the blind spot: ZERO 'chest skip' lines in fleet19.log -
   // the v0.62/v0.65/v0.72 ledger skips were invisible to every decode. The
-  // v0.187.0 line joins the filter regex so the doom class AND the three
+  // v0.188.0 line joins the filter regex so the doom class AND the three
   // ledger families become countable.
   assert.match(fleetSrc, /combat\|died\|KICKED\|error\|climb\|water\|scan:\|hop\|chest skip\|/, 'chest skip rides the fleet filter-key regex')
 })
 
-test('v0.187.0 the F19 chain arithmetic: the run47 hop anatomy dooms, the hillside and the walkable band stay legacy', () => {
+test('v0.188.0 the F19 chain arithmetic: the run47 hop anatomy dooms, the hillside and the walkable band stay legacy', () => {
   // The F19 shape: a deep bot (y~44) against the y=72 yard rows - dy 28,
   // lateral under the vertical (24b). Strict doom.
   const f19 = verticalDoomPlan({ botY: 44, yardY: 72, lateral: 24 })
@@ -67,7 +67,7 @@ test('v0.187.0 the F19 chain arithmetic: the run47 hop anatomy dooms, the hillsi
   assert.ok(Number.isFinite(VERTICAL_DOOM_MIN_DY) && VERTICAL_DOOM_MIN_DY === 20, 'the band floor stays the shared constant')
 })
 
-test('v0.187.0 junk safety: unreadable positions read no-doom - the legacy hop runs byte for byte', () => {
+test('v0.188.0 junk safety: unreadable positions read no-doom - the legacy hop runs byte for byte', () => {
   assert.equal(chestVerticalDoom({ botPos: null, chestPos: { x: 1, y: 90, z: 1 } }).doom, false)
   assert.equal(chestVerticalDoom({ botPos: { x: 1, y: 44, z: 1 }, chestPos: null }).doom, false)
   assert.equal(chestVerticalDoom({ botPos: { x: 1, y: NaN, z: 1 }, chestPos: { x: 1, y: 90, z: 1 } }).doom, false)

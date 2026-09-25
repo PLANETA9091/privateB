@@ -137,7 +137,7 @@ test('diag-item-entities: the diag script exists for the next blind-run question
 test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 filter-blind lesson)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  // (v0.187.0) the chest skip key joined the filter (the hop vertical doom
+  // (v0.188.0) the chest skip key joined the filter (the hop vertical doom
   // gate's line + the three ledger skips the filter had kept invisible) - the
   // pin tolerates its presence beside hop while still pinning the sweep key.
   assert.ok(/combat\|died\|KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),

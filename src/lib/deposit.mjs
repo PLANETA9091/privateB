@@ -8,7 +8,7 @@ import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS)
-import { chestVerticalDoom } from './surface.mjs' // (v0.187.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
+import { chestVerticalDoom } from './surface.mjs' // (v0.188.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -1477,7 +1477,7 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         continue
       }
     }
-    // (v0.187.0) THE HOP VERTICAL DOOM GATE - the last un-gated walk site for
+    // (v0.188.0) THE HOP VERTICAL DOOM GATE - the last un-gated walk site for
     // the deep-bot vertical class. MEASURED (run47 = fleet 36181152847, the
     // triple-union fleet, F19's bank chain): seven hops from y~44 to the y=72
     // yard rows (dy ~28 over ~24b lateral) - 2x 'Took to long to decide path
