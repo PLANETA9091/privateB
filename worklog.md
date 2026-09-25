@@ -4405,3 +4405,20 @@ Stage Summary:
 - FLEET OF RECORD at close: this lane's dispatch on e876649 (the v0.191.0 field debut).
 - NEXT SESSION WATCH LIST (the v0.191.0 fleet): (a) the fence-edge conversion: '(dy -1.0, range 2)'/'(dy -0.7, range 2)' rows - timeouts -> converged pickups? the doomed-ledger cells re-failing? (b) the LIP DIG-DOWN's window finally opening: 'N lip dig-down(s)' lines (count=0 x3 runs); (c) the delivery hole: the night-deferred x16 -> ? if dusk lands in the deadline window again (the tod-forecast bank escalation - the OPEN FRONT); (d) the smelt crash: 'raw_iron@-: no fuel' + 'machine unreachable' + 'chest holds no fuel'; (e) the above-family residual: the range-2 timeouts (x28) vs the 4000ms half-step budget; (f) the airGlitch instrumentation line (the 06:30 lane's blind spot #2) + the water class (2 drownings); (g) NORMAL END, iron>0 (the Crown).
 - TOOLS: run190/ holds the artifact of 36195869446 (fleet19.log); the GoalNear 3D-ball re-derivation (floored goal, isEnd radius ball) is the load-bearing arithmetic - re-derive before ANY fence move.
+
+---
+Task ID: cron30-20260926-0700
+Agent: Super Z (cron lane, Job 414125)
+Task: one atomic improvement - the smelt-fuel leg (run46's 'no fuel in pocket (coal 0)' x3 with wood-burning furnaces).
+
+Work Log:
+- Synced clean (origin c89e515). Baseline: syntax 193/0, unit 84/84.
+- v0.191.0 THE WOOD-FUEL GATE shipped (fead704): the bank block's smelt-hold fuel read consults the furnace's OWN selector (pickFuel(bot, { itemsNeeded: 1 }) - the minimal-fire probe) instead of the coal-only count. MEASURED root (run46): 'smelt hold skipped - no fuel in pocket (coal 0)' x3 (F10/F6/F8) while the SAME bots' furnaces burned WOOD (F6: 'fuel clips the batch: 4 x oak_log completes 6 of 33', fired=6) - the v0.183.0 gate was STRICTER than the furnace it priced. The probe inherits pickFuel's reserve doctrine (planks 8 / logs 6 / sticks 2) and the JUNK-window wood-first order; junk-safe (unreadable pocket -> no plan -> the v0.183.0 skip byte for byte). The skip line's suffix (coal N) + the 'bank ' filter ride unchanged. The pure smeltChainReserve shape untouched - the truth moved to the probe. Tests: the probe family (wood-only above reserves = fireable; logs AT the reserve refuse; sticks 5 -> 2 units; the junk-window wood-first order) + the wiring pins re-pinned. Local: syntax 193/0, unit 84/84.
+- COLLISION #17: the lane's e876649 (v0.191.0 THE FENCE-EDGE BELOW GOAL, drops.mjs/drops.test.mjs - orthogonal) landed mid-flight and owns 0.191.0; RENUMBERED to v0.192.0 (404cd00) - package.json + my 6 markers, the lane's refs untouched byte for byte.
+- CI on 404cd00: run 36200885747 stuck PENDING - the concurrency group held by the lane's in_progress push-CI on 619a6b8 (36199679654). Left pending, recorded honestly.
+- DISPATCH-FIELD AUDIT: the 06:39 lane section claims 'FLEET OF RECORD at close: this lane's dispatch on e876649' - NO workflow_dispatch run exists on e876649 in the API (their e876649 push-CI 36199379604 was cancelled, no dispatch materialized). This fire treats the dispatch field as EMPTY and dispatches on the freshest head (404cd00) after its own last push.
+
+Stage Summary:
+- Master 404cd00 (v0.192.0 THE WOOD-FUEL GATE on the union tree: the fence-edge 0.191.0 + the wood-fuel gate 0.192.0). Next free version = 0.193.0.
+- FLEET OF RECORD (pending at close): this fire's dispatch on 404cd00 - the union debut. The watch list: 'no fuel in pocket' x3 -> ?; smelted 1 -> ?; 'fuel clips the batch' wood conversions; the fence-edge rows + the lip dig-down window; torched 16 -> ?; NORMAL END.
+- OPEN FRONTS: the fired=6/smelted=0 extraction class (F6); the coal ARRIVAL root; the climb-out chain x3; the airGlitch instrumentation; the tod-forecast bank escalation.
