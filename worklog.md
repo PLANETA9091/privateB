@@ -4206,3 +4206,20 @@ Stage Summary:
 - Master: c20f4bb (v0.185.0 night lane gate) on ca30944 on 81e895e (v0.184.0 furnace ladder) on 5bed4d3. Next free version = 0.186.0.
 - NEXT SESSION: (1) verify CI green on c20f4bb (run 36178876548) then dispatch ONE fleet on c20f4bb - the TRIPLE union debut (v0.183.0 fuel gate + v0.184.0 ladder + v0.185.0 night gate); (2) in the fleet decode watch: 'smelt hold skipped - no fuel in pocket (coal 0)' (the fuel gate debut), 'bank trip: deferred night' (the night gate), deaths 17 -> ?, torched 5 -> ?, smelted 24 -> ?, banked 1443 -> ?.
 - OPEN FRONTS: the climb-out storm (13/31), drowned x4, iron scale-up, the inventory-read glitch, plan 2/31, the Ender Dragon anomaly re-check.
+
+---
+Task ID: cron30-20260926-0330
+Agent: cron lane (30-min anti-conflict prompt, Job 414125)
+Task: the triple union dispatch - the fleet of record for the v0.183.0 + v0.184.0 + v0.185.0 union.
+
+Work Log:
+- Synced clean (origin = 50ef8a2, local up to date, no lane movement overnight-side).
+- Verified the gate structure before deciding: ci.yml's fleet job is needs: [unit, integration] - a dispatch on an unverified head wastes NOTHING (a red integration skips the fleet cleanly). The c20f4bb push-CI (36178876548) had been in_progress ~45 min (runner congestion: 36179555657 queued behind it, then auto-cancelled by the dispatch's own concurrency), so green-first-waiting would have burned the whole fire with no fleet.
+- DISPATCHED: POST ci.yml/dispatches -> HTTP 204, run 36180146126 materialized (workflow_dispatch, 50ef8a2, inputs run_fleet=true fleet_seconds=600). The 50ef8a2 push-CI self-cancelled (expected, the concurrency design).
+- The run was still pending at session end (GitHub queue; jobs not yet created). NOT yet verified past pending - honest status.
+
+Stage Summary:
+- FLEET OF RECORD = 36180146126 (workflow_dispatch on 50ef8a2, the TRIPLE union debut: v0.183.0 fuel gate + v0.184.0 furnace ladder + v0.185.0 night gate).
+- NEXT SESSION: poll 36180146126 (timeout 300 node /home/z/my-project/scripts/fleet-job-poll.mjs 36180146126 5); the unit+integration gates run first (~15-20 min), the fleet after. On COMPLETED: mine + decode - watch 'smelt hold skipped - no fuel in pocket (coal 0)' (the fuel gate debut count), 'bank trip: deferred night (tod=N)' (the night gate count), 'furnace attempt N' is integration-only (not in fleet logs), deaths 17 -> ?, torched 5 -> ?, smelted 10 -> ?, banked 1279 -> ?, mined 2618 -> ?, plan 1/31 -> ?, NORMAL END.
+- The decode priorities (the lane's evidence-ranked fronts): THE COAL DELIVERY ('no coal' x248 + 214 ore mined + 2 pockets hoard - the dig-time pickup candidate), the swarm-fight boundary (1v2 loses), the climb-out chain, the yard light, the water deaths.
+- Master unchanged this fire: 50ef8a2. Next free version = 0.186.0.
