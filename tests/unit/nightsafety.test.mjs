@@ -65,11 +65,34 @@ test('torchDue: lights every TORCH_EVERY blocks while torches are held', () => {
 // walk-forbidden window; every other purpose and every daylight hour walks.
 
 test('surfaceHoldVerdict: the measured kill-site purposes hold inside the night window', () => {
-  assert.deepEqual([...SURFACE_HOLD_PURPOSES].sort(), ['final-bank', 'respawn-bootstrap'], 'the pinned purposes')
+  assert.deepEqual([...SURFACE_HOLD_PURPOSES].sort(), ['final-bank', 'mid-bank', 'pre-position', 'respawn-bootstrap'], 'the pinned purposes (v0.185.0 grows the set to the two mid-run night lanes)')
   assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'final-bank' }), 'hold', 'midnight final bank holds')
   assert.equal(surfaceHoldVerdict({ timeOfDay: 12400, purpose: 'final-bank' }), 'hold', 'the dusk margin already holds')
   assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'respawn-bootstrap' }), 'hold', 'the naked respawn holds')
   assert.equal(surfaceHoldVerdict({ timeOfDay: 23599, purpose: 'respawn-bootstrap' }), 'hold', 'the dawn tail still holds')
+})
+
+// ---- v0.185.0 THE NIGHT LANE GATE - the mid-run lanes join the hold ----
+// run182 (36167325733): 11 of the 17 deaths in the dusk tail (tod 12400+),
+// x12 mob kills (zombie x6 all at y 64-66); the mid-run bank trip's own
+// chain (climb + yard walk + the return) and the pre-position's last-90s
+// window were the two surface lanes no gate covered, and the pre-positioned
+// bot the final-bank hold then strands AT the dark yard (F18 [-70,65,419]).
+
+test('surfaceHoldVerdict: the mid-run bank trip and the pre-position hold inside the night window (v0.185.0)', () => {
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'mid-bank' }), 'hold', 'midnight bank trips hold')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12400, purpose: 'mid-bank' }), 'hold', 'the dusk margin already holds the bank trip')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 23599, purpose: 'mid-bank' }), 'hold', 'the dawn tail still holds the bank trip')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'pre-position' }), 'hold', 'midnight pre-positions hold')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12400, purpose: 'pre-position' }), 'hold', 'the dusk margin already holds the pre-position')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 23599, purpose: 'pre-position' }), 'hold', 'the dawn tail still holds the pre-position')
+})
+
+test('surfaceHoldVerdict: the mid-run lanes walk in daylight (the legacy shape by day)', () => {
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 0, purpose: 'mid-bank' }), 'go', 'sunrise banks')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12399, purpose: 'mid-bank' }), 'go', 'the last safe tick walks the trip')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 0, purpose: 'pre-position' }), 'go', 'sunrise pre-positions')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: 12399, purpose: 'pre-position' }), 'go', 'the last safe tick pre-positions')
 })
 
 test('surfaceHoldVerdict: daylight and the dawn release walk', () => {
@@ -85,6 +108,25 @@ test('surfaceHoldVerdict: junk-safe - an unreadable clock or purpose never holds
   assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: 'map-trip' }), 'go', 'ungated purposes walk (the trip lane has its own gate)')
   assert.equal(surfaceHoldVerdict({ timeOfDay: 15000, purpose: null }), 'go')
   assert.equal(surfaceHoldVerdict({}), 'go')
+  // (v0.185.0) the new purposes inherit the junk contract byte for byte: an
+  // unreadable clock NEVER holds the mid-run lanes (a missing read never
+  // widens a refusal - the v0.181.0 doctrine)
+  assert.equal(surfaceHoldVerdict({ timeOfDay: NaN, purpose: 'mid-bank' }), 'go', 'junk clock walks the bank trip (legacy)')
+  assert.equal(surfaceHoldVerdict({ timeOfDay: undefined, purpose: 'pre-position' }), 'go', 'junk clock walks the pre-position (legacy)')
+})
+
+test('REGRESSION PIN: the v0.185.0 night lane gate rides the fleet source', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the bank gate consults the hold on the mid-bank purpose and the refusal
+  // names itself riding the 'bank ' key (the wood trip's 'deferred night'
+  // line is the field-proven template)
+  assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'mid-bank' \}\) === 'hold'/, 'the bank gate consults the hold on the mid-bank purpose')
+  assert.match(fleetSrc, /const bankViable = !bankNightHold && \(tripPlanned \|\| needsBankingTripViable/, 'the night hold gates BOTH the planned and the pockets-full paths')
+  assert.match(fleetSrc, /bank trip: deferred night \(tod=/, 'the hold names itself in the bank lane')
+  assert.match(fleetSrc, /the yard walk rides out the dark alive/, 'the deferral names the doctrine')
+  // the pre-position gate: the walk-forbidden read sits INSIDE the try, ahead
+  // of prePositionDue (junk clock falls through to the legacy walk)
+  assert.match(fleetSrc, /if \(walkForbidden\(miner\.bot\.time\?\.timeOfDay\)\) return false\n\s*return prePositionDue/, 'the pre-position holds underground when the clock forbids the walk')
 })
 
 test('REGRESSION PIN: the v0.140.1 night hold rides the fleet source', () => {

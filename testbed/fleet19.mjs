@@ -889,6 +889,16 @@ async function runBot (name, target, index) {
         if (!yardGoal || !miner.bot?.entity) return false
         if (!bankableNow()) return false // nothing to bank - keep digging to the last second
         try {
+          // (v0.185.0) THE NIGHT LANE GATE: the pre-position IS a forced
+          // surface walk (the climb + the 48+ block yard walk fire inside the
+          // last 90s - run182's window overlapped the walk-forbidden clock),
+          // and the v0.140.1 hold it ignored strands the pre-positioned bot
+          // AT a dark yard when the final bank then holds: F18 died at
+          // [-70,65,419] sheltering from a skeleton with a zombie@1.5 walking
+          // in. Hold underground instead - the bot keeps digging to the last
+          // second (bankableNow already says so) and the final-bank hold owns
+          // the pocket. Junk clock walks (the legacy shape byte for byte).
+          if (walkForbidden(miner.bot.time?.timeOfDay)) return false
           return prePositionDue({
             remainingMs: deadline - Date.now(),
             yardDist: miner.bot.entity.position.distanceTo(yardGoal)
@@ -1232,7 +1242,19 @@ async function runBot (name, target, index) {
         // refusal logs ONCE per window, never every loop iteration.
         const bankRemainingMs = deadline - Date.now()
         const bankWanted = !!(needsBanking(miner.bot) || tripPlanned)
-        const bankViable = tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs })
+        // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
+        // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
+        // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full
+        // trip's own chain (climb-out + yard walk + the return to the column)
+        // is a night surface walk that no other gate covered (map/wood/final-
+        // bank/respawn-bootstrap all gate; this lane did not). A held trip
+        // keeps the bot MINING underground - the end-phase owns the deadline
+        // banking exactly as the doomed gate's refusal says, and the DEATH is
+        // the only real loss (the v0.140.1 doctrine). Junk clock walks (the
+        // legacy shape byte for byte). Rides the 'bank ' filter key so the
+        // next fleet sizes the held class.
+        const bankNightHold = surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'mid-bank' }) === 'hold'
+        const bankViable = !bankNightHold && (tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs }))
         if (load && bankWanted && bankViable) {
           lastBankAt = Date.now()
           // (v0.17.3) remember WHERE we work: after banking at the yard the bot
@@ -1280,8 +1302,17 @@ async function runBot (name, target, index) {
           // (lastBankAt advances - the pockets-full state re-checks in 150s, not
           // every loop iteration) and the bot keeps MINING: the end-phase
           // pre-position + final bank own the deadline banking they already own.
+          // (v0.185.0) the branch now carries TWO refusals and names whichever
+          // fired: the night hold defers the yard walk ('bank trip: deferred
+          // night', the v0.140.1 shape's own line family - the wood trip's
+          // 'deferred night' line is the field-proven template), the doomed
+          // clock keeps the v0.181.0 line byte for byte.
           lastBankAt = Date.now()
-          console.log(`${name} bank trip: skipped (pockets full, ${Math.max(0, Math.round(bankRemainingMs / 1000))}s left < 150s - the end-phase owns the deadline banking)`)
+          if (bankNightHold) {
+            console.log(`${name} bank trip: deferred night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the yard walk rides out the dark alive (the v0.140.1 night hold extends to the mid-run trips)`)
+          } else {
+            console.log(`${name} bank trip: skipped (pockets full, ${Math.max(0, Math.round(bankRemainingMs / 1000))}s left < 150s - the end-phase owns the deadline banking)`)
+          }
         }
         // (v0.179.0) THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
         // run20 (36131508220) measured the famine class: 'no spare sticks: sticks 1

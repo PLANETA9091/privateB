@@ -71,7 +71,27 @@ export function torchesFrom ({ coal = 0, sticks = 0 } = {}) {
 // legacy behavior byte for byte); a junk purpose never holds.
 
 /** The surface trips the night hold gates. */
-export const SURFACE_HOLD_PURPOSES = new Set(['final-bank', 'respawn-bootstrap'])
+// (v0.185.0) THE NIGHT LANE GATE - the set grows to the two MID-RUN lanes the
+// run182 fleet (36167325733, the v0.182.0 tree, 600s, NORMAL END alive=19/19)
+// measured walking the night surface: 11 of the 17 deaths landed in the last
+// ~17% of the log (the dusk tail, tod 12400+), x12 of them mob kills (zombie
+// x6 every one at y 64-66, drowned-melee x2, enderman x1), and the two lanes
+// that still FORCE bots up there were the ones the v0.140.1 hold never gated:
+// - the MID-RUN BANK TRIP (planned x12 + pockets-full x21 this run): the
+//   climb-out + the yard walk are the trip's own chain - a dusk start walks
+//   the yard in the dark and the return walk crosses the kill window;
+// - the PRE-POSITION (the last 90s window, PRE_POSITION_MIN_DIST 48): the
+//   window overlaps the walk-forbidden clock (the run's dusk hit tod ~12400
+//   with the deadline at ~12500), the bot climbs and walks to the yard at
+//   dusk, and the v0.140.1 final-bank hold then strands it AT the dark yard -
+//   F18 died at [-70,65,419] sheltering from a skeleton with a zombie@1.5
+//   walking in. Hold underground instead: the bot keeps digging (a deferred
+//   walk turns into more shaft), the final-bank hold owns the pocket, and
+//   the DEATH is the only real loss - the doctrine the v0.140.1 hold already
+//   ruled ('the pocket rides out the dark alive'). The five bots the hold
+//   DID cover this run all logged 'final bank deferred: night' and all
+//   survived - the held shape is the measured-safe shape.
+export const SURFACE_HOLD_PURPOSES = new Set(['final-bank', 'respawn-bootstrap', 'mid-bank', 'pre-position'])
 
 /**
  * Should a bot about to take this surface trip hold underground instead?
