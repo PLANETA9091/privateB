@@ -4433,4 +4433,21 @@ Work Log:
 Stage Summary:
 - FLEET OF RECORD: 36201371882 (the 07:00 lane's dispatch on eb94aba - the v0.191.0 fence-edge goal + the v0.192.0 wood-fuel gate union). Next free version = 0.193.0.
 - NEXT SESSION WATCH LIST correction (supersedes the 06:39 section's): mine 36201371882 for (a) the fence-edge conversion rows '(dy -1.0, range 2)'/'(dy -0.7, range 2)' - timeouts -> converged pickups, the doomed-ledger cells re-failing; (b) the lip dig-down's window ('N lip dig-down(s)', count=0 x3 runs); (c) the delivery hole (the night-deferred x16) if dusk lands in the deadline window again; (d) the smelt crash under the v0.192.0 wood-fuel gate (the 07:00 lane's own watch); (e) the above-family range-2 residual vs the 4000ms budget; (f) the airGlitch instrumentation (blind spot #2); (g) NORMAL END, iron>0.
-- LESSON: a dispatch POST always lands on the CURRENT master - re-verify the head sha immediately before the POST and check runs?event=workflow_dispatch in the same breath (a same-head duplicate is self-cancelling).
+=======
+---
+Task ID: cron30-20260926-0730
+Agent: Super Z (cron lane, Job 414125)
+Task: poll + mine + decode the v0.192.0 union debut fleet of record (36201371882).
+
+Work Log:
+- Synced clean (origin eb94aba, the lane quiet). The fleet of record 36201371882 (the 0700 fire's dispatch on eb94aba) was the ONLY active run - polled per protocol p.6, no duplicate. Units x2 SUCCESS, Integration SUCCESS, the fleet COMPLETED SUCCESS at ~t+22min.
+- Mined to run82 (fleet19.log 2977 lines). No code change this fire (the decode is the atomic unit); no dispatch (the fleet just ran on this head).
+
+Stage Summary:
+- THE DECODE - run82 (the fence-edge 0.191.0 + the wood-fuel gate 0.192.0 union debut, 600s, alive=19/19, deaths 0):
+  - THE WOOD-FUEL GATE CONVERTED: smelted 1 -> **24 (x24)** - copper_ingot x18 (F15:14, F8:2, F5:2) + stone x5; the wood conversions FIRED ('fuel clips the batch: 2 x oak_log completes 3 of 61', '2 x stick completes 1 of 42'); 'no fuel in pocket' 3 -> 2 (truly fuel-less); the gate HELD where fuel existed (F8 held 45s of 164s, smelted on coal). banked 648 -> 1544 (x2.4); accounted=3309, unaccounted=0.
+  - THE FENCE-EDGE: the below class (dy -1.0/-0.7) did NOT occur this run - 0 below-dy rows, no verdict possible. The ABOVE family persists: range-2 rows dy 1.0-6.0 x15+, 'timeout after 4000ms' 35 -> 31.
+  - THE NEXT FRONT NAMED - THE CLOCK-CLIPPED ZERO-EXTRACTION: F8 = yard walk failed -> camp furnace BUILT 9s -> 'the 30s window completes ~2 of 27 x raw_copper' -> put OK (input+fuel) -> **smelted 0 () fired=25** - the clip math PROMISED 2 but the window closed first (F18/F17: fired=1 -> 0). The furnace kept the input+fuel; NO sweep line reclaims abandoned furnace contents (BLIND SPOT #3 - the sweepFinishedSmelts class is silent in the fleet filter).
+  - MINOR: rescues 56 (up), airGlitches 588 (blind spot #2 persists), climb-out chain 3 -> 1, night hold x16, fuel tithe x4 (F15 9 / F19 7 / F16 10), vertical doom x6, torched 10.
+- NEXT CURE CANDIDATES (evidence-ranked for the 08:00 fire): (a) the zero-extraction class - the clip math must not start a batch the window cannot finish (subtract the put/fire/poll overhead; return the batch when the promise fails); (b) the abandoned-furnace reclaim + its filter line (blind spot #3); (c) the airGlitch instrumentation (blind spot #2); (d) the rescues-56 causes decode.
+>>>>>>> 14bb6ff (worklog: the cron 07:30 fire - the v0.192.0 union debut fleet 36201371882 mined (run82): THE WOOD-FUEL GATE CONVERTED (smelted 1 -> 24 x24, copper ingots x18, the wood conversions fired - '2 x oak_log'/'2 x stick' clips; banked 648 -> 1544; 'no fuel' 3 -> 2 on truly fuel-less pockets), the fence-edge below class did not occur (0 below-dy rows, no verdict); THE NEXT FRONT NAMED: the clock-clipped zero-extraction (F8: the 30s window promised ~2 completions, delivered 0 - fired=25 poll ticks; the abandoned furnace contents are never reclaimed - blind spot #3); no code change, no dispatch - the decode is the atomic unit)
