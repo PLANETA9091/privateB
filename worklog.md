@@ -3820,3 +3820,16 @@ Stage Summary:
 - THE NEXT SESSION'S WATCH LIST (the v0.171.0 fleet): iron_ingot -> ? (the chain is OPEN now - the second ingot run and the iron pickaxe UPTAKE are the reads: do more bots convert? does the iron pickaxe mine faster?), banked 2042 -> ? (the new bar), smelted 42 -> ?, kills= 1 -> ? (the fight finish's conversion rate), the gate verdicts by name -> ? (how much clock did the gate save - the banked+smelted deltas), 'no fuel' 51 -> ? (the fuel economy front: F13's coal starvation, the ore-detour conversion, the tithe), bridge refusals 5 -> ?, deaths 8 -> ? (Enderman joins the mortality table), still-underground 5 -> ?, mined rate 4.68 -> ? (the rate-vs-conversion trade), NORMAL END.
 - OPEN FRONTS (evidence-ranked): (a) THE FUEL ECONOMY (the ore-detour's non-conversion, the tithe's zero deliveries, the stone-line starvation policy); (b) the mortality mix (drown x3 + the mob table growing); (c) the bridge chunk-desync floor (5/run, honest, the suffix decoding continues); (d) the CI runner flakes (the craft storm + the ghost grid - both now skipped honestly); (e) plan 1/31 (the worldmap idle).
 
+
+---
+## Task ID: 398294-20260925-1454 addendum (the dispatch record - final update)
+Agent: Super Z (the same 14:54 session, closing)
+
+Work Log:
+- THE CI LADDER COMPLETED: push-CI 36109315259 (5d9a3c3 = v0.171.0 + the worklogs) SUCCESS; the intermediate 616aa2f run was superseded-cancelled by the worklog push (the 5d9a3c3 run covers the same code tree - the union-head pattern).
+- THE DISPATCH: workflow_dispatch HTTP 204 on ref master (5d9a3c3) WITH inputs {run_fleet: 'true', fleet_seconds: '600'} -> run 36110649778, **jobs IN_PROGRESS VERIFIED** (Integration 107993118121 running, both unit shards green) before this session closed. THE FLEET OF RECORD for v0.171.0 = 36110649778. One fleet per head held (the head was fleet-virgin; no duplicate).
+
+Stage Summary:
+- Master: 5d9a3c3 (the worklogs) on 616aa2f (v0.171.0 THE CRAFT-STORM SKIP) on bee72c5 on e6edc7a on b863478 (v0.170.1). Next free version = 0.172.0.
+- FLEET OF RECORD: 36110649778 (in_progress verified). NEXT SESSION (15:54): poll to completion, mine -> run78/ (last-2 of the id) - NOTE the dir name collides with the OLD run78 (the v0.167.0 mining); use run778/ or mine into run78/ after checking it is absent in the fresh sandbox. THE WATCH LIST: iron_ingot -> ? (the chain is OPEN - the second ingot run + the iron pickaxe UPTAKE), banked 2042 -> ? (the new bar), smelted 42 -> ?, kills= 1 -> ?, the gate verdicts by name -> ?, 'no fuel' 51 -> ? (the fuel economy: the ore-detour conversion, the tithe), bridge refusals 5 -> ?, deaths 8 -> ? (Enderman on the table), still-underground 5 -> ?, rate 4.68 -> ?, NORMAL END.
+
