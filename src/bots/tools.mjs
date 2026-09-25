@@ -1141,7 +1141,7 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
       .filter(i => i && METAL_INPUTS.has(i.name) && Number.isFinite(i.count))
       .reduce((a, i) => a + i.count, 0)
     const fuelReserve = reserveCoals !== undefined ? Math.max(0, Math.floor(reserveCoals) || 0) : metalFuelReserve(metalHeld)
-    // (v0.189.0) THE POCKET TORCH CAP WIRING - the plan reads the HELD torches
+    // (v0.190.0) THE POCKET TORCH CAP WIRING - the plan reads the HELD torches
     // so the craft only fills the pocket up to TORCH_POCKET_CAP (run35: 255
     // held / 6 placed, F16:95 - every surplus torch is a coal + a stick the
     // smelt leg could have had). The zero-torch pocket keeps the full allowed
@@ -1179,7 +1179,7 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
       }
     }
     if (plan.batches <= 0) {
-      // (v0.189.0) the cap-decline shape: the pocket HAS sticks and coal but
+      // (v0.190.0) the cap-decline shape: the pocket HAS sticks and coal but
       // already holds the cap - the honest name (a plain 'no coal' would
       // poison the next decode, the v0.165.0 precedent). The held count rides
       // the line so the next decode can size the trim without a pocket read.

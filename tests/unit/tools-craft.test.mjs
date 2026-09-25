@@ -107,7 +107,7 @@ test('REGRESSION PIN: the torch lane funds its own sticks (the v0.137.0 F10 cure
   assert.ok(/await craft\(bot, 'stick', 1, null, step\)/.test(toolsSrc), 'exactly one stick batch is crafted')
 })
 
-test('REGRESSION PIN: the torch converter reads the HELD torches (the v0.189.0 pocket cap)', async () => {
+test('REGRESSION PIN: the torch converter reads the HELD torches (the v0.190.0 pocket cap)', async () => {
   const fs = await import('node:fs')
   const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
   // run35 (fleet 36191851635, THE DELIVERY RUN): the fleet ended holding 255

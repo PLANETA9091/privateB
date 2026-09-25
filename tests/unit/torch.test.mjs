@@ -90,7 +90,7 @@ test('torchCraftPlan: reserveCoals defaults to 0 - the legacy plan stays byte fo
   const legacy = torchCraftPlan({ sticks: 10, coals: 9 })
   const explicit = torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 0 })
   assert.deepEqual(legacy, explicit, 'absent reserve == zero reserve')
-  // (v0.189.0) the pocket torch cap trims the unbounded plan: held 0 reads
+  // (v0.190.0) the pocket torch cap trims the unbounded plan: held 0 reads
   // allowed = floor(24/4) = 6 batches, so the 8-batch raw arithmetic tops at
   // 6 (24 torches = one run's supply, TORCH_SPACING 8 x ~140 digs/run). The
   // junk-cap escape keeps the TRUE legacy shape read: a junk/absent cap is
@@ -103,7 +103,7 @@ test('torchCraftPlan: reserveCoals defaults to 0 - the legacy plan stays byte fo
   assert.equal(torchCraftPlan({ sticks: 2, coals: 9, reserveCoals: 3 }).reason, 'no spare sticks')
 })
 
-test('v0.189.0 THE POCKET TORCH CAP: the converter tops the pocket at one run\'s supply', () => {
+test('v0.190.0 THE POCKET TORCH CAP: the converter tops the pocket at one run\'s supply', () => {
   assert.equal(TORCH_POCKET_CAP, 24, 'the cap constant: TORCH_SPACING 8 x ~18 rhythm slots + margin')
   // F16's run35 shape: 95 torches held, sticks and coal funding - the honest
   // cap decline names itself (a plain 'no coal' would poison the decode).

@@ -63,7 +63,7 @@ export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVE
   const c = Number.isFinite(coals) ? Math.max(0, Math.floor(coals)) : 0
   const rc = Number.isFinite(reserveCoals) ? Math.max(0, Math.floor(reserveCoals)) : 0
   const burnable = Math.max(0, c - rc)
-  // (v0.189.0) THE POCKET TORCH CAP - the craft may only fill the pocket up to
+  // (v0.190.0) THE POCKET TORCH CAP - the craft may only fill the pocket up to
   // the cap (batch-aligned: a batch is 4 torches, so allowed = floor((cap -
   // held) / 4)). Junk-safe: junk heldTorches reads 0 (a junk read never locks
   // the craft), a junk/absent cap reads NO cap - the legacy plan byte for byte.
@@ -83,7 +83,7 @@ export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVE
   return { batches, torches: batches * 4, reason: 'ok' }
 }
 
-// (v0.189.0) THE POCKET TORCH CAP - the entry stocking is UNBOUNDED
+// (v0.190.0) THE POCKET TORCH CAP - the entry stocking is UNBOUNDED
 // (batches = min(spare, burnable)), and run35 (fleet 36191851635, the
 // v0.188.0 union fleet, THE DELIVERY RUN) measured the surplus: the fleet
 // ENDED holding 255 torches while torched=6 placements - a 42:1 hold-to-place
