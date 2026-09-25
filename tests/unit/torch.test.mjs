@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS, TORCH_WALL_BASE_DIRS,
   torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs,
-  torchRestockWanted
+  torchRestockWanted, metalFuelReserve, METAL_FUEL_CAP
 } from '../../src/lib/torch.mjs'
 
 test('torchesCraftable: vanilla yield is 4 torches per stick+coal pair', () => {
@@ -47,6 +47,55 @@ test('torchCraftPlan: junk inputs take the honest zero path', () => {
   assert.deepEqual(torchCraftPlan({}), { batches: 0, torches: 0, reason: 'no spare sticks' })
   assert.equal(torchCraftPlan({ sticks: NaN, coals: 4 }).reason, 'no spare sticks')
   assert.equal(torchCraftPlan({ sticks: 10, coals: 'many' }).reason, 'no coal')
+})
+
+// --- (v0.165.0) THE METAL FUEL RESERVE - run562 (dispatch 36082849774, the
+// v0.164.0 fleet): F3 held raw_copper:18 and F6 raw_copper:25 the WHOLE run
+// while their smelt legs died 'raw_copper@-: no fuel' - the torch fire had
+// eaten the coal (F10 crafted 19 torches = 19 coal), pickFuel's metal window
+// burns coal FIRST, and the anchor/commons chests stayed empty ('chest holds
+// no fuel' x35). The reserve keeps the smelt's coals out of the torch fire.
+
+test('metalFuelReserve: 1 coal per 8 smelts, ceiled, capped (the F3/F6 arithmetic)', () => {
+  assert.equal(metalFuelReserve(0), 0)
+  assert.equal(metalFuelReserve(1), 1)
+  assert.equal(metalFuelReserve(8), 1)
+  assert.equal(metalFuelReserve(9), 2)
+  assert.equal(metalFuelReserve(18), 3, 'the F3 shape: raw_copper 18 -> 3 coals held back')
+  assert.equal(metalFuelReserve(25), 4, 'the F6 shape: raw_copper 25 -> 4 coals held back')
+  assert.equal(metalFuelReserve(64), METAL_FUEL_CAP)
+  assert.equal(metalFuelReserve(100), METAL_FUEL_CAP, 'the cap: the pocket never hordes more than a full stack of smelts')
+  assert.equal(METAL_FUEL_CAP, 8)
+})
+
+test('metalFuelReserve: junk telemetry reads as zero - a junk read never hoards coal', () => {
+  assert.equal(metalFuelReserve(undefined), 0)
+  assert.equal(metalFuelReserve(NaN), 0)
+  assert.equal(metalFuelReserve(null), 0)
+  assert.equal(metalFuelReserve(-5), 0)
+  assert.equal(metalFuelReserve(Infinity), 0)
+  assert.equal(metalFuelReserve('many'), 0)
+  assert.equal(metalFuelReserve(2.9), 1, 'floors the count first (2 raw metal), then ceils the division')
+})
+
+test('torchCraftPlan: the reserveCoals keeps the smelt coal out of the torch fire (the F3/F6 cure)', () => {
+  // sticks 10, coals 9, reserve 3 -> spare 8, burnable 6 -> 6 batches (was 8)
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 3 }), { batches: 6, torches: 24, reason: 'ok' })
+  // the full-hold shape: coals <= reserve -> the honest zero (the pocket keeps its smelt fuel)
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 3, reserveCoals: 3 }), { batches: 0, torches: 0, reason: 'no coal' })
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 4, reserveCoals: 8 }), { batches: 0, torches: 0, reason: 'no coal' })
+})
+
+test('torchCraftPlan: reserveCoals defaults to 0 - the legacy plan stays byte for byte', () => {
+  const legacy = torchCraftPlan({ sticks: 10, coals: 9 })
+  const explicit = torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 0 })
+  assert.deepEqual(legacy, explicit, 'absent reserve == zero reserve')
+  assert.deepEqual(legacy, { batches: 8, torches: 32, reason: 'ok' })
+  // junk reserve reads as zero (the legacy plan, not a lockup)
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 'many' }), legacy)
+  // the junk-coal keep still stands with a reserve in play
+  assert.equal(torchCraftPlan({ sticks: 10, coals: NaN, reserveCoals: 3 }).reason, 'no coal')
+  assert.equal(torchCraftPlan({ sticks: 2, coals: 9, reserveCoals: 3 }).reason, 'no spare sticks')
 })
 
 test('torchDue: rhythm - a torch every TORCH_SPACING digs', () => {
@@ -205,4 +254,14 @@ test('REGRESSION PIN: the placement ledger names its failure classes (the v0.137
   // catch ended the loop on the first timeout)
   assert.ok(/torchDidNotLand\('place'\)\s*\n\s*continue/.test(minerSrc),
     'a failed face continues to the next wall candidate')
+})
+
+test('REGRESSION PIN: craftTorches consults the metal fuel reserve (the v0.165.0 wire)', async () => {
+  const fs = await import('node:fs')
+  const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  // the live reserve comes from the pocket's raw metal through the pure policy
+  assert.ok(/metalFuelReserve\(metalHeld\)/.test(toolsSrc), 'the reserve is computed by the pure policy, not hand-rolled')
+  assert.ok(/METAL_INPUTS\.has\(i\.name\)/.test(toolsSrc), 'the metal read mirrors the METAL_INPUTS set pickFuel itself judges with')
+  assert.ok(/reserveCoals: fuelReserve/.test(toolsSrc), 'the plan is asked WITH the reserve (both the entry and the re-plan calls)')
+  assert.ok(/the metal fuel reserve holds all /.test(toolsSrc), 'the reserve-decline shape is NAMED for the mine (the honest-decode doctrine)')
 })

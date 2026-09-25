@@ -44,18 +44,47 @@ export function torchesCraftable (sticks, coals) {
  * @param {number} [p.sticks] stick count held
  * @param {number} [p.coals] coal + charcoal count held
  * @param {number} [p.reserveSticks] sticks kept out of the fire (default 2)
+ * @param {number} [p.reserveCoals] coals kept out of the fire for the METAL
+ *   window (default 0 = the legacy byte-for-byte plan). (v0.165.0) run562
+ *   (dispatch 36082849774, the v0.164.0 fleet) measured the old 'coal has no
+ *   other consumer' doctrine FALSE at the smelt leg: F3 held raw_copper:18 and
+ *   F6 raw_copper:25 the WHOLE run while their smelt legs died
+ *   'raw_copper@-: no fuel' - the torch fire had eaten the coal (F10 crafted
+ *   19 torches = 19 coal), pickFuel's metal window wants COAL FIRST, and the
+ *   anchor/commons chests stayed empty ('chest holds no fuel' x35). The metal
+ *   window's smelt needs 1 coal per 8 items; the reserve keeps that much coal
+ *   out of the torch fire while raw metal rides in the pocket.
  * @returns {{batches: number, torches: number, reason: string}}
  *   batches 0 -> no craft worth doing, `reason` says why.
  */
-export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVED_STICKS } = {}) {
+export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVED_STICKS, reserveCoals = 0 } = {}) {
   const held = Number.isFinite(sticks) ? Math.max(0, Math.floor(sticks)) : 0
   const spare = held - Math.max(0, Math.floor(reserveSticks ?? RESERVED_STICKS))
   const c = Number.isFinite(coals) ? Math.max(0, Math.floor(coals)) : 0
-  const batches = Math.min(spare, c)
+  const rc = Number.isFinite(reserveCoals) ? Math.max(0, Math.floor(reserveCoals)) : 0
+  const burnable = Math.max(0, c - rc)
+  const batches = Math.min(spare, burnable)
   if (batches <= 0) {
     return { batches: 0, torches: 0, reason: spare <= 0 ? 'no spare sticks' : 'no coal' }
   }
   return { batches, torches: batches * 4, reason: 'ok' }
+}
+
+// (v0.165.0) THE METAL FUEL RESERVE CAP - one coal smelts 8 items (vanilla
+// fuelValue 1600 / 200 per item), so the reserve for a raw-metal pile is
+// ceil(count / 8), capped at METAL_FUEL_CAP coals (a full stack's worth of
+// smelts - the pocket never hordes more than that for the furnace).
+export const METAL_FUEL_CAP = 8
+
+/** Pure: coals kept out of the torch fire while `metalCount` raw-metal items
+ * ride in the pocket (the metal window's pickFuel burns coal FIRST). Junk-safe:
+ * non-finite / negative counts read as zero - a junk telemetry read must never
+ * hoard coal. Floors the input first (a fractional count is not a smelt), then
+ * ceils the division (a partial coal still buys the last smelts). */
+export function metalFuelReserve (metalCount) {
+  const c = Number.isFinite(metalCount) ? Math.max(0, Math.floor(metalCount)) : 0
+  if (c <= 0) return 0
+  return Math.min(METAL_FUEL_CAP, Math.ceil(c / 8))
 }
 
 /**

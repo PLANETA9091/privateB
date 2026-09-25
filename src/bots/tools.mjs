@@ -3,8 +3,8 @@
 import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
-import { torchCraftPlan } from '../lib/torch.mjs'
-import { smeltablesIn, findMachineBlocks } from '../lib/smelting.mjs'
+import { torchCraftPlan, metalFuelReserve } from '../lib/torch.mjs'
+import { smeltablesIn, findMachineBlocks, METAL_INPUTS } from '../lib/smelting.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 
@@ -1041,12 +1041,27 @@ export const hasStonePickaxe = bot => inventoryItems(bot).some(i => STONE_OR_BET
 // grid, so no table is needed and this is safe to run anywhere between tool
 // crafts. The pure policy (stick reserve, batch maths) lives in torch.mjs; this
 // is the mechanics: plan -> craftUntil -> VERIFIED count. Never throws.
-export async function craftTorches (bot, { log = null, reserveSticks = undefined } = {}) {
+export async function craftTorches (bot, { log = null, reserveSticks = undefined, reserveCoals = undefined } = {}) {
   const step = log ?? (() => {})
   try {
     const sticks = countItem(bot, 'stick')
     const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
-    let plan = torchCraftPlan({ sticks, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+    // (v0.165.0) THE METAL FUEL RESERVE - run562 (dispatch 36082849774, the
+    // v0.164.0 fleet): F3 held raw_copper:18 and F6 raw_copper:25 the WHOLE run
+    // while their smelt legs died 'raw_copper@-: no fuel' - the torch fire had
+    // eaten the coal ('coal has no other consumer' is field-false now: the
+    // metal window's pickFuel burns coal FIRST), F2's camp furnace BUILT and
+    // still could not fire ('no fuel' after the build consumed the planks),
+    // and the anchor/commons chests stayed empty ('chest holds no fuel' x35).
+    // While raw metal rides in the pocket, the coals its smelt will need stay
+    // out of the torch fire (1 coal per 8 items, capped at METAL_FUEL_CAP).
+    // Junk-safe: a junk metal read is zero metal -> zero reserve -> the legacy
+    // plan byte for byte.
+    const metalHeld = inventoryItems(bot)
+      .filter(i => i && METAL_INPUTS.has(i.name) && Number.isFinite(i.count))
+      .reduce((a, i) => a + i.count, 0)
+    const fuelReserve = reserveCoals !== undefined ? Math.max(0, Math.floor(reserveCoals) || 0) : metalFuelReserve(metalHeld)
+    let plan = torchCraftPlan({ sticks, coals, reserveCoals: fuelReserve, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
     // (v0.137.0) THE STICKS-FOR-TORCHES CURE - run551's torch ledger: F10 held
     // 20 planks + 19 coal and still skipped every cadence ('no spare sticks:
     // sticks 1') - the plan reads the pocket's CURRENT sticks, but the
@@ -1062,15 +1077,23 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
         step(`craft torches: stick-dry but ${planksTotal} planks held - one stick batch first`)
         if (await craft(bot, 'stick', 1, null, step)) {
           const sticks2 = countItem(bot, 'stick')
-          plan = torchCraftPlan({ sticks: sticks2, coals, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+          plan = torchCraftPlan({ sticks: sticks2, coals, reserveCoals: fuelReserve, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
         }
       }
     }
     if (plan.batches <= 0) {
+      // (v0.165.0) the reserve-decline shape: the pocket HAS coal but the metal
+      // reserve holds all of it - the mine reads the difference (a plain 'no
+      // coal' would poison the next decode the same way the clock-label lie
+      // did, the v0.157.0 precedent).
+      if (plan.reason === 'no coal' && fuelReserve > 0 && coals > 0 && coals <= fuelReserve) {
+        step(`craft torches: the metal fuel reserve holds all ${coals} coal for the furnace (${metalHeld} raw metal held)`)
+        return { ok: false, batches: 0, torches: 0, reason: 'the metal fuel reserve' }
+      }
       step(`craft torches: skip (${plan.reason}: sticks ${countItem(bot, 'stick')} coals ${coals})`)
       return { ok: false, batches: 0, torches: 0, reason: plan.reason }
     }
-    step(`craft torches: ${plan.batches} batch(es) -> ${plan.torches} torches (sticks ${sticks} coals ${coals})`)
+    step(`craft torches: ${plan.batches} batch(es) -> ${plan.torches} torches (sticks ${sticks} coals ${coals}${fuelReserve > 0 ? `, the metal reserve keeps ${fuelReserve}` : ''})`)
     const ok = await craftUntil(bot, 'torch', { times: plan.batches, want: plan.torches, tries: 2, log: step })
     const made = countItem(bot, 'torch')
     if (!ok) step(`craft torches: craft did not land (held ${made} torch(es))`)
