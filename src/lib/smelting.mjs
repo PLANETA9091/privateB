@@ -12,6 +12,7 @@ import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
 import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
 import { walkRawToward } from './deposit.mjs' // (v0.167.0) the nudge's approach gains the raw segment + the stall side-step (no cycle: deposit never imports smelting)
+import { chestVerticalDoom } from './surface.mjs' // (v0.170.0) the machine walk gains the chest walks' vertical gate (no cycle: surface imports nothing)
 
 const { goals } = pathfinderPkg
 
@@ -569,6 +570,31 @@ export async function smeltBatch (bot, {
   if (machineWithinReach({ from: bot.entity?.position, pos: machineBlock.position })) {
     walked = true
     log(`${tag} ${machineBlock.name} within reach - opening without a walk`)
+  }
+  // (v0.170.0) THE MACHINE VERTICAL GATE. run60 (36098615960, the v0.168.0
+  // fleet @ the honest 600s) measured the last machine-walk doom: 5 'visit
+  // budget spent (walk slice)' verdicts - 4 of them the METAL ladders
+  // (F11 raw_iron@blast_furnace, F19 raw_copper x2, F17 raw_copper) while
+  // iron_ingot stayed 0 for the SIXTH run. The anatomy: the bots live 28-29
+  // levels UNDERGROUND (y=42-44), the yard's machines sit at y=71 - the
+  // machine scan's 48b envelope SEES them across the vertical (dy 28 over
+  // 5-7b lateral), every walk attempt is a doomed mostly-vertical climb that
+  // pays its full slice ('the walk ladder cannot climb' - the run556
+  // arithmetic the chest walks have gated since v0.159.0), and the v0.147.0
+  // nudge then burns the rest ('walk nudge: approach: 2 segment(s) walked in
+  // 13.6s, goal now d=37.4 - retrying the machine from the new start' straight
+  // into 'visit budget spent'). The chest walks' chestVerticalDoom predicate
+  // (the SAME strict shape: dy >= 20 and lateral < dy - a hillside keeps the
+  // legacy ladder) now gates the machine walk too: the batch returns the
+  // honest instant verdict, the visit's clock returns to the caller (the bank
+  // leg can spend it on the climb + the bank instead of a doomed walk), and
+  // the log decodes the class by name. Junk-safe: any unreadable position is
+  // no doom - the legacy walk attempt runs byte for byte.
+  if (!walked) {
+    const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: machineBlock.position })
+    if (doom.doom) {
+      return { smelted: 0, rescued: 0, fired: 0, reason: `machine unreachable (${doom.why} - the walk ladder cannot climb)` }
+    }
   }
   // (v0.130.0) THE MACHINE WALK NEVER TAKES THE FREE REFUSAL: the doomed
   // consult re-arms for EVERY attempt of EVERY machine walk (the v0.99.0

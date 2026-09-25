@@ -882,6 +882,56 @@ test('smeltBatch: the reach-open skips the walk entirely - sick yard paths canno
   assert.equal(res.reason, 'ok')
 })
 
+// (v0.170.0) THE MACHINE VERTICAL GATE - run60 (36098615960, the v0.168.0
+// fleet) measured 5 'visit budget spent (walk slice)' verdicts, 4 of them the
+// METAL ladders (raw_iron / raw_copper@blast_furnace) from bots 28-29 levels
+// under the yard: the machine scan's 48b envelope sees the yard machines
+// ACROSS the vertical (dy 28 over 5-7b lateral), every walk is a doomed
+// mostly-vertical climb that pays its full slice, and the nudge burns the
+// rest. The chest walks' chestVerticalDoom arithmetic now gates the machine
+// walk - the same strict shape (dy >= 20 AND lateral < dy).
+test('smeltBatch: the machine vertical gate refuses the shaft-top shape before the walk pays', async () => {
+  const yard = new MockFurnace({ position: new Vec3(5.5, 71, 2.5) }) // dy 28, lateral ~5.4 from the deep bot
+  const bot = makeMockBot({ machines: [yard], items: [item('raw_iron', 4), item('coal', 7)] })
+  bot.entity.position = new Vec3(0.5, 43, 0.5) // the run60 shape: y=43 under the yard at y=71
+  let gotoCalls = 0
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('no path') }
+  const res = await smeltBatch(bot, { machineBlock: yard, inputName: 'raw_iron', count: 4, ...FAST })
+  assert.equal(gotoCalls, 0, 'a doomed vertical walk never pays the pathfinder')
+  assert.equal(res.smelted, 0)
+  assert.equal(res.reason, 'machine unreachable (the yard stands 28 levels up over 5b lateral - the walk ladder cannot climb)')
+})
+
+test('smeltBatch: a machine inside the walkable band keeps the legacy ladder (dy < 20)', async () => {
+  const low = new MockFurnace({ position: new Vec3(50.5, 71, 50.5) }) // dy 7 from the default y=64 bot
+  const bot = makeMockBot({ machines: [low], items: [item('sand', 4), item('coal', 7)] })
+  let gotoCalls = 0
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('no path') }
+  const res = await smeltBatch(bot, { machineBlock: low, inputName: 'sand', count: 4, ...FAST })
+  assert.ok(gotoCalls >= 1, 'the walkable band still walks')
+  assert.match(res.reason, /machine unreachable \(no path\)/)
+})
+
+test('smeltBatch: a hillside machine keeps the legacy ladder (lateral >= dy)', async () => {
+  const hill = new MockFurnace({ position: new Vec3(35.5, 71, 0.5) }) // dy 28, lateral 35 - A* may route a staircase
+  const bot = makeMockBot({ machines: [hill], items: [item('raw_iron', 4), item('coal', 7)] })
+  bot.entity.position = new Vec3(0.5, 43, 0.5)
+  let gotoCalls = 0
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('no path') }
+  await smeltBatch(bot, { machineBlock: hill, inputName: 'raw_iron', count: 4, ...FAST })
+  assert.ok(gotoCalls >= 1, 'a hillside machine (lateral >= dy) still walks')
+})
+
+test('smeltBatch: a junk position read is no doom - the legacy walk runs byte for byte', async () => {
+  const far = new MockFurnace({ position: new Vec3(50.5, 71, 50.5) })
+  const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
+  bot.entity.position = null
+  let gotoCalls = 0
+  bot.pathfinder.goto = async () => { gotoCalls++; throw new Error('no path') }
+  await smeltBatch(bot, { machineBlock: far, inputName: 'sand', count: 4, ...FAST })
+  assert.ok(gotoCalls >= 1, 'no position read means no doom and a real walk attempt')
+})
+
 test('smeltBatch: the walk ladder hugs on attempt 1 and stands off on the retries', async () => {
   const far = new MockFurnace({ position: new Vec3(50, 64, 50) })
   const bot = makeMockBot({ machines: [far], items: [item('sand', 4), item('coal', 7)] })
