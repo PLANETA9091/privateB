@@ -4255,3 +4255,21 @@ Stage Summary:
 - Master 6833fb8 (worklog addendum), version 0.185.0. Next free version = 0.186.0. Fleet of record MINED: 36181152847.
 - NEXT CURE CANDIDATES (evidence-ranked): (a) THE TORCH/STICK FAMINE ('torches: skip' x188 - the sticks side of the v0.180.0 converter still starves mid-run); (b) smelted=6 - the 'machine unreachable (visit budget spent (walk slice))' class (the camp furnace placement/visit budget); (c) THE CREEPER PAIR (blown up + creeper-adjacent fall - the engagement envelope); (d) the coal delivery ('no coal' x167, still 2 pockets hoarding).
 - TOOLS: mine88.mjs artifact path = /home/z/privateB/scripts/fleet-mining/runNN (NO -repo suffix) - look there first after a fresh re-clone.
+
+---
+Task ID: cron30-20260926-0430
+Agent: cron lane (30-min anti-conflict prompt, Job 414125)
+Task: one atomic improvement from the run47 evidence - the drop-walk timeout class.
+
+Work Log:
+- Synced clean (origin 3311c56, the lane quiet). No active fleet dispatch-run (checked).
+- Picked the front: the drop-walk timeouts. Decoded from run47 (fleet 36181152847, THE CALM RUN): x28 'timeout after 8000ms' - only 8 below-plane (already fenced), 20 FLAT range-1 walks within REACH 8 where the house arithmetic (500ms/block, the 2x detour inside) prices the worst honest walk at ~4s; 20 other sweeps CONVERTED (+1u..+67u). The 8s only ever served geometrically doomed probes - a third of the 24s fence each.
+- v0.186.0 THE SWEEP DROP PROBE HALF-STEP shipped (c4c6abc): SWEEP_DROP_TIMEOUT_MS 8000 -> 4000 (the probe covers the reach-8 walk, the 24s fence fits 6 probes instead of 3, a cut walk re-samples next sweep per the v0.182.0 doctrine, despawn 300s ample; the fence total untouched). Tests: the budgets pin re-pinned + the arithmetic pins (half the legacy, 6 probes, the reach-8 coverage). One local catch during the write-up: the first draft of the arithmetic pin double-counted the detour (8x2x500) - the CHEST_WALK 500ms/block already includes the 2x; fixed before commit.
+- Local: syntax 192/0, unit 83/83. Push 3311c56..c4c6abc clean, zero conflicts.
+- CI 36187218676 (push, c4c6abc): in_progress past ~15 min of polling (2 rounds) - left unfinished per the timebox, NOT asserted green.
+- NO dispatch: green-first (the head's CI unverified); the needs gate makes the next fire's dispatch cheap once green.
+
+Stage Summary:
+- Master c4c6abc (v0.186.0) on 3311c56. Next free version = 0.187.0.
+- NEXT SESSION: (1) verify CI green on c4c6abc (36187218676), then dispatch ONE fleet (the v0.186.0 debut); (2) in the decode watch: 'timeout after 8000ms' should vanish, the new class is 'timeout after 4000ms' - count it AND the '+Nu walked' conversions (the probe doubling should RAISE pickups per sweep); 'torches: skip (no coal' x127 -> ?; smelted 6 -> ?; the creeper pair re-check.
+- OPEN FRONTS unchanged: the torch/stick famine (the coal delivery), the smelt machine-unreachable class, the creeper envelope.
