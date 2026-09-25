@@ -4273,3 +4273,22 @@ Stage Summary:
 - Master c4c6abc (v0.186.0) on 3311c56. Next free version = 0.187.0.
 - NEXT SESSION: (1) verify CI green on c4c6abc (36187218676), then dispatch ONE fleet (the v0.186.0 debut); (2) in the decode watch: 'timeout after 8000ms' should vanish, the new class is 'timeout after 4000ms' - count it AND the '+Nu walked' conversions (the probe doubling should RAISE pickups per sweep); 'torches: skip (no coal' x127 -> ?; smelted 6 -> ?; the creeper pair re-check.
 - OPEN FRONTS unchanged: the torch/stick famine (the coal delivery), the smelt machine-unreachable class, the creeper envelope.
+
+---
+Task ID: cron30-20260926-0500
+Agent: Super Z (cron lane, Job 414125)
+Task: one atomic improvement - the deposit hop loop's vertical doom class (the F19 zero-delivery chain).
+
+Work Log:
+- Synced clean (origin 4725057; the 04:30 lane's c4c6abc v0.186.0 verified SUCCESS in CI 36187218676). Baseline: syntax 192/0, unit 83/83.
+- DECODE: x184/202 'torches: skip' are 'no coal (sticks 3-7 coals 0)' - the stick ladder works, the coal side starves (5 bots zero crafts all run; F4's pocket never held coal). Charcoal rung parked (needs an in-shaft furnace). Pivoted to the F19 chain (run47): seven chest hops dy~28/lateral~24 burned the 120s chain - 2x 'Took to long to decide', 5x 'budget exhausted (walk floor)' - the camp build skipped ('leg clock 18s < 24s build' with 5 logs riding), the smelt died 'visit budget spent (walk slice)', the deposit 'budget exhausted': the whole chain delivered ZERO with raw_copper pocketed. The hop loop was the last un-gated vertical walk site.
+- BLIND SPOT: 'chest skip' lines = 0 in fleet19.log - the v0.62/v0.65/v0.72 ledger skips never rode the fleet filter.
+- v0.187.0 (02499d9): the hop vertical doom gate - one chestVerticalDoom consult before depositToChest (doomed chest joins the tried-set; camp-level chests stay reachable; junk reads no-doom, the legacy hop byte for byte) + 'chest skip' joined the fleet filter-key. Tests: tests/unit/deposit-hop-doom.test.mjs (4 pins) + the v0.176.0 filter pin tolerates the new key. Local: syntax 193/0, unit 84/84.
+- Collision #15: the lane's e44dfa4 (v0.186.0 LIP DIG-DOWN) + c04b195 (renumber 0.187.0) landed mid-flight; the rebase held the union tree clean; renumbered to v0.188.0 (570915d) per protocol p.4 - their drops.test.mjs refs (232/247/307) untouched.
+- Pushes 02499d9 + 570915d clean, zero conflicts, no force.
+- DISPATCHED: 36191738000 (workflow_dispatch on 570915d, HTTP 204, pending at close; the push-CI self-cancelled per the concurrency design).
+
+Stage Summary:
+- Master 570915d (v0.188.0), next free 0.189.0. Fleet of record PENDING: 36191738000 - the triple-cure union debut.
+- NEXT SESSION: poll 36191738000; if superseded-pending, re-dispatch on the fresh head. Watch: 'chest skip (vertical doom' (the gate debut), the first-ever ledger-skip visibility, 'timeout after 4000ms' vs '+Nu walked' (the probe doubling), 'lip dig-down' counts, smelted 6 -> ?, 'no coal' x167 -> ?, deaths 2 -> ?, NORMAL END.
+- OPEN FRONTS: the coal ARRIVAL root (steering/pocket conversion; the charcoal rung parked), the creeper pair envelope, the camp-build economics (the v0.123.0 doctrine blocked the reserve bridge - documented).
