@@ -89,7 +89,7 @@ export function dropGoalRange ({ dy = 0 } = {}) {
   return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
 }
 
-// (v0.186.0) THE LIP DIG-DOWN - the range-2 arrival's LAST MILE. MEASURED
+// (v0.187.0) THE LIP DIG-DOWN - the range-2 arrival's LAST MILE. MEASURED
 // (fleet 36181152847, the v0.183.0+0.184.0+0.185.0 triple-union run): the
 // harvest converted (21 '+Nu walked' lines, 264 ores dug by 34 sweeps) but
 // 11 sweeps still ended 'the drop walks picked nothing (pocket delta 0)' -

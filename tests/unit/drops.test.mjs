@@ -226,7 +226,7 @@ test("REGRESSION PIN: the miner's drop walk reads the planner and names the belo
   const fs = await import('node:fs')
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes('const dyWalk = d.y - bot.entity.position.y'),
-    'the walk reads the per-drop dy once (the v0.186.0 dy instrument rides the same read)')
+    'the walk reads the per-drop dy once (the v0.187.0 dy instrument rides the same read)')
   assert.ok(src.includes('dropGoalRange({ dy: dyWalk })'),
     'the walk goal range comes from the planner (per-drop dy, not a constant)')
   assert.ok(src.includes('new goals.GoalNear(d.x, d.y, d.z, range)'),
@@ -241,7 +241,7 @@ test("REGRESSION PIN: the miner's drop walk reads the planner and names the belo
     'the skip verdict names itself under the instrument prefix too')
 })
 
-// ---- v0.186.0: THE LIP DIG-DOWN - the range-2 arrival's last mile.
+// ---- v0.187.0 (renumbered 0.186.0 -> 0.187.0 on collision #14 - the 04:30 lane's c4c6abc THE SWEEP DROP PROBE HALF-STEP landed first and owns 0.186.0): THE LIP DIG-DOWN - the range-2 arrival's last mile.
 // MEASURED (fleet 36181152847, the triple-union run): 11 sweeps ended 'the
 // drop walks picked nothing (pocket delta 0)' and x8 of them logged ZERO
 // failed walks - the BELOW-class walks CONVERGED on the lip (the v0.178.0
@@ -301,7 +301,7 @@ test('lipDigWanted: the constants pin', () => {
   assert.equal(LIP_DIG_MAX_AIR, 2, 'the dig-under buys a 1-2 fall - the below class IS a 1-2 deep freed cell')
 })
 
-test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itself (the v0.186.0 wiring)", async () => {
+test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itself (the v0.187.0 wiring)", async () => {
   const fs = await import('node:fs')
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes("lipDigWanted, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family')

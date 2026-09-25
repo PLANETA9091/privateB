@@ -51,7 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.186.0) the lip dig-down
+import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2491,7 +2491,7 @@ export function createMiner ({
           // the walk was 8s of guaranteed spiral buying zero pickups. The
           // batch fence gets the 8s back; a later sweep at a different stance
           // may reclassify the same drop into the lip sphere.
-          // (v0.186.0) the converged BELOW arrival's last mile is the LIP
+          // (v0.187.0) the converged BELOW arrival's last mile is the LIP
           // DIG-DOWN below - the dig-under that closes the magnet gap.
           const dyWalk = d.y - bot.entity.position.y
           const range = dropGoalRange({ dy: dyWalk })
@@ -2501,7 +2501,7 @@ export function createMiner ({
             await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, range), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
             landed = true
           } catch (e) {
-            // (v0.186.0) the DY INSTRUMENT: the failed line names its dy family -
+            // (v0.187.0) the DY INSTRUMENT: the failed line names its dy family -
             // the v0.178.0 below-plane cure's residue names only x6 of the run's
             // x28 timeouts (fleet 36181152847); the rest are plane-range walks
             // whose failure family is UNMEASURED (water holes? above-plane
@@ -2512,7 +2512,7 @@ export function createMiner ({
             dropFails++
             if (range === DROP_GOAL_BELOW) belowFails++
           }
-          // (v0.186.0) THE LIP DIG-DOWN: a BELOW-class walk that CONVERGED parks
+          // (v0.187.0) THE LIP DIG-DOWN: a BELOW-class walk that CONVERGED parks
           // the bot on the lip (3D dist ~1.8-2.0, the legal v0.178.0 arrival) -
           // but the pickup magnet reaches ~1.5, so the drop rides the despawn
           // outside reach (fleet 36181152847: x8 of the x11 zero-pickup sweeps
