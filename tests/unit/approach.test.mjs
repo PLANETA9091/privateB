@@ -376,3 +376,49 @@ test('approachWalk closeShot: no rawWalk dep still moves via the pathfinder fall
   assert.equal(res.walked, true, 'the envelope read says walked - the run58 blind spot pinned here')
   assert.ok(Math.abs(res.d - 12.7279) < 0.01, `the bot stands where it stood (got ${res.d})`)
 })
+
+// ---------------------------------------------------------------------------
+// (v0.162.0) THE HONEST CAP VERDICT - run559 (dispatch 36073741918, the
+// v0.161.0 union fleet, a 300s window) caught the self-contradicting field
+// line: 'F14 approach: 8 segment(s) walked in 55.9s, goal now d=33.7 (still
+// outside - inside the direct envelope)' - EIGHT segments, still 33.7 blocks
+// out, and the verdict claimed the direct envelope. endWhy initializes to
+// 'inside the direct envelope' and only the budget/stall breaks rename it -
+// a natural cap exhaust fell out with the one verdict it did NOT earn.
+test('walk: a natural cap exhaust names the cap, never the direct envelope (the F14 verdict cure, v0.162.0)', async () => {
+  const bot = makeBot({ gotoMoves: true })
+  const target = new Vec3(100.5, 64, 0.5) // d ~= 100
+  const lines = []
+  const rawWalk = async (b, seg) => {
+    b.entity.position = new Vec3(seg.x, seg.y, seg.z) // every segment LANDS - no stall, no budget death
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, target, { rawWalk, maxSegments: 2, log: m => lines.push(m) })
+  assert.equal(res.segments, 2)
+  assert.equal(res.walked, false, '60 blocks remain - still outside, honest')
+  const line = lines.find(l => /approach: 2 segment\(s\) walked/.test(l))
+  assert.ok(line, 'the approach line is logged')
+  assert.match(line, /the segment cap spent \(2 walked, d=60\.0\)/, 'the cap is named with its count and the honest distance')
+  assert.ok(!/inside the direct envelope/.test(line), 'the un-earned verdict is gone')
+})
+
+test('walk: the legacy in-envelope verdict stays byte-identical when the walk EARNED it (v0.162.0 keeps the truth)', async () => {
+  const bot = makeBot({ x: 10, y: 64, z: 10 })
+  const lines = []
+  const res = await approachWalk(bot, new Vec3(20, 64, 20), { log: m => lines.push(m) }) // d ~= 17 <= 24, zero segments
+  assert.equal(res.segments, 0)
+  assert.equal(res.walked, true)
+  assert.ok(!lines.some(l => /approach:/.test(l)), 'the zero-segment path logs no approach line at all - unchanged')
+
+  const bot2 = makeBot({ gotoMoves: true })
+  const lines2 = []
+  const target2 = new Vec3(40, 64, 0.5) // d ~= 39.5: one 20-block segment closes to ~19.5 <= 24
+  const rawWalk = async (b, seg) => {
+    b.entity.position = new Vec3(seg.x, seg.y, seg.z)
+    return { walked: true }
+  }
+  const res2 = await approachWalk(bot2, target2, { rawWalk, log: m => lines2.push(m) })
+  assert.equal(res2.walked, true)
+  const line2 = lines2.find(l => /approach: 1 segment\(s\) walked/.test(l))
+  assert.ok(line2 && /\(inside the direct envelope\)/.test(line2), 'the EARNED envelope verdict stays')
+})

@@ -230,6 +230,22 @@ export async function approachWalk (bot, targetPos, {
     if (moved && Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
     if (!moved) { endWhy = 'a segment stalled (no position delta)'; break } // one immobile segment is enough: the caller's ladder owns the rest
   }
+  // (v0.162.0) THE HONEST CAP VERDICT - run559 (dispatch 36073741918, the
+  // v0.161.0 union fleet, a 300s window) caught the self-contradicting line:
+  // 'F14 approach: 8 segment(s) walked in 55.9s, goal now d=33.7 (still
+  // outside - inside the direct envelope)' - EIGHT segments, still 33.7
+  // blocks out, and the verdict claimed the direct envelope. The mechanism:
+  // endWhy initializes to 'inside the direct envelope' and the only exits
+  // that NAME a spend are the budget break and the stall break - when the
+  // loop exhausts its segment CAP naturally it falls out with the default
+  // text still set, so a cap-exhausted approach prints the one verdict it
+  // did NOT earn. The field decodes read these lines - a lie here poisons
+  // every downstream read. The cap-exhaust shape is unambiguous: endWhy
+  // still the default (the envelope break implies d <= threshold, the other
+  // breaks name themselves) AND d > threshold. Name the cap honestly.
+  if (endWhy === 'inside the direct envelope' && Number.isFinite(d) && d > threshold) {
+    endWhy = `the segment cap spent (${segmentsUsed.length} walked, d=${d.toFixed(1)})`
+  }
   const ok = Number.isFinite(d) && d <= threshold
   if (segmentsUsed.length) log(`approach: ${segmentsUsed.length} segment(s) walked in ${((Date.now() - started) / 1000).toFixed(1)}s, goal now d=${Number.isFinite(d) ? d.toFixed(1) : '?'} (${ok ? 'inside the direct envelope' : `still outside - ${endWhy}`})`)
   return { walked: ok, d, segments: segmentsUsed.length }
