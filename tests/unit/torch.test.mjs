@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS, TORCH_WALL_BASE_DIRS,
   torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs,
-  torchRestockWanted, metalFuelReserve, METAL_FUEL_CAP
+  torchRestockWanted, metalFuelReserve, METAL_FUEL_CAP, TORCH_POCKET_CAP
 } from '../../src/lib/torch.mjs'
 
 test('torchesCraftable: vanilla yield is 4 torches per stick+coal pair', () => {
@@ -90,12 +90,48 @@ test('torchCraftPlan: reserveCoals defaults to 0 - the legacy plan stays byte fo
   const legacy = torchCraftPlan({ sticks: 10, coals: 9 })
   const explicit = torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 0 })
   assert.deepEqual(legacy, explicit, 'absent reserve == zero reserve')
-  assert.deepEqual(legacy, { batches: 8, torches: 32, reason: 'ok' })
+  // (v0.189.0) the pocket torch cap trims the unbounded plan: held 0 reads
+  // allowed = floor(24/4) = 6 batches, so the 8-batch raw arithmetic tops at
+  // 6 (24 torches = one run's supply, TORCH_SPACING 8 x ~140 digs/run). The
+  // junk-cap escape keeps the TRUE legacy shape read: a junk/absent cap is
+  // no cap - pinned below in the cap family test.
+  assert.deepEqual(legacy, { batches: 6, torches: 24, reason: 'ok' })
   // junk reserve reads as zero (the legacy plan, not a lockup)
   assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, reserveCoals: 'many' }), legacy)
   // the junk-coal keep still stands with a reserve in play
   assert.equal(torchCraftPlan({ sticks: 10, coals: NaN, reserveCoals: 3 }).reason, 'no coal')
   assert.equal(torchCraftPlan({ sticks: 2, coals: 9, reserveCoals: 3 }).reason, 'no spare sticks')
+})
+
+test('v0.189.0 THE POCKET TORCH CAP: the converter tops the pocket at one run\'s supply', () => {
+  assert.equal(TORCH_POCKET_CAP, 24, 'the cap constant: TORCH_SPACING 8 x ~18 rhythm slots + margin')
+  // F16's run35 shape: 95 torches held, sticks and coal funding - the honest
+  // cap decline names itself (a plain 'no coal' would poison the decode).
+  assert.deepEqual(
+    torchCraftPlan({ sticks: 10, coals: 9, heldTorches: 95 }),
+    { batches: 0, torches: 0, reason: 'the pocket torch cap' }
+  )
+  // held 24 exactly and held 21 (a batch would push past the cap) - both read
+  // the cap decline; the batch alignment floors the allowance.
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, heldTorches: 24 }).reason, 'the pocket torch cap')
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, heldTorches: 21 }).reason, 'the pocket torch cap')
+  // the PARTIAL trim: held 20 -> allowed floor(4/4) = 1 batch (4 torches)
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, heldTorches: 20 }), { batches: 1, torches: 4, reason: 'ok' })
+  // the refusal family order survives: the spare verdict, then the coal
+  // verdict, then the cap - a pocket that cannot fund both sides never reads
+  // the cap name.
+  assert.equal(torchCraftPlan({ sticks: 2, coals: 9, heldTorches: 95 }).reason, 'no spare sticks')
+  assert.equal(torchCraftPlan({ sticks: 10, coals: 0, heldTorches: 95 }).reason, 'no coal')
+  // junk safety: junk held reads 0 (a junk read never locks the craft - the
+  // dry pocket keeps its full allowed budget), junk cap reads NO cap - the
+  // true legacy arithmetic (8 batches / 32 torches) byte for byte.
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, heldTorches: 'many' }), { batches: 6, torches: 24, reason: 'ok' })
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, pocketCap: 'many' }), { batches: 8, torches: 32, reason: 'ok' })
+  assert.deepEqual(torchCraftPlan({ sticks: 10, coals: 9, pocketCap: 0 }), { batches: 8, torches: 32, reason: 'ok' })
+  // the zero-torch pocket (the restock trigger's only shape) keeps the full
+  // allowed budget - the cap never blocks a dry pocket. (sticks 3 reads
+  // spare 1 above the RESERVED_STICKS floor - the reserve keeps its byte.)
+  assert.deepEqual(torchCraftPlan({ sticks: 3, coals: 2 }), { batches: 1, torches: 4, reason: 'ok' })
 })
 
 test('torchDue: rhythm - a torch every TORCH_SPACING digs', () => {

@@ -3,7 +3,7 @@
 import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
-import { torchCraftPlan, metalFuelReserve } from '../lib/torch.mjs'
+import { torchCraftPlan, metalFuelReserve, countTorches, TORCH_POCKET_CAP } from '../lib/torch.mjs'
 import { smeltablesIn, findMachineBlocks, METAL_INPUTS } from '../lib/smelting.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
@@ -1141,7 +1141,14 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
       .filter(i => i && METAL_INPUTS.has(i.name) && Number.isFinite(i.count))
       .reduce((a, i) => a + i.count, 0)
     const fuelReserve = reserveCoals !== undefined ? Math.max(0, Math.floor(reserveCoals) || 0) : metalFuelReserve(metalHeld)
-    let plan = torchCraftPlan({ sticks, coals, reserveCoals: fuelReserve, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+    // (v0.189.0) THE POCKET TORCH CAP WIRING - the plan reads the HELD torches
+    // so the craft only fills the pocket up to TORCH_POCKET_CAP (run35: 255
+    // held / 6 placed, F16:95 - every surplus torch is a coal + a stick the
+    // smelt leg could have had). The zero-torch pocket keeps the full allowed
+    // budget (floor(cap/4) = 6 batches) - the cap never blocks a dry pocket,
+    // the v0.137.0 restock cycle self-sustains under it.
+    const heldTorches = countTorches(inventoryItems(bot))
+    let plan = torchCraftPlan({ sticks, coals, reserveCoals: fuelReserve, heldTorches, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
     // (v0.137.0) THE STICKS-FOR-TORCHES CURE - run551's torch ledger: F10 held
     // 20 planks + 19 coal and still skipped every cadence ('no spare sticks:
     // sticks 1') - the plan reads the pocket's CURRENT sticks, but the
@@ -1167,11 +1174,19 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
         step(`craft torches: stick-dry but ${planksTotal} planks held - one stick batch first`)
         if (await craft(bot, 'stick', 1, null, step)) {
           const sticks2 = countItem(bot, 'stick')
-          plan = torchCraftPlan({ sticks: sticks2, coals, reserveCoals: fuelReserve, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+          plan = torchCraftPlan({ sticks: sticks2, coals, reserveCoals: fuelReserve, heldTorches, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
         }
       }
     }
     if (plan.batches <= 0) {
+      // (v0.189.0) the cap-decline shape: the pocket HAS sticks and coal but
+      // already holds the cap - the honest name (a plain 'no coal' would
+      // poison the next decode, the v0.165.0 precedent). The held count rides
+      // the line so the next decode can size the trim without a pocket read.
+      if (plan.reason === 'the pocket torch cap') {
+        step(`craft torches: skip (the pocket torch cap: held ${heldTorches} of ${TORCH_POCKET_CAP} - sticks ${countItem(bot, 'stick')} coals ${coals})`)
+        return { ok: false, batches: 0, torches: 0, reason: plan.reason }
+      }
       // (v0.165.0) the reserve-decline shape: the pocket HAS coal but the metal
       // reserve holds all of it - the mine reads the difference (a plain 'no
       // coal' would poison the next decode the same way the clock-label lie

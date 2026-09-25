@@ -106,3 +106,22 @@ test('REGRESSION PIN: the torch lane funds its own sticks (the v0.137.0 F10 cure
   assert.ok(/torchCraftPlan\(\{ sticks: sticks2, coals/.test(toolsSrc), 'the re-plan re-reads the pocket')
   assert.ok(/await craft\(bot, 'stick', 1, null, step\)/.test(toolsSrc), 'exactly one stick batch is crafted')
 })
+
+test('REGRESSION PIN: the torch converter reads the HELD torches (the v0.189.0 pocket cap)', async () => {
+  const fs = await import('node:fs')
+  const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  // run35 (fleet 36191851635, THE DELIVERY RUN): the fleet ended holding 255
+  // torches while torched=6 - a 42:1 hold-to-place ratio, F16 alone held 95.
+  // The plan must see the pocket's torches so the cap can trim the converter;
+  // the cap-decline names itself (a plain 'no coal' would poison the decode).
+  assert.ok(/const heldTorches = countTorches\(inventoryItems\(bot\)\)/.test(toolsSrc),
+    'craftTorches reads the live held-torch count')
+  assert.ok(/torchCraftPlan\(\{ sticks, coals, reserveCoals: fuelReserve, heldTorches,/.test(toolsSrc),
+    'the first plan passes the held count')
+  assert.ok(/torchCraftPlan\(\{ sticks: sticks2, coals, reserveCoals: fuelReserve, heldTorches,/.test(toolsSrc),
+    'the stick-rung re-plan passes the held count too')
+  assert.ok(/plan\.reason === 'the pocket torch cap'/.test(toolsSrc),
+    'the cap-decline names itself in the skip family')
+  assert.ok(/the pocket torch cap: held \$\{heldTorches\} of \$\{TORCH_POCKET_CAP\}/.test(toolsSrc),
+    'the cap line rides the torch filter key with the held count (the decode sizes the trim)')
+})

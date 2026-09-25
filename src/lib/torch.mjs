@@ -57,18 +57,49 @@ export function torchesCraftable (sticks, coals) {
  * @returns {{batches: number, torches: number, reason: string}}
  *   batches 0 -> no craft worth doing, `reason` says why.
  */
-export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVED_STICKS, reserveCoals = 0 } = {}) {
+export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVED_STICKS, reserveCoals = 0, heldTorches = 0, pocketCap = TORCH_POCKET_CAP } = {}) {
   const held = Number.isFinite(sticks) ? Math.max(0, Math.floor(sticks)) : 0
   const spare = held - Math.max(0, Math.floor(reserveSticks ?? RESERVED_STICKS))
   const c = Number.isFinite(coals) ? Math.max(0, Math.floor(coals)) : 0
   const rc = Number.isFinite(reserveCoals) ? Math.max(0, Math.floor(reserveCoals)) : 0
   const burnable = Math.max(0, c - rc)
-  const batches = Math.min(spare, burnable)
+  // (v0.189.0) THE POCKET TORCH CAP - the craft may only fill the pocket up to
+  // the cap (batch-aligned: a batch is 4 torches, so allowed = floor((cap -
+  // held) / 4)). Junk-safe: junk heldTorches reads 0 (a junk read never locks
+  // the craft), a junk/absent cap reads NO cap - the legacy plan byte for byte.
+  const cap = Number.isFinite(pocketCap) && pocketCap > 0 ? Math.floor(pocketCap) : null
+  const heldT = Number.isFinite(heldTorches) ? Math.max(0, Math.floor(heldTorches)) : 0
+  const allowed = cap == null ? Infinity : Math.max(0, Math.floor((cap - heldT) / 4))
+  const batches = Math.min(spare, burnable, allowed)
   if (batches <= 0) {
-    return { batches: 0, torches: 0, reason: spare <= 0 ? 'no spare sticks' : 'no coal' }
+    // The refusal family keeps its order: the spare verdict, the coal verdict,
+    // then the cap - a pocket that funds both sides but holds the cap reads
+    // the honest cap name (the v0.165.0 reserve-decline shape: a plain 'no
+    // coal' would poison the next decode the same way the clock-label lie did).
+    if (spare <= 0) return { batches: 0, torches: 0, reason: 'no spare sticks' }
+    if (burnable <= 0) return { batches: 0, torches: 0, reason: 'no coal' }
+    return { batches: 0, torches: 0, reason: 'the pocket torch cap' }
   }
   return { batches, torches: batches * 4, reason: 'ok' }
 }
+
+// (v0.189.0) THE POCKET TORCH CAP - the entry stocking is UNBOUNDED
+// (batches = min(spare, burnable)), and run35 (fleet 36191851635, the
+// v0.188.0 union fleet, THE DELIVERY RUN) measured the surplus: the fleet
+// ENDED holding 255 torches while torched=6 placements - a 42:1 hold-to-place
+// ratio - and ONE bot held 95 (F16) while 5 others dug the dark ('placement
+// did not land (dry)' x19, the craft 'no coal' x208 - the coal arrived at
+// THEIR pockets late or never). Every surplus torch is a coal + a stick the
+// converter burned: the coal the smelt leg and the metal window (the v0.165.0
+// reserve's sibling fight) could have had. The cap bounds the pocket at ONE
+// run's supply: TORCH_SPACING=8 digs and a 600s run digs ~140 blocks/bot, so
+// ~18 placements is the honest ceiling - 24 = one run + margin. The placement
+// rhythm is untouched (the placement is by-design sparse - one wall torch per
+// shaft column, the v0.10.0 design); the cap only trims the CONVERTER. The
+// restock cycle self-sustains under the cap: place to zero, the v0.137.0
+// restock tops up when the pocket funds - the cap never blocks a DRY pocket
+// (held 0 reads allowed = floor(cap/4) = 6 batches).
+export const TORCH_POCKET_CAP = 24
 
 // (v0.165.0) THE METAL FUEL RESERVE CAP - one coal smelts 8 items (vanilla
 // fuelValue 1600 / 200 per item), so the reserve for a raw-metal pile is
