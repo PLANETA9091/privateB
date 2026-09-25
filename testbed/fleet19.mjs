@@ -26,7 +26,7 @@ import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, 
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
-import { ensureTools, ensureCampFurnace, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
+import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
@@ -393,11 +393,21 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // applies to fat legs; a thin leg that cannot even BUILD still fires into
       // any machine already in reach (reach-open + put ~= 7s).
       const CAMP_BUILD_FIT_SECS = 40
-      const CAMP_BUILD_MIN_SECS = 29
+      // (v0.165.0) THE TIERED BUILD FIT - the flat 29s floor priced EVERY build
+      // at the full 24s ladder; run77 measured 10 skips on 1-20s legs while the
+      // pockets held the materials for CHEAPER tiers (the run's own BUILT lines:
+      // 8s and 13s vs the v0.123.0 full-ladder 24s). The gate now prices the
+      // CHEAPEST build the pocket can actually reach (campBuildTier - the
+      // read-only mirror of the executor's ladder) + the 5s put: a 15-20s leg
+      // with a held furnace item (6s) or cobble + a table in reach (10s) builds
+      // where the flat gate skipped, a leg too thin for its OWN tier still
+      // skips honestly with the tier named, and 'none' (a machine near,
+      // nothing to smelt) passes through to the executor's named verdict.
+      const tier = campBuildTier(miner.bot)
       const fireLeg = smeltSecs < CAMP_BUILD_FIT_SECS
       const buildStart = Date.now()
-      if (smeltSecs < CAMP_BUILD_MIN_SECS) {
-        console.log(`${miner.username} camp furnace: build skipped - the leg clock (${smeltSecs}s) cannot afford a 24s build + the 5s put (a reachable machine still takes the fired batch)`)
+      if (smeltSecs < tier.secs + CAMP_BUILD_PUT_SECS) {
+        console.log(`${miner.username} camp furnace: build skipped - the leg clock (${smeltSecs}s) cannot afford a ${tier.secs}s ${tier.action} build + the ${CAMP_BUILD_PUT_SECS}s put (${tier.why})`)
       } else {
       // (v0.89.0) THE CAMP FURNACE: run80 (35773697160) held the reserve, carried
       // raw_iron (62 inventory dumps) - and ended smelted=0 with ZERO output lines:

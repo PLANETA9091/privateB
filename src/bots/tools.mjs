@@ -602,6 +602,86 @@ export function campFurnaceAction ({ smeltables = 0, machinesNear = false, furna
   return { action: 'none', why: `no table and planks ${junk(planks)}/${TABLE_PLANKS}` }
 }
 
+// ---------------------------------------------------------------------------
+// (v0.165.0) THE TIERED BUILD FIT - the flat build gate priced EVERY build at
+// the full 24s ladder while the tiers are 4-18s apart.
+//
+// MEASURED (run77 = 36080097477, the v0.163.0 fleet at the honest 600s): 10
+// 'camp furnace: build skipped - the leg clock (1-20s) cannot afford a 24s
+// build + the 5s put' lines while the fleet's pockets carried the materials
+// for CHEAPER builds - the run's own BUILT lines name the real prices ('BUILT
+// (furnace at -150,43,405) in 8s', 'BUILT ... in 13s' vs F1's full-ladder 24s
+// in the v0.123.0 fleet). A 15-20s end-phase leg cannot afford the WORST
+// build but can afford the place-furnace/craft-furnace tier it actually
+// needs - the flat gate skipped them all and the smelt windows died on
+// 'machine unreachable' with pocket metal riding to the bank un-smelted
+// (smelted=2 on the 1718-record successor).
+//
+// The map prices each campFurnaceAction verdict at its measured live cost
+// (the ladder rung + the placements it implies), 'none' costs nothing (no
+// build would happen - the executor's own named verdict stays the truth),
+// an unknown action keeps the conservative full-ladder price. The thin-leg
+// gate (testbed/fleet19.mjs) adds CAMP_BUILD_PUT_SECS for the fired put.
+export const CAMP_BUILD_PUT_SECS = 5
+export const CAMP_BUILD_TIER_SECS = {
+  'place-furnace': 6,
+  'craft-furnace': 10,
+  'place-table': 14,
+  'craft-table': 18,
+  'craft-planks': 24
+}
+
+export function campBuildTierSecs (action) {
+  if (action === 'none') return 0
+  const s = CAMP_BUILD_TIER_SECS[action]
+  return Number.isFinite(s) && s > 0 ? s : 24
+}
+
+/**
+ * The read-only mirror of ensureCampFurnace's ladder: the SAME reads (the
+ * pocket, the machines with the doomed + envelope filters, the table reach)
+ * with NO crafts and NO placements - the verdict plus the tier's measured
+ * seconds. The thin-leg gate prices the CHEAPEST build the pocket can
+ * actually reach instead of the flat 24s worst case; the executor keeps its
+ * own reads byte for byte when it runs. Junk-safe: every read is guarded,
+ * an unreadable bot reads as 'none' at 0s (the gate passes, the executor
+ * names the real verdict).
+ */
+export function campBuildTier (bot, { maxDistance = 48 } = {}) {
+  const empty = { action: 'none', why: 'no entity', secs: 0, machinesNear: false }
+  try {
+    if (!bot?.entity?.position) return empty
+    const smeltPlan = smeltablesIn(bot, { reserveCobble: 8 })
+    const smeltTotal = smeltPlan.reduce((a, s) => a + (Number.isFinite(s.count) ? s.count : 0), 0)
+    const planksTotal = inventoryItems(bot)
+      .filter(i => /_planks$/.test(i.name))
+      .reduce((a, i) => a + (Number.isFinite(i.count) ? i.count : 0), 0)
+    const near = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
+    const machineVerdict = usableMachines(near, cell => nearDoomedGoal(cell, Date.now(), { radius: DOOMED_GOAL_RADIUS }).hit === true)
+    const envelopeVerdict = envelopeMachines(machineVerdict.usable, bot.entity.position)
+    let tableNear = false
+    try { tableNear = !!reachableTable(bot) } catch { tableNear = false }
+    const stacks = inventoryItems(bot)
+      .filter(i => PLANK_TYPES.includes(i.name))
+      .map(i => (Number.isFinite(i.count) ? i.count : 0))
+    const maxSameTypePlanks = stacks.length ? Math.max(...stacks) : 0
+    const verdict = campFurnaceAction({
+      smeltables: smeltTotal,
+      machinesNear: envelopeVerdict.near.length > 0,
+      furnaceItem: countItem(bot, 'furnace'),
+      cobble: countItem(bot, 'cobblestone'),
+      planks: planksTotal,
+      tableItem: countItem(bot, 'crafting_table'),
+      tableNear,
+      logs: countLogs(bot),
+      maxSameTypePlanks
+    })
+    return { ...verdict, secs: campBuildTierSecs(verdict.action), machinesNear: envelopeVerdict.near.length > 0 }
+  } catch {
+    return empty
+  }
+}
+
 // The placement core, GENERALIZED from placeTable (which keeps its own copy for
 // the tool lane). The pacing below is measured-live and must not be "cleaned up":
 //   - the 5-tick pre-click wait: vanilla drops right-clicks <4 game ticks apart

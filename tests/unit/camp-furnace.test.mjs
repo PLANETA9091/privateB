@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { campFurnaceAction, ensureCampFurnace, usableMachines, envelopeMachines, CAMP_ENVELOPE_B, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
+import { campFurnaceAction, ensureCampFurnace, usableMachines, envelopeMachines, campBuildTier, campBuildTierSecs, CAMP_BUILD_TIER_SECS, CAMP_ENVELOPE_B, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
 import { APPROACH_THRESHOLD } from '../../src/lib/approach.mjs'
 import { recordDoomedGoal, resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 
@@ -436,4 +436,116 @@ test('ensureCampFurnace: the mixed split names the far machine and keeps the vet
     assert.deepEqual(r, { built: false, why: 'machine near' }, 'the 8b keeper holds the veto')
     assert.ok(lines.some(l => /1 near machine\(s\) beyond the 24b direct envelope \(nearest d=8\.0\) - 1 inside the envelope keep the veto/.test(l)), `the split is named: ${lines.join(' | ')}`)
   } finally { resetDoomedGoalLedger() }
+})
+
+// the light fake bot for the read-only tier mirror: the same shape the
+// ensureCampFurnace mocks use (entity position with distanceTo for the
+// machine sort, the inventory list, the world finders), minus craft/place.
+const fakeBot = (items, { pos = { x: 0, y: 70, z: 0 } } = {}) => ({
+  entity: { position: { x: pos.x, y: pos.y, z: pos.z, distanceTo () { return 2 } } },
+  inventory: { items: () => items },
+  findBlocks: () => [],
+  findBlock: () => null
+})
+
+// ---------------------------------------------------------------------------
+// (v0.165.0) THE TIERED BUILD FIT - run77 (36080097477, the honest 600s)
+// measured 10 'build skipped - the leg clock (1-20s) cannot afford a 24s
+// build' lines while the pockets held the materials for CHEAPER tiers (the
+// run's own BUILT lines price the real builds at 8s and 13s). The gate now
+// prices the CHEAPEST build the pocket can reach. campBuildTier is the
+// read-only mirror of ensureCampFurnace's ladder: same reads, no side
+// effects, plus the tier seconds.
+
+test('CAMP_BUILD_TIER_SECS: the tiers are pinned, ordered, and priced', () => {
+  // the order MUST be strictly increasing - the tiers mirror the ladder's
+  // cost ladder (place < craft+place < table+craft+place < planks+that)
+  const t = CAMP_BUILD_TIER_SECS
+  assert.equal(t['place-furnace'], 6, 'a held furnace item: equip + place + verify')
+  assert.equal(t['craft-furnace'], 10, 'cobble + a table in reach: craft + place')
+  assert.equal(t['place-table'], 14, 'a held table: place + craft + place')
+  assert.equal(t['craft-table'], 18, 'planks: craft table + place + craft + place')
+  assert.equal(t['craft-planks'], 24, 'the full ladder - the v0.123.0 measured 24s')
+  assert.ok(t['place-furnace'] < t['craft-furnace'] < t['place-table'] < t['craft-table'] < t['craft-planks'])
+})
+
+test('campBuildTierSecs: none costs nothing, unknown actions keep the full-ladder price', () => {
+  assert.equal(campBuildTierSecs('none'), 0)
+  assert.equal(campBuildTierSecs('place-furnace'), 6)
+  assert.equal(campBuildTierSecs('gibberish'), 24, 'an unknown verdict prices conservatively - the gate skips rather than lies')
+  assert.equal(campBuildTierSecs(undefined), 24)
+})
+
+test('campBuildTier: a held furnace item reads the 6s tier (the cheapest build)', () => {
+  const bot = fakeBot([{ name: 'furnace', count: 1 }, { name: 'raw_iron', count: 5 }])
+  const t = campBuildTier(bot)
+  assert.equal(t.action, 'place-furnace')
+  assert.equal(t.secs, 6)
+  assert.match(t.why, /x1 held/)
+})
+
+test('campBuildTier: cobble + a table in reach reads the 10s tier', () => {
+  const bot = fakeBot([{ name: 'raw_copper', count: 12 }, { name: 'cobblestone', count: 30 }])
+  bot.findBlock = () => ({ name: 'crafting_table', position: null }) // a table within reach
+  const t = campBuildTier(bot)
+  assert.equal(t.action, 'craft-furnace')
+  assert.equal(t.secs, 10)
+})
+
+test('campBuildTier: the table/planks/logs rungs price at 14/18/24', () => {
+  // a held table item -> place-table
+  let t = campBuildTier(fakeBot([{ name: 'raw_iron', count: 4 }, { name: 'cobblestone', count: 12 }, { name: 'crafting_table', count: 1 }]))
+  assert.equal(t.action, 'place-table')
+  assert.equal(t.secs, 14)
+  // planks >= 4 -> craft-table
+  t = campBuildTier(fakeBot([{ name: 'raw_iron', count: 4 }, { name: 'cobblestone', count: 12 }, { name: 'oak_planks', count: 4 }]))
+  assert.equal(t.action, 'craft-table')
+  assert.equal(t.secs, 18)
+  // logs + a short plank stack -> the consolidation rung, the full 24s ladder
+  t = campBuildTier(fakeBot([{ name: 'raw_iron', count: 4 }, { name: 'cobblestone', count: 12 }, { name: 'oak_planks', count: 2 }, { name: 'oak_log', count: 1 }]))
+  assert.equal(t.action, 'craft-planks')
+  assert.equal(t.secs, 24)
+})
+
+test('campBuildTier: a usable machine near keeps the veto at 0s (the executor names it)', () => {
+  const bot = fakeBot([{ name: 'raw_iron', count: 9 }, { name: 'cobblestone', count: 30 }])
+  bot.findBlocks = () => [{ position: { x: 0, y: 70, z: 3 } }] // a furnace 3b away, inside the envelope
+  bot.blockAt = () => ({ name: 'furnace', position: { x: 0, y: 70, z: 3 } })
+  const t = campBuildTier(bot)
+  assert.deepEqual(t, { action: 'none', why: 'machine near', secs: 0, machinesNear: true })
+})
+
+test('campBuildTier: a machine beyond the 24b envelope cannot veto (the v0.163.0 shape rides the gate)', () => {
+  // the pocket can BUILD (cobble + planks + a smeltable) but the only machine
+  // the scan sees stands 40b out - beyond CAMP_ENVELOPE_B (24): the veto must
+  // flip and the ladder price the build it would actually run
+  const bot = fakeBot([{ name: 'raw_iron', count: 9 }, { name: 'cobblestone', count: 30 }, { name: 'oak_planks', count: 4 }])
+  bot.findBlocks = () => [{ position: { x: 40, y: 80, z: 0 } }] // 40b out - beyond CAMP_ENVELOPE_B
+  bot.blockAt = () => ({ name: 'furnace', position: { x: 40, y: 80, z: 0 } })
+  const t = campBuildTier(bot)
+  assert.equal(t.machinesNear, false, 'a 40b machine is beyond the direct envelope - the bay reads as empty')
+  assert.equal(t.action, 'craft-table')
+  assert.equal(t.secs, 18)
+})
+
+test('campBuildTier: nothing to smelt reads none at 0s (the gate never blocks a no-op)', () => {
+  // dirt is not a SMELT_OUTPUT key - the pocket reads smelt-empty whatever else it holds
+  const t = campBuildTier(fakeBot([{ name: 'dirt', count: 30 }, { name: 'oak_planks', count: 4 }]))
+  assert.deepEqual(t, { action: 'none', why: 'nothing to smelt', secs: 0, machinesNear: false })
+})
+
+test('campBuildTier: junk bots degrade to the empty verdict (never throw)', () => {
+  assert.deepEqual(campBuildTier(null), { action: 'none', why: 'no entity', secs: 0, machinesNear: false })
+  assert.deepEqual(campBuildTier({}), { action: 'none', why: 'no entity', secs: 0, machinesNear: false })
+  assert.deepEqual(campBuildTier({ entity: {} }), { action: 'none', why: 'no entity', secs: 0, machinesNear: false })
+  const boom = { get entity() { throw new Error('desync') } }
+  assert.deepEqual(campBuildTier(boom), { action: 'none', why: 'no entity', secs: 0, machinesNear: false })
+})
+
+test('campBuildTier: the fleet gate shape - the skip line names the tier (fleet19 source pin)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /campBuildTier\(miner\.bot\)/, 'the gate consults the read-only mirror')
+  assert.match(src, /smeltSecs < tier\.secs \+ CAMP_BUILD_PUT_SECS/, 'the gate arithmetic is tier + the put')
+  assert.match(src, /cannot afford a \$\{tier\.secs\}s \$\{tier\.action\} build \+ the \$\{CAMP_BUILD_PUT_SECS\}s put/, 'the skip line names the tier and the why rides')
+  assert.doesNotMatch(src, /const CAMP_BUILD_MIN_SECS = 29/, 'the flat 29s floor is retired')
 })

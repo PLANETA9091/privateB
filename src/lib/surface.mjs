@@ -825,6 +825,79 @@ export function isDigLanded (block) {
   try { return block.type === 0 } catch { return false }
 }
 
+// ---------------------------------------------------------------------------
+// (v0.165.0) THE BRIDGE STEP - the support-less surface band, filled with the
+// pocket's own cobble.
+//
+// MEASURED (run77 = 36080097477, the v0.163.0 fleet at the honest 600s; run74
+// = 36082849774, the v0.164.0 fleet, same window): the final climb's dominant
+// killer is no longer a dig refusal - 42 diag lines in run77 (13 in run74)
+// read 'blocked toward X (dug=0)' with NO cell named, clustered at y=63-66,
+// the surface water band. The missing suffix IS the anatomy: stepDigPlan
+// returned 0 digs (all four step cells read empty) and no fastDig failed, so
+// the only remaining blocked source is the SUPPORT check - the floor cell at
+// (feet+d) is not solid (an air hole or open water). The bot stands at
+// surface level on a one-cell lip with every horizontal neighbour at its own
+// level open - the walkable-surface handoff (v0.37.0) refuses too (no
+// walkable direction), the rotate ladder burns the fail budget on the same
+// four holes, and the climb dies 'stalled': 10 of 19 final banks in run77
+// ended 'still underground' with 3072u riding in pockets (banked 128 vs the
+// 1718 record; run74: 5 of 19, banked 1160).
+//
+// THE CURE is the miner's bridge: when the step path is CLEAR and only the
+// floor is missing, PLACE a block. The transport is the camp build's measured
+// standing placement (v0.163.0's 'BUILT ... in 8s/13s'), NOT the pillar-jump's
+// airborne self-cell shape that fleet 112 proved server-suspect: the reference
+// block is always solid ground (the bot's own floor, or the pit floor under
+// the support), the bot stands still, and the target cell never overlaps the
+// bot's AABB. Two fills cover both geometries: 'support' (the pit floor is
+// solid - fill the support cell against its UP face) and 'pit' (the pit is
+// open - fill the pit level against the bot's own floor's side face; the next
+// loop iteration re-judges the same bearing into the 'support' case). The
+// v0.76.0 lesson governs the wiring's verify: the packet's truth is the ITEM
+// LEAVING THE INVENTORY, not the client chunk read.
+//
+// Budget: BRIDGE_PLACE_MAX fills per climb (each ~1.5s at PILLAR_PLACE_TIMEOUT_MS,
+// bounded by the climb's maxMs fence like every other spend). Junk-safe: any
+// unreadable cell refuses - the legacy rotate ladder owns the level.
+export const BRIDGE_PLACE_MAX = 8
+
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX } = {}) {
+  const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
+  const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
+  if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
+  const item = pickPillarBlock(items)
+  if (!item) return { ok: false, why: 'no placeable block in the pocket' }
+  if (!feet || !d || typeof feet.offset !== 'function' || typeof read !== 'function') {
+    return { ok: false, why: 'no geometry read' }
+  }
+  const rd = cell => { try { return read(cell) } catch { return null } }
+  const ownFloor = rd(feet.offset(0, -1, 0))
+  if (!ownFloor || ownFloor.boundingBox !== 'block') return { ok: false, why: 'no solid floor underfoot' }
+  const step = rd(feet.offset(d.x, 1, d.z))
+  const step2 = rd(feet.offset(d.x, 2, d.z))
+  const clear = b => !!b && b.boundingBox === 'empty'
+  if (!clear(step) || !clear(step2)) return { ok: false, why: 'the step cells are not clear (the dig ladder owns this level)' }
+  const support = rd(feet.offset(d.x, 0, d.z))
+  if (support && support.boundingBox === 'block') return { ok: false, why: 'the support is already solid' }
+  const below = rd(feet.offset(d.x, -1, d.z))
+  if (below && below.boundingBox === 'block') {
+    return {
+      ok: true, kind: 'support',
+      cell: feet.offset(d.x, 0, d.z), refCell: feet.offset(d.x, -1, d.z),
+      face: { x: 0, y: 1, z: 0 }, item, placedNext: done + 1
+    }
+  }
+  if (below && (below.boundingBox === 'empty' || below.boundingBox === 'fluid')) {
+    return {
+      ok: true, kind: 'pit',
+      cell: feet.offset(d.x, -1, d.z), refCell: feet.offset(0, -1, 0),
+      face: { x: d.x, y: 0, z: d.z }, item, placedNext: done + 1
+    }
+  }
+  return { ok: false, why: 'the pit floor reads unknown' }
+}
+
 /** Pure: the forensics suffix for a SURVIVING dig refusal - what the bot held,
  * whether it stood on ground, and what the post-settle re-read says. Every
  * field is optional; junk reads print 'n/a'/'?' placeholders instead of

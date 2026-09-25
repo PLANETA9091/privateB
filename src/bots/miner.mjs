@@ -20,11 +20,12 @@ import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan, isDigLanded, digRefusalDetail,
-  PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP,
+  PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
-  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING
+  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
+  bridgePlan, BRIDGE_PLACE_MAX
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
@@ -3272,6 +3273,7 @@ export function createMiner ({
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
+    let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
     // measured the trap (17:05 run): a shaft that turned into a water column
@@ -3545,6 +3547,42 @@ export function createMiner ({
             bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetBlocked.y, now: Date.now() })
             log(`${tag} climb: walkable surface at y=${feetBlocked.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over (blocked step)`)
             return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+          }
+        }
+        // (v0.165.0) THE BRIDGE STEP: the support-less signature is exact - the
+        // step cells read CLEAR (no blockedRefusal, no digFailCell) and only the
+        // SUPPORT check set blocked (blockedWet stays false: it is only ever set
+        // by a named stepDigPlan refusal or a wet dig fail). The run77/run74
+        // fleets measured the class at the surface band (y=63-66: 42 + 13 diag
+        // lines) - the bot stands on a one-cell lip, every neighbour floor is a
+        // hole, and the rotate ladder burns its fail budget on the same four
+        // holes. The bridge PLACES the missing floor with the pocket's cobble
+        // (the camp build's standing-placement transport, never the airborne
+        // pillar shape): a landed fill changes the geometry and the loop
+        // re-judges WITHOUT a fail; a refused fill falls through to the honest
+        // diag + rotate ladder. Budget: BRIDGE_PLACE_MAX fills per climb.
+        if (!blockedWet && !blockedRefusal && !digFailCell) {
+          const bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced })
+          if (bp.ok) {
+            bridgePlaced = bp.placedNext
+            let placedOk = false
+            try {
+              const countOf = n => inventoryItems(bot).filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+              const before = countOf(bp.item.name)
+              await withTimeout(bot.equip(bp.item, 'hand'), 5000, 'climb bridge equip')
+              const refB = readCell(bp.refCell)
+              await withTimeout(bot.placeBlock(refB, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge place')
+              await settleTicks(10, 'climb bridge settle')
+              const nowB = readCell(bp.cell)
+              placedOk = (!!nowB && nowB.boundingBox === 'block') || countOf(bp.item.name) < before
+            } catch { placedOk = false }
+            if (placedOk) {
+              if (diagLevels < 3) log(`${tag} climb bridge: placed ${bp.item.name} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.kind}) - the step re-judges`)
+              continue
+            }
+            if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it`)
+          } else if (diagLevels < 3 && bridgePlaced === 0) {
+            log(`${tag} climb bridge: unavailable (${bp.why})`)
           }
         }
         if (diagLevels++ < 3) {

@@ -1294,10 +1294,11 @@ test('smeltInventory fire mode: one fired visit ends the input\'s machine loop (
 test('REGRESSION PIN: the v0.137.0 fired-smelt gate rides the fleet source', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /const fireLeg = smeltSecs < CAMP_BUILD_FIT_SECS/, 'thin legs fire, fat legs poll')
-  assert.match(fleetSrc, /const CAMP_BUILD_MIN_SECS = 29/, 'the build gate drops to build+put (24s + ~5s), the 15s poll floor is poll-only')
+  assert.match(fleetSrc, /const tier = campBuildTier\(miner\.bot\)/, 'the build gate consults the read-only tier mirror (v0.165.0 - the flat 29s floor priced every build at the full 24s ladder)')
   assert.match(fleetSrc, /fire: fireLeg/, 'the smelt leg wires the fire verdict through')
   assert.match(fleetSrc, /fired=\$\{res\.fired\}/, 'the fired count is named in the leg\'s own line')
-  assert.match(fleetSrc, /cannot afford a 24s build \+ the 5s put/, 'the skip line names the NEW arithmetic (the old 15s floor is gone)')
+  assert.match(fleetSrc, /cannot afford a \$\{tier\.secs\}s \$\{tier\.action\} build \+ the \$\{CAMP_BUILD_PUT_SECS\}s put/, 'the skip line names the TIER arithmetic (run77: 10 skips on 1-20s legs while the pockets held the cheaper tiers)')
+  assert.doesNotMatch(fleetSrc, /cannot afford a 24s build \+ the 5s put/, 'the flat 24s-build line is retired (the tier names its own price)')
   assert.doesNotMatch(fleetSrc, /cannot afford a 24s build \+ the 15s smelt floor/, 'the stale 15s-floor line is retired')
 })
 

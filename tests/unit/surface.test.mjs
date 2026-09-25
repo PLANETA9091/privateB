@@ -518,3 +518,188 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
   assert.match(toolSrc, /the walk ladder cannot climb, the fragments ride/, 'the commune skip names the ride')
   assert.match(toolSrc, /the walk ladder cannot climb, the seed rides/, 'the seed skip names the ride')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.165.0) THE BRIDGE STEP - the support-less surface band, filled with the
+// pocket's own cobble. run77 (36080097477, the honest 600s) measured the
+// class: 42 'blocked toward X (dug=0)' diag lines with NO cell named at
+// y=63-66 - the step cells are CLEAR, only the SUPPORT check refused (the
+// neighbour floor is a hole or open water) - and 10 of 19 final banks died
+// 'still underground' with 3072u riding in pockets (banked 128 vs the 1718
+// record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
+// is the pure gate the climbOut wiring executes: the step path clear + the
+// support non-solid + a placeable pocket = fill the missing floor.
+import { bridgePlan, BRIDGE_PLACE_MAX } from '../../src/lib/surface.mjs'
+
+const cell = (x, y, z) => ({
+  x, y, z,
+  offset: (dx, dy, dz) => cell(x + dx, y + dy, z + dz)
+})
+const blk = (name, boundingBox) => ({ name, boundingBox })
+const AIR = blk('air', 'empty')
+const WATER = blk('water', 'fluid')
+const STONE = blk('stone', 'block')
+const COBBLE_ITEM = { name: 'cobblestone', count: 64 }
+const POCKET = [COBBLE_ITEM]
+// a world map keyed 'x,y,z'; unreadable cells (absent) read null
+const cellWorld = cells => {
+  const map = new Map(Object.entries(cells))
+  return c => map.get(`${c.x},${c.y},${c.z}`) ?? null
+}
+const D = { x: 1, z: 0 }
+
+test('BRIDGE_PLACE_MAX: the per-climb fill budget is pinned', () => {
+  assert.equal(BRIDGE_PLACE_MAX, 8)
+})
+
+test('bridgePlan: the support case - the pit floor is solid, fill the support cell against its UP face', () => {
+  // feet at (10,64,20) standing on stone; ahead the support cell is AIR but the
+  // pit floor under it is solid - one fill completes the step
+  const read = cellWorld({
+    '10,63,20': STONE, // ownFloor
+    '11,65,20': AIR, '11,66,20': AIR, // the step cells - clear (dug=0)
+    '11,64,20': AIR, // the support - NOT solid
+    '11,63,20': STONE // the pit floor - solid
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'support')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 11, y: 64, z: 20 }, 'the fill goes into the support cell')
+  assert.deepEqual({ x: p.refCell.x, y: p.refCell.y, z: p.refCell.z }, { x: 11, y: 63, z: 20 }, 'the reference is the solid pit floor')
+  assert.deepEqual(p.face, { x: 0, y: 1, z: 0 }, 'placed against the UP face')
+  assert.equal(p.item.name, 'cobblestone')
+  assert.equal(p.placedNext, 1)
+})
+
+test('bridgePlan: the pit case - the pit is open, fill the pit level against the bot floor side', () => {
+  const read = cellWorld({
+    '10,63,20': STONE, // ownFloor (the bot stands on it)
+    '11,65,20': AIR, '11,66,20': AIR, // the step cells clear
+    '11,64,20': AIR, // the support - air
+    '11,63,20': AIR // the pit - open all the way down
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'pit')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 11, y: 63, z: 20 }, 'the fill goes into the pit level')
+  assert.deepEqual({ x: p.refCell.x, y: p.refCell.y, z: p.refCell.z }, { x: 10, y: 63, z: 20 }, 'the reference is the bot OWN solid floor')
+  assert.deepEqual(p.face, { x: 1, y: 0, z: 0 }, 'placed against the floor side face toward d')
+})
+
+test('bridgePlan: the lake case - a water support and a water pit still bridge (water is replaceable)', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': WATER, // the support reads fluid - non-solid
+    '11,63,20': WATER // the pit reads fluid too
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, true, 'a water support is the same support-less class (the run77 y=63-66 band)')
+  assert.equal(p.kind, 'pit', 'the fluid pit fills first, the next iteration re-judges into the support case')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 11, y: 63, z: 20 })
+})
+
+test('bridgePlan: a SOLID support is not the class (the dig/step ladder owns it)', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': STONE // support solid - the step should have proceeded
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /support is already solid/)
+})
+
+test('bridgePlan: a solid STEP cell refuses - a dig refusal is never bridged over', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': STONE, // the step cell is solid - stepDigPlan would dig it
+    '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /the step cells are not clear/)
+})
+
+test('bridgePlan: a wet step cell refuses - the wet-escape ladder owns the water column', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': WATER, // the step cell is water - blockedWet territory
+    '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /the step cells are not clear/)
+})
+
+test('bridgePlan: an empty pocket cannot bridge (the legacy rotate ladder owns the level)', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [] })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /no placeable block/)
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: null }).ok, false)
+  // junk counts in the pocket read as nothing (pickPillarBlock's own junk gate)
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [{ name: 'cobblestone', count: 0 }] }).ok, false)
+})
+
+test('bridgePlan: the budget is spent - the fills stop at BRIDGE_PLACE_MAX per climb', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: BRIDGE_PLACE_MAX })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /the bridge budget is spent \(8\/8\)/)
+  // a junk placed read floors to 0 - the budget starts fresh, never refuses early
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: NaN }).ok, true)
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: -3 }).ok, true)
+})
+
+test('bridgePlan: an airborne bot cannot bridge (no solid floor underfoot - the reference would be void)', () => {
+  const read = cellWorld({
+    '10,63,20': AIR, // ownFloor - the bot is falling
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /no solid floor underfoot/)
+})
+
+test('bridgePlan: an unreadable neighbourhood refuses (the chunk-desync class never bridges blind)', () => {
+  // ownFloor unreadable
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read: cellWorld({}), items: POCKET }).ok, false)
+  // the step cells unreadable (the clear gate needs a POSITIVE empty read)
+  const half = cellWorld({ '10,63,20': STONE, '11,64,20': AIR, '11,63,20': STONE })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read: half, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /the step cells are not clear/)
+  // the pit floor unreadable (neither solid nor open) - no reference to place against
+  const half2 = cellWorld({ '10,63,20': STONE, '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR })
+  const p2 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: half2, items: POCKET })
+  assert.equal(p2.ok, false)
+  assert.match(p2.why, /the pit floor reads unknown/)
+})
+
+test('bridgePlan: junk geometry never throws (the junk doctrine)', () => {
+  assert.equal(bridgePlan({}).ok, false)
+  assert.equal(bridgePlan({ feet: null, d: D, read: () => STONE, items: POCKET }).ok, false)
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: null, read: () => STONE, items: POCKET }).ok, false)
+  assert.equal(bridgePlan({ feet: { x: 1, y: 1, z: 1 }, d: D, read: () => STONE, items: POCKET }).ok, false, 'a feet without .offset is junk telemetry')
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read: () => { throw new Error('chunk desync') }, items: POCKET }).ok, false)
+  // a maxPlaced junk read falls back to the default cap
+  const read = cellWorld({ '10,63,20': STONE, '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR, '11,63,20': STONE })
+  assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, maxPlaced: 0 }).ok, true, 'junk maxPlaced falls back to BRIDGE_PLACE_MAX')
+})
