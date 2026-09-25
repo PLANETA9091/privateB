@@ -246,7 +246,7 @@ test('pickFuel JUNK window (default) burns spare wood FIRST - the run97 misalloc
   assert.equal(fuel.count, 2) // only the amount ABOVE the 8 reserve is burnable
 })
 
-test('pickFuel itemsNeeded 1 = the minimal-fire probe the smelt hold gates on (v0.191.0)', () => {
+test('pickFuel itemsNeeded 1 = the minimal-fire probe the smelt hold gates on (v0.192.0)', () => {
   // run46's F10/F6/F8 class: the bank-block's fuel gate counted coal only and
   // skipped the smelt hold ('no fuel in pocket (coal 0)' x3) while the SAME
   // bots' furnaces burned wood - F6: 'fuel clips the batch: 4 x oak_log

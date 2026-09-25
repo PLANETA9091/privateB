@@ -200,7 +200,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // be able to fire - the fuel read gates the reserve (only an explicit false
   // skips; a missing read keeps the legacy shape). The skip names itself once
   // here, riding the 'bank ' filter key - the next fleet sizes the class.
-  // (v0.191.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
+  // (v0.192.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
   // (pickFuel, itemsNeeded 1 = the minimal-fire probe) instead of a coal-only
   // count. MEASURED (run46 = fleet 36195869446, the v0.190.0 union): 'smelt
   // hold skipped - no fuel in pocket (coal 0)' x3 (F10/F6/F8) while the same

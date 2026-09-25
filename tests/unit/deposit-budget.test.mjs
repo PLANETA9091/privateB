@@ -349,10 +349,10 @@ test('smeltChainReserve: the fuel gate skips the hold only on an explicit false'
 test('wiring: the bank block gates the smelt hold on the pocket fuel read', () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   // the pocket read: coal + charcoal (charcoal is a first-class smelt fuel;
-  // v0.191.0 - the count survives as the skip line's honest suffix)
+  // v0.192.0 - the count survives as the skip line's honest suffix)
   assert.match(src, /const pocketFuel = countItem\(miner\.bot, 'coal'\) \+ countItem\(miner\.bot, 'charcoal'\)/,
     'the fuel read counts both smelt fuels')
-  // (v0.191.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
+  // (v0.192.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
   // (pickFuel, itemsNeeded 1 = the minimal-fire probe) - run46's 'no fuel in
   // pocket (coal 0)' x3 rode pockets whose furnaces burned oak_log (F6: 'fuel
   // clips the batch: 4 x oak_log completes 6 of 33'); a coal-only gate was

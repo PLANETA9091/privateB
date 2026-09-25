@@ -723,7 +723,7 @@ export const SMELT_CHAIN_FLOOR_MS = 45000
  * @param {number} [p.budgetMs] the chain budget at entry (junk/negative -> 0)
  * @param {boolean} [p.carriesSmeltables] does the pocket hold smeltable items
  * @param {boolean} [p.hasFuel] does the pocket hold fuel the smelt leg can burn -
- *   the caller consults the furnace's own selector (pickFuel, the v0.191.0
+ *   the caller consults the furnace's own selector (pickFuel, the v0.192.0
  *   wood-fuel gate: coal/charcoal OR wood above the pick reserves); only an
  *   explicit false skips the hold (v0.183.0); junk/undefined keeps the
  *   legacy shape byte for byte (a missing read never widens the reserve)
@@ -743,7 +743,7 @@ export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, ha
   // budget, the deposit legs got the dregs ('0 (budget exhausted)'), and the
   // ore rode home unsmelted anyway. An explicit false returns the slice to
   // the deposit legs; fuel present (true) or a missing read (junk/undefined)
-  // keeps the legacy shape byte for byte. (v0.191.0) the CALLER's read widened
+  // keeps the legacy shape byte for byte. (v0.192.0) the CALLER's read widened
   // from a coal-only count to the furnace's own picker (pickFuel, wood above
   // the reserves included - run46's 'no fuel in pocket (coal 0)' x3 rode
   // pockets whose furnaces burned oak_log): the pure shape is unchanged, the
