@@ -196,8 +196,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // the final deposit sees the full clock again. Empty pockets: reserve 0,
   // the legacy shape byte for byte.
   const carriesSmelt = SMELT ? smeltablesIn(miner.bot, { reserveCobble: 8 }).length > 0 : false
-  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, smeltBudgetSecs: SMELT_BUDGET })
+  // (v0.183.0) THE FUEL GATE: the hold prices a smelt leg the pocket may not
+  // be able to fire - no coal/charcoal means the furnace has nothing to burn.
+  // The pocket's fuel count gates the reserve (only an explicit false skips;
+  // a missing read keeps the legacy shape). The skip names itself once here,
+  // riding the 'bank ' filter key - the next fleet sizes the class.
+  const pocketFuel = countItem(miner.bot, 'coal') + countItem(miner.bot, 'charcoal')
+  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, hasFuel: pocketFuel > 0, smeltBudgetSecs: SMELT_BUDGET })
   if (smeltReserveMs > 0) console.log(`${miner.username} bank: ${reserveWhy}`)
+  else if (reserveWhy.startsWith('smelt hold skipped')) console.log(`${miner.username} bank: ${reserveWhy} (coal ${pocketFuel})`)
   const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())
   const lootOpts = () => ({ keep: keep(true), budgetMs: preSmeltRemaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots

@@ -701,6 +701,9 @@ export function smeltClampSeconds ({ remainingMs = Infinity, budgetSecs = 90, re
 // byte for byte (reserve 0). The v0.39.0 direction is preserved inverted:
 // smelt can no more eat the deposit slice (smeltClampSeconds still keeps
 // FINAL_DEPOSIT_RESERVE_MS), and the walk can no more eat the smelt slice.
+// (v0.183.0) the fuel gate sits in front of the share maths: a smeltable
+// pocket with coal=0 never holds a slice at all - the deposit legs spend the
+// whole clock instead of budgeting around a smelt that cannot fire.
 
 /** The chain share a smeltable bot may hold back for the smelt leg. */
 export const SMELT_CHAIN_SHARE = 0.25
@@ -718,13 +721,27 @@ export const SMELT_CHAIN_FLOOR_MS = 45000
  * @param {object} [p]
  * @param {number} [p.budgetMs] the chain budget at entry (junk/negative -> 0)
  * @param {boolean} [p.carriesSmeltables] does the pocket hold smeltable items
+ * @param {boolean} [p.hasFuel] does the pocket hold smelt fuel (coal/charcoal) -
+ *   only an explicit false skips the hold (v0.183.0); junk/undefined keeps the
+ *   legacy shape byte for byte (a missing read never widens the reserve)
  * @param {number} [p.smeltBudgetSecs] the fleet's SMELT_BUDGET (seconds, default 90)
  * @param {number} [p.share] chain share (default SMELT_CHAIN_SHARE)
  * @param {number} [p.floorMs] minimum reserve when the budget allows (default SMELT_CHAIN_FLOOR_MS)
  * @returns {{reserveMs: number, why: string}}
  */
-export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, smeltBudgetSecs = 90, share = SMELT_CHAIN_SHARE, floorMs = SMELT_CHAIN_FLOOR_MS } = {}) {
+export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, hasFuel = true, smeltBudgetSecs = 90, share = SMELT_CHAIN_SHARE, floorMs = SMELT_CHAIN_FLOOR_MS } = {}) {
   if (!carriesSmeltables) return { reserveMs: 0, why: 'nothing to smelt' }
+  // (v0.183.0) THE FUEL GATE: a pocket with smeltables but NO fuel can never
+  // run the smelt leg - the furnace has nothing to burn - yet the legacy shape
+  // still held the full slice (floor 45s) and the pre-smelt legs budgeted
+  // around a smelt that could never fire. MEASURED (fleet 36148566518, the
+  // v0.180.0 run): 9 bank trips burned, the hold line 'holding 45s of 120s
+  // for the smelt leg' rode pockets with coal=0 - the hold ate the chain
+  // budget, the deposit legs got the dregs ('0 (budget exhausted)'), and the
+  // ore rode home unsmelted anyway. An explicit false returns the slice to
+  // the deposit legs; fuel present (true) or a missing read (junk/undefined)
+  // keeps the legacy shape byte for byte.
+  if (hasFuel === false) return { reserveMs: 0, why: 'smelt hold skipped - no fuel in pocket' }
   const b = Number.isFinite(budgetMs) && budgetMs > 0 ? Math.floor(budgetMs) : 0
   const s = Number.isFinite(smeltBudgetSecs) && smeltBudgetSecs > 0 ? Math.floor(smeltBudgetSecs) : 0
   if (b <= 0 || s <= 0) return { reserveMs: 0, why: 'no chain budget' }

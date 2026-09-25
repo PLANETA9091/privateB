@@ -10,6 +10,7 @@
 // that cannot fit its floor refuses with a named reason, junk = legacy
 // unbounded behavior.
 import { test, beforeEach } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { Vec3 } from 'vec3'
@@ -320,4 +321,39 @@ test('smeltChainReserve: empty pockets and junk keep the legacy shape byte for b
   assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, share: NaN }).reserveMs, 45000)
   assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, share: 2 }).reserveMs, 45000,
     'a share over 1 is junk - the default prices the slice')
+})
+
+// (v0.183.0) THE FUEL GATE: a smeltable pocket with coal=0 can never run the
+// smelt leg - the furnace has nothing to burn - yet the legacy shape held the
+// full slice (floor 45s) and the pre-smelt legs budgeted around a smelt that
+// could not fire (fleet 36148566518: 'holding 45s of 120s' rode coal=0
+// pockets, the deposit legs got the dregs). Only an explicit false skips; a
+// missing read keeps the legacy shape byte for byte.
+test('smeltChainReserve: the fuel gate skips the hold only on an explicit false', () => {
+  const skip = smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, hasFuel: false })
+  assert.deepEqual(skip, { reserveMs: 0, why: 'smelt hold skipped - no fuel in pocket' },
+    'coal=0 pocket: the hold never prices a smelt that cannot fire')
+  // fuel present: the legacy shape byte for byte (the 45s floor prices the leg)
+  const fueled = smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, hasFuel: true })
+  assert.equal(fueled.reserveMs, 45000, 'coal in pocket = the legacy hold stands')
+  assert.equal(fueled.why, 'holding 45s of 150s for the smelt leg')
+  // junk battery: a missing fuel read never widens the refusal (legacy shape)
+  assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, hasFuel: undefined }).reserveMs, 45000)
+  assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true }).reserveMs, 45000)
+  // the no-cargo verdict keeps priority: an empty pocket is 'nothing to smelt',
+  // not a fuel skip (the pre-v0.183.0 shape for empty pockets unchanged)
+  assert.deepEqual(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: false, hasFuel: false }),
+    { reserveMs: 0, why: 'nothing to smelt' })
+})
+
+test('wiring: the bank block gates the smelt hold on the pocket fuel read', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the pocket read: coal + charcoal (charcoal is a first-class smelt fuel)
+  assert.match(src, /const pocketFuel = countItem\(miner\.bot, 'coal'\) \+ countItem\(miner\.bot, 'charcoal'\)/,
+    'the fuel read counts both smelt fuels')
+  // the gate rides the reserve call as an explicit boolean
+  assert.match(src, /hasFuel: pocketFuel > 0/, 'only a real fuel count gates the hold')
+  // the skip names itself once, riding the 'bank ' filter key (4 canonical forms)
+  assert.match(src, /reserveWhy\.startsWith\('smelt hold skipped'\)/, 'the skip line is named, not silent')
+  assert.match(src, /bank: \$\{reserveWhy\} \(coal \$\{pocketFuel\}\)/, 'the skip rides the bank filter key with the fuel count')
 })
