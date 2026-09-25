@@ -439,6 +439,48 @@ export function foughtEntityGone (entities, lastId) {
   return entities[lastId] == null
 }
 
+// (v0.174.0) THE DRIFT RE-ENGAGE - run81 (36114184481, the v0.172.0 field run)
+// named the drowned-band killer: 5-6 of 12 deaths read 'slain by Drowned' at
+// y=59-65 with the victims at drowned@1.1-2.4 - hit by a mob that had ALREADY
+// been fought and walked away from. The fight fragments: a swimmer bobs with
+// the waves, drifts past ENGAGE_RANGE (5) after 1-2 swings, the per-round
+// re-verdict reads the drift as 'ignore' and the episode ends - the bot
+// resumes its walk, the drowned swims back in, and the return hits finish
+// what the fragments started (5 'verdict ignore' fight-end lines vs drowned
+// in one run; the ONE continuous fight - F13's kill, 6 swings, 5.7 hp - is
+// the measured proof that staying on the mob WINS). The cure: a melee-lane
+// threat that is still visible inside the drift band never ends the episode
+// on 'ignore' - the episode waits the bounded windows out (the swimmer
+// always comes back), re-verdicts, and lands the next fragment on a mob
+// whose hp never regens. The excluded lanes keep their own contracts: the
+// shooters and the witch never stand still in the arrow/splash band (the
+// cooldown/kite and the drain own them), and a creeper at 8 is WALKING IN -
+// the flee lane must stay free to fire.
+export const DRIFT_RETURN_TICKS = 16
+export const DRIFT_RETURN_DIST = 8
+export const DRIFT_RETURN_WINDOWS = 3
+
+/**
+ * Should the fight episode WAIT out this 'ignore' verdict (the drifted melee
+ * threat is coming back) or end it (the legacy byte)? Junk-safe: an unknown
+ * name, a ranged/witch/creeper lane, an unreadable or out-of-band distance
+ * all read 'end' (the legacy 'verdict ignore' exit byte for byte).
+ * @param {object} p
+ * @param {string|null} [p.name] the hostile's name (junk -> 'end')
+ * @param {number} [p.dist] metres to the threat (junk or > DRIFT_RETURN_DIST -> 'end')
+ * @param {number} [p.windows] drift windows already waited this episode
+ *   (junk -> 0: the first window is affordable)
+ * @returns {'wait'|'end'}
+ */
+export function driftReturnPlan ({ name = null, dist = Infinity, windows = 0 } = {}) {
+  if (!name || !HOSTILE_NAMES.has(name)) return 'end'
+  if (RANGED_HOSTILES.has(name) || name === 'witch' || name === 'creeper') return 'end'
+  if (!Number.isFinite(dist) || dist < 0 || dist > DRIFT_RETURN_DIST) return 'end'
+  const spent = Number.isInteger(windows) && windows > 0 ? windows : 0
+  if (spent >= DRIFT_RETURN_WINDOWS) return 'end'
+  return 'wait'
+}
+
 // (v0.140.0) THE RANGED-FIGHT COOLDOWN - run554's skeleton cascade named the
 // reopen shape: "melee chase ceiling held ... the next drop reopens it" armed
 // the budget, and the next ARROW spent it again. F2's episode chain: hp 19.0

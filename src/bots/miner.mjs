@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -981,6 +981,10 @@ export function createMiner ({
       // a fresh knockback), and the fought entity's id for the kill ledger.
       let meleeReturnWindows = 0
       let lastTargetId = null
+      // (v0.174.0) THE DRIFT RE-ENGAGE ledger: the drift windows spent waiting
+      // out 'ignore' verdicts on a melee threat that is still inside the drift
+      // band (reset by every swing - a swing means the mob was in reach again).
+      let driftWindows = 0
       while (bot.entity && Date.now() < deadline) {
         // (v0.169.0) THE KILL LEDGER: the fought entity left bot.entities -
         // the swing landed. The episode ends NAMED ('mob down') and the kill
@@ -1007,7 +1011,23 @@ export function createMiner ({
           await recover()
           return { action: 'flee', threat: cur.name }
         }
-        if (v === 'ignore') { exit = 'verdict ignore'; break }
+        if (v === 'ignore') {
+          // (v0.174.0) THE DRIFT RE-ENGAGE: a melee-lane threat still visible
+          // inside the drift band (<= 8b) never ends the episode - run81's
+          // drowned fragments ('verdict ignore' after 1-2 swings, the bot
+          // walks, the swimmer returns, the return hits kill) are the class.
+          // The wait is bounded (3 windows), the swing resets the ledger, the
+          // excluded lanes (shooters/witch/creeper) keep the legacy byte.
+          const drift = driftReturnPlan({ name: cur.name, dist: cur.dist, windows: driftWindows })
+          if (drift === 'wait') {
+            if (driftWindows === 0) log(`${tag} combat: drift return wait vs ${cur.name} (@${cur.dist.toFixed(1)}) - the swimmer always comes back`)
+            driftWindows++
+            await bot.waitForTicks(DRIFT_RETURN_TICKS)
+            continue
+          }
+          exit = 'verdict ignore'
+          break
+        }
         if (cur.dist > 3.2) {
           // (v0.169.0) THE STAND-GROUND: a melee-lane threat out of reach
           // after a swing is KNOCKED BACK and walking home - run78's chase
@@ -1080,6 +1100,7 @@ export function createMiner ({
           await bot.lookAt(cur.entity.position.offset(0, (cur.entity.height ?? 1.8) * 0.9, 0), true)
           swings++
           meleeReturnWindows = 0 // (v0.169.0) a fresh swing starts a fresh knockback ledger
+          driftWindows = 0 // (v0.174.0) a fresh swing means the mob came back into reach
           bot.attack(cur.entity)
         } catch { /* swing again next round */ }
         rounds++

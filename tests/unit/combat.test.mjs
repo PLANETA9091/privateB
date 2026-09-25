@@ -15,7 +15,7 @@ import {
   WITCH_CHASE_CEILING, witchFightStep,
   MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP,
   meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
-  foughtEntityGone,
+  foughtEntityGone, driftReturnPlan, DRIFT_RETURN_TICKS, DRIFT_RETURN_DIST, DRIFT_RETURN_WINDOWS,
   FIGHT_DEADLINE_MS, MELEE_REACH,
   RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive
 } from '../../src/lib/combat.mjs'
@@ -621,4 +621,57 @@ test('REGRESSION PIN: the silent-episode bug class is dead (no Map reads on bot.
   assert.ok(!/bot\.entities\.has\(/.test(minerSrc), 'no .has() on bot.entities anywhere in miner (the index is a plain object)')
   assert.ok(/exit = 'mob down'/.test(minerSrc), 'the kill exit stands')
   assert.ok(/stats\.kills\+\+/.test(minerSrc), 'the kill counter stands')
+})
+
+// ---- (v0.174.0) THE DRIFT RE-ENGAGE - the drowned-band fragment killer ----
+// run81 (36114184481, the v0.172.0 field run): 5-6 of 12 deaths read 'slain
+// by Drowned' with the victims at drowned@1.1-2.4 - hit by a mob that had
+// ALREADY been fought. The swimmer bobs past ENGAGE_RANGE after 1-2 swings,
+// the re-verdict reads 'ignore', the episode ends, the bot walks, the
+// drowned returns. The ONE continuous fight (F13's kill, 6 swings, 5.7 hp)
+// proved staying on the mob WINS.
+
+test('driftReturnPlan: a drifted melee threat inside the band is waited out, not walked away from', () => {
+  // the drowned lane: the swimmer always comes back
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 6.5, windows: 0 }), 'wait')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 8, windows: 2 }), 'wait', 'exactly at the band edge: still visible, still waiting')
+  assert.equal(driftReturnPlan({ name: 'zombie', dist: 5.5, windows: 1 }), 'wait')
+  assert.equal(driftReturnPlan({ name: 'husk', dist: 7.2, windows: 0 }), 'wait')
+  // the windows cap: three silent windows = the mob genuinely left
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 6, windows: 3 }), 'end')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 6, windows: 7 }), 'end')
+  // the band edge: beyond 8 the legacy 'ignore' stands
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 8.1, windows: 0 }), 'end')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 20, windows: 0 }), 'end')
+  // the excluded lanes keep their contracts (never stand still in their bands)
+  assert.equal(driftReturnPlan({ name: 'skeleton', dist: 6, windows: 0 }), 'end', 'a shooter: the cooldown/kite owns it, standing still is the arrow target')
+  assert.equal(driftReturnPlan({ name: 'witch', dist: 6, windows: 0 }), 'end', 'the witch: the splash band needs the melee, not a wait')
+  assert.equal(driftReturnPlan({ name: 'creeper', dist: 6, windows: 0 }), 'end', 'a creeper at 6 is WALKING IN - the flee lane must stay free')
+  // the junk battery
+  assert.equal(driftReturnPlan({}), 'end', 'no name: end')
+  assert.equal(driftReturnPlan({ name: 'copper_golem', dist: 4 }), 'end', 'an unknown mob is not a hostile')
+  assert.equal(driftReturnPlan({ name: null, dist: 4 }), 'end')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: NaN }), 'end', 'an unreadable distance ends (the legacy byte)')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: undefined }), 'end')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: -1 }), 'end', 'a negative distance is junk')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: Infinity }), 'end')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 5, windows: NaN }), 'wait', 'junk windows read as unspent (bounded by the cap)')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 5, windows: -2 }), 'wait', 'a negative window count is junk, not debt')
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 5, windows: 1.5 }), 'wait', 'a fractional window count reads as the floor')
+  // the doctrine pins (the constants the field decode reads)
+  assert.equal(DRIFT_RETURN_TICKS, 16, 'pinned: one drift window = 0.8s (the bob cycle)')
+  assert.equal(DRIFT_RETURN_DIST, 8, 'pinned: the drift band (the swimmer return distance)')
+  assert.equal(DRIFT_RETURN_WINDOWS, 3, 'pinned: at most 3 windows per episode (2.4s, then the legacy end)')
+})
+
+test('REGRESSION PIN: the fight loop wires the drift re-engage (v0.174.0)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/driftReturnPlan\(\{ name: cur\.name, dist: cur\.dist, windows: driftWindows \}\)/.test(minerSrc),
+    'the ignore branch asks the drift plan with the live name, distance and the drift ledger')
+  assert.ok(/drift return wait vs/.test(minerSrc), 'the wait names itself for the run decode')
+  assert.ok(/let driftWindows = 0/.test(minerSrc), 'the drift ledger starts at zero each episode')
+  assert.ok(/driftWindows = 0 \/\/ \(v0\.174\.0\) a fresh swing means the mob came back into reach/.test(minerSrc),
+    'every swing resets the drift ledger (a swing means the mob was in reach again)')
+  assert.ok(/exit = 'verdict ignore'/.test(minerSrc), 'the exhausted-drift end keeps the legacy exit name')
 })
