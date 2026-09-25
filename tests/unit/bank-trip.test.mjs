@@ -51,6 +51,26 @@ test('bankTripDue: too late for a full trip - the end-phase owns the bot', () =>
   assert.equal(bankTripDue({ ...args, remainingMs: NaN }), false, 'junk remaining = assume too late')
 })
 
+// (v0.176.0) THE 600s-RUN WINDOW ARITHMETIC. The planned trip's eligible window
+// in a 600s run is [BANK_TRIP_EVERY_MS, 600s - BANK_TRIP_MIN_REMAINING_MS]. At
+// 330s that window was 120s wide - NARROWER than one mining-loop iteration
+// (~90-150s), so most bots never landed a bank-gate check inside it: fleet
+// 36125422448 measured ZERO 'planned' trips (15/15 'pockets full') and
+// banked=0 for the whole 600s with ~1873u rotting in pockets. The pin: the
+// window must stay at least one iteration wide, so every digging bot lands
+// 1-2 checks inside it.
+test('bankTripDue: the 600s planned window fits at least one mining-loop iteration (the v0.176.0 floor)', () => {
+  const RUN_MS = 600000
+  const LOOP_ITERATION_MS = 150000 // digShaft 60-120s + the tunnel + the vein sweep - the fat end
+  const windowMs = RUN_MS - BANK_TRIP_MIN_REMAINING_MS - BANK_TRIP_EVERY_MS
+  assert.ok(windowMs >= LOOP_ITERATION_MS,
+    `the window (${windowMs / 1000}s) must fit one loop iteration (${LOOP_ITERATION_MS / 1000}s) - fleet 36125422448: 0 planned trips when it did not`)
+  // and the boundary itself stays honest: 240s remaining fires, one tick below does not
+  assert.equal(bankTripDue({ units: 100, msSinceBank: BANK_TRIP_EVERY_MS, remainingMs: RUN_MS - 360000 }), true,
+    'a check landed at the 360s mark (4 min left) fires the trip')
+  assert.equal(bankTripDue({ units: 100, msSinceBank: BANK_TRIP_EVERY_MS, remainingMs: 239999 }), false)
+})
+
 test('bankTripBudgetMs: a near-yard trip keeps the v0.28.0 mid-run floor', () => {
   assert.equal(bankTripBudgetMs({ yardDist: 0 }), BANK_TRIP_FLOOR_MS + 15000,
     '90s climb + 45s deposit + 0 walk = 135s')

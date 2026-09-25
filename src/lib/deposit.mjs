@@ -411,7 +411,22 @@ export function needsBanking (bot) {
 // remembered column.
 export const BANK_TRIP_EVERY_MS = 150000 // a planned bank trip at most every 2.5 min of digging
 export const BANK_TRIP_MIN_UNITS = 48 // ...but only when the pockets hold real loot (measured: ~67 units/bot/600s)
-export const BANK_TRIP_MIN_REMAINING_MS = 330000 // never START a trip inside the last 5.5 min
+// (v0.176.0) 330s -> 240s: THE 600s-RUN WINDOW ARITHMETIC. The planned trip's
+// eligible window in a 600s run is [BANK_TRIP_EVERY_MS (150s since the last
+// attempt), 600s - minRemainingMs]. At 330s that window was [150s, 270s] =
+// 120s wide - NARROWER than one mining-loop iteration (~90-150s: digShaft
+// 60-120s + the tunnel + the vein sweep), so most bots never landed a
+// bank-gate check inside it. MEASURED (fleet 36125422448, the v0.175.0
+// instrument run): ZERO 'planned' trips all run (15/15 'pockets full'),
+// banked=0 for the whole 600s, ~1873u rotting in pockets while 9 bots ended
+// still underground. At 240s the window is [150s, 360s] = 210s wide - every
+// bot lands 1-2 checks. The overrun risk stays bounded by construction:
+// midBankBudgetMs scales the chain budget down to what is left (the
+// return-home margin is never eaten) and a trip that still overruns leaves
+// the pocket exactly where never-trying left it - while a trip that lands
+// converts 100-190u into banked stock. The end-phase pre-position (the last
+// ~90s) and the final bank keep their margins untouched.
+export const BANK_TRIP_MIN_REMAINING_MS = 240000 // never START a trip inside the last 4 min
 export const BANK_TRIP_FLOOR_MS = 120000 // (v0.28.0) a late bank keeps the 120s mid-run cap as the floor
 export const BANK_TRIP_CAP_MS = 300000 // hard ceiling - the 420s hard-kill margin is sacred
 

@@ -139,3 +139,28 @@ test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 f
     assert.ok(minerSrc.includes(shape), `the instrument line rides the filter key: ${shape}`)
   }
 })
+
+// ---- (v0.176.0) THE FILTER PIN ----
+// fleet 36125422448 (the v0.175.0 instrument's first field run): 3 of the 4
+// instrument line classes matched NONE of the harness log filter's keywords
+// and never reached the artifact - only the fail lines that happened to say
+// 'water' survived (5 visible), every count/success/zero-pickup line was
+// eaten. The v0.41.1 filter-blind class, measured twice now. The pin reads
+// the harness's filter regex out of the source and tests the FOUR instrument
+// shapes against it - a future keyword rename that re-blinds the instrument
+// fails here, not in another blind fleet run.
+test("REGRESSION PIN: the harness log filter passes the sweep instrument (the v0.176.0 un-blinding, this lane's pin beside the other lane's)", async () => {
+  const fs = await import('node:fs')
+  const harnessSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const filterMatch = harnessSrc.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
+  const filter = new RegExp(filterMatch[1])
+  assert.ok(filter.test('[F14] vein sweep: 3 drop(s) in reach (2 dug)'),
+    'the count line reaches the artifact (the [] vs refused split is readable)')
+  assert.ok(filter.test('[F14] vein sweep: the drop walk to [-136,47,415] failed - doomed goal (ledgered 5s ago) - sweep drops refused'),
+    'a fail line passes even WITHOUT a filter keyword inside the refusal message')
+  assert.ok(filter.test('[F14] vein sweep: +7u walked from the drops (5 dug)'),
+    'the success line reaches the artifact (the conversion read)')
+  assert.ok(filter.test('[F14] vein sweep: the drop walks picked nothing (pocket delta 0, 2 failed walk(s))'),
+    'the zero-pickup end reaches the artifact')
+})

@@ -733,14 +733,19 @@ async function runBot (name, target, index) {
           // 12), and run108's iron-pickaxe watch needs the smelt/fuel verdicts
           // ('fuel clips the batch', 'smelt: 0 (...)' was only visible by luck).
           // Shelter lines already ride 'combat'.
-          // (v0.176.0) 'vein sweep' joins: run48 (36125422448, the v0.175.0
-          // instrument's first field read) proved the filter blind AGAIN - the
-          // count line ('vein sweep: N drop(s) in reach') matched NOTHING and
-          // the failure lines only rode the LUCK of 'water' sitting inside one
-          // refusal message ('water rescue in progress'); the doomed-goal and
-          // the stall-governor refusals would have stayed invisible. The same
-          // shape as the v0.56.0 'hop failed' lesson: the instrument's own
-          // prefix is the key, not the refusal message's vocabulary.
+          // (v0.176.0, the union of BOTH lanes' reads of fleet 36125422448)
+          // 'vein sweep' joins: the v0.175.0 SWEEP DROP INSTRUMENT flew
+          // filter-blind - 3 of its 4 line classes ('N drop(s) in reach',
+          // '+Nu walked from the drops', 'the drop walks picked nothing')
+          // matched NOTHING and never reached the artifact, while the failure
+          // lines only rode the LUCK of 'water' sitting inside one refusal
+          // message ('water rescue in progress (sweep drops refused)' x5, all
+          // F14, all the water-rescue gate); the doomed-goal and the
+          // stall-governor refusals would have stayed invisible - the same
+          // shape as the v0.56.0 'hop failed' / v0.41.1 evidence-class
+          // lessons, measured twice now. The instrument's own prefix is the
+          // key, not the refusal message's vocabulary: every instrument line
+          // opens with 'vein sweep' - one keyword covers all four shapes.
           if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep/.test(m)) console.log(`${name} ${m}`)
         }
       })
