@@ -1152,7 +1152,17 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
     // above 4 planks (the tool/fuel keeps stay intact), never throws (the
     // try below owns the whole chain).
     if (plan.batches <= 0 && plan.reason === 'no spare sticks') {
-      const planksTotal = inventoryItems(bot).filter(i => /_planks$/.test(i.name)).reduce((a, i) => a + i.count, 0)
+      // (v0.180.0) THE LOGS RUNG - run96 (fleet 36139056696, the v0.179.0 fleet)
+      // measured the inverse famine: 'no spare sticks: sticks 1 coals 21' x2 +
+      // 'sticks 1 coals 8' x6 - coal-rich bots whose wood arrived as RAW LOGS the
+      // torch plan cannot burn (the v0.137.0 rung needs >4 planks; logs are not
+      // planks). One plank conversion down, then the stick batch, then re-plan.
+      let planksTotal = inventoryItems(bot).filter(i => /_planks$/.test(i.name)).reduce((a, i) => a + i.count, 0)
+      if (planksTotal <= 4 && countLogs(bot) > 0) {
+        step(`craft torches: stick-dry with logs held - one plank conversion first`)
+        await craftPlanksFromLogs(bot, { need: 6, log: step })
+        planksTotal = inventoryItems(bot).filter(i => /_planks$/.test(i.name)).reduce((a, i) => a + i.count, 0)
+      }
       if (planksTotal > 4) {
         step(`craft torches: stick-dry but ${planksTotal} planks held - one stick batch first`)
         if (await craft(bot, 'stick', 1, null, step)) {

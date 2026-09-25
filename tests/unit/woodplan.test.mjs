@@ -236,3 +236,39 @@ test('REGRESSION PIN: the fleet log filter carries the wood trip key + the famin
   assert.ok(fleetSrc.includes("label: 'return to column'") || fleetSrc.includes("'return to column'"),
     'the trip returns the bot to its column')
 })
+
+// ---- v0.180.0: THE STICK CONVERTER - run96 (fleet 36139056696, the v0.179.0
+// fleet) caught the famine trip HALF-BROKEN: F7's gathered line read 'sticks 1
+// planks 21 logs 6' - the trip GATHERED the wood and ensureTools left it as dead
+// planks/logs (the kit chain builds only the tools), while the torch cadence
+// read 'no spare sticks' ~160x and torched fell 13 -> 3. The inverse famine also
+// appeared: 'sticks 1 coals 21' x2 + 'sticks 1 coals 8' x6 - coal rotting in a
+// pocket whose wood never became sticks.
+
+test('REGRESSION PIN: the famine trip runs the FULL conversion chain (the v0.180.0 cure)', () => {
+  const fleetSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'testbed', 'fleet19.mjs'), 'utf8')
+  // the trip gathers, THEN converts logs -> planks -> sticks, THEN reports
+  const gatherIdx = fleetSrc.indexOf('await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 45 })')
+  const planksIdx = fleetSrc.indexOf('await craftPlanksFromLogs(miner.bot, { need: 8, log: m => console.log(`${name} wood trip: ${m}`) })')
+  const sticksIdx = fleetSrc.indexOf("await consolidateSurplus(miner.bot, { log: m => console.log(`${name} wood trip: ${m}`), stickCap: 24 })")
+  const kitIdx = fleetSrc.indexOf('await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 30 })')
+  const gatheredIdx = fleetSrc.indexOf('wood trip: gathered (sticks ${after.sticks}')
+  assert.ok(gatherIdx > 0 && planksIdx > gatherIdx, 'the trip converts planks AFTER the gather')
+  assert.ok(sticksIdx > planksIdx, 'the stick conversion follows the plank conversion')
+  assert.ok(kitIdx > sticksIdx, 'the kit chain runs after the surplus conversion')
+  assert.ok(gatheredIdx > kitIdx, 'the gathered report reads the CONVERTED pocket')
+  // both conversion lines ride the 'wood trip' filter key (they pass through the wrapper)
+  assert.ok(planksIdx > 0 && sticksIdx > 0, 'both conversion calls are wired')
+})
+
+test('REGRESSION PIN: the torch stick-dry branch gains the logs rung (the inverse famine cure)', () => {
+  const toolsSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'bots', 'tools.mjs'), 'utf8')
+  assert.ok(toolsSrc.includes('craft torches: stick-dry with logs held - one plank conversion first'),
+    'the logs rung names itself (the craft lines ride the existing filter key)')
+  assert.ok(/stick-dry with logs held[\s\S]{0,200}craftPlanksFromLogs\(bot, \{ need: 6, log: step \}\)/.test(toolsSrc),
+    'the logs rung converts planks through craftPlanksFromLogs')
+  assert.ok(/craftPlanksFromLogs\(bot, \{ need: 6, log: step \}\)[\s\S]{0,400}planksTotal > 4/.test(toolsSrc),
+    'the stick batch follows the plank conversion (the v0.137.0 rung variable is reused via a re-assign)')
+  // the legacy v0.137.0 rung stays byte-identical
+  assert.ok(toolsSrc.includes('craft torches: stick-dry but ${planksTotal} planks held - one stick batch first'))
+})

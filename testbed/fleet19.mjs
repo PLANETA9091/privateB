@@ -26,7 +26,7 @@ import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, 
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
-import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus } from '../src/bots/tools.mjs'
+import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
@@ -1304,9 +1304,17 @@ async function runBot (name, target, index) {
               try {
                 await miner.gatherWood({ want: 8, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 45 })
               } catch { /* craft with whatever the walk reached */ }
-              // logs -> planks -> sticks + the kit chain: ensureTools is idempotent
-              // when the tools exist and converts the fresh logs the way the
-              // bootstrap always has (the proven craft path, no new mechanics)
+              // (v0.180.0) THE FULL CONVERSION CHAIN - run96 (36139056696) caught
+              // the v0.179.0 trip HALF-BROKEN: F7 returned 'sticks 1 planks 21
+              // logs 6' - ensureTools builds only the TOOL KIT, so the gathered
+              // wood rode home as dead planks/logs while the torch cadence read
+              // 'no spare sticks' (~160 skips, torched 13 -> 3). The bank trip
+              // always ran consolidateSurplus; the famine trip now converts too:
+              // logs -> planks (craftPlanksFromLogs, the bootstrap rung) ->
+              // sticks (consolidateSurplus, the bank-trip rung), then the kit.
+              // Both mechanics are field-proven; nothing new is invented here.
+              try { await craftPlanksFromLogs(miner.bot, { need: 8, log: m => console.log(`${name} wood trip: ${m}`) }) } catch { /* planks stay logs */ }
+              try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} wood trip: ${m}`), stickCap: 24 }) } catch { /* planks stay planks */ }
               try { await ensureTools(miner.bot, { miner, log: () => {}, maxSeconds: 30 }) } catch { /* keep going */ }
               const after = (() => {
                 try {
