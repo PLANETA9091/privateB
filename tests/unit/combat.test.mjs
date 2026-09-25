@@ -14,6 +14,8 @@ import {
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
   MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP,
+  meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
+  FIGHT_DEADLINE_MS, MELEE_REACH,
   RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive
 } from '../../src/lib/combat.mjs'
 import { shelterDue } from '../../src/lib/shelter.mjs'
@@ -504,4 +506,75 @@ test('REGRESSION PIN: the miner arms the cooldown at the melee break + both verd
   assert.ok(/ranged cooldown armed vs/.test(minerSrc), 'the arm names itself for the run decode')
   assert.ok((minerSrc.match(/cooldown: rangedCdLive\(/g) || []).length === 2, 'both verdict sites (the sentry consult + the per-round re-verdict) pass the lens')
   assert.ok(/RANGED_HOSTILES\.has\(cur\.name\) && cur\.name !== 'witch'/.test(minerSrc), 'the witch is excluded from the cooldown lane at the arm site')
+})
+
+// ---- (v0.169.0) THE FIGHT FINISH - run78's zero-kill wash ----
+// run78 (36091731878, the v0.167.0 union @ the honest 600s): TEN fight-end
+// lines, ZERO mob kills, the bot paying 4-12 hp per zombie exchange and the
+// mob walking away alive at 1-3 hp. The anatomy: each swing knocks the melee
+// threat back 2-3 blocks, the loop's dist gate reads the knockback as a
+// fleeing target and CLOSES, the knockback pursuit burns the walked budget
+// to the ceiling in 2-3 swings ('chased 7.7b, zombie @3.4'), and the
+// deadline cuts the finish. The cure waits the return out, charges every
+// swing FULL, and runs the melee episode to the kill.
+
+test('cooldownTicksForWeapon: the vanilla 1.9 full-charge table (the wash damage half)', () => {
+  assert.equal(cooldownTicksForWeapon('wooden_sword'), 13, 'sword attack speed 1.6 -> ceil(20/1.6)=13 ticks')
+  assert.equal(cooldownTicksForWeapon('iron_sword'), 13, 'materials share the speed inside a class')
+  assert.equal(cooldownTicksForWeapon('netherite_sword'), 13)
+  assert.equal(cooldownTicksForWeapon('stone_pickaxe'), 17, 'pickaxe 1.2 -> ceil(20/1.2)=17 (the old 10-tick pacing landed ~51%)')
+  assert.equal(cooldownTicksForWeapon('wooden_axe'), 25, 'the wooden axe floor 0.8 -> 25')
+  assert.equal(cooldownTicksForWeapon('iron_shovel'), 20, 'shovel 1.0 -> 20')
+  assert.equal(cooldownTicksForWeapon('stone_hoe'), 20, 'hoe 1.0 -> 20')
+  assert.equal(cooldownTicksForWeapon(null), 5, 'fists: attack speed 4.0 -> 5')
+  assert.equal(cooldownTicksForWeapon(undefined), 5)
+  assert.equal(cooldownTicksForWeapon(''), 5, 'an empty name is no tool')
+  assert.equal(cooldownTicksForWeapon('rotten_flesh'), 5, 'a non-tool reads as fists')
+  assert.equal(cooldownTicksForWeapon(42), 5, 'junk type reads as fists')
+  assert.equal(cooldownTicksForWeapon('Sword'), 13, 'the name read is case-insensitive')
+})
+
+test('meleeReturnPlan: the knockback return is waited out, not chased', () => {
+  // the first approach is a REAL chase - nothing was knocked back yet
+  assert.equal(meleeReturnPlan({ dist: 8, windows: 0, swung: false }), 'close')
+  assert.equal(meleeReturnPlan({}), 'close', 'nothing swung: close')
+  assert.equal(meleeReturnPlan({ dist: 4, swung: false }), 'close')
+  // the knockback return: hold the ground one window
+  assert.equal(meleeReturnPlan({ dist: 4.5, windows: 0, swung: true }), 'wait', 'a swung-out zombie at 4.5 is walking home')
+  assert.equal(meleeReturnPlan({ dist: 3.3, windows: 1, swung: true }), 'wait', 'one block out and closing: one more window')
+  // the windows cap: the mob is NOT coming back (kiting/stuck) - chase it
+  assert.equal(meleeReturnPlan({ dist: 5.0, windows: 2, swung: true }), 'close', 'two silent windows: the return ladder is spent')
+  assert.equal(meleeReturnPlan({ dist: 9, windows: 5, swung: true }), 'close')
+  // junk battery
+  assert.equal(meleeReturnPlan({ dist: NaN, swung: true }), 'close', 'an unreadable distance closes (the legacy verdict)')
+  assert.equal(meleeReturnPlan({ dist: undefined, windows: 0, swung: true }), 'close')
+  assert.equal(meleeReturnPlan({ dist: -2, swung: true }), 'close', 'a negative distance is junk, not a reading')
+  assert.equal(meleeReturnPlan({ dist: Infinity, swung: true }), 'close', 'an infinite distance is junk here')
+  assert.equal(meleeReturnPlan({ dist: 4, windows: NaN, swung: true }), 'wait', 'junk windows read as unspent')
+  assert.equal(meleeReturnPlan({ dist: 4, windows: null, swung: true }), 'wait')
+  assert.equal(meleeReturnPlan({ dist: 4, windows: -1, swung: true }), 'wait', 'a negative window count is junk, not debt')
+  // the doctrine pins (the constants the field decode reads)
+  assert.equal(MELEE_REACH, 3.2, 'pinned: the fight loop\'s close gate (the byte-identical threshold)')
+  assert.equal(MELEE_RETURN_WAIT_TICKS, 20, 'pinned: one return window = 1s (the knocked zombie covers 2-3b in it)')
+  assert.equal(MELEE_RETURN_WINDOWS, 2, 'pinned: at most 2 windows per knockback (2s, then the close ladder)')
+  assert.equal(FIGHT_DEADLINE_MS, 16000, 'pinned: the melee episode runs to the kill (5-7 full-charge cycles)')
+})
+
+test('REGRESSION PIN: the fight loop wires the finish (v0.169.0)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/meleeReturnPlan\(\{ dist: cur\.dist, windows: meleeReturnWindows, swung: swings > 0 \}\)/.test(minerSrc),
+    'the stand-ground asks the return plan with the live distance and the knockback ledger')
+  assert.ok(/mob down/.test(minerSrc), 'the kill exit names itself for the run decode')
+  assert.ok(/stats\.kills\+\+/.test(minerSrc), 'the kill is counted in the stats')
+  assert.ok(/kills: 0/.test(minerSrc), 'the stats carry the kill ledger from zero')
+  assert.ok(/cooldownTicksForWeapon\(weapon\?\.name\)/.test(minerSrc), 'the swing cadence charges full by the equipped weapon')
+  assert.ok(/meleeReturnWindows = 0 \/\/ \(v0\.169\.0\) a fresh swing starts a fresh knockback ledger/.test(minerSrc),
+    'every swing resets the knockback ledger (a fresh swing starts a fresh return)')
+  assert.ok(/threat\.name === 'witch' \? 10000 : FIGHT_DEADLINE_MS/.test(minerSrc),
+    'the melee deadline is the named constant; the witch keeps her 10s drain contract')
+  assert.ok(/Number\.isFinite\(lastTargetId\) && !bot\.entities\.has\(lastTargetId\)/.test(minerSrc),
+    'the kill ledger reads the entity map (the removal IS the death)')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(/kills=\$\{list\.reduce/.test(fleetSrc), 'the fleet report carries the kill ledger')
 })

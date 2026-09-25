@@ -332,6 +332,85 @@ export function meleeFightStep ({ dist, chased = 0 } = {}) {
   return 'close'
 }
 
+// (v0.169.0) THE FIGHT FINISH - run78 (36091731878, the v0.167.0 union @ the
+// honest 600s) named the wash: TEN fight-end lines, ZERO mob kills, the bot
+// paying 4-12 hp per zombie exchange and the mob WALKING AWAY alive ('threat
+// gone' at 1-3 hp). The anatomy: each swing knocks the melee threat back
+// 2-3 blocks, the loop's dist > 3.2 gate reads the knockback as a fleeing
+// target and CLOSES, the knockback pursuit walks the episode's meleeChased
+// budget to MELEE_CHASE_CEILING in 2-3 swings ('melee chase ceiling held
+// (chased 7.7b, zombie @3.4)'), and the break leaves the mob alive to
+// re-engage the wounded bot later - the F14 shape (fight ended (deadline)
+// hp 20.0 -> 13.8 -> died to the same Drowned @0.9 one line later). The
+// finish: the knockback RETURN is waited out (a melee mob walks itself back
+// into reach - no movement spent, no walked budget burned), the swing
+// cadence charges FULL (the vanilla 1.9 cooldown: a swing at progress p
+// lands (p^2+2p)/3 of the weapon's damage), and the melee episode runs to
+// the kill (10s -> 16s gives the 5-7 full-charge cycles a zombie needs vs
+// the wooden sword). The kill ledger ('mob down' exit + stats.kills) turns
+// the first field kill into MINEABLE evidence.
+export const MELEE_RETURN_WAIT_TICKS = 20
+export const MELEE_RETURN_WINDOWS = 2
+export const FIGHT_DEADLINE_MS = 16000
+export const MELEE_REACH = 3.2
+
+/**
+ * The knockback return plan for one melee fight round - asked ONLY for a
+ * melee-lane threat (not the witch, not RANGED_HOSTILES) that is OUT of
+ * reach. After a swing the knocked threat walks back on its own; chasing
+ * the knockback spends the walked budget the ceiling exists to cap and
+ * re-buys the contact the knockback just bought. Junk-safe: an unreadable
+ * distance or a never-swung episode always closes (the first approach is a
+ * REAL chase, not a knockback return; the legacy close verdict owns the
+ * unreadable read).
+ * @param {object} p
+ * @param {number} [p.dist] metres to the threat (junk -> 'close')
+ * @param {number} [p.windows] return windows already waited on this
+ *   knockback (junk -> 0: the first window is always affordable)
+ * @param {boolean} [p.swung] the episode has swung at least once (false ->
+ *   'close': nothing was knocked back yet)
+ * @returns {'wait'|'close'} 'wait' = the threat is walking back, hold the
+ *   ground one window more; 'close' = spend the close ladder. A threat at
+ *   or inside MELEE_REACH answers 'wait' by doctrine (never chase a mob in
+ *   reach - the swing owns it); the wiring never asks there, it swings.
+ */
+export function meleeReturnPlan ({ dist, windows = 0, swung = false } = {}) {
+  if (!swung) return 'close'
+  if (!Number.isFinite(dist) || dist < 0) return 'close'
+  if (dist <= MELEE_REACH) return 'wait'
+  const spent = Number.isFinite(windows) && windows > 0 ? windows : 0
+  if (spent >= MELEE_RETURN_WINDOWS) return 'close'
+  return 'wait'
+}
+
+// (v0.169.0) THE FULL-CHARGE SWING - the vanilla 1.9 attack cooldown table:
+// a swing at cooldown progress p lands (p^2+2p)/3 of the weapon's damage,
+// so the old flat 10-tick pacing vs a sword's 12.5-tick charge landed ~75%
+// per swing and vs a pickaxe's 16.7-tick charge only ~51% - the wash's
+// damage half. The table reads the item NAME (the fight lane equips by
+// name; materials share the attack speed inside a class): ticks =
+// ceil(20 / attackSpeed). sword 1.6 -> 13, axe 0.8 (the wooden floor) -> 25,
+// pickaxe 1.2 -> 17, shovel 1.0 -> 20, hoe 1.0 -> 20, fists/unknown -> 5
+// (the 4.0 fist speed).
+export const WEAPON_COOLDOWN_DEFAULT_TICKS = 5
+
+/**
+ * The full-charge wait for one weapon swing, in ticks. Junk-safe: a
+ * non-string name or a name that names no tool class reads as fists.
+ * @param {string|null} [name] the equipped item name ('wooden_sword', ...)
+ * @returns {number} ticks to wait before the next swing lands at charge 1.0
+ */
+export function cooldownTicksForWeapon (name) {
+  if (typeof name !== 'string' || name.length === 0) return WEAPON_COOLDOWN_DEFAULT_TICKS
+  const n = name.toLowerCase()
+  if (n.endsWith('sword')) return 13
+  if (n.endsWith('pickaxe')) return 17 // BEFORE the axe read: 'pickaxe' ends with 'axe'
+  if (n.endsWith('axe')) return 25
+  if (n.endsWith('shovel')) return 20
+  if (n.endsWith('hoe')) return 20
+  return WEAPON_COOLDOWN_DEFAULT_TICKS
+}
+
 // (v0.140.0) THE RANGED-FIGHT COOLDOWN - run554's skeleton cascade named the
 // reopen shape: "melee chase ceiling held ... the next drop reopens it" armed
 // the budget, and the next ARROW spent it again. F2's episode chain: hp 19.0

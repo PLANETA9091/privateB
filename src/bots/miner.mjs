@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, cooldownTicksForWeapon, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -100,7 +100,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, claims: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -961,7 +961,12 @@ export function createMiner ({
       let swings = 0
       let rounds = 0
       let exit = 'deadline'
-      const deadline = Date.now() + 10000
+      // (v0.169.0) THE FIGHT FINISH deadline: the melee episode runs to the
+      // kill - run78's fights cut at swing 5-6 with the mob at 1-3 hp alive
+      // (the 10s bar) and the re-engage finished the wounded bot later. The
+      // witch keeps her v0.115.0 drain contract (10s - the lens owns the
+      // bar, the melee through the splash band is a holding action).
+      const deadline = Date.now() + (threat.name === 'witch' ? 10000 : FIGHT_DEADLINE_MS)
       // (v0.115.0) the witch lane's per-episode chase budget: the blocks the
       // follow steps ACTUALLY walk vs the witch. The close through the splash
       // band spends it too - the first close is the affordable one, the retreat
@@ -970,9 +975,24 @@ export function createMiner ({
       // (v0.137.0) THE MELEE BUDGET's walked ledger for the general lane (the
       // witch's own ledger stays above - independent tunables).
       let meleeChased = 0
+      // (v0.169.0) THE FIGHT FINISH ledgers: the return windows spent waiting
+      // out the CURRENT knockback (reset by every swing - a fresh swing starts
+      // a fresh knockback), and the fought entity's id for the kill ledger.
+      let meleeReturnWindows = 0
+      let lastTargetId = null
       while (bot.entity && Date.now() < deadline) {
+        // (v0.169.0) THE KILL LEDGER: the fought entity left bot.entities -
+        // the swing landed. The episode ends NAMED ('mob down') and the kill
+        // is counted: run78's ten fight-end lines carried ZERO kills and the
+        // mine could not even ask whether the mobs ever died.
+        if (Number.isFinite(lastTargetId) && !bot.entities.has(lastTargetId)) {
+          exit = 'mob down'
+          stats.kills++
+          break
+        }
         const cur = nearestHostile()
         if (!cur) { exit = 'threat gone'; break } // the threat died or wandered off
+        if (cur.entity && Number.isFinite(cur.entity.id)) lastTargetId = cur.entity.id
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
         const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), cooldown: rangedCdLive(cur.entity?.id) })
@@ -985,6 +1005,21 @@ export function createMiner ({
         }
         if (v === 'ignore') { exit = 'verdict ignore'; break }
         if (cur.dist > 3.2) {
+          // (v0.169.0) THE STAND-GROUND: a melee-lane threat out of reach
+          // after a swing is KNOCKED BACK and walking home - run78's chase
+          // ceiling fired on the knockback pursuit ('chased 7.7b, zombie
+          // @3.4') and broke the episode at swing 3 with the mob alive. The
+          // return is waited out (bounded windows), the close ladder is
+          // spent only on a threat that is NOT coming back (kiting/stuck).
+          // The witch lane and the shooters keep their own contracts.
+          if (cur.name !== 'witch' && !RANGED_HOSTILES.has(cur.name)) {
+            const plan = meleeReturnPlan({ dist: cur.dist, windows: meleeReturnWindows, swung: swings > 0 })
+            if (plan === 'wait') {
+              meleeReturnWindows++
+              await bot.waitForTicks(MELEE_RETURN_WAIT_TICKS)
+              continue
+            }
+          }
           if (cur.name === 'witch') {
             // (v0.115.0) THE WITCH LANE: the moving GoalFollow re-paths toward
             // a retreating witch every round - F1 died AT witch@8.7 inside that
@@ -1040,10 +1075,11 @@ export function createMiner ({
         try {
           await bot.lookAt(cur.entity.position.offset(0, (cur.entity.height ?? 1.8) * 0.9, 0), true)
           swings++
+          meleeReturnWindows = 0 // (v0.169.0) a fresh swing starts a fresh knockback ledger
           bot.attack(cur.entity)
         } catch { /* swing again next round */ }
         rounds++
-        await bot.waitForTicks(10) // ~2 swings/s - vanilla cooldown eats DPS but kills all the same
+        await bot.waitForTicks(cooldownTicksForWeapon(weapon?.name)) // (v0.169.0) the full-charge pacing - a partial swing lands (p^2+2p)/3
       }
       log(`${tag} combat: fight ended vs ${threat.name} (${exit}, hp ${startHp.toFixed(1)} -> ${(bot.health ?? 0).toFixed(1)}, swings ${swings}, weapon ${weapon?.name ?? 'fists'}, ${rounds} rounds)`)
       await recover()
