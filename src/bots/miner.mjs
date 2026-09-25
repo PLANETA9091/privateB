@@ -51,7 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, DROP_GOAL_BELOW, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range
+import { dropTargets, dropGoalRange, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2474,6 +2474,7 @@ export function createMiner ({
         const dropFence = Date.now() + SWEEP_DROP_TOTAL_MS
         let dropFails = 0
         let belowFails = 0
+        let skipDeep = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -2482,7 +2483,15 @@ export function createMiner ({
           // 8000ms' in the v0.177.0 fleet (fleet 36131508220), the same cells
           // re-failing every sweep. The lip beside/above the drop is a legal
           // arrival at range 2; a flat drop keeps the legacy range 1.
+          // (v0.182.0) THE DEEP SKIP: the planner's third verdict - a drop
+          // resting deeper than the lip sphere reaches (dy < -2, 3D dist > 2
+          // from every standable cell) walks NOTHING: the x10 named residue
+          // ('the drop rests deeper than the lip') never converged once, so
+          // the walk was 8s of guaranteed spiral buying zero pickups. The
+          // batch fence gets the 8s back; a later sweep at a different stance
+          // may reclassify the same drop into the lip sphere.
           const range = dropGoalRange({ dy: d.y - bot.entity.position.y })
+          if (range === DROP_GOAL_SKIP) { skipDeep++; continue }
           try {
             await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, range), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
           } catch (e) {
@@ -2495,6 +2504,7 @@ export function createMiner ({
         if (picked > 0) log(`${tag} vein sweep: +${picked}u walked from the drops (${dug} dug)`)
         else if (targets.length > 0) log(`${tag} vein sweep: the drop walks picked nothing (pocket delta 0, ${dropFails} failed walk(s))`)
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
+        if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)

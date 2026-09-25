@@ -49,8 +49,28 @@ export const DROP_GOAL_PLANE = 1 // the legacy tight goal (the walk INTO the mag
 export const DROP_GOAL_BELOW = 2 // the below-plane goal (the lip counts as arrival)
 export const DROP_GOAL_BELOW_DY = -1 // the plane fence: strictly below the walk plane
 
+// THE DEEP FENCE (v0.182.0): the range-2 lip sphere is a 3D ball of radius 2 -
+// a drop resting 2+ BELOW the walk plane (3D dist >= 2.0 from EVERY standable
+// lip cell) can never satisfy it, and the walk is a guaranteed 8s recompute
+// spiral. MEASURED (fleet 36161088876, the v0.181.0 run): the below-plane
+// residue line named x10 'the drop rests deeper than the lip' while the
+// timeout class hit x41 (43 sweeps - ~1 dead walk per sweep); the same class
+// measured x3 in the v0.180.0 run. Those drops were NEVER collected by the
+// walk (it always timed out) - skipping the walk costs nothing the fleet was
+// actually getting and returns the 8s per dead walk to the batch fence (the
+// 24s SWEEP_DROP_TOTAL_MS fits 3 live walks instead of 2 live + 1 spiral).
+// The verdict: dy < DROP_GOAL_DEEP_DY walks NOTHING (the drop waits for the
+// despawn exactly as the doomed walk left it - and a later sweep at a
+// different stance may reclassify it into the lip sphere). dy exactly -2.0
+// stays in the BELOW class (the sphere edge, sqrt(4+0) = 2.0 <= 2.0 still
+// converges on a perfectly-understood cell); junk dy = the legacy PLANE (a
+// missing read never skips a walk).
+export const DROP_GOAL_DEEP_DY = -2 // the deep fence: strictly below this the lip sphere cannot reach
+export const DROP_GOAL_SKIP = 0 // the skip verdict: no walk at all (the range the GoalNear must never see)
+
 export function dropGoalRange ({ dy = 0 } = {}) {
   const d = Number.isFinite(dy) ? dy : 0
+  if (d < DROP_GOAL_DEEP_DY) return DROP_GOAL_SKIP
   return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
 }
 
