@@ -1377,6 +1377,22 @@ test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => 
   assert.match(src, /if \(!furnace\.inputItem\(\) && furnace\.fuelItem\(\)\)/, 'the leftover-fuel pull is input-guarded (a burning batch keeps its fuel)')
 })
 
+// ------------------------------------------------- THE GOVERNORED-WALK FAMILY
+// (v0.167.0) THE NUDGE WALKS RAW - run563 (fleet 36086024448, the v0.165.0 fleet)
+// measured the nudge's OWN approach stalling ('[F13] walk nudge: approach:
+// 3 segment(s) walked ... d=24.2 (still outside - a segment stalled)') feeding
+// the raw_copper@blast_furnace composites while iron_ingot stayed 0 for the
+// FIFTH run. The nudge's approachWalk was the last approach site without the
+// injected raw walker - now it carries walkRawToward (the raw-first segment +
+// the v0.167.0 stall side-step), the same machinery the yard walk has had
+// since v0.56.0. No import cycle: deposit.mjs never imports smelting.mjs.
+test('WIRING PIN: the machine nudge walks RAW (the v0.167.0 side-step machinery reaches the machine class)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /import \{ walkRawToward \} from '\.\/deposit\.mjs'/, 'the raw walker is imported')
+  assert.match(src, /closeShot: true, rawWalk: walkRawToward/, 'the nudge approach carries the raw walker next to the close shot')
+  assert.match(src, /THE RAW WALK: run563/, 'the evidence comment names the fleet')
+})
+
 test('REGRESSION PIN: the v0.140.2 collector\'s ledger counts the rescue', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /smelted \+= res\.smelted \+ \(res\.rescued \?\? 0\)/, 'the harvested rescue completes the fired batch on the COLLECTOR\'s ledger (fired -> harvested -> smelted)')

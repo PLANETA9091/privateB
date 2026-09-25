@@ -22,8 +22,12 @@ import {
   APPROACH_SEGMENT_MAX,
   APPROACH_SEGMENT_MS,
   APPROACH_MIN_REMAINING,
+  APPROACH_SIDE_STEP_MAX,
+  APPROACH_SIDE_STEP_MS,
+  APPROACH_SIDE_STEP_MAX_STEPS,
   PATH_GEOMETRY_RE,
-  closeShotTarget
+  closeShotTarget,
+  sideStepTarget
 } from '../../src/lib/approach.mjs'
 
 // The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
@@ -432,4 +436,118 @@ test('walk: the legacy in-envelope verdict stays byte-identical when the walk EA
   assert.equal(res2.walked, true)
   const line2 = lines2.find(l => /approach: 1 segment\(s\) walked/.test(l))
   assert.ok(line2 && /\(inside the direct envelope\)/.test(line2), 'the EARNED envelope verdict stays')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.167.0) THE STALL SIDE-STEP - run563 (fleet 36086024448, the v0.165.0
+// fleet at the honest 600s): 'a segment stalled (no position delta)' x23
+// fleet-wide on a REPRODUCIBLE RING (F3 x6 at d=28.3-30.2 across separate
+// visits, F1 twice at d=25.0-26.0) - the bot CLOSED d~45->28 with real work
+// and one immobile segment threw the whole approach away, then the caller's
+// ladder re-approached from the same spot and re-stalled deterministically.
+// The cure: one lateral rung (the bearing rotated +/-60 degrees, the SAME raw
+// walker) before the honest end; a side-step that stalls too falls through to
+// the byte-identical verdict.
+test('sideStepTarget: the +/-60 degree bearing rotation (pure, the run563 east goal)', () => {
+  const east = { from: { x: 0.5, y: 64, z: 0.5 }, to: { x: 100.5, y: 64, z: 0.5 } }
+  const right = sideStepTarget(east)
+  assert.ok(Math.abs(right.x - 3.5) < 1e-9, '0.5 + 6 * cos(60 deg) - the lateral step keeps the level')
+  assert.ok(Math.abs(right.z - (0.5 + 6 * Math.sin(Math.PI / 3))) < 1e-9, 'the bearing rotated +60 deg walks ALONG the obstacle')
+  const left = sideStepTarget({ ...east, sign: -1 })
+  assert.ok(Math.abs(left.x - 3.5) < 1e-9, 'the left step mirrors the same cosine')
+  assert.ok(Math.abs(left.z - (0.5 - 6 * Math.sin(Math.PI / 3))) < 1e-9, 'the left bearing is the mirrored sine')
+})
+
+test('sideStepTarget: junk is null, the degenerate bearing falls to the axis, junk opts read the defaults', () => {
+  assert.equal(sideStepTarget({}), null)
+  assert.equal(sideStepTarget({ from: { x: 0, y: 0, z: 0 }, to: { x: NaN, y: 0, z: 0 } }), null)
+  assert.equal(sideStepTarget({ from: null, to: { x: 40, y: 0, z: 0 } }), null)
+  const up = sideStepTarget({ from: { x: 0.5, y: 64, z: 0.5 }, to: { x: 0.5, y: 200, z: 0.5 } })
+  assert.deepEqual(up, { x: 6.5, y: 64, z: 0.5 }, 'a goal straight up has no horizontal bearing - the +x axis the sign names')
+  const down = sideStepTarget({ from: { x: 0.5, y: 64, z: 0.5 }, to: { x: 0.5, y: 4, z: 0.5 }, sign: -1 })
+  assert.deepEqual(down, { x: -5.5, y: 64, z: 0.5 }, 'the degenerate case mirrors the sign too')
+  const junkSign = sideStepTarget({ from: { x: 0.5, y: 64, z: 0.5 }, to: { x: 100.5, y: 64, z: 0.5 }, sign: NaN })
+  assert.ok(junkSign.z > 0.5, 'junk sign reads +1 (right) - the conservative default')
+  const junkStep = sideStepTarget({ from: { x: 0.5, y: 64, z: 0.5 }, to: { x: 100.5, y: 64, z: 0.5 }, maxStep: NaN })
+  assert.ok(Math.abs(Math.hypot(junkStep.x - 0.5, junkStep.z - 0.5) - APPROACH_SIDE_STEP_MAX) < 1e-9, 'junk maxStep falls back to the 6-block default')
+})
+
+test('walk: the stall side-step cures the wedge and the loop resumes (the run563 F3 shape)', async () => {
+  const bot = makeBot({ gotoMoves: false }) // the pathfinder cannot move this bot - the raw walker is the only muscle
+  const target = new Vec3(100.5, 64, 0.5) // d=100: the run563 far-yard class
+  const lines = []
+  let calls = 0
+  const rawWalk = async (b, pos) => {
+    calls++
+    if (calls === 3) throw new Error('raw walk stalled after 2000ms (d=59.5)') // the wedge: seg 3 cannot move the bot
+    b.entity.position = new Vec3(pos.x, pos.y, pos.z)
+    return { walked: true }
+  }
+  const res = await approachWalk(bot, target, { rawWalk, log: m => lines.push(m) })
+  assert.equal(res.walked, true, 'the side-step moved the start and the loop closed the rest')
+  assert.equal(res.segments, 6, '5 normal segments + the one side-step that moved (the stalled seg stays counted, the wedge did not erase the work)')
+  assert.equal(bot.gotoCalls.length, 1, 'the pathfinder ran once (the stalled segment fallback) - the raw walker owns the rest')
+  assert.equal(calls, 6, '5 segments + 1 side-step raw call')
+  const side = lines.find(l => /the stall side-step \(right\) moved the start/.test(l))
+  assert.ok(side, 'the cure names itself for the mine')
+  assert.match(side, /d now 57\.2/, 'the honest distance rides the line (sqrt(57^2 + 5.196^2) after the +60 deg step)')
+  assert.ok(lines.some(l => /approach: 6 segment\(s\) walked/.test(l)), 'the verdict counts the side-step like any segment')
+})
+
+test('walk: a side-step that stalls too ends the approach honest - the anti-spin verdict is byte-identical', async () => {
+  const bot = makeBot() // gotoMoves=false, the raw walker always throws
+  const target = new Vec3(40, 64, 0.5)
+  const lines = []
+  let calls = 0
+  const rawWalk = async () => { calls++; throw new Error('raw walk stalled after 2000ms (d=39.5)') }
+  const res = await approachWalk(bot, target, { rawWalk, log: m => lines.push(m) })
+  assert.equal(res.segments, 1, 'the failed side-step is NOT counted - the ledger stays honest')
+  assert.equal(res.walked, false, 'still outside - the caller ladder owns the rest, unchanged')
+  assert.equal(calls, 2, 'the segment + the one side-step attempt - then the end')
+  assert.ok(lines.some(l => /the stall side-step \(right\) stalled too/.test(l)), 'the spent side-step names itself')
+  assert.ok(!lines.some(l => /moved the start/.test(l)), 'no moved-the-start lie when nothing moved')
+  const verdict = lines.find(l => /approach: 1 segment\(s\) walked/.test(l))
+  assert.ok(verdict && /a segment stalled \(no position delta\)/.test(verdict), 'the stall verdict survives byte for byte')
+})
+
+test('walk: the side-step budget is two (right moves, left stalls) - then the honest end (no third step)', async () => {
+  const bot = makeBot({ gotoMoves: false })
+  const target = new Vec3(100.5, 64, 0.5)
+  const lines = []
+  let calls = 0
+  const rawWalk = async (b, pos) => {
+    calls++
+    const d6 = Math.hypot(pos.x - b.entity.position.x, pos.z - b.entity.position.z)
+    if (d6 < 7) {
+      if (calls === 2) { b.entity.position = new Vec3(pos.x, pos.y, pos.z); return { walked: true } } // the RIGHT side-step lands
+      throw new Error('raw walk stalled after 2000ms (d=91.8)') // the LEFT side-step wedges too
+    }
+    throw new Error('raw walk stalled after 2000ms (d=97.5)') // every normal segment wedges
+  }
+  const res = await approachWalk(bot, target, { rawWalk, log: m => lines.push(m) })
+  assert.equal(calls, 4, 'seg + side(right, moved) + seg + side(left, stalled) - the cap holds, no third step')
+  assert.equal(res.segments, 3, 'the two stalled segments + the one moved side-step')
+  assert.equal(res.walked, false, 'the wedge won - honest')
+  assert.ok(lines.some(l => /the stall side-step \(right\) moved the start/.test(l)), 'the right step moved and says so')
+  assert.ok(lines.some(l => /the stall side-step \(left\) stalled too/.test(l)), 'the left step stalled and says so')
+})
+
+test('walk: a side-step the clock cannot afford never fires (the budget gate)', async () => {
+  const bot = makeBot() // gotoMoves=false: the segment stalls with most of the 50ms budget left
+  const target = new Vec3(40, 64, 0.5)
+  const lines = []
+  let calls = 0
+  const rawWalk = async () => { calls++; throw new Error('raw walk stalled after 2000ms (d=39.5)') }
+  const res = await approachWalk(bot, target, { rawWalk, segmentMs: 20, budgetMs: 50, log: m => lines.push(m) })
+  assert.equal(calls, 1, 'the segment only - leftNow <= APPROACH_SIDE_STEP_MS refuses the side-step (a doomed hop with extra steps)')
+  assert.equal(res.segments, 1)
+  assert.equal(res.walked, false)
+  assert.ok(!lines.some(l => /side-step/.test(l)), 'no side-step line when the gate refused it')
+})
+
+test('walk: the side-step constants pin the budget doctrine (2 steps, 4s each, 6 blocks)', () => {
+  assert.equal(APPROACH_SIDE_STEP_MAX_STEPS, 2, 'right, then left - the one-shot discipline at segment scale')
+  assert.equal(APPROACH_SIDE_STEP_MS, 4000, 'a 6-block raw walk incl. the stall clock')
+  assert.equal(APPROACH_SIDE_STEP_MAX, 6, 'one side-step always fits searchRadius 32')
+  assert.ok(APPROACH_SIDE_STEP_MS > 1000, 'the budget gate (leftNow > SIDE_STEP_MS) can actually fire in a thin chain')
 })

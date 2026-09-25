@@ -11,6 +11,7 @@
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { gotoSafe, withTimeout, waitForWaterRescueClear } from './jobqueue.mjs'
 import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
+import { walkRawToward } from './deposit.mjs' // (v0.167.0) the nudge's approach gains the raw segment + the stall side-step (no cycle: deposit never imports smelting)
 
 const { goals } = pathfinderPkg
 
@@ -669,7 +670,20 @@ export async function smeltBatch (bot, {
             // closeShot is a FALLBACK: the far-decide segments keep their
             // v0.147.0 shape byte for byte, only the inside-the-envelope null
             // gains one straight-at-goal segment (stop 2 short).
-            const n = await approachWalk(bot, machineBlock.position, { budgetMs: Math.min(ms, 20000), closeShot: true, log: m => log(`${tag} walk nudge: ${m}`) })
+            // (v0.167.0) + THE RAW WALK: run563 (fleet 36086024448, the v0.165.0
+            // fleet) measured the nudge's OWN approach stalling - '[F13] walk
+            // nudge: approach: 3 segment(s) walked in 6.7s, goal now d=24.2
+            // (still outside - a segment stalled)' feeding the raw_copper@
+            // blast_furnace composites (F11/F13, 'machine unreachable (Took to
+            // long to decide path to goal!)' x2+ each) while the iron_ingot
+            // ledger stayed 0 for the FIFTH run. The nudge's approachWalk was
+            // the last approach site without the injected raw walker - the
+            // pathfinder-only segments could neither close the last blocks nor
+            // take the stall side-step. rawWalk: walkRawToward gives the nudge
+            // the SAME machinery the yard walk has carried since v0.56.0: the
+            // raw-first segment (no A* slot spent on open ground) and the
+            // v0.167.0 side-step rung when a segment wedges.
+            const n = await approachWalk(bot, machineBlock.position, { budgetMs: Math.min(ms, 20000), closeShot: true, rawWalk: walkRawToward, log: m => log(`${tag} walk nudge: ${m}`) })
             log(`${tag} walk nudge: ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the machine from the new start`}`)
           } catch { /* the nudge never kills the chain - the loop owns the verdict */ }
         }

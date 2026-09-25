@@ -114,6 +114,65 @@ export const PATH_GEOMETRY_RE = /Took to long to decide path to goal!|No path to
 // construction; a shot there would just push the bot INTO the chest).
 export const CLOSE_SHOT_STOP = 2
 
+// (v0.167.0) THE STALL SIDE-STEP - the approach loop's no-escape verdict, run563's
+// field verdict. MEASURED (fleet 36086024448, the v0.165.0 fleet at the honest 600s):
+// 'a segment stalled (no position delta)' x23 fleet-wide, and the stalls are not
+// random crowd crush - they are a REPRODUCIBLE RING: F3 approach x6 across separate
+// visits all stalled at d=28.3-30.2, F1 twice at d=25.0-26.0 ('5 segment(s) walked
+// in 41.6s' / '7 segment(s) walked in 76.2s' - the bot CLOSED d~45->28 with real
+// work and then one immobile segment threw the whole approach away). The mechanism:
+// the anti-spin rule (v0.56.0, correct - one immobile segment must not spin) ends
+// the loop at the FIRST wedged segment, but the wedge is a LOCAL obstacle on the
+// from->to bearing - the raw walk pushes straight INTO it, the pathfinder fallback
+// re-targets the SAME segment cell (2b near the same point) and refuses on the same
+// geometry, and the approach surrenders 17+ blocks of real closing work because one
+// cell on the axis was blocked. The nudge machinery (v0.147.0) cannot reach this
+// class: the walk never THREW - 'a segment stalled' is the approach's own verdict,
+// not a PATH_GEOMETRY_RE string, so the caller's ladder re-approaches from the same
+// spot and re-stalls deterministically (F3 x6, the v0.87.0 doctrine on the segment
+// scale). THE CURE: when a segment stalls, ONE lateral side-step rung before the
+// honest end - the from->to bearing rotated +/-60 degrees, walked by the SAME raw
+// walker (the obstacle is now off-axis, the walk goes ALONG the wall instead of
+// INTO it), then the normal segment loop resumes from the moved start and
+// approachTargetPos recomputes the bearing for free. Bounded: max two side-steps
+// per approach (right, then left - the v0.155.0 one-shot budget discipline at
+// segment scale), each capped APPROACH_SIDE_STEP_MS and gated on the caller's own
+// budget floor (leftNow > APPROACH_SIDE_STEP_MS - a side-step the clock cannot pay
+// for is a doomed hop with extra steps), raw-only (the pathfinder ALREADY refused
+// this neighbourhood - its second verdict is the stall itself), and the anti-spin
+// rule survives byte for byte: a side-step that produces no delta falls through to
+// the same 'a segment stalled (no position delta)' end the loop has always emitted
+// (no delta = no push into segmentsUsed, the verdict and the caller's ladder stay
+// honest). Junk-safe: any non-finite coordinate or a degenerate horizontal bearing
+// (the goal straight up/down) falls back to the +x/-x axis the sign names.
+export const APPROACH_SIDE_STEP_MAX = 6 // one side-step always fits searchRadius 32
+export const APPROACH_SIDE_STEP_MS = 4000 // a 6-block raw walk ~4s incl. the stall clock
+export const APPROACH_SIDE_STEP_MAX_STEPS = 2 // right, then left - then the honest end
+
+/**
+ * Pure: the point `maxStep` blocks from `from` along the from->to bearing rotated
+ * `sign * 60 degrees` around Y (sign +1 = right, -1 = left), at `from`'s own level
+ * (the side-step walks ALONG the obstacle, it does not climb). Junk-safe like
+ * approachTargetPos: non-finite coordinates yield null; a degenerate horizontal
+ * bearing falls back to the +/-x axis the sign names.
+ * @param {{from?: {x?: number, y?: number, z?: number}, to?: {x?: number, y?: number, z?: number},
+ *          sign?: number, maxStep?: number}} p
+ * @returns {{x: number, y: number, z: number}|null}
+ */
+export function sideStepTarget ({ from, to, sign = 1, maxStep = APPROACH_SIDE_STEP_MAX } = {}) {
+  const fx = Number(from?.x); const fy = Number(from?.y); const fz = Number(from?.z)
+  const tx = Number(to?.x); const ty = Number(to?.y); const tz = Number(to?.z)
+  if (![fx, fy, fz, tx, ty, tz].every(Number.isFinite)) return null
+  const s = Number(sign) === -1 ? -1 : 1
+  const step = Number.isFinite(maxStep) && maxStep > 0 ? maxStep : APPROACH_SIDE_STEP_MAX
+  const dx = tx - fx; const dz = tz - fz
+  const hd = Math.sqrt(dx * dx + dz * dz)
+  if (!Number.isFinite(hd) || hd < 0.5) return { x: fx + s * step, y: fy, z: fz }
+  const ux = dx / hd; const uz = dz / hd
+  const c = Math.cos(s * Math.PI / 3); const sn = Math.sin(s * Math.PI / 3)
+  return { x: fx + (ux * c - uz * sn) * step, y: fy, z: fz + (ux * sn + uz * c) * step }
+}
+
 /**
  * Pure: the point `stop` blocks short of `to` along the from->to line, or
  * null when `from` is too close for the shot to be worth anything. Junk-safe
@@ -202,6 +261,7 @@ export async function approachWalk (bot, targetPos, {
   log = () => {}
 } = {}) {
   const segmentsUsed = []
+  let sideSteps = 0 // (v0.167.0) the stall side-step budget: right, then left, then the honest end
   let d = dist3(posOf(bot), targetPos)
   const cap = Number.isFinite(maxSegments) && maxSegments > 0 ? maxSegments : APPROACH_MAX_SEGMENTS
   const slice = Number.isFinite(segmentMs) && segmentMs > 0 ? segmentMs : APPROACH_SEGMENT_MS
@@ -256,7 +316,36 @@ export async function approachWalk (bot, targetPos, {
     const dNow = dist3(after, targetPos)
     if (Number.isFinite(dNow)) d = dNow
     if (moved && Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
-    if (!moved) { endWhy = 'a segment stalled (no position delta)'; break } // one immobile segment is enough: the caller's ladder owns the rest
+    if (!moved) {
+      // (v0.167.0) THE STALL SIDE-STEP - one lateral rung before the honest end
+      // (the full evidence + budget doctrine lives on the constants above). The
+      // wedge is a LOCAL obstacle on the from->to bearing; the side-step walks
+      // ALONG it via the same raw walker, the start changes, and the loop resumes
+      // with approachTargetPos recomputing the bearing from the new position. A
+      // side-step that itself produces no delta falls through to the SAME verdict
+      // the loop has always emitted - the anti-spin rule survives byte for byte.
+      const leftNow = budget - (Date.now() - started)
+      if (sideSteps < APPROACH_SIDE_STEP_MAX_STEPS && leftNow > APPROACH_SIDE_STEP_MS && typeof rawWalk === 'function') {
+        sideSteps++
+        const sideName = sideSteps === 1 ? 'right' : 'left'
+        const side = sideStepTarget({ from, to: targetPos, sign: sideSteps === 1 ? 1 : -1 })
+        if (side) {
+          try { await rawWalk(bot, side, { timeoutMs: Math.min(APPROACH_SIDE_STEP_MS, leftNow) }) } catch { /* the side-step's own stall is data, not an error - the delta check below judges it */ }
+          const sideAfter = posOf(bot)
+          const sideMoved = !!(from && sideAfter && dist3(from, sideAfter) > 0.5)
+          if (sideMoved) {
+            segmentsUsed.push(side)
+            const dSide = dist3(sideAfter, targetPos)
+            if (Number.isFinite(dSide)) d = dSide
+            log(`approach: the stall side-step (${sideName}) moved the start${Number.isFinite(d) ? ` (d now ${d.toFixed(1)})` : ''}`)
+            if (Number.isFinite(d) && d <= threshold) { endWhy = 'inside the direct envelope'; break }
+            continue // the obstacle is off-axis - the next segment recomputes the bearing
+          }
+          log(`approach: the stall side-step (${sideName}) stalled too`)
+        }
+      }
+      endWhy = 'a segment stalled (no position delta)'; break
+    } // one immobile segment is enough: the caller's ladder owns the rest (the side-step above is the ONE bounded exception)
   }
   // (v0.162.0) THE HONEST CAP VERDICT - run559 (dispatch 36073741918, the
   // v0.161.0 union fleet, a 300s window) caught the self-contradicting line:
