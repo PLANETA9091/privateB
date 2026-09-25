@@ -294,13 +294,24 @@ test('wiring: the yard walk consults the approach plan (fleet19.mjs pins)', () =
   assert.match(src, /if \(attempt === 1\) await yardApproach/, 'attempt 1 always consults the plan')
 })
 
-test('PATH_GEOMETRY_RE: the two pathfinder geometry verdicts and nothing else (v0.147.0)', () => {
+test('PATH_GEOMETRY_RE: the pathfinder geometry verdicts + the walk decision timeout, and nothing else (v0.164.0)', () => {
   assert.ok(PATH_GEOMETRY_RE.test('Took to long to decide path to goal!'), 'the think-timeout verdict')
   assert.ok(PATH_GEOMETRY_RE.test('machine unreachable (No path to the goal!)'), 'the no-path verdict, wrapped or bare')
   assert.ok(PATH_GEOMETRY_RE.test('No path to the goal!'))
+  // (v0.164.0) THE WALK DECISION TIMEOUT - run559 F19 + run560 F2/F9: the
+  // withTimeout belt firing past the A*'s whole clock IS a failed-START
+  // geometry verdict (the v0.147.0 pin called it 'the caller's own timeout';
+  // the field re-ruled: the identical re-goto re-fails deterministically).
+  assert.ok(PATH_GEOMETRY_RE.test('walk to furnace: timeout after 20000ms'), 'the machine-walk timeout (run559 F19, run560 F2)')
+  assert.ok(PATH_GEOMETRY_RE.test('walk to chest (retry): timeout after 15000ms'), 'the hop retry timeout (run560 F9)')
+  assert.ok(PATH_GEOMETRY_RE.test('walk to a machine (sweep): timeout after 15000ms'), 'the sweep-walk label shares the shape')
+  assert.ok(PATH_GEOMETRY_RE.test('iron commune walk: timeout after 1041ms'), 'the commune walk label matches (the thin slice self-skips at the nudge budget gate)')
+  assert.ok(PATH_GEOMETRY_RE.test('machine unreachable (walk to furnace: timeout after 20000ms)'), 'the wrapped composite matches')
   for (const no of [
     'NoPath: no path', // the mock's generic shape - NOT the geometry class
-    'walk to furnace: timeout after 20000ms', // the caller's own timeout
+    'raw walk timeout after 8000ms (d=8.0)', // the raw-hop abort: NO colon - deposit.mjs's deliberate non-match stands
+    'open chest: timeout after 10000ms', // an INTERACTION timeout carries no walk label
+    'walk (nudge retry): timeout after -1474ms', // a negative clock is never a verdict (the fuelbank fossil)
     'visit budget spent (walk slice)',
     'goal brake: 6 goals in 5s - refused for 3s',
     'doomed goal (ledgered 1s ago)',

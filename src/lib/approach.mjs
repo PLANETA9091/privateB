@@ -65,7 +65,35 @@ export const APPROACH_MAX_SEGMENTS = 8
 // it) - the start must change. The nudge (approachWalk, one bounded shot)
 // IS the start change; the v0.87.0 doctrine says it in one line: the doomed
 // geometry is the failed bot's start, not the destination.
-export const PATH_GEOMETRY_RE = /Took to long to decide path to goal!|No path to the goal!/
+//
+// (v0.164.0) THE WALK DECISION TIMEOUT joins the class. MEASURED twice in
+// the field: run559 (dispatch 36073741918) F19 'walk to furnace: timeout
+// after 20000ms' (the 07:54 lane named the candidate, ONE instance, not
+// shipped on it) and run560 (dispatch 36077394764, the v0.162.0 fleet)
+// F2 'cobblestone@furnace: machine unreachable (walk to furnace: timeout
+// after 20000ms)' + F9 'walk to chest (retry): timeout after 15000ms'. The
+// withTimeout belt (jobqueue withTimeout -> '${label}: timeout after ${ms}ms')
+// fires when the A* grinds past the caller's WHOLE clock without deciding a
+// path - the same failed-START geometry as 'Took to long to decide path to
+// goal!' (its inner twin), delivered by the clock instead of the pathfinder.
+// The v0.147.0 pin called it 'the caller's own timeout' and left it out; the
+// field verdict is that a FULL-CLOCK goto silence IS a geometry verdict - the
+// identical re-goto from the identical start re-fails deterministically and
+// the visit dies 'machine unreachable' with the raw metal in the pocket.
+// SHAPE (deliberately colon-anchored): /walk[^:]*: timeout after \d+ms/ -
+// (a) it matches ONLY walk-label timeouts ('walk to furnace: ...', 'walk to
+// chest (retry): ...', 'iron commune walk: ...' - every gotoSafe call passes
+// a walk label); (b) the raw-walk abort 'raw walk timeout after Nms' has NO
+// colon and stays OUT (deposit.mjs's own doctrine: that abort must match
+// NEITHER retry class - it is the RAW walk's own verdict, the pathfinder
+// fallback owns what comes after); (c) interaction timeouts ('open chest:
+// timeout after 10000ms') carry no walk label; (d) a negative clock
+// ('timeout after -1474ms', the fuelbank re-goto bug's fossil shape) is not
+// \d+ - a negative clock is never a verdict. The thin-slice case self-skips:
+// after a 1041ms timeout the visit's walk slice is spent and the nudge's own
+// budget gate (ms > 1000) refuses it - the shape only ever fires where there
+// is clock to change the start.
+export const PATH_GEOMETRY_RE = /Took to long to decide path to goal!|No path to the goal!|walk[^:]*: timeout after \d+ms/
 
 // (v0.157.0) THE CLOSE SHOT - the nudge's blind spot, run58's field verdict.
 // MEASURED (dispatch 36055223458, the v0.155.0/v0.156.0 fleet): the yard

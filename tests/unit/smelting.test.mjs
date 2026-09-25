@@ -1449,3 +1449,39 @@ test('smeltBatch: the close shot is ONE segment per visit - a stalled shot break
   assert.equal(shots.length, 1, 'ONE close-shot segment per visit - a stalled shot ends the approach (no anti-spin violation)')
   assert.ok(!lines.some(l => /timeout after -/.test(l)), 'no negative timeout anywhere')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.164.0) THE WALK TIMEOUT NUDGE - run559 (dispatch 36073741918) F19 + run560
+// (dispatch 36077394764, the v0.162.0 fleet) F2: 'walk to furnace: timeout after
+// 20000ms' -> the nudge never fired (the v0.147.0 pin called it 'the caller's own
+// timeout') and the visit died 'machine unreachable' with the raw metal in the
+// pocket - the withTimeout belt firing past the A*'s WHOLE clock IS a failed-START
+// geometry verdict. The re-goto from the identical start re-fails deterministically.
+test('smeltBatch: the walk DECISION TIMEOUT fires the nudge - the close shot moves the start, the retry lands (v0.164.0, the F2/F19 cure)', async () => {
+  const near = new MockFurnace({ position: new Vec3(12.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  let calls = 0
+  bot.pathfinder.goto = async goal => {
+    calls++
+    if (calls === 1) throw new Error('walk to furnace: timeout after 20000ms')
+    // the close shot's segment (or the retry) moves the bot honestly
+    bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
+  }
+  const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 4, 'the timeout nudge moved the start - the retry landed (was: machine unreachable, raw metal stranded)')
+  assert.ok(lines.some(l => /walk nudge/.test(l)), 'the nudge decision is logged (the discriminator: without the v0.164.0 class the timeout fired NO nudge at all)')
+  assert.ok(lines.some(l => /approach: 1 segment\(s\) walked/.test(l)), 'the close shot emitted ONE segment - the start changed')
+  assert.equal(calls, 3, 'attempt 1 paid the clock, the close shot walked, attempt 2 landed')
+})
+
+test('smeltBatch: the RAW-walk abort shape never nudges - the colon-anchored class keeps the deposit doctrine (v0.164.0)', async () => {
+  const near = new MockFurnace({ position: new Vec3(12.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [near], items: [item('sand', 4), item('coal', 7)] })
+  const lines = []
+  bot.pathfinder.goto = async () => { throw new Error('raw walk timeout after 8000ms (d=8.0)') }
+  const res = await smeltBatch(bot, { machineBlock: near, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 0)
+  assert.match(res.reason, /machine unreachable.*raw walk timeout/)
+  assert.ok(!lines.some(l => /walk nudge/.test(l)), 'NO nudge for the raw-hop abort - deposit.mjs: the raw walk\'s own verdict matches NEITHER retry class')
+})
