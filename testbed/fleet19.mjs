@@ -32,7 +32,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -197,12 +197,23 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // the legacy shape byte for byte.
   const carriesSmelt = SMELT ? smeltablesIn(miner.bot, { reserveCobble: 8 }).length > 0 : false
   // (v0.183.0) THE FUEL GATE: the hold prices a smelt leg the pocket may not
-  // be able to fire - no coal/charcoal means the furnace has nothing to burn.
-  // The pocket's fuel count gates the reserve (only an explicit false skips;
-  // a missing read keeps the legacy shape). The skip names itself once here,
-  // riding the 'bank ' filter key - the next fleet sizes the class.
+  // be able to fire - the fuel read gates the reserve (only an explicit false
+  // skips; a missing read keeps the legacy shape). The skip names itself once
+  // here, riding the 'bank ' filter key - the next fleet sizes the class.
+  // (v0.191.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
+  // (pickFuel, itemsNeeded 1 = the minimal-fire probe) instead of a coal-only
+  // count. MEASURED (run46 = fleet 36195869446, the v0.190.0 union): 'smelt
+  // hold skipped - no fuel in pocket (coal 0)' x3 (F10/F6/F8) while the same
+  // bots' furnaces burned WOOD - F6: 'fuel clips the batch: 4 x oak_log
+  // completes 6 of 33 x cobblestone' - and the leg died anyway (smelted 17 ->
+  // 1; F8 'end-bank budget spent - smelt skipped' with raw_iron riding): the
+  // gate was STRICTER than the furnace it prices. The probe inherits pickFuel's
+  // reserve doctrine (planks 8 / logs 6 / sticks 2 - the tool-bootstrap wood is
+  // never burned) and stays junk-safe: an unreadable pocket reads no plan ->
+  // the skip (the v0.183.0 shape byte for byte).
+  const fuelPlan = SMELT ? pickFuel(miner.bot, { itemsNeeded: 1 }) : null
   const pocketFuel = countItem(miner.bot, 'coal') + countItem(miner.bot, 'charcoal')
-  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, hasFuel: pocketFuel > 0, smeltBudgetSecs: SMELT_BUDGET })
+  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, hasFuel: fuelPlan != null, smeltBudgetSecs: SMELT_BUDGET })
   if (smeltReserveMs > 0) console.log(`${miner.username} bank: ${reserveWhy}`)
   else if (reserveWhy.startsWith('smelt hold skipped')) console.log(`${miner.username} bank: ${reserveWhy} (coal ${pocketFuel})`)
   const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())

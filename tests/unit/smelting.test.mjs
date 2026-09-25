@@ -246,6 +246,34 @@ test('pickFuel JUNK window (default) burns spare wood FIRST - the run97 misalloc
   assert.equal(fuel.count, 2) // only the amount ABOVE the 8 reserve is burnable
 })
 
+test('pickFuel itemsNeeded 1 = the minimal-fire probe the smelt hold gates on (v0.191.0)', () => {
+  // run46's F10/F6/F8 class: the bank-block's fuel gate counted coal only and
+  // skipped the smelt hold ('no fuel in pocket (coal 0)' x3) while the SAME
+  // bots' furnaces burned wood - F6: 'fuel clips the batch: 4 x oak_log
+  // completes 6 of 33'. The gate now asks the furnace's own selector the
+  // minimal question: can this pocket fire ONE item?
+  // a wood-only pocket above the reserves = fireable (the run46 skip was a lie)
+  const woody = makeMockBot({ items: [item('oak_log', 10)] })
+  const plan = pickFuel(woody, { itemsNeeded: 1 })
+  assert.equal(plan.name, 'oak_log')
+  assert.equal(plan.count, 1) // one log unit proves the fire (fuelNeeded ceil(1/1.5)=1)
+  // the reserve doctrine holds in the probe: logs AT the reserve are not fuel
+  const atReserve = makeMockBot({ items: [item('oak_log', 6)] })
+  assert.equal(pickFuel(atReserve, { itemsNeeded: 1 }), null)
+  // sticks above the 2 reserve complete one item (2 sticks = 1 smelt)
+  const stickBot = makeMockBot({ items: [item('stick', 5)] })
+  const stickPlan = pickFuel(stickBot, { itemsNeeded: 1 })
+  assert.equal(stickPlan.name, 'stick')
+  assert.equal(stickPlan.count, 2)
+  // the JUNK-window order survives the probe: renewable wood burns FIRST and
+  // the coal survives for the metal windows (the run97 cure the leg re-uses;
+  // the gate probes the default window - the input name is unknown at chain entry)
+  const mixed = makeMockBot({ items: [item('coal', 2), item('oak_log', 10)] })
+  assert.equal(pickFuel(mixed, { itemsNeeded: 1 }).name, 'oak_log')
+  // a junk/empty pocket reads no plan - the v0.183.0 skip shape byte for byte
+  assert.equal(pickFuel(makeMockBot({ items: [] }), { itemsNeeded: 1 }), null)
+})
+
 test('pickFuel JUNK window: coal AT the floor is the honest skip (the v0.110.0 floor)', () => {
   // run98's F4 class: a wood-less pocket burned its coal to nothing on junk
   // windows BEFORE any chest contact - the tithe never had an overage and the

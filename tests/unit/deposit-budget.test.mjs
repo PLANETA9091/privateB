@@ -348,11 +348,21 @@ test('smeltChainReserve: the fuel gate skips the hold only on an explicit false'
 
 test('wiring: the bank block gates the smelt hold on the pocket fuel read', () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  // the pocket read: coal + charcoal (charcoal is a first-class smelt fuel)
+  // the pocket read: coal + charcoal (charcoal is a first-class smelt fuel;
+  // v0.191.0 - the count survives as the skip line's honest suffix)
   assert.match(src, /const pocketFuel = countItem\(miner\.bot, 'coal'\) \+ countItem\(miner\.bot, 'charcoal'\)/,
     'the fuel read counts both smelt fuels')
-  // the gate rides the reserve call as an explicit boolean
-  assert.match(src, /hasFuel: pocketFuel > 0/, 'only a real fuel count gates the hold')
+  // (v0.191.0) THE WOOD-FUEL GATE: the gate consults the furnace's OWN selector
+  // (pickFuel, itemsNeeded 1 = the minimal-fire probe) - run46's 'no fuel in
+  // pocket (coal 0)' x3 rode pockets whose furnaces burned oak_log (F6: 'fuel
+  // clips the batch: 4 x oak_log completes 6 of 33'); a coal-only gate was
+  // STRICTER than the furnace it priced
+  assert.match(src, /const fuelPlan = SMELT \? pickFuel\(miner\.bot, \{ itemsNeeded: 1 \}\) : null/,
+    'the gate probes the furnace own picker, not a coal-only count')
+  assert.match(src, /import \{[^}]*pickFuel[^}]*\} from '\.\.\/src\/lib\/smelting\.mjs'/,
+    'the picker rides the smelting import')
+  // the gate rides the reserve call as the picker verdict
+  assert.match(src, /hasFuel: fuelPlan != null/, 'the picker verdict gates the hold')
   // the skip names itself once, riding the 'bank ' filter key (4 canonical forms)
   assert.match(src, /reserveWhy\.startsWith\('smelt hold skipped'\)/, 'the skip line is named, not silent')
   assert.match(src, /bank: \$\{reserveWhy\} \(coal \$\{pocketFuel\}\)/, 'the skip rides the bank filter key with the fuel count')
