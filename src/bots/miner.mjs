@@ -51,6 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
+import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2323,6 +2324,7 @@ export function createMiner ({
             diglessIters = 0
             stats.mined++
             stats.byName[feetB.name] = (stats.byName[feetB.name] || 0) + 1
+            map?.take(feetB.name, feetCell) // (v0.173.0) the cell is gone - the map must not steer at it
           }
         }
         if (headB && headB.type !== 0 && (!names || names.includes(headB.name))) {
@@ -2331,6 +2333,7 @@ export function createMiner ({
             diglessIters = 0
             stats.mined++
             stats.byName[headB.name] = (stats.byName[headB.name] || 0) + 1
+            map?.take(headB.name, feetCell.offset(0, 1, 0)) // (v0.173.0) same hygiene for the head cell
           }
         }
         // (v0.107.0) the torch rhythm rides the diglessIters reset: 0 here <=> this
@@ -2415,10 +2418,31 @@ export function createMiner ({
             dug++
             stats.mined++
             stats.byName[blk.name] = (stats.byName[blk.name] || 0) + 1
+            map?.take(blk.name, pos) // (v0.173.0) mined away - the map must not steer the fleet at this cell again
             progressed = true
           }
         }
         if (!progressed) break
+      }
+      // (v0.173.0) THE SWEEP DROP HARVEST: run74's F13 logged '9 ores dug beside
+      // the gallery' and its pocket read ZERO coal at every snapshot - the sweep
+      // digs in place (reach 4.5) but the drop lands INSIDE the freed cell, 2-4
+      // blocks away and often behind the dug face, and pickup only happens inside
+      // ~1.5 blocks. The fleet ledger counted coal_ore=175 mined while the
+      // pockets held ~23: the ore-detour's conversion died between the dig and
+      // the pocket, and the fuel front starved at exactly that link. sweep() and
+      // chopReachable already walk their drops - the underground sweep was the
+      // only digger that never did. One bounded walk, pocket-delta counted: a
+      // sealed drop is left for the despawn, never a clock burn.
+      if (dug > 0) {
+        const load0 = inventoryLoad(bot).units
+        const dropFence = Date.now() + SWEEP_DROP_TOTAL_MS
+        for (const d of dropTargets(bot.entities, bot.entity?.position, { maxDistance: SWEEP_DROP_REACH, cap: SWEEP_DROP_CAP })) {
+          if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
+          try { await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, 1), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' }) } catch { /* sealed drop stays behind */ }
+        }
+        const picked = Math.max(0, inventoryLoad(bot).units - load0)
+        if (picked > 0) log(`${tag} vein sweep: +${picked}u walked from the drops (${dug} dug)`)
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)
