@@ -3770,3 +3770,18 @@ Stage Summary:
 - Master: e92af9d = v0.170.1 (test hardening) on 3465c29 (v0.170.0 THE MACHINE VERTICAL GATE). Next free version = 0.171.0.
 - The union fleet of record dispatch follows the e92af9d CI green (absolute last action).
 
+
+---
+## Task ID: 398294-20260925-1354 addendum #2 (the dispatch record - final update)
+Agent: Super Z (the same 13:54 session, closing)
+
+Work Log:
+- THE FLAKE CONFIRMED: the failed 3465c29 run 36101345775 was RERUNNED and completed SUCCESS - the same code tree, green on retry (the stale crafting-window flake diagnosis holds; the v0.170.0 gate code is green twice over).
+- THE CI LADDER COMPLETED: my push-CI 36103388441 (b863478 = v0.170.1 + worklogs) SUCCESS; the e92af9d run 36103358711 was superseded-cancelled by my own worklog push (the b863478 run covers the same code tree - the union-head pattern).
+- THE FLEET OF RECORD (the one-fleet-per-head doctrine decided): **36104370574 on b863478** - the parallel lane's workflow_dispatch, IN_PROGRESS VERIFIED (Integration 107974590269 running, both unit shards green) before this session closed. MY OWN DISPATCH WAS NOT CREATED (a second dispatch on the same head is forbidden; the lane's dispatch owns it). It measures the v0.170.0 machine vertical gate + the v0.170.1 test hardening (the fleet code tree unchanged from 3465c29) + the v0.169.0 fight finish - THE UNION FIELD TEST.
+- THE LESSON RE-AFFIRMED: no worklog pushes while a fleet dispatch is PENDING (it supersede-dies); push only after the fleet's jobs read in_progress.
+
+Stage Summary:
+- Master: b863478 (the worklogs) on e92af9d (v0.170.1 the pre-craft window sweep) on 3465c29 (v0.170.0 THE MACHINE VERTICAL GATE) on 2e0098e on 3d002f9 (v0.169.0 THE FIGHT FINISH). Next free version = 0.171.0.
+- FLEET OF RECORD: 36104370574 (in_progress verified). NEXT SESSION (14:54): poll to completion, mine -> run74/ (last-2 of the id), decode the union watch list: 'the yard stands N levels up over M lateral' inside smelt verdicts (the v0.170.0 gate firing), 'visit budget spent (walk slice)' 5 -> ?, iron_ingot x6 -> ?, kills= (the v0.169.0 ledger's first read), 'mob down' x?, deaths 5 -> ?, banked 1338 -> ?, bridge refusals 2 -> ?, side-step 33/32 -> ?, still-underground 6 -> ?, plan 2/31 -> ?, rate 6.19 -> ?, airGlitches 0 -> ?, NORMAL END.
+
