@@ -4362,3 +4362,25 @@ Stage Summary:
 - Master 51452cf -> this worklog commit (v0.190.0 THE POCKET TORCH CAP on the union tree: the ledge goal 0.189.0 + the torch cap 0.190.0 + the 05:00 stack). Next free version = 0.191.0.
 - THE DECODE WATCH LIST for the next fleet: 'the pocket torch cap' lines (held N of 24 - the converter trim's field debut); the torch surplus 255 -> ? (the cap holds pockets at 24); the smelt economy (smelted 17 -> ? with the converter's coal appetite trimmed); 'no coal' x208 -> ?; the lane's ledge-goal family ('timeout after 4000ms' x35 -> ?, the zero-pickup sweeps 4 -> ?); the climb-out chain (5 final-bank zeros - the next front candidate); NORMAL END, deaths 3 -> ?.
 - OPEN FRONTS: the climb-out chain (the shaft-bottom bank class), the coal ARRIVAL root (steering/pocket conversion), the fight economics (the engagement envelope).
+
+---
+Task ID: cron30-20260926-0630
+Agent: Super Z (cron lane, Job 414125)
+Task: poll + mine + decode the v0.189.0+v0.190.0 union debut fleet of record (36195869446).
+
+Work Log:
+- Synced clean (origin ff766d5, the lane quiet since the 06:00 fire). The fleet of record 36195869446 (workflow_dispatch on ff766d5) was the ONLY active run (in_progress, ~14 min old at poll start) - polled it per protocol p.6, no duplicate created.
+- Poll timeline: Integration SUCCESS + units SUCCESS, the Big fleet job materialized ~t+8min and COMPLETED SUCCESS at ~t+20min total. All gates green on the union tree.
+- Mined to run46 (/home/z/privateB/scripts/fleet-mining/run46; fleet19.log 2455 lines). No code change this fire (the decode is the atomic unit, the 05:30 pattern); no dispatch (the fleet just ran on this head).
+
+Stage Summary:
+- THE DECODE - run46 (the ledge goal 0.189.0 + the torch cap 0.190.0 union debut, 600s, plan 2/31, alive=19/19 at end):
+  - THE TORCH CAP (v0.190.0) FIELD DEBUT: SUCCESS. Cap-declines x40 ('the pocket torch cap: held 22-24 of 24 - sticks N coals N'); the F16:95 hoarding is GONE (end pockets torch:24 across the fleet); torched 6 -> 16 (+167%) - the placement count ROSE as the stock stopped burning into hoards. 'no coal' x212 (was 208, flat - the ARRIVAL root stands).
+  - THE LEDGE GOAL (v0.189.0, the lane's): MIXED. '+Nu walked' conversions 32 -> 40 (+25%, the wide sphere converts); 'timeout after 4000ms' FLAT 35 -> 35 (the ledge family persists beyond the goal widening - the arrival is legal but the walk still burns); new long-timeout class: 10000ms x7 + 15000ms x2 (possibly the climb family - decode next fire).
+  - THE F19 HOP CLASS CONFIRMED DEAD: 'vertical doom' lines 29 -> 2 (the v0.188.0 gate cured the hop family; the 2 residuals are the gate firing correctly elsewhere).
+  - SMELTED 17 -> 1 - THE CRASH HAS A NAME: 'smelt hold skipped - no fuel in pocket (coal 0)' x3 + 'raw_iron: no fuel' x1 + machine unreachable x1 (F12 blast_furnace, both walk classes). The FUEL side of the coal famine now bites the smelt leg. NOTE: the wood-fuel fallback IS wired for the batch (F6: 'fuel clips the batch: 4 x oak_log completes 6 of 33', fired=6) but F6 'smelted 0 () fired=6' - a fired-not-extracted class needs one more decode.
+  - BANKED 1111 -> 648 IS THE NIGHT HOLD WORKING, not a delivery regression: the run clock ended at NIGHT (tod 12778-13106); 'final bank deferred: night' x4 + night-hold lines x16; pockets 2659u rode out ALIVE - deaths 3 -> 0, fights 15 -> 2. Loot ledger: accounted=3308, unaccounted=0, conversion=120.9%.
+  - THE CLIMB-OUT CHAIN PERSISTS: 'final bank: 0 (still underground after 2 climb attempts)' x3 (F5/F6/F18; was x5); climb machinery active (diag 76 / out 62 / bridge 58 / rise assist 5).
+  - BLIND SPOT #2 FOUND: airGlitches 0 -> 383 with ZERO lines in fleet19.log - the counter's event class never rides the filter (the 05:00 ledger-skip lesson repeated). Instrumentation candidate.
+- NEXT CURE CANDIDATES (evidence-ranked for the 07:00 fire): (a) THE SMELT FUEL LEG - teach the smelt-hold gate to accept wood-family fuel (the fuelClip logic exists, F6 proves the furnace takes oak_log) OR decode the fired=6/smelted=0 extraction class first; (b) the airGlitch instrumentation line (blind spot #2); (c) the climb-out chain x3 (parked twice - non-atomic); (d) the 10000ms x7 long-timeout class.
+- Master ff766d5 (v0.190.0) unchanged this fire. Next free version = 0.191.0. NO active fleet-run left; the next fire should run the pre-dispatch check then dispatch on the fresh head AFTER its own push.
