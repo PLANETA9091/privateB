@@ -182,13 +182,13 @@ test("REGRESSION PIN: the harness log filter passes the sweep instrument (the v0
 // the drop rested 1-2 BELOW the walk plane (in the freed cell / down the fresh
 // shaft), the only standable cells were the gallery lip above, and every
 // recompute spiraled into the timeout. The below-plane drops walk range 2.
-import { dropGoalRange, lipDigWanted, LIP_DIG_MAX_AIR, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
+import { dropGoalRange, lipDigWanted, LIP_DIG_MAX_AIR, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_ABOVE, DROP_GOAL_ABOVE_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
 
 test('dropGoalRange: at/above the walk plane keeps the legacy tight goal (the walk INTO the magnet)', () => {
   assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'a level drop - the flat gallery converges into the magnet')
-  assert.equal(dropGoalRange({ dy: 0.5 }), DROP_GOAL_PLANE, 'half a block up - within the sphere')
-  assert.equal(dropGoalRange({ dy: 1 }), DROP_GOAL_PLANE, 'the fence boundary: exactly the plane stays tight')
-  assert.equal(dropGoalRange({ dy: 2.5 }), DROP_GOAL_PLANE, 'the above-plane ledge class is NOT measured - no speculative widening')
+  assert.equal(dropGoalRange({ dy: 0.5 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: half a block up is the measured ledge family (the +0.2 field class) - the flat legacy only holds AT the plane')
+  assert.equal(dropGoalRange({ dy: 1 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: the measured head-height ledge class walks the wide goal')
+  assert.equal(dropGoalRange({ dy: 2.5 }), DROP_GOAL_ABOVE, 'RE-PINNED v0.189.0: the above-plane ledge class is MEASURED now (fleet 36191851635: dy +1.0 x6, +2.0 x3, +4.0) - the mirror cure ships')
   assert.equal(dropGoalRange({ dy: -1 }), DROP_GOAL_PLANE, 'the fence boundary: exactly -1 is AT the plane (dy < fence widens)')
 })
 
@@ -221,6 +221,8 @@ test('dropGoalRange: junk input returns the legacy 1 - a missing read never wide
 test('dropGoalRange: the constants pin (the planner is the ONLY range source)', () => {
   assert.equal(DROP_GOAL_PLANE, 1, 'the tight goal is the byte-identical legacy range')
   assert.equal(DROP_GOAL_BELOW, 2, 'the wide goal - the lip sphere (dy -1.5 + horizontal 1.0 = 1.8) converges')
+  assert.equal(DROP_GOAL_ABOVE, 2, 'the above goal shares the same wide sphere (the ledge floor is a legal arrival - the v0.189.0 mirror)')
+  assert.equal(DROP_GOAL_ABOVE_DY, 0, 'the ledge fence: strictly above the walk plane')
   assert.equal(DROP_GOAL_BELOW_DY, -1, 'the plane fence: strictly below the walk plane')
   assert.equal(DROP_GOAL_DEEP_DY, -2, 'the deep fence: strictly below -2 the lip sphere cannot reach')
 })
@@ -263,6 +265,15 @@ test('lipDigWanted: the plane class never digs (it converges INTO the magnet alr
   assert.equal(lipDigWanted({ range: DROP_GOAL_PLANE, airBelow: 1, fluidBelow: false, dy: 0 }), false)
   assert.equal(lipDigWanted({ range: DROP_GOAL_SKIP, airBelow: 1, fluidBelow: false, dy: -3 }), false)
   assert.equal(lipDigWanted({ airBelow: 1, fluidBelow: false, dy: -1.5 }), false, 'a missing range refuses')
+})
+
+test('lipDigWanted: the ABOVE family never digs (the v0.189.0 family fence - ABOVE shares the wide 2, the drop is UP)', () => {
+  assert.equal(lipDigWanted({ range: DROP_GOAL_ABOVE, airBelow: 1, fluidBelow: false, dy: 1.5 }), false,
+    'a ledge arrival must not open the gallery floor')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_ABOVE, airBelow: 2, fluidBelow: false, dy: 4.0 }), false,
+    'the far-ledge class never digs')
+  assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: 0.5 }), false,
+    'a below-range walk with an at/above-plane dy is the family fence refusing - the dy is the family, not the range number')
 })
 
 test('lipDigWanted: the fall fence - a sealed floor and a deep shaft refuse, the 1/2 window digs', () => {
@@ -309,8 +320,8 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes("lipDigWanted, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family')
   const landedAt = src.indexOf('let landed = false')
-  const digAt = src.indexOf('if (landed && range === DROP_GOAL_BELOW) {')
-  assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-class walk only')
+  const digAt = src.indexOf('if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {')
+  assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-family walk only (the dy family, not the range number - the v0.189.0 ABOVE shares the wide 2)')
   const gateAt = src.indexOf('lipDigWanted({ range, airBelow, fluidBelow: strike !== null, dy: dyLip })')
   assert.ok(gateAt > digAt, 'the verdict gates the dig (the probes feed it, nothing is hardcoded)')
   assert.ok(src.includes('dropAheadBelow(feet, { depth: 3 })'), 'the fall column is the measured probe (zero reads report the worst)')
@@ -320,4 +331,38 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
     'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
   assert.ok(/failed - \$\{e\.message\} \(dy \$\{dyWalk\.toFixed\(1\)\}, range \$\{range\}\)/.test(src),
     'the failed-walk line carries the (dy, range) instrument - the next decode splits the timeout class')
+})
+
+// ---- v0.189.0 (renumber-free - the next free patch after the 05:00 lane's
+// v0.188.0 hop gate): THE ABOVE-PLANE LEDGE GOAL - the v0.178.0 sphere
+// arithmetic mirrored up, now measured by the (dy, range) instrument's own
+// field debut (fleet 36191851635): 47 failed walks split x42 plane-range vs
+// x5 below, and the plane family's dy values are OVERWHELMINGLY ABOVE the
+// walk plane (+1.0 x6, +1.2, +2.0 x3, +2.1, +4.0 - the head-height ledge
+// drops the bot cannot stand on). A drop 1+ above the plane at range 1 is
+// the SAME no-standable-cell-in-the-sphere shape v0.178.0 cured below: the
+// drop's own cell is at head height against the gallery ceiling, the
+// adjacent floor lip reads 3D dist ~1.6 > 1.0 - the walk spirals. THE CURE:
+// dy > 0 walks range 2 (the floor beside/below the ledge is a legal arrival
+// AND the drop at torso/head height overlaps the bot's body column, so the
+// ~1.5 pickup magnet covers it on arrival - the above class needs no
+// dig-down; its last mile is the bot's own bbox). The dig-under gate in the
+// miner re-fences to the BELOW dy family (ABOVE shares the wide 2 - a
+// range-only check would arm the dig for ledges).
+
+test('dropGoalRange: a drop resting ABOVE the walk plane gets the wide goal (the ledge floor counts as arrival)', () => {
+  assert.equal(dropGoalRange({ dy: 0.1 }), DROP_GOAL_ABOVE, 'just above the plane - the measured +0.2 class')
+  assert.equal(dropGoalRange({ dy: 1.0 }), DROP_GOAL_ABOVE, 'the measured head-height ledge class (x6 in the field)')
+  assert.equal(dropGoalRange({ dy: 2.0 }), DROP_GOAL_ABOVE, 'the measured 2-up class (x3)')
+  assert.equal(dropGoalRange({ dy: 4.0 }), DROP_GOAL_ABOVE, 'the measured far-ledge class - the wide goal costs no more than the doomed range-1 spiral')
+  assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'dy exactly 0.0 stays the legacy tight goal (the flat family converges INTO the magnet)')
+})
+
+test('dropGoalRange: the fence boundaries hold across all four verdicts (the plane/below/deep/above map)', () => {
+  assert.equal(dropGoalRange({ dy: -0.1 }), DROP_GOAL_PLANE, 'just below zero is still the flat family')
+  assert.equal(dropGoalRange({ dy: -1.0 }), DROP_GOAL_PLANE, 'dy exactly -1.0 stays the legacy (the v0.178.0 fence edge)')
+  assert.equal(dropGoalRange({ dy: -1.1 }), DROP_GOAL_BELOW, 'the below family keeps its wide goal')
+  assert.equal(dropGoalRange({ dy: -2.0 }), DROP_GOAL_BELOW, 'the sphere edge stays BELOW (the v0.182.0 boundary)')
+  assert.equal(dropGoalRange({ dy: -2.1 }), DROP_GOAL_SKIP, 'the deep class still skips')
+  assert.equal(dropGoalRange({ dy: 0.0 }), DROP_GOAL_PLANE, 'the flat edge stays the legacy')
 })

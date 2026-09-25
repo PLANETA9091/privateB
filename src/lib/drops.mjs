@@ -57,12 +57,37 @@ export const SWEEP_DROP_TOTAL_MS = 24000 // the whole drop-walk budget - a bonus
 // (3D dist ~1.8 <= 2), the spiral dies, and a still-unpicked drop rides the
 // next pass (galleries are revisited; the despawn clock is 5 min). At/above
 // the plane keeps range 1 byte-identical - a flat gallery converges INTO the
-// magnet, and the above-plane ledge class is not measured yet (the wide
-// goal would end the walk farther from the drop for no measured gain).
+// magnet. The above-plane ledge class was deferred unmeasured that day - the
+// wide goal would end the walk farther from the drop for no measured gain.
 // Junk input = the legacy 1 - a missing read never widens a goal.
 export const DROP_GOAL_PLANE = 1 // the legacy tight goal (the walk INTO the magnet)
 export const DROP_GOAL_BELOW = 2 // the below-plane goal (the lip counts as arrival)
 export const DROP_GOAL_BELOW_DY = -1 // the plane fence: strictly below the walk plane
+
+// (v0.189.0) THE ABOVE-PLANE LEDGE GOAL - the v0.178.0 sphere arithmetic
+// MIRRORED UP, now measured. MEASURED (fleet 36191851635, the v0.188.0
+// triple-union run, the (dy, range) instrument's field debut): 47 drop-walk
+// failures split x42 'plane(>=-1) on range 1' vs x5 below - and the plane
+// family's dy values are OVERWHELMINGLY ABOVE the walk plane: dy +1.0 x6,
+// +1.2, +2.0 x3, +2.1, +4.0 (the ore face's upper blocks and the ledge drops
+// - an ore dug at head height drops an item that rests ON the ledge the bot
+// cannot stand on). THE SAME SPHERE AS v0.178.0, MIRRORED: GoalNear range 1
+// demands a standable cell within 1.0 of the drop's center, but a drop
+// resting 1+ ABOVE the walk plane has its own cell at HEAD HEIGHT against
+// the gallery ceiling (the cell above it is CEILING - not standable) and the
+// adjacent floor lip reads 3D dist sqrt(lateral^2 + 1.3^2) ~ 1.6 > 1.0 -
+// every recompute lands partial, the walk spirals into the (now 4s) timeout.
+// THE CURE: a drop resting ABOVE the walk plane (dy > DROP_GOAL_ABOVE_DY)
+// walks range 2 - the floor beside/below the ledge is a legal arrival
+// (3D dist ~1.3-1.6 <= 2.0) AND the drop at torso/head height overlaps the
+// bot's own body column, so the ~1.5 pickup magnet covers it ON ARRIVAL
+// (the below class needed the v0.187.0 dig-down for its last mile; the
+// above class's last mile is the bot's own bbox). The dy exactly 0.0 flat
+// family keeps the legacy range 1 (its measured timeouts ride the budget/
+// brake class - the goal geometry converges flat drops into the magnet).
+// Junk dy = the legacy PLANE - a missing read never widens a goal.
+export const DROP_GOAL_ABOVE = 2 // the above-plane goal (the ledge floor counts as arrival - the same wide sphere)
+export const DROP_GOAL_ABOVE_DY = 0 // the ledge fence: strictly above the walk plane
 
 // THE DEEP FENCE (v0.182.0): the range-2 lip sphere is a 3D ball of radius 2 -
 // a drop resting 2+ BELOW the walk plane (3D dist >= 2.0 from EVERY standable
@@ -86,6 +111,7 @@ export const DROP_GOAL_SKIP = 0 // the skip verdict: no walk at all (the range t
 export function dropGoalRange ({ dy = 0 } = {}) {
   const d = Number.isFinite(dy) ? dy : 0
   if (d < DROP_GOAL_DEEP_DY) return DROP_GOAL_SKIP
+  if (d > DROP_GOAL_ABOVE_DY) return DROP_GOAL_ABOVE
   return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
 }
 
@@ -104,8 +130,11 @@ export function dropGoalRange ({ dy = 0 } = {}) {
 // floor over the drop's hole) - the bot drops 1-2 into the hole, the drop
 // is at its feet, the magnet sweeps it. The guards are all measured-class
 // fences, never new physics:
-//   - range must be the BELOW verdict (the plane class converges INTO the
-//     magnet already - a plane dig-under would be an unmeasured change);
+//   - the drop must be in the BELOW family (the plane class converges INTO
+//     the magnet already, and the v0.189.0 ABOVE class parks the bot BESIDE a
+//     drop that is UP - a dig-under there would open the gallery floor for
+//     nothing; the family reads the dy, not the range number: ABOVE and BELOW
+//     share the wide 2, so a range-only check would arm the dig for ledges);
 //   - the fall column must measure 1..2 air cells (dropAheadBelow's own
 //     probe - the below class IS a 1-2 deep freed cell; 0 = a sealed floor,
 //     3+ = the deep class the v0.182.0 fence already refuses to walk, and a
@@ -126,6 +155,11 @@ export function lipDigWanted ({ range, airBelow, fluidBelow, dy } = {}) {
   if (a < 1 || a > LIP_DIG_MAX_AIR) return false
   if (fluidBelow !== false) return false // an unmeasured wet guard is a blind dig (the v0.86.0 lesson)
   if (!Number.isFinite(dy)) return false
+  // (v0.189.0) the family fence: ABOVE and BELOW share the wide range 2, so
+  // the dig-under is fenced to the BELOW dy family itself - a drop AT/ABOVE
+  // the walk plane never buys a dig-under (the v0.189.0 ledge arrivals park
+  // the bot BESIDE an UP drop; opening the floor there is unmeasured waste).
+  if (dy >= DROP_GOAL_BELOW_DY) return false
   if (dy < DROP_GOAL_DEEP_DY) return false
   return true
 }

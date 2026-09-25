@@ -51,7 +51,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down
+import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2522,7 +2522,10 @@ export function createMiner ({
           // is a measured fence (src/lib/drops.mjs): the fall column reads 1..2
           // air cells, the column reads DRY, the drop sits inside the lip sphere;
           // junk anywhere refuses the dig (a missing read never arms an action).
-          if (landed && range === DROP_GOAL_BELOW) {
+          // (v0.189.0) the gate reads the BELOW DY FAMILY, not the range number:
+          // the new ABOVE verdict shares the wide 2, and a ledge arrival must
+          // never arm a dig-under (the drop is UP - the floor there is floor).
+          if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {
             const dyLip = d.y - bot.entity.position.y
             const feet = bot.entity.position.floored()
             const airBelow = dropAheadBelow(feet, { depth: 3 })
