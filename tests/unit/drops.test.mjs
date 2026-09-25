@@ -127,3 +127,15 @@ test('diag-item-entities: the diag script exists for the next blind-run question
   assert.ok(/entitySpawn/.test(diag), 'the diag hooks the spawn events')
   assert.ok(/name !.*== .player.|e\.name/.test(diag.replace(/\s/g, ' ')) || /e\.name/.test(diag), 'the diag dumps the entity names')
 })
+
+test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 filter-blind lesson)', async () => {
+  const fs = await import('node:fs')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(/combat\|died\|KICKED\|error\|climb\|water\|scan:\|hop\|approach\|swallowed\|bank \|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
+    'the miner log filter includes the vein sweep prefix - the instrument lines must reach the artifact (the v0.56.0 hop-failed lesson, struck again by the v0.175.0 instrument: the count line matched NOTHING and the failure lines only rode the luck of water inside one refusal message)')
+  // the instrument line shapes all start with the key
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  for (const shape of ['vein sweep: ${targets.length} drop(s) in reach', 'vein sweep: the drop walk to', 'vein sweep: +${picked}u walked from the drops', 'vein sweep: the drop walks picked nothing']) {
+    assert.ok(minerSrc.includes(shape), `the instrument line rides the filter key: ${shape}`)
+  }
+})

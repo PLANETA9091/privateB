@@ -732,8 +732,16 @@ async function runBot (name, target, index) {
           // because 'craft torches' matched NOTHING (torched=0 while F11 carried
           // 12), and run108's iron-pickaxe watch needs the smelt/fuel verdicts
           // ('fuel clips the batch', 'smelt: 0 (...)' was only visible by luck).
-          // Shelter lines already ride 'combat'. 
-          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel/.test(m)) console.log(`${name} ${m}`)
+          // Shelter lines already ride 'combat'.
+          // (v0.176.0) 'vein sweep' joins: run48 (36125422448, the v0.175.0
+          // instrument's first field read) proved the filter blind AGAIN - the
+          // count line ('vein sweep: N drop(s) in reach') matched NOTHING and
+          // the failure lines only rode the LUCK of 'water' sitting inside one
+          // refusal message ('water rescue in progress'); the doomed-goal and
+          // the stall-governor refusals would have stayed invisible. The same
+          // shape as the v0.56.0 'hop failed' lesson: the instrument's own
+          // prefix is the key, not the refusal message's vocabulary.
+          if (/combat|died|KICKED|error|climb|water|scan:|hop|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
