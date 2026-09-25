@@ -4325,3 +4325,23 @@ Work Log:
 Stage Summary:
 - Master 8344cd3 (v0.188.0), next free 0.189.0. Fleet of record MINED: 36191851635 - THE DELIVERY RUN.
 - NEXT CURE CANDIDATES (evidence-ranked): (a) THE CLIMB-OUT CHAIN ('still underground after 2 climb attempts' - F17/F13/F4's shaft-bottom bank class); (b) the deep-drop class (x41 skipped); (c) the night/fight economics (the engagement envelope); (d) the torch placement rhythm (torched 6 while 255 held).
+
+---
+Task ID: 398294-20260926-0539
+Agent: Super Z (the 05:39 cron lane)
+Task: Continue driving privateB to 100%. Mined the completed fleet of record 36191851635, shipped THE ABOVE-PLANE LEDGE GOAL (v0.189.0), kept CI green, rode the parallel lane's dispatch.
+
+Work Log:
+- Sandbox alive; master at 0255c7e, version 0.188.0. Waited out the fleet of record 36191851635's ladder (unit x2 + Integration SUCCESS, Big fleet COMPLETED SUCCESS ~21:52) and mined run188/ (the artifact the 05:30 lane also read - the reads corroborate line for line).
+- THE DELIVERY RUN (the v0.188.0 union's field verdict): alive=19/19; banked 384 -> 1111 (x2.9; the hop gate's freed clock went to delivery - 9 landings +70..+168); smelted 6 -> 17 (F1's raw_iron smelted on COAL fuel; the IRON COMMUNE seeded the pool: +1 iron_ingot); the zero-pickup sweeps 11 -> 4; the drop-walk successes 21 -> 32 (+187u); the famine trips FIRED x3 and GATHERED x4 (the v0.179.0/v0.180.0 chain's real field conversion); camp furnaces x4 (one deep y=45); deaths 3 (F19 x2 - the surface night class); rescues 20; airGlitches 0; torched=6 with 'dry' x19 and ~255 torches held (the torch famine broke at the POCKET level - the 06:00 lane's cap attacks exactly that).
+- THE LIP DIG-DOWN logged count=0 - CORRECT: the window (a BELOW walk converged + unpicked) never occurred (the below walks failed x5 or picked up); the wiring verified in-tree. The actuator stays armed for the below-class residue.
+- THE (dy, range) INSTRUMENT'S DEBUT DECODED THE TIMEOUT CLASS: 47 fails = x42 plane-range-1 vs x5 below; the plane family's dy OVERWHELMINGLY ABOVE (+1.0 x6, +1.2, +2.0 x3, +2.1, +4.0) - the head-height ledge drops: the v0.178.0 no-standable-cell sphere mirrored up (the drop's cell against the gallery ceiling is not standable; the floor lip reads ~1.6 > 1.0).
+- SHIPPED v0.189.0 THE ABOVE-PLANE LEDGE GOAL (d6a967d): dy > 0 walks the wide range 2 - the ledge floor is a legal arrival AND the drop overlaps the bot's body column (the ~1.5 magnet covers it on arrival; the above class needs no dig-down). The flat 0.0 family keeps range 1. THE DIG-DOWN GATE RE-FENCED to the BELOW dy family (ABOVE shares the wide 2 - a range-only check would arm the dig for ledges); lipDigWanted grows the family fence. The v0.178.0 'at/above keeps tight' pin re-pinned (the no-speculative-widening stance retired by measurement). Tests +3 net, 2 re-pinned; syntax 193/0; drops 28/28; the miner-reading families 394/394 local.
+- COLLISION #16 (resolved by the parallel lane): the 06:00 lane's POCKET TORCH CAP renumbered to v0.190.0 honoring this lane's 0.189.0; the union holds both cures; the markers preserved byte for byte.
+- NO DISPATCH FROM THIS LANE: the parallel lane's 36195563088 on 51452cf IS the fleet of record (the v0.190.0 union) - one fleet per head held. Worklog-only close (the tree stays code-identical - the v0.168.0 precedent).
+
+Stage Summary:
+- Master: 51452cf v0.190.0 on 4f0ae8c (the cap) on d6a967d v0.189.0 (the ledge goal) on 8a1d661 on 0255c7e. Next free version = 0.191.0.
+- FLEET OF RECORD: 36195563088 (the parallel lane's dispatch on 51452cf) - the ledge goal + the torch cap debuts ride it.
+- NEXT SESSION WATCH LIST: (a) the ABOVE-class conversions ('(dy +N, range 2)' successes; the 1.5-2.0 magnet-miss residue = the pillar-up candidate); (b) the torch cap declines + the coal redirected to the smelt leg (smelted 17 -> ?); (c) the dig-down window (count=0 x2 - retire or loosen by evidence if it stays dead); (d) the flat-class timeouts + the goal-brake hits; (e) the iron chain scale (the commune pool needs volume; iron=0 at tiers x12); (f) the climb-out chain + the starving-recovery gather escalation; (g) the creeper/skeleton surface class; NORMAL END.
+- TOOLS: run188/ holds the artifact; the (dy, range) instrument's family split delivered the measurement that derived this lane's cure - the instrument-first discipline works.
