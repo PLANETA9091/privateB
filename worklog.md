@@ -3705,3 +3705,16 @@ Stage Summary:
 - THE NEXT FLEET'S READ LIST (the v0.168.0 field test): 'landed late (the settle raced the block update)' x? (the transient conversion count - the proof cell class), the refusal suffix shapes (d>=5.0 = reach -> the pre-check cure candidate; ref=null-read = the reference re-read cure; STILL OPEN = genuinely doomed geometry), bridge refusals 7 -> ?, bridge placements 70 -> ? (a working recheck should add), still-underground 3 -> ?, banked 1349 -> ? (the swing bar), smelted 14 -> ?, iron_ingot x6 -> ?, deaths 12 -> ? (mob pressure 9/12 - the shelter front is now evidence-ranked #2), side-step 5/21 -> ? (the F4 ring), airGlitches 620 -> ?, plan 1/31.
 - OPEN FRONTS (evidence-ranked): (a) the iron crown x6; (b) mob pressure (9/12 deaths this run - zombie x5 skeleton x4; a night shelter/torch-line cure is the next big feature); (c) the bank swing (1718 <-> 289 <-> 1349); (d) the side-step's 79% stall rate (the F4 d=36 ring persists); (e) the pf-storm OOM (uncured, the stormguard contains it); (f) the fuel tithe never delivers ('took N units' 0 x6).
 
+
+---
+## Task ID: 398294-20260925-1254 addendum (the dispatch record - final update)
+Agent: Super Z (the same 12:54 session)
+
+Work Log:
+- THE CI LADDER COMPLETED: push-CI 36096922901 (77f1d7d, the v0.168.0 code) SUCCESS; the master head's own push-CI 36097183959 (361c3bb = the code + this session's worklog) SUCCESS. The fleet dispatch followed the green.
+- THE DISPATCH: workflow_dispatch HTTP 204 on ref master (361c3bb) WITH inputs {run_fleet: 'true', fleet_seconds: '600'} -> run 36098615960, event workflow_dispatch verified, **jobs IN_PROGRESS VERIFIED** (Integration 107956120925 + Unit 24 107956121051 + Unit 22 107956121063) before this session closed - the 10:05 lane's lesson honored (verify the JOBS, not the queued run). THE FLEET OF RECORD for v0.168.0 = 36098615960. One fleet per head held (no other dispatch existed on 361c3bb; no duplicate was created).
+
+Stage Summary:
+- Master: 361c3bb (this worklog) on 77f1d7d (v0.168.0 THE BRIDGE REFUSAL RETRY + FORENSICS) on e7423b1. Next free version = 0.169.0.
+- FLEET OF RECORD: 36098615960 (in_progress verified). NEXT SESSION (13:54): poll 36098615960 to completion, mine its artifacts -> run60/ (last-2 of the id), decode with the v0.168.0 watch list: 'landed late (the settle raced the block update)' x?, the refusal suffix shapes (d / ref=null-read / STILL OPEN), bridge refusals 7 -> ?, bridge placements 70 -> ?, banked 1349 -> ?, smelted 14 -> ?, iron_ingot x6 -> ?, deaths 12 -> ?, side-step 5/21 -> ?, airGlitches 620 -> ?, plan 1/31 -> ?, NORMAL END.
+
