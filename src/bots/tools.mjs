@@ -509,6 +509,54 @@ export function usableMachines (near, isDoomed) {
   return { usable, doomed }
 }
 
+// (v0.163.0) THE ENVELOPE VETO GATE - run559 (dispatch 36073741918, the
+// v0.161.0 union fleet) named the veto that starves the METAL ladder:
+// F19 stood 25-32b from the yard's blast furnace row with raw_iron in the
+// pocket - the camp ladder refused to build ('F19 camp furnace: no build
+// (machine near)', the 48b scan saw the bay) and the SAME leg's machine walk
+// died 'raw_iron@blast_furnace: machine unreachable (walk to furnace: timeout
+// after 20000ms)' - the raw_iron rode to the bank un-smelted (final banked
+// +87). "Machines near" must mean machines inside the distance the WALK
+// machinery itself trusts: the 24b direct envelope (approach.mjs
+// APPROACH_THRESHOLD - the yard walks from 25-32b stalled EVERY segment that
+// run: d=30.5, 31.1, 30.8, 25.8, all 'a segment stalled'). A machine beyond
+// the envelope must not veto the camp build; the bay bots (d=5-15, run106's
+// F12) keep the legacy veto byte for byte. Kept equal to approach.mjs's
+// APPROACH_THRESHOLD; a test pins the pair.
+export const CAMP_ENVELOPE_B = 24
+
+/** Pure, junk-safe: the envelope split for the camp ladder's veto input.
+ * A machine the envelope arithmetic can MEASURE beyond CAMP_ENVELOPE_B does
+ * not count toward machinesNear (the walk it would anchor is the doomed
+ * geometry the approach machinery refuses to serve directly); a machine with
+ * no measurable position still counts near (the legacy veto keeps it - the
+ * conservative read never builds beside an unreadable bay). Returns fresh
+ * arrays (the caller's list is never mutated). */
+export function envelopeMachines (usable, botPos, { envelopeB = CAMP_ENVELOPE_B } = {}) {
+  if (!Array.isArray(usable)) return { near: [], far: 0, nearestD: null }
+  const cap = Number.isFinite(envelopeB) && envelopeB > 0 ? envelopeB : CAMP_ENVELOPE_B
+  const near = []
+  let far = 0
+  let nearestD = null
+  for (const b of usable) {
+    let d = null
+    try {
+      // the position READ itself is inside the try - a throwing getter (the
+      // chunk-desync class) degrades to unmeasured, and unmeasured stays near
+      const pos = b?.position
+      if (pos && botPos &&
+        Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z) &&
+        Number.isFinite(botPos.x) && Number.isFinite(botPos.y) && Number.isFinite(botPos.z)) {
+        d = Math.hypot(pos.x - botPos.x, pos.y - botPos.y, pos.z - botPos.z)
+      }
+    } catch { d = null }
+    if (d != null && (nearestD == null || d < nearestD)) nearestD = d
+    if (d == null || d <= cap) near.push(b)
+    else far++
+  }
+  return { near, far, nearestD }
+}
+
 /**
  * The pure camp-furnace decision ladder (no bot, no world reads - unit-pinned).
  * Junk-safe: every numeric input floors to a non-negative integer, null/NaN/
@@ -683,6 +731,20 @@ export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48,
     if (machineVerdict.doomed > 0 && machineVerdict.usable.length === 0) {
       step(`${machineVerdict.doomed} near machine(s) all doomed-ledgered - the bay reads as empty, the camp ladder decides on its own merits`)
     }
+    // (v0.163.0) THE ENVELOPE VETO GATE: the doomed filter's survivor list
+    // meets the direct-envelope arithmetic. A measured-far machine (> 24b,
+    // the APPROACH_THRESHOLD the walk ladder itself trusts) cannot veto the
+    // camp build - anchoring the veto to it is how run559's F19 lost the
+    // metal window ('machine near' -> the same leg 'machine unreachable
+    // (walk to furnace: timeout)'). The named lines let the mine count both
+    // shapes: the all-far flip (the bay reads as empty) and the mixed split
+    // (the far machines named, the envelope keepers holding the veto).
+    const envelopeVerdict = envelopeMachines(machineVerdict.usable, bot.entity.position)
+    if (envelopeVerdict.far > 0 && envelopeVerdict.near.length === 0) {
+      step(`${envelopeVerdict.far} near machine(s) all beyond the ${CAMP_ENVELOPE_B}b direct envelope (nearest d=${envelopeVerdict.nearestD == null ? '?' : envelopeVerdict.nearestD.toFixed(1)}) - the bay reads as empty, the camp ladder decides on its own merits`)
+    } else if (envelopeVerdict.far > 0) {
+      step(`${envelopeVerdict.far} near machine(s) beyond the ${CAMP_ENVELOPE_B}b direct envelope (nearest d=${envelopeVerdict.nearestD == null ? '?' : envelopeVerdict.nearestD.toFixed(1)}) - ${envelopeVerdict.near.length} inside the envelope keep the veto`)
+    }
     // the palette-trap class: findBlock CAN throw on a desynced chunk - the ladder
     // must read that as "no table" and keep going (placeTable wraps its own find
     // for exactly this reason)
@@ -700,7 +762,7 @@ export async function ensureCampFurnace (bot, { maxMs = 45000, maxDistance = 48,
     }
     const ladder = () => campFurnaceAction({
       smeltables: smeltTotal,
-      machinesNear: machineVerdict.usable.length > 0,
+      machinesNear: envelopeVerdict.near.length > 0,
       furnaceItem: countItem(bot, 'furnace'),
       cobble: countItem(bot, 'cobblestone'),
       planks: planksTotal(),

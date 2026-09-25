@@ -10,7 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { campFurnaceAction, ensureCampFurnace, usableMachines, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
+import { campFurnaceAction, ensureCampFurnace, usableMachines, envelopeMachines, CAMP_ENVELOPE_B, FURNACE_COBBLE, TABLE_PLANKS } from '../../src/bots/tools.mjs'
+import { APPROACH_THRESHOLD } from '../../src/lib/approach.mjs'
 import { recordDoomedGoal, resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 
 test('camp furnace constants: the vanilla recipe and the table cost (pinned)', () => {
@@ -284,8 +285,13 @@ test('wiring: the doomed-bay consult rides the SAME radius the walk funnel consu
   const src = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
   assert.match(src, /usableMachines \(near, isDoomed\)/, 'the pure filter is exported and the executor composes it')
   assert.match(src, /nearDoomedGoal\(cell, Date\.now\(\), \{ radius: DOOMED_GOAL_RADIUS \}\)\.hit === true/, 'the consult shape matches the walk funnel\'s own')
-  assert.match(src, /machinesNear: machineVerdict\.usable\.length > 0/, 'the ladder reads the FILTERED list')
+  // (v0.163.0) the envelope gate sits BETWEEN the doomed filter and the ladder:
+  // the doomed survivors meet the envelope split, the ladder reads the SPLIT list
+  assert.match(src, /envelopeMachines\(machineVerdict\.usable, bot\.entity\.position\)/, 'the doomed survivors feed the envelope split')
+  assert.match(src, /machinesNear: envelopeVerdict\.near\.length > 0/, 'the ladder reads the ENVELOPE-FILTERED list')
   assert.match(src, /all doomed-ledgered/, 'the flip carries a named line so the mine can count it')
+  assert.match(src, /all beyond the \$\{CAMP_ENVELOPE_B\}b direct envelope/, 'the all-far flip is named so the mine can count it')
+  assert.match(src, /inside the envelope keep the veto/, 'the mixed split is named so the mine can count it')
 })
 
 test('wiring: the build-fits gate skips the camp build on a thin leg (fleet19.mjs pins)', () => {
@@ -293,4 +299,141 @@ test('wiring: the build-fits gate skips the camp build on a thin leg (fleet19.mj
   assert.match(src, /CAMP_BUILD_FIT_SECS = 40/, 'the gate: 24s worst-case build + 15s smelt floor + 1s margin')
   assert.match(src, /smeltSecs < CAMP_BUILD_FIT_SECS/, 'the gate reads the SAME smeltSecs the leg spends')
   assert.match(src, /camp furnace: build skipped - the leg clock/, 'the skip is named so the mine can count it')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.163.0) THE ENVELOPE VETO GATE - run559 (dispatch 36073741918, the
+// v0.161.0 union fleet) named the veto that starves the METAL ladder: F19
+// stood 25-32b from the yard's blast furnace row with raw_iron in the pocket,
+// the camp ladder refused ('machine near', the 48b scan saw the bay) and the
+// SAME leg's machine walk died 'walk to furnace: timeout after 20000ms' - the
+// raw_iron rode to the bank un-smelted. "Near" must mean inside the 24b
+// direct envelope the walk machinery itself trusts (APPROACH_THRESHOLD).
+// ---------------------------------------------------------------------------
+
+test('camp furnace constants: CAMP_ENVELOPE_B pairs with approach.mjs APPROACH_THRESHOLD (the pair pin)', () => {
+  assert.equal(CAMP_ENVELOPE_B, APPROACH_THRESHOLD, 'the veto envelope is the SAME 24b the walk ladder trusts - a machine past it cannot veto the build')
+  assert.equal(CAMP_ENVELOPE_B, 24)
+})
+
+test('envelopeMachines: the F19 shape - a 25-32b bay reads as empty (the metal window flips)', () => {
+  const botPos = { x: 0, y: 64, z: 0 }
+  const far = [
+    { name: 'blast_furnace', position: { x: 30, y: 64, z: 0 } },
+    { name: 'blast_furnace', position: { x: 25.5, y: 71, z: 6 } },
+    { name: 'furnace', position: { x: 0, y: 64, z: 32 } }
+  ]
+  const v = envelopeMachines(far, botPos)
+  assert.equal(v.far, 3, 'every bay machine is beyond the direct envelope')
+  assert.equal(v.near.length, 0, 'nothing keeps the veto')
+  assert.ok(v.nearestD != null && v.nearestD > CAMP_ENVELOPE_B, `the nearest distance is measured and far: ${v.nearestD}`)
+  assert.ok(Math.abs(v.nearestD - 27.115) < 0.01, `the nearest is the 25.5/71/6 machine (hypot(25.5,7,6)=27.115): got ${v.nearestD}`)
+})
+
+test('envelopeMachines: the yard bay keeps the legacy veto (d=5-15 inside the envelope)', () => {
+  const botPos = { x: 0, y: 64, z: 0 }
+  const bay = [
+    { name: 'furnace', position: { x: 5, y: 64, z: 0 } },
+    { name: 'blast_furnace', position: { x: 0, y: 71, z: 12 } }
+  ]
+  const v = envelopeMachines(bay, botPos)
+  assert.equal(v.far, 0)
+  assert.equal(v.near.length, 2, 'the bay bots keep the veto byte for byte')
+})
+
+test('envelopeMachines: the boundary - 24 exactly keeps the veto, 24.5 flips (the envelope edge pin)', () => {
+  const botPos = { x: 0, y: 64, z: 0 }
+  const atEdge = envelopeMachines([{ name: 'furnace', position: { x: 24, y: 64, z: 0 } }], botPos)
+  assert.equal(atEdge.far, 0, 'd=24.0 is INSIDE the envelope (the <= cap keeps it)')
+  const pastEdge = envelopeMachines([{ name: 'furnace', position: { x: 24.5, y: 64, z: 0 } }], botPos)
+  assert.equal(pastEdge.far, 1, 'd=24.5 is beyond the envelope - the veto cannot anchor to it')
+})
+
+test('envelopeMachines: the mixed split - far machines named, the keeper holds the veto', () => {
+  const botPos = { x: 0, y: 64, z: 0 }
+  const mixed = [
+    { name: 'blast_furnace', position: { x: 28, y: 64, z: 0 } },
+    { name: 'furnace', position: { x: 8, y: 64, z: 0 } }
+  ]
+  const v = envelopeMachines(mixed, botPos)
+  assert.equal(v.far, 1)
+  assert.equal(v.near.length, 1)
+  assert.equal(v.near[0].name, 'furnace', 'the envelope keeper is the 8b machine')
+  assert.ok(Math.abs(v.nearestD - 8) < 1e-9, 'nearestD tracks the CLOSEST machine')
+})
+
+test('envelopeMachines: junk never flips - a positionless machine, a distanceTo-only bot, NaN coords, a non-array (the conservative read)', () => {
+  // a non-array reads as an empty bay (the caller's usableMachines already returned)
+  assert.deepEqual(envelopeMachines('not an array', { x: 0, y: 0, z: 0 }), { near: [], far: 0, nearestD: null })
+  // a machine with NO measurable position still counts near - the legacy veto keeps it
+  const v1 = envelopeMachines([{ name: 'furnace', position: null }], { x: 0, y: 64, z: 0 })
+  assert.equal(v1.near.length, 1, 'positionless -> near (never build beside an unreadable bay)')
+  assert.equal(v1.far, 0)
+  // the run559-era fake bots: a distanceTo-only entity position cannot measure - all near
+  const v2 = envelopeMachines([{ name: 'furnace', position: { x: 30, y: 64, z: 0 } }], { distanceTo: () => 2 })
+  assert.equal(v2.near.length, 1, 'an unmeasurable bot position keeps the legacy veto')
+  assert.equal(v2.far, 0)
+  // NaN coords never measure
+  const v3 = envelopeMachines([{ name: 'furnace', position: { x: NaN, y: 64, z: 0 } }], { x: 0, y: 64, z: 0 })
+  assert.equal(v3.near.length, 1)
+  assert.equal(v3.far, 0)
+  // a throwing position read (a getter trap) degrades to near
+  const v4 = envelopeMachines([{ name: 'furnace', get position () { throw new Error('chunk desync') } }], { x: 0, y: 64, z: 0 })
+  assert.equal(v4.near.length, 1)
+  assert.equal(v4.far, 0)
+})
+
+test('ensureCampFurnace: the F19 flip - a far bay lifts the veto, the ladder runs its merits (raw_iron + cobble pocket)', async () => {
+  resetDoomedGoalLedger()
+  try {
+    const lines = []
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }] },
+      findBlocks: () => [{ x: 30, y: 64, z: 0 }],
+      blockAt: p => ({ name: 'blast_furnace', position: p }),
+      findBlock: () => null,
+      craft: async () => {}
+    }
+    const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+    assert.equal(r.why, 'no table and planks 0/4', `the ladder got PAST the far-bay veto to the honest wood gate: got '${r.why}'`)
+    assert.ok(lines.some(l => /1 near machine\(s\) all beyond the 24b direct envelope/.test(l)), `the flip is named: ${lines.join(' | ')}`)
+    assert.ok(lines.some(l => /nearest d=30\.0/.test(l)), `the measured distance is in the line: ${lines.join(' | ')}`)
+  } finally { resetDoomedGoalLedger() }
+})
+
+test('ensureCampFurnace: the envelope keeper holds the veto byte for byte (a d=10 machine near)', async () => {
+  resetDoomedGoalLedger()
+  try {
+    const lines = []
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0 } },
+      inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }] },
+      findBlocks: () => [{ x: 10, y: 64, z: 0 }],
+      blockAt: p => ({ name: 'blast_furnace', position: p }),
+      findBlock: () => null,
+      craft: async () => {}
+    }
+    const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+    assert.deepEqual(r, { built: false, why: 'machine near' }, 'the legacy veto stands inside the envelope')
+    assert.equal(lines.length, 0, `no envelope lines fire on an all-near bay: ${lines.join(' | ')}`)
+  } finally { resetDoomedGoalLedger() }
+})
+
+test('ensureCampFurnace: the mixed split names the far machine and keeps the veto (the partial shape)', async () => {
+  resetDoomedGoalLedger()
+  try {
+    const lines = []
+    const bot = {
+      entity: { position: { x: 0, y: 64, z: 0, distanceTo (o) { return Math.hypot(o.x - this.x, o.y - this.y, o.z - this.z) } } },
+      inventory: { items: () => [{ name: 'raw_iron', count: 8 }, { name: 'cobblestone', count: 20 }] },
+      findBlocks: () => [{ x: 28, y: 64, z: 0 }, { x: 8, y: 64, z: 0 }],
+      blockAt: p => ({ name: 'furnace', position: p }),
+      findBlock: () => null,
+      craft: async () => {}
+    }
+    const r = await ensureCampFurnace(bot, { log: m => lines.push(m) })
+    assert.deepEqual(r, { built: false, why: 'machine near' }, 'the 8b keeper holds the veto')
+    assert.ok(lines.some(l => /1 near machine\(s\) beyond the 24b direct envelope \(nearest d=8\.0\) - 1 inside the envelope keep the veto/.test(l)), `the split is named: ${lines.join(' | ')}`)
+  } finally { resetDoomedGoalLedger() }
 })
