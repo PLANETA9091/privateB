@@ -3983,3 +3983,18 @@ Stage Summary:
 - OPEN FRONTS (evidence-ranked): (a) the climb-out failure storm (10/15 trips died: low-o2/stalled/stopped/timeout/rescue - the shaft-exit chain is the banked bottleneck); (b) the wet/air glitch storm (rescues=131, airGlitches=1318 - both records; feeds the rescue interlock that blocks climbs and drop walks); (c) the night mob pressure (zombie x6/x7); (d) the 'nothing to deposit' stale-view class (the reached chests delivering zero); (e) iron_ingot 2 -> the pickaxe chain; (f) plan 1/31 + worldmap idle.
 - TOOLS: the run_instr/ dir holds the mined artifacts; decode_run_instrument.py (scripts/) decodes the instrument lines + the scoreboard; the collision protocol worked clean (rebase conflict -> union resolution -> renumber).
 
+
+---
+## Task ID: 398294-20260925-1854 addendum (the dispatch record - final update)
+Agent: Super Z (the same 18:54 session, closing)
+
+Work Log:
+- THE LADDER: the push-CI on 0f05498 (36129055505) waited out the concurrency group (the lane's 6a08144 run went first) and completed SUCCESS - unit 22 + unit 24 + Integration green, the Big fleet leg skipped (optional on push, the dispatch owns the fleet). The worklog union commit (my 18:54 section + the lane's addendum #2, both describing the same fleet consistently) pushed as ccb28dc after a clean conflict resolution.
+- THE DISPATCH: workflow_dispatch HTTP 204 on ref master -> run 36131508220 (event=workflow_dispatch verified), **jobs IN_PROGRESS VERIFIED** (unit 22 + unit 24 + Integration all running) before this session closed. THE FLEET OF RECORD for v0.177.0 = 36131508220. One fleet per head held (ccb28dc was fleet-virgin at dispatch time; the push-CI on ccb28dc that this push spawned is a pending sibling - it does not touch the running dispatch, cancel-in-progress:false protects it).
+- The lane's addendum #2 (cafde2b) confirmed the handoff expectation: "the lane's dispatch" - this session's dispatch fills it. No double-dispatch created.
+
+Stage Summary:
+- Master: ccb28dc (the worklog union) on cafde2b (the lane's addendum) on 0f05498 (v0.177.0 THE 600s BANK WINDOW) on 6a08144 (the lane's v0.176.0 THE SWEEP FILTER KEY). Next free version = 0.178.0.
+- FLEET OF RECORD: 36131508220 (in_progress verified). NEXT SESSION (19:54): poll to completion, mine -> check run_instr/ or a fresh dir, THE WATCH LIST: (a) 'bank trip: planned' lines (ZERO -> 1-2 per bot is the fix firing), banked 213 -> ? (the 1718/2042/2138 bars); (b) the instrument NOW VISIBLE - 'N drop(s) in reach' (the [] vs refused split), '+Nu walked from the drops' (the v0.173.0 harvest's true conversion), 'the drop walks picked nothing' (the gate's count); (c) rescues 131 + airGlitches 1318 -> ? (the wet/air storm - the banked killer's engine); (d) the climb-out failure storm (10/15: low-o2/stalled/stopped/timeout/rescue - the shaft-exit chain); (e) deaths 13 -> ? (zombie x6/x7 - the night pressure; the night-shelter/torch line stays the top uncured feature candidate); (f) kills 4 -> ?, iron_ingot 2 -> ?, NORMAL END.
+- OPEN FRONTS (evidence-ranked): (a) the climb-out chain (the banked bottleneck); (b) the wet/air glitch storm; (c) the night mob pressure (the shelter/torch cure); (d) the 'nothing to deposit' stale-view class; (e) the iron pickaxe chain; (f) plan 1/31 + worldmap idle.
+- TOOLS: run_instr/ holds the mined artifacts of 36125422448; scripts/decode_run_instrument.py decodes the instrument + scoreboard; the collision protocol ran clean twice this session (the code union + the worklog union).
