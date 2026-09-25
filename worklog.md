@@ -4311,3 +4311,17 @@ Stage Summary:
 - FLEET OF RECORD: 36191851635 (the parallel lane's dispatch on 8344cd3) - the lip dig-down's field debut rides it.
 - NEXT SESSION WATCH LIST: (a) 'N lip dig-down(s)' lines + '+Nu walked' -> ? + the zero-pickup-with-zero-fails class -> ? (the dig-down must convert them); (b) the failed-walk (dy, range) families (the x22 split) + 'sweep drops: timeout' under the 4000ms probe; (c) 'chest skip' lines (the hop gate's debut) + the F19-class zero-delivery chains; (d) the coal famine x167 -> ?; (e) the smelt famine (smelted 6 -> ?); (f) the F7-class starving recovery (the open front: the brake escalates but never gathers); (g) NORMAL END, deaths (the creeper pair), iron=0 (the Crown).
 - TOOLS: run185/ holds the re-mined artifact; scripts/decode_run_instrument.py (in the agent workspace) splits the failed walks by (dy, range) family + watches the lip dig-down line; the pickup magnet ~1.5 vs the lip sphere 2.0 gap is the load-bearing arithmetic behind the lip dig-down - re-derive before touching the walk ranges again.
+Task ID: cron30-20260926-0530
+Agent: Super Z (cron lane, Job 414125)
+Task: poll + mine + decode the triple-cure union fleet of record (36191851635).
+
+Work Log:
+- Synced clean (origin 8344cd3). Baseline: syntax 193/0, unit 84/84. The dispatch survived - unit x2 + Integration SUCCESS, the Big fleet MATERIALIZED and COMPLETED SUCCESS on the v0.188.0 union tree.
+- DECODE - THE DELIVERY RUN (600s, NORMAL END, plan 2/31): alive=19/19 at end; deaths 3 (Zombie/Creeper/Skeleton; fights 2 -> 15, the night gate deferred x0); banked 384 -> 1111 (x2.9 - the hop gate's freed clock WENT TO DELIVERY); smelted 6 -> 17 (x2.8); mined 2620 (flat); rescues 41 -> 20; airGlitches 0 held; wet 13 -> 4.
+- THE UNION VERIFIED IN THE FIELD: the v0.188.0 hop doom gate x29 'chest skip (vertical doom' skips + the LEDGER SKIPS VISIBLE FOR THE FIRST TIME (no path x9, doomed goal x9 - the 05:00 filter fix works); the v0.186.0 half-step held ('timeout after 8000ms' VANISHED -> '4000ms' x35, doomed-probe burn 224s -> 140s; conversions 20 -> 32); the lane's v0.187.0 lip dig-down fired x0 (the below-plane class didn't converge; deep-drop skips 17 -> 41, below-plane residue x5).
+- THE TORCH FAMINE BROKE at the pocket level: 255 torches held at end (F16 torch:95), crafts 23, coal in pockets (F3:21, F5:22); the 'no coal' skip persists (x208/225) - the arrival root stands; torched 6 (placement rhythm is the next torch lever).
+- No code change this fire (the decode is the atomic unit); no dispatch (the fleet of record just ran on this head).
+
+Stage Summary:
+- Master 8344cd3 (v0.188.0), next free 0.189.0. Fleet of record MINED: 36191851635 - THE DELIVERY RUN.
+- NEXT CURE CANDIDATES (evidence-ranked): (a) THE CLIMB-OUT CHAIN ('still underground after 2 climb attempts' - F17/F13/F4's shaft-bottom bank class); (b) the deep-drop class (x41 skipped); (c) the night/fight economics (the engagement envelope); (d) the torch placement rhythm (torched 6 while 255 held).
