@@ -4148,3 +4148,19 @@ Stage Summary:
 - NEXT SESSION WATCH LIST (the v0.182.0 fleet): (a) 'N deep drop(s) skipped' lines - the clean count of the deep class (sizes the dig-to-drop investment); 'sweep drops: timeout' x41 -> ? (the skip must collapse the guaranteed-spiral share); '+Nu walked' 430u -> ?; (b) the iron chain SCALE (1 pickaxe - can the fleet hold more? the commons distribution + the upgrade cadence); (c) the climb-out storm (stalled x8 + timeout x5 - the top front if the drop-walk class quiets; the staircase in wet/deep mines); (d) the drowned x4 (the wet storm: rescues 62 + airGlitches 1564); (e) the Ender Dragon anomaly at [99,49,1] (re-check: does it repeat? the death-cause inference CONTRADICTED the server verdict - the fall/env class may be misattributing); (f) 'nothing to deposit' x3 (the inventory-read glitch); (g) plan 2/31 -> ?; NORMAL END.
 - OPEN FRONTS (evidence-ranked): (a) the drop-walk residue (the skip's field debut decides: if the timeouts collapse, the harvest is DONE and the dig-to-drop is optional); (b) the climb-out chain (13/31 fail - the staircase's wet/deep class); (c) the water deaths (drowned x4 of 7); (d) the iron scale-up; (e) the inventory-read glitch; (f) plan 2/31 + worldmap idle.
 - TOOLS: run181/ holds the mined artifacts of 36161088876 (fleet19_181.log); scripts/decode_run_instrument.py (log-path + label args); the iron-chain decode pattern (steer -> dig -> smelt -> commons -> withdraw -> craft) is the reusable path for every metal; the GoalNear 3D-sphere reading (isEnd = dx^2+dy^2+dz^2 <= range^2) remains the load-bearing fact - the deep-skip fence derives from it (3D dist > 2.0 from every standable cell when dy < -2).
+
+---
+Task ID: cron30-20260926-0230
+Agent: cron lane (30-min anti-conflict prompt, Job 414125)
+Task: one atomic improvement on master; zero conflicts with the parallel lane.
+
+Work Log:
+- Sandbox had regenerated (the repo dir was gone; my local v0.182.0 FUEL GATE died with it). Re-cloned per protocol; head was 6bed791, version 0.182.0 taken by the lane's THE DEEP DROP SKIP (07c912e). Renumbered mine to 0.183.0 and re-implemented on the fresh head - the run18 measurements survive in the commit message.
+- v0.183.0 THE FUEL GATE shipped (fe35191): smeltChainReserve gains the hasFuel guard - only an explicit false skips the hold ({reserveMs: 0, why: 'smelt hold skipped - no fuel in pocket'}); junk/undefined keeps the legacy shape byte for byte; no-cargo keeps priority ('nothing to smelt'). Wiring: fleet19.mjs bank block reads pocketFuel = countItem coal + charcoal, gates the reserve, the skip line rides the 'bank ' filter key ('N bank: smelt hold skipped - no fuel in pocket (coal 0)'). Complementary to v0.181.0 (refuses whole doomed trips; this frees the 45s inside trips that DO run) and to v0.182.0 (reclaims dead walks; this dead holds). Tests +2 (the fuel-gate family + the wiring pin).
+- syntax 192/0, unit 83/83 local. Push 6bed791..fe35191 clean (no conflicts). CI run 36174497274: in_progress past 2 poll rounds (~16 min) - left unfinished per the timebox, NOT asserted green.
+- NO fleet dispatch this fire: my head's CI unverified, and dispatch discipline says green-first. No QUEUED/IN_PROGRESS dispatch-run exists at session end (checked via API).
+
+Stage Summary:
+- Master: fe35191 (v0.183.0) on 6bed791 (v0.182.0). Next free version = 0.184.0.
+- The v0.182.0 dispatch run 36167325733 is COMPLETED SUCCESS but UNMINED - its decode sizes the deep-skip class ('N deep drop(s) skipped') + the v0.182.0 watch list.
+- NEXT SESSION: (1) verify CI green on fe35191 (36174497274), then dispatch ONE fleet on fe35191 (v0.183.0 + v0.182.0 union debut); (2) mine 36167325733 if still unmined; (3) watch the fuel gate's skip count ('smelt hold skipped - no fuel in pocket') vs the v0.182.0 deep-skip count; banked 1443 -> ?, smelted 24 -> ?, iron_pickaxe 1 -> ?.
