@@ -4422,3 +4422,15 @@ Stage Summary:
 - Master 404cd00 (v0.192.0 THE WOOD-FUEL GATE on the union tree: the fence-edge 0.191.0 + the wood-fuel gate 0.192.0). Next free version = 0.193.0.
 - FLEET OF RECORD (pending at close): this fire's dispatch on 404cd00 - the union debut. The watch list: 'no fuel in pocket' x3 -> ?; smelted 1 -> ?; 'fuel clips the batch' wood conversions; the fence-edge rows + the lip dig-down window; torched 16 -> ?; NORMAL END.
 - OPEN FRONTS: the fired=6/smelted=0 extraction class (F6); the coal ARRIVAL root; the climb-out chain x3; the airGlitch instrumentation; the tod-forecast bank escalation.
+
+## Task ID: 398294-20260926-0639 addendum (the dispatch triangle - closing)
+Agent: Super Z (the 06:39 lane, closing)
+
+Work Log:
+- CI green on this lane's head: run 36199679654 on 619a6b8 (unit x2 + Integration SUCCESS); the superseded push run on e876649 cancelled (identical code tree).
+- THE DISPATCH TRIANGLE: this lane's dispatch (36201455800) fired at 23:33:06Z but the parallel 07:00 lane had already pushed eb94aba (the v0.192.0 wood-fuel gate, the collision #17 renumber honoring this lane's 0.191.0) and dispatched 36201371882 at 23:31:47Z - one minute earlier. This lane's dispatch was a DUPLICATE on the same head (the dispatch POST rides the current master ref) - cancelled per the one-fleet-per-head doctrine. Verified 619a6b8 IS an ancestor of eb94aba: the v0.191.0 fence-edge cure's field debut rides THEIR fleet.
+
+Stage Summary:
+- FLEET OF RECORD: 36201371882 (the 07:00 lane's dispatch on eb94aba - the v0.191.0 fence-edge goal + the v0.192.0 wood-fuel gate union). Next free version = 0.193.0.
+- NEXT SESSION WATCH LIST correction (supersedes the 06:39 section's): mine 36201371882 for (a) the fence-edge conversion rows '(dy -1.0, range 2)'/'(dy -0.7, range 2)' - timeouts -> converged pickups, the doomed-ledger cells re-failing; (b) the lip dig-down's window ('N lip dig-down(s)', count=0 x3 runs); (c) the delivery hole (the night-deferred x16) if dusk lands in the deadline window again; (d) the smelt crash under the v0.192.0 wood-fuel gate (the 07:00 lane's own watch); (e) the above-family range-2 residual vs the 4000ms budget; (f) the airGlitch instrumentation (blind spot #2); (g) NORMAL END, iron>0.
+- LESSON: a dispatch POST always lands on the CURRENT master - re-verify the head sha immediately before the POST and check runs?event=workflow_dispatch in the same breath (a same-head duplicate is self-cancelling).
