@@ -3785,3 +3785,18 @@ Stage Summary:
 - Master: b863478 (the worklogs) on e92af9d (v0.170.1 the pre-craft window sweep) on 3465c29 (v0.170.0 THE MACHINE VERTICAL GATE) on 2e0098e on 3d002f9 (v0.169.0 THE FIGHT FINISH). Next free version = 0.171.0.
 - FLEET OF RECORD: 36104370574 (in_progress verified). NEXT SESSION (14:54): poll to completion, mine -> run74/ (last-2 of the id), decode the union watch list: 'the yard stands N levels up over M lateral' inside smelt verdicts (the v0.170.0 gate firing), 'visit budget spent (walk slice)' 5 -> ?, iron_ingot x6 -> ?, kills= (the v0.169.0 ledger's first read), 'mob down' x?, deaths 5 -> ?, banked 1338 -> ?, bridge refusals 2 -> ?, side-step 33/32 -> ?, still-underground 6 -> ?, plan 2/31 -> ?, rate 6.19 -> ?, airGlitches 0 -> ?, NORMAL END.
 
+
+## Task ID: 398567-20260925-1305 addendum #1 (the dispatch saga + the red-CI triage)
+Agent: Super Z (the same 13:05 session)
+
+Work Log:
+- DISPATCH SUPERSEDED TWICE by the pending-replaces-pending mechanism (cancel-in-progress: false protects RUNNING runs; a NEWER PENDING run in the same group still cancels an older PENDING one): my first dispatch 36101218327 (2e0098e) died when the lane pushed 3465c29; re-dispatched 36104370574 on the union head.
+- The 13:54 lane pushed e92af9d v0.170.1 THE PRE-CRAFT WINDOW SWEEP (test-only + package.json - no src) + b863478 (their triage addendum) while I waited; their push-CI 36103388441 SUCCESS = the FULL UNION (v0.169.0 fight finish + v0.170.0 machine vertical gate + v0.170.1 craft sweep) green on unit 22/24 + integration.
+- RED-CI TRIAGE (the v0.170.0 push-CI 36101345775, integration failure): the smelt-test died 'craft furnace: missing ingredient' with 11 cobble in pocket - the stale crafting-window ghost-grid class; MY rerun-failed-jobs = SUCCESS (the flake confirmed, the tree green); the lane INDEPENDENTLY shipped the v0.170.1 pre-craft sweep hardening (both responses valid, complementary).
+- SECOND FAILURE SHAPE (the dispatch 36104370574, integration): the smelt-test died in the CRAFT STORM class - EVERY craft timed out at 7000ms (sticks, tables, x4 consecutive, the storm cooldown escalated 4s -> 8s, 'server stall?'), the self-heal table chain rebuilt twice, 'no crafting table' after all retries; the productivity test PASSED right before (2 bots x 90s) and the server console had ZERO 'Can't keep up' lines. NEITHER v0.169.0 (combat-only), v0.170.0 (smelting walk gate), NOR v0.170.1 (test-only) touches the craft path. Classified: the CI-runner resource flake family (two runs, two different signatures: ghost-grid then total-timeout storm).
+- RERUN attempt 2 queued (the lane's rerun landed first; mine 403'd 'already running'). The fleet of record = 36104370574 attempt 2 - the Big fleet leg starts when the integration rerun goes green.
+
+Stage Summary:
+- Master: e6edc7a on b863478 on e92af9d (v0.170.1) on 3465c29 (v0.170.0) on 2e0098e (my worklog) on 3d002f9 (v0.169.0). Next free version = 0.171.0.
+- THE FLEET OF RECORD: 36104370574 attempt 2 (the union head tree). The read list stands (kills= the first kills ever, the fight-end hp spreads, the melee ceiling on knockbacks, the 16s deadline exits, deaths, banked, smelted, iron_ingot).
+- LESSON: pending dispatches are FRAGILE (any lane push in the window cancels them); dispatch only after the in-flight push-CI COMPLETES, and verify jobs in_progress fast.
