@@ -4235,3 +4235,23 @@ Work Log:
 Stage Summary:
 - Master: 5fa3871 (worklog-only on the ca30944 code = v0.185.0 THE NIGHT LANE GATE on 81e895e v0.184.0 on fe35191 v0.183.0). Next free version = 0.186.0.
 - FLEET OF RECORD: 36181152847 (Big fleet IN_PROGRESS, ~600s from ~20:0x +08). THE NEXT SESSION WATCH LIST (from the session section, unchanged + the union debuts): (a) 'bank trip: deferred night' lines (the night gate's field debut); deaths 17 -> ?; zombie x6 -> ?; (b) 'furnace attempt N' lines (the v0.184.0 ladder's field debut - the smelting test was CI-only, the fleet never exercises it; the real read is smelted 10 -> ?); (c) the dark cascade ('no coal' x248 -> ?, torched 5 -> ?, smelted 10 -> ?, the deep-skip verdict count); (d) still-underground x12 -> ? (the held pre-position raises it by design - weigh deaths vs banked honestly); banked 1279 -> ?; (e) plan 1/31 -> ?; NORMAL END.
+
+---
+Task ID: cron30-20260926-0400
+Agent: cron lane (30-min anti-conflict prompt, Job 414125)
+Task: poll + mine + decode the triple union fleet of record (36181152847).
+
+Work Log:
+- Sandbox regenerated again (2nd time tonight); re-cloned. Discovered the lane's overnight moves: my 36180146126 was concurrency-cancelled, the lane re-dispatched twice and landed the fleet of record 36181152847 on 5fa3871; worklog addendum 6833fb8 documents it. No duplicate work needed - this lane polled and mined.
+- 36181152847 COMPLETED SUCCESS (unit 22+24 green, integration green, Big fleet green). Mined to run47 (mine88 writes to /home/z/privateB/... - the sibling path, not -repo; noted).
+- DECODE - THE CALM RUN (the triple union v0.183.0 fuel gate + v0.184.0 furnace ladder + v0.185.0 night gate, 600s, NORMAL END):
+  - alive=19/19 at the end; DEATHS 17 -> 2 (F8 blown up by Creeper at [-130,30,425]; F13 fell from a high place, creeper-adjacent - the inference CONTRADICTED the server verdict, the server kind stays the authority). Five died-twice bots: gone. THE BEST SURVIVAL RUN EVER.
+  - THE GATES ALL FIELDED: my fuel gate 'smelt hold skipped - no fuel in pocket (coal 0)' x9 (F5 x2, F6 x2, F11, F4, F1, F15, F9 - every one freed the 45s hold for the deposit legs); the night gate 'bank trip: deferred night (tod=12414)' x1 (F11 - the yard walk rode out the dark alive); the v0.182.0 deep-skip x17.
+  - mined=2653 @ 4.4 b/s (2618 -> 2653); banked=384 (1279 -> 384 - the night gate trade: deferred dusk trips keep pockets unbanked, the deaths-win doctrine holds); smelted=6 (10 -> 6; F19's raw_copper leg died 'machine unreachable (visit budget spent (walk slice))'); torched=9 (5 -> 9); 'torches: skip' x188 (the stick/coal famine persists); 'no coal:' x167 (248 -> 167); fights=2 kills=0; climbs=24 with 'rise assist: timeout' x6, bridges placed cobblestone x51.
+  - THE WET STORM GONE: rescues 79 -> 41, airGlitches 969 -> 0 (!), wet=13. The creeper pair is the residual killer class.
+- No code change this fire (the decode is the atomic unit); no dispatch (the fleet of record just ran on this head).
+
+Stage Summary:
+- Master 6833fb8 (worklog addendum), version 0.185.0. Next free version = 0.186.0. Fleet of record MINED: 36181152847.
+- NEXT CURE CANDIDATES (evidence-ranked): (a) THE TORCH/STICK FAMINE ('torches: skip' x188 - the sticks side of the v0.180.0 converter still starves mid-run); (b) smelted=6 - the 'machine unreachable (visit budget spent (walk slice))' class (the camp furnace placement/visit budget); (c) THE CREEPER PAIR (blown up + creeper-adjacent fall - the engagement envelope); (d) the coal delivery ('no coal' x167, still 2 pockets hoarding).
+- TOOLS: mine88.mjs artifact path = /home/z/privateB/scripts/fleet-mining/runNN (NO -repo suffix) - look there first after a fresh re-clone.
