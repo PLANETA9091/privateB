@@ -22,7 +22,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -1213,7 +1213,20 @@ async function runBot (name, target, index) {
           msSinceBank: Date.now() - lastBankAt,
           remainingMs: deadline - Date.now()
         }))
-        if (load && (needsBanking(miner.bot) || tripPlanned)) {
+        // (v0.181.0) THE DOOMED TRIP GATE: the needsBanking path fires at ANY
+        // remaining clock (only the PLANNED path has minRemainingMs) - run180
+        // (fleet 36148566518) measured 9 pockets-full trips at budgets
+        // 120/61/45/17/13/9s, every one a doomed chain whose failed climb
+        // exhausted the ledger that then refused the wood famine trips ('wood
+        // trip: 0 (climb refused)' x3 - the sticks famine reopened, torched=1
+        // with 104 crafted). Below NEEDS_BANKING_MIN_REMAINING_MS (150s) the
+        // trip refuses: the end-phase pre-position + final bank own the
+        // deadline banking, and the cadence clock still advances so the
+        // refusal logs ONCE per window, never every loop iteration.
+        const bankRemainingMs = deadline - Date.now()
+        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned)
+        const bankViable = tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs })
+        if (load && bankWanted && bankViable) {
           lastBankAt = Date.now()
           // (v0.17.3) remember WHERE we work: after banking at the yard the bot
           // must return here, or it digs its next shaft next to spawn and
@@ -1255,6 +1268,13 @@ async function runBot (name, target, index) {
               console.log(`${name} bank: 0 (${res.reason})`)
             }
           }
+        } else if (load && bankWanted) {
+          // (v0.181.0) the gate's refusal names itself once per cadence window
+          // (lastBankAt advances - the pockets-full state re-checks in 150s, not
+          // every loop iteration) and the bot keeps MINING: the end-phase
+          // pre-position + final bank own the deadline banking they already own.
+          lastBankAt = Date.now()
+          console.log(`${name} bank trip: skipped (pockets full, ${Math.max(0, Math.round(bankRemainingMs / 1000))}s left < 150s - the end-phase owns the deadline banking)`)
         }
         // (v0.179.0) THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
         // run20 (36131508220) measured the famine class: 'no spare sticks: sticks 1

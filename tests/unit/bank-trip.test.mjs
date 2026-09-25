@@ -121,3 +121,57 @@ test('finalBankBudgetMs: no margin left = refuse at once (named budget exhausted
   assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: -5 }), 0)
   assert.equal(finalBankBudgetMs({ yardDist: 0, marginLeftMs: NaN }), 0)
 })
+
+// ---- (v0.181.0) THE DOOMED TRIP GATE ----
+// MEASURED (fleet 36148566518, the v0.180.0 run): banked=0 with 11 trips fired -
+// the 9 needsBanking trips started at budgets 120/61/45/17/13/9s (every one a
+// doomed chain: the climb alone measures ~90s), each failed climb exhausted the
+// ledger that then refused the wood famine trips ('wood trip: 0 (climb refused)'
+// x3 - torched=1 with 104 torches crafted, the dark wet shafts fed the drown
+// deaths). The pockets-full path now obeys its own viability gate; the PLANNED
+// path's 240s gate (bankTripDue) stays byte-identical.
+import { needsBankingTripViable, NEEDS_BANKING_MIN_REMAINING_MS } from '../../src/lib/deposit.mjs'
+import { readFileSync } from 'node:fs'
+
+test('needsBankingTripViable: the run180 doomed-clock class refuses (the cascade breaker)', () => {
+  for (const remaining of [9000, 13000, 17000, 45000, 61000, 120000]) {
+    assert.equal(needsBankingTripViable({ remainingMs: remaining }), false,
+      `${remaining / 1000}s left is a doomed chain - the climb alone is ~90s and the walk never fits`)
+  }
+})
+
+test('needsBankingTripViable: the 150s boundary and the viable side', () => {
+  assert.equal(needsBankingTripViable({ remainingMs: 149999 }), false, 'one ms under the floor refuses')
+  assert.equal(needsBankingTripViable({ remainingMs: NEEDS_BANKING_MIN_REMAINING_MS }), true, 'exactly the floor is viable')
+  assert.equal(needsBankingTripViable({ remainingMs: 151000 }), true, 'above the floor is viable')
+  assert.equal(needsBankingTripViable({ remainingMs: 240000 }), true, 'the planned window stays untouched')
+  assert.equal(NEEDS_BANKING_MIN_REMAINING_MS, 150000, 'the floor = the climb (~90s) + a 60s deposit slice (the end-bank scale)')
+})
+
+test('needsBankingTripViable: junk/absent remaining clock returns VIABLE (a missing read never widens a refusal)', () => {
+  for (const junk of [NaN, undefined, null, 'x', {}]) {
+    assert.equal(needsBankingTripViable({ remainingMs: junk }), true, `remaining=${String(junk)} -> the legacy shape (viable)`)
+  }
+  assert.equal(needsBankingTripViable(), true, 'no argument at all -> viable')
+  assert.equal(needsBankingTripViable({ remainingMs: Infinity }), true, 'no deadline in play -> viable')
+  assert.equal(needsBankingTripViable({ remainingMs: -5000 }), false, 'a PAST deadline is the most doomed clock of all')
+})
+
+test('needsBankingTripViable: junk minRemainingMs falls back to the constant (no zero-floor escape)', () => {
+  assert.equal(needsBankingTripViable({ remainingMs: 100000, minRemainingMs: NaN }), false, 'junk floor -> the 150s constant, not a free pass')
+  assert.equal(needsBankingTripViable({ remainingMs: 100000, minRemainingMs: 0 }), false, 'zero floor -> the 150s constant')
+  assert.equal(needsBankingTripViable({ remainingMs: 100000, minRemainingMs: -5 }), false, 'negative floor -> the 150s constant')
+})
+
+test("REGRESSION PIN: the fleet gate refuses the pockets-full trip, advances the cadence, and keeps mining", async () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('needsBankingTripViable'), 'the fleet imports and consults the viability gate')
+  assert.ok(src.includes('const bankViable = tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs })'),
+    'the PLANNED path rides the gate untouched (tripPlanned short-circuits viable)')
+  assert.ok(src.includes("bank trip: skipped (pockets full, "), 'the refusal names itself (rides the \'bank \' filter key)')
+  assert.ok(src.includes('the end-phase owns the deadline banking'), 'the refusal names the owner (the pre-position + final bank)')
+  const filterMatch = src.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
+  assert.ok(new RegExp(filterMatch[1]).test('[F7] bank trip: skipped (pockets full, 42s left < 150s - the end-phase owns the deadline banking)'),
+    'the skip line reaches the artifact (the v0.176.0 filter-blind lesson)')
+})

@@ -505,6 +505,39 @@ export function midBankBudgetMs ({
   return Math.max(floor, Math.min(want, left - guard + floor))
 }
 
+// (v0.181.0) THE DOOMED TRIP GATE - the needsBanking path's remaining-time floor.
+//
+// MEASURED (fleet 36148566518, the v0.180.0 run, NORMAL END alive=19/19):
+// banked=0 for the whole 600s with 11 trips fired. The 2 planned trips
+// (208s/180s dist-scaled budgets, gated by bankTripDue's minRemainingMs=240s)
+// died 'budget exhausted' / 'nothing to deposit' - and the 9 needsBanking
+// trips fired with budgets 120/61/45/17/13/9s: every one a DOOMED CHAIN (the
+// climb alone measures ~90s, the walk home never fit), each burning a climb
+// attempt whose failed ledger then refused the WOOD famine trips ('wood
+// trip: 0 (climb refused)' x3) - the sticks famine reopened (torched=1 with
+// 104 torches crafted: the torch-holders were the bank-chain captives), and
+// the dark wet shafts fed the drown deaths (drowned x2 of 6). THE CASCADE:
+// full junk pockets -> late needsBanking trips (only the PLANNED path has a
+// remaining gate - the pockets-full path fires at ANY remaining clock) ->
+// doomed climbs -> the climb ledger escalates/exhausts -> the wood trips
+// refuse -> no sticks -> no torches -> the dark-shaft death class. THE CURE:
+// the needsBanking trip obeys its own viability gate - below
+// NEEDS_BANKING_MIN_REMAINING_MS the trip refuses and the END-PHASE
+// machinery (the pre-position + the final bank + the stagger, which already
+// own the deadline by construction) banks the pocket instead. 150s = the
+// climb (~90s measured) + a 60s deposit slice - the end-bank budget's own
+// scale; a chain that cannot even finish its climb never touches the walk.
+// The planned path's 240s gate (bankTripDue) stays byte-identical, and a
+// junk/absent remaining clock returns VIABLE - a missing read never widens
+// a refusal (the legacy shape).
+export const NEEDS_BANKING_MIN_REMAINING_MS = 150000
+
+export function needsBankingTripViable ({ remainingMs = Infinity, minRemainingMs = NEEDS_BANKING_MIN_REMAINING_MS } = {}) {
+  if (!Number.isFinite(remainingMs)) return true
+  const min = Number.isFinite(minRemainingMs) && minRemainingMs > 0 ? minRemainingMs : NEEDS_BANKING_MIN_REMAINING_MS
+  return remainingMs >= min
+}
+
 // (v0.34.0) THE FINAL bank chain budget: distance-scaled, margin-aware.
 //
 // MEASURED (dispatch 35560497949, 600s on 4c7802b): mined=1274, every bot's
