@@ -118,6 +118,13 @@ console.log('  evacuations released:', count(/churn: evacuation released/), 'per
 console.log('  arm counts:', fmt((() => { const m = {}; for (const l of lines) { const a = l.match(/churn: evacuation armed \((\d+) rescues\//); if (a) m[`x${a[1]}`] = (m[`x${a[1]}`] || 0) + 1 } return m })()))
 console.log('  rescues during holds still counted by the rescue section (the machinery is untouchable)')
 
+// (v0.225.0) THE DRAGON ZONE - the kill anchor's field face: the entries name
+// the walkers (the zone went live only when a magic kill armed the anchor),
+// the magic kills themselves count the class that feeds it.
+console.log('=== DRAGON ZONE (the evacuation, v0.225.0+) ===')
+console.log('  magic kills:', count(/using magic/), 'per-bot:', fmt(perBot(/using magic/)))
+console.log('  zone entries:', count(/dragonzone: bot inside the kill zone/), 'per-bot:', fmt(perBot(/dragonzone: bot inside the kill zone/)))
+
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))

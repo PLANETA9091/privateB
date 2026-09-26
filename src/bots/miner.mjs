@@ -52,6 +52,7 @@ import {
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn recorder's memory cap (the plan's own constant)
+import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
 import { dropTargets, dropGoalRange, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument
@@ -97,6 +98,7 @@ export function createMiner ({
   noPathLedger = null, // (v0.62.0) the fleet-wide 'No path' verdict array (one process = one shared array); null = the ledger is off
   fullChestLedger = null, // (v0.65.0) the fleet-wide 'chest full' verdict array (same ride); null = the ledger is off
   seedLastDeath = null, // (v0.203.0) the PREVIOUS attempt's un-attempted death record (the runner's death carry) - a relog must not bury the re-loot plan
+  dragonDeaths = null, // (v0.225.0) the fleet-shared dragon death registry (server verb + corpse pos records) - the zone anchor's input; null = a private log (solo honest)
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -239,6 +241,15 @@ export function createMiner ({
   // every other name) and the death handler prints it as 'server: <verb>' -
   // the inference stays alongside as the fallback, never silently trusted.
   let serverDeath = null
+  // (v0.225.0) THE DRAGON DEATH REGISTRY: the zone anchor's input - each
+  // FRESH server death verdict (the v0.117.0 authority) rides with the
+  // corpse position into a capped fleet-shared log. The zone is WORLD
+  // geography (both era kills sit ~2 blocks apart at y=49), so the record
+  // must outlive the relog: the array rides by reference from the runner
+  // (the hazardLedger pattern), a solo default keeps a private log honest.
+  // The cluster filters the magic-kill class itself (non-magic causes ride
+  // harmlessly - a future fixed-anchor class may reuse them).
+  const dragonLog = dragonDeaths ?? []
   bot.on('message', (msg) => {
     try {
       const text = typeof msg === 'string' ? msg : (msg?.toString?.() ?? null)
@@ -299,6 +310,18 @@ export function createMiner ({
       const note = VERDICT_NOTE[verdict]
       cause = `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}] | inferred: ${inferred}`
       if (note) cause += ` [the inference ${note}]`
+      // (v0.225.0) THE REGISTRY RECORD: only a FRESH server line records
+      // (the inference is noise for every cluster class - the v0.117.0
+      // doctrine); the verb carries the magic-kill signature the zone
+      // clusters on. Guarded like every record: a junk corpse position
+      // must never break the respawn path.
+      try {
+        const dpos = bot.entity?.position
+        if (dpos && Number.isFinite(dpos.x) && Number.isFinite(dpos.y) && Number.isFinite(dpos.z)) {
+          dragonLog.push({ cause: serverDeath.verb, pos: { x: dpos.x, y: dpos.y, z: dpos.z }, at: Date.now() })
+          if (dragonLog.length > DRAGON_DEATH_LOG_CAP) dragonLog.splice(0, dragonLog.length - DRAGON_DEATH_LOG_CAP)
+        }
+      } catch { /* the registry must never break a respawn */ }
     }
     log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1

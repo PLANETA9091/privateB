@@ -137,3 +137,66 @@ export function inDragonZone (pos, anchor) {
   const dz = pos.z - anchor.z
   return Math.hypot(dx, dz) <= DRAGON_ZONE_RADIUS
 }
+
+// ---- (v0.225.0) THE WIRING SIDE - the death registry's cap and the exit
+// pricing. The v0.200.0 pattern kept: anything the wiring must decide that
+// a unit can pin lives here, pure; the call sites (the death handler
+// records, the runner's work loop consults) stay thin enough for source
+// pins to name every scalar.
+
+/** (v0.225.0) The death registry's memory cap - the fleet-shared log holds
+ *  the last DRAGON_DEATH_LOG_CAP server-verb records. The zone clusters
+ *  ONLY the magic-kill class (the registry carries every fresh server
+ *  verdict - the non-magic causes ride harmlessly, skipped by the cluster's
+ *  own read, and a future fixed-anchor class may reuse them); deaths are
+ *  the run's rarest event (2 per era measured), so 128 is era-proof
+ *  headroom, not a behavioral gate. */
+export const DRAGON_DEATH_LOG_CAP = 128
+
+/** (v0.225.0) The zone-exit walk's budget (ms) - one bounded gotoSafe per
+ *  entry; the walk machinery owns the failure and the next pass re-reads. */
+export const DRAGON_ZONE_EXIT_MS = 15000
+
+/** (v0.225.0) The exit pad (blocks) - the goal sits this far BEYOND the
+ *  radius along the away ray, so the arrival clears the zone even with the
+ *  goal sphere's own tolerance. */
+export const DRAGON_ZONE_EXIT_PAD = 4
+
+/**
+ * (v0.225.0) THE ZONE EXIT - where a bot standing inside the zone walks,
+ * pure. The away direction rides the horizontal ray FROM the anchor TO the
+ * bot (the dragon kills at the anchor - the exit walks away from it, never
+ * across it); the goal sits radius + pad beyond the ANCHOR along that ray
+ * (outside the zone even with the goal sphere's tolerance) and keeps the
+ * bot's own y (the walk machinery prices the terrain). The gates, each
+ * named:
+ *   junk pos/anchor   null (the wiring stays vacuous, never guesses)
+ *   degenerate ray    null (the bot stands ON the anchor - no honest away
+ *                     direction exists; the wiring holds one pass and
+ *                     re-reads - the measured kill class is positional,
+ *                     not a chase, so a held bot is not a chased bot)
+ *
+ * @param {{x:number,y:number,z:number}} pos the bot's position (the wiring
+ *        reads it only after inDragonZone passed, so x/z are finite)
+ * @param {{x:number,y:number,z:number,count?:number}|null} anchor the
+ *        dragonZoneAnchor result
+ * @param {object} [o] radius/pad overrides (the constants own the defaults)
+ * @returns {{x:number,y:number,z:number}|null} the exit goal, or null when
+ *          no honest away ray exists
+ */
+export function dragonZoneExit (pos, anchor, { radius = DRAGON_ZONE_RADIUS, pad = DRAGON_ZONE_EXIT_PAD } = {}) {
+  if (!anchor || typeof anchor !== 'object' || !fin(anchor.x) || !fin(anchor.z)) return null
+  if (!pos || typeof pos !== 'object' || !fin(pos.x) || !fin(pos.z)) return null
+  const dx = pos.x - anchor.x
+  const dz = pos.z - anchor.z
+  const d = Math.hypot(dx, dz)
+  if (!(d > 0)) return null // degenerate: on the anchor - no honest away ray
+  const r = fin(radius) && radius > 0 ? radius : DRAGON_ZONE_RADIUS
+  const p = fin(pad) && pad >= 0 ? pad : DRAGON_ZONE_EXIT_PAD
+  const reach = r + p
+  return {
+    x: anchor.x + (dx / d) * reach,
+    y: fin(pos.y) ? pos.y : 0,
+    z: anchor.z + (dz / d) * reach
+  }
+}

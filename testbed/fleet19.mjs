@@ -40,6 +40,7 @@ import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
+import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -118,6 +119,12 @@ setFleetHazardNear(pos => hazardLedger.near(pos))
 // for the WHOLE fleet - the aquifer is regional, the old memory was cellular.
 // Seed-constant world -> no TTL, only the LRU region cap bounds it.
 const waterTableBoard = new WaterTableBoard()
+// (v0.225.0) THE DRAGON DEATH REGISTRY - the fleet-shared log the death
+// handlers ride into (the server verb + the corpse pos, capped by the
+// module's DRAGON_DEATH_LOG_CAP). The zone is WORLD geography - the records
+// must outlive every relog, so the array lives at the fleet scope and passes
+// into each fresh miner by reference (the hazardLedger pattern).
+const dragonDeaths = []
 const HEADINGS = ['east', 'south', 'west', 'north']
 
 let need = {}
@@ -733,6 +740,7 @@ async function runBot (name, target, index) {
         hazardLedger, // (v0.62.0) shared water-hazard ledger: one rescue vets targets for the fleet
         waterTableBoard, // (v0.84.0) shared aquifer ceiling: one strike stops every shaft above the water in the region
         noPathLedger, // (v0.62.0) shared fleet-wide 'No path' verdicts (one process = one array)
+        dragonDeaths, // (v0.225.0) shared dragon death registry: every fresh server verdict + corpse pos feeds the kill-zone anchor
         // cross-process claims (a scout in a second terminal): broadcast our trips as
         // PVB2 chat lines; claimSync is attached right after the bot logs in
         broadcastClaim: SYNC ? pos => { try { claimSync?.broadcast(pos) } catch { /* chat never kills a trip */ } } : null,
@@ -1021,6 +1029,7 @@ async function runBot (name, target, index) {
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       let wetEvacUntil = 0 // (v0.223.0) the churn evacuation's exit clock - the plan owns it, the wiring only carries it (it survives relogs: the stance rides the runner, the cadence rides the client)
       let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
+      let dragonEvacAnnounced = false // (v0.225.0) the zone-entry story: one line per entry, the flag resets when the bot reads out
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
@@ -1485,6 +1494,47 @@ async function runBot (name, target, index) {
             if (swr.ok) swordsCrafted++
             if (swr.ok || swr.reason) console.log(`${name} sword: ${swr.ok ? 'OK' : 'failed'} (${swr.tier || swr.reason || 'none'})`)
           }
+        }
+        // (v0.225.0) THE DRAGON-ZONE WIRING - the kill anchor's field face.
+        // The pure design (v0.220.0) clustered both era magic kills into the
+        // fixed anchor ~[100,49,1]; this lane wires the evacuation: the death
+        // registry (the server verb + the corpse pos, fleet-shared, capped)
+        // feeds dragonZoneAnchor each pass, and a bot whose position reads
+        // inDragonZone walks OUT of the ground shadow along the away ray
+        // (dragonZoneExit - away from the anchor, never across it) with ONE
+        // bounded gotoSafe. THE LAWS THIS WIRE OBEYS: the story is one line
+        // per entry (the flag resets when the bot reads out - the
+        // lastNightLog shape); the walk machinery owns the failure (the next
+        // pass re-reads - no retry storm, no budget escalation); the zone
+        // stays quiet-honest when the dragon rests (the anchor reads null
+        // until a magic kill lands - the vacuous read is the design's own
+        // gate, no avoidance on an unmeasured zone). The target-assignment
+        // exclusion rides a later lane (the design names it a separate
+        // candidate). The consult sits BEFORE the churn pricing: a safety
+        // lane outranks the voluntary-goal stance.
+        const dAnchor = (() => { try { return dragonZoneAnchor(dragonDeaths) } catch { return null } })()
+        const inZone = !!(dAnchor && miner.bot.entity?.position && (() => {
+          try {
+            const me = miner.bot.entity.position
+            return inDragonZone({ x: me.x, y: me.y, z: me.z }, dAnchor)
+          } catch { return false }
+        })())
+        if (inZone) {
+          const dGoal = (() => {
+            try {
+              const me = miner.bot.entity.position
+              return dragonZoneExit({ x: me.x, y: me.y, z: me.z }, dAnchor)
+            } catch { return null }
+          })()
+          if (dGoal) {
+            if (!dragonEvacAnnounced) {
+              dragonEvacAnnounced = true
+              console.log(`${name} dragonzone: bot inside the kill zone (anchor [${dAnchor.x},${dAnchor.y},${dAnchor.z}] from ${dAnchor.count} magic kill(s)) - walking out to [${Math.round(dGoal.x)},${Math.round(dGoal.y)},${Math.round(dGoal.z)}]`)
+            }
+            try { await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, dGoal.x, dGoal.y, dGoal.z, { range: 3 }), { timeoutMs: DRAGON_ZONE_EXIT_MS, label: 'dragonzone exit' }) } catch { /* the walk machinery owns the failure - the next pass re-reads */ }
+          }
+        } else {
+          dragonEvacAnnounced = false
         }
         // (v0.223.0) THE WET CHURN WIRING - the governor's field face. The
         // pure plan (v0.222.0) priced the AFTER-STORM stance; this lane wires
