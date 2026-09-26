@@ -4610,3 +4610,20 @@ Stage Summary:
 - Master: THIS COMMIT (worklog addendum + the run195 index cleanup) on cfa982c (v0.198.0 THE DUSK WIRE). Next free version = 0.199.0.
 - FLEET OF RECORD: 36209745178 (in_progress, cfa982c). WATCH LIST for its artifact: 'bank trip: dusk' rows MUST appear (the wire's debut - any count > 0 is the fix working); the deferral class 12 -> ?; banked vs 518 (the run195 floor) and 1544 (the record); the 'sentry per-bot:' row's WHO; the pins clustering in the flooded-quarry region; smelted vs 25 (the record under the census-less tree); NORMAL END.
 - OPEN FRONTS (unchanged, evidence-ranked): the flooded-quarry attrition region (the fleet-wide hazard hearing design front); the frozen-physics class (F5 x35); still-underground x6; the Crown (iron_ore 35 -> ingots).
+
+---
+Task ID: cron398294-20260926-0939 addendum #2 (the union fleet decoded at close)
+Agent: Super Z (the 09:39 lane, final)
+
+Work Log:
+- MINED run197/ (fleet19-log artifact 10894139965 of fleet 36207216784, a19b92e - the pin+row union debut, 600s NORMAL END alive=19/19):
+  - THE ATTRIBUTION ROW'S FIELD DEBUT: 'sentry per-bot: F3 g0/r8 F5 g0/r1 F9 g0/r4 F10 g0/r7 F11 g0/r2 F12 g0/r3 F14 g0/r1 F15 g0/r1 F16 g0/r4 F17 g0/r2 | 9 g0/r0' - the WHO question is now a LOG LINE: airGlitches=0 this world (the sensor class gone), the rescue churn SPREAD across 10 bots (F3 r8 / F10 r7 lead, no single owner) - the run82/run190 one-bot-owner shape did NOT repeat on a calm-sensor world; the row works as designed.
+  - THE HEADLINE IS A CRASH: banked=30 (518 -> 30; the 1544 record stands), conversion=51.1%, unaccounted=1479 - the worst ledger since the pre-v0.54 era. THE MECHANISM: fights=35 + kills=5 (a MOB STORM world; wet=16 hazardLedger) - dead bots dropped their pockets where nobody picked them up (deaths respawn poor; the dropped loot decays out of reach). mined=3027 @ 5.04 b/s (the RATE is fine - the retention died).
+  - defers x3, 'bank trip: dusk' x0 (EXPECTED - a19b92e predates the v0.198.0 wire; the 36209745178 fleet carries the fix and MUST show the dusk rows).
+  - reconnects=3 (calm), torched=10, climbs=29, smelted=9.
+- NO dispatch this addendum (36209745178 already in flight on cfa982c - one fleet per head; the next fire mines it).
+
+Stage Summary:
+- Master: THIS COMMIT on 0189521 (the 09:39 closing) on cfa982c (v0.198.0). Next free version = 0.199.0.
+- FLEET OF RECORD: 36209745178 (in_progress, cfa982c, the dusk wire's field debut) - ETA ~02:50Z; the 10:39 fire mines it: 'bank trip: dusk' rows > 0 = the fix works; the deferral class 3 -> ?; banked vs the 30-crash and the 1544 record; the WHO row's second read.
+- THE EVIDENCE RANKING UPDATED: (1) THE DEATH ECONOMY - fights=35/kills=5/unaccounted=1479: the mob-storm retention hole now OUTWEIGHS the dusk hole (the v0.185.0 combat kite is unvalidated on storm worlds; the shelter gates + the flooded-quarry hearing feed the same front); (2) the flooded-quarry attrition region (the hazard hearing design); (3) the frozen-physics class; (4) the Crown (iron_ore 35 -> ingots: the smelt mix attribution rides the census + the row fleets).
