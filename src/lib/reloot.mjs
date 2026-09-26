@@ -357,10 +357,29 @@ export function relootSurfaceRetry ({
     marginMs
   })
   if (!plan.go) return { go: false, why: plan.why }
+  // (v0.217.0) THE RIM STANCE - the surface leg aims the RIM, not the cell.
+  // MEASURED (run 36248025944, the v0.215.0 trident band's debut fleet): F4's
+  // ladder ran the FULL three legs and the scanner WON - the surface read
+  // [-110,63,467] (the death column y57 -> air at y63, six up) - and the
+  // surface walk STILL died 'No path to the goal!'. The reason is the
+  // v0.207.0 class carried one leg deeper: the surface cell is WET-ADJACENT
+  // BY CONSTRUCTION (it is the first air above the fluid), and a GoalNear
+  // range-2 sphere must find a standable cell within 2 of a cell that hangs
+  // over open water - on a pool wider than ~4 blocks the rim sits past the
+  // sphere and the dry pathfinder refuses the aim. v0.208.0's own design
+  // intent says the arrival is the RIM: 'a stance on the rim beside that
+  // cell is dry, pathfinder-legal, and within magnet reach of the floating
+  // stacks'. So the surface leg derives RELOOT_RETRY_RANGE 8 - the same
+  // widened sphere the wide retry earned in v0.207.0, granted at birth on
+  // the leg where the wet aim is the GEOMETRY ITSELF. The dry rim inside the
+  // sphere counts as arrival; the honest stack read (within 8) stays the
+  // evidence ('the magnet takes what it can'). Zero new legs (three legs per
+  // death is the whole ladder); the goal, the budget and the window ride the
+  // plan arithmetic byte-for-byte - only the AIM widens.
   return {
     go: true,
     goal: plan.goal,
-    range: plan.range,
+    range: RELOOT_RETRY_RANGE,
     dist: plan.dist,
     budgetMs: plan.budgetMs,
     windowMs: plan.windowMs

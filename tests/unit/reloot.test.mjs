@@ -352,8 +352,44 @@ test('the surface gate fires only after the wide retry spent its refusal (the ru
   assert.equal(r.go, true)
   assert.equal(r.goal.y, 58)
   assert.equal(r.goal.x, -117)
-  assert.equal(r.range, RELOOT_GOAL_RANGE)
+  assert.equal(r.range, RELOOT_RETRY_RANGE)
   assert.ok(r.budgetMs > 0 && r.windowMs > 0, 'the plan arithmetic prices the surface walk')
+})
+
+// ---- v0.217.0 THE RIM STANCE ----
+// run 36248025944 (the v0.215.0 trident band's debut) ran the ladder's full
+// three legs on THREE wet-quarry deaths and all three died on geometry - and
+// F4's shape is the indictment: the scanner WON (surface read [-110,63,467],
+// the death column y57 -> air at y63) and the surface walk STILL died
+// 'No path to the goal!' - a GoalNear range-2 sphere cannot find a standable
+// cell within 2 of a cell that hangs over open water. The surface leg now
+// derives RELOOT_RETRY_RANGE 8 at birth (the v0.207.0 widened sphere, one
+// leg deeper; the dry rim counts as arrival). Zero new legs; goal/budget/
+// window byte-for-byte.
+
+test('the rim stance: the surface leg aims the dry rim (the v0.217.0 F4 cure)', () => {
+  const r = relootSurfaceRetry({
+    message: 'No path to the goal!', retries: 1, surfaceY: 63,
+    spot: { x: -110, y: 57, z: 467 }, deathAt: Date.now() - 60000,
+    now: Date.now(), botPos: { x: -150, y: 63, z: 470 }
+  })
+  assert.equal(r.go, true, 'the scanner won - the walk must arm (F4 died here)')
+  assert.deepEqual(r.goal, { x: -110, y: 63, z: 467 }, 'the surface cell rides the goal byte-for-byte')
+  assert.equal(r.range, RELOOT_RETRY_RANGE, 'the AIM widens to 8 - the rim stance is the arrival')
+  assert.notEqual(r.range, RELOOT_GOAL_RANGE, 'the range-2 wet aim is the measured refusal class')
+  assert.ok(r.budgetMs > 0 && r.windowMs > 0, 'the pricing rides the plan arithmetic untouched')
+})
+
+test('the rim stance widens ONLY the aim - the ladder law and the refusals keep their verdicts', () => {
+  const shape = { message: 'No path to the goal!', surfaceY: 63, spot: { x: -110, y: 57, z: 467 }, deathAt: Date.now() - 60000, botPos: { x: -120, y: 61, z: 400 } }
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 0 }).why, 'not-after-wide-retry',
+    'zero new legs: never before the wide retry')
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 2 }).why, 'not-after-wide-retry',
+    'zero new legs: never past itself')
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 1, message: 'timeout after 8000ms' }).why, 'not-no-path',
+    'the geometry class gate is untouched')
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 1, surfaceY: NaN }).why, 'no-surface',
+    'the no-surface refusal (F13\'s sealed class) stays terminal')
 })
 
 test('the surface ladder is strict: never before the wide retry, never past itself', () => {
