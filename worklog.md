@@ -4496,3 +4496,21 @@ Work Log:
 Stage Summary:
 - FLEET OF RECORD: 36205101545 on 4d06de6 (the v0.194.0 tree = both cures; code-identical to 5e0939e except the package.json version label). Big fleet ~75 min - the next fire (08:30/09:00) mines it per the watch list in the lane's main section ('bank trip: dusk' rows, the fire-batch trim lines, blind spot #3, the fence-edge absence, banked vs the run82 record 1544).
 - If this fire's push supersedes the dispatch before it starts, cancel-and-carry per doctrine - the watch list rides in the worklog either way.
+
+---
+Task ID: cron30-20260926-0830
+Agent: Super Z (cron lane, Job 414125)
+Task: decode + one atomic improvement; both 08:00 dispatches were dead, the union tree had no fleet coverage.
+
+Work Log:
+- Synced clean (origin 4d06de6 -> 5710b5a mid-fire: the 07:39 lane's closing addendum; their session CLOSED per their own header). THE DISPATCH FIELD WAS EMPTY BOTH WAYS: the 08:00 fire's dispatch 36204573086 (5e0939e) CANCELLED by this lane's renumber push; the lane's re-dispatch 36205101545 (4d06de6) CANCELLED by their own worklog push 5710b5a one minute later. No fleet ever covered v0.193.0/v0.194.0.
+- BLIND SPOT #2 DISSOLVED ON RE-MINE - a SEARCH miss, not a filter miss: run82's fleet19.log holds 25 'air-bar' lines (the v0.41.1 'water' filter key carried them all along); the 07:30/08:00 decodes grepped 'airGlitch' camelCase and found nothing. All 25 lines are F3; the final 'total' 578 ~= the fleet's 588 - ONE bot (F3, oxygen 0 on dry land the entire shift, 10 overrides 'believing the bar') owned the whole counter. What the lines could NOT answer: WHERE.
+- v0.195.0 THE AIR-GLITCH MAP PIN shipped: airGlitchLogLine (drowning.mjs, pure) pins the floored position onto BOTH air-glitch shapes (ignored + override) - the legacy prefix byte for byte (the filter key, the decode greps, the run-history comparability stay valid); junk/missing position reads the legacy no-pin shape. Wiring: both miner.mjs log sites consult the formatter. Tests: the pin family + the wiring pins ('no unpinned line may survive'). Local: syntax 194/0, unit 85/85 (no local integration - no JDK in this sandbox; CI runs it).
+- Pushes: 5710b5a -> 4a66bd1 clean. CI 36205696169: unit x2 SUCCESS fast; Integration in_progress ~26min at dispatch time (past the usual ~15min window - HONESTLY UNRESOLVED at close, watch it next fire).
+- Dispatch 36206239879 materialized (HTTP 204, pending on 4a66bd1 v0.195.0) after the pre-POST check showed zero active dispatch runs.
+
+Stage Summary:
+- Master 4a66bd1 (v0.195.0 THE AIR-GLITCH MAP PIN on the union tree). Next free version = 0.196.0.
+- FLEET OF RECORD (pending at close): THIS fire's dispatch 36206239879 on 4a66bd1 - the v0.195.0 debut (map pin) riding the FIRST fleet coverage of the v0.193.0 fire-batch cap + the lane's v0.194.0 dusk-forecast union. NEXT SESSION: poll 36206239879; if superseded, re-dispatch on the fresh head.
+- DECODE WATCH LIST: 'air-bar glitch ignored (oxygen 0 on dry land at [x,y,z]' - the pin's field debut; do the F3-class pins CLUSTER and do the overrides correlate with rescue churn?; 'the run clock caps the fired batch: N of M' (v0.193.0's trim debut); 'smelt fire skipped - the run clock cannot finish a batch'; smelted 24 -> ?; banked 1544 -> ?; 'no fuel in pocket' 2 -> ?; rescues 56 -> ? (F3's 10 believed-bar overrides may be the churn); torched 10 -> ?; deaths 0 -> ?; the dusk-forecast bank escalation lines; CI 36205696169 Integration verdict; NORMAL END.
+- OPEN FRONTS: the abandoned-furnace reclaim visibility (blind spot #3); the rescues-56 causes decode; the above-family range-2 residual (x15+ rows); the coal ARRIVAL root; the climb-out chain x1.
