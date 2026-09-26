@@ -4908,3 +4908,21 @@ Work Log:
 
 Stage Summary:
 - Master e51543c (v0.206.0 + worklog), NO fleet of record change: 36223938740 (the lane's, on d01424d = v0.205.0) is the run in flight. Next fire: poll/mine it if the lane hasn't, then dispatch on master - the refusal histogram's field debut.
+
+---
+Task ID: cron30-20260926-1500
+Agent: Super Z (cron lane, Job 414125)
+Task: 15:00 fire - mine+decode the lane's fleet 36223938740 (the triage row's FIELD DEBUT, v0.205.0); verify v0.206.0 CI; dispatch the refusal instrument.
+
+Work Log:
+- FLEET 36223938740 (workflow_dispatch on d01424d, 600s) COMPLETED SUCCESS UNMINED - mined as run40/. NORMAL END alive=19/19: banked=72 (a CRASH day: 303 -> 946 -> 72), smelted=13, torched=10, planted=15, fights=14 kills=5, rescues=40, airGlitches low, reconnects=7.
+- THE TRIAGE ROW'S FIELD DEBUT (the clean split): 'sweep drop ledger: sweeps=36 picked=239u failed=54 (below x9, plane x14, above x31) deepSkip=59 lipDig=0' - the identity holds (9+14+31=54); ABOVE DOMINATES the day-scale count (57% vs below 17%) - the run68 dy sample (above x39 vs below x11) CONFIRMED; the 13:30 'below x74/x82' reads were the dirty bucket, the lane's v0.205.0 split is the truth. deepSkip=59 is a RECORD (56 -> 28 -> 59); lipDig=0 the third day running (the instrument's field debut rides the next dispatch).
+- RELOOT DAY 3: 8 re-arms (F13 x3, F6 x5 - all 'no walk (unarmed), the read re-arms'), ONE walk (F13, 45b, window 121s) -> 'walk failed (No path to the goal!)' - the SECOND 'No path' sample (run68 had two); the walk class consistently dies on pathfinding to the flooded-band death spots, never on the water itself.
+- THE BANK CRASH FRONT: banked=72 with 38 'bank trip: planned budget' lines - the plans far outnumber the deliveries; deaths 7 (Drowned slain x2, Zombie, Skeleton, Creeper, drowned x1 - the mixed mob day) scattered the pocket economy. THE PLAN->DELIVERY GAP is the next front candidate (what did the 38 trips actually end with?).
+- Push-CI chain: 350c6f6 and e51543c self-cancelled (worklog pushes); 36224983785 on 30b740b (the SAME code tree as 350c6f6 = v0.206.0) is the live verification - polled green before the dispatch decision.
+
+Stage Summary:
+- Master 30b740b = v0.206.0 + both worklogs. Next free version 0.207.0. Next local section = Task ID cron30-20260926-1530.
+- FLEET OF RECORD: <the 15:00 dispatch on master> (the refusal instrument's FIELD DEBUT). DECODE WATCH: 'lip dig refused - <class>' histogram (sealed floor vs wet vs plane-arrival vs deep vs ABSENCE=convergence starvation), the triage row's second clean sample (below x9/plane x14/above x31 baselines), deepSkip 59 -> ?, reloot walks ('No path' x2 baseline), the bank plan->delivery gap (38 planned / 72 banked), deaths 7 -> ?.
+- OPEN FRONTS: (1) THE BANK PLAN->DELIVERY GAP (new, the crash day's root); (2) the lip refusal histogram (in flight); (3) the reloot 'No path' class (x2, walk economics); (4) deepSkip=59 (the deep family growing); (5) the mixed mob day; (6) the coal ARRIVAL root.
+- TOOLS: mine88 auto-numbering picked run40/; the triage row's identity check is a one-line decode read.
