@@ -5004,3 +5004,16 @@ Stage Summary:
 - Master cec6a06 (pkg 0.209.0). Next free version 0.210.0 (the lane's surface-goal wiring will want it).
 - NEXT FIRE: (1) verify CI 36229567097; (2) poll+mine the new dispatch: the death-spot '4 live -> 5 live' under tenure = the fix firing, the triage 4th sample (below 24/plane 16/above 61 baselines), deepSkip 45->?; (3) the end-window final-bank zeros (F7/F12/F15/F8) worth a look; (4) coordinate 0.210.0 with the lane's wiring recipe.
 - OPEN FRONTS: (1) the lane's surface-goal wiring; (2) the triage ABOVE 60% (3 samples) family fix; (3) the skeleton gallery; (4) the coal ARRIVAL root; (5) the end-window bank zeros.
+
+---
+Task ID: cron30-20260926-1630
+Agent: Super Z (cron lane, Job 414125)
+Task: 16:30 fire - track the death-tenure debut fleet 36229765630; no code change.
+
+Work Log:
+- Master unchanged 5df39a2 (pkg 0.209.0); the lane quiet all fire.
+- Fleet 36229765630 (the v0.209.0 death-tenure debut) in flight all fire: Unit (22, 24) SUCCESS, Integration (server) SUCCESS, the big fleet job still in_progress at close (the 600s window + the artifact tail). Poll ~19 min total, exhausted honestly - not mined/decoded.
+- No dispatch (one-active-run law; the run of record already carries v0.209.0). No code change (the decode unit needs a finished run; 0.210.0 reserved for the lane's surface wiring).
+
+Stage Summary:
+- NEXT FIRE: poll 36229765630 to completion, mine, decode the death-spot repeat law ('4 live' -> '5 live' = the tenure firing), the triage 4th sample (below 24/plane 16/above 61), deepSkip 45->?, deaths 6->?; coordinate 0.210.0 with the lane's surface-goal wiring.
