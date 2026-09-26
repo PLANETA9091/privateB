@@ -5666,3 +5666,23 @@ Stage Summary:
 - Master f7f2165 (pkg 0.223.0). Next free version 0.224.0.
 - DISPATCH as the last action: the v0.223.0 FIELD DEBUT (workflow_dispatch run_fleet=true fleet_seconds=600 on f7f2165) - the churn wiring's first wet night (or its absence: the governor stays vacuous on calm fleets, the honest empty read).
 - WATCH LIST: the v0.222.0 debut 36266420267 (mined by the next fire); the churn field face (armed bots vs their rescue cadence, rescues during holds still counting); the F12 VOID death (2nd sample); the dragon-zone wiring (the 0.224.0 candidate); the rim dig's wet night.
+
+---
+Task ID: cron30-20260927-0400
+Agent: Super Z (cron lane, Job 414125)
+Task: 04:00 fire - v0.224.0 THE BYSTANDER VERDICT (the creeper wrong-killer lens, the 03:00 fire's 0.223.0 LEAD the 03:30/03:37 lanes left open).
+
+Work Log:
+- Sandbox regenerated again (the 3rd disappearance): fresh clone + npm install. Master 669b75c (pkg 0.223.0 THE WET CHURN WIRING - the 03:37 lane shipped the churn wiring f7f2165 AND mined+decoded the v0.221.0 field debut 36263768508 as run35: rim dig UNEXERCISED 2nd run, alive=19/19 5-STRAIGHT, the storm sleeps 2nd run, a NEW VOID-death class F12 at [117,-90,0] 17b east of the dragon anchor - recorded not speculated).
+- Run list at open: 36266420267 (98e53a7, the v0.222.0 field debut) IN_PROGRESS + 36267684469 (669b75c, the v0.223.0 field debut) PENDING - TWO active dispatch runs queued back-to-back. THE NO-DUPLICATE LAW: no dispatch from this fire.
+- Baseline: syntax 204/0, unit 91/91.
+- v0.224.0 THE BYSTANDER VERDICT (the creeper wrong-killer lens, the v0.218.0 pattern's wrong-name twin - the blindness lens named the EMPTY scan, this names the scan that found the WRONG hostile): inferenceVerdict (src/lib/deathcause.mjs) names the class once - kind=explosion + the server NAMED the blast killer (attacker set = the self-removal proof) + the hint names a hostile that is neither the killer nor 'drowning' nor 'fall/env' => 'bystander'. The honest edges stay: no named killer (the active 'blew up' form) keeps contradicts; kind=mob keeps contradicts (a melee killer SURVIVES its kill); 'drowning' keeps contradicts; the v0.218.0 fall/env->blind pins untouched. The miner death handler's VERDICT_NOTE gains the bystander key - the note rides the EXISTING 'died' filter key (no new line, no filter change).
+- Tests: the run550 matrix's explosion pin updated (Zombie -> bystander), a dedicated 8-pin bystander matrix (run63 F14 zombie + F12 spider byte-exact, case-insensitive, the drowning edge, the no-attacker edge, the mob edge, the blindness survival, the corroborate precedence), the wiring pin extended (VERDICT_NOTE must carry 'names a BYSTANDER'). unit 91/91, syntax 204/0. Commit f845f6e pushed clean (no rebase conflict).
+- CI: f845f6e polled after the push.
+- No dispatch: 36266420267 + 36267684469 active - the no-duplicate law (the lane's two field debuts run back-to-back; their samples are the next fires' headlines).
+
+Stage Summary:
+- Master f845f6e (pkg 0.224.0 THE BYSTANDER VERDICT). Next free version 0.225.0. Next local section = Task ID cron30-20260927-0430.
+- FLEET OF RECORD: 36266420267 (the v0.222.0 wet-churn governor's field debut) IN PROGRESS, then 36267684469 (the v0.223.0 churn wiring's field debut) PENDING behind it - the 04:30 fire mines whichever is DONE first (the governor's first field face: the evacuation arms or not, the storm's 5th sample or the calm's 3rd; then the wiring's first field face: the arm/release lines, the swap, the hold gates).
+- NEXT FIRE: (1) mine+decode 36266420267 (if the 04:30 lane hasn't) then 36267684469 - the churn anatomy is the headline, the creeper wrong-killer contradictions (2 samples) should now print BYSTANDER if the class recurs on 0.224.0+... NOTE: both in-flight runs ride PRE-0.224.0 heads (98e53a7/669b75c), so their death lines still print CONTRADICTS - the bystander verdict's own field debut needs a 0.224.0 dispatch; (2) CODE FRONTS (0.225.0): the dragon-zone WIRING (the 0.220.0 plan - WorldMap exclusion + shelter priority; the VOID death F12 at [117,-90,0] 17b east of the anchor is a new data point), the night-hold delivery gap, the rim-dig wet-night wait; (3) the lane may take 0.225.0.
+- OPEN FRONTS: the churn FIELD DEBUTS (36266420267 + 36267684469); the bystander verdict FIELD DEBUT (needs a 0.224.0+ dispatch); the dragon-zone WIRING; the VOID-death class (1 sample, cause unknown); the Skeleton ranged class (3-run); the 0-stacks reloot anatomy; the rim dig's wet night; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the creeper wrong-killer CONTRADICTION shape (named - this fire).
