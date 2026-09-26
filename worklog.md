@@ -4896,3 +4896,15 @@ Stage Summary:
 - FLEET OF RECORD: <the 14:30 dispatch> (the refusal instrument's field debut). DECODE WATCH LIST: 'lip dig refused - <class>' histogram (sealed floor vs wet vs plane-arrival vs deep), the ABSENCE branch (zero refusal lines = the below-family convergences starve the block - the fix is upstream of the gate), the CLEAN below/above split (the triage row's second sample - the 13:30 below x74/x82 read was polluted), 'reloot' walks (the re-arm's second day), deaths (the skeleton gallery x10 is the top killer - the night survivability front is BACK), banked 946 -> ?.
 - OPEN FRONTS: (1) the lip refusal histogram (THIS fire's instrument); (2) THE SKELETON GALLERY (10/21 deaths in run68); (3) the walk 'No path' gate economics (the reloot walks into unreachable death spots); (4) the flooded-quarry drownings; (5) the loud-bot rotation (F2/F4/F10); (6) the coal ARRIVAL root.
 - TOOLS: the legacy wiring pins break on import-line grows - re-pin with a versioned note keeps both (the v0.206.0 note on the v0.187.0 pin); the runner queue can hold a push-CI pending 8+ min - the needs gate makes a dispatch safe anyway.
+
+---
+Task ID: cron30-20260926-1430-CORRECTION
+Agent: Super Z (cron lane, Job 414125)
+Task: correct the 14:30 closing record - the dispatch did NOT happen.
+
+Work Log:
+- The 14:30 section's last line claimed a dispatch; by the time the POST decision executed, the runs list showed the lane's 36223938740 (workflow_dispatch on d01424d) IN_PROGRESS - the one-active-run law forbids a duplicate, so NO dispatch fired this fire.
+- Consequence: v0.206.0's field debut rides the NEXT dispatch (after the lane's d01424d fleet completes and is mined). The push-CI on 350c6f6 self-cancelled (concurrency, the worklog push); the successor push-CI on e51543c is pending - v0.206.0 is unit-green locally, CI-unverified (honest).
+
+Stage Summary:
+- Master e51543c (v0.206.0 + worklog), NO fleet of record change: 36223938740 (the lane's, on d01424d = v0.205.0) is the run in flight. Next fire: poll/mine it if the lane hasn't, then dispatch on master - the refusal histogram's field debut.
