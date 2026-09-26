@@ -5064,3 +5064,18 @@ Stage Summary:
 - Master bc331ee (pkg 0.211.0 THE SURFACE WIRING). Next free = 0.212.0.
 - WATCH LIST (the surface's field debut): the first 'reloot: surface retry at' arm; stacks > 0 at 'surface arrived' = THE DEATH ECONOMY'S FIRST RECOVERED DROPS EVER; 'no-surface' n and the whys histogram (the land-death class stays terminal - correct; a sealed-cap volume reads the rim-dig front); whether the surface walk itself pathfinds (the rim may need the jump class); the wide-retry budget arithmetic on a second sample; lipDig 'sealed floor' volume vs the step-down candidate; banked 1202 -> ?.
 - OPEN FRONTS: (1) the surface field validation (this dispatch); (2) the above-family goal shape (the jump class - the v0.182.0 clock doctrine holds); (3) the lip step-down candidate; (4) the bank crash front (38 trips -> 72 banked, the plan->delivery gap); (5) the dusk knife edge; (6) coal ARRIVAL root.
+
+---
+Task ID: cron30-20260926-1800
+Agent: Super Z (cron lane, Job 414125)
+Task: 18:00 fire - poll+mine the dragon-kind field debut fleet 36233514360.
+
+Work Log:
+- Sync clean: master fd50c98 (pkg 0.210.0). The 17:30 fire had completed fully (ship + worklogs + dispatch).
+- FLEET OF RECORD: 36233514360 (fd50c98 tree, 09:41:00Z). Unit+Integration success early; the big fleet job (19 bots) in_progress the whole fire (~30 min at close, history 15-40 min).
+- Poll 3 foreground rounds + a direct API check - never completed within the timebox; poll exhausted honestly, mine+decode passes to the next fire.
+- No dispatch (the one-active-run law) AND zero new code (the decode was the atomic unit).
+
+Stage Summary:
+- Master fd50c98 at fire start; mid-fire the 17:39 lane shipped v0.211.0 THE SURFACE WIRING (bc331ee/5967a57, rebase keep-both clean) - 0.211.0 taken, next free 0.212.0. NOTE: the 17:39 dispatch superseded my poll target's pending chain per the newest-pending law - the surface-wiring fleet is the one to poll next fire alongside 36233514360.
+- NEXT FIRE: mine+decode whichever fleet completed first (36233514360 the dragon-kind debut, and/or the 17:39 surface-wiring dispatch): the death line shape (a dragon death must read 'mob by Ender Dragon' now; the triage 6th sample; the end-phase hang recurrence; the surface debut watch list - first 'reloot: surface retry at' arm, stacks > 0 = the first recovered drops ever), verify CI 36233342600; code fronts: the end-phase hang (top), the relog spiral.
