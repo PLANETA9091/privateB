@@ -5649,3 +5649,20 @@ Stage Summary:
 - FLEET OF RECORD: 36263768508 SUCCESS (run35/) + this fire's closing dispatch (the v0.222.0 field debut on ecb93c1+).
 - NEXT FIRE: (1) mine+decode the fresh dispatch: the void class (did 'fell out of the world' repeat? the [117,-90,0] anatomy - the dragon-zone adjacency question), the storm's 5th sample, the rim dig 4th wait, the marker's 3rd 2-sample run; (2) CODE FRONTS (0.223.0): the creeper wrong-killer inference front (2 samples in run63), the churn WIRING, the dragon-zone WIRING, the void-death read (kind=other + y<0 -> the world-edge class - a cheap honest census label before any cure), the night-hold delivery gap; (3) the lane may take 0.223.0.
 - OPEN FRONTS: the rim dig field debut (3-run wait); the void death class (NEW - 1 sample, cause unknown, the dragon-zone adjacency question); the creeper wrong-killer contradictions (2-run); the churn WIRING; the dragon-zone WIRING; the Skeleton ranged class (3-run); the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the zero-leak ledger (0 2-straight - the calm/calm pair); the storm thesis (intermittent, 4-sample confirmed); the BLIND print (3 field samples clean).
+
+---
+Task ID: cron31-20260927-0337
+Agent: Super Z (cron lane, Job 415967)
+Task: 03:37 fire - v0.223.0 THE WET CHURN WIRING shipped (the recorder, the consult, the swap); the v0.221.0 debut already mined by the parallel 03:30 lane; the v0.223.0 field debut dispatched.
+
+Work Log:
+- Identity armed (PLANETA9091, local + global). Master 98e53a7 at fire (the 03:30 lane's close) - noted TWO 'Z User' authored commits already on origin (1f54983, c0b9c08, the 02:30 lane); history left untouched (parallel agents, no force-push), the identity law holds from here.
+- CI read: the v0.221.0 field debut 36263768508 SUCCESS on 4b7f97e (already mined+decoded as run35/ by the 03:30 lane - rim dig UNEXERCISED 2nd run, zero-leak 2-straight, alive 19/19 5-straight, F12 VOID death recorded as the new open front); the v0.222.0 debut 36266420267 PENDING on 98e53a7 (in flight, not mine to duplicate - the newest-pending law).
+- v0.223.0 THE WET CHURN WIRING shipped (f7f2165): the RECORDER (miner.mjs) - the bot's OWN rescue-start stamps in a capped sliding log (WET_CHURN_LOG_CAP 64), the record inside the armed section (stand-downs never read as rescues), exposed as wetRescueEvents() beside the lastDeath precedent; the CONSULT (fleet19.mjs) - the work loop consults wetChurnPlan every pass (all scalars pinned), the arm carries the plan's OWN exit clock (never extended, never double-booked), the hold gates the wet-prone lanes ONLY (shaft + steered tunnels), the bank lanes keep their own gates; the SWAP (churnSwap, pure) - daylight wood gather (cap 40s, floor 15s), night/junk rest, the rest bounded by the swap AND the run clock; the story is arm + release once each (the lastNightLog shape); the rescue machinery UNTOUCHABLE (drowning.mjs never consults the governor). decompose counts the field face (armed/released per-bot + the arm-count histogram).
+- Local validation: syntax 204/0; churn-wiring 13/13, wetchurn 8/8, smelting 67/67 (the fleet-source pins survived the re-indent), deposit-walk 22/22 under --test-force-exit (the exit-hang class = the documented sandbox flake, assertions 0 fail); sharded runner persisted (scripts/unit-shards.sh) for future lanes.
+- Commit identity verified before the commit (Rule 0): PLANETA9091 only.
+
+Stage Summary:
+- Master f7f2165 (pkg 0.223.0). Next free version 0.224.0.
+- DISPATCH as the last action: the v0.223.0 FIELD DEBUT (workflow_dispatch run_fleet=true fleet_seconds=600 on f7f2165) - the churn wiring's first wet night (or its absence: the governor stays vacuous on calm fleets, the honest empty read).
+- WATCH LIST: the v0.222.0 debut 36266420267 (mined by the next fire); the churn field face (armed bots vs their rescue cadence, rescues during holds still counting); the F12 VOID death (2nd sample); the dragon-zone wiring (the 0.224.0 candidate); the rim dig's wet night.
