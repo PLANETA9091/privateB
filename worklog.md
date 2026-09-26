@@ -5863,3 +5863,21 @@ Stage Summary:
 - THE LEDGER SHIFT: mined=2473 banked=0 smelted=2 pocket=2006u/191s unaccounted=796 conversion=67.8% - the unaccounted=0 4-straight BROKE: with zero banking all night the surplus lives in pockets (the dusk-bank WIRING front just got its strongest evidence yet: a full run's yield walked home in nobody's chest).
 - SWEEP CENSUS (pre-0.228.0 tree): 158 sweep lines, the run68 cluster shape present (F6 goal-brake '6 goals in 5s - sweep drops refused for 4s', drop-walk timeout 4000ms, F14 fall-fence refusals, sealed-floor lip digs) - the SWEEP DEFER's evidence base confirmed; its field face wants the 0.228.0 dispatch.
 - NO dispatch this close (the fire already ran long; the 07:30 lane dispatches the 0.228.0 tree per the standing plan - the slot is free, 36276860090 completed).
+---
+Task ID: cron30-20260927-0730
+Agent: Super Z (cron lane, Job 414125)
+Task: 07:30 fire - v0.229.0 THE 'pf:spin' RING NOTE (the spin breaker refusal's own ring form) + the 0.228.0 dispatch -> THE DISPATCH ALREADY IN FLIGHT (36280122123, the 0.228.0 SWEEP DEFER field debut).
+
+Work Log:
+- Sync clean onto f1afaf2 (pkg 0.228.0, no lane pushes). Tests BEFORE: syntax 208/0, unit 94/94.
+- THE FRONT (the 06:00 cross-validation's resonance candidate, sharpened by the 07:00 decode): the spin breaker's 4 field catches on 'sweep drops' left ZERO ring trace - the refusal lived only in the caller's catch, and a dump read 'pf:goal <- pf:done <- pf:goal' with the hold invisible between the done and the next goal. THE CURE: gotoSafe's spin refusal now notes 'pf:spin <label>' through the SAME noteGlobal sink (no timers, one interned label - the held path allocates nothing), the fleet19 filter-key label list carries the new form.
+- Tests: 2 new pins (the refusal notes exactly once carrying the label + ring timestamp while the success path keeps its pf:done notes; the fresh-arm AND held refusals both note the same interned label) - spinbreaker 16/16, unit 94/94 files, syntax 208/0. Version 0.229.0.
+- THE INFRA FACE: the main session's tool calls started dying mid-fire (Bash x5, then Read/Write - the cascade precedent) - the commit+push+CI-poll executed through a delegated shell runner (strictly mechanical, verbatim commands). Commit a3ac611 pushed FIRST TRY (rebase clean, no conflicts).
+- CI: the push run 36280395017 (a3ac611) was PENDING at the poll's end (5 tries, timeout - not a failure). Left open honestly.
+- NO DISPATCH: a workflow_dispatch run 36280122123 (f1afaf2 = the 0.228.0 tree) was already IN_PROGRESS - the no-duplicate law held the slot; THE 0.228.0 SWEEP DEFER FIELD DEBUT IS IN FLIGHT.
+
+Stage Summary:
+- Master a3ac611 (pkg 0.229.0). Next free version 0.230.0. Next local section = Task ID cron30-20260927-0800.
+- FLEET OF RECORD: 36280122123 (the 0.228.0 SWEEP DEFER field debut) IN PROGRESS - the 08:00 fire mines it: the sweep census's first field face (the wait-out lines 'sweep walk refused by a Ns cooldown - waiting it out once', the defer announcements 'sweep deferred (the lanes hold)', the harvest vs run68's 0-collected cluster F6/F10/F11), plus the pf:spin watch (0.229.0 landed AFTER f1afaf2 - the ring note's field face wants the NEXT dispatch).
+- NEXT FIRE: (1) CI check a3ac611 (36280395017) -> fix if failed; (2) mine+decode 36280122123; (3) dispatch the 0.229.0 tree (the pf:spin ring note's field face) if no active run; (4) 0.230.0 candidates: the dusk-bank WIRING (the banked=0 evidence), the iron commune chest-walk goal-brake faces.
+- OPEN FRONTS: the pf:spin ring note FIELD FACE (needs the 0.229.0 dispatch); the dusk-bank WIRING; the bystander FIELD FACE (the first explosion sample landed - the lens got its read); the dragon-zone ACTIVE face (rests 5-straight); the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the rim dig's wet night; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the main-session tool-cascade face (delegated-shell workaround proven).
