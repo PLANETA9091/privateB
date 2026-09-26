@@ -188,6 +188,32 @@ export function lipDigWanted ({ range, airBelow, fluidBelow, dy } = {}) {
   return true
 }
 
+// (v0.206.0) THE LIP REFUSAL INSTRUMENT - the mirror of lipDigWanted that NAMES
+// the guard that said no. Field record: lipDig=0 in every fleet row so far
+// (run68 + the 13:30 row) while the below family kept failing - and the code
+// anatomy says the gate CANNOT open for a standing bot: gotoSafe only ends on a
+// standable cell (solid under the feet), so dropAheadBelow(feet) reads air 0 and
+// the a < 1 guard refuses - the dig is structurally starved, not unlucky. But
+// WHICH guard wins in the field (the sealed floor, the wet column, the plane
+// arrival, or zero below-family convergences starving the block itself) is a
+// MEASUREMENT question, and the v0.187.0 law holds: the next cure derives from
+// measurement, not speculation. Returns the refusal REASON for a lip candidate,
+// or null when the dig is wanted (or when this is not a lip candidate at all -
+// a non-BELOW range never enters the lane, so it has no refusal to name). The
+// reason strings are the refusal class names the fleet log will count.
+export function lipDigRefusal ({ range, airBelow, fluidBelow, dy } = {}) {
+  if (range !== DROP_GOAL_BELOW) return null
+  if (!Number.isFinite(airBelow)) return 'unmeasured air'
+  if (Math.floor(airBelow) < 1) return 'sealed floor'
+  if (Math.floor(airBelow) > LIP_DIG_MAX_AIR) return 'the fall reads too deep'
+  if (fluidBelow === true) return 'wet column'
+  if (fluidBelow !== false) return 'unmeasured wet guard'
+  if (!Number.isFinite(dy)) return 'unmeasured dy'
+  if (dy >= DROP_GOAL_BELOW_DY) return 'arrival at the plane'
+  if (dy < DROP_GOAL_DEEP_DY) return 'the lip sphere cannot reach'
+  return null
+}
+
 export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, cap = SWEEP_DROP_CAP } = {}) {
   if (!entities || typeof entities !== 'object') return []
   if (!from || typeof from.x !== 'number' || typeof from.y !== 'number' || typeof from.z !== 'number') return []

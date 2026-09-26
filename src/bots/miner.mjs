@@ -52,7 +52,7 @@ import {
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, lipDigWanted, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate
+import { dropTargets, dropGoalRange, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2519,6 +2519,7 @@ export function createMiner ({
         let aboveFails = 0
         let skipDeep = 0
         let lipDigs = 0
+        let lipRefusals = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -2586,10 +2587,25 @@ export function createMiner ({
             const feet = bot.entity.position.floored()
             const airBelow = dropAheadBelow(feet, { depth: 3 })
             const strike = fluidStrikeBelow(feet, { depth: 3 })
-            if (lipDigWanted({ range, airBelow, fluidBelow: strike !== null, dy: dyLip })) {
+            const lipParams = { range, airBelow, fluidBelow: strike !== null, dy: dyLip }
+            if (lipDigWanted(lipParams)) {
               const cover = bot.blockAt(feet.offset(0, -1, 0))
               if (cover && cover.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(cover.name)) {
                 try { await bot.fastDig(cover); lipDigs++ } catch { /* the dig-down is a bonus - never a failure */ }
+              }
+            } else {
+              // (v0.206.0) THE LIP REFUSAL INSTRUMENT: the dig said no - name the
+              // guard. lipDig=0 in every fleet row so far and the gate's anatomy
+              // predicts the 'sealed floor' class (a standing bot always has solid
+              // under its feet, so dropAheadBelow(feet) reads air 0); the field
+              // decides which class really rules. The refusal rides the
+              // 'vein sweep' key, capped at 2 like the fail lines; the ABSENCE of
+              // refusal lines across a whole run reads as the OTHER starvation
+              // (no below-family convergences at all - the block never entered).
+              const why = lipDigRefusal(lipParams)
+              if (why) {
+                lipRefusals++
+                if (lipRefusals <= 2) log(`${tag} vein sweep: lip dig refused - ${why} (air ${airBelow}, dy ${dyLip.toFixed(1)})`)
               }
             }
           }

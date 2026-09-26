@@ -184,7 +184,7 @@ test("REGRESSION PIN: the harness log filter passes the sweep instrument (the v0
 // the drop rested 1-2 BELOW the walk plane (in the freed cell / down the fresh
 // shaft), the only standable cells were the gallery lip above, and every
 // recompute spiraled into the timeout. The below-plane drops walk range 2.
-import { dropGoalRange, lipDigWanted, LIP_DIG_MAX_AIR, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_ABOVE, DROP_GOAL_ABOVE_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
+import { dropGoalRange, lipDigWanted, lipDigRefusal, LIP_DIG_MAX_AIR, DROP_GOAL_PLANE, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_ABOVE, DROP_GOAL_ABOVE_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP } from '../../src/lib/drops.mjs'
 
 test('dropGoalRange: at/above the walk plane keeps the legacy tight goal (the walk INTO the magnet)', () => {
   assert.equal(dropGoalRange({ dy: 0 }), DROP_GOAL_PLANE, 'a level drop - the flat gallery converges into the magnet')
@@ -323,12 +323,17 @@ test('lipDigWanted: the constants pin', () => {
 test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itself (the v0.187.0 wiring)", async () => {
   const fs = await import('node:fs')
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes("lipDigWanted, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family')
+  // (v0.206.0) the import grew the refusal instrument (lipDigWanted ->
+  // lipDigWanted, lipDigRefusal, ...) and the verdict call reads the SAME
+  // measured params object the mirror consumes - one read, two verdicts.
+  assert.ok(src.includes("lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family (the refusal mirror rides it, v0.206.0)')
   const landedAt = src.indexOf('let landed = false')
   const digAt = src.indexOf('if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {')
   assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-family walk only (the dy family, not the range number - the v0.189.0 ABOVE shares the wide 2)')
-  const gateAt = src.indexOf('lipDigWanted({ range, airBelow, fluidBelow: strike !== null, dy: dyLip })')
-  assert.ok(gateAt > digAt, 'the verdict gates the dig (the probes feed it, nothing is hardcoded)')
+  const gateAt = src.indexOf('const lipParams = { range, airBelow, fluidBelow: strike !== null, dy: dyLip }')
+  assert.ok(gateAt > digAt, 'the probes are measured once and feed BOTH verdicts (the v0.206.0 one-read-two-verdicts shape)')
+  assert.ok(src.indexOf('lipDigWanted(lipParams)') > gateAt, 'the verdict gates the dig (nothing is hardcoded)')
+  assert.ok(src.indexOf('lipDigRefusal(lipParams)') > gateAt, 'the mirror names the refusal from the same params (v0.206.0)')
   assert.ok(src.includes('dropAheadBelow(feet, { depth: 3 })'), 'the fall column is the measured probe (zero reads report the worst)')
   assert.ok(src.includes('fluidStrikeBelow(feet, { depth: 3 })'), 'the wet read is its own guard (fluids count as empty to the air probe)')
   assert.ok(src.includes('await bot.fastDig(cover); lipDigs++'), 'the dig-under digs the cover block and counts')
@@ -480,4 +485,66 @@ test('v0.205.0 wiring: the ledger triage splits the wide-2 family by the walk dy
   assert.ok(minerSrc.includes('sd.above += aboveFails'), 'the above counters ride the stats ledger (the row carries the third term)')
   assert.ok(minerSrc.includes('above-plane walk(s) timed out on the wide goal'),
     'the above family names its own residue line - silence is never evidence')
+})
+
+test('v0.206.0 lipDigRefusal: the mirror law - null exactly where the gate opens (below-family candidates)', () => {
+  // The refusal instrument is lipDigWanted's mirror for the below-family lane:
+  // for every below-family input the dig is wanted IFF the refusal is null.
+  // A non-BELOW range never enters the lane, so it has no refusal to name
+  // (null, matching the v0.189.0 'the dig-under is fenced to the BELOW dy
+  // family' fence - the plane/ledge/skip classes are not lip candidates).
+  const below = [
+    { airBelow: 1, fluidBelow: false, dy: -1.5 },
+    { airBelow: 2, fluidBelow: false, dy: -1.7 },
+    { airBelow: 1.9, fluidBelow: false, dy: -0.9 }
+  ]
+  for (const p of below) {
+    assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, ...p }), null, `null refusal for ${JSON.stringify(p)}`)
+    assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, ...p }), true, `the gate opens for ${JSON.stringify(p)}`)
+  }
+  const refused = [
+    { airBelow: 0, fluidBelow: false, dy: -1.5 },
+    { airBelow: 3, fluidBelow: false, dy: -1.5 },
+    { airBelow: 1, fluidBelow: true, dy: -1.5 },
+    { airBelow: 1, fluidBelow: false, dy: -0.2 },
+    { airBelow: 1, fluidBelow: false, dy: -2.5 }
+  ]
+  for (const p of refused) {
+    assert.notEqual(lipDigRefusal({ range: DROP_GOAL_BELOW, ...p }), null, `a named refusal for ${JSON.stringify(p)}`)
+    assert.equal(lipDigWanted({ range: DROP_GOAL_BELOW, ...p }), false, `the gate stays shut for ${JSON.stringify(p)}`)
+  }
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_PLANE, airBelow: 0, fluidBelow: false, dy: -1.5 }), null, 'a non-BELOW range has no refusal to name')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_SKIP, airBelow: 1, fluidBelow: false, dy: -3 }), null, 'the skip verdict never enters the lane')
+})
+
+test('v0.206.0 lipDigRefusal: every guard names its class (the field will count them)', () => {
+  // The class names are the fleet log's vocabulary - a decode counts
+  // 'lip dig refused - <class>' lines and the next cure derives from the
+  // histogram, not speculation (the v0.187.0 dy-instrument law).
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 0, fluidBelow: false, dy: -1.5 }), 'sealed floor')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 3, fluidBelow: false, dy: -1.5 }), 'the fall reads too deep')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: true, dy: -1.5 }), 'wet column')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1, dy: -1.5 }), 'unmeasured wet guard')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -0.2 }), 'arrival at the plane')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false, dy: -2.5 }), 'the lip sphere cannot reach')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1, fluidBelow: false }), 'unmeasured dy')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: Number.NaN, fluidBelow: false, dy: -1.5 }), 'unmeasured air')
+  assert.equal(lipDigRefusal({ range: DROP_GOAL_BELOW, airBelow: 1.4, fluidBelow: false, dy: -1.5 }), null, 'the floor() read keeps the 1-2 window (a 1.4 read is a 1-deep fall)')
+})
+
+test('v0.206.0 wiring: the refusal instrument rides the sweep block (the anatomy prediction is falsifiable in the field)', async () => {
+  // The gate's anatomy says a standing bot ALWAYS reads air 0 (gotoSafe only
+  // ends on standable cells) - if the field confirms 'sealed floor', the next
+  // cure re-targets the dig; if the refusal lines never print at all, the
+  // below-family convergences starve the block itself. Either way the run
+  // must carry the instrument: the else-branch, the refusal import, the
+  // capped counter (the dead-wire class is only catchable at the call site).
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes('lipDigRefusal'), 'the refusal instrument is imported and called')
+  assert.ok(/lip dig refused - \$\{why\}/.test(minerSrc), 'the refusal line rides the log (the class name is the decode vocabulary)')
+  assert.ok(/let lipRefusals = 0/.test(minerSrc) && /lipRefusals <= 2/.test(minerSrc),
+    'the refusal counter is capped at 2 per sweep (the fail-line cap shape)')
+  assert.ok(minerSrc.includes('const lipParams = { range, airBelow, fluidBelow: strike !== null, dy: dyLip }'),
+    'the gate and the mirror read the SAME measured params (one read, two verdicts)')
 })
