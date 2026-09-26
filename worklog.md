@@ -5046,3 +5046,21 @@ Work Log:
 
 Stage Summary:
 - Master 393714b (pkg 0.210.0). Next free 0.211.0. NEXT FIRE: verify CI 36233342600; mine the new dispatch; fronts: the end-phase hang, the relog spiral, the surface wiring (0.211.0 for the lane).
+
+---
+Task ID: cron30-20260926-1739
+Agent: Super Z (cron lane, Job 398294)
+Task: the surface wiring (open front #1 - the v0.208.0 pure ladder meets the field), then close.
+
+Work Log:
+- Repo alive; master 393714b pulled (the 17:00 lane's v0.210.0 THE DRAGON KIND + the 17:30 lane's closing fd50c98 mid-fire - rebased clean; no collisions, 0.211.0 was free). CI: no red runs; the group carried the 17:30 lane's in-progress/pending chain on 393714b/fd50c98 - their pending dispatch superseded by my push per the newest-pending law (the documented shape; my closing dispatch covers the union).
+- v0.211.0 THE SURFACE WIRING shipped (bc331ee): the reloot ladder's third leg wired inside the wide retry's own catch e2, exactly per the 15:39 lane's recipe. The runner reads the death column bottom-up from the plan goal (bot.blockAt on new Vec3, i capped 0..RELOOT_SURFACE_RISE_MAX, {y, name} pairs, an unreadable block reads null; a junk world read refuses no-surface - terminal) -> relootSurfaceY names the first air above the fluid -> relootSurfaceRetry({message: e2?.message, retries: 1, surfaceY, spot, deathAt, now, botPos}) prices the surface walk with the SAME plan arithmetic -> ONE gotoSafe (rs.goal/range/budget, label 'reloot surface', doomedRearm: true). The gate fires ONLY when the wide retry also died of GEOMETRY (a 'timeout after Nms' budget death refuses honestly - the sphere was converging). The honest classes: 'reloot: surface retry at [x,y,z] (budget Ns)' / 'reloot: surface arrived in Ns - N item stack(s) within R' (the read rides the PLAN range per the recipe) / 'reloot: surface failed (msg)' / the legacy retry-failure prefix verbatim + the conditional ' (no surface: why)' suffix (not-no-path stays clean, the house's v0.207.0 conditional shape). decompose: refused-surfaces count + surface whys histogram join the pre-counted three.
+- The gotoSafe timeout-message audit (the wiring's correctness hinge): the budget timeout throws '<label>: timeout after Nms' (jobqueue's withTimeout) which does NOT match NO_PATH_VERDICT_RE - the pathfinder's own 'No path'/'Took to long' verdicts do. The class separation the v0.207.0 doctrine claims holds BY CONSTRUCTION at the new leg.
+- The F17 COUNTERFACTUAL, sharpened: run55's shape (walk -> No path -> wide retry -> No path) under this tree reads the [-117,42..] column straight up: water to the waterline, air above within the 32 rise -> surfaceY lands on the pit's surface cell -> the surface walk ARMS. Whether the pathfinder can walk the rim and whether the magnet takes the floating stacks is the field's verdict.
+- Tests: the import pin moved with the wiring (the v0.207.0 precedent), 6 wiring pins (the ladder order inside the e2 catch, the capped junk-safe column read, every call scalar, the doomedRearm walk verbatim, the honest terminal classes, the filter regex over 4 new lines). Local: syntax 199/0, unit 88/88.
+- Pushed bc331ee; the push-CI in flight at worklog time.
+
+Stage Summary:
+- Master bc331ee (pkg 0.211.0 THE SURFACE WIRING). Next free = 0.212.0.
+- WATCH LIST (the surface's field debut): the first 'reloot: surface retry at' arm; stacks > 0 at 'surface arrived' = THE DEATH ECONOMY'S FIRST RECOVERED DROPS EVER; 'no-surface' n and the whys histogram (the land-death class stays terminal - correct; a sealed-cap volume reads the rim-dig front); whether the surface walk itself pathfinds (the rim may need the jump class); the wide-retry budget arithmetic on a second sample; lipDig 'sealed floor' volume vs the step-down candidate; banked 1202 -> ?.
+- OPEN FRONTS: (1) the surface field validation (this dispatch); (2) the above-family goal shape (the jump class - the v0.182.0 clock doctrine holds); (3) the lip step-down candidate; (4) the bank crash front (38 trips -> 72 banked, the plan->delivery gap); (5) the dusk knife edge; (6) coal ARRIVAL root.
