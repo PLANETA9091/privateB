@@ -32,7 +32,7 @@ import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPla
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -586,8 +586,12 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         const swept = await sweepFinishedSmelts(miner.bot, { maxSeconds: sweepSecs, maxDistance: 48, log: m => console.log(m) })
         if (swept.collected > 0) {
           smelted += swept.collected // the harvest completes the fired batch - NOW it counts
-          console.log(`${miner.username} sweep: collected ${swept.collected} (${Object.entries(swept.outputs).map(([k, v]) => `${k}:${v}`).join(' ')})`)
         }
+        // (v0.197.0) THE CENSUS PRINTS ALWAYS - run82's blind spot #3: the
+        // collected-only print buried every per-machine verdict (busy x2,
+        // unreachable x1 - zero 'sweep:' rows for the whole run). The census
+        // line keeps the v0.139.0 harvest shape byte for byte.
+        console.log(sweepCensusLine(swept, { username: miner.username }))
       }
     } catch (e) {
       console.log(`${miner.username} smelting failed (kept alive): ${e.message}`)

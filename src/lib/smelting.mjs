@@ -1226,5 +1226,43 @@ export async function sweepFinishedSmelts (bot, {
       try { furnace.close?.() } catch { /* already closed */ }
     }
   }
-  return { collected, outputs, attempts }
+  return { collected, outputs, attempts, machines: machines.length }
+}
+
+/**
+ * (v0.197.0) THE SWEEP CENSUS LINE - run82 (36201371882) measured blind spot #3:
+ * the sweep's per-machine verdicts NEVER reached the artifact - the caller
+ * printed only the collected>0 shape, so a sweep that found 'busy' furnaces,
+ * unreachable machines or nothing at all was byte-silent (zero 'sweep:' rows
+ * in fleet19.log for the whole run - the census was unanswerable). The census
+ * line names ALL FOUR outcomes: the harvest keeps the v0.139.0 result shape
+ * byte for byte ('sweep: collected N (item:k ...)' - the decode greps and the
+ * run-history comparability stay valid), a zero-harvest with named attempts
+ * rides a reason histogram ('sweep: 0 collected - busy x2, machine unreachable
+ * x1' - count desc, then name asc, so the greps are stable), machines that
+ * read entirely idle-empty carry their count ('N idle-empty machine(s)'), and
+ * a machine-less sweep says so outright ('no machines in reach'). Pure:
+ * junk/missing reads the honest no-machines shape - a census line never
+ * throws, never lies about a shape it cannot read.
+ */
+export function sweepCensusLine (swept, { username = '' } = {}) {
+  const { collected = 0, outputs = {}, attempts = [], machines = 0 } = swept ?? {}
+  const who = username ? `${username} ` : ''
+  if (collected > 0) {
+    return `${who}sweep: collected ${collected} (${Object.entries(outputs).map(([k, v]) => `${k}:${v}`).join(' ')})`
+  }
+  const tally = new Map()
+  for (const a of attempts) {
+    const reason = a && a.reason ? String(a.reason) : 'unknown'
+    tally.set(reason, (tally.get(reason) ?? 0) + 1)
+  }
+  if (tally.size > 0) {
+    const hist = [...tally.entries()]
+      .sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
+      .map(([reason, n]) => `${reason} x${n}`)
+      .join(', ')
+    return `${who}sweep: 0 collected - ${hist}`
+  }
+  if (machines > 0) return `${who}sweep: 0 collected (${machines} idle-empty machine${machines === 1 ? '' : 's'})`
+  return `${who}sweep: 0 collected (no machines in reach)`
 }

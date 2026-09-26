@@ -15,6 +15,7 @@ import {
   SMELT_OUTPUT, machineFor, machineChainFor, fuelYieldOf, fuelNeeded,
   pickFuel, smeltablesIn, findMachineBlocks, smeltBatch, smeltInventory,
   sweepFinishedSmelts,
+  sweepCensusLine,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
@@ -1522,10 +1523,13 @@ test('sweepFinishedSmelts: a spent deadline sweeps nothing and never throws; dea
 test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /sweepFinishedSmelts\(miner\.bot/, 'the sweep rides the smelt leg\'s leftover slice')
-  assert.match(fleetSrc, /sweep: collected/, 'the sweep\'s harvest is named in the leg\'s own line')
+  // (v0.197.0) the harvest line's template moved into sweepCensusLine (the
+  // census prints ALWAYS now); the fleet source must consult the formatter.
+  assert.match(fleetSrc, /sweepCensusLine\(swept/, 'the sweep\'s verdict is named in the leg\'s own line - every outcome, not only a harvest')
   assert.match(fleetSrc, /smelted \+= swept\.collected/, 'the collector\'s ledger completes the fired batch (the honest ledger)')
   const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
   assert.match(src, /export async function sweepFinishedSmelts/, 'the sweep is a named export')
+  assert.match(src, /sweep: collected \$\{collected\}/, 'the harvest keeps the v0.139.0 result shape byte for byte (the census line carries it)')
   assert.match(src, /if \(!furnace\.inputItem\(\) && furnace\.fuelItem\(\)\)/, 'the leftover-fuel pull is input-guarded (a burning batch keeps its fuel)')
 })
 
@@ -1653,4 +1657,70 @@ test('smeltBatch: the RAW-walk abort shape never nudges - the colon-anchored cla
   assert.equal(res.smelted, 0)
   assert.match(res.reason, /machine unreachable.*raw walk timeout/)
   assert.ok(!lines.some(l => /walk nudge/.test(l)), 'NO nudge for the raw-hop abort - deposit.mjs: the raw walk\'s own verdict matches NEITHER retry class')
+})
+
+// ---- (v0.197.0) THE SWEEP CENSUS LINE ----
+// run82 (36201371882) measured blind spot #3: the sweep printed ONLY the
+// collected>0 shape, so every per-machine verdict (busy, unreachable, cannot
+// open) and every machine-less sweep died in the attempts array - zero
+// 'sweep:' rows in fleet19.log for the whole run, the census unanswerable.
+// The census line names all four outcomes; these pins keep the harvest shape
+// byte for byte and the histograms stable (count desc, then name asc).
+
+test('sweepCensusLine: the harvest keeps the v0.139.0 result shape byte for byte', () => {
+  assert.equal(
+    sweepCensusLine({ collected: 3, outputs: { copper_ingot: 3 }, attempts: [], machines: 2 }, { username: 'F8' }),
+    'F8 sweep: collected 3 (copper_ingot:3)',
+    'the decode greps and the run-history comparability stay valid'
+  )
+  assert.equal(
+    sweepCensusLine({ collected: 5, outputs: { copper_ingot: 3, stone: 2 }, attempts: [], machines: 4 }, { username: 'F15' }),
+    'F15 sweep: collected 5 (copper_ingot:3 stone:2)'
+  )
+})
+
+test('sweepCensusLine: the attempts histogram - count desc, name asc, every verdict named', () => {
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [{ machine: 'furnace', reason: 'busy' }, { machine: 'furnace', reason: 'busy' }, { machine: 'furnace', reason: 'machine unreachable (timeout)' }] }, { username: 'F8' }),
+    'F8 sweep: 0 collected - busy x2, machine unreachable (timeout) x1'
+  )
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [{ machine: 'furnace', reason: 'cannot open (x)' }, { machine: 'blast_furnace', reason: 'busy' }] }, { username: 'F6' }),
+    'F6 sweep: 0 collected - busy x1, cannot open (x) x1',
+    'a tie sorts by name asc - the greps stay stable'
+  )
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [{ machine: 'furnace' }, { machine: 'furnace', reason: '' }] }, { username: 'F5' }),
+    'F5 sweep: 0 collected - unknown x2',
+    'junk attempts read unknown, never throw'
+  )
+})
+
+test('sweepCensusLine: the quiet shapes - idle-empty machines and the machine-less sweep', () => {
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [], machines: 3 }, { username: 'F10' }),
+    'F10 sweep: 0 collected (3 idle-empty machines)'
+  )
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [], machines: 1 }, { username: 'F4' }),
+    'F4 sweep: 0 collected (1 idle-empty machine)'
+  )
+  assert.equal(
+    sweepCensusLine({ collected: 0, outputs: {}, attempts: [], machines: 0 }, { username: 'F19' }),
+    'F19 sweep: 0 collected (no machines in reach)'
+  )
+  assert.equal(sweepCensusLine(), 'sweep: 0 collected (no machines in reach)', 'the bare call is the junk-safe shape')
+  assert.equal(sweepCensusLine(null), 'sweep: 0 collected (no machines in reach)', 'a null read never throws')
+})
+
+test('the census wiring: sweepFinishedSmelts counts the machines, the caller prints always', async () => {
+  const near = new MockFurnace({ position: new Vec3(12.5, 64, 0.5) })
+  const bot = makeMockBot({ machines: [near], items: [] })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5 })
+  assert.equal(res.machines, 1, 'the return carries the machine count (the idle-empty shape\'s evidence)')
+  assert.equal(res.collected, 0)
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('sweepCensusLine(swept, { username: miner.username })'), 'the census line prints ALWAYS, not only on a harvest')
+  assert.ok(src.includes("sweepFinishedSmelts, sweepCensusLine, pickFuel"), 'the formatter rides the smelting import')
+  assert.ok(!src.includes("swept.collected} (${Object.entries"), 'NO collected-only sweep template may survive the wiring')
 })
