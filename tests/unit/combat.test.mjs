@@ -13,7 +13,7 @@ import {
   fleeStalemate, fleeResponse, kiteHopTarget,
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
-  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP,
+  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP, OPEN_FIELD_FLEE_HP,
   meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
   foughtEntityGone, driftReturnPlan, DRIFT_RETURN_TICKS, DRIFT_RETURN_DIST, DRIFT_RETURN_WINDOWS,
   FIGHT_DEADLINE_MS, MELEE_REACH,
@@ -674,4 +674,64 @@ test('REGRESSION PIN: the fight loop wires the drift re-engage (v0.174.0)', asyn
   assert.ok(/driftWindows = 0 \/\/ \(v0\.174\.0\) a fresh swing means the mob came back into reach/.test(minerSrc),
     'every swing resets the drift ledger (a swing means the mob was in reach again)')
   assert.ok(/exit = 'verdict ignore'/.test(minerSrc), 'the exhausted-drift end keeps the legacy exit name')
+})
+
+// ---- (v0.212.0) THE OPEN-FIELD YIELD LINE - run60's killing sequence ----
+// 8 of 11 deaths were surface mob kills at dusk/night around the base: the
+// shelter scan names the terrain ('shelter skip (open field: no diggable
+// wall)' / 'ring not buildable'), and the bot STANDS TO TRADE at hp 12.5
+// (the land line 8 cannot see the terrain) until the flip at 6.5 - with the
+// zombie at 0.5. The lens reads the shelter scan's verdict: dark + open
+// field lifts the yield line to 14, the flee fires at the FIRST verdict.
+
+test('threatVerdict: the open-field yield line (the v0.212.0 run60 cure)', () => {
+  // THE run60 F11 SHAPE, CURED: hp 12.5, dark, open field -> flee at the
+  // first verdict (the legacy read stood to trade and died at 6.5)
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true, sheltered: false }), 'flee',
+    'the run60 killing sequence yields at the first verdict (12.5 < 14, dark, no shelter possible)')
+  // the legacy shape is byte for byte: no sheltered read -> sheltered
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true }), 'fight',
+    'the legacy call (no sheltered arg) keeps the fight answer (never lift on a guess)')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true, sheltered: true }), 'fight',
+    'an explicit sheltered read is the legacy shape')
+  // junk-safe: anything but literal false reads sheltered (the water fence mirrored)
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true, sheltered: 'open' }), 'fight', 'a junk string reads sheltered')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true, sheltered: 0 }), 'fight', 'a falsy number is not a verdict (only literal false lifts)')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: true, armed: true, sheltered: null }), 'fight')
+  // the fence edges: strictly below yields, exactly at fights
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 14.0, dark: true, armed: true, sheltered: false }), 'fight', 'exactly at the line: still fight')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 13.9, dark: true, armed: true, sheltered: false }), 'flee', 'one tick below the line yields')
+  // the dark gate: daylight wounds can regen from food, the shelter read is night-informed
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 12.5, dark: false, armed: true, sheltered: false }), 'fight', 'the lens needs the dark (isDarkHere reads night AND caves)')
+  // the land line still outranks everything under 8
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.6, hp: 7.9, dark: true, armed: true, sheltered: false }), 'flee', 'under the land line the verdict flees regardless')
+  // the earlier lanes keep their own answers (the open lens never overrides them)
+  assert.equal(threatVerdict({ name: 'creeper', dist: 2.0, hp: 18, dark: true, armed: true, sheltered: false }), 'flee', 'the creeper lane keeps its range answer')
+  assert.equal(threatVerdict({ name: 'spider', dist: 3.0, hp: 12.5, dark: false, armed: true, sheltered: false }), 'ignore', 'the daylight spider stays a bystander (the spider lane runs first)')
+  assert.equal(threatVerdict({ name: 'zombie', dist: 20.0, hp: 12.5, dark: true, armed: true, sheltered: false }), 'ignore', 'beyond the engage range the verdict still ignores (no panic at range)')
+  // the water lens and the open lens stack (independent lifts, the higher one wins by firing first)
+  assert.equal(threatVerdict({ name: 'zombie', dist: 2.0, hp: 13.0, dark: true, armed: true, inWater: true, sheltered: false }), 'flee', 'in water at 13: the water line (12) misses, the open line (14) catches')
+  // the margin story: two extra zombie hits over the land line
+  assert.equal(OPEN_FIELD_FLEE_HP - FLEE_HP, 6, 'the open-field margin covers the measured F11 drain (12.5 -> dead) with run room')
+  assert.equal(OPEN_FIELD_FLEE_HP - WATER_FLEE_HP, 2, 'the open field costs one more hit than the water (no sprint, no seal, more spawns)')
+})
+
+test('REGRESSION PIN: the fight loop wires the open-field lens (the v0.212.0 lanes)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // BOTH verdict sites read the terrain lens (the run195 dead-wire class: a
+  // lens wired at one site only re-opens the drain through the other). The
+  // count pattern rides the call shape (inWater -> sheltered), not the bare
+  // phrase - the flag's own doc comment mentions the lens by name too.
+  const sites = (minerSrc.match(/inWater: inWaterHere\(\), sheltered: !openFieldNight/g) || []).length
+  assert.ok(sites === 2, `both threatVerdict call sites carry the sheltered lens (found ${sites})`)
+  // the flag exists with the honest lifecycle
+  assert.ok(/let openFieldNight = false/.test(minerSrc), 'the flag starts sheltered (the legacy verdicts until a scan proves the terrain)')
+  assert.ok(/openFieldNight = false/.test(minerSrc), 'every terrain scan re-derives the flag (a stale open read never outlives its scan)')
+  // the set site rides the open-field verdict line (the scan's named result)
+  const setSite = minerSrc.match(/const threatStill = nearestHostile\(\)[\s\S]{0,600}?openFieldNight = true/)
+  assert.ok(setSite, 'the wall scan\'s empty result writes the flag (open field: no diggable wall)')
+  // the yield markers: the decode counts which flees came from the lifted line
+  assert.ok(/open-field yield vs/.test(minerSrc), 'the flee names its lens for the run decode (the marker rides beside the legacy lines, never instead)')
+  assert.ok(/OPEN_FIELD_FLEE_HP/.test(minerSrc), 'the line value rides the import (never hardcoded in the marker)')
 })

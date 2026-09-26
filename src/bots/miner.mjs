@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -618,6 +618,15 @@ export function createMiner ({
       }
     }
     log(`${tag} combat: shelter try vs ${threat.name} (dist ${threat.dist.toFixed(1)}, ${reason})`)
+    // (v0.212.0) THE OPEN-FIELD FLAG: every ACTUAL terrain scan re-derives
+    // the verdict from scratch - assumed sheltered until the scan proves
+    // otherwise (the wall loop below), so a stale open-field read from a
+    // previous episode can never outlive its scan. The shelterDue refusal
+    // path returns ABOVE this line: no scan ran, the flag keeps its value,
+    // and the lens only matters at hp < OPEN_FIELD_FLEE_HP where the
+    // shelter policy (the v0.47.0 losing-fight law) sends the scan out
+    // anyway.
+    openFieldNight = false
     const sealCell = bot.entity.position.floored() // the cell we seal behind us
     // variant 1: horizontal WALL dig-in (hillside)
     for (const d of [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)]) {
@@ -672,6 +681,13 @@ export function createMiner ({
     // loop found no diggable wall and the flee just took over. The open
     // field now names its verdict and tries variant 3: the RING.
     const threatStill = nearestHostile()
+    // (v0.212.0) THE OPEN-FIELD VERDICT, WRITTEN: the wall scan completed
+    // with nothing diggable - the terrain cannot shelter the bot. The ring
+    // below is the last resort; until it SEALS, the bot stands in the open
+    // and the threatVerdict calls (both sites) read sheltered: false - the
+    // yield line lifts to OPEN_FIELD_FLEE_HP in the dark (the run60 killing
+    // sequence: the trade the bot cannot win it should not stand for).
+    openFieldNight = true
     log(`${tag} combat: shelter skip (open field: no diggable wall, ${threatStill ? `${threatStill.name}@${threatStill.dist.toFixed(1)}` : 'threat gone'})`)
     try { return await tryRingShelter(reason) } catch (e) {
       log(`${tag} combat: shelter skip (open field: ring failed: ${e.message})`)
@@ -919,6 +935,13 @@ export function createMiner ({
   // the kite. Cleared on a genuine escape (threat gone, or dist > 20 after
   // an episode) - the breaker never latches on a chase that was won.
   const fleeStartDists = []
+  // (v0.212.0) THE OPEN-FIELD FLAG: the miner's OWN terrain verdict, written
+  // by tryShelter's scan (cleared at the scan start, set when the wall loop
+  // finds nothing diggable) and read by both threatVerdict call sites as
+  // sheltered: !openFieldNight. Junk-safe by construction: the flag starts
+  // sheltered (the legacy verdicts), only an actual open-field scan result
+  // lifts the yield line, and every new scan re-derives it.
+  let openFieldNight = false
   // (v0.140.0) THE RANGED-FIGHT COOLDOWN ledger: mob entity id -> the
   // wall-clock until-timestamp the mob's fight lane stays closed. Armed ONLY
   // by a chase-ceiling break vs a non-witch ranged threat (the skeleton
@@ -961,7 +984,7 @@ export function createMiner ({
       return { action: 'none' }
     }
     const armed = !!pickWeapon(inventoryItems(bot))
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), cooldown: rangedCdLive(threat.entity?.id) })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -979,6 +1002,11 @@ export function createMiner ({
         // bought ZERO blocks for the whole run)
         const response = fleeResponse({ startDists: fleeStartDists })
         log(`${tag} combat: fleeing ${threat.name} (dist ${threat.dist.toFixed(1)}, hp ${(bot.health ?? 20).toFixed(1)}, ${countHostiles()} nearby, ${reason}${response === 'kite' ? ', kite' : ''})`)
+        // (v0.212.0) THE YIELD MARKER: the decode must see WHICH flee came
+        // from the lifted line - the open field's flees are the cure's
+        // volume (the legacy flees print the line above verbatim; this
+        // marker rides beside it, never instead of it).
+        if (openFieldNight) log(`${tag} combat: open-field yield vs ${threat.name} (hp ${(bot.health ?? 20).toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
         await runAway(threat, reason, { kite: response === 'kite' })
         await recover()
         // a genuine escape clears the ledger; a stuck chase keeps it armed
@@ -1053,9 +1081,12 @@ export function createMiner ({
         if (cur.entity && Number.isFinite(cur.entity.id)) lastTargetId = cur.entity.id
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), cooldown: rangedCdLive(cur.entity?.id) })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
+          // (v0.212.0) the re-verdict's own yield marker (the flip site is
+          // where the legacy drain showed - the decode counts both)
+          if (openFieldNight) log(`${tag} combat: open-field yield vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()

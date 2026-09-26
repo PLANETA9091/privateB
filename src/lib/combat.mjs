@@ -545,6 +545,21 @@ export function rangedCooldownLive ({ now = 0, until = null } = {}) {
 // ~2 rounds, so the flee fires with ~6 hp of margin instead of none).
 export const WATER_FLEE_HP = 12
 
+// (v0.212.0) THE OPEN-FIELD YIELD LINE - the dark twin of the water lens.
+// MEASURED (run60, fleet 36233514360, the v0.210.0 tree's field day): 8 of
+// 11 deaths were surface mob kills at dusk/night around the base, and the
+// killing sequence repeats: 'shelter skip (open field: no diggable wall)' /
+// 'ring not buildable' -> the bot STANDS TO TRADE at hp 12.5 (the land line
+// 8 cannot see the terrain) -> the verdict flips to flee at 6.5 -> the
+// zombie is at 0.5 and the flee buys nothing. In the open field the trade
+// costs more: no wall to seal behind, the ring refused, more spawns in the
+// dark, and the safety is the YARD - a walk away, not a round away. When
+// the shelter scan has proven the terrain cannot shelter (the miner's
+// open-field flag rides the call as sheltered: false) and it is dark, the
+// yield line lifts to 14: the flee fires at the FIRST verdict with two
+// extra zombie hits of run margin, instead of after the drain.
+export const OPEN_FIELD_FLEE_HP = 14
+
 /**
  * Fight, flee, or ignore? The single decision the mechanics layer executes.
  * @param {object} p
@@ -571,6 +586,14 @@ export const WATER_FLEE_HP = 12
  *   because the land flee line never fired in time. In water the yield line
  *   lifts to WATER_FLEE_HP - junk-safe: anything but literal true reads dry
  *   (the legacy shape byte for byte).
+ * @param {boolean} [p.sheltered=true] (v0.212.0) could the shelter scan
+ *   actually shelter the bot HERE? The miner's tryShelter writes its terrain
+ *   verdict into the flag: the wall loop found nothing diggable AND the ring
+ *   is the last resort = open field. Dark + open field lifts the yield line
+ *   to OPEN_FIELD_FLEE_HP (the run60 killing sequence: the trade the bot
+ *   cannot win it should not stand for). Junk-safe: anything but literal
+ *   false reads sheltered - the legacy verdicts byte for byte, and a bot
+ *   whose terrain is unreadable keeps the historical fight answer.
  * @param {boolean} [p.cooldown=false] is the RANGED-FIGHT COOLDOWN live for
  *   this mob? (v0.140.0) run554's skeleton cascade: every chase-ceiling break
  *   was re-opened by the next arrow, and the reopen walked the bot back into
@@ -582,7 +605,7 @@ export const WATER_FLEE_HP = 12
  *   is still a fight).
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false, cooldown = false } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
@@ -597,8 +620,18 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   // (v0.137.0) THE WATER-MELEE YIELD LINE: in water the same bar yields
   // earlier (the F11 lesson - the land line fired four rounds too late)
   if (inWater === true && seen < WATER_FLEE_HP) return 'flee'
-  if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
+  // (v0.212.0) THE OPEN-FIELD YIELD LINE: in the dark with the shelter
+  // scan's open-field verdict live, the same bar yields earlier still (the
+  // run60 lesson - the bot stood to trade at 12.5 because the land line
+  // could not see the terrain; the flee fired at 6.5 with the zombie at
+  // 0.5). The WATER lens reads the ground the bot stands on; this lens
+  // reads the walls the bot could hide behind - both are 'the trade costs
+  // more here' lifts, and both junk-read to the legacy shape. GATED TO THE
+  // ENGAGE BAND: a threat outside the band is still 'ignore' (the legacy
+  // answer - no panic at range; the sentry re-evaluates as it closes).
+  if (dark === true && sheltered === false && seen < OPEN_FIELD_FLEE_HP && dist <= engage) return 'flee'
+  if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   // (v0.140.0) THE RANGED COOLDOWN: a mob inside its window is never chased -
   // the verdict yields 'flee' where it used to re-open the fight. Only the
   // RANGED classes consult it (the melee band keeps its sword answer), and
