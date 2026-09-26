@@ -29,6 +29,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
+import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
@@ -269,6 +270,16 @@ export function createMiner ({
     }
     log(`${tag} died - respawning (cause: ${cause})`)
     stats.deaths = (stats.deaths ?? 0) + 1
+    // (v0.199.0) THE DEATH-DROP SNAPSHOT: run84 (fleet 36207216784) measured
+    // unaccounted=1479 with the fleet pocket falling 2453u -> 1509u across the
+    // 6-death window - a death scatters the pocket, the death-spot memory
+    // steers every bot away from the corpse, the stack despawns unattributed.
+    // One read WHILE the inventory still lists, riding the 'death drop' filter
+    // key. Guarded: the snapshot must never break the respawn path.
+    try {
+      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
+      if (drop) log(drop)
+    } catch { /* the drop snapshot must never break a respawn */ }
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
     // clustered in one flooded quarry - and every dead bot left NO memory
     // behind, so the next bot walked the same rim into the same pit. The

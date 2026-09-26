@@ -107,3 +107,44 @@ export function sentryAttributionRow (bots = []) {
   if (!named.length) return `sentry per-bot: all ${silent} g0/r0`
   return `sentry per-bot: ${named.join(' ')} | ${silent} g0/r0`
 }
+
+/**
+ * (v0.199.0) THE DEATH-DROP LINE - run84 (fleet 36207216784) named the class:
+ * mined=3027 but conversion=51.1% with unaccounted=1479, and the fleet pocket
+ * curve FELL 2453u -> 1509u exactly across the 6-death window (t-208s -> t-0s).
+ * A death scatters the bot's whole pocket on the ground, the death-spot memory
+ * (v0.84.0) then steers every bot AWAY from the corpse, and the dropped stack
+ * despawns - a silent, unattributed loot loss the ledger can only render as
+ * 'unaccounted'. The line names the loss AT the death event, one snapshot
+ * while the inventory still reads, riding its own 'death drop' filter key
+ * (the v0.176.0 law: the instrument's prefix is the key).
+ *
+ * SHAPES (the four-canonical-forms house law):
+ *   loss      'F3 death drop: ~312u lost at [-66,59,399] (dirt 120, stone 88, ...)'
+ *   empty     'F3 death drop: pocket read empty at death (0u)'
+ *   junk-pos  the same line without the 'at' segment (the legacy-safe form)
+ *   unreadable null - the caller prints nothing (the death line alone speaks;
+ *             the handler's try/catch owns this branch, a death must never throw)
+ *
+ * JUNK-SAFE: a non-array items read renders null; junk entries (missing name,
+ * NaN/negative count) are filtered before the sum; the top list caps at 5
+ * names with a '+N more' tail; fractions floor. Pure: reads, never mutates
+ * the caller's arrays or the inventory.
+ */
+export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
+  if (!Array.isArray(items)) return null
+  const named = items
+    .filter(it => it && typeof it.name === 'string' && Number.isFinite(it.count) && it.count > 0)
+    .map(it => ({ name: it.name, count: Math.floor(it.count) }))
+  const total = named.reduce((s, it) => s + it.count, 0)
+  const p = pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z) ? pos : null
+  const at = p ? ` at [${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}]` : ''
+  if (!total) return `${tag} death drop: pocket read empty at death (0u)`
+  const top = named
+    .sort((a, b) => (b.count - a.count) || (a.name < b.name ? -1 : 1))
+    .slice(0, 5)
+    .map(it => `${it.name} ${it.count}`)
+    .join(', ')
+  const more = named.length > 5 ? `, +${named.length - 5} more` : ''
+  return `${tag} death drop: ~${total}u lost${at} (${top}${more})`
+}

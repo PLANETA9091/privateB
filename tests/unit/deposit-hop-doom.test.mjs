@@ -38,8 +38,9 @@ test('v0.188.0 wiring: the fleet filter-key lets the chest skip lines surface', 
   // run47 measured the blind spot: ZERO 'chest skip' lines in fleet19.log -
   // the v0.62/v0.65/v0.72 ledger skips were invisible to every decode. The
   // v0.188.0 line joins the filter regex so the doom class AND the three
-  // ledger families become countable.
-  assert.match(fleetSrc, /combat\|died\|KICKED\|error\|climb\|water\|scan:\|hop\|chest skip\|/, 'chest skip rides the fleet filter-key regex')
+  // ledger families become countable. (v0.199.0) 'death drop' joins between
+  // died and KICKED - the pin carries it.
+  assert.match(fleetSrc, /combat\|died\|(death drop\|)?KICKED\|error\|climb\|water\|scan:\|hop\|chest skip\|/, 'chest skip rides the fleet filter-key regex')
 })
 
 test('v0.188.0 the F19 chain arithmetic: the run47 hop anatomy dooms, the hillside and the walkable band stay legacy', () => {
