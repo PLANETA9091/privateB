@@ -42,6 +42,20 @@ const KINDS = [
   // and a mob kill left the death map (mob pressure undercounted, again).
   { re: /\bwas doomed to fall by (\w+)\b/, kind: 'mob', group: 1 },
   { re: /\bwas killed by (?:an?\s+)?(?:magic|trying to hurt)\b/, kind: 'other' },
+  // (v0.210.0) THE DRAGON KIND: run30 (fleet 36229765630) mined the first
+  // death the cause-module had no tier for - the testbed world carries an
+  // UNKILLED legacy dragon (the server console scans for it at boot: 'the
+  // dragon has not yet been killed in this world'), and F6 died to it
+  // through the vanilla indirectMagic template: 'F6 was killed by Ender
+  // Dragon using magic'. The verbatim-magic rule above needs 'by magic'
+  // directly and misses; the generic mob family DOES match but its
+  // single-word \w+ TRUNCATES the two-word proper name - the death map
+  // bucketed a phantom 'mob by Ender' attacker. This rule names the whole
+  // one-or-two-word CAPITALIZED name between 'by' and 'using magic': the
+  // server verdict stays the authority, the death map gains the real
+  // killer. The lowercase 'magic' of the verbatim form never matches here
+  // (the [A-Z] gate keeps it in the honest-'other' bucket).
+  { re: /\bwas killed by ((?:[A-Z]\w+\s+)?[A-Z]\w+) using magic\b/, kind: 'mob', group: 1 },
   { re: /\bstarved to death\b/, kind: 'starve' },
   { re: /\bfroze to death\b/, kind: 'freeze' },
   { re: /\bwent out with a splash\b|\bexperienced kinetic energy\b/, kind: 'other' },

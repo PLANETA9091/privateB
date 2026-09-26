@@ -105,6 +105,31 @@ test('parseDeathMessage: the assisted-fall kill keeps its killer (the run550 F7 
   assert.equal(z.attacker, 'Zombie')
 })
 
+// (v0.210.0) THE DRAGON KIND - run30 (fleet 36229765630) mined the first
+// death the cause-module had no tier for: the testbed world carries an
+// unkilled legacy dragon and F6 died to its magic through the vanilla
+// indirectMagic template. The old parse bucketed a phantom attacker ('mob
+// by Ender' - the generic single-word \w+ truncated the two-word name).
+// These pins freeze the real killer's name and the honest-other boundary.
+test('parseDeathMessage: the dragon kind names the whole killer (the run30 F6 pin)', () => {
+  const f6 = parseDeathMessage('F6 was killed by Ender Dragon using magic', 'F6')
+  assert.equal(f6.kind, 'mob', 'the dragon kill is a mob kill, not an honest other')
+  assert.equal(f6.attacker, 'Ender Dragon', 'the TWO-WORD killer survives the parse (run30 measured the phantom Ender)')
+  assert.equal(f6.verb, 'was killed by Ender Dragon using magic')
+  // the one-word capitalized form rides the same rule
+  const w = parseDeathMessage('F9 was killed by Wither using magic', 'F9')
+  assert.equal(w.kind, 'mob')
+  assert.equal(w.attacker, 'Wither', 'the one-word proper name is not broken by the optional pair')
+  // the verbatim lowercase 'magic' form stays honest-other (the [A-Z] gate)
+  const m = parseDeathMessage('F4 was killed by magic', 'F4')
+  assert.equal(m.kind, 'other', 'the verbatim magic form never becomes a mob')
+  assert.equal(m.attacker, null)
+  // the generic single-word mob family is untouched (no using-magic suffix)
+  const s = parseDeathMessage('F4 was slain by Drowned', 'F4')
+  assert.equal(s.kind, 'mob')
+  assert.equal(s.attacker, 'Drowned')
+})
+
 // (v0.136.0) THE INFERENCE VERDICT - the annotation lie gets a NAMED verdict
 // in the line. Four mines (run530 -> run550) re-adjudicated the same shape by
 // hand; the matrix below pins every relationship the line can now name.
