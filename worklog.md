@@ -5109,3 +5109,20 @@ Work Log:
 
 Stage Summary:
 - Every commit on master now reads author=PLANETA9091 <247359227+PLANETA9091@users.noreply.github.com>, committer=same. The identity law rides the cron description (future lanes) and the repo config (this sandbox).
+
+---
+Task ID: cron30-20260926-1837
+Agent: Super Z (cron lane, Job 415967)
+Task: the identity law's first lane (point 0 verified), the mob-front cure from run60's decode, the surface-debut poll.
+
+Work Log:
+- IDENTITY (point 0): git config set local+global to PLANETA9091 / 247359227+PLANETA9091@users.noreply.github.com before any work; verified the tree - the 18:30 lane's full-history rewrite holds (all 648 commits carry the owner's face; my pre-rewrite SHAs are orphans, the content lives on 7df31f6/529075f). Every commit this lane rides the owner.
+- CI state: no red runs; the surface debut dispatch 36236379977 (the 18:30 lane's closing action, re-queued on 7dd2bb1 after the rewrite orphaned my 36236100842 - the concurrency law's documented shape) was in flight all fire.
+- Mined run60 (36233514360) independently for the mob front. THE KILLING SEQUENCE decoded: 'shelter skip (open field: no diggable wall)' / 'ring not buildable' -> the armed bot STANDS TO TRADE at hp 12.5 (the land FLEE_HP 8 cannot see the terrain) -> the verdict flips to flee at 6.5 -> the zombie is at 0.5 and the flee buys nothing. F5/F7 died on the SAME skeleton cell [-138/139,62,445/446] (the exact-repeat class); F7 lost ~360u (the death economy's biggest single bleed). The torch chain starves (craft torches skip: no coal x4, placement dry) - the coal front feeds the dark-base spawn volume.
+- v0.212.0 THE OPEN-FIELD YIELD LINE shipped (fb0d971): threatVerdict's sheltered lens (the v0.137.0 water lens's dark twin) - dark + sheltered:false + seen < OPEN_FIELD_FLEE_HP 14 + dist <= engage -> 'flee' at the FIRST verdict; the engage-band gate keeps the legacy 'ignore' at range. The miner's tryShelter writes the terrain verdict into openFieldNight (cleared at every actual scan start, set at the wall loop's empty result, before the ring's last resort); both call sites read it; the flee lanes name the lens ('open-field yield vs X') beside the legacy lines. decompose counts the yield markers. Tests: 15 pure pins + 5 wiring pins. Local: syntax 199/0, unit 88/88. Identity: PLANETA9091.
+- Pushed fb0d971; the push-CI queued behind the surface debut's fleet leg.
+
+Stage Summary:
+- Master fb0d971 (pkg 0.212.0 THE OPEN-FIELD YIELD LINE). Next free = 0.213.0.
+- WATCH LIST (the yield line's field debut): 'combat: open-field yield vs' count vs the mob-death count (the cure's volume); the first-verdict flee hp distribution (11-13.9 = the lens firing); the mob-death count day-over-day (11 -> ?); the surface debut's 'reloot: surface retry at' arms (the OTHER debut in flight); the F5/F7 skeleton-cell repeat (a mob-kill-zone hazard class is the candidate if it repeats); the coal->torch chain (the spawn-prevention root).
+- OPEN FRONTS: (1) the surface field validation (the dispatch in flight); (2) the yield line validation (this push); (3) the coal->torch spawn-prevention chain (the dark base is the mob factory); (4) the mob-kill-zone hazard (if the skeleton cell repeats); (5) the bank crash front (plan 1/31 vs banked 1653); (6) coal ARRIVAL root.
