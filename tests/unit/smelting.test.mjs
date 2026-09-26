@@ -19,7 +19,7 @@ import {
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
-  fuelCapacity, clockCapItems, JUNK_COAL_FLOOR, WALK_REFUSAL_WAIT_RE,
+  fuelCapacity, clockCapItems, fireBatchCapItems, JUNK_COAL_FLOOR, WALK_REFUSAL_WAIT_RE,
 } from '../../src/lib/smelting.mjs'
 import { FUEL_TITHE_BOUND } from '../../src/lib/deposit.mjs'
 
@@ -1318,6 +1318,80 @@ test('smeltBatch fire mode skips the clock cap: a thin window still funds the fu
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_iron', count: 20, maxSeconds: 0.001, fire: true, ...FAST })
   assert.equal(res.reason, 'fired')
   assert.equal(res.fired, 20, 'no clock clip on a fired batch - the machine burns at its own pace')
+})
+
+test('fireBatchCapItems: the run clock prices what a fired batch can COMPLETE (v0.193.0)', () => {
+  // run82's F8 fired 25 x raw_copper (~275s of burn) late in the run - the
+  // sacred sweep rule kept every collector out while the input burned, and
+  // the 25 left the pocket for the furnace forever. The cap prices the burn
+  // + a 30s harvest margin; the remainder stays pocketed.
+  // the arithmetic: 300s left, 11s/item, 30s margin -> floor(270/11) = 24
+  assert.equal(fireBatchCapItems({ remainingMs: 300000, smeltSecondsPerItem: 11, harvestMarginMs: 30000 }), 24)
+  // the margin is consumed first: the tail never starts a batch it cannot finish
+  assert.equal(fireBatchCapItems({ remainingMs: 40000, smeltSecondsPerItem: 11, harvestMarginMs: 30000 }), 0)
+  // the exact boundary: 41s = 11s burn + 30s margin -> one item fits
+  assert.equal(fireBatchCapItems({ remainingMs: 41000, smeltSecondsPerItem: 11, harvestMarginMs: 30000 }), 1)
+  // junk battery: a missing/junk run clock reads NO cap (the legacy fire shape)
+  assert.equal(fireBatchCapItems({ remainingMs: null }), Infinity)
+  assert.equal(fireBatchCapItems({ remainingMs: NaN }), Infinity)
+  assert.equal(fireBatchCapItems({}), Infinity)
+  // negative remaining (the run is over) reads no cap too - the caller's
+  // Math.max(0, ...) clamp in the wiring owns the honest zero
+  assert.equal(fireBatchCapItems({ remainingMs: -5000 }), Infinity)
+  // a junk per-item seconds falls back to the vanilla 11
+  assert.equal(fireBatchCapItems({ remainingMs: 300000, smeltSecondsPerItem: NaN }), 24)
+  // a junk margin reads 0 (no harvest window reserved)
+  assert.equal(fireBatchCapItems({ remainingMs: 110000, smeltSecondsPerItem: 11, harvestMarginMs: NaN }), 10)
+})
+
+test('smeltBatch fire mode: the run clock caps the fired batch (v0.193.0)', async () => {
+  const logs = []
+  const furnace = new MockFurnace({})
+  // the F8 shape scaled: 25 carried, the run can complete only 3 (3 x 11s +
+  // 30s margin + 1 = 64000ms) - the put takes 3, the pocket keeps 22, the
+  // cap names itself
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_copper', 25), item('coal', 9)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_copper', count: 25, fire: true, fireCapMs: 64000, smeltSecondsPerItem: 11, pollMs: 5, log: m => logs.push(m) })
+  assert.equal(res.reason, 'fired')
+  assert.equal(res.fired, 3, 'the fired count is the run-clock cap, not the pocket')
+  assert.equal(furnace.slots[0]?.count, 3, 'only the completable batch rides the machine')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('raw_copper'), 22, 'the pocket keeps the cap remainder (the honest partial)')
+  assert.ok(logs.some(m => m.includes('the run clock caps the fired batch: 3 of 25 x raw_copper')), 'the cap names itself (rides the smelt filter key)')
+})
+
+test('smeltBatch fire mode: a run clock too thin to fire skips honestly (v0.193.0)', async () => {
+  const logs = []
+  const furnace = new MockFurnace({})
+  // 20s left < 11s burn + 30s margin -> cap 0: nothing rides the machine,
+  // the pocket keeps everything, the skip names itself
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_copper', 25), item('coal', 9)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_copper', count: 25, fire: true, fireCapMs: 20000, smeltSecondsPerItem: 11, pollMs: 5, log: m => logs.push(m) })
+  assert.equal(res.reason, 'run clock too thin to fire')
+  assert.equal(res.fired, 0)
+  assert.equal(furnace.slots[0], null, 'nothing was put - the machine stays free')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('raw_copper'), 25, 'the pocket keeps everything')
+  assert.ok(logs.some(m => m.includes('smelt fire skipped - the run clock cannot finish a batch')), 'the skip names itself (rides the smelt filter key)')
+})
+
+test('smeltBatch fire mode: a junk fireCapMs reads no cap - the legacy fire shape (v0.193.0 escape)', async () => {
+  const furnace = new MockFurnace({})
+  // the v0.137.0 shape byte for byte: the unbounded pick funds the whole batch
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 20), item('coal', 4)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'raw_iron', count: 20, maxSeconds: 0.001, fire: true, fireCapMs: null, ...FAST })
+  assert.equal(res.reason, 'fired')
+  assert.equal(res.fired, 20, 'a missing run clock never caps (the legacy escape)')
+})
+
+test('wiring: the fire leg rides the run clock as the fired batch cap (v0.193.0)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /fireCapMs: fireLeg \? Math\.max\(0, RUN_KILL_AT - Date\.now\(\)\) : null/,
+    'the fire leg prices the batch by the run hard-kill clock')
+  const smeltSrc = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(smeltSrc, /const batch = Math\.min\(batch0, fuelCap, clockCap, runClockCap\)/,
+    'the run-clock cap is the fourth belt beside fuelCap/clockCap')
+  assert.match(smeltSrc, /fireCapMs,/, 'smeltInventory passes the cap to every smeltBatch call')
 })
 
 test('THE FINISHED-HARVEST: output + leftover fuel (the fired batch, burned out) is harvested, not busy', async () => {

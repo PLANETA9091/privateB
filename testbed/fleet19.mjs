@@ -454,6 +454,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       const res = await smeltInventory(miner.bot, {
         maxSeconds: Math.max(5, smeltSecs - buildSpent),
         fire: fireLeg,
+        // (v0.193.0) THE FIRE-BATCH RUN-CLOCK CAP: the fire leg's batch never
+        // exceeds what the RUN can complete + a 30s harvest margin - run82's
+        // F8 fired 25 x raw_copper (~275s of burn) late in the run and the
+        // sacred sweep rule kept every collector out while the input burned:
+        // a guaranteed pocket loss. The cap keeps the remainder pocketed (the
+        // honest partial); a non-fire leg reads no cap (null = the legacy shape).
+        fireCapMs: fireLeg ? Math.max(0, RUN_KILL_AT - Date.now()) : null,
         // (v0.147.0) THE YARD-SEEK: the empty 48b machine scan walks the
         // proven approach segments toward the yard center once - the
         // run85 F4 class (raw_copper:28 pocket, 'no machine in reach',

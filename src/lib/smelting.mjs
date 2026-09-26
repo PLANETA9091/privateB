@@ -360,6 +360,26 @@ export function clockCapItems ({ maxSeconds = 90, smeltSecondsPerItem = 11, visi
   return Math.max(1, Math.floor(waitSecs / per))
 }
 
+// (v0.193.0) THE FIRE-BATCH RUN-CLOCK CAP - the fourth belt. The fire leg puts
+// the batch and walks away (the v0.137.0 thin-leg cure): the machine's own
+// clock does the burning, and a collector sweep only takes output over an
+// EMPTY input (a burning batch stays sacred - the v0.139.0 fleet-property
+// read). MEASURED (run82 = fleet 36201371882, the v0.192.0 union): F8 fired
+// 25 x raw_copper (~275s of burn) late in the run - the input slot stayed
+// non-empty to the hard kill, no sweep could ever touch the machine, and the
+// 25 left the pocket for the furnace forever (F18/F17 fired 1 each, same
+// shadow). A batch bigger than the run's remaining clock can COMPLETE is a
+// guaranteed pocket loss. The cap prices the burn + a harvest margin and the
+// remainder stays pocketed (the honest partial - the fuelCap/clockCap
+// doctrine's shape). Junk/unknown remainingMs reads NO cap (the legacy fire
+// shape byte for byte - a missing run clock never trims).
+export function fireBatchCapItems ({ remainingMs = null, smeltSecondsPerItem = 11, harvestMarginMs = 30000 } = {}) {
+  const per = Number.isFinite(smeltSecondsPerItem) && smeltSecondsPerItem > 0 ? smeltSecondsPerItem : 11
+  const margin = Number.isFinite(harvestMarginMs) && harvestMarginMs > 0 ? harvestMarginMs : 0
+  if (remainingMs == null || !Number.isFinite(remainingMs) || remainingMs <= 0) return Infinity
+  return Math.max(0, Math.floor((remainingMs - margin) / (per * 1000)))
+}
+
 // (v0.110.0, merged) THE JUNK COAL FLOOR - the junk lane's coal last resort
 // gains the tithe bound. Run98 (35859636312) measured the hole in the
 // wood-first pick: a pocket WITHOUT wood (the late-run majority - logs got
@@ -536,10 +556,21 @@ export async function smeltBatch (bot, {
   smeltSecondsPerItem = 11, // vanilla smelts one item in 10s + lag margin
   fuelReserve = null, // { reservePlanks, reserveLogs, reserveSticks } - null = defaults
   fire = false, // (v0.137.0) fire-and-forget: put input+fuel and WALK AWAY - no poll, no pull-back; the batch smelts on the machine's own clock and the finished-harvest reads the output later
+  fireCapMs = null, // (v0.193.0) the run clock left when firing - the batch never exceeds what the run can COMPLETE (fireBatchCapItems); null/junk = no cap (the legacy fire shape)
   log = () => {}
 } = {}) {
   if (!machineBlock?.position || !inputName || count <= 0) return { smelted: 0, rescued: 0, fired: 0, reason: 'nothing to do' }
   const tag = `[${bot.username ?? 'bot'}]`
+  // (v0.193.0) THE FIRE-BATCH RUN-CLOCK CAP, before any put: a batch the run
+  // cannot finish burning is a guaranteed pocket loss (the sweep's sacred
+  // rule keeps every collector out while the input is non-empty). The cap
+  // prices burn + a 30s harvest margin; a 0 cap skips the fire honestly and
+  // the pocket keeps everything; a junk read never caps (legacy shape).
+  const runClockCap = fire ? fireBatchCapItems({ remainingMs: fireCapMs, smeltSecondsPerItem }) : Infinity
+  if (fire && runClockCap <= 0) {
+    log(`${tag} smelt fire skipped - the run clock cannot finish a batch (the pocket keeps ${count} x ${inputName})`)
+    return { smelted: 0, rescued: 0, fired: 0, reason: 'run clock too thin to fire' }
+  }
   const invCount = name => countItem(bot, name)
   if (invCount(inputName) <= 0) return { smelted: 0, rescued: 0, fired: 0, reason: 'input not in inventory' }
 
@@ -805,7 +836,10 @@ export async function smeltBatch (bot, {
       const waitSecs = Math.round(visitRemainingAtPut == null ? maxSeconds : Math.min(maxSeconds, visitRemainingAtPut / 1000))
       log(`${tag} the clock clips the batch: the ${waitSecs}s window completes ~${clockCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
     }
-    const batch = Math.min(batch0, fuelCap, clockCap)
+    if (fire && Number.isFinite(runClockCap) && runClockCap < batch0) {
+      log(`${tag} the run clock caps the fired batch: ${runClockCap} of ${batch0} x ${inputName} (the rest re-smelts on the next chain)`)
+    }
+    const batch = Math.min(batch0, fuelCap, clockCap, runClockCap)
 
     // VERIFIED input+fuel transfer: retry, then give up (the window is desynced).
     // Counted on the LIVE rows: putInput's click promises resolve on the client-side
@@ -955,6 +989,7 @@ export async function smeltInventory (bot, {
   fuelResupply = null, // (v0.98.0) async ({ itemsNeeded }) => void - the FUEL COMMONS: called ONCE when the pocket is fuel-empty, BEFORE the 'no fuel' verdict (fleet19 wires withdrawFuelCommons); undefined/null = the legacy shape byte for byte
   yardSeek = null, // (v0.147.0) async () => boolean - THE YARD-SEEK: called ONCE per visit when an input's machine scan ends EMPTY (the bot mines beyond the 48b envelope of the yard's machine cluster - run85's F4 held raw_copper:28 all run and its visit read 'no machine in reach'); a landed seek re-runs that input's scan. fleet19 wires the proven approachWalk toward the yard center; null = the legacy shape byte for byte
   fire = false, // (v0.137.0) fire-and-forget batches: the put is the whole visit, the machine's own clock does the burning, the finished-harvest collects - the thin-leg cure (run552's 7x build-skips + the unreachable walks starved the smelt economy)
+  fireCapMs = null, // (v0.193.0) the run clock left when firing - rides every smeltBatch call (the fire-batch run-clock cap); null = no cap (the legacy shape)
   log = () => {}
 } = {}) {
   const started = Date.now()
@@ -1044,6 +1079,7 @@ export async function smeltInventory (bot, {
           smeltSecondsPerItem,
           fuelReserve,
           fire,
+          fireCapMs,
           log
         })
         rescued += res.rescued
