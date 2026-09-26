@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../../src/lib/drops.mjs'
+import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS, belowResidueRow } from '../../src/lib/drops.mjs'
 
 const pos = (x, y, z) => ({ x, y, z })
 const item = (x, y, z, name = 'item') => ({ name, position: pos(x, y, z) })
@@ -391,4 +391,53 @@ test('dropGoalRange: the fence boundaries hold across all four verdicts (the pla
   assert.equal(dropGoalRange({ dy: -2.0 }), DROP_GOAL_BELOW, 'the sphere edge stays BELOW (the v0.182.0 boundary)')
   assert.equal(dropGoalRange({ dy: -2.1 }), DROP_GOAL_SKIP, 'the deep class still skips')
   assert.equal(dropGoalRange({ dy: 0.0 }), DROP_GOAL_PLANE, 'the flat edge stays the legacy')
+})
+
+// (v0.203.0) THE SWEEP DROP LEDGER - the run-level row.
+test('belowResidueRow: the run22-measured class - below x6 with a clean split', () => {
+  const row = belowResidueRow([
+    { sweeps: 3, picked: 12, failed: 3, below: 3, deepSkip: 0, lipDig: 1 }, // F13 x3
+    { sweeps: 2, picked: 0, failed: 2, below: 2, deepSkip: 1, lipDig: 0 }, // F5 x2
+    { sweeps: 1, picked: 5, failed: 1, below: 1, deepSkip: 0, lipDig: 0 } // F7 x1
+  ])
+  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0) deepSkip=1 lipDig=1')
+})
+
+test('belowResidueRow: the split identity - below + plane == failed on every mix', () => {
+  const parse = row => { const m = row.match(/failed=(\d+) \(below x(\d+), plane x(\d+)\)/); return { failed: +m[1], below: +m[2], plane: +m[3] } }
+  const cases = [
+    [{ failed: 9, below: 3 }, { failed: 4, below: 4 }],
+    [{ failed: 5, below: 0 }],
+    [{ failed: 2, below: 1 }, null, undefined, {}]
+  ]
+  for (const recs of cases) {
+    const p = parse(belowResidueRow(recs))
+    assert.equal(p.below + p.plane, p.failed, `identity holds for ${JSON.stringify(recs)}`)
+  }
+})
+
+test('belowResidueRow: the per-record clamp - junk below never swallows the fleet split', () => {
+  // bot A: impossible record (below 9 on failed 0); bot B: the honest day-3 F13 class
+  const row = belowResidueRow([{ failed: 0, below: 9 }, { failed: 3, below: 3 }])
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0) deepSkip=0 lipDig=0')
+})
+
+test('belowResidueRow: junk floors at zero and the row prints ALWAYS', () => {
+  assert.equal(
+    belowResidueRow([{ sweeps: -2, picked: 3.9, failed: -1 }, 'junk', 42]),
+    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0) deepSkip=0 lipDig=0'
+  )
+  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0) deepSkip=0 lipDig=0')
+})
+
+test("REGRESSION PIN: the miner sweep rides stats.sweepDrops and the fleet prints the ledger", async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/stats\.sweepDrops \?\? \(stats\.sweepDrops = \{ sweeps: 0/.test(minerSrc),
+    'the sweep block accumulates into stats.sweepDrops (lazy init - a sweep-less bot reads undefined)')
+  assert.ok(/sd\.failed \+= dropFails/.test(minerSrc) && /sd\.below \+= belowFails/.test(minerSrc),
+    'the failed/below counters ride the same guarded try as the walk itself')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(/belowResidueRow\(list\.map\(m => m\.stats\?\.sweepDrops\)\)/.test(fleetSrc),
+    'the fleet RESULT prints the ledger row ALWAYS - the 05:00 ledger-skip lesson')
 })

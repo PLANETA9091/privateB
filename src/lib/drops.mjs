@@ -213,3 +213,58 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
   for (let i = 0; i < n; i++) picked.push({ x: out[i].x, y: out[i].y, z: out[i].z })
   return picked
 }
+
+// (v0.203.0) THE SWEEP DROP LEDGER - the run-level row the sweep never had.
+//
+// WHY: the sweep's drop-walk counters (belowFails / skipDeep / lipDigs /
+// dropFails / picked) lived and died as per-sweep log lines - the fleet
+// RESULT had no aggregation, so the below-plane residue ('the drop rests
+// deeper than the lip') had NO day-scale trend to read and the v0.187.0
+// open question ('the failure family is UNMEASURED - the next decode splits
+// the class') stayed open: the failed walks split into the below class (the
+// v0.178.0 wide-goal residue) and the PLANE class (flat walks that failed
+// for unknown reasons - water holes, sealed cells, goal brakes), and only
+// their SUM was ever printed, capped at 2 named events per sweep.
+//
+// The ledger is pure and junk-safe: every counter floors at zero (a torn
+// stats never invents walks), the below/plane split keeps the identity
+// below + plane == failed, and the row prints ALWAYS (the 05:00 ledger-skip
+// lesson - an absent line class is indistinguishable from a filter blind
+// spot). Zero behavior change: the walks walk exactly as before - the
+// ledger only makes the economics readable at the run level, which is the
+// measurement the next cure derives from (the v0.187.0 stance).
+
+/** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, deepSkip = 0, lipDig = 0 } = {}) {
+  const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
+  return {
+    sweeps: fl(sweeps),
+    picked: fl(picked),
+    failed: fl(failed),
+    below: fl(below),
+    deepSkip: fl(deepSkip),
+    lipDig: fl(lipDig)
+  }
+}
+
+/**
+ * The fleet-result row: the run's whole sweep drop-walk economy in one line.
+ * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN) deepSkip=N lipDig=N'
+ */
+export function belowResidueRow (records) {
+  const list = Array.isArray(records) ? records : []
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, deepSkip: 0, lipDig: 0 }
+  for (const r of list) {
+    const rec = sweepDropRecord(r ?? {})
+    if (rec.below > rec.failed) rec.below = rec.failed // per-record clamp: one bot's junk below never swallows the fleet's real below/plane split
+    acc.sweeps += rec.sweeps
+    acc.picked += rec.picked
+    acc.failed += rec.failed
+    acc.below += rec.below
+    acc.deepSkip += rec.deepSkip
+    acc.lipDig += rec.lipDig
+  }
+  const plane = acc.failed - acc.below
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig}`
+}

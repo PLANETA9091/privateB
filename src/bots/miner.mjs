@@ -2575,6 +2575,19 @@ export function createMiner ({
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
         if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
+        // (v0.203.0) the sweep drop ledger: the counters ride stats so the fleet
+        // RESULT can aggregate them - the per-sweep lines were the only read and
+        // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
+        // plane class splits from the below class here at last)
+        try {
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, deepSkip: 0, lipDig: 0 })
+          sd.sweeps++
+          sd.picked += picked
+          sd.failed += dropFails
+          sd.below += belowFails
+          sd.deepSkip += skipDeep
+          sd.lipDig += lipDigs
+        } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }
     if (refused > 2) log(`${tag} vein sweep: ${refused} cell(s) refused by the fall fence`)
