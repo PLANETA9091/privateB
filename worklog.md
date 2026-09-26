@@ -5126,3 +5126,19 @@ Stage Summary:
 - Master fb0d971 (pkg 0.212.0 THE OPEN-FIELD YIELD LINE). Next free = 0.213.0.
 - WATCH LIST (the yield line's field debut): 'combat: open-field yield vs' count vs the mob-death count (the cure's volume); the first-verdict flee hp distribution (11-13.9 = the lens firing); the mob-death count day-over-day (11 -> ?); the surface debut's 'reloot: surface retry at' arms (the OTHER debut in flight); the F5/F7 skeleton-cell repeat (a mob-kill-zone hazard class is the candidate if it repeats); the coal->torch chain (the spawn-prevention root).
 - OPEN FRONTS: (1) the surface field validation (the dispatch in flight); (2) the yield line validation (this push); (3) the coal->torch spawn-prevention chain (the dark base is the mob factory); (4) the mob-kill-zone hazard (if the skeleton cell repeats); (5) the bank crash front (plan 1/31 vs banked 1653); (6) coal ARRIVAL root.
+
+---
+Task ID: cron30-20260926-1837 (addendum: the surface debut decoded)
+Agent: Super Z (cron lane, Job 415967)
+Task: the surface-wiring field debut (fleet 36236379977, run77) landed green in-window - mined and decoded.
+
+Work Log:
+- FLEET 36236379977 SUCCESS (the v0.211.0 tree's field day: matrix green + the fleet leg 10:52-~11:25Z). Mined run77.
+- THE LADDER'S MECHANICAL DEBUT, VERBATIM: 'F6 reloot: walking to the own death spot [-100,44,384] (51b, budget 18s, window 122s)' -> 'no-path retry at range 8 (budget 18s)' (the classifier fired, the arithmetic priced min(18s, 122s-elapsed-30s) = 18s) -> 'retry failed (No path to the goal!) - the drops stay lost (no surface: no-surface)' - THE SURFACE GATE WAS REACHED and the scanner refused honestly (the chain: walk -> wide retry -> gate, every leg named). The refusal class: F6 drowned at y44 - an aquifer pool (likely stone-sealed above: the scanner's sealed-cap refusal) or an unloaded-column read; the no-surface SUB-CLASS (sealed vs unloaded vs land) is the next instrument - the scanner refuses honestly either way, the decode just cannot split it yet.
+- THE DAY: 6 deaths - THE DROWNED GALLERY (impaled/slain by Drowned x4: F18 [-105,62,364] ~183u, F13 [-112,60,375], F12 [-136,62,390] ~128u, plus F9 shot by Skeleton@12.8 ~240u - the ranged volume again). F12's chain is THE v0.212.0 TARGET: fought at hp 10.3 -> flipped at 1.3 -> 'shelter skip (open field: no diggable wall, drowned@3.2)' + 'ring not buildable' -> died - under the yield line (10.3 < 14, open field) the flee fires at the FIRST verdict. F6+F17 drowned on the SAME wet column [-100,44,384]/[-101,43,382] - the exact-repeat class, third occurrence this era (run55 F16/F17, run60 F5/F7, run77 F6/F17). rescues: 74 drowning starts (the water owns the map's low band).
+- RELOOT row: 1 walk armed (F6), 0 arrivals, 1 no-path retry (the run55/68/77 shape holds - every flooded-band walk refuses twice), 1 refused surface (no-surface=1). The surface arm waits for an OPEN-SKY flooded pit (the quarry class) - the aquifer class is sealed by construction and the drops die there honestly.
+
+Stage Summary:
+- The ladder is FIELD-VALIDATED mechanically (all three legs named, all verdicts honest); the first recovered drops need an open-sky drowning (the quarry) or the sealed-pool cure (a later fire - a surface Y that reaches the SKY, not just the first air).
+- NEXT FIRE: POST the closing dispatch if this lane could not (the v0.212.0 yield line + the surface wiring ride one tree); decode it (the 'open-field yield vs' volume vs the Drowned gallery; the no-surface sub-class instrument is v0.213.0's candidate alongside the coal->torch chain).
+- OPEN FRONTS: (1) the yield line's field validation; (2) the no-surface sub-class (sealed vs unloaded); (3) the drowned gallery (4/6 deaths - the water-mob front is the new volume); (4) the skeleton ranged volume (skeleton@12.8 - the engage-band question); (5) the coal->torch spawn-prevention chain; (6) the exact-repeat wet column (a mob/water kill-zone hazard class).
