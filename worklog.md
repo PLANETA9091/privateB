@@ -5160,3 +5160,18 @@ Work Log:
 Stage Summary:
 - Master 55dbc23+ (pkg 0.212.0 THE OPEN-FIELD YIELD LINE, the lane's fb0d971, taken mid-fire) + my worklog. Next free 0.213.0.
 - NEXT FIRE: decode the 2nd surface sample AND the yield line debut ('open-field yield vs' volume vs the mob-death count); the no-surface sub-class instrument (v0.213.0 candidate); the hazard-pull front (the goal-only guard gap); triage 8th; the plan->delivery gap.
+
+---
+Task ID: cron30-20260926-1930
+Agent: Super Z (cron lane, Job 414125)
+Task: 19:30 fire - poll+mine the yield-line+surface fleet 36238076224.
+
+Work Log:
+- Sync clean: master 85c4d98 (pkg 0.212.0). The lane quiet this fire.
+- FLEET OF RECORD: 36238076224 (the yield line debut + the surface 2nd sample, 11:12:00Z). Unit+Integration success early; the big fleet job in_progress the whole fire (~33 min at close, history 15-40 min).
+- Poll 3 foreground rounds (~13 min) - never completed within the timebox; poll exhausted honestly, mine+decode passes to the next fire (the 18:00->18:30 precedent).
+- No dispatch (the one-active-run law) AND zero new code (the poll/decode handoff was the unit).
+
+Stage Summary:
+- Master 85c4d98 (pkg 0.212.0) unchanged. Next free 0.213.0.
+- NEXT FIRE: decode 36238076224 (the 'open-field yield vs' volume vs the mob-death count; the surface 2nd sample - 'no-surface' repeat? any open-sky arm?; the storm containment x3; triage 8th); code fronts 0.213.0: the no-surface sub-class instrument, the hazard-pull guard gap, the coal->torch chain.
