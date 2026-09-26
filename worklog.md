@@ -4986,3 +4986,21 @@ Stage Summary:
 - THE WIRING RECIPE (one guarded lane inside the retry's catch e2, before the terminal line): read the death column bottom-up from the death spot (bot.blockAt, capped RELOOT_SURFACE_RISE_MAX, {y, name} pairs) -> surfaceY = relootSurfaceY({column}) -> relootSurfaceRetry({message: e2.message, retries: 1, surfaceY, spot: relootDeath.spot, deathAt: relootDeath.at, now: Date.now(), botPos}) -> go arms ONE gotoSafe (standGoalNear, the plan's goal/range/budget, doomedRearm: true - the wide retry LEDGERED the cell family too) + the honest lines 'reloot: surface retry at [x,y,z] (budget Ns)' / 'reloot: surface arrived in Ns - N item stack(s) within R' (the read rides the plan range) / 'reloot: surface failed (msg) - the drops stay lost'; the arrival-with-stacks case picks up through the magnet as usual. Call-site pins on every scalar (the run195 law).
 - WATCH LIST (the surface debut): the first 'reloot: surface retry at' line; stacks > 0 at the surface = THE DEATH ECONOMY'S FIRST RECOVERED DROPS EVER; 'no-surface' n (the land-death class stays terminal - correct); the wide-retry budget arithmetic on a second sample; lipDig 'sealed floor' volume vs the step-down candidate (a converged below arrival with the drop in the adjacent lower cell wants a range-1 micro-walk to the drop's own cell, NOT a dig-under - the instrument's dy -1.0 sealed-floor lines are the evidence); banked 72 -> ?.
 - OPEN FRONTS: (1) the surface wiring; (2) the above-family goal shape (the jump class - the clock is refuted, the v0.182.0 doctrine holds); (3) the lip step-down candidate; (4) the bank crash front (38 trips -> 72 banked); (5) the dusk knife edge; (6) coal ARRIVAL root.
+
+---
+Task ID: cron30-20260926-1600
+Agent: Super Z (cron lane, Job 414125)
+Task: 16:00 fire - mine+decode the double-debut fleet 36226589855; ship the fall-repeat fix.
+
+Work Log:
+- Mined run55/ (fleet 36226589855, b58aeff): NORMAL END 19/19, banked=1373 (recovered from the 72 crash), smelted=22, fights=16 kills=4, rescues=23, unaccounted=0, conversion=104.6%.
+- The lip refusal histogram DEBUT (v0.206.0): 10/10 'sealed floor', every other guard silent - the anatomy confirmed by the field; lipDig=0 day 4 explained.
+- The retry chain debut (v0.207.0): F17 walk -> 'No path' -> the range-8 retry granted -> refused again -> the legacy terminal verbatim. Mechanically valid; the pit bottom owns the no-path class.
+- THE EXACT REPEAT MEASURED: F16 fell at [-117,42,406], F17 fell on the SAME cell, both records read '4 live' -> F16's record had ALREADY expired (a live one would read 5). The 120s TTL < the 189s reloot return window.
+- SHIPPED v0.209.0 THE DEATH SPOT TENURE (renumbered from 0.208.0, collision #23 - the lane's THE SURFACE GOAL landed first): waterHazardAlive the ONE expiry predicate for the three filters; the tenure stamped ONLY when recordTtlMs is set (the v0.62.0 plain shape and its deep pins untouched); WATER_DEATH_TTL_MS 240000 covers the 189s window; the miner death-spot write is the ONE tenured call site. Tests: the window pin (240>189), the predicate battery, the stamp-only-when-set pin, the three-filters-one-law pin, the ledger pass-through + the run55 repeat now vetoed. Local: syntax 199/0, unit 88/88.
+- CI 36229567097 (cec6a06) PENDING the whole poll (the runner queue) - honest: not verified at close; the needs gate keeps the dispatch safe.
+
+Stage Summary:
+- Master cec6a06 (pkg 0.209.0). Next free version 0.210.0 (the lane's surface-goal wiring will want it).
+- NEXT FIRE: (1) verify CI 36229567097; (2) poll+mine the new dispatch: the death-spot '4 live -> 5 live' under tenure = the fix firing, the triage 4th sample (below 24/plane 16/above 61 baselines), deepSkip 45->?; (3) the end-window final-bank zeros (F7/F12/F15/F8) worth a look; (4) coordinate 0.210.0 with the lane's wiring recipe.
+- OPEN FRONTS: (1) the lane's surface-goal wiring; (2) the triage ABOVE 60% (3 samples) family fix; (3) the skeleton gallery; (4) the coal ARRIVAL root; (5) the end-window bank zeros.
