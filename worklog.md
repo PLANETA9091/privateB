@@ -5193,3 +5193,18 @@ Stage Summary:
 - Master 91c3e91+worklog (pkg 0.213.0 THE NO-SURFACE CENSUS + the identity cure on one tree). Next free = 0.214.0.
 - WATCH LIST (the census's field debut, next run): the first '(no surface: sealed|junk-read|land|no-air)' lines - sealed=N names the rim-dig volume, junk-read=N names the re-read front; the yield line on a night-heavy run (the lens must fire eventually or the OPEN_FIELD_FLEE_HP 14 band is miscalibrated); the mob-death count 2 -> ?; rescues 110 -> ?; torched 11 -> ? (the torch chain's spawn-volume effect: the mob deaths AROUND BASE should fall); banked 1732 -> ?; triage 9th.
 - OPEN FRONTS: (1) the census validation + the rim-dig front if sealed dominates; (2) the hazard-pull guard gap (the goal-only death-spot guard - F17's in-window drift death, still open); (3) the yield line's volume sample; (4) the plan->delivery gap (plan lines 1 still); (5) coal ARRIVAL root; (6) the skeleton ranged volume (the engage-band question).
+
+---
+Task ID: cron30-20260926-2000
+Agent: Super Z (cron lane, Job 414125)
+Task: 20:00 fire - verify the yield-line fleet's fate, the census dispatch.
+
+Work Log:
+- Sync absorbed the lane's 19:37 close (v0.213.0 THE NO-SURFACE CENSUS + the run24 decode + the identity cure; the forced update rebased clean, zero local commits to lose).
+- THE DISPATCH GAP: the e379eee message claims 'dispatched' but no dispatch run materialized (the latest workflow_dispatch stays 36238076224, completed 11:44:47Z). The census's field debut never launched.
+- The 19:37 lane's run24 decode read and accepted as the record (fights=0 honest-but-unloaded yield line; deaths=2 both drown 12 apart; the bank cure 2nd >100% run; rescues=110 rising; the torch chain LIT; F1's ladder reproducible on a new wet column).
+- This fire's atomic unit: DISPATCH the census debut (no active dispatch run verified twice).
+
+Stage Summary:
+- Master e379eee (pkg 0.213.0). Next free 0.214.0.
+- NEXT FIRE: decode the census debut (the '(no surface: sealed|junk-read|land|no-air)' census lines are THE watch list; the yield line needs a night-heavy run; the torch chain's spawn effect; rescues 110 -> ?; triage 9th); code fronts 0.214.0: the hazard-pull guard gap, the rim-dig front if sealed dominates.
