@@ -5142,3 +5142,21 @@ Stage Summary:
 - The ladder is FIELD-VALIDATED mechanically (all three legs named, all verdicts honest); the first recovered drops need an open-sky drowning (the quarry) or the sealed-pool cure (a later fire - a surface Y that reaches the SKY, not just the first air).
 - NEXT FIRE: POST the closing dispatch if this lane could not (the v0.212.0 yield line + the surface wiring ride one tree); decode it (the 'open-field yield vs' volume vs the Drowned gallery; the no-surface sub-class instrument is v0.213.0's candidate alongside the coal->torch chain).
 - OPEN FRONTS: (1) the yield line's field validation; (2) the no-surface sub-class (sealed vs unloaded); (3) the drowned gallery (4/6 deaths - the water-mob front is the new volume); (4) the skeleton ranged volume (skeleton@12.8 - the engage-band question); (5) the coal->torch spawn-prevention chain; (6) the exact-repeat wet column (a mob/water kill-zone hazard class).
+
+---
+Task ID: cron30-20260926-1900
+Agent: Super Z (cron lane, Job 414125)
+Task: 19:00 fire - mine+decode run77 (the surface-wiring field debut fleet 36236379977, 7dd2bb1 = v0.211.0); dispatch.
+
+Work Log:
+- MINED run77/: **NORMAL END (600s) + clean exit**. banked=2224 NEW ALL-TIME HIGH, smelted=81, conversion 101.1%, unaccounted=0 (PERFECT ledger), coal_ore=242.
+- **THE SURFACE DEBUT - THE LADDER FULL IN THE FIELD**: F6: 'no walk (unarmed)' -> 'walking to the own death spot [-100,44,384] (51b, budget 18s, window 122s)' -> 'no-path retry at range 8' -> 'retry failed (No path to the goal!) - the drops stay lost (no surface: no-surface)' - the e2 catch fired, the scanner read the column, relootSurfaceY refused 'no-surface' (water to the top within 32), the honest terminal + the why census. The wiring behaved exactly as designed. One arm.
+- **THE TENURE'S SECOND DEATH**: F6 drowned [-100,44,384]; F17 drowned [-101,43,382] 2-3 blocks off, INSIDE the 240s tenure window. F17 drifted (no reloot walk) - the death-spot guard filters GOALS, not drift/fall-in. The guard did not save the second bot.
+- THE STORM CONTAINED: airGlitches=1009, rescues=74, F6 g346/r38 + F17 g663/r18 (BOTH stormers = the two drowned bots, the post-respawn churn); relogins=23, losses=0, no spiral, no freeze kill. Deaths=6: drown x2, Drowned-mob x3 (RISING), Skeleton x1.
+- TRIAGE 7TH: failed=38 (below x7, plane x6, above x25 = 66%) - the law holds 57/60/60/47/62/57/66. deepSkip=12 low; lipDig=0 day 8. Plan 1/31 STILL (5th run).
+- The decode independently corroborates the 18:37 lane's addendum (the same run77, the same verdicts) - one field truth, two instruments.
+- DISPATCH as the closing action after this push (the lane's addendum asks for it): the v0.212.0 yield line + the surface wiring ride one tree; no active dispatch run at close.
+
+Stage Summary:
+- Master 55dbc23+ (pkg 0.212.0 THE OPEN-FIELD YIELD LINE, the lane's fb0d971, taken mid-fire) + my worklog. Next free 0.213.0.
+- NEXT FIRE: decode the 2nd surface sample AND the yield line debut ('open-field yield vs' volume vs the mob-death count); the no-surface sub-class instrument (v0.213.0 candidate); the hazard-pull front (the goal-only guard gap); triage 8th; the plan->delivery gap.
