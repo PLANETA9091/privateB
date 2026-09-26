@@ -94,6 +94,7 @@ export function createMiner ({
   waterTableBoard = null, // (v0.84.0) shared WaterTableBoard (src/lib/watertable.mjs): one bot's fluid strike ceilings every shaft in the region
   noPathLedger = null, // (v0.62.0) the fleet-wide 'No path' verdict array (one process = one shared array); null = the ledger is off
   fullChestLedger = null, // (v0.65.0) the fleet-wide 'chest full' verdict array (same ride); null = the ledger is off
+  seedLastDeath = null, // (v0.203.0) the PREVIOUS attempt's un-attempted death record (the runner's death carry) - a relog must not bury the re-loot plan
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -215,7 +216,17 @@ export function createMiner ({
   // six named fences). Per-instance state: a reconnect rebuilds the miner
   // and the memory dies with the old bot object - the common death ->
   // respawn path (same bot object) is the class this state serves.
+  // (v0.203.0) the seed: the runner carries the PREVIOUS attempt's
+  // un-attempted death record across the relog (the run71 class: F2/F7 died
+  // mid-run, their sessions hit the end-phase gates, and the retry rebuilt
+  // the miner - the record died with the old closure before ANY evaluation).
+  // Guarded like every record: a junk seed reads as no-record, never as a
+  // walk; the seed is CLONED (the old closure's object is never aliased).
   let lastDeath = null
+  if (seedLastDeath && Number.isFinite(seedLastDeath.at) && seedLastDeath.spot &&
+    Number.isFinite(seedLastDeath.spot.x) && Number.isFinite(seedLastDeath.spot.y) && Number.isFinite(seedLastDeath.spot.z)) {
+    lastDeath = { spot: { x: seedLastDeath.spot.x, y: seedLastDeath.spot.y, z: seedLastDeath.spot.z }, at: seedLastDeath.at, attempted: !!seedLastDeath.attempted }
+  }
   // (v0.117.0) THE AUTHORITATIVE DEATH CAUSE - run102 (35889087936) mined
   // 'fall/env' x3 while the server told the truth: 'F3 drowned', 'F13
   // drowned', 'F18 suffocated in a wall'. The lastHarm inferrer below cannot

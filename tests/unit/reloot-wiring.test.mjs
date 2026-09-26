@@ -75,3 +75,49 @@ test("REGRESSION PIN: the fleet filter carries the 'reloot' key", () => {
   assert.ok(filter.test('[F7] reloot: no walk (night) - the walk-forbidden window owns the surface, the drops ride out their clock'),
     'a refusal line passes even WITHOUT a filter keyword inside the why (the v0.56.0 filter-blind lesson)')
 })
+
+// ---- v0.203.0 THE RE-LOOT RE-ARM ----
+// run71-mined (fleet 36217424471, the v0.202.0 walk's FIELD DEBUT) measured
+// the walk's first field day: 12 deaths, ~1443u of named death drops,
+// unaccounted=647, conversion 75.6% - and 2 evaluations -> 0 WALKS. Both
+// evaluations read unarmed (t+45s/t+61s: the respawn bootstrap owns the
+// respawned bot's hands) and the one-shot attempted mark buried the walk
+// forever; F2 (t=546s) and F7 (t=568s) never got ANY evaluation because
+// their sessions hit the end-phase gates, the retry rebuilt the miner, and
+// the record died with the old closure. Two gaps, two named cures.
+
+test('v0.203.0: the unarmed refusal is a delay, not a verdict (the run71 starvation)', () => {
+  const lane = fleetSrc.match(/const relootDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?reloot: walk failed/)
+  assert.ok(lane, 'the lane exists')
+  const unarmed = lane[0].match(/else if \(!hasPickNow\(\)\) \{[\s\S]*?\n          \} else if/)
+  assert.ok(unarmed, 'the unarmed arm exists')
+  assert.ok(!unarmed[0].includes('attempted = true'),
+    'the unarmed arm flips NOTHING - the plan read re-arms next pass (the bootstrap owns ~30-60s, the despawn window 300s)')
+  const planArm = lane[0].match(/if \(!rp\.go\) \{[\s\S]*?\n          \} else if/)
+  assert.ok(planArm && planArm[0].includes('relootDeath.attempted = true'),
+    'a plan refusal is terminal (the flag flips before the honest why prints)')
+  const nightArm = lane[0].match(/else if \(walkForbidden[\s\S]*?\n          \} else \{/)
+  assert.ok(nightArm && nightArm[0].includes('relootDeath.attempted = true'),
+    'the night hold stays terminal (the despawn window dies before dawn - the v0.202.0 read)')
+  const walkArm = lane[0].match(/else \{\n            relootDeath\.attempted = true[\s\S]*?const relootT0/)
+  assert.ok(walkArm,
+    'the walk flips the flag BEFORE gotoSafe (one walk per death - the retry-storm law untouched by the re-arm)')
+})
+
+test('v0.203.0: the death record survives the attempt cycle (the carry-seed)', () => {
+  assert.ok(fleetSrc.includes('let deathCarry = null'), 'the carry slot exists beside the v0.18.9 stats carry')
+  assert.ok(fleetSrc.includes('seedLastDeath: deathCarry'), 'the seed rides the createMiner call (the fresh attempt inherits the plan)')
+  const end = fleetSrc.match(/if \(miner\) \{\n      const prevDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?\n    \}/)
+  assert.ok(end, 'the attempt-end site reads the old miner\'s record')
+  assert.ok(end[0].includes('!prevDeath.attempted'), 'only an UN-attempted record carries (a resolved death stays resolved)')
+  assert.ok(end[0].includes('deathCarry = (prevDeath && !prevDeath.attempted) ? { spot: prevDeath.spot, at: prevDeath.at } : null'),
+    'the carry is honest: no record -> no carry (never a fabricated death)')
+})
+
+test('v0.203.0: the miner seeds the record from the carry (guarded read)', () => {
+  assert.match(minerSrc, /seedLastDeath = null,/, 'the seed rides the createMiner opts (the destructure names it)')
+  assert.ok(minerSrc.includes('Number.isFinite(seedLastDeath.at)') && minerSrc.includes('Number.isFinite(seedLastDeath.spot.x)'),
+    'a junk seed reads as no-record, never as a walk (the guarded-read law)')
+  assert.ok(minerSrc.includes('attempted: !!seedLastDeath.attempted'),
+    "the seed CLONES - the old closure's record object is never aliased across instances")
+})

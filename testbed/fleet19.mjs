@@ -709,6 +709,13 @@ async function runBot (name, target, index) {
   // 620 -> 120, final report 0.26 b/s for a 3.6 b/s run). Carry = the totals so
   // far; seeded into each fresh miner, re-snapshotted when the attempt ends.
   let carry = {}
+  // (v0.203.0) THE DEATH CARRY - the re-loot record must survive the attempt
+  // cycle the way the v0.18.9 stats carry does: run71 (fleet 36217424471,
+  // the v0.202.0 debut) measured 12 deaths -> 2 evaluations -> 0 walks, and
+  // F2 (t=546s) + F7 (t=568s) are the class why - died mid-run, the session
+  // hit the end-phase gates, the retry rebuilt the miner, and the un-evaluated
+  // record died with the old closure before the plan ever SAW the death.
+  let deathCarry = null
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -747,6 +754,7 @@ async function runBot (name, target, index) {
         // (v0.52.0) the same hook feeds the SERVER-DEATH WATCHDOG: transport-
         // class errors and timeout kicks are fleet-health signals - no new
         // mineflayer event wiring, the lines already flow through here.
+        seedLastDeath: deathCarry, // (v0.203.0) the death carry rides the rebuild - the plan re-decides on the fresh pass
         log: m => {
           if (isSocketLossLine(m) || isTimeoutKickLine(m)) {
             serverGuard.recordLoss()
@@ -1106,12 +1114,18 @@ async function runBot (name, target, index) {
         // and GoalNear range 2 (the v0.178.0 below-plane lesson: the drops
         // sit in the freed cell / down the fresh shaft). The arrival read
         // counts the item stacks in pickup reach - silence is never evidence.
-        // ANY verdict marks attempted BEFORE the walk (one evaluation per
-        // death - the retry-storm fence owns the lane; a second death
-        // re-arms it with the fresh spot).
+        // (v0.203.0) THE RETRY-STORM LAW, REFINED: every TERMINAL verdict (a
+        // plan refusal, the night hold, the walk itself) marks attempted
+        // BEFORE it acts - one walk per death. The unarmed read is a DELAY,
+        // not a verdict: run71's 2/2 debut evaluations read unarmed at
+        // t+45s/t+61s (the respawn bootstrap owns the respawned bot's hands)
+        // and the one-shot mark starved the walk forever - 12 deaths, 0
+        // walks, ~1443u dropped. It flips nothing; the plan read re-arms next
+        // pass and the plan's own clock fences (expired/no-time) terminate
+        // the lane when the window runs out. A second death re-arms with the
+        // fresh spot.
         const relootDeath = miner.lastDeath?.() ?? null
         if (relootDeath && !relootDeath.attempted) {
-          relootDeath.attempted = true
           let rp = null
           try {
             rp = relootPlan({
@@ -1124,12 +1138,19 @@ async function runBot (name, target, index) {
             })
           } catch { rp = { go: false, why: 'no-spot' } }
           if (!rp.go) {
+            relootDeath.attempted = true
             console.log(`${name} reloot: no walk (${rp.why})`)
           } else if (!hasPickNow()) {
-            console.log(`${name} reloot: no walk (unarmed) - the empty pocket bootstraps first`)
+            // (v0.203.0) THE DELAY CLASS - a delay, not a verdict: the read
+            // re-arms for the next loop pass (the retry-storm law is
+            // untouched - the WALK still fires at most once, attempted flips
+            // before gotoSafe; the clock fences own the eventual expiry).
+            console.log(`${name} reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)`)
           } else if (walkForbidden(miner.bot.time?.timeOfDay)) {
+            relootDeath.attempted = true
             console.log(`${name} reloot: no walk (night) - the walk-forbidden window owns the surface, the drops ride out their clock`)
           } else {
+            relootDeath.attempted = true
             console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s)`)
             const relootT0 = Date.now()
             try {
@@ -1791,6 +1812,15 @@ async function runBot (name, target, index) {
     // no stats object - keep the previous carry instead of resetting to zero
     const snap = snapshotStats(miner?.stats)
     if (Object.keys(snap).length) carry = snap
+    // (v0.203.0) THE DEATH CARRY READ: the old miner's un-attempted record
+    // seeds the next attempt's miner (the run71 F2/F7 class - the record
+    // died with the closure before ANY evaluation). A resolved (attempted)
+    // record stays resolved; a failed LOGIN keeps the previous carry
+    // honestly instead of inventing a no-death verdict.
+    if (miner) {
+      const prevDeath = miner.lastDeath?.() ?? null
+      deathCarry = (prevDeath && !prevDeath.attempted) ? { spot: prevDeath.spot, at: prevDeath.at } : null
+    }
     if (Date.now() >= deadline) break
     failStreak++
     reconnects++
