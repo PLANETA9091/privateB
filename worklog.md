@@ -5499,3 +5499,20 @@ Stage Summary:
 - FLEET OF RECORD: 36255794232 SUCCESS (the v0.218.0 debut, decoded as run32/) + this fire's closing dispatch (the v0.219.0 pure plan rides CI; the dig's field debut wiring is 0.220.0's front).
 - WATCH LIST: the wet-delivery storm (F9/F19's 44-rescue churn - a per-bot rescue cadence or a wet-zone eviction is the 0.220.0 candidate); the delivery leak (pocket 2051u -> banked 25: the bank walk chain under storm); the skeleton x2 return (the RANGED band's coverage on wounded victims); the rim dig's field debut (the wiring fire); the 0-stacks anatomy (2 samples, sweep-picked suspect).
 - OPEN FRONTS (0.220.0): the reloot rim dig WIRING (the stance guard + the float wait); the wet-churn governor; the delivery leak; the server-kind inference remains clean.
+
+---
+Task ID: cron30-20260927-0130
+Agent: Super Z (cron lane, Job 414125)
+Task: 01:30 fire - SHIP v0.220.0 THE DRAGON ZONE from the recorded 01:00 plan.
+
+Work Log:
+- Sync: master ce855d9 (pkg 0.219.0 THE RIM DIG PLAN). The 00:37 lane (Job 415967) had already mined+decoded the v0.218.0 field debut 36255794232 as run32 (the BLIND print PASSED in the field: blind x2, CONTRADICTS 0) and dispatched 36257829576 (the v0.219.0 field debut) - IN FLIGHT this whole fire (the no-duplicate law holds: no dispatch from this lane).
+- v0.220.0 THE DRAGON ZONE shipped (61fbf9e, pure, the v0.200.0/v0.219.0 pattern - the 01:00 forensics is the MEASURED base): (1) dragonZoneAnchor clusters the 'using magic' dragon deaths within DRAGON_ZONE_CLUSTER 8b (3D, greedy in array order, the running centroid owns the join; the LARGEST cluster wins, ties -> first formed; the anchor is the rounded centroid - 101+99 -> 100 exact; a single magic kill still names an anchor count 1; non-magic causes and junk records never cluster, honest null on nothing); (2) inDragonZone, the avoidance predicate (DRAGON_ZONE_RADIUS 16b, HORIZONTAL - the zone is the anchor's ground shadow, a bot directly above stands in it, pinned; the boundary inclusive; no anchor / junk pos reads false). The cause-line signature is era-stable (/Ender Dragon using magic/ - the early era truncated the by-field, never the cause text). The wiring candidates ride the next lane: WorldMap target-assignment exclusion + the shelter priority on zone entry. No new log forms (the wiring lane owns any field line).
+- Tests: 10 new pins - the two field kills merge byte-for-byte to [100,49,1] count 2; the far-kill split; the lone anchor; the non-magic battery; the junk battery; the cluster edge (8.0 merges / 8.5 splits); the inclusive-16 boundary both axes; the vertical shadow; the gates. dragonzone 10/10.
+- Local: syntax OK (201 files), unit 89/89 green. Identity: PLANETA9091. Rebase-push clean (the lane quiet at the push window).
+
+Stage Summary:
+- Master 61fbf9e (pkg 0.220.0 THE DRAGON ZONE). Next free version 0.221.0. Next local section = Task ID cron30-20260927-0200.
+- FLEET OF RECORD: 36257829576 (the v0.219.0 field debut on ce855d9) IN FLIGHT at close - the 02:00 fire mines it first (the rim dig plan is pure so the field cannot exercise it; the decode reads the wet-delivery storm's evolution: the F9/F19 rescue churn, the delivery leak pocket->banked, the skeleton x2 return).
+- NEXT FIRE: (1) mine+decode 36257829576; (2) CODE FRONTS (0.221.0): the DRAGON ZONE WIRING (the recorded candidates - the WorldMap target-assignment exclusion + the shelter priority on zone entry; the measured radius stays the calibration), the rim-dig WIRING (the stance guard + the float wait - the lane's 0.219.0 plan, theirs), the wet-churn governor / the delivery leak (the 00:37 watch list); (3) the lane may take 0.221.0.
+- OPEN FRONTS: the dragon-zone WIRING (the plan landed 61fbf9e); the rim-dig wiring (the lane's plan); the wet-delivery storm (F9/F19 44 rescues, the delivery leak); the 0-stacks reloot anatomy (2-run); the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the dragon-zone PLAN (this fire - the anchor + the predicate, pure).
