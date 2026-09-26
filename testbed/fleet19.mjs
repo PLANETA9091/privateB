@@ -2191,7 +2191,10 @@ console.log(`blocks mined: ${s.mined} in ~${secs}s = ${(s.mined / secs).toFixed(
 // - fleet 35566494961 measured this as 93% of mined with no way to see it live.
 const endPk = pocketTotals(list)
 const ledger = lootLedger({ mined: s.mined, banked, smelted, pocket: endPk.units })
-console.log(`loot ledger: mined=${ledger.mined} banked=${banked} smelted=${smelted} pocket=${endPk.units}u/${endPk.slots}s accounted=${ledger.accounted} unaccounted=${ledger.unaccounted} conversion=${ledger.conversion == null ? 'n/a' : (ledger.conversion * 100).toFixed(1) + '%'}`)
+// (v0.201.0) surplus joins the line ALWAYS (the 05:00 ledger-skip lesson): the
+// over-accounting slack used to hide behind the clamp - run63's 396u read as
+// "unaccounted=0, the ledger balances" to one decoder and "hidden loss" to another
+console.log(`loot ledger: mined=${ledger.mined} banked=${banked} smelted=${smelted} pocket=${endPk.units}u/${endPk.slots}s accounted=${ledger.accounted} unaccounted=${ledger.unaccounted} surplus=${ledger.surplus}u conversion=${ledger.conversion == null ? 'n/a' : (ledger.conversion * 100).toFixed(1) + '%'}`)
 for (const t of TARGETS) {
   // report the DROP, not the block: "stone" arrives as cobblestone, "dirt" includes
   // grass_block drops (the first runs reported stone collected=0 while bots held

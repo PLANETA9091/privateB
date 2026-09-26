@@ -68,3 +68,49 @@ test('lootLedger: zero mined yields a null conversion (no divide-by-zero)', () =
   assert.strictEqual(lootLedger({}).conversion, null)
   assert.strictEqual(lootLedger({ mined: 0, banked: 5 }).conversion, null)
 })
+
+// (v0.201.0) THE SURPLUS SIDE - the gap's other name.
+test('lootLedger: surplus is explicit when accounted exceeds mined (the v0.201.0 field)', () => {
+  const led = lootLedger({ mined: 10, banked: 8, smelted: 0, pocket: 9 })
+  assert.strictEqual(led.surplus, 7)
+  assert.strictEqual(led.unaccounted, 0)
+  assert.ok(led.conversion > 1)
+})
+
+test('lootLedger: the run63-measured class - 396u of slack that read as unaccounted=0', () => {
+  // fleet 36212235363: mined 2649, accounted 3045 (banked 1375 + smelted 14 +
+  // pocket 1656). One decoder wrote "the ledger balances", the other "hidden
+  // loss inside the formula's slack" - both read the SAME line because the
+  // gap had no name. Now it does: surplus=396.
+  const led = lootLedger({ mined: 2649, banked: 1375, smelted: 14, pocket: 1656 })
+  assert.strictEqual(led.accounted, 3045)
+  assert.strictEqual(led.surplus, 396)
+  assert.strictEqual(led.unaccounted, 0)
+  assert.ok(Math.abs(led.conversion - 3045 / 2649) < 1e-12)
+})
+
+test('lootLedger: the gap conservation pin - unaccounted + surplus is the full distance', () => {
+  const under = lootLedger({ mined: 100, banked: 30, smelted: 20, pocket: 10 })
+  assert.strictEqual(under.unaccounted, 40)
+  assert.strictEqual(under.surplus, 0)
+  assert.strictEqual(under.unaccounted + under.surplus, Math.abs(100 - 60))
+  const over = lootLedger({ mined: 50, banked: 60, smelted: 0, pocket: 0 })
+  assert.strictEqual(over.unaccounted, 0)
+  assert.strictEqual(over.surplus, 10)
+  assert.strictEqual(over.unaccounted + over.surplus, Math.abs(50 - 60))
+})
+
+test('lootLedger: surplus floors at zero on junk inputs (torn views never invent slack)', () => {
+  assert.strictEqual(lootLedger({ mined: 10, banked: -3, pocket: -1 }).surplus, 0)
+  assert.strictEqual(lootLedger({}).surplus, 0)
+  const junk = lootLedger({ mined: -5, banked: -3, smelted: -1, pocket: 0 })
+  assert.strictEqual(junk.mined, 0)
+  assert.strictEqual(junk.surplus, 0)
+})
+
+test("REGRESSION PIN: the fleet ledger print carries the surplus term (v0.201.0)", async () => {
+  const fs = await import('node:fs')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(/unaccounted=\$\{ledger\.unaccounted\} surplus=\$\{ledger\.surplus\}u conversion=/.test(fleetSrc),
+    'surplus prints ALWAYS in the loot ledger line - the 05:00 ledger-skip lesson (an absent term is a filter blind spot)')
+})

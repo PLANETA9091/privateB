@@ -51,14 +51,25 @@ export function pocketTotals (miners) {
  * Negative and fractional inputs are clamped to a sane integer floor (the
  * counters are sums of unit counts; a torn view must not push the ledger
  * negative).
+ *
+ * (v0.201.0) THE SURPLUS SIDE: over-accounting used to vanish behind the
+ * Math.max(0, ...) clamp - run63 (fleet 36212235363) read as "unaccounted=0,
+ * the ledger balances" to one decoder while ~396u of slack sat inside the
+ * formula (accounted 3045 > mined 2649: pockets count crafted/collected units
+ * the mined counter never tracks - sticks, planks, smelted ingots, the
+ * grass_block->dirt grain). Two careful readers reached OPPOSITE verdicts on
+ * the same run because the gap had no name on this side. The surplus is the
+ * SAME gap, measured, so the ambiguity dies: unaccounted + surplus is always
+ * the full |mined - accounted| distance.
  * @param {{mined?: number, banked?: number, smelted?: number, pocket?: number}} parts
- * @returns {{mined: number, accounted: number, unaccounted: number, conversion: number|null}}
+ * @returns {{mined: number, accounted: number, unaccounted: number, surplus: number, conversion: number|null}}
  */
 export function lootLedger ({ mined = 0, banked = 0, smelted = 0, pocket = 0 } = {}) {
   const m = Math.max(0, Math.floor(mined))
   const parts = [banked, smelted, pocket].map(p => Math.max(0, Math.floor(p)))
   const accounted = parts.reduce((a, b) => a + b, 0)
   const unaccounted = Math.max(0, m - accounted)
+  const surplus = Math.max(0, accounted - m)
   const conversion = m > 0 ? accounted / m : null
-  return { mined: m, accounted, unaccounted, conversion }
+  return { mined: m, accounted, unaccounted, surplus, conversion }
 }
