@@ -126,6 +126,19 @@ console.log('=== DRAGON ZONE (the evacuation, v0.225.0+) ===')
 console.log('  magic kills:', count(/using magic/), 'per-bot:', fmt(perBot(/using magic/)))
 console.log('  zone entries:', count(/dragonzone: bot inside the kill zone/), 'per-bot:', fmt(perBot(/dragonzone: bot inside the kill zone/)))
 
+// (v0.228.0) THE SWEEP CENSUS - the harvest sweep's field face: the census
+// line (v0.197.0) names every outcome class, the v0.228.0 defer adds the
+// storm-defer bucket (run68's 13-refusal burn becomes a named stance).
+const occurrences = (re) => lines.reduce((a, l) => a + (l.match(re) ?? []).length, 0)
+console.log('=== SWEEP CENSUS (the harvest, v0.139.0+; the v0.228.0 defer) ===')
+console.log('  census lines:', count(/ sweep: /), 'per-bot:', fmt(perBot(/ sweep: /)))
+console.log('  harvests:', count(/sweep: collected \d+/))
+console.log('  zero-histogram lines:', count(/sweep: 0 collected - /))
+console.log('  unreachable buckets:', occurrences(/machine unreachable/g))
+console.log('  defer announcements:', count(/\] sweep deferred \(the lanes hold\)/), 'per-bot:', fmt(perBot(/sweep deferred/)))
+console.log('  busy buckets:', occurrences(/busy x\d+/g))
+console.log('  idle-empty reads:', count(/idle-empty machine/))
+
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))

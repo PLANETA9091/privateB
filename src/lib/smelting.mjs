@@ -1136,6 +1136,50 @@ export async function smeltInventory (bot, {
   return { smelted: total, rescued, fired: firedTotal, outputs, attempts }
 }
 
+// (v0.228.0) THE SWEEP DEFER constants - the run68 calibration. The field
+// brake cooldowns read 0-4s (waitable inside the census clock), the walk
+// governor's read 11-12s and the spin hold's 30s (both outlive the census by
+// design -> deferred), the margin mirrors the smelt visit's +1000ms settle.
+// ONE wait-out per sweep keeps the census a census: breadth over depth, never
+// a siege. SWEEP_DEFER_REASON is the stable census bucket - the histogram
+// groups by it, the decode greps it, the log line above it names the anatomy.
+export const SWEEP_COOLDOWN_WAIT_CAP_MS = 5000
+export const SWEEP_COOLDOWN_WAITS = 1
+export const SWEEP_COOLDOWN_MARGIN_MS = 1000
+export const SWEEP_DEFER_REASON = 'sweep deferred (the lanes hold)'
+
+// (v0.228.0) THE SWEEP REFUSAL CLASSIFIER - the run68 anatomy of the sweep's
+// walk refusals (36273368339, the joint tree's field face): F6 'goal brake:
+// 6 goals in 5s - walk to a machine (sweep) refused for 0-4s' x13, F10 x4,
+// F11 'walk governor: bot churned 4-5 goals without progress ... refused for
+// 12s' x2 + 'The goal was changed before it could be completed!' x4 - the
+// sweep yield read 0 collected across four bots while EVERY refusal was a
+// bounded clock at the funnel (no A*, no path, no geometry behind it). Pure,
+// junk-safe, three classes:
+//   'waitable'  - the v0.146.0 family (walk governor / fleet churn ceiling /
+//                 goal brake) with its named clock: waitable ONCE per sweep,
+//                 capped at SWEEP_COOLDOWN_WAIT_CAP_MS.
+//   'fleetwide' - a named-clock pause OUTSIDE the family (the fleet goal
+//                 ceiling, the alloc valve, the spin breaker) plus the storm
+//                 duck's 'pause Ns left': never waited (the v0.146.0 die-fast
+//                 law - a fleet-wide storm is not one bot's clock) and never
+//                 fought - the census defers.
+//   'geometry'  - everything else (No path, Took to long, the superseded
+//                 goal, the doomed consult, the walk timeout): an honest
+//                 census entry, the sweep moves on byte for byte.
+export function sweepRefusalClass (msg) {
+  const m = typeof msg === 'string' ? msg : ''
+  const clock = /refused for (\d+)s/.exec(m)
+  if (clock) {
+    const waitMs = Number(clock[1]) * 1000
+    if (WALK_REFUSAL_WAIT_RE.test(m)) return { cls: 'waitable', waitMs }
+    return { cls: 'fleetwide', waitMs }
+  }
+  const duck = /pathfinder pause (\d+)s left/.exec(m)
+  if (duck) return { cls: 'fleetwide', waitMs: Number(duck[1]) * 1000 }
+  return { cls: 'geometry', waitMs: 0 }
+}
+
 /**
  * (v0.139.0) THE HARVEST SWEEP - run553 (35970697452, the v0.137.0 fleet) fired
  * 30 items into machines (F5=10, F3=19, F2=1) and harvested ZERO: the
@@ -1148,10 +1192,16 @@ export async function smeltInventory (bot, {
  * leftover fuel comes back to the pocket too - a fuel item without input never
  * burns and would read 'busy' to every later visitor, walling the machine).
  * A LIVE input slot stays UNTOUCHED (a burning batch is sacred - taking its
- * output mid-burn would steal, vanilla would race). One walk attempt per
+ * output mid-burn would steal, vanilla would race). ONE walk verdict per
  * machine (breadth over depth - a sweep is a census, not a siege), a hard
  * total-clock, and never throws. The COLLECTOR's ledger counts the harvest:
  * fired -> harvested -> smelted (the honest ledger completes here).
+ * (v0.228.0) THE SWEEP DEFER amends the census: a bounded cooldown refusal
+ * never consumed a walk (refused at the funnel, no A*, no path behind it), so
+ * a WALK_REFUSAL_WAIT_RE clock is waited out ONCE (SWEEP_COOLDOWN_WAITS,
+ * capped) on the SAME machine and any cooldown that cannot be waited defers
+ * the rest of the census - the untried machines keep their one-attempts for
+ * the next pass instead of feeding the brake (run68's F6 burned 13).
  * Returns { collected, outputs, attempts } - never throws.
  */
 export async function sweepFinishedSmelts (bot, {
@@ -1164,20 +1214,72 @@ export async function sweepFinishedSmelts (bot, {
   const attempts = []
   const outputs = {}
   let collected = 0
+  let waitsLeft = SWEEP_COOLDOWN_WAITS // (v0.228.0) the census's single wait-out budget
   const machines = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
-  for (const machineBlock of machines) {
+  for (const [mi, machineBlock] of machines.entries()) {
     if (maxSeconds * 1000 - (Date.now() - started) <= 0) break // the sweep's own clock is hard
     if (!bot.entity) break // died mid-sweep - the pocket rides the respawn rules
-    // ONE walk attempt per machine: a failed approach is a named attempt and the
-    // census moves on (the smelt visit's 3-attempt siege is for a batch WE carry;
-    // a sweep's targets belong to whoever reaches them first)
+    // ONE walk verdict per machine: a failed approach is a named attempt and
+    // the census moves on (the smelt visit's 3-attempt siege is for a batch WE
+    // carry; a sweep's targets belong to whoever reaches them first).
+    // (v0.228.0) THE SWEEP DEFER - run68 (36273368339) measured the burn: F6
+    // spent 13 machines' one-attempts against a hot goal brake ('refused for
+    // 0-4s'), F11 named 12s governor clocks, the sweep read 0 collected across
+    // four bots while every refusal was a CLOCK at the funnel. A family
+    // cooldown is waited out once (capped); any cooldown that cannot be
+    // waited DEFERS the census - the untried machines keep their attempts for
+    // the next pass instead of feeding the brake.
     if (!machineWithinReach({ from: bot.entity.position, pos: machineBlock.position })) {
+      const walkGoal = () => new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(1))
+      const walkOpts = () => ({
+        timeoutMs: Math.min(maxSeconds * 1000 - (Date.now() - started), 15000),
+        label: 'walk to a machine (sweep)',
+        doomedRearm: true,
+        doomTtl: MACHINE_DOOM_TTL_MS
+      })
       try {
-        const leftMs = maxSeconds * 1000 - (Date.now() - started)
-        await gotoSafe(bot, new goals.GoalNear(machineBlock.position.x, machineBlock.position.y, machineBlock.position.z, smeltWalkReach(1)), { timeoutMs: Math.min(leftMs, 15000), label: 'walk to a machine (sweep)', doomedRearm: true, doomTtl: MACHINE_DOOM_TTL_MS })
+        await gotoSafe(bot, walkGoal(), walkOpts())
       } catch (e) {
-        attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
-        continue
+        const cls = sweepRefusalClass(e.message)
+        if (cls.cls === 'geometry') {
+          // (v0.139.0 shape kept byte for byte) a geometry verdict - No path,
+          // a decide timeout, the superseded goal, the doomed consult - is an
+          // honest census entry and the sweep moves on.
+          attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+          continue
+        }
+        const clockLeft = maxSeconds * 1000 - (Date.now() - started)
+        if (cls.cls === 'waitable' && waitsLeft > 0 && cls.waitMs <= SWEEP_COOLDOWN_WAIT_CAP_MS && clockLeft > cls.waitMs) {
+          waitsLeft--
+          log(`${tag} sweep walk refused by a ${Math.round(cls.waitMs / 1000)}s cooldown - waiting it out once on this machine (a cooldown is a clock, not a verdict)`)
+          await sleep(cls.waitMs + SWEEP_COOLDOWN_MARGIN_MS)
+          if (!bot.entity || maxSeconds * 1000 - (Date.now() - started) <= 0) {
+            attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+            break // the sweep's own clock (or the bot) died inside the wait
+          }
+          try {
+            await gotoSafe(bot, walkGoal(), walkOpts())
+          } catch (e2) {
+            attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e2.message})` })
+            if (sweepRefusalClass(e2.message).cls !== 'geometry') {
+              log(`${tag} sweep deferred (the lanes hold) - the cooldown kept the walk after the wait-out (${machines.length - mi - 1} machine(s) untried, the next pass owns them)`)
+              attempts.push({ machine: machineBlock.name, reason: SWEEP_DEFER_REASON })
+              break
+            }
+            continue // the retry's geometry verdict is the census entry; the sweep moves on
+          }
+        } else {
+          const untried = machines.length - mi - 1
+          const why = cls.cls === 'fleetwide'
+            ? 'a fleet-wide pause holds the lanes'
+            : cls.waitMs > SWEEP_COOLDOWN_WAIT_CAP_MS
+              ? `the ${Math.round(cls.waitMs / 1000)}s cooldown outlives the census clock`
+              : waitsLeft > 0 ? 'the sweep clock cannot afford the wait' : 'the wait-out budget is spent'
+          log(`${tag} sweep deferred (the lanes hold) - ${why} (${untried} machine(s) untried, the next pass owns them)`)
+          attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+          if (untried > 0) attempts.push({ machine: machineBlock.name, reason: SWEEP_DEFER_REASON })
+          break
+        }
       }
     }
     let furnace
