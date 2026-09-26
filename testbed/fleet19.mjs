@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1238,6 +1238,7 @@ async function runBot (name, target, index) {
                         message: e2?.message,
                         retries: 1,
                         surfaceY: relootSurfaceY({ column }),
+                        surfaceWhy: relootSurfaceWhy({ column }),
                         spot: relootDeath.spot,
                         deathAt: relootDeath.at,
                         now: Date.now(),
@@ -1248,7 +1249,7 @@ async function runBot (name, target, index) {
                     } catch { return { go: false, why: 'no-surface' } }
                   })()
                   if (!rs.go) {
-                    console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost${rs.why === 'not-no-path' ? '' : ` (no surface: ${rs.why})`}`)
+                    console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost${rs.why === 'not-no-path' ? '' : ` (no surface: ${rs.subWhy || rs.why})`}`)
                   } else {
                     console.log(`${name} reloot: surface retry at [${rs.goal.x},${rs.goal.y},${rs.goal.z}] (budget ${(rs.budgetMs / 1000).toFixed(0)}s) - the floating stacks live at the water surface`)
                     const surfaceT0 = Date.now()

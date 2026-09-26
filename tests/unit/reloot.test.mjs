@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
   RELOOT_SURFACE_RISE_MAX,
   RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS
 } from '../../src/lib/reloot.mjs'
@@ -380,4 +380,82 @@ test('the surface gate inherits the plan fences verbatim', () => {
   assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: { x: -120, y: 61, z: 400 }, spot: null }).why, 'no-spot')
   // a bot far from the surface cell rides the same 128 envelope
   assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: { x: 500, y: 61, z: 400 } }).why, 'too-far')
+})
+
+// ---- v0.213.0 THE NO-SURFACE CENSUS ----
+// run77's field debut ended 'no surface: no-surface' - one word for what the
+// decode needs SPLIT (sealed aquifer vs unloaded chunk vs land death vs the
+// deep shape: each wants a different cure). The census mirrors the scanner's
+// control flow exactly; the coherence law (census null <=> scanner surface)
+// holds by construction and is pinned by brute force below.
+
+test('the census names every refusal class (the run77 anatomy, split)', () => {
+  // the world read died entirely
+  assert.equal(relootSurfaceWhy({ column: null }), 'no-column')
+  assert.equal(relootSurfaceWhy({ column: [] }), 'no-column')
+  // the UNLOADED-CHUNK class: a null/malformed read mid-column (and at the spot)
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42, name: 'water' }, null, { y: 44, name: 'air' }] }), 'junk-read')
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42, name: 'water' }, { y: NaN, name: 'air' }] }), 'junk-read')
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42 }, { y: 50, name: 'air' }] }), 'junk-read')
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42, name: 42 }] }), 'junk-read')
+  assert.equal(relootSurfaceWhy({ column: [null, { y: 50, name: 'air' }] }), 'junk-read')
+  // the dry death: the spot cell reads non-fluid (the drops lie on the ground)
+  assert.equal(relootSurfaceWhy({ column: [{ y: 59, name: 'air' }, { y: 60, name: 'air' }] }), 'land')
+  // the aquifer-pool class: a solid cap (or a pad) closes the column
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42, name: 'water' }, { y: 43, name: 'stone' }] }), 'sealed')
+  assert.equal(relootSurfaceWhy({ column: [{ y: 60, name: 'water' }, { y: 61, name: 'lily_pad' }] }), 'sealed')
+  // the reads ran out before any air (water to the top of the scan)
+  assert.equal(relootSurfaceWhy({ column: [{ y: 42, name: 'water' }, { y: 43, name: 'water' }] }), 'no-air')
+  // the ocean-depth shape: air exists but past the rise cap
+  const deep = [{ y: 10, name: 'water' }]
+  for (let y = 11; y <= 10 + RELOOT_SURFACE_RISE_MAX; y++) deep.push({ y, name: 'water' })
+  deep.push({ y: 10 + RELOOT_SURFACE_RISE_MAX + 1, name: 'air' })
+  assert.equal(relootSurfaceWhy({ column: deep }), 'deep', 'the first air past the cap is the deep class - the rise cap holds')
+})
+
+test('the census is null exactly when the scanner finds a surface (the coherence law, brute force)', () => {
+  const columns = [
+    null, [],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'water' }, { y: 44, name: 'cave_air' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'kelp' }, { y: 44, name: 'air' }],
+    [{ y: 59, name: 'air' }, { y: 60, name: 'air' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'stone' }],
+    [{ y: 60, name: 'water' }, { y: 61, name: 'lily_pad' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'water' }],
+    [{ y: 42, name: 'water' }, null, { y: 44, name: 'air' }],
+    [{ y: 42, name: 'water' }, { y: NaN, name: 'air' }]
+  ]
+  const deep = [{ y: 10, name: 'water' }]
+  for (let y = 11; y <= 10 + RELOOT_SURFACE_RISE_MAX; y++) deep.push({ y, name: 'water' })
+  deep.push({ y: 10 + RELOOT_SURFACE_RISE_MAX + 1, name: 'air' })
+  columns.push(deep)
+  const shallow = deep.slice(0, deep.length - 2)
+  shallow.push({ y: 10 + RELOOT_SURFACE_RISE_MAX, name: 'air' })
+  columns.push(shallow)
+  for (const column of columns) {
+    const y = relootSurfaceY({ column })
+    const why = relootSurfaceWhy({ column })
+    assert.equal(why === null, y !== null, `coherence broke for ${JSON.stringify(column)?.slice(0, 80)}: y=${y} why=${why}`)
+  }
+})
+
+test('the gate carries the census beside the legacy why (additive, never instead)', () => {
+  const now = Date.now()
+  const shape = { message: 'No path to the goal!', retries: 1, spot: { x: -100, y: 44, z: 384 }, deathAt: now - 60000, botPos: { x: -103, y: 61, z: 381 } }
+  // the run77 F6 shape, now named: a sealed pool reads its class
+  const sealed = relootSurfaceRetry({ ...shape, surfaceY: null, surfaceWhy: 'sealed' })
+  assert.equal(sealed.go, false)
+  assert.equal(sealed.why, 'no-surface', 'the legacy why survives byte-for-byte')
+  assert.equal(sealed.subWhy, 'sealed', 'the census class rides beside it')
+  // a refused scan without a census reads unknown (the defensive default)
+  assert.equal(relootSurfaceRetry({ ...shape, surfaceY: null }).subWhy, 'unknown')
+  assert.equal(relootSurfaceRetry({ ...shape, surfaceY: null, surfaceWhy: 42 }).subWhy, 'unknown', 'junk census reads unknown')
+  // every other verdict keeps its shape - NO subWhy field on non-no-surface paths
+  const armed = relootSurfaceRetry({ ...shape, surfaceY: 58, surfaceWhy: 'sealed' })
+  assert.equal(armed.go, true, 'a valid surfaceY ignores the census (the scanner owns the y)')
+  assert.ok(!('subWhy' in armed), 'the armed shape stays exactly as it was')
+  assert.equal(relootSurfaceRetry({ ...shape, surfaceY: null, surfaceWhy: 'sealed', message: 'timeout after 8000ms' }).why, 'not-no-path', 'the geometry gate outranks the census')
+  const noBot = relootSurfaceRetry({ ...shape, surfaceY: 58, surfaceWhy: 'sealed', botPos: null })
+  assert.equal(noBot.why, 'no-bot', 'the plan fences fire only after the surface verdict (the gate order: ladder, geometry, y, plan)')
+  assert.ok(!('subWhy' in noBot), 'the plan-fence refusals stay byte-for-byte')
 })

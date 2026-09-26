@@ -25,8 +25,8 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier and the surface ladder', () => {
-  assert.ok(fleetSrc.includes("import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'"),
-    'the runner reads the plan, the classifier and the surface ladder from the module (no fork of the fence arithmetic; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census and the surface ladder from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -215,7 +215,7 @@ test('v0.211.0: the honest surface terminal classes', () => {
   assert.match(fleetSrc, /reloot: surface arrived in/, 'the surface arrival prints')
   assert.match(fleetSrc, /reloot: surface failed/, 'the surface failure prints (silence is never evidence)')
   assert.match(fleetSrc, /distanceTo\(me\) <= rs\.range/, 'the read rides the PLAN range (the v0.208.0 recipe: the read rides the plan range)')
-  assert.match(fleetSrc, /\(no surface: \$\{rs\.why\}\)/, 'a refused surface names its why on the terminal line (the no-surface census exists)')
+  assert.match(fleetSrc, /\(no surface: \$\{rs\.subWhy \|\| rs\.why\}\)/, 'a refused surface names its why on the terminal line - the census class rides BESIDE the legacy why (the v0.213.0 census; the legacy shape survives as the fallback)')
   assert.ok(fleetSrc.includes('${name} reloot: retry failed (${e2.message}) - the drops stay lost'),
     'the legacy retry-failure prefix survives verbatim (the historical greps stay stable)')
 })
@@ -232,4 +232,36 @@ test("v0.211.0: the surface lines reach the artifact (the v0.176.0 prefix law - 
     'the surface failure line reaches the artifact')
   assert.ok(filter.test('[F10] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: no-surface)'),
     'the refused-surface terminal line reaches the artifact (the no-surface census rides the same filter)')
+  assert.ok(filter.test('[F6] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: sealed)'),
+    'the census class reaches the artifact (the run77 anatomy, now named)')
+})
+
+// ---- v0.213.0 THE NO-SURFACE CENSUS (the wiring) ----
+// run77 ended '(no surface: no-surface)' - the gate refused honestly but the
+// decode could not split sealed vs unloaded vs land. The census rides the
+// SAME call (the runner never guesses a class either) and the terminal line
+// prints the sub-class beside the legacy why.
+
+test('v0.213.0: the census rides the surface call and the terminal line (the run195 law)', () => {
+  const lane = fleetSrc.match(/const rs = \(\(\) => \{[\s\S]*?if \(!rs\.go\)/)
+  assert.ok(lane, 'the surface gate lane exists')
+  assert.match(lane[0], /surfaceWhy:\s*relootSurfaceWhy\(\{ column \}\)/,
+    'the census verdict rides the call (the runner never guesses a class)')
+  const term = fleetSrc.match(/reloot: retry failed \(\$\{e2\.message\}\)[\s\S]*?\(no surface: [^`]+\)/)
+  assert.ok(term, 'the terminal line exists')
+  assert.match(term[0], /rs\.subWhy \|\| rs\.why/, 'the census class prints FIRST, the legacy why is the fallback (never instead)')
+})
+
+test('v0.213.0: the census classes reach the decompose histogram (the watch list decodes itself)', () => {
+  const dec = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(dec.includes('reloot: retry failed.*\\(no surface: ([^)]+)\\)'), 'the surfaceWhys histogram regex found')
+  const filter = new RegExp('reloot: retry failed.*\\(no surface: ([^)]+)\\)')
+  for (const line of [
+    '[F6] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: sealed)',
+    '[F17] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: junk-read)',
+    '[F4] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: no-air)'
+  ]) {
+    const m = line.match(filter)
+    assert.ok(m && ['sealed', 'junk-read', 'no-air'].includes(m[1].split(' ')[0]), `the census class parses: ${line}`)
+  }
 })

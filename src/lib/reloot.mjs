@@ -241,6 +241,54 @@ export function relootSurfaceY ({ column = null } = {}) {
 }
 
 /**
+ * (v0.213.0) THE NO-SURFACE CENSUS - the scanner's refusal stops being one
+ * word. MEASURED (run77, fleet 36236379977, the v0.211.0 wiring's field
+ * debut): the ladder ran all three legs in the field and the surface gate
+ * refused 'no-surface' - F6 drowned at y44 and the column never surfaced.
+ * The decode CANNOT split the refusal's anatomy (an aquifer pool sealed by
+ * stone? an unloaded chunk reading null? a land death? the ocean-depth
+ * shape?), and each class wants a different cure: a sealed pool is the
+ * rim-dig front, a junk read is a re-read/retry front, a land death is
+ * terminal-correct forever. So the census names the refusal's own class,
+ * pure, with the EXACT control flow of relootSurfaceY - the coherence law
+ * holds by construction: the census returns null precisely when the
+ * scanner finds a surface.
+ *
+ * @param {Array<{y:number, name:string}|null>|null} column bottom-up block
+ *        reads starting AT the death spot's own y (junk -> 'no-column')
+ * @returns {string|null} the refusal's class:
+ *   'no-column'  the column read is junk or empty (the world read died)
+ *   'junk-read'  a malformed entry inside the column (the UNLOADED-CHUNK
+ *                class - blockAt returned null mid-column)
+ *   'land'       the spot cell reads non-fluid: a dry death, the drops lie
+ *                on the ground and the sphere walk was the right shape
+ *   'sealed'     a solid cap (or a lily pad) closes the column above the
+ *                fluid - the aquifer-pool class, the rim-dig front
+ *   'deep'       air exists but past RELOOT_SURFACE_RISE_MAX (the
+ *                ocean-depth shape - the rise cap holds)
+ *   'no-air'     the reads ran out before any air (water to the top of the
+ *                scan - the runner's capped form of the deep class)
+ *   null         a surface EXISTS (the scanner's success; never a refusal)
+ */
+export function relootSurfaceWhy ({ column = null } = {}) {
+  if (!Array.isArray(column) || column.length === 0) return 'no-column'
+  const spot = column[0]
+  if (!spot || typeof spot.name !== 'string' || !Number.isFinite(spot.y)) return 'junk-read'
+  if (!SURFACE_FLUID_RE.test(spot.name)) return 'land'
+  for (let i = 1; i < column.length; i++) {
+    const c = column[i]
+    if (!c || typeof c.name !== 'string' || !Number.isFinite(c.y)) return 'junk-read'
+    if (SURFACE_FLUID_RE.test(c.name)) continue
+    if (SURFACE_AIR_RE.test(c.name)) {
+      if (i > RELOOT_SURFACE_RISE_MAX) return 'deep'
+      return null // a surface exists - the scanner's success, not a refusal
+    }
+    return 'sealed'
+  }
+  return 'no-air'
+}
+
+/**
  * (v0.208.0) Should the WIDE RETRY's own refusal (the second geometry
  * verdict, the sphere class exhausted) get the surface walk? The field
  * sequence is strict and each leg names its class: the walk (range 2) ->
@@ -264,6 +312,11 @@ export function relootSurfaceY ({ column = null } = {}) {
  * @param {string|any} [p.message] the WIDE RETRY's error message (junk -> not-no-path)
  * @param {number} [p.retries] legs already fired after the walk (must be exactly 1)
  * @param {number|null} [p.surfaceY] the scanner's surface y (junk -> no-surface)
+ * @param {string|null} [p.surfaceWhy] (v0.213.0) the census's own class for a
+ *        refused scan (relootSurfaceWhy's verdict); when the scan refuses and
+ *        a class is provided, the refusal carries it as `subWhy` beside the
+ *        legacy 'no-surface' why (additive - the legacy verdicts are
+ *        byte-for-byte); junk/absent reads 'unknown'
  * @param {{x:number,y:number,z:number}|null} [p.spot] the death spot (x/z ride the goal)
  * @param {number|null} [p.deathAt] the death clock (the despawn window prices from it)
  * @param {number} [p.now] the caller's clock
@@ -276,6 +329,7 @@ export function relootSurfaceRetry ({
   message = '',
   retries = 0,
   surfaceY = null,
+  surfaceWhy = null,
   spot = null,
   deathAt = null,
   now = Date.now(),
@@ -287,7 +341,13 @@ export function relootSurfaceRetry ({
   if (!NO_PATH_VERDICT_RE.test(msg)) return { go: false, why: 'not-no-path' }
   const fin = v => Number.isFinite(v)
   const y = fin(surfaceY) ? Math.floor(surfaceY) : null
-  if (y === null) return { go: false, why: 'no-surface' }
+  if (y === null) {
+    return {
+      go: false,
+      why: 'no-surface',
+      subWhy: typeof surfaceWhy === 'string' && surfaceWhy ? surfaceWhy : 'unknown'
+    }
+  }
   const plan = relootPlan({
     spot: spot && fin(spot.x) && fin(spot.z) ? { x: spot.x, y, z: spot.z } : null,
     deathAt,
