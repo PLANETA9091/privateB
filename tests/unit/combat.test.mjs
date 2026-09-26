@@ -789,7 +789,7 @@ test('openFieldYieldLive: the coherence law - lens true implies the verdict flee
   // every true predicate answer must sit inside a flee verdict (the predicate
   // is the lens's own condition - drift here would re-open the run48 lie
   // from the other side: a silent marker on a real lens flee)
-  const hosts = ['zombie', 'skeleton', 'spider', 'husk']
+  const hosts = ['zombie', 'skeleton', 'spider', 'husk', 'drowned']
   for (const name of hosts) {
     for (const hp of [7.9, 10.0, 13.9, 14.0, 16.0]) {
       for (const dist of [2.0, 4.9, 5.1, 11.9, 13.0]) {
@@ -802,6 +802,33 @@ test('openFieldYieldLive: the coherence law - lens true implies the verdict flee
       }
     }
   }
+})
+
+test('openFieldYieldLive: the trident band (the v0.215.0 run17 cure)', () => {
+  // run17's impale gallery: 'impaled by Drowned' x5, every victim fled at
+  // hp 4.0-5.0 with the thrower at 8.9-11.3 - the lens's band read the
+  // drowned as melee (ENGAGE_RANGE 5) and refused at 9.8. The trident is a
+  // shooter's weapon: the wounded open-field read rides RANGED_ENGAGE_RANGE.
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 9.8, hp: 13.0, dark: true, sheltered: false }), true, 'the F17 shape: the thrower at 9.8 is inside the band')
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 8.9, hp: 5.0, dark: true, sheltered: false }), true, 'the F13 shape at the fatal bar reads true too (the flee outranks)')
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 12.0, hp: 13.9, dark: true, sheltered: false }), true, 'the band edge: 12.0 is the shooter band')
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 12.1, hp: 13.9, dark: true, sheltered: false }), false, 'past the band: the legacy ignore')
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 9.8, hp: 14.0, dark: true, sheltered: false }), false, 'the hp line holds for the drowned too')
+  assert.equal(openFieldYieldLive({ name: 'drowned', dist: 9.8, hp: 13.0, dark: false, sheltered: false }), false, 'daylight keeps the legacy answer (the gallery is the night shape)')
+})
+
+test('threatVerdict: the drowned hybrid - the lens band lifts the wounded, the melee contracts keep their measured answers', () => {
+  // the healthy contract: NO 12-block chase into the water (the F11 shape) -
+  // the fight band stays ENGAGE_RANGE 5, the swimmer closes by itself
+  assert.equal(threatVerdict({ name: 'drowned', dist: 10.0, hp: 20.0, dark: true, armed: true, sheltered: false }), 'ignore', 'healthy vs a thrower at 10: ignore (no chase-into-water)')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 4.9, hp: 20.0, dark: true, armed: true }), 'fight', 'the close band keeps the F3 kill contract')
+  // the wounded dark open-field: the lens fires (the run17 cure - two throws
+  // of margin instead of the 4.0 gallery)
+  assert.equal(threatVerdict({ name: 'drowned', dist: 9.8, hp: 13.0, dark: true, armed: true, sheltered: false }), 'flee', 'the F17 verdict at 13.0 (was: stand and die)')
+  assert.equal(threatVerdict({ name: 'drowned', dist: 9.8, hp: 7.0, dark: true, armed: true }), 'flee', 'under the land line the flip owns it (sheltered default keeps the legacy flee)')
+  // the v0.174.0 drift-wait cure: the swimmer that bobs out to 6-8 comes back
+  assert.equal(driftReturnPlan({ name: 'drowned', dist: 6.0, windows: 0 }), 'wait', 'the drift-wait is NOT regressed by the trident band')
+  assert.equal(driftReturnPlan({ name: 'skeleton', dist: 6.0, windows: 0 }), 'end', 'the shooters keep their own contract')
 })
 
 test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.0 capture law)', async () => {

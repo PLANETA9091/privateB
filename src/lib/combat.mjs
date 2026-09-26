@@ -583,6 +583,9 @@ export const OPEN_FIELD_FLEE_HP = 14
  * @param {boolean} [p.dark] is it dark at the bot
  * @param {boolean} [p.sheltered] the shelter scan's terrain verdict
  * @returns {boolean} true exactly when the open-field yield line fires
+ *   (v0.215.0: the drowned reads the RANGED band here - the trident gallery
+ *   - while the fight answer stays melee-band; the hybrid lives ONLY inside
+ *   this predicate)
  */
 export function openFieldYieldLive ({ name = null, dist = Infinity, hp = 20, poisoned = false, dark = true, sheltered = true } = {}) {
   if (dark !== true || sheltered !== false) return false
@@ -590,7 +593,23 @@ export function openFieldYieldLive ({ name = null, dist = Infinity, hp = 20, poi
   if (!Number.isFinite(dist) || dist < 0) return false
   const health = Number.isFinite(hp) ? hp : 20
   const seen = effectiveHp({ health, poisoned })
-  const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
+  // (v0.215.0) THE TRIDENT BAND - run17 (fleet 36245304817, the v0.214.0
+  // tree's field day) named the hybrid: 'impaled by Drowned' x5 of 15 deaths
+  // (F17@9.8->11.3, F2@9.3->10.1, F13@8.9->13.2, F11@10.3->9.7) - the
+  // trident is a RANGED weapon and every victim fled at hp 4.0-5.0, four
+  // throws too late, because the lens's band derived ENGAGE_RANGE 5 for the
+  // drowned and refused at 9.8. But the drowned is NOT a skeleton: the
+  // v0.174.0 drift-wait cure measured that staying on the swimmer WINS
+  // (F13's kill) and the v0.169.0 melee-finish contract owns the close band,
+  // while a 12-block fight band would walk healthy bots INTO the water
+  // chasing a shooter that always closes by itself (the F11 shape). So the
+  // trident band rides ONLY the lens: a WOUNDED bot (< 14) in the dark open
+  // field yields at the shooter's band; the healthy fight answer, the
+  // drift-wait and the melee budget keep their measured contracts (threat
+  // verdict vs drowned@10 at hp 20 stays 'ignore' - the swimmer closes the
+  // distance itself; at hp 13 it flees two throws earlier than the 4.0
+  // gallery died).
+  const engage = RANGED_HOSTILES.has(name) || name === 'drowned' ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
   return seen < OPEN_FIELD_FLEE_HP && dist <= engage
 }
 
