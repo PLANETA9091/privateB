@@ -5220,3 +5220,20 @@ Work Log:
 
 Stage Summary:
 - The census debut fleet 36240649148 in flight on 211194d (pkg 0.213.0 code identical to e379eee). Next fire: decode it, heal 211194d's authorship at close (filter-branch the tail again, AFTER the fleet completes), then v0.214.0 (the hazard-pull guard gap / the rim-dig front per the census's verdict).
+
+---
+Task ID: cron30-20260926-2030
+Agent: Super Z (cron lane, Job 414125)
+Task: 20:30 fire - mine+decode run48 (the census field debut fleet 36240649148, 211194d = v0.213.0); dispatch.
+
+Work Log:
+- Sandbox regenerated; IDENTITY ARMED per the 83acc8f note (user.name/email local+global = PLANETA9091). Syntax 199/0.
+- MINED run48/: NORMAL END, alive=19/19. **THE CENSUS SPOKE: 'land'** - F19's full ladder (walk 29b/14s/191s -> range-8 retry -> gate) ended '(no surface: land)' at [-82,41,383]; F19 died to a SKELETON ON LAND at y41 (not a drown) - the census class honest, but the ladder ARMED for a dry death (the walk legs spent before the refusal). The kind-gate (drown/wet only) is the 0.214.0 candidate.
+- **THE YIELD LENS FIRED x4 - CONTRADICTION**: F4 zombie hp 19.0, F3 skeleton hp 20.0/16.8 - ALL above the OPEN_FIELD_FLEE_HP 14 band. The print or the gate leaks. THE TOP 0.214.0 candidate: the lens print/gate audit.
+- THE DAY: deaths=7 (drown x4, Drowned x1, Skeleton x2 - the water band keeps the volume); banked=503 (the cure's streak snapped), smelted=0, unaccounted=183; rescues=91, relogins=34, losses=2; torched=6, skips 0. Stormers F5 g503/r10 + F18 g323/r10.
+- TRIAGE 9TH - THE PROFILE BREAKS: failed=78 (below x29 = 37%, plane x16, above x33 = 42%) - above the LOWEST ever (57/60/60/47/62/57/66 -> 42), the below-family spiked, deepSkip=53 record. The sand collection spiked (69 - first real sand yield).
+- DISPATCHED (last action): the 2nd census sample on the same tree.
+
+Stage Summary:
+- Master 83acc8f+worklog (pkg 0.213.0). Next free 0.214.0.
+- NEXT FIRE: decode the 2nd census sample (the land volume, the lens contradiction repeat, triage 10th - below 37% a new driver?, the bank/smelt slump); code fronts 0.214.0: the lens print/gate audit (top), the reloot kind-gate, the furnace starvation.
