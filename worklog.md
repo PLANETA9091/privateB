@@ -5017,3 +5017,19 @@ Work Log:
 
 Stage Summary:
 - NEXT FIRE: poll 36229765630 to completion, mine, decode the death-spot repeat law ('4 live' -> '5 live' = the tenure firing), the triage 4th sample (below 24/plane 16/above 61), deepSkip 45->?, deaths 6->?; coordinate 0.210.0 with the lane's surface-goal wiring.
+
+---
+Task ID: cron30-20260926-1700
+Agent: Super Z (cron lane, Job 414125)
+Task: 17:00 fire - mine+decode the death-tenure debut fleet 36229765630 (run30/).
+
+Work Log:
+- HARD KILL (end-phase hang, the first): the report WAS written, the exit hung. banked=433, plan 1/31, rescues=97, airGlitches=879, relogins=32, F3 relog #6 consecutive (the freeze-return spiral).
+- THE DRAGON: 'legacy world dragon fight... has not yet been killed' (server console) -> F6 killed by Ender Dragon using magic at [101,49,1]. The testbed world carries a live dragon - the cause-module's mob kind has no tier for it (the inference CONTRADICTED the server verdict, correctly overridden).
+- TENURE VERDICT: no regression - 38 column refusals (~history 42), the death-spot counters live longer by design, no same-cell repeat field-tested yet.
+- TRIAGE 4TH SAMPLE: below x14 (47%) > above x10 - the above-dominance was RUN-PROFILE, not day-law. deepSkip=23, lipDig=0 day 5.
+- BANK: 4 planned only; finals doomed 2-climb chains (F11/F8), no chest in range (F4).
+- The lane's dispatch 36231049149 (04e1ad7) in_progress at decode - no duplicate dispatch; the decode unit.
+
+Stage Summary:
+- NEXT FIRE: mine+decode the lane's 36231049149; fronts: THE END-PHASE HANG (top), THE DRAGON CLASS (extend the mob kind), THE RELOG SPIRAL, the triage profile law; 0.210.0 free for the surface wiring.
