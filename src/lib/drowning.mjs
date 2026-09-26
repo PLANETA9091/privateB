@@ -899,6 +899,19 @@ export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay,
  * re-dive window (the measured F16 loop spanned ~10s) while keeping the set
  * bounded; a fresh rescue re-records and re-arms the window anyway. */
 export const WATER_HAZARD_TTL_MS = 120000
+/** (v0.209.0) How long a DEATH-spot record stays live (ms). Run55 (fleet
+ * 36226589855) measured the exact repeat: F16 fell at [-117,42,406] and the
+ * next fall death (F17) landed on the SAME cell - the death spot's "4 live"
+ * count matched F16's own "4 live" exactly, which reads one way: the F16
+ * record had ALREADY expired (a live F16 record would have made it 5). A
+ * death spot is not a transient rescue pool - it is a structural trap (a
+ * rim over a flooded quarry stays a rim) - and the reloot machinery walks a
+ * respawned bot back at its own death spot inside a window measured at
+ * 189s, LONGER than the 120s rescue TTL: the spot can be legally unprotected
+ * while the bot is en route to it. Death tenure doubles the water TTL so
+ * the trap outlives the return window; rescue records keep 120s (they ARE
+ * transient - the pool drains, the bot moves on). */
+export const WATER_DEATH_TTL_MS = 240000
 /** XZ radius (blocks) around a rescue cell that stays suspect. 4 covers the
  * flooded column plus the banks a sideways sidestep would reach. */
 export const WATER_HAZARD_RADIUS = 4
@@ -910,23 +923,42 @@ export const WATER_HAZARD_Y_BAND = 8
 export const WATER_HAZARD_CAP = 24
 
 /**
+ * (v0.209.0) Is this record still live? A record that carries its own `ttl`
+ * (a death-spot record) outlives the ledger's default; a plain rescue record
+ * reads the ledger TTL. One predicate because the same expiry law must hold
+ * in THREE filters (record's prune, near's loop, zones' cluster input) - a
+ * record that one filter calls dead and another calls alive is the
+ * double-standard bug class this repo keeps unshipping.
+ * @param {{x:number,y:number,z:number,at:number,ttl?:number}} h the record
+ * @param {number} now caller's clock (ms)
+ * @param {number} ttlMs the ledger's default TTL
+ * @returns {boolean}
+ */
+export function waterHazardAlive (h, now, ttlMs) {
+  return !!h && Number.isFinite(h.x) && Number.isFinite(h.y) && Number.isFinite(h.z) &&
+    Number.isFinite(h.at) && now - h.at < (Number.isFinite(h.ttl) ? h.ttl : ttlMs)
+}
+
+/**
  * Record a rescue position as a water hazard (pure: returns a NEW array,
  * the caller reassigns). Expired records are pruned first; a junk position
  * (bot gone mid-rescue) prunes only. The newest record always survives the
  * cap - it is the one the bot is standing in.
- * @param {Array<{x:number,y:number,z:number,at:number}>} hazards current list
+ * (v0.209.0) `opts.recordTtlMs` stamps the NEW record with its own TTL (the
+ * death-spot tenure): the field is written ONLY when set, so plain rescue
+ * records keep the exact v0.62.0 shape and their deep pins stay untouched.
+ * @param {Array<{x:number,y:number,z:number,at:number,ttl?:number}>} hazards current list
  * @param {{x:number,y:number,z:number}|null} [pos] the rescue cell (world coords)
  * @param {number} [now] caller's clock (ms)
- * @param {{ttlMs?:number,cap?:number}} [opts]
- * @returns {Array<{x:number,y:number,z:number,at:number}>} the new list
+ * @param {{ttlMs?:number,cap?:number,recordTtlMs?:number|null}} [opts]
+ * @returns {Array<{x:number,y:number,z:number,at:number,ttl?:number}>} the new list
  */
-export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, cap = WATER_HAZARD_CAP } = {}) {
-  const live = (Array.isArray(hazards) ? hazards : []).filter(h =>
-    h && Number.isFinite(h.x) && Number.isFinite(h.y) && Number.isFinite(h.z) &&
-    Number.isFinite(h.at) && now - h.at < ttlMs
-  )
+export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs = WATER_HAZARD_TTL_MS, cap = WATER_HAZARD_CAP, recordTtlMs = null } = {}) {
+  const live = (Array.isArray(hazards) ? hazards : []).filter(h => waterHazardAlive(h, now, ttlMs))
   if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)) {
-    live.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z), at: now })
+    const cell = { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z), at: now }
+    if (Number.isFinite(recordTtlMs) && recordTtlMs > 0) cell.ttl = recordTtlMs
+    live.push(cell)
   }
   return live.slice(-cap)
 }
@@ -944,7 +976,7 @@ export function nearWaterHazard (hazards, pos = null, now = Date.now(), { ttlMs 
   if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return null
   let best = null
   for (const h of Array.isArray(hazards) ? hazards : []) {
-    if (!h || !Number.isFinite(h.at) || now - h.at >= ttlMs) continue
+    if (!waterHazardAlive(h, now, ttlMs)) continue
     if (Math.abs(pos.y - h.y) > yBand) continue
     const d = Math.hypot(pos.x - h.x, pos.z - h.z)
     if (d <= radius && (!best || d < best.d)) best = { hazard: h, d }
@@ -1019,10 +1051,7 @@ export function hazardZones (hazards, now = Date.now(), {
   minCount = HAZARD_ZONE_MIN_COUNT,
   margin = HAZARD_ZONE_MARGIN
 } = {}) {
-  const live = (Array.isArray(hazards) ? hazards : []).filter(h =>
-    h && Number.isFinite(h.x) && Number.isFinite(h.y) && Number.isFinite(h.z) &&
-    Number.isFinite(h.at) && now - h.at < ttlMs
-  )
+  const live = (Array.isArray(hazards) ? hazards : []).filter(h => waterHazardAlive(h, now, ttlMs))
   const clusters = []
   for (const h of live) {
     let home = null
@@ -1093,9 +1122,12 @@ export class HazardLedger {
     this.hazards = []
   }
 
-  /** Record a hazard cell; returns the number of live entries after the write. */
-  record (pos) {
-    this.hazards = recordWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, cap: this.cap })
+  /** Record a hazard cell; returns the number of live entries after the write.
+   * (v0.209.0) `opts.ttlMs` stamps THIS record with its own tenure (the
+   * death-spot record outlives the rescue records) - the ledger's own
+   * ttlMs stays every other record's law. */
+  record (pos, { ttlMs: recordTtlMs = null } = {}) {
+    this.hazards = recordWaterHazard(this.hazards, pos, this.now(), { ttlMs: this.ttlMs, cap: this.cap, recordTtlMs })
     return this.hazards.length
   }
 

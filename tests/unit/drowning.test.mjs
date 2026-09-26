@@ -11,6 +11,7 @@ import {
   OXYGEN_RESCUE_LEVEL, OXYGEN_CRITICAL_LEVEL, HEAD_SUBMERGED_RESCUE_MS,
   RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, SHORE_MAX_RADIUS, AIR_GLITCH_LOG_MS,
   AQUATIC_HOSTILES, WATER_HAZARD_TTL_MS, WATER_HAZARD_RADIUS, WATER_HAZARD_Y_BAND, WATER_HAZARD_CAP,
+  waterHazardAlive, WATER_DEATH_TTL_MS,
   OXYGEN_RESET_SENTINEL, oxygenInDomain,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
@@ -356,6 +357,88 @@ test('HazardLedger: defaults ride the module constants', () => {
   assert.equal(ledger.yBand, WATER_HAZARD_Y_BAND)
   assert.equal(ledger.cap, WATER_HAZARD_CAP)
   assert.equal(typeof ledger.now(), 'number', 'the default clock is Date.now')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.209.0) THE DEATH SPOT TENURE. Run55 (fleet 36226589855) measured the
+// EXACT repeat: F16 fell at [-117,42,406] and F17 fell on the SAME cell -
+// both death-spot records reading "4 live", which is only possible if F16's
+// record had ALREADY expired when F17 died (a live one would have made it 5).
+// The 120s rescue TTL is shorter than the reloot return window (189s
+// measured): the spot can be legally unprotected while a respawned bot walks
+// back to it. A death record now carries its own tenure (240s); rescue
+// records keep the exact v0.62.0 shape and the 120s transient law.
+test('WATER_DEATH_TTL_MS: the death tenure outlives the reloot return window', () => {
+  assert.equal(WATER_DEATH_TTL_MS, 240000, 'double the water TTL - the measured tenure')
+  assert.ok(WATER_DEATH_TTL_MS > 189000, 'the reloot return window (189s measured) is COVERED - the spot cannot expire while the bot walks back to it')
+  assert.ok(WATER_DEATH_TTL_MS >= 2 * WATER_HAZARD_TTL_MS, 'a structural trap outlives a transient pool')
+})
+
+test('waterHazardAlive: the per-record ttl overrides, the plain shape reads the ledger law', () => {
+  const t = 1_000_000
+  // a plain rescue record (no ttl field) obeys the ledger TTL
+  const plain = { x: 1, y: 2, z: 3, at: t - WATER_HAZARD_TTL_MS + 1000 }
+  assert.ok(waterHazardAlive(plain, t, WATER_HAZARD_TTL_MS), 'plain record inside the ledger TTL is alive')
+  assert.equal(waterHazardAlive({ x: 1, y: 2, z: 3, at: t - WATER_HAZARD_TTL_MS - 1 }, t, WATER_HAZARD_TTL_MS), false, 'plain record past the ledger TTL is dead')
+  // a tenured record (ttl stamped) outlives the ledger TTL
+  const tenured = { x: 1, y: 2, z: 3, at: t - WATER_HAZARD_TTL_MS - 1, ttl: WATER_DEATH_TTL_MS }
+  assert.ok(waterHazardAlive(tenured, t, WATER_HAZARD_TTL_MS), 'the death record survives past the ledger TTL (the run55 blind spot closed)')
+  assert.equal(waterHazardAlive({ ...tenured, at: t - WATER_DEATH_TTL_MS - 1 }, t, WATER_HAZARD_TTL_MS), false, 'the death record still dies at ITS OWN ttl')
+  // junk is dead under BOTH laws
+  assert.equal(waterHazardAlive(null, t, WATER_HAZARD_TTL_MS), false)
+  assert.equal(waterHazardAlive({ x: 1, y: 2, z: 3, at: Number.NaN }, t, WATER_HAZARD_TTL_MS), false)
+  assert.equal(waterHazardAlive({ x: 1, y: 2, z: 3, at: t - WATER_HAZARD_TTL_MS - 1, ttl: Number.NaN }, t, WATER_HAZARD_TTL_MS), false, 'a junk ttl field falls back to the ledger law (never NaN-immortal)')
+})
+
+test('recordWaterHazard: the tenure is stamped ONLY when set - the rescue shape stays v0.62.0', () => {
+  const t0 = 1_000_000
+  // the plain call keeps the EXACT legacy shape (the deep pins upstream stay untouched)
+  const plain = recordWaterHazard([], { x: 1.7, y: 45.2, z: -8.9 }, t0)
+  assert.deepEqual(plain, [{ x: 1, y: 45, z: -9, at: t0 }], 'no ttl field without recordTtlMs')
+  // the tenured call stamps ttl
+  const tenured = recordWaterHazard([], { x: -117, y: 42, z: 406 }, t0, { recordTtlMs: WATER_DEATH_TTL_MS })
+  assert.deepEqual(tenured, [{ x: -117, y: 42, z: 406, at: t0, ttl: WATER_DEATH_TTL_MS }], 'the death record carries its tenure')
+  // junk recordTtlMs stamps nothing (never an immortal record)
+  const junk = recordWaterHazard([], { x: 0, y: 0, z: 0 }, t0, { recordTtlMs: Number.NaN })
+  assert.equal(junk[0].ttl, undefined, 'a junk tenure stamps nothing')
+  // the tenured record survives a prune pass that kills plain records
+  const later = t0 + WATER_HAZARD_TTL_MS + 5000
+  const mixed = recordWaterHazard([...plain, ...tenured], null, later)
+  assert.equal(mixed.length, 1, 'the plain record expired, the tenured one survives')
+  assert.equal(mixed[0].ttl, WATER_DEATH_TTL_MS, 'the survivor is the death record')
+})
+
+test('nearWaterHazard + hazardZones: the SAME tenure law holds in all three filters', () => {
+  const t = 1_000_000
+  const tenured = { x: -117, y: 42, z: 406, at: t - WATER_HAZARD_TTL_MS - 1, ttl: WATER_DEATH_TTL_MS }
+  // near() sees the tenured record past the ledger TTL (the point tier)
+  assert.ok(nearWaterHazard([tenured], { x: -117, y: 42, z: 406 }, t), 'near() honors the per-record tenure past the ledger TTL')
+  // zones() clusters the tenured record past the ledger TTL (the zone tier)
+  const second = { x: -120, y: 45, z: 408, at: t - 1000, ttl: WATER_DEATH_TTL_MS }
+  const zones = hazardZones([tenured, second], t, { ttlMs: WATER_HAZARD_TTL_MS })
+  assert.equal(zones.length, 1, 'the tenured pair still forms a zone past the ledger TTL (both tiers read ONE law)')
+  assert.equal(zones[0].count, 2)
+  // and a PLAIN record at the same age is invisible to both tiers
+  const plain = { x: -117, y: 42, z: 406, at: t - WATER_HAZARD_TTL_MS - 1 }
+  assert.equal(nearWaterHazard([plain], { x: -117, y: 42, z: 406 }, t), null, 'the plain record is expired for near()')
+  assert.equal(hazardZones([plain, { ...plain, x: -120 }], t, { ttlMs: WATER_HAZARD_TTL_MS }).length, 0, 'the plain pair is expired for zones()')
+})
+
+test('HazardLedger.record: the tenure rides the opts, the ledger ttl stays the plain law', () => {
+  const clock = { t: 1_000_000 }
+  const ledger = new HazardLedger({ now: () => clock.t })
+  ledger.record({ x: -117, y: 42, z: 406 }, { ttlMs: WATER_DEATH_TTL_MS })
+  assert.equal(ledger.size, 1)
+  assert.equal(ledger.hazards[0].ttl, WATER_DEATH_TTL_MS, 'the death record carries its tenure through the ledger')
+  ledger.record({ x: 50, y: 64, z: 50 })
+  assert.equal(ledger.hazards[1].ttl, undefined, 'the plain rescue record stays plain')
+  // past the ledger TTL only the tenured record answers
+  clock.t += WATER_HAZARD_TTL_MS + 5000
+  assert.ok(ledger.near({ x: -117, y: 42, z: 406 }), 'the death spot is STILL a hazard (the run55 repeat now vetoed)')
+  assert.equal(ledger.near({ x: 50, y: 64, z: 50 }), null, 'the rescue cell expired on the ledger law')
+  // the plain two-arg call still works (call-site compat)
+  const ledger2 = new HazardLedger({ now: () => clock.t })
+  assert.equal(ledger2.record({ x: 1, y: 1, z: 1 }), 1, 'the legacy call shape is untouched')
 })
 
 // ---------------------------------------------------------------------------

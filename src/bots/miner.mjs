@@ -47,7 +47,8 @@ import {
   frozenReturnGate, frozenReturnBypass,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
-  airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES
+  airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
+  WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
@@ -313,7 +314,16 @@ export function createMiner ({
     try {
       const dp = bot.entity?.position
       if (dp && Number.isFinite(dp.x) && Number.isFinite(dp.y) && Number.isFinite(dp.z)) {
-        const live = waterHazards.record({ x: dp.x, y: dp.y, z: dp.z })
+        // (v0.209.0) THE DEATH SPOT TENURE: run55 (fleet 36226589855) measured
+        // the EXACT repeat - F16 fell at [-117,42,406], the next fall death
+        // (F17) landed on the SAME cell, and both records read "4 live" -
+        // which reads one way: F16's record had ALREADY expired (a live one
+        // would have made it 5). The 120s rescue TTL is shorter than the
+        // reloot return window (189s measured): the trap legally unprotected
+        // while the bot walks back to it. A death spot outlives the window -
+        // the record is stamped with WATER_DEATH_TTL_MS (240s); rescue
+        // records keep the 120s transient law untouched.
+        const live = waterHazards.record({ x: dp.x, y: dp.y, z: dp.z }, { ttlMs: WATER_DEATH_TTL_MS })
         log(`${tag} water: death spot memorized as a hazard at [${Math.floor(dp.x)},${Math.floor(dp.y)},${Math.floor(dp.z)}] (${live} live, fleet-wide)`)
         // (v0.201.0) the re-loot record rides the SAME guarded read: the
         // spot is honest (the entity position at death), the clock is the
