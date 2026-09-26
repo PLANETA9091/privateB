@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
   RELOOT_SURFACE_RISE_MAX,
   RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS
 } from '../../src/lib/reloot.mjs'
@@ -494,4 +494,77 @@ test('the gate carries the census beside the legacy why (additive, never instead
   const noBot = relootSurfaceRetry({ ...shape, surfaceY: 58, surfaceWhy: 'sealed', botPos: null })
   assert.equal(noBot.why, 'no-bot', 'the plan fences fire only after the surface verdict (the gate order: ladder, geometry, y, plan)')
   assert.ok(!('subWhy' in noBot), 'the plan-fence refusals stay byte-for-byte')
+})
+
+// ---- v0.219.0 THE RIM DIG PLAN ----
+// F13's sealed class (run 36248025944: walk + wide retry 'No path', the scan
+// refused 'no surface: sealed') is the ladder's last untouchable shape: the
+// drops FLOAT under an aquifer pool's solid seal and every walk the ladder
+// owns refuses or cannot reach. The cure is a DIG from the dry seal above.
+// This fire lands the PURE surface (the v0.200.0 pattern: the plan first,
+// fully unit-tested, the wiring rides the next lane): relootCap names the
+// seal's cell, relootRimDig prices the walk onto it and names the dig target.
+
+test('the cap read names the seal and mirrors the census control flow', () => {
+  assert.deepEqual(relootCap({ column: [{ y: 52, name: 'water' }, { y: 60, name: 'stone' }] }), { y: 60, name: 'stone' })
+  assert.deepEqual(relootCap({ column: [{ y: 52, name: 'kelp' }, { y: 53, name: 'dirt' }] }), { y: 53, name: 'dirt' }, 'the swimmable plants are the water; the first solid above them is the cap')
+  // every non-sealed class rides verbatim
+  assert.equal(relootCap({ column: null }), 'no-column')
+  assert.equal(relootCap({ column: [] }), 'no-column')
+  assert.equal(relootCap({ column: [{ y: 52, name: 'water' }, null] }), 'junk-read')
+  assert.equal(relootCap({ column: [{ y: 52, name: 'water' }, { y: NaN, name: 'stone' }] }), 'junk-read')
+  assert.equal(relootCap({ column: [{ y: 59, name: 'air' }, { y: 60, name: 'stone' }] }), 'land')
+  assert.equal(relootCap({ column: [{ y: 52, name: 'water' }, { y: 58, name: 'cave_air' }] }), 'air-first', 'a surface EXISTS - the scanner owns the column, the dig never competes')
+  assert.equal(relootCap({ column: [{ y: 52, name: 'water' }, { y: 53, name: 'water' }] }), 'no-air')
+})
+
+test('the cap coherence: a cap exists exactly when the census says sealed (brute force)', () => {
+  const columns = [
+    null, [],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'water' }, { y: 44, name: 'cave_air' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'kelp' }, { y: 44, name: 'air' }],
+    [{ y: 52, name: 'water' }, { y: 60, name: 'stone' }],
+    [{ y: 60, name: 'water' }, { y: 61, name: 'lily_pad' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'stone' }],
+    [{ y: 59, name: 'air' }, { y: 60, name: 'stone' }],
+    [{ y: 42, name: 'water' }, { y: 43, name: 'water' }],
+    [{ y: 42, name: 'water' }, { y: NaN, name: 'air' }],
+    [{ y: 42 }],
+    [{ y: 42, name: 42 }]
+  ]
+  for (const column of columns) {
+    const cap = relootCap({ column })
+    const why = relootSurfaceWhy({ column })
+    assert.equal(typeof cap === 'object', why === 'sealed', `cap coherence broke for ${JSON.stringify(column)}: cap=${JSON.stringify(cap)} why=${why}`)
+  }
+})
+
+test('the rim dig plan arms on the F13 sealed shape with the dig target named', () => {
+  const now = Date.now()
+  const r = relootRimDig({
+    column: [{ y: 52, name: 'water' }, { y: 53, name: 'water' }, { y: 60, name: 'stone' }],
+    spot: { x: -130, y: 52, z: 408 }, deathAt: now - 60000, now,
+    botPos: { x: -140, y: 61, z: 400 }
+  })
+  assert.equal(r.go, true, 'F13 died here - the dig must arm where every walk refused')
+  assert.deepEqual(r.goal, { x: -130, y: 60, z: 408 }, 'the goal is the CAP cell (dry ground by construction - the seal itself)')
+  assert.equal(r.range, RELOOT_GOAL_RANGE, 'the walk aims tight - the seal is dry, the v0.207.0 wet-aim class does not apply')
+  assert.equal(r.capY, 60)
+  assert.deepEqual(r.digTarget, { x: -130, y: 60, z: 408 }, 'the dig opens the death column seal')
+  assert.ok(r.budgetMs > 0 && r.windowMs > 0, 'the pricing rides the plan arithmetic')
+})
+
+test('the rim dig refuses honestly: the non-sealed classes ride verbatim, the plan fences inherit', () => {
+  const now = Date.now()
+  const shape = { spot: { x: -130, y: 52, z: 408 }, deathAt: now - 60000, now, botPos: { x: -140, y: 61, z: 400 } }
+  assert.equal(relootRimDig({ ...shape, column: [{ y: 52, name: 'water' }, { y: 58, name: 'cave_air' }] }).why, 'air-first', 'the scanner won - the dig must never compete')
+  assert.equal(relootRimDig({ ...shape, column: [{ y: 59, name: 'air' }] }).why, 'land')
+  assert.equal(relootRimDig({ ...shape, column: null }).why, 'no-column')
+  assert.equal(relootRimDig({ ...shape, column: [{ y: 52, name: 'water' }, null] }).why, 'junk-read')
+  assert.equal(relootRimDig({ ...shape, column: [{ y: 52, name: 'water' }, { y: 53, name: 'water' }] }).why, 'no-air')
+  assert.equal(relootRimDig({ ...shape, column: [{ y: 52, name: 'water' }, { y: 60, name: 'stone' }], spot: null }).why, 'no-spot')
+  const sealed = { column: [{ y: 52, name: 'water' }, { y: 60, name: 'stone' }] }
+  assert.equal(relootRimDig({ ...shape, ...sealed, deathAt: now - RELOOT_DESPAWN_MS }).why, 'expired', 'the despawn window prices the dig walk too')
+  assert.equal(relootRimDig({ ...shape, ...sealed, botPos: null }).why, 'no-bot')
+  assert.equal(relootRimDig({ ...shape, ...sealed, botPos: { x: 500, y: 61, z: 400 } }).why, 'too-far', 'the 128 envelope holds')
 })

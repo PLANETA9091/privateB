@@ -385,3 +385,117 @@ export function relootSurfaceRetry ({
     windowMs: plan.windowMs
   }
 }
+
+/**
+ * (v0.219.0) THE CAP READ - the sealed column's own anatomy, named. The
+ * census (relootSurfaceWhy) says 'sealed' and stops; the rim dig needs the
+ * cap's CELL. This read mirrors the census's control flow exactly (the
+ * coherence law holds by construction) and returns the first non-fluid,
+ * non-air block above the fluid - the cap - or the census's own class when
+ * the column does not seal:
+ *   'no-column'  the column read is junk or empty (the world read died)
+ *   'junk-read'  a malformed entry inside the column (the unloaded-chunk
+ *                class - blockAt returned null mid-column)
+ *   'land'       the spot cell reads non-fluid: a dry death, no cap above
+ *                the fluid because there is no fluid
+ *   'air-first'  a surface EXISTS in this column (the scanner's success) -
+ *                the surface walk owns it, the dig must never compete
+ *   'no-air'     the reads ran out before any air or cap (water to the top
+ *                of the scan)
+ * @param {Array<{y:number, name:string}|null>|null} column bottom-up block
+ *        reads starting AT the death spot's own y (junk -> 'no-column')
+ * @returns {{y:number, name:string}|string} the cap cell {y, name} on a
+ *          sealed column, or the refusal class string otherwise
+ */
+export function relootCap ({ column = null } = {}) {
+  if (!Array.isArray(column) || column.length === 0) return 'no-column'
+  const spot = column[0]
+  if (!spot || typeof spot.name !== 'string' || !Number.isFinite(spot.y)) return 'junk-read'
+  if (!SURFACE_FLUID_RE.test(spot.name)) return 'land'
+  for (let i = 1; i < column.length; i++) {
+    const c = column[i]
+    if (!c || typeof c.name !== 'string' || !Number.isFinite(c.y)) return 'junk-read'
+    if (SURFACE_FLUID_RE.test(c.name)) continue // still inside the fluid column
+    if (SURFACE_AIR_RE.test(c.name)) return 'air-first' // a surface exists - the dig must never compete
+    return { y: c.y, name: c.name } // THE CAP - the seal the dig opens
+  }
+  return 'no-air' // the reads ran out - no cap observed
+}
+
+/**
+ * (v0.219.0) THE RIM DIG PLAN - the sealed pool's exit ramp, pure. MEASURED
+ * (run 36248025944, the v0.215.0 debut, F13's ladder): walk -> wide retry
+ * -> both 'No path' -> the scan refused 'no surface: sealed' - the death
+ * column reads fluid-then-SOLID: an aquifer pool sealed by ground above the
+ * waterline. The drops FLOAT under the seal, untouchable by every walk the
+ * ladder owns (the surface walk has no surface to stand near; the sphere
+ * walks cannot reach through stone). THE CURE IS A DIG, not a walk: the
+ * sealed surface ABOVE the death column is DRY GROUND (it is the seal) -
+ * a GoalNear onto the cap column is pathfinder-legal by construction (no
+ * wet aim - the v0.207.0 class does not apply), and from that stance the
+ * dig opens the seal, the water column rises, and the floating stacks lift
+ * into pickup reach. This module prices the WALK (the v0.200.0 pattern: the
+ * plan lands first, fully unit-tested, and the field debut rides the next
+ * lane) - the wiring owns the dig mechanics, the float wait, and THE
+ * STANCE GUARD: the dig must never open the column the bot is standing on
+ * (the dig target is the death column's seal; the stance lands GoalNear
+ * range 2 and the wiring verifies the stance's own column differs, or
+ * re-stances one block out, before any swing).
+ *
+ * The gates, each named: the column must seal (relootCap's class rides the
+ * refusal verbatim - a non-sealed column is the scanner's or the walk's
+ * domain); the plan fences inherit verbatim (relootPlan on the CAP cell:
+ * no-spot / expired / no-bot / too-far / no-time - the cap column is a spot
+ * like any other and the 128 envelope, the despawn window and the margin
+ * price it exactly when any walk would be refused).
+ *
+ * @param {object} [p]
+ * @param {Array<{y:number, name:string}|null>|null} [p.column] bottom-up
+ *        block reads starting AT the death spot's own y (junk -> the class)
+ * @param {{x:number,y:number,z:number}|null} [p.spot] the death spot (x/z
+ *        ride the goal; the cap y rides the dig target)
+ * @param {number|null} [p.deathAt] the death clock (the despawn window)
+ * @param {number} [p.now] the caller's clock
+ * @param {{x:number,y:number,z:number}|null} [p.botPos] the bot's stance
+ * @param {number} [p.marginMs] the finish-before-despawn margin (default RELOOT_MARGIN_MS)
+ * @returns {{go:boolean, why?:string, goal?:{x:number,y:number,z:number}, range?:number,
+ *            capY?:number, digTarget?:{x:number,y:number,z:number}, dist?:number,
+ *            budgetMs?:number, windowMs?:number}}
+ *   a refusal reads { go:false, why: relootCap's class | the plan fences },
+ *   a plan reads { go:true, goal (the cap cell), range 2, capY, digTarget
+ *   (the cap block of the death column), dist, budgetMs, windowMs }
+ */
+export function relootRimDig ({
+  column = null,
+  spot = null,
+  deathAt = null,
+  now = Date.now(),
+  botPos = null,
+  marginMs = RELOOT_MARGIN_MS
+} = {}) {
+  const cap = relootCap({ column })
+  if (typeof cap === 'string') return { go: false, why: cap }
+  const fin = v => Number.isFinite(v)
+  const spotOk = spot && fin(spot.x) && fin(spot.z)
+  if (!spotOk) return { go: false, why: 'no-spot' }
+  const capY = Math.floor(cap.y)
+  const plan = relootPlan({
+    spot: { x: spot.x, y: capY, z: spot.z },
+    deathAt,
+    now,
+    botPos,
+    attempted: false, // the record's flag owns the LOOP lane; the dig leg's count is the wiring's law
+    marginMs
+  })
+  if (!plan.go) return { go: false, why: plan.why }
+  return {
+    go: true,
+    goal: plan.goal,
+    range: RELOOT_GOAL_RANGE,
+    capY,
+    digTarget: { x: plan.goal.x, y: capY, z: plan.goal.z },
+    dist: plan.dist,
+    budgetMs: plan.budgetMs,
+    windowMs: plan.windowMs
+  }
+}
