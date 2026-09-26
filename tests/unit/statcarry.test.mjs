@@ -4,7 +4,7 @@
 // seed-then-snapshot contract here is what keeps the totals honest.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshotStats, seedStats, CARRY_FIELDS } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -57,4 +57,47 @@ test('stat carry: seeding creates byName when the fresh miner has none', () => {
   const stats = {}
   seedStats(stats, { byName: { stone: 7 } })
   assert.deepEqual(stats.byName, { stone: 7 })
+})
+
+// (v0.195.0) THE SENTRY ATTRIBUTION ROW - run190's blind spot #2: the
+// airGlitches counter read 383 fleet-wide while the log carried 16 lines, all
+// from ONE bot. The row makes the counter attributable in the mined surface.
+test('sentry attribution: the run190 class - one loud bot, the rest silent', () => {
+  const row = sentryAttributionRow([
+    { name: 'F1', stats: { mined: 149 } }, // busy bot, no sentry events
+    { name: 'F7', stats: { airGlitches: 343, rescues: 8 } },
+    { name: 'F8', stats: {} },
+    { name: 'F16', stats: { airGlitches: 12 } }
+  ])
+  assert.equal(row, 'sentry per-bot: F7 g343/r8 F16 g12/r0 | 2 g0/r0')
+})
+
+test('sentry attribution: all-zero still prints the row (the filter-blind-spot lesson)', () => {
+  assert.equal(sentryAttributionRow([{ name: 'F1', stats: { mined: 5 } }, { name: 'F2', stats: {} }]), 'sentry per-bot: all 2 g0/r0')
+  assert.equal(sentryAttributionRow([]), 'sentry per-bot: all 0 g0/r0', 'an empty fleet prints the row too - silence is never evidence')
+})
+
+test('sentry attribution: rescues alone name the bot (the rescues-56 decode class)', () => {
+  const row = sentryAttributionRow([{ name: 'F3', stats: { rescues: 12 } }, { name: 'F4', stats: { mined: 9 } }])
+  assert.equal(row, 'sentry per-bot: F3 g0/r12 | 1 g0/r0')
+})
+
+test('sentry attribution: junk is silent, never NaN, never a crash', () => {
+  assert.equal(sentryAttributionRow(), 'sentry per-bot: all 0 g0/r0')
+  assert.equal(sentryAttributionRow(null), 'sentry per-bot: all 0 g0/r0')
+  assert.equal(sentryAttributionRow('junk'), 'sentry per-bot: all 0 g0/r0')
+  const row = sentryAttributionRow([
+    null, // a junk slot
+    { name: 'F2' }, // no stats object
+    { name: 'F4', stats: { airGlitches: NaN } },
+    { name: 'F5', stats: { rescues: -3 } },
+    { stats: { airGlitches: 7 } }, // missing name
+    { name: 'F9', stats: { airGlitches: 2.7 } } // fractional junk floors
+  ])
+  assert.equal(row, 'sentry per-bot: ? g7/r0 F9 g2/r0 | 4 g0/r0')
+})
+
+test('sentry attribution: the row always opens with the mining key', () => {
+  assert.ok(sentryAttributionRow([]).startsWith('sentry per-bot:'))
+  assert.ok(sentryAttributionRow([{ name: 'F1', stats: { airGlitches: 5 } }]).startsWith('sentry per-bot:'))
 })

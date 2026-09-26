@@ -38,7 +38,7 @@ import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommun
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -2158,6 +2158,14 @@ function printFinalReport (reason) {
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} kills=${list.reduce((a, m) => a + (m.stats.kills ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size} wt=${waterTableBoard.size}`)
+// (v0.195.0) THE SENTRY ATTRIBUTION ROW - run190's blind spot #2 closes: the
+// airGlitches counter read fleet-wide while the rate-limited log was
+// per-instance, so 383 glitches surfaced as 16 lines from ONE bot and ~40
+// were attributable to nothing. The row puts the per-bot truth (g=airGlitches,
+// r=rescues) into the mined surface itself, next to the counter it
+// attributes. ALWAYS printed - even all-zero (an absent line class is
+// indistinguishable from a filter blind spot - the 05:00 ledger-skip lesson).
+console.log(sentryAttributionRow(list.map(m => ({ name: m.username, stats: m.stats }))))
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)
