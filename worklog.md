@@ -5516,3 +5516,28 @@ Stage Summary:
 - FLEET OF RECORD: 36257829576 (the v0.219.0 field debut on ce855d9) IN FLIGHT at close - the 02:00 fire mines it first (the rim dig plan is pure so the field cannot exercise it; the decode reads the wet-delivery storm's evolution: the F9/F19 rescue churn, the delivery leak pocket->banked, the skeleton x2 return).
 - NEXT FIRE: (1) mine+decode 36257829576; (2) CODE FRONTS (0.221.0): the DRAGON ZONE WIRING (the recorded candidates - the WorldMap target-assignment exclusion + the shelter priority on zone entry; the measured radius stays the calibration), the rim-dig WIRING (the stance guard + the float wait - the lane's 0.219.0 plan, theirs), the wet-churn governor / the delivery leak (the 00:37 watch list); (3) the lane may take 0.221.0.
 - OPEN FRONTS: the dragon-zone WIRING (the plan landed 61fbf9e); the rim-dig wiring (the lane's plan); the wet-delivery storm (F9/F19 44 rescues, the delivery leak); the 0-stacks reloot anatomy (2-run); the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the dragon-zone PLAN (this fire - the anchor + the predicate, pure).
+
+---
+Task ID: cron30-20260927-0200
+Agent: Super Z (cron lane, Job 414125)
+Task: 02:00 fire - mine+decode the v0.219.0 field debut 36257829576 (the 01:30 handoff).
+
+Work Log:
+- Sync: master 23c399d (pkg 0.220.0 THE DRAGON ZONE, this lane's). CI 36259711052 SUCCESS (v0.220.0's unit shards validated); the lane quiet since 17:37Z. Next free version 0.221.0 (no code this fire).
+- 36257829576 (the v0.219.0 field debut on ce855d9) SUCCESS. MINED to run33/ (zips byte-identical to the artifacts API: 41280/10586/2795 - the ownership proof). DECODED:
+  - THE BLIND PRINT 2ND SAMPLE CONFIRMED: 4 plain-drown deaths ALL read 'the inference is blind to this kind - the hint is noise by construction'; CONTRADICTS = 0 for the whole run (2-straight; the v0.218.0 cure holds).
+  - THE FIRST LANE MARKER 3RD SAMPLE: SILENT (0 'open-field yield' lines, 3-straight).
+  - DEATHS=9 (trend 7->9): drowned x4 (F16/F14/F9/F19) + slain by Drowned x1 (F13) + Zombie x2 (F7/F6) + fall x1 (F17) + Skeleton x1 (F4). The wet class = 5/9. Corroborates x5 + blind x4, honest across the board.
+  - THE DRAGON RESTS: 0 dragon lines - the kill zone (~[100,49,1]) unexercised this run; the recurrence paused. The v0.220.0 predicate has no new field sample.
+  - THE LEDGER: mined=2710 (4.52 b/s), banked=318, smelted=0, pocket=1775u/200s at the deadline, accounted=2093, UNACCOUNTED=617, conversion=77.2%. The delivery leak EASES (898 -> 617) but the zero-leak streak stays broken (3rd storm run). The anatomy this run is the NIGHT HOLD: 6 'final bank deferred: night' lines + F11 'bank trip: skipped (pockets full, 1s left < 150s - the end-phase owns the deadline banking)' - full pockets rode out the dark and the deadline.
+  - THE WET-DELIVERY STORM 2ND SAMPLE: rescues=88 (74 -> 88, growing), airGlitches=1413 (0 -> 1413, a blowout), reconnects=15 (relogins=34). THE SENTRY NAMES THE STORM BOTS: F9 g653/r19 + F19 g598/r17 = 1251 of 1413 glitches - THE SAME TWO BOTS as run32's F9+F19 44-rescue churn; F11 g0/r12 (12 rescues, 0 glitches). The wet-quarry geometry keeps re-drowning the same two bots, and their clients degrade (frozen physics pages: F9 'frozen while head-wet').
+  - THE RELOOT SHAPE: 27 lines, mostly unarmed delays (F9/F16/F7/F14/F19); F16's walk started (87b, budget 27s, window 135s) but 'walk failed (water rescue in progress (reloot refused))'. ZERO sealed scans from the reloot lane (all 28 'sealed' hits are vein-sweep lip-dig / tunnel classes) - the rim dig plan unexercised BY CONSTRUCTION (pure, no wiring yet), as predicted. The 0-stacks anatomy got NO 3rd sample: no walk reached a death spot and read the stacks.
+  - MISC: fights=16 kills=7 (recovery from 0), shelters=3, planted=17, torched=6, climbs=29, upgraded=20, pickaxe tiers wooden=26 stone=12 iron=0; sweep drop ledger sweeps=43 picked=213u failed=83 (above x53) - the sweep-picked pool (213u) stays the 0-stacks suspect; coal_ore=188 mined, iron_ore=17; server guard losses=0.
+- No code this fire: the decode was the atomic unit (the handoff's primary lane).
+- Worklog pushed BEFORE dispatch; the dispatch follows as the absolute last action: the v0.220.0 FIELD DEBUT (pure - the zone predicate cannot exercise in the field; the decode reads the storm's 3rd sample + the dragon recurrence).
+
+Stage Summary:
+- Master 23c399d + this worklog (pkg 0.220.0). Next free version 0.221.0. Next local section = Task ID cron30-20260927-0230.
+- FLEET OF RECORD: 36257829576 SUCCESS (run33/) + this fire's closing dispatch (the v0.220.0 field debut on 23c399d).
+- NEXT FIRE: (1) mine+decode the fresh dispatch: the storm's 3rd sample (F9/F19 g/r growth, the delivery leak trajectory 898->617->?), the dragon recurrence, the BLIND print 3rd sample, the 0-stacks anatomy retry; (2) CODE FRONTS (0.221.0): the wet-churn governor LEAD (a per-bot rescue cadence cap or a wet-zone eviction - F9/F19 own 1251 glitches 2-straight; the dragon-zone predicate inDragonZone is LIVE and pure - a wet-zone eviction shape could ride it), the dragon-zone WIRING (WorldMap exclusion + shelter priority), the rim-dig wiring (the lane's plan, theirs), the night-hold delivery gap (6 deferred final banks); (3) the lane may take 0.221.0.
+- OPEN FRONTS: the wet-delivery storm (F9/F19 2-straight, the delivery leak 617); the dragon-zone WIRING (the plan landed 61fbf9e); the rim-dig wiring (the lane's); the 0-stacks reloot anatomy (walks never arrive); the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the BLIND print (2 field samples, 2-straight clean); the FIRST LANE marker (3-straight silent, honest).
