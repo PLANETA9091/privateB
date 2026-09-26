@@ -37,6 +37,7 @@ console.log('  GRACE HOLD/VOID:', count(/GRACE (HOLD|VOID)/), ' STORM PROBE:', c
 
 console.log('=== GOAL BRAKE / DUCK / VALVE ===')
 console.log('  brake refuse lines:', count(/goal brake:.*refus/), 'per-bot:', fmt(perBot(/goal brake:.*refus/)))
+console.log('  spin breaker lines:', count(/spin breaker/), 'per-bot:', fmt(perBot(/spin breaker/)))
 console.log('  fleet ceiling lines:', count(/fleet goal ceiling/))
 console.log('  stormduck lines:', count(/\[stormduck\]/))
 console.log('  allocvalve lines:', count(/\[allocvalve\]/))

@@ -146,14 +146,19 @@ test('jobqueue wiring: a stalled bot gets its walks refused at the funnel for ze
   }
   const goal = { x: 100, y: 64, z: 100 } // far cell - geometry ledger must stay silent
   // four real walks that DO move the bot during the walk (healthy walker,
-  // governor silent): the displacement is measured inside the walk
+  // governor silent): the displacement is measured inside the walk.
+  // (v0.227.0) the labels are DISTINCT per walk: a same-label success
+  // re-issued sub-10s is the spin breaker's class (the run53 famine
+  // fingerprint) - production never walks the same label back-to-back
+  // sub-second, and this phase's business is the goal-brake evidence, not
+  // label repetition.
   for (let i = 0; i < 4; i++) {
     bot.pathfinder.goto = async () => {
       gotoCalls++
       bot.entity.position = pos(5 + (i + 1) * 3, 64, 5) // the walk moves the bot 3 blocks
       return 'done'
     }
-    await gotoSafe(bot, goal, { timeoutMs: 500, label: 'healthy walk' })
+    await gotoSafe(bot, goal, { timeoutMs: 500, label: `healthy walk ${i + 1}` })
   }
   assert.equal(gotoCalls, 4)
   assert.equal(walkGovernorStatsFor().opens, 0, 'a working walker never opens a stall')

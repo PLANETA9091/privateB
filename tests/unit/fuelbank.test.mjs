@@ -417,6 +417,11 @@ function mockSweepWorld ({ botPos = [0.5, 64, 0.5], chests = [], walkFailsAt = n
       if (walkFailsAt && Math.floor(goal.x) === Math.floor(walkFailsAt[0]) && Math.floor(goal.z) === Math.floor(walkFailsAt[2])) {
         throw new Error('NoPath: no path')
       }
+      // (v0.227.0) a successful walk MOVES the bot to the goal - the library
+      // contract (the goal is satisfied because the bot arrived). The spin
+      // breaker judges displacement: a non-moving success is the famine
+      // fingerprint (the run53 class), a chest-to-chest leg is honest work.
+      bot.entity.position = new Vec3(goal.x, goal.y, goal.z)
     } },
     findBlock: ({ matching }) => {
       const cands = chestBlocks

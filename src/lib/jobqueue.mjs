@@ -368,6 +368,121 @@ export function walkGovernorStatsFor () {
   }
 }
 
+// (v0.227.0) THE SPIN BREAKER - the SYNC re-issue breaker at the gotoSafe
+// funnel. MEASURED (36270815237, the first READABLE run53-class OOM): a
+// famine wood trip ('wood trip: famine (sticks 2 planks 1 logs 0) -
+// gathering') completed its walk in ~0.1s and re-issued ~1.0s later,
+// forever - the forensics ring reads 'pf:goal wood trip @+0.0s <- pf:done
+// wood trip @+-0.1s <- pf:goal wood trip @+-1.0s'. The ~1.1s promise-churn
+// cycle (done -> then -> re-goal) sits JUST UNDER the goal brake's burst
+// (~4.5 admitted goals in the 5s window vs the 6 limit) and every cycle's
+// far-goal A* plan allocates on the ramp's scale: rss 361M -> 1410M ->
+// 2476M (+219MB/s), the worker saw mainLate 1033ms, GRACE VOID killed the
+// frozen main at t=241s. THE LESSON NAMED IN THE POSTMORTEM: the alloc
+// valve's closure lives on a TIMER (its own 1s sampler never got a turn -
+// the spin starves the timers phase by design), so the breaker that catches
+// a timer-starving spin must itself be TIMER-FREE. This breaker is pure
+// sync state on the consult path: two Date.now compares, no sampler, no
+// timers - it runs even when everything else is starved. THE FINGERPRINT
+// (sharpened by the field code read): the SAME label that just settled
+// re-issued inside SPIN_BREAKER_WINDOW_MS after a walk that moved the bot
+// NOWHERE (displacement under the stall governor's own STALL_MIN_PROGRESS -
+// the famine walks completed in ~0.1s: the bot stood inside the goal's
+// tolerance, pf:done landed, nothing changed, the planner picked the next
+// stale map tree and the walk re-completed in place). The field's honest
+// ladders all DISPLACE - the relocate ladder walks 6-block bearings, the
+// scout patrol drives its lane legs, the fuel sweep walks chest to chest -
+// so a displacing success RESETS the count: real movement is the one
+// evidence no churn fake can produce. Unmeasurable displacement (mocks,
+// teardown) counts as not-displaced: the breaker errs toward containment.
+// Consecutive fast not-displaced re-issues past SPIN_REISSUE_LIMIT read the
+// spin: a per-bot hold opens and same-label walks are refused at zero cost
+// (no queue slot, no think window, no A*) while any DIFFERENT label
+// completing clears it - a bot that moved on is not spinning, and the
+// funnel never traps a walker.
+// NO priority exemption BY DESIGN (the valve's own contract): the fuel IS
+// every admitted re-issue, a bank errand that spins is the same storm.
+// Per-bot by construction (the WeakMap shape): one wedged bot stops feeding
+// the pathfinder; 19 wedged bots each starve and the fleet survives.
+export const SPIN_BREAKER_WINDOW_MS = 10000 // the postmortem's own line: 'a sub-10s re-issue IS the anomaly'
+export const SPIN_REISSUE_LIMIT = 1 // one fast not-displaced re-issue is tolerated (one bounded A*), the SECOND consecutive one reads the spin
+export const SPIN_BREAKER_HOLD_MS = 30000 // the hold bounds the recurrence: <= 2 admitted cycles per hold window vs the spin's ~1/s
+let spinTrackers = new WeakMap()
+const spinStats = { reissues: 0, refusals: 0, holds: 0, clears: 0 }
+
+function spinTrackerFor (bot) {
+  let t = spinTrackers.get(bot)
+  if (!t) {
+    t = { label: null, doneAt: 0, count: 0, holdUntil: 0, displaced: false }
+    spinTrackers.set(bot, t)
+  }
+  return t
+}
+
+/** The consult: pure sync cadence read, called on every gotoSafe BEFORE the
+ * geometry ledger - the cheapest cut in the funnel, and the one that works
+ * when the timers starve. Returns { spin, remainingMs, count, held }. */
+function consultSpinBreaker (bot, label, now) {
+  const t = spinTrackerFor(bot)
+  if (t.holdUntil && t.holdUntil <= now) { t.holdUntil = 0; t.count = 0 } // a served hold resets clean
+  if (t.holdUntil > now) {
+    if (t.label === label) return { spin: true, remainingMs: t.holdUntil - now, count: t.count, held: true }
+    return { spin: false, remainingMs: 0, count: 0, held: false } // a different label walks; its done clears the hold
+  }
+  const fast = t.label === label && (now - t.doneAt) < SPIN_BREAKER_WINDOW_MS // the edge is honest: AT the window the walk had its full budget
+  if (!fast) { t.count = 0; return { spin: false, remainingMs: 0, count: 0, held: false } }
+  if (t.displaced) { t.count = 0; return { spin: false, remainingMs: 0, count: 0, held: false } } // the last walk MOVED the bot - real progress is the one evidence churn cannot fake
+  t.count++
+  spinStats.reissues++
+  if (t.count > SPIN_REISSUE_LIMIT) {
+    t.holdUntil = now + SPIN_BREAKER_HOLD_MS
+    spinStats.holds++
+    return { spin: true, remainingMs: SPIN_BREAKER_HOLD_MS, count: t.count, held: false }
+  }
+  return { spin: false, remainingMs: 0, count: t.count, held: false }
+}
+
+/** The record: every SETTLED SUCCESS feeds the bot's spin book, carrying
+ * whether the walk actually moved the bot (the honest-ladder discriminator).
+ * The postmortem's spin is a success-completion spin that arrived nowhere
+ * (the famine walk completed in ~0.1s with the bot standing still); a FAILED
+ * walk's fast re-issue is the stall governor's + the doomed ledger's
+ * jurisdiction (zero-progress failures build their churn there), and the
+ * walk-retry ladder's own 'Path was stopped' -> immediate retry must keep
+ * flowing. Never throws. */
+function recordSpinDone (bot, label, displaced, now) {
+  try {
+    const t = spinTrackerFor(bot)
+    if (t.holdUntil > now && t.label !== label) { // a different label completed mid-hold: the bot moved on
+      t.holdUntil = 0
+      spinStats.clears++
+    }
+    if (t.label !== label) t.count = 0
+    t.label = label
+    t.doneAt = now
+    t.displaced = displaced === true
+  } catch { /* a spin record must never mask the walk's own result */ }
+}
+
+/** Fleet summary counters for the FLEET RESULT block + the tests. */
+export function spinBreakerStats () {
+  return {
+    reissues: spinStats.reissues,
+    refusals: spinStats.refusals,
+    holds: spinStats.holds,
+    clears: spinStats.clears
+  }
+}
+
+/** Test hook: drop every spin book (never used in prod). */
+export function resetSpinBreaker () {
+  spinTrackers = new WeakMap()
+  spinStats.reissues = 0
+  spinStats.refusals = 0
+  spinStats.holds = 0
+  spinStats.clears = 0
+}
+
 // (v0.102.0) THE ALLOCATION VALVE - the fleet-scoped singleton (one process =
 // one fleet, the fleetCeiling shape). run92 (35829873166): the main thread
 // allocated ~1.9GB in 10s (190MB/s) at ts~445s while STILL TICKING (mainLate
@@ -741,6 +856,7 @@ export function setFleetGoalSweeper (fn) { fleetGoalSweeper = typeof fn === 'fun
 
 /** Test hook: drop every per-bot governor (never used in prod). */
 export function resetWalkGovernors () {
+  resetSpinBreaker() // (v0.227.0) the funnel-wide reset covers the spin book too
   walkGovernors = new WeakMap()
   walkGovernorStats.refusals = 0
   walkGovernorStats.opens = 0
@@ -827,6 +943,19 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // pathfinder and raw controls cannot share the bot). Every caller already
   // catches, so a refusal costs the caller one wasted attempt, not a crash.
   if (bot._waterRescue) return refuse(`water rescue in progress (${label} refused)`)
+  // (v0.227.0) THE SPIN BREAKER CONSULT - the first cadence cut, before the
+  // geometry ledger. The postmortem's lesson (36270815237): a same-label
+  // goal->done->goal re-issue spin starves the timers phase, so every
+  // timer-based breaker (the alloc valve's sampler first) is blind to it -
+  // this consult is sync Date.now state and always gets its turn. The refusal
+  // is zero-cost: no queue slot, no think window, no A* burst, no alloc.
+  try {
+    const sv = consultSpinBreaker(bot, label, Date.now())
+    if (sv.spin) {
+      spinStats.refusals++
+      return refuse(`spin breaker: ${label} re-issued ${sv.count}x inside the ${Math.round(SPIN_BREAKER_WINDOW_MS / 1000)}s window after its own pf:done - ${label} refused for ${Math.round(sv.remainingMs / 1000)}s (the sync re-issue breaker: the goal->done->goal churn starves the timers, the run53 alloc-storm class${sv.held ? ', hold live' : ''})`)
+    }
+  } catch { /* the breaker never blocks the walk it precedes */ }
   // (v0.72.0) THE DOOMED-GOAL CONSULT - before the queue, before the A*.
   // A ledgered cell dies here for 0 cost: no queue slot, no think window, no
   // spiral fuel. The refusal message names the age so the caller's own verdict
@@ -1021,6 +1150,17 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       .finally(() => {
         restore()
         noteGlobal(`pf:done ${label}`)
+        if (walkOk) {
+          // (v0.227.0) the spin breaker's book: settled successes, carrying
+          // the walk's own displacement (the honest-ladder discriminator)
+          const endPos = walkPosOf(bot)
+          let displaced = false
+          if (startPos && endPos && typeof startPos.distanceTo === 'function') {
+            const d = startPos.distanceTo(endPos)
+            if (Number.isFinite(d)) displaced = d >= STALL_MIN_PROGRESS
+          }
+          recordSpinDone(bot, label, displaced, Date.now())
+        }
         recordWalkOutcome(bot, startPos, walkOk)
       })
   }, { priority }).catch(e => {

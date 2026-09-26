@@ -525,16 +525,19 @@ test('funnel probe: a sub-gap jump records without a verdict and keeps the ancho
       entity: { position: { x: 0, y: 64, z: 0 } },
       pathfinder: { goto: async () => 'done', stop: () => {} }
     }
-    await gotoSafe(bot, { x: 30, y: 64, z: 40 }, { timeoutMs: 500 }) // anchor at rss 449, t=1000
+    // (v0.227.0) distinct labels per walk: the test's compressed probe clock
+    // would read these successes as the same-label spin class - the probe's
+    // verdict mechanics are the business here, not label repetition
+    await gotoSafe(bot, { x: 30, y: 64, z: 40 }, { timeoutMs: 500, label: 'probe walk 1' }) // anchor at rss 449, t=1000
     // 50ms later rss reads 1750 - GC noise territory, the min-gap refuses to judge
     rssM = 1750
     clock.t = 1050
-    const r = await gotoSafe(bot, { x: 34, y: 64, z: 40 }, { timeoutMs: 500 })
+    const r = await gotoSafe(bot, { x: 34, y: 64, z: 40 }, { timeoutMs: 500, label: 'probe walk 2' })
     assert.equal(r, 'done', 'a sub-gap spike never closes')
     assert.equal(funnelProbeControl().stats().stormCloses, 0)
     // the anchor was KEPT (min-gap never rewrites it): the real 5s gap still catches the storm
     clock.t = 6000
-    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500 }), /alloc valve: closed/, 'the rate over the real gap still fires')
+    await assert.rejects(gotoSafe(bot, { x: 100, y: 64, z: 100 }, { timeoutMs: 500, label: 'probe walk 3' }), /alloc valve: closed/, 'the rate over the real gap still fires')
     assert.equal(funnelProbeControl().stats().stormCloses, 1)
   } finally {
     funnelProbeControl().setSources({})
