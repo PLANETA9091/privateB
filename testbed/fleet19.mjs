@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry } from '../src/lib/reloot.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1165,7 +1165,49 @@ async function runBot (name, target, index) {
               } catch { /* a junk entity read reads zero stacks */ }
               console.log(`${name} reloot: arrived in ${((Date.now() - relootT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) in reach${stacks ? '' : ' - nothing left (picked up or despawned)'}`)
             } catch (e) {
-              console.log(`${name} reloot: walk failed (${e.message}) - the drops stay lost`)
+              // (v0.207.0) THE WET-COLUMN RETRY - run68's two debut walks (F4,
+              // F10) both died 'No path to the goal!': the death spots sit in
+              // the flooded-quarry wet columns and the dry pathfinder refuses
+              // to aim a range-2 sphere INTO the water. The pure classifier
+              // (relootRetry, src/lib/reloot.mjs) grants ONE widened retry for
+              // the GEOMETRY-refusal class only - a walk-budget timeout is
+              // saturation, a doomed-goal or water-rescue refusal is the
+              // consult's own verdict, and neither answers differently for a
+              // wider sphere. The retry re-issues ONCE with doomedRearm: the
+              // no-path verdict LEDGERS the goal cell (the jobqueue's
+              // dead-geometry record), so without the re-arm the consult
+              // kills the retry for free before the A* ever thinks. The
+              // arrival read widens WITH the range so the 0-stack verdict
+              // stays honest: stacks inside the sphere but beyond the magnet
+              // are the drops SURVIVING out of reach - the next cure's
+              // evidence, not a pickup claim.
+              const rr = relootRetry({
+                message: e?.message,
+                retries: 0,
+                elapsedMs: Date.now() - relootT0,
+                budgetMs: rp.budgetMs,
+                windowMs: rp.windowMs
+              })
+              if (!rr.go) {
+                console.log(`${name} reloot: walk failed (${e.message}) - the drops stay lost${rr.why === 'not-no-path' ? '' : ` (no retry: ${rr.why})`}`)
+              } else {
+                console.log(`${name} reloot: no-path retry at range ${rr.range} (budget ${(rr.budgetMs / 1000).toFixed(0)}s) - the dry rim inside the sphere counts as arrival`)
+                const retryT0 = Date.now()
+                try {
+                  await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rp.goal.x, rp.goal.y, rp.goal.z, { range: rr.range }), { timeoutMs: rr.budgetMs, label: 'reloot retry', doomedRearm: true })
+                  let stacks = 0
+                  try {
+                    const me = miner.bot.entity.position
+                    for (const ent of Object.values(miner.bot.entities)) {
+                      if (!ent || ent.name !== 'item' || !ent.position || ent.isValid === false) continue
+                      if (ent.position.distanceTo(me) <= rr.range) stacks++
+                    }
+                  } catch { /* a junk entity read reads zero stacks */ }
+                  console.log(`${name} reloot: retry arrived in ${((Date.now() - retryT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) within ${rr.range}${stacks ? ' (in read reach - the magnet takes what it can)' : ' (none in read reach - gone, or floating beyond the sphere)'}`)
+                } catch (e2) {
+                  console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost`)
+                }
+              }
             }
           }
         }

@@ -73,6 +73,21 @@ console.log('  looppulse notes:', count(/pulse/), ' lag probe:', count(/lag.prob
 console.log('  mem lines (last 5):')
 for (const l of lines.filter(l => /mem:|rss/i.test(l)).slice(-5)) console.log('   ', l.slice(0, 150))
 
+console.log('=== RELOOT (the death economy, v0.200.0+; the v0.207.0 retry classes) ===')
+console.log('  arms (walking):', count(/reloot: walking to the own death spot/), 'per-bot:', fmt(perBot(/reloot: walking to the own death spot/)))
+console.log('  arrivals:', count(/reloot: arrived in/))
+const relootWhys = {}
+for (const l of lines) {
+  const w = l.match(/reloot: no walk \(([^)]+)\)/)
+  if (w) relootWhys[w[1].split(' ')[0]] = (relootWhys[w[1].split(' ')[0]] || 0) + 1
+}
+console.log('  refusal whys:', fmt(relootWhys))
+console.log('  walk failures:', count(/reloot: walk failed/))
+console.log('  no-path retries armed:', count(/reloot: no-path retry at range/), 'per-bot:', fmt(perBot(/reloot: no-path retry at range/)))
+console.log('  retry arrivals:', count(/reloot: retry arrived in/))
+console.log('  retry failures:', count(/reloot: retry failed/))
+console.log('  refused retries (no retry: why):', count(/reloot: walk failed.*\(no retry: /))
+
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))

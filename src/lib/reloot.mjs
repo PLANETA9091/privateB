@@ -58,6 +58,26 @@ export const RELOOT_MARGIN_MS = 30000
  * or inside the freed cell (the v0.178.0 below-plane lesson) - range 2 lets
  * the gallery lip count as arrival instead of spiraling into a timeout. */
 export const RELOOT_GOAL_RANGE = 2
+/** (v0.207.0) The no-path retry's widened sphere: run68's two debut walks
+ * (F4, F10) both died 'No path to the goal!' - the death spots sit in the
+ * flooded-quarry wet columns and the dry pathfinder refuses to aim a range-2
+ * sphere INTO the water. Range 8 lets a DRY rim stance inside the sphere
+ * count as arrival: the pathfinder picks the closest reachable cell, the
+ * magnet gets its chance, and the widened arrival read keeps the verdict
+ * honest (stacks beyond the magnet are evidence, not a pickup claim). */
+export const RELOOT_RETRY_RANGE = 8
+/** (v0.207.0) The retry's minimum walk clock: a widened walk that cannot
+ * afford this much time is honestly dead (one goto leg + the arrival read
+ * cannot converge in less - the doomed-goal law: never re-arm into a
+ * guaranteed spiral). */
+export const RELOOT_RETRY_FLOOR_MS = 8000
+/** (v0.207.0) The geometry-refusal class: the pathfinder's own dead verdicts
+ * ('No path' proven, 'Took to long' the A* calc timeout - mineflayer's typo
+ * included). These are GEOMETRY verdicts: a wider sphere can change their
+ * answer. Everything else - the walk-budget timeout (saturation), the
+ * doomed-goal ledger, the water-rescue gate - is the consult's own verdict
+ * and answers the same for range 8 as for range 2. */
+const NO_PATH_VERDICT_RE = /no path|took to long|took too long/i
 
 /**
  * Should the respawned bot walk back to its own death spot to re-collect the
@@ -113,4 +133,52 @@ export function relootPlan ({
     budgetMs,
     windowMs
   }
+}
+
+/**
+ * (v0.207.0) Should a FAILED re-loot walk get its ONE widened-range retry?
+ * Pure, junk-safe, countable whys. The retry is NOT a re-arm of the
+ * one-walk-per-death law: it is the SAME walk continuing on a wider sphere,
+ * granted exactly once, only for the pathfinder's GEOMETRY refusals (the
+ * class a wider sphere can actually cure). The retry-storm law holds: the
+ * retries gate refuses anything past the first grant, so the cure can never
+ * chain into the re-failing loop the law was named for (the v0.82.0 lesson).
+ *
+ * The budget arithmetic rides the despawn window the plan priced: the retry
+ * gets min(plan budget, window - elapsed - margin) and refuses when that
+ * cannot afford RELOOT_RETRY_FLOOR_MS - a retry that lands after the despawn
+ * is the wasted-trip class the plan's no-time fence already refuses (the
+ * dusk wire's fence (c) arithmetic, carried one leg deeper).
+ *
+ * @param {object} [p]
+ * @param {string|any} [p.message] the failed walk's error message (junk -> not-no-path)
+ * @param {number} [p.retries] retries already granted (anything but 0 -> spent)
+ * @param {number} [p.elapsedMs] the first walk's own clock (junk -> 0; the window fence still bounds the total)
+ * @param {number} [p.budgetMs] the plan's walk budget (junk -> no-time)
+ * @param {number} [p.windowMs] the plan's remaining despawn window at plan time (junk -> no-time)
+ * @param {number} [p.marginMs] the finish-before-despawn margin (default RELOOT_MARGIN_MS)
+ * @returns {{go:boolean, why?:string, range?:number, budgetMs?:number}}
+ *   a refusal reads { go:false, why: 'spent'|'not-no-path'|'no-time' },
+ *   a grant reads { go:true, range: RELOOT_RETRY_RANGE, budgetMs }
+ */
+export function relootRetry ({
+  message = '',
+  retries = 0,
+  elapsedMs = 0,
+  budgetMs = 0,
+  windowMs = 0,
+  marginMs = RELOOT_MARGIN_MS
+} = {}) {
+  if (retries !== 0) return { go: false, why: 'spent' }
+  const msg = typeof message === 'string' ? message : ''
+  if (!NO_PATH_VERDICT_RE.test(msg)) return { go: false, why: 'not-no-path' }
+  const fin = v => Number.isFinite(v)
+  const el = fin(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0
+  const bud = fin(budgetMs) && budgetMs > 0 ? budgetMs : 0
+  const win = fin(windowMs) && windowMs > 0 ? windowMs : 0
+  const margin = fin(marginMs) && marginMs > 0 ? marginMs : RELOOT_MARGIN_MS
+  const left = win - el - margin
+  const budget = Math.floor(Math.min(bud, left))
+  if (!fin(budget) || budget < RELOOT_RETRY_FLOOR_MS) return { go: false, why: 'no-time' }
+  return { go: true, range: RELOOT_RETRY_RANGE, budgetMs: budget }
 }

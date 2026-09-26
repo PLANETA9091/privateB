@@ -24,9 +24,9 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
     'the miner exposes the record to the runner (the runner decides, never the death handler)')
 })
 
-test('REGRESSION PIN: the fleet imports the pure plan', () => {
-  assert.ok(fleetSrc.includes("import { relootPlan } from '../src/lib/reloot.mjs'"),
-    'the runner reads the plan from the module (no fork of the fence arithmetic)')
+test('REGRESSION PIN: the fleet imports the pure plan and the retry classifier', () => {
+  assert.ok(fleetSrc.includes("import { relootPlan, relootRetry } from '../src/lib/reloot.mjs'"),
+    'the runner reads the plan and the classifier from the module (no fork of the fence arithmetic)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -120,4 +120,50 @@ test('v0.203.0: the miner seeds the record from the carry (guarded read)', () =>
     'a junk seed reads as no-record, never as a walk (the guarded-read law)')
   assert.ok(minerSrc.includes('attempted: !!seedLastDeath.attempted'),
     "the seed CLONES - the old closure's record object is never aliased across instances")
+})
+
+// ---- v0.207.0 THE WET-COLUMN RETRY ----
+// run68-mined: both debut walks died 'No path to the goal!' - the flooded-
+// quarry wet columns. The cure: ONE widened retry, granted by the pure
+// classifier, riding doomedRearm (the no-path verdict LEDGERS the goal cell
+// - without the re-arm the consult kills the retry for free) and a widened
+// arrival read so the 0-stack verdict stays honest.
+
+test('v0.207.0: the retry call site carries the classifier and every scalar (the run195 dead-wire class)', () => {
+  const call = fleetSrc.match(/relootRetry\(\{[\s\S]*?\}\)/)
+  assert.ok(call, 'the classifier is called at the walk-failure site (inside the catch, not beside the plan)')
+  assert.match(call[0], /message:\s*e\?\.message/, "the walk's own error rides the call")
+  assert.match(call[0], /retries:\s*0/, 'the retry never chains (the classifier owns the once-only law)')
+  assert.match(call[0], /elapsedMs:\s*Date\.now\(\) - relootT0/, "the first walk's elapsed rides the call (the window prices from it)")
+  assert.match(call[0], /budgetMs:\s*rp\.budgetMs/, 'the plan budget rides the call')
+  assert.match(call[0], /windowMs:\s*rp\.windowMs/, 'the plan window rides the call')
+})
+
+test('v0.207.0: the retry walk rides doomedRearm and the widened range, never hardcoded', () => {
+  const walk = fleetSrc.match(/gotoSafe\(miner\.bot, standGoalNear\(miner\.bot, goals, rp\.goal\.x, rp\.goal\.y, rp\.goal\.z, \{ range: rr\.range \}\), \{ timeoutMs: rr\.budgetMs, label: 'reloot retry', doomedRearm: true \}\)/)
+  assert.ok(walk, 'the retry re-issues ONCE with the ledger re-arm (the no-path verdict owns the goal cell)')
+})
+
+test('v0.207.0: the widened arrival read and the honest terminal classes', () => {
+  assert.match(fleetSrc, /reloot: no-path retry at range/, 'the retry arms loudly (the decode counts the arms)')
+  assert.match(fleetSrc, /reloot: retry arrived in/, 'the retry arrival prints')
+  assert.match(fleetSrc, /reloot: retry failed/, 'the retry failure prints (silence is never evidence)')
+  assert.match(fleetSrc, /distanceTo\(me\) <= rr\.range/, 'the read widens WITH the range (a 0-stack verdict stays honest)')
+  assert.match(fleetSrc, /\(no retry: \$\{rr\.why\}\)/, 'a refused retry names its why on the terminal line')
+  assert.ok(fleetSrc.includes("${name} reloot: walk failed (${e.message}) - the drops stay lost"),
+    'the legacy terminal line survives verbatim for the not-no-path class (the historical greps stay stable)')
+})
+
+test("v0.207.0: the new lines reach the artifact (the v0.176.0 prefix law - the 'reloot' key already owns the prefix)", () => {
+  const filterMatch = fleetSrc.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
+  const filter = new RegExp(filterMatch[1])
+  assert.ok(filter.test('[F4] reloot: no-path retry at range 8 (budget 15s) - the dry rim inside the sphere counts as arrival'),
+    'the retry arm line reaches the artifact')
+  assert.ok(filter.test('[F4] reloot: retry arrived in 9s - 3 item stack(s) within 8 (in read reach - the magnet takes what it can)'),
+    'the retry arrival line reaches the artifact')
+  assert.ok(filter.test('[F10] reloot: retry failed (No path to the goal!) - the drops stay lost'),
+    'the retry failure line reaches the artifact')
+  assert.ok(filter.test('[F10] reloot: walk failed (timeout after 8000ms) - the drops stay lost (no retry: not-no-path)'),
+    'the refused-retry terminal line reaches the artifact')
 })

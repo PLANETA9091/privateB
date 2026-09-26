@@ -9,7 +9,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE
+  relootPlan, relootRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS
 } from '../../src/lib/reloot.mjs'
 import { WALK_CAP_MS, WALK_PER_BLOCK_MS } from '../../src/lib/tripplan.mjs'
 
@@ -168,4 +169,122 @@ test('the refusals are distinct classes a decode can count', () => {
     }).why
   ])
   assert.deepEqual([...whys].sort(), ['attempted', 'expired', 'no-bot', 'no-spot', 'no-time', 'too-far'])
+})
+
+// ---- v0.207.0 THE WET-COLUMN RETRY ----
+// run68-mined (fleet 36221189568, the re-arm's FIELD DEBUT) measured the
+// walk's first two field firings (F4, F10): BOTH died 'No path to the
+// goal!' - the death spots sit in the flooded-quarry wet columns and the
+// dry pathfinder refuses to aim a range-2 sphere into the water. The cure
+// is ONE widened retry (range 8) granted ONLY to the pathfinder's geometry
+// refusals - the class a wider sphere can actually cure. The whys stay
+// countable, the retry-storm law (never chains) rides the retries gate.
+
+test('the retry constants: the widened sphere outranges the plan goal', () => {
+  assert.ok(RELOOT_RETRY_RANGE > RELOOT_GOAL_RANGE,
+    'range 8 clears the wet column the range-2 sphere cannot')
+  assert.ok(RELOOT_RETRY_FLOOR_MS > 0,
+    'the retry owns a real walk floor (a 0-budget retry is a spiral)')
+})
+
+test('the geometry-refusal class earns the ONE widened retry (the run68 shape)', () => {
+  // F4's real plan shape: budget 17s, window 171s; a 'No path' refusal
+  // throws fast (the A* decides in ~1-3s - the refusal is immediate, not a
+  // budget timeout), so the retry prices from a nearly-fresh window
+  const r = relootRetry({
+    message: 'No path to the goal!', retries: 0,
+    elapsedMs: 2000, budgetMs: 17000, windowMs: 171000
+  })
+  assert.equal(r.go, true)
+  assert.equal(r.range, RELOOT_RETRY_RANGE)
+  assert.equal(r.budgetMs, 17000) // min(17000, 171000 - 2000 - 30000)
+})
+
+test("the 'Took to long' A* timeout is the same geometry class (mineflayer's typo included)", () => {
+  const r = relootRetry({
+    message: 'Took to long to decide path to goal!', retries: 0,
+    elapsedMs: 8000, budgetMs: 21000, windowMs: 290000
+  })
+  assert.equal(r.go, true)
+  assert.equal(r.range, RELOOT_RETRY_RANGE)
+})
+
+test('the retry never chains (the retry-storm law survives the cure)', () => {
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: 1, elapsedMs: 0, budgetMs: 17000, windowMs: 171000 }).why,
+    'spent'
+  )
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: -1, elapsedMs: 0, budgetMs: 17000, windowMs: 171000 }).why,
+    'spent'
+  )
+})
+
+test('non-geometry verdicts get no retry - a wider sphere answers nothing', () => {
+  // the walk-budget timeout: saturation, not geometry (the jobqueue's own law:
+  // these never ledger the goal cell)
+  assert.equal(
+    relootRetry({ message: 'timeout after 8000ms', retries: 0, elapsedMs: 8000, budgetMs: 17000, windowMs: 171000 }).why,
+    'not-no-path'
+  )
+  // the doomed-goal ledger: the consult's own verdict (and the retry would
+  // ride doomedRearm anyway - the classifier never sees this class twice)
+  assert.equal(
+    relootRetry({ message: 'doomed goal (ledgered 12s ago at [-138,52,420]) - reloot refused', retries: 0, elapsedMs: 1000, budgetMs: 17000, windowMs: 171000 }).why,
+    'not-no-path'
+  )
+  // the water-rescue gate: the raw swim controls own the bot
+  assert.equal(
+    relootRetry({ message: 'water rescue in progress (reloot refused)', retries: 0, elapsedMs: 1000, budgetMs: 17000, windowMs: 171000 }).why,
+    'not-no-path'
+  )
+})
+
+test('the retry never outlives its despawn window (the clamp)', () => {
+  // window 58s, elapsed 15s, margin 30s -> 13s of left; the plan budget 30s
+  // clamps DOWN to the window (13s >= the 8s floor -> arms with 13000)
+  const r = relootRetry({
+    message: 'No path to the goal!', retries: 0,
+    elapsedMs: 15000, budgetMs: 30000, windowMs: 58000
+  })
+  assert.equal(r.go, true)
+  assert.equal(r.budgetMs, 13000)
+})
+
+test('the retry floor is a real fence - a squeezed window refuses honestly', () => {
+  // window 45s, elapsed 8s, margin 30s -> 7s of left < the 8s floor
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: 8000, budgetMs: 17000, windowMs: 45000 }).why,
+    'no-time'
+  )
+  // the elapsed ate the whole window: left is negative
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: 60000, budgetMs: 17000, windowMs: 71000 }).why,
+    'no-time'
+  )
+})
+
+test('junk never arms a retry: the window and the budget are finite fences', () => {
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: 2000, budgetMs: NaN, windowMs: 171000 }).why,
+    'no-time'
+  )
+  assert.equal(
+    relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: 2000, budgetMs: 17000, windowMs: NaN }).why,
+    'no-time'
+  )
+  // a junk message is not a geometry verdict (never a walk)
+  assert.equal(
+    relootRetry({ message: undefined, retries: 0, elapsedMs: 2000, budgetMs: 17000, windowMs: 171000 }).why,
+    'not-no-path'
+  )
+  assert.equal(
+    relootRetry({ message: 42, retries: 0, elapsedMs: 2000, budgetMs: 17000, windowMs: 171000 }).why,
+    'not-no-path'
+  )
+  // a junk elapsed reads 0 (the caller's own clock delta; the window fence
+  // still bounds the total the retry can spend)
+  const rj = relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: NaN, budgetMs: 17000, windowMs: 171000 })
+  assert.equal(rj.go, true)
+  assert.equal(rj.budgetMs, 17000)
 })
