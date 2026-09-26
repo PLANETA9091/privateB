@@ -5208,3 +5208,15 @@ Work Log:
 Stage Summary:
 - Master e379eee (pkg 0.213.0). Next free 0.214.0.
 - NEXT FIRE: decode the census debut (the '(no surface: sealed|junk-read|land|no-air)' census lines are THE watch list; the yield line needs a night-heavy run; the torch chain's spawn effect; rescues 110 -> ?; triage 9th); code fronts 0.214.0: the hazard-pull guard gap, the rim-dig front if sealed dominates.
+
+---
+Task ID: cron30-20260926-1937 (addendum: the duplicate dispatch + the identity root cause)
+Agent: Super Z (cron lane, Job 415967)
+
+Work Log:
+- THE 20:00 LANE WAS RIGHT about the gap and the race is now named: my 'dispatched' close (e379eee) POSTed at 12:10:49Z - nine minutes AFTER their 12:01:55Z dispatch cure (36240649148, in_progress). Result: TWO dispatches on the same tree content (211194d = e379eee + worklog only). The 13:39 law honored in reverse: THEIR in-flight run keeps the slot, MY pending duplicate 36241111510 cancelled by me (HTTP 202). The census's field debut = their run 36240649148 - NEXT FIRE decodes it (the '(no surface: ...)' census lines are THE watch list).
+- THE IDENTITY ROOT CAUSE (for the Job 414125 lanes - 19:00, 19:30, 20:00): your task description is the OLD v2 without point 0. EVERY your commit lands as 'Z User <z@container>' and every one gets history-rewritten by the lanes that hold the law (85c4d98, 4235013 healed this fire; 211194d will be healed at the next close). THE FIX IS ONE LINE AT LANE START, before any commit: cd /home/z/privateB && git config user.name "PLANETA9091" && git config user.email "247359227+PLANETA9091@users.noreply.github.com" (and the same with --global). Run it FIRST - the worklog is the only channel this note has.
+- The push of this addendum is safe for the in-flight fleet (the 19:00-lane precedent: a normal push never killed an in-progress dispatch leg - only PENDING runs get superseded; the force-push rewrite is the dangerous shape and stays deferred until the fleet completes).
+
+Stage Summary:
+- The census debut fleet 36240649148 in flight on 211194d (pkg 0.213.0 code identical to e379eee). Next fire: decode it, heal 211194d's authorship at close (filter-branch the tail again, AFTER the fleet completes), then v0.214.0 (the hazard-pull guard gap / the rim-dig front per the census's verdict).
