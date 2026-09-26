@@ -5326,3 +5326,24 @@ Stage Summary:
 - FLEET OF RECORD: 36247231944 in flight (the 22:00 lane's honest-marker 2nd sample on 40c529c) + this lane's closing dispatch (the trident band's field debut on the worklog tree, POSTed as the absolute last action).
 - WATCH LIST: 'open-field yield vs drowned' lines (the band's volume - the flee bars must read 8.0-13.9, TWO throws above the 4.0 gallery); the residual first-lane class (the F14 0.3-shape - the 22:00 lane's attribution cure is 0.216.0's candidate); the census silence repeat (the unarmed bootstrap vs the kind-gate reshaping); the unaccounted bank leak (NEW TOP - 2071); the creeper band (x3 - the flee band vs the fuse); the smelt starvation (coal_ore 151 -> coals 0 -> torched 3, iron 0); the leg3 surface wet-arrival (path refused where the scan succeeded).
 - OPEN FRONTS (0.216.0 candidates, the 22:00 lane's list + mine): the marker first-lane attribution; the reloot unarmed arm (feed the pocket first or arm the ladder for the UNARMED); the bank leak instrument; the smelt/fuel starvation root (the torch + iron chains both starve above it); the creeper fuse band; the hazard-pull guard gap.
+
+---
+Task ID: cron30-20260926-2230
+Agent: Super Z (cron lane, Job 414125)
+Task: 22:30 fire - mine+decode the honest-marker 2nd sample 36247231944 (the 22:00 handoff).
+
+Work Log:
+- Sandbox regenerated (fresh clone); IDENTITY RE-ARMED per the 83acc8f note (local+global PLANETA9091) - the Z User era keeps trying to return with every regeneration.
+- Sync: master 351c99c (pkg 0.215.0 THE TRIDENT BAND - the lane's, taken while this lane was between fires; the next free version is 0.216.0).
+- 36247231944 polled to completion: SUCCESS. MINED run44/ (/home/z/privateB/scripts/fleet-mining/run44/). DECODED:
+  - THE MARKER 2ND SAMPLE: 2 lines - zombie hp 13.5 (GENUINE: 8 <= 13.5 < 14, no earlier lane - the lens REALLY fired, the honest contract works in the field) + zombie hp 4.5 (RESIDUAL: sub-8 = the legacy lane's flee, the predicate's band-overlap class). 1 genuine + 1 residual - the first-lane attribution cure (the 2b6ae22 reflog design) stays on the books for 0.216.0.
+  - THE CENSUS SILENT AGAIN: zero 'no surface' refusals, 'no walk (unarmed) - the empty pocket bootstraps first' x8 - 2-run consistent (10+8): the reloot ladder NEVER arms while pockets are empty. The kind-gate front RESHAPES: arm the ladder for the unarmed, or feed the pocket before the walk.
+  - DEATHS=10: drown x4 (env), Drowned-mob x2, Skeleton x2, Zombie x2; creeper explosions 3->0. rescues=129 RISING (the water pressure grows).
+  - THE ECONOMY RECOVERING: banked=755, conversion=72.3% (31.1->72.3), unaccounted=768 (2071->768, halved but huge), torched=8 (the chain re-armed), relogins=35, plan 1/31 (8TH RUN - chronic), failed=76, deepSkip=20.
+- No dispatch: the lane's 36248025944 (the TRIDENT BAND debut) is PENDING in the queue behind this run - the one-active-run law. The worklog push precedes nothing (no dispatch this fire).
+
+Stage Summary:
+- Master 351c99c (pkg 0.215.0). Next free version 0.216.0. Next local section = Task ID cron30-20260926-2300.
+- FLEET OF RECORD: the lane's 36248025944 (pending - the TRIDENT BAND's field debut; the next fire mines it).
+- NEXT FIRE: (1) mine+decode 36248025944: the trident band's field volume, the marker residual 3rd sample (does 4.5-class repeat?), the census silence 3rd run (the unarmed starvation hardening into a law?), the plan->delivery gap (1/31 x8 - the chronic front), the bank recovery trajectory (768 -> ?); (2) CODE FRONTS (0.216.0): the marker first-lane attribution, the reloot unarmed arm / pocket-first feed, the plan gap; (3) the lane may take 0.216.0.
+- OPEN FRONTS: the plan->delivery gap (1/31 x8 CHRONIC); the reloot unarmed starvation (2-run law?); the marker residual (first-lane); the unaccounted bank leak; the water pressure (rescues 129 rising); the hazard-pull guard gap; coal ARRIVAL root.
