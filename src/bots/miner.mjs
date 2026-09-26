@@ -37,7 +37,7 @@ import {
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
-  drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND,
+  drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND, airGlitchLogLine,
   frozenWindowFor, WET_FROZEN_WINDOW,
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
@@ -1708,11 +1708,13 @@ export function createMiner ({
         stats.airGlitches++
         if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
           lastGlitchLogAt = now
-          log(`${tag} water: air-bar glitch ignored (oxygen ${o2raw} on dry land, ${stats.airGlitches} total)`)
+          // (v0.195.0) the map pin: the line names WHERE the sensor sat broken
+          log(airGlitchLogLine({ tag, oxygen: o2raw, total: stats.airGlitches, pos: bot.entity?.position }))
         }
         const streakCap = glitchStreakCap(glitchConfirmed)
         if (dryGlitchStreak === streakCap) {
-          log(`${tag} water: air-bar glitch override - ${dryGlitchStreak} consecutive critical-on-dry reads, believing the bar`)
+          // (v0.195.0) the map pin rides the override verdict too
+          log(airGlitchLogLine({ kind: 'override', tag, streak: dryGlitchStreak, pos: bot.entity?.position }))
         }
       } else {
         dryGlitchStreak = 0

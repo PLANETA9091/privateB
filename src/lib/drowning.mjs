@@ -678,6 +678,26 @@ export function glitchStreakCap (confirmed = 0) {
   return Math.min(AIR_GLITCH_STREAK_CAP + n * GLITCH_LADDER_STEP, GLITCH_LADDER_MAX)
 }
 
+// (v0.195.0) THE AIR-GLITCH MAP PIN - run82 (36201371882, the v0.192.0 union)
+// mined 2026-09-26: the fleet's airGlitches counter read 588 while the decode
+// greps ('airGlitch') found ZERO lines - the blind spot was a SEARCH miss (the
+// lines say 'air-bar', the v0.41.1 filter's 'water' keyword carried them all
+// along: 25 lines, every one F3). The pin this cure adds: the counter's whole
+// story rode ONE bot (the final total 578 ~= the fleet's 588) at oxygen 0 on
+// dry land, 10 overrides believed the bar - and the decode could not ask WHERE
+// the sensor sat broken. Both air-glitch line shapes now name the floored
+// position; the legacy wording keeps its prefix byte for byte (the filter key,
+// the decode greps and the run-history comparability stay valid). Junk-safe:
+// a missing/NaN position reads the legacy shape with no 'at' tail.
+export function airGlitchLogLine ({ kind = 'ignored', tag = '', oxygen = 0, total = 0, streak = 0, pos = null } = {}) {
+  const p = pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z) ? pos : null
+  const at = p ? ` at [${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}]` : ''
+  if (kind === 'override') {
+    return `${tag} water: air-bar glitch override - ${Math.floor(streak)} consecutive critical-on-dry reads, believing the bar${at}`
+  }
+  return `${tag} water: air-bar glitch ignored (oxygen ${oxygen} on dry land${at}, ${total} total)`
+}
+
 // (v0.130.0) THE DROWNING WITNESS - run536 (35938786076, the v0.129.0 fleet)
 // mined F8's death: 474 'air-bar glitch ignored' suppressions, 13 rescue
 // starts, several 0.0s no-op completions whose dry-land proofs kept

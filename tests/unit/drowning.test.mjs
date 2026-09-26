@@ -30,7 +30,7 @@ import {
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
   glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
-  drowningCorroborated, DROWN_CORROBORATION_HP,
+  drowningCorroborated, DROWN_CORROBORATION_HP, airGlitchLogLine,
   frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
   ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET
 } from '../../src/lib/drowning.mjs'
@@ -1562,4 +1562,41 @@ test('the melee veto wiring: the sentry consults the band, the telemetry names t
   assert.ok(src.includes('witness stands down'), 'the veto line names itself so the next mine can audit the band')
   const lib = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
   assert.ok(lib.includes('export const WITNESS_COMBAT_BAND = 8'), 'the band is a policy constant (shipped with the predicate)')
+})
+
+// ---- (v0.195.0) THE AIR-GLITCH MAP PIN ----
+// run82 (36201371882) measured the blind spot that WASN'T: the decode greps
+// ('airGlitch') found zero lines while the fleet counter read 588 - the lines
+// say 'air-bar', the 'water' filter key carried all 25 of them, every one F3
+// (the final total 578 ~= the fleet's 588: ONE bot owned the counter). What
+// the lines could NOT answer is WHERE the sensor sat broken - both shapes now
+// pin the floored position, and these tests keep the legacy prefix byte for
+// byte so the decode greps and the run-history comparability survive.
+
+test('the air-glitch map pin: the ignored line names the floored position, the legacy prefix survives', () => {
+  const line = airGlitchLogLine({ tag: '[F3]', oxygen: 0, total: 588, pos: { x: 12.7, y: -31.2, z: -204.9 } })
+  assert.equal(line, '[F3] water: air-bar glitch ignored (oxygen 0 on dry land at [12,-32,-205], 588 total)', 'the pin sits inside the parens, the legacy wording keeps its shape')
+  assert.ok(line.startsWith('[F3] water: air-bar glitch ignored (oxygen 0 on dry land'), 'the v0.41.1 filter key (water) + the decode greps stay valid')
+})
+
+test('the air-glitch map pin: the override line rides the tail too', () => {
+  const line = airGlitchLogLine({ kind: 'override', tag: '[F3]', streak: 40, pos: { x: -3.4, y: 64.5, z: 7.8 } })
+  assert.equal(line, '[F3] water: air-bar glitch override - 40 consecutive critical-on-dry reads, believing the bar at [-4,64,7]', 'the verdict line names WHERE the bar was believed')
+})
+
+test('the air-glitch map pin: junk positions read the legacy shape byte for byte', () => {
+  assert.equal(airGlitchLogLine({ tag: '[F1]', oxygen: 0, total: 1, pos: null }), '[F1] water: air-bar glitch ignored (oxygen 0 on dry land, 1 total)', 'no entity -> the v0.16.0 shape')
+  assert.equal(airGlitchLogLine({ tag: '[F1]', oxygen: 0, total: 1, pos: { x: NaN, y: 3, z: 4 } }), '[F1] water: air-bar glitch ignored (oxygen 0 on dry land, 1 total)', 'a NaN axis poisons the pin - the legacy shape')
+  assert.equal(airGlitchLogLine({ tag: '[F1]', oxygen: 0, total: 1, pos: 'junk' }), '[F1] water: air-bar glitch ignored (oxygen 0 on dry land, 1 total)', 'a junk pos never breaks the line')
+  assert.equal(airGlitchLogLine({ tag: '[F1]', oxygen: 0, total: 1 }), '[F1] water: air-bar glitch ignored (oxygen 0 on dry land, 1 total)', 'the bare call is the legacy shape')
+  assert.equal(airGlitchLogLine({ kind: 'override', tag: '[F1]', streak: 8 }), '[F1] water: air-bar glitch override - 8 consecutive critical-on-dry reads, believing the bar', 'the override without a pin is the legacy shape')
+})
+
+test('the map pin wiring: both air-glitch log sites consult the formatter', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND, airGlitchLogLine,'), 'the formatter rides the drowning import')
+  assert.ok(src.includes("airGlitchLogLine({ tag, oxygen: o2raw, total: stats.airGlitches, pos: bot.entity?.position })"), 'the ignored line pins the entity position')
+  assert.ok(src.includes("airGlitchLogLine({ kind: 'override', tag, streak: dryGlitchStreak, pos: bot.entity?.position })"), 'the override line pins the entity position')
+  assert.ok(!src.includes('${stats.airGlitches} total)'), 'no unpinned ignored line may survive the wiring')
 })
