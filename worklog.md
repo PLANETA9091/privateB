@@ -5289,3 +5289,23 @@ Work Log:
 
 Stage Summary:
 - Master 56340b4 (pkg 0.214.0). Next free version 0.215.0. FLEET OF RECORD: 36245304817 in flight. NEXT FIRE: mine+decode it (the honest-marker volume sub-14-only, the census 3rd sample sealed-vs-land, triage 10th, the bank slump smelted=0, the reloot arrival follow-up); code-fire 0.215.0 only if no pending dispatch exists at push time (the reloot kind-gate / the furnace starvation candidates).
+
+---
+Task ID: cron30-20260926-2200
+Agent: Super Z (cron lane, Job 414125)
+Task: 22:00 fire - mine+decode the honest-marker fleet 36245304817 (the 21:30 handoff).
+
+Work Log:
+- Sync: master 7fcbb05 (pkg 0.214.0), the lane quiet. 36245304817 polled to completion: SUCCESS, all jobs green (Unit 22+24, Integration, Big fleet run).
+- MINED run17/ (the sandbox mount moved: /home/z/privateB/scripts/fleet-mining/run17/).
+- THE HONEST MARKER'S FIELD DEBUT: exactly ONE 'open-field yield vs' line (was x4, all lies above 14) - vs creeper at hp 0.3, sub-14. THE RESIDUAL CLASS CONFIRMED: hp 0.3 < FLEE_HP 8 means the LEGACY lane actually fired - the openFieldYieldLive predicate still over-attributes when the lens band overlaps an earlier lane (sub-8 legacy, creeper range, unarmed). The pure next-cure: the marker must name the FIRST firing lane (the threatVerdictLane shape - 2b6ae22's reflog design), or the predicate gains the no-earlier-lane clause.
+- THE CENSUS SILENT: zero 'no surface' refusals all run - the subWhy instrument had no input. The reloot ladder never armed: 'reloot: no walk (unarmed) - the empty pocket bootstraps first' x10 (the pocket bootstrap outranks the walk), 1 surface retry [-85...], 1 'no-path retry at range 8', 1 'surface failed (No path to the goal!) - the drops stay lost'.
+- THE MOB DAY: deaths=11 (drowned x5 incl. one inference-contradiction, zombie x3 slain, CREEPER EXPLOSIONS x3 - new volume; 3 inference contradictions total). Mob deaths 2->7->11.
+- THE ECONOMY COLLAPSED FURTHER: banked=264, conversion=31.1%, unaccounted=2071 (RECORD LEAK, the bank cure's shape inverted), smelted starved (0/2/4), torched=3 (the chain sputters), rescues=89, relogins=27, plan 1/31 (7th run), failed=34, deepSkip=36.
+- Worklog pushed BEFORE any dispatch (the sharpened 21:30 law); dispatch follows as the absolute last action.
+
+Stage Summary:
+- Master 7fcbb05 + this worklog (pkg 0.214.0). Next free version 0.215.0. Next local section = Task ID cron30-20260926-2230.
+- FLEET OF RECORD: 36245304817 SUCCESS (decoded this fire) + this fire's fresh dispatch (the honest marker 2nd sample).
+- NEXT FIRE: (1) mine+decode the fresh dispatch: the residual marker class volume (sub-8 overlaps), the census silence repeat (the unarmed bootstrap starves the ladder - the kind-gate candidate reshapes: arm the ladder for the UNARMED too, or feed the pocket first), the creeper explosion front (3 - the flee band vs the fuse), the unaccounted=2071 bank leak (NEW TOP: the drops-lost class + the death-drop inventory), triage 10th; (2) CODE FRONTS (0.215.0): the marker first-lane attribution, the reloot unarmed arm, the bank leak instrument; (3) the lane may take 0.215.0.
+- OPEN FRONTS: the unaccounted bank leak (NEW TOP); the creeper explosion volume; the marker residual (first-lane); the reloot unarmed starvation; the triage profile break; the hazard-pull guard gap; coal ARRIVAL root.
