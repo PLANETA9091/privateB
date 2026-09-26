@@ -98,6 +98,16 @@ for (const l of lines) {
   if (w) surfaceWhys[w[1].split(' ')[0]] = (surfaceWhys[w[1].split(' ')[0]] || 0) + 1
 }
 console.log('  surface refusal whys:', fmt(surfaceWhys))
+// (v0.221.0) THE RIM DIG - the ladder's fourth leg (the sealed pool's exit
+// ramp): the arm, the opened seal, the honest verdicts and the guard's holds
+// each count separately (the decode reads the field debut's anatomy).
+console.log('  rim dig arms:', count(/reloot: rim dig at \[/), 'per-bot:', fmt(perBot(/reloot: rim dig at \[/)))
+console.log('  rim dig seals opened:', count(/reloot: rim dig opened the seal/))
+console.log('  rim dig dones:', count(/reloot: rim dig done in/))
+console.log('  rim dig failures:', count(/reloot: rim dig failed/))
+console.log('  rim dig guard holds:', count(/reloot: rim dig held/))
+console.log('  rim dig refusals:', count(/reloot: rim dig refused/))
+console.log('  rim dig skips:', count(/reloot: rim dig skipped/))
 
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))

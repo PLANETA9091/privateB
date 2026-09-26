@@ -24,9 +24,9 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
     'the miner exposes the record to the runner (the runner decides, never the death handler)')
 })
 
-test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier and the surface ladder', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX \} from '\.\.\/src\/lib\/reloot\.mjs'/,
-    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census and the surface ladder from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
+  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census, the surface ladder AND the rim dig from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -263,5 +263,91 @@ test('v0.213.0: the census classes reach the decompose histogram (the watch list
   ]) {
     const m = line.match(filter)
     assert.ok(m && ['sealed', 'junk-read', 'no-air'].includes(m[1].split(' ')[0]), `the census class parses: ${line}`)
+  }
+})
+
+// ---- v0.221.0 THE RIM DIG WIRING ----
+// v0.219.0 shipped the pure plan (relootCap + relootRimDig); this fire wires
+// the ladder's FOURTH leg inside the surface gate's own refusal, gated on the
+// census's 'sealed' class (run 36248025944 F13's anatomy: the drops FLOAT
+// under a solid cap, untouchable by every walk the ladder owns). The stance
+// guard is the law: the dig must never open the column the bot stands on.
+// Every scalar named (the run195 law).
+
+test('v0.221.0: the rim dig lane lives INSIDE the surface refusal, gated on sealed (the strict leg ladder)', () => {
+  const lane = fleetSrc.match(/if \(!rs\.go\) \{[\s\S]*?\n                  \} else \{\n                    console\.log\(`\$\{name\} reloot: surface retry at/)
+  assert.ok(lane, 'the refusal branch exists beside the surface walk (the ladder reads in order)')
+  assert.ok(lane[0].includes("rs.why === 'no-surface' && rs.subWhy === 'sealed'"),
+    'the dig fires ONLY on the sealed census class (the scanner and the walk legs own every other refusal)')
+  assert.ok(lane[0].includes('reloot: retry failed'), 'the legacy terminal line prints BEFORE the dig legs (the ladder reads in order)')
+})
+
+test('v0.221.0: the rim dig call carries every scalar (the run195 dead-wire class)', () => {
+  const call = fleetSrc.match(/relootRimDig\(\{[\s\S]*?\}\)/)
+  assert.ok(call, 'the dig plan is called at the sealed-refusal site')
+  assert.match(call[0], /column/, 'the SAME column read rides the call (the coherence law: one read, two consumers)')
+  assert.match(call[0], /spot:\s*relootDeath\.spot/, 'the death spot rides the call (the goal x/z ride it)')
+  assert.match(call[0], /deathAt:\s*relootDeath\.at/, 'the death clock rides the call (the despawn window prices from it)')
+  assert.match(call[0], /now:\s*Date\.now\(\)/, "the caller's clock rides the call")
+  assert.match(call[0], /botPos:\s*miner\.bot\.entity/, 'the current stance rides the call (the distance needs it)')
+})
+
+test('v0.221.0: the stance guard - verify, re-stance one block out, or hold (never dig under own feet)', () => {
+  const guard = fleetSrc.match(/THE STANCE GUARD - verify, re-stance, or hold\.[\s\S]*?rim dig held/)
+  assert.ok(guard, 'the guard block exists between the walk and the swing')
+  assert.match(guard[0], /Math\.floor\(meDig\.x\) === rd\.digTarget\.x && Math\.floor\(meDig\.z\) === rd\.digTarget\.z/,
+    'the guard reads the stance column against the dig column (floored - the entity position is a float)')
+  assert.match(guard[0], /rd\.capY \+ 1[\s\S]*?rd\.capY \+ 2/, 'the neighbor read prices the feet AND the head (a two-air stance)')
+  assert.match(guard[0], /rim dig held/, 'an un-resolvable stance HOLDS (no swing, an honest log - never a guess)')
+  assert.match(guard[0], /label: 'reloot rim stance'/, 'the re-stance walk prints under its own label (the decode reads it)')
+})
+
+test('v0.221.0: the swing re-fences the window, the arm, and the cap block (each refusal named)', () => {
+  const swing = fleetSrc.match(/const windowLeft = \(relootDeath\.at \+ RELOOT_DESPAWN_MS\) - Date\.now\(\)[\s\S]*?rim dig done in/)
+  assert.ok(swing, 'the swing lane exists (from the window re-fence to the done line)')
+  assert.match(swing[0], /RELOOT_DESPAWN_MS[\s\S]*?RELOOT_RIM_DIG_MIN_MS/,
+    'the window re-fence prices the despawn against the dig+float floor at swing time (the walk spent its clock)')
+  assert.match(swing[0], /!hasPickNow\(\)/, 'the arm gate reads the hands (the delay law does not re-enter here - honestly terminal)')
+  assert.match(swing[0], /rim dig skipped \(unarmed/, 'the unarmed skip prints')
+  assert.match(swing[0], /rim dig skipped \(the cap block read null/, 'a null cap block skips honestly (the unloaded-chunk class)')
+  assert.match(swing[0], /rim dig refused \(no-time:/, 'a thin window refuses by name')
+})
+
+test('v0.221.0: the honest rim dig verdicts and the float wait', () => {
+  assert.match(fleetSrc, /reloot: rim dig at \[/, 'the dig arm prints loudly (the decode counts the arms)')
+  assert.match(fleetSrc, /reloot: rim dig opened the seal/, 'the opened seal prints (the cap block name rides it)')
+  assert.match(fleetSrc, /reloot: rim dig done in/, 'the done verdict prints with the stack read')
+  assert.match(fleetSrc, /reloot: rim dig failed/, 'the failure prints (silence is never evidence)')
+  assert.match(fleetSrc, /reloot: rim dig refused/, 'the plan-level refusal prints')
+  assert.match(fleetSrc, /await new Promise\(r => setTimeout\(r, RELOOT_RIM_FLOAT_MS\)\)/,
+    'the float wait is a bounded sleep (the water rises and vanilla lifts the stacks)')
+  assert.match(fleetSrc, /distanceTo\(me3\) <= RELOOT_RETRY_RANGE/, 'the evidence read rides the ladder read sphere (8 - the honest convention)')
+})
+
+test('v0.221.0: the rim dig walk rides doomedRearm and the plan pricing, never hardcoded', () => {
+  const walk = fleetSrc.match(/gotoSafe\(miner\.bot, standGoalNear\(miner\.bot, goals, rd\.goal\.x, rd\.goal\.y, rd\.goal\.z, \{ range: rd\.range \}\), \{ timeoutMs: rd\.budgetMs, label: 'reloot rim dig', doomedRearm: true \}\)/)
+  assert.ok(walk, 'the dig walk carries the plan goal, the plan range, the plan budget and the ledger re-arm (the wide retry LEDGERED the cell family too)')
+})
+
+test("v0.221.0: the rim dig lines reach the artifact (the v0.176.0 prefix law - the 'reloot' key owns the prefix)", () => {
+  const filterMatch = fleetSrc.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
+  const filter = new RegExp(filterMatch[1])
+  assert.ok(filter.test('[F13] reloot: rim dig at [-83,60,380] (cap y59, dig target [-83,59,380], budget 20s, window 280s) - the seal opens, the floats lift'),
+    'the dig arm line reaches the artifact')
+  assert.ok(filter.test('[F13] reloot: rim dig opened the seal (cap stone at [-83,59,380]) - the float wait 5s'),
+    'the opened-seal line reaches the artifact')
+  assert.ok(filter.test('[F13] reloot: rim dig done in 12s - 2 item stack(s) within 8 - the magnet takes what it can'),
+    'the done line reaches the artifact')
+  assert.ok(filter.test('[F13] reloot: rim dig held - the stance owns the dig column and no neighbor reads standable, no swing (the guard holds)'),
+    'the guard-hold line reaches the artifact')
+  assert.ok(filter.test('[F13] reloot: rim dig refused (no-time: 9s left, the dig+float needs 20s)'),
+    'the no-time swing refusal reaches the artifact')
+})
+
+test('v0.221.0: the rim dig counters reach the decompose (the field debut decodes itself)', () => {
+  const dec = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  for (const needle of ['rim dig arms:', 'rim dig seals opened:', 'rim dig guard holds:', 'rim dig refusals:']) {
+    assert.ok(dec.includes(needle), `the ${needle} counter exists`)
   }
 })

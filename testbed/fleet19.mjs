@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1223,17 +1223,22 @@ async function runBot (name, target, index) {
                   // true - the wide retry LEDGERED the cell family too. A
                   // junk world read reads an empty column - the scanner
                   // refuses and the death stays terminal.
+                  // (v0.221.0) the death column read rides OUTSIDE the gate's
+                  // try: every block read is individually guarded, so the
+                  // hoist is behavior-identical - and the SAME column now
+                  // feeds both the scanner and the rim dig below (the
+                  // coherence law: one read, two consumers, zero drift).
+                  const column = []
+                  for (let i = 0; i <= RELOOT_SURFACE_RISE_MAX; i++) {
+                    let blockName = null
+                    try {
+                      const b = miner.bot.blockAt(new Vec3(rp.goal.x, rp.goal.y + i, rp.goal.z))
+                      blockName = b?.name ?? null
+                    } catch { blockName = null }
+                    column.push({ y: rp.goal.y + i, name: blockName })
+                  }
                   const rs = (() => {
                     try {
-                      const column = []
-                      for (let i = 0; i <= RELOOT_SURFACE_RISE_MAX; i++) {
-                        let blockName = null
-                        try {
-                          const b = miner.bot.blockAt(new Vec3(rp.goal.x, rp.goal.y + i, rp.goal.z))
-                          blockName = b?.name ?? null
-                        } catch { blockName = null }
-                        column.push({ y: rp.goal.y + i, name: blockName })
-                      }
                       return relootSurfaceRetry({
                         message: e2?.message,
                         retries: 1,
@@ -1250,6 +1255,112 @@ async function runBot (name, target, index) {
                   })()
                   if (!rs.go) {
                     console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost${rs.why === 'not-no-path' ? '' : ` (no surface: ${rs.subWhy || rs.why})`}`)
+                    // (v0.221.0) THE RIM DIG WIRING - the ladder's fourth leg,
+                    // wired inside the surface gate's own refusal (the field
+                    // sequence is strict: walk -> wide retry -> surface scan
+                    // -> THE DIG, and the dig only fires when the scan
+                    // refused 'sealed' - the v0.213.0 census class this leg
+                    // was priced for). MEASURED (run 36248025944, F13): the
+                    // sealed pool's drops FLOAT under a solid cap, untouchable
+                    // by every walk the ladder owns - the cure is a DIG, not a
+                    // walk: the stance lands on the dry cap (pathfinder-legal
+                    // by construction, the v0.207.0 wet-aim class cannot
+                    // apply), the dig opens the seal, the water column rises,
+                    // the floating stacks lift into pickup reach. THE STANCE
+                    // GUARD IS THE LAW: the dig must never open the column
+                    // the bot stands on - the guard verifies the stance's own
+                    // column differs, re-stances ONE BLOCK OUT on the first
+                    // standable neighbor when the walk landed on the cap (the
+                    // common shape: GoalNear range 2's nearest standable IS
+                    // the cap's top), and HOLDS (no swing, honest log) when no
+                    // standable neighbor exists. The dig itself re-fences the
+                    // despawn window at swing time (the walk spent its clock;
+                    // a bare-hand dig on stone is ~8s and the float wait adds
+                    // more) and checks the arm (the delay law does not
+                    // re-enter here - the ladder lives inside this catch, so
+                    // an unarmed read is honestly terminal, not a delay).
+                    if (rs.why === 'no-surface' && rs.subWhy === 'sealed') {
+                      const RELOOT_RIM_FLOAT_MS = 5000 // the opened cell fills and vanilla lifts the stacks in ~1-2s; 5s is the generous read
+                      const RELOOT_RIM_DIG_MIN_MS = 20000 // the swing-time window fence: bare-hand dig ~8s + the float wait + the read
+                      const RESTANCE_BUDGET_MS = 15000 // one block out - the walk-envelope law at its smallest
+                      const rd = (() => {
+                        try {
+                          return relootRimDig({
+                            column,
+                            spot: relootDeath.spot,
+                            deathAt: relootDeath.at,
+                            now: Date.now(),
+                            botPos: miner.bot.entity
+                              ? { x: miner.bot.entity.position.x, y: miner.bot.entity.position.y, z: miner.bot.entity.position.z }
+                              : null
+                          })
+                        } catch { return { go: false, why: 'no-column' } }
+                      })()
+                      if (!rd.go) {
+                        console.log(`${name} reloot: rim dig refused (${rd.why}) - the drops stay lost`)
+                      } else {
+                        console.log(`${name} reloot: rim dig at [${rd.goal.x},${rd.goal.y},${rd.goal.z}] (cap y${rd.capY}, dig target [${rd.digTarget.x},${rd.digTarget.y},${rd.digTarget.z}], budget ${(rd.budgetMs / 1000).toFixed(0)}s, window ${(rd.windowMs / 1000).toFixed(0)}s) - the seal opens, the floats lift`)
+                        const rimT0 = Date.now()
+                        try {
+                          await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rd.goal.x, rd.goal.y, rd.goal.z, { range: rd.range }), { timeoutMs: rd.budgetMs, label: 'reloot rim dig', doomedRearm: true })
+                          // THE STANCE GUARD - verify, re-stance, or hold.
+                          const solidCell = b => b && typeof b.name === 'string' && !/^(air|cave_air|void_air)$/.test(b.name) && !/water|lava|kelp|seagrass|bubble_column/.test(b.name)
+                          const airyCell = b => b && typeof b.name === 'string' && /^(air|cave_air|void_air)$/.test(b.name)
+                          const meDig = miner.bot.entity.position
+                          let stanceOk = !(Math.floor(meDig.x) === rd.digTarget.x && Math.floor(meDig.z) === rd.digTarget.z)
+                          if (!stanceOk) {
+                            for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                              const nx = rd.digTarget.x + dx
+                              const nz = rd.digTarget.z + dz
+                              let ground = null; let feet = null; let head = null
+                              try {
+                                ground = miner.bot.blockAt(new Vec3(nx, rd.capY, nz))
+                                feet = miner.bot.blockAt(new Vec3(nx, rd.capY + 1, nz))
+                                head = miner.bot.blockAt(new Vec3(nx, rd.capY + 2, nz))
+                              } catch { /* a junk read is not a stance */ }
+                              if (!(solidCell(ground) && airyCell(feet) && airyCell(head))) continue
+                              try {
+                                await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, nx, rd.capY + 1, nz, { range: 1 }), { timeoutMs: RESTANCE_BUDGET_MS, label: 'reloot rim stance', doomedRearm: true })
+                                const me2 = miner.bot.entity.position
+                                stanceOk = !(Math.floor(me2.x) === rd.digTarget.x && Math.floor(me2.z) === rd.digTarget.z)
+                              } catch { stanceOk = false }
+                              break
+                            }
+                          }
+                          if (!stanceOk) {
+                            console.log(`${name} reloot: rim dig held - the stance owns the dig column and no neighbor reads standable, no swing (the guard holds)`)
+                          } else {
+                            const windowLeft = (relootDeath.at + RELOOT_DESPAWN_MS) - Date.now()
+                            if (windowLeft < RELOOT_RIM_DIG_MIN_MS) {
+                              console.log(`${name} reloot: rim dig refused (no-time: ${(windowLeft / 1000).toFixed(0)}s left, the dig+float needs ${(RELOOT_RIM_DIG_MIN_MS / 1000).toFixed(0)}s)`)
+                            } else if (!hasPickNow()) {
+                              console.log(`${name} reloot: rim dig skipped (unarmed - the swing stays down, the drops ride out their clock)`)
+                            } else {
+                              let capBlock = null
+                              try { capBlock = miner.bot.blockAt(new Vec3(rd.digTarget.x, rd.digTarget.y, rd.digTarget.z)) } catch { capBlock = null }
+                              if (!capBlock) {
+                                console.log(`${name} reloot: rim dig skipped (the cap block read null - the unloaded-chunk class)`)
+                              } else {
+                                await miner.bot.dig(capBlock)
+                                console.log(`${name} reloot: rim dig opened the seal (cap ${capBlock.name} at [${rd.digTarget.x},${rd.digTarget.y},${rd.digTarget.z}]) - the float wait ${(RELOOT_RIM_FLOAT_MS / 1000).toFixed(0)}s`)
+                                await new Promise(r => setTimeout(r, RELOOT_RIM_FLOAT_MS))
+                                let stacks = 0
+                                try {
+                                  const me3 = miner.bot.entity.position
+                                  for (const ent of Object.values(miner.bot.entities)) {
+                                    if (!ent || ent.name !== 'item' || !ent.position || ent.isValid === false) continue
+                                    if (ent.position.distanceTo(me3) <= RELOOT_RETRY_RANGE) stacks++
+                                  }
+                                } catch { /* a junk entity read reads zero stacks */ }
+                                console.log(`${name} reloot: rim dig done in ${((Date.now() - rimT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) within ${RELOOT_RETRY_RANGE}${stacks ? ' - the magnet takes what it can' : ' (none in read reach - the seal held nothing, or the pool kept them)'}`)
+                              }
+                            }
+                          }
+                        } catch (e4) {
+                          console.log(`${name} reloot: rim dig failed (${e4.message}) - the drops stay lost`)
+                        }
+                      }
+                    }
                   } else {
                     console.log(`${name} reloot: surface retry at [${rs.goal.x},${rs.goal.y},${rs.goal.z}] (budget ${(rs.budgetMs / 1000).toFixed(0)}s) - the floating stacks live at the water surface`)
                     const surfaceT0 = Date.now()
