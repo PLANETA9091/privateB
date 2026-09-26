@@ -141,7 +141,8 @@ test('REGRESSION PIN: the fleet log filter carries the sweep key (the v0.176.0 f
   // gate's line + the three ledger skips the filter had kept invisible) - the
   // pin tolerates its presence beside hop while still pinning the sweep key.
   // (v0.199.0) 'death drop' joins between died and KICKED - the pin carries it.
-  assert.ok(/combat\|died\|(death drop\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
+  // (v0.201.0) 'reloot' joins the same band - the pin tolerates it beside death drop.
+  assert.ok(/combat\|died\|(death drop\|)?(reloot\|)?KICKED\|error\|climb\|water\|scan:\|hop\|(chest skip\|)?approach\|swallowed\|bank \|deposit\|torch\|craft\|smelt\|fuel\|vein sweep/.test(fleetSrc),
     'the miner log filter includes the vein sweep prefix - the instrument lines must reach the artifact (the v0.56.0 hop-failed lesson, struck again by the v0.175.0 instrument: the count line matched NOTHING and the failure lines only rode the luck of water inside one refusal message)')
   // the instrument line shapes all start with the key
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')

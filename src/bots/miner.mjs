@@ -204,6 +204,18 @@ export function createMiner ({
   // the death line prints the freshest harm within 6 s.
   let lastHarm = null
   let lastHp = 20
+  // (v0.201.0) THE RE-LOOT STATE - run63-mined (fleet 36212235363) measured
+  // ~227u of named death drops (the v0.199.0 line) SURVIVING PAST THE RUN'S
+  // END (the deaths landed t-176s/t-131s, despawn is 300s) - nobody walked
+  // back, the stacks died with the world reset, and the ledger's
+  // unaccounted=0 hid the loss inside the conversion formula's slack. The
+  // death handler records WHERE and WHEN (the same guarded read the
+  // v0.84.0 death-spot memory uses), the runner's work loop turns the
+  // record into ONE planned walk via relootPlan (src/lib/reloot.mjs - the
+  // six named fences). Per-instance state: a reconnect rebuilds the miner
+  // and the memory dies with the old bot object - the common death ->
+  // respawn path (same bot object) is the class this state serves.
+  let lastDeath = null
   // (v0.117.0) THE AUTHORITATIVE DEATH CAUSE - run102 (35889087936) mined
   // 'fall/env' x3 while the server told the truth: 'F3 drowned', 'F13
   // drowned', 'F18 suffocated in a wall'. The lastHarm inferrer below cannot
@@ -292,6 +304,12 @@ export function createMiner ({
       if (dp && Number.isFinite(dp.x) && Number.isFinite(dp.y) && Number.isFinite(dp.z)) {
         const live = waterHazards.record({ x: dp.x, y: dp.y, z: dp.z })
         log(`${tag} water: death spot memorized as a hazard at [${Math.floor(dp.x)},${Math.floor(dp.y)},${Math.floor(dp.z)}] (${live} live, fleet-wide)`)
+        // (v0.201.0) the re-loot record rides the SAME guarded read: the
+        // spot is honest (the entity position at death), the clock is the
+        // death moment. The respawned bot's ONE walk back is the runner's
+        // decision (relootPlan's fences), never this handler's - a death
+        // handler must never walk.
+        lastDeath = { spot: { x: dp.x, y: dp.y, z: dp.z }, at: Date.now(), attempted: false }
         if (broadcastHazard) { try { broadcastHazard({ x: dp.x, y: dp.y, z: dp.z }) } catch { /* chat never kills a respawn */ } }
       }
     } catch { /* a death handler must never throw */ }
@@ -4249,7 +4267,7 @@ export function createMiner ({
     return { deposited: res.deposited, reason, chestsUsed: res.chestsUsed ?? 0, chestReport: res.chestReport ?? [] }
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, veinSweep, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, waterTables, username }
+  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, veinSweep, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, waterTables, username, lastDeath: () => lastDeath }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.

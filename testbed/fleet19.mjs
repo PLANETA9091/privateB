@@ -37,6 +37,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
+import { relootPlan } from '../src/lib/reloot.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -778,7 +779,7 @@ async function runBot (name, target, index) {
           // (v0.199.0) 'death drop' joins: the death-drop snapshot prints with
           // its own prefix - one keyword covers both shapes (the loss and the
           // honest empty read).
-          if (/combat|died|death drop|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
@@ -1085,6 +1086,67 @@ async function runBot (name, target, index) {
         // NOT run down here is the pathfinder (see the walk guard below)
       }
       while (!(Date.now() > deadline) && miner.bot.entity) {
+        // (v0.201.0) THE RE-LOOT WALK - the death economy's field debut.
+        // run63-mined (fleet 36212235363) measured ~227u of NAMED death drops
+        // (the v0.199.0 line) SURVIVING PAST THE RUN'S END: the deaths landed
+        // t-176s/t-131s, vanilla despawn is 300s, nobody walked back, the
+        // stacks died with the world reset, and the ledger's unaccounted=0
+        // hid the loss inside the conversion formula's slack. The cure is ONE
+        // planned walk per death, decided by relootPlan's six named fences
+        // (pure, src/lib/reloot.mjs - no-spot/attempted/expired/no-bot/
+        // too-far/no-time). The runner adds the two fences the plan cannot
+        // see: the walk is ARMED (a pick in hand - the v0.140.1 lesson: an
+        // unarmed surface walk at dusk is the respawn-bootstrap class) and
+        // DAYLIGHT (the v0.185.0 night-hold shape - a held re-loot rides out
+        // the dark, the drops die, the bot lives; the despawn window is
+        // shorter than the night, so a held walk is honestly dead). The walk
+        // rides the loop's own serialization (no concurrent goal churn - the
+        // goal-brake lesson), one gotoSafe with the plan's dist-scaled budget
+        // and GoalNear range 2 (the v0.178.0 below-plane lesson: the drops
+        // sit in the freed cell / down the fresh shaft). The arrival read
+        // counts the item stacks in pickup reach - silence is never evidence.
+        // ANY verdict marks attempted BEFORE the walk (one evaluation per
+        // death - the retry-storm fence owns the lane; a second death
+        // re-arms it with the fresh spot).
+        const relootDeath = miner.lastDeath?.() ?? null
+        if (relootDeath && !relootDeath.attempted) {
+          relootDeath.attempted = true
+          let rp = null
+          try {
+            rp = relootPlan({
+              spot: relootDeath.spot,
+              deathAt: relootDeath.at,
+              now: Date.now(),
+              botPos: miner.bot.entity
+                ? { x: miner.bot.entity.position.x, y: miner.bot.entity.position.y, z: miner.bot.entity.position.z }
+                : null
+            })
+          } catch { rp = { go: false, why: 'no-spot' } }
+          if (!rp.go) {
+            console.log(`${name} reloot: no walk (${rp.why})`)
+          } else if (!hasPickNow()) {
+            console.log(`${name} reloot: no walk (unarmed) - the empty pocket bootstraps first`)
+          } else if (walkForbidden(miner.bot.time?.timeOfDay)) {
+            console.log(`${name} reloot: no walk (night) - the walk-forbidden window owns the surface, the drops ride out their clock`)
+          } else {
+            console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s)`)
+            const relootT0 = Date.now()
+            try {
+              await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rp.goal.x, rp.goal.y, rp.goal.z, { range: rp.range }), { timeoutMs: rp.budgetMs, label: 'reloot' })
+              let stacks = 0
+              try {
+                const me = miner.bot.entity.position
+                for (const e of Object.values(miner.bot.entities)) {
+                  if (!e || e.name !== 'item' || !e.position || e.isValid === false) continue
+                  if (e.position.distanceTo(me) <= 2.5) stacks++
+                }
+              } catch { /* a junk entity read reads zero stacks */ }
+              console.log(`${name} reloot: arrived in ${((Date.now() - relootT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) in reach${stacks ? '' : ' - nothing left (picked up or despawned)'}`)
+            } catch (e) {
+              console.log(`${name} reloot: walk failed (${e.message}) - the drops stay lost`)
+            }
+          }
+        }
         // (v0.36.0) PRE-POSITION: inside the last window a far bot walks home
         // on MINING time instead of digging loot it cannot deliver. MEASURED
         // (35562867668): 13x 'final bank: 0 (budget exhausted)' - the end
