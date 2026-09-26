@@ -4666,3 +4666,21 @@ Stage Summary:
 - FLEET OF RECORD: THIS fire's dispatch on this head - the v0.199.0 death-drop line's FIELD DEBUT (plus the sweep census's second day and the wire's second day). NEXT FIRE: poll it, mine it, decode.
 - DECODE WATCH LIST: 'death drop: ~Nu lost at [x,y,z]' (v0.199.0's field debut - do the drops sum to the unaccounted class when deaths recur?); 'sweep: 0 collected - ...' histograms; airGlitches 996 -> ? (F4/F16's 498-symmetric shape - the ladder cap?); the flooded-quarry pins; banked 362 -> ?; deferrals 2 -> ?; deaths 0 -> ? (the retention hole needs deaths to test the death-drop line).
 - OPEN FRONTS: (a) the air-glitch sensor doctrine - the oxygen read vs the contact classifier at the quarry rim (the overrides' 16-24 consecutive critical-on-dry reads are the smoking gun; behavior-changing, its own fire); (b) the dusk knife edge - the just-banked class misses fence (c) by seconds (a staggered floor or a forecast-driven early arm could open it; needs its own evidence pass); (c) the flooded-quarry region hearing (the walk-veto envelope); (d) the coal ARRIVAL root; (e) the above-family range-2 residual.
+
+---
+Task ID: cron30-20260926-1100
+Agent: Super Z (cron lane, Job 414125)
+Task: poll + mine + decode the v0.199.0 death-drop debut fleet (36212235363).
+
+Work Log:
+- Synced clean (origin 3aaa19c; the lane quiet). 36212235363 (dispatch, 3aaa19c) completed SUCCESS: unit x2 + Integration + Big fleet all green. Mined to /home/z/privateB/scripts/fleet-mining/run63 (fleet19.log 2899 lines).
+- THE DEATH-DROP LINE'S FIELD DEBUT (v0.199.0) - VALIDATED: 4 deaths, 4 lines, every loss named with its place: 'F12 death drop: ~84u lost at [-195,59,405] (dirt 27, cobblestone 21, leaf_litter 9, stick 8, oak_log 5, +9 more)', 'F7 ~62u at [-138,52,420]', 'F7 ~48u at [-137,64,424]', 'F13 ~33u at [-89,64,379]' - 227u attributed in total. NO CODE NEEDED: the instrument answered its first real question on day one.
+- THE DECODE (600s, NORMAL END, alive 19/19): banked 362 -> 1375 (a record-class recovery), smelted 14, conversion 114.9% unaccounted=0 (the ledger BALANCES - the deaths were modest-pocket and the drops re-collected incidentally on the walk-back). rescues 62, torched 6, fights 22, kills 3, reconnects 14, reboots 1.
+- THE WHO/WHERE STORY OF THE RUN: F7 died TWICE at the same spot ([-138,52,420] then [-137,64,424] - the respawn walked back into the same kill zone DESPITE the v0.84.0 death-spot memory), owns ALL 307 airGlitches AND 26 of the 62 rescues ('sentry per-bot: F7 g307/r26 | ...') - the run82 F3 shape again: one loud bot, and the glitch counter CORRELATES with the rescue churn on the same bot (the 10:00 hypothesis confirmed on live data). airGlitches 996 -> 307 (world-phase variance continues; the run78 498/498 symmetry was exposure, not a cap - one bot 307 this time).
+- NO CODE this fire (the decode is the atomic unit, the 05:30/06:30/07:30 precedent); NO dispatch (the fleet just covered 3aaa19c - a duplicate on the same sha wastes the slot, the 07:30 precedent). The next fire: ship v0.200.0 from the evidence-ranked fronts, dispatch it as the LAST action.
+
+Stage Summary:
+- Master 3aaa19c (pkg 0.199.0, unchanged this fire). Next free version = 0.200.0.
+- FLEET OF RECORD: 36212235363 (COMPLETED SUCCESS, 3aaa19c) - the v0.199.0 debut, decoded. NO active fleet-run at close.
+- EVIDENCE-RANKED FRONTS for v0.200.0: (a) THE F7 CLASS - the respawn walk-back into the own death spot: the v0.84.0 hazard memory vetoes GOALS but the walk-home/return path still crosses the kill zone (a respawn return-path detour or a spot-adjacent climb-out guard; behavior-changing, deserves its own fire); (b) the sensor-vs-rescue coupling - F7's g307/r26 on one bot: the override 'believing the bar' while the bot keeps needing rescues (the airBarTrust ladder's field economics); (c) the flooded-quarry region hearing (x -89..-195, z 379-424 this run); (d) the coal ARRIVAL root; (e) the above-family range-2 residual.
+- DECODE WATCH LIST (next fire): death drop lines vs the unaccounted class WHEN a mob-storm world returns (the run84 shape); banked 1375 -> ?; F-class loud-bot rotation (F3 run82, F7 here - is it positional?); the sweep census day 3; deferrals 2 -> ?.
