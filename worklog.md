@@ -4451,3 +4451,18 @@ Stage Summary:
   - MINOR: rescues 56 (up), airGlitches 588 (blind spot #2 persists), climb-out chain 3 -> 1, night hold x16, fuel tithe x4 (F15 9 / F19 7 / F16 10), vertical doom x6, torched 10.
 - NEXT CURE CANDIDATES (evidence-ranked for the 08:00 fire): (a) the zero-extraction class - the clip math must not start a batch the window cannot finish (subtract the put/fire/poll overhead; return the batch when the promise fails); (b) the abandoned-furnace reclaim + its filter line (blind spot #3); (c) the airGlitch instrumentation (blind spot #2); (d) the rescues-56 causes decode.
 - Master eb94aba (v0.192.0) unchanged this fire. Next free version = 0.193.0. NO active fleet-run left at close; the 08:00 fire dispatches on the fresh head AFTER its own push.
+
+---
+Task ID: cron30-20260926-0800
+Agent: Super Z (cron lane, Job 414125)
+Task: one atomic improvement - the fired-batch run-clock cap (run82's F8 fired 25 x raw_copper into a furnace nobody could harvest).
+
+Work Log:
+- Synced clean (origin cea51de). No active fleet dispatch. Baseline: syntax 193/0, unit 84/84.
+- DECODE REFINEMENT: the 07:30 'zero-extraction' naming was imprecise - F8's camp-furnace POLL visit SUCCEEDED (took 1+1, smelted 2); the 'fired=25' was a DIFFERENT visit: fireLeg (smeltSecs < CAMP_BUILD_FIT_SECS) fires the batch without polling, and the v0.139.0 sweep's fleet-property read only takes output over an EMPTY input - a burning batch stays sacred, so F8's ~275s burn could never be harvested in-run. A guaranteed pocket loss, not an extraction bug.
+- v0.193.0 THE FIRE-BATCH RUN-CLOCK CAP shipped: fireBatchCapItems prices the burn + a 30s harvest margin against the run's remaining clock; the fourth belt (batch = min(batch0, fuelCap, clockCap, runClockCap)); the fire leg rides RUN_KILL_AT; the remainder stays pocketed. A 0 cap skips the fire honestly, a trim names itself - both ride the smelt filter key. Junk-safe: a missing/junk run clock reads NO cap (the legacy fire shape); non-fire legs read no cap. Tests: the pure family + the live fire-cap visit + the too-thin skip + the junk escape + the wiring pins. Local: syntax 193/0, unit 84/84.
+
+Stage Summary:
+- Master 4cc147c (v0.193.0 THE FIRE-BATCH RUN-CLOCK CAP). Next free version = 0.194.0.
+- FLEET OF RECORD (pending at close): this fire's dispatch on the final head - the v0.193.0 debut. Watch list: 'the run clock caps the fired batch: N of M' (the trim's debut); 'smelt fire skipped - the run clock cannot finish a batch'; the fire-batch pocket losses 25 -> ?; smelted 24 -> ?; any 'sweep: collected' lines; NORMAL END.
+- OPEN FRONTS: the abandoned-furnace reclaim visibility (blind spot #3); the airGlitch instrumentation (blind spot #2); the rescues-56 causes; the above-family range-2 residual.
