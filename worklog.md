@@ -5440,3 +5440,25 @@ Stage Summary:
 - FLEET OF RECORD: the lane's 36253378529 (880, the RIM STANCE debut, IN FLIGHT at close) - the 00:30 fire mines it; CI 36254439859 for v0.218.0 pending - verify its conclusion first.
 - NEXT FIRE: (1) check CI 36254439859 (v0.218.0's unit shards); (2) mine+decode 880: the RIM STANCE's wet-surface sample (range-8 rim aim), the reloot arrival-with-0-stacks anatomy (sweep-picked=248u suspect pool), the FIRST LANE marker's 2nd field sample (0 attributions must hold), the suicide-bomber blindness's field print (explosion deaths now read BLIND), the plan gap (1/31 again), triage 13th; (3) CODE FRONTS (0.219.0): the rim-dig leg (F13's sealed class), the plan progress front, the empty-pocket death class; (4) the lane may take 0.219.0.
 - OPEN FRONTS: the rim-dig leg (sealed class); the plan->delivery gap (1/31); the reloot 0-stacks anatomy; the empty-pocket death class; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (0 2-straight); the inference blindness for explosion/drown+fall/env (v0.218.0, field print pending); the unarmed starvation law (re-adjudicated - geometry, not starvation).
+
+---
+Task ID: cron30-20260927-0030
+Agent: Super Z (cron lane, Job 414125)
+Task: 00:30 fire - mine+decode the RIM STANCE debut 36253378529 (the 00:00 handoff).
+
+Work Log:
+- Sync: master 5b7049c (pkg 0.218.0), the lane quiet. CI 36254439859 (v0.218.0, 37b894c) found CANCELLED - superseded by this lane's own worklog push run 882 (16:11 newest-pending); v0.218.0's code validation rides 882 (in_progress on 5b7049c which contains 37b894c) - an absorption, not a test failure.
+- 880 (36253378529, the RIM STANCE field debut on 881c781 = v0.217.0) SUCCESS. MINED to run29/. DECODED:
+  - THE FIRST LANE MARKER 2ND FIELD SAMPLE: 'open-field yield' lines = 0 (2-straight; the attribution cure holds).
+  - DEATHS=6 (trend 4->6): Skeleton x1, Drowned x2, Zombie x2, ENDER DRAGON x1 (the legacy dragon's second kill of the era). THE INFERENCE VERDICTS READ CLEAN: corroborates x5 + CONTRADICTS x1 (the dragon - the two-word attacker vs the nearest-harm hint; honest). No explosion/drown-env death this run - the v0.218.0 BLIND print has no field sample yet (the closing dispatch fires one).
+  - THE ZERO-LEAK LEDGER 3-STRAIGHT: unaccounted=0 (59 -> 0 -> 0 -> 0), conversion=113.3%, surplus=372u, banked=784, mined=2788, smelted=34, planted=10, torched=9. alive=19/19 AT CLOSE 2-STRAIGHT.
+  - THE RIM STANCE BAND UNEXERCISED: 0 surface retries (the wet-surface death never came - 2-run wait). Reloot: 3 unarmed delays (18 -> 3 - the wet-quarry geometry fix shows) + F19's full walk: death spot [-83,38,380] (28b, budget 14s, window 66s) -> arrived in 8s -> '0 item stack(s) in reach - nothing left (picked up or despawned)' - THE 0-STACKS ANATOMY 2ND SAMPLE (run96 F10 + run29 F19; the sweep-picked pool suspect stands).
+  - plan 2/31 (the 1/31 <-> 2/31 wobble), fights=11 kills=0 (a first zero-kill run), rescues=38, reconnects=9, airGlitches=0 (the new normal).
+- No code this fire: the decode was the atomic unit.
+- Worklog pushed BEFORE dispatch; the dispatch follows as the absolute last action: the v0.218.0 FIELD DEBUT (the BLIND print + the FIRST LANE 3rd sample + the rim stance 2nd sample).
+
+Stage Summary:
+- Master 5b7049c + this worklog (pkg 0.218.0). Next free version 0.219.0. Next local section = Task ID cron30-20260927-0100.
+- FLEET OF RECORD: 36253378529 SUCCESS (run29/) + this fire's closing dispatch (the v0.218.0 field debut on 5b7049c).
+- NEXT FIRE: (1) mine+decode the fresh dispatch: the BLIND print's field debut (an explosion or plain-drown death must read 'is blind to this kind', not CONTRADICTS), the FIRST LANE 3rd sample, the rim stance 2nd sample, the 0-stacks anatomy 3rd sample (the sweep-picked pool - the 0.219.0 lead front), the dragon recurrence (2 kills - the shelter gap?); (2) CODE FRONTS (0.219.0): the 0-stacks anatomy (sweep-picked vs despawn instrumentation), the dragon/knockback class, the plan wobble; (3) the lane may take 0.219.0.
+- OPEN FRONTS: the 0-stacks reloot anatomy (2-run); the rim-dig leg (sealed class); the wet-surface band wait; the dragon recurrence; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (0 3-straight); the unarmed starvation (delays 18->3 post-geometry-fix).
