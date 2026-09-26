@@ -5237,3 +5237,19 @@ Work Log:
 Stage Summary:
 - Master 83acc8f+worklog (pkg 0.213.0). Next free 0.214.0.
 - NEXT FIRE: decode the 2nd census sample (the land volume, the lens contradiction repeat, triage 10th - below 37% a new driver?, the bank/smelt slump); code fronts 0.214.0: the lens print/gate audit (top), the reloot kind-gate, the furnace starvation.
+
+---
+Task ID: cron30-20260926-2037
+Agent: Super Z (cron lane, Job 415967)
+Task: the lens print/gate audit (top 0.214.0 candidate), the 2nd census sample's poll+decode, the 211194d authorship heal.
+
+Work Log:
+- v0.214.0 THE HONEST MARKER shipped (f7f2aca): run48's leak named - the yield marker gated on the terrain flag alone, so EVERY open-field flee got marked (the unarmed lane and the ranged-cooldown lane yield at ANY hp: 19.0/20.0/16.8 all printed '< 14' - A LIE the decode counted as lens volume). THE CURE: openFieldYieldLive - the lens's exact condition extracted as the single source of truth; threatVerdict's lens line CALLS it (zero behavior change); BOTH marker sites healed (the defendSelf site captures hpAtVerdict+lensFired in the verdict's own synchronous instant BEFORE the tryShelter await that moved the bar; the flip site rides the predicate at print time - the negative pin caught the SECOND leak source during authoring). The marker's honest contract: 'open-field yield vs X (hp N < 14)' now means THE LENS FIRED and N is the bar it judged. Tests: 3 pure (the leak shapes proven and separated; the band edges; the coherence brute force 4x5x5x2) + 1 wiring (the capture law). Local: syntax 199/0, unit 88/88 (combat 49/49).
+- POLLED the 2nd census sample (36242483127, the 20:30 lane's dispatch) to completion BEFORE the force-push - the rewrite would have killed the in-flight fleet; the law and the fleet both kept (the 19:37-lane doctrine).
+- MINED run27: **THE FIRST RELOOT ARRIVAL EVER** - F10 walked to its own death spot [-126,49,413] (30b, 9s) and ARRIVED, the read honest ('0 item stack(s) in reach - nothing left (picked up or despawned)') - the walk mechanic works END-TO-END for the first time (arm -> walk -> arrive -> read); the drops were gone on arrival (the despawn race or an en-route pickup - the arrival read now measures it). **THE FIRST NAMED CENSUS CLASS: sealed=1** - F1 drowned at [-96,43,383] y43, the ladder ran walk -> 'No path' -> range-8 retry -> 'Took to long to decide path' (the verdict regex caught it - 'took to long' is in the class) -> the surface gate -> 'sealed' - THE AQUIFER-POOL CLASS IS REAL AND NAMED; the rim-dig front has its volume measure. The leak's last appearance: F13+F15 markers at hp 20.0 (the pre-fix tree's final lies - the honest marker debuts next run).
+- The day: deaths=5 (drown x2, fall x1, Drowned x1, Zombie x1), banked=224 (the slump deepens), conversion=102.1%, unaccounted=0, smelted=8. rescues and triage 10th ride the decompose.
+
+Stage Summary:
+- Master f7f2aca+worklog (pkg 0.214.0 THE HONEST MARKER; the 211194d authorship healed in the same push). Next free = 0.215.0.
+- WATCH LIST (the honest marker's debut): 'open-field yield vs' with hp ALWAYS < 14.0 (the leak is dead if the band holds); the sealed volume day 2 (sealed>=2 names the rim-dig front as 0.215.0's candidate); the next reloot ARRIVAL with stacks > 0 = THE DEATH ECONOMY'S FIRST RECOVERED DROPS (F10's arrival proved the mechanic; the drops' survival is the next coin); the bank/smelt slump (224/8 - the furnace starvation front); triage 10th+.
+- OPEN FRONTS: (1) the honest marker validation; (2) the rim-dig front (the sealed class); (3) the reloot arrival's stack coin; (4) the furnace starvation (smelted 0/8 vs the smelt lines 128); (5) the hazard-pull guard gap; (6) coal ARRIVAL root.
