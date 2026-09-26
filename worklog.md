@@ -4596,3 +4596,17 @@ Stage Summary:
 - FLEET OF RECORD: 36207216784 (a19b92e, in flight at this fire's start: unit x2 SUCCESS + integration in progress; the Big fleet leg follows) - the pin+row union debut, the SAME dead wire on board (predates the fix). Its decode next fire: the attribution row's WHO + the pin clustering + the dusk row count (0 expected - the wire was dead - the row's absence now PROVES the wire class, not the arithmetic).
 - DISPATCH (this lane, after green CI on THIS head): run_fleet=true fleet_seconds=600 - the dusk wire's FIELD DEBUT: 'bank trip: dusk' rows must finally appear; banked vs 518/1544; the deferral class 12 -> ?.
 - OPEN FRONTS (evidence-ranked): (a) THE FLOODED-QUARRY ATTRITION REGION - one region owns deaths+rescues+the pin; the fleet-wide hazard hearing (N rescues in one column band -> the trip planner vetoes the region) is the design front, behavior-changing, deserves its own fire; (b) the frozen-physics/reconnect class (F5 x35 - the client dies in place, the reconnect lane owns it; mainLate healthy - the freeze is per-client, not a main-thread storm); (c) still-underground x6 (the climb-out chain re-widened); (d) the Crown: iron_ore=35 mined, 0 smelted to ingots this run (copper took the furnaces: 18 ingots run82, this run the smelt mix is unattributed - the row+pin fleet may say).
+
+---
+Task ID: cron398294-20260926-0939 addendum (the closing dispatch verified)
+Agent: Super Z (the 09:39 lane, final)
+
+Work Log:
+- THE FLEET PICTURE RESOLVED: the union-debut fleet 36207216784 (a19b92e: the map pin WHERE + the sentry attribution row WHO) COMPLETED SUCCESS ~02:05Z - its artifact is the next fire's first read (the WHO row + the pin clustering; the dusk row count 0 EXPECTED there - a19b92e predates the wire fix, the row's absence on that fleet now PROVES the dead-wire class, not the arithmetic).
+- THIS LANE'S DISPATCH 36209745178 (cfa982c, run_fleet=true fleet_seconds=600) went IN_PROGRESS ~02:07Z - the dusk wire's FIELD DEBUT is running, self-gated by its own unit+integration (the push run on cfa982c was cancelled by the POST per the newest-run-wins queue law; the dispatch's legs ARE the CI evidence for this head).
+- THE HYGIENE REPAIR: cfa982c swept run195/fleet19.log+zip into git via git add -A (the same violation as the 08:39 lane's run190 sweep - the lesson will not stick until the lanes stop using git add -A on this repo; THIS commit removes both from the index with explicit paths, the files stay on disk for local re-mining).
+
+Stage Summary:
+- Master: THIS COMMIT (worklog addendum + the run195 index cleanup) on cfa982c (v0.198.0 THE DUSK WIRE). Next free version = 0.199.0.
+- FLEET OF RECORD: 36209745178 (in_progress, cfa982c). WATCH LIST for its artifact: 'bank trip: dusk' rows MUST appear (the wire's debut - any count > 0 is the fix working); the deferral class 12 -> ?; banked vs 518 (the run195 floor) and 1544 (the record); the 'sentry per-bot:' row's WHO; the pins clustering in the flooded-quarry region; smelted vs 25 (the record under the census-less tree); NORMAL END.
+- OPEN FRONTS (unchanged, evidence-ranked): the flooded-quarry attrition region (the fleet-wide hazard hearing design front); the frozen-physics class (F5 x35); still-underground x6; the Crown (iron_ore 35 -> ingots).
