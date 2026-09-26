@@ -5462,3 +5462,24 @@ Stage Summary:
 - FLEET OF RECORD: 36253378529 SUCCESS (run29/) + this fire's closing dispatch (the v0.218.0 field debut on 5b7049c).
 - NEXT FIRE: (1) mine+decode the fresh dispatch: the BLIND print's field debut (an explosion or plain-drown death must read 'is blind to this kind', not CONTRADICTS), the FIRST LANE 3rd sample, the rim stance 2nd sample, the 0-stacks anatomy 3rd sample (the sweep-picked pool - the 0.219.0 lead front), the dragon recurrence (2 kills - the shelter gap?); (2) CODE FRONTS (0.219.0): the 0-stacks anatomy (sweep-picked vs despawn instrumentation), the dragon/knockback class, the plan wobble; (3) the lane may take 0.219.0.
 - OPEN FRONTS: the 0-stacks reloot anatomy (2-run); the rim-dig leg (sealed class); the wet-surface band wait; the dragon recurrence; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (0 3-straight); the unarmed starvation (delays 18->3 post-geometry-fix).
+
+---
+Task ID: cron30-20260927-0100
+Agent: Super Z (cron lane, Job 414125)
+Task: 01:00 fire - sandbox regenerated; the dragon-zone forensics (the 0.220.0 plan-first unit).
+
+Work Log:
+- SANDBOX REGENERATED mid-cycle: /home/z/privateB-repo vanished (the mining mounts died with it). Identity RE-ARMED (PLANETA9091 local+global). Fresh clone + npm install done.
+- Sync: master ac1b6b5 (pkg 0.219.0 THE RIM DIG PLAN - the lane took the rim-dig front plan-first: relootCap + relootRimDig pure, the wiring rides the next lane; reloot 38/38). Next free version 0.220.0. 884 (the v0.218.0 field debut) IN FLIGHT (artifacts ~17:21Z). 882 SUCCESS (v0.218.0's unit shards validated).
+- THE DRAGON-ZONE FORENSICS (the atomic unit; the mounts died twice mid-fire - the lane live-cleans the shared sandbox - the artifacts pulled to the persistent dragon-forensics/ outside the repo): both era dragon kills extracted -
+  - run30 F6 (36229765630): 'was killed by Ender Dragon using magic' at [101,49,1], hint fall/env, kind=mob by Ender (the two-word truncation era - fixed by v0.210.0 later).
+  - run29 F18 (36253378529): 'was killed by Ender Dragon using magic' at [99,49,1], hint fall/env, kind=mob by Ender Dragon (the fix reads clean).
+  - THE ZONE: two kills ~2 blocks apart at y=49 - a FIXED ANCHOR (~[100,49,1]), not a chase; both hints fall/env (the magic kill has no touch - the inferrer structurally blind to it, the fall/env noise class again).
+- THE 0.220.0 PLAN-FIRST DESIGN (recorded for the 01:30 fire; new file src/lib/dragonzone.mjs + tests, zero collision): (1) dragonZoneAnchor(deaths) - cluster the 'using magic' dragon deaths within DRAGON_ZONE_CLUSTER 8b into an anchor (the two field kills merge to ~[100,49,1]; a far kill does not merge); (2) inDragonZone(pos, anchor) - the avoidance predicate (DRAGON_ZONE_RADIUS 16b, the wiring lane calibrates); (3) wiring candidates: WorldMap target-assignment exclusion + the shelter priority on zone entry. No new log forms planned.
+- No dispatch: 884 active (the no-duplicate law).
+
+Stage Summary:
+- Master ac1b6b5 + this worklog (pkg 0.219.0). Next free version 0.220.0. Next local section = Task ID cron30-20260927-0130.
+- FLEET OF RECORD: 36255794232 (884, the v0.218.0 field debut) IN FLIGHT - the 01:30 fire mines it first (the BLIND print + the marker 3rd sample + the rim 2nd sample).
+- NEXT FIRE: (1) poll+mine+decode 884; (2) SHIP v0.220.0 THE DRAGON ZONE from the recorded plan (the forensics is the MEASURED base; wiring rides later); (3) fronts beyond: the 0-stacks anatomy, the plan wobble; (4) the lane may take 0.220.0.
+- OPEN FRONTS: the dragon kill-zone (MEASURED ~[100,49,1]); the 0-stacks reloot anatomy (2-run); the rim-dig wiring (the lane's v0.219.0 plan - theirs); the plan wobble; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (0 3-straight); the unarmed starvation (18->3); the sealed-class PLAN (the lane's 0.219.0).
