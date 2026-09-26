@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP, openFieldYieldLive } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -984,7 +984,16 @@ export function createMiner ({
       return { action: 'none' }
     }
     const armed = !!pickWeapon(inventoryItems(bot))
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
+    // (v0.214.0) THE VERDICT-TIME CAPTURE: the lens answer and the bar are
+    // read in the same synchronous instant as the verdict - the tryShelter
+    // await below can take seconds and a hit, and the run48 leak printed the
+    // POST-shelter hp. The predicate is the SAME function the verdict used
+    // (single source of truth) - a flee from any other lane (the unarmed
+    // yield, the ranged cooldown - run48's hp 19.0/20.0 markers) reads false
+    // and stays unmarked.
+    const hpAtVerdict = bot.health ?? 20
+    const lensFired = openFieldYieldLive({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, poisoned: isPoisoned(bot), dark: isDarkHere(), sheltered: !openFieldNight })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -1006,7 +1015,11 @@ export function createMiner ({
         // from the lifted line - the open field's flees are the cure's
         // volume (the legacy flees print the line above verbatim; this
         // marker rides beside it, never instead of it).
-        if (openFieldNight) log(`${tag} combat: open-field yield vs ${threat.name} (hp ${(bot.health ?? 20).toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+        // (v0.214.0) THE HONEST MARKER: gated on the VERDICT-TIME lens
+        // answer, not the terrain flag - run48's print leak (x4 markers at
+        // hp 19.0/20.0/16.8, all from OTHER flee lanes) cannot repeat, and
+        // the printed hp is the bar the lens actually judged.
+        if (lensFired) log(`${tag} combat: open-field yield vs ${threat.name} (hp ${hpAtVerdict.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
         await runAway(threat, reason, { kite: response === 'kite' })
         await recover()
         // a genuine escape clears the ledger; a stuck chase keeps it armed
@@ -1081,12 +1094,19 @@ export function createMiner ({
         if (cur.entity && Number.isFinite(cur.entity.id)) lastTargetId = cur.entity.id
         // per-round re-verdict (the first live run measured a bot fighting down
         // to 5 hp and then just standing there): the policy owns the decision
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: bot.health ?? 20, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
+        // (v0.214.0) one bar, one truth - the verdict, the flip line and the
+        // marker read the SAME captured hp, and the marker rides the SAME
+        // predicate the verdict used (the run48 flag-gate leak is dead at
+        // this site too - the cooldown/unarmed flips stay unmarked).
+        const hpNow = bot.health ?? 20
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
         if (v === 'flee') {
-          log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)})`)
+          log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${hpNow.toFixed(1)})`)
           // (v0.212.0) the re-verdict's own yield marker (the flip site is
           // where the legacy drain showed - the decode counts both)
-          if (openFieldNight) log(`${tag} combat: open-field yield vs ${cur.name} (hp ${(bot.health ?? 20).toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+          // (v0.214.0) gated on the lens predicate (verdict time = print
+          // time here: no await between them), never the terrain flag alone
+          if (openFieldYieldLive({ name: cur.name, dist: cur.dist, hp: hpNow, poisoned: isPoisoned(bot), dark: isDarkHere(), sheltered: !openFieldNight })) log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()

@@ -13,7 +13,7 @@ import {
   fleeStalemate, fleeResponse, kiteHopTarget,
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
-  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP, OPEN_FIELD_FLEE_HP,
+  MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP, OPEN_FIELD_FLEE_HP, openFieldYieldLive,
   meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
   foughtEntityGone, driftReturnPlan, DRIFT_RETURN_TICKS, DRIFT_RETURN_DIST, DRIFT_RETURN_WINDOWS,
   FIGHT_DEADLINE_MS, MELEE_REACH,
@@ -734,4 +734,99 @@ test('REGRESSION PIN: the fight loop wires the open-field lens (the v0.212.0 lan
   // the yield markers: the decode counts which flees came from the lifted line
   assert.ok(/open-field yield vs/.test(minerSrc), 'the flee names its lens for the run decode (the marker rides beside the legacy lines, never instead)')
   assert.ok(/OPEN_FIELD_FLEE_HP/.test(minerSrc), 'the line value rides the import (never hardcoded in the marker)')
+})
+
+// ---- v0.214.0 THE HONEST MARKER ----
+// run48 (fleet 36240649148, the census debut) leaked the marker: it printed
+// x4 at hp 19.0 / 20.0 / 16.8 - ALL above the 14 band. The gate was the
+// terrain flag alone, so EVERY flee in the open field got marked (the
+// unarmed lane and the ranged-cooldown lane yield at ANY hp). The predicate
+// openFieldYieldLive is the lens's single source of truth - threatVerdict
+// calls it (zero behavior change) and the marker asks the SAME question at
+// VERDICT time (the tryShelter await between verdict and print can take a
+// hit and move the bar).
+
+test('openFieldYieldLive: the run48 leak shapes read false (the lie cannot repeat)', () => {
+  // THE run48 F4 SHAPE: an armed-looking flee in the open field at hp 19 -
+  // whatever lane fired it (the unarmed yield fires at ANY hp), the lens did
+  // NOT - the marker must stay silent
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.0, hp: 19.0, dark: true, sheltered: false }), false,
+    'hp 19.0 above the band: the lens did not fire (the run48 marker was a lie)')
+  // the leak shape proven: the verdict CAN flee while the lens is false
+  assert.equal(threatVerdict({ name: 'zombie', dist: 3.0, hp: 19.0, dark: true, armed: false, sheltered: false }), 'flee',
+    'the unarmed lane flees at any hp (the run48 leak source)')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.0, hp: 19.0, dark: true, sheltered: false }), false,
+    'but the lens predicate stays false - the honest marker separates the lanes')
+  // THE run48 F3 SHAPE: the ranged-cooldown skeleton at hp 20
+  assert.equal(threatVerdict({ name: 'skeleton', dist: 8.0, hp: 20.0, dark: true, armed: true, sheltered: false, cooldown: true }), 'flee',
+    'the cooldown lane flees at any hp (the other leak source)')
+  assert.equal(openFieldYieldLive({ name: 'skeleton', dist: 8.0, hp: 20.0, dark: true, sheltered: false }), false,
+    'the lens is cooldown-blind: it only answers for its own band')
+  // the 16.8 marker shape too
+  assert.equal(openFieldYieldLive({ name: 'skeleton', dist: 6.0, hp: 16.8, dark: true, sheltered: false }), false)
+})
+
+test('openFieldYieldLive: the lens band and the engage band, edge by edge', () => {
+  // the band edges match the v0.212.0 verdict pins exactly
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 13.9, dark: true, sheltered: false }), true, 'one tick below the line')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 14.0, dark: true, sheltered: false }), false, 'exactly at the line: no')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 7.9, dark: true, sheltered: false }), true, 'under the land line the lens is also true (the verdict outranks, the predicate only reports)')
+  // the engage band rides the mob class (melee 5 vs ranged 12)
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 5.1, hp: 13.0, dark: true, sheltered: false }), false, 'a melee mob past ENGAGE_RANGE is outside the lens')
+  assert.equal(openFieldYieldLive({ name: 'skeleton', dist: 11.9, hp: 13.0, dark: true, sheltered: false }), true, 'a shooter inside RANGED_ENGAGE_RANGE is inside the lens')
+  // the poison drain rides (the effectiveHp lens)
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 14.5, poisoned: true, dark: true, sheltered: false }), true, 'a poisoned bar above 14 can read under the line')
+  // the gates
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 13.0, dark: false, sheltered: false }), false, 'the lens needs the dark')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 13.0, dark: true, sheltered: true }), false, 'the lens needs the open-field verdict')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: 13.0 }), false, 'junk-safe defaults: no dark/sheltered read, no lift')
+  assert.equal(openFieldYieldLive({ name: null, dist: 3.6, hp: 13.0, dark: true, sheltered: false }), false)
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: NaN, hp: 13.0, dark: true, sheltered: false }), false)
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 3.6, hp: NaN, dark: true, sheltered: false }), false, 'a junk bar reads 20: above the band, false')
+})
+
+test('openFieldYieldLive: the coherence law - lens true implies the verdict flees (brute force)', () => {
+  // every true predicate answer must sit inside a flee verdict (the predicate
+  // is the lens's own condition - drift here would re-open the run48 lie
+  // from the other side: a silent marker on a real lens flee)
+  const hosts = ['zombie', 'skeleton', 'spider', 'husk']
+  for (const name of hosts) {
+    for (const hp of [7.9, 10.0, 13.9, 14.0, 16.0]) {
+      for (const dist of [2.0, 4.9, 5.1, 11.9, 13.0]) {
+        for (const poisoned of [false, true]) {
+          const p = { name, dist, hp, poisoned, dark: true, sheltered: false }
+          if (!openFieldYieldLive(p)) continue
+          const v = threatVerdict({ ...p, armed: true, attackers: 1, inWater: false, cooldown: false })
+          assert.equal(v, 'flee', `coherence broke: lens true but verdict ${v} for ${JSON.stringify(p)}`)
+        }
+      }
+    }
+  }
+})
+
+test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.0 capture law)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the capture precedes the verdict (the run195 dead-wire class: the answer
+  // must exist before any await - the tryShelter leg lives between them)
+  const capture = minerSrc.match(/const hpAtVerdict = bot\.health \?\? 20[\s\S]{0,400}?const verdict = threatVerdict/)
+  assert.ok(capture, 'hpAtVerdict + lensFired are captured BEFORE the verdict (one synchronous instant, never after an await)')
+  assert.match(capture[0], /const lensFired = openFieldYieldLive\(\{ name: threat\.name, dist: threat\.dist, hp: hpAtVerdict/,
+    'the capture rides the SAME predicate the verdict used (single source of truth)')
+  // one bar, one truth: the verdict reads hpAtVerdict too
+  assert.match(capture[0], /hp: hpAtVerdict/, 'the verdict reads the captured bar (no second read, no drift)')
+  // the marker gates on the captured answer, not the terrain flag
+  assert.ok(/if \(lensFired\) log\(`\$\{tag\} combat: open-field yield vs/.test(minerSrc),
+    'the marker prints ONLY when the lens actually fired (the run48 flag-gate leak is dead)')
+  assert.ok(!/if \(openFieldNight\) log\(`\$\{tag\} combat: open-field yield/.test(minerSrc),
+    'the terrain flag never gates the marker again')
+  assert.match(minerSrc, /open-field yield vs \$\{threat\.name\} \(hp \$\{hpAtVerdict\.toFixed\(1\)\}/,
+    'the printed hp is the bar the lens judged (the post-shelter read is gone)')
+  // the import grows (the v0.207.0 import-pin precedent)
+  assert.match(minerSrc, /OPEN_FIELD_FLEE_HP, openFieldYieldLive \} from '\.\.\/lib\/combat\.mjs'/,
+    'the predicate rides the import')
+  // the flip site (the fight loop's re-verdict marker) rides the predicate too -
+  // run48's leak was counted at BOTH sites (the 20:30 decode read x4 across the run)
+  assert.match(minerSrc, /if \(openFieldYieldLive\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow/,
+    'the re-verdict marker gates on the predicate at the flip site (the second leak source is dead)')
 })

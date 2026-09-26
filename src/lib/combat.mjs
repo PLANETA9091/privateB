@@ -561,6 +561,40 @@ export const WATER_FLEE_HP = 12
 export const OPEN_FIELD_FLEE_HP = 14
 
 /**
+ * (v0.214.0) THE OPEN-FIELD LENS PREDICATE - the single source of truth for
+ * "did the flee come from the lifted line?" MEASURED (run48, fleet
+ * 36240649148, the census field debut): the yield marker printed x4 with hp
+ * 19.0 / 20.0 / 16.8 - ALL above the OPEN_FIELD_FLEE_HP 14 band. THE PRINT
+ * LEAKED: the marker gated on the terrain flag alone (openFieldNight), so
+ * EVERY flee in the open field got marked - the unarmed lane (an armed=false
+ * bot yields at ANY hp) and the ranged-cooldown lane (a skeleton inside its
+ * window yields at ANY hp) both print '(hp 19.0 < 14)' - A LIE the decode
+ * counted as lens volume. The predicate is the lens's exact condition,
+ * extracted so threatVerdict CALLS it (no re-derivation drift) and the
+ * miner's marker can ask the SAME question the verdict asked - at verdict
+ * time, not print time (the tryShelter await between them can take a hit
+ * and move the bar). Junk-safe: anything but the exact lens shape reads
+ * false (the legacy verdicts byte for byte).
+ * @param {object} p
+ * @param {string|null} [p.name] the threat's name (the engage band rides the class)
+ * @param {number} [p.dist] metres from the bot
+ * @param {number} [p.hp] bot health 0..20
+ * @param {boolean} [p.poisoned] the poison drain lens (effectiveHp)
+ * @param {boolean} [p.dark] is it dark at the bot
+ * @param {boolean} [p.sheltered] the shelter scan's terrain verdict
+ * @returns {boolean} true exactly when the open-field yield line fires
+ */
+export function openFieldYieldLive ({ name = null, dist = Infinity, hp = 20, poisoned = false, dark = true, sheltered = true } = {}) {
+  if (dark !== true || sheltered !== false) return false
+  if (!name || !HOSTILE_NAMES.has(name)) return false
+  if (!Number.isFinite(dist) || dist < 0) return false
+  const health = Number.isFinite(hp) ? hp : 20
+  const seen = effectiveHp({ health, poisoned })
+  const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
+  return seen < OPEN_FIELD_FLEE_HP && dist <= engage
+}
+
+/**
  * Fight, flee, or ignore? The single decision the mechanics layer executes.
  * @param {object} p
  * @param {string|null} [p.name] hostile entity name (null/unknown -> ignore)
@@ -630,7 +664,9 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   // more here' lifts, and both junk-read to the legacy shape. GATED TO THE
   // ENGAGE BAND: a threat outside the band is still 'ignore' (the legacy
   // answer - no panic at range; the sentry re-evaluates as it closes).
-  if (dark === true && sheltered === false && seen < OPEN_FIELD_FLEE_HP && dist <= engage) return 'flee'
+  // (v0.214.0) the condition rides the exported predicate - the marker's
+  // single source of truth (the run48 print leak is named there).
+  if (openFieldYieldLive({ name, dist, hp, poisoned, dark, sheltered })) return 'flee'
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
   // (v0.140.0) THE RANGED COOLDOWN: a mob inside its window is never chased -
   // the verdict yields 'flee' where it used to re-open the fight. Only the
