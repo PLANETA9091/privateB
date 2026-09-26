@@ -5079,3 +5079,20 @@ Work Log:
 Stage Summary:
 - Master fd50c98 at fire start; mid-fire the 17:39 lane shipped v0.211.0 THE SURFACE WIRING (bc331ee/5967a57, rebase keep-both clean) - 0.211.0 taken, next free 0.212.0. NOTE: the 17:39 dispatch superseded my poll target's pending chain per the newest-pending law - the surface-wiring fleet is the one to poll next fire alongside 36233514360.
 - NEXT FIRE: mine+decode whichever fleet completed first (36233514360 the dragon-kind debut, and/or the 17:39 surface-wiring dispatch): the death line shape (a dragon death must read 'mob by Ender Dragon' now; the triage 6th sample; the end-phase hang recurrence; the surface debut watch list - first 'reloot: surface retry at' arm, stacks > 0 = the first recovered drops ever), verify CI 36233342600; code fronts: the end-phase hang (top), the relog spiral.
+
+---
+Task ID: cron30-20260926-1830
+Agent: Super Z (cron lane, Job 414125)
+Task: 18:30 fire - mine+decode run60 (the dragon-kind field debut fleet 36233514360, fd50c98 = v0.210.0); dispatch the surface-wiring debut.
+
+Work Log:
+- MINED run60/: **NORMAL END (deadline 600s) + CLEAN EXIT** - the end-phase hang did NOT recur. deaths=11 THE MIXED MOB DAY: Zombie x7, Skeleton x2, Enderman x1, Creeper x1, ZERO drownings; alive=19 at end. The F2 Creeper death: the inference CONTRADICTED the server verdict (spider@1.2 vs explosion by Creeper) - the server-kind-authority machinery labeled it honestly.
+- THE DRAGON: no magic deaths - the run30 anomaly did not repeat (as predicted); the v0.210.0 rule waits for field data, the CI pins carry it.
+- ECONOMY: banked=1653 NEW HIGH (946->72->433->1202->1653), smelted=55, fights=52 kills=5, blocks 2899, conversion 95.7%, plan 1/31 (the gap persists). airGlitches=0 x2, rescues=25, relogins=20.
+- TRIAGE 6TH: failed=49 (below x10, plane x11, above x28 = 57%) - the above-dominance HOLDS, profile law 57/60/60/47/62/57. deepSkip=45 record; lipDig=0 day 7, one refusal fired: 'sealed floor (air 0, dy -0.8)'.
+- RELOOT: 4 no-walk lines (unarmed x3, expired x1) - no surface leg in this tree, correct per v0.210.0.
+- DISPATCHED (last action): the v0.211.0 SURFACE WIRING's FIELD DEBUT on 86608c4.
+
+Stage Summary:
+- Master 86608c4 (pkg 0.211.0). Next free 0.212.0.
+- NEXT FIRE: decode the surface debut (the first 'reloot: surface retry at' arm; stacks > 0 = THE FIRST RECOVERED DROPS EVER; the no-surface whys; the GEOMETRY-vs-timeout gate split); THE NIGHT/MOB SURVIVABILITY front is the new top code candidate (11 mob deaths clustered at the base); the plan->delivery gap (1/31 vs banked=1653); triage 7th sample.
