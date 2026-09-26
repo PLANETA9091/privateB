@@ -1,145 +1,107 @@
-// Tests for the dusk-forecast bank escalation (v0.193.0) in src/lib/deposit.mjs.
-//
-// MEASURED (run46, fleet 36195869446): 16/19 bots ended 'final bank deferred:
-// night (tod 12400-13106)' - the skip gate handed the pockets to the end-phase,
-// the end-phase read the clock inside the walk-forbidden window and deferred,
-// and the hard kill ate the pockets. duskBankDue is the arithmetic between the
-// two gates: it fires ONLY when (a) the bot's OWN end-phase stagger slot lands
-// inside the forbidden window, (b) the full dist-scaled chain + the walk home
-// fit the remaining clock (the v0.181.0 doomed class stays refused), (c) the
-// whole chain completes BEFORE the window opens (the v0.185.0 dusk-start death
-// arithmetic: a trip that crosses the kill window is the measured x12 class),
-// and (d) the cadence refractory holds (no retry storm). In the dark the
-// escalation NEVER fires - the v0.140.1 hold stays the owner byte for byte.
+// (v0.226.0) THE DUSK-BANK PLAN - the night-hold delivery gap's pricing.
+// The measured face: run67 deferred 16 of 18 final banks AT the dusk
+// threshold (tod=12438..12575, pocket 2111u riding the dark) - the plan
+// prices the bounded trip BEFORE the hold owns the sky, and never competes
+// with the hold itself.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { duskBankDue, DUSK_BANK_MIN_UNITS, DUSK_BANK_MARGIN_MS } from '../../src/lib/deposit.mjs'
-import { NIGHT_WALK_START, TICKS_PER_SEC } from '../../src/lib/nightsafety.mjs'
-import { BANK_TRIP_EVERY_MS } from '../../src/lib/deposit.mjs'
+import {
+  duskBankPlan,
+  TICK_MS,
+  DUSK_BANK_START_TICKS,
+  DUSK_BANK_NIGHT_TICKS,
+  DUSK_BANK_MIN_UNITS,
+  DUSK_BANK_SAFETY_MS
+} from '../../src/lib/duskbank.mjs'
 
-// The due fixture, walked gate by gate (d=60: want 195s, own stagger slot 32s):
-// (a) forecast 6000 + (300+32)*20 = 12640 -> inside [12400, 23600)
-// (b) 300s >= 195s + 90s
-// (c) (12400-6000)*50ms = 320s >= 195s + 30s
-// (d) 200s >= 150s
-const DUE = { timeOfDay: 6000, remainingMs: 300000, units: 30, yardDist: 60, msSinceBank: 200000 }
+const NOW = 1_000_000
 
-test('duskBankDue: the measured dusk geometry arms the escalation', () => {
-  assert.equal(duskBankDue(DUE), true, 'a dark end-phase forecast + a real trip that fits the light = bank NOW')
+test('duskBankPlan: junk reads unknown (never guessed)', () => {
+  assert.equal(duskBankPlan({}).why, 'unknown')
+  assert.equal(duskBankPlan({ tod: NaN, pocketUnits: 100 }).why, 'unknown')
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: NaN }).why, 'unknown')
+  // the vanilla tod domain is 0..23999 - 24000 wraps, -1 is junk
+  assert.equal(duskBankPlan({ tod: 24000, pocketUnits: 500, bankTripMs: 1000 }).why, 'unknown')
+  assert.equal(duskBankPlan({ tod: -1, pocketUnits: 500, bankTripMs: 1000 }).why, 'unknown')
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: Infinity }).why, 'unknown')
 })
 
-test('duskBankDue: the units floor relaxes 48 -> 24 but no further', () => {
-  assert.equal(duskBankDue({ ...DUE, units: 24 }), true, 'exactly the floor arms')
-  assert.equal(duskBankDue({ ...DUE, units: 23 }), false, 'one below the floor stays refused')
-  assert.equal(duskBankDue({ ...DUE, units: 48 }), true, 'a full planned-size pocket arms too (the labels differ in the caller)')
+test('duskBankPlan: an active trip re-reads as holding (never double-booked)', () => {
+  const r = duskBankPlan({ tod: 11000, pocketUnits: 500, bankTripMs: 10000, now: NOW, tripUntil: NOW + 30000 })
+  assert.equal(r.why, 'holding')
+  assert.equal(r.go, false)
+  assert.equal(r.remainingMs, 30000)
+  // an expired trip re-reads honestly (the trip's own clock owns the exit)
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: 500, bankTripMs: 10000, now: NOW, tripUntil: NOW - 1 }).why, 'dusk')
 })
 
-test('duskBankDue: the light-forecast refusal - the end-phase will actually bank', () => {
-  // tod 0 + (600s + 16s stagger for d=70) * 20 = 12320 < 12400: the end-phase
-  // reads light, the skip gate's claim is TRUE, the legacy gates own the bot
-  assert.equal(duskBankDue({ timeOfDay: 0, remainingMs: 600000, units: 30, yardDist: 70, msSinceBank: 400000 }), false, 'a dawn-run end-phase lands light - no escalation')
+test('duskBankPlan: a light pocket rides the night (no-pocket)', () => {
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: DUSK_BANK_MIN_UNITS - 1 }).why, 'no-pocket')
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: 0 }).why, 'no-pocket')
 })
 
-test('duskBankDue: the dark-now refusal - the night hold stays the owner', () => {
-  assert.equal(duskBankDue({ ...DUE, timeOfDay: 12400 }), false, 'at the window start no trip may start')
-  assert.equal(duskBankDue({ ...DUE, timeOfDay: 13000 }), false, 'deep in the window the pocket rides out the dark (the v0.140.1 doctrine)')
+test('duskBankPlan: the hold owns the sky (night, the measured face)', () => {
+  // the threshold inclusive: never a trip AT the sky line
+  assert.equal(duskBankPlan({ tod: DUSK_BANK_NIGHT_TICKS, pocketUnits: 5000, bankTripMs: 1 }).why, 'night')
+  // the run67 forensic: the actual deferrals read night (tod=12438/12575)
+  assert.equal(duskBankPlan({ tod: 12438, pocketUnits: 2111, bankTripMs: 10000 }).why, 'night')
+  assert.equal(duskBankPlan({ tod: 12575, pocketUnits: 2111, bankTripMs: 10000 }).why, 'night')
+  // the deep dark too
+  assert.equal(duskBankPlan({ tod: 23999, pocketUnits: 5000, bankTripMs: 1 }).why, 'night')
 })
 
-test('duskBankDue: the real-trip fence - a doomed chain stays refused (the v0.181.0 class)', () => {
-  // d=200: raw want = 335s -> capped at BANK_TRIP_CAP_MS 300s. 300s remaining
-  // < 300s + 90s walk home (the explicit 120s stagger keeps fence (a) passing
-  // so THIS fence is the one that refuses)
-  assert.equal(duskBankDue({ timeOfDay: 6000, remainingMs: 300000, units: 30, yardDist: 200, msSinceBank: 200000, staggerMs: 120000 }), false, 'a chain that cannot afford itself never fires')
-  // d=150: want 285s uncapped. 370s remaining < 285s + 90s - the same refusal
-  // with the cap out of play (the forecast is dark: 5500+370*20 = 12900)
-  assert.equal(duskBankDue({ timeOfDay: 5500, remainingMs: 370000, units: 30, yardDist: 150, msSinceBank: 200000 }), false, 'the fence is arithmetic, not mood - the uncapped want refuses too')
-  // 500s remaining >= 300s + 90s AND the dusk is 370s out (>= 300s + 30s):
-  // the same far bot arms once every fence reconciles
-  assert.equal(duskBankDue({ timeOfDay: 5000, remainingMs: 500000, units: 30, yardDist: 200, msSinceBank: 200000 }), true, 'all four fences pass at a feasible tod')
+test('duskBankPlan: the bright hours stay the regular cadence (daylight)', () => {
+  assert.equal(duskBankPlan({ tod: 0, pocketUnits: 5000, bankTripMs: 1000 }).why, 'daylight')
+  // the boundary exclusive: 10799 still reads the cadence
+  assert.equal(duskBankPlan({ tod: DUSK_BANK_START_TICKS - 1, pocketUnits: 5000, bankTripMs: 1000 }).why, 'daylight')
 })
 
-test('duskBankDue: the light-fit fence - the chain completes BEFORE the window opens', () => {
-  // d=150: want = 285s. tod 6200: msUntilDark = (12400-6200)*50 = 310s
-  //   < 285s + 30s margin -> the trip would cross the kill window (the
-  //   v0.185.0 x12-death class) - refused even though (a) and (b) pass.
-  assert.equal(duskBankDue({ timeOfDay: 6200, remainingMs: 380000, units: 30, yardDist: 150, msSinceBank: 400000 }), false, 'a chain that outruns the dusk is the measured death class')
-  // tod 5500: msUntilDark = 345s >= 315s AND forecast 5500+(380+0)*20 = 13100 dark
-  //   AND 380s >= 285s + 90s -> the same far bot arms earlier in the day
-  assert.equal(duskBankDue({ timeOfDay: 5500, remainingMs: 380000, units: 30, yardDist: 150, msSinceBank: 400000 }), true, 'the same trip fits while the light holds')
+test('duskBankPlan: the window open prices a fitting trip (go)', () => {
+  const r = duskBankPlan({ tod: DUSK_BANK_START_TICKS, pocketUnits: 500, bankTripMs: 40000, now: NOW })
+  assert.equal(r.why, 'dusk')
+  assert.equal(r.go, true)
+  // the daylight budget at the open: (12400-10800)*50 = 80000ms
+  assert.equal(r.remainingMs, 80000)
+  // the trip prices until trip + safety, never beyond
+  assert.equal(r.untilMs, NOW + 40000 + DUSK_BANK_SAFETY_MS)
 })
 
-test('duskBankDue: the cadence refractory - no retry storm (the v0.181.0 lesson)', () => {
-  assert.equal(duskBankDue({ ...DUE, msSinceBank: 100000 }), false, 'inside the refractory window the gate stays silent')
-  assert.equal(duskBankDue({ ...DUE, msSinceBank: 0 }), false, 'a junk/zero since reads 0 -> refused (lastBankAt advances on every attempt in the caller)')
-  assert.equal(duskBankDue({ ...DUE, msSinceBank: BANK_TRIP_EVERY_MS }), true, 'exactly one cadence window arms the re-check')
+test('duskBankPlan: the safe edge is inclusive (equality lands SAFETY clear)', () => {
+  const r = duskBankPlan({ tod: DUSK_BANK_START_TICKS, pocketUnits: 500, bankTripMs: 80000 - DUSK_BANK_SAFETY_MS, now: NOW })
+  assert.equal(r.why, 'dusk')
+  // one ms over the edge refuses
+  const r2 = duskBankPlan({ tod: DUSK_BANK_START_TICKS, pocketUnits: 500, bankTripMs: 80000 - DUSK_BANK_SAFETY_MS + 1, now: NOW })
+  assert.equal(r2.why, 'no-time')
+  assert.equal(r2.remainingMs, 80000)
 })
 
-test('duskBankDue: the own-stagger forecast - near bots escalate, far bots bank light', () => {
-  // The slot arithmetic: a bot AT the yard takes the LAST slot (120s), a bot
-  // at refDist+ takes slot 0 (0s). The forecast prices the bot's OWN end-phase.
-  assert.equal(duskBankDue({ timeOfDay: 6000, remainingMs: 300000, units: 30, yardDist: 0, msSinceBank: 200000 }), true, 'a yard-side bot banks last (120s slot) - its end-phase is deep dark: escalate')
-  // tod 0 + (600s + 16s stagger for d=70)*20 = 12320 < 12400: the far bot's
-  // end-phase reads LIGHT, the skip gate's claim is true, the legacy gates own it
-  assert.equal(duskBankDue({ timeOfDay: 0, remainingMs: 600000, units: 30, yardDist: 70, msSinceBank: 400000 }), false, 'a far bot in a dawn run banks first (slot 0-2) - its end-phase is light: no escalation')
+test('duskBankPlan: an overrunning trip refuses honestly (no-time)', () => {
+  const r = duskBankPlan({ tod: 12000, pocketUnits: 2111, bankTripMs: 60000, now: NOW })
+  assert.equal(r.why, 'no-time')
+  assert.equal(r.go, false)
+  assert.equal(r.remainingMs, 20000)
 })
 
-test('duskBankDue: an explicit staggerMs overrides the derived slot', () => {
-  assert.equal(duskBankDue({ timeOfDay: 6000, remainingMs: 300000, units: 30, yardDist: 0, msSinceBank: 200000, staggerMs: 0 }), false, 'stagger 0 = the earliest bank: tod 12000 at the deadline - light, no escalation')
-  assert.equal(duskBankDue({ timeOfDay: 6000, remainingMs: 250000, units: 30, yardDist: 0, msSinceBank: 200000, staggerMs: 120000 }), true, 'the stagger cap (the worst-case slot) widens the forecast honestly: 13400 at deadline+120s')
+test('duskBankPlan: an unmeasured trip never prices (no-time, junk tripMs)', () => {
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: 2111 }).why, 'no-time')
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: 2111, bankTripMs: NaN }).why, 'no-time')
+  assert.equal(duskBankPlan({ tod: 11000, pocketUnits: 2111, bankTripMs: -5 }).why, 'no-time')
 })
 
-test('duskBankDue: junk never widens (the legacy gates own a garbage read)', () => {
-  for (const t of [undefined, null, NaN, '6000', {}]) {
-    assert.equal(duskBankDue({ ...DUE, timeOfDay: t }), false, `junk tod ${String(t)}`)
-  }
-  for (const r of [undefined, null, NaN, -1, 0]) {
-    assert.equal(duskBankDue({ ...DUE, remainingMs: r }), false, `junk remaining ${String(r)}`)
-  }
-  for (const u of [undefined, null, NaN, '30', {}]) {
-    assert.equal(duskBankDue({ ...DUE, units: u }), false, `junk units ${String(u)}`)
-  }
-  assert.equal(duskBankDue({ timeOfDay: 6000, remainingMs: 300000, units: 30, msSinceBank: 200000, yardDist: NaN }), false, 'junk yardDist -> the legacy slot-0 forecast -> tod 12000 light -> refused')
+test('duskBankPlan: the zero-trip edge (a bank on the doorstep still pays its margin)', () => {
+  const r = duskBankPlan({ tod: 12300, pocketUnits: 2111, bankTripMs: 0, now: NOW })
+  // remaining (12400-12300)*50 = 5000ms < the 15000 safety - the margin
+  // owns the refusal even for a doorstep bank
+  assert.equal(r.why, 'no-time')
+  assert.equal(r.remainingMs, 5000)
 })
 
-test('duskBankDue: the constants pin', () => {
-  assert.equal(DUSK_BANK_MIN_UNITS, 24, 'half the planned floor - the dying pockets measured 40-67u')
-  assert.equal(DUSK_BANK_MARGIN_MS, 30000, 'one walk-floor slice of overrun margin')
-  assert.equal(TICKS_PER_SEC, 20, 'the vanilla clock rate')
-  assert.equal(NIGHT_WALK_START, 12400, 'the fence the escalation must finish before')
-})
-
-test('REGRESSION PIN: the dusk escalation rides the deposit module shape', () => {
-  const src = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes('export function duskBankDue'), 'the gate is exported')
-  assert.ok(src.includes('finalBankDelayMs({ yardDist: d })'), 'the derived forecast prices the bot OWN stagger slot')
-  assert.ok(src.includes('forecastForbidden({ timeOfDay, msAhead: remainingMs + stag, ticksPerSec })'), 'the forecast rides the nightsafety projection (one clock arithmetic, no forks)')
-  assert.ok(src.includes('if (msUntilDark < want + marg) return false'), 'the light-fit fence is the want, not the floor')
-  assert.ok(src.includes('if (remainingMs < want + ret) return false'), 'the real-trip fence prices the walk home')
-  assert.ok(src.includes("import { NIGHT_WALK_START, TICKS_PER_SEC, forecastForbidden } from './nightsafety.mjs'"), 'deposit reads the clock from nightsafety (no cycle: nightsafety imports nothing)')
-})
-
-test('REGRESSION PIN: the fleet wires the dusk lane with its own label', () => {
-  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes('duskBankDue'), 'the fleet imports the escalation gate')
-  assert.ok(fleetSrc.includes('const bankDusk = !!(load && !tripPlanned && duskBankDue({'), 'the dusk gate arms only where the planned gate did not (the labels stay distinct)')
-  assert.ok(fleetSrc.includes('needsBanking(miner.bot) || tripPlanned || bankDusk'), 'a dusk trip is a WANTED trip')
-  assert.ok(fleetSrc.includes("bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : 'pockets full'}"), "the dusk trip names itself - a third label on the 'bank ' filter key")
-  assert.ok(fleetSrc.includes('yardDist: bankYardDist'), 'the dusk gate reads the SAME yard distance the budget prices (one read, one truth)')
-})
-
-// (v0.198.0) THE DEAD-WIRE CLASS: the tests above passed msSinceBank explicitly,
-// the wiring pin below checked the label and the yardDist but never the cadence
-// clock - so the field wiring omitted the arg, the fence (d) default read 0, and
-// the escalation refused EVERY arm for its whole field life (run195, fleet
-// 36206318405: 12 'final bank deferred: night', 0 'bank trip: dusk' rows). The
-// pin now names the arg: a call site without it is a dead wire, whatever the
-// pure family says.
-test('REGRESSION PIN: the dusk call carries the cadence clock (the run195 dead-wire class)', () => {
-  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  const call = fleetSrc.match(/duskBankDue\(\{[\s\S]*?\}\)/)
-  assert.ok(call, 'the dusk call site exists')
-  assert.match(call[0], /msSinceBank:\s*Date\.now\(\)\s*-\s*lastBankAt/, 'the cadence clock rides the dusk call - the fence (d) default 0 is a dead wire')
-  assert.match(call[0], /remainingMs: bankRemainingMs/, 'the run clock rides the call (the real-trip fence prices it)')
-  assert.match(call[0], /units: load\.units/, 'the pocket rides the call (the units floor prices it)')
+test('duskBankPlan: the constants shape (the wiring lane pins these)', () => {
+  assert.equal(TICK_MS, 50)
+  assert.equal(DUSK_BANK_START_TICKS, 10800)
+  assert.equal(DUSK_BANK_NIGHT_TICKS, 12400)
+  assert.equal(DUSK_BANK_MIN_UNITS, 256)
+  assert.equal(DUSK_BANK_SAFETY_MS, 15000)
+  // the invariant the safety law needs: the window open outlives the margin
+  assert.ok((DUSK_BANK_NIGHT_TICKS - DUSK_BANK_START_TICKS) * TICK_MS > DUSK_BANK_SAFETY_MS)
 })
