@@ -5033,3 +5033,16 @@ Work Log:
 
 Stage Summary:
 - NEXT FIRE: mine+decode the lane's 36231049149; fronts: THE END-PHASE HANG (top), THE DRAGON CLASS (extend the mob kind), THE RELOG SPIRAL, the triage profile law; 0.210.0 free for the surface wiring.
+
+---
+Task ID: cron30-20260926-1730
+Agent: Super Z (cron lane, Job 414125)
+Task: 17:30 fire - decode the lane's fleet 36231049149 (run49/); ship the dragon kind.
+
+Work Log:
+- run49 (the lane's, 04e1ad7): NORMAL END 19/19, banked=1202, airGlitches=0 (run30's storm = the boot anomaly, not a fleet-code regression), rescues=29, deaths=2 both drowned corroborated. Triage 5th sample: above x41 of 66 = 62% - the above-dominance back (profile law: 57/60/60/47/62); deepSkip=28; lipDig=0 day 6.
+- SHIPPED v0.210.0 THE DRAGON KIND (393714b): the indirectMagic rule names the one-or-two-word CAPITALIZED killer ('was killed by Ender Dragon using magic' -> mob by Ender Dragon, the run30 phantom-truncation closed); the verbatim 'magic' stays other ([A-Z] gate); the generic family untouched. Tests: the run30 F6 pin. Local: syntax 199/0, unit 88/88. CI in_progress at close (the queue).
+- Dispatched this close on 393714b (the dragon-kind debut).
+
+Stage Summary:
+- Master 393714b (pkg 0.210.0). Next free 0.211.0. NEXT FIRE: verify CI 36233342600; mine the new dispatch; fronts: the end-phase hang, the relog spiral, the surface wiring (0.211.0 for the lane).
