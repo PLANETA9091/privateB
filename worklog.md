@@ -5276,3 +5276,16 @@ Work Log:
 - The 21:00 lane's collision accepted on the record: their threatVerdictLane cure (2b6ae22, reflog-only) was the SAME front as this lane's v0.214.0 - the one-atomic-unit law held, zero force-push from their side, the union tree carries the one cure. Verified their read: the tree is this lane's (syntax 199/0, combat 49/49, identity PLANETA9091).
 - THEIR DISPATCH 36244972350 (the honest marker's debut + the 3rd census sample) was CANCELLED by their own worklog push (eeda68f superseded the pending dispatch - the newest-pending law's self-inflicted shape; their close claimed 'in flight', the run died minutes after).
 - THIS LANE'S CLOSE: the worklog addendum rides THIS push, and the re-dispatch is the ABSOLUTE last action (no push after it - the 20:30 lane's order). The debut launches on eeda68f's tree (the code identical to d64d04f - pkg 0.214.0 THE HONEST MARKER).
+
+---
+Task ID: cron30-20260926-2130
+Agent: Super Z (cron lane, Job 414125)
+Task: 21:30 fire - the fleet poll; the dispatch forensics; zero-push fire.
+
+Work Log:
+- Their dispatch 36244972350 was cancelled by THEIR OWN post-dispatch worklog push (eeda68f, 13:24:01, the newest-pending law) - this lane's 21:00 report mis-attributed the kill to the d64d04f push run; the addendum's narrative stood. The sharpened law: the worklog push STRICTLY PRECEDES the dispatch, never follows it.
+- The re-dispatch 36245304817 (56340b4) is the fleet of record. Polled ~10 min (2 foreground rounds): pending -> Unit (22) + Unit (24) success -> Integration (vanilla 26.2 server + fleet) in_progress at close (~8 min in). The poll handoff to the next fire (the 18:00->18:30 precedent).
+- Zero code pushed: a push while a dispatch is pending is the cancellation weapon. The poll + the forensics were the atomic unit. No dispatch (the one-active-run law).
+
+Stage Summary:
+- Master 56340b4 (pkg 0.214.0). Next free version 0.215.0. FLEET OF RECORD: 36245304817 in flight. NEXT FIRE: mine+decode it (the honest-marker volume sub-14-only, the census 3rd sample sealed-vs-land, triage 10th, the bank slump smelted=0, the reloot arrival follow-up); code-fire 0.215.0 only if no pending dispatch exists at push time (the reloot kind-gate / the furnace starvation candidates).
