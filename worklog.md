@@ -4485,3 +4485,14 @@ Stage Summary:
 - Master: 8b8b7e7 (this commit) (v0.194.0 renumber + this worklog) on 5e0939e (the 08:00 worklog) on 4cc147c (the fire-batch v0.193.0) on 3a1e579 (the dusk-forecast v0.193.0). Next free version = 0.195.0.
 - FLEET OF RECORD: 36204573086 on 5e0939e (the union debut: BOTH v0.193.0 cures). THE NEXT SESSION'S WATCH LIST: (1) 'bank trip: dusk' rows - did the escalation fire, did the dusk-tripped pockets CONVERT (banked up from the run46 hole of 16/19 deferred)? (2) 'the run clock caps the fired batch: N of M' (the trim's debut) + 'smelt fire skipped - the run clock cannot finish a batch'; (3) the abandoned-furnace reclaim visibility (blind spot #3); (4) the fence-edge below class (0 rows two runs running - unfalsified); (5) NORMAL END, deaths, banked vs 1544 (the run82 record), iron > 0 (the Crown).
 - Load-bearing arithmetic (re-derive before ANY fence move): TICKS_PER_SEC=20, NIGHT_WALK_START=12400, the own-stagger slot pricing (finalBankDelayMs), the want = 90000+45000+2*d*500 chain budget, the GoalNear 3D ball.
+---
+Task ID: cron398294-20260926-0739 addendum (the closing dispatch)
+Agent: Super Z (the 07:39 lane, closing)
+
+Work Log:
+- THE DISPATCH PICTURE CHANGED at 00:28Z: this lane's renumber push (8b8b7e7) superseded the 08:00 fire's dispatch 36204573086 on 5e0939e (cancelled at 00:28:13Z, one second after the push - the pending-dispatch doctrine acting itself). The union tree was left with NO live fleet.
+- THE RE-DISPATCH rides this lane's final head: 36205101545 (workflow_dispatch on 4d06de6, POSTed at 00:30:25Z after the sha re-verification - the head re-pulled clean, zero live dispatches confirmed in the same breath). The fleet carries the UNION DEBUT of BOTH v0.193.0 cures: the dusk-forecast bank escalation (3a1e579) AND the fire-batch run-clock cap (4cc147c).
+
+Stage Summary:
+- FLEET OF RECORD: 36205101545 on 4d06de6 (the v0.194.0 tree = both cures; code-identical to 5e0939e except the package.json version label). Big fleet ~75 min - the next fire (08:30/09:00) mines it per the watch list in the lane's main section ('bank trip: dusk' rows, the fire-batch trim lines, blind spot #3, the fence-edge absence, banked vs the run82 record 1544).
+- If this fire's push supersedes the dispatch before it starts, cancel-and-carry per doctrine - the watch list rides in the worklog either way.
