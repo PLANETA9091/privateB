@@ -20,6 +20,7 @@ import {
   SPIN_BREAKER_HOLD_MS
 } from '../../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../../src/lib/pathsemaphore.mjs'
+import { installNoteSink } from '../../src/lib/blackbox.mjs' // (v0.229.0) the pf:spin ring-note pins
 
 // A mock bot whose walk completes instantly - the famine fingerprint: the
 // done lands ~0ms after the goal, the re-issue follows in the same burst.
@@ -252,4 +253,57 @@ test('spin breaker: resetWalkGovernors covers the spin book (the funnel-wide res
   const before = spinBreakerStats().reissues
   await gotoSafe(bot, { x: 1 }, { label: 'wood trip', timeoutMs: 500 }) // the same bot object, a clean book
   assert.equal(spinBreakerStats().reissues, before, 'the reset dropped the per-bot history')
+})
+
+// (v0.229.0) THE 'pf:spin' RING NOTE - the refusal's own form in the black
+// box. The 36276860090 field face caught the breaker biting 4x ('sweep
+// drops') with ZERO ring trace: the refusal lived only in the caller's
+// catch, and a silent-catch caller (the wood-trip gather is one) left the
+// dump reading 'pf:goal <- pf:done <- pf:goal' - the hold indistinguishable
+// from the caller's own pause. The note must ride the SAME sink as the
+// pf:queue/pf:goal/pf:done notes and carry the label.
+test('spin breaker: the refusal rides the black box as pf:spin <label> - the ring keeps the refusal form', async () => {
+  resetSpinBreaker()
+  resetWalkGovernors()
+  const captured = []
+  installNoteSink({ note: (label, tsMs) => captured.push({ label, tsMs }) })
+  try {
+    const bot = instantBot()
+    await gotoSafe(bot, { x: 1 }, { label: 'sweep drops', timeoutMs: 500 }) // admitted - NO pf:spin on the success path
+    await gotoSafe(bot, { x: 1 }, { label: 'sweep drops', timeoutMs: 500 }) // tolerated re-issue
+    await assert.rejects(
+      gotoSafe(bot, { x: 1 }, { label: 'sweep drops', timeoutMs: 500 }),
+      /spin breaker/
+    )
+    const spins = captured.filter(c => c.label.startsWith('pf:spin'))
+    assert.equal(spins.length, 1, 'exactly one refusal note - the spin refusal is the only pf:spin writer')
+    assert.equal(spins[0].label, 'pf:spin sweep drops', 'the note carries the spinning label')
+    assert.equal(typeof spins[0].tsMs, 'number', 'the note carries the ring timestamp')
+    assert.ok(captured.some(c => c.label.startsWith('pf:done')), 'the success path kept its own pf:done notes (the sink rides both)')
+  } finally {
+    installNoteSink(null) // the sink is a test fixture - the other suites stay no-op
+    resetSpinBreaker()
+    resetWalkGovernors()
+  }
+})
+
+test('spin breaker: a hold-live refusal notes too - the hold must never read as the caller pause', async () => {
+  resetSpinBreaker()
+  resetWalkGovernors()
+  const captured = []
+  installNoteSink({ note: label => captured.push(label) })
+  try {
+    const bot = instantBot()
+    await gotoSafe(bot, { x: 1 }, { label: 'wood trip', timeoutMs: 500 })
+    await gotoSafe(bot, { x: 1 }, { label: 'wood trip', timeoutMs: 500 })
+    await assert.rejects(gotoSafe(bot, { x: 1 }, { label: 'wood trip', timeoutMs: 500 }), /spin breaker/)
+    await assert.rejects(gotoSafe(bot, { x: 1 }, { label: 'wood trip', timeoutMs: 500 }), /spin breaker.*hold live/)
+    const spins = captured.filter(l => l.startsWith('pf:spin'))
+    assert.equal(spins.length, 2, 'the fresh-arm refusal AND the held refusal both left their note')
+    assert.ok(spins.every(l => l === 'pf:spin wood trip'), 'both notes are the same interned label (the held path allocates nothing)')
+  } finally {
+    installNoteSink(null)
+    resetSpinBreaker()
+    resetWalkGovernors()
+  }
 })

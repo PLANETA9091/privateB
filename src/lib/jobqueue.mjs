@@ -953,6 +953,18 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     const sv = consultSpinBreaker(bot, label, Date.now())
     if (sv.spin) {
       spinStats.refusals++
+      // (v0.229.0) THE 'pf:spin' RING NOTE - the refusal's own form in the
+      // black box. The 36276860090 field face caught the breaker biting 4x
+      // ('sweep drops'), but the ring itself never carries the refusal: a
+      // dump read 'pf:goal <- pf:done <- pf:goal' with the refusal INVISIBLE
+      // between the done and the next goal - a silent-catch caller (the
+      // wood-trip gather is one) swallows the refuse() and the forensics
+      // ring cannot tell 'the breaker held it' from 'the caller paused'.
+      // The note rides the SAME sink as pf:queue/pf:goal/pf:done (no timers,
+      // one interned store per label - a held spin notes the same interned
+      // label at zero alloc), so the next freeze/FATAL dump reads the
+      // refusal's name right where it happened.
+      noteGlobal(`pf:spin ${label}`)
       return refuse(`spin breaker: ${label} re-issued ${sv.count}x inside the ${Math.round(SPIN_BREAKER_WINDOW_MS / 1000)}s window after its own pf:done - ${label} refused for ${Math.round(sv.remainingMs / 1000)}s (the sync re-issue breaker: the goal->done->goal churn starves the timers, the run53 alloc-storm class${sv.held ? ', hold live' : ''})`)
     }
   } catch { /* the breaker never blocks the walk it precedes */ }

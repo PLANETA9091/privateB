@@ -2160,9 +2160,12 @@ console.log(`launching ${COUNT} bots for ${SECONDS}s -> targets ${TARGETS.join('
 // 35668657935, mainLate=150742ms) and the log could not name WHAT blocked -
 // the server keepalive-timed-out every client at once, the run lost ~3
 // minutes to the relogin crawl. The box is a shared-memory ring of activity
-// labels (pf:queue / pf:goal / pf:done / water:rescue / climb / report /
-// mapsave); when the worker sees mainLate >= 5s it dumps the newest entries -
-// the LAST activity before the gap names the blocker.
+// labels (pf:queue / pf:goal / pf:done / pf:spin / water:rescue / climb /
+// report / mapsave) - the (v0.229.0) 'pf:spin <label>' is the spin breaker
+// refusal's own ring form (the refusal previously lived nowhere: a dump
+// read 'pf:goal <- pf:done <- pf:goal' with the hold invisible); when the
+// worker sees mainLate >= 5s it dumps the newest entries - the LAST
+// activity before the gap names the blocker.
 const blackbox = createSharedBlackBox({})
 // (v0.65.0) THE UNFREEZE SWEEP - the post-freeze edge of the zombie-goto
 // cure. run63 (dispatch 35677752396) finally NAMED the freeze blocker: the
