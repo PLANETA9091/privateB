@@ -78,6 +78,19 @@ export const RELOOT_RETRY_FLOOR_MS = 8000
  * doomed-goal ledger, the water-rescue gate - is the consult's own verdict
  * and answers the same for range 8 as for range 2. */
 const NO_PATH_VERDICT_RE = /no path|took to long|took too long/i
+/** (v0.208.0) The flooded-column classes the surface scanner reads. The
+ * fluid class includes the swimmable plants that live IN the water column
+ * (kelp, seagrass, bubble columns) - they are the water for walk purposes.
+ * The air class is the surface: the first of these above the fluid is where
+ * vanilla physics parks the floating drops. Anything else (a solid cap, a
+ * lily pad, a junk read) seals the column and the walk stays terminal. */
+const SURFACE_FLUID_RE = /water|kelp|seagrass|bubble_column/
+const SURFACE_AIR_RE = /^(air|cave_air|void_air)$/
+/** (v0.208.0) The surface scan's rise cap: a flooded-pit death column reads
+ * fluid-then-air within this many blocks of the spot; past that the column
+ * is not a flooded-pit shape (an ocean-depth edge case) and the walk stays
+ * terminal - the runner's read is capped to the same bound. */
+export const RELOOT_SURFACE_RISE_MAX = 32
 
 /**
  * Should the respawned bot walk back to its own death spot to re-collect the
@@ -181,4 +194,115 @@ export function relootRetry ({
   const budget = Math.floor(Math.min(bud, left))
   if (!fin(budget) || budget < RELOOT_RETRY_FLOOR_MS) return { go: false, why: 'no-time' }
   return { go: true, range: RELOOT_RETRY_RANGE, budgetMs: budget }
+}
+
+/**
+ * (v0.208.0) THE SURFACE GOAL - the flooded pit's own exit ramp. MEASURED
+ * (run55, fleet 36226589855, the v0.207.0 retry's field debut): the chain
+ * WORKED (walk -> 'No path' -> the classifier granted the range-8 retry with
+ * the right budget) and the widened sphere ALSO refused - F17's death spot
+ * [-117,42,406] sits at the flooded quarry bottom, and every cell within 8
+ * of the bottom cell is water or pit wall below the waterline. The drops
+ * themselves FLOAT: vanilla physics lifts item entities to the water
+ * surface. So the reachable goal is not a wider sphere on the dead cell -
+ * it is the water SURFACE above it: the first AIR cell up the death column.
+ * A stance on the rim beside that cell is dry, pathfinder-legal, and within
+ * magnet reach of the floating stacks.
+ *
+ * The scanner is pure: the runner reads the death column bottom-up (block
+ * names from the spot's own y), the scanner names the surface or refuses.
+ * Junk never arms a walk: a column that does not read fluid-then-air (a dry
+ * land death - the spot cell reads air, its drops lie on the ground and the
+ * sphere walk was the right shape; a sealed solid cap; a junk read) gets
+ * null and the death stays terminal.
+ *
+ * @param {Array<{y:number, name:string}|null>|null} column bottom-up block
+ *        reads starting AT the death spot's own y (junk -> null)
+ * @returns {number|null} the y of the water surface (the first air cell
+ *          above the fluid, within RELOOT_SURFACE_RISE_MAX), or null
+ */
+export function relootSurfaceY ({ column = null } = {}) {
+  if (!Array.isArray(column) || column.length === 0) return null
+  const spot = column[0]
+  // the death happened IN the water: the spot cell itself must read fluid.
+  // A land death's spot cell reads air - its drops do not float, refuse.
+  if (!spot || typeof spot.name !== 'string' || !SURFACE_FLUID_RE.test(spot.name)) return null
+  for (let i = 1; i < column.length; i++) {
+    const c = column[i]
+    if (!c || typeof c.name !== 'string' || !Number.isFinite(c.y)) return null
+    if (SURFACE_FLUID_RE.test(c.name)) continue // still inside the fluid column
+    if (SURFACE_AIR_RE.test(c.name)) {
+      if (i > RELOOT_SURFACE_RISE_MAX) return null // past the rise cap - not a pit shape
+      return c.y
+    }
+    return null // a solid cap (or a pad) seals the column - not a flooded pit
+  }
+  return null // the column never surfaced within the reads
+}
+
+/**
+ * (v0.208.0) Should the WIDE RETRY's own refusal (the second geometry
+ * verdict, the sphere class exhausted) get the surface walk? The field
+ * sequence is strict and each leg names its class: the walk (range 2) ->
+ * the wide retry (range 8, the v0.207.0 classifier) -> THE SURFACE WALK
+ * (a different goal, not a wider sphere - the water surface above the dead
+ * cell). The surface never fires before the wide retry spent its refusal
+ * (retries must read exactly 1: a direct surface walk on the first 'No
+ * path' would skip the cheap leg that usually suffices on dry geometry),
+ * and it never chains past itself (retries 2+ refuse - three legs per
+ * death is the whole ladder).
+ *
+ * The pricing rides the SAME plan arithmetic as the first walk (relootPlan
+ * on the surface cell: the 128 envelope, the despawn window, the margin,
+ * the dist-scaled budget) - the surface goal is a spot like any other, and
+ * the plan's own fences (no-spot/no-bot/too-far/no-time) refuse it exactly
+ * when any walk would be refused. The death record's attempted flag stays
+ * untouched: every leg here lives inside the failed-walk catch, the loop
+ * never re-enters, and the leg count is THIS gate's law.
+ *
+ * @param {object} [p]
+ * @param {string|any} [p.message] the WIDE RETRY's error message (junk -> not-no-path)
+ * @param {number} [p.retries] legs already fired after the walk (must be exactly 1)
+ * @param {number|null} [p.surfaceY] the scanner's surface y (junk -> no-surface)
+ * @param {{x:number,y:number,z:number}|null} [p.spot] the death spot (x/z ride the goal)
+ * @param {number|null} [p.deathAt] the death clock (the despawn window prices from it)
+ * @param {number} [p.now] the caller's clock
+ * @param {{x:number,y:number,z:number}|null} [p.botPos] the bot's current stance
+ * @param {number} [p.marginMs] the finish-before-despawn margin (default RELOOT_MARGIN_MS)
+ * @returns {{go:boolean, why?:string, goal?:{x:number,y:number,z:number}, range?:number,
+ *            dist?:number, budgetMs?:number, windowMs?:number}}
+ */
+export function relootSurfaceRetry ({
+  message = '',
+  retries = 0,
+  surfaceY = null,
+  spot = null,
+  deathAt = null,
+  now = Date.now(),
+  botPos = null,
+  marginMs = RELOOT_MARGIN_MS
+} = {}) {
+  if (retries !== 1) return { go: false, why: 'not-after-wide-retry' }
+  const msg = typeof message === 'string' ? message : ''
+  if (!NO_PATH_VERDICT_RE.test(msg)) return { go: false, why: 'not-no-path' }
+  const fin = v => Number.isFinite(v)
+  const y = fin(surfaceY) ? Math.floor(surfaceY) : null
+  if (y === null) return { go: false, why: 'no-surface' }
+  const plan = relootPlan({
+    spot: spot && fin(spot.x) && fin(spot.z) ? { x: spot.x, y, z: spot.z } : null,
+    deathAt,
+    now,
+    botPos,
+    attempted: false, // the record's flag owns the LOOP lane; the leg count is this gate's law
+    marginMs
+  })
+  if (!plan.go) return { go: false, why: plan.why }
+  return {
+    go: true,
+    goal: plan.goal,
+    range: plan.range,
+    dist: plan.dist,
+    budgetMs: plan.budgetMs,
+    windowMs: plan.windowMs
+  }
 }

@@ -9,7 +9,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  RELOOT_SURFACE_RISE_MAX,
   RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS
 } from '../../src/lib/reloot.mjs'
 import { WALK_CAP_MS, WALK_PER_BLOCK_MS } from '../../src/lib/tripplan.mjs'
@@ -287,4 +288,96 @@ test('junk never arms a retry: the window and the budget are finite fences', () 
   const rj = relootRetry({ message: 'No path to the goal!', retries: 0, elapsedMs: NaN, budgetMs: 17000, windowMs: 171000 })
   assert.equal(rj.go, true)
   assert.equal(rj.budgetMs, 17000)
+})
+
+// ---- v0.208.0 THE SURFACE GOAL ----
+// run55-mined (fleet 36226589855, the v0.207.0 retry's FIELD DEBUT): the
+// chain worked (walk -> 'No path' -> the range-8 retry granted at the right
+// budget) and the widened sphere ALSO refused - F17's spot [-117,42,406] is
+// the flooded quarry bottom; every cell within 8 of the bottom is water or
+// wall below the waterline. The drops FLOAT to the surface (vanilla
+// physics), so the reachable goal is the water SURFACE cell, not a wider
+// sphere. The scanner reads the death column; the gate prices the surface
+// walk with the plan's own arithmetic; the leg ladder is walk -> wide retry
+// -> surface, never longer.
+
+test('the surface scanner names the first air above the fluid (the pit shape)', () => {
+  assert.equal(relootSurfaceY({ column: [
+    { y: 42, name: 'water' }, { y: 43, name: 'water' }, { y: 44, name: 'cave_air' }
+  ] }), 44)
+  // the swimmable plants are the water column (kelp, seagrass, bubbles)
+  assert.equal(relootSurfaceY({ column: [
+    { y: 50, name: 'water' }, { y: 51, name: 'kelp' }, { y: 52, name: 'tall_seagrass' },
+    { y: 53, name: 'water' }, { y: 54, name: 'air' }
+  ] }), 54)
+})
+
+test('the scanner refuses the shapes that are not a flooded pit', () => {
+  // a land death: the spot cell reads air - the drops lie on the ground,
+  // the sphere walk was the right shape there
+  assert.equal(relootSurfaceY({ column: [{ y: 59, name: 'air' }, { y: 60, name: 'air' }] }), null)
+  // a sealed column: the fluid is capped by solid ground
+  assert.equal(relootSurfaceY({ column: [{ y: 42, name: 'water' }, { y: 43, name: 'stone' }] }), null)
+  // a lily pad caps the column (not walkable-into, refuse honestly)
+  assert.equal(relootSurfaceY({ column: [{ y: 60, name: 'water' }, { y: 61, name: 'lily_pad' }] }), null)
+  // the column never surfaced within the reads
+  assert.equal(relootSurfaceY({ column: [{ y: 42, name: 'water' }, { y: 43, name: 'water' }] }), null)
+})
+
+test('the rise cap is a real fence - an ocean-depth column refuses', () => {
+  const deep = [{ y: 10, name: 'water' }]
+  for (let y = 11; y <= 10 + RELOOT_SURFACE_RISE_MAX; y++) deep.push({ y, name: 'water' })
+  deep.push({ y: 10 + RELOOT_SURFACE_RISE_MAX + 1, name: 'air' })
+  assert.equal(relootSurfaceY({ column: deep }), null, 'the first air past the rise cap is not a pit surface')
+  const shallow = deep.slice(0, deep.length - 2)
+  shallow.push({ y: 10 + RELOOT_SURFACE_RISE_MAX, name: 'air' })
+  assert.equal(relootSurfaceY({ column: shallow }), 10 + RELOOT_SURFACE_RISE_MAX, 'the air at the cap line wins')
+})
+
+test('junk never arms a surface walk (the scanner battery)', () => {
+  assert.equal(relootSurfaceY({ column: null }), null)
+  assert.equal(relootSurfaceY({ column: [] }), null)
+  assert.equal(relootSurfaceY({ column: [null, { y: 50, name: 'air' }] }), null)
+  assert.equal(relootSurfaceY({ column: [{ y: 42, name: 'water' }, { y: NaN, name: 'air' }] }), null)
+  assert.equal(relootSurfaceY({ column: [{ y: 42 }, { y: 50, name: 'air' }] }), null)
+  assert.equal(relootSurfaceY({ column: [{ y: 42, name: 42 }] }), null)
+})
+
+test('the surface gate fires only after the wide retry spent its refusal (the run55 shape)', () => {
+  const r = relootSurfaceRetry({
+    message: 'No path to the goal!', retries: 1, surfaceY: 58,
+    spot: { x: -117, y: 42, z: 406 }, deathAt: Date.now() - 60000,
+    now: Date.now(), botPos: { x: -120, y: 61, z: 400 }
+  })
+  assert.equal(r.go, true)
+  assert.equal(r.goal.y, 58)
+  assert.equal(r.goal.x, -117)
+  assert.equal(r.range, RELOOT_GOAL_RANGE)
+  assert.ok(r.budgetMs > 0 && r.windowMs > 0, 'the plan arithmetic prices the surface walk')
+})
+
+test('the surface ladder is strict: never before the wide retry, never past itself', () => {
+  const shape = { message: 'No path to the goal!', surfaceY: 58, spot: { x: -117, y: 42, z: 406 }, deathAt: Date.now() - 60000, botPos: { x: -120, y: 61, z: 400 } }
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 0 }).why, 'not-after-wide-retry',
+    'a direct surface walk on the first refusal skips the cheap leg - refused')
+  assert.equal(relootSurfaceRetry({ ...shape, retries: 2 }).why, 'not-after-wide-retry',
+    'three legs per death is the whole ladder - refused')
+})
+
+test('the surface rides the geometry class only - a timeout is the sphere converging', () => {
+  const shape = { retries: 1, surfaceY: 58, spot: { x: -117, y: 42, z: 406 }, deathAt: Date.now() - 60000, botPos: { x: -120, y: 61, z: 400 } }
+  assert.equal(relootSurfaceRetry({ ...shape, message: 'timeout after 8000ms' }).why, 'not-no-path',
+    'a budget timeout means the wide sphere was reachable-but-slow - the surface is pointless there')
+  assert.equal(relootSurfaceRetry({ ...shape, message: 'water rescue in progress (reloot retry refused)' }).why, 'not-no-path')
+})
+
+test('the surface gate inherits the plan fences verbatim', () => {
+  const now = Date.now()
+  const shape = { message: 'No path to the goal!', retries: 1, surfaceY: 58, spot: { x: -117, y: 42, z: 406 } }
+  assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - RELOOT_DESPAWN_MS, now, botPos: { x: -120, y: 61, z: 400 } }).why, 'expired')
+  assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: null }).why, 'no-bot')
+  assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: { x: -120, y: 61, z: 400 }, surfaceY: NaN }).why, 'no-surface')
+  assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: { x: -120, y: 61, z: 400 }, spot: null }).why, 'no-spot')
+  // a bot far from the surface cell rides the same 128 envelope
+  assert.equal(relootSurfaceRetry({ ...shape, deathAt: now - 1000, now, botPos: { x: 500, y: 61, z: 400 } }).why, 'too-far')
 })

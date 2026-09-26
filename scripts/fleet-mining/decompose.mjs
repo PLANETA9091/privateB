@@ -87,6 +87,9 @@ console.log('  no-path retries armed:', count(/reloot: no-path retry at range/),
 console.log('  retry arrivals:', count(/reloot: retry arrived in/))
 console.log('  retry failures:', count(/reloot: retry failed/))
 console.log('  refused retries (no retry: why):', count(/reloot: walk failed.*\(no retry: /))
+console.log('  surface retries armed:', count(/reloot: surface retry at/))
+console.log('  surface arrivals:', count(/reloot: surface arrived/))
+console.log('  surface failures:', count(/reloot: surface failed/))
 
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
