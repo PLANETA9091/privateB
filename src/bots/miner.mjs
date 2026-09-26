@@ -284,7 +284,14 @@ export function createMiner ({
     const VERDICT_NOTE = {
       corroborates: 'corroborates the server verdict',
       contradicts: 'CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)',
-      blind: 'is blind to this kind - the hint is noise by construction (the server kind stays the authority)'
+      blind: 'is blind to this kind - the hint is noise by construction (the server kind stays the authority)',
+      // (v0.224.0) THE BYSTANDER VERDICT (deathcause.mjs): the wrong-name twin
+      // of the blindness - a SECOND hostile near the blast is who the
+      // nearest-harm scan read, because the exploder removed itself at
+      // detonation. Named once so the decode reads the class, not the
+      // argument again (run63 F14 zombie / F12 spider, both 'blown up by
+      // Creeper').
+      bystander: 'names a BYSTANDER - the exploder removed itself at detonation, the nearest-harm scan read the next-nearest hostile (a real witness, not the killer; the server killer stays the authority)'
     }
     let cause = inferred
     if (authFresh) {

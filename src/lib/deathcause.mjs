@@ -179,6 +179,22 @@ export function inferenceVerdict (server, inferredName) {
     // inferred fall/env'. A OTHER hostile name still contradicts (it was
     // alive and near - a real candidate the server overruled).
     if (kind === 'explosion' && isFallHint) return 'blind'
+    // (v0.224.0) THE BYSTANDER VERDICT: the wrong-name twin of the blindness
+    // above. When a SECOND hostile stands near the blast, the scan DOES find
+    // somebody - not the killer (the exploder removed itself), the
+    // next-nearest hostile: a BYSTANDER. Two field samples mined it as
+    // 'CONTRADICTS' and every decode re-adjudicated the same argument (run63
+    // F14 'blown up by Creeper | inferred zombie', F12 '| inferred spider').
+    // The honest read is a NAMED class, not a contradiction claim: the
+    // bystander was real (alive, near, harmed - a genuine witness), but the
+    // server named the blast killer and the server stays the authority. The
+    // gate needs the server to have NAMED the killer (attacker set - the
+    // self-removal proof) and the hint to be a hostile NAME (not the
+    // 'drowning' oxygen state, not the 'fall/env' gravity fallback - those
+    // two fallbacks never read as witnesses). kind=mob keeps 'contradicts':
+    // a melee killer SURVIVES its kill, so a different hostile name there is
+    // a genuine nearest-hostile miss, not a self-removal artifact.
+    if (kind === 'explosion' && attacker && !isDrownHint) return 'bystander'
     return 'contradicts'
   }
   return 'unknown'

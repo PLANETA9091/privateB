@@ -158,7 +158,9 @@ test('inferenceVerdict: the run550 death matrix names every face', () => {
   assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Skeleton' }, 'Zombie'), 'contradicts')
   // explosions: the creeper's passive form carries the attacker
   assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Creeper'), 'corroborates')
-  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Zombie'), 'contradicts')
+  // (v0.224.0) the wrong-name hostile hint reads BYSTANDER now - see the
+  // dedicated matrix below
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Zombie'), 'bystander')
   // (v0.218.0) THE SUICIDE-BOMBER BLINDNESS: the exploder removes itself at
   // detonation, so the nearest-hostile scan degrades to the 'fall/env'
   // fallback - noise by construction, read blind (run870 F4 + run96 F4, both
@@ -173,6 +175,33 @@ test('inferenceVerdict: the run550 death matrix names every face', () => {
   // falls: only the gravity fallback corroborates
   assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'fall/env'), 'corroborates')
   assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'Zombie'), 'contradicts')
+})
+
+// (v0.224.0) THE BYSTANDER VERDICT - the creeper wrong-killer lens. Two field
+// samples (run63/run34, fleet 36263768508's decode) mined 'blown up by
+// Creeper' with the nearest-harm scan naming a DIFFERENT hostile (F14 zombie,
+// F12 spider) - both landed in 'CONTRADICTS' and every decode re-adjudicated
+// the same argument: the creeper removed itself at detonation, the scan read
+// the next-nearest hostile. The class gets its own name.
+test('inferenceVerdict: the bystander matrix (the creeper wrong-killer lens)', () => {
+  // the run63 F14 sample: blast killer named, hint names another hostile
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Zombie'), 'bystander')
+  // the run63 F12 sample: the spider bystander (the exact second sample)
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'spider'), 'bystander')
+  // case-insensitive on the hint name (the inferrer prints the entity as-is)
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Drowned'), 'bystander')
+  // the oxygen fallback name is NOT a witness - it stays contradicts
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'drowning'), 'contradicts')
+  // no named killer (the active 'blew up' form) - no self-removal proof,
+  // a hostile hint keeps the honest contradiction claim
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: null }, 'Zombie'), 'contradicts')
+  // kind=mob keeps 'contradicts': the melee killer SURVIVES its kill, a
+  // different hostile name there is a genuine nearest-hostile miss
+  assert.equal(inferenceVerdict({ kind: 'mob', attacker: 'Skeleton' }, 'Zombie'), 'contradicts')
+  // the v0.218.0 blindness pins survive untouched (fall/env -> blind)
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'fall/env'), 'blind')
+  // the same-killer pin survives (corroborates wins before the class)
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'creeper'), 'corroborates')
 })
 
 test('inferenceVerdict: junk-safe (no throw, honest unknown/blind)', () => {
@@ -205,4 +234,7 @@ test('REGRESSION PIN: the miner death handler wires the inference verdict', asyn
     'the verdict note lands in the printed cause line')
   assert.ok(/CONTRADICTS the server verdict/.test(minerSrc), 'the contradiction names itself loudly')
   assert.ok(/is blind to this kind/.test(minerSrc), 'the blind class names itself')
+  // (v0.224.0) the bystander verdict rides the printed line too - the lens
+  // without the note would be a silent class (the import-without-wiring class)
+  assert.ok(/names a BYSTANDER/.test(minerSrc), 'the bystander class names itself in the death line')
 })
