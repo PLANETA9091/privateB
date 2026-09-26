@@ -14,6 +14,7 @@ import {
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
   MELEE_CHASE_CEILING, meleeFightStep, WATER_FLEE_HP, OPEN_FIELD_FLEE_HP, openFieldYieldLive,
+  threatVerdictLane,
   meleeReturnPlan, cooldownTicksForWeapon, MELEE_RETURN_WAIT_TICKS, MELEE_RETURN_WINDOWS,
   foughtEntityGone, driftReturnPlan, DRIFT_RETURN_TICKS, DRIFT_RETURN_DIST, DRIFT_RETURN_WINDOWS,
   FIGHT_DEADLINE_MS, MELEE_REACH,
@@ -505,7 +506,10 @@ test('REGRESSION PIN: the miner arms the cooldown at the melee break + both verd
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(/armRangedCooldown\(cur\.entity\?\.id\)/.test(minerSrc), 'the chase-ceiling break arms the mob window')
   assert.ok(/ranged cooldown armed vs/.test(minerSrc), 'the arm names itself for the run decode')
-  assert.ok((minerSrc.match(/cooldown: rangedCdLive\(/g) || []).length === 2, 'both verdict sites (the sentry consult + the per-round re-verdict) pass the lens')
+  // (v0.216.0) the count grows to 4: the two threatVerdict sites AND the two
+  // threatVerdictLane mirrors (the lane capture + the flip-site lane) pass
+  // the cooldown - the mirror's args are the verdict's args, verbatim
+  assert.ok((minerSrc.match(/cooldown: rangedCdLive\(/g) || []).length === 4, 'both verdict sites AND both lane mirrors pass the cooldown (2 verdict + 2 mirror)')
   assert.ok(/RANGED_HOSTILES\.has\(cur\.name\) && cur\.name !== 'witch'/.test(minerSrc), 'the witch is excluded from the cooldown lane at the arm site')
 })
 
@@ -723,8 +727,11 @@ test('REGRESSION PIN: the fight loop wires the open-field lens (the v0.212.0 lan
   // lens wired at one site only re-opens the drain through the other). The
   // count pattern rides the call shape (inWater -> sheltered), not the bare
   // phrase - the flag's own doc comment mentions the lens by name too.
+  // (v0.216.0) the count grows to 4: the lane mirrors carry the SAME arg
+  // shape (the capture + the flip-site lane) - the mirror IS the verdict's
+  // argument list, verbatim.
   const sites = (minerSrc.match(/inWater: inWaterHere\(\), sheltered: !openFieldNight/g) || []).length
-  assert.ok(sites === 2, `both threatVerdict call sites carry the sheltered lens (found ${sites})`)
+  assert.ok(sites === 4, `both threatVerdict call sites AND both lane mirrors carry the sheltered lens (found ${sites})`)
   // the flag exists with the honest lifecycle
   assert.ok(/let openFieldNight = false/.test(minerSrc), 'the flag starts sheltered (the legacy verdicts until a scan proves the terrain)')
   assert.ok(/openFieldNight = false/.test(minerSrc), 'every terrain scan re-derives the flag (a stale open read never outlives its scan)')
@@ -831,29 +838,87 @@ test('threatVerdict: the drowned hybrid - the lens band lifts the wounded, the m
   assert.equal(driftReturnPlan({ name: 'skeleton', dist: 6.0, windows: 0 }), 'end', 'the shooters keep their own contract')
 })
 
-test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.0 capture law)', async () => {
+test('threatVerdictLane: every lane named, edge by edge (the v0.216.0 mirror)', () => {
+  // the creeper-band outranks everything (run17's F14 shape: the marker
+  // claimed the lens at hp 0.3 - the band owns that flee)
+  assert.equal(threatVerdictLane({ name: 'creeper', dist: 4.0, hp: 0.3, dark: true, sheltered: false }), 'creeper-band', 'the F14 residual: the creeper band fires first, the lens never gets consulted')
+  assert.equal(threatVerdictLane({ name: 'creeper', dist: 7.0, hp: 20.0 }), 'creeper-band', 'the band edge: 7.0 is inside CREEPER_FLEE_RANGE')
+  assert.equal(threatVerdictLane({ name: 'creeper', dist: 7.1, hp: 20.0 }), 'none', 'past the band the creeper reads the melee band -> ignore')
+  // the daylight spider is the ignore lane
+  assert.equal(threatVerdictLane({ name: 'spider', dist: 5.0, hp: 20.0, dark: false }), 'none', 'the daylight spider ignore rides the mirror too')
+  assert.equal(threatVerdictLane({ name: 'spider', dist: 2.0, hp: 20.0, dark: false }), 'none', 'a provoked spider at 2.0 in daylight reads the melee band (dist <= 5) -> fight -> none')
+  // the unarmed band
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 10.0, hp: 20.0, armed: false }), 'unarmed-band', 'the unarmed flee inside RANGED_ENGAGE_RANGE')
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 12.1, hp: 20.0, armed: false }), 'none', 'the unarmed ignore past the band')
+  // the land-flee outranks the lens (run44's F12 residual: hp 4.5 < 8)
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 2.0, hp: 4.5, dark: true, sheltered: false }), 'land-flee', 'the F12 residual: the legacy band owns the flee, the lens is true only BESIDE it')
+  assert.equal(openFieldYieldLive({ name: 'zombie', dist: 2.0, hp: 4.5, dark: true, sheltered: false }), true, 'the residual is exactly where the predicate is true but the lane is NOT the lens')
+  // the water lens
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 3.6, hp: 9.0, inWater: true }), 'water-flee', 'the water lens fires under WATER_FLEE_HP')
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 3.6, hp: 9.0, inWater: true, dark: true, sheltered: false }), 'water-flee', 'the water lane outranks the open-field lens (branch order)')
+  // THE TRUE LENS SHAPE (run44's F2: hp 13.5 - no earlier lane fired)
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 3.6, hp: 13.5, dark: true, sheltered: false }), 'open-field-lens', 'the F2 true volume: 13.5 >= 8, dry, armed - the lens IS the first lane')
+  assert.equal(threatVerdictLane({ name: 'drowned', dist: 9.8, hp: 13.0, dark: true, sheltered: false }), 'open-field-lens', 'the trident band rides the mirror (the v0.215.0 hybrid)')
+  // the swarm outranks nothing above it but needs the lens dark/sheltered read
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 3.6, hp: 13.0, attackers: 3, dark: true, sheltered: true }), 'swarm', 'sheltered keeps the lens false, the swarm fires')
+  // the ranged cooldown
+  assert.equal(threatVerdictLane({ name: 'skeleton', dist: 8.0, hp: 16.0, cooldown: true }), 'ranged-cooldown', 'the cooldown lane fires for the shooter')
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 3.0, hp: 16.0, cooldown: true }), 'none', 'melee threats never consult the cooldown (the fight answer -> none)')
+  // fight/ignore shapes read none
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 4.9, hp: 20.0 }), 'none', 'the fight answer is not a flee lane')
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: 10.0, hp: 20.0 }), 'none', 'the ignore at range is not a flee lane')
+  assert.equal(threatVerdictLane({ name: null, dist: 3.0 }), 'none', 'junk: no name, no lane')
+  assert.equal(threatVerdictLane({ name: 'zombie', dist: NaN }), 'none', 'junk dist, no lane')
+})
+
+test('threatVerdictLane: the coherence law - the verdict flees iff the lane is named (brute force)', () => {
+  // the mirror walks threatVerdict's EXACT branch order - the brute force
+  // pins the by-construction law the markers lean on (a drift here would
+  // mis-attribute the decode's volume again)
+  const hosts = ['zombie', 'skeleton', 'spider', 'husk', 'drowned', 'creeper']
+  let flees = 0
+  for (const name of hosts) {
+    for (const hp of [4.5, 7.9, 9.0, 13.5, 14.0, 16.0, 20.0]) {
+      for (const dist of [2.0, 3.6, 5.1, 6.9, 9.8, 11.9, 13.0]) {
+        for (const opts of [{}, { armed: false }, { inWater: true }, { poisoned: true }, { cooldown: true }, { attackers: 3 }, { dark: false }, { sheltered: false }, { dark: true, sheltered: false }, { dark: false, sheltered: false, armed: false }]) {
+          const p = { name, dist, hp, ...opts }
+          const v = threatVerdict({ ...p, attackers: p.attackers ?? 1 })
+          const lane = threatVerdictLane({ ...p, attackers: p.attackers ?? 1 })
+          const fleesNow = v === 'flee'
+          if (fleesNow) flees++
+          assert.equal(fleesNow, lane !== 'none', `coherence broke for ${JSON.stringify(p)}: verdict ${v}, lane ${lane}`)
+        }
+      }
+    }
+  }
+  assert.ok(flees > 200, `the battery must cover real flee volume (got ${flees})`)
+})
+
+test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.0 capture law, v0.216.0 lane gate)', async () => {
   const fs = await import('node:fs')
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   // the capture precedes the verdict (the run195 dead-wire class: the answer
   // must exist before any await - the tryShelter leg lives between them)
-  const capture = minerSrc.match(/const hpAtVerdict = bot\.health \?\? 20[\s\S]{0,400}?const verdict = threatVerdict/)
-  assert.ok(capture, 'hpAtVerdict + lensFired are captured BEFORE the verdict (one synchronous instant, never after an await)')
-  assert.match(capture[0], /const lensFired = openFieldYieldLive\(\{ name: threat\.name, dist: threat\.dist, hp: hpAtVerdict/,
-    'the capture rides the SAME predicate the verdict used (single source of truth)')
+  const capture = minerSrc.match(/const hpAtVerdict = bot\.health \?\? 20[\s\S]{0,900}?const verdict = threatVerdict/)
+  assert.ok(capture, 'hpAtVerdict + lensLane are captured BEFORE the verdict (one synchronous instant, never after an await)')
+  assert.match(capture[0], /const lensLane = threatVerdictLane\(\{ name: threat\.name, dist: threat\.dist, hp: hpAtVerdict/,
+    'the capture rides the lane mirror in the SAME instant (the v0.216.0 first-lane law)')
   // one bar, one truth: the verdict reads hpAtVerdict too
   assert.match(capture[0], /hp: hpAtVerdict/, 'the verdict reads the captured bar (no second read, no drift)')
-  // the marker gates on the captured answer, not the terrain flag
-  assert.ok(/if \(lensFired\) log\(`\$\{tag\} combat: open-field yield vs/.test(minerSrc),
-    'the marker prints ONLY when the lens actually fired (the run48 flag-gate leak is dead)')
+  // the marker gates on the first-lane answer, not the terrain flag
+  assert.ok(/if \(lensLane === 'open-field-lens'\) log\(`\$\{tag\} combat: open-field yield vs/.test(minerSrc),
+    'the marker prints ONLY when the lens is the FIRST firing lane (the run48 leak AND the run44 residual are dead)')
   assert.ok(!/if \(openFieldNight\) log\(`\$\{tag\} combat: open-field yield/.test(minerSrc),
     'the terrain flag never gates the marker again')
   assert.match(minerSrc, /open-field yield vs \$\{threat\.name\} \(hp \$\{hpAtVerdict\.toFixed\(1\)\}/,
     'the printed hp is the bar the lens judged (the post-shelter read is gone)')
   // the import grows (the v0.207.0 import-pin precedent)
-  assert.match(minerSrc, /OPEN_FIELD_FLEE_HP, openFieldYieldLive \} from '\.\.\/lib\/combat\.mjs'/,
-    'the predicate rides the import')
-  // the flip site (the fight loop's re-verdict marker) rides the predicate too -
-  // run48's leak was counted at BOTH sites (the 20:30 decode read x4 across the run)
-  assert.match(minerSrc, /if \(openFieldYieldLive\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow/,
-    'the re-verdict marker gates on the predicate at the flip site (the second leak source is dead)')
+  assert.match(minerSrc, /threatVerdict, threatVerdictLane, effectiveHp/,
+    'the lane mirror rides the import')
+  assert.ok(!/openFieldYieldLive \} from/.test(minerSrc),
+    'the miner no longer imports the raw predicate (the lane mirror owns the attribution)')
+  // the flip site (the fight loop's re-verdict marker) rides the lane mirror too -
+  // run48's leak was counted at BOTH sites, run44's residual class too
+  assert.match(minerSrc, /threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow[\s\S]{0,600}?\}\) === 'open-field-lens'\) log/,
+    'the re-verdict marker gates on the lane at the flip site (the args mirror the re-verdict call)')
 })

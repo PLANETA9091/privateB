@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP, openFieldYieldLive } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -992,7 +992,12 @@ export function createMiner ({
     // yield, the ranged cooldown - run48's hp 19.0/20.0 markers) reads false
     // and stays unmarked.
     const hpAtVerdict = bot.health ?? 20
-    const lensFired = openFieldYieldLive({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, poisoned: isPoisoned(bot), dark: isDarkHere(), sheltered: !openFieldNight })
+    // (v0.216.0) THE FIRST-LANE CAPTURE: the lane-order mirror rides the SAME
+    // argument shape as the verdict, in the SAME synchronous instant (before
+    // any await) - the marker prints only when the LENS is the first firing
+    // lane (run44's residual: hp 4.5 < FLEE_HP 8 is the legacy land-flee's
+    // flee, the marker stays silent for it).
+    const lensLane = threatVerdictLane({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
     const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
@@ -1019,7 +1024,11 @@ export function createMiner ({
         // answer, not the terrain flag - run48's print leak (x4 markers at
         // hp 19.0/20.0/16.8, all from OTHER flee lanes) cannot repeat, and
         // the printed hp is the bar the lens actually judged.
-        if (lensFired) log(`${tag} combat: open-field yield vs ${threat.name} (hp ${hpAtVerdict.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+        // (v0.216.0) THE FIRST-LANE ATTRIBUTION: gated on the lane mirror -
+        // run44 printed 'open-field yield vs zombie (hp 4.5 < 14)' where the
+        // land-flee lane owned the flee (4.5 < 8); the marker now means THE
+        // LENS WAS THE FIRST FIRING LANE (the residual class stays unmarked).
+        if (lensLane === 'open-field-lens') log(`${tag} combat: open-field yield vs ${threat.name} (hp ${hpAtVerdict.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
         await runAway(threat, reason, { kite: response === 'kite' })
         await recover()
         // a genuine escape clears the ledger; a stuck chase keeps it armed
@@ -1106,7 +1115,10 @@ export function createMiner ({
           // where the legacy drain showed - the decode counts both)
           // (v0.214.0) gated on the lens predicate (verdict time = print
           // time here: no await between them), never the terrain flag alone
-          if (openFieldYieldLive({ name: cur.name, dist: cur.dist, hp: hpNow, poisoned: isPoisoned(bot), dark: isDarkHere(), sheltered: !openFieldNight })) log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+          // (v0.216.0) gated on the lane mirror - the first firing lane owns
+          // the attribution here too (the creeper@0.3 class names creeper-band,
+          // not the lens; the args mirror the re-verdict's call verbatim)
+          if (threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) }) === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()

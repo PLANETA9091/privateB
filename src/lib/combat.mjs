@@ -699,3 +699,39 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   if (dist <= engage) return 'fight'
   return 'ignore'
 }
+
+// (v0.216.0) THE FIRST-LANE INSTRUMENT - WHICH flee lane fires FIRST. MEASURED
+// (run44, fleet 36247231944, the honest marker's 2nd sample): 'open-field
+// yield vs zombie (hp 4.5 < 14)' - but 4.5 < FLEE_HP 8, so the LEGACY
+// land-flee lane fired first and the lens is true only BESIDE it; the marker
+// claimed the lifted line for a flee the legacy band already owned (the same
+// class as run17's F14 creeper@0.3 - the creeper-band lane fires at dist <=
+// CREEPER_FLEE_RANGE before the lens is ever consulted). Two samples, two
+// over-attributions: the decode's lens counter read 2 where the true lens
+// volume was 1. THE CURE: a lane-order mirror - threatVerdictLane walks the
+// EXACT threatVerdict branch order and returns the name of the first flee
+// lane that fires ('creeper-band', 'unarmed-band', 'land-flee', 'water-flee',
+// 'open-field-lens', 'swarm', 'ranged-cooldown'), or 'none' when the verdict
+// is fight/ignore. The markers gate on lane === 'open-field-lens': the printed
+// 'open-field yield' now means THE LENS WAS THE FIRST FIRING LANE - the
+// residual class stays unmarked beside the legacy lines it belongs to. The
+// coherence is brute-forced (threatVerdict flees iff the lane is named) - the
+// same by-construction law the v0.213.0 census rides. Junk-safe: the junk
+// reads return 'none' exactly where the verdict returns ignore.
+export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, attackers = 1, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false } = {}) {
+  if (!name || !HOSTILE_NAMES.has(name)) return 'none'
+  if (!Number.isFinite(dist) || dist < 0) return 'none'
+  const health = Number.isFinite(hp) ? hp : 20
+  const crowd = Number.isFinite(attackers) && attackers > 0 ? attackers : 1
+  const seen = effectiveHp({ health, poisoned })
+  if (name === 'creeper' && dist <= CREEPER_FLEE_RANGE) return 'creeper-band'
+  if (name === 'spider' && dark !== true && dist > 2.5) return 'none'
+  if (armed !== true) return dist <= RANGED_ENGAGE_RANGE ? 'unarmed-band' : 'none'
+  if (seen < FLEE_HP) return 'land-flee'
+  if (inWater === true && seen < WATER_FLEE_HP) return 'water-flee'
+  if (openFieldYieldLive({ name, dist, hp, poisoned, dark, sheltered })) return 'open-field-lens'
+  const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
+  if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'swarm'
+  if (cooldown === true && name !== 'witch' && RANGED_HOSTILES.has(name) && dist <= engage) return 'ranged-cooldown'
+  return 'none'
+}
