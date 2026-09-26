@@ -109,6 +109,15 @@ console.log('  rim dig guard holds:', count(/reloot: rim dig held/))
 console.log('  rim dig refusals:', count(/reloot: rim dig refused/))
 console.log('  rim dig skips:', count(/reloot: rim dig skipped/))
 
+// (v0.223.0) THE WET CHURN - the after-storm evacuation's field face: the
+// arms name the storm bots (the per-bot cadence read the plan priced), the
+// releases read the hold's exits, the swap lines split dry wood from rest.
+console.log('=== WET CHURN (the evacuation, v0.223.0+) ===')
+console.log('  evacuations armed:', count(/churn: evacuation armed/), 'per-bot:', fmt(perBot(/churn: evacuation armed/)))
+console.log('  evacuations released:', count(/churn: evacuation released/), 'per-bot:', fmt(perBot(/churn: evacuation released/)))
+console.log('  arm counts:', fmt((() => { const m = {}; for (const l of lines) { const a = l.match(/churn: evacuation armed \((\d+) rescues\//); if (a) m[`x${a[1]}`] = (m[`x${a[1]}`] || 0) + 1 } return m })()))
+console.log('  rescues during holds still counted by the rescue section (the machinery is untouchable)')
+
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))

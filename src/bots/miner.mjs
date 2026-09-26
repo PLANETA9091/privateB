@@ -51,6 +51,7 @@ import {
   WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
+import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn recorder's memory cap (the plan's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
 import { dropTargets, dropGoalRange, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument
@@ -1297,6 +1298,16 @@ export function createMiner ({
   // pathfinder goals that fight every manual control state. The sentry fires a
   // raw-controls swim BEFORE the air bar empties; gotoSafe refuses new goals
   // while it runs (bot._waterRescue is the cross-module gate).
+  // (v0.223.0) THE CHURN RECORDER: the bot's OWN rescue-start timestamps -
+  // the wet churn governor's per-bot input (the storm read was never a fleet
+  // total: F9 g653/r19 + F19 g598/r17 while F11 read the same fleet calm).
+  // A capped sliding log, not a lifetime list: the plan's window is 180s and
+  // the worst measured client printed 25 starts in a whole 600s run, so the
+  // cap (the module's WET_CHURN_LOG_CAP) is storm-proof headroom. The record
+  // rides the ARMED section of rescueFromWater - the stand-down gate returns
+  // BEFORE it, so a gated repeat page never reads as a rescue (the honest
+  // per-bot cadence is the plan's whole premise).
+  const wetRescueLog = []
   let swimming = false
   let lastRescueAt = 0
   let lastGlitchLogAt = 0
@@ -1399,6 +1410,8 @@ export function createMiner ({
     bot._waterRescue = true // gotoSafe refuses new walk goals from now on
     lastRescueAt = Date.now()
     stats.rescues++
+    wetRescueLog.push(Date.now()) // (v0.223.0) the churn recorder - a rescue START (the stand-downs never reach this line)
+    if (wetRescueLog.length > WET_CHURN_LOG_CAP) wetRescueLog.splice(0, wetRescueLog.length - WET_CHURN_LOG_CAP)
     noteGlobal('water:rescue') // (v0.62.0) run53's OOM and run60's 150s freeze both began mid-rescue - mark the site
     let standingWet = false // exited via the standing-in-shallow-water policy
     let sawWater = false // (v0.104.0) the dry-land proof's water-contact latch
@@ -4396,7 +4409,7 @@ export function createMiner ({
     return { deposited: res.deposited, reason, chestsUsed: res.chestsUsed ?? 0, chestReport: res.chestReport ?? [] }
   }
 
-  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, veinSweep, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, waterTables, username, lastDeath: () => lastDeath }
+  return { bot, ready, stats, mineBox, nukeAround, bore, tunnel, veinSweep, climbOut, harvestSite, workOnGround, collectArea, digShaft, gatherWood, mapTrip, enablePhysicsMode, landHere, sweep, scanBox, flyTo, mineBlock, standSpotFor, setMode, recordToMap, mapTargetFor, depositLoot, inventoryLoad: () => inventoryLoad(bot), map, waterTables, username, lastDeath: () => lastDeath, wetRescueEvents: () => wetRescueLog.slice() }
 }
 
 // Spawn several miners (no op, no gear) working the same job split by X slabs.

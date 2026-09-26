@@ -114,3 +114,59 @@ export function wetChurnPlan ({
   }
   return { go: true, why: 'churn', untilMs: now + WET_CHURN_COOLDOWN_MS, count: load.count }
 }
+
+// ---- (v0.223.0) THE WIRING SIDE - the recorder's cap and the swap pricing.
+// The v0.200.0 pattern kept: anything the wiring must decide that a unit can
+// pin lives here, pure; the call sites (miner.mjs records, the runner's work
+// loop consults) stay thin enough for source pins to name every scalar.
+
+/** (v0.223.0) The recorder's memory cap - the bot's OWN rescue-start log
+ *  holds the last WET_CHURN_LOG_CAP stamps. The plan window needs 180s of
+ *  them; the worst measured client printed 25 starts in a whole 600s run,
+ *  so 64 is storm-proof headroom, not a behavioral gate (dropping the OLDEST
+ *  stamp past the cap can only shrink a window the plan would have aged out
+ *  anyway - honest at both ends). */
+export const WET_CHURN_LOG_CAP = 64
+
+/** (v0.223.0) The rest slice (ms) between plan re-reads - a night hold, a
+ *  junk read or a too-short daylight tail rests this long, then the loop
+ *  re-reads the plan (the cooldown owns the exit, the pass owns the slice). */
+export const WET_CHURN_REST_MS = 5000
+
+/** (v0.223.0) The dry-swap gather cap (ms) - one surface wood trip inside an
+ *  evacuation costs at most this (the bootstrap lane's own 40s shape). */
+export const WET_CHURN_WOOD_MS = 40000
+
+/** (v0.223.0) The dry-swap gather floor (ms) - a wood trip shorter than this
+ *  buys nothing (the walk machinery spends its first seconds REACHING the
+ *  first tree), so a hold's short tail rests out instead of fake-gathering. */
+export const WET_CHURN_WOOD_MIN_MS = 15000
+
+/**
+ * (v0.223.0) THE CHURN SWAP - what an evacuation pass does instead of the
+ * wet-prone lanes, pure. The module's own law says the wiring decides WHERE;
+ * this helper prices the slice, and the gates are each named:
+ *   junk/empty remaining  rest (avoidance errs toward resting - a junk read
+ *                          must never price a walk)
+ *   night                 rest (the v0.140.1 hold owns the surface in the
+ *                          dark; the caller passes daylight = !walkForbidden)
+ *   daylight + a real tail  wood, capped by the hold's REMAINING time (the
+ *                          cooldown owns the exit - the swap never extends it)
+ *                          and by the gather cap, floored at the gather
+ *                          minimum (below it the tail rests out honestly).
+ * The swap NEVER gates a rescue (the plan never gates the ladder) and never
+ * touches the hold's clock - it only prices THIS pass's dry work.
+ *
+ * @param {object} [p]
+ * @param {number} [p.remainingMs] the hold's remaining time (0/junk = the
+ *        arm pass's unknown tail - read rest)
+ * @param {boolean} [p.daylight] the caller's walk-forbidden verdict, negated
+ * @returns {{work:'wood'|'rest', maxMs:number}}
+ */
+export function churnSwap ({ remainingMs = 0, daylight = true } = {}) {
+  if (!fin(remainingMs) || remainingMs <= 0) return { work: 'rest', maxMs: WET_CHURN_REST_MS }
+  if (!daylight) return { work: 'rest', maxMs: Math.min(WET_CHURN_REST_MS, remainingMs) }
+  const wood = Math.min(WET_CHURN_WOOD_MS, remainingMs)
+  if (wood < WET_CHURN_WOOD_MIN_MS) return { work: 'rest', maxMs: Math.min(WET_CHURN_REST_MS, remainingMs) }
+  return { work: 'wood', maxMs: wood }
+}

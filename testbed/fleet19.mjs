@@ -39,6 +39,7 @@ import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommun
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1018,6 +1019,8 @@ async function runBot (name, target, index) {
       let lastSpareAttempt = 0 // (v0.10.2) spare-pickaxe cooldown
       let lastSwordAttempt = 0 // (v0.67.0) sword-craft cooldown
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
+      let wetEvacUntil = 0 // (v0.223.0) the churn evacuation's exit clock - the plan owns it, the wiring only carries it (it survives relogs: the stance rides the runner, the cadence rides the client)
+      let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
@@ -1483,51 +1486,96 @@ async function runBot (name, target, index) {
             if (swr.ok || swr.reason) console.log(`${name} sword: ${swr.ok ? 'OK' : 'failed'} (${swr.tier || swr.reason || 'none'})`)
           }
         }
-        let interrupted = false
-        const shaftRes = await miner.digShaft(namesFor(hasPickNow()), {
-          // (v0.14.1) the floor moves UP from 24 to 42: the old bottom sat the fleet
-          // inside the AQUIFER band - every shaft bottom was wet (fleet 114:
-          // rescues=17, climb staircases refused their step cells as water, 'blocked
-          // toward ...' x17, 0 climbs, banked=0). y=42 still holds the plan's
-          // underground materials (iron/copper/coal/stone all spawn above the
-          // deepslate band) but the dig columns stay dry: no swim physics, and the
-          // staircase climb only meets stone it can dig.
-          minY: 42,
-          shouldStop: () => {
-            if (Date.now() > deadline || !miner.bot.entity) return true
-            if (recoveryDueNow()) { interrupted = true; return true }
-            if (upgradeDueNow()) { interrupted = true; return true } // a worn pickaxe must not break mid-shaft
-            if (prePositionNow()) { interrupted = true; return true } // (v0.36.0) the walk home preempts the shaft
-            return false
+        // (v0.223.0) THE WET CHURN WIRING - the governor's field face. The
+        // pure plan (v0.222.0) priced the AFTER-STORM stance; this lane wires
+        // it: the recorder (src/bots/miner.mjs) keeps the bot's OWN rescue
+        // starts, the work loop consults wetChurnPlan on EVERY pass (the
+        // wiring re-reads on each goal), and an evacuation holds the
+        // wet-prone lanes (the shaft dig + the steered tunnels - the flooded
+        // quarry's faces) while the bot spends the cooldown on dry ground:
+        // daylight prices a bounded surface wood gather (the bootstrap lane's
+        // own shape), night rests out the slice (the v0.140.1 hold owns the
+        // dark surface). THE LAWS THIS WIRE OBEYS: the arm carries the plan's
+        // OWN exit clock (the wiring never extends it, the re-read never
+        // double-books - holding re-reads with the remaining time); the hold
+        // passes stay SILENT (the arm + the release are the whole story, no
+        // per-pass spam - the lastNightLog shape); the rescue machinery is
+        // UNTOUCHABLE (the plan never gates the ladder - a rescue during an
+        // evacuation still runs), and the bank lanes below keep their own
+        // gates (the yard walk is dry ground - a valid evacuation lane).
+        const churnEvents = (() => { try { return miner.wetRescueEvents?.() ?? [] } catch { return [] } })()
+        const churnPlan = (() => {
+          try {
+            return wetChurnPlan({ rescueEvents: churnEvents, now: Date.now(), evacUntil: wetEvacUntil })
+          } catch { return { go: false, why: 'no-history', count: 0 } }
+        })()
+        if (churnPlan.go) {
+          wetEvacUntil = churnPlan.untilMs // the plan owns the exit clock - the wiring only carries it
+          churnHoldAnnounced = true
+          console.log(`${name} churn: evacuation armed (${churnPlan.count} rescues/${WET_CHURN_WINDOW_MS / 1000}s) - the wet lanes hold for ${WET_CHURN_COOLDOWN_MS / 1000}s (the rescue machinery untouched)`)
+        } else if (churnPlan.why !== 'holding' && churnHoldAnnounced) {
+          churnHoldAnnounced = false
+          console.log(`${name} churn: evacuation released (${churnPlan.why}) - the cooldown owns the exit, the window re-reads honestly`)
+        }
+        const churnHolding = !!(churnPlan.go || churnPlan.why === 'holding')
+        if (churnHolding) {
+          const swap = churnSwap({ remainingMs: churnPlan.remainingMs ?? (wetEvacUntil - Date.now()), daylight: !walkForbidden(miner.bot.time?.timeOfDay) })
+          if (swap.work === 'wood') {
+            try {
+              await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: Math.max(5, Math.round(swap.maxMs / 1000)) })
+            } catch { /* dry work with whatever the trip reached */ }
+          } else {
+            // the rest slice: bounded by the swap AND the run clock (the deadline owns everything)
+            await new Promise(r => setTimeout(r, Math.max(0, Math.min(swap.maxMs, deadline - Date.now()))))
           }
-        })
-        // FLOOR LOCK (v0.10.1, 600s fleet 35478370438): a bottomed-out bot's shaft
-        // breaks instantly on minY, the "next column" walk targets sealed stone and
-        // fails, and the bot froze for the rest of the run (mined frozen at 987 for
-        // the last 222s - 37% of the run - with 19/19 alive). Two empty shafts in a
-        // row mean we are sealed in at the floor: branch-mine sideways instead of
-        // idling. The direction rotates each attempt so 19 bots spread their galleries.
-        if (interrupted) continue
-        const productiveShaft = (shaftRes.done ?? 0) > 0
-        if (productiveShaft) {
-          productiveShafts++
-          emptyShafts = 0 // a productive shaft still resets the seal counter (the v0.10.1 semantics kept)
-        } else emptyShafts++
-        // (v0.81.0) TWO doors into the steered tunnel now:
-        //  - the v0.10.1 FLOOR LOCK (two empty shafts = sealed in, branch-mine out);
-        //  - THE ORE DETOUR (every 2nd PRODUCTIVE shaft): a productive shaft resets
-        //    emptyShafts, so under the old shape a bot that never sealed NEVER
-        //    tunneled - run75's 98 known iron veins got exactly 12 steered visits
-        //    (yield: one iron_ore) because 660 coal records kept winning the
-        //    distance election on the rare floor locks. The detour pays the visit
-        //    the plan is starving for: the bot stands at its own shaft floor (the
-        //    ore band), the gallery is 12 blocks toward the most-deficit vein, and
-        //    the zeroTunnels backoff + the skip ledger keep it bounded.
-        if (emptyShafts >= 2) {
-          emptyShafts = 0
-          await runSteeredTunnel('floor lock')
-        } else if (productiveShafts % 2 === 0) {
-          await runSteeredTunnel('ore detour')
+        }
+        if (!churnHolding) {
+          let interrupted = false
+          const shaftRes = await miner.digShaft(namesFor(hasPickNow()), {
+            // (v0.14.1) the floor moves UP from 24 to 42: the old bottom sat the fleet
+            // inside the AQUIFER band - every shaft bottom was wet (fleet 114:
+            // rescues=17, climb staircases refused their step cells as water, 'blocked
+            // toward ...' x17, 0 climbs, banked=0). y=42 still holds the plan's
+            // underground materials (iron/copper/coal/stone all spawn above the
+            // deepslate band) but the dig columns stay dry: no swim physics, and the
+            // staircase climb only meets stone it can dig.
+            minY: 42,
+            shouldStop: () => {
+              if (Date.now() > deadline || !miner.bot.entity) return true
+              if (recoveryDueNow()) { interrupted = true; return true }
+              if (upgradeDueNow()) { interrupted = true; return true } // a worn pickaxe must not break mid-shaft
+              if (prePositionNow()) { interrupted = true; return true } // (v0.36.0) the walk home preempts the shaft
+              return false
+            }
+          })
+          // FLOOR LOCK (v0.10.1, 600s fleet 35478370438): a bottomed-out bot's shaft
+          // breaks instantly on minY, the "next column" walk targets sealed stone and
+          // fails, and the bot froze for the rest of the run (mined frozen at 987 for
+          // the last 222s - 37% of the run - with 19/19 alive). Two empty shafts in a
+          // row mean we are sealed in at the floor: branch-mine sideways instead of
+          // idling. The direction rotates each attempt so 19 bots spread their galleries.
+          if (interrupted) continue
+          const productiveShaft = (shaftRes.done ?? 0) > 0
+          if (productiveShaft) {
+            productiveShafts++
+            emptyShafts = 0 // a productive shaft still resets the seal counter (the v0.10.1 semantics kept)
+          } else emptyShafts++
+          // (v0.81.0) TWO doors into the steered tunnel now:
+          //  - the v0.10.1 FLOOR LOCK (two empty shafts = sealed in, branch-mine out);
+          //  - THE ORE DETOUR (every 2nd PRODUCTIVE shaft): a productive shaft resets
+          //    emptyShafts, so under the old shape a bot that never sealed NEVER
+          //    tunneled - run75's 98 known iron veins got exactly 12 steered visits
+          //    (yield: one iron_ore) because 660 coal records kept winning the
+          //    distance election on the rare floor locks. The detour pays the visit
+          //    the plan is starving for: the bot stands at its own shaft floor (the
+          //    ore band), the gallery is 12 blocks toward the most-deficit vein, and
+          //    the zeroTunnels backoff + the skip ledger keep it bounded.
+          if (emptyShafts >= 2) {
+            emptyShafts = 0
+            await runSteeredTunnel('floor lock')
+          } else if (productiveShafts % 2 === 0) {
+            await runSteeredTunnel('ore detour')
+          }
         }
         if (Date.now() > deadline || !miner.bot.entity) break
         // pockets nearly full: merge fragmented planks into sticks (KEEP keeps planks,
