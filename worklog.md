@@ -5364,3 +5364,24 @@ Stage Summary:
 - FLEET OF RECORD: none in flight at close - the closing dispatch (the first-lane attribution's field debut) POSTs as the absolute last action.
 - WATCH LIST: 'open-field yield' lines must now be FIRST-LANE-TRUE (the attribution counter reads real volume; the residual class must stay silent); 'vs drowned' volume on a night-drowned sample (the trident band's true test); the spider close-range front (3/5 deaths); the census silence (3-run streak - the unarmed starvation is 0.217.0's top candidate); the ledger health (100.2% - can it hold); the fall x2 class.
 - OPEN FRONTS (0.217.0): the reloot unarmed arm (feed the pocket first or arm the ladder for the UNARMED - 3-run starvation 10+8+0-arms); the spider melee band (the spider deaths at 1.4-1.7 - the fight or the flee?); the fall x2; the bank unreachable tail (68).
+Task ID: cron30-20260926-2300
+Agent: Super Z (cron lane, Job 414125)
+Task: 23:00 fire - mine+decode the TRIDENT BAND debut 36248025944 (the 22:30 handoff).
+
+Work Log:
+- Sync: master 92abc3b (pkg 0.216.0 THE FIRST LANE - the lane took the marker attribution cure while this lane was between fires; the threatVerdictLane mirror is LIVE). Next free version 0.217.0.
+- 36248025944 polled to completion: SUCCESS, all legs green (Unit 22+24, Integration, Big fleet run). MINED to the run44 mount. DECODED (run on 351c99c = v0.215.0 TRIDENT BAND):
+  - THE TRIDENT BAND'S FIELD DEBUT PASSED: exactly ONE 'open-field yield' line - F12 vs drowned, hp 7.2 < 14, 'the flee fired before the drain' - the band's TARGET CLASS fired and the bot LIVED. The honest contract holds in the drowned domain.
+  - ZERO-LEAK ECONOMY: unaccounted=59 (2071 -> 768 -> 59 - the RECORD LEAK IS CURED), conversion=98.0% (31.1 -> 72.3 -> 98.0), banked=1192, mined=2895, pocket=1626u/206s, accounted=2836. The bank-leak front is CLOSED as a top front.
+  - DEATHS=6 (trend 2->7->11->10->6): ALL drowned (server verdicts: drown x5 + slain by Drowned x1). Creeper 0, skeleton 0, zombie 0 as killers. The drowned remain the sole reaper; 3+ inference CONTRADICTIONS (server 'drowned' vs inferred zombie@15.3/13.0, fall/env - the nearest-harm inference keeps missing the trident shooter).
+  - PLAN BREAKTHROUGH: 2/31 (the chronic 1/31 x8 finally moved). smelted=18, torched=11 (3->8->11 the torch chain re-armed and grows), coal_ore=254, fights=7 kills=1, rescues=100 (129->100 the water pressure eased), relogins=34, alive=19 at close.
+  - THE CENSUS SPOKE (once): 'F13 reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: sealed)' - a PATH failure, still not a scan refusal (3-run: silent, silent, 1 path-sealed).
+  - THE UNARMED LAW HARDENED: 'no walk (unarmed)' x18 (10+8+18 - 3-run monotone; the ladder NEVER arms on empty pockets; the note reads 'a delay, not a verdict').
+- No code this fire: the decode was the atomic unit (the handoff's primary lane).
+- Worklog pushed BEFORE dispatch per the sharpened law; dispatch follows as the absolute last action (the v0.216.0 FIRST LANE field debut - the marker must stay silent when the legacy lane fired first).
+
+Stage Summary:
+- Master 92abc3b + this worklog (pkg 0.216.0). Next free version 0.217.0. Next local section = Task ID cron30-20260926-2330.
+- FLEET OF RECORD: 36248025944 SUCCESS (decoded this fire) + this fire's closing dispatch (the FIRST LANE's field debut on the worklog tree).
+- NEXT FIRE: (1) mine+decode the fresh dispatch: the FIRST LANE's field volume (the marker must count ONLY true lens fires - the 7.2-class must go silent or re-attribute), the drowned reaper (6/6 - the band works but coverage is partial: the flee saved F12 at 7.2 but 6 died anyway - the drift-wait/swimmer band is the next edge), the unarmed law (3-run monotone 10/8/18 - the kind-gate is 0.217.0's lead candidate), the census path-sealed shape, triage 11th; (2) CODE FRONTS (0.217.0): the reloot unarmed arm / pocket-first feed (LEAD), the drowned drift-wait coverage, the inference-contradiction (nearest-harm vs trident); (3) the lane may take 0.217.0.
+- OPEN FRONTS: the reloot unarmed starvation (3-RUN LAW); the drowned coverage (6 deaths, 1 save); the plan->delivery gap (2/31, improving); the inference-contradiction class; the census path-sealed; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (59, was 2071).
