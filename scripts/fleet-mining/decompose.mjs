@@ -87,9 +87,16 @@ console.log('  no-path retries armed:', count(/reloot: no-path retry at range/),
 console.log('  retry arrivals:', count(/reloot: retry arrived in/))
 console.log('  retry failures:', count(/reloot: retry failed/))
 console.log('  refused retries (no retry: why):', count(/reloot: walk failed.*\(no retry: /))
-console.log('  surface retries armed:', count(/reloot: surface retry at/))
+console.log('  surface retries armed:', count(/reloot: surface retry at/), 'per-bot:', fmt(perBot(/reloot: surface retry at/)))
 console.log('  surface arrivals:', count(/reloot: surface arrived/))
 console.log('  surface failures:', count(/reloot: surface failed/))
+console.log('  refused surfaces (no surface: why):', count(/reloot: retry failed.*\(no surface: /))
+const surfaceWhys = {}
+for (const l of lines) {
+  const w = l.match(/reloot: retry failed.*\(no surface: ([^)]+)\)/)
+  if (w) surfaceWhys[w[1].split(' ')[0]] = (surfaceWhys[w[1].split(' ')[0]] || 0) + 1
+}
+console.log('  surface refusal whys:', fmt(surfaceWhys))
 
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))

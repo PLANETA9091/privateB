@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1205,7 +1205,68 @@ async function runBot (name, target, index) {
                   } catch { /* a junk entity read reads zero stacks */ }
                   console.log(`${name} reloot: retry arrived in ${((Date.now() - retryT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) within ${rr.range}${stacks ? ' (in read reach - the magnet takes what it can)' : ' (none in read reach - gone, or floating beyond the sphere)'}`)
                 } catch (e2) {
-                  console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost`)
+                  // (v0.211.0) THE SURFACE WIRING - the ladder's third leg,
+                  // wired inside the wide retry's own catch (the field
+                  // sequence is strict: walk -> wide retry -> surface, and
+                  // the surface only fires when the wide retry ALSO died of
+                  // GEOMETRY - a budget timeout means the sphere was
+                  // converging and the gate refuses it honestly). run55
+                  // named the shape: F17's spot sits at the flooded quarry
+                  // bottom and the drops FLOAT - the reachable goal is the
+                  // water SURFACE cell, not a wider sphere. The runner reads
+                  // the death column bottom-up from the spot (bot.blockAt,
+                  // capped RELOOT_SURFACE_RISE_MAX, {y, name} pairs), the
+                  // scanner names the first air above the fluid, and the
+                  // gate prices the walk on the surface cell with the SAME
+                  // plan arithmetic (the 128 envelope, the despawn window,
+                  // the margin). ONE gotoSafe rides it with doomedRearm:
+                  // true - the wide retry LEDGERED the cell family too. A
+                  // junk world read reads an empty column - the scanner
+                  // refuses and the death stays terminal.
+                  const rs = (() => {
+                    try {
+                      const column = []
+                      for (let i = 0; i <= RELOOT_SURFACE_RISE_MAX; i++) {
+                        let blockName = null
+                        try {
+                          const b = miner.bot.blockAt(new Vec3(rp.goal.x, rp.goal.y + i, rp.goal.z))
+                          blockName = b?.name ?? null
+                        } catch { blockName = null }
+                        column.push({ y: rp.goal.y + i, name: blockName })
+                      }
+                      return relootSurfaceRetry({
+                        message: e2?.message,
+                        retries: 1,
+                        surfaceY: relootSurfaceY({ column }),
+                        spot: relootDeath.spot,
+                        deathAt: relootDeath.at,
+                        now: Date.now(),
+                        botPos: miner.bot.entity
+                          ? { x: miner.bot.entity.position.x, y: miner.bot.entity.position.y, z: miner.bot.entity.position.z }
+                          : null
+                      })
+                    } catch { return { go: false, why: 'no-surface' } }
+                  })()
+                  if (!rs.go) {
+                    console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost${rs.why === 'not-no-path' ? '' : ` (no surface: ${rs.why})`}`)
+                  } else {
+                    console.log(`${name} reloot: surface retry at [${rs.goal.x},${rs.goal.y},${rs.goal.z}] (budget ${(rs.budgetMs / 1000).toFixed(0)}s) - the floating stacks live at the water surface`)
+                    const surfaceT0 = Date.now()
+                    try {
+                      await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rs.goal.x, rs.goal.y, rs.goal.z, { range: rs.range }), { timeoutMs: rs.budgetMs, label: 'reloot surface', doomedRearm: true })
+                      let stacks = 0
+                      try {
+                        const me = miner.bot.entity.position
+                        for (const ent of Object.values(miner.bot.entities)) {
+                          if (!ent || ent.name !== 'item' || !ent.position || ent.isValid === false) continue
+                          if (ent.position.distanceTo(me) <= rs.range) stacks++
+                        }
+                      } catch { /* a junk entity read reads zero stacks */ }
+                      console.log(`${name} reloot: surface arrived in ${((Date.now() - surfaceT0) / 1000).toFixed(0)}s - ${stacks} item stack(s) within ${rs.range}${stacks ? ' - the magnet takes what it can' : ' - none in read reach (gone, or out of the surface cell)'}`)
+                    } catch (e3) {
+                      console.log(`${name} reloot: surface failed (${e3.message}) - the drops stay lost`)
+                    }
+                  }
                 }
               }
             }

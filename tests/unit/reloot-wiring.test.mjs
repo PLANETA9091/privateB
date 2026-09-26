@@ -24,9 +24,9 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
     'the miner exposes the record to the runner (the runner decides, never the death handler)')
 })
 
-test('REGRESSION PIN: the fleet imports the pure plan and the retry classifier', () => {
-  assert.ok(fleetSrc.includes("import { relootPlan, relootRetry } from '../src/lib/reloot.mjs'"),
-    'the runner reads the plan and the classifier from the module (no fork of the fence arithmetic)')
+test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier and the surface ladder', () => {
+  assert.ok(fleetSrc.includes("import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceRetry, RELOOT_SURFACE_RISE_MAX } from '../src/lib/reloot.mjs'"),
+    'the runner reads the plan, the classifier and the surface ladder from the module (no fork of the fence arithmetic; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -166,4 +166,70 @@ test("v0.207.0: the new lines reach the artifact (the v0.176.0 prefix law - the 
     'the retry failure line reaches the artifact')
   assert.ok(filter.test('[F10] reloot: walk failed (timeout after 8000ms) - the drops stay lost (no retry: not-no-path)'),
     'the refused-retry terminal line reaches the artifact')
+})
+
+// ---- v0.211.0 THE SURFACE WIRING ----
+// run55 named the shape: the wide retry refused again ('No path to the
+// goal!') and the drops FLOAT - the reachable goal is the water SURFACE
+// above the dead cell, not a wider sphere. The pure ladder shipped in
+// v0.208.0 (relootSurfaceY + relootSurfaceRetry); this fire wires the
+// third leg inside the wide retry's own catch. Every scalar named (the
+// run195 law).
+
+test('v0.211.0: the surface lane lives INSIDE the wide retry catch (the strict leg ladder)', () => {
+  const lane = fleetSrc.match(/catch \(e2\) \{[\s\S]*?reloot: surface failed/)
+  assert.ok(lane, 'the surface lane exists inside the e2 catch (never beside it, never before the wide retry)')
+  assert.ok(lane[0].includes('reloot: retry failed'), 'the wide retry refusal prints BEFORE the surface legs (the ladder reads in order)')
+  assert.ok(lane[0].includes('retries: 1'), 'the gate reads retries exactly 1 - the wide retry spent its refusal (the v0.208.0 ladder law)')
+})
+
+test('v0.211.0: the column read is capped and junk-safe (the runner side of the scanner contract)', () => {
+  const read = fleetSrc.match(/const column = \[\][\s\S]*?column\.push\(\{ y: rp\.goal\.y \+ i, name: blockName \}\)/)
+  assert.ok(read, 'the bottom-up read exists')
+  assert.match(read[0], /i <= RELOOT_SURFACE_RISE_MAX/, 'the read is capped to the scanner bound (never an open-ended climb)')
+  assert.match(read[0], /miner\.bot\.blockAt\(new Vec3\(rp\.goal\.x, rp\.goal\.y \+ i, rp\.goal\.z\)\)/, 'the reads start AT the spot (the plan goal rides the column x/z/y)')
+  assert.match(read[0], /blockName = b\?\.name \?\? null/, 'an unreadable block reads null (the scanner refuses junk honestly)')
+  assert.match(fleetSrc, /catch \{ return \{ go: false, why: 'no-surface' \} \}/, 'a junk world read refuses as no-surface - the death stays terminal')
+})
+
+test('v0.211.0: the surface call carries every scalar (the run195 dead-wire class)', () => {
+  const lane = fleetSrc.match(/const rs = \(\(\) => \{[\s\S]*?if \(!rs\.go\)/)
+  assert.ok(lane, 'the surface gate lane exists (the IIFE read + the call + the verdict split)')
+  assert.match(lane[0], /relootSurfaceRetry\(\{/, 'the gate is called at the retry-failure site')
+  assert.match(lane[0], /message:\s*e2\?\.message/, "the WIDE RETRY's own error rides the call (the geometry class decides)")
+  assert.match(lane[0], /retries:\s*1/, 'the ladder position rides the call (never before the cheap leg)')
+  assert.match(lane[0], /surfaceY:\s*relootSurfaceY\(\{ column \}\)/, 'the scanner verdict rides the call (the runner never guesses a y)')
+  assert.match(lane[0], /spot:\s*relootDeath\.spot/, 'the death spot rides the call (the goal x/z ride it)')
+  assert.match(lane[0], /deathAt:\s*relootDeath\.at/, 'the death clock rides the call (the despawn window prices from it)')
+  assert.match(lane[0], /now:\s*Date\.now\(\)/, "the caller's clock rides the call")
+  assert.match(lane[0], /botPos:\s*miner\.bot\.entity/, 'the current stance rides the call (the distance needs it)')
+})
+
+test('v0.211.0: the surface walk rides doomedRearm and the plan pricing, never hardcoded', () => {
+  const walk = fleetSrc.match(/gotoSafe\(miner\.bot, standGoalNear\(miner\.bot, goals, rs\.goal\.x, rs\.goal\.y, rs\.goal\.z, \{ range: rs\.range \}\), \{ timeoutMs: rs\.budgetMs, label: 'reloot surface', doomedRearm: true \}\)/)
+  assert.ok(walk, 'the surface walk carries the gate goal, the gate range, the gate budget and the ledger re-arm (the wide retry LEDGERED the cell family too)')
+})
+
+test('v0.211.0: the honest surface terminal classes', () => {
+  assert.match(fleetSrc, /reloot: surface retry at \[/, 'the surface arm prints loudly (the decode counts the arms)')
+  assert.match(fleetSrc, /reloot: surface arrived in/, 'the surface arrival prints')
+  assert.match(fleetSrc, /reloot: surface failed/, 'the surface failure prints (silence is never evidence)')
+  assert.match(fleetSrc, /distanceTo\(me\) <= rs\.range/, 'the read rides the PLAN range (the v0.208.0 recipe: the read rides the plan range)')
+  assert.match(fleetSrc, /\(no surface: \$\{rs\.why\}\)/, 'a refused surface names its why on the terminal line (the no-surface census exists)')
+  assert.ok(fleetSrc.includes('${name} reloot: retry failed (${e2.message}) - the drops stay lost'),
+    'the legacy retry-failure prefix survives verbatim (the historical greps stay stable)')
+})
+
+test("v0.211.0: the surface lines reach the artifact (the v0.176.0 prefix law - the 'reloot' key owns the prefix)", () => {
+  const filterMatch = fleetSrc.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
+  assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
+  const filter = new RegExp(filterMatch[1])
+  assert.ok(filter.test('[F17] reloot: surface retry at [-117,63,406] (budget 16s) - the floating stacks live at the water surface'),
+    'the surface arm line reaches the artifact')
+  assert.ok(filter.test('[F17] reloot: surface arrived in 12s - 3 item stack(s) within 2 - the magnet takes what it can'),
+    'the surface arrival line reaches the artifact')
+  assert.ok(filter.test('[F4] reloot: surface failed (No path to the goal!) - the drops stay lost'),
+    'the surface failure line reaches the artifact')
+  assert.ok(filter.test('[F10] reloot: retry failed (No path to the goal!) - the drops stay lost (no surface: no-surface)'),
+    'the refused-surface terminal line reaches the artifact (the no-surface census rides the same filter)')
 })
