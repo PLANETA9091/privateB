@@ -5385,3 +5385,20 @@ Stage Summary:
 - FLEET OF RECORD: 36248025944 SUCCESS (decoded this fire) + this fire's closing dispatch (the FIRST LANE's field debut on the worklog tree).
 - NEXT FIRE: (1) mine+decode the fresh dispatch: the FIRST LANE's field volume (the marker must count ONLY true lens fires - the 7.2-class must go silent or re-attribute), the drowned reaper (6/6 - the band works but coverage is partial: the flee saved F12 at 7.2 but 6 died anyway - the drift-wait/swimmer band is the next edge), the unarmed law (3-run monotone 10/8/18 - the kind-gate is 0.217.0's lead candidate), the census path-sealed shape, triage 11th; (2) CODE FRONTS (0.217.0): the reloot unarmed arm / pocket-first feed (LEAD), the drowned drift-wait coverage, the inference-contradiction (nearest-harm vs trident); (3) the lane may take 0.217.0.
 - OPEN FRONTS: the reloot unarmed starvation (3-RUN LAW); the drowned coverage (6 deaths, 1 save); the plan->delivery gap (2/31, improving); the inference-contradiction class; the census path-sealed; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (59, was 2071).
+
+---
+Task ID: cron30-20260926-2330
+Agent: Super Z (cron lane, Job 414125)
+Task: 23:30 fire - ARBITRATE the run870 decode discrepancy; mine+decode the FIRST LANE debut 36251211796.
+
+Work Log:
+- Sync: master 6005e3b (pkg 0.216.0), the lane quiet since 43adbf4. Next free version 0.217.0. 36251211796 (my 23:00 dispatch, the FIRST LANE field debut) found IN_PROGRESS - polled, NOT duplicated (the one-active-run law).
+- ARBITRATION COMPLETE - THE RUN870 DECODE DISPUTE RESOLVED: re-mined 36248025944 fresh (zips re-downloaded 15:30, byte-identical sizes 45331/10575/2803) + verified via the artifacts API: run 36248025944 owns EXACTLY fleet19-log=45331, fleet-server-log=10575, fleet-logs=2803 (created 15:07:02-03Z). The fresh extraction reproduces the 23:00 lane's numbers precisely: deaths=6 (drowned x5 + slain by Drowned x1), banked=1192, conversion=98.0%, unaccounted=59, rescues=100, plan 2/31, ONE yield line F12 vs drowned hp 7.2. THE 22:37 LANE'S run108 LEDGER (deaths=5 fall x2 + spider x3, 0 drowned, banked=2309, conversion=100.2%, unaccounted=0, airGlitches=0) IS FOREIGN TO RUN870 - a mis-attributed artifact set (the 22:37 entry above stays verbatim; the discrepancy is resolved here, never by deletion). The spider-front "new shape" does NOT exist in run870; treat spider-death reports as unverified until a decoded run shows them.
+- 36251211796 polled 540s: Big fleet run STILL in_progress (unit 22/24 + integration all green early). By the run870 shape (~49 min create->artifacts) completion lands ~16:03Z - beyond this fire's box. LEFT IN FLIGHT for the 00:00 fire.
+- No code this fire (arbitration + poll = the atomic unit). No dispatch (876 active - the no-duplicate law).
+
+Stage Summary:
+- Master 6005e3b + this worklog (pkg 0.216.0). Next free version 0.217.0. Next local section = Task ID cron30-20260927-0000.
+- FLEET OF RECORD: 36251211796 IN FLIGHT (the FIRST LANE field debut on 6005e3b = v0.216.0 + both worklog sections).
+- NEXT FIRE: (1) poll 36251211796 to completion, mine+decode: the FIRST LANE's field volume (the marker must count ONLY true lens fires - the 4.5/7.2 sub-8 class must go SILENT now; any 'open-field yield' line is first-lane-true), the drowned reaper trajectory (6 -> ?), the unarmed law 4th sample (10/8/18 -> ?), the plan trajectory (2/31 -> ?), the census (path-sealed -> ?), triage 12th; (2) CODE FRONTS (0.217.0): the reloot unarmed arm / pocket-first feed (LEAD, 3-run monotone), the drowned drift-wait coverage, the coal ARRIVAL root; (3) the lane may take 0.217.0.
+- OPEN FRONTS: the reloot unarmed starvation (3-RUN LAW 10/8/18); the drowned coverage (6 deaths 1 save in run870); the plan->delivery gap (2/31); the inference-contradiction class (nearest-harm vs trident shooter); the census path-sealed shape; the hazard-pull guard gap; coal ARRIVAL root. CLOSED: the bank leak (59, was 2071); the run870 decode dispute (arbitrated 15:31Z, artifact-verified).
