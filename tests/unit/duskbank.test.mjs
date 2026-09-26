@@ -127,3 +127,19 @@ test('REGRESSION PIN: the fleet wires the dusk lane with its own label', () => {
   assert.ok(fleetSrc.includes("bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : 'pockets full'}"), "the dusk trip names itself - a third label on the 'bank ' filter key")
   assert.ok(fleetSrc.includes('yardDist: bankYardDist'), 'the dusk gate reads the SAME yard distance the budget prices (one read, one truth)')
 })
+
+// (v0.198.0) THE DEAD-WIRE CLASS: the tests above passed msSinceBank explicitly,
+// the wiring pin below checked the label and the yardDist but never the cadence
+// clock - so the field wiring omitted the arg, the fence (d) default read 0, and
+// the escalation refused EVERY arm for its whole field life (run195, fleet
+// 36206318405: 12 'final bank deferred: night', 0 'bank trip: dusk' rows). The
+// pin now names the arg: a call site without it is a dead wire, whatever the
+// pure family says.
+test('REGRESSION PIN: the dusk call carries the cadence clock (the run195 dead-wire class)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const call = fleetSrc.match(/duskBankDue\(\{[\s\S]*?\}\)/)
+  assert.ok(call, 'the dusk call site exists')
+  assert.match(call[0], /msSinceBank:\s*Date\.now\(\)\s*-\s*lastBankAt/, 'the cadence clock rides the dusk call - the fence (d) default 0 is a dead wire')
+  assert.match(call[0], /remainingMs: bankRemainingMs/, 'the run clock rides the call (the real-trip fence prices it)')
+  assert.match(call[0], /units: load\.units/, 'the pocket rides the call (the units floor prices it)')
+})

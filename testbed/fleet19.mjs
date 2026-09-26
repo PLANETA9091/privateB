@@ -1278,11 +1278,18 @@ async function runBot (name, target, index) {
         // the pocket rides out the dark alive) and it keeps the cadence
         // refractory (lastBankAt below advances on every attempt - no retry
         // storm). The refusal line below keeps its byte-for-byte shape.
+        // (v0.198.0) THE DUSK WIRE - the cadence clock rides the call. MEASURED
+        // (run195, fleet 36206318405): 12 'final bank deferred: night' and ZERO
+        // 'bank trip: dusk' rows - the call omitted msSinceBank, the fence (d)
+        // default read 0, and `0 >= BANK_TRIP_EVERY_MS` refused EVERY arm for
+        // the cure's whole field life (the tests passed the arg explicitly, the
+        // wiring pin never named it - the regression pin now does).
         const bankDusk = !!(load && !tripPlanned && duskBankDue({
           timeOfDay: miner.bot.time?.timeOfDay,
           remainingMs: bankRemainingMs,
           units: load.units,
-          yardDist: bankYardDist
+          yardDist: bankYardDist,
+          msSinceBank: Date.now() - lastBankAt
         }))
         const bankWanted = !!(needsBanking(miner.bot) || tripPlanned || bankDusk)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
