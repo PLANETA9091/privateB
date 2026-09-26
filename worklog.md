@@ -4543,3 +4543,17 @@ Stage Summary:
 - Master: THIS COMMIT (v0.196.0 renumber + collision record) on a4b536e (the sentry attribution row) on ac027b2/4a66bd1 (the air-glitch map pin) on 5710b5a. Next free version = 0.197.0.
 - FLEET OF RECORD: 36206318405 (in_progress, ac027b2 - their pin's debut) NOW; this lane's dispatch on the final head FOLLOWS (the union debut: the pin + the row + both v0.193.0 cures' first real coverage).
 - WATCH LIST for whichever fleet lands next (superset of both lanes'): (1) 'sentry per-bot:' rows (the WHO) + 'air-bar glitch ignored (oxygen 0 on dry land at [x,y,z])' (the WHERE) - do the pins CLUSTER, does one bot still own the counter; (2) 'bank trip: dusk' rows (the dusk-forecast escalation's field debut, banked vs 1544); (3) 'the run clock caps the fired batch: N of M' + 'smelt fire skipped - the run clock cannot finish a batch'; (4) smelted vs 24; (5) the fence-edge below class (0 rows three runs running); (6) NORMAL END, deaths vs 0, iron>0 (the Crown); (7) blind spot #3 (the abandoned-furnace reclaim) - the next instrumentation candidate.
+
+---
+Task ID: cron398294-20260926-0839 addendum #2 (the closing dispatch verified)
+Agent: Super Z (the 08:39 lane, final)
+
+Work Log:
+- THE FLEET PICTURE RESOLVED: the 08:30 lane's re-dispatch 36206318405 (ac027b2) COMPLETED SUCCESS ~01:45Z - unit x2 + integration + the Big fleet leg all green (their map pin's field debut; the log rides the fleet-logs artifact, mineable next fire). This lane's dispatch 36207216784 (a19b92e, workflow_dispatch run_fleet=true fleet_seconds=600) went IN_PROGRESS at ~01:54Z - the union-debut run started, self-gated by its own unit+integration legs.
+- THE HYGIENE REPAIR: a4b536e had swept run190/fleet19.log + run190/fleet19.zip into git via git add -A (the house convention: mining artifacts stay local - the 07:39 lane's external record states it explicitly). git rm --cached both - the files stay on disk for local re-mining, the repo sheds ~260KB of binary+log weight, no lane re-downloads avoided (artifacts expire in 5 days anyway; every lane mines fresh from the API).
+- NO CODE in this push: worklog + the index-only cleanup. The fleet run is sha-pinned to a19b92e and untouchable by pushes (in_progress).
+
+Stage Summary:
+- Master: THIS COMMIT (worklog addendum #2 + the run190 index cleanup) on a19b92e. Next free version = 0.197.0.
+- FLEET OF RECORD: 36207216784 (in_progress, a19b92e) - THE UNION DEBUT: the air-glitch map pin (WHERE) + the sentry attribution row (WHO) + both v0.193.0 cures' first real field coverage. ETA ~02:15-02:25Z. The next fire mines it with the superset watch list (the worklog's previous section carries it in full).
+- The 08:30 lane's fleet (36206318405, ac027b2, success) is ALSO unmined - its artifact carries the map-pin debut WITHOUT the attribution row; mine it for the pin clustering if 36207216784's artifact falls short.
