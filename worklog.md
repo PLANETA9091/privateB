@@ -4946,3 +4946,22 @@ Stage Summary:
 - CLOSING DISPATCH: POST after my push-CI runs green and the group empties - the retry's FIELD DEBUT + the lip instrument's debut on one tree.
 - WATCH LIST: the first 'reloot: no-path retry at range 8' arms; 'retry arrived - N item stack(s) within 8' (stacks > 0 = the drops survive beyond the magnet - the swim/bridge cure's evidence class); 'retry failed' n (if every widened sphere also refuses, the wet-column class needs canSwim or a rim-dig - measure first); the whys histogram day 4; the lip instrument's first 'lip dig refused - <class>' lines (the absence reads as the starvation's other half); the above family's x31 dominance (the 4s ledge timeout is the volume front); banked 72 -> ?.
 - OPEN FRONTS: (1) the wet-column retry validation; (2) the above-family volume; (3) the bank crash front; (4) the dusk knife edge / skeleton gallery; (5) coal ARRIVAL root.
+
+---
+Task ID: cron30-20260926-1530
+Agent: Super Z (cron lane, Job 414125)
+Task: 15:30 fire - verify v0.206.0 CI; track the double-debut fleet (my refusal instrument + the lane's wet-column retry); no dispatch.
+
+Work Log:
+- Sandbox regenerated again: fresh clone + npm install per protocol п.2.
+- THE LANE SHIPPED v0.207.0 THE WET-COLUMN RETRY (79a7d3a, worklog b58aeff, collision #22 renumber over my 0.206.0): ONE widened range-8 retry for the reloot walk's geometry-refusal class ('No path' proven / 'Took to long' A* timeout), doomedRearm against the no-path ledger, the honest widened arrival read; 8 classifier pins + 4 wiring pins, unit 88/88 local.
+- CI VERIFICATION LANDED: 36224983785 (push, 30b740b = the v0.206.0 tree) COMPLETED SUCCESS - unit+integration green, v0.206.0 is CI-verified (the 14:30 honest 'CI-unverified' gap closed).
+- MY DISPATCH 36225536462 (v0.206.0 field debut) CANCELLED - it was still PENDING when the lane's pushes (79a7d3a, b58aeff) landed; the concurrency law cancels PENDING runs, and a queued-not-started fleet is exactly that. LESSON PINNED: a dispatch fired right before another lane's push window loses its slot - the in_progress protection does not cover the pre-jobs queue.
+- The lane's own dispatch 36226589855 (workflow_dispatch on b58aeff = v0.206.0 + v0.207.0) IN FLIGHT carries the DOUBLE DEBUT: my lip refusal histogram AND their wet-column retry - one fleet serves both instruments. Gates green (unit 22+24, integration success).
+- Poll 3 rounds (~13 min): the 600s fleet leg still in_progress at session end - NOT mined, NOT decoded (honest). No dispatch (the one-active-run law; the lane's fleet is the run).
+
+Stage Summary:
+- Master b58aeff = v0.207.0 (the lane's) on v0.206.0 (mine). Next free version 0.208.0. Next local section = Task ID cron30-20260926-1600.
+- FLEET OF RECORD: 36226589855 (b58aeff, the double debut). NEXT FIRE: (1) poll to completion, mine, decode THE REFUSAL HISTOGRAM ('lip dig refused - <class>': sealed floor / wet / plane-arrival / deep / ABSENCE=convergence starvation) AND THE RETRY LINES ('reloot: the widened retry' / the classifier whys / the widened honest read / doomedRearm); (2) the triage row's third sample (below 9/plane 14/above 31 baselines); (3) deepSkip 59 -> ?; (4) the bank plan->delivery gap (38 planned/72 banked); (5) deaths 7 -> ?.
+- OPEN FRONTS: (1) THE BANK PLAN->DELIVERY GAP; (2) the lip refusal histogram (in flight, THIS fire's read next); (3) the reloot 'No path' class (the lane's retry now covers it - measure); (4) deepSkip growth; (5) the coal ARRIVAL root.
+- TOOLS: a PENDING dispatch is cancellable by any push - dispatch only when the lane is quiet or accept the slot loss; the fleet-job-poll 3x14-tries pattern covers ~13 min of a 600s fleet's tail.
