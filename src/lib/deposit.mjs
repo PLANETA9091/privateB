@@ -9,6 +9,8 @@ import { walkBudgetMs } from './tripplan.mjs'
 import { approachWalk, APPROACH_THRESHOLD, APPROACH_SEGMENT_MS } from './approach.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (v0.62.0) the fleet no-path ledger (v0.65.0: reused for the full-chest ledger; v0.70.0: the timeout verdict joins the ledger; v0.113.0: every chest verdict rides the 15s CHEST_DOOM_TTL_MS)
 import { chestVerticalDoom } from './surface.mjs' // (v0.188.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
+import { NIGHT_WALK_START, TICKS_PER_SEC, forecastForbidden } from './nightsafety.mjs' // (v0.193.0) the dusk-forecast bank escalation reads the vanilla clock the night hold enforces
+import { finalBankDelayMs } from './endphase.mjs' // (v0.193.0) the forecast prices the bot's OWN end-phase stagger slot
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -537,6 +539,115 @@ export function needsBankingTripViable ({ remainingMs = Infinity, minRemainingMs
   if (!Number.isFinite(remainingMs)) return true
   const min = Number.isFinite(minRemainingMs) && minRemainingMs > 0 ? minRemainingMs : NEEDS_BANKING_MIN_REMAINING_MS
   return remainingMs >= min
+}
+
+// (v0.193.0) THE DUSK-FORECAST BANK ESCALATION - the gates finally talk.
+//
+// MEASURED (run46, fleet 36195869446, the v0.190.0 union, mined by the 06:39
+// lane): 16 of 19 bots ended 'final bank deferred: night (tod 12400-13106)' -
+// the dusk tail coincided with the deadline window and the hard kill ate the
+// pockets. The chain is a SCHEDULING lie between two gates that never talk:
+// the mid-run skip gate hands the pocket to the end-phase ('the end-phase owns
+// the deadline banking'), then the end-phase final bank reads the vanilla
+// clock INSIDE the walk-forbidden window and defers (the v0.140.1 hold - the
+// measured-safe shape), and the pocket dies. The skip gate's claim is only
+// true when the end-phase will actually bank.
+//
+// THE CURE is arithmetic, not a new walk: the vanilla clock advances at a
+// known rate (TICKS_PER_SEC), so the tod the end-phase will see is a FORECAST,
+// and a pocket whose end-phase will defer must bank EARLIER - while the whole
+// trip still rides daylight (the v0.185.0 mob-risk arithmetic re-derived: a
+// dusk-START trip walked the yard in the dark and the return crossed the kill
+// window, x12 deaths - so the escalation requires the FULL chain budget to
+// complete BEFORE NIGHT_WALK_START, never inside it). The four fences:
+//   (a) THE DARK FORECAST - the bot's OWN end-phase slot (finalBankDelayMs on
+//       the current yard distance) lands inside the walk-forbidden window;
+//       a junk yard distance degrades to the legacy slot 0 (the earliest bank,
+//       the forecast never widens a refusal on garbage);
+//   (b) THE REAL TRIP - the full dist-scaled chain (bankTripBudgetMs) plus
+//       the walk-home margin fits the remaining clock (the same inequality
+//       midBankBudgetMs uses to hand out the full want) - a trip that cannot
+//       afford its own chain is the v0.181.0 doomed class and stays refused;
+//   (c) THE LIGHT FIT - the chain completes before the walk-forbidden window
+//       opens: (NIGHT_WALK_START - tod) * tick_ms >= want + margin. The margin
+//       (30s) absorbs the measured yard-walk overruns;
+//   (d) THE CADENCE REFRACTORY - msSinceBank >= everyMs, the v0.181.0
+//       retry-storm fence (lastBankAt advances on every attempt in the
+//       caller, so a failed dusk trip waits a full window).
+// The UNITS floor relaxes BANK_TRIP_MIN_UNITS 48 -> 24 (DUSK_BANK_MIN_UNITS):
+// the dying pockets measured 40-67u, and at the dusk tail there is no
+// alternative use for the time - the trade is 24u banked vs 24u lost. The
+// escalation NEVER fires in the dark (fence (c) fails once tod >=
+// NIGHT_WALK_START): inside the forbidden window the night hold stays the
+// owner and the pocket rides out the dark alive - the v0.140.1 doctrine is
+// untouched byte for byte.
+export const DUSK_BANK_MIN_UNITS = 24
+export const DUSK_BANK_MARGIN_MS = 30000
+
+/**
+ * Should this bot start a bank trip NOW because the end-phase will defer the
+ * pocket to the dark? Pure, junk-safe: a junk clock, a junk run clock, junk
+ * units or an already-forbidden clock all read false (the legacy gates own
+ * the bot).
+ * @param {object} [p]
+ * @param {number} [p.timeOfDay] bot.time.timeOfDay 0..23999 (junk -> false)
+ * @param {number} [p.remainingMs] ms left before the deadline (junk/<=0 -> false)
+ * @param {number} [p.units] pocket units, non-KEEP (junk -> 0 -> false)
+ * @param {number} [p.yardDist] straight-line distance to the yard, blocks (junk -> the legacy slot-0 forecast)
+ * @param {number} [p.msSinceBank] ms since the last bank attempt (junk -> 0)
+ * @param {number} [p.everyMs] cadence refractory (default BANK_TRIP_EVERY_MS)
+ * @param {number} [p.minUnits] the dusk units floor (default DUSK_BANK_MIN_UNITS)
+ * @param {number} [p.marginMs] the light-fit overrun margin (default DUSK_BANK_MARGIN_MS)
+ * @param {number} [p.staggerMs] explicit end-phase stagger override (default: derive from yardDist via finalBankDelayMs)
+ * @param {number} [p.returnMs] the walk-home margin (default MID_BANK_RETURN_MARGIN_MS)
+ * @param {number} [p.nightStart] the walk-forbidden window start (default NIGHT_WALK_START)
+ * @param {number} [p.ticksPerSec] the vanilla clock rate (default TICKS_PER_SEC)
+ * @param {number} [p.floorMs] chain budget floor (default BANK_TRIP_FLOOR_MS)
+ * @param {number} [p.capMs] chain budget cap (default BANK_TRIP_CAP_MS)
+ * @returns {boolean}
+ */
+export function duskBankDue ({
+  timeOfDay = null,
+  remainingMs = Infinity,
+  units = 0,
+  yardDist = 0,
+  msSinceBank = 0,
+  everyMs = BANK_TRIP_EVERY_MS,
+  minUnits = DUSK_BANK_MIN_UNITS,
+  marginMs = DUSK_BANK_MARGIN_MS,
+  staggerMs = null,
+  returnMs = MID_BANK_RETURN_MARGIN_MS,
+  nightStart = NIGHT_WALK_START,
+  ticksPerSec = TICKS_PER_SEC,
+  floorMs = BANK_TRIP_FLOOR_MS,
+  capMs = BANK_TRIP_CAP_MS
+} = {}) {
+  const u = Number.isFinite(units) && units > 0 ? units : 0
+  if (u < (Number.isFinite(minUnits) && minUnits > 0 ? minUnits : DUSK_BANK_MIN_UNITS)) return false
+  if (!Number.isFinite(timeOfDay)) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return false
+  // (a) the dark forecast: the bot's OWN end-phase slot inside the forbidden window
+  const d = Number.isFinite(yardDist) && yardDist >= 0 ? yardDist : null
+  const stag = Number.isFinite(staggerMs) && staggerMs >= 0
+    ? staggerMs
+    : finalBankDelayMs({ yardDist: d })
+  if (!forecastForbidden({ timeOfDay, msAhead: remainingMs + stag, ticksPerSec })) return false
+  // (b) the real trip: the full dist-scaled chain + the walk home fit the clock
+  const want = bankTripBudgetMs({ yardDist: d, floorMs, capMs })
+  const ret = Number.isFinite(returnMs) && returnMs > 0 ? returnMs : MID_BANK_RETURN_MARGIN_MS
+  if (remainingMs < want + ret) return false
+  // (c) the light fit: the chain completes before the walk-forbidden window opens
+  const start = Number.isFinite(nightStart) && nightStart > 0 ? nightStart : NIGHT_WALK_START
+  const rate = Number.isFinite(ticksPerSec) && ticksPerSec > 0 ? ticksPerSec : TICKS_PER_SEC
+  const ticksLeft = start - timeOfDay
+  if (ticksLeft <= 0) return false // already dark - the night hold owns the pocket
+  const msUntilDark = ticksLeft * (1000 / rate)
+  const marg = Number.isFinite(marginMs) && marginMs > 0 ? marginMs : DUSK_BANK_MARGIN_MS
+  if (msUntilDark < want + marg) return false
+  // (d) the cadence refractory (the retry-storm fence)
+  const every = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : BANK_TRIP_EVERY_MS
+  const since = Number.isFinite(msSinceBank) && msSinceBank > 0 ? msSinceBank : 0
+  return since >= every
 }
 
 // (v0.34.0) THE FINAL bank chain budget: distance-scaled, margin-aware.

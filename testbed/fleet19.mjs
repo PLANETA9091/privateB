@@ -22,7 +22,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -1252,7 +1252,28 @@ async function runBot (name, target, index) {
         // deadline banking, and the cadence clock still advances so the
         // refusal logs ONCE per window, never every loop iteration.
         const bankRemainingMs = deadline - Date.now()
-        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned)
+        const bankYardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0
+        // (v0.193.0) THE DUSK-FORECAST BANK ESCALATION: run46 measured 16/19
+        // 'final bank deferred: night (tod 12400-13106)' - the skip gate hands
+        // the pocket to the end-phase ('the end-phase owns the deadline
+        // banking'), the end-phase final bank then reads the clock INSIDE the
+        // walk-forbidden window and defers (the v0.140.1 hold), and the hard
+        // kill eats the pocket. The vanilla clock advances at a known rate, so
+        // the tod the end-phase will see is a FORECAST: when THIS bot's own
+        // stagger slot lands dark and a REAL trip (the full dist-scaled chain
+        // + the walk home) still completes BEFORE the window opens, bank NOW
+        // instead of believing the skip gate. The fences live in duskBankDue:
+        // it never fires in the dark (the v0.140.1 hold stays the owner there,
+        // the pocket rides out the dark alive) and it keeps the cadence
+        // refractory (lastBankAt below advances on every attempt - no retry
+        // storm). The refusal line below keeps its byte-for-byte shape.
+        const bankDusk = !!(load && !tripPlanned && duskBankDue({
+          timeOfDay: miner.bot.time?.timeOfDay,
+          remainingMs: bankRemainingMs,
+          units: load.units,
+          yardDist: bankYardDist
+        }))
+        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned || bankDusk)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
         // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
         // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full
@@ -1265,7 +1286,7 @@ async function runBot (name, target, index) {
         // legacy shape byte for byte). Rides the 'bank ' filter key so the
         // next fleet sizes the held class.
         const bankNightHold = surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'mid-bank' }) === 'hold'
-        const bankViable = !bankNightHold && (tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs }))
+        const bankViable = !bankNightHold && (tripPlanned || bankDusk || needsBankingTripViable({ remainingMs: bankRemainingMs }))
         if (load && bankWanted && bankViable) {
           lastBankAt = Date.now()
           // (v0.17.3) remember WHERE we work: after banking at the yard the bot
@@ -1283,11 +1304,13 @@ async function runBot (name, target, index) {
           // nothing for the chest hops, and the dist-scaled planned trip never
           // fired once (needsBanking resets lastBankAt on every attempt).
           const bankBudgetMs = midBankBudgetMs({
-            yardDist: yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0,
+            yardDist: bankYardDist,
             remainingMs: deadline - Date.now(),
             floorMs: MID_BANK_BUDGET
           })
-          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
+          // (v0.193.0) the dusk trip names itself ('dusk') - a third label on
+          // the same 'bank ' filter key, so the next fleet sizes the class.
+          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
           // OWN remaining chain clock: everything spent since lastBankAt

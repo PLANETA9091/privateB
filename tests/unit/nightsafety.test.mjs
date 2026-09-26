@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES } from '../../src/lib/nightsafety.mjs'
+import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES, TICKS_PER_SEC, forecastForbidden } from '../../src/lib/nightsafety.mjs'
 
 test('walkForbidden: vanilla clock boundaries (dusk margin 12400, dawn margin 23600)', () => {
   assert.equal(walkForbidden(0), false, 'sunrise is a walk time')
@@ -121,7 +121,7 @@ test('REGRESSION PIN: the v0.185.0 night lane gate rides the fleet source', () =
   // names itself riding the 'bank ' key (the wood trip's 'deferred night'
   // line is the field-proven template)
   assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'mid-bank' \}\) === 'hold'/, 'the bank gate consults the hold on the mid-bank purpose')
-  assert.match(fleetSrc, /const bankViable = !bankNightHold && \(tripPlanned \|\| needsBankingTripViable/, 'the night hold gates BOTH the planned and the pockets-full paths')
+  assert.match(fleetSrc, /const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| needsBankingTripViable/, 'the night hold gates BOTH the planned and the pockets-full paths (v0.193.0 re-pin: the dusk lane joins the same guard)')
   assert.match(fleetSrc, /bank trip: deferred night \(tod=/, 'the hold names itself in the bank lane')
   assert.match(fleetSrc, /the yard walk rides out the dark alive/, 'the deferral names the doctrine')
   // the pre-position gate: the walk-forbidden read sits INSIDE the try, ahead
@@ -136,4 +136,36 @@ test('REGRESSION PIN: the v0.140.1 night hold rides the fleet source', () => {
   assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'respawn-bootstrap' \}\)/, 'the respawn bootstrap consults the hold')
   assert.match(fleetSrc, /respawn bootstrap deferred: night/, 'the hold names itself in the bootstrap lane')
   assert.match(fleetSrc, /miner\.climbOut\(\{ dir: direction, force: true, maxMs: 30000/, 'the hold climbs its starter shaft at dawn (the proven pillar-jump exit)')
+})
+
+// ---- (v0.193.0) THE TOD FORECAST - the vanilla clock, projected forward ----
+// The run46 delivery hole (16/19 'final bank deferred: night') is a scheduling
+// lie between two gates that never talk. The forecast is the arithmetic
+// between them: tod + msAhead/1000 * TICKS_PER_SEC, then the walkForbidden
+// verdict. These tests pin the projection and its junk-safe degradation.
+
+test('TICKS_PER_SEC: the vanilla clock rate is 20 ticks per real second', () => {
+  assert.equal(TICKS_PER_SEC, 20, '24000 ticks per 1200s day cycle')
+})
+
+test('forecastForbidden: the projection crosses dusk exactly at the known rate', () => {
+  assert.equal(forecastForbidden({ timeOfDay: 12300, msAhead: 2000 }), false, '12300 + 40 ticks = 12340 - still light')
+  assert.equal(forecastForbidden({ timeOfDay: 12300, msAhead: 10000 }), true, '12300 + 200 ticks = 12500 - the walk lands inside the window')
+  assert.equal(forecastForbidden({ timeOfDay: 0, msAhead: 600000 }), false, 'a dawn run deadline (tod 12000) still banks in the light')
+  assert.equal(forecastForbidden({ timeOfDay: 500, msAhead: 600000 }), true, 'the measured run46 geometry: dusk at ~tod 12500 at the deadline')
+})
+
+test('forecastForbidden: the window END unwinds (past 23600 walks resume)', () => {
+  assert.equal(forecastForbidden({ timeOfDay: 13000, msAhead: 0 }), true, 'now is dark')
+  assert.equal(forecastForbidden({ timeOfDay: 13000, msAhead: 600000 }), false, '13000 + 12000 ticks = 25000 - past the dawn margin')
+})
+
+test('forecastForbidden: junk degrades to the now-verdict, never widens a refusal', () => {
+  for (const t of [undefined, null, NaN, '13000', {}]) {
+    assert.equal(forecastForbidden({ timeOfDay: t, msAhead: 10000 }), false, `junk clock ${String(t)} -> false`)
+  }
+  assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: NaN }), false, 'junk horizon -> walkForbidden(12000) -> light')
+  assert.equal(forecastForbidden({ timeOfDay: 13000, msAhead: NaN }), true, 'junk horizon -> walkForbidden(13000) -> the now-verdict holds')
+  assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: -5000 }), false, 'a negative horizon collapses to now')
+  assert.equal(forecastForbidden({ timeOfDay: 12000, msAhead: 10000, ticksPerSec: NaN }), false, 'junk rate -> the 20/s constant (12000 + 200 = 12200, light)')
 })

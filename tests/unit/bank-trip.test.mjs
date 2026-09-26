@@ -166,8 +166,8 @@ test('needsBankingTripViable: junk minRemainingMs falls back to the constant (no
 test("REGRESSION PIN: the fleet gate refuses the pockets-full trip, advances the cadence, and keeps mining", async () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes('needsBankingTripViable'), 'the fleet imports and consults the viability gate')
-  assert.ok(src.includes('const bankViable = !bankNightHold && (tripPlanned || needsBankingTripViable({ remainingMs: bankRemainingMs }))'),
-    'the viability gate rides, and the v0.185.0 night hold gates BOTH paths (a planned dusk trip is still a night yard walk)')
+  assert.ok(src.includes('const bankViable = !bankNightHold && (tripPlanned || bankDusk || needsBankingTripViable({ remainingMs: bankRemainingMs }))'),
+    'the viability gate rides, and the v0.185.0 night hold gates BOTH paths (a planned dusk trip is still a night yard walk) (v0.193.0 re-pin: the dusk lane joins the same guard)')
   assert.ok(src.includes("bank trip: skipped (pockets full, "), 'the refusal names itself (rides the \'bank \' filter key)')
   assert.ok(src.includes('the end-phase owns the deadline banking'), 'the refusal names the owner (the pre-position + final bank)')
   const filterMatch = src.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)

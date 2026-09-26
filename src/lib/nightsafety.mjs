@@ -41,6 +41,42 @@ export function isNight (timeOfDay) {
   return timeOfDay >= 12610 && timeOfDay < 23460
 }
 
+// ---- (v0.193.0) THE TOD FORECAST - the vanilla clock, projected forward ----
+//
+// The run46 delivery hole (16/19 'final bank deferred: night', tod 12400-13106)
+// is a SCHEDULING lie, not a walk failure: the mid-run skip gate hands the
+// pocket to the end-phase ('the end-phase owns the deadline banking'), the
+// end-phase final bank then reads the clock INSIDE the walk-forbidden window
+// and defers, and the hard kill eats the pocket. The two gates never talk -
+// the skip gate decides from the run clock alone, the hold decides from the
+// vanilla clock alone. The cure is the forecast between them: the vanilla
+// clock advances at a KNOWN rate (24000 ticks per 1200s real = 20 ticks per
+// second), so any future moment's tod is arithmetic, not prophecy - a gate
+// that must know whether the end-phase will bank can simply COMPUTE the tod
+// the end-phase will see.
+/** Vanilla clock rate: 24000 ticks per 20-minute day cycle = 20 ticks per real second. */
+export const TICKS_PER_SEC = 20
+
+/**
+ * Will a surface walk started `msAhead` from now read the walk-forbidden window?
+ * Pure clock projection: tod + msAhead/1000 * TICKS_PER_SEC, then the same
+ * walkForbidden verdict the holds use. Junk-safe: a junk clock reads 'now'
+ * (msAhead collapses to 0 - the forecast horizon disappears, the verdict
+ * degrades to walkForbidden(timeOfDay)); a junk msAhead never widens a refusal
+ * (the legacy shape).
+ * @param {object} [p]
+ * @param {number} [p.timeOfDay] bot.time.timeOfDay 0..23999 (junk -> verdict on 'now')
+ * @param {number} [p.msAhead] real milliseconds ahead of now (junk/negative -> 0)
+ * @param {number} [p.ticksPerSec] clock rate (default TICKS_PER_SEC)
+ * @returns {boolean}
+ */
+export function forecastForbidden ({ timeOfDay = null, msAhead = 0, ticksPerSec = TICKS_PER_SEC } = {}) {
+  if (!Number.isFinite(timeOfDay)) return false
+  const ahead = Number.isFinite(msAhead) && msAhead > 0 ? msAhead : 0
+  const rate = Number.isFinite(ticksPerSec) && ticksPerSec > 0 ? ticksPerSec : TICKS_PER_SEC
+  return walkForbidden(timeOfDay + (ahead / 1000) * rate)
+}
+
 /** Torches one craft batch yields: vanilla 1 coal + 1 stick -> 4 torches. */
 export function torchesFrom ({ coal = 0, sticks = 0 } = {}) {
   const c = Number.isFinite(coal) && coal > 0 ? coal : 0
