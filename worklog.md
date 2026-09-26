@@ -5253,3 +5253,17 @@ Stage Summary:
 - Master f7f2aca+worklog (pkg 0.214.0 THE HONEST MARKER; the 211194d authorship healed in the same push). Next free = 0.215.0.
 - WATCH LIST (the honest marker's debut): 'open-field yield vs' with hp ALWAYS < 14.0 (the leak is dead if the band holds); the sealed volume day 2 (sealed>=2 names the rim-dig front as 0.215.0's candidate); the next reloot ARRIVAL with stacks > 0 = THE DEATH ECONOMY'S FIRST RECOVERED DROPS (F10's arrival proved the mechanic; the drops' survival is the next coin); the bank/smelt slump (224/8 - the furnace starvation front); triage 10th+.
 - OPEN FRONTS: (1) the honest marker validation; (2) the rim-dig front (the sealed class); (3) the reloot arrival's stack coin; (4) the furnace starvation (smelted 0/8 vs the smelt lines 128); (5) the hazard-pull guard gap; (6) coal ARRIVAL root.
+
+---
+Task ID: cron30-20260926-2100
+Agent: Super Z (cron lane, Job 414125)
+Task: 21:00 fire - the lens print/gate audit code-fire; the version collision accepted.
+
+Work Log:
+- Started on 09f6614 (pkg 0.213.0): the 2nd census fleet 36242483127 in flight, dispatch forbidden. Code-fired the run48 top front (the yield marker printing hp 19.0/20.0/16.8 above the 14 band): threatVerdictLane -> { verdict, fleeLane, bar }, both miner marker sites lane-gated, the printed number = the compared bar. Local syntax 199/0, unit 88/88; commit 2b6ae22 (never pushed).
+- THE COLLISION: the lane shipped v0.214.0 THE HONEST MARKER (8c47125, openFieldYieldLive + the verdict-time capture) + run27 decode (FIRST RELOOT ARRIVAL, sealed=1) + d64d04f (forced update #4, absorbed clean). THE SAME FRONT - the duplicate cure dropped per the one-atomic-unit law: rebase abort x2, hard reset to origin/master, 2b6ae22 stays in reflog only, zero force-push from this lane.
+- Verified the lane's tree: syntax 199/0, combat 49/49, identity PLANETA9091.
+- DISPATCHED 36244972350 (the honest marker's field debut + the 3rd census sample) on d64d04f, HTTP 204, materialized; the pending push CI 36244535636 cancelled by concurrency (PENDING-only, expected). The f1bd100 push run is a foreign ref (not on master) - untouched.
+
+Stage Summary:
+- Master d64d04f (pkg 0.214.0 THE HONEST MARKER). Next free version 0.215.0. FLEET OF RECORD: 36244972350 in flight. NEXT FIRE: mine+decode it - the honest marker volume (only sub-14 bars may print 'open-field yield'), the census 3rd sample (sealed vs land), triage 10th, the bank slump (smelted=0), reloot arrival follow-up; code fronts 0.215.0: the reloot kind-gate (the land mis-arm), the furnace starvation, the hazard-pull guard gap.
