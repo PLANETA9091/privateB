@@ -159,6 +159,17 @@ test('inferenceVerdict: the run550 death matrix names every face', () => {
   // explosions: the creeper's passive form carries the attacker
   assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Creeper'), 'corroborates')
   assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'Zombie'), 'contradicts')
+  // (v0.218.0) THE SUICIDE-BOMBER BLINDNESS: the exploder removes itself at
+  // detonation, so the nearest-hostile scan degrades to the 'fall/env'
+  // fallback - noise by construction, read blind (run870 F4 + run96 F4, both
+  // 'blown up by Creeper | inferred fall/env')
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'fall/env'), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'explosion', attacker: 'Creeper' }, 'fall'), 'blind')
+  // (v0.218.0) the plain drown's 'fall/env' fallback is noise too: an oxygen
+  // death has no gravity event and no hostile touch (run870 F4 'kind=drown |
+  // inferred fall/env'); a hostile hint still contradicts
+  assert.equal(inferenceVerdict({ kind: 'drown', attacker: null }, 'fall/env'), 'blind')
+  assert.equal(inferenceVerdict({ kind: 'drown', attacker: null }, 'fall'), 'blind')
   // falls: only the gravity fallback corroborates
   assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'fall/env'), 'corroborates')
   assert.equal(inferenceVerdict({ kind: 'fall', attacker: null }, 'Zombie'), 'contradicts')

@@ -158,12 +158,27 @@ export function inferenceVerdict (server, inferredName) {
     // the server saw NO attacker (plain 'drowned') - a nearby mob (even a
     // Drowned MOB: the melee kill broadcasts 'was slain by Drowned') is not
     // the killer; only the oxygen state itself corroborates.
-    return isDrownHint ? 'corroborates' : 'contradicts'
+    // (v0.218.0) the 'fall/env' fallback is NOISE BY CONSTRUCTION here: an
+    // oxygen death has no gravity event and no hostile touch, so the
+    // nearest-hostile scan finds nothing and drops to the gravity fallback
+    // (run870 F4: 'kind=drown | inferred fall/env' - the hint never carried
+    // evidence). It reads blind, not contradicts.
+    if (isDrownHint) return 'corroborates'
+    if (isFallHint) return 'blind'
+    return 'contradicts'
   }
   if (kind === 'fall') return isFallHint ? 'corroborates' : 'contradicts'
   if (kind === 'mob' || kind === 'explosion') {
     // the killer is named - the hint corroborates only when it names THE killer
     if (attacker && name.toLowerCase() === attacker) return 'corroborates'
+    // (v0.218.0) THE SUICIDE-BOMBER BLINDNESS: the exploder REMOVES ITSELF at
+    // detonation (the creeper dies in its own blast), so the nearest-hostile
+    // scan at the killing tick finds nobody and the hint degrades to the
+    // 'fall/env' fallback - noise by construction, not a contradiction claim.
+    // Two field samples: run870 F4 and run96 F4, both 'blown up by Creeper |
+    // inferred fall/env'. A OTHER hostile name still contradicts (it was
+    // alive and near - a real candidate the server overruled).
+    if (kind === 'explosion' && isFallHint) return 'blind'
     return 'contradicts'
   }
   return 'unknown'
