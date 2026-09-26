@@ -240,8 +240,11 @@ test("REGRESSION PIN: the miner's drop walk reads the planner and names the belo
     'the GoalNear rides the planned range')
   assert.ok(src.includes('if (range === DROP_GOAL_SKIP) { skipDeep++; continue }'),
     'the deep verdict skips the walk before gotoSafe (no 8s spiral, no GoalNear with range 0)')
-  assert.ok(src.includes('if (range === DROP_GOAL_BELOW) belowFails++'),
-    'a failed wide-goal walk joins the below-plane verdict, not the generic fail count')
+  // (v0.205.0) the gate splits the wide-2 family by the walk dy - the old
+  // flat `belowFails++` counted the above family into the below bucket (the
+  // run68 pollution: above and below SHARE the range 2 number)
+  assert.ok(src.includes('if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++') && src.includes('else aboveFails++'),
+    'a failed wide-goal walk joins its OWN dy family - the below bucket is the below family only')
   assert.ok(src.includes('below-plane walk(s) still failed on the wide goal (range 2)'),
     'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
   assert.ok(src.includes('deep drop(s) skipped (dy < -2'),
@@ -394,40 +397,60 @@ test('dropGoalRange: the fence boundaries hold across all four verdicts (the pla
 })
 
 // (v0.203.0) THE SWEEP DROP LEDGER - the run-level row.
+// (v0.205.0) the row carries the TRIAGE: above joins the split (the run68
+// pollution - the wide-2 family's above failures were counted as below).
 test('belowResidueRow: the run22-measured class - below x6 with a clean split', () => {
   const row = belowResidueRow([
     { sweeps: 3, picked: 12, failed: 3, below: 3, deepSkip: 0, lipDig: 1 }, // F13 x3
     { sweeps: 2, picked: 0, failed: 2, below: 2, deepSkip: 1, lipDig: 0 }, // F5 x2
     { sweeps: 1, picked: 5, failed: 1, below: 1, deepSkip: 0, lipDig: 0 } // F7 x1
   ])
-  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0) deepSkip=1 lipDig=1')
+  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0, above x0) deepSkip=1 lipDig=1')
 })
 
-test('belowResidueRow: the split identity - below + plane == failed on every mix', () => {
-  const parse = row => { const m = row.match(/failed=(\d+) \(below x(\d+), plane x(\d+)\)/); return { failed: +m[1], below: +m[2], plane: +m[3] } }
+test('belowResidueRow: the triage identity - below + plane + above == failed on every mix', () => {
+  const parse = row => { const m = row.match(/failed=(\d+) \(below x(\d+), plane x(\d+), above x(\d+)\)/); return { failed: +m[1], below: +m[2], plane: +m[3], above: +m[4] } }
   const cases = [
     [{ failed: 9, below: 3 }, { failed: 4, below: 4 }],
     [{ failed: 5, below: 0 }],
-    [{ failed: 2, below: 1 }, null, undefined, {}]
+    [{ failed: 2, below: 1 }, null, undefined, {}],
+    // (v0.205.0) the run68-shaped mixes: the above family rides its own term
+    [{ failed: 82, below: 5, above: 77 }],
+    [{ failed: 10, above: 10 }],
+    [{ failed: 7, below: 2, above: 3 }]
   ]
   for (const recs of cases) {
     const p = parse(belowResidueRow(recs))
-    assert.equal(p.below + p.plane, p.failed, `identity holds for ${JSON.stringify(recs)}`)
+    assert.equal(p.below + p.plane + p.above, p.failed, `identity holds for ${JSON.stringify(recs)}`)
   }
+})
+
+test('belowResidueRow: the run68 triage reads honestly - the above term lands where the dy sample said', () => {
+  // the day-2 row claimed 'below x82' with a dy sample of above x19 vs below
+  // x5; the triage row would have told the truth: below x5, above x77
+  const row = belowResidueRow([{ sweeps: 38, picked: 235, failed: 92, below: 5, above: 77, deepSkip: 28, lipDig: 0 }])
+  assert.equal(row, 'sweep drop ledger: sweeps=38 picked=235u failed=92 (below x5, plane x10, above x77) deepSkip=28 lipDig=0')
 })
 
 test('belowResidueRow: the per-record clamp - junk below never swallows the fleet split', () => {
   // bot A: impossible record (below 9 on failed 0); bot B: the honest day-3 F13 class
   const row = belowResidueRow([{ failed: 0, below: 9 }, { failed: 3, below: 3 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0) deepSkip=0 lipDig=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0, above x0) deepSkip=0 lipDig=0')
+})
+
+test('belowResidueRow: the clamp covers the above term - above claims only the failed rest', () => {
+  // bot A: below 2 + above 9 on failed 3 - above clamps to the failed rest (1);
+  // bot B: an honest above-only record (5/5)
+  const row = belowResidueRow([{ failed: 3, below: 2, above: 9 }, { failed: 5, above: 5 }])
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=8 (below x2, plane x0, above x6) deepSkip=0 lipDig=0')
 })
 
 test('belowResidueRow: junk floors at zero and the row prints ALWAYS', () => {
   assert.equal(
     belowResidueRow([{ sweeps: -2, picked: 3.9, failed: -1 }, 'junk', 42]),
-    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0) deepSkip=0 lipDig=0'
+    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0'
   )
-  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0) deepSkip=0 lipDig=0')
+  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0')
 })
 
 test("REGRESSION PIN: the miner sweep rides stats.sweepDrops and the fleet prints the ledger", async () => {
@@ -440,4 +463,21 @@ test("REGRESSION PIN: the miner sweep rides stats.sweepDrops and the fleet print
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(/belowResidueRow\(list\.map\(m => m\.stats\?\.sweepDrops\)\)/.test(fleetSrc),
     'the fleet RESULT prints the ledger row ALWAYS - the 05:00 ledger-skip lesson')
+})
+
+test('v0.205.0 wiring: the ledger triage splits the wide-2 family by the walk dy (the run68 pollution)', async () => {
+  // run68 (fleet 36221189568) exposed it: DROP_GOAL_ABOVE and DROP_GOAL_BELOW
+  // are the SAME NUMBER (both the wide range 2), so the old
+  // `range === DROP_GOAL_BELOW` gate counted above-family timeouts as below -
+  // the row claimed 'below x82' while its dy instrument's sample read
+  // above-heavy (x19 vs x5). The split gate must read the walk's own dy sign
+  // at the failure site (the dead-wire class is only catchable at the call
+  // site - the run195 lesson).
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const gate = minerSrc.match(/if \(range === DROP_GOAL_BELOW\) \{\s*\n\s*if \(dyWalk < DROP_GOAL_BELOW_DY\) belowFails\+\+\s*\n\s*else aboveFails\+\+\s*\n\s*\}/)
+  assert.ok(gate, 'the failure gate splits the wide-2 family by the dy sign (the below bucket is no longer the above family\'s shadow)')
+  assert.ok(minerSrc.includes('sd.above += aboveFails'), 'the above counters ride the stats ledger (the row carries the third term)')
+  assert.ok(minerSrc.includes('above-plane walk(s) timed out on the wide goal'),
+    'the above family names its own residue line - silence is never evidence')
 })

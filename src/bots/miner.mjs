@@ -2516,6 +2516,7 @@ export function createMiner ({
         const dropFence = Date.now() + SWEEP_DROP_TOTAL_MS
         let dropFails = 0
         let belowFails = 0
+        let aboveFails = 0
         let skipDeep = 0
         let lipDigs = 0
         for (const d of targets) {
@@ -2552,7 +2553,20 @@ export function createMiner ({
             // measurement, not speculation (the v0.178.0 above-plane stance).
             if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range})`)
             dropFails++
-            if (range === DROP_GOAL_BELOW) belowFails++
+            // (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the
+            // walk's own dy sign. run68 (fleet 36221189568, the row's day 2)
+            // exposed the pollution: DROP_GOAL_ABOVE and DROP_GOAL_BELOW are
+            // the SAME NUMBER (both the wide range 2), so this gate counted
+            // the ABOVE-family timeouts into the below bucket - the row
+            // claimed 'below x82' while its own dy instrument's printed
+            // sample read ABOVE-heavy (dy +1..+3 timeouts x19 vs below x5).
+            // Negative dy = the below family, positive = the above family; no
+            // range-2 walk can sit between -0.5 and 0 (the PLANE fence's
+            // land), so the sign is the family here.
+            if (range === DROP_GOAL_BELOW) {
+              if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++
+              else aboveFails++
+            }
           }
           // (v0.187.0) THE LIP DIG-DOWN: a BELOW-class walk that CONVERGED parks
           // the bot on the lip (3D dist ~1.8-2.0, the legal v0.178.0 arrival) -
@@ -2584,6 +2598,7 @@ export function createMiner ({
         if (picked > 0) log(`${tag} vein sweep: +${picked}u walked from the drops (${dug} dug)`)
         else if (targets.length > 0) log(`${tag} vein sweep: the drop walks picked nothing (pocket delta 0, ${dropFails} failed walk(s))`)
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
+        if (aboveFails > 0) log(`${tag} vein sweep: ${aboveFails} above-plane walk(s) timed out on the wide goal (range 2) - the ledge family (the v0.189.0 class, the triage names it)`)
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
         if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
         // (v0.203.0) the sweep drop ledger: the counters ride stats so the fleet
@@ -2591,11 +2606,12 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, deepSkip: 0, lipDig: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
           sd.below += belowFails
+          sd.above += aboveFails
           sd.deepSkip += skipDeep
           sd.lipDig += lipDigs
         } catch { /* a torn stats view never kills the sweep */ }

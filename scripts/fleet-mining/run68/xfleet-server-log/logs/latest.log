@@ -1,0 +1,393 @@
+[05:49:00] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[05:49:01] [Worker-Main-1/INFO]: No existing world data, creating new world
+[05:49:02] [ServerMain/INFO]: Loaded 1585 recipes
+[05:49:02] [ServerMain/INFO]: Loaded 1688 advancements
+[05:49:02] [Server thread/INFO]: Starting minecraft server version 26.2
+[05:49:02] [Server thread/INFO]: Loading properties
+[05:49:02] [Server thread/INFO]: Default game type: SURVIVAL
+[05:49:02] [Server thread/INFO]: Generating keypair
+[05:49:02] [Server thread/INFO]: Starting Minecraft server on *:25565
+[05:49:02] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[05:49:02] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[05:49:02] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[05:49:02] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[05:49:02] [Server thread/INFO]: Preparing level "world"
+[05:49:03] [Server thread/INFO]: Selecting global world spawn...
+[05:49:08] [Server thread/INFO]: Loading 0 persistent chunks...
+[05:49:08] [Server thread/INFO]: Preparing spawn area: 100%
+[05:49:08] [Server thread/INFO]: Time elapsed: 4604 ms
+[05:49:08] [Server thread/INFO]: Done (5.023s)! For help, type "help"
+[05:49:08] [Server thread/INFO]: Starting remote control listener
+[05:49:08] [Server thread/INFO]: Thread RCON Listener started
+[05:49:08] [Server thread/INFO]: RCON running on 0.0.0.0:25575
+[05:49:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[05:49:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[05:49:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[05:49:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[05:49:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[05:49:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[05:49:08] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[05:49:19] [Server thread/INFO]: YardSurvey[/127.0.0.1:55716] logged in with entity id 9 at (-121.5, 67.0, 392.5)
+[05:49:19] [Server thread/INFO]: YardSurvey joined the game
+[05:49:19] [Server thread/INFO]: Changed the block at -122, 73, 400
+[05:49:19] [Server thread/INFO]: Changed the block at -116, 73, 384
+[05:49:19] [Server thread/INFO]: Changed the block at -116, 73, 400
+[05:49:19] [Server thread/INFO]: Changed the block at -110, 73, 384
+[05:49:19] [Server thread/INFO]: Changed the block at -110, 73, 400
+[05:49:19] [Server thread/INFO]: Changed the block at -104, 73, 384
+[05:49:19] [Server thread/INFO]: Changed the block at -104, 73, 400
+[05:49:19] [Server thread/INFO]: Changed the block at -98, 73, 384
+[05:49:19] [Server thread/INFO]: Changed the block at -98, 73, 400
+[05:49:19] [Server thread/INFO]: Set the world spawn point to -122, 68, 392 [0.0, 0.0] in minecraft:overworld
+[05:49:29] [Server thread/INFO]: Successfully filled 1537 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 920 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 53 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 53 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 27 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 27 block(s)
+[05:49:29] [Server thread/INFO]: Changed the block at -136, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -130, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -128, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -126, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -124, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -136, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -130, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -128, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -126, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -124, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -140, 68, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -138, 68, 380
+[05:49:29] [Server thread/INFO]: Successfully filled 3 block(s)
+[05:49:29] [Server thread/INFO]: Changed the block at -124, 69, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -140, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -138, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -136, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -130, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -140, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -138, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -136, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -130, 68, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -116, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -114, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -110, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -108, 68, 386
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 69, 386
+[05:49:29] [Server thread/INFO]: Successfully filled 49 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 25 block(s)
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -105, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -105, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -103, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -103, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -101, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -101, 69, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 384
+[05:49:29] [Server thread/INFO]: Could not set the block
+[05:49:29] [Server thread/INFO]: Could not set the block
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 379
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 379
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 380
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 381
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 382
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 382
+[05:49:29] [Server thread/INFO]: Changed the block at -106, 69, 383
+[05:49:29] [Server thread/INFO]: Changed the block at -100, 69, 383
+[05:49:29] [Server thread/INFO]: Could not set the block
+[05:49:29] [Server thread/INFO]: Could not set the block
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 70, 378
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 396
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 398
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 402
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 404
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -137, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -132, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -127, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -117, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -112, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -107, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -102, 68, 406
+[05:49:29] [Server thread/INFO]: Changed the block at -144, 69, 406
+[05:49:29] [Server thread/INFO]: Successfully filled 20 block(s)
+[05:49:29] [Server thread/INFO]: Successfully filled 6 block(s)
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 73, 390
+[05:49:29] [Server thread/INFO]: Changed the block at -143, 68, 389
+[05:49:29] [Server thread/INFO]: Changed the block at -143, 68, 390
+[05:49:29] [Server thread/INFO]: Changed the block at -143, 68, 391
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 389
+[05:49:29] [Server thread/INFO]: Changed the block at -142, 68, 391
+[05:49:29] [Server thread/INFO]: Changed the block at -141, 68, 389
+[05:49:29] [Server thread/INFO]: Changed the block at -141, 68, 390
+[05:49:29] [Server thread/INFO]: Changed the block at -141, 68, 391
+[05:49:29] [Server thread/INFO]: Successfully filled 1 block(s)
+[05:49:29] [Server thread/INFO]: Changed the block at -143, 70, 388
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 392
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 68, 393
+[05:49:29] [Server thread/INFO]: Changed the block at -146, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -146, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -140, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -140, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -134, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -128, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -128, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -122, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -116, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -116, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -110, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -110, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -104, 73, 400
+[05:49:29] [Server thread/INFO]: Changed the block at -98, 73, 384
+[05:49:29] [Server thread/INFO]: Changed the block at -98, 73, 400
+[05:49:29] [Server thread/INFO]: Set the world spawn point to -122, 68, 392 [0.0, 0.0] in minecraft:overworld
+[05:49:32] [Server thread/INFO]: YardSurvey lost connection: Disconnected
+[05:49:32] [Server thread/INFO]: YardSurvey left the game
+[05:49:33] [Server thread/INFO]: F1[/127.0.0.1:34250] logged in with entity id 273 at (-125.5, 68.0, 397.5)
+[05:49:33] [Server thread/INFO]: F1 joined the game
+[05:49:35] [Server thread/INFO]: F2[/127.0.0.1:39086] logged in with entity id 314 at (-113.5, 68.0, 399.5)
+[05:49:35] [Server thread/INFO]: F2 joined the game
+[05:49:37] [Server thread/INFO]: F3[/127.0.0.1:39100] logged in with entity id 334 at (-115.5, 74.0, 400.5)
+[05:49:37] [Server thread/INFO]: F3 joined the game
+[05:49:40] [Server thread/INFO]: F4[/127.0.0.1:39102] logged in with entity id 335 at (-121.5, 68.0, 386.5)
+[05:49:40] [Server thread/INFO]: F4 joined the game
+[05:49:43] [Server thread/INFO]: F5[/127.0.0.1:39116] logged in with entity id 337 at (-113.5, 68.0, 396.5)
+[05:49:43] [Server thread/INFO]: F5 joined the game
+[05:49:45] [Server thread/INFO]: F6[/127.0.0.1:48802] logged in with entity id 343 at (-113.5, 68.0, 388.5)
+[05:49:45] [Server thread/INFO]: F6 joined the game
+[05:49:48] [Server thread/INFO]: F7[/127.0.0.1:48812] logged in with entity id 346 at (-117.5, 68.0, 390.5)
+[05:49:48] [Server thread/INFO]: F7 joined the game
+[05:49:50] [Server thread/INFO]: F8[/127.0.0.1:48828] logged in with entity id 350 at (-128.5, 68.0, 394.5)
+[05:49:50] [Server thread/INFO]: F8 joined the game
+[05:49:53] [Server thread/INFO]: F9[/127.0.0.1:48842] logged in with entity id 364 at (-122.5, 68.0, 397.5)
+[05:49:53] [Server thread/INFO]: F9 joined the game
+[05:49:57] [Server thread/INFO]: F10[/127.0.0.1:47662] logged in with entity id 370 at (-114.5, 68.0, 395.5)
+[05:49:57] [Server thread/INFO]: F10 joined the game
+[05:49:59] [Server thread/INFO]: F11[/127.0.0.1:47676] logged in with entity id 374 at (-123.5, 68.0, 383.5)
+[05:49:59] [Server thread/INFO]: F11 joined the game
+[05:50:01] [Server thread/INFO]: F12[/127.0.0.1:47682] logged in with entity id 378 at (-129.5, 68.0, 396.5)
+[05:50:01] [Server thread/INFO]: F12 joined the game
+[05:50:04] [Server thread/INFO]: F13[/127.0.0.1:59288] logged in with entity id 390 at (-115.5, 74.0, 384.5)
+[05:50:04] [Server thread/INFO]: F13 joined the game
+[05:50:07] [Server thread/INFO]: F14[/127.0.0.1:59302] logged in with entity id 462 at (-124.5, 68.0, 396.5)
+[05:50:07] [Server thread/INFO]: F14 joined the game
+[05:50:09] [Server thread/INFO]: F15[/127.0.0.1:59304] logged in with entity id 514 at (-125.5, 68.0, 393.5)
+[05:50:09] [Server thread/INFO]: F15 joined the game
+[05:50:12] [Server thread/INFO]: F16[/127.0.0.1:59320] logged in with entity id 531 at (-113.5, 68.0, 397.5)
+[05:50:12] [Server thread/INFO]: F16 joined the game
+[05:50:15] [Server thread/INFO]: F17[/127.0.0.1:47212] logged in with entity id 543 at (-130.5, 68.0, 386.5)
+[05:50:15] [Server thread/INFO]: F17 joined the game
+[05:50:18] [Server thread/INFO]: F18[/127.0.0.1:47220] logged in with entity id 548 at (-114.5, 68.0, 398.5)
+[05:50:18] [Server thread/INFO]: F18 joined the game
+[05:50:21] [Server thread/INFO]: F19[/127.0.0.1:47226] logged in with entity id 559 at (-131.5, 68.0, 392.5)
+[05:50:21] [Server thread/INFO]: F19 joined the game
+[05:50:38] [Server thread/INFO]: F1 has made the advancement [Stone Age]
+[05:50:40] [Server thread/INFO]: F2 has made the advancement [Stone Age]
+[05:50:47] [Server thread/INFO]: F1 has made the advancement [Getting an Upgrade]
+[05:50:55] [Server thread/INFO]: F2 has made the advancement [Getting an Upgrade]
+[05:51:37] [Server thread/INFO]: F4 has made the advancement [Stone Age]
+[05:51:47] [Server thread/INFO]: F4 has made the advancement [Getting an Upgrade]
+[05:51:47] [Server thread/INFO]: F16 has made the advancement [Stone Age]
+[05:51:47] [Server thread/INFO]: F12 has made the advancement [Stone Age]
+[05:51:48] [Server thread/INFO]: F9 has made the advancement [Stone Age]
+[05:51:51] [Server thread/INFO]: F8 has made the advancement [Stone Age]
+[05:51:57] [Server thread/INFO]: F16 has made the advancement [Getting an Upgrade]
+[05:51:59] [Server thread/INFO]: F12 has made the advancement [Getting an Upgrade]
+[05:52:00] [Server thread/INFO]: F9 has made the advancement [Getting an Upgrade]
+[05:52:02] [Server thread/INFO]: F8 has made the advancement [Getting an Upgrade]
+[05:52:31] [Server thread/INFO]: F6 has made the advancement [Stone Age]
+[05:52:33] [Server thread/INFO]: F19 has made the advancement [Stone Age]
+[05:52:33] [Server thread/INFO]: F5 has made the advancement [Stone Age]
+[05:52:42] [Server thread/INFO]: F14 has made the advancement [Stone Age]
+[05:52:42] [Server thread/INFO]: F19 has made the advancement [Getting an Upgrade]
+[05:52:48] [Server thread/INFO]: F10 has made the advancement [Stone Age]
+[05:52:49] [Server thread/INFO]: F5 has made the advancement [Getting an Upgrade]
+[05:52:50] [Server thread/INFO]: F18 has made the advancement [Stone Age]
+[05:52:51] [Server thread/INFO]: F14 has made the advancement [Getting an Upgrade]
+[05:52:56] [Server thread/INFO]: F18 has made the advancement [Getting an Upgrade]
+[05:52:57] [Server thread/INFO]: F10 has made the advancement [Getting an Upgrade]
+[05:53:10] [Server thread/INFO]: F7 has made the advancement [Stone Age]
+[05:53:15] [Server thread/INFO]: F4 lost connection: Disconnected
+[05:53:15] [Server thread/INFO]: F4 left the game
+[05:53:21] [Server thread/INFO]: F7 has made the advancement [Getting an Upgrade]
+[05:53:33] [Server thread/INFO]: F11 has made the advancement [Stone Age]
+[05:53:54] [Server thread/INFO]: F11 has made the advancement [Getting an Upgrade]
+[05:53:59] [Server thread/INFO]: F2 lost connection: Disconnected
+[05:53:59] [Server thread/INFO]: F2 left the game
+[05:54:24] [Server thread/INFO]: F4[/127.0.0.1:34680] logged in with entity id 2515 at (-125.50123653103101, 53.2, 408.7)
+[05:54:24] [Server thread/INFO]: F4 joined the game
+[05:54:27] [Server thread/INFO]: F4 lost connection: Disconnected
+[05:54:27] [Server thread/INFO]: F4 left the game
+[05:54:31] [Server thread/INFO]: F18 lost connection: Disconnected
+[05:54:31] [Server thread/INFO]: F18 left the game
+[05:54:33] [Server thread/INFO]: F12 lost connection: Disconnected
+[05:54:33] [Server thread/INFO]: F12 left the game
+[05:54:39] [Server thread/INFO]: F4[/127.0.0.1:33054] logged in with entity id 2714 at (-125.50123653103101, 53.2, 408.7)
+[05:54:39] [Server thread/INFO]: F4 joined the game
+[05:54:41] [Server thread/INFO]: F4 lost connection: Disconnected
+[05:54:41] [Server thread/INFO]: F4 left the game
+[05:54:54] [Server thread/INFO]: F4[/127.0.0.1:47472] logged in with entity id 2915 at (-125.50123653103101, 53.2, 408.7)
+[05:54:54] [Server thread/INFO]: F4 joined the game
+[05:55:02] [Server thread/INFO]: F4 drowned
+[05:55:26] [Server thread/INFO]: F6 has made the advancement [Getting an Upgrade]
+[05:55:46] [Server thread/INFO]: F15 has made the advancement [Stone Age]
+[05:55:51] [Server thread/INFO]: F13 has made the advancement [Stone Age]
+[05:56:05] [Server thread/INFO]: F13 has made the advancement [Getting an Upgrade]
+[05:56:25] [Server thread/INFO]: F17 has made the advancement [Stone Age]
+[05:56:36] [Server thread/INFO]: F17 has made the advancement [Getting an Upgrade]
+[05:56:39] [Server thread/INFO]: F18[/127.0.0.1:38550] logged in with entity id 3685 at (-138.7, 48.2, 410.4998616972932)
+[05:56:39] [Server thread/INFO]: F18 joined the game
+[05:56:46] [Server thread/INFO]: F12[/127.0.0.1:37336] logged in with entity id 3736 at (-168.3, 57.2, 407.7)
+[05:56:46] [Server thread/INFO]: F12 joined the game
+[05:56:51] [Server thread/INFO]: F10 drowned
+[05:56:56] [Server thread/INFO]: F18 lost connection: Disconnected
+[05:56:56] [Server thread/INFO]: F18 left the game
+[05:57:06] [Server thread/INFO]: F3 has made the advancement [Stone Age]
+[05:57:38] [Server thread/INFO]: F15 has made the advancement [Getting an Upgrade]
+[05:58:04] [Server thread/INFO]: F18[/127.0.0.1:47148] logged in with entity id 4500 at (-138.7, 48.2, 410.4998552143069)
+[05:58:04] [Server thread/INFO]: F18 joined the game
+[05:58:18] [Server thread/WARN]: Mismatch in destroy block pos: BlockPos{x=-172, y=63, z=418} BlockPos{x=-142, y=64, z=406}
+[05:58:27] [Server thread/INFO]: F2[/127.0.0.1:48590] logged in with entity id 4630 at (-129.3, 52.2, 411.7)
+[05:58:27] [Server thread/INFO]: F2 joined the game
+[05:58:31] [Server thread/INFO]: F2 lost connection: Disconnected
+[05:58:31] [Server thread/INFO]: F2 left the game
+[05:58:40] [Server thread/INFO]: F1 has made the advancement [Acquire Hardware]
+[05:58:44] [Server thread/INFO]: F2[/127.0.0.1:44406] logged in with entity id 4792 at (-129.3, 52.2, 411.7)
+[05:58:44] [Server thread/INFO]: F2 joined the game
+[05:58:48] [Server thread/INFO]: F17 lost connection: Disconnected
+[05:58:48] [Server thread/INFO]: F17 left the game
+[05:58:49] [Server thread/INFO]: F2 lost connection: Disconnected
+[05:58:49] [Server thread/INFO]: F2 left the game
+[05:59:02] [Server thread/INFO]: F2[/127.0.0.1:59390] logged in with entity id 4891 at (-129.3, 52.2, 411.7)
+[05:59:02] [Server thread/INFO]: F2 joined the game
+[05:59:05] [Server thread/INFO]: F2 drowned
+[06:00:38] [Server thread/INFO]: F4 has made the advancement [Acquire Hardware]
+[06:00:45] [Server thread/INFO]: F15 lost connection: Disconnected
+[06:00:45] [Server thread/INFO]: F15 left the game
+[06:01:07] [Server thread/INFO]: F5 was shot by Skeleton
+[06:01:07] [Server thread/INFO]: F8 has made the advancement [Monster Hunter]
+[06:01:24] [Server thread/INFO]: F12 was shot by Skeleton
+[06:01:41] [Server thread/INFO]: F14 has made the advancement [Acquire Hardware]
+[06:01:44] [Server thread/INFO]: F19 drowned
+[06:01:50] [Server thread/INFO]: F6 was shot by Skeleton
+[06:01:58] [Server thread/INFO]: F4 has made the advancement [Isn't It Iron Pick]
+[06:02:21] [Server thread/INFO]: F11 was shot by Skeleton
+[06:02:51] [Server thread/INFO]: F6 was shot by Skeleton
+[06:02:53] [Server thread/INFO]: F14 has made the advancement [Isn't It Iron Pick]
+[06:02:56] [Server thread/INFO]: F3 was shot by Skeleton
+[06:03:19] [Server thread/INFO]: F16 has made the advancement [Monster Hunter]
+[06:03:29] [Server thread/INFO]: F14 was shot by Skeleton
+[06:03:35] [Server thread/INFO]: F9 was shot by Skeleton
+[06:03:50] [Server thread/INFO]: F11 was slain by Spider
+[06:04:24] [Server thread/INFO]: F3 was shot by Skeleton
+[06:04:44] [Server thread/INFO]: F5 was slain by Zombie
+[06:04:52] [Server thread/INFO]: F12 was impaled by Drowned
+[06:05:03] [Server thread/INFO]: F16 was impaled by Drowned
+[06:05:08] [Server thread/INFO]: F6 was impaled by Drowned
+[06:05:23] [Server thread/INFO]: F11 was impaled by Drowned
+[06:05:24] [Server thread/INFO]: F9 was shot by Skeleton
+[06:05:30] [Server thread/INFO]: F3 has made the advancement [Getting an Upgrade]
+[06:05:30] [Server thread/INFO]: F9 has made the advancement [Isn't It Iron Pick]
+[06:05:56] [Server thread/INFO]: F9 has made the advancement [Monster Hunter]
+[06:05:58] [Server thread/INFO]: F3 was slain by Zombie
+[06:06:05] [Server thread/INFO]: F1 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F1 left the game
+[06:06:05] [Server thread/INFO]: F3 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F3 left the game
+[06:06:05] [Server thread/INFO]: F5 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F5 left the game
+[06:06:05] [Server thread/INFO]: F6 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F6 left the game
+[06:06:05] [Server thread/INFO]: F7 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F7 left the game
+[06:06:05] [Server thread/INFO]: F8 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F8 left the game
+[06:06:05] [Server thread/INFO]: F9 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F9 left the game
+[06:06:05] [Server thread/INFO]: F10 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F10 left the game
+[06:06:05] [Server thread/INFO]: F11 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F11 left the game
+[06:06:05] [Server thread/INFO]: F13 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F13 left the game
+[06:06:05] [Server thread/INFO]: F14 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F14 left the game
+[06:06:05] [Server thread/INFO]: F16 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F16 left the game
+[06:06:05] [Server thread/INFO]: F19 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F19 left the game
+[06:06:05] [Server thread/INFO]: F4 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F4 left the game
+[06:06:05] [Server thread/INFO]: F12 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F12 left the game
+[06:06:05] [Server thread/INFO]: F18 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F18 left the game
+[06:06:05] [Server thread/INFO]: F2 lost connection: Disconnected
+[06:06:05] [Server thread/INFO]: F2 left the game

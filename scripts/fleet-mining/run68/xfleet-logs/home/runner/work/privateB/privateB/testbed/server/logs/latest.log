@@ -1,0 +1,62 @@
+[05:39:00] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[05:39:01] [Worker-Main-3/INFO]: No existing world data, creating new world
+[05:39:02] [ServerMain/INFO]: Loaded 1585 recipes
+[05:39:02] [ServerMain/INFO]: Loaded 1688 advancements
+[05:39:03] [Server thread/INFO]: Starting minecraft server version 26.2
+[05:39:03] [Server thread/INFO]: Loading properties
+[05:39:03] [Server thread/INFO]: Default game type: SURVIVAL
+[05:39:03] [Server thread/INFO]: Generating keypair
+[05:39:03] [Server thread/INFO]: Starting Minecraft server on *:25565
+[05:39:03] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[05:39:03] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[05:39:03] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[05:39:03] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[05:39:03] [Server thread/INFO]: Preparing level "world"
+[05:39:04] [Server thread/INFO]: Selecting global world spawn...
+[05:39:08] [Server thread/INFO]: Loading 0 persistent chunks...
+[05:39:08] [Server thread/INFO]: Preparing spawn area: 100%
+[05:39:08] [Server thread/INFO]: Time elapsed: 4531 ms
+[05:39:08] [Server thread/INFO]: Done (4.862s)! For help, type "help"
+[05:39:08] [Server thread/INFO]: Starting remote control listener
+[05:39:08] [Server thread/INFO]: Thread RCON Listener started
+[05:39:08] [Server thread/INFO]: RCON running on 0.0.0.0:25575
+[05:39:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[05:39:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[05:39:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[05:39:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[05:39:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[05:39:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[05:39:08] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[05:39:20] [Server thread/INFO]: BotAlpha[/127.0.0.1:49142] logged in with entity id 25 at (-117.5, 71.0, 400.5)
+[05:39:20] [Server thread/INFO]: BotAlpha joined the game
+[05:39:48] [Server thread/INFO]: BotAlpha lost connection: Disconnected
+[05:39:48] [Server thread/INFO]: BotAlpha left the game
+[05:43:12] [Server thread/INFO]: ProdTest1[/127.0.0.1:53426] logged in with entity id 331 at (-131.5, 70.0, 395.5)
+[05:43:12] [Server thread/INFO]: ProdTest1 joined the game
+[05:43:12] [Server thread/INFO]: ProdTest2[/127.0.0.1:53436] logged in with entity id 341 at (-120.5, 65.0, 402.5)
+[05:43:12] [Server thread/INFO]: ProdTest2 joined the game
+[05:45:50] [Server thread/INFO]: ProdTest1 lost connection: Disconnected
+[05:45:50] [Server thread/INFO]: ProdTest1 left the game
+[05:45:50] [Server thread/INFO]: ProdTest2 lost connection: Disconnected
+[05:45:50] [Server thread/INFO]: ProdTest2 left the game
+[05:45:53] [Server thread/INFO]: SmeltTest[/127.0.0.1:54274] logged in with entity id 967 at (-135.5, 64.0, 399.5)
+[05:45:53] [Server thread/INFO]: SmeltTest joined the game
+[05:47:18] [Server thread/INFO]: SmeltTest has made the advancement [Stone Age]
+[05:47:55] [Server thread/INFO]: SmeltTest lost connection: Disconnected
+[05:47:55] [Server thread/INFO]: SmeltTest left the game
+[05:47:58] [Server thread/INFO]: DepositProbe[/127.0.0.1:50358] logged in with entity id 1428 at (-122.5, 64.0, 392.5)
+[05:47:58] [Server thread/INFO]: DepositProbe joined the game
+[05:47:58] [Server thread/INFO]: Set minecraft:overworld to time marker minecraft:day
+[05:47:58] [Server thread/INFO]: Killed 24 entities
+[05:47:58] [Server thread/INFO]: Killed 23 entities
+[05:47:58] [Server thread/INFO]: Incorrect argument for command
+[05:47:58] [Server thread/INFO]: gamerule doMobSpawning false<--[HERE]
+[05:48:00] [Server thread/INFO]: Changed the block at -120, 64, 392
+[05:48:00] [Server thread/INFO]: Incorrect argument for command
+[05:48:00] [Server thread/INFO]: ...ntainer.0 minecraft:dirt 32<--[HERE]
+[05:48:10] [Server thread/INFO]: Changed the block at -120, 64, 392
+[05:48:16] [Server thread/INFO]: [Not Secure] [Server] PROBE_FILL_OK
+[05:48:16] [Server thread/INFO]: -120, 64, 392 has the following block data: [{count: 32, Slot: 0b, id: "minecraft:dirt"}, {count: 16, Slot: 1b, id: "minecraft:cobblestone"}]
+[05:48:26] [Server thread/INFO]: DepositProbe has made the advancement [Stone Age]
+[05:48:27] [Server thread/INFO]: DepositProbe lost connection: Disconnected
+[05:48:27] [Server thread/INFO]: DepositProbe left the game

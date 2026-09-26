@@ -227,21 +227,36 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // their SUM was ever printed, capped at 2 named events per sweep.
 //
 // The ledger is pure and junk-safe: every counter floors at zero (a torn
-// stats never invents walks), the below/plane split keeps the identity
-// below + plane == failed, and the row prints ALWAYS (the 05:00 ledger-skip
+// stats never invents walks), the triage split keeps the identity
+// below + plane + above == failed, and the row prints ALWAYS (the 05:00 ledger-skip
 // lesson - an absent line class is indistinguishable from a filter blind
 // spot). Zero behavior change: the walks walk exactly as before - the
 // ledger only makes the economics readable at the run level, which is the
 // measurement the next cure derives from (the v0.187.0 stance).
+//
+// (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the dy sign.
+// run68 (fleet 36221189568, the row's day 2) exposed the pollution:
+// DROP_GOAL_ABOVE and DROP_GOAL_BELOW are the SAME NUMBER (both the wide
+// range 2), so the miner's `range === DROP_GOAL_BELOW` failure gate counted
+// the ABOVE-family timeouts into the below bucket - the row claimed
+// 'below x82' while its own dy instrument's printed sample read ABOVE-heavy
+// (dy +1.0..+3.0 timeouts x19 vs below x5). The 13:30 lane's 'below x74 vs
+// plane x11 - the plane >> below hypothesis REFUTED' read the polluted
+// bucket. The miner now splits the family at the failure site (the walk's
+// own dy sign: negative = the below family, positive = the above family; no
+// range-2 walk can sit between -0.5 and 0 - that is the PLANE fence's land),
+// and the row carries the third term. The wire shape survives: the 'below x'
+// and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, deepSkip = 0, lipDig = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
     picked: fl(picked),
     failed: fl(failed),
     below: fl(below),
+    above: fl(above),
     deepSkip: fl(deepSkip),
     lipDig: fl(lipDig)
   }
@@ -250,21 +265,26 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN) deepSkip=N lipDig=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, deepSkip: 0, lipDig: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
-    if (rec.below > rec.failed) rec.below = rec.failed // per-record clamp: one bot's junk below never swallows the fleet's real below/plane split
+    // per-record clamp: one bot's junk below/above never swallows the fleet's
+    // real split - below claims its floor of failed first, above claims the
+    // rest, the remainder is the plane class (the identity holds by design)
+    if (rec.below > rec.failed) rec.below = rec.failed
+    if (rec.above > rec.failed - rec.below) rec.above = Math.max(0, rec.failed - rec.below)
     acc.sweeps += rec.sweeps
     acc.picked += rec.picked
     acc.failed += rec.failed
     acc.below += rec.below
+    acc.above += rec.above
     acc.deepSkip += rec.deepSkip
     acc.lipDig += rec.lipDig
   }
-  const plane = acc.failed - acc.below
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig}`
+  const plane = Math.max(0, acc.failed - acc.below - acc.above)
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig}`
 }
