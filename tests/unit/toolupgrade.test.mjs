@@ -4,6 +4,7 @@
 // ORDER (sticks first, then table, then the pickaxe) without mocking mineflayer.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import Vec3 from 'vec3'
 import {
   PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS,
@@ -1205,4 +1206,19 @@ test('seedIronPool: the flat world keeps the legacy shape byte for byte', async 
   const res = await seedIronPool(world.bot, { budgetMs: 15000, log: l => lines.push(l) })
   assert.equal(lines.join('\n').includes('the walk ladder cannot climb'), false, 'no gate line on a walkable world')
   assert.equal(res.deposited, 2, 'the seed deposits exactly as before')
+})
+
+// (v0.231.0) THE CHEST-HOP IDENTITY - the 08:00 field face (36280122123)
+// caught the spin breaker holding the commune's OWN chest hop 30s (F11): the
+// 3-chest loop re-issued ONE label inside the window with the displacement
+// under STALL_MIN_PROGRESS 1.0 (yard chests sit a block apart). The cure: the
+// label carries the chest's own coords - every chest is its own breaker key,
+// the substring 'iron commune walk' keeps the filter-key family intact.
+test('REGRESSION PIN: the commune walk labels carry the chest identity (the breaker keys the destination)', () => {
+  const src = readFileSync(new URL('../../src/lib/toolupgrade.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('label: `iron commune walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)}`'),
+    'the first walk label carries the chest coords (a hop to a DIFFERENT chest is definitionally not a same-goal spin)')
+  assert.ok(src.includes('label: `iron commune walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)} (nudge retry)`'),
+    'the nudge retry keeps the same chest identity (its bounded-ladder suffix, the v0.227.0 precedent)')
+  assert.ok(!src.includes("label: 'iron commune walk'"), 'the old single label is gone (the field false positive)')
 })

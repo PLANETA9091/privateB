@@ -307,3 +307,34 @@ test('spin breaker: a hold-live refusal notes too - the hold must never read as 
     resetWalkGovernors()
   }
 })
+
+// (v0.231.0) THE CHEST-HOP ANATOMY PIN - the 08:00 field face (36280122123)
+// caught the breaker holding the iron commune's OWN chest hop 30s (F11): the
+// commune walks chest A -> chest B -> chest C under ONE label, yard chests sit
+// a block apart, each legit hop completes inside the window with the
+// displacement under STALL_MIN_PROGRESS 1.0, and the third same-label hop
+// armed the hold. THE CURE: the labels carry the chest's own coords (the
+// destination identity) - a hop to a DIFFERENT chest is definitionally not a
+// same-goal spin. This pin reads the exact field sequence both ways.
+test('spin breaker: the commune chest-hop anatomy - distinct per-chest labels never arm, the old single label arms', async () => {
+  resetSpinBreaker()
+  resetWalkGovernors()
+  const bot = instantBot()
+  // the OLD shape (single label, the field's false positive): hop 1 admits,
+  // hop 2 tolerates (the limit), hop 3 arms the 30s hold - the take loses
+  // chest C while the breaker holds
+  await gotoSafe(bot, { x: 1 }, { label: 'iron commune walk', timeoutMs: 500 })
+  await gotoSafe(bot, { x: 2 }, { label: 'iron commune walk', timeoutMs: 500 })
+  await assert.rejects(gotoSafe(bot, { x: 3 }, { label: 'iron commune walk', timeoutMs: 500 }), /spin breaker/)
+  // the NEW shape (the coords identity, the shipped templates): three legit
+  // hops to three chests - every walk is a different breaker key, nothing
+  // counts, nothing holds, the take completes
+  resetSpinBreaker()
+  const chestLabel = (x, z) => `iron commune walk @${x},${z}`
+  await gotoSafe(bot, { x: 1 }, { label: chestLabel(-120, 64), timeoutMs: 500 })
+  await gotoSafe(bot, { x: 2 }, { label: chestLabel(-122, 64), timeoutMs: 500 })
+  await gotoSafe(bot, { x: 3 }, { label: chestLabel(-121, 66), timeoutMs: 500 })
+  const st = spinBreakerStats()
+  assert.equal(st.holds, 0, 'no hold across the chest-hop chain (the hops are honest work)')
+  assert.equal(st.reissues, 0, 'no fast same-label re-issue ever read (every chest is its own key)')
+})

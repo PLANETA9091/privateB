@@ -1191,3 +1191,17 @@ test('deliverFuelTithe: the vertical gate skips the doomed anchor walk with the 
   const kept = world.bot.inventory.items().filter(i => i.name === 'coal').reduce((a, i) => a + i.count, 0)
   assert.equal(kept, 14, 'the pocket keeps its overage for a window the bot spends near the yard')
 })
+
+// (v0.231.0) THE CHEST-HOP IDENTITY - the commune's cure rides its sibling
+// ladder: the fuel commons walks chest-to-chest under ONE label with the
+// identical false-positive anatomy (sub-1.0-block hops read not-displaced; no
+// field catch yet, the exposure is structural). The label carries the chest's
+// own coords - the substring 'fuel commons walk' keeps the filter-key family.
+test('REGRESSION PIN: the fuel commons walk labels carry the chest identity (the sibling exposure)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('label: `fuel commons walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)}`'),
+    'the chest walk label carries the chest coords (the same single-label loop shape as the commune)')
+  assert.ok(src.includes('label: `fuel commons walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)} (nudge retry)`'),
+    'the nudge retry keeps the same chest identity')
+  assert.ok(!src.includes("label: 'fuel commons walk'"), 'the old single label is gone (the structural exposure)')
+})

@@ -442,7 +442,23 @@ export async function withdrawIronCommune (bot, {
       // the re-arming doomed walk (the fuel commons shape): the yard is THE
       // shared destination class - a sibling bot's failed walk never speaks
       // for this bot's start.
-      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'iron commune walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+      // (v0.231.0) THE CHEST-HOP IDENTITY: the label carries the chest's own
+      // coords - the spin breaker's same-label test keys on the walk's
+      // DESTINATION (the tracker keeps one label slot per bot), and the
+      // 08:00 field face (run 36280122123) caught the breaker holding the
+      // commune's OWN chest hop 30s (F11 'iron commune walk' re-issued
+      // inside the window after its own pf:done with the displacement under
+      // STALL_MIN_PROGRESS 1.0 - yard chests sit a block apart, a legit hop
+      // moves less than the stall floor, and the third same-label hop armed
+      // the hold). The coords suffix makes every chest its own breaker key -
+      // a hop to a DIFFERENT chest is definitionally not a same-goal spin -
+      // while the substring 'iron commune walk' keeps the filter-key family
+      // intact (the doom ledger keys on the GOAL cell, the governors on
+      // cells, nothing parses the label structurally). A same-chest stall
+      // through the walk-retry ladder keeps its containment (the same label
+      // re-issues the same key); the nudge retry keeps its own suffix (the
+      // v0.227.0 precedent: bounded ladders may carry distinct labels).
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: `iron commune walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)}`, doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
       // (v0.155.0) THE YARD DECIDE-CLASS NUDGE: the commune walks died the
       // path-geometry classes in the field (F4 x3, F9 x3, F3 x3, F14 x3 -
@@ -470,7 +486,7 @@ export async function withdrawIronCommune (bot, {
             if (remainingMs() > 2000) {
               const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
               try {
-                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'iron commune walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: `iron commune walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)} (nudge retry)`, doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
                 log('iron commune: the nudge retry landed')
                 arrived = true
               } catch (e2) {

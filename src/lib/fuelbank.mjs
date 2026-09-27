@@ -773,7 +773,12 @@ export async function withdrawFuelCommons (bot, {
       // exclude (the push after every failed walk) keeps the loop honest, the
       // doom ledger itself stays intact for every other goal class, and the
       // 15s half-life still bounds the poison.
-      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: 'fuel commons walk', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+      // (v0.231.0) THE CHEST-HOP IDENTITY (the commune's cure rides its
+      // sibling ladder): the label carries the chest's coords - the same
+      // single-label chest-to-chest loop shape as the iron commune, the same
+      // false-positive exposure (sub-1.0-block hops read not-displaced), no
+      // field catch yet but the anatomy is identical (see toolupgrade.mjs).
+      await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist ?? 8), remainingMs()), label: `fuel commons walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)}`, doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
     } catch (e) {
       let arrived = false // (v0.147.0) the nudge retry may still land this chest
       // (v0.147.0) THE PATH-GEOMETRY NUDGE + THE SAME-CHEST RETRY: run85
@@ -808,7 +813,7 @@ export async function withdrawFuelCommons (bot, {
             if (remainingMs() > 2000) {
               const dist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
               try {
-                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: 'fuel commons walk (nudge retry)', doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(dist2 ?? 8), remainingMs()), label: `fuel commons walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)} (nudge retry)`, doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
                 // the retry landed: fall through to the open below (do NOT exclude)
                 log('fuel commons: the nudge retry landed')
                 arrived = true
