@@ -4079,7 +4079,25 @@ export function createMiner ({
           try { rose = await stepUp(recovery.holdTicks) } catch (e) { assistNote = `longHold threw: ${e.message}` }
         } else if (recovery.kind === 'assist') {
           try {
-            await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist' })
+            // (v0.232.0) THE CLIMB RE-ARM - the assist walks with doomedRearm:
+            // the ledger's doomed verdict is a WALK's start geometry recorded
+            // on the goal cell (run78's yard-poisoning class), but this goal
+            // is the step cell the climb's OWN dig pass just verified clean -
+            // fresh ground truth the ledger cannot have. MEASURED (fleet
+            // 36284626465, the 0.231.0 field face, banked=0 with pockets
+            // 3000u+ stranded underground): F14 mid-climb at y=53-54 (dug=7,
+            // the staircase moving) read 'climb rise assist: assist did not
+            // complete (goto: doomed goal (ledgered 5s ago at [-114,53,406])
+            // - climb rise assist refused)' - a DOOMED_GOAL_RADIUS=2 verdict
+            // on a cell 1-2 blocks from the bot broke the climb's momentum
+            // and the bank chain died at the shaft bottom (climb out:
+            // failed - stalled). The re-arm costs one bounded A* think inside
+            // the assist's own timeoutMs, the doomedStats.rearms counter
+            // names the frequency in the FLEET RESULT, and a genuinely dead
+            // cell still fails honestly (NoPath/timeout) into the existing
+            // rotate ladder - the flag widens nothing (the radius, the ttl
+            // and the record rules are untouched).
+            await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist', doomedRearm: true })
             assistMoved = true
           } catch (e) { assistNote = `goto: ${e.message}` }
         }
