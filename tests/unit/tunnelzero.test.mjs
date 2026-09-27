@@ -7,7 +7,7 @@
 // gate named. Priority mirrors the loop order: fluid -> gravity roof -> names.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tunnelZeroWhy, steerFluidLock, sealCensus, sealPlan } from '../../src/lib/surface.mjs'
+import { tunnelZeroWhy, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded } from '../../src/lib/surface.mjs'
 
 test('zero verdict: fluid at the feet cell is the water-table verdict', () => {
   assert.equal(tunnelZeroWhy({ feetBox: 'fluid' }), 'fluid ahead')
@@ -217,4 +217,44 @@ test('seal geometry: junk-safe - bare calls and junk never throw', () => {
   assert.deepEqual(sealPlan(), { plan: 'unknown', anchor: false, headroom: false })
   assert.deepEqual(sealPlan(null), { plan: 'unknown', anchor: false, headroom: false })
   assert.equal(sealPlan({ anchorName: 42, anchorBox: 'block', headroomName: true, headroomBox: 'empty' }).plan, 'buildable', 'junk names never poison a box that speaks')
+})
+
+// ---- v0.247.0: THE SEAL-AND-CROSS CROSSING - pins ----
+test('crossing target: feet-level fluid targets the step-1 feet cell, anchor below, face UP', () => {
+  assert.deepEqual(
+    sealCrossTarget({ feetWet: true }),
+    { targetDy: 0, anchorDy: -1, face: { x: 0, y: 1, z: 0 } }
+  )
+})
+
+test('crossing target: head-level fluid targets the step-1 head cell, the solid feet cell is the anchor', () => {
+  assert.deepEqual(
+    sealCrossTarget({ feetWet: false }),
+    { targetDy: 1, anchorDy: 0, face: { x: 0, y: 1, z: 0 } },
+    'one shape, one law - the face is the anchor UP face in BOTH cases'
+  )
+})
+
+test('crossing target: bare call reads the head-level shape, junk never throws', () => {
+  assert.equal(sealCrossTarget().targetDy, 1)
+  assert.equal(sealCrossTarget(null).anchorDy, 0)
+  assert.equal(sealCrossTarget({ feetWet: 'junk' }).targetDy, 1, 'a junk eye is not a wet eye')
+})
+
+test('seal landed: the box speaks first - block lands, empty does not', () => {
+  assert.equal(sealLanded({ afterName: 'cobblestone', afterBox: 'block' }), true)
+  assert.equal(sealLanded({ afterName: 'water', afterBox: 'empty' }), false)
+  assert.equal(sealLanded({ afterName: 'air', afterBox: 'empty' }), false)
+})
+
+test('seal landed: the second eye - a blind box with a non-fluid name landed, a fluid name did not', () => {
+  assert.equal(sealLanded({ afterName: 'dirt', afterBox: null }), true)
+  assert.equal(sealLanded({ afterName: 'kelp', afterBox: null }), false, 'the 26.2 water family hides behind blind boxes')
+  assert.equal(sealLanded({ afterName: 'flowing_lava', afterBox: null }), false)
+})
+
+test('seal landed: a blind read is NOT a landed seal - never guess', () => {
+  assert.equal(sealLanded({ afterName: null, afterBox: null }), false)
+  assert.equal(sealLanded(), false)
+  assert.equal(sealLanded(null), false)
 })

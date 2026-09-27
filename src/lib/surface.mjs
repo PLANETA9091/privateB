@@ -1289,6 +1289,63 @@ export function sealPlan (r = {}) {
   return { plan: 'buildable', anchor: true, headroom: true }
 }
 
+// ---- v0.247.0: THE SEAL-AND-CROSS CROSSING ----
+// run36323193851 (the census debut, mined by the 2230 lane) answered the canon's
+// first question with a shout: 16/16 water-locked firings were ARMED (bare 0,
+// lava 0, top cobblestone/granite/andesite - the material RIDES with the bot).
+// The geometry face answers the second. THE CANON IS SATISFIED: the placement
+// cure ships - gated ON the two telemetry arms, never around them. The crossing
+// is the shelter's proven seal pattern (sealWaitUnseal, field-proven pacing:
+// 5 ticks before the click, 10 before the verify) pointed at the step-1 fluid
+// cell instead of the shelter entrance: equip the richest sealable stack, place
+// against the anchor's top face, verify the cell went solid, and on a landed
+// seal the steered line RESUMES (the vein is reachable - the stand-off never
+// fires, the vein never burns). Two pure arms keep the wiring honest:
+// sealCrossTarget - the placement geometry (feet-level fluid: the target is the
+// step-1 feet cell, the anchor is the floor below it; head-level fluid: the
+// target is the step-1 head cell, the anchor is the solid feet cell under it -
+// in BOTH cases the face is the anchor's UP face, one shape, one law);
+// sealLanded - the verify (the cell stopped reading fluid: the box speaks
+// first, the name is the second eye per the v0.242.0 law; a blind read is
+// NOT a landed seal - one attempt per firing, the next firing re-reads).
+// SEAL_PLACE_TIMEOUT_MS caps one placeBlock call at 3s (the PILLAR lesson:
+// a rejected placement resolves slow in mineflayer - it waits for a
+// block-update event that never comes); two rounds with the shelter's pause
+// between (the entity-occupied-cell rejection the shelter measured live).
+export const SEAL_PLACE_TIMEOUT_MS = 3000
+
+/**
+ * The crossing's placement geometry (v0.247.0): which cells does the seal
+ * touch, from the runner's stand position?
+ * @param {{feetWet?: boolean}} r feetWet = the fluid cell sits at feet level
+ *   (the runner's own classification, the same eye the wiring already reads)
+ * @returns {{targetDy: number, anchorDy: number, face: {x: number, y: number, z: number}}}
+ *   targetDy/anchorDy are relative to the step-1 column (steerStep applied by
+ *   the caller); face is the anchor face the placement clicks - always UP.
+ */
+export function sealCrossTarget (r = {}) {
+  const { feetWet = false } = r || {} // the body-guard law - a bare call reads the head-level shape
+  const targetDy = feetWet === true ? 0 : 1 // STRICT: only a true boolean is a wet eye - junk reads the documented bare-call shape
+  return { targetDy, anchorDy: targetDy - 1, face: { x: 0, y: 1, z: 0 } }
+}
+
+/**
+ * Did the seal land (v0.247.0)? The verify after the placement: the target
+ * cell stopped being fluid.
+ * @param {{afterName?: string|null, afterBox?: string|null}} r the cell read
+ *   AFTER the placement attempt (blockAt on the target cell)
+ * @returns {boolean} true = the cell reads solid (box 'block', or a blind box
+ *   with a non-fluid name - the second eye); false = still fluid/air, or a
+ *   blind read (never guess a landed seal)
+ */
+export function sealLanded (r = {}) {
+  const { afterName = null, afterBox = null } = r || {} // the body-guard law
+  if (afterBox === 'block') return true
+  if (afterBox === 'empty') return false
+  if (typeof afterName === 'string' && afterName) return !tunnelFluidName(afterName)
+  return false
+}
+
 // ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
 // MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): the blackbox
 // freeze dump read 'climb @+0.0s <- water:rescue @+-1.9s' - a climbOut STARTED

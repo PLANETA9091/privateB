@@ -29,9 +29,9 @@ import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fle
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
-import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
+import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, tunnelFluidName } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, tunnelFluidName } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -1125,9 +1125,51 @@ async function runBot (name, target, index) {
               const headroomB = feetWet ? lockHead : miner.bot.blockAt(steerFrom0.offset(steerStep.x, 2, steerStep.z)) // head-level lock: the cell above it owns the body
               const plan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
               console.log(`${name} tunnel: seal plan: anchor ${plan.anchor ? 'solid' : 'open'}, headroom ${plan.headroom ? 'clear' : 'solid'} - the seal-and-cross is ${plan.plan}`)
+              // (v0.247.0) THE CROSSING - the canon satisfied, the cure ships GATED:
+              // census ARMED (the material rides, 16/16 in the census face) AND the
+              // geometry buildable (this face's own verdict) - only then does the
+              // bot place. The shelter's proven seal pattern (sealWaitUnseal):
+              // equip, 5 ticks, place against the anchor's UP face, 10 ticks,
+              // verify the cell went solid; two rounds with the pause between (the
+              // entity-occupied-cell rejection, measured live by the shelter).
+              // A LANDED SEAL KEEPS THE STEER ALIVE - the vein is reachable, the
+              // stand-off never fires and the vein never burns (the whole famine
+              // arc in one branch). Every refusal logs its reason for the decode.
+              if (census.sealable && plan.plan === 'buildable') {
+                let crossed = false
+                const tgt = sealCrossTarget({ feetWet })
+                const target = steerFrom0.offset(steerStep.x, tgt.targetDy, steerStep.z)
+                const item = (miner.bot.inventory?.items?.() ?? []).find(i => i && i.name === census.top) // the richest sealable stack, the census's own pick
+                if (item) {
+                  for (let round = 0; round < 2 && !crossed; round++) {
+                    if (round > 0) await miner.bot.waitForTicks(6)
+                    try {
+                      const anchor = miner.bot.blockAt(target.offset(0, -1, 0)) // the cell below the target - the face the placement clicks (anchorDy = targetDy - 1)
+                      if (!anchor || anchor.boundingBox !== 'block') break // the geometry moved under us - the plan is stale, stand off
+                      await miner.bot.equip(item, 'hand')
+                      await miner.bot.waitForTicks(5)
+                      await withTimeout(miner.bot.placeBlock(anchor, new Vec3(tgt.face.x, tgt.face.y, tgt.face.z)), SEAL_PLACE_TIMEOUT_MS, 'seal-cross place')
+                      await miner.bot.waitForTicks(10)
+                      const after = miner.bot.blockAt(target)
+                      if (sealLanded({ afterName: after?.name ?? null, afterBox: after?.boundingBox ?? null })) crossed = true
+                    } catch { /* the round's refusal - one more round, then the standoff */ }
+                  }
+                }
+                if (crossed) {
+                  console.log(`${name} tunnel: seal-and-cross CROSSED: ${census.top} sealed the step-1 fluid - the steered line resumes`)
+                } else {
+                  console.log(`${name} tunnel: seal-and-cross refused: ${item ? 'the seal did not land (2 rounds)' : `no ${census.top} in the pocket to place`} - the blind rotation owns this pass`)
+                  rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+                  steer = null
+                }
+              } else {
+                rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+                steer = null
+              }
+            } else {
+              rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+              steer = null
             }
-            rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
-            steer = null
           }
         }
         const tdir = steer
