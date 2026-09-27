@@ -54,9 +54,12 @@ conversion 47.4%. The bank chain armed 14+ trips and delivered NOTHING:
 
 ## The other faces this run feeds
 
-- Deaths 2 (late): F3 by Skeleton (server verdict; the nearest-harm inference
-  CONTRADICTS it — the ranged-kill class feeds again), F14 by Zombie
-  (corroborated). server guard losses=2, window 0/10.
+- Deaths 14 (corrected: the tail-only first read saw 2 — the full log counts
+  14: Zombie x9 the dominant mob class, Skeleton x2 (F7 corroborated,
+  F3 the nearest-harm inference CONTRADICTS the server — the ranged-kill
+  class), drown x2 (F8/F12, both inferred 'fall/env' — the water lens BLIND
+  on drowns, the lens-gap candidate the 09:30 lane's read raised), fall x1
+  F5). server guard losses=2 (window 0/10 — the guard's own series).
 - F12 water airGlitches=352 (sentry g352/r11), liar ladder confirmed no-op
   glitch page #7 — the override/rescue cycle works but the glitch volume is
   the front.
