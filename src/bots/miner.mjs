@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -386,12 +386,15 @@ export function createMiner ({
     return best
   }
 
-  function countHostiles () {
+  // (v0.236.0) the range is a parameter: the legacy census reads DETECT_RANGE
+  // (bare calls unchanged) and the pair line's reach-weighted census reads
+  // ENGAGE_RANGE - the mobs that can actually hit while the bot stands.
+  function countHostiles (range = DETECT_RANGE) {
     if (!bot.entity) return 0
     let n = 0
     for (const e of Object.values(bot.entities)) {
       if (!e || e === bot.entity || !isHostileEntity(e) || !e.position) continue
-      if (e.position.distanceTo(bot.entity.position) <= DETECT_RANGE) n++
+      if (e.position.distanceTo(bot.entity.position) <= range) n++
     }
     return n
   }
@@ -1035,8 +1038,8 @@ export function createMiner ({
     // any await) - the marker prints only when the LENS is the first firing
     // lane (run44's residual: hp 4.5 < FLEE_HP 8 is the legacy land-flee's
     // flee, the marker stays silent for it).
-    const lensLane = threatVerdictLane({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
+    const lensLane = threatVerdictLane({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -1146,7 +1149,7 @@ export function createMiner ({
         // predicate the verdict used (the run48 flag-gate leak is dead at
         // this site too - the cooldown/unarmed flips stay unmarked).
         const hpNow = bot.health ?? 20
-        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
+        const v = threatVerdict({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
         if (v === 'flee') {
           log(`${tag} combat: verdict flipped to flee vs ${cur.name} (hp ${hpNow.toFixed(1)})`)
           // (v0.212.0) the re-verdict's own yield marker (the flip site is
@@ -1156,7 +1159,7 @@ export function createMiner ({
           // (v0.216.0) gated on the lane mirror - the first firing lane owns
           // the attribution here too (the creeper@0.3 class names creeper-band,
           // not the lens; the args mirror the re-verdict's call verbatim)
-          if (threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) }) === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+          if (threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) }) === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()
