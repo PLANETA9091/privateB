@@ -141,9 +141,9 @@ test('THE WIRING PINS: the miner feeds the reach-weighted census at every verdic
 
 test('THE MARKER PINS: the miner prints the pair preempt beside the open-field yield (both sites)', () => {
   // the defendSelf site: the lane-captured marker with the hp + the reach census
-  const markers = minerSrc.match(/pair preempt/g) || []
+  const markers = minerSrc.match(/combat: pair preempt/g) || []
   assert.equal(markers.length, 2, 'the preempt marker rides BOTH flee sites (the defendSelf site + the re-verdict flip site)')
   assert.ok(minerSrc.includes("lensLane === 'pair-preempt'"), 'the defendSelf marker gates on the verdict-time lane mirror')
   assert.ok(minerSrc.includes("flipLane === 'pair-preempt'"), 'the flip-site marker gates on the captured flip lane')
-  assert.ok(/countHostiles\(ENGAGE_RANGE\)\) in reach/.test(minerSrc), 'the marker prints the REACH census beside the hp (the decode\'s first honest pair census)')
+  assert.ok(/countHostiles\(ENGAGE_RANGE\)\} in reach\)/.test(minerSrc), 'the marker prints the REACH census beside the hp (the decode\'s first honest pair census)')
 })
