@@ -6,6 +6,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import Vec3 from 'vec3'
+import { resetWalkGovernors } from '../../src/lib/jobqueue.mjs'
 import {
   PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS, RAW_ORE_TAKE,
   pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron,
@@ -846,13 +847,27 @@ function rawIronItem (count = 1) {
   return { name: 'raw_iron', count, type: 260, stackSize: 64 }
 }
 
+// (v0.239.0a) THE GOAL-BUDGET HYGIENE: every admitted goto feeds the
+// process-global FLEET GOAL ceiling (30 admitted goals / 5s). The base file's
+// walking tests sat just under it; the 5 relay tests' extra gotos pushed the
+// tail of the file OVER - the flat-world/seed tests after them were refused
+// walks ('taken 0 !== 3', 'no seed landed') with NO defect of their own (CI
+// 36308250827). The relay tests reset the global breakers on entry: the file's
+// base budget survives byte for byte.
+const RELAY = { allowEmptyPocket: true, allowRawOre: true }
+
+function relayWorld (opts) {
+  resetWalkGovernors()
+  return mockCommuneWorld(opts)
+}
+
 test('withdrawIronCommune: THE RELAY - an h=0 recheck imports raw_iron from a starving chest', async () => {
   // chest holds 4 raw_iron, 0 ingots; the recheck bot (h=0) walks in, the
   // ingot plan reads need=0, the raw arm takes min(4, RAW_ORE_TAKE)=4 and
   // BREAKS the chest loop (one relay per call - the pool keeps its stock)
-  const world = mockCommuneWorld({ chestItem: rawIronItem(4) })
+  const world = relayWorld({ chestItem: rawIronItem(4) })
   world.setPocket(0)
-  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  const res = await withdrawIronCommune(world.bot, RELAY)
   assert.equal(res.rawTaken, 4)
   assert.equal(res.taken, 0, 'no INGOT moved - the relay is its own ledger')
   assert.equal(res.reason, 'no ingot reached the pocket', 'the ingot verdict stays honest')
@@ -862,9 +877,9 @@ test('withdrawIronCommune: THE RELAY - an h=0 recheck imports raw_iron from a st
 })
 
 test('withdrawIronCommune: the relay respects RAW_ORE_TAKE (the churn bound)', async () => {
-  const world = mockCommuneWorld({ chestItem: rawIronItem(9) })
+  const world = relayWorld({ chestItem: rawIronItem(9) })
   world.setPocket(0)
-  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  const res = await withdrawIronCommune(world.bot, RELAY)
   assert.equal(RAW_ORE_TAKE, 6)
   assert.equal(res.rawTaken, 6, 'min(9, 6) - the cap holds')
 })
@@ -872,7 +887,7 @@ test('withdrawIronCommune: the relay respects RAW_ORE_TAKE (the churn bound)', a
 test('withdrawIronCommune: the relay stands down by default (the seeder union stays intact)', async () => {
   // allowRawOre unset: the SAME starving chest moves nothing - a seeder's
   // own withdraw (or any legacy caller) never takes ore
-  const world = mockCommuneWorld({ chestItem: rawIronItem(4) })
+  const world = relayWorld({ chestItem: rawIronItem(4) })
   world.setPocket(0)
   const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true })
   assert.equal(res.rawTaken ?? 0, 0)
@@ -883,9 +898,9 @@ test('withdrawIronCommune: a fundable ingot plan NEVER preempts the relay (ingot
   // chest holds 8 INGOTS + allowRawOre: the ingot plan completes (taken=3)
   // and the raw arm never fires (rawTaken 0) - the pick ladder is the goal,
   // the ore is the fallback
-  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  const world = relayWorld({ chestItem: ironItem(8) })
   world.setPocket(0)
-  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  const res = await withdrawIronCommune(world.bot, RELAY)
   assert.equal(res.taken, 3)
   assert.equal(res.pocketNow, 3)
   assert.equal(res.rawTaken ?? 0, 0)
@@ -893,9 +908,9 @@ test('withdrawIronCommune: a fundable ingot plan NEVER preempts the relay (ingot
 })
 
 test('withdrawIronCommune: ghost clicks in the relay report the lie and keep the loop honest', async () => {
-  const world = mockCommuneWorld({ chestItem: rawIronItem(4), clickGhost: true })
+  const world = relayWorld({ chestItem: rawIronItem(4), clickGhost: true })
   world.setPocket(0)
-  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  const res = await withdrawIronCommune(world.bot, RELAY)
   assert.equal(res.rawTaken ?? 0, 0)
   assert.equal(res.reason, 'no ingot reached the pocket')
 })

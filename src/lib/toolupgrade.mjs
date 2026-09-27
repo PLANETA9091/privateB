@@ -567,8 +567,16 @@ export async function withdrawIronCommune (bot, {
               if (!stack) break
               const pair = pickWithdrawSlots({ window, itemType: stack.type, chestSlots })
               if (!pair) break // no pocket room left - the honest stop
+              // (v0.239.0a) THE PRE-MOVE SNAPSHOT: stack is a LIVE window slot -
+              // the clicks mutate its count (the singles path drains it 6->3), so
+              // the increment must read the PRE-MOVE count or the loop under-
+              // counts its own progress and re-enters for a second take (the
+              // CI 36308250827 measured an overdraw: rawTaken 9 with the cap 6 -
+              // the singles move 6, the mutated count fed min(6, 3)=3 back, the
+              // second iteration lifted the returned 3 into the pocket too).
+              const stackCountBefore = stack.count
               await withdrawStackMove(bot, window, { srcIdx: pair.srcIdx, dstIdx: pair.dstIdx, take: take - movedOre, stackCount: stack.count, clickTimeoutMs })
-              movedOre += Math.min(take - movedOre, stack.count)
+              movedOre += Math.min(take - movedOre, stackCountBefore)
             }
             const gotOre = Math.max(0, countItem(bot, 'raw_iron') - oreBefore)
             if (gotOre > 0) {
