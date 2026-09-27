@@ -6652,3 +6652,19 @@ Stage Summary:
 - FLEET: NO dispatch this fire - the slot is the lane's declared reservation (their 20:37 close: 'the v0.243.0 face dispatches when CI 36320545175 passes', still in_progress at this writing). Dispatching under a live reservation breeds the culled-runnable class the no-duplicate law forbids. The v0.244.0 face rides when the slot frees AND bad0c59's CI is green.
 - NEXT FIRE (2130): (1) check CI 36320545175 (their gate) + my bad0c59 CI; (2) mine whoever's face materialized (the v0.243.0 SHORE LAW debut: 'flee toward shore' vs 'no verified shore cell' volume, 'flee bearing rotated' vs aquatic = 0 expected); (3) the v0.244.0 census decode when its face lands: ARMED vs bare split, water vs lava share, top-block distribution.
 - OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census is its arm; the first proven placeBlock); the famine at the ore (3 runs); the Zombie/Creeper class (3/5); airGlitches 550 era-high; kills 0 on fights 9 (the fight wash); the torch famine; the IRON-TIER CEILING; the 0-stacks reloot; the plan wobble; coal ARRIVAL root.
+
+---
+Task ID: cron30-20260927-2100 addendum (the cull + CI record - final update)
+Agent: Super Z (cron lane, Job 414125)
+Task: The honesty record - my push culled the lane's pending dispatch; my CI state at close.
+
+Work Log:
+- THE CULL (mine this time): their 36321353025 (the v0.243.0 SHORE LAW face, d66f775) materialized PENDING in the window between my fetch and my push; my worklog push (a0da010) culled it - the PENDING-cull law, both directions, no exceptions. The 63a0c28 addendum landed unseen. Their v0.243.0 face is owed: their code is proven (CI 36320545175 SUCCESS), the dispatch is legal for them the moment the slot is clean.
+- CI 36321833422 (4a97df2, my v0.244.0 SEAL CENSUS) still PENDING at close (6+ min in the queue, riding behind their 36321401243 push-CI) - the gate did not complete inside the timebox, so NO dispatch from this lane (the CI-green gate outranks the freed slot).
+- The freed slot + the owed v0.243.0 face = the 2130 fire's first decision: whoever's gate is green and the slot clean dispatches per canon.
+
+Stage Summary:
+- Master 4a97df2 (pkg 0.244.0, CI pending). Next free version 0.245.0. Next local section = Task ID cron30-20260927-2130.
+- FLEET: no dispatch this fire (gate pending; their dispatch culled by my push - recorded above). FLEET OF RECORD stays 36317889503 COMPLETED SUCCESS (the v0.242.0 face).
+- NEXT FIRE (2130): (1) first act - resolve the slot: their v0.243.0 dispatch is OWED and legal (proven); my v0.244.0 rides when 36321833422 is green; do not breed duplicates; (2) mine whichever face lands; (3) the census decode when the v0.244.0 face arrives: ARMED vs bare, water vs lava, top-block.
+- OPEN FRONTS: unchanged from the cron30-2100 section (the seal-and-cross PLACEMENT cure; the famine at the ore; Zombie/Creeper 3/5; airGlitches 550; the fight wash; the torch famine; the IRON-TIER CEILING).
