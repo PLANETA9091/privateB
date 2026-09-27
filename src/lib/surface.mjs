@@ -1314,6 +1314,54 @@ export function sealPlan (r = {}) {
 // between (the entity-occupied-cell rejection the shelter measured live).
 export const SEAL_PLACE_TIMEOUT_MS = 3000
 
+// SEAL_DIG_TIMEOUT_MS caps one dig of the walled headroom at 8s (the same
+// PILLAR lesson shapes it: a dig that resolves slow must not eat the pass).
+// A picked stone-family headroom lands in ~1s; the cap exists for the
+// surprise-hard classes (the legacy standoff owns those - the vein waits
+// out the amnesia cap, the pass keeps moving).
+export const SEAL_DIG_TIMEOUT_MS = 8000
+
+/**
+ * Should the walled seal dig its headroom first (pure, the v0.250.0 THE
+ * WALLED DIG-AROUND)? The geometry face + the crossing face pooled the
+ * walled evidence (4 firings: 3 walled in the geometry face's split, 1 in
+ * the crossing face - every one kept the legacy standoff byte for byte and
+ * the vein burned). The walled verdict reads: anchor solid (a face to
+ * click), headroom SOLID (the seal becomes a wall the bot cannot enter).
+ * But a solid headroom is a BLOCKER, not a fate: the headroom cell is
+ * ordinary gallery stone in every observed firing - dig it, re-plan, and
+ * the buildable seal may follow. The gates (the two-eye law, the v0.242.0
+ * canon): the plan must BE the walled class; the headroom box must speak
+ * 'block' (a blind box digs nothing blind - the honest no); a headroom
+ * NAME that reads fluid vetoes the dig (the box lie class - 26.2 fluids
+ * carry 'empty' boxes, so 'block' + a fluid name is a stale/contradictory
+ * read, never a dig target). Junk discipline: the body-guard `r || {}`;
+ * a junk/missing plan is not the walled class; junk names are silent (the
+ * box speaks first, the name is the second eye - only a REAL fluid name
+ * vetoes).
+ *
+ * @param {object} [r]
+ * @param {{plan?: string}|null} [r.plan] the sealPlan verdict (its .plan
+ *   field must read exactly 'walled')
+ * @param {string|null} [r.headroomName] the headroom cell's block name
+ * @param {string|null} [r.headroomBox] the headroom cell's boundingBox
+ * @returns {{dig: boolean, why: string}} the cure decision + the decode
+ *   ready why (the refusal lines print it verbatim)
+ */
+export function walledCure (r) {
+  const { plan = null, headroomName = null, headroomBox = null } = r || {} // the body-guard law
+  if (!plan || plan.plan !== 'walled') {
+    return { dig: false, why: 'not the walled class' }
+  }
+  if (headroomBox !== 'block') {
+    return { dig: false, why: 'the headroom box does not speak solid - no dig blind' }
+  }
+  if (typeof headroomName === 'string' && headroomName && tunnelFluidName(headroomName)) {
+    return { dig: false, why: 'the headroom name reads fluid - the box lie class, no dig' }
+  }
+  return { dig: true, why: 'the headroom is solid and dry - dig it, re-plan, and the buildable seal may follow' }
+}
+
 /**
  * The crossing's placement geometry (v0.247.0): which cells does the seal
  * touch, from the runner's stand position?

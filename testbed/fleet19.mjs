@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, tunnelFluidName } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -1125,9 +1125,40 @@ async function runBot (name, target, index) {
             if (census.fluid === 'water') {
               const feetWet = (lockFeet?.boundingBox === 'fluid') || tunnelFluidName(lockFeet?.name ?? null) // the fluid cell sits at feet level
               const anchorB = feetWet ? miner.bot.blockAt(steerFrom0.offset(steerStep.x, -1, steerStep.z)) : lockFeet // head-level lock: the solid feet cell IS the anchor
-              const headroomB = feetWet ? lockHead : miner.bot.blockAt(steerFrom0.offset(steerStep.x, 2, steerStep.z)) // head-level lock: the cell above it owns the body
-              const plan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+              let headroomB = feetWet ? lockHead : miner.bot.blockAt(steerFrom0.offset(steerStep.x, 2, steerStep.z)) // head-level lock: the cell above it owns the body
+              let plan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
               console.log(`${name} tunnel: seal plan: anchor ${plan.anchor ? 'solid' : 'open'}, headroom ${plan.headroom ? 'clear' : 'solid'} - the seal-and-cross is ${plan.plan}`)
+              // (v0.250.0) THE WALLED DIG-AROUND - the walled verdict (4 pooled
+              // firings across two faces, every one kept the standoff and the
+              // vein burned) is a BLOCKER, not a fate: the headroom cell is
+              // ordinary gallery stone in every observed firing. The cure: dig
+              // the headroom, re-plan, and the buildable seal may follow - the
+              // same gate then owns BOTH paths (the direct buildable and the
+              // post-dig buildable). The gates: the pure walledCure (the
+              // two-eye law - a blind box digs nothing blind, a fluid name
+              // vetoes), the pick gate (the reloot rim-dig house pattern - an
+              // unarmed swing stays down), the 8s dig cap. Every refusal names
+              // its why; the failed/uncured cases fall to the legacy standoff
+              // byte for byte (the amnesia cap stays the relief valve).
+              if (census.sealable && plan.plan === 'walled') {
+                const cure = walledCure({ plan, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+                if (!cure.dig) {
+                  console.log(`${name} tunnel: seal dig-around refused: ${cure.why} - the legacy standoff owns this pass`)
+                } else if (!hasPickNow()) {
+                  console.log(`${name} tunnel: seal dig-around skipped (unarmed - the swing stays down, the standoff owns this pass)`)
+                } else {
+                  try {
+                    await withTimeout(miner.bot.dig(headroomB), SEAL_DIG_TIMEOUT_MS, 'seal dig-around')
+                    console.log(`${name} tunnel: seal dig-around: dug the headroom ${headroomB?.name ?? '?'} - re-planning the seal`)
+                    const anchorB2 = feetWet ? miner.bot.blockAt(steerFrom0.offset(steerStep.x, -1, steerStep.z)) : lockFeet
+                    headroomB = feetWet ? miner.bot.blockAt(steerFrom0.offset(steerStep.x, 1, steerStep.z)) : miner.bot.blockAt(steerFrom0.offset(steerStep.x, 2, steerStep.z))
+                    plan = sealPlan({ anchorName: anchorB2?.name ?? null, anchorBox: anchorB2?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+                    console.log(`${name} tunnel: seal plan (post-dig): anchor ${plan.anchor ? 'solid' : 'open'}, headroom ${plan.headroom ? 'clear' : 'solid'} - the seal-and-cross is ${plan.plan}`)
+                  } catch (e) {
+                    console.log(`${name} tunnel: seal dig-around failed: ${e.message} - the legacy standoff owns this pass`)
+                  }
+                }
+              }
               // (v0.247.0) THE CROSSING - the canon satisfied, the cure ships GATED:
               // census ARMED (the material rides, 16/16 in the census face) AND the
               // geometry buildable (this face's own verdict) - only then does the
