@@ -53,6 +53,23 @@ export const DUSK_BANK_MIN_UNITS = 256
  *  line, the walk's own variance eats the margin, not the daylight. */
 export const DUSK_BANK_SAFETY_MS = 15000
 
+/** (v0.233.0) The consult-cadence margin (ms) for trip-relative windows:
+ *  the work loop's passes land BETWEEN bot operations (a digShaft descent
+ *  runs 60-120s), so a window only one pass wide is a window the loop can
+ *  never catch. MEASURED (fleet 36286821015, the 0.232.0 field face): the
+ *  delivered bank chains price 156-184s at the arm (the full chain reads
+ *  longer - climb out + yard walk + smelt + deposit + return), while the
+ *  fixed dusk window (10800..12400) is 1600 ticks = 80s wide - a trip over
+ *  65s could NEVER arm (the 'no-time' refusal fired by arithmetic, the
+ *  heavy pocket rode the night exactly as before the plan existed). A trip
+ *  that cannot fit the fixed window now opens its window at the LAST-FIT
+ *  moment minus this margin: the arm may fire up to one shaft-cadence
+ *  early, the delivery still lands SAFETY_MS clear of the hold's threshold
+ *  (the fit test stays the gate), and a trip the whole day cannot cover
+ *  still refuses honestly. Trips that FIT the fixed window keep the fixed
+ *  window byte for byte - the bright-hours bound never loosens for them. */
+export const DUSK_BANK_EARLY_MS = 60000
+
 const fin = v => Number.isFinite(v)
 
 /**
@@ -68,8 +85,12 @@ const fin = v => Number.isFinite(v)
  *               costs more than the payload; the night ride is cheaper
  *   night       tod at/after DUSK_BANK_NIGHT_TICKS - the v0.140.1 hold
  *               owns the sky, the plan never competes with survival
- *   daylight    tod before DUSK_BANK_START_TICKS - the regular bank
- *               cadence owns the bright hours, no preemption
+ *   daylight    tod before the trip's window open - the fixed start
+ *               (DUSK_BANK_START_TICKS) for trips that fit its 80s budget,
+ *               the trip-relative last-fit moment minus the consult-cadence
+ *               margin (DUSK_BANK_EARLY_MS) for longer measured trips
+ *               (v0.233.0: the 80s fixed budget could never arm the
+ *               156-184s+ delivered chains the field actually walks)
  *   no-time     inside the window but the measured trip plus the safety
  *               margin overruns the daylight budget (or the trip is
  *               unmeasured junk) - the honest refusal, the hold owns it
@@ -108,8 +129,32 @@ export function duskBankPlan ({
   if (pocketUnits < DUSK_BANK_MIN_UNITS) return { go: false, why: 'no-pocket' }
   // the hold's sky: at/after the threshold the survival lane owns it all
   if (tod >= DUSK_BANK_NIGHT_TICKS) return { go: false, why: 'night' }
+  // (v0.233.0) THE TRIP-FIT WINDOW - the bright-hours bound meets the
+  // measured trip. The fixed start (10800) is a 1600-tick = 80s budget: a
+  // delivered chain of 156-184s+ (the 0.232.0 field face) could never arm,
+  // the refusal fired by arithmetic before the fit test ever had a chance.
+  // The window a trip gets now:
+  //   - a trip that FITS the fixed window (trip + safety <= 80s) keeps the
+  //     fixed window byte for byte (the bright-hours bound never loosens);
+  //   - a LONGER measured trip opens its window at the LAST-FIT moment
+  //     (night - (trip + safety)) minus the consult-cadence margin - the
+  //     arm may fire up to one shaft-cadence early, and the fit test below
+  //     still refuses any pass whose remaining daylight cannot cover the
+  //     trip + safety (the landing stays SAFETY clear of the threshold);
+  //   - junk tripMs keeps the fixed shape (the fit refuses inside it) -
+  //     an unmeasured trip is never priced and never widens a window.
+  const fitTicks = fin(bankTripMs) && bankTripMs >= 0
+    ? Math.ceil((bankTripMs + DUSK_BANK_SAFETY_MS) / TICK_MS)
+    : null
+  const fitsFixed = fitTicks != null &&
+    fitTicks <= DUSK_BANK_NIGHT_TICKS - DUSK_BANK_START_TICKS
+  const windowStart = fitTicks == null
+    ? DUSK_BANK_START_TICKS
+    : fitsFixed
+      ? DUSK_BANK_START_TICKS
+      : DUSK_BANK_NIGHT_TICKS - fitTicks - Math.ceil(DUSK_BANK_EARLY_MS / TICK_MS)
   // the bright hours: the regular cadence owns them, no preemption
-  if (tod < DUSK_BANK_START_TICKS) return { go: false, why: 'daylight' }
+  if (tod < windowStart) return { go: false, why: 'daylight' }
   // the dusk window: the daylight budget decides, inclusive at the safe
   // edge (trip + safety == remaining still lands the bot SAFETY clear)
   const remainingMs = (DUSK_BANK_NIGHT_TICKS - tod) * TICK_MS
