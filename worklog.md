@@ -6419,3 +6419,19 @@ Stage Summary:
 - SHIPPED: v0.239.0 THE FRAGMENT RELAY - the field face rides the next dispatch: watch 'the relay: took N raw_iron' lines, the pool's 'chest holds 0' volume vs x19, the iron ingots/run vs 1-2, and the FIRST iron_pickaxe if the arithmetic closes.
 - NEXT FIRE: (1) check the f52659f CI - green => DISPATCH (the v0.239.0 relay face); red => job logs, the pin classes first; (2) mine the dispatched face; (3) code front 0.240.0: the SKELETON RANGED CLASS (the only killer left standing - shield/strafe/cover decision is unmeasured) or the water-lens drown blindness (F12's class).
 - OPEN FRONTS: the pair-preempt FIELD HAND (x4); the Skeleton ranged class (1 kill this run - the critical-bar guard survived its OWN verdict); the water-lens drown blindness (F12); the IRON-TIER CEILING (the relay rides next dispatch); the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the climb re-arm's doomedRearm (x0 10th); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble (2/31); the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED this fire: the deaths-ledger dispute (2, not 1 - the law held again).
+
+---
+Task ID: cron37-20260927-1637 (addendum 2 - the CI gate + the cure)
+Agent: Super Z (cron lane, Job 415967)
+Task: the f52659f CI FAILURE decoded and CURED as v0.239.1 THE CAP SNAPSHOT (2f3a070).
+
+Work Log:
+- CI 36308250827 (18f8365 = the relay + the worklog) FAILED: unit(24) 5 defects, Integration cancelled, Big fleet skipped. The 15:37 lane's cautionary tale repeated - and the local-unit discipline (the 16:00 lane's precedent, node-only) caught the anatomy in ~15 min instead of a blind push-and-pray.
+- DEFECT 1 (REAL, the relay's own): the RAW_ORE_TAKE test measured rawTaken 9 with the cap 6 - the while loop's `movedOre += Math.min(take - movedOre, stack.count)` read the LIVE window slot AFTER the await; the singles path drains the stack 9->3, the mutated count fed min(6,3)=3 back, the loop re-entered and lifted the returned 3 into the pocket too. THE CURE: the pre-move count snapshot (stackCountBefore) - the cap holds byte-honest.
+- DEFECTS 2-5 (COLLATERAL, no code defect): the flat-world/seed tests measured taken=0/'no seed landed' - the file's walking tests sat just under the process-global FLEET GOAL ceiling (30 admitted goals / 5s, the fleet19 storm knob at FLEET_GOAL_BURST_LIMIT); the 5 relay tests' extra gotos pushed the tail of the file over and every later walk was refused. Proven by isolation (the flat pair passes alone) + the trace. THE CURE: resetWalkGovernors() (the exported test hook) on relay-test entry.
+- LOCAL GREEN: toolupgrade 83/83, smelting 108/108, camp-furnace+chest-full 51/51, the fleet19-pinning set 659/659. The npm install --ignore-scripts had to run first (the sandbox re-clone had no node_modules).
+- LESSONS FOR THE LANE LEDGER: (1) the mock worlds share the process-global breakers - ANY new walking test costs fleet-wide budget; the reset hook is the entry fee. (2) The live-slot arithmetic: every count read across an await that the clicks mutate must be snapshotted.
+
+Stage Summary:
+- Master 2f3a070 (pkg 0.239.1). Next free version 0.240.0.
+- CI on 2f3a070 in flight; the dispatch decision (the v0.239.1 relay face) rides the green gate - if this lane runs out of clock, the NEXT FIRE dispatches FIRST (the slot is free) and mines after.
