@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -747,7 +747,14 @@ export function createMiner ({
     // - uneven ground refused the cage and the shooter out-shot the flee.
     // In ranged mode the THREAT side's 2 cells (the arrow wall) are the only
     // gate; the other three sides build as bonus from leftover stock.
-    const ranged = RANGED_HOSTILES.has(threat.name) && threat.name !== 'witch'
+    // (v0.234.0) the mode reads the combat layer's ringRangedClass - the
+    // trident drowned joins the ranged mode in the STANDOFF band (dist > 5,
+    // the run36289053811 gallery: F2 4/8 -> dead @7.8, F8 3/8 -> dead @9.1,
+    // F14 not buildable -> dead @9.3), the close band keeps the full ring
+    // (the swimmer walks in through a gap), the fight verdict stays byte
+    // for byte (the v0.215.0 hybrid is untouched - the drowned is still NOT
+    // in RANGED_HOSTILES).
+    const ranged = ringRangedClass({ name: threat.name, dist: threat.dist })
     const threatIdx = ranged ? ringThreatSideIndex({ threatDx: threat.entity.position.x - here.x, threatDz: threat.entity.position.z - here.z }) : -1
     // read the four lateral sides: foot/head cell class + the ground under
     // the foot cell (the foot placement's reference) + hostile occupancy

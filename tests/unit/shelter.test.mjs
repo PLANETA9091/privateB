@@ -465,7 +465,11 @@ test('ringRangedEnough: both wall cells solid, junk never waits', () => {
 test('REGRESSION PIN: the miner runs the arrow wall lane (the v0.140.0 ranged shelter)', async () => {
   const fs = await import('node:fs')
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  assert.ok(/const ranged = RANGED_HOSTILES\.has\(threat\.name\) && threat\.name !== 'witch'/.test(minerSrc), 'the ranged mode gates on the hostile class and excludes the witch')
+  // (v0.234.0) the class law (RANGED_HOSTILES + the witch exclusion + the
+  // trident standoff band) moved into combat.mjs ringRangedClass - the pin
+  // follows the call site; the class law itself is pinned in
+  // trident-standoff-ring.test.mjs
+  assert.ok(/const ranged = ringRangedClass\(\{ name: threat\.name, dist: threat\.dist \}\)/.test(minerSrc), 'the ranged mode reads the combat layer predicate with the live threat (the class law + the trident standoff band live there)')
   assert.ok(/ringRangedNeeded\(sides, threatIdx\) : ringBlocksNeeded\(sides\)/.test(minerSrc), 'the stock gate counts the wall, not the cage')
   assert.ok(/const order = ranged \? \[threatIdx, \.\.\.baseOrder\.filter\(i => i !== threatIdx\)\] : baseOrder/.test(minerSrc), 'the threat side builds FIRST')
   assert.ok(/arrow wall incomplete/.test(minerSrc), 'the wall verify names itself for the run decode')

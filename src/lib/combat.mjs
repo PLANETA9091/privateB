@@ -535,6 +535,41 @@ export function rangedCooldownLive ({ now = 0, until = null } = {}) {
   return t < until
 }
 
+// (v0.234.0) THE TRIDENT STANDOFF RING - which threat reads the shelter ring's
+// RANGED (arrow-wall) mode at the miner's tryRingShelter call site. MEASURED
+// (run36289053811, the v0.233.0 era's fleet, the 0.232.0 tree): the impale
+// gallery x5 (F2@7.8, F13@13.3, F18@9.4, F14@9.3, F5@0.2-close after a
+// skeleton fight) made the trident drowned the fleet's #1 killer again (8/11
+// water deaths with the drownings), and THREE of the five died MID-RING: F2
+// 'ring incomplete 4/8' -> dead, F8 'ring incomplete 3/8' -> dead, F14 'ring
+// not buildable [oo oo -o oo]' -> dead - the ring ran in FULL mode (the
+// all-4-sides gate, 8 cells) because the v0.140.0 ranged selection reads
+// RANGED_HOSTILES and the v0.215.0 hybrid deliberately keeps the drowned out
+// of that set (the FIGHT verdict's swimmer contracts own the water bands).
+// But the v0.140.0 argument applies to the shooter verbatim: a LOS killer is
+// not refused by walking, so the full cage is the wrong contract - two closed
+// cells on the threat side break the trident's line of sight the same way
+// they break the arrow's, and the 2-cell gate builds in the window the
+// 8-cell build burns (the F5 arrow wall at 5/8 DID shelter - the ranged-mode
+// ring works where it stands). The drowned is NOT pulled into RANGED_HOSTILES
+// (the fight answer, the drift-wait and the melee-finish band stay byte for
+// byte); the ring mode reads its OWN predicate: the drowned joins the ranged
+// mode ONLY in the standoff band (dist > ENGAGE_RANGE) - a shooter at 7.8-13.3
+// kills by throw (the gallery), while the close band (<= 5) keeps the full
+// ring (the swimmer walks in through a gap - the v0.174.0 drift-wait
+// contract's terrain, the v0.169.0 melee-finish band). Junk dist reads the
+// full ring (never reclassify on a guess); the witch stays excluded FIRST
+// (her v0.115.0 splash-band contract needs the melee through the poison, not
+// a wall between them). The mode is a ring-ENTRY snapshot: a shooter that
+// closes mid-build re-verdicts next episode (the wait gate re-reads
+// nearestHostile every round, the flee stays the honest fallback).
+export function ringRangedClass ({ name = null, dist = Infinity } = {}) {
+  if (name === 'witch') return false
+  if (name === 'drowned') return Number.isFinite(dist) && dist > ENGAGE_RANGE
+  if (!name || typeof name !== 'string') return false
+  return RANGED_HOSTILES.has(name)
+}
+
 // (v0.137.0) THE WATER-MELEE YIELD LINE - F11's fight episode traded
 // 14.7 -> 5.3 hp against a drowned and finished at the bottom of the pool:
 // FLEE_HP (8) is a LAND measurement, and a bot standing in water has no
