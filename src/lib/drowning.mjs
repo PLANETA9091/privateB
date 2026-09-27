@@ -1596,3 +1596,111 @@ export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = T
   const m = Number.isFinite(margin) ? margin : TRANSIT_STALL_MARGIN
   return p >= mp && b > a - m
 }
+
+/**
+ * WHY did the rescue lane not save this drowning death (pure, the v0.248.0
+ * BREATH MIRROR)? The geometry face's Drowned return (4/6 deaths) drowned
+ * OUTSIDE the combat-flee context and the shore law never fired - and when
+ * the decode went looking for why the RESCUE lane stood down too, the log
+ * was silent: every hold in the sentry is a silent return (the controls
+ * owner, the cooldown, the dry-land backoff, the surface re-arm, the frozen
+ * gate), so a drowning death leaves no trace of WHICH gate held the page -
+ * or whether the sentry ever paged at all. The mirror reads the sentry's
+ * LIVE gate state at the killing tick and names the hold, in the sentry's
+ * own gate order. Classes (the decode's first questions):
+ *   - 'rescue-ran'      the lane paged inside RESCUE_MAX_MS - its own
+ *                       timeline lines ('drowning rescue start', passes,
+ *                       timeout) own the failure story
+ *   - 'controls-owned'  climb/defend/swim owned the tick - the sentry
+ *                       returned before any verdict
+ *   - 'dry-backoff'     the glitch-lie class held the page (critical bar on
+ *                       DRY contact, un-witnessed - the gate's own shape)
+ *   - 'surface-hold'    the open-water float's re-arm pacing held the page
+ *   - 'frozen-gate'     the wet-critical cycler's return gate held the page
+ *   - 'no-page'         nothing held and no fresh rescue - the sentry's
+ *                       verdict machinery never paged (the snapshot names
+ *                       the last verdict it computed)
+ *   - 'not-a-drown'     the death kind is not a drowning shape - the mirror
+ *                       is a drowning instrument and says so
+ *   - 'unknown'         unreadable input - honesty, never a guess
+ * Priority: climb/defend outrank everything (they own the controls NOW);
+ * a fresh rescue outranks a bare swim owner (the rescue IS the swim); then
+ * the holds in tick order; then no-page. Junk discipline: the body-guard
+ * `r || {}` (a destructure default never catches null); non-positive or
+ * non-finite gate lefts read as NOT ARMED (the wiring passes Math.max(0,
+ * ...) live computations; junk must never invent a hold); the death kind
+ * must be a non-empty string or the mirror refuses to guess.
+ *
+ * @param {object} [r]
+ * @param {string|null} [r.deathKind] 'drown' (the server kind) or 'drowning'
+ *   (the inference name); anything else is not a drowning shape
+ * @param {string|null} [r.owner] live controls owner at death:
+ *   'swim' | 'climb' | 'defend' | null
+ * @param {number|null} [r.rescueAgeMs] ms since the rescue lane last paged
+ *   (null = never paged this life)
+ * @param {number|null} [r.noOpGateLeftMs] the dry-land backoff gate's live
+ *   remaining ms (0/null = not armed)
+ * @param {number|null} [r.surfaceHoldLeftMs] the surface re-arm's live
+ *   remaining ms (0/null = not armed)
+ * @param {number|null} [r.frozenGateLeftMs] the frozen-return gate's live
+ *   remaining ms, ALREADY bypass-adjusted by the caller (0/null = not armed)
+ * @param {boolean|null} [r.criticalOnDry] the snapshot's last bar shape
+ * @param {boolean|null} [r.witnessed] the snapshot's last witness verdict
+ * @param {string|null} [r.sentryVerdict] the snapshot's last computed verdict
+ * @param {number|null} [r.sentryAgeMs] ms since the snapshot was taken
+ * @returns {{why: string, note: string}} the hold class + the decode-ready
+ *   sentence
+ */
+export function breathMirror (r) {
+  const {
+    deathKind = null,
+    owner = null,
+    rescueAgeMs = null,
+    noOpGateLeftMs = null,
+    surfaceHoldLeftMs = null,
+    frozenGateLeftMs = null,
+    criticalOnDry = null,
+    witnessed = null,
+    sentryVerdict = null,
+    sentryAgeMs = null
+  } = r || {} // the body-guard law: a destructure default never catches null
+  if (typeof deathKind !== 'string' || !deathKind) {
+    return { why: 'unknown', note: 'the death kind is unreadable - the mirror refuses to guess' }
+  }
+  if (deathKind !== 'drown' && deathKind !== 'drowning') {
+    return { why: 'not-a-drown', note: 'the death is not a drowning shape - the mirror is a drowning instrument' }
+  }
+  const armed = (v) => (Number.isFinite(v) && v > 0)
+  const own = owner === 'swim' || owner === 'climb' || owner === 'defend' ? owner : null
+  const age = Number.isFinite(rescueAgeMs) && rescueAgeMs >= 0 ? rescueAgeMs : null
+  const maxMs = Number.isFinite(RESCUE_MAX_MS) ? RESCUE_MAX_MS : 25000
+  if (own === 'climb' || own === 'defend') {
+    return {
+      why: 'controls-owned',
+      note: own === 'climb'
+        ? 'the wet-escape climb owned the controls at the killing tick - the escape failed, its own lines own the story'
+        : 'the combat defense owned the controls at the killing tick - the flee context owned the tick'
+    }
+  }
+  if (age !== null && age <= maxMs) {
+    return { why: 'rescue-ran', note: `the rescue lane owned the death window (paged ${Math.round(age / 100) / 10}s before death) - its own timeline lines own the failure` }
+  }
+  if (own === 'swim') {
+    return { why: 'controls-owned', note: 'the swim/float owned the controls with no fresh rescue - the float class' }
+  }
+  if (criticalOnDry === true && witnessed !== true && armed(noOpGateLeftMs)) {
+    return { why: 'dry-backoff', note: 'the dry-land backoff held the page (the glitch-lie class) - the bar read critical on DRY contact, un-witnessed' }
+  }
+  if (armed(surfaceHoldLeftMs)) {
+    return { why: 'surface-hold', note: 'the surface re-arm held the page - the open-water float owns the pacing' }
+  }
+  if (armed(frozenGateLeftMs)) {
+    return { why: 'frozen-gate', note: 'the frozen-return gate held the page - the wet-critical cycler class' }
+  }
+  const v = typeof sentryVerdict === 'string' && sentryVerdict ? sentryVerdict : 'unreadable'
+  const sAge = Number.isFinite(sentryAgeMs) && sentryAgeMs >= 0 ? `snapshot ${Math.round(sentryAgeMs / 100) / 10}s old` : 'no snapshot age'
+  return {
+    why: 'no-page',
+    note: `no hold and no fresh rescue - the sentry never paged (the last verdict '${v}', ${sAge}${criticalOnDry === true ? ', the bar read critical on dry contact' : ''}${witnessed === true ? ', the witness corroborated' : ''})`
+  }
+}

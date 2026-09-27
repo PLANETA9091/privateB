@@ -46,7 +46,7 @@ import {
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
-  frozenReturnGate, frozenReturnBypass,
+  frozenReturnGate, frozenReturnBypass, breathMirror,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
@@ -326,6 +326,37 @@ export function createMiner ({
       } catch { /* the registry must never break a respawn */ }
     }
     log(`${tag} died - respawning (cause: ${cause})`)
+    // (v0.248.0) THE BREATH MIRROR - the Drowned-class return (the geometry
+    // face's 4/6) drowned OUTSIDE the combat-flee context and the log could
+    // not answer why the rescue lane stood down: every hold (the controls
+    // owner, the cooldown, the dry-land backoff, the surface re-arm, the
+    // frozen gate) is a silent return. The mirror reads the sentry's LIVE
+    // gate state at the killing tick and names the hold - telemetry before
+    // cure, the canon law. A drowning shape only (the server kind or the
+    // inference); every other kind keeps the log byte for byte. Guarded: a
+    // mirror must never break the respawn path.
+    try {
+      const drownDeath = (authFresh && serverDeath?.kind === 'drown') || /\bdrowning\b/.test(inferred)
+      if (drownDeath) {
+        const now = Date.now()
+        const frGate = frozenReturnGates.get(bot.username) || 0
+        const mirror = breathMirror({
+          deathKind: (authFresh && serverDeath?.kind === 'drown') ? 'drown' : 'drowning',
+          owner: bot._climbEscape ? 'climb' : (swimming ? 'swim' : (defending ? 'defend' : null)),
+          rescueAgeMs: lastRescueAt > 0 ? now - lastRescueAt : null,
+          noOpGateLeftMs: Math.max(0, noOpRescueGateUntil - now),
+          surfaceHoldLeftMs: surfaceReleaseAt > 0 ? Math.max(0, surfaceReleaseAt + SURFACE_REARM_MS - now) : 0,
+          frozenGateLeftMs: frozenReturnBypass({ oxygen: Number(bot.oxygenLevel) }) ? 0 : Math.max(0, frGate - now),
+          criticalOnDry: sentryLast ? !!sentryLast.criticalOnDry : null,
+          witnessed: sentryLast ? !!sentryLast.witnessed : null,
+          sentryVerdict: sentryLast?.verdict ?? null,
+          sentryAgeMs: sentryLast ? now - sentryLast.at : null
+        })
+        const o2Read = sentryLast && Number.isFinite(sentryLast.o2) ? sentryLast.o2 : '?'
+        const sAge = sentryLast ? `${Math.max(0, Math.round((now - sentryLast.at) / 100) / 10)}s old` : 'none'
+        log(`${tag} water: breath mirror [${mirror.why}]${mirror.note ? ` - ${mirror.note}` : ''} (o2 ${o2Read}, ${sentryLast?.headWet ? 'head WET' : 'head dry/unknown'}, snapshot ${sAge})`)
+      }
+    } catch { /* a death handler must never throw */ }
     stats.deaths = (stats.deaths ?? 0) + 1
     // (v0.199.0) THE DEATH-DROP SNAPSHOT: run84 (fleet 36207216784) measured
     // unaccounted=1479 with the fleet pocket falling 2453u -> 1509u across the
@@ -1867,6 +1898,12 @@ export function createMiner ({
   // rescue level down, instead of waiting for the critical ladder that run104
   // proved arrives with no shore left to swim to.
   const o2History = []
+  // (v0.248.0) THE SENTRY MIRROR STATE - the death handler's breath mirror
+  // reads this snapshot (the last computed verdict + the bar shape) when a
+  // drowning death needs its WHY. Updated every pageable tick; the sentry's
+  // early returns (the controls owner, the cooldown) never reach this line -
+  // those gates are LIVE-checkable at death and the mirror reads them live.
+  let sentryLast = null
   const drownTimer = setInterval(() => {
     try {
       // (v0.17.0) bot._climbEscape: the wet-escape traverse owns the controls -
@@ -1958,6 +1995,7 @@ export function createMiner ({
       const verdict = witnessed
         ? 'drowning'
         : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
+      sentryLast = { at: now, verdict, criticalOnDry, witnessed, o2: o2raw, headWet } // (v0.248.0) the mirror's snapshot
       if (witnessed && now - lastWitnessLogAt >= AIR_GLITCH_LOG_MS) {
         lastWitnessLogAt = now
         log(`${tag} water: drowning witnessed by damage (health ${criticalHealthSeen} -> ${bot.health} on a 'dry' critical bar) - the witness outranks the ladder and the gate`)
