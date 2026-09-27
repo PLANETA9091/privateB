@@ -58,6 +58,44 @@ test('steer fluid lock: feet or head fluid locks the steer line', () => {
   assert.equal(steerFluidLock({ feetBox: 'fluid' }), true)
 })
 
+// (v0.242.0) THE FLUID NAME LAW - the 26.2 registry's water/lava carry
+// boundingBox "empty" (water id 35, lava id 36), so the v0.241.0 box-only
+// preflight fired ZERO locks while the tunnels ate 23 '[names gate water]'
+// zeros (run36314614666). The NAME is the second eye.
+test('fluid name law: water by name locks and classifies even with boundingBox empty (the 26.2 shape)', () => {
+  // the exact field shape: blockAt returned a block named water, boundingBox empty
+  assert.equal(steerFluidLock({ feetBox: 'empty', headBox: 'empty', feetName: 'water', headName: 'air' }), true, 'the v0.241.0 blind spot, now locked')
+  assert.equal(tunnelZeroWhy({ feetBox: 'empty', feetName: 'water', names: ['stone', 'dirt'] }), 'fluid ahead', 'water outranks the names gate')
+  assert.equal(tunnelZeroWhy({ headName: 'lava' }), 'fluid ahead', 'lava by name is the same verdict')
+  assert.equal(tunnelZeroWhy({ feetName: 'kelp' }), 'fluid ahead', 'kelp is the drowning family - the dig list cannot chew it')
+  assert.equal(tunnelZeroWhy({ headName: 'bubble_column' }), 'fluid ahead')
+})
+
+test('fluid name law: dry names never lock, junk never throws', () => {
+  assert.equal(steerFluidLock({ feetBox: 'empty', headBox: 'empty', feetName: 'air', headName: 'cave_air' }), false)
+  assert.equal(steerFluidLock({ feetName: 'stone', headName: 'dirt' }), false)
+  assert.equal(steerFluidLock({ feetBox: 'empty', feetName: 'leaf_litter' }), false, 'foliage is a names-gate stop, not a fluid')
+  assert.equal(tunnelZeroWhy({ feetBox: 'empty', feetName: 'water' }), 'fluid ahead')
+  assert.equal(tunnelZeroWhy({ feetName: 'water', names: null }), 'fluid ahead', 'the fluid law holds even without a dig list')
+})
+
+test('fluid name law: the vendored 26.2 registry really ships water with boundingBox empty (the law\'s foundation)', async () => {
+  // the fact this whole cure stands on - if the vendor data ever changes, this
+  // pin names it before the field does
+  const fs = await import('node:fs')
+  const path = new URL('../../vendor/mcdata-26.2/data/pc/26.2/blocks.json', import.meta.url)
+  const blocks = JSON.parse(fs.readFileSync(path, 'utf8'))
+  const entries = Object.values(blocks)
+  const water = entries.find(e => e.name === 'water')
+  const lava = entries.find(e => e.name === 'lava')
+  assert.ok(water, 'water exists in the 26.2 registry')
+  assert.ok(lava, 'lava exists in the 26.2 registry')
+  assert.equal(water.boundingBox, 'empty', 'water boundingBox is empty - the box-only check is blind by construction')
+  assert.equal(lava.boundingBox, 'empty', 'lava boundingBox is empty')
+  assert.equal(water.id, 35)
+  assert.equal(lava.id, 36)
+})
+
 test('steer fluid lock: dry cells, blind reads and junk never lock', () => {
   assert.equal(steerFluidLock({ feetBox: 'block', headBox: 'block' }), false)
   assert.equal(steerFluidLock({ feetBox: null, headBox: null }), false, 'a blind read (unloaded chunk) is not a lock - the tunnel owns its own fluid break')

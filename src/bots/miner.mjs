@@ -2532,8 +2532,15 @@ export function createMiner ({
         const feetB = bot.blockAt(feetCell)
         const headB = bot.blockAt(feetCell.offset(0, 1, 0))
         // lava/water ahead: stop this gallery, the caller rotates the direction
-        if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) {
-          zeroWhy = tunnelZeroWhy({ feetBox: feetB?.boundingBox ?? null, headBox: headB?.boundingBox ?? null }) // (v0.240.0) the water-table band's verdict
+        // (v0.242.0) THE FLUID NAME LAW: the 26.2 registry's water/lava carry
+        // boundingBox "empty" (water id 35, lava id 36), so the box check alone
+        // is blind - run36314614666 measured 23 water feet cells reaching the
+        // names gate as '[names gate water]' while the fluid break slept. The
+        // name is the second eye (isWaterName - the drowning family).
+        const fluidAhead = (feetB && (feetB.boundingBox === 'fluid' || isWaterName(feetB.name))) ||
+          (headB && (headB.boundingBox === 'fluid' || isWaterName(headB.name)))
+        if (fluidAhead) {
+          zeroWhy = tunnelZeroWhy({ feetBox: feetB?.boundingBox ?? null, headBox: headB?.boundingBox ?? null, feetName: feetB?.name ?? null, headName: headB?.name ?? null }) // (v0.240.0) the water-table band's verdict
           break
         }
         // (v0.140.0) THE GRAVITY ROOF FENCE - the gallery face is the suffocate

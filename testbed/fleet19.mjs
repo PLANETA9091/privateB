@@ -1093,7 +1093,12 @@ async function runBot (name, target, index) {
           const steerFrom0 = miner.bot.entity.position.floored()
           const lockFeet = miner.bot.blockAt(steerFrom0.offset(steerStep.x, 0, steerStep.z))
           const lockHead = miner.bot.blockAt(steerFrom0.offset(steerStep.x, 1, steerStep.z))
-          if (steerFluidLock({ feetBox: lockFeet?.boundingBox ?? null, headBox: lockHead?.boundingBox ?? null })) {
+          // (v0.242.0) THE FLUID NAME LAW: the 26.2 registry's water/lava carry
+          // boundingBox "empty" (water id 35, lava id 36), so the v0.241.0
+          // box-only preflight fired ZERO locks while the tunnels ate 23
+          // '[names gate water]' zeros - run36314614666's exact blind spot. The
+          // name is the second eye (isWaterName, the drowning family).
+          if (steerFluidLock({ feetBox: lockFeet?.boundingBox ?? null, headBox: lockHead?.boundingBox ?? null, feetName: lockFeet?.name ?? null, headName: lockHead?.name ?? null })) {
             console.log(`${name} tunnel: steer ${steer.name} @ ${steer.dist}b is water-locked (fluid at step 1, cross ${steer.cross}) - the blind rotation owns this pass`)
             rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
             steer = null

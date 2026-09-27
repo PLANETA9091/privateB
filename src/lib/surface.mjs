@@ -1,5 +1,17 @@
 // Surface policy (pure, unit-testable - no bot, no server).
 //
+// (v0.242.0) THE FLUID NAME LAW's second eye lives here: isWaterName is the
+// drowning law's canonical water family, SHAFT_FLUID_NAMES carries the shaft's
+// lava family - the tunnel first-cut refuses BOTH (water drowns the gallery,
+// lava ends it). drowning.mjs imports nothing from this file, so the edge is
+// acyclic.
+import { isWaterName, SHAFT_FLUID_NAMES } from './drowning.mjs'
+
+/** The tunnel's fluid-family predicate: the water family (kelp/seagrass/bubble
+ * column included - the dig list cannot chew them and the step-in drowns) plus
+ * the shaft lava family (flowing or source, the gallery ends there). */
+const tunnelFluidName = n => isWaterName(n) || SHAFT_FLUID_NAMES.has(n)
+//
 // WHY THIS EXISTS (fleet run 35485296464, 600s, 19 bots, mined 1770 = 2.95 b/s):
 //   banked=0, smelted=0, sand=0, gravel=0 - with 38x 'map trip skipped:
 //   sand,gravel unreachable' while the map held sand=110 positions. digShaft
@@ -1094,6 +1106,14 @@ export function tunnelStopReason ({ done = 0, maxBlocks = 12, stalls = 0, stallL
 }
 
 // ---- v0.240.0: THE TUNNEL ZERO VERDICT ----
+// (v0.242.0) THE FLUID NAME LAW appended below - MEASURED (run36314614666, the
+// v0.241.0 field): the preflight fired ZERO water-locks while the tunnels ate 23
+// '[names gate water]' zeros, because the 26.2 registry gives water/lava
+// boundingBox "empty" (water id 35, lava id 36 - verified in the vendored
+// blocks.json), so EVERY boundingBox==='fluid' read is blind to 26.2 fluids.
+// The law: a cell is fluid when its boundingBox says so OR its NAME is the
+// drowning law's water family (drowning.mjs WATER_NAMES / isWaterName - kelp,
+// seagrass, bubble_column included, the v0.241.0 blind spot's exact shape).
 // MEASURED (run36310927991, the v0.239.1 relay field debut): 13 iron/copper
 // steers were announced, every steered tunnel landed done=0 in the water-table
 // band, and the veins burned in veerSkipped - raw_iron read ZERO for the whole
@@ -1109,14 +1129,21 @@ export function tunnelStopReason ({ done = 0, maxBlocks = 12, stalls = 0, stallL
  * Pure zero-verdict classifier for the raw branch tunnel loop (src/bots/miner.mjs).
  * Each break site passes only the reads it holds; the classifier fills the rest
  * with nulls, so a site's call cannot cross-classify.
+ * (v0.242.0) THE FLUID NAME LAW: the fluid branch reads NAMES too - the 26.2
+ * registry's water/lava carry boundingBox "empty" (water id 35, lava id 36), so
+ * a name-blind fluid branch let 23 water feet cells reach the names gate as
+ * '[names gate water]' (run36314614666) while the truth was a plain fluid break.
+ * isWaterName is the drowning law's canonical water family (kelp, seagrass and
+ * bubble_column included) - a fluid-family name outranks the names gate.
  * @param {{feetBox?: string|null, headBox?: string|null, feetName?: string|null,
- *   names?: string[]|null, roofOk?: boolean|null, roofWhy?: string|null}} r
+ *   headName?: string|null, names?: string[]|null, roofOk?: boolean|null,
+ *   roofWhy?: string|null}} r
  * @returns {string|null} 'fluid ahead' | the roof's own why | 'names gate <block>'
  *   | null (no silent break holds - the stop was tunnelStopReason's business)
  */
 export function tunnelZeroWhy (r = {}) {
-  const { feetBox = null, headBox = null, feetName = null, names = null, roofOk = null, roofWhy = null } = r || {} // (the v0.81.0 body-guard law: pickOreTarget(null) threw on the destructure itself)
-  if (feetBox === 'fluid' || headBox === 'fluid') return 'fluid ahead'
+  const { feetBox = null, headBox = null, feetName = null, headName = null, names = null, roofOk = null, roofWhy = null } = r || {} // (the v0.81.0 body-guard law: pickOreTarget(null) threw on the destructure itself)
+  if (feetBox === 'fluid' || headBox === 'fluid' || tunnelFluidName(feetName) || tunnelFluidName(headName)) return 'fluid ahead'
   if (roofOk === false) return roofWhy || 'gravity roof refused'
   if (Array.isArray(names) && feetName && !names.includes(feetName)) return `names gate ${feetName}`
   return null
@@ -1128,13 +1155,19 @@ export function tunnelZeroWhy (r = {}) {
  * cut is the water-table break - the vein sits behind live water and the steered
  * tunnel can only land done=0 there. The runner stands off (the blind rotation
  * owns the pass) instead of burning a 0-block steered tunnel at the wall.
- * @param {{feetBox?: string|null, headBox?: string|null}} r
+ * (v0.242.0) THE FLUID NAME LAW: the 26.2 registry's water boundingBox is
+ * "empty" (water id 35, lava id 36 - run36314614666 measured the v0.241.0
+ * preflight firing ZERO locks while the tunnels ate 23 '[names gate water]'
+ * zeros), so the box check alone is blind; the NAME is the law's second eye
+ * (isWaterName - the drowning family, kelp/seagrass/bubble_column included).
+ * @param {{feetBox?: string|null, headBox?: string|null, feetName?: string|null,
+ *   headName?: string|null}} r
  * @returns {boolean} true = the steer line opens on fluid, the vein is water-locked
  *   from this stance
  */
 export function steerFluidLock (r = {}) {
-  const { feetBox = null, headBox = null } = r || {} // the body-guard law - a null read is a dry read, never a throw
-  return feetBox === 'fluid' || headBox === 'fluid'
+  const { feetBox = null, headBox = null, feetName = null, headName = null } = r || {} // the body-guard law - a null read is a dry read, never a throw
+  return feetBox === 'fluid' || headBox === 'fluid' || tunnelFluidName(feetName) || tunnelFluidName(headName)
 }
 
 // ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
