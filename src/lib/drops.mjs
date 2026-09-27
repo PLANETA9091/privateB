@@ -214,6 +214,49 @@ export function lipDigRefusal ({ range, airBelow, fluidBelow, dy } = {}) {
   return null
 }
 
+// (v0.260.0) THE ALREADY-THERE FAST PATH - the skip verdict that spares the
+// funnel a zero-displacement instant done. MEASURED (face 36344554956, the
+// v0.256.0-era fleet): the run's named drop-walk failures carried x16
+// 'spin breaker: sweep drops re-issued 2x inside the 10s window after its
+// own pf:done - sweep drops refused for 30s' against x22 honest timeouts -
+// 29% of the named failures were the breaker, not the geometry - while the
+// sweep ledger read failed=77 (above x44, below x21, plane x12) and the
+// coal famine held (coal_ore dug, smelted=0, torches skipped 'no coal:
+// coals 0'). THE ANATOMY: a vein's drops land in each other's goal spheres
+// (the wide range-2 families overlap by construction; a flat range-1
+// cluster is no better) - the FIRST walk approaches the cluster and lands
+// with real displacement, and the NEXT targets' walks start from a stance
+// ALREADY inside their goal's isEnd: the pathfinder completes instantly,
+// the bot never moves, and the funnel books a fast not-displaced 'sweep
+// drops' done - the exact fingerprint the v0.227.0 breaker was built to
+// read as the run53 famine churn (two consecutive zero-displacement
+// re-issues of the same label inside the 10s window open the 30s hold).
+// The breaker's discriminator (displacement) cannot distinguish 'churn
+// that arrived nowhere' from 'a cluster whose next drop is 1 block up' - a
+// vein mined RICHLY is booked as a spin, the hold refuses the whole
+// remaining cluster for 30s, and the drops ride the despawn: the harvest
+// is punished exactly for succeeding. THE CURE: the walk is only issued
+// when the bot stands OUTSIDE the goal's own arrival test (GoalNear.isEnd
+// - the pathfinder's own verdict, the same arithmetic the funnel would
+// have settled on): an already-satisfied goal skips to the landed path
+// with zero funnel participation (no queue slot, no think window, no A*
+// plan, no spin book entry), and the walks that DO issue now start outside
+// their arrival test, so a landed walk displaces - the honest evidence the
+// breaker's discriminator wants - and the holds never open. Junk
+// discipline: a missing/unreadable isEnd, a junk position, or a
+// truthy-but-not-true verdict NEVER skips a walk - the legacy issue byte
+// for byte (a missing read never skips an action). The skip is honest
+// work, not a failure: the bot is inside the arrival test, the ~1.5
+// pickup magnet is the last mile the walk would not have shortened, and
+// the v0.187.0 lip dig-down still reads the dy family on the landed path.
+export function dropWalkSkipped (isEnd, pos) {
+  if (typeof isEnd !== 'function') return false
+  if (!pos || typeof pos !== 'object') return false
+  if (typeof pos.x !== 'number' || typeof pos.y !== 'number' || typeof pos.z !== 'number') return false
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return false
+  try { return isEnd(pos) === true } catch { return false }
+}
+
 export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, cap = SWEEP_DROP_CAP } = {}) {
   if (!entities || typeof entities !== 'object') return []
   if (!from || typeof from.x !== 'number' || typeof from.y !== 'number' || typeof from.z !== 'number') return []

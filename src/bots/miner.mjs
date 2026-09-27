@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2804,6 +2804,7 @@ export function createMiner ({
         let belowFails = 0
         let aboveFails = 0
         let skipDeep = 0
+        let skipWalks = 0
         let lipDigs = 0
         let lipRefusals = 0
         for (const d of targets) {
@@ -2827,32 +2828,52 @@ export function createMiner ({
           const range = dropGoalRange({ dy: dyWalk })
           if (range === DROP_GOAL_SKIP) { skipDeep++; continue }
           let landed = false
-          try {
-            await gotoSafe(bot, new goals.GoalNear(d.x, d.y, d.z, range), { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
+          // (v0.260.0) THE ALREADY-THERE FAST PATH: the walk only issues when
+          // the bot stands OUTSIDE the goal's own arrival test (GoalNear.isEnd -
+          // the pathfinder's own verdict). A vein's drops sit in each other's
+          // goal spheres - one landed walk parks the bot inside the NEXT
+          // targets' isEnd, and those walks completed instantly with ZERO
+          // displacement: two of them opened the v0.227.0 spin breaker's 30s
+          // hold on the whole 'sweep drops' label (face 36344554956 named x16
+          // breaker refusals vs x22 honest timeouts - a rich vein booked as
+          // churn, the remaining cluster refused while the drops despawned).
+          // The skip is honest work - no funnel slot, no think window, no A*
+          // plan, no spin book entry - and the walks that DO issue now start
+          // outside their arrival test, so a landed walk displaces (the
+          // evidence the breaker's discriminator wants). Junk isEnd or a junk
+          // position never skips a walk - the legacy issue byte for byte.
+          const goal = new goals.GoalNear(d.x, d.y, d.z, range)
+          if (dropWalkSkipped((p) => goal.isEnd(p), bot.entity.position)) {
             landed = true
-          } catch (e) {
-            // (v0.187.0) the DY INSTRUMENT: the failed line names its dy family -
-            // the v0.178.0 below-plane cure's residue names only x6 of the run's
-            // x28 timeouts (fleet 36181152847); the rest are plane-range walks
-            // whose failure family is UNMEASURED (water holes? above-plane
-            // ledges? sealed cells?). The next decode splits the class by the
-            // (dy, range) pair it rides and the next cure derives from
-            // measurement, not speculation (the v0.178.0 above-plane stance).
-            if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range})`)
-            dropFails++
-            // (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the
-            // walk's own dy sign. run68 (fleet 36221189568, the row's day 2)
-            // exposed the pollution: DROP_GOAL_ABOVE and DROP_GOAL_BELOW are
-            // the SAME NUMBER (both the wide range 2), so this gate counted
-            // the ABOVE-family timeouts into the below bucket - the row
-            // claimed 'below x82' while its own dy instrument's printed
-            // sample read ABOVE-heavy (dy +1..+3 timeouts x19 vs below x5).
-            // Negative dy = the below family, positive = the above family; no
-            // range-2 walk can sit between -0.5 and 0 (the PLANE fence's
-            // land), so the sign is the family here.
-            if (range === DROP_GOAL_BELOW) {
-              if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++
-              else aboveFails++
+            skipWalks++
+          } else {
+            try {
+              await gotoSafe(bot, goal, { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
+              landed = true
+            } catch (e) {
+              // (v0.187.0) the DY INSTRUMENT: the failed line names its dy family -
+              // the v0.178.0 below-plane cure's residue names only x6 of the run's
+              // x28 timeouts (fleet 36181152847); the rest are plane-range walks
+              // whose failure family is UNMEASURED (water holes? above-plane
+              // ledges? sealed cells?). The next decode splits the class by the
+              // (dy, range) pair it rides and the next cure derives from
+              // measurement, not speculation (the v0.178.0 above-plane stance).
+              if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range})`)
+              dropFails++
+              // (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the
+              // walk's own dy sign. run68 (fleet 36221189568, the row's day 2)
+              // exposed the pollution: DROP_GOAL_ABOVE and DROP_GOAL_BELOW are
+              // the SAME NUMBER (both the wide range 2), so this gate counted
+              // the ABOVE-family timeouts into the below bucket - the row
+              // claimed 'below x82' while its own dy instrument's printed
+              // sample read ABOVE-heavy (dy +1..+3 timeouts x19 vs below x5).
+              // Negative dy = the below family, positive = the above family; no
+              // range-2 walk can sit between -0.5 and 0 (the PLANE fence's
+              // land), so the sign is the family here.
+              if (range === DROP_GOAL_BELOW) {
+                if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++
+                else aboveFails++
+              }
             }
           }
           // (v0.187.0) THE LIP DIG-DOWN: a BELOW-class walk that CONVERGED parks
@@ -2924,6 +2945,7 @@ export function createMiner ({
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
         if (aboveFails > 0) log(`${tag} vein sweep: ${aboveFails} above-plane walk(s) timed out on the wide goal (range 2) - the ledge family (the v0.189.0 class, the triage names it)`)
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
+        if (skipWalks > 0) log(`${tag} vein sweep: ${skipWalks} drop(s) already inside the goal - the zero-displacement walk spared (the instant done the spin book reads as churn)`)
         if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
         // (v0.203.0) the sweep drop ledger: the counters ride stats so the fleet
         // RESULT can aggregate them - the per-sweep lines were the only read and
