@@ -139,6 +139,15 @@ console.log('  defer announcements:', count(/\] sweep deferred \(the lanes hold\
 console.log('  busy buckets:', occurrences(/busy x\d+/g))
 console.log('  idle-empty reads:', count(/idle-empty machine/))
 
+// (v0.229.0) THE DUSK BANK - the heavy pocket's priced delivery: the arm
+// names itself in the bank trip label ladder ('dusk-plan', the same 'bank '
+// filter key), the budget line carries the arm, the deliveries ride the
+// existing bank rows.
+console.log('=== DUSK BANK (the heavy-pocket delivery, v0.229.0+) ===')
+console.log('  dusk-plan arms:', count(/bank trip: dusk-plan/), 'per-bot:', fmt(perBot(/bank trip: dusk-plan/)))
+console.log('  dusk-plan budgets:', fmt((() => { const m = {}; for (const l of lines) { const a = l.match(/bank trip: dusk-plan budget (\d+)s/); if (a) m[`${a[1]}s`] = (m[`${a[1]}s`] || 0) + 1 } return m })()))
+console.log('  legacy dusk arms (the v0.193.0 forecast lane, untouched):', count(/bank trip: dusk /))
+
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))

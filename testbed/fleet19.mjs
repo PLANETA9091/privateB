@@ -41,6 +41,7 @@ import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
 import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
+import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
@@ -1028,6 +1029,8 @@ async function runBot (name, target, index) {
       let lastSwordAttempt = 0 // (v0.67.0) sword-craft cooldown
       let lastBankAt = Date.now() // (v0.33.0) mining-trip cadence: bank EARLY while the walk back is affordable
       let wetEvacUntil = 0 // (v0.223.0) the churn evacuation's exit clock - the plan owns it, the wiring only carries it (it survives relogs: the stance rides the runner, the cadence rides the client)
+      let duskTripUntil = 0 // (v0.229.0) the dusk-bank plan's exit clock - the plan owns it, the wiring only carries it (the churn clock's shape)
+      let lastBankTripMs = NaN // (v0.229.0) the wiring's MEASURED bank trip (the last DELIVERED chain's wall time) - the dusk plan prices with it; NaN = unmeasured, the plan reads no-time (it never prices a guess)
       let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
       let dragonEvacAnnounced = false // (v0.225.0) the zone-entry story: one line per entry, the flag resets when the bot reads out
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
@@ -1691,7 +1694,48 @@ async function runBot (name, target, index) {
           yardDist: bankYardDist,
           msSinceBank: Date.now() - lastBankAt
         }))
-        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned || bankDusk)
+        // (v0.229.0) THE DUSK-BANK WIRING - the heavy pocket's priced delivery.
+        // The pure plan (v0.226.0) prices the dusk window (tod 10800..12400,
+        // the measured deferral face's threshold); this lane wires it (the
+        // churn shape): the work loop consults duskBankPlan on EVERY pass, a
+        // GO spends the bot's next voluntary goal on the SAME proven bank
+        // chain below (a delivery, not a rescue), and the plan's own exit
+        // clock (untilMs) rides the wiring as duskTripUntil - holding
+        // re-reads with the remaining time, never double-books, and a failed
+        // arm waits the clock out (one priced trip per window, no
+        // retry-storm; lastBankAt advances on every attempt as always). THE
+        // INPUTS, each named: tod = the vanilla clock (bot.time.timeOfDay);
+        // pocketUnits = load.units (the plan's 256u HEAVY floor - the legacy
+        // 24u forecast lane above stays untouched); bankTripMs =
+        // lastBankTripMs, the WIRING'S MEASURED trip (the last delivered
+        // chain's wall time, taken at the landing below; an unmeasured bot
+        // reads no-time - the honest refusal); tripUntil = duskTripUntil (the
+        // wiring owns the field, the plan the clock). THE LAWS: the v0.140.1
+        // night hold stays UNTOUCHABLE - the plan's own night threshold IS
+        // the hold's NIGHT_WALK_START (12400 = 12400), so a held sky reads
+        // 'night' at the plan itself; the arm folds into bankViable behind
+        // !bankNightHold as the belt to the suspenders (a held arm lands in
+        // the legacy 'deferred night' refusal - the line names the deferral,
+        // lastBankAt refractories the window); the legacy family keeps
+        // priority (planned/dusk/pockets-full own the pass, the plan only
+        // spends a goal they declined); the arm's viability IS the plan's own
+        // pricing (the measured trip + the safety fit the sky - the 150s
+        // needsBankingTripViable gate is the full-chain emergency's check,
+        // the plan arm's spend is bounded by the measurement instead); and
+        // the wiring NEVER hardcodes the plan's clocks (the windows/margins
+        // live in duskbank.mjs alone - the dead-wire doctrine's inverse).
+        const duskPlan = (() => {
+          try {
+            return duskBankPlan({
+              tod: miner.bot.time?.timeOfDay,
+              pocketUnits: load ? load.units : NaN,
+              bankTripMs: lastBankTripMs,
+              now: Date.now(),
+              tripUntil: duskTripUntil
+            })
+          } catch { return { go: false, why: 'unknown' } }
+        })()
+        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned || bankDusk || duskPlan.go)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
         // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
         // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full
@@ -1704,9 +1748,12 @@ async function runBot (name, target, index) {
         // legacy shape byte for byte). Rides the 'bank ' filter key so the
         // next fleet sizes the held class.
         const bankNightHold = surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'mid-bank' }) === 'hold'
-        const bankViable = !bankNightHold && (tripPlanned || bankDusk || needsBankingTripViable({ remainingMs: bankRemainingMs }))
+        const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || needsBankingTripViable({ remainingMs: bankRemainingMs })) // (v0.229.0) the plan arm rides beside the legacy reasons - the hold still owns the sky first
         if (load && bankWanted && bankViable) {
           lastBankAt = Date.now()
+          if (duskPlan.go) {
+            duskTripUntil = duskPlan.untilMs // (v0.229.0) the plan owns the exit clock - the wiring only carries it (the failed arm waits it out, no re-arm storm)
+          }
           // (v0.17.3) remember WHERE we work: after banking at the yard the bot
           // must return here, or it digs its next shaft next to spawn and
           // re-mines the already-hollowed yard area (emptyShafts spiral).
@@ -1728,7 +1775,7 @@ async function runBot (name, target, index) {
           })
           // (v0.193.0) the dusk trip names itself ('dusk') - a third label on
           // the same 'bank ' filter key, so the next fleet sizes the class.
-          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : 'pockets full'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`)
+          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
           // OWN remaining chain clock: everything spent since lastBankAt
@@ -1743,6 +1790,12 @@ async function runBot (name, target, index) {
               try {
                 await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, preBank.x, preBank.y, preBank.z, { range: 4 }), { timeoutMs: 90000, label: 'return to column' })
               } catch { /* dig from wherever the return walk reached */ }
+              // (v0.229.0) the wiring's measured trip: the DELIVERED chain's
+              // wall time (arm -> landing) feeds the dusk plan's pricing - the
+              // next dusk window prices THIS bot's real walk, never a model
+              // guess (a failed chain measures nothing it didn't walk; the
+              // safety margin eats the walk's own variance, not the daylight).
+              lastBankTripMs = Date.now() - lastBankAt
             } else {
               // (v0.16.4) the reason MUST reach the log - the invisible 'no chest in
               // range' zero cost fleet #122 its whole banking chain (v0.16.1 lesson)
