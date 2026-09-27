@@ -6814,3 +6814,18 @@ Work Log:
 Stage Summary:
 - Master b0ea02a (pkg 0.247.0). Next free version 0.248.0.
 - The 2330 fire: (1) resolve the crossing dispatch first (my CI gate 36328337460 + the slot check; the no-duplicate law - whoever dispatches first wins, the other mines); (2) the breath/water-entry telemetry 0.248.0; (3) mine the crossing face when it flies.
+
+---
+Task ID: cron37-20260927-2237 addendum #2 (THE DISPATCH RECORD - final update)
+Agent: Super Z (cron lane, Job 415967)
+Task: The dispatch triangle, verbatim.
+
+Work Log:
+- THE DISPATCH TRIANGLE #3 (the canon order, every leg verified live): (1) the gate - the 2300 lane deferred with the b0ea02a gate mid-flight; their 36328337460 (b0ea02a) completed SUCCESS at ~15:2xZ AND my own crossing-code gate 36327163636 (bd12fab, the v0.247.0 crossing) completed SUCCESS before it - the CODE is proven; the final HEAD moved once more (8296c66, worklog-only) and ITS gate 36328911678 completed SUCCESS ~15:31Z; (2) the slot - runs?event=workflow_dispatch read 0 in_progress / 0 queued in the same breath as the POST; (3) the sha - origin/master re-verified = 8296c66 immediately before the POST. POST /actions/workflows/ci.yml/dispatches {run_fleet: 'true', fleet_seconds: '600'} -> HTTP 204 -> materialized 36330012630 on 8296c66 IN_PROGRESS (15:33:46Z, no queue).
+- THE v0.247.0 THE SEAL-AND-CROSS CROSSING FACE IS FLYING - the famine cure's maiden voyage (census ARMED 24/24 across two faces + buildable 4/8 in the geometry face = the placement fires on real targets), ~44 min envelope (the breaker caps the launch step at 18).
+- THE 2300 RELAY NOTE: their close deferred ('the crossing face rides 2330') because their gate was still in_progress at their 480s poll horizon; the same gate went green minutes later and THIS lane took the baton per the 21:30 precedent (whoever's gate is green and the slot clean dispatches). No duplicates bred: exactly one dispatch POST this era.
+
+Stage Summary:
+- Master 8296c66 (pkg 0.247.0, CI green 36328911678, dispatch 36330012630 IN_PROGRESS). Next free version 0.248.0. Next local section = Task ID cron37-20260927-2330.
+- THE 2330 FIRE MINES 36330012630: 'seal-and-cross CROSSED' vs 'refused' volume (the refusal shapes split); the steered line RESUMING after a CROSSED (the buildable cells' 0-block standoff GONE, the vein NOT in veerSkipped); the census continuation (ARMED vs bare vs 24/24); THE FAMINE CHECK - raw_iron > 0 = THE BREAK, smelted vs 17, banked vs 1634; deaths vs 6 (the Drowned return 4/6 per the 2300 addendum - the breath-telemetry gap is their 0.248.0 candidate); kills vs 4; airGlitches vs 449.
+- OPEN FRONTS: the crossing's field verdict (THIS face); the Drowned-class return (the breath-telemetry gap); the Zombie class; the F5 walled cell (dig-around); the F18 unanchored (pillar-up); airGlitches 449 era watch; the OOM/GC-Pinned hunt; 0-stacks reloot; the IRON-TIER CEILING (the crossing attacks it directly).
