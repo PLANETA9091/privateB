@@ -17,6 +17,7 @@ import {
   ringSideOrder, countSealBlocks, emptySlotCount, ringDigEarnSupply,
   ringThreatSideIndex, ringRangedNeeded, ringRangedEnough
 } from '../../src/lib/shelter.mjs'
+import { FLEE_HP } from '../../src/lib/combat.mjs'
 
 test('shelterDue: only the measured death pattern gets the shelter', () => {
   assert.equal(shelterDue({ night: true, armed: false, threatDist: 5 }), true, 'the pattern: naked + night + close threat')

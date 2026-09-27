@@ -123,7 +123,7 @@ test('THE CONSTANTS SHAPE: PAIR_SIZE is two, the family shares the swarm line, t
 
 test('THE WIRING PINS: the miner feeds the reach-weighted census at every verdict call site', () => {
   // the import rides ENGAGE_RANGE beside DETECT_RANGE
-  assert.ok(/DETECT_RANGE, ENGAGE_RANGE, fleeResponse/.test(minerSrc), 'ENGAGE_RANGE rides the combat import')
+  assert.ok(/DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse/.test(minerSrc), 'ENGAGE_RANGE rides the combat import')
   // countHostiles takes the range (the bare calls keep DETECT_RANGE)
   assert.ok(/function countHostiles \(range = DETECT_RANGE\)/.test(minerSrc), 'the census takes the range parameter')
   assert.ok(!/countHostiles\(DETECT_RANGE\)/.test(minerSrc), 'the legacy bare calls stay bare (the default IS DETECT_RANGE)')
