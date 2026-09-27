@@ -24,6 +24,7 @@ import {
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
+  tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
@@ -2498,6 +2499,7 @@ export function createMiner ({
     let stalls = 0
     let diglessIters = 0 // (v0.35.0) iterations since the last successful dig - mob shoving resets `stalls` but cannot reset this
     let stopped = null // (v0.35.0) why the loop ended before maxBlocks: 'budget' | 'digless' | 'stalled' | 'shouldStop' | 'no entity'
+    let zeroWhy = null // (v0.240.0) the silent-break verdict - run36310927991's 13 steered tunnels all landed done=0 and the gate was INVISIBLE (all three first-cut breaks are silent)
     // (v0.107.0) the tunnel-torch rhythm: the galleries this lane digs were the
     // fleet's dark kill zones (run94: zombie x5 + the creeper ambush pair while
     // the SHAFT lane already lit itself every TORCH_SPACING digs). Wall candidates
@@ -2530,7 +2532,10 @@ export function createMiner ({
         const feetB = bot.blockAt(feetCell)
         const headB = bot.blockAt(feetCell.offset(0, 1, 0))
         // lava/water ahead: stop this gallery, the caller rotates the direction
-        if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) break
+        if ((feetB && feetB.boundingBox === 'fluid') || (headB && headB.boundingBox === 'fluid')) {
+          zeroWhy = tunnelZeroWhy({ feetBox: feetB?.boundingBox ?? null, headBox: headB?.boundingBox ?? null }) // (v0.240.0) the water-table band's verdict
+          break
+        }
         // (v0.140.0) THE GRAVITY ROOF FENCE - the gallery face is the suffocate
         // kill site (run554: six bots buried, F5+F3 in ONE pocket). The bot
         // STEPS INTO this column: any sand/gravel riding above the head cell
@@ -2541,13 +2546,17 @@ export function createMiner ({
         if (!roof.ok) {
           stats.gravityRefused = (stats.gravityRefused ?? 0) + 1
           if (stats.gravityRefused <= 2) log(`${tag} tunnel: ${roof.why}`)
+          zeroWhy = tunnelZeroWhy({ roofOk: roof.ok, roofWhy: roof.why }) // (v0.240.0) the roof verdict rides the return even when the log cap ate the line
           break
         }
         if (roof.cleared > 0) stats.gravityCleared = (stats.gravityCleared ?? 0) + 1
         // clear the feet cell first (one-type names gate honoured; a refused break
         // is NOT counted - see lesson 1)
         if (feetB && feetB.type !== 0) {
-          if (names && !names.includes(feetB.name)) break
+          if (names && !names.includes(feetB.name)) {
+            zeroWhy = tunnelZeroWhy({ feetName: feetB.name, names }) // (v0.240.0) the soft-cell verdict - a gold_ore/calcite wall is a legal stop, now a NAMED one
+            break
+          }
           if (await bot.fastDig(feetB)) {
             done++
             diglessIters = 0
@@ -2597,7 +2606,7 @@ export function createMiner ({
       }
     } catch { /* never break the caller's loop */ }
     const secs = (Date.now() - start) / 1000
-    return { done, secs, rate: secs > 0 ? done / secs : 0, stopped }
+    return { done, secs, rate: secs > 0 ? done / secs : 0, stopped, zeroWhy: done === 0 ? zeroWhy : null }
   }
 
   // (v0.84.0) THE VEIN SWEEP: a straight 1x2 gallery digs the LINE, never the

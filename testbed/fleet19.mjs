@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -1077,13 +1077,35 @@ async function runBot (name, target, index) {
             priorities: oreSteerOrder({ progress: materialsProgress(), ores: STEER_ORES })
           })
         }
+        // (v0.240.0) THE WATER-LOCK PREFLIGHT - run36310927991's famine root: 13
+        // iron/copper steers were announced, every steered tunnel landed done=0
+        // (the first cut IS the water-table break) and the veins burned in
+        // veerSkipped with raw_iron=0 for the whole run. The step-1 cell along
+        // the steer axis is readable BEFORE the tunnel burns: when it opens on
+        // fluid the vein sits behind live water from this stance - stand off,
+        // name the verdict, and hand the pass to the blind rotation (the tunnel's
+        // first job is still MOVEMENT). The vein stays burned (the amnesia cap is
+        // the relief valve) but the 0-block steered tunnel never runs - the
+        // verdict line tells the next decode exactly which vein class drowned.
+        const blindDirs = [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)]
+        if (steer) {
+          const steerStep = new Vec3(steer.axis === 'x' ? steer.dir : 0, 0, steer.axis === 'z' ? steer.dir : 0)
+          const steerFrom0 = miner.bot.entity.position.floored()
+          const lockFeet = miner.bot.blockAt(steerFrom0.offset(steerStep.x, 0, steerStep.z))
+          const lockHead = miner.bot.blockAt(steerFrom0.offset(steerStep.x, 1, steerStep.z))
+          if (steerFluidLock({ feetBox: lockFeet?.boundingBox ?? null, headBox: lockHead?.boundingBox ?? null })) {
+            console.log(`${name} tunnel: steer ${steer.name} @ ${steer.dist}b is water-locked (fluid at step 1, cross ${steer.cross}) - the blind rotation owns this pass`)
+            rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
+            steer = null
+          }
+        }
         const tdir = steer
           ? new Vec3(steer.axis === 'x' ? steer.dir : 0, 0, steer.axis === 'z' ? steer.dir : 0)
-          : [new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, 0, 0), new Vec3(0, 0, -1)][shaft % 4]
+          : blindDirs[shaft % 4]
         if (steer) console.log(`${name} tunnel: steering ${steer.name} @ ${steer.dist}b (axis ${steer.axis}${steer.dir > 0 ? '+' : '-'}${steer.dir < 0 ? steer.dir : ''}, cross ${steer.cross}, ${reason})`)
         try {
           const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
-          console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''}, ${reason})`)
+          console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''}, ${reason})${tres.done === 0 && tres.zeroWhy ? ` [${tres.zeroWhy}]` : ''}`)
           if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
           // (v0.84.0) THE VEIN SWEEP: the gallery digs the LINE, the vein sits
           // BESIDE it (run78: 29 iron steers at cross 0.3-3.3, raw_iron ZERO -

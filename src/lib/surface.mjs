@@ -1093,6 +1093,50 @@ export function tunnelStopReason ({ done = 0, maxBlocks = 12, stalls = 0, stallL
   return null
 }
 
+// ---- v0.240.0: THE TUNNEL ZERO VERDICT ----
+// MEASURED (run36310927991, the v0.239.1 relay field debut): 13 iron/copper
+// steers were announced, every steered tunnel landed done=0 in the water-table
+// band, and the veins burned in veerSkipped - raw_iron read ZERO for the whole
+// run, the relay (v0.239.0) never saw a fragment, and the famine root was
+// INVISIBLE because tunnel()'s first-cut breaks are all silent (the fluid break,
+// the gravity roof fence, the names gate). tunnelStopReason names the ACCOUNTING
+// stops (budget/digless/stalled) but the silent breaks end the loop without a
+// word. One classifier, one source of truth: the caller passes the cell reads it
+// already holds and the verdict names the gate. Priority mirrors the loop order
+// (fluid 2533 -> roof 2544 -> names 2550) so a compound read resolves the way the
+// loop would have broken.
+/**
+ * Pure zero-verdict classifier for the raw branch tunnel loop (src/bots/miner.mjs).
+ * Each break site passes only the reads it holds; the classifier fills the rest
+ * with nulls, so a site's call cannot cross-classify.
+ * @param {{feetBox?: string|null, headBox?: string|null, feetName?: string|null,
+ *   names?: string[]|null, roofOk?: boolean|null, roofWhy?: string|null}} r
+ * @returns {string|null} 'fluid ahead' | the roof's own why | 'names gate <block>'
+ *   | null (no silent break holds - the stop was tunnelStopReason's business)
+ */
+export function tunnelZeroWhy (r = {}) {
+  const { feetBox = null, headBox = null, feetName = null, names = null, roofOk = null, roofWhy = null } = r || {} // (the v0.81.0 body-guard law: pickOreTarget(null) threw on the destructure itself)
+  if (feetBox === 'fluid' || headBox === 'fluid') return 'fluid ahead'
+  if (roofOk === false) return roofWhy || 'gravity roof refused'
+  if (Array.isArray(names) && feetName && !names.includes(feetName)) return `names gate ${feetName}`
+  return null
+}
+
+/**
+ * The steer preflight behind the runner's water-locked stand-off (v0.240.0): the
+ * step-1 cell ALONG the steer axis is fluid (feet or head), so the gallery's first
+ * cut is the water-table break - the vein sits behind live water and the steered
+ * tunnel can only land done=0 there. The runner stands off (the blind rotation
+ * owns the pass) instead of burning a 0-block steered tunnel at the wall.
+ * @param {{feetBox?: string|null, headBox?: string|null}} r
+ * @returns {boolean} true = the steer line opens on fluid, the vein is water-locked
+ *   from this stance
+ */
+export function steerFluidLock (r = {}) {
+  const { feetBox = null, headBox = null } = r || {} // the body-guard law - a null read is a dry read, never a throw
+  return feetBox === 'fluid' || headBox === 'fluid'
+}
+
 // ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
 // MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): the blackbox
 // freeze dump read 'climb @+0.0s <- water:rescue @+-1.9s' - a climbOut STARTED
