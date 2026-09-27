@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -1100,6 +1100,14 @@ async function runBot (name, target, index) {
           // name is the second eye (isWaterName, the drowning family).
           if (steerFluidLock({ feetBox: lockFeet?.boundingBox ?? null, headBox: lockHead?.boundingBox ?? null, feetName: lockFeet?.name ?? null, headName: lockHead?.name ?? null })) {
             console.log(`${name} tunnel: steer ${steer.name} @ ${steer.dist}b is water-locked (fluid at step 1, cross ${steer.cross}) - the blind rotation owns this pass`)
+            // (v0.244.0) THE SEAL CENSUS - run36317889503 named the seal-and-cross
+            // frontier (the ore sits behind fluid at step 1, the famine three runs
+            // straight); the relay canon says TELEMETRY BEFORE CURE: the field line
+            // answers whether the standing bot even carries sealable stock when the
+            // lock fires - blocks in pocket arms the placement cure, a bare pocket
+            // moves the frontier to the bring-stock class (the torch-famine shape).
+            const census = sealCensus({ fluidNames: [lockFeet?.name ?? null, lockHead?.name ?? null], pocket: (miner.bot.inventory?.items?.() ?? []) })
+            console.log(`${name} tunnel: water-lock census: ${census.fluid ?? 'unclassified'} at step 1, ${census.blocks} sealable in pocket${census.top ? ` (top ${census.top})` : ''} - the seal-and-cross frontier is ${census.sealable ? 'ARMED' : 'bare'}`)
             rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
             steer = null
           }

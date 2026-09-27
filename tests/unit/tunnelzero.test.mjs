@@ -7,7 +7,7 @@
 // gate named. Priority mirrors the loop order: fluid -> gravity roof -> names.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tunnelZeroWhy, steerFluidLock } from '../../src/lib/surface.mjs'
+import { tunnelZeroWhy, steerFluidLock, sealCensus } from '../../src/lib/surface.mjs'
 
 test('zero verdict: fluid at the feet cell is the water-table verdict', () => {
   assert.equal(tunnelZeroWhy({ feetBox: 'fluid' }), 'fluid ahead')
@@ -111,4 +111,56 @@ test('zero verdict: the field matrix of run36310927991 - every steered 0-block t
   assert.equal(steerFluidLock({ feetBox: 'fluid', headBox: 'block' }), true, 'the preflight would have stood off BEFORE the 0-block burn')
   // a dry steer keeps its tunnel (the preflight never fires on a dry line)
   assert.equal(steerFluidLock({ feetBox: 'block', headBox: 'block' }), false)
+})
+
+// ---- v0.244.0 THE SEAL CENSUS: the seal-and-cross frontier's arm telemetry ----
+test('seal census: water plus sealable stock arms the placement cure', () => {
+  assert.deepEqual(
+    sealCensus({ fluidNames: ['water', null], pocket: [{ name: 'dirt', count: 3 }, { name: 'apple', count: 2 }] }),
+    { fluid: 'water', sealable: true, blocks: 3, top: 'dirt' },
+    'water at step 1 + dirt in pocket = the cure is real'
+  )
+})
+
+test('seal census: a bare pocket keeps the frontier at bring-stock', () => {
+  const c = sealCensus({ fluidNames: ['water'], pocket: [{ name: 'apple', count: 2 }, { name: 'stick', count: 7 }] })
+  assert.equal(c.fluid, 'water')
+  assert.equal(c.blocks, 0)
+  assert.equal(c.sealable, false, 'water but no sealable block - the pocket is bare')
+  assert.equal(c.top, null)
+})
+
+test('seal census: lava NEVER arms the seal (live lava burns the placement)', () => {
+  const c = sealCensus({ fluidNames: ['flowing_lava'], pocket: [{ name: 'cobblestone', count: 64 }] })
+  assert.equal(c.fluid, 'lava')
+  assert.equal(c.blocks, 64)
+  assert.equal(c.sealable, false, 'stock in pocket, but the fluid refuses the cure')
+})
+
+test('seal census: the water family classifies by name (kelp, bubble_column)', () => {
+  assert.equal(sealCensus({ fluidNames: ['kelp'], pocket: [{ name: 'dirt', count: 1 }] }).fluid, 'water')
+  assert.equal(sealCensus({ fluidNames: ['bubble_column'], pocket: [{ name: 'dirt', count: 1 }] }).sealable, true)
+})
+
+test('seal census: gravity blocks are excluded - a sand seal washes out', () => {
+  const c = sealCensus({ fluidNames: ['water'], pocket: [{ name: 'sand', count: 10 }, { name: 'gravel', count: 6 }] })
+  assert.equal(c.blocks, 0, 'sand/gravel fall - the seal cannot hold')
+  assert.equal(c.sealable, false)
+})
+
+test('seal census: top names the richest stack', () => {
+  const c = sealCensus({ fluidNames: ['water'], pocket: [{ name: 'dirt', count: 2 }, { name: 'cobblestone', count: 5 }, { name: 'andesite', count: 4 }] })
+  assert.equal(c.blocks, 11)
+  assert.equal(c.top, 'cobblestone')
+})
+
+test('seal census: junk-safe - bare calls never throw', () => {
+  assert.deepEqual(sealCensus(), { fluid: null, sealable: false, blocks: 0, top: null })
+  assert.deepEqual(sealCensus({ fluidName: 'water' }), { fluid: 'water', sealable: false, blocks: 0, top: null })
+  assert.deepEqual(sealCensus({ fluidNames: null, pocket: 'junk' }), { fluid: null, sealable: false, blocks: 0, top: null })
+})
+
+test('seal census: the first name that classifies wins (feet junk, head lava)', () => {
+  const c = sealCensus({ fluidNames: ['stone', 'flowing_lava'], pocket: [] })
+  assert.equal(c.fluid, 'lava', 'a dry feet read must not mask the head fluid')
 })

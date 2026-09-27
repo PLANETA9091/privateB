@@ -1170,6 +1170,71 @@ export function steerFluidLock (r = {}) {
   return feetBox === 'fluid' || headBox === 'fluid' || tunnelFluidName(feetName) || tunnelFluidName(headName)
 }
 
+// ---- v0.244.0: THE SEAL CENSUS LAW ----
+// run36317889503 (the v0.242.0 field face) woke the water-lock preflight: 7
+// firings, every one on the metal/coal ladder's ore, each ending 'the blind
+// rotation owns this pass' - and the famine stayed at the ore THREE runs
+// straight (the census 11x 'chest holds 0 ingot(s) + 0 raw_iron'). The decode
+// named the frontier: the next cure must make the ore REACHABLE (the
+// seal-and-cross class - a block placed into the step-1 fluid cell turns the
+// water table into a floor). But a fleet-wide cure needs the field's first
+// answer: HOW OFTEN does the standing bot even carry a sealable block when
+// the lock fires? The relay saga's canon: telemetry before cure. sealCensus
+// is the pure arm of that answer - given the fluid name and the bot's pocket
+// names it verdicts water (sealable, the classic dirt-into-water floor) vs
+// lava (never armed - a mis-placed block in live lava burns the bot's feet
+// and the ore behind it) and counts the sealable stock (SEAL_BLOCK_NAMES:
+// the common dig yields - dirt, cobblestone, deepslate family, stone, the
+// granites; sand excluded: it falls, the seal washes out; gravel excluded
+// for the same gravity reason). Pure, junk-safe (null names = a bare pocket,
+// never a throw); the fleet wiring reads inventory.items() name/count pairs
+// straight into it. The field line arms the next fire's decision: blocks in
+// pocket -> the placement cure is real; bare pocket -> the cure must FIRST
+// bring stock (the torch-famine class - the material must ride with the bot).
+const SEAL_BLOCK_NAMES = new Set([
+  'dirt', 'coarse_dirt', 'grass_block', 'cobblestone', 'stone', 'deepslate',
+  'cobbled_deepslate', 'diorite', 'granite', 'andesite', 'tuff', 'netherrack',
+  'sandstone', 'mud'
+])
+
+/**
+ * The seal-and-cross arm census (v0.244.0): CAN this water-locked stance be
+ * cured by placing a block into the step-1 fluid cell, and with what stock?
+ * @param {{fluidName?: string|null, fluidNames?: Array<string|null>|null,
+ *   pocket?: Array<{name?: string, count?: number>}|null}} r
+ *   fluidName(s) - the step-1 fluid block's name(s) (the law's second eye
+ *   already named them); the first name that classifies wins; pocket - the
+ *   bot's inventory items (name/count pairs), null-safe
+ * @returns {{fluid: 'water'|'lava'|null, sealable: boolean, blocks: number,
+ *   top: string|null}} fluid null = not a tunnel fluid (caller never counts
+ *   this); lava = a seal is NOT armed (live lava burns the placement);
+ *   water + blocks>0 = the placement cure is real, top names the richest
+ *   sealable stack; blocks 0 = the pocket is bare - the cure must bring stock
+ */
+export function sealCensus (r = {}) {
+  const { fluidName = null, fluidNames = null, pocket = null } = r || {} // the body-guard law
+  let fluid = null
+  for (const n of [...(Array.isArray(fluidNames) ? fluidNames : []), fluidName]) {
+    if (n == null) continue
+    if (isWaterName(n)) { fluid = 'water'; break }
+    if (SHAFT_FLUID_NAMES.has(n)) { fluid = 'lava'; break }
+  }
+  if (fluid === null) return { fluid: null, sealable: false, blocks: 0, top: null }
+  const stock = new Map()
+  let blocks = 0
+  for (const it of Array.isArray(pocket) ? pocket : []) {
+    const n = it && typeof it.name === 'string' ? it.name : null
+    const c = it && Number.isFinite(it.count) ? it.count : (n ? 1 : 0)
+    if (n && SEAL_BLOCK_NAMES.has(n) && c > 0) {
+      stock.set(n, (stock.get(n) ?? 0) + c)
+      blocks += c
+    }
+  }
+  let top = null
+  for (const [n, c] of stock) if (top === null || c > (stock.get(top) ?? 0)) top = n
+  return { fluid, sealable: fluid === 'water' && blocks > 0, blocks, top }
+}
+
 // ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----
 // MEASURED (run67, dispatch 35692049905, the v0.69.1 600s fleet): the blackbox
 // freeze dump read 'climb @+0.0s <- water:rescue @+-1.9s' - a climbOut STARTED
