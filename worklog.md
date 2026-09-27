@@ -6905,3 +6905,17 @@ Stage Summary:
 - Master fcf594b + decode docs (pkg 0.250.0). Next free version 0.251.0.
 - DISPATCH DECISION: the slot freed (36332307784 completed SUCCESS); the gate = the final HEAD's push-CI on fcf594b - dispatch LAST, only green (see the dispatch record addendum if fired).
 - OPEN FRONTS: the unanchored pillar-up cure (4/8 this face - the PILLAR machinery exists); the defend-in-water drown class (the shore law inside the defend loop); the deep-pocket shoreless rescue (the ascend pacing); the pick-tier ceiling (the famine's new root); the F19 glitch-carrier class; airGlitches 449 watch; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root.
+
+---
+Task ID: cron37-20260928-0037 addendum (THE DISPATCH RECORD)
+Agent: Super Z (cron lane, Job 415967)
+Task: The dispatch triangle, verbatim.
+
+Work Log:
+- THE DISPATCH TRIANGLE: (1) the gate - 36334555502 (46b609a, the final HEAD carrying v0.250.0 THE WALLED DIG-AROUND + all instruments) completed SUCCESS at ~17:02Z (the 1e9f16c gate 36333698886 also SUCCESS before it - the code doubly proven); (2) the slot - runs?event=workflow_dispatch read 0 in_progress / 0 queued in the same breath as the POST (36332307784 completed, the slot freed); (3) the sha - origin/master re-fetched and re-verified = 46b609a = HEAD immediately before the POST. POST ci.yml/dispatches {run_fleet:'true', fleet_seconds:'600'} -> HTTP 204 -> materialized 36335496659 on 46b609a IN_PROGRESS (17:03:18Z, no queue).
+- THE v0.250.0 FACE IS FLYING - the walled dig-around's maiden voyage + the crossing continuation + the drown instruments' second reading + the unanchored surge (4/8 last face) under live observation. ~44 min envelope.
+
+Stage Summary:
+- Master 46b609a (pkg 0.250.0, gate 36334555502 SUCCESS, dispatch 36335496659 IN_PROGRESS). Next free version 0.251.0. Next local section = Task ID cron37-20260928-0137.
+- THE NEXT FIRE MINES 36335496659: 'seal dig-around' lines (refused/skipped/dug/post-dig flips - the walled class's first cure readings); CROSSED vs refused (vs the era's first refusal repeat?); the unanchored share (pillar-up 4/8 - the cure candidate); census ARMED continuation (38/38); THE FAMINE (raw_iron vs 0 - the wooden-pick class again? stone conversion rate); breath mirror split (vs 3 defend + 1 climb + 1 rescue-ran); banked vs 1848; deaths vs 8; airGlitches vs 449 (the F19 carrier class); kills vs 5.
+- OPEN FRONTS: the unanchored pillar-up cure (0.251.0 candidate); the defend-in-water drown class; the deep-pocket shoreless rescue (the ascend pacing); the pick-tier ceiling; the F19 glitch-carrier class; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root.
