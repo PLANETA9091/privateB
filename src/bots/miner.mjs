@@ -2871,24 +2871,46 @@ export function createMiner ({
           if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {
             const dyLip = d.y - bot.entity.position.y
             const feet = bot.entity.position.floored()
-            const airBelow = dropAheadBelow(feet, { depth: 3 })
-            const strike = fluidStrikeBelow(feet, { depth: 3 })
+            // (v0.259.0) THE COVER ANCHOR - the probes measure the column the dig
+            // would OPEN (the cover cell at feet-1 and below - dropAheadBelow's own
+            // contract reads 'the cell ABOUT TO BE dug'), not the column under a
+            // STANDING bot's feet. The v0.206 anatomy proved the feet anchor
+            // tautological (a standing bot always reads solid at feet-1 -> air 0 ->
+            // 'sealed floor' forever) and the field confirmed: run68's ledger row
+            // carries below x82 with lipDig=0 - the below family (89% of the drop-walk
+            // failures) starved at exactly the link the dig-down exists to close,
+            // while the coal famine held (coal_ore dug, fuel never materialized).
+            // The cover read moves BEFORE the gate (the probes derive from it);
+            // every fence value is UNTOUCHED (LIP_DIG_MAX_AIR 2, the dry guard, the
+            // dy family, the deep fence) - the anchor change only lets the honest
+            // geometry reach the honest gate. Junk discipline: an unreadable,
+            // non-solid or fluid cover leaves airBelow null -> lipDigWanted refuses
+            // (a missing read never arms a dig), and the refusal line names the
+            // cover class instead of a fake geometry.
+            const coverCell = feet.offset(0, -1, 0)
+            const cover = bot.blockAt(coverCell)
+            const coverSolid = !!(cover && cover.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(cover.name))
+            const airBelow = coverSolid ? dropAheadBelow(coverCell, { depth: 3 }) : null
+            const strike = coverSolid ? fluidStrikeBelow(coverCell, { depth: 3 }) : null
             const lipParams = { range, airBelow, fluidBelow: strike !== null, dy: dyLip }
             if (lipDigWanted(lipParams)) {
-              const cover = bot.blockAt(feet.offset(0, -1, 0))
-              if (cover && cover.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(cover.name)) {
-                try { await bot.fastDig(cover); lipDigs++ } catch { /* the dig-down is a bonus - never a failure */ }
-              }
+              try { await bot.fastDig(cover); lipDigs++ } catch { /* the dig-down is a bonus - never a failure */ }
             } else {
               // (v0.206.0) THE LIP REFUSAL INSTRUMENT: the dig said no - name the
-              // guard. lipDig=0 in every fleet row so far and the gate's anatomy
-              // predicts the 'sealed floor' class (a standing bot always has solid
-              // under its feet, so dropAheadBelow(feet) reads air 0); the field
-              // decides which class really rules. The refusal rides the
-              // 'vein sweep' key, capped at 2 like the fail lines; the ABSENCE of
-              // refusal lines across a whole run reads as the OTHER starvation
-              // (no below-family convergences at all - the block never entered).
-              const why = lipDigRefusal(lipParams)
+              // guard. The refusal rides the 'vein sweep' key, capped at 2 like the
+              // fail lines; the ABSENCE of refusal lines across a whole run reads as
+              // the OTHER starvation (no below-family convergences at all - the block
+              // never entered). (v0.259.0) the cover states name themselves BEFORE
+              // the legacy classes ('no cover read' / 'the cover reads air' / 'the
+              // cover reads fluid' - the three pre-gate reads the old anchor could
+              // never distinguish); a SOLID cover falls through to lipDigRefusal,
+              // whose 'sealed floor' now means what it always claimed (the hole
+              // under the COVER is sealed - a real geometry, no longer the
+              // tautological every-arrival verdict).
+              const why = !cover ? 'no cover read'
+                : cover.boundingBox !== 'block' ? 'the cover reads air'
+                : SHAFT_FLUID_NAMES.has(cover.name) ? 'the cover reads fluid'
+                : lipDigRefusal(lipParams)
               if (why) {
                 lipRefusals++
                 if (lipRefusals <= 2) log(`${tag} vein sweep: lip dig refused - ${why} (air ${airBelow}, dy ${dyLip.toFixed(1)})`)

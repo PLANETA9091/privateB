@@ -334,8 +334,14 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
   assert.ok(gateAt > digAt, 'the probes are measured once and feed BOTH verdicts (the v0.206.0 one-read-two-verdicts shape)')
   assert.ok(src.indexOf('lipDigWanted(lipParams)') > gateAt, 'the verdict gates the dig (nothing is hardcoded)')
   assert.ok(src.indexOf('lipDigRefusal(lipParams)') > gateAt, 'the mirror names the refusal from the same params (v0.206.0)')
-  assert.ok(src.includes('dropAheadBelow(feet, { depth: 3 })'), 'the fall column is the measured probe (zero reads report the worst)')
-  assert.ok(src.includes('fluidStrikeBelow(feet, { depth: 3 })'), 'the wet read is its own guard (fluids count as empty to the air probe)')
+  // (v0.259.0) the anchor update: the probes measure the column the dig would
+  // OPEN (the cover cell at feet-1) - the feet anchor was the tautological
+  // 'sealed floor' starvation the v0.206 anatomy predicted (a standing bot
+  // always reads solid at feet-1). The pin's intent - the fall column and the
+  // wet read stay MEASURED probes, zero reads report the worst - is unchanged
+  // (coveranchor.test.mjs owns the anchor pins).
+  assert.ok(src.includes('dropAheadBelow(coverCell, { depth: 3 })'), 'the fall column is the measured probe (zero reads report the worst) - anchored at the cover the dig opens')
+  assert.ok(src.includes('fluidStrikeBelow(coverCell, { depth: 3 })'), 'the wet read is its own guard (fluids count as empty to the air probe) - anchored at the cover')
   assert.ok(src.includes('await bot.fastDig(cover); lipDigs++'), 'the dig-under digs the cover block and counts')
   assert.ok(src.includes('lip dig-down(s) - the range-2 arrival left the drop outside the magnet'),
     'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
