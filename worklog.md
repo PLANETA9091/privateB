@@ -6703,3 +6703,18 @@ Stage Summary:
 - FLEET OF RECORD: 36323193851 IN_PROGRESS (the v0.244.0 face). The 2200 fire MINES it: the census lines 'water-lock census: <fluid> at step 1, N sealable in pocket (top <name>) - the seal-and-cross frontier is ARMED|bare' (expect >0 firings on the metal ladder's ore; the ARMED-vs-bare split names the placement cure's shape); water-locked firings vs 7; 'fluid ahead' vs 25; '[names gate water]' vs 0; banked vs 280; deaths vs 5; airGlitches vs 550; smelted vs 15.
 - NEXT FIRE (2200): (1) poll/download/mine 36323193851 (the census debut); (2) code front 0.245.0 when the queue frees (candidates: the seal-and-cross PLACEMENT cure if the census says ARMED; the bring-stock relay if BARE; the Zombie/Creeper class 3/5; the fight wash kills 0 on fights 9); (3) dispatch per canon if the slot frees.
 - OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census is its arm); the famine at the ore (3 runs); the Zombie/Creeper class (3/5); airGlitches 550 era-high; the fight wash; the torch famine; the IRON-TIER CEILING; the owed v0.243.0 face.
+
+---
+Task ID: cron37-20260927-2137 addendum (the dispatch record - final update)
+Agent: Super Z (cron lane, Job 415967)
+Task: The honesty record - the dispatch decision at close.
+
+Work Log:
+- NO DISPATCH this fire, three gates held it: (1) the slot is OCCUPIED - the 21:30 lane's SEAL CENSUS face 36323193851 (876a7aa = v0.243.0 shore law + v0.244.0 census) IN_FLIGHT past the timebox (20+ min); the no-duplicate canon forbids dispatching over a live face; (2) my final HEAD CI (36323957265, b68af9e) sits PENDING BEHIND the fleet run in the shared queue - it cannot even START until the face completes, and the CI-green gate outranks the freed slot (the 21:00 lane precedent, verbatim); (3) my own code CI (648b53b) was pending-culled by the worklog pushes (the normal supersede pattern - the b68af9e CI covers the same code).
+- THE RELAY IS CLEAN: their 21:30 close declares 'the census decode rides the 2200 fire'; my geometry face rides the same relay - the 2200 fire (1) mines 36323193851's artifacts (the census DEBUT: ARMED vs bare, water vs lava, top-block; the shore-law volume), then (2) dispatches the v0.245.0 SEAL GEOMETRY face on the then-green HEAD (its 'seal plan:' lines are the placement cure's field verdict).
+- IDENTITY OBSERVATION for the owner: the 21:30 lane's b68af9e (and 876a7aa, 4a97df2 before it) are AUTHORED 'Z User <z@container>' while their messages claim PLANETA9091 - their sandbox git config did not survive (RECREATION #6?) and the verify-before-every-commit law did not fire on their side. My commits this fire verified clean (648b53b, 3930f11 = PLANETA9091, local+global). No history rewritten (the no-force law holds); the next lanes should re-run the identity check FIRST and note the author field, not just the message.
+
+Stage Summary:
+- Master b68af9e (pkg 0.245.0 - my 648b53b under their worklog close). Next free version 0.246.0. Next local section = Task ID cron37-20260927-2200.
+- FLEET OF RECORD: 36323193851 IN_FLIGHT (the 21:30 lane's census face). My dispatch: DEFERRED (slot occupied + gate pending behind it). The v0.245.0 geometry face is the 2200 fire's dispatch, not mine.
+- NEXT FIRE (2200): (1) mine 36323193851 (census ARMED/bare + shore-law volume + banked vs 280 + deaths vs 5 + airGlitches vs 550 + the famine check); (2) CI green on the final HEAD + slot clean -> DISPATCH the v0.245.0 face; (3) verify the author field of every new commit (the Z User leak above); (4) the placement cure ships only when the face answers census + geometry TOGETHER.
