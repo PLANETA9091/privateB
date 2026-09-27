@@ -356,6 +356,38 @@ export function fuelTitheOverage ({ name = null, pocketCount = 0 } = {}) {
   return Math.max(0, Math.floor(total) - bound)
 }
 
+// (v0.254.0) THE COBBLE TITHE - the count-bounded keep for the smelt leg's
+// cobblestone input. MEASURED (face 36335496659, the v0.253.0 tree): the
+// smelt input keep (v0.91.0) is NAME-based, so cobblestone rides the pocket
+// UNBOUNDED all run - while the smelt leg converts ~8 cobble units per whole
+// 600s fleet (F16 stone:3 + F4 stone:5; the metals lead the smelt order, the
+// fuel/clock caps clip the batch) - and the killing band's deaths dropped
+// cobblestone 22+12+37+42 = 113u into the void (death drops ~85u/74u/141u/
+// 119u, 4x drown context). The pocket is a death zone for bulk cobble; the
+// yard chest is not. THE BOUND prices BOTH consumers in: the upgrade rung's
+// cobbleReserve (6, toolupgrade) + the one-coal smelt batch (8, FUEL_YIELD
+// coal = 8 smelts per unit - the largest batch a single visit's fuel plan
+// completes) = 14. The overage banks into the yard chests (the deposit runs
+// AFTER the same visit's smelt leg, so the leg's pocket read is intact byte
+// for byte), the tool chain keeps its rung, and the next visit re-imports
+// nothing - the furnace leftovers ride 're-smelts on the next chain'.
+export const COBBLE_TITHE_BOUND = 14
+
+/** Pure, junk-safe: how many cobblestone units may leave the pocket at this
+ * deposit (the pocket total above the tithe bound). Exact-name matching
+ * ('cobblestone' must not tithe 'cobbled_deepslate' or 'stone'); junk reads
+ * 0 - the legacy absolute-keep shape byte for byte. */
+export function cobbleTitheOverage (p = {}) {
+  const name = p && typeof p === 'object' ? p.name : null
+  const n = typeof name === 'string' ? name : null
+  if (!n) return 0
+  const total = Number(p && typeof p === 'object' ? p.pocketCount : 0)
+  if (!Number.isFinite(total) || total <= 0) return 0
+  if (n !== 'cobblestone') return 0
+  const bound = Number.isFinite(COBBLE_TITHE_BOUND) && COBBLE_TITHE_BOUND > 0 ? Math.floor(COBBLE_TITHE_BOUND) : 14
+  return Math.max(0, Math.floor(total) - bound)
+}
+
 // (v0.110.0) THE COLLECT GAIN FLOOR - the collectArea/gatherWood job queue reads
 // its loot as the pocket DELTA (count after minus count before the collect).
 // Run98 (35859636312) showed the delta can go NEGATIVE: anything that consumes
@@ -1404,7 +1436,14 @@ export async function depositToChest (bot, {
         // verified diff below stays the only truth (a ghost click reads
         // moved=0 and is skipped honestly). The tithe recomputes per stack
         // (countOf reads the live mirror): 20+18 -> deposit 20 then 12, keep 6.
+        // (v0.254.0) THE COBBLE TITHE: the smelt input keep held cobblestone
+        // UNBOUNDED (face 36335496659: ~8 cobble smelted per run, 113u dropped
+        // with 4 drown deaths) - now the overage above COBBLE_TITHE_BOUND banks
+        // too, on the SAME legacy pathway (the smelt leg of this visit already
+        // read the pocket - the deposit runs after it).
+        const cobbleTithe = item.name === 'cobblestone'
         const over = fuelTitheOverage({ name: item.name, pocketCount: countOf(item.name) })
+          || (cobbleTithe ? cobbleTitheOverage({ name: item.name, pocketCount: countOf(item.name) }) : 0)
         if (over <= 0) { skipped.push(item.name); continue }
         const units = Math.min(over, item.count)
         const titheBefore = countOf(item.name)
@@ -1422,8 +1461,8 @@ export async function depositToChest (bot, {
           // reached a deposit, and the tithe had no line of its own - a cure
           // nobody can mine. The first 2 firings name themselves; the rest ride
           // the banked total.
-          if (titheLogs < 2) log(`${tag} fuel tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FUEL_TITHE_BOUND})`)
-          else if (titheLogs === 2) log(`${tag} fuel tithe: more firings ride the banked total`)
+          if (titheLogs < 2) log(`${tag} ${cobbleTithe ? `cobble tithe: banked ${titheMoved} x cobblestone (pocket keeps ${COBBLE_TITHE_BOUND})` : `fuel tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FUEL_TITHE_BOUND})`}`)
+          else if (titheLogs === 2) log(`${tag} ${cobbleTithe ? 'cobble tithe: more firings ride the banked total' : 'fuel tithe: more firings ride the banked total'}`)
           titheLogs++
         } else moved0Skips++
         continue
