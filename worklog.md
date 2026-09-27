@@ -6468,3 +6468,19 @@ Stage Summary:
 - FLEET OF RECORD: 36310927991 IN_PROGRESS (the v0.239.1 relay face, LIVE at ~18:02+08) - expected conclusion ~18:35-18:40 +08.
 - NEXT FIRE (1830): (1) poll 36310927991; COMPLETED -> download-run.mjs + DECODE (the rawTaken ledger, the ghost-click honesty, the smelted conversion, the deaths ledger per the slain-line law, the pair-preempt hand x5, the airGlitches repeat, the 1672 record defense); IN_PROGRESS -> worklog-only, no dispatch. (2) code front 0.240.0 when the queue frees (tool repair/replace, WorldMap assignment; the iron famine is the relay's job now - judge by rawTaken). (3) dispatch per canon only if the slot frees.
 - OPEN FRONTS: the v0.239.1 relay FIELD FACE (LIVE); the pair-preempt FIELD HAND (x4); the airGlitches=26 anomaly; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the water-lens drown blindness; the wood-famine root (rawTaken is the metric); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron37-20260927-1637 (addendum 3 - the lane's close)
+Agent: Super Z (cron lane, Job 415967)
+Task: the lane's close - the v0.239.1 CI GREEN, the relay face IN FLIGHT, the next fire mines it.
+
+Work Log:
+- CI VERDICTS: 36310270067 (f789143) COMPLETED SUCCESS + 36310267909 (2f3a070) COMPLETED SUCCESS - the v0.239.1 relay code is CI-proven twice; the 18f8365 failure is cured and closed.
+- THE DISPATCH (no-duplicate discipline): the 17:30 lane's workflow_dispatch 36310927991 (ac56a3d = MY 2f3a070 relay tree + their worklog) moved IN_PROGRESS - the v0.239.1 relay face is IN FLIGHT on the CI-proven code. This lane dispatched NOTHING (the pending dispatch counts as the slot's owner); the relay face rides THEIR run on MY tree - the union the no-duplicate law wants.
+- WATCH LIST for the next fire's mine (fleet artifact /actions/artifacts -> run<id>/): (1) 'the relay: took N raw_iron (chest M) - the next yard visit's smelt leg converts it' - the relay's field volume; (2) 'chest holds 0 ingot(s)' count vs x19/x9 (the pool should START receiving: keepForIron now banks raw_iron); (3) the iron ingots/run vs 1-2 and the FIRST iron_pickaxe if the arithmetic closes (pocket+pool >= 3); (4) the deaths ledger via 'died - respawning' ONLY (the alive counter lies); (5) the Skeleton ranged class (the critical-bar guard's surviving killer); (6) the banked record 1672; (7) the pair-preempt hand (x5 silence watch).
+
+Stage Summary:
+- Master = f789143 + this addendum (pkg 0.239.1). Next free version 0.240.0.
+- IN FLIGHT: 36310927991 (the v0.239.1 relay face) - THE NEXT FIRE MINES IT FIRST.
+- NEXT FIRE: (1) run-list check -> mine 36310927936's face; (2) if the relay converted: the ladder verdict + a code front 0.240.0 (the Skeleton ranged class - the only killer left standing, or the water-lens drown blindness); if the relay starved (no 'the relay: took' lines): the recheck cadence read (once/run may be too rare) and the seed-arm extension to raw ore; (3) dispatch per canon if the slot is free.
+- OPEN FRONTS: the relay FIELD FACE (in flight); the Skeleton ranged class; the water-lens drown blindness (F12's class); the pair-preempt hand (x4); the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the doomedRearm (x0 10th); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble (2/31); the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED this lane: the deaths-ledger dispute (2, not 1); the 36308250827 CI failure (the overdraw + the goal budget, both cured); the iron famine's MEASUREMENT (x19 pool reads, 1 ingot - the relay's premise).
