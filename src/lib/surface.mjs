@@ -638,6 +638,41 @@ export function verticalDoomPlan ({ botY = null, yardY = null, lateral = null, m
   }
 }
 
+// (v0.255.0) THE QUARRY ASCENT - the mid-run bank trip's climb decision, the
+// cure for THE QUARRY-SEVERED YARD (face 36340470441: banked 0 vs 733 - the
+// dig floor sank to y~59 while the yard sits y~80; the vertical doom gate
+// refused the walk x7+ per bot, the smelt leg / commune / fuel anchor all
+// starved behind the same wall, 1641u rode the deadline). The final bank has
+// owned its doom climb since v0.158.0 - the MID-RUN trip only logged the
+// refusal and let the pocket ride. THE CURE: when the yard stands MOSTLY UP
+// (the same strict doom arithmetic) and the trip's clock can fund a climb
+// slice PLUS the walk floor, the trip climbs to the yard's level FIRST (the
+// climb machinery digs toward the yard - the same shape the final climb
+// uses), then the legacy walk runs from a level the ladder can actually
+// route. The doom gate stays byte for byte (it is honest - the ascent gives
+// the ladder a route instead of loosening the gate). Junk-safe: a junk
+// position, a junk clock or a below-floor dy reads no ascent - the legacy
+// refusal shape byte for byte.
+export const QUARRY_ASCENT_MIN_DY = 8
+export const QUARRY_ASCENT_CLIMB_MS = 45000 // one climb slice: ~4 levels of staircase + the settle
+export const QUARRY_ASCENT_WALK_FLOOR_MS = 30000 // the walk needs real clock after the climb
+
+export function quarryAscentPlan (p = {}) {
+  const q = p && typeof p === 'object' ? p : {}
+  const botY = q && typeof q === 'object' ? q.botY : null
+  const yardY = q && typeof q === 'object' ? q.yardY : null
+  const dy = Number.isFinite(botY) && Number.isFinite(yardY) ? yardY - botY : null
+  if (dy == null || dy < (Number.isFinite(QUARRY_ASCENT_MIN_DY) ? QUARRY_ASCENT_MIN_DY : 8)) {
+    return { ascend: false, why: dy == null ? 'no vertical read' : `dy ${Math.round(dy)} below the ascent floor`, dy: dy == null ? null : Math.round(dy) }
+  }
+  const cm = Number.isFinite(q.climbMs) && q.climbMs > 0 ? Math.floor(q.climbMs) : QUARRY_ASCENT_CLIMB_MS
+  const wf = Number.isFinite(q.walkFloorMs) && q.walkFloorMs >= 0 ? Math.floor(q.walkFloorMs) : QUARRY_ASCENT_WALK_FLOOR_MS
+  const rem = Number.isFinite(q.remainingMs) ? Math.floor(q.remainingMs) : null
+  if (rem == null) return { ascend: false, why: 'no clock read', dy: Math.round(dy) }
+  if (rem < cm + wf) return { ascend: false, why: `the clock ${Math.round(rem / 1000)}s cannot fund the ${Math.round(cm / 1000)}s climb + the ${Math.round(wf / 1000)}s walk floor`, dy: Math.round(dy) }
+  return { ascend: true, why: `the yard stands ${Math.round(dy)} levels up - the climb buys the walk its route`, dy: Math.round(dy), climbMs: Math.min(cm, rem) }
+}
+
 // (v0.159.0) THE CHEST VERTICAL GATE - the shared wiring helper for the yard
 // chest walks (the commons, the tithe, the commune, the pool seed). Run15
 // measured the class the bank climbs' gate (v0.158.0) never covered: the smelt

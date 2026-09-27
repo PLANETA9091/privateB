@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -260,7 +260,38 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         } catch { return { doom: false } }
       })()
       if (doomAtWalk.doom) {
-        console.log(`${miner.username} bank: ${doomAtWalk.why} - the walk ladder cannot climb, the pocket rides the next window`)
+        // (v0.255.0) THE QUARRY ASCENT - the mid-run trip's own climb (the
+        // final bank has owned its doom climb since v0.158.0; the mid-run trip
+        // only logged the refusal while 1641u rode the deadline, face
+        // 36340470441): when the yard stands mostly UP and the clock funds a
+        // climb slice + the walk floor, climb TOWARD the yard's level first -
+        // the legacy walk then runs from a level the ladder can route. A
+        // refused/failed ascent keeps the legacy refusal line byte for byte.
+        const ascent = (() => {
+          try {
+            return quarryAscentPlan({
+              botY: miner.bot.entity?.position?.y,
+              yardY: yardGoal?.y,
+              remainingMs: preSmeltRemaining()
+            })
+          } catch { return { ascend: false, why: 'plan error' } }
+        })()
+        if (ascent.ascend) {
+          const ascentDir = miner.bot?.entity && yardGoal
+            ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
+            : null
+          const fenceAt = Date.now() + ascent.climbMs
+          console.log(`${miner.username} quarry ascent: ${ascent.why} - climbing toward the yard before the walk`)
+          try {
+            const cr = await miner.climbOut({ dir: ascentDir || direction, targetY: yardGoal.y, force: true, maxMs: ascent.climbMs, shouldStop: () => Date.now() > fenceAt })
+            if (cr && cr.ok) console.log(`${miner.username} quarry ascent: climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the walk ladder gets its route`)
+            else console.log(`${miner.username} quarry ascent: failed (${cr?.reason ?? 'no read'}) - the pocket rides the next window`)
+          } catch (e) {
+            console.log(`${miner.username} quarry ascent: failed (${e?.message ?? 'error'}) - the pocket rides the next window`)
+          }
+        } else {
+          console.log(`${miner.username} bank: ${doomAtWalk.why} - the walk ladder cannot climb, the pocket rides the next window`)
+        }
       }
       const walkGoal = new goals.GoalNear(yardGoal.x, yardGoal.y, yardGoal.z, 24)
       let arrived = false
@@ -802,7 +833,7 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe|quarry ascent/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
