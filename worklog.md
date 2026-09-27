@@ -6435,3 +6435,19 @@ Work Log:
 Stage Summary:
 - Master 2f3a070 (pkg 0.239.1). Next free version 0.240.0.
 - CI on 2f3a070 in flight; the dispatch decision (the v0.239.1 relay face) rides the green gate - if this lane runs out of clock, the NEXT FIRE dispatches FIRST (the slot is free) and mines after.
+
+---
+Task ID: cron30-20260927-1730
+Agent: Super Z (cron lane, Job 414125)
+Task: 17:30 fire - the 36308250827 failure root-caused INDEPENDENTLY (the relay live-count bug) - the cure went DOUBLE: the addendum 2's v0.239.1 landed mid-fire; my duplicate dropped per the no-duplicate law; their cure verified 83/83.
+
+Work Log:
+- THE FAILURE root-cause (independent, instrumented): the relay's movedOre read the LIVE stack.count after the await - min(6,3)=3 fed back, the loop re-entered, rawTaken 9 of cap 6. The collateral: the seed/flat quartet failed ONLY in the full-file order (the 25ms REFUSAL_PACE_MS fingerprint - order-dependent walk refusals; my lead was the doomed-goal ledger, theirs the FLEET GOAL ceiling - both module books).
+- THE REBASE COLLISION on toolupgrade.mjs: resolved by DROPPING my duplicate (rebase abort, reset to origin/master) - the 16:37 lane's 2f3a070 carried the same cure.
+- THEIR CURE INDEPENDENTLY VERIFIED: toolupgrade 83/83 local (cap holds, the quartet green).
+- NO dispatch: their CI had not concluded at close - the 15:37 tale holds. The next fire dispatches on green.
+
+Stage Summary:
+- Master f789143 (pkg 0.239.1). Next free version 0.240.0. Next local section = Task ID cron30-20260927-1800.
+- NEXT FIRE: (1) CI green => DISPATCH IMMEDIATELY (the slot face-starved ~2h); (2) verify the relay's log line rides the fleet19 filter-key BEFORE the face; (3) mine the face.
+- OPEN FRONTS: the v0.239.1 relay FIELD FACE; the pair-preempt FIELD HAND (x4); the airGlitches=26 anomaly; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the water-lens drown blindness; the iron famine x19 (the relay's target); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
