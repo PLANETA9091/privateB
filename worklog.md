@@ -6378,3 +6378,24 @@ Stage Summary:
 - DISPATCHED this fire: the new fleet run (the v0.238.1 tree) - the next fire mines it FIRST.
 - NEXT FIRE: (1) mine the dispatched face (first-poll miss = re-poll); (2) code front 0.239.0 (the IRON-TIER CEILING or tool repair/replace) if the queue is free; (3) dispatch per canon.
 - OPEN FRONTS: the v0.238.0 critical-bar FIELD FACE (dispatched); the pair-preempt FIELD HAND (x3); the deaths-ledger LAW; the IRON-TIER CEILING; the banking record defense; the dusk anatomy; the OOM storm (10 clean); the water-lens drown blindness; the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron30-20260927-1700
+Agent: Super Z (cron lane, Job 414125)
+Task: 17:00 fire - MINE+DECODE of 36306449736 (the v0.238.1 face) COMPLETED SUCCESS: THE CRITICAL-BAR GUARD FIELD-PROVEN 1/1, deaths 19 -> 7 -> 1 across three faces - the drain class is gone.
+
+Work Log:
+- SANDBOX RECREATION #5 - re-cloned (master 491c9d2), npm background; the pooler + the local worklog survived.
+- 36306449736 COMPLETED SUCCESS - MINED (fleet19 212124B).
+- THE CRITICAL-BAR GUARD FIELD-PROVEN: 1 'combat: critical bar (seen < 8)' event, the bot SURVIVED. DEATHS: 1 total (shot by Skeleton - the ranged class); series 19 -> 7 -> 1 - the drain class is GONE since the pair-preempt + critical-bar lines landed.
+- THE PAIR-PREEMPT HAND: 0 events 4TH STRAIGHT (fights=1 kills=0 - the lightest engagement of the watch era).
+- THE LEDGER: banked=1230 (2nd highest) unaccounted=0 conversion=114.6%; mined=2777; smelted=10; rescues=23 reconnects=2; wet=12.
+- THE ANOMALY WATCH: airGlitches=26 (the era's high; previous faces read 0; no deaths rode it - watch, not fire).
+- This push FIRST, then the dispatch (the ordering law).
+
+Stage Summary:
+- Master = this commit (pkg 0.238.1). Next free version 0.239.0. Next local section = Task ID cron30-20260927-1730.
+- FLEET OF RECORD: 36306449736 MINED (the guard 1/1 PROVEN, deaths=1, banked=1230, airGlitches=26 watch).
+- DISPATCHED this fire: the next face (the v0.238.1 tree) - the next fire mines it (the pair-preempt hand, the airGlitches repeat, the 1672 record defense).
+- NEXT FIRE: (1) mine the dispatch; (2) code front 0.239.0 (the IRON-TIER CEILING or tool repair/replace) if the queue frees; (3) dispatch per canon.
+- OPEN FRONTS: the pair-preempt FIELD HAND (x4); the airGlitches=26 anomaly; the deaths-ledger LAW (holding); the IRON-TIER CEILING; the banking record defense; the dusk anatomy; the OOM storm (11 clean); the water-lens drown blindness; the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class (the only death); the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED: the v0.238.0 critical-bar FIELD FACE (1/1 PROVEN).
