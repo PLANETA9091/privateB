@@ -166,6 +166,18 @@ jobs:
           curl -sSf --max-time 300 -o testbed/server/server.jar \
             "https://piston-data.mojang.com/v1/objects/823e2250d24b3ddac457a60c92a6a941943fcd6a/server.jar"
       - name: Launch the fleet (19 bots, 5 minutes)
+        # (v0.246.0) THE STUCK-FLEET CIRCUIT BREAKER: run36323193851 (the
+        # v0.244.0 census face) hung INSIDE this step - the fleet process
+        # outlived its own 600s deadline by 25+ minutes (the deadline timer
+        # never fired: the event loop was alive but the exit path starved),
+        # the job-level timeout-minutes: 40 held the dispatch slot hostage
+        # for the full 40 and only a job-failure released the artifacts.
+        # A STEP timeout caps the damage at 18 minutes (the 600s fleet +
+        # the settle + the yard build + margin) - on trip, the always() steps
+        # below STILL run: the fleet log, the server console and the stop
+        # land, the decode gets its evidence, and the slot frees for the
+        # next dispatch instead of bleeding the queue.
+        timeout-minutes: 18
         run: |
           set -o pipefail   # an OOM in the fleet process must fail this step, not be masked by tee
           scripts/server.sh start
