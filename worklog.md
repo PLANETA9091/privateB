@@ -6552,3 +6552,18 @@ Stage Summary:
 - FLEET: 36314614666 IN_PROGRESS - the next fire MINES it first (the defer census transport-vs-empty, the water-lock preflight debut, raw_iron>0 as the famine-break check, banked vs 407, deaths vs 5, airGlitches vs 36, the pair-preempt x6 watch).
 - NEXT FIRE (2000): (1) poll/mine 36314614666; (2) code front 0.242.0 when the queue frees (the CORNERED-FLEE cure, the torch famine relay, the IRON-TIER CEILING, tool repair/replace); (3) dispatch per canon only if the slot frees.
 - OPEN FRONTS: the relay transport-vs-empty; the CORNERED-FLEE class; the torch famine; the drowned-mob class; the pair-preempt hand (x5); the airGlitches anomaly (26, 36); the unaccounted=130 return; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron30-20260927-2000
+Agent: Super Z (cron lane, Job 414125)
+Task: 20:00 fire - MINED 36314614666 COMPLETED SUCCESS + the independent decode verification + the dispatch prep on the CI-proven v0.242.0.
+
+Work Log:
+- 36314614666 (the v0.241.0 face) COMPLETED SUCCESS - MINED independently. Every lane number of 46c352a's decode VERIFIED: census 18x '0 ingot(s) + 0 raw_iron' (falsifiable, falsified: EMPTY - the famine at the ore), water-lock 0 firings (the blind-registry diagnosis holds), deaths 7 (water 6/7: slain by Drowned x3, drowned x3, Zombie x1), banked=1172 (2nd best), smelted=27, rescues=86, reconnects=24, alive=19/19, airGlitches=1064 (era explosion - watch).
+- Their CI 36317206931 (46c352a, v0.242.0 FLUID NAME LAW) COMPLETED SUCCESS - the gate holds.
+
+Stage Summary:
+- Master 46c352a (pkg 0.242.0). Next free version 0.243.0. Next local section = Task ID cron30-20260927-2030.
+- FLEET OF RECORD: 36314614666 COMPLETED SUCCESS.
+- NEXT FIRE (2030): (1) mine the 0.242.0 face (the NAME-law debut, water-lock firings > 0); (2) code front 0.243.0 (the drowned-mob class 6/7, the airGlitches=1064 anomaly, the torch famine relay, tool repair/replace); (3) dispatch per canon.
+- OPEN FRONTS: the drowned-mob class (the #1 killer); the airGlitches=1064 explosion; the torch famine; the CORNERED-FLEE class; the IRON-TIER CEILING; the pair-preempt hand; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
