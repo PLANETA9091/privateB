@@ -1509,7 +1509,7 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null, fullChestLedger = null, onVerticalDoom = null } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null, fullChestLedger = null, onVerticalDoom = null, preAscent = null } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
@@ -1562,6 +1562,23 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
       }
     }
     if (bankableItems() <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['nothing to deposit'] }
+  }
+  // (v0.257.0) THE UPFRONT ASCENT CONSULT - the funding lever the field asked
+  // for (face 36350568199: the chest-ascent hook fired 3 honest refusals - the
+  // doom arrived with 75s/29s of leftover chain clock and the 45s climb + the
+  // 30s walk floor cannot be funded from the LEFTOVER by design; the severance
+  // persisted with the arithmetic honest). The cure moves the money EARLIER:
+  // the caller may own an upfront executor (the SAME quarryAscentPlan
+  // arithmetic against the yard level, the leg's OWN clock at its fattest
+  // moment) that climbs BEFORE the hop loop starts - the strict doom gate then
+  // reads lateral >= dy from the new altitude and the legacy hops run. The
+  // consult rides AFTER the bankable early-return (an empty pocket never pays
+  // for a climb) and ONCE per leg (before the scan - the chest discovery reads
+  // the world from the funded altitude). Junk-safe: a missing hook or a
+  // throwing hook reads no climb - the leg proceeds byte for byte. The
+  // per-doom hook (v0.256.0) stays as the second line of defense.
+  if (typeof preAscent === 'function') {
+    try { await preAscent({ budgetMs }) } catch { /* the leg proceeds, unfunded */ }
   }
   for (let n = 0; n < maxChests && bankableItems() > 0; n++) {
     if (deadline != null && remaining() <= 0) { reports.push('budget exhausted'); break }

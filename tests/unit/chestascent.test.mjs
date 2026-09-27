@@ -57,8 +57,12 @@ test('v0.256.0 wiring: the harness executor prices the climb with the SAME arith
 })
 
 test('v0.256.0 wiring: BOTH deposit legs ride the hook - the pre-smelt chain on its own clock, the final bank on the fleet clock', () => {
-  assert.match(fleetSrc, /await miner\.depositLoot\(\{ \.\.\.lootOpts\(\), onVerticalDoom: chestAscentHook\(preSmeltRemaining\) \}\)/, 'the pre-smelt pre-deposit rides the hook on the reserve-aware clock')
-  assert.match(fleetSrc, /await miner\.depositLoot\(\{ keep: keep\(\), budgetMs: remaining\(\), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook\(remaining\) \}\)/, 'the final bank rides the hook on the fleet clock')
+  // (v0.257.0) the anchor update: both legs ALSO ride the upfront executor
+  // (preAscent) - the doom hook's presence per leg is the pin's intent, the
+  // upfront rider is the funding lever's wiring (chestupfront.test.mjs owns
+  // its own pins).
+  assert.match(fleetSrc, /await miner\.depositLoot\(\{ \.\.\.lootOpts\(\), onVerticalDoom: chestAscentHook\(preSmeltRemaining\), preAscent: chestAscentUpfront\(preSmeltRemaining\) \}\)/, 'the pre-smelt pre-deposit rides the hook on the reserve-aware clock')
+  assert.match(fleetSrc, /await miner\.depositLoot\(\{ keep: keep\(\), budgetMs: remaining\(\), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook\(remaining\), preAscent: chestAscentUpfront\(remaining\) \}\)/, 'the final bank rides the hook on the fleet clock')
 })
 
 test('v0.256.0 wiring: the filter key carries the chest ascent at the TAIL band (the sequence pins read the head verbatim)', () => {

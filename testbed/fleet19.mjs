@@ -270,9 +270,50 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       return false
     }
   }
+  // (v0.257.0) THE UPFRONT ASCENT EXECUTOR - the funding lever (face
+  // 36350568199: the doom-time hook fired 3 honest refusals - 75s/29s of
+  // leftover chain clock cannot fund the 45s climb + the 30s walk floor BY
+  // DESIGN, the severance persisted with the arithmetic correct). The money
+  // moves EARLIER: at deposit-leg start, with the leg's OWN clock at its
+  // fattest, the SAME quarryAscentPlan arithmetic (dy >= 8 to the yard) prices
+  // the climb INTO the leg's upfront budget - the hops then run from the
+  // funded altitude where the strict doom gate reads lateral >= dy. The
+  // v0.256.0 doom hook stays as the second line of defense (a partial upfront
+  // climb composes: the doom hook re-prices from the new altitude with the
+  // leftover). Silent on refusal (a shallow bot or a starved clock is the
+  // COMMON shape - the fleet filter must not drown); the honest lines carry
+  // the '(upfront)' tag and ride the existing 'chest ascent' filter key (the
+  // tail doctrine - no new key). Junk-safe: any unreadable shape returns
+  // false - the leg proceeds byte for byte.
+  const chestAscentUpfront = clockFn => async ({ budgetMs } = {}) => {
+    const yy = yardGoal && Number.isFinite(yardGoal.y) ? yardGoal.y : null
+    const plan = (() => {
+      try {
+        return quarryAscentPlan({ botY: miner.bot?.entity?.position?.y, yardY: yy, remainingMs: typeof clockFn === 'function' ? clockFn() : null })
+      } catch { return { ascend: false, why: 'plan error' } }
+    })()
+    if (!plan.ascend) return false
+    console.log(`${miner.username} chest ascent (upfront): ${plan.why} - funding the climb before the leg's walks`)
+    const dir = miner.bot?.entity && yardGoal
+      ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
+      : null
+    const fenceAt = Date.now() + plan.climbMs
+    try {
+      const cr = await miner.climbOut({ dir: dir || undefined, targetY: yy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
+      if (cr && cr.ok) {
+        console.log(`${miner.username} chest ascent (upfront): climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop ladder is pre-funded`)
+        return true
+      }
+      console.log(`${miner.username} chest ascent (upfront): failed (${cr?.reason ?? 'no read'}) - the leg walks from here`)
+      return false
+    } catch (e) {
+      console.log(`${miner.username} chest ascent (upfront): failed (${e?.message ?? 'error'}) - the leg walks from here`)
+      return false
+    }
+  }
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
-  const pre = await miner.depositLoot({ ...lootOpts(), onVerticalDoom: chestAscentHook(preSmeltRemaining) })
+  const pre = await miner.depositLoot({ ...lootOpts(), onVerticalDoom: chestAscentHook(preSmeltRemaining), preAscent: chestAscentUpfront(preSmeltRemaining) })
   if (pre.deposited === 0) {
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
@@ -729,7 +770,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       console.log(`${miner.username} fuel anchor: skipped - the final leg clock (${(remaining() / 1000).toFixed(1)}s) cannot afford the walk while the pocket holds ${overage} over the bound`)
     }
   } catch { /* the legacy scatter is the fallback */ }
-  const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook(remaining) })
+  const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook(remaining), preAscent: chestAscentUpfront(remaining) })
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }
