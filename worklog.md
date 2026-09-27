@@ -6782,3 +6782,22 @@ Stage Summary:
 - Master at the addendum push (pkg 0.247.0). Next free version 0.248.0. Next local section = Task ID cron37-20260927-2300.
 - FLEET: the v0.247.0 CROSSING FACE dispatch record - see the final commit message (gate state verbatim). The 2300 fire MINES it: 'seal-and-cross CROSSED' vs 'refused' volume, the steered line resuming, THE FAMINE CHECK (raw_iron > 0 = the break).
 - OPEN FRONTS: the crossing's field verdict; the Zombie class (the death leader); airGlitches 449-940 era watch; the F5 walled cell (the dig-around class); the F18 unanchored cell (pillar-up); the OOM/GC-Pinned hunt; the torch famine (easing); 0-stacks reloot; the IRON-TIER CEILING (the crossing attacks it directly).
+
+---
+
+Task ID: cron30-20260927-2300
+Agent: Super Z (cron lane, Job 414125)
+Task: 23:00 fire - mine the geometry face 36325553310 (the seal plan debut), decode committed, dispatch per canon.
+
+Work Log:
+- THE GEOMETRY FACE MINED: 36325553310 (ee59ef0, v0.245.0 geometry + v0.246.0 breaker) SUCCESS ~37 min wall; artifacts pulled (scripts/download-run36325553310.sh), run36325553310/DECODE.md committed.
+- THE GATE IS REAL AND DISCRIMINATING: 8 water-locked firings, 8/8 census-ARMED (4 top cobblestone, 4 top dirt); the 'seal plan:' debut split - buildable 4 (F17 x3, F9 x1), walled 3 (F5 x3, the dig-around class), unanchored 1 (F18, the pillar-up class). 50% of water-locks are cureable by the v0.247.0 crossing AS SHIPPED; the gate separates REAL geometry, not all-or-nothing. The maiden voyage has field-proven room to land its first seals.
+- THE FIELD: alive 19/19, banked 1634 (vs 1712), smelted 17, airGlitches 449 (vs 940 - HALVED, the era-high did not hold); fights 15 kills 4. DEATHS 6: the Drowned-class RETURNED AS LEADER 4/6 (2x env drowned + 2x slain by Drowned), Zombie 1, Skeleton 1 - the 2/15 water collapse did not hold.
+- SHORE LAW 0 firings this face: the drown deaths fell OUTSIDE the combat-flee context (tunnel/water without an adjacent threat). TELEMETRY GAP NAMED per the canon: the drowning class needs a breath/water-entry telemetry line BEFORE any cure - the 0.248.0 candidate.
+- NO new code this fire: the decode IS the atomic motion (the 2230 precedent; the crossing cure v0.247.0 is already shipped by the 2237 lane and waits only for the final-HEAD CI + the slot).
+
+Stage Summary:
+- Master bd12fab + this decode push (pkg 0.247.0). Next free version 0.248.0. Next local section = Task ID cron30-20260927-2330.
+- FLEET: no active workflow_dispatch at fire open (verified via API); push-CI on bd12fab in flight. Dispatch decision: the v0.247.0 CROSSING face goes LAST in this fire if no fleet-run materialized from the 2237 lane's reservation AND the final-HEAD CI is green - otherwise it rides the 2330 fire (the addendum below records the outcome).
+- NEXT FIRE (2330): (1) mine the crossing face when it flies (CROSSED vs refused shapes, THE FAMINE CHECK raw_iron > 0, banked vs 1634, deaths vs 6 drowned 4/6); (2) code front 0.248.0 - the breath/water-entry telemetry (the drowning class, telemetry before cure); (3) the walled dig-around waits for the crossing's field verdict (one cure at a time).
+- OPEN FRONTS: the crossing's field verdict (THE face); the drowned-class return 4/6 + the breath-telemetry gap; the walled dig-around (F5 x3); the unanchored pillar-up (F18 x1); airGlitches 449 (halved - watch the bot-concentration story); the GC Pinned storm hunt (1 sample); the Zombie/Creeper watch; the IRON-TIER CEILING (the crossing attacks it); the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root.
