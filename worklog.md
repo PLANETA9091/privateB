@@ -6735,3 +6735,19 @@ Stage Summary:
 - FLEET: 36323193851 STUCK (job timeout releases ~22:32; artifacts land after). Dispatch THIS fire goes LAST (after this push): queued behind the stuck run, auto-starts at its release - the census+shore+geometry+breaker HEAD (6c43c8b) finally flies with all four layers aboard.
 - NEXT FIRE (2230): (1) FIRST mine the STUCK face's artifacts (the census ARMED-vs-bare debut + the shore-law volume) AND the hang evidence (the server console: the tick-stall/OOM line at the freeze minute - the OOM storm front may finally have its CI-era sample); (2) mine the fresh face when it lands (the seal plan: lines debut - the geometry verdicts); (3) code front 0.247.0 per the verdicts; (4) dispatch per canon.
 - OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census + the geometry are its two armed arms, both proven, both unflown); the famine at the ore (4 runs); the Zombie/Creeper class; the fight wash (the kill ledger is complete - the exit distribution decode needs no code); airGlitches 550 era-high; the torch famine (easing?); the OOM/tick-stall CI-era hunt (the stuck face is the first candidate sample); the IRON-TIER CEILING.
+
+---
+Task ID: cron30-20260927-2230
+Agent: Super Z (cron lane, Job 414125)
+Task: 22:30 fire - mine the census face (the 2200 relay), the STUCK correction, decode committed, the geometry face watched.
+
+Work Log:
+- THE STUCK CALL CORRECTED: 36323193851 completed SUCCESS (not failure) - the fleet phase ran ~15 min WALL (the 600s budget + yard + settle + tee tail), the 22:00 lane read it at minute 8 and called it stuck. The v0.246.0 breaker stays as insurance (the 18-min cap holds only a 3-min margin over the measured 15 - noted, not touched, atomicity).
+- run36323193851/DECODE.md committed (2633043): THE CENSUS ANSWER - 16/16 water, 16/16 ARMED, bare 0, lava 0 (pocket stock 2-131: cobblestone/granite/andesite/dirt) - THE PLACEMENT CURE IS REAL, the bring-stock class is EMPTY; the shore law verified (4x flee toward shore, ALL vs drowned; no-verified 0; all 16 rotated are the legal land-veto form); the field TOP-TIER (banked 1712 2nd-best, smelted 32, alive 19/19, fights 53 kills 7 - THE FIGHT WASH BROKEN; water 2/15 COLLAPSED from 6/7; Zombie 4+ the new leader; airGlitches 940; the GC 'Evacuation Failure: Pinned 1024M' line = the CI-era storm hunt's first sample).
+- The geometry face 36325553310 (ee59ef0: census+shore+geometry+breaker aboard) IN_PROGRESS at close (~13 min in; the measured 50-min full-run envelope puts its finish ~23:20) - the 'seal plan:' buildable/walled/unanchored/unknown debut rides the 2300 fire. NO new code this fire: the decode IS the atomic motion (the placement cure waits for the geometry verdicts per the canon).
+
+Stage Summary:
+- Master 2633043 (pkg 0.246.0). Next free version 0.247.0. Next local section = Task ID cron30-20260927-2300.
+- FLEET: 36325553310 IN_PROGRESS (the v0.245.0 GEOMETRY face) - the 2300 fire MINES it: 'seal plan:' split on TOP of 16/16 ARMED; census continuation; banked vs 1712; kills vs 7; deaths vs 15 (Zombie 4+); airGlitches vs 940.
+- NEXT FIRE (2300): (1) mine 36325553310 (the geometry debut decides the placement wiring shape); (2) code front 0.247.0 - if buildable dominates: the proven placeBlock seal wiring (their geometry + the census together = both arms of the cure); (3) dispatch per canon.
+- OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census REAL, the geometry waiting); the Zombie class (the new leader 4/15); the fight wash BREAKTHROUGH (7/53 - keep the ledger); the water class collapsed (watch the return); airGlitches 940 era-high; the GC Pinned hunt; the IRON-TIER CEILING (banked 1712 WITHOUT iron - the ceiling holds).
