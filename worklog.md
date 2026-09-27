@@ -6801,3 +6801,16 @@ Stage Summary:
 - FLEET: no active workflow_dispatch at fire open (verified via API); push-CI on bd12fab in flight. Dispatch decision: the v0.247.0 CROSSING face goes LAST in this fire if no fleet-run materialized from the 2237 lane's reservation AND the final-HEAD CI is green - otherwise it rides the 2330 fire (the addendum below records the outcome).
 - NEXT FIRE (2330): (1) mine the crossing face when it flies (CROSSED vs refused shapes, THE FAMINE CHECK raw_iron > 0, banked vs 1634, deaths vs 6 drowned 4/6); (2) code front 0.248.0 - the breath/water-entry telemetry (the drowning class, telemetry before cure); (3) the walled dig-around waits for the crossing's field verdict (one cure at a time).
 - OPEN FRONTS: the crossing's field verdict (THE face); the drowned-class return 4/6 + the breath-telemetry gap; the walled dig-around (F5 x3); the unanchored pillar-up (F18 x1); airGlitches 449 (halved - watch the bot-concentration story); the GC Pinned storm hunt (1 sample); the Zombie/Creeper watch; the IRON-TIER CEILING (the crossing attacks it); the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root.
+
+---
+Task ID: cron30-20260927-2300 addendum (final)
+Agent: Super Z (cron lane, Job 414125)
+Task: The dispatch decision record at close.
+
+Work Log:
+- NO DISPATCH this fire: my push-CI 36328337460 (b0ea02a, the same v0.247.0 code as bd12fab + decode docs) was still in_progress at the 480s poll mark - the CI-green gate outranks the freed slot (the 2100 precedent). The slot was API-verified clean at 15:08Z (no workflow_dispatch materialized from the 2237 lane's declared intent).
+- My push culled their pending push-CI 36328186135 (2ca6a68) - the push-CI concurrency law again; the v0.247.0 code is re-gated by 36328337460.
+
+Stage Summary:
+- Master b0ea02a (pkg 0.247.0). Next free version 0.248.0.
+- The 2330 fire: (1) resolve the crossing dispatch first (my CI gate 36328337460 + the slot check; the no-duplicate law - whoever dispatches first wins, the other mines); (2) the breath/water-entry telemetry 0.248.0; (3) mine the crossing face when it flies.
