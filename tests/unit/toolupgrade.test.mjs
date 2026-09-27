@@ -894,6 +894,29 @@ test('withdrawIronCommune: the relay stands down by default (the seeder union st
   assert.equal(res.taken, 0)
 })
 
+test('withdrawIronCommune: the defer line carries the raw_iron census (the v0.240.0 telemetry)', async () => {
+  // run36310927991 (the v0.239.1 face) read 5 chests as 'chest holds 0
+  // ingot(s)' while the relay took 0 - and the artifact could not tell an
+  // EMPTY chest from a STOCKED one, so the relay's first field verdict
+  // stayed unfalsifiable. The defer line now carries the raw count.
+  // (1) the stand-down read of a STOCKED chest names its ore...
+  const world = relayWorld({ chestItem: rawIronItem(4) })
+  world.setPocket(0)
+  const lines = []
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, log: m => lines.push(m) })
+  assert.equal(res.rawTaken ?? 0, 0, 'no allowRawOre - the stand-down holds')
+  assert.ok(lines.some(l => l.includes('chest holds 0 ingot(s) + 4 raw_iron - nothing to complete here')),
+    'the stocked chest names its raw_iron even on the stand-down read')
+  // (2) ...and the ARMED read of an EMPTY chest prints the zero explicitly
+  // (the next decode separates the empty-chest class from the transport class)
+  const empty = relayWorld({})
+  empty.setPocket(0)
+  const emptyLines = []
+  await withdrawIronCommune(empty.bot, { allowEmptyPocket: true, allowRawOre: true, log: m => emptyLines.push(m) })
+  assert.ok(emptyLines.some(l => l.includes('chest holds 0 ingot(s) + 0 raw_iron - nothing to complete here')),
+    'the armed read of an empty chest is a named zero')
+})
+
 test('withdrawIronCommune: a fundable ingot plan NEVER preempts the relay (ingots first)', async () => {
   // chest holds 8 INGOTS + allowRawOre: the ingot plan completes (taken=3)
   // and the raw arm never fires (rawTaken 0) - the pick ladder is the goal,

@@ -553,10 +553,20 @@ export async function withdrawIronCommune (bot, {
         // its remaining stock for the next bot. The verified pocket diff (not
         // the clicks) stays the only truth - the ghost-click class has lied
         // here before (deposit.mjs, F2's commune read).
+        // (v0.240.0) THE RELAY TELEMETRY: the raw_iron count rides the defer
+        // line - run36310927991 (the v0.239.1 face) measured the relay's
+        // field debut as a 0-take with ZERO evidence: the transport class
+        // walked/open-failed its way out (8 chest-walk failures, 2 open
+        // timeouts) and the 5 chests that DID get read all printed 'chest
+        // holds 0 ingot(s)' - the decode could not tell an EMPTY chest from
+        // a STOCKED one, so the relay's first verdict stayed unfalsifiable.
+        // The count leaves the allowRawOre arm (a window-slot slice - free)
+        // and the defer line carries it: ingots + raw_iron in one read,
+        // every chest, both the armed and the stand-down calls.
+        const chestRaw = Array.isArray(slots) && chestSlots > 0
+          ? slots.slice(0, chestSlots).reduce((n, s) => n + (s && s.name === 'raw_iron' && s.count > 0 ? s.count : 0), 0)
+          : 0
         if (allowRawOre) {
-          const chestRaw = Array.isArray(slots) && chestSlots > 0
-            ? slots.slice(0, chestSlots).reduce((n, s) => n + (s && s.name === 'raw_iron' && s.count > 0 ? s.count : 0), 0)
-            : 0
           if (chestRaw > 0) {
             const take = Math.min(chestRaw, RAW_ORE_TAKE)
             const oreBefore = countItem(bot, 'raw_iron')
@@ -587,7 +597,7 @@ export async function withdrawIronCommune (bot, {
             log(`the clicks lied - no ore landed in the pocket (ghost clicks)`)
           }
         }
-        log(`chest holds ${chestIngot} ingot(s) - nothing to complete here`)
+        log(`chest holds ${chestIngot} ingot(s) + ${chestRaw} raw_iron - nothing to complete here`)
         if (chestIngot <= 0) exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
         continue
       }
