@@ -6484,3 +6484,21 @@ Stage Summary:
 - IN FLIGHT: 36310927991 (the v0.239.1 relay face) - THE NEXT FIRE MINES IT FIRST.
 - NEXT FIRE: (1) run-list check -> mine 36310927936's face; (2) if the relay converted: the ladder verdict + a code front 0.240.0 (the Skeleton ranged class - the only killer left standing, or the water-lens drown blindness); if the relay starved (no 'the relay: took' lines): the recheck cadence read (once/run may be too rare) and the seed-arm extension to raw ore; (3) dispatch per canon if the slot is free.
 - OPEN FRONTS: the relay FIELD FACE (in flight); the Skeleton ranged class; the water-lens drown blindness (F12's class); the pair-preempt hand (x4); the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the doomedRearm (x0 10th); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble (2/31); the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED this lane: the deaths-ledger dispute (2, not 1); the 36308250827 CI failure (the overdraw + the goal budget, both cured); the iron famine's MEASUREMENT (x19 pool reads, 1 ingot - the relay's premise).
+
+---
+Task ID: cron30-20260927-1830
+Agent: Super Z (cron lane, Job 414125)
+Task: 18:30 fire - MINED the relay face 36310927991 COMPLETED SUCCESS + code front v0.240.0 THE RELAY TELEMETRY shipped. NO dispatch (the CI gate).
+
+Work Log:
+- 36310927991 (the v0.239.1 relay face) COMPLETED SUCCESS - MINED (fleet19 300507B). bots=19/19 alive=19 kicks=0 reconnects=10.
+- THE DECODE: DEATHS=5 (the slain-line law): F3+F9 drowned, F6 blown up by Creeper, F7+F10 slain by Drowned - the WATER is the leader class again (4/5; the series 19 -> 7 -> 1 -> 5). mined=2940 banked=407 smelted=9 unaccounted=130 (returned from three zeros - watch) conversion=95.6%. fights=21 kills=7 but PAIR-PREEMPT x5 silence (0 pair/swarm events). airGlitches=36 - the SECOND sample (26 -> 36: a pattern now). rescues=60 (the era high). IRON-TIER CEILING: wooden=28 stone=13 iron=0 with upgraded=21.
+- THE RELAY DEBUT = 0 TAKES, UNFALSIFIABLE: 8 chest-walk failures + 2 open timeouts + the 5 read chests all 'chest holds 0 ingot(s)' with chestRaw printed NOWHERE - empty vs stocked undecidable.
+- v0.240.0 THE RELAY TELEMETRY (6251fc5): chestRaw leaves the allowRawOre arm; the defer line carries the census ('chest holds N ingot(s) + M raw_iron - nothing to complete here'). 2 pins. Local: syntax 212/212, unit 98/98. Pushed clean.
+- CI 36313363047 (6251fc5) PENDING through the 480s poll - the gate holds, NO dispatch this fire (the 36304148678 lesson).
+
+Stage Summary:
+- Master 6251fc5 (pkg 0.240.0). Next free version 0.241.0. Next local section = Task ID cron30-20260927-1900.
+- FLEET OF RECORD: 36310927991 COMPLETED SUCCESS.
+- NEXT FIRE (1900): (1) CI 36313363047 GREEN => DISPATCH IMMEDIATELY (the slot free; the telemetry face answers transport-vs-empty); FAILED => fix; (2) mine the face; (3) fronts: the drowned-mob class (the NEW leader killer 4/5), the IRON-TIER CEILING, tool repair/replace.
+- OPEN FRONTS: the relay transport-vs-empty (the census answers); the drowned-mob class; the pair-preempt hand (x5); the airGlitches anomaly (26, 36 - a pattern); the unaccounted=130 return (watch); the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
