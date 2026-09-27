@@ -150,7 +150,7 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
 }
 
 /**
- * (v0.248.0) THE DROWN-DEATH CONTEXT - the drowning-class telemetry gap.
+ * (v0.249.0) THE DROWN-DEATH CONTEXT - the drowning-class telemetry gap.
  * Run36325553310 measured the Drowned-class as the RETURNED death leader
  * (4/6: 2x env drown + 2x slain by Drowned) with the shore law at ZERO
  * firings - the drown deaths fell OUTSIDE the combat-flee context the shore

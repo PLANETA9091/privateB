@@ -368,7 +368,7 @@ export function createMiner ({
       const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
       if (drop) log(drop)
     } catch { /* the drop snapshot must never break a respawn */ }
-    // (v0.248.0) THE DROWN-DEATH CONTEXT: run36325553310 measured the
+    // (v0.249.0) THE DROWN-DEATH CONTEXT: run36325553310 measured the
     // Drowned-class as the RETURNED death leader (4/6) with the shore law at
     // ZERO firings and ZERO rescue lines for those deaths - the drown class
     // died outside every water instrument's context. ONE snapshot line for
