@@ -38,6 +38,7 @@ import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
+  shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
   drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND, airGlitchLogLine,
   frozenWindowFor, WET_FROZEN_WINDOW,
@@ -455,12 +456,27 @@ export function createMiner ({
           if (plan.kind === 'shore') {
             // (v0.59.0) verify the shore cell against the LIVE world before the
             // hop commits: the ring scan is one snapshot, and F1's '(0,2 step 1)'
-            // hop died in place - the cell was gone (or never) a real shore. A
-            // failed verification falls through to the away-vector below.
-            const cell = { x: here.x + plan.dx, y: here.y + plan.step, z: here.z + plan.dz }
-            if (verifyShoreCell(sample, cell)) {
-              goal = new goals.GoalBlock(cell.x, cell.y, cell.z)
-              log(`${tag} combat: flee toward shore (${plan.dx},${plan.dz} step ${plan.step}) vs ${threat.name} (${reason})`)
+            // hop died in place - the cell was gone (or never) a real shore.
+            // (v0.243.0) THE AQUATIC-FLEE SHORE LAW - run36310927991's F10 named
+            // the cornered-flee class: the verify refused the nearest shore and
+            // the code fell through to the away-vector, whose bearings were all
+            // water - the flee rotated 270deg into a swim arc the faster swimmer
+            // won (slain by Drowned @0.8 mid-arc). THE LAW: an aquatic flee
+            // stays SHORE-BOUND - the candidates walk nearest-first and the
+            // first cell that verifies serves; when NONE verifies the nearest
+            // candidate's raw cell STILL serves (a bearing toward land beats an
+            // arc through the pond - gotoSafe's guards own the walk, the next
+            // hop re-scans). The away-vector below never serves a wet-aquatic
+            // flee while a shore exists; it keeps the deep-water no-shore case
+            // (fleePlan 'away') and every dry/land-threat byte for byte.
+            const pick = firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here })
+            if (pick) {
+              goal = new goals.GoalBlock(pick.x, pick.y, pick.z)
+              if (pick.verified) {
+                log(`${tag} combat: flee toward shore (${pick.dx},${pick.dz} step ${pick.step}) vs ${threat.name} (${reason})`)
+              } else {
+                log(`${tag} combat: aquatic flee: no verified shore cell - bearing the nearest shore (${pick.dx},${pick.dz}) vs ${threat.name} (${reason})`)
+              }
             }
           }
         }

@@ -343,7 +343,33 @@ export function waterVerdict ({ feet = null, head = null, feetWaterlogged = fals
  * Deterministic: rings out from r=1, ring order is fixed (E row scan first).
  */
 export function shoreDirection (sample, center, { maxRadius = SHORE_MAX_RADIUS } = {}) {
-  if (typeof sample !== 'function' || !center) return null
+  const cands = shoreCandidates(sample, center, { maxRadius, count: 1 })
+  return cands.length > 0 ? cands[0] : null
+}
+
+/**
+ * The nearest-first LIST of shore cells (v0.243.0) - shoreDirection's ring
+ * scan collecting up to `count` hits instead of stopping at the first. The
+ * scan is byte for byte the shoreDirection walk (same rings out from r=1,
+ * same fixed E/W-then-N/S cell order, same shoreAt contract), so
+ * shoreDirection IS shoreCandidates(count: 1)[0] by construction and the
+ * existing pins keep their verdicts. WHY A LIST: run36310927991's F10 named
+ * the cornered-flee class - the flee hop 1 committed to the NEAREST shore
+ * cell, the hop failed to reach it, hop 2 re-scanned the SAME cell, the
+ * verify refused it again and the fallback fell through to the away-vector,
+ * whose bearings were all water - the flee rotated 270deg into a swim arc
+ * the faster swimmer won (slain by Drowned @0.8 mid-arc). The list is the
+ * second eye: when the nearest cell refuses, the NEXT candidate serves.
+ * @param {Function|null} sample block-name reader (junk -> [])
+ * @param {{x:number,y:number,z:number}|null} center the feet cell
+ * @param {object} [opts]
+ * @param {number} [opts.maxRadius] the ring cap (junk -> SHORE_MAX_RADIUS)
+ * @param {number} [opts.count] hits to collect (junk/<=0 -> 1)
+ * @returns {Array<{dx:number,dz:number,dist:number,step:number}>}
+ */
+export function shoreCandidates (sample, center, { maxRadius = SHORE_MAX_RADIUS, count = 1 } = {}) {
+  if (typeof sample !== 'function' || !center) return []
+  const want = Number.isFinite(count) && count > 0 ? Math.floor(count) : 1
   const cx = Math.floor(center.x)
   const cy = Math.floor(center.y)
   const cz = Math.floor(center.z)
@@ -368,15 +394,56 @@ export function shoreDirection (sample, center, { maxRadius = SHORE_MAX_RADIUS }
     if (!isAir(sample(x, groundY + 2, z))) return false
     return true
   }
+  const hits = []
   for (let r = 1; r <= maxRadius; r++) {
     for (const [dx, dz] of ring(r)) {
       const x = cx + dx
       const z = cz + dz
-      if (shoreAt(x, z, cy - 1, 0)) return { dx, dz, dist: r, step: 0 }
-      if (shoreAt(x, z, cy, 1)) return { dx, dz, dist: r, step: 1 }
+      if (shoreAt(x, z, cy - 1, 0)) { hits.push({ dx, dz, dist: r, step: 0 }) } else if (shoreAt(x, z, cy, 1)) { hits.push({ dx, dz, dist: r, step: 1 }) }
+      if (hits.length >= want) return hits
     }
   }
-  return null
+  return hits
+}
+
+/**
+ * (v0.243.0) THE AQUATIC-FLEE SHORE PICK - the flee hop's cell chooser. The
+ * F10 anatomy: the shore plan named the NEAREST shore, verifyShoreCell
+ * refused it (the ring snapshot is one reading; by the time the hop commits
+ * the cell may be gone), and the code fell through to the away-vector - an
+ * arc the wet bot swims SLOWER than the drowned that chases it (the vanilla
+ * race the v0.137.0 water lens already priced: no sprint, no crits, the
+ * slower bearing). THE LAW: an aquatic flee stays SHORE-BOUND - the first
+ * candidate whose standing cell verifies wins; when none verifies the
+ * NEAREST candidate's raw cell still serves (a bearing toward land beats an
+ * arc through the pond - gotoSafe's own guards own the walk and the next
+ * hop re-scans). No candidates -> null (the caller keeps the legacy
+ * away-vector: deep water with no shore in the ring has no better answer).
+ * Junk-safe by the shore contract: a junk reader, a junk anchor, a junk
+ * candidate list all read null (the legacy byte for byte).
+ * @param {object} p
+ * @param {Array<{dx:number,dz:number,step?:number}>|null} [p.candidates]
+ *   shoreCandidates output (nearest-first)
+ * @param {Function|null} [p.sample] the live-world reader (verifyShoreCell's)
+ * @param {{x:number,y:number,z:number}|null} [p.here] the bot's floored feet
+ * @returns {{x:number,y:number,z:number,dx:number,dz:number,step:number,verified:boolean}|null}
+ */
+export function firstVerifiedShore ({ candidates = null, sample = null, here = null } = {}) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+  if (typeof sample !== 'function' || !here ||
+    !Number.isFinite(here.x) || !Number.isFinite(here.y) || !Number.isFinite(here.z)) return null
+  const cellOf = c => {
+    if (!c || !Number.isFinite(c.dx) || !Number.isFinite(c.dz)) return null
+    const step = c.step === 1 ? 1 : 0
+    return { x: Math.floor(here.x) + c.dx, y: Math.floor(here.y) + step, z: Math.floor(here.z) + c.dz, dx: c.dx, dz: c.dz, step }
+  }
+  for (const c of candidates) {
+    const cell = cellOf(c)
+    if (!cell) continue
+    if (verifyShoreCell(sample, cell)) return { ...cell, verified: true }
+  }
+  const near = cellOf(candidates[0])
+  return near ? { ...near, verified: false } : null
 }
 
 /**
@@ -600,6 +667,13 @@ export const SHAFT_FLUID_NAMES = new Set(['lava', 'flowing_lava', 'water', 'bubb
  * bot, immune to drowning. Guardians live in ocean monuments (not yet mined),
  * kept in the set so the cure covers the deep-sea mining candidate too. */
 export const AQUATIC_HOSTILES = new Set(['drowned', 'guardian', 'elder_guardian'])
+
+// (v0.243.0) THE SHORE CANDIDATE BUDGET - how many nearest shore cells the
+// aquatic flee walks before falling back to the nearest raw bearing. 3 covers
+// the measured pond shape (the F10 shore refused, a second bank 2-4 blocks
+// farther verifies) without turning every hop into a ring sweep - the scan
+// stays the same bounded walk, the LIST just collects while it passes.
+export const AQUATIC_SHORE_CANDIDATES = 3
 
 /**
  * Which way should a fleeing bot run when the fight reaches water?

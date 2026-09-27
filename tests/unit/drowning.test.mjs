@@ -16,6 +16,7 @@ import {
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   isWaterName, waterVerdict, airBarTrust, shoreDirection, rescueDone, fleePlan,
+  shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,
   airBarFalling, AIR_FALL_MIN_DROP, AIR_FALL_MIN_READS,
   recordWaterHazard, nearWaterHazard, verifyShoreCell, HazardLedger,
   SURFACE_SAFE_DRY_MS, TRANSIT_RESCAN_TICKS, TRANSIT_MAP_RANGE,
@@ -1683,3 +1684,148 @@ test('the map pin wiring: both air-glitch log sites consult the formatter', asyn
   assert.ok(src.includes("airGlitchLogLine({ kind: 'override', tag, streak: dryGlitchStreak, pos: bot.entity?.position })"), 'the override line pins the entity position')
   assert.ok(!src.includes('${stats.airGlitches} total)'), 'no unpinned ignored line may survive the wiring')
 })
+
+// ---- v0.243.0: THE AQUATIC-FLEE SHORE LAW ----
+// run36310927991's F10 named the cornered-flee class: the flee hop committed
+// to the NEAREST shore cell, the verify refused it on the next hop (the ring
+// snapshot is one reading), and the code fell through to the away-vector -
+// whose bearings were all water - so the flee rotated 270deg into a swim arc
+// the faster swimmer won (slain by Drowned @0.8 mid-arc). The cure: the
+// candidates list (the second eye) + the shore-bound pick.
+
+test('shoreCandidates: collects the nearest-first shore list (the second eye)', () => {
+  // two SINGLE-CELL shores (keeps every ring's hit unique): east at x=6 (r=4
+  // from here), west at x=-6 (r=8) - the list must carry BOTH, nearest first
+  const world = (x, y, z) => {
+    const east = x === 6 && z === 0
+    const west = x === -6 && z === 0
+    if (y === 2) return (east || west) ? 'sand' : 'water'
+    if (y === 3) return (east || west) ? 'air' : 'water'
+    return 'air'
+  }
+  const here = { x: 2, y: 3, z: 0 }
+  const cands = shoreCandidates(world, here, { count: 3 })
+  assert.ok(cands.length >= 2, `both shores serve (got ${cands.length})`)
+  assert.equal(cands[0].dx, 4, 'the east shore (x=6, four east) leads')
+  assert.equal(cands[0].dist, 4)
+  assert.equal(cands[1].dx, -8, 'the west shore follows (x=-6, eight west)')
+  assert.equal(cands[1].dist, 8)
+})
+
+test('shoreCandidates: the first hit IS shoreDirection (the coherence law)', () => {
+  const world = (x, y, z) => {
+    if (y < 3) return (x >= 8 && Math.abs(z) <= 3) ? 'sand' : 'water'
+    if (y === 3) return (x >= 8 && Math.abs(z) <= 3) ? 'sand' : 'water'
+    return 'air'
+  }
+  const here = { x: 4, y: 3, z: 2 }
+  const cands = shoreCandidates(world, here, { count: 5 })
+  assert.ok(cands.length >= 1)
+  assert.deepEqual(cands[0], shoreDirection(world, here), 'one scan, two faces - the first candidate is THE shore')
+})
+
+test('shoreCandidates: the count caps the list and junk reads stay empty', () => {
+  const world = (x, y, z) => {
+    const land = (x >= 4 || x <= -4) && Math.abs(z) <= 4
+    if (y === 2) return land ? 'sand' : 'water'
+    if (y === 3) return land ? 'air' : 'water'
+    return 'air'
+  }
+  const here = { x: 0, y: 3, z: 0 }
+  const capped = shoreCandidates(world, here, { count: 2 })
+  assert.equal(capped.length, 2, 'the budget stops the sweep')
+  assert.equal(shoreCandidates(world, here, { count: 0 }).length, 1, 'a junk count reads 1')
+  assert.equal(shoreCandidates(world, here, { count: NaN }).length, 1, 'NaN reads 1')
+  assert.deepEqual(shoreCandidates(null, here, { count: 3 }), [], 'junk reader: empty')
+  assert.deepEqual(shoreCandidates(world, null, { count: 3 }), [], 'junk center: empty')
+  assert.deepEqual(shoreCandidates(() => null, here, { count: 3 }), [], 'all-unknown: empty (never a ghost shore)')
+})
+
+test('firstVerifiedShore: the first verified candidate serves', () => {
+  const world = (x, y, z) => {
+    if (y === 2) return x >= 4 ? 'sand' : 'water'
+    if (y === 3) return x >= 4 ? 'air' : 'water'
+    return 'air'
+  }
+  const here = { x: 0, y: 3, z: 0 }
+  const cands = shoreCandidates(world, here, { count: 3 })
+  const pick = firstVerifiedShore({ candidates: cands, sample: world, here })
+  assert.ok(pick, 'a shore verifies')
+  assert.equal(pick.verified, true)
+  assert.equal(pick.x, here.x + cands[0].dx, 'the standing cell carries the scan cell')
+  assert.equal(pick.y, here.y + pick.step)
+})
+
+test('firstVerifiedShore: THE F10 PIN - the nearest refuses, the next candidate serves', () => {
+  // the scan snapshot promised a shore east at r=2; by the verify the tree
+  // stands on the bank (oak_log above the ground = no climb-out) - the exact
+  // stale-snapshot refusal that walked F10 into the away-arc. The candidates
+  // sit at r=2 and r=4 (single-cell columns) so the SECOND eye is farther,
+  // not a same-column neighbour the same tree covers.
+  const scanWorld = (x, y, z) => {
+    const nearShore = x === 2 && z === 0
+    const farShore = x === 4 && z === 0
+    if (y === 2) return (nearShore || farShore) ? 'sand' : 'water'
+    if (y === 3) return (nearShore || farShore) ? 'air' : 'water'
+    return 'air'
+  }
+  const here = { x: 0, y: 3, z: 0 }
+  const cands = shoreCandidates(scanWorld, here, { count: 2 })
+  assert.equal(cands.length, 2, 'the list holds a second eye')
+  assert.equal(cands[0].dx, 2, 'the near bank leads the list')
+  // the LIVE world: a tree grew on the near bank, the far one is real
+  const liveWorld = (x, y, z) => {
+    if (y === 2) return (x === 2 || x === 4) && z === 0 ? 'sand' : 'water'
+    if (y === 3) return x === 2 && z === 0 ? 'oak_log' : ((x === 4 && z === 0) ? 'air' : 'water')
+    if (y === 4) return x === 2 && z === 0 ? 'oak_leaves' : 'air'
+    return 'air'
+  }
+  const pick = firstVerifiedShore({ candidates: cands, sample: liveWorld, here })
+  assert.ok(pick, 'the law still names a cell')
+  assert.equal(pick.verified, true, 'the SECOND candidate verified - the away-arc never fires')
+  assert.equal(pick.dx, 4, 'the far shore serves')
+  assert.notDeepEqual([pick.dx, pick.dz], [cands[0].dx, cands[0].dz], 'the refused nearest is not the pick')
+})
+
+test('firstVerifiedShore: none verifies -> the nearest raw bearing (shore-bound, not the arc)', () => {
+  const scanWorld = (x, y, z) => {
+    const nearShore = x === 2 && z === 0
+    const farShore = x === 4 && z === 0
+    if (y === 2) return (nearShore || farShore) ? 'sand' : 'water'
+    if (y === 3) return (nearShore || farShore) ? 'air' : 'water'
+    return 'air'
+  }
+  const here = { x: 0, y: 3, z: 0 }
+  const cands = shoreCandidates(scanWorld, here, { count: 2 })
+  const flooded = () => 'water' // the whole pond deepened - nothing verifies
+  const pick = firstVerifiedShore({ candidates: cands, sample: flooded, here })
+  assert.ok(pick, 'a bearing toward land still serves')
+  assert.equal(pick.verified, false, 'the raw-bearing fallback is marked - the log line names the class')
+  assert.equal(pick.dx, cands[0].dx, 'the NEAREST candidate carries the bearing')
+  assert.equal(pick.x, here.x + cands[0].dx)
+  assert.equal(pick.y, here.y + pick.step)
+})
+
+test('firstVerifiedShore: junk reads stay null (the legacy away-vector keeps the deep-water case)', () => {
+  assert.equal(firstVerifiedShore({ candidates: null, sample: () => 'air', here: { x: 0, y: 3, z: 0 } }), null, 'no candidates: null')
+  assert.equal(firstVerifiedShore({ candidates: [], sample: () => 'air', here: { x: 0, y: 3, z: 0 } }), null, 'empty list: null')
+  assert.equal(firstVerifiedShore({ candidates: [{ dx: 1, dz: 0, step: 0 }], sample: null, here: { x: 0, y: 3, z: 0 } }), null, 'junk reader: null')
+  assert.equal(firstVerifiedShore({ candidates: [{ dx: 1, dz: 0, step: 0 }], sample: () => 'air', here: null }), null, 'junk anchor: null')
+  assert.equal(firstVerifiedShore({ candidates: [{ dx: NaN, dz: 0, step: 0 }], sample: () => 'air', here: { x: 0, y: 3, z: 0 } }), null, 'a junk candidate never becomes a bearing')
+  assert.equal(firstVerifiedShore({}), null, 'the bare call is null')
+})
+
+test('the shore law constants stay sane', () => {
+  assert.ok(AQUATIC_SHORE_CANDIDATES >= 2, 'the list has a second eye (the F10 cure)')
+  assert.ok(AQUATIC_SHORE_CANDIDATES <= 8, 'the sweep stays bounded')
+})
+
+test('the shore law wiring: the aquatic flee is shore-bound in runAway', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,'), 'the law rides the drowning import')
+  assert.ok(src.includes('firstVerifiedShore({ candidates: shoreCandidates(sample, here, { count: AQUATIC_SHORE_CANDIDATES }), sample, here })'), 'the pick walks the candidate list')
+  assert.ok(src.includes('combat: aquatic flee: no verified shore cell - bearing the nearest shore'), 'the raw-bearing fallback names its class for the decode')
+  assert.ok(src.includes('combat: flee toward shore (${pick.dx},${pick.dz} step ${pick.step})'), 'the verified line keeps the legacy shape (the decode greps survive)')
+})
+
