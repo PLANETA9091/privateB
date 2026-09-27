@@ -6867,3 +6867,21 @@ Stage Summary:
 - FLEET OF RECORD: 36332307784 IN_PROGRESS - the 0000 fire MINES IT: the crossing debut volume ('seal-and-cross CROSSED' vs the refusal shapes), my 'death: drown context' lines (should fire on kind=drown deaths), their 'breath mirror' gate lines, THE FAMINE CHECK (raw_iron > 0 = the break; smelted vs 17, banked vs 1634), deaths vs 6 (the Drowned 4/6), airGlitches vs 449.
 - NEXT FIRE (0000): (1) mine 36332307784 (the crossing + the two drown instruments' debuts); (2) the cure candidate per the context split (the tunnel guard vs the shore-law widening vs the rescue-arc autopsy); (3) the walled dig-around (F5) still waits; (4) dispatch per canon.
 - OPEN FRONTS: the crossing's field verdict (THE face, in flight); the drowned-class cure (the two instruments' split decides); the walled dig-around (F5 x3); the unanchored pillar-up (F18); airGlitches 449 watch; the GC Pinned storm hunt (1 sample); the Zombie/Creeper watch; the IRON-TIER CEILING (the crossing attacks it); the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root.
+
+---
+Task ID: cron30-20260928-0030
+Agent: Super Z (cron lane, Job 414125)
+Task: 00:30 fire - mine the crossing maiden voyage 36330012630, decode committed, dispatch per canon.
+
+Work Log:
+- THE CROSSING FACE MINED (36330012630, 8296c66, the v0.247.0 maiden voyage, SUCCESS ~27 min): run36330012630/DECODE.md committed (db5bfa3). THE CROSSING VERDICT: census 6/6 ARMED (30/30 across faces), seal plan 5 buildable / 1 walled, CROSSED x5 REFUSED x0 - every buildable firing landed its seal (the two-round allowance never needed, SEAL_PLACE_TIMEOUT_MS never tripped, the steer resumed after each landing); the walled firing kept the legacy standoff byte for byte.
+- THE FAMINE CHECK: raw_iron 13-14 (9 reads at 14) - THE IRON-TIER CEILING'S FIRST BREACH, raw_iron > 0 EVER. The famine arc (3 runs of water-locked ore) is broken by the maiden voyage.
+- THE FIELD: alive 19/19; deaths 3 (1 env drown + 2 Drowned mob - the class still leads at face-best volume); airGlitches 159 (vs 449 vs 940 - the collapse continues); fights 3 kills 0 (quiet); banked 89 with pocket 2705u at t-0 (THE BANKING-CHURN WATCH NAMED - reconnects 8 churned the yard, the banking never caught up); ledger accounted.
+- 'drown context' lines ZERO by construction: this face flew on 8296c66 (v0.247.0) - both drown instruments debut on the in-flight 36332307784 (70ec734, v0.249.0).
+- NO dispatch this fire: 36332307784 owns the slot (IN_PROGRESS at close, updated_at 16:22Z - the 0100 fire mines it; the breaker's 18-min cap + the ~44 min envelope put its finish ~16:55Z).
+
+Stage Summary:
+- Master db5bfa3 (pkg 0.249.0). Next free version 0.250.0. Next local section = Task ID cron30-20260928-0100.
+- FLEET OF RECORD: 36332307784 IN_PROGRESS (the ALL-INSTRUMENTS face: the crossing continuation + the breath mirror + the drown context) - the 0100 fire MINES IT: BOTH drown instruments' debut lines per drown death, the famine continuation (raw_iron vs 13-14 - does the breach HOLD), banked recovery vs 89, deaths vs 3, airGlitches vs 159.
+- NEXT FIRE (0100): (1) mine 36332307784 (the split decides the Drowned-class cure: tunnel-pocket vs open-water vs rescue-was-running); (2) the walled dig-around (4 firings pooled across faces); (3) the banking-churn anatomy if the outlier repeats; (4) dispatch per canon.
+- OPEN FRONTS: the crossing CONTINUATION (the breach holds?); the walled dig-around (pooled); the Drowned-class cure (the split arrives); the banking churn (89/2705u); airGlitches 159 watch; the GC Pinned hunt; the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root.
