@@ -10,7 +10,7 @@ import { isWaterName, SHAFT_FLUID_NAMES } from './drowning.mjs'
 /** The tunnel's fluid-family predicate: the water family (kelp/seagrass/bubble
  * column included - the dig list cannot chew them and the step-in drowns) plus
  * the shaft lava family (flowing or source, the gallery ends there). */
-const tunnelFluidName = n => isWaterName(n) || SHAFT_FLUID_NAMES.has(n)
+export const tunnelFluidName = n => isWaterName(n) || SHAFT_FLUID_NAMES.has(n)
 //
 // WHY THIS EXISTS (fleet run 35485296464, 600s, 19 bots, mined 1770 = 2.95 b/s):
 //   banked=0, smelted=0, sand=0, gravel=0 - with 38x 'map trip skipped:
@@ -1233,6 +1233,60 @@ export function sealCensus (r = {}) {
   let top = null
   for (const [n, c] of stock) if (top === null || c > (stock.get(top) ?? 0)) top = n
   return { fluid, sealable: fluid === 'water' && blocks > 0, blocks, top }
+}
+
+// ---- v0.245.0: THE SEAL GEOMETRY LAW ----
+// The census (v0.244.0) answered the canon's first question - DOES the bot
+// carry sealable stock when the lock fires - but the placement cure has a
+// second precondition the census cannot see: GEOMETRY. A block placed into
+// the step-1 fluid cell needs (a) an ANCHOR - a solid face adjacent to the
+// target cell the placement clicks (the tunnel floor under the fluid is the
+// natural one; a fluid or air cell below offers no face and the class moves
+// to pillar-up territory), and (b) HEADROOM - the cell the bot's body needs
+// after hopping the new seal (a solid cell above the seal makes the seal a
+// WALL, not a floor - the dig-around class, not the cross). sealPlan is the
+// pure arm of that answer: given the anchor and headroom reads it verdicts
+// 'buildable' (anchor solid + headroom clear - the dirt-into-water floor the
+// frontier wants), 'unanchored' (no face to click against), 'walled' (the
+// seal becomes a wall) and 'unknown' (a blind read - the chunk was not
+// loaded; the field line says so instead of inventing geometry). The eyes
+// follow the v0.242.0 FLUID NAME LAW: the box is the first eye, the name the
+// second (the 26.2 registry ships water with boundingBox 'empty', so a fluid
+// anchor hides behind an 'empty' box and only the name unmasks it); a fluid
+// headroom name is CLEAR (the hop lands swimming, the breathing program owns
+// it) while a named non-fluid with a blind box is SOLID (conservative - the
+// field line reads 'walled' and the next decode can soften it with data).
+// Lava never reaches here in the wiring (the census refuses it first and the
+// placement burns, not seals) - the geometry stays fluid-agnostic by
+// construction. Junk-safe: bare calls, null reads and junk never throw.
+/**
+ * The seal-and-cross geometry verdict (v0.245.0): CAN the standing bot place
+ * a block into the step-1 fluid cell from where it stands?
+ * @param {{anchorName?: string|null, anchorBox?: string|null,
+ *   headroomName?: string|null, headroomBox?: string|null}} r
+ *   anchor - the block BELOW the fluid cell (the placement face the bot
+ *   clicks); headroom - the cell ABOVE the fluid cell (the bot's body after
+ *   the hop). Box is the first eye, name the second (the 26.2 law).
+ * @returns {{plan: 'buildable'|'walled'|'unanchored'|'unknown',
+ *   anchor: boolean, headroom: boolean}} plan 'buildable' = the seal-and-cross
+ *   is real geometry from this stance; 'unanchored' = no face to click
+ *   (pillar-up class); 'walled' = the seal makes a wall (dig-around class);
+ *   'unknown' = a blind read - the field line reports it, never invents.
+ */
+export function sealPlan (r = {}) {
+  const { anchorName = null, anchorBox = null, headroomName = null, headroomBox = null } = r || {} // the body-guard law
+  let anchor = null // true = a solid face to click, false = open (fluid/air), null = unreadable
+  if (anchorBox === 'block') anchor = true
+  else if (anchorBox === 'empty') anchor = false
+  else if (typeof anchorName === 'string' && anchorName) anchor = !tunnelFluidName(anchorName) // the second eye - a fluid anchor hides behind a blind box
+  let headroom = null // true = the body fits after the hop, false = solid, null = unreadable
+  if (headroomBox === 'block') headroom = false
+  else if (headroomBox === 'empty') headroom = true
+  else if (typeof headroomName === 'string' && headroomName) headroom = tunnelFluidName(headroomName) // a wet headroom is passable - the hop lands swimming
+  if (anchor === null || headroom === null) return { plan: 'unknown', anchor: anchor === true, headroom: headroom === true }
+  if (!anchor) return { plan: 'unanchored', anchor: false, headroom }
+  if (!headroom) return { plan: 'walled', anchor: true, headroom: false }
+  return { plan: 'buildable', anchor: true, headroom: true }
 }
 
 // ---- v0.70.0: THE CLIMB-RESCUE OWNERSHIP GATE ----

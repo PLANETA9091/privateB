@@ -7,7 +7,7 @@
 // gate named. Priority mirrors the loop order: fluid -> gravity roof -> names.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tunnelZeroWhy, steerFluidLock, sealCensus } from '../../src/lib/surface.mjs'
+import { tunnelZeroWhy, steerFluidLock, sealCensus, sealPlan } from '../../src/lib/surface.mjs'
 
 test('zero verdict: fluid at the feet cell is the water-table verdict', () => {
   assert.equal(tunnelZeroWhy({ feetBox: 'fluid' }), 'fluid ahead')
@@ -163,4 +163,58 @@ test('seal census: junk-safe - bare calls never throw', () => {
 test('seal census: the first name that classifies wins (feet junk, head lava)', () => {
   const c = sealCensus({ fluidNames: ['stone', 'flowing_lava'], pocket: [] })
   assert.equal(c.fluid, 'lava', 'a dry feet read must not mask the head fluid')
+})
+
+// ---- v0.245.0: THE SEAL GEOMETRY LAW - pins ----
+test('seal geometry: anchor solid + headroom clear is BUILDABLE (the dirt-into-water floor)', () => {
+  assert.deepEqual(
+    sealPlan({ anchorName: 'stone', anchorBox: 'block', headroomName: null, headroomBox: 'empty' }),
+    { plan: 'buildable', anchor: true, headroom: true }
+  )
+})
+
+test('seal geometry: a fluid cell below offers no face - UNANCHORED (the pillar-up class)', () => {
+  // the 26.2 registry shape: the fluid anchor's box is 'empty', the name unmasks it
+  const blind = sealPlan({ anchorName: 'water', anchorBox: 'empty', headroomName: null, headroomBox: 'empty' })
+  assert.equal(blind.plan, 'unanchored')
+  assert.equal(blind.anchor, false)
+  // the legacy shape: the fluid box reads 'fluid' outright
+  assert.equal(sealPlan({ anchorName: 'flowing_water', anchorBox: 'fluid', headroomName: null, headroomBox: 'empty' }).plan, 'unanchored')
+})
+
+test('seal geometry: air below is no face either - UNANCHORED', () => {
+  const p = sealPlan({ anchorName: 'air', anchorBox: 'empty', headroomName: null, headroomBox: 'empty' })
+  assert.equal(p.plan, 'unanchored')
+  assert.equal(p.anchor, false)
+})
+
+test('seal geometry: solid headroom makes the seal a WALL (the dig-around class)', () => {
+  const p = sealPlan({ anchorName: 'deepslate', anchorBox: 'block', headroomName: 'deepslate', headroomBox: 'block' })
+  assert.deepEqual(p, { plan: 'walled', anchor: true, headroom: false })
+})
+
+test('seal geometry: a wet headroom name is CLEAR - the hop lands swimming (the second eye)', () => {
+  // box blind ('empty' is the 26.2 water shape) but the name is the water family
+  assert.equal(sealPlan({ anchorName: 'stone', anchorBox: 'block', headroomName: 'water', headroomBox: 'empty' }).headroom, true)
+  // kelp rides the drowning family too
+  assert.equal(sealPlan({ anchorName: 'stone', anchorBox: 'block', headroomName: 'kelp', headroomBox: 'empty' }).plan, 'buildable')
+})
+
+test('seal geometry: a blind box with a solid name trusts the name (the second eye)', () => {
+  const p = sealPlan({ anchorName: 'granite', anchorBox: null, headroomName: 'diorite', headroomBox: null })
+  assert.deepEqual(p, { plan: 'walled', anchor: true, headroom: false }, 'a named non-fluid with a blind box is conservatively SOLID')
+})
+
+test('seal geometry: blind reads report UNKNOWN - the field line never invents geometry', () => {
+  assert.equal(sealPlan({ anchorName: null, anchorBox: null, headroomName: 'stone', headroomBox: 'block' }).plan, 'unknown')
+  assert.equal(sealPlan({ anchorName: 'stone', anchorBox: 'block', headroomName: null, headroomBox: null }).plan, 'unknown')
+  const u = sealPlan({ anchorName: null, anchorBox: null, headroomName: null, headroomBox: 'empty' })
+  assert.equal(u.plan, 'unknown')
+  assert.deepEqual([u.anchor, u.headroom], [false, true], 'the booleans report the partial read honestly')
+})
+
+test('seal geometry: junk-safe - bare calls and junk never throw', () => {
+  assert.deepEqual(sealPlan(), { plan: 'unknown', anchor: false, headroom: false })
+  assert.deepEqual(sealPlan(null), { plan: 'unknown', anchor: false, headroom: false })
+  assert.equal(sealPlan({ anchorName: 42, anchorBox: 'block', headroomName: true, headroomBox: 'empty' }).plan, 'buildable', 'junk names never poison a box that speaks')
 })

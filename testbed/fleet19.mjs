@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, tunnelFluidName } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -1108,6 +1108,24 @@ async function runBot (name, target, index) {
             // moves the frontier to the bring-stock class (the torch-famine shape).
             const census = sealCensus({ fluidNames: [lockFeet?.name ?? null, lockHead?.name ?? null], pocket: (miner.bot.inventory?.items?.() ?? []) })
             console.log(`${name} tunnel: water-lock census: ${census.fluid ?? 'unclassified'} at step 1, ${census.blocks} sealable in pocket${census.top ? ` (top ${census.top})` : ''} - the seal-and-cross frontier is ${census.sealable ? 'ARMED' : 'bare'}`)
+            // (v0.245.0) THE SEAL GEOMETRY - the census answered the canon's first
+            // question (stock in pocket), the geometry answers the second: CAN the
+            // standing bot place into the step-1 fluid cell from where it stands?
+            // The ANCHOR is the face the placement clicks (the floor under the
+            // fluid cell; a wet/air cell below offers none - the pillar-up class)
+            // and the HEADROOM is the cell the bot's body needs after hopping the
+            // seal (solid there makes the seal a WALL - the dig-around class).
+            // Water only: the census already refused lava (the placement burns,
+            // not seals) and the geometry is moot behind a refused seal. The eyes
+            // follow the v0.242.0 law - box first, name second; a blind read
+            // reports 'unknown' instead of inventing geometry.
+            if (census.fluid === 'water') {
+              const feetWet = (lockFeet?.boundingBox === 'fluid') || tunnelFluidName(lockFeet?.name ?? null) // the fluid cell sits at feet level
+              const anchorB = feetWet ? miner.bot.blockAt(steerFrom0.offset(steerStep.x, -1, steerStep.z)) : lockFeet // head-level lock: the solid feet cell IS the anchor
+              const headroomB = feetWet ? lockHead : miner.bot.blockAt(steerFrom0.offset(steerStep.x, 2, steerStep.z)) // head-level lock: the cell above it owns the body
+              const plan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+              console.log(`${name} tunnel: seal plan: anchor ${plan.anchor ? 'solid' : 'open'}, headroom ${plan.headroom ? 'clear' : 'solid'} - the seal-and-cross is ${plan.plan}`)
+            }
             rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
             steer = null
           }
