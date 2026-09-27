@@ -6635,6 +6635,7 @@ Stage Summary:
 - Master d66f775 (pkg 0.243.0). Next free version 0.244.0.
 - FLEET OF RECORD: 36321353025 PENDING (the v0.243.0 face). The next fire MINES it: 'flee toward shore' (verified, legacy shape) vs 'aquatic flee: no verified shore cell - bearing the nearest shore' (the raw-bearing fallback) - the shore-law volume; 'flee bearing rotated ...deg' vs drowned/aquatic expected 0 while a shore exists; banked vs 280; deaths vs 5; airGlitches vs 550; the famine check (raw_iron > 0 = the break).
 - OPEN FRONTS (unchanged + sharpened): the water-locked ORE (the refusal is visible since v0.242.0; the cure must make the ore REACHABLE - dig-around/seal-and-cross); the Zombie/Creeper class (3/5 this run); the fight wash (kills 0 on fights 9); airGlitches 550 era-high; the torch famine; 0-stacks reloot; plan wobble; coal ARRIVAL root.
+---
 Task ID: cron30-20260927-2100
 Agent: Super Z (cron lane, Job 414125)
 Task: 21:00 fire - read the lane's 0.243.0 SHORE LAW close + the 0.242.0 face decode (run36317889503), ship the next atomic cure as v0.244.0 with tests, push; dispatch per the anti-conflict canon.
