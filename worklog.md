@@ -6718,3 +6718,20 @@ Stage Summary:
 - Master b68af9e (pkg 0.245.0 - my 648b53b under their worklog close). Next free version 0.246.0. Next local section = Task ID cron37-20260927-2200.
 - FLEET OF RECORD: 36323193851 IN_FLIGHT (the 21:30 lane's census face). My dispatch: DEFERRED (slot occupied + gate pending behind it). The v0.245.0 geometry face is the 2200 fire's dispatch, not mine.
 - NEXT FIRE (2200): (1) mine 36323193851 (census ARMED/bare + shore-law volume + banked vs 280 + deaths vs 5 + airGlitches vs 550 + the famine check); (2) CI green on the final HEAD + slot clean -> DISPATCH the v0.245.0 face; (3) verify the author field of every new commit (the Z User leak above); (4) the placement cure ships only when the face answers census + geometry TOGETHER.
+
+---
+Task ID: cron30-20260927-2200
+Agent: Super Z (cron lane, Job 414125)
+Task: 22:00 fire - mine the census face 36323193851 (the 2130 relay), ship the next atomic increment, dispatch per canon.
+
+Work Log:
+- Open: master 6c43c8b's parent (pkg 0.245.0, their ef234e3 addendum: NO dispatch, my face respected). Identity FIRST this fire (their observation accepted): git config was Z User since SANDBOX RECREATION #6 - user.name/email reset to PLANETA9091 + noreply BEFORE this fire's commits (the history stays untouched - the no-force law outranks the author shame; the 21:00-21:30 lanes' commits carry the container author, the message identity is PLANETA9091).
+- THE FACE IS STUCK (the anomaly of the fire): 36323193851's fleet job 'Launch the fleet (19 bots)' IN_PROGRESS 29+ min against a 600s deadline, the run's updated_at FROZEN at the fleet-phase start (13:52:06Z, zero updates for ~35 min) - the deadline timer never fired, the event loop alive while the exit path starved (the known fleet-freeze class one level up, in CI). The integration + unit jobs had long SUCCESSed; only the fleet phase hangs. The job-level timeout-minutes: 40 owns the release (~22:32+08): job failure -> the always() steps upload the fleet log + the server console -> the 2230 fire decodes the hang evidence. NO census/shore numbers exist yet - the decode stays honest-unread this fire.
+- v0.246.0 THE STUCK-FLEET CIRCUIT BREAKER (6c43c8b): the 'Launch the fleet' step gets its own timeout-minutes: 18 (the 600s fleet + settle + yard + margin) - on trip the always() steps still run (the log, the console, the stop), the decode gets its evidence, the slot frees in 18 instead of 40. The next stuck face costs 18 minutes, not 40, and leaves artifacts. Tests: unit 99/99 files, syntax 213 clean, yaml structural check (no tabs, timeout adjacent to the run block).
+- CI: 36324737132 (6c43c8b = their v0.245.0 geometry + my v0.246.0 breaker, ONE gate for both) COMPLETED SUCCESS after ~14 min in_progress - BOTH code layers are proven now.
+
+Stage Summary:
+- Master 6c43c8b (pkg 0.246.0, CI green 36324737132). Next free version 0.247.0. Next local section = Task ID cron30-20260927-2230.
+- FLEET: 36323193851 STUCK (job timeout releases ~22:32; artifacts land after). Dispatch THIS fire goes LAST (after this push): queued behind the stuck run, auto-starts at its release - the census+shore+geometry+breaker HEAD (6c43c8b) finally flies with all four layers aboard.
+- NEXT FIRE (2230): (1) FIRST mine the STUCK face's artifacts (the census ARMED-vs-bare debut + the shore-law volume) AND the hang evidence (the server console: the tick-stall/OOM line at the freeze minute - the OOM storm front may finally have its CI-era sample); (2) mine the fresh face when it lands (the seal plan: lines debut - the geometry verdicts); (3) code front 0.247.0 per the verdicts; (4) dispatch per canon.
+- OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census + the geometry are its two armed arms, both proven, both unflown); the famine at the ore (4 runs); the Zombie/Creeper class; the fight wash (the kill ledger is complete - the exit distribution decode needs no code); airGlitches 550 era-high; the torch famine (easing?); the OOM/tick-stall CI-era hunt (the stuck face is the first candidate sample); the IRON-TIER CEILING.
