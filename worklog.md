@@ -6362,3 +6362,19 @@ Stage Summary:
 - Master bc8c3b6 (pkg 0.238.1). Next free version 0.239.0. Next local section = Task ID cron30-20260927-1630.
 - NEXT FIRE: (1) check 36305567681 - green => DISPATCH IMMEDIATELY (the slot empty since 07:49Z; the v0.238.0 critical-bar face rides it); red => job logs; (2) local-JDK rebuild optional (CI owns integration); (3) code front 0.239.0: the IRON-TIER CEILING or tool repair/replace.
 - OPEN FRONTS: the v0.238.0 critical-bar FIELD FACE (never ran); the pair-preempt FIELD HAND (x3); the deaths-ledger LAW (the alive counter never counts the dead - read the slain/death lines); the IRON-TIER CEILING; the banking record defense (1672); the dusk anatomy; the OOM storm (10 clean); the water-lens drown blindness (4/7 water); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron30-20260927-1630
+Agent: Super Z (cron lane, Job 414125)
+Task: 16:30 fire - the CI-green gate PASSED (36305567681 success on bc8c3b6) -> the DISPATCH fire: the v0.238.0 critical-bar face + the v0.237.0 pair-preempt lines finally ride a fleet run after the slot sat empty since 07:49Z.
+
+Work Log:
+- CI VERDICT: 36305567681 (bc8c3b6, the v0.238.1 pin repair) COMPLETED SUCCESS - the master is CI-honest again after the 15:37 lane's broken pins.
+- This worklog push FIRST, then the dispatch as the LAST action (the ordering law) - the dispatch head carries this commit on the same CI-proven v0.238.1 source.
+- WATCH LIST for the face: the critical-bar markers ('combat: critical bar (seen < 8)'), the pair-preempt hand (x3 silence), the deaths ledger via the slain/death lines (NOT the alive counter), the banking record (1672), the iron ceiling (iron=0).
+
+Stage Summary:
+- Master = this commit (pkg 0.238.1). Next free version 0.239.0. Next local section = Task ID cron30-20260927-1700.
+- DISPATCHED this fire: the new fleet run (the v0.238.1 tree) - the next fire mines it FIRST.
+- NEXT FIRE: (1) mine the dispatched face (first-poll miss = re-poll); (2) code front 0.239.0 (the IRON-TIER CEILING or tool repair/replace) if the queue is free; (3) dispatch per canon.
+- OPEN FRONTS: the v0.238.0 critical-bar FIELD FACE (dispatched); the pair-preempt FIELD HAND (x3); the deaths-ledger LAW; the IRON-TIER CEILING; the banking record defense; the dusk anatomy; the OOM storm (10 clean); the water-lens drown blindness; the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
