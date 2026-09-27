@@ -31,6 +31,7 @@ import {
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, drownContextLine } from '../lib/statcarry.mjs'
+import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
@@ -2712,6 +2713,16 @@ export function createMiner ({
     if (!Array.isArray(names) || !names.length) return 0
     let dug = 0
     let refused = 0
+    // (v0.251.0) THE ORE-TIER GUARD: the pocket's best pick decides which ores may
+    // break. Below the table's minimum tier the block still breaks but drops NOTHING
+    // (vanilla 26.2) - run36332307784 measured the class: iron_ore 9 mined, raw_iron
+    // 0 all run, end picks wooden=23/stone=7/iron=0. The guard leaves the cell whole:
+    // the vein stays on the map (take() never fires for an undug cell), the tier
+    // upgrade (the cobble>=6 stone rung) comes back for it. One line per call names
+    // the blocked volume - the decode reads the class size, not per-cell spam.
+    const guardTier = bestPickTier(bot)
+    const guardPickName = bestPickaxe(bot)?.item?.name || null
+    const tierBlocked = {}
     try {
       for (let sweep = 0; sweep < sweeps; sweep++) {
         const batch = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: reach, count: 12 })
@@ -2720,6 +2731,11 @@ export function createMiner ({
           if (shouldStop?.()) return dug
           const blk = bot.blockAt(pos)
           if (!blk || blk.type === 0) continue
+          const oreNeed = oreTierRequired(blk.name)
+          if (oreNeed !== null && guardTier < oreNeed) {
+            tierBlocked[blk.name] = (tierBlocked[blk.name] || 0) + 1
+            continue
+          }
           // (v0.98.0) THE VEIN FALL FENCE: run87's F4 dug '8 ores beside the
           // gallery' then fell 20+ blocks to its death - this sweep dug cells
           // hanging over caves with no terrain check, while the shaft digger
@@ -2750,6 +2766,12 @@ export function createMiner ({
           }
         }
         if (!progressed) break
+      }
+      // (v0.251.0) the guard's verdict line: zero blocked cells reads silence (the
+      // honest zero - no line when the sweep had nothing to leave behind)
+      if (Object.keys(tierBlocked).length) {
+        const guardLine = oreTierGuardLine({ tag, blocked: tierBlocked, pickTier: guardTier, pickName: guardPickName })
+        if (guardLine) log(guardLine)
       }
       // (v0.173.0) THE SWEEP DROP HARVEST: run74's F13 logged '9 ores dug beside
       // the gallery' and its pocket read ZERO coal at every snapshot - the sweep

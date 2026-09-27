@@ -58,6 +58,67 @@ export function bestPickaxe (bot) {
   return best
 }
 
+// (v0.251.0) THE ORE-TIER TABLE: the vanilla minimum pickaxe tier each ore needs
+// before it DROPS anything. Below the requirement the block still breaks - the ore
+// is gone with zero yield. run36332307784 measured the class: iron_ore 9 mined,
+// raw_iron 0 all run, end picks wooden=23/stone=7/iron=0 - the WOODEN-PICK CLASS
+// burns the fleet's known iron veins (the map's scarcest asset) for nothing. The
+// table is honest vanilla 26.2: coal rides wooden (0), the iron/copper/lapis band
+// needs stone (1), the gold/redstone/diamond/emerald band needs iron (2).
+// null = no gate - unknown names pass through (the box speaks first: never gate a
+// name the registry does not own).
+export const ORE_TIER_TABLE = {
+  coal_ore: 0,
+  deepslate_coal_ore: 0,
+  iron_ore: 1,
+  deepslate_iron_ore: 1,
+  copper_ore: 1,
+  deepslate_copper_ore: 1,
+  lapis_ore: 1,
+  deepslate_lapis_ore: 1,
+  gold_ore: 2,
+  deepslate_gold_ore: 2,
+  redstone_ore: 2,
+  deepslate_redstone_ore: 2,
+  diamond_ore: 2,
+  deepslate_diamond_ore: 2,
+  emerald_ore: 2,
+  deepslate_emerald_ore: 2
+}
+
+// The gate read: the ore's minimum tier, or null when the name carries no gate.
+// Junk-safe: null/undefined/non-string names read null (no gate, no throw).
+export function oreTierRequired (name) {
+  if (typeof name !== 'string') return null
+  const need = ORE_TIER_TABLE[name]
+  return typeof need === 'number' ? need : null
+}
+
+// The bot's best pickaxe TIER as the guard reads it. No pickaxe = -1: bare hands
+// harvest nothing the table owns (even coal_ore needs a wooden pick to drop).
+export function bestPickTier (bot) {
+  const best = bestPickaxe(bot)
+  return best ? best.tier : -1
+}
+
+// (v0.251.0) THE ORE-TIER GUARD LINE: one line per veinSweep call naming the
+// tier-blocked volume (the decode reads the class size, not per-cell spam).
+// The 4 canonical forms: reason (the pick named), result (the volume left),
+// refusal shapes live in the caller, junk reads refuse to null. Junk-safe
+// end to end: empty/zero/null blocked maps read null (nothing to say).
+export function oreTierGuardLine (r = {}) {
+  const { tag = '', blocked = {}, pickTier = -1, pickName = null } = r || {}
+  const counts = blocked && typeof blocked === 'object' ? blocked : {}
+  const names = Object.keys(counts).filter(k => typeof counts[k] === 'number' && counts[k] > 0)
+  if (!names.length) return null
+  const need = Math.max(...names.map(n => oreTierRequired(n) ?? 0))
+  const needName = need >= 2 ? 'an iron pick' : need === 1 ? 'a stone pick' : 'a wooden pick'
+  const have = pickTier >= 2 ? 'an iron pick' : pickTier === 1 ? 'a stone pick' : pickTier === 0 ? 'a wooden pick' : 'bare hands'
+  const haveName = typeof pickName === 'string' && pickName ? pickName : have
+  const parts = names.map(n => `${counts[n]} ${n}`)
+  return `${tag} vein sweep: ore tier guard - ${parts.join(', ')} left for ${needName} (have ${haveName})`
+}
+
 // Wear state of the best pickaxe: { item, tier, left, max } - or null when there is
 // no pickaxe OR the stack carries no durability data (maxDurability unknown: never
 // guess, the breakage path (recoveryDue on a missing pickaxe) still covers it).
