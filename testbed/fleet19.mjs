@@ -802,7 +802,7 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
@@ -1040,6 +1040,7 @@ async function runBot (name, target, index) {
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       const tierDeferSeen = new Set() // (v0.252.0) the tier-defer steer's memory: one verdict line per ore name per trip (the lastNightLog shape)
+      const hazardDeferSeen = new Set() // (v0.253.0) the hazard-defer steer's memory: one verdict line per held/tail pos per trip
       let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
       const STEER_ORES = ['iron_ore', 'copper_ore', 'coal_ore'] // the underground trio the tunnel names can collect
       // (v0.81.0) THE STEERED TUNNEL, once - the floor-lock block and the new ore
@@ -1096,9 +1097,30 @@ async function runBot (name, target, index) {
               candidates: oreCands,
               from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
               skip: veerSkipped,
-              priorities: steerOrder.order
+              priorities: steerOrder.order,
+              // (v0.253.0) THE HAZARD-DEFER STEER: the shared ledger's death spots
+              // gate the APPROACH side (the flee/dig/wet-trip sides already honor
+              // it) - a vein inside the killing band loses to every clean vein,
+              // the tail keeps the option (nothing clean = the best near still
+              // elects). One verdict line per NEW pos per trip names the class.
+              hazardNear: pos => hazardLedger.near(pos)
             })
           })()
+          // (v0.253.0) the hazard-defer verdicts, the lastNightLog anti-spam shape
+          if (steer?.hzHeld) {
+            const h = steer.hzHeld
+            const key = `${h.name}@${Math.floor(h.pos.x)},${Math.floor(h.pos.y)},${Math.floor(h.pos.z)}`
+            if (!hazardDeferSeen.has(key)) {
+              hazardDeferSeen.add(key)
+              console.log(`${name} steer hazard defer: ${key} held behind the ledger (d ${h.dist}) - the clean veins led (a death is a cost the deficit cannot repay, the tail keeps the option)`)
+            }
+          } else if (steer?.hz) {
+            const key = `${steer.name}@${Math.floor(steer.pos.x)},${Math.floor(steer.pos.y)},${Math.floor(steer.pos.z)}`
+            if (!hazardDeferSeen.has(key)) {
+              hazardDeferSeen.add(key)
+              console.log(`${name} steer hazard tail: ${key} walked past the ledger (d ${steer.dist}) - nothing clean within reach (the tail keeps the option)`)
+            }
+          }
         }
         // (v0.240.0) THE WATER-LOCK PREFLIGHT - run36310927991's famine root: 13
         // iron/copper steers were announced, every steered tunnel landed done=0
