@@ -7168,3 +7168,21 @@ Stage Summary:
 - FLEET OF RECORD: 36346860061 COMPLETED SUCCESS (the census above). The v0.255.0 tree's field shape: the bank chain works when the yard is reachable; the tithe converts cadence into 433u; the drown class silent; the night mobs own the death ledger.
 - THE 0.256.0 CANDIDATES (ranked): (1) the F12 class - the CHEST-SELECTION vertical-doom skip + the fuel-anchor severance (the ascent covers the mid-run walk, not the chest-selection skip - give the selection the same ascent leg or a yard-level scatter target); (2) the coal sweep-timeout famine (coal_ore mined but fuel 0 - the 4s sweep walk timeouts eat the drops); (3) the dusk-bank collision (the endgame clock vs the mob curve - shift the final bank before dusk or hold deeper); (4) the smelt-keep's other unbounded riders (sand/gravel/clay_ball - the tithe pattern's third rung).
 - OPEN FRONTS: the ascent's trigger exercise (the wiring unproven - needs a face with a funded mid-run trip at a high yard); the F12 chest-selection severance; the coal famine; the dusk-bank collision; the breath mirror's stale-snapshot class; the frozen-physics rescue stand-downs; the smelt-keep's other unbounded riders; the walled cure's zero-reading streak; the F19 glitch-carrier; the GC Pinned hunt; 0-stacks reloot; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260928-0500
+Agent: Super Z (cron lane, Job 414125)
+Task: 05:00 fire - THE DISPATCH RECORD - the v0.256.0 THE CHEST ASCENT face dispatched (the 0437 lane's code, my gate watch + dispatch); a dispatch RACE with the parallel lane (two workflow_dispatch runs 8s apart on the same proven sha) - the concurrency group owns the cull. No code motion (the code front deferred to keep master proven and the face flying).
+
+Work Log:
+- Synced at 2cb266a (the 0437 lane's v0.256.0 THE CHEST ASCENT - the F12 chest-selection cure, my 0430 candidate #1, pkg 0.256.0). The panel: their push gate 36349777540 IN_PROGRESS; the fleet slot FREE.
+- THE GATE WATCH: three poll rounds (~26 min) - units green early, integration's fleet productivity step owns the tail (the standard shape); SUCCESS at ~21:07:50Z. The v0.256.0 code PROVEN.
+- THE DISPATCH: slot re-checked (0 live workflow_dispatch), origin/master == 2cb266a (the proven sha) - POST workflows/362040162/dispatches ref=master inputs run_fleet='true' fleet_seconds='600' (string inputs) - HTTP 204.
+- THE RACE (honest): materialization shows TWO workflow_dispatch runs on 2cb266a - 36350568199 (21:07:55Z, in_progress) and 36350575326 (21:08:03Z, pending) - my POST was ONE (204); the parallel lane fired the same green-gate window 8s apart. Per the one-live-run law I created NO further runs; the ci.yml concurrency group owns the cull (the redundant one cancels). No duplicate hunting from my side.
+- No code front this fire (deliberate): a 0.257.0 push would move master past the proven sha and delay the v0.256.0 face by a fire (the 0300 lesson - the unproven-master window); the coal-famine / smelt-keep-riders fronts are queued for the next fire while the face flies.
+
+Stage Summary:
+- Master 2cb266a (pkg 0.256.0, gate 36349777540 SUCCESS, faces 36350568199 in_progress + 36350575326 pending - the race pair, ONE will survive the concurrency cull). Next free version 0.257.0. Next local section = Task ID cron30-20260928-0530.
+- FLEET OF RECORD (mine next): the surviving face of the pair - THE CHEST ASCENT'S FIRST FIELD TEST: 'chest ascent' line volume (the why/climbed/refused/failed split), the F12-class conversion (11 chest skips -> climbed hops), banked vs 1074, the tithe's third window vs 433u/11 lines, smelted vs 20, deaths vs 9 (zero drown again?), death-drop cobble vs 191u.
+- NEXT FIRE (0530): (1) identify the surviving face, mine it per the list; (2) the code front 0.257.0 - the coal sweep-timeout famine (coal_ore mined, fuel 0 - the 4s sweep walk timeouts eat the drops) or the smelt-keep's other unbounded riders (sand/gravel/clay_ball, the tithe pattern's third rung); (3) gate + dispatch per the standard dance.
+- OPEN FRONTS: the chest ascent's field proof (LIVE); the coal famine; the dusk-bank collision; the breath mirror's stale snapshots; the frozen-physics stand-downs; the smelt-keep's other unbounded riders; the walled cure's zero-reading streak; the F19 glitch-carrier; the GC Pinned hunt; 0-stacks reloot; the tunnel-path ore destruction.
