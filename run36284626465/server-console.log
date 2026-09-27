@@ -1,0 +1,508 @@
+[0.002s][info][gc] Using G1
+Unpacking 26.2/server-26.2.jar (versions:26.2) to versions/26.2/server-26.2.jar
+Unpacking at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar (libraries:at.yawk.lz4:lz4-java:1.10.1) to libraries/at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar
+Unpacking com/azure/azure-json/1.4.0/azure-json-1.4.0.jar (libraries:com.azure:azure-json:1.4.0) to libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar
+Unpacking com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar (libraries:com.github.oshi:oshi-core:6.9.0) to libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar
+Unpacking com/google/code/gson/gson/2.14.0/gson-2.14.0.jar (libraries:com.google.code.gson:gson:2.14.0) to libraries/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar
+Unpacking com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar (libraries:com.google.guava:failureaccess:1.0.3) to libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar
+Unpacking com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar (libraries:com.google.guava:guava:33.6.0-jre) to libraries/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar
+Unpacking com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar (libraries:com.microsoft.azure:msal4j:1.24.1) to libraries/com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar
+Unpacking com/mojang/authlib/9.0.75/authlib-9.0.75.jar (libraries:com.mojang:authlib:9.0.75) to libraries/com/mojang/authlib/9.0.75/authlib-9.0.75.jar
+Unpacking com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar (libraries:com.mojang:brigadier:1.3.10) to libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar
+Unpacking com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar (libraries:com.mojang:datafixerupper:10.0.21) to libraries/com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar
+Unpacking com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar (libraries:com.mojang:jtracy:1.0.37) to libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar
+Unpacking com/mojang/logging/1.7.12/logging-1.7.12.jar (libraries:com.mojang:logging:1.7.12) to libraries/com/mojang/logging/1.7.12/logging-1.7.12.jar
+Unpacking commons-io/commons-io/2.20.0/commons-io-2.20.0.jar (libraries:commons-io:commons-io:2.20.0) to libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar
+Unpacking io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar (libraries:io.netty:netty-buffer:4.2.15.Final) to libraries/io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar (libraries:io.netty:netty-codec-base:4.2.15.Final) to libraries/io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar (libraries:io.netty:netty-codec-compression:4.2.15.Final) to libraries/io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar (libraries:io.netty:netty-codec-http:4.2.15.Final) to libraries/io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar
+Unpacking io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar (libraries:io.netty:netty-common:4.2.15.Final) to libraries/io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar
+Unpacking io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar (libraries:io.netty:netty-handler:4.2.15.Final) to libraries/io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar
+Unpacking io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar (libraries:io.netty:netty-resolver:4.2.15.Final) to libraries/io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar
+Unpacking io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar (libraries:io.netty:netty-transport:4.2.15.Final) to libraries/io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-epoll:4.2.15.Final) to libraries/io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-kqueue:4.2.15.Final) to libraries/io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-x86_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-aarch_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-x86_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-aarch_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar
+Unpacking io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar (libraries:io.netty:netty-transport-native-unix-common:4.2.15.Final) to libraries/io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar
+Unpacking it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar (libraries:it.unimi.dsi:fastutil:8.5.18) to libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar
+Unpacking net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar (libraries:net.java.dev.jna:jna:5.17.0) to libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar
+Unpacking net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar (libraries:net.java.dev.jna:jna-platform:5.17.0) to libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar
+Unpacking net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar (libraries:net.sf.jopt-simple:jopt-simple:5.0.4) to libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
+Unpacking org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar (libraries:org.apache.commons:commons-lang3:3.20.0) to libraries/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar
+Unpacking org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-api:2.26.0) to libraries/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-core:2.26.0) to libraries/org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0) to libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar
+Unpacking org/joml/joml/1.10.8/joml-1.10.8.jar (libraries:org.joml:joml:1.10.8) to libraries/org/joml/joml/1.10.8/joml-1.10.8.jar
+Unpacking org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar (libraries:org.jspecify:jspecify:1.0.0) to libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar
+Unpacking org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar (libraries:org.slf4j:slf4j-api:2.0.17) to libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar
+Starting net.minecraft.server.Main
+[0.983s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 71M->16M(1026M) 8.768ms
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/home/runner/work/privateB/privateB/testbed/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[2.739s][info][gc] GC(1) Pause Young (Concurrent Start) (Metadata GC Threshold) 146M->42M(1026M) 15.610ms
+[2.739s][info][gc] GC(2) Concurrent Mark Cycle
+[2.762s][info][gc] GC(2) Pause Remark 44M->44M(1024M) 3.425ms
+[2.770s][info][gc] GC(2) Pause Cleanup 45M->45M(1024M) 0.021ms
+[2.773s][info][gc] GC(2) Concurrent Mark Cycle 33.164ms
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/home/runner/work/privateB/privateB/testbed/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[4.652s][info][gc] GC(3) Pause Young (Prepare Mixed) (Metadata GC Threshold) 402M->60M(1024M) 35.121ms
+[4.706s][info][gc] GC(4) Pause Young (Mixed) (Metadata GC Threshold) 65M->61M(1024M) 24.607ms
+[4.754s][info][gc] GC(5) Pause Young (Concurrent Start) (Metadata GC Threshold) 65M->62M(1024M) 25.149ms
+[4.754s][info][gc] GC(6) Concurrent Mark Cycle
+[4.799s][info][gc] GC(6) Pause Remark 68M->68M(1024M) 4.677ms
+[4.805s][info][gc] GC(6) Pause Cleanup 69M->69M(1024M) 0.020ms
+[4.806s][info][gc] GC(6) Concurrent Mark Cycle 51.402ms
+[6.694s][info][gc] GC(7) Pause Young (Prepare Mixed) (Metadata GC Threshold) 478M->86M(1024M) 57.413ms
+[6.751s][info][gc] GC(8) Pause Young (Mixed) (Metadata GC Threshold) 90M->87M(1024M) 34.589ms
+[6.791s][info][gc] GC(9) Pause Young (Concurrent Start) (Metadata GC Threshold) 90M->86M(1024M) 21.973ms
+[6.791s][info][gc] GC(10) Concurrent Mark Cycle
+[6.905s][info][gc] GC(10) Pause Remark 96M->96M(1024M) 4.955ms
+[6.936s][info][gc] GC(10) Pause Cleanup 98M->98M(1024M) 0.029ms
+[6.937s][info][gc] GC(10) Concurrent Mark Cycle 145.973ms
+[01:22:46] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[01:22:47] [Worker-Main-3/INFO]: No existing world data, creating new world
+[01:22:48] [ServerMain/INFO]: Loaded 1585 recipes
+[01:22:48] [ServerMain/INFO]: Loaded 1688 advancements
+[8.950s][info][gc] GC(11) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 676M->112M(1024M) 34.518ms
+[01:22:48] [Server thread/INFO]: Starting minecraft server version 26.2
+[01:22:48] [Server thread/INFO]: Loading properties
+[01:22:48] [Server thread/INFO]: Default game type: SURVIVAL
+[01:22:48] [Server thread/INFO]: Generating keypair
+[01:22:49] [Server thread/INFO]: Starting Minecraft server on *:25565
+[01:22:49] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[01:22:49] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[01:22:49] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[01:22:49] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[01:22:49] [Server thread/INFO]: Preparing level "world"
+[01:22:49] [Server thread/INFO]: Selecting global world spawn...
+[01:22:53] [Server thread/INFO]: Loading 0 persistent chunks...
+[01:22:53] [Server thread/INFO]: Preparing spawn area: 100%
+[01:22:53] [Server thread/INFO]: Time elapsed: 4433 ms
+[01:22:53] [Server thread/INFO]: Done (4.740s)! For help, type "help"
+[01:22:53] [Server thread/INFO]: Starting remote control listener
+[01:22:53] [Server thread/INFO]: Thread RCON Listener started
+[01:22:53] [Server thread/INFO]: RCON running on 0.0.0.0:25575
+[01:22:53] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[01:22:53] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[01:22:53] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[01:22:53] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[01:22:54] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[01:22:54] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[01:22:54] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[14.503s][info][gc] GC(12) Pause Young (Mixed) (G1 Evacuation Pause) 677M->135M(1024M) 47.232ms
+[22.615s][info][gc] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 702M->155M(1024M) 41.744ms
+[01:23:04] [Server thread/INFO]: YardSurvey[/127.0.0.1:36078] logged in with entity id 17 at (-118.5, 68.0, 409.5)
+[01:23:04] [Server thread/INFO]: YardSurvey joined the game
+[01:23:04] [Server thread/INFO]: Changed the block at -119, 87, 417
+[01:23:04] [Server thread/INFO]: Changed the block at -113, 87, 401
+[01:23:04] [Server thread/INFO]: Changed the block at -113, 87, 417
+[01:23:04] [Server thread/INFO]: Changed the block at -107, 87, 401
+[01:23:04] [Server thread/INFO]: Changed the block at -107, 87, 417
+[01:23:04] [Server thread/INFO]: Changed the block at -101, 87, 401
+[01:23:04] [Server thread/INFO]: Changed the block at -101, 87, 417
+[01:23:04] [Server thread/INFO]: Changed the block at -95, 87, 401
+[01:23:04] [Server thread/INFO]: Changed the block at -95, 87, 417
+[01:23:04] [Server thread/INFO]: Set the world spawn point to -119, 82, 409 [0.0, 0.0] in minecraft:overworld
+[25.913s][info][gc] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 726M->171M(1024M) 28.941ms
+[28.830s][info][gc] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 734M->186M(1024M) 28.441ms
+[01:23:14] [Server thread/INFO]: Successfully filled 1537 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 9 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 53 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 53 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 27 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 27 block(s)
+[01:23:14] [Server thread/INFO]: Changed the block at -133, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -127, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -125, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -123, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -121, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -133, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -127, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -125, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -123, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -121, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -137, 82, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -135, 82, 397
+[01:23:14] [Server thread/INFO]: Successfully filled 3 block(s)
+[01:23:14] [Server thread/INFO]: Changed the block at -121, 83, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -137, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -135, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -133, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -127, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -137, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -135, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -133, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -127, 82, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -113, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -111, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -107, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -105, 82, 403
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 83, 403
+[01:23:14] [Server thread/INFO]: Successfully filled 49 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 25 block(s)
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -102, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -102, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -100, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -100, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -98, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -98, 83, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 401
+[01:23:14] [Server thread/INFO]: Could not set the block
+[01:23:14] [Server thread/INFO]: Could not set the block
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 396
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 396
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 397
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 398
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 399
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 399
+[01:23:14] [Server thread/INFO]: Changed the block at -103, 83, 400
+[01:23:14] [Server thread/INFO]: Changed the block at -97, 83, 400
+[01:23:14] [Server thread/INFO]: Could not set the block
+[01:23:14] [Server thread/INFO]: Could not set the block
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 84, 395
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 413
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 415
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 419
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 421
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -134, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -129, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -124, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -114, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -109, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -104, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -99, 82, 423
+[01:23:14] [Server thread/INFO]: Changed the block at -141, 83, 423
+[01:23:14] [Server thread/INFO]: Successfully filled 20 block(s)
+[01:23:14] [Server thread/INFO]: Successfully filled 6 block(s)
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 87, 407
+[01:23:14] [Server thread/INFO]: Changed the block at -140, 82, 406
+[01:23:14] [Server thread/INFO]: Changed the block at -140, 82, 407
+[01:23:14] [Server thread/INFO]: Changed the block at -140, 82, 408
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 406
+[01:23:14] [Server thread/INFO]: Changed the block at -139, 82, 408
+[01:23:14] [Server thread/INFO]: Changed the block at -138, 82, 406
+[01:23:14] [Server thread/INFO]: Changed the block at -138, 82, 407
+[01:23:14] [Server thread/INFO]: Changed the block at -138, 82, 408
+[01:23:14] [Server thread/INFO]: Successfully filled 1 block(s)
+[01:23:14] [Server thread/INFO]: Changed the block at -140, 84, 405
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 409
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 82, 410
+[01:23:14] [Server thread/INFO]: Changed the block at -143, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -143, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -137, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -137, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -131, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -125, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -125, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -119, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -113, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -113, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -107, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -107, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -101, 87, 417
+[01:23:14] [Server thread/INFO]: Changed the block at -95, 87, 401
+[01:23:14] [Server thread/INFO]: Changed the block at -95, 87, 417
+[01:23:14] [Server thread/INFO]: Set the world spawn point to -119, 82, 409 [0.0, 0.0] in minecraft:overworld
+[01:23:17] [Server thread/INFO]: YardSurvey lost connection: Disconnected
+[01:23:17] [Server thread/INFO]: YardSurvey left the game
+[37.403s][info][gc] GC(16) Pause Young (Normal) (G1 Evacuation Pause) 760M->205M(1024M) 33.286ms
+[01:23:18] [Server thread/INFO]: F1[/127.0.0.1:45616] logged in with entity id 270 at (-123.5, 82.0, 408.5)
+[01:23:18] [Server thread/INFO]: F1 joined the game
+[38.693s][info][gc] GC(17) Pause Young (Concurrent Start) (CodeCache GC Threshold) (Evacuation Failure: Pinned) 738M->198M(1024M) 24.776ms
+[38.693s][info][gc] GC(18) Concurrent Mark Cycle
+[39.128s][info][gc] GC(18) Pause Remark 328M->328M(1024M) 30.008ms
+[39.234s][info][gc] GC(18) Pause Cleanup 351M->351M(1024M) 0.045ms
+[39.235s][info][gc] GC(18) Concurrent Mark Cycle 541.290ms
+[01:23:20] [Server thread/INFO]: F2[/127.0.0.1:45624] logged in with entity id 302 at (-113.5, 82.0, 407.5)
+[01:23:20] [Server thread/INFO]: F2 joined the game
+[43.197s][info][gc] GC(19) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 794M->226M(1024M) 27.464ms
+[01:23:23] [Server thread/INFO]: F3[/127.0.0.1:60872] logged in with entity id 310 at (-111.5, 82.0, 414.5)
+[01:23:23] [Server thread/INFO]: F3 joined the game
+[01:23:25] [Server thread/INFO]: F4[/127.0.0.1:60874] logged in with entity id 317 at (-117.5, 82.0, 418.5)
+[01:23:25] [Server thread/INFO]: F4 joined the game
+[01:23:28] [Server thread/INFO]: F5[/127.0.0.1:60886] logged in with entity id 318 at (-115.5, 82.0, 405.5)
+[01:23:28] [Server thread/INFO]: F5 joined the game
+[01:23:31] [Server thread/INFO]: F6[/127.0.0.1:60890] logged in with entity id 319 at (-114.5, 82.0, 410.5)
+[01:23:31] [Server thread/INFO]: F6 joined the game
+[01:23:34] [Server thread/INFO]: F7[/127.0.0.1:58484] logged in with entity id 321 at (-115.5, 82.0, 417.5)
+[01:23:34] [Server thread/INFO]: F7 joined the game
+[56.753s][info][gc] GC(20) Pause Young (Mixed) (G1 Evacuation Pause) 795M->233M(1024M) 40.119ms
+[01:23:37] [Server thread/INFO]: F8[/127.0.0.1:58490] logged in with entity id 323 at (-122.5, 82.0, 399.5)
+[01:23:37] [Server thread/INFO]: F8 joined the game
+[01:23:39] [Server thread/INFO]: F9[/127.0.0.1:58502] logged in with entity id 325 at (-110.5, 82.0, 400.5)
+[01:23:39] [Server thread/INFO]: F9 joined the game
+[01:23:43] [Server thread/INFO]: F10[/127.0.0.1:58510] logged in with entity id 335 at (-128.5, 82.0, 400.5)
+[01:23:43] [Server thread/INFO]: F10 joined the game
+[01:23:45] [Server thread/INFO]: F11[/127.0.0.1:49562] logged in with entity id 337 at (-110.5, 82.0, 414.5)
+[01:23:45] [Server thread/INFO]: F11 joined the game
+[01:23:49] [Server thread/INFO]: F12[/127.0.0.1:49568] logged in with entity id 342 at (-118.5, 82.0, 405.5)
+[01:23:49] [Server thread/INFO]: F12 joined the game
+[01:23:51] [Server thread/INFO]: F13[/127.0.0.1:49574] logged in with entity id 348 at (-116.5, 82.0, 411.5)
+[01:23:51] [Server thread/INFO]: F13 joined the game
+[73.845s][info][gc] GC(21) Pause Young (Normal) (G1 Evacuation Pause) 808M->243M(1024M) 32.430ms
+[01:23:54] [Server thread/INFO]: F14[/127.0.0.1:56416] logged in with entity id 351 at (-111.5, 82.0, 406.5)
+[01:23:54] [Server thread/INFO]: F14 joined the game
+[01:23:57] [Server thread/INFO]: F15[/127.0.0.1:56430] logged in with entity id 367 at (-120.5, 82.0, 403.5)
+[01:23:57] [Server thread/INFO]: F15 joined the game
+[01:24:00] [Server thread/INFO]: F16[/127.0.0.1:56438] logged in with entity id 385 at (-122.5, 82.0, 403.5)
+[01:24:00] [Server thread/INFO]: F16 joined the game
+[01:24:03] [Server thread/INFO]: F17[/127.0.0.1:54088] logged in with entity id 391 at (-124.5, 82.0, 409.5)
+[01:24:03] [Server thread/INFO]: F17 joined the game
+[01:24:06] [Server thread/INFO]: F18[/127.0.0.1:54098] logged in with entity id 395 at (-108.5, 82.0, 418.5)
+[01:24:06] [Server thread/INFO]: F18 joined the game
+[88.698s][info][gc] GC(22) Pause Young (Normal) (G1 Evacuation Pause) 808M->252M(1024M) 32.551ms
+[01:24:09] [Server thread/INFO]: F19[/127.0.0.1:54104] logged in with entity id 406 at (-127.5, 82.0, 416.5)
+[01:24:09] [Server thread/INFO]: F19 joined the game
+[106.951s][info][gc] GC(23) Pause Young (Normal) (G1 Evacuation Pause) 834M->252M(1024M) 40.904ms
+[122.346s][info][gc] GC(24) Pause Young (Normal) (G1 Evacuation Pause) 833M->252M(1024M) 32.670ms
+[137.632s][info][gc] GC(25) Pause Young (Normal) (G1 Evacuation Pause) 833M->253M(1024M) 19.576ms
+[01:25:07] [Server thread/INFO]: F8 has made the advancement [Stone Age]
+[01:25:07] [Server thread/INFO]: F1 has made the advancement [Stone Age]
+[153.686s][info][gc] GC(26) Pause Young (Normal) (G1 Evacuation Pause) 834M->253M(1024M) 19.842ms
+[01:25:15] [Server thread/INFO]: F8 has made the advancement [Getting an Upgrade]
+[01:25:16] [Server thread/INFO]: F2 has made the advancement [Stone Age]
+[01:25:17] [Server thread/INFO]: F3 has made the advancement [Stone Age]
+[01:25:19] [Server thread/INFO]: F5 has made the advancement [Stone Age]
+[01:25:24] [Server thread/INFO]: F2 has made the advancement [Getting an Upgrade]
+[01:25:25] [Server thread/INFO]: F3 has made the advancement [Getting an Upgrade]
+[169.134s][info][gc] GC(27) Pause Young (Normal) (G1 Evacuation Pause) 834M->253M(1024M) 20.079ms
+[01:25:34] [Server thread/INFO]: F5 has made the advancement [Getting an Upgrade]
+[01:25:43] [Server thread/INFO]: F12 has made the advancement [Stone Age]
+[184.486s][info][gc] GC(28) Pause Young (Normal) (G1 Evacuation Pause) 833M->253M(1024M) 19.886ms
+[01:25:47] [Server thread/INFO]: F6 has made the advancement [Stone Age]
+[01:25:57] [Server thread/INFO]: F6 has made the advancement [Getting an Upgrade]
+[200.082s][info][gc] GC(29) Pause Young (Normal) (G1 Evacuation Pause) 833M->254M(1024M) 22.149ms
+[01:26:03] [Server thread/INFO]: F10 has made the advancement [Stone Age]
+[01:26:06] [Server thread/INFO]: F14 has made the advancement [Stone Age]
+[01:26:08] [Server thread/INFO]: F16 has made the advancement [Stone Age]
+[01:26:10] [Server thread/INFO]: F15 has made the advancement [Stone Age]
+[217.085s][info][gc] GC(30) Pause Young (Normal) (G1 Evacuation Pause) 834M->254M(1024M) 21.595ms
+[01:26:21] [Server thread/INFO]: F7 has made the advancement [Stone Age]
+[01:26:21] [Server thread/INFO]: F19 has made the advancement [Stone Age]
+[01:26:22] [Server thread/INFO]: F10 has made the advancement [Getting an Upgrade]
+[229.885s][info][gc] GC(31) Pause Young (Normal) (G1 Evacuation Pause) 833M->258M(1024M) 22.289ms
+[01:26:31] [Server thread/INFO]: F17 has made the advancement [Stone Age]
+[01:26:33] [Server thread/INFO]: F7 has made the advancement [Getting an Upgrade]
+[01:26:39] [Server thread/INFO]: F17 has made the advancement [Getting an Upgrade]
+[246.035s][info][gc] GC(32) Pause Young (Normal) (G1 Evacuation Pause) 834M->258M(1024M) 21.832ms
+[01:26:53] [Server thread/INFO]: F19 has made the advancement [Getting an Upgrade]
+[01:26:58] [Server thread/INFO]: F13 has made the advancement [Stone Age]
+[260.898s][info][gc] GC(33) Pause Young (Normal) (G1 Evacuation Pause) 833M->262M(1024M) 36.126ms
+[01:27:01] [Server thread/INFO]: F11 has made the advancement [Stone Age]
+[01:27:06] [Server thread/INFO]: F9 has made the advancement [Stone Age]
+[01:27:07] [Server thread/INFO]: F13 has made the advancement [Getting an Upgrade]
+[01:27:10] [Server thread/INFO]: F8 drowned
+[271.201s][info][gc] GC(34) Pause Young (Normal) (G1 Evacuation Pause) 834M->266M(1024M) 28.548ms
+[01:27:25] [Server thread/INFO]: F9 has made the advancement [Getting an Upgrade]
+[01:27:25] [Server thread/INFO]: F18 has made the advancement [Stone Age]
+[285.842s][info][gc] GC(35) Pause Young (Normal) (G1 Evacuation Pause) 845M->266M(1024M) 25.759ms
+[01:27:34] [Server thread/INFO]: F18 has made the advancement [Getting an Upgrade]
+[298.833s][info][gc] GC(36) Pause Young (Normal) (G1 Evacuation Pause) 845M->266M(1024M) 19.506ms
+[311.326s][info][gc] GC(37) Pause Young (Normal) (G1 Evacuation Pause) 855M->268M(1024M) 16.005ms
+[01:27:53] [Server thread/INFO]: F10 lost connection: Disconnected
+[01:27:53] [Server thread/INFO]: F10 left the game
+[323.854s][info][gc] GC(38) Pause Young (Normal) (G1 Evacuation Pause) 863M->271M(1024M) 16.953ms
+[333.434s][info][gc] GC(39) Pause Young (Normal) (G1 Evacuation Pause) 865M->274M(1024M) 24.907ms
+[345.198s][info][gc] GC(40) Pause Young (Normal) (G1 Evacuation Pause) 865M->274M(1024M) 32.497ms
+[357.984s][info][gc] GC(41) Pause Young (Normal) (G1 Evacuation Pause) 866M->275M(1024M) 17.385ms
+[01:28:41] [Server thread/INFO]: F4 has made the advancement [Stone Age]
+[369.376s][info][gc] GC(42) Pause Young (Normal) (G1 Evacuation Pause) 867M->275M(1024M) 15.763ms
+[01:28:49] [Server thread/INFO]: F4 has made the advancement [Getting an Upgrade]
+[381.476s][info][gc] GC(43) Pause Young (Normal) (G1 Evacuation Pause) 867M->275M(1024M) 17.012ms
+[390.527s][info][gc] GC(44) Pause Young (Normal) (G1 Evacuation Pause) 868M->279M(1024M) 18.293ms
+[01:29:13] [Server thread/INFO]: F1 has made the advancement [Getting an Upgrade]
+[01:29:14] [Server thread/INFO]: F16 has made the advancement [Getting an Upgrade]
+[01:29:14] [Server thread/INFO]: F14 has made the advancement [Getting an Upgrade]
+[400.227s][info][gc] GC(45) Pause Young (Normal) (G1 Evacuation Pause) 869M->278M(1024M) 16.979ms
+[01:29:30] [Server thread/INFO]: F15 has made the advancement [Getting an Upgrade]
+[411.333s][info][gc] GC(46) Pause Young (Normal) (G1 Evacuation Pause) 868M->280M(1024M) 16.631ms
+[01:29:31] [Server thread/INFO]: F16 lost connection: Disconnected
+[01:29:31] [Server thread/INFO]: F16 left the game
+[419.982s][info][gc] GC(47) Pause Young (Normal) (G1 Evacuation Pause) 872M->283M(1024M) 16.981ms
+[01:29:41] [Server thread/INFO]: F10[/127.0.0.1:45488] logged in with entity id 3871 at (-135.3, 47.2, 416.7)
+[01:29:41] [Server thread/INFO]: F10 joined the game
+[01:29:42] [Server thread/INFO]: F12 has made the advancement [Getting an Upgrade]
+[428.781s][info][gc] GC(48) Pause Young (Normal) (G1 Evacuation Pause) 872M->288M(1024M) 19.840ms
+[01:29:55] [Server thread/INFO]: F10 lost connection: Disconnected
+[01:29:55] [Server thread/INFO]: F10 left the game
+[439.627s][info][gc] GC(49) Pause Young (Normal) (G1 Evacuation Pause) 875M->287M(1024M) 17.627ms
+[447.134s][info][gc] GC(50) Pause Young (Normal) (G1 Evacuation Pause) 879M->291M(1024M) 16.630ms
+[459.729s][info][gc] GC(51) Pause Young (Normal) (G1 Evacuation Pause) 880M->291M(1024M) 17.699ms
+[470.779s][info][gc] GC(52) Pause Young (Normal) (G1 Evacuation Pause) 880M->291M(1024M) 17.033ms
+[480.677s][info][gc] GC(53) Pause Young (Normal) (G1 Evacuation Pause) 881M->292M(1024M) 16.205ms
+[494.823s][info][gc] GC(54) Pause Young (Normal) (G1 Evacuation Pause) 884M->292M(1024M) 12.261ms
+[506.026s][info][gc] GC(55) Pause Young (Normal) (G1 Evacuation Pause) 887M->293M(1024M) 10.240ms
+[01:31:09] [Server thread/INFO]: F10[/127.0.0.1:35466] logged in with entity id 4655 at (-135.3, 47.42038333747928, 416.5103704127188)
+[01:31:09] [Server thread/INFO]: F10 joined the game
+[518.472s][info][gc] GC(56) Pause Young (Normal) (G1 Evacuation Pause) 887M->295M(1024M) 11.613ms
+[01:31:29] [Server thread/INFO]: F11 has made the advancement [Getting an Upgrade]
+[530.376s][info][gc] GC(57) Pause Young (Normal) (G1 Evacuation Pause) 888M->295M(1024M) 12.391ms
+[01:31:36] [Server thread/INFO]: F5 fell from a high place
+[538.721s][info][gc] GC(58) Pause Young (Normal) (G1 Evacuation Pause) 888M->295M(1024M) 11.239ms
+[552.720s][info][gc] GC(59) Pause Young (Normal) (G1 Evacuation Pause) 888M->296M(1024M) 10.528ms
+[567.171s][info][gc] GC(60) Pause Young (Normal) (G1 Evacuation Pause) 891M->296M(1024M) 10.574ms
+[580.823s][info][gc] GC(61) Pause Young (Normal) (G1 Evacuation Pause) 891M->297M(1024M) 10.976ms
+[01:32:26] [Server thread/INFO]: F1 lost connection: You logged in from another location
+[01:32:26] [Server thread/INFO]: F1 left the game
+[01:32:26] [Server thread/WARN]: handleDisconnection() called twice
+[01:32:27] [Server thread/INFO]: F1[/127.0.0.1:48090] logged in with entity id 5033 at (-56.6653244159035, 60.985082214343805, 417.5865526336342)
+[01:32:27] [Server thread/INFO]: F1 joined the game
+[594.026s][info][gc] GC(62) Pause Young (Normal) (G1 Evacuation Pause) 892M->298M(1024M) 12.745ms
+[607.883s][info][gc] GC(63) Pause Young (Normal) (G1 Evacuation Pause) 895M->298M(1024M) 12.224ms
+[01:32:55] [Server thread/INFO]: F12 drowned
+[621.123s][info][gc] GC(64) Pause Young (Normal) (G1 Evacuation Pause) 900M->299M(1024M) 9.862ms
+[01:33:02] [Server thread/INFO]: F10 lost connection: Disconnected
+[01:33:02] [Server thread/INFO]: F10 left the game
+[634.172s][info][gc] GC(65) Pause Young (Normal) (G1 Evacuation Pause) 900M->300M(1024M) 8.795ms
+[647.367s][info][gc] GC(66) Pause Young (Normal) (G1 Evacuation Pause) 904M->301M(1024M) 7.581ms
+[01:33:33] [Server thread/INFO]: F2 has made the advancement [Acquire Hardware]
+[664.268s][info][gc] GC(67) Pause Young (Normal) (G1 Evacuation Pause) 905M->300M(1024M) 7.929ms
+[679.470s][info][gc] GC(68) Pause Young (Normal) (G1 Evacuation Pause) 905M->301M(1024M) 6.940ms
+[697.069s][info][gc] GC(69) Pause Young (Normal) (G1 Evacuation Pause) 906M->301M(1024M) 7.088ms
+[712.566s][info][gc] GC(70) Pause Young (Normal) (G1 Evacuation Pause) 907M->300M(1024M) 6.887ms
+[727.018s][info][gc] GC(71) Pause Young (Normal) (G1 Evacuation Pause) 907M->300M(1024M) 6.349ms
+[741.218s][info][gc] GC(72) Pause Young (Normal) (G1 Evacuation Pause) 908M->301M(1024M) 6.343ms
+[01:35:01] [Server thread/INFO]: F8 lost connection: Disconnected
+[01:35:01] [Server thread/INFO]: F8 left the game
+[756.771s][info][gc] GC(73) Pause Young (Normal) (G1 Evacuation Pause) 909M->300M(1024M) 6.369ms
+[01:35:18] [Server thread/INFO]: F9 lost connection: Disconnected
+[01:35:18] [Server thread/INFO]: F9 left the game
+[01:35:20] [Server thread/INFO]: F15 was slain by Zombie
+[767.816s][info][gc] GC(74) Pause Young (Normal) (G1 Evacuation Pause) 908M->301M(1024M) 6.267ms
+[779.718s][info][gc] GC(75) Pause Young (Normal) (G1 Evacuation Pause) 909M->301M(1024M) 5.759ms
+[01:35:41] [Server thread/INFO]: F11 has made the advancement [Monster Hunter]
+[01:35:48] [Server thread/INFO]: F13 was slain by Zombie
+[793.766s][info][gc] GC(76) Pause Young (Normal) (G1 Evacuation Pause) 909M->301M(1024M) 7.005ms
+[01:36:03] [Server thread/INFO]: F7 has made the advancement [Monster Hunter]
+[805.677s][info][gc] GC(77) Pause Young (Normal) (G1 Evacuation Pause) 909M->302M(1024M) 5.753ms
+[818.022s][info][gc] GC(78) Pause Young (Normal) (G1 Evacuation Pause) 910M->302M(1024M) 5.651ms
+[829.216s][info][gc] GC(79) Pause Young (Normal) (G1 Evacuation Pause) 910M->302M(1024M) 6.568ms
+[01:36:35] [Server thread/INFO]: F7 was shot by Skeleton
+[845.765s][info][gc] GC(80) Pause Young (Normal) (G1 Evacuation Pause) 910M->302M(1024M) 5.971ms
+[862.167s][info][gc] GC(81) Pause Young (Normal) (G1 Evacuation Pause) 910M->302M(1024M) 5.608ms
+[01:37:17] [Server thread/INFO]: F18 has made the advancement [Monster Hunter]
+[881.266s][info][gc] GC(82) Pause Young (Normal) (G1 Evacuation Pause) 911M->302M(1024M) 5.030ms
+[01:37:22] [Server thread/INFO]: F18 was slain by Zombie
+[01:37:28] [Server thread/INFO]: F11 was slain by Zombie
+[895.519s][info][gc] GC(83) Pause Young (Normal) (G1 Evacuation Pause) 911M->303M(1024M) 5.672ms
+[01:37:37] [Server thread/INFO]: F3 was slain by Zombie
+[01:37:38] [Server thread/INFO]: F14 was slain by Zombie
+[907.020s][info][gc] GC(84) Pause Young (Normal) (G1 Evacuation Pause) 911M->305M(1024M) 6.835ms
+[01:37:47] [Server thread/INFO]: F17 was slain by Zombie
+[01:37:49] [Server thread/INFO]: F4 was slain by Zombie
+[917.035s][info][gc] GC(85) Pause Young (Normal) (G1 Evacuation Pause) 912M->307M(1024M) 9.282ms
+[927.069s][info][gc] GC(86) Pause Young (Normal) (G1 Evacuation Pause) 911M->310M(1024M) 8.306ms
+[01:38:09] [Server thread/INFO]: F3 was shot by Skeleton
+[01:38:10] [Server thread/INFO]: F14 was slain by Zombie
+[01:38:14] [Server thread/INFO]: F2 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F2 left the game
+[01:38:14] [Server thread/INFO]: F3 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F3 left the game
+[01:38:14] [Server thread/INFO]: F4 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F4 left the game
+[01:38:14] [Server thread/INFO]: F5 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F5 left the game
+[01:38:14] [Server thread/INFO]: F6 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F6 left the game
+[01:38:14] [Server thread/INFO]: F7 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F7 left the game
+[01:38:14] [Server thread/INFO]: F11 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F11 left the game
+[01:38:14] [Server thread/INFO]: F12 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F12 left the game
+[01:38:14] [Server thread/INFO]: F13 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F13 left the game
+[01:38:14] [Server thread/INFO]: F14 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F14 left the game
+[01:38:14] [Server thread/INFO]: F15 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F15 left the game
+[01:38:14] [Server thread/INFO]: F17 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F17 left the game
+[01:38:14] [Server thread/INFO]: F18 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F18 left the game
+[01:38:14] [Server thread/INFO]: F19 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F19 left the game
+[01:38:14] [Server thread/INFO]: F1 lost connection: Disconnected
+[01:38:14] [Server thread/INFO]: F1 left the game
+[934.281s][info][gc] GC(87) Pause Young (Normal) (G1 Evacuation Pause) 911M->340M(1024M) 26.803ms
