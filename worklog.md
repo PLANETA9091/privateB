@@ -6304,3 +6304,22 @@ Stage Summary:
 - IN FLIGHT: 36301385048 (27a47f5, the v0.237.0 PAIR-PREEMPT field face) - the next fire mines it FIRST (the pair-preempt markers 'combat: pair preempt vs ...' = the headline watch: volume, the bar, deaths vs the 19 worst, the banking recovery).
 - NEXT FIRE: (1) run-list check -> mine 36301385048; (2) a code front 0.238.0 on a COLD front (tool repair/replace or the furnace/smelt chain - the iron=0 ceiling is the smelt-chain hook) if the queue is free; (3) dispatch per canon if no active run.
 - OPEN FRONTS: the pair-preempt FIELD FACE (in flight); the pair DRAIN face is EPISODIC (19 deaths did not repeat); the MELEE SWARM ESCALATION (x7->x12->x11->0 - episodic pressure confirmed); the dusk window/end-phase COLLISION (legacy armed x1, priced x0 5th straight); the OOM walk-churn storm (9 clean); the water-lens drown blindness; the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face (16 straight silences); the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the IRON-TIER CEILING (pickaxe iron=0, smelted=7); the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED: the banking regression (banked=380 recovered).
+
+---
+Task ID: cron30-20260927-1530
+Agent: Super Z (cron lane, Job 414125)
+Task: 15:30 fire - MINE+DECODE of 36301385048 (the v0.237.0 PAIR-PREEMPT field face) COMPLETED SUCCESS: zero deaths 2nd straight, banked=1672 ALL-TIME SERIES HIGH, fights=25 the mob hand WAS dealt and the fleet survived it; the pair-preempt lane itself silent 3rd straight (all engagements 1v1).
+
+Work Log:
+- Polled 36301385048 ~10 min (3 rounds) -> COMPLETED SUCCESS (all jobs green). MINED (fleet19 308915B -> run36301385048/).
+- DECODE - THE SURVIVAL FACE: alive=19/19 ZERO deaths 2ND STRAIGHT (fights=25 kills=7 vs last run's fights=4 - the combat stack absorbed the heaviest engagement of the clean era); BANKING ALL-TIME HIGH: banked=1672 unaccounted=0 conversion=118.1% (series ...705->0->380->1672); mined=2851; smelted=28 (4x up); tools=18 swords=21 climbs=34 wet=11; rescues=49 reconnects=10 kicks=0; worldmap 1416p/26ch.
+- THE PAIR-PREEMPT FACE: 0 'pair preempt' events (3rd straight silence) - the honest census rode the log ('in reach' x39) but every engagement was 1v1: the line waits for its 2-in-reach hand. flee verdicts flipped x3.
+- SECONDARY: storm 0 (10th clean); doomedRearm x0 (9th); dusk FULLY SILENT (1st duskless run of the watch era); iron pickaxe tier STILL x0 (wooden=33 stone=16 iron=0, smelted=28).
+- This push FIRST, then the dispatch (the slot freed by 36301385048) - the ordering law held.
+
+Stage Summary:
+- Master = this commit (pkg 0.237.0). Next free version 0.238.0. Next local section = Task ID cron30-20260927-1600.
+- FLEET OF RECORD: 36301385048 COMPLETED SUCCESS - MINED (the survival face: 0 deaths at fights=25, banked=1672 record, pair-preempt unexercised x3).
+- DISPATCHED this fire: the new fleet run (the v0.237.0 2nd face) - the next fire mines it (pair-preempt markers, the 25-fight survival repeat, the record defense).
+- NEXT FIRE: (1) mine the new dispatch; (2) a code front 0.238.0 on a COLD front (the IRON-TIER CEILING: smelted=28 alive but iron never lands - fuel/ore routing) if the queue is free; (3) the pair-preempt line needs no code - the field must deal 2-in-reach.
+- OPEN FRONTS: the pair-preempt FIELD HAND (x3 silence); the 25-fight survival repeat watch; the banking record defense (1672); the IRON-TIER CEILING; the dusk FULL-SILENCE anatomy; the OOM storm (10 clean); the water-lens drown blindness; the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face (18 straight); the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED: the banking regression arc (0->380->1672 record).
