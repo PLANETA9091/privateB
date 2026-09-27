@@ -24,7 +24,10 @@ const fleetSrc = readFileSync(join(here, '../../testbed/fleet19.mjs'), 'utf8')
 test('v0.188.0 wiring: the hop loop consults chestVerticalDoom BEFORE the deposit walk, the skip joins the tried-set', () => {
   const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger })')
   assert.ok(walkIdx > -1, 'the hop loop walk anchor exists')
-  const gateIdx = depositSrc.indexOf('const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })')
+  // (v0.256.0) the consult reads `let doom` now - the chest ascent hook
+  // rebinds the verdict after a climb and the gate re-evaluates; the
+  // gate-before-walk order and the skip shape are unchanged.
+  const gateIdx = depositSrc.indexOf("let doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })")
   assert.ok(gateIdx > -1, 'the doom consult exists in deposit.mjs')
   assert.ok(gateIdx < walkIdx, 'the gate rides before the walk - a doomed chest never pays a goto')
   const gateBlock = depositSrc.slice(gateIdx, walkIdx)

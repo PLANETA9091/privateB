@@ -229,9 +229,50 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   else if (reserveWhy.startsWith('smelt hold skipped')) console.log(`${miner.username} bank: ${reserveWhy} (coal ${pocketFuel})`)
   const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())
   const lootOpts = () => ({ keep: keep(true), budgetMs: preSmeltRemaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
+  // (v0.256.0) THE CHEST ASCENT EXECUTOR - the deposit hop loop's climb-before-skip
+  // (the v0.255.0 ascent wired the 'bank:' walk form only; face 36346860061 F12's
+  // CHEST SELECTION still refused every yard chest - 11x 'chest skip (vertical
+  // doom: 27-29 levels up)' and a 219u death drop rode the deadline). The hook
+  // rides the depositToChests opts: on a doomed chest it prices the climb with the
+  // SAME quarryAscentPlan arithmetic (dy >= 8, the 45s slice + the 30s hop floor
+  // funded by this chain's own clock), climbs toward the CHEST's level (climbOut -
+  // the same machinery the final climb owns), and lets the gate re-evaluate from
+  // the new altitude. Honest lines: 'chest ascent: <why> - climbing toward the
+  // chest before the hop' / 'climbed +N levels (...) - the hop gets its route' /
+  // 'refused (<why>) - the skip stands' / 'failed (<reason>) - the skip stands'.
+  // Junk-safe: any unreadable shape returns false - the legacy skip byte for byte.
+  const chestAscentHook = clockFn => async ({ chestPos, doom }) => {
+    const cy = chestPos && Number.isFinite(chestPos.y) ? chestPos.y : null
+    const plan = (() => {
+      try {
+        return quarryAscentPlan({ botY: miner.bot?.entity?.position?.y, yardY: cy, remainingMs: typeof clockFn === 'function' ? clockFn() : null })
+      } catch { return { ascend: false, why: 'plan error' } }
+    })()
+    if (!plan.ascend) {
+      console.log(`${miner.username} chest ascent: refused (${plan.why}) - the skip stands`)
+      return false
+    }
+    const dir = miner.bot?.entity && chestPos && Number.isFinite(chestPos.x) && Number.isFinite(chestPos.z)
+      ? new Vec3(chestPos.x - miner.bot.entity.position.x, 0, chestPos.z - miner.bot.entity.position.z)
+      : null
+    const fenceAt = Date.now() + plan.climbMs
+    console.log(`${miner.username} chest ascent: ${doom?.why ?? 'vertical doom'} - climbing toward the chest before the hop`)
+    try {
+      const cr = await miner.climbOut({ dir: dir || undefined, targetY: cy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
+      if (cr && cr.ok) {
+        console.log(`${miner.username} chest ascent: climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop gets its route`)
+        return true
+      }
+      console.log(`${miner.username} chest ascent: failed (${cr?.reason ?? 'no read'}) - the skip stands`)
+      return false
+    } catch (e) {
+      console.log(`${miner.username} chest ascent: failed (${e?.message ?? 'error'}) - the skip stands`)
+      return false
+    }
+  }
   // cheap pre-deposit: a chest within 64 blocks banks instantly (early-run bots
   // dig near spawn); the verdict's reason also drives the yard-walk decision
-  const pre = await miner.depositLoot(lootOpts())
+  const pre = await miner.depositLoot({ ...lootOpts(), onVerticalDoom: chestAscentHook(preSmeltRemaining) })
   if (pre.deposited === 0) {
     const yardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : null
     const decision = bankFallback({ deposited: 0, reason: pre.reason, yardDist })
@@ -688,7 +729,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       console.log(`${miner.username} fuel anchor: skipped - the final leg clock (${(remaining() / 1000).toFixed(1)}s) cannot afford the walk while the pocket holds ${overage} over the bound`)
     }
   } catch { /* the legacy scatter is the fallback */ }
-  const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS })
+  const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook(remaining) })
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }
@@ -833,7 +874,7 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe|quarry ascent/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })

@@ -1509,7 +1509,7 @@ export async function depositToChest (bot, {
  * items remain. A single full chest then costs a walk, not the whole delivery.
  * Returns { deposited, chestsUsed, chestReport } - never throws.
  */
-export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null, fullChestLedger = null } = {}) {
+export async function depositToChests (bot, { maxChests = 8, findRadius = 64, keep = KEEP, log = () => {}, budgetMs = null, yardCenter = null, yardRadius = YARD_CHEST_RADIUS, noPathLedger = null, fullChestLedger = null, onVerticalDoom = null } = {}) {
   let total = 0
   let chestsUsed = 0
   const reports = []
@@ -1654,7 +1654,24 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
     // filter-key ('chest skip' joined the regex) so the next decode can count
     // this class AND the three ledger skips the filter had kept invisible.
     if (chest.position) {
-      const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      let doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      if (doom.doom && typeof onVerticalDoom === 'function') {
+        // (v0.256.0) THE CHEST ASCENT HOOK - the selection's climb-before-skip
+        // (face 36346860061: F12's chest selection refused EVERY yard chest -
+        // 11x 'chest skip (vertical doom: 27-29 levels up)' while the mid-run
+        // ascent (v0.255.0) wired only the 'bank:' walk form; the pocket rode
+        // the deadline and F12 paid a 219u death drop). The caller may own an
+        // ascent executor (the miner's climbOut): the hook gets the doomed
+        // chest's position, climbs toward its level, and the gate RE-EVALUATES
+        // from the new altitude - from the yard's level the strict arithmetic
+        // reads lateral >= dy and the legacy hop runs. Junk-safe: a missing
+        // hook, a false return or a throwing hook all read as no climb - the
+        // legacy skip below stays byte for byte. The gate arithmetic is
+        // UNTOUCHED: the climb buys the ladder a route, it does not loosen it.
+        let climbed = false
+        try { climbed = await onVerticalDoom({ chestPos: chest.position, doom }) } catch { climbed = false }
+        if (climbed) doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })
+      }
       if (doom.doom) {
         log(`[${bot.username ?? 'bot'}] chest skip (vertical doom: ${doom.why} - the walk ladder cannot climb)`)
         tried.push(typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position)
