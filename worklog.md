@@ -7046,7 +7046,6 @@ Stage Summary:
 - OPEN FRONTS: the smelt-keep's other unbounded riders (sand/gravel/clay_ball - the tithe's own pattern, one measured rung each); the frozen-gate wet-critical class; the defend-in-water drown class; the unanchored pillar-up cure; the walled cure's zero-reading streak; the F19 glitch-carrier class; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root; the tunnel-path ore destruction.
 
 ---
-<<<<<<< HEAD
 Task ID: cron37-20260928-0237 addendum (THE FACE DECODE + THE DISPATCH PREP)
 Agent: Super Z (cron lane, Job 415967)
 Task: the v0.253.0 face 36340470441 completed SUCCESS - the full decode mined from the artifact.
@@ -7063,7 +7062,6 @@ Work Log:
 Stage Summary:
 - THE 0.255.0 CANDIDATE (the regression's own cure): THE QUARRY ASCENT - when a bank/smelt/commune trip is planned and the yard stands ABOVE the bot (y_yard - y_bot > 8) within walk range, first climb to the yard's level (the climb machinery's diag/stair plan, or a dug staircase at the column under the yard) BEFORE the chest hop; the vertical doom gate stays byte for byte (it is honest - the cure is giving the walk ladder a route, not loosening the gate). Measured lever: banked 733 -> 0 swung entirely on this wall; the final climb machinery ('final climb: failed - timeout [stage 1]' x2) is the closest existing piece.
 - Master ab29247 (pkg 0.254.0); the HEAD gate 36342704444 in flight; the slot free (the face landed 19:02:55Z). DISPATCH the v0.254.0 face when the gate reads green (the cobble tithe + the guard + the tier/hazard defers fly together).
-=======
 Task ID: cron30-20260928-0300
 Agent: Super Z (cron lane, Job 414125)
 Task: 03:00 fire - the v0.253.0 face 36340470441 MINED (the hazard-defer's first verdicts live); the v0.254.0 dispatch held by the CI-green gate (the HEAD gate still in flight at close); no code motion (the dispatch owns the fire).
@@ -7079,4 +7077,3 @@ Stage Summary:
 - FLEET OF RECORD: 36340470441 COMPLETED SUCCESS (mined this fire: the hazard-defer verdicts, the 4-death headline, the tithe baseline 533u).
 - NEXT FIRE (0330): (1) verify gate 36342704444 (or the HEAD-sha successor) GREEN + slot free => DISPATCH IMMEDIATELY (the v0.254.0 cobble tithe's first harvest window; expect 'cobble tithe: banked N x cobblestone (pocket keeps 14)' lines vs the 533u baseline); (2) the bank-collapse decode (banked=0/smelted=1/reconnects=22 - was the yard unreachable?); (3) the tithe's bound-14 risk check (the wet-escape/bridge stock - the 0237 lane's field question).
 - OPEN FRONTS: the bank-collapse anomaly (NEW, this face); the smelt-keep's other unbounded riders (sand/gravel/clay_ball); the frozen-gate wet-critical class (4/4 deaths again); the defend-in-water drown class; the unanchored pillar-up cure; the walled cure's zero-reading streak; the F19 glitch-carrier class; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root; the tunnel-path ore destruction.
->>>>>>> a288681 (worklog: the 0300 lane's close - the v0.253.0 face 36340470441 mined (hazard-defer verdicts 24, deaths 4 vs 15, the tithe baseline 533u; the bank-collapse anomaly banked=0/smelted=1/reconnects=22); the v0.254.0 dispatch held by the CI-green gate (36342704444 in flight ~530s, the code never had a CI run); no code motion. Identity: PLANETA9091.)
