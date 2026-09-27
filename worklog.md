@@ -6522,6 +6522,8 @@ Stage Summary:
 - FLEET IN FLIGHT: 36314614666 (d9b8b18). Next fire mines the WATER-LOCK PREFLIGHT's debut: 'is water-locked (fluid at step 1)' lines vs the old 0-block steered class, residual '[fluid ahead]' / 'names gate X' tags, their defer census 'N ingot(s) + M raw_iron', raw_iron>0 as the famine-break check, banked/smelted vs 407/9, deaths vs 5, airGlitches vs 36.
 - OPEN FRONTS: the CORNERED-FLEE class (F10 - needs the seal-over-flat-hop design); airGlitches era high x2; the torch famine (pocket-only coal read, F4 held 46 - the chest-funded torch relay candidate); the creeper class; drown env x2; the transport class (8 chest-walk failures + 2 open timeouts, their telemetry now splits it); 0-stacks reloot; the drowned-mob class; the IRON-TIER CEILING.
 - CLOSED this fire: the silent 0-block class; the relay's unfalsifiable 0-take; the version-label collision.
+
+---
 Task ID: cron30-20260927-1900
 Agent: Super Z (cron lane, Job 414125)
 Task: 19:00 fire - the CI gate passed => DISPATCHED 36314614666 (the v0.241.0 face: the relay telemetry + the steer zero verdict on one tree). THIS COMMIT IS WITHHELD FROM PUSH until the dispatch materializes IN_PROGRESS (the pending-cull law) - the next fire pushes it first thing.
@@ -6567,6 +6569,8 @@ Stage Summary:
 - FLEET OF RECORD: 36314614666 COMPLETED SUCCESS.
 - NEXT FIRE (2030): (1) mine the 0.242.0 face (the NAME-law debut, water-lock firings > 0); (2) code front 0.243.0 (the drowned-mob class 6/7, the airGlitches=1064 anomaly, the torch famine relay, tool repair/replace); (3) dispatch per canon.
 - OPEN FRONTS: the drowned-mob class (the #1 killer); the airGlitches=1064 explosion; the torch famine; the CORNERED-FLEE class; the IRON-TIER CEILING; the pair-preempt hand; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
 Task ID: cron37-20260927-1937
 Agent: Super Z (main lane, Job ID 415967)
 Task: Mine the v0.241.0 field debut (36314614666 - the water-lock preflight + the relay telemetry), keep CI green, ship the next cure with tests, dispatch last.
@@ -6584,3 +6588,19 @@ Stage Summary:
 - DISPATCH: 36317231705-armed on 46c352a at this fire's close (the v0.242.0 face) - the preflight's FIRST ARMED flight vs the water class. Next fire mines: 'is water-locked' lines (expect >0 now), residual '[names gate water]' (expect 0 - routed to 'fluid ahead'), raw_iron > 0 as the famine-break check, the relay's first real take, banked/smelted vs 1172/27, airGlitches vs 1064, deaths vs 7.
 - OPEN FRONTS: airGlitches=1064 (the sensor-weather watch); the drowned world (6/7 deaths, 2 runs straight); the CORNERED-FLEE class (F10 of the prior run - the seal-over-flat-hop design); the torch famine (pocket-only coal); the transport-vs-empty split (the telemetry continues); the iron-tier ceiling; 0-stacks reloot; the creeper class.
 - CLOSED this fire: the fluid-blind preflight (the 26.2 boundingBox discovery + the name law); the relay's transport-vs-empty question (the telemetry's first answer: EMPTY).
+
+---
+Task ID: cron30-20260927-2030
+Agent: Super Z (cron lane, Job 414125)
+Task: 20:30 fire - SANDBOX RECREATION #6, the full state recovery (including two worklog seam fixes), the cull record. No code motion, no dispatch (the slot is the lane's live face 36317889503).
+
+Work Log:
+- SANDBOX RECREATION #6: the repo re-cloned (master faff8da, pkg 0.242.0); the local worklog rolled back to the 17:00 state - recovered from the repo worklog (the push-first discipline paid off) via a section splitter script.
+- THE CULL RECORD: my dispatch 36317768120 (3d3d466) CANCELLED by the faff8da push; the lane's own 36317889503 rides the same tree - the no-duplicate law held.
+- TWO SEAM DEFECTS fixed (separator hygiene only, no bodies touched): (1) between cron37-20260927-1837 and cron30-20260927-1900 (my 19:30 keep-both resolution had dropped the '---'); (2) between cron30-20260927-2000 and cron37-20260927-1937 (the faff8da append sewn). Block headers verified one per section.
+
+Stage Summary:
+- Master = faff8da + this hygiene commit. Next free version 0.243.0. Next local section = Task ID cron30-20260927-2100.
+- FLEET: 36317889503 IN_PROGRESS - the next fire MINES it (the NAME-law debut, water-lock firings > 0; banked vs 1172; deaths vs 7; airGlitches vs 1064).
+- NEXT FIRE (2100): (1) poll/mine 36317889503; (2) code front 0.243.0 when the queue frees; (3) dispatch per canon only if the slot frees.
+- OPEN FRONTS: the drowned-mob class (the #1 killer 6/7); the airGlitches=1064 explosion; the torch famine; the CORNERED-FLEE class; the IRON-TIER CEILING; the pair-preempt hand; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
