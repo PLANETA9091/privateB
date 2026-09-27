@@ -918,7 +918,14 @@ test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.
   assert.ok(!/openFieldYieldLive \} from/.test(minerSrc),
     'the miner no longer imports the raw predicate (the lane mirror owns the attribution)')
   // the flip site (the fight loop's re-verdict marker) rides the lane mirror too -
-  // run48's leak was counted at BOTH sites, run44's residual class too
-  assert.match(minerSrc, /threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow[\s\S]{0,600}?\}\) === 'open-field-lens'\) log/,
-    'the re-verdict marker gates on the lane at the flip site (the args mirror the re-verdict call)')
+  // run48's leak was counted at BOTH sites, run44's residual class too.
+  // (v0.237.0) the lane is captured ONCE (const flipLane) and BOTH markers
+  // gate on it - the pair preempt's flip face must be counted beside the
+  // open-field's (the same by-construction attribution, one capture less).
+  assert.match(minerSrc, /const flipLane = threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow/,
+    'the re-verdict captures the lane ONCE at the flip site (the args mirror the re-verdict call)')
+  assert.ok(/const flipLane = threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow[\s\S]{0,600}?flipLane === 'open-field-lens'\) log/.test(minerSrc),
+    'the re-verdict marker gates on the captured lane at the flip site (the args mirror the re-verdict call)')
+  assert.ok(/const flipLane = threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow[\s\S]{0,600}?flipLane === 'pair-preempt'\) log/.test(minerSrc),
+    'the re-verdict pair-preempt marker gates on the SAME captured lane (one capture, both attributions)')
 })
