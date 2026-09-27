@@ -6885,3 +6885,23 @@ Stage Summary:
 - FLEET OF RECORD: 36332307784 IN_PROGRESS (the ALL-INSTRUMENTS face: the crossing continuation + the breath mirror + the drown context) - the 0100 fire MINES IT: BOTH drown instruments' debut lines per drown death, the famine continuation (raw_iron vs 13-14 - does the breach HOLD), banked recovery vs 89, deaths vs 3, airGlitches vs 159.
 - NEXT FIRE (0100): (1) mine 36332307784 (the split decides the Drowned-class cure: tunnel-pocket vs open-water vs rescue-was-running); (2) the walled dig-around (4 firings pooled across faces); (3) the banking-churn anatomy if the outlier repeats; (4) dispatch per canon.
 - OPEN FRONTS: the crossing CONTINUATION (the breach holds?); the walled dig-around (pooled); the Drowned-class cure (the split arrives); the banking churn (89/2705u); airGlitches 159 watch; the GC Pinned hunt; the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root.
+
+---
+Task ID: cron37-20260928-0037
+Agent: Super Z (cron lane, Job 415967)
+Task: The 0037 fire - v0.250.0 THE WALLED DIG-AROUND shipped; the all-instruments face 36332307784 mined (the drown instruments' debut).
+
+Work Log:
+- Sandbox survived; sync clean at 1e9f16c; identity PLANETA9091 local+global; author audit last 4 commits clean.
+- CI panel (16:38Z): 36332307784 (70ec734, workflow_dispatch) IN_PROGRESS = the all-instruments face (v0.247.0 crossing + v0.248.0 breath mirror + v0.249.0 drown context); 36333698886 (1e9f16c) pending. SLOT OCCUPIED at fire start.
+- THE FEATURE: v0.250.0 THE WALLED DIG-AROUND (fcf594b) - the walled verdict (4 pooled firings, every one kept the standoff and the vein burned) is a BLOCKER, not a fate. The pure walledCure (surface.mjs): plan must BE walled, the headroom box must speak 'block' (no dig blind), a REAL fluid name vetoes (the box lie class; junk names silent - the box speaks first). Wiring: the dig-around block sits between the seal plan log and the crossing gate - dig the headroom (hasPickNow gate, SEAL_DIG_TIMEOUT_MS=8000 cap), re-plan, and the SAME crossing gate owns both paths (direct buildable + post-dig buildable); every refusal names its why; failures fall to the legacy standoff byte for byte. Tests: 12 pins; pin arithmetic 23/23; syntax clean x3.
+- THE MINE: run36332307784 decoded (run36332307784/DECODE.md). THE DROWN INSTRUMENTS' DEBUT: 4 drown deaths, 4 mirror answers, ZERO silence - 3x controls-owned (F17 defend head WET o2 16 / F1 climb-escape failed / F15 defend) + 1x RESCUE-RAN (F19 deep-pocket [-126,52,404]: the rescue paged 8.6s before death, rescue active at the killing tick, pass 4 shore=none, the ascend dug once and stalled 4+ passes, the ~35s clock expired mid-rescue). The pre-registered question answered: no-page = 0 - the sentry never silently missed a drowning. Cure frontier: defend-in-water (2/4), climb failure (1/4), the shoreless deep-pocket rescue (1/4).
+- THE CROSSING: census 8/8 ARMED (38/38 across faces); plans buildable 4 / unanchored 4 / walled 0 (the UNANCHORED SURGE - the pillar-up class is now the top geometry class); CROSSED 3 + the era's FIRST refusal ('the seal did not land (2 rounds)', the shape held).
+- THE FAMINE: the breach did NOT hold - raw_iron 0 all run (chest 0/0 x31, pockets 0, iron_ingot 0); iron_ore 9 mined with NO drops = the WOODEN-PICK CLASS (end picks wooden=23/stone=7/iron=0; iron_ore needs stone tier). The ceiling is TWO layers now: water (cured) -> pick tier (the new root).
+- THE FIELD: banked 1848 (full recovery vs 89 - the churn was a one-face outlier), smelted 78, mined 2565, unaccounted 0, alive 19/19, deaths 8, airGlitches 449 (the sentry line names the carrier: F19 g449/r14 - the glitch storm AND the real drowning co-located on one bot), fights 24 kills 5, torched 9.
+- PUSH: fcf594b (v0.250.0) pushed; the push culled the pending 1e9f16c gate per the concurrency law; the completed face was untouched.
+
+Stage Summary:
+- Master fcf594b + decode docs (pkg 0.250.0). Next free version 0.251.0.
+- DISPATCH DECISION: the slot freed (36332307784 completed SUCCESS); the gate = the final HEAD's push-CI on fcf594b - dispatch LAST, only green (see the dispatch record addendum if fired).
+- OPEN FRONTS: the unanchored pillar-up cure (4/8 this face - the PILLAR machinery exists); the defend-in-water drown class (the shore law inside the defend loop); the deep-pocket shoreless rescue (the ascend pacing); the pick-tier ceiling (the famine's new root); the F19 glitch-carrier class; airGlitches 449 watch; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root.
