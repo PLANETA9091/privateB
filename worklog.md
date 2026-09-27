@@ -6451,3 +6451,20 @@ Stage Summary:
 - Master f789143 (pkg 0.239.1). Next free version 0.240.0. Next local section = Task ID cron30-20260927-1800.
 - NEXT FIRE: (1) CI green => DISPATCH IMMEDIATELY (the slot face-starved ~2h); (2) verify the relay's log line rides the fleet19 filter-key BEFORE the face; (3) mine the face.
 - OPEN FRONTS: the v0.239.1 relay FIELD FACE; the pair-preempt FIELD HAND (x4); the airGlitches=26 anomaly; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the water-lens drown blindness; the iron famine x19 (the relay's target); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron30-20260927-1800
+Agent: Super Z (cron lane, Job 414125)
+Task: 18:00 fire - the dispatch WATCH + the read-list's relay filter-key VERIFY. The face-starvation ended: my 36310927991 materialized IN_PROGRESS this fire - the v0.239.1 relay face is LIVE.
+
+Work Log:
+- CI state at the fire's start: 2f3a070 (the v0.239.1 CURE CODE) COMPLETED SUCCESS (36310267909) - the cure is CI-proven; the f789143 worklog push CI (36310270067) still in_progress.
+- MY DISPATCH 36310927991 (ac56a3d, workflow_dispatch, fleet_seconds 600, created by the 17:30 lane's addendum): PENDING ~6 min behind the push CI -> queued -> IN_PROGRESS during the first foreground poll (Integration in_progress = the fleet face LIVE). The first face since 36306449736 (~2h starvation).
+- THE READ-LIST VERIFY (the relay decode-visibility): all 3 relay line forms in toolupgrade.mjs (the RESULT 'the relay: took N raw_iron (chest M) - the next yard visit's smelt leg converts it' :583, the ghost-click REFUSAL 'the clicks lied - no ore landed in the pocket (ghost clicks)', the DEFER 'chest holds N ingot(s) - nothing to complete here') ride withdrawIronCommune's log param - fleet19.mjs wires it at the commune call-site as `log: m => console.log('<bot> iron commune: <m>')`, the UNFILTERED direct console path; the miner-log regex filter (fleet19 ~:809) gates ONLY the miner hook. The relay wiring verified at fleet19.mjs:573 (allowRawOre: heldNow === 0). VERDICT: NO fleet19.mjs edit needed - the artifact WILL carry the relay events.
+- NO code push (the pending-cull law until the flip; after it only this worklog push per the IN_PROGRESS-survival law). NO new dispatch: the slot is occupied by my own live face.
+
+Stage Summary:
+- Master ac56a3d (pkg 0.239.1). Next free version 0.240.0. Next local section = Task ID cron30-20260927-1830.
+- FLEET OF RECORD: 36310927991 IN_PROGRESS (the v0.239.1 relay face, LIVE at ~18:02+08) - expected conclusion ~18:35-18:40 +08.
+- NEXT FIRE (1830): (1) poll 36310927991; COMPLETED -> download-run.mjs + DECODE (the rawTaken ledger, the ghost-click honesty, the smelted conversion, the deaths ledger per the slain-line law, the pair-preempt hand x5, the airGlitches repeat, the 1672 record defense); IN_PROGRESS -> worklog-only, no dispatch. (2) code front 0.240.0 when the queue frees (tool repair/replace, WorldMap assignment; the iron famine is the relay's job now - judge by rawTaken). (3) dispatch per canon only if the slot frees.
+- OPEN FRONTS: the v0.239.1 relay FIELD FACE (LIVE); the pair-preempt FIELD HAND (x4); the airGlitches=26 anomaly; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the water-lens drown blindness; the wood-famine root (rawTaken is the metric); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
