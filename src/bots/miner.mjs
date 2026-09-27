@@ -30,7 +30,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine } from '../lib/statcarry.mjs'
+import { deathDropLine, drownContextLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
@@ -368,6 +368,34 @@ export function createMiner ({
       const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
       if (drop) log(drop)
     } catch { /* the drop snapshot must never break a respawn */ }
+    // (v0.248.0) THE DROWN-DEATH CONTEXT: run36325553310 measured the
+    // Drowned-class as the RETURNED death leader (4/6) with the shore law at
+    // ZERO firings and ZERO rescue lines for those deaths - the drown class
+    // died outside every water instrument's context. ONE snapshot line for
+    // every env-drown death (kind=drown, the mob-Drowned killers keep the
+    // combat verdict): the o2 bar as read at death, the feet/head block
+    // names with their waterlogged flags (the waterRead truth), and the
+    // rescue relation (active / Ns ago / never). The next decode splits the
+    // class by context BEFORE any cure (the canon: telemetry before cure).
+    // Rides the 'drown context' filter key. Guarded like the drop snapshot:
+    // a junk world read must never break the respawn path.
+    if (authFresh && serverDeath && serverDeath.kind === 'drown') {
+      try {
+        const wr = waterRead()
+        const ctx = drownContextLine({
+          tag,
+          oxygen: wr.oxygen,
+          feet: wr.feet,
+          head: wr.head,
+          feetWaterlogged: wr.feetWaterlogged,
+          headWaterlogged: wr.headWaterlogged,
+          rescueActive: bot._waterRescue === true,
+          lastRescueAt,
+          now: Date.now()
+        })
+        if (ctx) log(ctx)
+      } catch { /* the drown context must never break a respawn */ }
+    }
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
     // clustered in one flooded quarry - and every dead bot left NO memory
     // behind, so the next bot walked the same rim into the same pit. The

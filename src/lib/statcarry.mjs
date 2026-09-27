@@ -148,3 +148,43 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
   const more = named.length > 5 ? `, +${named.length - 5} more` : ''
   return `${tag} death drop: ~${total}u lost${at} (${top}${more})`
 }
+
+/**
+ * (v0.248.0) THE DROWN-DEATH CONTEXT - the drowning-class telemetry gap.
+ * Run36325553310 measured the Drowned-class as the RETURNED death leader
+ * (4/6: 2x env drown + 2x slain by Drowned) with the shore law at ZERO
+ * firings - the drown deaths fell OUTSIDE the combat-flee context the shore
+ * law guards, and the rescue telemetry never spoke for them either. Before
+ * any cure (the canon: telemetry before cure), every env-drown death now
+ * prints ONE context snapshot: the oxygen bar as read at death, the
+ * feet/head block names with their waterlogged flags (the truth
+ * airBarTrust/waterVerdict/rescue all share), and the rescue relation
+ * (active / Ns ago / never). The line rides the 'drown context' filter key
+ * in testbed/fleet19.mjs.
+ *
+ * SHAPES (the four-canonical-forms house law):
+ *   result   'F3 death: drown context (o2 0, feet water, head water, rescue active)'
+ *   result   'F3 death: drown context (o2 12, feet water, head air, rescue 7s ago)'
+ *   result   'F3 death: drown context (o2 ?, feet water, head water, rescue never)'
+ *   refusal  null - the caller prints nothing (junk world, nothing to say;
+ *            the handler's try/catch owns this branch, a death must never throw)
+ *
+ * JUNK-SAFE: a null/unknown oxygen renders '?'; null block names render
+ * 'unknown'; a junk lastRescueAt (not finite, or in the future) reads
+ * 'never'. Pure: reads, never mutates.
+ */
+export function drownContextLine (r = {}) {
+  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now() } = r || {}
+  if (feet === null && head === null && oxygen === null) return null
+  const o2 = Number.isFinite(oxygen) ? String(oxygen) : '?'
+  const f = feet === null ? 'unknown' : feet
+  const h = head === null ? 'unknown' : head
+  const fw = feetWaterlogged ? ' wl' : ''
+  const hw = headWaterlogged ? ' wl' : ''
+  let rescue = 'never'
+  if (rescueActive) rescue = 'active'
+  else if (Number.isFinite(lastRescueAt) && lastRescueAt > 0 && Number.isFinite(now) && now >= lastRescueAt) {
+    rescue = `${Math.floor((now - lastRescueAt) / 1000)}s ago`
+  }
+  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue})`
+}

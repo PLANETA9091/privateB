@@ -799,7 +799,10 @@ async function runBot (name, target, index) {
           // (v0.199.0) 'death drop' joins: the death-drop snapshot prints with
           // its own prefix - one keyword covers both shapes (the loss and the
           // honest empty read).
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip/.test(m)) console.log(`${name} ${m}`)
+          // (v0.248.0) 'drown context' joins at the TAIL - the sequence pins
+          // (drops.test, deposit-hop-doom.test) read the head band verbatim,
+          // so the new key rides behind 'wood trip' and both pins stay whole.
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
