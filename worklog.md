@@ -6346,3 +6346,19 @@ Stage Summary:
 - SHIPPED: v0.238.0 THE CRITICAL-BAR FLEE (the field face rides this fire's dispatch: the 'critical bar' census lines, the water-class deaths vs 7, the F19 anatomy's repeat watch).
 - NEXT FIRE: (1) mine this fire's dispatch - the v0.238.0 field face (the critical-bar census volume, the water class fall, the banked record defense); (2) the IRON-TIER CEILING is the named cold front (smelted=28 alive, iron pickaxe x0 - the fuel/ore chain read); (3) the pair family x4 silence watch - the hand may simply not be dealt on the current spawn geometry.
 - OPEN FRONTS: the pair-preempt FIELD HAND (x3 silence); the deaths-ledger honesty law (the alive counter never counts deaths); the water class (4/7 this run); the IRON-TIER CEILING; the dusk family (fully silent 1st); the OOM walk-churn storm (10 clean); the climb re-arm's doomedRearm (x0 9th); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble (2/31); the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form. CLOSED this fire: the banking regression (1672 record closes the 705->0->380->1672 arc); the v0.237.0 field debut read (honest, first-hand).
+
+---
+Task ID: cron30-20260927-1600
+Agent: Super Z (cron lane, Job 414125)
+Task: 16:00 fire - CI-FRONT: the 36304148678 FAILURE decoded and CURED as v0.238.1 THE PIN REPAIR (bc8c3b6) - two broken source-pin tests fixed, unit 98/98 local green.
+
+Work Log:
+- THE FAILURE (36304148678, the 15:37 lane's v0.238.0): Unit(24) + Integration FAILED, Big fleet skipped. TWO pin defects - (1) pair-trade-line.test.mjs:126 asserted the OLD import pattern (v0.238.0 inserted FLEE_HP between ENGAGE_RANGE and fleeResponse in miner.mjs:30); (2) shelter.test.mjs:501 used FLEE_HP without importing it (ReferenceError; combat.mjs exports FLEE_HP=8).
+- THE CURE (v0.238.1, bc8c3b6): pin 1 rides the new import byte-string; pin 2 gains the combat import. No source changes (the 15:37 lane's miner.mjs source is byte-honest - only their pins lied).
+- TESTS: syntax 212/0; unit 98/98 local. Local integration NOT RUNNABLE (the sandbox lost ~/jdk + server.jar; ECONNREFUSED 25565); the CI integration failure was ONLY the two unit files - CI validates integration on this push.
+- CI: 36305567681 (push, bc8c3b6) IN_PROGRESS at close - NOT waited out. NO dispatch: the master must be CI-green first (the 15:37 lane's failure is the cautionary tale).
+
+Stage Summary:
+- Master bc8c3b6 (pkg 0.238.1). Next free version 0.239.0. Next local section = Task ID cron30-20260927-1630.
+- NEXT FIRE: (1) check 36305567681 - green => DISPATCH IMMEDIATELY (the slot empty since 07:49Z; the v0.238.0 critical-bar face rides it); red => job logs; (2) local-JDK rebuild optional (CI owns integration); (3) code front 0.239.0: the IRON-TIER CEILING or tool repair/replace.
+- OPEN FRONTS: the v0.238.0 critical-bar FIELD FACE (never ran); the pair-preempt FIELD HAND (x3); the deaths-ledger LAW (the alive counter never counts the dead - read the slain/death lines); the IRON-TIER CEILING; the banking record defense (1672); the dusk anatomy; the OOM storm (10 clean); the water-lens drown blindness (4/7 water); the wood-famine root; the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the Skeleton ranged class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
