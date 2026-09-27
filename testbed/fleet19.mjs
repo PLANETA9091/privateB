@@ -570,6 +570,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             yardCenter: yardGoal,
             budgetMs: 15000,
             allowEmptyPocket: heldNow === 0, // (v0.151.0) only the h=0 recheck enters a funded pool - a seeder's own withdraw must stand down
+            allowRawOre: heldNow === 0, // (v0.239.0) THE FRAGMENT RELAY: only the recheck imports raw_iron (the pool keeps its stock; the next yard visit's smelt leg converts)
             log: m => console.log(`${miner.username} iron commune: ${m}`)
           })
           if (comm.pocketNow >= 3) {

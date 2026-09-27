@@ -189,16 +189,26 @@ export function smeltFuelKeep (p) {
 // smelt)' - the same silent starvation the fuel slice cured, one layer up.
 // While the pocket carries smeltables the PRE-deposit keeps the smeltable
 // inputs too (the substring matcher makes the ore entries cover their
-// deepslate variants and 'raw_' covers every raw metal); the final deposit
+// deepslate variants; (v0.239.0) raw_iron is the RELAY's deliberate exception
+// - it banks and the commune re-imports it); the final deposit
 // (keep(false)) drains whatever the batch left. Deliberately NOT here: logs
 // (smeltablesIn excludes them - the tool-bootstrap lifeline) and the raw
 // meats beef/porkchop (already ride the deposit KEEP).
 export const SMELT_INPUT_KEEP = [
   'cobblestone', 'stone', 'sand',
-  'iron_ore', 'copper_ore', 'gold_ore', 'raw_',
+  'iron_ore', 'copper_ore', 'gold_ore',
+  'raw_copper', 'raw_gold',
   'clay_ball', 'netherrack', 'chorus_fruit', 'ancient_debris',
   'chicken', 'mutton', 'rabbit', 'cod', 'salmon', 'kelp'
 ]
+// (v0.239.0) THE FRAGMENT RELAY: 'raw_' became 'raw_copper' + 'raw_gold' -
+// raw_iron DELIBERATELY leaves the input keep. The smelt leg always rides
+// BEFORE the deposit in the same yard visit, so raw_iron that survives to the
+// bank has already had its leg (failed, fuel-skipped, budget-spent): banking
+// it is strictly better than the pocket (the pocket dies with the bot, the
+// chest is the shared pool) and the commune's recheck (allowRawOre) re-imports
+// it for the NEXT visit's LADDER_METALS-led leg. Copper/gold stay kept byte
+// for byte - the commune has no raw-ore taker for them.
 
 /** Pure, junk-safe: the keep-list extension that holds the smelt leg's INPUTS.
  * Same contract as smeltFuelKeep - plain param + body guard (the Number(null)

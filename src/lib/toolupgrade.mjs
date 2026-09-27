@@ -32,6 +32,10 @@ const { goals } = pathfinderPkg
 export const PICK_TIERS = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe']
 export const PICK_MAX_DURABILITY = { wooden_pickaxe: 59, stone_pickaxe: 131, iron_pickaxe: 250 }
 export const IRON_PICK_INGOTS = 3 // iron pickaxe recipe cost
+// (v0.239.0) THE FRAGMENT RELAY's take bound: one recheck may import at most 6
+// raw_iron from the pool chest (a full-ish smelt batch for the NEXT yard visit's
+// LADDER_METALS-led leg; the cap also bounds the deposit<->withdraw churn).
+export const RAW_ORE_TAKE = 6
 export const PICK_STICKS = 2 // every pickaxe tier needs 2 sticks
 
 const invItems = bot => {
@@ -237,11 +241,22 @@ export async function upgradeTools (bot, {
 }
 
 // Deposit keep-list extension (see src/lib/deposit.mjs KEEP semantics): until the bot
-// owns an iron pickaxe, its ingots and raw iron are TOOL MATERIALS, not bank stock.
-// After the upgrade the surplus flows to the yard chests as base stock.
+// owns an iron pickaxe, its INGOTS are TOOL MATERIALS, not bank stock (the complete-set
+// moment needs 3 in one pocket). After the upgrade the surplus flows to the yard chests
+// as base stock.
+// (v0.239.0) THE FRAGMENT RELAY: raw_iron LEAVES the keep. Measured (run36301385048,
+// the v0.238.1 fleet): 5 raw-iron fragments rode 5 SEPARATE pockets, only the one bot
+// whose smelt slice lived converted them (iron_ingot:2 - the run's whole ladder output),
+// and the pool read 'chest holds 0 ingot(s)' x9 - the pocket is the WORST place for a
+// fragment: it dies with the bot (7 deaths/run, the water class 4/7), it is invisible
+// to the fleet, and the smelt leg that would convert it has already had its chance by
+// deposit time (the leg always rides BEFORE the bank in the same yard visit). A banked
+// fragment is the shared pool - and the commune's recheck (allowRawOre) is its taker:
+// an h=0 bot withdraws the raw ore mid-run and the NEXT yard visit's smelt leg converts
+// it (LADDER_METALS lead). The ingot keep stands byte for byte.
 export function keepForIron (bot) {
   const hasIronPick = invItems(bot).some(i => i.name === 'iron_pickaxe')
-  return hasIronPick ? [] : ['iron_ingot', 'raw_iron']
+  return hasIronPick ? [] : ['iron_ingot']
 }
 
 // ---------------------------------------------------------------- spare pickaxe
@@ -391,7 +406,13 @@ export function ironCommunePlan ({ pocketCount = 0, chestCount = 0, target = IRO
  * sequence: a seeder's own withdraw reading an empty pocket must stand down
  * (taking the just-seeded fragments back would undo the seed in the same
  * call - the union-sequence pin). The dedicated recheck (the fleet's
- * once-per-run mid-run h=0 visit) is the arm that passes it. */
+ * once-per-run mid-run h=0 visit) is the arm that passes it.
+ * (v0.239.0) `allowRawOre` - THE FRAGMENT RELAY arm, same discipline: DEFAULT
+ * FALSE, passed ONLY by the recheck. When a chest cannot fund the ingot plan
+ * (need <= 0) but holds raw_iron, the recheck bot imports up to RAW_ORE_TAKE
+ * ore ONCE per call (the next yard visit's smelt leg converts it; the loop
+ * breaks so the pool keeps its stock). The result carries `rawTaken` (0 on
+ * every stand-down path - junk-safe readers default it). */
 export async function withdrawIronCommune (bot, {
   yardCenter = null,
   maxDistance = 48,
@@ -399,6 +420,7 @@ export async function withdrawIronCommune (bot, {
   budgetMs = 20000,
   clickTimeoutMs = 5000,
   allowEmptyPocket = false,
+  allowRawOre = false,
   log = () => {}
 } = {}) {
   const held = countItem(bot, 'iron_ingot')
@@ -413,6 +435,7 @@ export async function withdrawIronCommune (bot, {
   const remainingMs = () => budgetMs - (Date.now() - started)
   const exclude = []
   let taken = 0
+  let rawTaken = 0 // (v0.239.0) the relay's ore import - separate from the ingot ledger
   let nudgeUsed = false // (v0.155.0) one approachWalk shot per call - the budget is the bound
   let doomLogged = false // (v0.159.0) ONE vertical-gate line per call
   for (let c = 0; c < 3; c++) {
@@ -520,6 +543,42 @@ export async function withdrawIronCommune (bot, {
         : 0
       const plan = ironCommunePlan({ pocketCount: countItem(bot, 'iron_ingot'), chestCount: chestIngot })
       if (!plan || plan.need <= 0) {
+        // (v0.239.0) THE RAW-ORE RELAY ARM: no ingot completion is possible
+        // here - but a chest holding RAW IRON is the fragments' taker when the
+        // caller armed the relay (the recheck class only, the same discipline
+        // as allowEmptyPocket: a seeder's own withdraw must stand down - its
+        // pocket is already on the ingot path). The ore rides home and the
+        // NEXT yard visit's smelt leg converts it (LADDER_METALS lead), so the
+        // relay takes ONCE per call and stops the chest loop: the pool keeps
+        // its remaining stock for the next bot. The verified pocket diff (not
+        // the clicks) stays the only truth - the ghost-click class has lied
+        // here before (deposit.mjs, F2's commune read).
+        if (allowRawOre) {
+          const chestRaw = Array.isArray(slots) && chestSlots > 0
+            ? slots.slice(0, chestSlots).reduce((n, s) => n + (s && s.name === 'raw_iron' && s.count > 0 ? s.count : 0), 0)
+            : 0
+          if (chestRaw > 0) {
+            const take = Math.min(chestRaw, RAW_ORE_TAKE)
+            const oreBefore = countItem(bot, 'raw_iron')
+            let movedOre = 0
+            while (movedOre < take) {
+              const slotsNow = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null) || []
+              const stack = slotsNow.slice(0, chestSlots).find(s => s && s.name === 'raw_iron' && s.count > 0)
+              if (!stack) break
+              const pair = pickWithdrawSlots({ window, itemType: stack.type, chestSlots })
+              if (!pair) break // no pocket room left - the honest stop
+              await withdrawStackMove(bot, window, { srcIdx: pair.srcIdx, dstIdx: pair.dstIdx, take: take - movedOre, stackCount: stack.count, clickTimeoutMs })
+              movedOre += Math.min(take - movedOre, stack.count)
+            }
+            const gotOre = Math.max(0, countItem(bot, 'raw_iron') - oreBefore)
+            if (gotOre > 0) {
+              log(`the relay: took ${gotOre} raw_iron (chest ${chestRaw}) - the next yard visit's smelt leg converts it`)
+              rawTaken += gotOre
+              break // one relay per call - the pool keeps the rest for the next bot
+            }
+            log(`the clicks lied - no ore landed in the pocket (ghost clicks)`)
+          }
+        }
         log(`chest holds ${chestIngot} ingot(s) - nothing to complete here`)
         if (chestIngot <= 0) exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
         continue
@@ -549,7 +608,7 @@ export async function withdrawIronCommune (bot, {
   }
   const pocketNow = countItem(bot, 'iron_ingot')
   const reason = taken > 0 ? 'ok' : (pocketNow >= IRON_PICK_INGOTS ? 'set complete' : 'no ingot reached the pocket')
-  return { taken, pocketNow, reason }
+  return { taken, pocketNow, reason, rawTaken }
 }
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import Vec3 from 'vec3'
 import {
-  PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS,
+  PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS, RAW_ORE_TAKE,
   pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron,
   ironCommunePlan, withdrawIronCommune, ironPoolSeedPlan, seedIronPool
 } from '../../src/lib/toolupgrade.mjs'
@@ -312,9 +312,15 @@ test('upgradeTools flow: stick craft failed AND no sticks -> aborts before the t
   assert.equal(tableTouched, false)
 })
 
-test('keepForIron: raw iron/ingots kept until the iron pickaxe exists, banked after', () => {
+test('keepForIron: INGOTS kept until the iron pickaxe exists, banked after; raw_iron banks (THE FRAGMENT RELAY)', () => {
+  // (v0.239.0) the relay law: raw_iron LEAVES the keep. Measured
+  // (run36301385048): 5 fragments rode 5 separate pockets, only ONE bot's
+  // smelt slice converted (iron_ingot:2), the pool read 'chest holds 0' x9.
+  // The chest is the shared pool - the commune recheck (allowRawOre) re-imports
+  // the ore for the next yard visit's smelt leg. Ingots stay kept: the
+  // complete-set moment needs 3 in one pocket.
   const holding = fakeBot([it('stone_pickaxe', 1, { max: 131 }), it('iron_ingot', 2)])
-  assert.deepEqual(keepForIron(holding), ['iron_ingot', 'raw_iron'])
+  assert.deepEqual(keepForIron(holding), ['iron_ingot'])
   const upgraded = fakeBot([it('iron_pickaxe', 1, { max: 250 }), it('iron_ingot', 5)])
   assert.deepEqual(keepForIron(upgraded), [])
 })
@@ -826,6 +832,71 @@ test('withdrawIronCommune: an empty chest is excluded and reported honestly', as
   world.setPocket(1)
   const res = await withdrawIronCommune(world.bot, {})
   assert.equal(res.taken, 0)
+  assert.equal(res.reason, 'no ingot reached the pocket')
+})
+
+// ------------------------------------------------------------------ v0.239.0
+// THE FRAGMENT RELAY - the raw-ore arm. Measured (run36301385048, the v0.238.1
+// fleet): 5 raw-iron fragments rode 5 separate pockets, the pool read 'chest
+// holds 0 ingot(s)' x9, the run's whole ladder output was ONE bot's
+// iron_ingot:2. The relay: the recheck (h=0, allowRawOre) imports up to
+// RAW_ORE_TAKE raw_iron from a chest that cannot fund the ingot plan; the next
+// yard visit's smelt leg (LADDER_METALS lead) converts it.
+function rawIronItem (count = 1) {
+  return { name: 'raw_iron', count, type: 260, stackSize: 64 }
+}
+
+test('withdrawIronCommune: THE RELAY - an h=0 recheck imports raw_iron from a starving chest', async () => {
+  // chest holds 4 raw_iron, 0 ingots; the recheck bot (h=0) walks in, the
+  // ingot plan reads need=0, the raw arm takes min(4, RAW_ORE_TAKE)=4 and
+  // BREAKS the chest loop (one relay per call - the pool keeps its stock)
+  const world = mockCommuneWorld({ chestItem: rawIronItem(4) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  assert.equal(res.rawTaken, 4)
+  assert.equal(res.taken, 0, 'no INGOT moved - the relay is its own ledger')
+  assert.equal(res.reason, 'no ingot reached the pocket', 'the ingot verdict stays honest')
+  assert.equal(world.opened, 1, 'one relay per call - the loop broke after the take')
+  const pocketOre = world.bot.inventory.items().filter(i => i.name === 'raw_iron').reduce((n, i) => n + i.count, 0)
+  assert.equal(pocketOre, 4, 'the verified pocket diff: the ore IS in the pocket')
+})
+
+test('withdrawIronCommune: the relay respects RAW_ORE_TAKE (the churn bound)', async () => {
+  const world = mockCommuneWorld({ chestItem: rawIronItem(9) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  assert.equal(RAW_ORE_TAKE, 6)
+  assert.equal(res.rawTaken, 6, 'min(9, 6) - the cap holds')
+})
+
+test('withdrawIronCommune: the relay stands down by default (the seeder union stays intact)', async () => {
+  // allowRawOre unset: the SAME starving chest moves nothing - a seeder's
+  // own withdraw (or any legacy caller) never takes ore
+  const world = mockCommuneWorld({ chestItem: rawIronItem(4) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true })
+  assert.equal(res.rawTaken ?? 0, 0)
+  assert.equal(res.taken, 0)
+})
+
+test('withdrawIronCommune: a fundable ingot plan NEVER preempts the relay (ingots first)', async () => {
+  // chest holds 8 INGOTS + allowRawOre: the ingot plan completes (taken=3)
+  // and the raw arm never fires (rawTaken 0) - the pick ladder is the goal,
+  // the ore is the fallback
+  const world = mockCommuneWorld({ chestItem: ironItem(8) })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  assert.equal(res.taken, 3)
+  assert.equal(res.pocketNow, 3)
+  assert.equal(res.rawTaken ?? 0, 0)
+  assert.equal(res.reason, 'ok')
+})
+
+test('withdrawIronCommune: ghost clicks in the relay report the lie and keep the loop honest', async () => {
+  const world = mockCommuneWorld({ chestItem: rawIronItem(4), clickGhost: true })
+  world.setPocket(0)
+  const res = await withdrawIronCommune(world.bot, { allowEmptyPocket: true, allowRawOre: true })
+  assert.equal(res.rawTaken ?? 0, 0)
   assert.equal(res.reason, 'no ingot reached the pocket')
 })
 

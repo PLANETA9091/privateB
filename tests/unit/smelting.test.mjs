@@ -1070,16 +1070,20 @@ test('smeltInputKeep: a smeltable pocket holds its INPUTS through the pre-deposi
   assert.ok(!SMELT_INPUT_KEEP.includes('log'), 'logs stay out: smeltablesIn excludes them, the tool-bootstrap lifeline')
 })
 
-test('smeltInputKeep: every SMELT_OUTPUT input survives the combined pre-deposit keep list', () => {
+test('smeltInputKeep: every SMELT_OUTPUT input survives the combined pre-deposit keep list (raw_iron = the ONE relay miss)', () => {
   // the combined keep the pre-deposit rides: the deposit KEEP + the iron keep
-  // (keepForIron keeps raw_iron until the pickaxe - the smelt leg may run
-  // after it, so the input slice must carry raw_ itself) + the fuel slice +
-  // the input slice. Every input the smelt scan could plan must survive the
-  // deposit matcher (keep.some(k => name.includes(k))) - one miss re-creates
-  // the run84b starvation for that input exactly.
-  const combined = [...KEEP, ...['iron_ingot', 'raw_iron'], ...SMELT_FUEL_KEEP, ...SMELT_INPUT_KEEP]
+  // (v0.239.0: keepForIron keeps INGOTS only - raw_iron banks) + the fuel
+  // slice + the input slice (v0.239.0: raw_copper/raw_gold explicit, raw_iron
+  // deliberately out). Every input the smelt scan could plan must survive the
+  // deposit matcher (keep.some(k => name.includes(k))) - one UNINTENDED miss
+  // re-creates the run84b starvation for that input exactly.
+  const combined = [...KEEP, ...['iron_ingot'], ...SMELT_FUEL_KEEP, ...SMELT_INPUT_KEEP]
   const misses = Object.keys(SMELT_OUTPUT).filter(name => !combined.some(k => name.includes(k)))
-  assert.deepEqual(misses, [], 'every smeltable input must ride the combined keep list')
+  // (v0.239.0) THE FRAGMENT RELAY: raw_iron is the ONE deliberate miss - it
+  // banks (the chest is the shared pool, the pocket dies with the bot) and the
+  // commune's recheck (allowRawOre) re-imports it for the next yard visit's
+  // LADDER_METALS-led smelt leg. Any OTHER miss is a regression.
+  assert.deepEqual(misses, ['raw_iron'], 'raw_iron banks by law; every other smeltable must ride the combined keep')
 })
 
 // ------------------------------------------------------------------- v0.92.0
