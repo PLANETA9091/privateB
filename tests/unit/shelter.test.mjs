@@ -475,3 +475,28 @@ test('REGRESSION PIN: the miner runs the arrow wall lane (the v0.140.0 ranged sh
   assert.ok(/arrow wall incomplete/.test(minerSrc), 'the wall verify names itself for the run decode')
   assert.ok(/ringSideBuildable\(sides\[threatIdx\]\)/.test(minerSrc), 'the ranged feasibility gate demands the wall side only')
 })
+
+test('THE CRITICAL-BAR FLEE: the flee sites refuse the shelter scan below the land line (v0.238.0 source pin)', async () => {
+  // MEASURED (run36301385048, the v0.237.0 tree, 7 deaths): the F19 anatomy -
+  // the verdict flipped to flee at hp 5.0, the flee spent its last margin on
+  // the shelter scan + the ring try while the Drowned closed 5.9 -> 1.4, and
+  // the bot died at the half-built ring; shelters=0 all run - no save was
+  // ever bought at that bar. The cure: the flee sites read the FRESH bar
+  // (criticalBarNow) and refuse the scan below the land line - the drain
+  // outruns the scan. The pre-fight site (a FIGHT verdict's insurance) keeps
+  // its unconditional try (a standing fight starts with margin).
+  const minerSrc = await import('node:fs').then(fs => fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8'))
+  // the fresh-bar read exists and rides the one-bar law (the poison lens)
+  assert.ok(/function criticalBarNow \(\) \{/.test(minerSrc), 'the critical-bar read is a named helper (both sites share it)')
+  assert.ok(/effectiveHp\(\{ health: h, poisoned: isPoisoned\(bot\) \}\) < FLEE_HP/.test(minerSrc), 'the bar is the SEEN bar below the land line (the same line the verdicts ride)')
+  assert.ok(/if \(!Number\.isFinite\(h\)\) return false/.test(minerSrc), 'junk-safe: an unreadable bar keeps the shelter try (the legacy byte)')
+  // the guard rides BOTH flee sites (the defendSelf site + the re-verdict flip)
+  assert.ok(/if \(criticalBarNow\(\)\) \{\s*log\(`\$\{tag\} combat: critical bar/.test(minerSrc), 'the defendSelf flee site refuses the scan at the critical bar (and says so for the decode census)')
+  assert.ok(/if \(criticalBarNow\(\)\) log\(`\$\{tag\} combat: critical bar[\s\S]{0,200}?else \{ try \{ if \(await tryShelter\(`\$\{reason\} re-verdict`\)\)/.test(minerSrc), 'the flip site refuses the scan at the critical bar (the F19 death site)')
+  // exactly TWO call sites (the pre-fight insurance and the shelterDue internals stay unconditional)
+  const calls = minerSrc.match(/criticalBarNow\(\)/g) || []
+  assert.equal(calls.length, 2, 'the guard rides exactly the two flee sites (the pre-fight fight insurance keeps its scan)')
+  // the land line rides the import (no re-derivation drift)
+  assert.ok(/ENGAGE_RANGE, FLEE_HP, fleeResponse/.test(minerSrc), 'FLEE_HP rides the combat import (the line is THE land line, not a new constant)')
+  assert.equal(FLEE_HP, 8, 'the critical bar IS the legacy land line')
+})

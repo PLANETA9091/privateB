@@ -27,7 +27,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs'
 import { isNight } from '../lib/nightsafety.mjs'
@@ -397,6 +397,23 @@ export function createMiner ({
       if (e.position.distanceTo(bot.entity.position) <= range) n++
     }
     return n
+  }
+
+  // (v0.238.0) THE CRITICAL-BAR READ for the flee sites. MEASURED
+  // (run36301385048, the v0.237.0 tree's field day, 7 deaths): the F19
+  // anatomy - the verdict flipped to flee at hp 5.0, the flee spent its
+  // last margin on the shelter scan + the ring try while the Drowned
+  // closed 5.9 -> 1.4, and the bot died at the half-built ring; the F11
+  // shape - 'fleeing drowned (hp 3.0)' TWICE around shelter skips, dead.
+  // shelters=0 all run - no save was EVER bought at this bar. The read:
+  // the FRESH bar (the verdict's captured hp is already stale - the drain
+  // kept running while the verdict formed), the same one-bar law the
+  // verdicts ride (the poison lens spends the seen bar). Junk-safe: an
+  // unreadable bar reads false - the shelter try fires (the legacy byte).
+  function criticalBarNow () {
+    const h = bot.health
+    if (!Number.isFinite(h)) return false
+    return effectiveHp({ health: h, poisoned: isPoisoned(bot) }) < FLEE_HP
   }
 
   // Multi-hop escape: ONE 12-block hop does not outrun a persistent zombie (the
@@ -1049,9 +1066,18 @@ export function createMiner ({
         // too - seal in instead when the terrain allows (the 7-death streak)
         fleeStartDists.push(threat.dist)
         if (fleeStartDists.length > 6) fleeStartDists.shift()
-        try {
-          if (await tryShelter(reason)) return { action: 'shelter', threat: threat.name }
-        } catch { /* shelter is best-effort - fall back to the flee */ }
+        // (v0.238.0) THE CRITICAL-BAR FLEE: the shelter scan is a luxury
+        // only an EARLY flee can afford - below the land line the drain
+        // outruns the scan (the F19/F11 faces; shelters=0 all run). The
+        // flee at seen < FLEE_HP runs NOW; the scan keeps its historical
+        // seal-in saves at every bar with margin.
+        if (criticalBarNow()) {
+          log(`${tag} combat: critical bar (seen < ${FLEE_HP}) - the shelter scan is refused, the drain outruns it`)
+        } else {
+          try {
+            if (await tryShelter(reason)) return { action: 'shelter', threat: threat.name }
+          } catch { /* shelter is best-effort - fall back to the flee */ }
+        }
         // (v0.77.0) THE STALEMATE SWITCH: stuck distances -> kite to the yard
         // (run73: F6 x65 + F18 x54 flee lines at dist ~4.0 - the radial hops
         // bought ZERO blocks for the whole run)
@@ -1171,7 +1197,10 @@ export function createMiner ({
           const flipLane = threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
           if (flipLane === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
           if (flipLane === 'pair-preempt') log(`${tag} combat: pair preempt (flip) vs ${cur.name} (hp ${hpNow.toFixed(1)}, ${countHostiles(ENGAGE_RANGE)} in reach) - the pair trade is never taken`)
-          try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
+          // (v0.238.0) the flip site rides the SAME critical-bar read - the
+          // F19 face died HERE (the flip at 5.0 spent the margin on the ring)
+          if (criticalBarNow()) log(`${tag} combat: critical bar (seen < ${FLEE_HP}) - the shelter scan is refused, the drain outruns it`)
+          else { try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ } }
           await runAway(cur, `${reason} re-verdict`)
           await recover()
           return { action: 'flee', threat: cur.name }
