@@ -7077,3 +7077,18 @@ Stage Summary:
 - FLEET OF RECORD: 36340470441 COMPLETED SUCCESS (mined this fire: the hazard-defer verdicts, the 4-death headline, the tithe baseline 533u).
 - NEXT FIRE (0330): (1) verify gate 36342704444 (or the HEAD-sha successor) GREEN + slot free => DISPATCH IMMEDIATELY (the v0.254.0 cobble tithe's first harvest window; expect 'cobble tithe: banked N x cobblestone (pocket keeps 14)' lines vs the 533u baseline); (2) the bank-collapse decode (banked=0/smelted=1/reconnects=22 - was the yard unreachable?); (3) the tithe's bound-14 risk check (the wet-escape/bridge stock - the 0237 lane's field question).
 - OPEN FRONTS: the bank-collapse anomaly (NEW, this face); the smelt-keep's other unbounded riders (sand/gravel/clay_ball); the frozen-gate wet-critical class (4/4 deaths again); the defend-in-water drown class; the unanchored pillar-up cure; the walled cure's zero-reading streak; the F19 glitch-carrier class; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root; the tunnel-path ore destruction.
+
+---
+Task ID: cron37-20260928-0237-dispatch
+Agent: Super Z (cron lane, Job 415967)
+Task: THE DISPATCH RECORD - the v0.254.0 face dispatched (the closing addendum to the cron37-20260928-0237 section).
+
+Work Log:
+- CI gate watch: the HEAD gate 36343380143 (bacc4ff, the v0.254.0 tree, worklog-only above c8670b5's code) SUCCESS at 19:25:49Z (~15 min run). My own gate 36343219546 (0bbeef5) and the 0300 lane's 36343342402 (130eedc) were culled en route by newer worklog pushes - the standard dance, the code tree was constant since 5fe8c03 so every gate covered the same bytes. Slot check: zero live workflow_dispatch runs at dispatch time.
+- THE DISPATCH: POST /actions/workflows/362040162/dispatches ref=master inputs run_fleet='true' fleet_seconds='600' (the STRING inputs - the boolean 422s per the dispatch record's lesson) - HTTP 204. Run 36344554956 (workflow_dispatch, bacc4ff) created 19:29:53Z, materialized IN_PROGRESS.
+- THE FACE FLYING: v0.254.0 THE COBBLE TITHE's first harvest window (the measured cures for the 573u/533u death channel and the 644u end-rides) + the v0.251.0 ore-tier guard's second window + the v0.252/253 tier/hazard defers + the whole instrument set - all aboard bacc4ff.
+
+Stage Summary:
+- Master bacc4ff + this record (pkg 0.254.0, dispatch 36344554956 IN_PROGRESS, 600s fleet). Next free version 0.255.0.
+- THE NEXT FIRE MINES 36344554956: the tithe's decode questions ('cobble tithe' line volume + banked units; death-drop cobble vs 533u; end-pocket cobble vs 644u; the furnace/bridge starvation check at bound 14 - the wet-escape stock), the guard's second window (iron_ore-with-no-drops residual + the upgrade rung's response), the hazard-defer's continuation (24 verdicts last face; deaths vs 12), the QUARRY-SEVERED YARD check (banked vs 0 - if the terrain still severs the yard, THE QUARRY ASCENT is 0.255.0's own work), the breath mirror split (vs 3 rescue-ran + 1 controls-owned), walled/dig-around vs 3+3, kills vs 4, airGlitches vs 77.
+- OPEN FRONTS: THE QUARRY ASCENT (the 0.255.0 candidate); the smelt-keep's other unbounded riders (sand/gravel/clay_ball); the frozen-gate wet-critical class; the defend-in-water drown class; the rescue-ran drown lead (3/4 this face - the lane ran and lost, the ascend pacing is the lever); the unanchored pillar-up cure; the F19 glitch-carrier class; the GC Pinned hunt; 0-stacks reloot; coal ARRIVAL root.
