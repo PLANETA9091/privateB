@@ -1070,6 +1070,11 @@ export function createMiner ({
         // land-flee lane owned the flee (4.5 < 8); the marker now means THE
         // LENS WAS THE FIRST FIRING LANE (the residual class stays unmarked).
         if (lensLane === 'open-field-lens') log(`${tag} combat: open-field yield vs ${threat.name} (hp ${hpAtVerdict.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+        // (v0.237.0) THE PAIR PREEMPT MARKER: the decode must see the
+        // preempt's volume AND the bar it fired at (the v0.236.0 window
+        // never opened in the field - this marker is the line's first
+        // honest census: how many pairs are being refused, at what hp).
+        if (lensLane === 'pair-preempt') log(`${tag} combat: pair preempt vs ${threat.name} (hp ${hpAtVerdict.toFixed(1)}, ${countHostiles(ENGAGE_RANGE)} in reach) - the pair trade is never taken`)
         await runAway(threat, reason, { kite: response === 'kite' })
         await recover()
         // a genuine escape clears the ledger; a stuck chase keeps it armed
@@ -1159,7 +1164,13 @@ export function createMiner ({
           // (v0.216.0) gated on the lane mirror - the first firing lane owns
           // the attribution here too (the creeper@0.3 class names creeper-band,
           // not the lens; the args mirror the re-verdict's call verbatim)
-          if (threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) }) === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+          // (v0.237.0) the lane captured ONCE and marked for BOTH the lens
+          // and the pair preempt (the flip site is where the pair drain
+          // showed in the v0.236.0 run - the preempt's flip face must be
+          // counted beside the open-field's)
+          const flipLane = threatVerdictLane({ name: cur.name, dist: cur.dist, hp: hpNow, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed: !!pickWeapon(inventoryItems(bot)), poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(cur.entity?.id) })
+          if (flipLane === 'open-field-lens') log(`${tag} combat: open-field yield vs ${cur.name} (hp ${hpNow.toFixed(1)} < ${OPEN_FIELD_FLEE_HP} in the dark) - the flee fired before the drain`)
+          if (flipLane === 'pair-preempt') log(`${tag} combat: pair preempt (flip) vs ${cur.name} (hp ${hpNow.toFixed(1)}, ${countHostiles(ENGAGE_RANGE)} in reach) - the pair trade is never taken`)
           try { if (await tryShelter(`${reason} re-verdict`)) return { action: 'shelter', threat: cur.name } } catch { /* fall through to run */ }
           await runAway(cur, `${reason} re-verdict`)
           await recover()

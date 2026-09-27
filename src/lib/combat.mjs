@@ -648,21 +648,27 @@ export function openFieldYieldLive ({ name = null, dist = Infinity, hp = 20, poi
   return seen < OPEN_FIELD_FLEE_HP && dist <= engage
 }
 
-// (v0.236.0) THE PAIR TRADE LINE - the reach-weighted swarm tier. MEASURED
-// (run36295859380's zombie melee gallery x7, the v0.235.0 tree): every dead
-// bot fought a PAIR AT REACH while the verdict counted the DETECT_RANGE
-// crowd - F12 'fighting zombie_villager (dist 2.0, hp 13.0, 2 nearby)' ->
-// 'verdict flipped to flee (hp 4.0)' one sentry gap later (a 9-hp drain vs
-// 2 x ~2.5/s incoming while the swings stay 1 target per 0.65s cadence);
-// F8 20.0 -> 6.3 vs its pair, F10 5.3 at the open, F4 10.3 -> 7.3. The
-// counter-weight: F18 fought '3 nearby' and WON (mob down, 5 swings, hp
-// 20.0 -> 18.5) - the extras sat at 5.3/7.5, OUT of the melee band, the
-// drift-wait lines name them - the DETECT_RANGE count was never the DPS.
-// The line: two hostiles INSIDE ENGAGE_RANGE (the ones that can actually
-// hit while the bot stands) turn the trade below SWARM_FLEE_HP into a flee
-// at the FIRST verdict instead of after the drain - the same hp line the
-// 3+ crowd already yields at (one constant, one family), keyed on the
-// reach-weighted count the miner computes beside the legacy census.
+// (v0.236.0 -> v0.237.0) THE PAIR PREEMPT LINE - the reach-weighted swarm
+// tier, now preemptive. THE v0.236.0 MEASURE (run36295859380's zombie melee
+// gallery x7, the v0.235.0 tree): every dead bot fought a PAIR AT REACH
+// while the verdict counted the DETECT_RANGE crowd - F12 'fighting
+// zombie_villager (dist 2.0, hp 13.0, 2 nearby)' -> 'verdict flipped to
+// flee (hp 4.0)' one sentry gap later (a 9-hp drain vs 2 x ~2.5/s incoming
+// while the swings stay 1 target per 0.65s cadence); F8 20.0 -> 6.3 vs its
+// pair, F4 10.3 -> 7.3. The counter-weight: F18 fought '3 nearby' and WON
+// (mob down, 5 swings, hp 20.0 -> 18.5) - the extras sat OUT of the melee
+// band - the DETECT_RANGE count was never the DPS, and the fought mob ALONE
+// in reach is the WIN class. THE v0.237.0 MEASURE (run36298968880, the
+// v0.236.0 tree's field debut, deaths 19 the worst run): the pair line's
+// precondition NEVER OCCURRED - the census shows the pairs met HEALTHY bots
+// (hp 17-20 x6 faces) and the drain killed THROUGH the SWARM_FLEE_HP 14
+// window (20.0 -> 0 in one sentry gap at pair DPS) - the bar was calibrated
+// for the drain the bot SEES (1x), the pair's 2x DPS between verdicts
+// crosses any bar below 20 in one bite. THE LINE: two hostiles INSIDE
+// ENGAGE_RANGE (the ones that can actually hit while the bot stands) are
+// fleeced at the FIRST verdict at ANY bar - the pair trade is never taken
+// (zero measured pair-trade wins at reach), keyed on the reach-weighted
+// count the miner computes beside the legacy census.
 export const PAIR_SIZE = 2
 
 /**
@@ -672,12 +678,12 @@ export const PAIR_SIZE = 2
  * @param {number} [p.dist] metres from the bot (junk -> ignore: we cannot act on it)
  * @param {number} [p.hp] bot health 0..20
  * @param {number} [p.attackers] hostiles within DETECT_RANGE (swarm detection)
- * @param {number} [p.attackersClose=0] (v0.236.0) hostiles within ENGAGE_RANGE
- *   - the reach-weighted census: the mobs that can actually hit while the
- *   bot stands. The pair line (PAIR_SIZE, the SWARM_FLEE_HP line) yields
- *   'flee' when TWO hostiles are inside the melee band and the bar is below
- *   the swarm line - the run36295859380 pair trades drained 6-9 hp per
- *   sentry gap while the DETECT_RANGE census stayed blind to the reach.
+ * @param {number} [p.attackersClose=0] (v0.236.0, preemptive v0.237.0)
+ *   hostiles within ENGAGE_RANGE - the reach-weighted census: the mobs that
+ *   can actually hit while the bot stands. The pair line (PAIR_SIZE) yields
+ *   'flee' when TWO hostiles are inside the melee band - at ANY bar now
+ *   (the run36298968880 face: the pairs met healthy bots and drained 20->0
+ *   through the old below-the-swarm-line window before it ever opened).
  *   Junk-safe: missing/junk reads 0 (the legacy verdicts byte for byte -
  *   a guessed close count must never flee a healthy fight).
  * @param {boolean} [p.dark=true] is it dark at the bot (night / underground)? Safe
@@ -751,14 +757,19 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   // single source of truth (the run48 print leak is named there).
   if (openFieldYieldLive({ name, dist, hp, poisoned, dark, sheltered })) return 'flee'
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'flee'
-  // (v0.236.0) THE PAIR TRADE LINE: two hostiles INSIDE the melee band are
-  // 2x incoming DPS against the 1-target swing cadence - the run's pair
-  // trades (F12 13.0 -> 4.0, F8 20.0 -> 6.3) lost exactly this trade. The
-  // same SWARM_FLEE_HP line the 3+ crowd yields at, keyed on the reach-
-  // weighted count; the fought mob ALONE in reach is the F18 win class and
-  // never trips it (crowdClose 1 < PAIR_SIZE). Sits AFTER the legacy swarm
-  // check so the 3+ census keeps its lane attribution byte for byte.
-  if (crowdClose >= PAIR_SIZE && seen < SWARM_FLEE_HP) return 'flee'
+  // (v0.237.0) THE PAIR PREEMPT LINE: two hostiles INSIDE the melee band
+  // are 2x incoming DPS against the 1-target swing cadence, and the drain
+  // runs FASTER than the verdicts read it - the measured pair trades lost
+  // 9-20 hp per sentry gap (F12 13.0 -> 4.0, F8 20.0 -> 6.3, and the
+  // run36298968880 face: the pairs met the fleet at hp 17-20 and drained
+  // 20.0 -> 0 in ONE gap), so the v0.236.0 window (seen < SWARM_FLEE_HP)
+  // NEVER OPENED - the bots were dead before the line's bar arrived. The
+  // preempt drops the hp gate: the pair trade is never taken at ANY bar
+  // (zero measured pair-trade wins at reach; the only win class, F18's
+  // trio, had ONE hostile in reach - crowdClose 1 < PAIR_SIZE never trips).
+  // Sits AFTER the legacy swarm check so the 3+ census keeps its lane
+  // attribution byte for byte.
+  if (crowdClose >= PAIR_SIZE) return 'flee'
   // (v0.140.0) THE RANGED COOLDOWN: a mob inside its window is never chased -
   // the verdict yields 'flee' where it used to re-open the fight. Only the
   // RANGED classes consult it (the melee band keeps its sword answer), and
@@ -783,7 +794,7 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
 // volume was 1. THE CURE: a lane-order mirror - threatVerdictLane walks the
 // EXACT threatVerdict branch order and returns the name of the first flee
 // lane that fires ('creeper-band', 'unarmed-band', 'land-flee', 'water-flee',
-// 'open-field-lens', 'swarm', 'pair-trade', 'ranged-cooldown'), or 'none' when the verdict
+// 'open-field-lens', 'swarm', 'pair-preempt', 'ranged-cooldown'), or 'none' when the verdict
 // is fight/ignore. The markers gate on lane === 'open-field-lens': the printed
 // 'open-field yield' now means THE LENS WAS THE FIRST FIRING LANE - the
 // residual class stays unmarked beside the legacy lines it belongs to. The
@@ -795,8 +806,9 @@ export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, atta
   if (!Number.isFinite(dist) || dist < 0) return 'none'
   const health = Number.isFinite(hp) ? hp : 20
   const crowd = Number.isFinite(attackers) && attackers > 0 ? attackers : 1
-  // (v0.236.0) the pair line's census read - the SAME guard the verdict
-  // runs (by-construction coherence: flee iff a lane is named).
+  // (v0.236.0, preemptive v0.237.0) the pair line's census read - the SAME
+  // guard the verdict runs (by-construction coherence: flee iff a lane is
+  // named).
   const crowdClose = Number.isFinite(attackersClose) && attackersClose > 0 ? Math.floor(attackersClose) : 0
   const seen = effectiveHp({ health, poisoned })
   if (name === 'creeper' && dist <= CREEPER_FLEE_RANGE) return 'creeper-band'
@@ -807,7 +819,7 @@ export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, atta
   if (openFieldYieldLive({ name, dist, hp, poisoned, dark, sheltered })) return 'open-field-lens'
   const engage = RANGED_HOSTILES.has(name) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'swarm'
-  if (crowdClose >= PAIR_SIZE && seen < SWARM_FLEE_HP) return 'pair-trade'
+  if (crowdClose >= PAIR_SIZE) return 'pair-preempt'
   if (cooldown === true && name !== 'witch' && RANGED_HOSTILES.has(name) && dist <= engage) return 'ranged-cooldown'
   return 'none'
 }
