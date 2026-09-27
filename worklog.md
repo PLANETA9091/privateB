@@ -6522,3 +6522,17 @@ Stage Summary:
 - FLEET IN FLIGHT: 36314614666 (d9b8b18). Next fire mines the WATER-LOCK PREFLIGHT's debut: 'is water-locked (fluid at step 1)' lines vs the old 0-block steered class, residual '[fluid ahead]' / 'names gate X' tags, their defer census 'N ingot(s) + M raw_iron', raw_iron>0 as the famine-break check, banked/smelted vs 407/9, deaths vs 5, airGlitches vs 36.
 - OPEN FRONTS: the CORNERED-FLEE class (F10 - needs the seal-over-flat-hop design); airGlitches era high x2; the torch famine (pocket-only coal read, F4 held 46 - the chest-funded torch relay candidate); the creeper class; drown env x2; the transport class (8 chest-walk failures + 2 open timeouts, their telemetry now splits it); 0-stacks reloot; the drowned-mob class; the IRON-TIER CEILING.
 - CLOSED this fire: the silent 0-block class; the relay's unfalsifiable 0-take; the version-label collision.
+Task ID: cron30-20260927-1900
+Agent: Super Z (cron lane, Job 414125)
+Task: 19:00 fire - the CI gate passed => DISPATCHED 36314614666 (the v0.241.0 face: the relay telemetry + the steer zero verdict on one tree). THIS COMMIT IS WITHHELD FROM PUSH until the dispatch materializes IN_PROGRESS (the pending-cull law) - the next fire pushes it first thing.
+
+Work Log:
+- CI 36313363047 (the 18:30 lane's v0.240.0 RELAY TELEMETRY) COMPLETED SUCCESS - the code base proven.
+- The master's code proven TWICE: my 6251fc5 + their f4c65b5 (the steer zero verdict, polled to SUCCESS 11:04:52Z); d9b8b18 is version-string only.
+- DISPATCHED: HTTP 204 -> 36314614666 (d9b8b18, workflow_dispatch, fleet_seconds 600) PENDING behind the pkg-only push CI 36314070226 (a slow ~20+ min run).
+- The worklog push WITHHELD (a fresh push-CI culls the pending dispatch - the 36308061893 law).
+
+Stage Summary:
+- Master d9b8b18 (pkg 0.241.0). Next free 0.242.0. Next local section = Task ID cron30-20260927-1930.
+- FLEET: 36314614666 PENDING (the v0.241.0 face) - the next fire pushes this commit first, then mines the face (the defer census answers transport-vs-empty; tunnelZeroWhy names the famine gate; the slain-line law; the pair-preempt x6 watch).
+- OPEN FRONTS: the relay transport-vs-empty; the drowned-mob class (4/5); the pair-preempt hand (x5); the airGlitches anomaly (26, 36); the unaccounted=130 return; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
