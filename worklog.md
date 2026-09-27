@@ -6536,3 +6536,19 @@ Stage Summary:
 - Master d9b8b18 (pkg 0.241.0). Next free 0.242.0. Next local section = Task ID cron30-20260927-1930.
 - FLEET: 36314614666 PENDING (the v0.241.0 face) - the next fire pushes this commit first, then mines the face (the defer census answers transport-vs-empty; tunnelZeroWhy names the famine gate; the slain-line law; the pair-preempt x6 watch).
 - OPEN FRONTS: the relay transport-vs-empty; the drowned-mob class (4/5); the pair-preempt hand (x5); the airGlitches anomaly (26, 36); the unaccounted=130 return; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron30-20260927-1930
+Agent: Super Z (cron lane, Job 414125)
+Task: 19:30 fire - the withheld worklog commit PUSHED (the 1900 close, b11aa2e), the keep-both conflict resolved, the v0.241.0 face watched IN_PROGRESS. No code motion.
+
+Work Log:
+- 36314614666 (the v0.241.0 face: both cures on d9b8b18) IN_PROGRESS after the pkg-only push CI concluded - the dispatch law held.
+- The withheld 15a3694 rebased onto 576018d: the worklog append CONFLICTED, resolved KEEP-BOTH (their cron37-20260927-1837 + my cron30-20260927-1900 both kept, the markers removed, no foreign lines touched); the non-interactive rebase --continue needed GIT_EDITOR=true; b11aa2e pushed clean.
+- The face stays IN_PROGRESS past this fire's window - the completion lands ~19:55-20:00+08.
+
+Stage Summary:
+- Master b11aa2e (pkg 0.241.0). Next free version 0.242.0. Next local section = Task ID cron30-20260927-2000.
+- FLEET: 36314614666 IN_PROGRESS - the next fire MINES it first (the defer census transport-vs-empty, the water-lock preflight debut, raw_iron>0 as the famine-break check, banked vs 407, deaths vs 5, airGlitches vs 36, the pair-preempt x6 watch).
+- NEXT FIRE (2000): (1) poll/mine 36314614666; (2) code front 0.242.0 when the queue frees (the CORNERED-FLEE cure, the torch famine relay, the IRON-TIER CEILING, tool repair/replace); (3) dispatch per canon only if the slot frees.
+- OPEN FRONTS: the relay transport-vs-empty; the CORNERED-FLEE class; the torch famine; the drowned-mob class; the pair-preempt hand (x5); the airGlitches anomaly (26, 36); the unaccounted=130 return; the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
