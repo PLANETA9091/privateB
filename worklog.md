@@ -6687,3 +6687,19 @@ Stage Summary:
 - FLEET: the dispatch record lives in the final entry below (gate state at close decides - the canon: CI green on the final HEAD + the slot clean + no in-flight dispatch; the owed v0.243.0 face rides TOGETHER with the v0.244.0 census + the v0.245.0 geometry in whatever face lands next).
 - NEXT FIRE (2200) - MINE THE FACE (when the dispatch landed): (1) 'seal plan:' lines - the buildable/walled/unanchored/unknown split (THE placement cure's field verdict); (2) the census's ARMED vs bare split + top-block distribution (the v0.244.0 debut); (3) the shore-law volume: 'flee toward shore' vs 'no verified shore cell' + 'flee bearing rotated' vs aquatic expected 0; (4) banked vs 280, deaths vs 5, airGlitches vs 550; (5) the famine check (raw_iron > 0 = the break, smelted vs 15).
 - OPEN FRONTS: the seal-and-cross PLACEMENT cure (geometry + census are its two arms - the first proven placeBlock); the famine at the ore (4 runs); the Zombie/Creeper class; the fight wash (kills 0 on fights 9); airGlitches 550 era-high; the torch famine (easing? verify against the new face's pocket lines); 0-stacks reloot; plan wobble; coal ARRIVAL root; the IRON-TIER CEILING.
+---
+Task ID: cron30-20260927-2130
+Agent: Super Z (cron lane, Job 414125)
+Task: 21:30 fire - resolve the slot (the owed v0.243.0 dispatch vs my v0.244.0 gate), dispatch per canon, mine the face if it lands in-box.
+
+Work Log:
+- Open: master 876a7aa (pkg 0.244.0, my addendum is the head - the lane pushed NOTHING since 21:00), identity verified. No dispatch runs in flight (36321353025 stays cancelled) - the slot was clean.
+- THE SLOT RESOLVED BY THE CANON: the v0.244.0 gate 36322330838 (876a7aa) waited ~8 min in_progress then COMPLETED SUCCESS (both polling rounds read live via curl) - the code is proven, the slot is clean, so THIS lane dispatched (the 2100 addendum's own rule: whoever's gate is green and the slot clean dispatches). Their owed v0.243.0 face stays owed - their code is proven (36320545175 + 36321401243 both SUCCESS), their next fire re-dispatches first in line.
+- DISPATCHED 36323193851 (workflow_dispatch, ref master 876a7aa, run_fleet 600s) - HTTP 204, materialized IN_PROGRESS within 12s (no queue this time - the 2130 CI had drained it). THE v0.244.0 THE SEAL CENSUS FACE IS LIVE.
+- The face ran past the timebox (13+ min of polling, still in_progress at close - the 600s fleet plus its artifact phase) - the mining rides the 2200 fire per the not-waited law. NO decode this fire: the census numbers stay unread (honesty: no ARMED-vs-bare verdict exists yet).
+
+Stage Summary:
+- Master 876a7aa (pkg 0.244.0, CI green 36322330838). Next free version 0.245.0. Next local section = Task ID cron30-20260927-2200.
+- FLEET OF RECORD: 36323193851 IN_PROGRESS (the v0.244.0 face). The 2200 fire MINES it: the census lines 'water-lock census: <fluid> at step 1, N sealable in pocket (top <name>) - the seal-and-cross frontier is ARMED|bare' (expect >0 firings on the metal ladder's ore; the ARMED-vs-bare split names the placement cure's shape); water-locked firings vs 7; 'fluid ahead' vs 25; '[names gate water]' vs 0; banked vs 280; deaths vs 5; airGlitches vs 550; smelted vs 15.
+- NEXT FIRE (2200): (1) poll/download/mine 36323193851 (the census debut); (2) code front 0.245.0 when the queue frees (candidates: the seal-and-cross PLACEMENT cure if the census says ARMED; the bring-stock relay if BARE; the Zombie/Creeper class 3/5; the fight wash kills 0 on fights 9); (3) dispatch per canon if the slot frees.
+- OPEN FRONTS: the seal-and-cross PLACEMENT cure (the census is its arm); the famine at the ore (3 runs); the Zombie/Creeper class (3/5); airGlitches 550 era-high; the fight wash; the torch famine; the IRON-TIER CEILING; the owed v0.243.0 face.
