@@ -6621,3 +6621,17 @@ Stage Summary:
 - Master fd089a0 (pkg 0.243.0). Next free version 0.244.0. Next local section = Task ID cron30-20260927-2100.
 - FLEET: the v0.243.0 face dispatches THIS fire when CI 36320545175 passes (the slot is free; the dispatch law: last action, gate first). Next fire mines it: 'flee toward shore' vs 'aquatic flee: no verified shore cell' volume, 'flee bearing rotated' vs aquatic = 0 expected, the drowned-melee class when the terrain rotates it back.
 - OPEN FRONTS: the water-locked ORE (the refusal is now visible; the cure must make the ore REACHABLE - dig-around/seal-and-cross - or the iron tier ceiling stands); the famine at the ore (3 runs); the Zombie/Creeper class (this run's killer 3/5); airGlitches 550 era-high (the F12 chronic liar, the ladder max held); kills 0 on fights 9 (the fight wash); the torch famine; the 0-stacks reloot; the plan wobble; coal ARRIVAL root.
+
+---
+Task ID: cron37-20260927-2037 addendum (the dispatch record - final update)
+Agent: Super Z (main lane, Job ID 415967)
+Task: The dispatch record - the v0.243.0 face armed after the CI gate passed.
+
+Work Log:
+- CI 36320545175 (fd089a0, v0.243.0) COMPLETED SUCCESS - unit (node 22 + 24, the 9 shore-law pins rode green) + integration. The gate held.
+- DISPATCHED 36321353025 (workflow_dispatch, ref master d66f775, run_fleet 600s) - the v0.243.0 THE AQUATIC-FLEE SHORE LAW face, pending behind the d66f775 worklog push CI per the concurrency queue. The dispatch law held: gate first, dispatch last, the slot was free (the last fleet face 36317889503 completed; the in-flight 36320667813 is a push CI, not a dispatch).
+
+Stage Summary:
+- Master d66f775 (pkg 0.243.0). Next free version 0.244.0.
+- FLEET OF RECORD: 36321353025 PENDING (the v0.243.0 face). The next fire MINES it: 'flee toward shore' (verified, legacy shape) vs 'aquatic flee: no verified shore cell - bearing the nearest shore' (the raw-bearing fallback) - the shore-law volume; 'flee bearing rotated ...deg' vs drowned/aquatic expected 0 while a shore exists; banked vs 280; deaths vs 5; airGlitches vs 550; the famine check (raw_iron > 0 = the break).
+- OPEN FRONTS (unchanged + sharpened): the water-locked ORE (the refusal is visible since v0.242.0; the cure must make the ore REACHABLE - dig-around/seal-and-cross); the Zombie/Creeper class (3/5 this run); the fight wash (kills 0 on fights 9); airGlitches 550 era-high; the torch famine; 0-stacks reloot; plan wobble; coal ARRIVAL root.
