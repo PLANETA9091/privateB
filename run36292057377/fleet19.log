@@ -1,0 +1,86 @@
+launching 19 bots for 600s -> targets sand, gravel, dirt, stone
+[hb] n=1 ts=21s rss=247M late=5ms mainLate=0ms
+[hb] n=2 ts=41s rss=312M late=10ms mainLate=281ms
+[hb] n=3 ts=61s rss=359M late=15ms mainLate=1340ms
+t-532s alive=19/19 mined=54 map=279p/8ch banked=0 smelted=0 pocket=32u/8s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[birch_log:6 oak_log:4] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[birch_log:1] | F6=5[empty] | F7=4[birch_log:4 oak_log:2] | F8=12[empty] | F9=1[oak_log:9] | F10=4[empty] | F11=0[empty] | F12=1[empty] | F13=5[empty] | F14=0[empty] | F15=0[empty] | F16=0[empty] | F17=0[empty] | F18=0[empty] | F19=0[empty]
+   mem: heap=98M/137M old=-1M ext=126M ab=123M rss=359M cols=2076 ents=2162 evicted=230 path=6a/11q (max 6) stale=0
+[hb] n=4 ts=81s rss=362M late=20ms mainLate=2189ms
+t-516s alive=19/19 mined=58 map=279p/8ch banked=0 smelted=0 pocket=34u/9s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[birch_log:6 oak_log:4] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[birch_log:1] | F6=5[empty] | F7=4[birch_log:4 oak_log:2] | F8=16[empty] | F9=1[oak_log:9] | F10=4[birch_log:2] | F11=0[empty] | F12=1[empty] | F13=5[empty] | F14=0[empty] | F15=0[empty] | F16=0[empty] | F17=0[empty] | F18=0[empty] | F19=0[empty]
+   mem: heap=97M/137M old=-1M ext=123M ab=120M rss=356M cols=2036 ents=2163 evicted=304 path=6a/10q (max 6) stale=0
+F17 [F17] water: drowning rescue start (drowning, oxygen 12)
+F17 [F17] water: pass 0 head=wet shore=none land=n/a y=59.6 o2=12 probes=0 at=[-134,60,388]
+F17 [F17] water: pass 1 head=wet shore=none land=n/a y=60.6 o2=9 probes=0 at=[-135,61,389]
+F17 [F17] water: pass 8 head=dry shore=hit r=1 land=none y=63.4 o2=19 probes=0 at=[-135,63,392]
+F17 [F17] water: pass 9 head=dry shore=hit r=1 land=none y=64.3 o2=20 probes=0 at=[-135,64,393]
+[hb] n=5 ts=101s rss=364M late=25ms mainLate=1157ms
+t-500s alive=19/19 mined=63 map=319p/9ch banked=0 smelted=0 pocket=61u/14s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[birch_log:6 oak_log:4] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[birch_log:1 oak_sapling:1] | F6=5[oak_log:4] | F7=4[birch_log:4 oak_log:2] | F8=17[empty] | F9=1[oak_planks:10 oak_log:6 stick:6] | F10=4[birch_log:9] | F11=0[empty] | F12=1[oak_sapling:2] | F13=5[empty] | F14=0[empty] | F15=4[empty] | F16=0[empty] | F17=0[empty] | F18=0[empty] | F19=0[empty]
+   mem: heap=99M/139M old=-1M ext=124M ab=121M rss=364M cols=2056 ents=1974 evicted=376 path=6a/9q (max 6) stale=0
+F17 [F17] water: pass 10 head=dry shore=hit r=1 land=none y=63.5 o2=20 probes=0 at=[-135,63,394]
+F17 [F17] water: pass 11 head=dry shore=hit r=1 land=none y=63.8 o2=20 probes=0 at=[-135,64,394]
+F1 dir=(1.00,0.00) logs=0 tools=no planks recipe
+F1 tool recovery: no pickaxe - spare-pick craft first
+F1 spare pick: skip (no sticks and no planks for sticks)
+F1 tool recovery: spare craft failed (no sticks and no planks for sticks) - re-running the bootstrap
+F17 [F17] water: pass 13 head=dry shore=hit r=1 land=none y=64.3 o2=20 probes=0 at=[-137,64,394]
+t-483s alive=19/19 mined=63 map=319p/9ch banked=0 smelted=0 pocket=59u/16s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[birch_log:6 oak_log:4] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[birch_log:1 oak_sapling:1] | F6=5[oak_log:4] | F7=4[birch_log:4 oak_log:2] | F8=17[empty] | F9=1[oak_log:6 oak_planks:6 stick:6] | F10=4[birch_log:9 oak_sapling:1] | F11=0[empty] | F12=1[oak_sapling:2 oak_log:1] | F13=5[empty] | F14=0[empty] | F15=4[empty] | F16=0[empty] | F17=0[empty] | F18=0[empty] | F19=0[empty]
+   mem: heap=106M/138M old=-1M ext=122M ab=120M rss=359M cols=2021 ents=1919 evicted=439 path=6a/7q (max 6) stale=0
+F17 [F17] water: rescue complete in 29.4s
+F17 [F17] water: hazard memorized at [-136,62,391] (1 live, fleet-wide)
+[hb] n=6 ts=121s rss=356M late=31ms mainLate=2200ms
+F9 [F9] craft torches: stick-dry with logs held - one plank conversion first
+F11 dir=(-0.99,-0.16) logs=0 tools=no planks recipe
+F11 tool recovery: no pickaxe - spare-pick craft first
+F11 spare pick: skip (no sticks and no planks for sticks)
+F11 tool recovery: spare craft failed (no sticks and no planks for sticks) - re-running the bootstrap
+t-467s alive=19/19 mined=76 map=334p/9ch banked=0 smelted=0 pocket=76u/25s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[oak_planks:12 stick:4 birch_log:3] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[birch_log:1 oak_sapling:1] | F6=6[oak_log:4] | F7=4[birch_log:4 oak_log:2] | F8=17[oak_log:5 oak_sapling:1] | F9=1[oak_log:5 oak_planks:2 stick:2] | F10=4[birch_log:9 oak_sapling:2] | F11=0[empty] | F12=5[oak_log:3 oak_sapling:1] | F13=5[empty] | F14=0[empty] | F15=4[oak_log:4] | F16=0[oak_log:1] | F17=0[empty] | F18=5[empty] | F19=3[empty]
+   mem: heap=112M/139M old=-1M ext=123M ab=120M rss=362M cols=2030 ents=1942 evicted=480 path=6a/8q (max 6) stale=0
+F9 [F9] craft torches: stick-dry but 6 planks held - one stick batch first
+F9 [F9] craft torches: skip (no coal: sticks 6 coals 0)
+[hb] n=7 ts=141s rss=365M late=35ms mainLate=2469ms
+t-450s alive=19/19 mined=86 map=395p/9ch banked=0 smelted=0 pocket=91u/30s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[oak_planks:12 birch_log:3 stick:2] | F3=6[birch_log:1] | F4=5[oak_log:5] | F5=4[stick:2 birch_log:1] | F6=9[oak_log:4] | F7=4[birch_log:4 oak_log:2 stick:2] | F8=17[oak_log:5 oak_sapling:1 birch_sapling:1] | F9=1[stick:6 oak_log:5 oak_planks:4] | F10=4[birch_log:9 oak_sapling:2] | F11=0[empty] | F12=7[oak_log:4 oak_sapling:1] | F13=5[oak_log:2] | F14=0[empty] | F15=4[oak_log:4] | F16=0[oak_log:2] | F17=0[empty] | F18=5[empty] | F19=8[empty]
+   mem: heap=98M/140M old=-1M ext=121M ab=119M rss=364M cols=2011 ents=1930 evicted=540 path=6a/7q (max 6) stale=0
+F9 dir=(-0.88,0.48) logs=5 tools=wooden_pickaxe
+F9 spare pick due: spare (planks available)
+F9 craft wooden_pickaxe: variant#3 attempt0 failed: craft wooden_pickaxe: timeout after 7000ms
+F9 [tools] closing stale craft window (minecraft:crafting) - grid recovery
+[hb] n=8 ts=161s rss=364M late=40ms mainLate=1883ms
+t-433s alive=19/19 mined=101 map=404p/9ch banked=0 smelted=0 pocket=98u/32s | sand=0 gravel=0 dirt=0 stone=0
+   deficits: 157926/0 (0.0%) 149380/0 (0.0%) 31860/0 (0.0%) 27420/0 (0.0%) 10725/0 (0.0%)
+   F1=0[empty] | F2=7[oak_planks:12 birch_log:3 birch_planks:3] | F3=7[birch_log:1] | F4=7[oak_log:5 birch_log:1] | F5=6[stick:2 birch_log:1] | F6=9[oak_log:4] | F7=4[birch_log:4 oak_log:4 stick:2] | F8=17[oak_log:5 oak_sapling:1 birch_sapling:1] | F9=1[stick:6 oak_log:5 oak_planks:3] | F10=4[birch_log:9 oak_sapling:2] | F11=0[empty] | F12=7[oak_log:4 oak_sapling:1] | F13=5[oak_log:4] | F14=0[empty] | F15=6[oak_log:4] | F16=4[oak_log:2] | F17=4[empty] | F18=5[empty] | F19=8[birch_log:2]
+   mem: heap=96M/139M old=-1M ext=119M ab=117M rss=365M cols=1978 ents=2208 evicted=588 path=6a/4q (max 6) stale=0
+F9 craft wooden_pickaxe: variant#3 attempt1 failed: craft wooden_pickaxe: timeout after 7000ms
+F9 [tools] closing stale craft window (minecraft:inventory) - grid recovery
+F2 [F2] craft torches: stick-dry with logs held - one plank conversion first
+F2 [F2] craft birch_planks: storm cooldown 3996ms left (3 consecutive timeouts) - refusing
+F2 [F2] craft torches: skip (no spare sticks: sticks 1 coals 0)
+F2 dir=(0.95,0.32) logs=4 tools=wooden_pickaxe
+F2 spare pick due: spare (planks available)
+F2 craft birch_planks: storm cooldown 3996ms left (3 consecutive timeouts) - refusing
+F2 plank rung: fell short 3->3 same-type planks (need 5, from birch_log)
+F2 spare pick: skip (sticks 1 < 2, one-type planks 3 cannot unlock the craft)
+F2 sword due: planks available
+F2 craft wooden_sword: storm cooldown 3988ms left (3 consecutive timeouts) - refusing
+F2 sword: craft did not land (wooden_sword, holds 0)
+F2 [F2] craft torches: stick-dry with logs held - one plank conversion first
+F2 [F2] craft birch_planks: storm cooldown 3987ms left (3 consecutive timeouts) - refusing
+F2 [F2] craft torches: skip (no spare sticks: sticks 1 coals 0)
+F9 craft wooden_pickaxe: swept 1 ghost grid slot(s) back into the inventory
+[hb] n=9 ts=181s rss=367M late=45ms mainLate=2190ms
+[hb] n=10 ts=201s rss=367M late=50ms mainLate=2190ms
+[hb] n=11 ts=221s rss=367M late=56ms mainLate=2190ms
+[hb] n=12 ts=241s rss=367M late=60ms mainLate=2190ms
+[stormguard] STORM PROBE: rss 1154M -> 2271M (+1117M in 5s = 223MB/s, mainLate 2190ms; last: pf:spin walk @+0.0s <- pf:queue walk @+-0.1s <- pf:spin walk @+-1.2s <- pf:goal walk @+-1.6s <- pf:done walk @+-1.6s <- pf:spin walk @+-2.8s <- pf:spin walk @+-4.2s <- pf:goal walk @+-4.5s) - SURVIVING the first strike (run61 burst class: one window, main thread still ticking); a SECOND verdict after the 20s grace, or rss >= 3000M, kills (v0.141.0: the lag-probe closure + the goal sweep need the wind-down - run 576 died 5s after the probe with the closure still in flight)
+[stormguard] FATAL (hard ceiling 3000M): rss 2271M -> 3094M (+823M in 5s = 164MB/s >= 40MB/s at rss >= 1200M floor; last: pf:spin walk @+0.0s <- pf:queue walk @+-0.1s <- pf:spin walk @+-1.2s <- pf:goal walk @+-1.6s <- pf:done walk @+-1.6s <- pf:spin walk @+-2.8s <- pf:spin walk @+-4.2s <- pf:goal walk @+-4.5s)
+[stormguard] the MAIN thread is allocating itself to death while frozen (run53/35647216505 OOM class: unsymbolized exit 134, mainLate was 2190ms) - emergency SIGTERM keeps the story readable (exit 143)

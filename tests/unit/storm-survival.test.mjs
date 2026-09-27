@@ -238,3 +238,93 @@ test('a throwing onProbeFire never escapes the probe (the fleet outlives the cur
     hb.stop(0)
   }
 })
+
+// ---------------------------------------------------------------------------
+// (v0.235.0) THE FREEZE-STORM EARLY KILL. run 36292057377 (the v0.234.0 tree,
+// mined 2026-09-27) named the gap: the main thread entered a ~65s SYNC LOCK
+// (mainLate froze at exactly 2190ms across four [hb] beats - the stale
+// postMessage value; the blackbox ring froze with it - the probe and the
+// FATAL printed byte-for-byte the SAME ring), the rss sat FLAT at 367M for
+// 60s of lock, then burst 367 -> 1154 -> 2271 -> 3094M in ~10s (223MB/s).
+// The two-strike design spent its free probe at 2271M on the stale mainLate
+// and the ceiling SIGTERM at 3094M LOST the race to the V8 OOM (exit 134).
+// The pulse evidence was live for 60s before the burst - the worker reads it
+// on every guard tick - but the void check lived only INSIDE the grace. THE
+// CURE: freezeStormVerdict runs BEFORE the two-strike policy - frozen pulse
+// >= the void threshold + rss past the floor + strictly growing over the
+// previous sample = kill at once (no probe, no grace, SIGTERM ~800M and ~5s
+// ahead of the ceiling point, exit 143 readable).
+import { freezeStormVerdict, STORM_FREEZE_VOID_MS_DEFAULT } from '../../src/lib/stormguard.mjs'
+
+test('freezeStormVerdict: the run 36292057377 shape kills at the first growing sample past the floor', () => {
+  assert.strictEqual(STORM_FREEZE_VOID_MS_DEFAULT, 4000, 'one frozen-pulse premise, one number (the v0.143.0 void threshold)')
+  // the exact terminal pair the field measured: 1154M at one guard tick,
+  // 2271M at the next, the main pulse frozen ~64s
+  const v = freezeStormVerdict({ rssMb: 2271, prevRssMb: 1154, pulseFrozenMs: 64000 })
+  assert.strictEqual(v.kill, true)
+  assert.match(v.reason, /freeze storm/)
+  assert.match(v.reason, /1154M -> 2271M/)
+  assert.match(v.reason, /frozen 64s/)
+  assert.match(v.reason, /the closure cannot land/)
+})
+
+test('freezeStormVerdict: a FLAT frozen rss is the recoverable freeze class - never killed', () => {
+  // the run's own 60s lock at flat 367M: freeze alone is not a kill - and the
+  // floor gate answers first (367 < 1200: the harmless band, the same verdict
+  // either way - no kill)
+  const flat = freezeStormVerdict({ rssMb: 367, prevRssMb: 367, pulseFrozenMs: 60000 })
+  assert.strictEqual(flat.kill, false)
+  assert.strictEqual(flat.reason, 'under floor')
+  // a frozen dip is a recede - the growth is broken
+  const dip = freezeStormVerdict({ rssMb: 1200, prevRssMb: 1500, pulseFrozenMs: 60000 })
+  assert.strictEqual(dip.kill, false)
+  assert.strictEqual(dip.reason, 'not growing')
+  // no previous sample (the first tick after a window reset) judges nothing
+  const noPrev = freezeStormVerdict({ rssMb: 2271, prevRssMb: 0, pulseFrozenMs: 60000 })
+  assert.strictEqual(noPrev.kill, false)
+  assert.strictEqual(noPrev.reason, 'not growing')
+})
+
+test('freezeStormVerdict: the floor and the void threshold both gate the kill', () => {
+  // growing but under the 1200M floor: the storm verdicts own this band
+  const under = freezeStormVerdict({ rssMb: 1154, prevRssMb: 367, pulseFrozenMs: 60000 })
+  assert.strictEqual(under.kill, false)
+  assert.strictEqual(under.reason, 'under floor')
+  // past the floor but the pulse still alive (the turning class): the
+  // two-strike policy owns it byte for byte
+  const alive = freezeStormVerdict({ rssMb: 2271, prevRssMb: 1154, pulseFrozenMs: 500 })
+  assert.strictEqual(alive.kill, false)
+  assert.strictEqual(alive.reason, 'pulse alive')
+  // the boundary: frozen EXACTLY at the void threshold and rss EXACTLY at the floor still kill
+  const edge = freezeStormVerdict({ rssMb: 1200, prevRssMb: 1100, pulseFrozenMs: 4000 })
+  assert.strictEqual(edge.kill, true)
+})
+
+test('freezeStormVerdict: junk rss and junk/absent pulse evidence never kill (the v0.143.0 law)', () => {
+  assert.strictEqual(freezeStormVerdict({ rssMb: Number.NaN, prevRssMb: 1154, pulseFrozenMs: 64000 }).kill, false)
+  assert.strictEqual(freezeStormVerdict({ rssMb: 0, prevRssMb: 1154, pulseFrozenMs: 64000 }).kill, false)
+  assert.strictEqual(freezeStormVerdict({ rssMb: -5, prevRssMb: 1154, pulseFrozenMs: 64000 }).kill, false)
+  const noPulse = freezeStormVerdict({ rssMb: 2271, prevRssMb: 1154, pulseFrozenMs: null })
+  assert.strictEqual(noPulse.kill, false)
+  assert.strictEqual(noPulse.reason, 'no pulse evidence')
+  const junkPulse = freezeStormVerdict({ rssMb: 2271, prevRssMb: 1154, pulseFrozenMs: Number.NaN })
+  assert.strictEqual(junkPulse.kill, false)
+  assert.strictEqual(junkPulse.reason, 'no pulse evidence')
+})
+
+test('the worker mirror: the freeze-storm kill rides every guard tick BEFORE the two-strike policy', () => {
+  // the hand-mirrored arithmetic exists (the eval worker cannot import ESM)
+  assert.match(HEARTBEAT_WORKER_SRC, /THE FREEZE-STORM EARLY KILL - mirrored from/, 'the mirror names its reference')
+  assert.match(HEARTBEAT_WORKER_SRC, /var fsPrev = sgWin\.length >= 2 \? sgWin\[sgWin\.length - 2\]\.rss : 0/, 'growth is measured over the previous guard sample')
+  assert.match(HEARTBEAT_WORKER_SRC, /pvFrozen !== null && pvFrozen >= sgPulseVoidMs && r >= sgFloor && fsPrev > 0 && r > fsPrev/, 'the four-bar kill: pulse evidence, frozen >= void, floor, strict growth')
+  // the kill precedes the probe policy - the free strike is never spent on a dead premise
+  const freezeIdx = HEARTBEAT_WORKER_SRC.indexOf('THE FREEZE-STORM EARLY KILL')
+  const probeIdx = HEARTBEAT_WORKER_SRC.indexOf("act === 'probe'")
+  assert.ok(freezeIdx > -1 && probeIdx > -1 && freezeIdx < probeIdx, 'the freeze-storm check runs before the two-strike policy')
+  // the named FATAL the mine parses (distinct from the ceiling kill)
+  assert.match(HEARTBEAT_WORKER_SRC, /FATAL \(freeze storm: main pulse frozen/, 'the named freeze-storm FATAL line')
+  assert.match(HEARTBEAT_WORKER_SRC, /run 36292057377 spent the probe at 2271M/, 'the field evidence rides the emergency line')
+  assert.match(HEARTBEAT_WORKER_SRC, /the reading was stale/, 'the stale-mainLate lesson rides the second line')
+  // the turning class keeps its ceiling: the ceiling kill block is untouched
+  assert.match(HEARTBEAT_WORKER_SRC, /v\.rss >= sgCeil/, 'the hard ceiling keeps killing the turning class')
+})

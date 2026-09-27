@@ -155,6 +155,26 @@ function sgTick () {
     var t = Date.now()
     if (sgWin.length && r < sgWin[sgWin.length - 1].rss) sgWin.length = 0 // growth streak broken
     sgWin.push({ ts: t, rss: r })
+    // (v0.235.0) THE FREEZE-STORM EARLY KILL - mirrored from
+    // stormguard.freezeStormVerdict (the eval worker cannot import ESM).
+    // run 36292057377: the main locked ~65s (mainLate froze at exactly
+    // 2190ms across four beats - the stale postMessage value), the ring froze
+    // with it, rss sat FLAT at 367M for 60s of lock, then burst 367 -> 1154 ->
+    // 2271 -> 3094M in ~10s (223MB/s) - the free probe was spent at 2271M on
+    // the stale mainLate and the ceiling SIGTERM lost the race to the V8 OOM
+    // (exit 134). A frozen pulse + a strictly growing rss past the floor is
+    // the dead premise: kill at once, no probe, no grace. A FLAT frozen rss
+    // is the recoverable freeze class (run63) - never killed here; junk or
+    // absent pulse evidence never kills (the v0.143.0 law).
+    var fsPrev = sgWin.length >= 2 ? sgWin[sgWin.length - 2].rss : 0
+    if (pvFrozen !== null && pvFrozen >= sgPulseVoidMs && r >= sgFloor && fsPrev > 0 && r > fsPrev) {
+      stopped = true // no further lines race the emergency report
+      try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
+      try { fs.writeSync(writeFd, '[stormguard] FATAL (freeze storm: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's, rss ' + fsPrev + 'M -> ' + r + 'M growing past the ' + sgFloor + 'M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134)\\n') } catch { /* stdout closed - kill anyway */ }
+      try { fs.writeSync(writeFd, '[stormguard] the MAIN thread is locked while allocating (run53/35647216505 OOM class; mainLate read ' + mainLate + 'ms but the pulse has been frozen ' + Math.round(pvFrozen / 1000) + 's - the reading was stale) - every closure applier lives on the locked main; emergency SIGTERM keeps the story readable (exit 143)\\n') } catch { /* stdout closed - kill anyway */ }
+      try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
+      return
+    }
     var v = sgVerdict()
     if (v && !stopped) {
       // (v0.64.0) the two-strike response, mirrored from stormguard.stormResponse:

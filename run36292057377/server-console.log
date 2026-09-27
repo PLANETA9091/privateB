@@ -1,0 +1,771 @@
+[0.002s][info][gc] Using G1
+Unpacking 26.2/server-26.2.jar (versions:26.2) to versions/26.2/server-26.2.jar
+Unpacking at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar (libraries:at.yawk.lz4:lz4-java:1.10.1) to libraries/at/yawk/lz4/lz4-java/1.10.1/lz4-java-1.10.1.jar
+Unpacking com/azure/azure-json/1.4.0/azure-json-1.4.0.jar (libraries:com.azure:azure-json:1.4.0) to libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar
+Unpacking com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar (libraries:com.github.oshi:oshi-core:6.9.0) to libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar
+Unpacking com/google/code/gson/gson/2.14.0/gson-2.14.0.jar (libraries:com.google.code.gson:gson:2.14.0) to libraries/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar
+Unpacking com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar (libraries:com.google.guava:failureaccess:1.0.3) to libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar
+Unpacking com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar (libraries:com.google.guava:guava:33.6.0-jre) to libraries/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar
+Unpacking com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar (libraries:com.microsoft.azure:msal4j:1.24.1) to libraries/com/microsoft/azure/msal4j/1.24.1/msal4j-1.24.1.jar
+Unpacking com/mojang/authlib/9.0.75/authlib-9.0.75.jar (libraries:com.mojang:authlib:9.0.75) to libraries/com/mojang/authlib/9.0.75/authlib-9.0.75.jar
+Unpacking com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar (libraries:com.mojang:brigadier:1.3.10) to libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar
+Unpacking com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar (libraries:com.mojang:datafixerupper:10.0.21) to libraries/com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar
+Unpacking com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar (libraries:com.mojang:jtracy:1.0.37) to libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar
+Unpacking com/mojang/logging/1.7.12/logging-1.7.12.jar (libraries:com.mojang:logging:1.7.12) to libraries/com/mojang/logging/1.7.12/logging-1.7.12.jar
+Unpacking commons-io/commons-io/2.20.0/commons-io-2.20.0.jar (libraries:commons-io:commons-io:2.20.0) to libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar
+Unpacking io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar (libraries:io.netty:netty-buffer:4.2.15.Final) to libraries/io/netty/netty-buffer/4.2.15.Final/netty-buffer-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar (libraries:io.netty:netty-codec-base:4.2.15.Final) to libraries/io/netty/netty-codec-base/4.2.15.Final/netty-codec-base-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar (libraries:io.netty:netty-codec-compression:4.2.15.Final) to libraries/io/netty/netty-codec-compression/4.2.15.Final/netty-codec-compression-4.2.15.Final.jar
+Unpacking io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar (libraries:io.netty:netty-codec-http:4.2.15.Final) to libraries/io/netty/netty-codec-http/4.2.15.Final/netty-codec-http-4.2.15.Final.jar
+Unpacking io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar (libraries:io.netty:netty-common:4.2.15.Final) to libraries/io/netty/netty-common/4.2.15.Final/netty-common-4.2.15.Final.jar
+Unpacking io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar (libraries:io.netty:netty-handler:4.2.15.Final) to libraries/io/netty/netty-handler/4.2.15.Final/netty-handler-4.2.15.Final.jar
+Unpacking io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar (libraries:io.netty:netty-resolver:4.2.15.Final) to libraries/io/netty/netty-resolver/4.2.15.Final/netty-resolver-4.2.15.Final.jar
+Unpacking io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar (libraries:io.netty:netty-transport:4.2.15.Final) to libraries/io/netty/netty-transport/4.2.15.Final/netty-transport-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-epoll:4.2.15.Final) to libraries/io/netty/netty-transport-classes-epoll/4.2.15.Final/netty-transport-classes-epoll-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar (libraries:io.netty:netty-transport-classes-kqueue:4.2.15.Final) to libraries/io/netty/netty-transport-classes-kqueue/4.2.15.Final/netty-transport-classes-kqueue-4.2.15.Final.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-x86_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-x86_64.jar
+Unpacking io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar (libraries:io.netty:netty-transport-native-epoll:4.2.15.Final:linux-aarch_64) to libraries/io/netty/netty-transport-native-epoll/4.2.15.Final/netty-transport-native-epoll-4.2.15.Final-linux-aarch_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-x86_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-x86_64.jar
+Unpacking io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar (libraries:io.netty:netty-transport-native-kqueue:4.2.15.Final:osx-aarch_64) to libraries/io/netty/netty-transport-native-kqueue/4.2.15.Final/netty-transport-native-kqueue-4.2.15.Final-osx-aarch_64.jar
+Unpacking io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar (libraries:io.netty:netty-transport-native-unix-common:4.2.15.Final) to libraries/io/netty/netty-transport-native-unix-common/4.2.15.Final/netty-transport-native-unix-common-4.2.15.Final.jar
+Unpacking it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar (libraries:it.unimi.dsi:fastutil:8.5.18) to libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar
+Unpacking net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar (libraries:net.java.dev.jna:jna:5.17.0) to libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar
+Unpacking net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar (libraries:net.java.dev.jna:jna-platform:5.17.0) to libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar
+Unpacking net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar (libraries:net.sf.jopt-simple:jopt-simple:5.0.4) to libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar
+Unpacking org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar (libraries:org.apache.commons:commons-lang3:3.20.0) to libraries/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar
+Unpacking org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-api:2.26.0) to libraries/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-core:2.26.0) to libraries/org/apache/logging/log4j/log4j-core/2.26.0/log4j-core-2.26.0.jar
+Unpacking org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar (libraries:org.apache.logging.log4j:log4j-slf4j2-impl:2.26.0) to libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.26.0/log4j-slf4j2-impl-2.26.0.jar
+Unpacking org/joml/joml/1.10.8/joml-1.10.8.jar (libraries:org.joml:joml:1.10.8) to libraries/org/joml/joml/1.10.8/joml-1.10.8.jar
+Unpacking org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar (libraries:org.jspecify:jspecify:1.0.0) to libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar
+Unpacking org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar (libraries:org.slf4j:slf4j-api:2.0.17) to libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar
+Starting net.minecraft.server.Main
+[2.523s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 71M->16M(1026M) 6.825ms
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.sun.jna.Native in an unnamed module (file:/home/runner/work/privateB/privateB/testbed/server/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+[5.189s][info][gc] GC(1) Pause Young (Concurrent Start) (Metadata GC Threshold) 145M->42M(1026M) 13.728ms
+[5.189s][info][gc] GC(2) Concurrent Mark Cycle
+[5.212s][info][gc] GC(2) Pause Remark 44M->44M(1024M) 3.198ms
+[5.218s][info][gc] GC(2) Pause Cleanup 45M->45M(1024M) 0.023ms
+[5.220s][info][gc] GC(2) Concurrent Mark Cycle 31.510ms
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/home/runner/work/privateB/privateB/testbed/server/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[7.055s][info][gc] GC(3) Pause Young (Prepare Mixed) (Metadata GC Threshold) 401M->61M(1024M) 28.078ms
+[7.100s][info][gc] GC(4) Pause Young (Mixed) (Metadata GC Threshold) 66M->61M(1024M) 22.137ms
+[7.137s][info][gc] GC(5) Pause Young (Concurrent Start) (Metadata GC Threshold) 64M->61M(1024M) 19.325ms
+[7.137s][info][gc] GC(6) Concurrent Mark Cycle
+[7.182s][info][gc] GC(6) Pause Remark 67M->67M(1024M) 3.799ms
+[7.189s][info][gc] GC(6) Pause Cleanup 67M->67M(1024M) 0.020ms
+[7.191s][info][gc] GC(6) Concurrent Mark Cycle 53.023ms
+[9.115s][info][gc] GC(7) Pause Young (Prepare Mixed) (Metadata GC Threshold) 476M->85M(1024M) 52.904ms
+[9.185s][info][gc] GC(8) Pause Young (Mixed) (Metadata GC Threshold) 90M->87M(1024M) 46.004ms
+[9.227s][info][gc] GC(9) Pause Young (Concurrent Start) (Metadata GC Threshold) 90M->87M(1024M) 22.551ms
+[9.227s][info][gc] GC(10) Concurrent Mark Cycle
+[9.363s][info][gc] GC(10) Pause Remark 99M->99M(1024M) 5.339ms
+[9.393s][info][gc] GC(10) Pause Cleanup 102M->102M(1024M) 0.031ms
+[9.395s][info][gc] GC(10) Concurrent Mark Cycle 167.740ms
+[03:59:24] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[03:59:25] [Worker-Main-1/INFO]: No existing world data, creating new world
+[03:59:26] [ServerMain/INFO]: Loaded 1585 recipes
+[03:59:26] [ServerMain/INFO]: Loaded 1688 advancements
+[11.569s][info][gc] GC(11) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 677M->111M(1024M) 36.194ms
+[03:59:26] [Server thread/INFO]: Starting minecraft server version 26.2
+[03:59:26] [Server thread/INFO]: Loading properties
+[03:59:26] [Server thread/INFO]: Default game type: SURVIVAL
+[03:59:26] [Server thread/INFO]: Generating keypair
+[03:59:26] [Server thread/INFO]: Starting Minecraft server on *:25565
+[03:59:27] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[03:59:27] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[03:59:27] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[03:59:27] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[03:59:27] [Server thread/INFO]: Preparing level "world"
+[03:59:27] [Server thread/INFO]: Selecting global world spawn...
+[03:59:31] [Server thread/INFO]: Loading 0 persistent chunks...
+[03:59:31] [Server thread/INFO]: Preparing spawn area: 100%
+[03:59:31] [Server thread/INFO]: Time elapsed: 4471 ms
+[03:59:31] [Server thread/INFO]: Done (4.762s)! For help, type "help"
+[03:59:31] [Server thread/INFO]: Starting remote control listener
+[03:59:31] [Server thread/INFO]: Thread RCON Listener started
+[03:59:31] [Server thread/INFO]: RCON running on 0.0.0.0:25575
+[03:59:31] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[03:59:31] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[03:59:31] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[03:59:31] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[03:59:31] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[03:59:31] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[03:59:31] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17.324s][info][gc] GC(12) Pause Young (Mixed) (G1 Evacuation Pause) 676M->135M(1024M) 48.655ms
+[26.544s][info][gc] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 701M->154M(1024M) 37.271ms
+[03:59:43] [Server thread/INFO]: YardSurvey[/127.0.0.1:43688] logged in with entity id 25 at (-134.5, 64.0, 401.5)
+[03:59:43] [Server thread/INFO]: YardSurvey joined the game
+[03:59:43] [Server thread/INFO]: Changed the block at -135, 77, 409
+[03:59:43] [Server thread/INFO]: Changed the block at -129, 77, 393
+[03:59:43] [Server thread/INFO]: Changed the block at -129, 77, 409
+[03:59:43] [Server thread/INFO]: Changed the block at -123, 77, 393
+[03:59:43] [Server thread/INFO]: Changed the block at -123, 77, 409
+[03:59:43] [Server thread/INFO]: Changed the block at -117, 77, 393
+[03:59:43] [Server thread/INFO]: Changed the block at -117, 77, 409
+[03:59:43] [Server thread/INFO]: Changed the block at -111, 77, 393
+[03:59:43] [Server thread/INFO]: Changed the block at -111, 77, 409
+[03:59:43] [Server thread/INFO]: Set the world spawn point to -135, 72, 401 [0.0, 0.0] in minecraft:overworld
+[29.692s][info][gc] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 725M->172M(1024M) 27.414ms
+[32.791s][info][gc] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 734M->185M(1024M) 27.673ms
+[03:59:53] [Server thread/INFO]: Successfully filled 1537 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 561 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 53 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 53 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 27 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 27 block(s)
+[03:59:53] [Server thread/INFO]: Changed the block at -149, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -143, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -141, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -139, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -137, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -149, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -143, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -141, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -139, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -137, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -153, 72, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -151, 72, 389
+[03:59:53] [Server thread/INFO]: Successfully filled 3 block(s)
+[03:59:53] [Server thread/INFO]: Changed the block at -137, 73, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -153, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -151, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -149, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -143, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -153, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -151, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -149, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -143, 72, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -129, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -127, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -123, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -121, 72, 395
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 73, 395
+[03:59:53] [Server thread/INFO]: Successfully filled 49 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 25 block(s)
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -118, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -118, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -116, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -116, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -114, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -114, 73, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 393
+[03:59:53] [Server thread/INFO]: Could not set the block
+[03:59:53] [Server thread/INFO]: Could not set the block
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 388
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 388
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 389
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 390
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 391
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 391
+[03:59:53] [Server thread/INFO]: Changed the block at -119, 73, 392
+[03:59:53] [Server thread/INFO]: Changed the block at -113, 73, 392
+[03:59:53] [Server thread/INFO]: Could not set the block
+[03:59:53] [Server thread/INFO]: Could not set the block
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 74, 387
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 405
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 407
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 411
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 413
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -150, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -145, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -140, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -130, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -125, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -120, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -115, 72, 415
+[03:59:53] [Server thread/INFO]: Changed the block at -157, 73, 415
+[03:59:53] [Server thread/INFO]: Successfully filled 20 block(s)
+[03:59:53] [Server thread/INFO]: Successfully filled 6 block(s)
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 77, 399
+[03:59:53] [Server thread/INFO]: Changed the block at -156, 72, 398
+[03:59:53] [Server thread/INFO]: Changed the block at -156, 72, 399
+[03:59:53] [Server thread/INFO]: Changed the block at -156, 72, 400
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 398
+[03:59:53] [Server thread/INFO]: Changed the block at -155, 72, 400
+[03:59:53] [Server thread/INFO]: Changed the block at -154, 72, 398
+[03:59:53] [Server thread/INFO]: Changed the block at -154, 72, 399
+[03:59:53] [Server thread/INFO]: Changed the block at -154, 72, 400
+[03:59:53] [Server thread/INFO]: Successfully filled 1 block(s)
+[03:59:53] [Server thread/INFO]: Changed the block at -156, 74, 397
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 401
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 72, 402
+[03:59:53] [Server thread/INFO]: Changed the block at -159, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -159, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -153, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -153, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -147, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -141, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -141, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -135, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -129, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -129, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -123, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -123, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -117, 77, 409
+[03:59:53] [Server thread/INFO]: Changed the block at -111, 77, 393
+[03:59:53] [Server thread/INFO]: Changed the block at -111, 77, 409
+[03:59:53] [Server thread/INFO]: Set the world spawn point to -135, 72, 401 [0.0, 0.0] in minecraft:overworld
+[03:59:56] [Server thread/INFO]: YardSurvey lost connection: Disconnected
+[03:59:56] [Server thread/INFO]: YardSurvey left the game
+[41.565s][info][gc] GC(16) Pause Young (Normal) (G1 Evacuation Pause) 759M->211M(1024M) 49.648ms
+[03:59:57] [Server thread/INFO]: F1[/127.0.0.1:42070] logged in with entity id 292 at (-128.5, 78.0, 393.5)
+[03:59:57] [Server thread/INFO]: F1 joined the game
+[42.981s][info][gc] GC(17) Pause Young (Concurrent Start) (CodeCache GC Threshold) 756M->197M(1024M) 29.995ms
+[42.981s][info][gc] GC(18) Concurrent Mark Cycle
+[43.613s][info][gc] GC(18) Pause Remark 388M->388M(1024M) 25.471ms
+[43.760s][info][gc] GC(18) Pause Cleanup 421M->421M(1024M) 0.038ms
+[43.764s][info][gc] GC(18) Concurrent Mark Cycle 782.723ms
+[03:59:59] [Server thread/INFO]: F2[/127.0.0.1:42074] logged in with entity id 319 at (-133.5, 72.0, 394.5)
+[03:59:59] [Server thread/INFO]: F2 joined the game
+[04:00:02] [Server thread/INFO]: F3[/127.0.0.1:42090] logged in with entity id 321 at (-137.5, 72.0, 398.5)
+[04:00:02] [Server thread/INFO]: F3 joined the game
+[48.296s][info][gc] GC(19) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 791M->223M(1024M) 28.589ms
+[04:00:04] [Server thread/INFO]: F4[/127.0.0.1:48598] logged in with entity id 329 at (-137.5, 72.0, 402.5)
+[04:00:04] [Server thread/INFO]: F4 joined the game
+[04:00:07] [Server thread/INFO]: F5[/127.0.0.1:48610] logged in with entity id 332 at (-140.5, 72.0, 394.5)
+[04:00:07] [Server thread/INFO]: F5 joined the game
+[04:00:09] [Server thread/INFO]: F6[/127.0.0.1:48618] logged in with entity id 333 at (-134.5, 72.0, 392.5)
+[04:00:09] [Server thread/INFO]: F6 joined the game
+[04:00:12] [Server thread/INFO]: F7[/127.0.0.1:48630] logged in with entity id 336 at (-140.5, 72.0, 399.5)
+[04:00:12] [Server thread/INFO]: F7 joined the game
+[59.097s][info][gc] GC(20) Pause Young (Mixed) (G1 Evacuation Pause) 792M->232M(1024M) 29.715ms
+[04:00:14] [Server thread/INFO]: F8[/127.0.0.1:43870] logged in with entity id 339 at (-126.5, 72.0, 404.5)
+[04:00:14] [Server thread/INFO]: F8 joined the game
+[04:00:17] [Server thread/INFO]: F9[/127.0.0.1:43878] logged in with entity id 343 at (-143.5, 72.0, 391.5)
+[04:00:17] [Server thread/INFO]: F9 joined the game
+[04:00:20] [Server thread/INFO]: F10[/127.0.0.1:43882] logged in with entity id 348 at (-131.5, 72.0, 403.5)
+[04:00:20] [Server thread/INFO]: F10 joined the game
+[04:00:22] [Server thread/INFO]: F11[/127.0.0.1:50182] logged in with entity id 353 at (-130.5, 72.0, 400.5)
+[04:00:22] [Server thread/INFO]: F11 joined the game
+[04:00:25] [Server thread/INFO]: F12[/127.0.0.1:50192] logged in with entity id 365 at (-132.5, 72.0, 404.5)
+[04:00:25] [Server thread/INFO]: F12 joined the game
+[71.801s][info][gc] GC(21) Pause Young (Normal) (G1 Evacuation Pause) 807M->241M(1024M) 28.061ms
+[04:00:27] [Server thread/INFO]: F13[/127.0.0.1:50200] logged in with entity id 465 at (-127.5, 72.0, 401.5)
+[04:00:27] [Server thread/INFO]: F13 joined the game
+[04:00:30] [Server thread/INFO]: F11 has made the advancement [The End?]
+[04:00:32] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 2164ms or 43 ticks behind
+[04:00:32] [Server thread/INFO]: Scanning for legacy world dragon fight...
+[04:00:32] [Server thread/INFO]: Found that the dragon has not yet been killed in this world.
+[77.950s][info][gc] GC(22) Pause Young (Normal) (G1 Evacuation Pause) 808M->275M(1024M) 41.564ms
+[04:00:33] [Server thread/INFO]: F14[/127.0.0.1:50212] logged in with entity id 509 at (-137.5, 72.0, 399.5)
+[04:00:33] [Server thread/INFO]: F14 joined the game
+[04:00:35] [Server thread/INFO]: F15[/127.0.0.1:40242] logged in with entity id 579 at (-131.5, 72.0, 398.5)
+[04:00:35] [Server thread/INFO]: F15 joined the game
+[04:00:37] [Server thread/INFO]: F16[/127.0.0.1:40252] logged in with entity id 586 at (-143.5, 72.0, 401.5)
+[04:00:37] [Server thread/INFO]: F16 joined the game
+[83.754s][info][gc] GC(23) Pause Young (Normal) (G1 Evacuation Pause) 834M->281M(1024M) 32.636ms
+[04:00:43] [Server thread/INFO]: F17[/127.0.0.1:40260] logged in with entity id 608 at (-133.5, 72.0, 392.5)
+[04:00:43] [Server thread/INFO]: F17 joined the game
+[04:00:48] [Server thread/INFO]: F18[/127.0.0.1:34898] logged in with entity id 633 at (-139.5, 72.0, 410.5)
+[04:00:48] [Server thread/INFO]: F18 joined the game
+[04:00:51] [Server thread/INFO]: F19[/127.0.0.1:34902] logged in with entity id 639 at (-132.5, 72.0, 395.5)
+[04:00:51] [Server thread/INFO]: F19 joined the game
+[100.144s][info][gc] GC(24) Pause Young (Normal) (G1 Evacuation Pause) 856M->284M(1024M) 24.424ms
+[117.846s][info][gc] GC(25) Pause Young (Normal) (G1 Evacuation Pause) 857M->286M(1024M) 26.829ms
+[134.380s][info][gc] GC(26) Pause Young (Normal) (G1 Evacuation Pause) 887M->286M(1024M) 11.418ms
+[152.341s][info][gc] GC(27) Pause Young (Normal) (G1 Evacuation Pause) 886M->287M(1024M) 20.608ms
+[169.833s][info][gc] GC(28) Pause Young (Normal) (G1 Evacuation Pause) 886M->287M(1024M) 11.256ms
+[187.388s][info][gc] GC(29) Pause Young (Normal) (G1 Evacuation Pause) 887M->286M(1024M) 13.576ms
+[206.090s][info][gc] GC(30) Pause Young (Normal) (G1 Evacuation Pause) 886M->287M(1024M) 10.954ms
+[216.251s][info][gc] GC(31) Pause Young (Normal) (G1 Evacuation Pause) 886M->409M(1024M) 132.349ms
+[222.389s][info][gc] GC(32) Pause Young (Normal) (G1 Evacuation Pause) 876M->511M(1055M) 176.966ms
+[226.633s][info][gc] GC(33) Pause Young (Concurrent Start) (G1 Evacuation Pause) 856M->666M(1080M) 192.470ms
+[226.633s][info][gc] GC(34) Concurrent Mark Cycle
+[227.483s][info][gc] GC(34) Pause Remark 729M->721M(1099M) 63.621ms
+[227.847s][info][gc] GC(34) Pause Cleanup 750M->750M(1099M) 0.084ms
+[227.849s][info][gc] GC(34) Concurrent Mark Cycle 1216.291ms
+[229.583s][info][gc] GC(35) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 886M->772M(1099M) 142.259ms
+[231.443s][info][gc] GC(36) Pause Young (Mixed) (G1 Evacuation Pause) 936M->848M(1099M) 109.844ms
+[232.795s][info][gc] GC(37) Pause Young (Concurrent Start) (G1 Evacuation Pause) 967M->914M(1099M) 79.158ms
+[232.795s][info][gc] GC(38) Concurrent Mark Cycle
+[233.784s][info][gc] GC(38) Pause Remark 967M->936M(1472M) 293.010ms
+[234.039s][info][gc] GC(39) Pause Young (Normal) (G1 Evacuation Pause) 967M->931M(1472M) 56.895ms
+[234.379s][info][gc] GC(38) Pause Cleanup 958M->958M(1472M) 0.094ms
+[234.382s][info][gc] GC(38) Concurrent Mark Cycle 1587.791ms
+[237.129s][info][gc] GC(40) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 1184M->1060M(1472M) 133.105ms
+[239.303s][info][gc] GC(41) Pause Young (Mixed) (G1 Evacuation Pause) 1244M->1147M(1472M) 112.849ms
+[240.984s][info][gc] GC(42) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1288M->1220M(1472M) 90.716ms
+[240.985s][info][gc] GC(43) Concurrent Mark Cycle
+[242.094s][info][gc] GC(43) Pause Remark 1273M->1242M(1984M) 391.988ms
+[242.861s][info][gc] GC(44) Pause Young (Normal) (G1 Evacuation Pause) 1298M->1245M(1984M) 67.819ms
+[242.899s][info][gc] GC(43) Pause Cleanup 1251M->1251M(1984M) 0.140ms
+[242.903s][info][gc] GC(43) Concurrent Mark Cycle 1918.362ms
+[247.485s][info][gc] GC(45) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 1591M->1357M(1984M) 127.825ms
+[251.495s][info][gc] GC(46) Pause Young (Mixed) (G1 Evacuation Pause) 1660M->1447M(1984M) 143.813ms
+[254.973s][info][gc] GC(47) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1712M->1534M(1984M) 114.430ms
+[254.973s][info][gc] GC(48) Concurrent Mark Cycle
+[256.313s][info][gc] GC(48) Pause Remark 1584M->1538M(2048M) 561.644ms
+[257.220s][info][gc] GC(48) Pause Cleanup 1619M->1619M(2048M) 0.126ms
+[257.226s][info][gc] GC(48) Concurrent Mark Cycle 2252.610ms
+[258.511s][info][gc] GC(49) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 1715M->1597M(2048M) 123.916ms
+[261.370s][info][gc] GC(50) Pause Young (Mixed) (G1 Evacuation Pause) 1817M->1659M(2048M) 109.052ms
+[263.822s][info][gc] GC(51) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1851M->1735M(2048M) 100.371ms
+[263.822s][info][gc] GC(52) Concurrent Mark Cycle
+[265.217s][info][gc] GC(52) Pause Remark 1788M->1730M(2048M) 657.361ms
+[266.263s][info][gc] GC(52) Pause Cleanup 1822M->1822M(2048M) 0.125ms
+[266.265s][info][gc] GC(52) Concurrent Mark Cycle 2442.324ms
+[266.508s][info][gc] GC(53) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 1833M->1756M(2048M) 93.782ms
+[268.224s][info][gc] GC(54) Pause Young (Mixed) (G1 Evacuation Pause) 1895M->1807M(2048M) 82.068ms
+[269.699s][info][gc] GC(55) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1918M->1845M(2048M) 54.336ms
+[269.699s][info][gc] GC(56) Concurrent Mark Cycle
+[271.174s][info][gc] GC(56) Pause Remark 1895M->1863M(2048M) 755.981ms
+[271.630s][info][gc] GC(57) Pause Young (Normal) (G1 Evacuation Pause) 1910M->1865M(2048M) 59.405ms
+[04:03:46] [Server Watchdog/ERROR]: A single server tick took 60.00 seconds (should be max 0.05)
+[04:03:46] [Server Watchdog/ERROR]: Considering it to be crashed, server will forcibly shutdown.
+[273.010s][info][gc] GC(56) Pause Cleanup 1942M->1942M(2048M) 0.142ms
+[273.015s][info][gc] GC(56) Concurrent Mark Cycle 3316.055ms
+Crash report:
+---- Minecraft Crash Report ----
+// Would you like a cupcake?
+
+Time: 2026-09-27 04:03:47
+Description: Watching Server
+
+java.lang.Error: Watchdog (Watching Server)
+	at net.minecraft.world.item.ItemStack.isEmpty(ItemStack.java:333)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$TriggerInstance.matches(InventoryChangeTrigger.java:90)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.lambda$trigger$0(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$$Lambda/0x000000001c12f698.test(Unknown Source)
+	at net.minecraft.advancements.triggers.SimpleCriterionTrigger.trigger(SimpleCriterionTrigger.java:36)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:44)
+	at net.minecraft.server.level.ServerPlayer$2.slotChanged(ServerPlayer.java:359)
+	at net.minecraft.world.inventory.AbstractContainerMenu.triggerSlotListeners(AbstractContainerMenu.java:255)
+	at net.minecraft.world.inventory.AbstractContainerMenu.broadcastFullState(AbstractContainerMenu.java:231)
+	at net.minecraft.server.network.ServerGamePacketListenerImpl.handleContainerClick(ServerGamePacketListenerImpl.java:2113)
+	at net.minecraft.network.protocol.game.ServerboundContainerClickPacket.handle(ServerboundContainerClickPacket.java:54)
+	at net.minecraft.network.protocol.game.ServerboundContainerClickPacket.handle(ServerboundContainerClickPacket.java:14)
+	at net.minecraft.network.PacketProcessor$ListenerAndPacket.handle(PacketProcessor.java:55)
+	at net.minecraft.network.PacketProcessor.processQueuedPackets(PacketProcessor.java:38)
+	at net.minecraft.server.MinecraftServer.processPacketsAndTick(MinecraftServer.java:1032)
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:773)
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:320)
+	at net.minecraft.server.MinecraftServer$$Lambda/0x000000001bdc8da0.run(Unknown Source)
+	at java.base@25.0.4.1/java.lang.Thread.runWith(Thread.java:1487)
+	at java.base@25.0.4.1/java.lang.Thread.run(Thread.java:1474)
+
+
+A detailed walkthrough of the error, its code path and all known details is as follows:
+---------------------------------------------------------------------------------------
+
+-- Head --
+Thread: Server Watchdog
+Stacktrace:
+	at net.minecraft.world.item.ItemStack.isEmpty(ItemStack.java:333)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$TriggerInstance.matches(InventoryChangeTrigger.java:90)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.lambda$trigger$0(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$$Lambda/0x000000001c12f698.test(Unknown Source)
+	at net.minecraft.advancements.triggers.SimpleCriterionTrigger.trigger(SimpleCriterionTrigger.java:36)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:44)
+	at net.minecraft.server.level.ServerPlayer$2.slotChanged(ServerPlayer.java:359)
+	at net.minecraft.world.inventory.AbstractContainerMenu.triggerSlotListeners(AbstractContainerMenu.java:255)
+	at net.minecraft.world.inventory.AbstractContainerMenu.broadcastFullState(AbstractContainerMenu.java:231)
+	at net.minecraft.server.network.ServerGamePacketListenerImpl.handleContainerClick(ServerGamePacketListenerImpl.java:2113)
+	at net.minecraft.network.protocol.game.ServerboundContainerClickPacket.handle(ServerboundContainerClickPacket.java:54)
+	at net.minecraft.network.protocol.game.ServerboundContainerClickPacket.handle(ServerboundContainerClickPacket.java:14)
+	at net.minecraft.network.PacketProcessor$ListenerAndPacket.handle(PacketProcessor.java:55)
+	at net.minecraft.network.PacketProcessor.processQueuedPackets(PacketProcessor.java:38)
+	at net.minecraft.server.MinecraftServer.processPacketsAndTick(MinecraftServer.java:1032)
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:773)
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:320)
+
+-- Thread Dump --
+Details:
+	Threads: 
+"DestroyJavaVM" prio=5 Id=25 RUNNABLE
+
+
+"RCON Listener #1" prio=5 Id=53 RUNNABLE (in native)
+	at java.base@25.0.4.1/sun.nio.ch.Net.poll(Native Method)
+	at java.base@25.0.4.1/sun.nio.ch.NioSocketImpl.park(NioSocketImpl.java:190)
+	at java.base@25.0.4.1/sun.nio.ch.NioSocketImpl.timedAccept(NioSocketImpl.java:706)
+	at java.base@25.0.4.1/sun.nio.ch.NioSocketImpl.accept(NioSocketImpl.java:748)
+	at java.base@25.0.4.1/java.net.ServerSocket.implAccept(ServerSocket.java:593)
+	at java.base@25.0.4.1/java.net.ServerSocket.platformImplAccept(ServerSocket.java:560)
+	at java.base@25.0.4.1/java.net.ServerSocket.implAccept(ServerSocket.java:536)
+	at java.base@25.0.4.1/java.net.ServerSocket.implAccept(ServerSocket.java:482)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@5e11000a
+
+
+"Server thread" prio=5 Id=40 RUNNABLE
+	at net.minecraft.world.item.ItemStack.isEmpty(ItemStack.java:333)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$TriggerInstance.matches(InventoryChangeTrigger.java:90)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.lambda$trigger$0(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger$$Lambda/0x000000001c12f698.test(Unknown Source)
+	at net.minecraft.advancements.triggers.SimpleCriterionTrigger.trigger(SimpleCriterionTrigger.java:36)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:48)
+	at net.minecraft.advancements.triggers.InventoryChangeTrigger.trigger(InventoryChangeTrigger.java:44)
+	at net.minecraft.server.level.ServerPlayer$2.slotChanged(ServerPlayer.java:359)
+	...
+
+
+"Netty Epoll IO #0" daemon prio=5 Id=43 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@70ea7d4c
+
+
+"Netty Epoll IO #1" daemon prio=5 Id=55 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@39cca94c
+
+
+"Netty Epoll IO #2" daemon prio=5 Id=56 RUNNABLE
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@676bdf00
+
+
+"Netty Epoll IO #3" daemon prio=5 Id=57 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@4448cebc
+
+
+"Netty Epoll IO #4" daemon prio=5 Id=58 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@128f876f
+
+
+"Netty Epoll IO #5" daemon prio=5 Id=59 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@4e55dabb
+
+
+"Netty Epoll IO #6" daemon prio=5 Id=60 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@77ff8fae
+
+
+"Netty Epoll IO #7" daemon prio=5 Id=61 RUNNABLE (in native)
+	at io.netty.channel.epoll.Native.epollWait0(Native Method)
+	at io.netty.channel.epoll.Native.epollWait(Native.java:193)
+	at io.netty.channel.epoll.EpollIoHandler.epollWait(EpollIoHandler.java:404)
+	at io.netty.channel.epoll.EpollIoHandler.run(EpollIoHandler.java:470)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	...
+
+	Number of locked synchronizers = 1
+	- java.util.concurrent.locks.ReentrantLock$NonfairSync@75c082c3
+
+
+"Notification Thread" daemon prio=9 Id=21 RUNNABLE
+
+
+"Reference Handler" daemon prio=10 Id=13 RUNNABLE
+	at java.base@25.0.4.1/java.lang.ref.Reference.waitForReferencePendingList(Native Method)
+	at java.base@25.0.4.1/java.lang.ref.Reference.processPendingReferences(Reference.java:246)
+	at java.base@25.0.4.1/java.lang.ref.Reference$ReferenceHandler.run(Reference.java:208)
+
+
+"Server Watchdog" daemon prio=5 Id=54 RUNNABLE
+	at java.management@25.0.4.1/sun.management.ThreadImpl.dumpThreads0(Native Method)
+	at java.management@25.0.4.1/sun.management.ThreadImpl.dumpAllThreads(ThreadImpl.java:505)
+	at java.management@25.0.4.1/sun.management.ThreadImpl.dumpAllThreads(ThreadImpl.java:493)
+	at net.minecraft.util.Util.dumpThreadInfo(Util.java:495)
+	at net.minecraft.server.dedicated.ServerWatchdog.createWatchdogCrashReport(ServerWatchdog.java:79)
+	at net.minecraft.server.dedicated.ServerWatchdog.run(ServerWatchdog.java:52)
+	at java.base@25.0.4.1/java.lang.Thread.runWith(Thread.java:1487)
+	at java.base@25.0.4.1/java.lang.Thread.run(Thread.java:1474)
+
+
+"Server console handler" daemon prio=5 Id=42 RUNNABLE (in native)
+	at java.base@25.0.4.1/java.io.FileInputStream.readBytes(Native Method)
+	at java.base@25.0.4.1/java.io.FileInputStream.read(FileInputStream.java:281)
+	at java.base@25.0.4.1/java.lang.System$In.read(System.java:1872)
+	at java.base@25.0.4.1/java.io.BufferedInputStream.read1(BufferedInputStream.java:328)
+	at java.base@25.0.4.1/java.io.BufferedInputStream.read(BufferedInputStream.java:388)
+	-  locked java.io.BufferedInputStream@3ca24efd
+	at java.base@25.0.4.1/sun.nio.cs.StreamDecoder.readBytes(StreamDecoder.java:279)
+	at java.base@25.0.4.1/sun.nio.cs.StreamDecoder.implRead(StreamDecoder.java:322)
+	at java.base@25.0.4.1/sun.nio.cs.StreamDecoder.read(StreamDecoder.java:186)
+	-  locked java.io.InputStreamReader@2dfe60fd
+	...
+
+
+"Signal Dispatcher" daemon prio=9 Id=15 RUNNABLE
+
+
+"Finalizer" daemon prio=8 Id=14 WAITING on java.lang.ref.ReferenceQueue$Lock@69d1914b
+	at java.base@25.0.4.1/java.lang.Object.wait0(Native Method)
+	-  waiting on java.lang.ref.ReferenceQueue$Lock@69d1914b
+	at java.base@25.0.4.1/java.lang.Object.wait(Object.java:389)
+	at java.base@25.0.4.1/java.lang.Object.wait(Object.java:351)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:137)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:215)
+	at java.base@25.0.4.1/java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:165)
+
+
+"Common-Cleaner" daemon prio=8 Id=22 TIMED_WAITING on java.lang.ref.ReferenceQueue$Lock@67796134
+	at java.base@25.0.4.1/java.lang.Object.wait0(Native Method)
+	-  waiting on java.lang.ref.ReferenceQueue$Lock@67796134
+	at java.base@25.0.4.1/java.lang.Object.wait(Object.java:389)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:123)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:201)
+	at java.base@25.0.4.1/jdk.internal.ref.CleanerImpl.run(CleanerImpl.java:146)
+	at java.base@25.0.4.1/java.lang.Thread.runWith(Thread.java:1487)
+	at java.base@25.0.4.1/java.lang.Thread.run(Thread.java:1474)
+	at java.base@25.0.4.1/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:148)
+
+
+"JNA Cleaner" daemon prio=5 Id=32 TIMED_WAITING on java.lang.ref.ReferenceQueue$Lock@247ff59
+	at java.base@25.0.4.1/java.lang.Object.wait0(Native Method)
+	-  waiting on java.lang.ref.ReferenceQueue$Lock@247ff59
+	at java.base@25.0.4.1/java.lang.Object.wait(Object.java:389)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:123)
+	at java.base@25.0.4.1/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:201)
+	at com.sun.jna.internal.Cleaner$CleanerThread.run(Cleaner.java:154)
+
+
+"Timer hack thread" daemon prio=5 Id=33 TIMED_WAITING
+	at java.base@25.0.4.1/java.lang.Thread.sleepNanos0(Native Method)
+	at java.base@25.0.4.1/java.lang.Thread.sleepNanos(Thread.java:509)
+	at java.base@25.0.4.1/java.lang.Thread.sleep(Thread.java:540)
+	at net.minecraft.util.Util$9.run(Util.java:1047)
+
+
+"Yggdrasil Key Fetcher" daemon prio=5 Id=34 TIMED_WAITING on java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject@6007b9cf
+	at java.base@25.0.4.1/jdk.internal.misc.Unsafe.park(Native Method)
+	-  waiting on java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject@6007b9cf
+	at java.base@25.0.4.1/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:271)
+	at java.base@25.0.4.1/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1803)
+	at java.base@25.0.4.1/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1166)
+	at java.base@25.0.4.1/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:883)
+	at java.base@25.0.4.1/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1016)
+	at java.base@25.0.4.1/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1076)
+	at java.base@25.0.4.1/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	...
+
+
+Stacktrace:
+	at net.minecraft.server.dedicated.ServerWatchdog.createWatchdogCrashReport(ServerWatchdog.java:95)
+	at net.minecraft.server.dedicated.ServerWatchdog.run(ServerWatchdog.java:52)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+-- Performance stats --
+Details:
+	Random tick rate: 3
+	Level stats: minecraft:overworld: players: 18, entities: 288,288,95,236,236,0,0 [minecraft:falling_block:100,minecraft:item:31,minecraft:zombie:22,minecraft:salmon:20,minecraft:player:18], block_entities: 29 [minecraft:sign:11,minecraft:furnace:7,minecraft:blast_furnace:4,minecraft:smoker:4,minecraft:mob_spawner:3], block_ticks: 3433, fluid_ticks: 43, chunk_source: Chunks[S] W: 1402 E: 288,288,95,236,236,0,0,
+minecraft:the_nether: players: 0, entities: 0,0,0,0,0,0,0 [], block_entities: 0 [], block_ticks: 0, fluid_ticks: 0, chunk_source: Chunks[S] W: 0 E: 0,0,0,0,0,0,0,
+minecraft:the_end: players: 1, entities: 83,83,51,400,400,0,0 [minecraft:enderman:71,minecraft:end_crystal:10,minecraft:ender_dragon:1,minecraft:player:1], block_entities: 0 [], block_ticks: 0, fluid_ticks: 0, chunk_source: Chunks[S] W: 1786 E: 83,83,51,400,400,0,0
+
+-- System Details --
+Details:
+	Minecraft Version: 26.2
+	Minecraft Version ID: 26.2
+	Operating System: Linux (amd64) version 6.17.0-1022-azure
+	Java Version: 25.0.4.1, Eclipse Adoptium
+	Java VM Version: OpenJDK 64-Bit Server VM (mixed mode, sharing), Eclipse Adoptium
+	Memory: 161346224 bytes (153 MiB) / 2147483648 bytes (2048 MiB) up to 2147483648 bytes (2048 MiB)
+	Memory (heap): init: 1024MiB, used: 1893MiB, committed: 2048MiB, max: 2048MiB
+	Memory (non-head): init: 007MiB, used: 122MiB, committed: 175MiB, max: 000MiB
+	CPUs: 4
+	Processor Vendor: AuthenticAMD
+	Processor Name: AMD EPYC 7763 64-Core Processor
+	Identifier: AuthenticAMD Family 25 Model 1 Stepping 1
+	Microarchitecture: Zen 3
+	Frequency (GHz): -0.00
+	Number of physical packages: 1
+	Number of physical CPUs: 2
+	Number of logical CPUs: 4
+	Graphics card #0 name: hyperv_drmdrmfb
+	Graphics card #0 vendor: unknown
+	Graphics card #0 VRAM (MiB): 0.00
+	Graphics card #0 deviceId: unknown
+	Graphics card #0 versionInfo: unknown
+	Virtual memory max (MiB): 11066.84
+	Virtual memory used (MiB): 4116.71
+	Swap memory total (MiB): 3072.00
+	Swap memory used (MiB): 0.00
+	Space in storage for jna.tmpdir (MiB): <path not set>
+	Space in storage for org.lwjgl.system.SharedLibraryExtractPath (MiB): <path not set>
+	Space in storage for io.netty.native.workdir (MiB): <path not set>
+	Space in storage for java.io.tmpdir (MiB): available: 87341.83, total: 147718.61
+	Space in storage for workdir (MiB): available: 87341.83, total: 147718.61
+	Operating System Version: GNU/Linux Ubuntu 24.04.5 LTS (Noble Numbat) build 6.17.0-1022-azure
+	Process Elevated: false
+	Process Loads: Uptime: 273s, user: 272s (99.63%), kernel: 17s (6.28%), total: 289s (105.91%)
+	Process Virtual Size (MiB): 5895.78
+	Process Resident Size (MiB): 2810.07
+	JVM Flags: 3 total; -Xms1G -Xmx2G -Xlog:gc
+	Debug Flags: 0 total; 
+	Server Running: true
+	Player Count: 19 / 20; [ServerPlayer['F1'/292, l='ServerLevel[world]', x=-128.50, y=78.00, z=393.50], ServerPlayer['F2'/319, l='ServerLevel[world]', x=-125.50, y=64.00, z=408.35], ServerPlayer['F3'/321, l='ServerLevel[world]', x=-121.50, y=64.00, z=426.50], ServerPlayer['F4'/329, l='ServerLevel[world]', x=-121.66, y=64.00, z=425.56], ServerPlayer['F5'/332, l='ServerLevel[world]', x=-141.31, y=64.00, z=402.37], ServerPlayer['F6'/333, l='ServerLevel[world]', x=-126.32, y=64.00, z=403.69], ServerPlayer['F7'/336, l='ServerLevel[world]', x=-138.49, y=64.00, z=424.42], ServerPlayer['F8'/339, l='ServerLevel[world]', x=-139.68, y=65.00, z=424.73], ServerPlayer['F9'/343, l='ServerLevel[world]', x=-138.50, y=65.00, z=400.50], ServerPlayer['F10'/348, l='ServerLevel[world]', x=-135.78, y=64.00, z=403.47], ServerPlayer['F11'/353, l='ServerLevel[world]', x=100.50, y=49.00, z=0.50], ServerPlayer['F12'/365, l='ServerLevel[world]', x=-140.50, y=64.02, z=398.45], ServerPlayer['F13'/465, l='ServerLevel[world]', x=-117.50, y=65.00, z=415.48], ServerPlayer['F14'/509, l='ServerLevel[world]', x=-139.55, y=64.00, z=403.50], ServerPlayer['F15'/579, l='ServerLevel[world]', x=-121.14, y=64.12, z=383.70], ServerPlayer['F16'/586, l='ServerLevel[world]', x=-151.67, y=63.00, z=403.50], ServerPlayer['F17'/608, l='ServerLevel[world]', x=-117.62, y=65.00, z=396.43], ServerPlayer['F18'/633, l='ServerLevel[world]', x=-138.70, y=64.00, z=424.39], ServerPlayer['F19'/639, l='ServerLevel[world]', x=-114.65, y=65.00, z=392.63]]
+	Active Data Packs: vanilla
+	Available Data Packs: minecart_improvements, redstone_experiments, trade_rebalance, vanilla
+	Enabled Feature Flags: minecraft:vanilla
+	World Generation: Stable
+	World Seed: -8201142900731514829
+	Suppressed Exceptions: ~~NONE~~
+	Is Modded: Probably not. Server jar signature and brand is untouched
+	Type: Dedicated Server
+[04:03:48] [Server Watchdog/ERROR]: This crash report has been saved to: /home/runner/work/privateB/privateB/testbed/server/crash-reports/crash-2026-09-27_04.03.47-server.txt
+[273.215s][info][gc] GC(58) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 1952M->1912M(2048M) 57.368ms
+[274.397s][info][gc] GC(59) Pause Young (Mixed) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2001M->1944M(2048M) 48.855ms
+[275.588s][info][gc] GC(60) Pause Young (Concurrent Start) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2033M->2015M(2048M) 61.188ms
+[275.588s][info][gc] GC(61) Concurrent Mark Cycle
+[276.101s][info][gc] GC(62) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2048M->2048M(2048M) 72.316ms
+[277.917s][info][gc] GC(63) Pause Full (G1 Compaction Pause) 2048M->1846M(2048M) 1815.391ms
+[277.920s][info][gc] GC(61) Concurrent Mark Cycle 2332.507ms
+[278.254s][info][gc] GC(64) Pause Young (Normal) (G1 Evacuation Pause) 1948M->1917M(2048M) 68.153ms
+[279.096s][info][gc] GC(65) Pause Young (Concurrent Start) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2006M->1995M(2048M) 67.483ms
+[279.096s][info][gc] GC(66) Concurrent Mark Cycle
+[280.604s][info][gc] GC(66) Pause Remark 2044M->2044M(2048M) 807.892ms
+[280.687s][info][gc] GC(67) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2045M->2045M(2048M) 79.110ms
+[282.607s][info][gc] GC(68) Pause Full (G1 Compaction Pause) 2045M->1976M(2048M) 1919.490ms
+[282.609s][info][gc] GC(66) Concurrent Mark Cycle 3513.474ms
+[282.944s][info][gc] GC(69) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 2045M->2045M(2048M) 73.378ms
+[284.880s][info][gc] GC(70) Pause Full (G1 Compaction Pause) 2045M->2018M(2048M) 1935.623ms

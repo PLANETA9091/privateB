@@ -98,6 +98,71 @@ export const STORM_GRACE_MS_DEFAULT = 20000 // probe -> kill: the closure-landin
 
 export const STORM_PULSE_VOID_MS_DEFAULT = 4000 // a main pulse frozen this long cannot run any applier
 
+// (v0.235.0) THE FREEZE-STORM EARLY KILL. MEASURED (fleet 36292057377, the
+// v0.234.0 tree, mined 2026-09-27): the fleet ran healthy to t~163s (rss
+// 356-367M, mainLate 1.9-2.5s - the long-think band, queue 6a/4-11q - the
+// semaphore full, the queue oscillating INSIDE the healthy run100 shape, the
+// v0.115.0 queue-pressure arm honestly blind here), then the main thread
+// entered a ~65s SYNC LOCK: the lag probe stopped firing (mainLate froze at
+// exactly 2190ms across four [hb] beats - the stale postMessage value), the
+// blackbox ring froze with it (the probe and the FATAL printed byte-for-byte
+// the SAME ring - its entries predated the kill by a minute), and the rss sat
+// FLAT at 367M for 60s of lock before the burst: 367 -> 1154 -> 2271 -> 3094M
+// in the last ~10s (223MB/s). The two-strike design spent its free probe at
+// 2271M (the probe line read mainLate 2190ms as if the main were turning -
+// the value was 60s stale) and the hard-ceiling SIGTERM at 3094M LOST the
+// race to the V8 OOM (exit 134, the story erased). THE EVIDENCE WAS LIVE FOR
+// 60s: the worker's pulse-void read (v0.143.0) saw the main's loop pulse
+// frozen past the void threshold on EVERY guard tick - but the void check
+// lives only INSIDE the grace (the second verdict's path), and the first
+// verdict was 40s away. THE CURE: the freeze-storm check runs on EVERY guard
+// tick BEFORE the two-strike policy - when the main pulse has been frozen >=
+// the void threshold (the v0.143.0 premise: every closure applier lives on
+// the main thread) AND the rss is past the storm floor AND strictly GROWING
+// over the previous sample (a FLAT frozen rss is the recoverable freeze
+// class - run63's 51s freeze resolved and the fleet continued), the kill
+// fires IMMEDIATELY with the named reason. No free probe on a dead premise;
+// the SIGTERM lands ~800M and ~5s ahead of the ceiling point (exit 143, the
+// story readable). The ceiling keeps killing the TURNING class byte for byte
+// (a live pulse means the grace + closure path is alive); the amputation
+// bound is untouched - the freeze-storm kill only ever fires no later than
+// the ceiling would. Junk/absent pulse evidence never kills (the v0.143.0
+// law: never a false kill off missing evidence).
+export const STORM_FREEZE_VOID_MS_DEFAULT = STORM_PULSE_VOID_MS_DEFAULT // one frozen-pulse premise, one number
+
+/**
+ * (v0.235.0) The freeze-storm verdict, pure so the tests pin it and the eval
+ * worker can mirror the arithmetic by hand. Given the CURRENT rss, the
+ * PREVIOUS sample's rss (growth is measured over exactly one guard tick -
+ * the window's own dip reset keeps honest pairs), and how long the main's
+ * loop pulse has been frozen:
+ *   kill  - the pulse frozen >= the void threshold, rss past the floor, and
+ *           strictly growing: the closure cannot land, amputate now
+ *   none  - every other shape, each with a named reason the log carries
+ * Junk rss never kills; junk/absent pulse evidence never kills; the floor
+ * and the growth are BOTH required (a flat frozen main at 367M is the
+ * recoverable class this cure must never touch).
+ * @param {{rssMb?: number, prevRssMb?: number, pulseFrozenMs?: number|null, floorMb?: number, pulseVoidMs?: number}} s
+ * @returns {{kill: boolean, reason: string}}
+ */
+export function freezeStormVerdict ({ rssMb = 0, prevRssMb = 0, pulseFrozenMs = null, floorMb = STORM_FLOOR_MB_DEFAULT, pulseVoidMs = STORM_FREEZE_VOID_MS_DEFAULT } = {}) {
+  const r = Number(rssMb)
+  if (!Number.isFinite(r) || r <= 0) return { kill: false, reason: 'junk rss' }
+  // the null/undefined check comes FIRST: Number(null) is 0 and 0 is finite -
+  // an absent pulse reading would masquerade as 'frozen 0ms' and read
+  // 'pulse alive' (the valveAdmits masquerade lesson, byte for byte)
+  if (pulseFrozenMs === null || pulseFrozenMs === undefined) return { kill: false, reason: 'no pulse evidence' }
+  const frozen = Number(pulseFrozenMs)
+  const voidMs = Number(pulseVoidMs)
+  if (!Number.isFinite(frozen) || frozen < 0 || !Number.isFinite(voidMs) || voidMs <= 0) return { kill: false, reason: 'no pulse evidence' }
+  if (frozen < voidMs) return { kill: false, reason: 'pulse alive' }
+  const floor = Number(floorMb)
+  if (!Number.isFinite(floor) || floor <= 0 || r < floor) return { kill: false, reason: 'under floor' }
+  const pr = Number(prevRssMb)
+  if (!Number.isFinite(pr) || pr <= 0 || r <= pr) return { kill: false, reason: 'not growing' }
+  return { kill: true, reason: 'freeze storm: main pulse frozen ' + Math.round(frozen / 1000) + 's, rss ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M growing past the ' + Math.round(floor) + 'M floor - the closure cannot land' }
+}
+
 /**
  * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
  * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
