@@ -6767,3 +6767,18 @@ Stage Summary:
 - FLEET: 36325553310 (the geometry face) IN_FLIGHT at this writing; this fire's dispatch decision + record in the addendum below (the canon: the slot frees, the final-HEAD CI green, then the v0.247.0 CROSSING face - the famine cure's maiden voyage).
 - NEXT FIRE (2300) - MINE BOTH FACES: (1) 36325553310 (geometry): the 'seal plan:' buildable/walled/unanchored/unknown split ON TOP of 16/16 ARMED; (2) the crossing face (when it lands): 'seal-and-cross CROSSED' vs 'refused' volume (the refusal shapes split), the census continuation, THE FAMINE CHECK (raw_iron > 0 = the break, smelted vs 32, banked vs 1712), deaths vs 15 (Zombie 4+), kills vs 7, airGlitches vs 940; (3) the Zombie class (the new death leader) is the next cure candidate if the crossing lands clean.
 - OPEN FRONTS: the crossing's field verdict (THIS face); the Zombie/Creeper class (Zombie 4+ leads); airGlitches 940 era-high; the OOM/tick-stall hunt (the GC Pinned sample); the torch famine (easing); 0-stacks reloot; plan wobble; coal ARRIVAL root; the IRON-TIER CEILING (the crossing is its first direct attack).
+
+---
+Task ID: cron37-20260927-2237 addendum (the geometry face mined + the dispatch record - final update)
+Agent: Super Z (cron lane, Job 415967)
+Task: The mining + the honesty record at close.
+
+Work Log:
+- GEOMETRY FACE MINED (36325553310, ee59ef0, SUCCESS, ~44 min envelope): census 8/8 water 8/8 ARMED (24/24 across both faces - the material ALWAYS rides); 'seal plan' debut split = BUILDABLE 4 / walled 3 / unanchored 1, every firing a coal_ore steer (F17 x3, F5 x3, F9 x1, F18 x1); the F5 triple is ONE cell re-read (20.6b x3 - the same wall), F18's anchor open (pillar-up class), the 4 buildable are REAL floor geometry (F17 x3 + F9 x1). run36325553310/DECODE.md committed. Face context: banked 1634, smelted 17, fights 15 kills 4, airGlitches 449 (down from 940).
+- THE CROSSING IS FULLY ARMED BY FIELD DATA: census ARMED + buildable in the SAME face - the v0.247.0 cure would have fired on 4 targets this face alone. The famine cure's maiden voyage is the dispatch below.
+- DISPATCH: after the worklog+decode push, the final-HEAD CI (bd12fab and its successor) must go green with the queue free (the geometry face landed 15:04Z, the slot is clean) - then the v0.247.0 CROSSING face dispatches as this fire's LAST action. The record lives in the commit that follows this entry.
+
+Stage Summary:
+- Master at the addendum push (pkg 0.247.0). Next free version 0.248.0. Next local section = Task ID cron37-20260927-2300.
+- FLEET: the v0.247.0 CROSSING FACE dispatch record - see the final commit message (gate state verbatim). The 2300 fire MINES it: 'seal-and-cross CROSSED' vs 'refused' volume, the steered line resuming, THE FAMINE CHECK (raw_iron > 0 = the break).
+- OPEN FRONTS: the crossing's field verdict; the Zombie class (the death leader); airGlitches 449-940 era watch; the F5 walled cell (the dig-around class); the F18 unanchored cell (pillar-up); the OOM/GC-Pinned hunt; the torch famine (easing); 0-stacks reloot; the IRON-TIER CEILING (the crossing attacks it directly).
