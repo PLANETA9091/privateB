@@ -25,10 +25,10 @@ import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
-import { mapTripTargets, oreSteerOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
+import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
-import { sparePickCheck, craftSparePickaxe } from '../src/lib/toolupgrade.mjs'
+import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName } from '../src/lib/surface.mjs'
@@ -802,7 +802,7 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
@@ -1039,6 +1039,7 @@ async function runBot (name, target, index) {
       let dragonEvacAnnounced = false // (v0.225.0) the zone-entry story: one line per entry, the flag resets when the bot reads out
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
+      const tierDeferSeen = new Set() // (v0.252.0) the tier-defer steer's memory: one verdict line per ore name per trip (the lastNightLog shape)
       let productiveShafts = 0 // (v0.81.0) ore-detour cadence counts PRODUCTIVE shafts (the floor lock counts empty ones)
       const STEER_ORES = ['iron_ore', 'copper_ore', 'coal_ore'] // the underground trio the tunnel names can collect
       // (v0.81.0) THE STEERED TUNNEL, once - the floor-lock block and the new ore
@@ -1073,12 +1074,31 @@ async function runBot (name, target, index) {
               for (const p of miner.map.nearestK(on, steerFrom, { maxDistance: 48, k: 4 })) oreCands.push({ name: on, pos: p })
             } catch { /* map read must never break the branch mine */ }
           }
-          steer = pickOreTarget({
-            candidates: oreCands,
-            from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
-            skip: veerSkipped,
-            priorities: oreSteerOrder({ progress: materialsProgress(), ores: STEER_ORES })
-          })
+          steer = (() => {
+            // (v0.252.0) THE TIER-DEFER STEER: the deficit order still elects, but ores
+            // the current pick cannot HARVEST defer to the tail (the guard would refuse
+            // their cells every pass - the wooden bot must not burn its walks on iron
+            // the v0.251.0 guard keeps whole). The tail keeps the option: the upgrade
+            // rung restores the lead, a lone deferred vein still gets a walk when
+            // nothing harvestable is near. One verdict line per NEW deferred name per
+            // trip names the class for the decode.
+            const steerOrder = tierDeferOrder(
+              oreSteerOrder({ progress: materialsProgress(), ores: STEER_ORES }),
+              bestPickTier(miner.bot),
+              ORE_TIER_TABLE
+            )
+            const fresh = steerOrder.deferred.filter(n => !tierDeferSeen.has(n))
+            if (fresh.length) {
+              fresh.forEach(n => tierDeferSeen.add(n))
+              console.log(`${name} steer tier defer: ${fresh.join(', ')} deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)`)
+            }
+            return pickOreTarget({
+              candidates: oreCands,
+              from: { x: steerFrom.x, y: steerFrom.y, z: steerFrom.z },
+              skip: veerSkipped,
+              priorities: steerOrder.order
+            })
+          })()
         }
         // (v0.240.0) THE WATER-LOCK PREFLIGHT - run36310927991's famine root: 13
         // iron/copper steers were announced, every steered tunnel landed done=0

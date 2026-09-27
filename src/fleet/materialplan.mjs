@@ -166,3 +166,35 @@ export function oreSteerOrder (p = {}) {
     .sort((a, b) => b.deficit - a.deficit || a.i - b.i)
     .map(e => e.name)
 }
+
+/**
+ * (v0.252.0) THE TIER-DEFER STEER - the ore-tier guard's steer-side twin.
+ * The guard (toolupgrade.mjs ORE_TIER_TABLE, veinSweep wired) stops a wooden pick
+ * from BREAKING a stone-tier ore, but the steer election still READS the deficit
+ * first: iron's huge deficit leads every election, the wooden bot walks to the
+ * vein, the guard refuses the cell, the time burns and the walk repeats every
+ * pass (guard-blocked cells never reach veerSkipped). The cure: ores the current
+ * pick cannot HARVEST defer to the TAIL of the election order (stable - the
+ * relative order inside both parts is kept). Not excluded: the tail keeps the
+ * option (a mid-trip upgrade rung restores the lead, a lone deferred vein still
+ * gets a walk when nothing harvestable is near). Unknown names carry no gate
+ * (the box speaks first - the guard's own law). Pure: unit-testable, no bot.
+ *
+ * @param {string[]} order the deficit-ordered ore names (oreSteerOrder output)
+ * @param {number} pickTier the pocket's best pick tier (-1 bare hands)
+ * @param {object} tierGate { [blockName]: minTier } (ORE_TIER_TABLE)
+ * @returns {{ order: string[], deferred: string[] }} the reorder + the deferred names (input order)
+ */
+export function tierDeferOrder (order, pickTier, tierGate) {
+  const list = Array.isArray(order) ? order : []
+  const tier = Number.isFinite(pickTier) ? pickTier : -1
+  const gate = tierGate && typeof tierGate === 'object' ? tierGate : {}
+  const keep = []
+  const deferred = []
+  for (const name of list) {
+    const need = typeof name === 'string' ? gate[name] : undefined
+    if (typeof need === 'number' && tier < need) deferred.push(name)
+    else keep.push(name)
+  }
+  return { order: keep.concat(deferred), deferred }
+}
