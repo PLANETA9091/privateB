@@ -915,7 +915,7 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
-          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent/.test(m)) console.log(`${name} ${m}`)
+          if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe/.test(m)) console.log(`${name} ${m}`)
         }
       })
       bots.set(name, { miner, target })
