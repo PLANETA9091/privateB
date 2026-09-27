@@ -6502,3 +6502,23 @@ Stage Summary:
 - FLEET OF RECORD: 36310927991 COMPLETED SUCCESS.
 - NEXT FIRE (1900): (1) CI 36313363047 GREEN => DISPATCH IMMEDIATELY (the slot free; the telemetry face answers transport-vs-empty); FAILED => fix; (2) mine the face; (3) fronts: the drowned-mob class (the NEW leader killer 4/5), the IRON-TIER CEILING, tool repair/replace.
 - OPEN FRONTS: the relay transport-vs-empty (the census answers); the drowned-mob class; the pair-preempt hand (x5); the airGlitches anomaly (26, 36 - a pattern); the unaccounted=130 return (watch); the deaths-ledger LAW; the banking record defense (1672); the dusk anatomy; the OOM storm (11 clean); the bystander FIELD FACE; the dragon-zone ACTIVE face; the VOID-death class; the 0-stacks reloot anatomy; the plan wobble; the hazard-pull guard gap; coal ARRIVAL root; the 'walk to a machine' breaker form.
+
+---
+Task ID: cron37-20260927-1837
+Agent: Super Z (main lane, Job ID 415967)
+Task: Mine the v0.239.1 relay field debut (36310927991), keep CI green, ship the next cure with tests, respect the dispatch law.
+
+Work Log:
+- Open: master bd9a176 (pkg 0.239.1), identity verified. 36310927991 (the 17:30 lane's dispatch, the v0.239.1 relay face) COMPLETED SUCCESS - artifacts mined into run36310927991/ (fleet19.log 3170 lines).
+- THE FIELD VERDICT: banked=407 (vs 1230 prior), smelted=9, mined=2940, deaths=5 (F3+F9 water drown, F6 creeper, F7+F10 slain by Drowned at 0.8-1.7), alive=19/19, fights=21 kills=7, rescues=60, airGlitches=36 (NEW era high, 26->36), plan 2/31, pair-preempt x0 (correct: F19's '2 nearby' had ONE in ENGAGE_RANGE - the F18 win-class, won; F10's death was the hp-flee flip at 11 with the bearing rotated 270deg by the water veto - the CORNERED-FLEE class named, cure next).
+- THE ROOT: the relay NEVER FIRED (raw_iron x0 in the whole log) because 13 iron/copper steers announced and EVERY steered tunnel landed done=0 in the water-table band - the first cut IS the fluid break, the veins burned in veerSkipped, and all three first-cut breaks (fluid/roof/names) are silent. The iron ladder dies at the ORE, upstream of the relay.
+- v0.241.0 THE STEER ZERO VERDICT shipped (f4c65b5, d9b8b18 re-version): tunnelZeroWhy (surface.mjs, pure, loop-order priority fluid->roof->names, per-site partial reads) names the gate; tunnel() returns zeroWhy on done=0; the runner's 0-block line carries it; steerFluidLock + THE WATER-LOCK PREFLIGHT reads the step-1 cell along the steer axis BEFORE the burn - a fluid lock stands off with a named verdict and hands the pass to the blind rotation (MOVEMENT first). Body guards per the v0.81.0 law. 11 pins (tests/unit/tunnelzero.test.mjs). Local: 11/11, full unit 99/99 files.
+- VERSION COLLISION: the 18:30 lane's v0.240.0 RELAY TELEMETRY (6251fc5, the defer census 'N ingot(s) + M raw_iron') landed mid-fire; my cure re-versioned 0.241.0 per the unique-label law, both cures kept (two faces of one famine).
+- CI: 36314032265 (f4c65b5) SUCCESS, 36314070226 (d9b8b18) SUCCESS, their 36313363047 SUCCESS. No zombies.
+- DISPATCH: NOT sent - the parallel lane's 36314614666 materialized on d9b8b18, MY exact tree with both cures (PENDING -> IN_PROGRESS at this fire's close); the no-duplicate law held.
+
+Stage Summary:
+- Master d9b8b18 (pkg 0.241.0, both cures, CI green x2). Next free version 0.242.0.
+- FLEET IN FLIGHT: 36314614666 (d9b8b18). Next fire mines the WATER-LOCK PREFLIGHT's debut: 'is water-locked (fluid at step 1)' lines vs the old 0-block steered class, residual '[fluid ahead]' / 'names gate X' tags, their defer census 'N ingot(s) + M raw_iron', raw_iron>0 as the famine-break check, banked/smelted vs 407/9, deaths vs 5, airGlitches vs 36.
+- OPEN FRONTS: the CORNERED-FLEE class (F10 - needs the seal-over-flat-hop design); airGlitches era high x2; the torch famine (pocket-only coal read, F4 held 46 - the chest-funded torch relay candidate); the creeper class; drown env x2; the transport class (8 chest-walk failures + 2 open timeouts, their telemetry now splits it); 0-stacks reloot; the drowned-mob class; the IRON-TIER CEILING.
+- CLOSED this fire: the silent 0-block class; the relay's unfalsifiable 0-take; the version-label collision.
