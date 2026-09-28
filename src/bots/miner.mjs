@@ -3178,7 +3178,22 @@ export function createMiner ({
                           stanceSteps++
                           log(`${tag} vein sweep: stance step armed - the stand-off exceeds the magnet (dist ${distXZ.toFixed(1)}, closing 1)`)
                           try {
-                            await gotoSafe(bot, new goals.GoalNear(supportCell.x, bot.entity.position.y, supportCell.z, 1), { timeoutMs: 4000, label: 'stance step' })
+                            // (v0.286.0) THE STEP RE-ARM - face 36431514130 read the
+                            // doomed ledger poisoning the step directly: 'the walk
+                            // contested (doomed goal (ledgered 3s ago at [-142,43...'
+                            // with the ledger CLUSTERED ([-113,41,427] [-114,41,428]
+                            // [-115,41,427] all ledgered within 12s of each other) -
+                            // another bot's failed walk from ANOTHER start dooms the
+                            // support cell fleet-wide, and the step's honest attempt
+                            // dies at the consult for free (the v0.87.0 yard lesson
+                            // verbatim: the doomed geometry is the FAILED BOT'S
+                            // START, not the cell itself). doomedRearm gives the
+                            // step ONE honest bounded-A* attempt from THIS bot's
+                            // start per sweep (the cap law still holds: one step
+                            // per sweep, the re-arm cannot orbit); a proven-dead
+                            // verdict re-records the cell with a fresh TTL for the
+                            // rest of the fleet - the poisoning self-heals.
+                            await gotoSafe(bot, new goals.GoalNear(supportCell.x, bot.entity.position.y, supportCell.z, 1), { timeoutMs: 4000, label: 'stance step', doomedRearm: true })
                             const dist2 = Math.hypot(d.x - bot.entity.position.x, d.z - bot.entity.position.z)
                             const recut = ledgeCutWanted({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })
                             if (recut !== null) {

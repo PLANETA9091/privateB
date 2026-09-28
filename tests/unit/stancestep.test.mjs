@@ -73,3 +73,19 @@ test('the walk contest names itself: the step\'s bottleneck speaks (v0.285.0)', 
   assert.ok(minerSrc.includes("String(e?.message ?? 'no error read').slice(0, 40)"), 'the refusal name rides the SAME line, capped at 40 chars (the write-off ladder trace\'s own cap)')
   assert.ok(minerSrc.includes('} catch (e) {') || minerSrc.includes('catch (e)'), 'the catch binds the error - a swallowed contest is a blind decode')
 })
+
+test('the step re-arms against the doomed ledger: the honest attempt (v0.286.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // face 36431514130 (v0.285.0's first field read): the contest named its
+  // families - 'the walk contested (doomed goal (ledgered 3s ago at
+  // [-142,43...)' with the ledger CLUSTERED ([-113,41,427] [-114,41,428]
+  // [-115,41,427] within 12s) - another bot's failed walk from ANOTHER start
+  // dooms the support cell fleet-wide and the step dies at the consult for
+  // free. The re-arm is the v0.87.0 yard lesson verbatim: ONE honest
+  // bounded-A* attempt from THIS bot's start, the cap law unchanged.
+  assert.ok(minerSrc.includes("timeoutMs: 4000, label: 'stance step', doomedRearm: true"), 'the step walk carries doomedRearm: true - the poisoned cell gets the honest attempt, a proven-dead verdict re-records with a fresh TTL')
+  const armAt = minerSrc.indexOf('doomedRearm: true')
+  const capAt = minerSrc.indexOf('stanceSteps < 1')
+  assert.ok(armAt > 0 && capAt > 0, 'both the re-arm and the cap law live in the miner')
+  assert.ok(armAt > capAt, 'the re-arm rides the capped walk (the cap gates first - the re-arm cannot orbit the sweep)')
+})
