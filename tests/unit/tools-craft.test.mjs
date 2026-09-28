@@ -5,7 +5,8 @@
 // These tests pin the sweep/recover behavior with fake windows - no server needed.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sweepGridItems, recoverCraftWindow } from '../../src/bots/tools.mjs'
+import { sweepGridItems, recoverCraftWindow, kitVerdict } from '../../src/bots/tools.mjs'
+import fs from 'node:fs'
 
 function fakeItem (name) { return { name, count: 1 } }
 
@@ -124,4 +125,33 @@ test('REGRESSION PIN: the torch converter reads the HELD torches (the v0.190.0 p
     'the cap-decline names itself in the skip family')
   assert.ok(/the pocket torch cap: held \$\{heldTorches\} of \$\{TORCH_POCKET_CAP\}/.test(toolsSrc),
     'the cap line rides the torch filter key with the held count (the decode sizes the trim)')
+})
+
+test('kitVerdict: the failure names its class with the pocket counts (v0.295.0)', () => {
+  // ok rides the legacy shape byte for byte - the held pickaxe names
+  assert.equal(kitVerdict({ pickaxe: true, pickaxeNames: 'wooden_pickaxe' }), 'wooden_pickaxe')
+  assert.equal(kitVerdict({ pickaxe: true, pickaxeNames: 'stone_pickaxe,wooden_pickaxe' }), 'stone_pickaxe,wooden_pickaxe')
+  // the flake's own class: face 36490064773 read 'tools attempt 1 failed ()' -
+  // sticks 0 with 13 planks and a table held, the pickaxe craft refused and the
+  // verdict named NOTHING. The named form reads the whole chain in one line.
+  assert.equal(kitVerdict({ pickaxe: false, pickaxeNames: '', sticks: 0, planks: 8, table: 1 }),
+    'no pickaxe (sticks 0, planks-best 8, table 1)')
+  assert.equal(kitVerdict({}), 'no pickaxe (sticks 0, planks-best 0, table 0)', 'junk floors at zero')
+  assert.equal(kitVerdict({ pickaxe: false, sticks: 2.9, planks: -3, table: NaN }),
+    'no pickaxe (sticks 2, planks-best 0, table 0)', 'fractional floors, negative/NaN never invent counts')
+})
+
+test('THE STICK GATE RE-READ rides the bootstrap past the counts line (v0.295.0, the run195 lesson)', () => {
+  // the dead-wire class is only catchable at the source: the re-read must sit
+  // BETWEEN the counts line (where the phantom count is exposed) and the
+  // pickaxe rung (where the missing sticks used to surface as a refusal)
+  const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  const countsAt = toolsSrc.indexOf("step(`planks ${planks} (${plankCounts()}) sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)")
+  assert.ok(countsAt > 0, 'the counts line exists')
+  const rereadAt = toolsSrc.indexOf("if (countItem(bot, 'stick') < 4 && planksBestNow >= 2) {", countsAt)
+  assert.ok(rereadAt > countsAt && rereadAt - countsAt < 1200, 'the re-read lives right past the counts line (the versioned comment block rides between)')
+  assert.ok(toolsSrc.includes("await craftUntil(bot, 'stick', { want: 4, log: step })"), 'the re-read crafts with the bounded craftUntil')
+  assert.ok(toolsSrc.includes('sticks starved after the re-read ('), 'a still-starved pocket names its class on the same [tools] line')
+  const kitAt = toolsSrc.indexOf('kit: kitVerdict({', rereadAt)
+  assert.ok(kitAt > rereadAt, 'the return rides the named verdict (the empty-parens class closes)')
 })

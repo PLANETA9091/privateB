@@ -1008,6 +1008,21 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
     await craftUntil(bot, 'crafting_table', { want: 1, log: step })
   }
   step(`planks ${planks} (${plankCounts()}) sticks ${countItem(bot, 'stick')} table ${countItem(bot, 'crafting_table')}`)
+  // (v0.295.0) THE STICK GATE RE-READ - the phantom class's own hole. Face
+  // 36490064773's integration job: the ghost-slot sweep left the inventory
+  // view stale, the gate above read sticks >= 4 and SKIPPED the craft, the
+  // counts line exposed sticks 0 - and the kit died 'no craftable recipe
+  // variant' on the pickaxe with 13 planks held (the same tree passed its own
+  // push gate - the flake that had no name). One re-read past the counts
+  // line: the truth is on the wire now, the craft is bounded (craftUntil's
+  // own tries/settle/phantom recovery), and the planks-best >= 2 fence never
+  // spins a pocket that cannot produce a stick. A still-starved pocket names
+  // its class on the same [tools] line.
+  const planksBestNow = Math.max(0, ...PLANK_TYPES.map(n => countItem(bot, n)))
+  if (countItem(bot, 'stick') < 4 && planksBestNow >= 2) {
+    await craftUntil(bot, 'stick', { want: 4, log: step })
+    if (countItem(bot, 'stick') < 4) step(`sticks starved after the re-read (${countItem(bot, 'stick')}/4 held, planks-best ${Math.max(0, ...PLANK_TYPES.map(n => countItem(bot, n)))})`)
+  }
 
   let table = await placeTable(bot)
   if (!table) {
@@ -1068,7 +1083,30 @@ export async function ensureTools (bot, { miner = null, log = () => {}, maxSecon
     if (cobble >= 4) await craftUntil(bot, 'stone_shovel', { table, log: step })
   }
   step(`final: ${inventoryItems(bot).filter(i => i.name.includes('pickaxe') || i.name.includes('shovel') || i.name.includes('axe')).map(i => i.name).join(', ') || 'none'}`)
-  return { ok: hasKind(bot, 'pickaxe'), kit: inventoryItems(bot).filter(i => i.name.includes('pickaxe')).map(i => i.name).join(',') }
+  // (v0.295.0) THE NAMED KIT VERDICT - the flake's empty-parens class. Face
+  // 36490064773's integration job read 'tools attempt 1 failed ()' and
+  // 'tools: fail ()' - the kit string carried NOTHING when the pickaxe craft
+  // died ('no craftable recipe variant'), so the attempt loop's own verdict
+  // line named no class. kitVerdict names the missing piece with the pocket's
+  // own counts - the refusal form the decode needs.
+  const pickaxeNames = inventoryItems(bot).filter(i => i.name.includes('pickaxe')).map(i => i.name).join(',')
+  const pickaxe = hasKind(bot, 'pickaxe')
+  return { ok: pickaxe, kit: kitVerdict({ pickaxe, pickaxeNames, sticks: countItem(bot, 'stick'), planks: planksOfBestType(), table: countItem(bot, 'crafting_table') }) }
+}
+
+/**
+ * (v0.295.0) The tool bootstrap's kit verdict - the kit string the callers
+ * log. ok: the held pickaxe names ride (the legacy shape byte for byte). A
+ * failure NAMES its class: 'no pickaxe (sticks N, planks-best N, table N)' -
+ * the pocket's own counts, so 'no craftable recipe variant' on the pickaxe
+ * line reads together with the sticks/planks the pocket actually held (the
+ * flake's empty-parens class: 'tools attempt 1 failed ()' named nothing).
+ * Pure; junk counts floor at zero.
+ */
+export function kitVerdict ({ pickaxe = false, pickaxeNames = '', sticks = 0, planks = 0, table = 0 } = {}) {
+  if (pickaxe) return pickaxeNames
+  const n = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
+  return `no pickaxe (sticks ${n(sticks)}, planks-best ${n(planks)}, table ${n(table)})`
 }
 
 // tools.mjs imports (top of file) already include withTimeout; surplus import here
