@@ -315,3 +315,48 @@ export function drownedKillContextLine (r = {}) {
   const y = Number.isFinite(feetY) ? String(feetY) : '?'
   return `${tag} death: drowned-kill context (${cls}, y ${y}, feet ${f}${fw}, head ${h}${hw}, water ${water})`
 }
+
+// (v0.277.0) THE VOID DEATH CONTEXT - the out-of-world class's first voice.
+// TWO void deaths now stand in the fleet's history, both mute: the rim-dig
+// era's F12 'fell out of the world' at [117,-90,0] (kind=other, the first)
+// and face 36392745638's F3 at [118,-148,2] - y MINUS 148, 84 blocks BELOW
+// the world floor, 22u lost (torch 8, oak_planks 5) with ZERO telemetry lead
+// (the lines before the death are other bots'). The x/z cells sit ~17 blocks
+// apart on the same latitude band east of the dragon-zone anchor - the
+// recurrence is the decode lead: HOW does a bot reach the void (a bedrock
+// breach, a pathfinder fall, a frozen-client drop)? The server kind stays
+// 'other' (the v0.117.0 law - the kind is never rewritten), so the branch
+// keys on the VERB the server itself printed. ONE snapshot line per
+// out-of-world death: the death CELL (the recurrence signature - the next
+// face's census pins the column), the DEPTH below the world floor (the fall
+// distance the client never measured), and the UNCONDITIONAL leg stamp (the
+// v0.270.0 law - which walk owned the death; a missing stamp can never
+// masquerade as a deliberate omission). The line rides the 'void context'
+// filter key in testbed/fleet19.mjs.
+// JUNK-SAFE: the line NEVER returns null (the class has died in silence
+// twice - an empty call still stamps); a junk cell reads 'unknown' (a string
+// coordinate is not a measurement - the strict gate); a junk floor renders
+// the depth 'unknown' while the cell still prints (the class reads from what
+// IS readable - the drowned-kill law). Pure: reads, never mutates.
+
+export const VOID_FLOOR_Y = -64 // the overworld's floor (vanilla 26.2, the 1.18+ world bottom)
+
+/**
+ * @param {object} [r]
+ * @param {string} [r.tag] the bot tag ('F3')
+ * @param {{x: number, y: number, z: number}|null} [r.pos] the death cell (floored)
+ * @param {string|null} [r.leg] the gotoSafe leg stamp (junk reads 'unknown')
+ * @param {number} [r.floorY] the world floor (default VOID_FLOOR_Y)
+ * @returns {string} the void context line
+ */
+export function voidContextLine (r = {}) {
+  const { tag = '', pos = null, leg = null, floorY = VOID_FLOOR_Y } = r || {}
+  const p = (pos && typeof pos === 'object') ? pos : null
+  const px = p && Number.isFinite(p.x) ? p.x : null
+  const py = p && Number.isFinite(p.y) ? p.y : null
+  const pz = p && Number.isFinite(p.z) ? p.z : null
+  const cell = px !== null && py !== null && pz !== null ? `${px},${py},${pz}` : 'unknown'
+  const depth = py !== null && Number.isFinite(floorY) ? floorY - py : null
+  const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
+  return `${tag} death: void context (cell ${cell}, depth ${depth === null ? 'unknown' : depth}, leg ${legName})`
+}

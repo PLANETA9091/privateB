@@ -30,7 +30,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine, drownContextLine, drownedKillContextLine, suffocateContextLine } from '../lib/statcarry.mjs'
+import { deathDropLine, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -451,6 +451,28 @@ export function createMiner ({
         })
         if (ctx) log(ctx)
       } catch { /* the drowned-kill context must never break a respawn */ }
+    }
+    // (v0.277.0) THE VOID DEATH CONTEXT: TWO out-of-world deaths stand in the
+    // fleet's history, both mute - the rim-dig era's F12 at [117,-90,0] and
+    // face 36392745638's F3 at [118,-148,2] (84 blocks BELOW the floor, 22u
+    // lost, ZERO telemetry lead). The server kind stays 'other' (the v0.117.0
+    // law - the kind is never rewritten), so the branch gates on the VERB the
+    // server itself printed ('fell out of the world'). ONE snapshot per
+    // out-of-world death: the death cell (the recurrence signature - the
+    // ~17-block east-of-anchor column is the decode lead), the depth below
+    // the world floor, and the unconditional leg stamp (the v0.270.0 law).
+    // Rides the 'void context' filter key. Guarded like every death read:
+    // a junk world never breaks a respawn.
+    if (authFresh && serverDeath && serverDeath.kind === 'other' && /fell out of the world/i.test(serverDeath.verb ?? '')) {
+      try {
+        const dp = bot.entity?.position ? bot.entity.position.floored() : null
+        const vline = voidContextLine({
+          tag,
+          pos: dp ? { x: dp.x, y: dp.y, z: dp.z } : null,
+          leg: bot._gotoSafeLabel ?? null // the trip leg stamp - which walk owned the death
+        })
+        if (vline) log(vline)
+      } catch { /* the void context must never break a respawn */ }
     }
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
     // clustered in one flooded quarry - and every dead bot left NO memory
