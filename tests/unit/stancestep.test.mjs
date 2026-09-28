@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stanceStepBlocks, stepWalkProgress, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { stanceStepBlocks, stepWalkProgress, STANCE_STEP_WALK_MS, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
 
 test('the ceil law: the whole-block step count closes the stand-off honestly', () => {
   assert.equal(stanceStepBlocks(1.5), null, 'distXZ === reach is INSIDE the magnet - the cut arms without help, no step')
@@ -83,7 +83,7 @@ test('the step re-arms against the doomed ledger: the honest attempt (v0.286.0)'
   // dooms the support cell fleet-wide and the step dies at the consult for
   // free. The re-arm is the v0.87.0 yard lesson verbatim: ONE honest
   // bounded-A* attempt from THIS bot's start, the cap law unchanged.
-  assert.ok(minerSrc.includes("timeoutMs: 4000, label: 'stance step', doomedRearm: true"), 'the step walk carries doomedRearm: true - the poisoned cell gets the honest attempt, a proven-dead verdict re-records with a fresh TTL')
+  assert.ok(minerSrc.includes("timeoutMs: STANCE_STEP_WALK_MS, label: 'stance step', doomedRearm: true"), 'the step walk carries doomedRearm: true - the poisoned cell gets the honest attempt, a proven-dead verdict re-records with a fresh TTL (v0.288.0: the budget rides the measured constant, not a bare literal)')
   const armAt = minerSrc.indexOf('doomedRearm: true')
   const capAt = minerSrc.indexOf('stanceSteps < 1')
   assert.ok(armAt > 0 && capAt > 0, 'both the re-arm and the cap law live in the miner')
@@ -119,4 +119,24 @@ test('the step progress is wired: the start fixes at the arm, the catch appends 
   assert.ok(minerSrc.includes('stepWalkProgress(stepFrom, bot.entity && bot.entity.position)'), 'the catch reads the progress from the fixed start and the live position')
   assert.ok(minerSrc.includes('`, walked ${walked.toFixed(1)}`'), 'the distance rides the SAME line (the tail-append law) - junk stays bare')
   assert.ok(minerSrc.includes("String(e?.message ?? 'no error read').slice(0, 40)"), 'the 40-char message window keeps its byte-true shape (the v0.285.0 pin holds)')
+})
+
+test('the step budget: the measured cure for the slow class (v0.288.0)', () => {
+  // face 36446143946 (the progress instrument's first field read, SUCCESS):
+  // `the walk contested (stance step: timeout after 4000ms, walked 1.2)`
+  // (F6, armed dist 2.5). The bot WALKED 1.2 blocks inside the 4000ms
+  // budget (~0.3 b/s under the fleet's CPU-starved A*) - the SLOW class,
+  // the walk moves and the budget bit mid-stride. A near-zero walked would
+  // have named the stuck class (a geometry cure); the real distance names
+  // the budget. The measured speed prices the far edge: the band's span
+  // (dist 2.5 -> inside the magnet, plus the GoalNear range-1 slack) is
+  // ~2 blocks of walk, ~6.7s at the measured speed - 8000ms covers it with
+  // margin. The cap law is unchanged: one bounded walk per sweep, the
+  // worst case stays priced (one 8s walk, not an orbit).
+  assert.equal(STANCE_STEP_WALK_MS, 8000, 'the budget is the measured 8000ms - the far edge\'s ~2-block walk at the measured ~0.3 b/s needs ~6.7s')
+  assert.ok(STANCE_STEP_WALK_MS * 0.3 / 1000 >= 2.2, 'the budget buys the far edge\'s walk plus the GoalNear slack at the measured speed')
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes('timeoutMs: STANCE_STEP_WALK_MS, label: \'stance step\''), 'the walk\'s timeout rides the measured constant (the budget lives in the lib, priced and pinned - not a bare literal)')
+  assert.ok(minerSrc.includes('STANCE_STEP_WALK_MS, DROP_GOAL_BELOW'), 'the constant rides the dig-down import (the walk family imports together)')
+  assert.ok(!minerSrc.includes("timeoutMs: 4000, label: 'stance step'"), 'the stance step\'s measured-insufficient 4000ms literal is GONE (the other walks\' own 4000ms budgets are not this fire\'s business)')
 })

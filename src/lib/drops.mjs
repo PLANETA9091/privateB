@@ -696,3 +696,23 @@ export function stepWalkProgress (from, to) {
   if (![fx, fz, tx, tz].every(Number.isFinite)) return null
   return Math.hypot(tx - fx, tz - fz)
 }
+
+// (v0.288.0) THE STEP BUDGET - the instrument's first field read picks the
+// cure's side. Face 36446143946 (the v0.287.0 progress instrument's first
+// field flight, SUCCESS) read the anatomy: `the walk contested (stance
+// step: timeout after 4000ms, walked 1.2)` (F6, armed dist 2.5) - the bot
+// WALKED 1.2 blocks inside the 4000ms budget (~0.3 blocks/s under the
+// fleet's CPU-starved A*) and the budget bit mid-stride. A near-zero
+// walked would have named the stuck class (a geometry cure); a real
+// distance names the SLOW class - the walk moves, the budget is the
+// bottleneck (the measurement-first law's own verdict). The measured
+// speed prices the far edge honestly: the band's whole span (dist 2.5 ->
+// inside the magnet, plus the GoalNear range-1 slack) is ~2 blocks of
+// walk, ~6.7s at the measured 0.3 b/s - 4000ms was measured insufficient,
+// 8000ms covers the far edge with margin. The cap law is unchanged (one
+// step per sweep), so the worst case stays bounded: ONE 8s walk per
+// sweep, not an orbit. The next face reads the conversion: the contested
+// line should shrink or vanish - a still-contested 8000ms walk carrying a
+// bigger distance names the raw-walk front (the A*-free hop the deposit
+// side already owns for CPU-starved short walks).
+export const STANCE_STEP_WALK_MS = 8000
