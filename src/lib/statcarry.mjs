@@ -205,6 +205,39 @@ export function drownContextLine (r = {}) {
   const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
   return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName})`
 }
+
+// (v0.274.0) THE SUFFOCATE DEATH CONTEXT - the suffocate-class telemetry gap.
+// Face 36384223490's F1 died 'suffocated in a wall' at [-112,45,424] with a
+// 153u pocket (gravel 39!) and ZERO telemetry lead - no context line spoke
+// for the class (the v0.249.0 drown context is drown-kind only by design),
+// so the black box could not say WHAT filled the head cell. The inventory
+// archaeology hints the class: a gravel column collapsed onto a digging bot.
+// ONE snapshot line for every env-suffocate death (kind=suffocate): the head
+// block NAME at death (a falling-block class reads 'gravel'/'sand' straight
+// off the line - the decode names itself), its waterlogged flag, the o2 bar
+// (a dry-lens read: a wet head would hand the class to the drowning side),
+// and the UNCONDITIONAL leg stamp (the v0.270.0 law - a missing stamp can
+// never masquerade as a deliberate omission; 'leg unknown' claims no walk).
+// The line rides the 'suffocate context' filter key in testbed/fleet19.mjs.
+// JUNK-SAFE: a null head reads 'unknown' (the line NEVER returns null - the
+// class already died in silence once; a junk oxygen renders '?'). Pure.
+/**
+ * @param {object} [r]
+ * @param {string} [r.tag] the bot tag ('F1')
+ * @param {string|null} [r.head] the head cell's block name at death
+ * @param {boolean} [r.headWaterlogged] the head cell's waterlogged flag
+ * @param {number|null} [r.oxygen] the o2 bar as read at death (the -1 sentinel renders named)
+ * @param {string|null} [r.leg] the gotoSafe leg stamp (junk reads 'unknown')
+ * @returns {string} the suffocate context line
+ */
+export function suffocateContextLine (r = {}) {
+  const { tag = '', head = null, headWaterlogged = false, oxygen = null, leg = null } = r || {}
+  const h = head === null || head === undefined ? 'unknown' : (typeof head === 'string' && head.trim() ? head.trim() : 'unknown')
+  const hw = headWaterlogged ? ' wl' : ''
+  const o2 = o2SensorLabel(oxygen)
+  const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
+  return `${tag} death: suffocate context (head ${h}${hw}, o2 ${o2}, leg ${legName})`
+}
 // (v0.262.0) THE DROWNED-KILL SHORE CONTEXT - the mob-Drowned telemetry gap.
 // Face 36359454749 attempt 2 (the trio's first full field pass) moved the
 // fleet's killer channel: Drowned x10 at y~64 shore level (+ Witch x2) - and

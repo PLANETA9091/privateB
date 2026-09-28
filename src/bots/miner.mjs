@@ -30,7 +30,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine, drownContextLine, drownedKillContextLine } from '../lib/statcarry.mjs'
+import { deathDropLine, drownContextLine, drownedKillContextLine, suffocateContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -400,6 +400,26 @@ export function createMiner ({
         })
         if (ctx) log(ctx)
       } catch { /* the drown context must never break a respawn */ }
+    }
+    // (v0.274.0) THE SUFFOCATE DEATH CONTEXT: face 36384223490's F1 died
+    // 'suffocated in a wall' with a 153u pocket (gravel 39) and ZERO context
+    // lines - the class reads undecodable (what filled the head cell?). ONE
+    // snapshot per kind=suffocate death: the head block name (a falling
+    // gravel/sand column reads straight off the line), its waterlogged flag,
+    // the o2 bar, and the unconditional leg stamp (the v0.270.0 law). Rides
+    // the 'suffocate context' filter key. Guarded like every death read.
+    if (authFresh && serverDeath && serverDeath.kind === 'suffocate') {
+      try {
+        const wr = waterRead()
+        const sline = suffocateContextLine({
+          tag,
+          head: wr.head,
+          headWaterlogged: wr.headWaterlogged,
+          oxygen: wr.oxygen,
+          leg: bot._gotoSafeLabel ?? null // the trip leg stamp - which walk owned the death
+        })
+        if (sline) log(sline)
+      } catch { /* the suffocate context must never break a respawn */ }
     }
     // (v0.262.0) THE DROWNED-KILL SHORE CONTEXT: face 36359454749 attempt 2
     // moved the killer channel ashore - Drowned x10 at y~64 - and the v0.249.0
