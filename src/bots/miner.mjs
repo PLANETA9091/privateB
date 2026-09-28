@@ -102,6 +102,7 @@ export function createMiner ({
   fullChestLedger = null, // (v0.65.0) the fleet-wide 'chest full' verdict array (same ride); null = the ledger is off
   seedLastDeath = null, // (v0.203.0) the PREVIOUS attempt's un-attempted death record (the runner's death carry) - a relog must not bury the re-loot plan
   dragonDeaths = null, // (v0.225.0) the fleet-shared dragon death registry (server verb + corpse pos records) - the zone anchor's input; null = a private log (solo honest)
+  torchResupply = null, // (v0.269.0) async ({ itemsNeeded }) => void - the torch-coal commons ask (the pocket-closed torch economy's cure); null = the legacy shape byte for byte
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' })
@@ -3678,7 +3679,7 @@ export function createMiner ({
     const sticks = countItem(bot, 'stick')
     const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
     if (!torchRestockWanted({ torches: countTorches(inventoryItems(bot)), sticks, coals })) return
-    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`) }) } catch { /* keep digging */ }
+    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`), resupply: torchResupply }) } catch { /* keep digging */ }
   }
 
   async function placeTorchHere ({ dirs = null } = {}) {
@@ -3726,7 +3727,7 @@ export function createMiner ({
     // descent. The kit phase passes here too (gatherWood digs through a tree) and
     // then holds no sticks, so torchCraftPlan's reserve makes it an honest no-op
     // there. Silent and bounded: a dark shaft is survivable, a broken loop is not.
-    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`) }) } catch { /* keep digging */ }
+    try { await craftTorches(bot, { log: msg => log(`${tag} ${msg}`), resupply: torchResupply }) } catch { /* keep digging */ }
     // Treetop spawn / canopy end position: from up there the block below is leaves or
     // wood - not in the target names - and the loop would wander sideways forever
     // (measured: 90s, zero blocks). Dig straight down through leaves/wood until real

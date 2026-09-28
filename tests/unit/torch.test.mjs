@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   TORCH_SPACING, MIN_SHAFT_LIGHT, RESERVED_STICKS, TORCH_WALL_BASE_DIRS,
-  torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs,
+  torchesCraftable, torchCraftPlan, torchDue, countTorches, torchWallDirs, torchResupplyAsk, TORCH_COAL_ALLOWANCE,
   torchRestockWanted, metalFuelReserve, METAL_FUEL_CAP, TORCH_POCKET_CAP
 } from '../../src/lib/torch.mjs'
 
@@ -300,4 +300,38 @@ test('REGRESSION PIN: craftTorches consults the metal fuel reserve (the v0.165.0
   assert.ok(/METAL_INPUTS\.has\(i\.name\)/.test(toolsSrc), 'the metal read mirrors the METAL_INPUTS set pickFuel itself judges with')
   assert.ok(/reserveCoals: fuelReserve/.test(toolsSrc), 'the plan is asked WITH the reserve (both the entry and the re-plan calls)')
   assert.ok(/the metal fuel reserve holds all /.test(toolsSrc), 'the reserve-decline shape is NAMED for the mine (the honest-decode doctrine)')
+})
+
+// ------------------------------------------------- torchResupplyAsk (v0.269.0)
+test('torchResupplyAsk: the exact dry shape asks the allowance', () => {
+  assert.equal(TORCH_COAL_ALLOWANCE, 2, '2 coal = 2 batches = 8 torches (the batch arithmetic)')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 0, heldTorches: 0 }), 2)
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 8, coals: 0, heldTorches: 10 }), 2)
+})
+
+test('torchResupplyAsk: every non-dry shape reads 0 (the ask never walks on junk)', () => {
+  assert.equal(torchResupplyAsk({ reason: 'the pocket torch cap', sticks: 4, coals: 0 }), 0, 'the cap verdict owns its own name')
+  assert.equal(torchResupplyAsk({ reason: 'no spare sticks', sticks: 4, coals: 0 }), 0)
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 0, coals: 0 }), 0, 'no sticks - the coal cannot become torches')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: undefined, coals: 0 }), 0, 'junk sticks read 0')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 1 }), 0, 'a funded pocket does not ask')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: NaN }), 2, 'junk coal reads as dry (0), not as funded')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 0, heldTorches: 24 }), 0, 'the full pocket never asks (the cap gate)')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 0, heldTorches: null }), 2, 'junk heldTorches reads 0 - never locks the ask')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 0, allowance: 0 }), 0, 'a zero allowance asks nothing')
+  assert.equal(torchResupplyAsk({ reason: 'no coal', sticks: 4, coals: 0, allowance: Infinity }), 0, 'a junk allowance never walks')
+})
+
+test('the resupply wiring: the gate, the cooldown, the re-plan and the ask line ride craftTorches', async () => {
+  const fs = await import('node:fs')
+  const toolsSrc = fs.readFileSync(new URL('../../src/bots/tools.mjs', import.meta.url), 'utf8')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(toolsSrc.includes('torchResupplyAsk({ reason: plan.reason, sticks, coals, heldTorches })'), 'the pure gate decides the ask')
+  assert.ok(toolsSrc.includes('torchResupplyAt.get(bot) ?? 0') && toolsSrc.includes('TORCH_RESUPPLY_COOLDOWN_MS'), 'the ask is cooldown-gated (the 199-skip cadence never becomes a walk storm)')
+  assert.ok(toolsSrc.includes('if (coals2 > coals)'), 'a landed ask re-plans with the fresh pocket read')
+  assert.ok(toolsSrc.includes('the torch-coal resupply asks the commons'), 'the ask line is NAMED (the reason form)')
+  assert.ok(minerSrc.includes('resupply: torchResupply') && minerSrc.includes('torchResupply = null'), 'the miner option rides both cadence sites (null = the legacy shape)')
+  assert.ok(fleetSrc.includes('torchResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot'), 'the fleet wires the commons machinery (the yard walk, the anchor, the memory)')
+  assert.ok(fleetSrc.includes('budgetMs: 12000'), 'the mid-dig ask rides a tight budget slice')
 })

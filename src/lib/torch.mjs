@@ -101,6 +101,32 @@ export function torchCraftPlan ({ sticks = 0, coals = 0, reserveSticks = RESERVE
 // (held 0 reads allowed = floor(cap/4) = 6 batches).
 export const TORCH_POCKET_CAP = 24
 
+// (v0.269.0) THE TORCH-COAL RESUPPLY - face 36374720492's census measured the
+// torch economy POCKET-CLOSED: 199 'no coal: sticks 3-8 coals 0' skips across
+// ONE 600s face while the coal-mining bots held coal 18-33 and the fuel tithe
+// banked coal into the yard chests - a bot that never steers coal_ore can
+// never craft (the commons serves the SMELT leg only, nothing feeds the torch
+// fire). The ask size prices the batch arithmetic: 2 coal = 2 batches = 8
+// torches = a third of the pocket cap, one honest refill between deposit
+// visits. Pure gate: the EXACT dry shape asks (the 'no coal' verdict + sticks
+// held + a zero coal pocket + the cap not already full) - junk reads 0 (a
+// junk read never walks), any other reason reads 0 (the cap/reserve verdicts
+// own their own names).
+export const TORCH_COAL_ALLOWANCE = 2
+
+export function torchResupplyAsk ({ reason = '', sticks = 0, coals = 0, heldTorches = 0, pocketCap = TORCH_POCKET_CAP, allowance = TORCH_COAL_ALLOWANCE } = {}) {
+  if (reason !== 'no coal') return 0
+  const s = Number.isFinite(sticks) ? Math.max(0, Math.floor(sticks)) : 0
+  if (s <= 0) return 0
+  const c = Number.isFinite(coals) ? Math.max(0, Math.floor(coals)) : 0
+  if (c > 0) return 0
+  const hT = Number.isFinite(heldTorches) ? Math.max(0, Math.floor(heldTorches)) : 0
+  const cap = Number.isFinite(pocketCap) && pocketCap > 0 ? Math.floor(pocketCap) : null
+  if (cap != null && hT >= cap) return 0
+  const a = Number.isFinite(allowance) && allowance > 0 ? Math.floor(allowance) : 0
+  return a
+}
+
 // (v0.165.0) THE METAL FUEL RESERVE CAP - one coal smelts 8 items (vanilla
 // fuelValue 1600 / 200 per item), so the reserve for a raw-metal pile is
 // ceil(count / 8), capped at METAL_FUEL_CAP coals (a full stack's worth of

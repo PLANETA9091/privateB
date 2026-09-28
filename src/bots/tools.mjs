@@ -3,7 +3,7 @@
 import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../lib/jobqueue.mjs'
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
-import { torchCraftPlan, metalFuelReserve, countTorches, TORCH_POCKET_CAP } from '../lib/torch.mjs'
+import { torchCraftPlan, metalFuelReserve, countTorches, torchResupplyAsk, TORCH_POCKET_CAP } from '../lib/torch.mjs'
 import { smeltablesIn, findMachineBlocks, METAL_INPUTS } from '../lib/smelting.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
@@ -1121,11 +1121,19 @@ export const hasStonePickaxe = bot => inventoryItems(bot).some(i => STONE_OR_BET
 // grid, so no table is needed and this is safe to run anywhere between tool
 // crafts. The pure policy (stick reserve, batch maths) lives in torch.mjs; this
 // is the mechanics: plan -> craftUntil -> VERIFIED count. Never throws.
-export async function craftTorches (bot, { log = null, reserveSticks = undefined, reserveCoals = undefined } = {}) {
+// (v0.269.0) THE RESUPPLY COOLDOWN - per-bot (WeakMap, no leak): the dry-skip
+// cadence measured 199 hits per face, and every one of them must NOT become a
+// yard walk. One ask per 120s per bot tops the face cost at ~5 walks/bot, the
+// commons' own empty-chest memory (90s TTL) short-circuits a drained yard,
+// and a LANDED ask ends the dry cycle outright (the pocket then reads coals>0).
+const torchResupplyAt = new WeakMap()
+export const TORCH_RESUPPLY_COOLDOWN_MS = 120000
+
+export async function craftTorches (bot, { log = null, reserveSticks = undefined, reserveCoals = undefined, resupply = null } = {}) {
   const step = log ?? (() => {})
   try {
     const sticks = countItem(bot, 'stick')
-    const coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
+    let coals = countItem(bot, 'coal') + countItem(bot, 'charcoal')
     // (v0.165.0) THE METAL FUEL RESERVE - run562 (dispatch 36082849774, the
     // v0.164.0 fleet): F3 held raw_copper:18 and F6 raw_copper:25 the WHOLE run
     // while their smelt legs died 'raw_copper@-: no fuel' - the torch fire had
@@ -1175,6 +1183,29 @@ export async function craftTorches (bot, { log = null, reserveSticks = undefined
         if (await craft(bot, 'stick', 1, null, step)) {
           const sticks2 = countItem(bot, 'stick')
           plan = torchCraftPlan({ sticks: sticks2, coals, reserveCoals: fuelReserve, heldTorches, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+        }
+      }
+    }
+    if (plan.batches <= 0 && plan.reason === 'no coal' && typeof resupply === 'function') {
+      // (v0.269.0) THE TORCH-COAL RESUPPLY - the pocket-closed economy's cure
+      // (face 36374720492: 199 dry skips while the bank held the fleet's coal).
+      // The exact dry shape asks the commons ONCE per cooldown (the walk is
+      // real fuel - the 199-skip cadence must not become a walk storm), the
+      // landed coal re-plans in place, and the still-dry case falls through to
+      // the byte-honest skip family below (a landed-but-reserved read now
+      // surfaces the reserve-decline shape with the TRUE count).
+      const now = Date.now()
+      if (now - (torchResupplyAt.get(bot) ?? 0) >= TORCH_RESUPPLY_COOLDOWN_MS) {
+        const ask = torchResupplyAsk({ reason: plan.reason, sticks, coals, heldTorches })
+        if (ask > 0) {
+          torchResupplyAt.set(bot, now)
+          step(`craft torches: pocket coal dry (sticks ${sticks}) - the torch-coal resupply asks the commons (${ask} coal)`)
+          try { await resupply({ itemsNeeded: ask }) } catch { /* the ask never blocks the craft cadence */ }
+          const coals2 = countItem(bot, 'coal') + countItem(bot, 'charcoal')
+          if (coals2 > coals) {
+            coals = coals2
+            plan = torchCraftPlan({ sticks, coals, reserveCoals: fuelReserve, heldTorches, ...(reserveSticks !== undefined ? { reserveSticks } : {}) })
+          }
         }
       }
     }

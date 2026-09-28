@@ -916,7 +916,23 @@ async function runBot (name, target, index) {
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
           if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|drowned-kill context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe/.test(m)) console.log(`${name} ${m}`)
-        }
+        },
+        // (v0.269.0) THE TORCH-COAL RESUPPLY - the pocket-closed torch economy's
+        // cure (face 36374720492: 199 'no coal' skips while the tithe banked the
+        // fleet's coal). The ask rides the SAME commons machinery as the smelt
+        // leg's fuelResupply (yard walk, anchor-first, empty-chest memory) with
+        // a TIGHTER budget: the ask fires mid-dig (the craft cadence), a 12s
+        // slice keeps the dig loop's stall bounded, and cap 2 prices the
+        // allowance exactly (2 coal = 8 torches). The ask line rides the
+        // existing 'torch|craft' filter keys - no filter change.
+        torchResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
+          itemsNeeded,
+          yardCenter: yardGoal,
+          memory: fuelCommonsMemory,
+          budgetMs: 12000,
+          cap: 2,
+          log: m => console.log(`${miner.username} ${m}`)
+        })
       })
       bots.set(name, { miner, target })
       seedStats(miner.stats, carry) // (v0.18.9) the reconnect must not erase what the bot already mined
