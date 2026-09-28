@@ -611,6 +611,22 @@ export const LEDGE_CUT_REACH = 1.5
  * the dig count (dy - 1: the seal cells to dig BEFORE the support shake) or
  * null when any guard refuses. A null is an honest refusal - the caller's
  * telemetry keeps the class visible either way.
+ *
+ * (v0.290.0) THE WHOLE-CLASS FENCE - face 36455210160 read the false-took:
+ * `stance step landed - dist 0.4, the cut took the column (dug
+ * 0.8338907390617862 seal cell(s) + the support)` - dyNow is a MEASURED
+ * height (d.y - feetY) and the stance step had just MOVED the bot: the read
+ * caught the feet mid-settle (dy 1.8338, 0.166 off the class 2). The fences
+ * read only the range, so the count leaked the fraction, and the dig loop
+ * `for cd <= 0.83` silently dug ZERO seal cells while the census counted a
+ * took that never cleared the column. The sealCutClass law (a non-integer
+ * claims no target) now guards the dy too: the measured height must sit ON
+ * its whole class (a 1e-6 float-dust tolerance - the server settles feet on
+ * exact block tops), else the cut refuses and the sweep re-reads the
+ * SETTLED stance (the doomed-ledger self-healing shape: the next sweep's
+ * distXZ is inside the magnet, the cut arms without a step). The count is
+ * whole by construction - the false-took dies at the root.
+ *
  * @param {object} [p]
  * @param {number} [p.dy] the drop's height over the bot (the ledge class 1..3)
  * @param {number} [p.distXZ] the horizontal stand-off to the fall column
@@ -620,11 +636,13 @@ export const LEDGE_CUT_REACH = 1.5
  * @returns {number|null} the seal-cell dig count (0 when dy === 1), or null
  */
 export function ledgeCutWanted ({ dy, distXZ, sealDepth, fluidBelow, reach = LEDGE_CUT_REACH } = {}) {
-  if (!Number.isFinite(dy) || dy < SUPPORT_DIG_MIN_DY || dy > SUPPORT_DIG_MAX_DY) return null
-  if (!Number.isFinite(sealDepth) || sealDepth < dy) return null
+  const dyClass = Number.isFinite(dy) ? Math.round(dy) : NaN
+  if (!Number.isFinite(dyClass) || Math.abs(dy - dyClass) > 1e-6) return null
+  if (dyClass < SUPPORT_DIG_MIN_DY || dyClass > SUPPORT_DIG_MAX_DY) return null
+  if (!Number.isFinite(sealDepth) || sealDepth < dyClass) return null
   if (fluidBelow !== false) return null
   if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return null
-  return dy - 1
+  return dyClass - 1
 }
 
 // (v0.280.0) THE CUT REFUSAL NAME - the refusal form of the four-canonical-forms
@@ -644,8 +662,9 @@ export function ledgeCutWanted ({ dy, distXZ, sealDepth, fluidBelow, reach = LED
  * @returns {string|null} the refusing fence's name, or null when the cut would arm
  */
 export function ledgeCutRefusal ({ dy, distXZ, sealDepth, fluidBelow, reach = LEDGE_CUT_REACH } = {}) {
-  if (!Number.isFinite(dy) || dy < SUPPORT_DIG_MIN_DY || dy > SUPPORT_DIG_MAX_DY) return 'the dy reads out of class'
-  if (!Number.isFinite(sealDepth) || sealDepth < dy) return 'the seal floor reads unmeasured'
+  const dyClass = Number.isFinite(dy) ? Math.round(dy) : NaN
+  if (!Number.isFinite(dyClass) || Math.abs(dy - dyClass) > 1e-6 || dyClass < SUPPORT_DIG_MIN_DY || dyClass > SUPPORT_DIG_MAX_DY) return 'the dy reads out of class'
+  if (!Number.isFinite(sealDepth) || sealDepth < dyClass) return 'the seal floor reads unmeasured'
   if (fluidBelow !== false) return 'the column reads wet'
   if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return 'the stand-off exceeds the magnet'
   return null

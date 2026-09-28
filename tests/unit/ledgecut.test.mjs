@@ -52,6 +52,30 @@ test('the class fences: the dy domain and the dry guard', () => {
   assert.equal(ledgeCutWanted({ dy: 2, distXZ: 1.0, sealDepth: 2 }), null, 'an unmeasured wet guard is a blind dig (the v0.86.0 lesson)')
 })
 
+test('the whole-class fence: a transient dy refuses, the false-took dies (v0.290.0)', () => {
+  // face 36455210160 read the false-took: `dug 0.8338907390617862 seal
+  // cell(s)` - dyNow is a MEASURED height and the stance step had just moved
+  // the bot (the feet caught mid-settle, 0.166 off the class 2). The fences
+  // read only the range, the count leaked the fraction, and the dig loop
+  // `for cd <= 0.83` silently dug ZERO seal cells while the census counted a
+  // took that never cleared the column. The sealCutClass law (a non-integer
+  // claims no target) now guards the dy: the measured height must sit ON its
+  // whole class (a 1e-6 float-dust tolerance), else the cut refuses and the
+  // sweep re-reads the SETTLED stance (the self-healing shape - the next
+  // sweep's distXZ is inside the magnet, the cut arms without a step).
+  const midSettle = 1.8338907390617862 // the mined value, verbatim
+  assert.equal(ledgeCutWanted({ dy: midSettle, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), null, 'the mined 1.8338 mid-settle read refuses - no fractional count can leak')
+  assert.equal(ledgeCutRefusal({ dy: midSettle, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), 'the dy reads out of class', 'the mirror names the same fence (the byte-true mirror law)')
+  for (const dy of [0.4, 1.2, 1.5, 2.33, 2.7, 3.4, -0.2]) {
+    const r = ledgeCutWanted({ dy, distXZ: 1.0, sealDepth: 3, fluidBelow: false })
+    assert.ok(r === null || Number.isInteger(r), `dy ${dy}: the count is whole or the cut refuses - the dig loop can never read a fraction`)
+  }
+  assert.equal(ledgeCutWanted({ dy: 2 + 1e-9, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), 1, 'float dust sits ON the class - the settled read converts')
+  assert.equal(ledgeCutWanted({ dy: 2, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), 1, 'the settled whole class is untouched (the v0.275.0 pins hold)')
+  assert.equal(ledgeCutWanted({ dy: 1, distXZ: 1.0, sealDepth: 1, fluidBelow: false }), 0, 'dy 1 still shakes the support alone')
+  assert.equal(ledgeCutRefusal({ dy: 1.5, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), 'the dy reads out of class', 'a half-block transient is out of class, not a magnet refusal (the name stays honest)')
+})
+
 test('the row carries the cut: sweepDropRecord + the fleet row tail (the identity-extends law)', () => {
   const rec = sweepDropRecord({ sweeps: 2, seal3: 4, sealNear: 1, sealFar: 3, ledgeCut: 2 })
   assert.equal(rec.ledgeCut, 2)
