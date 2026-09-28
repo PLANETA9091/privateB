@@ -4,7 +4,7 @@
 // seed-then-snapshot contract here is what keeps the totals honest.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, drownedKillContextLine } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -100,4 +100,72 @@ test('sentry attribution: junk is silent, never NaN, never a crash', () => {
 test('sentry attribution: the row always opens with the mining key', () => {
   assert.ok(sentryAttributionRow([]).startsWith('sentry per-bot:'))
   assert.ok(sentryAttributionRow([{ name: 'F1', stats: { airGlitches: 5 } }]).startsWith('sentry per-bot:'))
+})
+// ---- (v0.262.0) THE DROWNED-KILL SHORE CONTEXT - the mob-Drowned class ----
+
+test('drowned-kill context: the waterline class (dry feet, water beside)', () => {
+  const line = drownedKillContextLine({
+    tag: 'F7', attacker: 'Drowned', feet: 'sand', head: 'sand',
+    neighbors: [{ name: 'water', d: 'e' }, { name: 'stone', d: 'w' }, { name: null, d: 's' }, { name: 'sand', d: 'n' }],
+    feetY: 64
+  })
+  assert.equal(line, 'F7 death: drowned-kill context (waterline, y 64, feet sand, head sand, water e)')
+})
+
+test('drowned-kill context: in-water (wet feet own the class over the neighbors)', () => {
+  const line = drownedKillContextLine({
+    tag: 'F3', attacker: 'drowned', feet: 'water', head: 'water',
+    neighbors: [{ name: 'water', d: 'e' }, { name: 'water', d: 'w' }], feetY: 62
+  })
+  assert.equal(line, 'F3 death: drowned-kill context (in-water, y 62, feet water, head water, water e/w)')
+})
+
+test('drowned-kill context: dry-shore (the Drowned came ashore)', () => {
+  const line = drownedKillContextLine({
+    tag: 'F15', attacker: 'Drowned', feet: 'grass_block', head: 'air',
+    neighbors: [{ name: 'grass_block', d: 'e' }, { name: 'dirt', d: 'w' }, { name: 'grass_block', d: 's' }, { name: 'dirt', d: 'n' }],
+    feetY: 64
+  })
+  assert.equal(line, 'F15 death: drowned-kill context (dry-shore, y 64, feet grass_block, head air, water none)')
+})
+
+test('drowned-kill context: the attacker gate (only the Drowned class prints)', () => {
+  const world = { feet: 'sand', head: 'sand', neighbors: [{ name: 'water', d: 'e' }], feetY: 64 }
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 'Zombie', ...world }), null)
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 'Witch', ...world }), null)
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: null, ...world }), null)
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 42, ...world }), null)
+  // junk-padded names never read as the class
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 'DrownedBrute', ...world }), null)
+})
+
+test('drowned-kill context: the case-insensitive class + the doomed-to-fall twin', () => {
+  for (const a of ['Drowned', 'drowned', 'DROWNED']) {
+    const line = drownedKillContextLine({ tag: 'F9', attacker: a, feet: 'sand', neighbors: [], feetY: 64 })
+    assert.ok(line && line.includes('dry-shore'), a)
+  }
+})
+
+test('drowned-kill context: junk world is a refusal, never a fabricated class', () => {
+  // every read null -> nothing to say (a null world must not read dry-shore)
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 'Drowned' }), null)
+  assert.equal(drownedKillContextLine({ tag: 'F1', attacker: 'Drowned', feet: null, head: null, neighbors: null, feetY: null }), null)
+})
+
+test('drowned-kill context: partial junk reads honestly (unknown, never a guess)', () => {
+  // scan failed but the feet read: water unknown, class from the feet only
+  const line = drownedKillContextLine({ tag: 'F13', attacker: 'Drowned', feet: 'sand', head: null, neighbors: null, feetY: null })
+  assert.equal(line, 'F13 death: drowned-kill context (dry-shore, y ?, feet sand, head unknown, water unknown)')
+  // a null neighbor slot is an unloaded chunk, not dry land: it renders nothing
+  const line2 = drownedKillContextLine({ tag: 'F13', attacker: 'Drowned', feet: 'sand', neighbors: [{ name: null, d: 'e' }, { name: 'kelp', d: 'w' }], feetY: 64 })
+  assert.equal(line2, 'F13 death: drowned-kill context (waterline, y 64, feet sand, head unknown, water w)')
+})
+
+test('drowned-kill context: waterlogged gravel reads its class through the wl flag', () => {
+  const line = drownedKillContextLine({
+    tag: 'F19', attacker: 'Drowned', feet: 'gravel', head: 'water',
+    feetWaterlogged: true,
+    neighbors: [{ name: 'water', d: 'n' }], feetY: 63
+  })
+  assert.equal(line, 'F19 death: drowned-kill context (in-water, y 63, feet gravel wl, head water, water n)')
 })

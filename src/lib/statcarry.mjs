@@ -1,3 +1,4 @@
+import { WATER_NAMES } from './drowning.mjs'
 // Per-bot stat survival across reconnects (v0.18.9).
 //
 // WHY: fleet19's runBot loop recreates the miner on every reconnect (a kick or
@@ -187,4 +188,56 @@ export function drownContextLine (r = {}) {
     rescue = `${Math.floor((now - lastRescueAt) / 1000)}s ago`
   }
   return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue})`
+}
+// (v0.262.0) THE DROWNED-KILL SHORE CONTEXT - the mob-Drowned telemetry gap.
+// Face 36359454749 attempt 2 (the trio's first full field pass) moved the
+// fleet's killer channel: Drowned x10 at y~64 shore level (+ Witch x2) - and
+// the v0.249.0 context line stays SILENT for every one of them (it prints for
+// kind='drown' only; the mob-Drowned kills 'keep the combat verdict' by
+// design). Ten deaths with zero waterline context is an undecodable class:
+// the cure differs by where the fight stood - IN the water column (the
+// sentry/rescue side owns it), at the WATERLINE (the engage-standoff side),
+// or on DRY land a step from the shore (the Drowned came ashore - pure
+// combat law). One snapshot line per mob-Drowned kill, the v0.249.0 doctrine
+// (telemetry before cure): the class verdict, the death cell's y, the
+// feet/head block names with their waterlogged flags, and the horizontal
+// water neighbors at feet level with their compass bearings. The next face's
+// census splits the class by context BEFORE any cure. Rides the
+// 'drowned-kill context' filter key in testbed/fleet19.mjs.
+//
+// SHAPES (the four-canonical-forms house law):
+//   result   'F7 death: drowned-kill context (waterline, y 64, feet sand, head sand, water e/w)'
+//   result   'F7 death: drowned-kill context (in-water, y 62, feet water, head water, water none)'
+//   result   'F7 death: drowned-kill context (dry-shore, y 64, feet grass_block, head air, water none)'
+//   refusal  null - not a Drowned kill (the attacker gate), or every world
+//            read junk (nothing to say; the handler's try/catch owns the
+//            branch, a death must never throw)
+//
+// JUNK-SAFE: the gate is the ATTACKER (a junk name never prints). A null
+// neighbor renders nothing in the bearing list (an unloaded chunk is not dry
+// land); an unreadable scan reads 'water unknown' - never a fabricated
+// 'none' (none is a positive claim of dryness, the house junk law). The
+// class reads from what IS readable; all-null world reads return null
+// instead of guessing a class. Pure: reads, never mutates.
+export function drownedKillContextLine (r = {}) {
+  const { tag = '', attacker = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, neighbors = null, feetY = null } = r || {}
+  if (typeof attacker !== 'string' || !/^drowned$/i.test(attacker.trim())) return null
+  const feetKnown = feet !== null
+  const headKnown = head !== null
+  const scanKnown = Array.isArray(neighbors)
+  if (!feetKnown && !headKnown && !scanKnown) return null
+  const isWet = n => n !== null && WATER_NAMES.has(n)
+  const feetWet = isWet(feet)
+  const headWet = isWet(head)
+  const wetN = scanKnown ? neighbors.filter(n => n && isWet(n.name)) : []
+  let cls = 'dry-shore'
+  if (feetWet || headWet) cls = 'in-water'
+  else if (wetN.length > 0) cls = 'waterline'
+  const fw = feetWaterlogged ? ' wl' : ''
+  const hw = headWaterlogged ? ' wl' : ''
+  const f = feetKnown ? feet : 'unknown'
+  const h = headKnown ? head : 'unknown'
+  const water = !scanKnown ? 'unknown' : (wetN.length ? wetN.map(n => n.d).join('/') : 'none')
+  const y = Number.isFinite(feetY) ? String(feetY) : '?'
+  return `${tag} death: drowned-kill context (${cls}, y ${y}, feet ${f}${fw}, head ${h}${hw}, water ${water})`
 }

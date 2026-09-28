@@ -30,7 +30,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine, drownContextLine } from '../lib/statcarry.mjs'
+import { deathDropLine, drownContextLine, drownedKillContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -396,6 +396,36 @@ export function createMiner ({
         })
         if (ctx) log(ctx)
       } catch { /* the drown context must never break a respawn */ }
+    }
+    // (v0.262.0) THE DROWNED-KILL SHORE CONTEXT: face 36359454749 attempt 2
+    // moved the killer channel ashore - Drowned x10 at y~64 - and the v0.249.0
+    // context line above stays SILENT for the mob class by design. The same
+    // telemetry doctrine now reads the MOB-Drowned kill: the shore class
+    // (in-water / waterline / dry-shore), the death cell's y, the feet/head
+    // truth, and the horizontal water bearings - the next decode splits the
+    // class BEFORE any cure. Rides the 'drowned-kill context' filter key.
+    // Guarded like every death-handler read: a junk world never breaks a
+    // respawn.
+    if (authFresh && serverDeath && serverDeath.kind === 'mob' && /^drowned$/i.test(serverDeath.attacker ?? '')) {
+      try {
+        const base = bot.entity?.position ? bot.entity.position.floored() : null
+        const neighbors = base
+          ? [[1, 0, 'e'], [-1, 0, 'w'], [0, 1, 's'], [0, -1, 'n']]
+            .map(([dx, dz, d]) => ({ name: bot.blockAt(base.offset(dx, 0, dz))?.name ?? null, d }))
+          : null
+        const wr = waterRead()
+        const ctx = drownedKillContextLine({
+          tag,
+          attacker: serverDeath.attacker,
+          feet: wr.feet,
+          head: wr.head,
+          feetWaterlogged: wr.feetWaterlogged,
+          headWaterlogged: wr.headWaterlogged,
+          neighbors,
+          feetY: base ? base.y : null
+        })
+        if (ctx) log(ctx)
+      } catch { /* the drowned-kill context must never break a respawn */ }
     }
     // (v0.84.0) THE DEATH-SPOT MEMORY: run77 measured >= 8 'fall/env' deaths
     // clustered in one flooded quarry - and every dead bot left NO memory
