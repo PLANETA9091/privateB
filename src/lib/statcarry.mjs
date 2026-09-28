@@ -174,8 +174,19 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
  * 'unknown'; a junk lastRescueAt (not finite, or in the future) reads
  * 'never'. Pure: reads, never mutates.
  */
+// (v0.270.0) THE TRIP LEG STAMP - face 36378053182's F10 drowned 123s after a
+// COMPLETED rescue (rescue complete in 8.0s at 04:52:49, death at 04:54:52)
+// with ZERO drowning-rescue lines in the gap: the bot died inside a leg the
+// water instruments do not own (the wood trip walked it into a lake) - and
+// the black box could not say WHICH leg held the death, the decode needed
+// manual inventory-line archaeology. gotoSafe now stamps its label on the
+// bot (jobqueue.mjs, before every gate - a refused walk still names its leg)
+// and this line renders it: ', leg wood trip' names the owning leg at a
+// glance, a bot that never walked reads 'leg unknown' honestly. The token is
+// UNCONDITIONAL (always present) so a missing stamp can never masquerade as
+// a deliberate omission in the next face's census.
 export function drownContextLine (r = {}) {
-  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now() } = r || {}
+  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now(), leg = null } = r || {}
   if (feet === null && head === null && oxygen === null) return null
   // (v0.264.0) the -1 reset sentinel renders NAMED (the v0.64.0 law): face
   // 36365938885's F1 chain printed a raw 'o2 -1' in this line - the sentinel
@@ -191,7 +202,8 @@ export function drownContextLine (r = {}) {
   else if (Number.isFinite(lastRescueAt) && lastRescueAt > 0 && Number.isFinite(now) && now >= lastRescueAt) {
     rescue = `${Math.floor((now - lastRescueAt) / 1000)}s ago`
   }
-  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue})`
+  const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
+  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName})`
 }
 // (v0.262.0) THE DROWNED-KILL SHORE CONTEXT - the mob-Drowned telemetry gap.
 // Face 36359454749 attempt 2 (the trio's first full field pass) moved the

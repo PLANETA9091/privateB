@@ -923,6 +923,13 @@ function clearStaleStop (bot) {
 }
 
 export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false, doomTtl = null } = {}) {
+  // (v0.270.0) THE TRIP LEG STAMP: the label lives on the bot so the drown
+  // context can name the leg the bot was last ASKED to walk (face 36378053182:
+  // F10 drowned 123s after a completed rescue with ZERO rescue lines in the
+  // gap - the wood-trip leg owns no water watch, and the black box could not
+  // say WHICH leg held the death). Stamped before every gate: a refused walk
+  // still names its leg.
+  bot._gotoSafeLabel = label
   // (v0.79.0) THE REFUSAL PACE - every funnel refusal costs the caller one
   // real event-loop yield before the throw. MEASURED (run73's CI integration
   // sibling, the 13:32:00 window): once the doomed-goal ledger + the governor

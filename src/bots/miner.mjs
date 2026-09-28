@@ -395,7 +395,8 @@ export function createMiner ({
           headWaterlogged: wr.headWaterlogged,
           rescueActive: bot._waterRescue === true,
           lastRescueAt,
-          now: Date.now()
+          now: Date.now(),
+          leg: bot._gotoSafeLabel ?? null // (v0.270.0) the trip leg stamp - which walk owned the death
         })
         if (ctx) log(ctx)
       } catch { /* the drown context must never break a respawn */ }
