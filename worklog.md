@@ -8026,3 +8026,19 @@ Stage Summary:
 - Master = this push (pkg 0.286.0 + this record). The gate proves the re-arm tree; the dispatch flies it.
 - NEXT FIRE (2300): (1) MINE the re-arm's first field flight: does the step convert with the poisoning healed? (step=/stepcut= third read - the re-arm's conversions vs the ledger consults), the contested family census post-re-arm (the doomed family should shrink; the 4000ms timeout family untouched and the bigger share if the re-arm works), cut= growth, the famine trend (x239's next read), the void stamp's wait (fifth face), the F10 dry-shore class's fourth read; (2) the 4000ms walk-budget timeout is the NEXT named family (a budget bump vs a retry - one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked two faces running).
 - OPEN FRONTS: the re-arm's first read; the 4000ms timeout family; the famine reversal x239; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260928-2200
+Agent: Super Z (cron lane 30, Job 414125)
+Task: 2200 cycle - face 36431514130 mined (the contest names speak), v0.286.0 THE STEP RE-ARM shipped, the gate pending at timebox end (no dispatch - the proven-head law)
+
+Work Log:
+- The worklog backlog (this lane's 2100 record) landed FIRST as 7d39612 (the rebase collision against fad7d2f resolved keep-both, markers stripped) - then the cycle's work on top.
+- Face 36431514130 polled to SUCCESS; MINED: the contest names' first read - F14 'the walk contested (doomed goal (ledgered 3s ago at [-142,43...)', F15 'the walk contested (stance step: timeout after 4000ms)'; the row `near=2 far=8 cut=0 ngap=2 step=2 stepcut=0` (the first zero-conversion row); the doomed ledger CLUSTERED ([-113,41,427] [-114,41,428] [-115,41,427] within 12s). Also: famine x223, above x15, deaths 3 drown, wet rescues 36.
+- v0.286.0 THE STEP RE-ARM: the doomed ledger poisons the step from ANOTHER bot's failed start (the v0.87.0 yard lesson verbatim); the step walk carries doomedRearm: true - ONE honest bounded-A* attempt from THIS bot's start per sweep (the cap gates first, no orbit), a proven-dead verdict re-records with a fresh TTL (self-healing). The 4000ms-timeout family untouched (one behavior per fire). Tests: 1 new pin (the doomedRearm wiring + the cap-gates-first ordering). Local: syntax 241 clean, unit 127/127 green.
+- Pushed 1240134; gate 36436265269 still IN_PROGRESS after ~21min (a loaded queue) at the timebox end - NO dispatch (the proven-head law; the sha-ref dispatch precedent not taken). This record stays a LOCAL commit: a push now would cull the in-flight gate (the 2030 precedent) - the next fire pushes it first and waits out any still-pending gate.
+
+Stage Summary:
+- Master = 1240134 (pkg 0.286.0), gate 36436265269 IN_PROGRESS at fire end; v0.285.0 remains PROVEN (7d39612 gate 36432777466 SUCCESS). Fleet slot FREE.
+- NEXT FIRE (2300): push this backlog first (after any still-pending gate resolves), gate => PROVEN => un-chained slot check => DISPATCH; MINE: the re-arm's conversions (fewer doomed suffixes, more landings), step=/stepcut= third read, cut= off the zero, the 4000ms family's size (the next cure), famine/above trends.
+- OPEN FRONTS: the 4000ms-timeout cure; the famine reversal; the above x15 decode; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
