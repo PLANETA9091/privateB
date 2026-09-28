@@ -7469,3 +7469,19 @@ Stage Summary:
 - Master a93b867 (pkg 0.264.0), CI SUCCESS; face 36369215771 in_progress on a93b867 (the lane's dispatch, the fleet of record in flight).
 - NEXT FIRE (1030): (1) mine face 36369215771 (the FIRST face with the support dig-down + the v0.264.0 label aboard): the ledger's new supportDig tail token (the lane's cure firing?), the above-bucket delta vs x31, the drown-context/drowned-kill lines with the named sentinel; (2) THE FROZEN-RELOG LOOP front: read frozenRelogDecision + the WET_FROZEN_WINDOW wiring fully, then the cure (a wet-critical frozen bot must not hand off to a lane slower than its air clock - options: the relog keeps the swim-up first-act, or the stand-down defers while critical); (3) the shore-glitch carrier decode: is F1's shore cluster the same cell family across faces (the waterline contact-trust misread)?
 - OPEN FRONTS: the frozen-relog loop (top, decoded); the shore-glitch carrier; deepSkip=35 (the deep-drop economy leak); airGlitches residue (the override ladder's false pages); the dusk-bank collision; the doomed-goal-cache; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron37-20260928-0937 (addendum B - the dispatch)
+Agent: Super Z (cron lane 37)
+Task: the dispatch record - the face lands on the newest head, the race decoded
+
+Work Log:
+- Proving gate 36368277175 (f92ffc0: v0.263.0 + worklog) SUCCESS at ~02:15Z - v0.263.0 PROVEN (unit + integration).
+- Slot verified empty (zero live workflow_dispatch) -> POST dispatch 362040162 HTTP 204 at ~02:16:40Z.
+- THE RACE DECODED: the parallel lane pushed a93b867 (v0.264.0 THE O2 SENSOR LABEL - the 0930 census's o2 -1 item, the -1 reset sentinel named via o2SensorLabel, 4 pins, the F1 frozen-relog decode rides the commit) at 02:15:09, 90s before my dispatch - ref=master resolved to a93b867, so the face run 36369215771 flies the v0.264.0 head carrying BOTH features (my v0.263.0 SUPPORT DIG-DOWN + their v0.264.0 O2 SENSOR LABEL - the v0.258.0 two-feature precedent). The face self-gates (unit + integration before the Big fleet leg); a93b867's own push gate concluded SUCCESS at ~02:24Z - the face flies a fully proven head.
+- The f8db75d gate 36367960881 was culled by my own worklog push (the newest-run-wins shape, the 0737 addendum's own trap) - harmless: the code's proof rode the f92ffc0 gate; the cull is recorded, no rerun needed.
+- The c7b03fb rerun 36363856046 SUCCESS - v0.261.0 UNARMED GRACE's proving gate history repaired (the flake cleaned).
+
+Stage Summary:
+- Master a93b867 (pkg 0.264.0), BOTH newest gates SUCCESS, face 36369215771 in_progress (mine, owns the slot).
+- NEXT FIRE (1037): (1) mine face 36369215771 per the census law - count 'support dig-down(s)' lines + the supportDig ledger token vs the above-family residue (the v0.263.0 field proof); the 'reset(-1)' sentinel lines (the v0.264.0 shape); the F1 frozen-relog front (their NEXT cure lead); (2) if the face culled or failed - rerun-failed-jobs per the flake law; (3) the deepSkip=35 economy leak + the smelt-tithe silence re-check stay queued.
