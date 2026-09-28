@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -3177,7 +3177,9 @@ export function createMiner ({
                         if (cutRefusal === 'the stand-off exceeds the magnet' && stanceSteps < 1 && stanceStepBlocks(distXZ) === 1) {
                           stanceSteps++
                           log(`${tag} vein sweep: stance step armed - the stand-off exceeds the magnet (dist ${distXZ.toFixed(1)}, closing 1)`)
+                          let stepFrom = null // (v0.287.0) the walk's own start - the progress read lives past the catch
                           try {
+                            stepFrom = { x: bot.entity.position.x, z: bot.entity.position.z }
                             // (v0.286.0) THE STEP RE-ARM - face 36431514130 read the
                             // doomed ledger poisoning the step directly: 'the walk
                             // contested (doomed goal (ledgered 3s ago at [-142,43...'
@@ -3225,7 +3227,7 @@ export function createMiner ({
                             // keeps the band pin), the message capped at 40
                             // chars (the write-off ladder trace's own cap - a
                             // junk message cannot flood the row).
-                            log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)})`)
+                            log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); return walked == null ? '' : `, walked ${walked.toFixed(1)}` })()})`)
                           }
                         }
                       }

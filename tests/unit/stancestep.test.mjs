@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stanceStepBlocks, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { stanceStepBlocks, stepWalkProgress, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
 
 test('the ceil law: the whole-block step count closes the stand-off honestly', () => {
   assert.equal(stanceStepBlocks(1.5), null, 'distXZ === reach is INSIDE the magnet - the cut arms without help, no step')
@@ -88,4 +88,35 @@ test('the step re-arms against the doomed ledger: the honest attempt (v0.286.0)'
   const capAt = minerSrc.indexOf('stanceSteps < 1')
   assert.ok(armAt > 0 && capAt > 0, 'both the re-arm and the cap law live in the miner')
   assert.ok(armAt > capAt, 'the re-arm rides the capped walk (the cap gates first - the re-arm cannot orbit the sweep)')
+})
+
+test('the step progress: the timeout walk measures itself (v0.287.0)', () => {
+  // face 36438371944 (the re-arm's first field flight, SUCCESS): step=3
+  // stepcut=2 - the re-arm converts (67% vs 40% and 0%), the doomed-goal
+  // suffix is GONE (the poisoning healed), and the ONLY remaining loss is
+  // `the walk contested (stance step: timeout after 4000ms)` on the far
+  // edge (dist 2.5). The timeout family owns the bottleneck, but a cure
+  // needs the walk's anatomy: 'never moved' (a stuck pathfinder - a
+  // geometry read) vs 'walked and the budget bit' (a budget or a retry).
+  // The progress read names the distance; junk names nothing.
+  assert.equal(stepWalkProgress({ x: 1, z: 2 }, { x: 4, z: 6 }), 5, 'a clean 3-4-5 read walks 5')
+  assert.equal(stepWalkProgress({ x: 1, z: 2 }, { x: 1, z: 2 }), 0, 'a zero-progress read walks 0 - the stuck class names itself')
+  assert.equal(stepWalkProgress(null, { x: 4, z: 6 }), null, 'a missing start names nothing')
+  assert.equal(stepWalkProgress({ x: 1, z: 2 }, null), null, 'a missing end (a lost entity) names nothing')
+  assert.equal(stepWalkProgress({ x: NaN, z: 2 }, { x: 4, z: 6 }), null, 'a junk start coordinate names nothing')
+  assert.equal(stepWalkProgress({ x: 1, z: 2 }, { x: Infinity, z: 6 }), null, 'a junk end coordinate names nothing')
+  assert.equal(stepWalkProgress(undefined, undefined), null, 'junk in, nothing out')
+})
+
+test('the step progress is wired: the start fixes at the arm, the catch appends the distance (v0.287.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const letAt = minerSrc.indexOf('let stepFrom = null')
+  const armAt = minerSrc.indexOf('stanceSteps++')
+  const setAt = minerSrc.indexOf('stepFrom = { x: bot.entity.position.x, z: bot.entity.position.z }')
+  const gotoAt = minerSrc.indexOf('doomedRearm: true')
+  assert.ok(letAt > 0 && setAt > 0, 'the start lives past the catch (a const inside the try dies with it)')
+  assert.ok(letAt > armAt && setAt > letAt && gotoAt > setAt, 'the order is arm -> fix the start -> walk (the progress measures THIS walk)')
+  assert.ok(minerSrc.includes('stepWalkProgress(stepFrom, bot.entity && bot.entity.position)'), 'the catch reads the progress from the fixed start and the live position')
+  assert.ok(minerSrc.includes('`, walked ${walked.toFixed(1)}`'), 'the distance rides the SAME line (the tail-append law) - junk stays bare')
+  assert.ok(minerSrc.includes("String(e?.message ?? 'no error read').slice(0, 40)"), 'the 40-char message window keeps its byte-true shape (the v0.285.0 pin holds)')
 })

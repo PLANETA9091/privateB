@@ -669,3 +669,30 @@ export function stanceStepBlocks (distXZ, reach = LEDGE_CUT_REACH) {
   if (distXZ <= reach) return null
   return Math.ceil(distXZ - reach)
 }
+
+// (v0.287.0) THE STEP PROGRESS - the timeout walk's own distance, measured.
+// Face 36438371944 (the v0.286.0 STEP RE-ARM's first field flight, SUCCESS)
+// read the re-arm converting: step=3 stepcut=2 (67% vs 40% and 0%), the
+// doomed-goal suffix GONE (the poisoning healed), and the step's ONLY
+// remaining loss named itself - `the walk contested (stance step: timeout
+// after 4000ms)` on the band's far edge (dist 2.5). The timeout family now
+// owns the bottleneck, but the line cannot yet tell 'the bot never moved'
+// (a stuck pathfinder / a lost path - the cure is a geometry read) from
+// 'the bot walked and the budget bit' (the cure is a budget or a retry).
+// This read takes the walk's own start (fixed when the step arms) and the
+// position the catch sees, and returns the XZ distance walked - a near-zero
+// progress names the stuck class, a real distance names the slow class.
+// Junk reads (a lost entity, a junk start) name nothing - the line stays
+// bare of a number the black box cannot prove.
+// @param {{x: number, z: number}|null|undefined} from the walk's own start
+// @param {{x: number, z: number}|null|undefined} to the position the catch sees
+// @returns {number|null} the XZ distance walked, or null
+export function stepWalkProgress (from, to) {
+  if (!from || !to) return null
+  const fx = from.x
+  const fz = from.z
+  const tx = to.x
+  const tz = to.z
+  if (![fx, fz, tx, tz].every(Number.isFinite)) return null
+  return Math.hypot(tx - fx, tz - fz)
+}
