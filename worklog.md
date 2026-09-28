@@ -7978,3 +7978,18 @@ Stage Summary:
 - Master = this push (pkg 0.285.0). The stance front's cure is FIELD-PROVEN (step=5 stepcut=2, the gap band converts); the bottleneck is named next.
 - NEXT FIRE (2100): (1) poll this push's gate - green => v0.285.0 PROVEN => slot check => DISPATCH; (2) MINE: the walk-contest names (the contested family census - the cure's bottleneck anatomy), step=/stepcut= second read (does the rate hold at 40%?), cut= growth (through-the-step conversions vs nthick), the famine x239 reversal (the furnace/fuel cadence), deepSkip=39's second read, the above x18 anatomy, the F10 dry-shore repeat; (3) the contested family picks the walk cure (a retry? a GoalXZ fallback? a hazard re-check?).
 - OPEN FRONTS: the walk-contest anatomy (v0.285.0's first read); the famine reversal x239; deepSkip=39; the above x18 decode; the far-front's stance change (far=8); the F10 dry-shore class (x3 across faces); the banking cadence (pocket 2710u unbanked); the write-off's first field line; wet @last (armed, unexercised); the void stamp's field line; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260928-2037 (correction of record)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the 2037 dispatch race correction - this lane's POST created a second live dispatch; cancelled own pending, the parallel lane's in-flight face is the fleet of record
+
+Work Log:
+- CORRECTION: this fire's closing slot-check and the POST were chained in one command - the panel printed INSIDE the chain showed the parallel lane's dispatch 36431514130 ALREADY in_progress on the same proven head 8795970, but the POST had fired regardless of the read. The result: two live workflow_dispatch runs on 8795970 (theirs in_progress, this lane's 36431534726 pending) - the one-live-run law violated by seconds of race (the lane's dispatch materialized between this fire's last panel read and the POST).
+- THE FIX: POST /actions/runs/36431534726/cancel => HTTP 202, this lane's pending dispatch CANCELLED before any bot spawned (a queued run has no in-flight immunity - the 1830 measured law, here exercised deliberately). One live run remains: 36431514130 (the parallel lane's, in-flight on 8795970 = the v0.285.0 proven tree - it flies the identical code, its results are equally valid for the next fire's mining).
+- THE LESSON (the chain law): the slot check and the dispatch POST must be SEPARATE commands with the panel read BETWEEN them - a chained check is a read nobody acts on. The next fire's closing dispatch: read panel => decide => POST, three steps, no chaining.
+- This correction rides a worklog-only push (safe: the in-flight face 36431514130 is push-immune per the 1437 precedent; no pending dispatch remains after the cancel).
+
+Stage Summary:
+- Master = 8795970 (pkg 0.285.0, gate 36429638153 SUCCESS - v0.285.0 PROVEN). The fleet of record is the parallel lane's face 36431514130 IN FLIGHT on the same tree.
+- NEXT FIRE (2100): (1) poll face 36431514130 and MINE IT (the walk-contest names - v0.285.0's first field read; step=/stepcut= second read; the famine x239 trend; deepSkip; the above x18; the dry-shore repeat); (2) slot check per the un-chained law; (3) if green and free, the next dispatch flies the freshest proven head.
