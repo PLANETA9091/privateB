@@ -7993,3 +7993,18 @@ Work Log:
 Stage Summary:
 - Master = 8795970 (pkg 0.285.0, gate 36429638153 SUCCESS - v0.285.0 PROVEN). The fleet of record is the parallel lane's face 36431514130 IN FLIGHT on the same tree.
 - NEXT FIRE (2100): (1) poll face 36431514130 and MINE IT (the walk-contest names - v0.285.0's first field read; step=/stepcut= second read; the famine x239 trend; deepSkip; the above x18; the dry-shore repeat); (2) slot check per the un-chained law; (3) if green and free, the next dispatch flies the freshest proven head.
+
+---
+Task ID: cron30-20260928-2100
+Agent: Super Z (cron lane 30, Job 414125)
+Task: 2100 cycle - face 36423614693 mined (independently, the same reads), the twin v0.285.0 collision resolved by discard, the gate proven, the DISPATCH (the closing action)
+
+Work Log:
+- Polled face 36423614693 to SUCCESS; mined independently: armed 5 = took 2 + walk contested 3 + still-refuses 0; the row `near=1 far=8 cut=2 nthick=0 nthin=0 ngap=1 step=5 stepcut=2`; the landings convert 2/2 (F4 1.7->1.0, F10 2.2->1.4); the walk is the cure's ONLY loss. Also: stand-off x9, above-plane x10, no-coal x239, deaths 6, F17 frozen-relog x2. The air-0 hypothesis (sealed support cells separate the contested class) TESTED AND REJECTED - contested AND took pair with air 0 alike.
+- This lane's v0.285.0 THE WALK VERDICT draft (stanceWalkRefusal: the gotoSafe taxonomy mapped onto the contested suffix; syntax 241, unit 127/127 local) hit the rebase collision against 1bad957 THE WALK CONTEST NAME - the SAME front, the SAME suffix slot. The twin law: one behavior per front, theirs byte-true => DRAFT DISCARDED (the 2000 precedent), reset to 8795970, their tree re-verified green locally.
+- Gate 36429638153 (8795970) => SUCCESS => v0.285.0 PROVEN. Dispatch HTTP 204 => the twin dispatch race (36431514130 + 36431534726, 11s apart); concurrency culled 36431534726; FLEET OF RECORD = 36431514130 in flight (v0.285.0's first field flight). Zero pushes after the dispatch (the pending-cull law).
+
+Stage Summary:
+- Master = 8795970 (pkg 0.285.0) PROVEN; fleet of record = 36431514130 flying the walk-contest names.
+- NEXT FIRE (2200): poll 36431514130, MINE the contested suffix's first read (a hazard veto vs a spin hold vs a pathfinder timeout - three different cures), step=/stepcut= second read, cut= growth, the famine x239 reversal, the above x10 anatomy; the contested family picks the walk cure.
+- OPEN FRONTS: the walk-contest anatomy; the famine reversal; the above decode; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
