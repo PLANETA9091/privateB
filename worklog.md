@@ -8154,6 +8154,8 @@ Stage Summary:
 - Master = this push (pkg 0.288.0 + this record). The gate proves the budget-cure tree; the dispatch flies it.
 - NEXT FIRE (0100): (1) MINE the budget cure's first field flight: does the contested line shrink or vanish at 8000ms? (step=/stepcut= fifth read; a still-contested walk with a bigger distance names the raw-walk front), cut= growth off the record 5, the landed-short class's second read (F14's dist 1.6 refusal - the GoalNear slack front), the famine regime shift (x3 - real or noise), the void stamp's wait (seventh face), the drown class (x2 this face); (2) the landed-short class or the raw-walk front picks the next cure (one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked four faces running).
 - OPEN FRONTS: the budget cure's first read; the landed-short class (the GoalNear slack); the raw-walk front; the famine regime shift; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
 Task ID: cron30-20260929-0000
 Agent: Super Z (cron lane 30, Job 414125)
 Task: 0000 cycle - face 36446143946 mined (the progress instrument's first read: walked 1.2 = the SLOW class), v0.288.0 THE STEP BUDGET shipped, PROVEN, DISPATCHED
@@ -8169,3 +8171,19 @@ Stage Summary:
 - Master = a660aab (pkg 0.288.0 PROVEN by gate 36452622272); FLEET OF RECORD = 36455210160 in_progress (the 8000ms budget's first field flight).
 - NEXT FIRE: (1) push this backlog first; (2) poll 36455210160 to conclusion, MINE the budget cure's first field: does the 8000ms budget convert the far edge? (the contested line's census - gone, shrunken, or a bigger walked at the same budget = the raw-walk front); step=/stepcut= fifth read (the landed-short class: F14-style landed-refuses - the GoalNear range slack's share); cut= off the thin face; famine/above/wet trends (the regime shift's second read); the drown deaths (F15, F9); (3) the landed-short class (the GoalNear range 1->0 tightening) is the next named cure candidate IF the budget reads converting; the raw-walk front if the budget still bites.
 - OPEN FRONTS: the budget cure's first read; the landed-short class (the GoalNear slack); the raw-walk front; the above-family decode; the famine reversal (the regime shift); the drowned-mob plague x85; the far-front's stance change; the F10 dry-shore class; the banking cadence (unbanked four faces running); the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260929-0037 addendum (the fire's closing record - final update)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the 0037 fire's outcome - the gate PROVEN (v0.288.0), the dispatch surrendered to the parallel lane's face on this lane's own proven head
+
+Work Log:
+- This lane's gate 36452622272 (a660aab) polled to SUCCESS (~19 min, a loaded queue) - v0.288.0 THE STEP BUDGET PROVEN on this head (their 2afe50f gate was culled by this push; the identical code proved here instead - the cull dance's clean round trip).
+- Slot check (separate command, per the chain law): the parallel lane's dispatch 36455210160 (workflow_dispatch) IN FLIGHT on a660aab - THIS LANE'S OWN PROVEN HEAD. The symmetry of the cull dance: this lane's gate proved the tree, their fleet flies it. NO POST fired; the 2037 race did not repeat.
+- The parallel lane's dbad195 (their 0000 section, worklog-only) rides this lane's a660aab - both 0000 records coexist (this lane's backfill pointer + their fire's own section), keep-both by construction.
+- This addendum rides a worklog-only push (safe: the in-flight face 36455210160 is push-immune per the 1437 precedent; this lane has no pending runs).
+
+Stage Summary:
+- Master = dbad195 + this addendum (pkg 0.288.0 PROVEN by this lane's gate 36452622272). Fleet of record: face 36455210160 IN FLIGHT on a660aab (the budget cure's first field flight).
+- NEXT FIRE (0100): (1) MINE face 36455210160 - the budget cure's first field flight: does the contested line shrink or vanish at 8000ms? (step=/stepcut= fifth read; a still-contested walk with a bigger distance names the raw-walk front), cut= growth off the record 5, the landed-short class's second read (F14's dist 1.6 refusal - the GoalNear slack front), the famine regime shift (x3 - real or noise), the void stamp's seventh face, the drown class (x2); (2) the landed-short class or the raw-walk front picks the next cure (one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked four faces running).
+- OPEN FRONTS: the budget cure's first read; the landed-short class (the GoalNear slack); the raw-walk front; the famine regime shift; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
