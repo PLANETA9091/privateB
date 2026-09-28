@@ -8106,3 +8106,20 @@ Stage Summary:
 - Master = c7cb3c4 (pkg 0.287.0), gate 36444142779 IN_PROGRESS; v0.286.0 remains PROVEN. Fleet slot FREE.
 - NEXT FIRE: wait out any pending gate, push this backlog, green => PROVEN => un-chained slot check => DISPATCH; MINE the progress anatomy (stuck vs slow), step=/stepcut= fourth read, the above x26 decode (the next big front), famine/above/wet trends.
 - OPEN FRONTS: the timeout anatomy; the above x26 decode; the famine reversal; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260928-2337 addendum (the fire's closing record - final update)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the 2337 fire's outcome - the dispatch surrendered to the parallel lane's face, the gate race self-healed green, the fleet of record in flight on a proven head
+
+Work Log:
+- This lane's push gate 36445212448 (6165734) was CULLED by the parallel lane's newer push 4b3df60 (their 2300 worklog section, worklog-only, riding my backfill - lineage verified: 6165734 is an ancestor). Keep-both by construction; no collision born.
+- The parallel lane DISPATCHED mid-gate: 36446143946 (workflow_dispatch, 4b3df60) appeared PENDING while their push gate 36445384965 was still in_progress - the proven-head law bent (the sha-ref dispatch precedent, taken this time). This lane's chain law held: the slot check read said OCCUPIED, no POST fired, and ZERO pushes while the dispatch was pending (a push would have culled their queued face - the pending-cull law restrained this lane's addendum).
+- The race SELF-HEALED: their gate concluded SUCCESS (~14 min) BEFORE the dispatch left the queue - 4b3df60 (pkg 0.287.0 + both lanes' records) is PROVEN, and the dispatch is now IN FLIGHT on a proven head. No cancel needed; no red-tree flight occurred.
+- Fleet of record: 36446143946 IN FLIGHT - the progress instrument's first field flight (', walked N.N' reads the timeout-walk anatomy: near-zero = the stuck class, a real distance = the slow class).
+- This addendum rides a worklog-only push (safe: the in-flight face is push-immune per the 1437 precedent; no pending runs remain).
+
+Stage Summary:
+- Master = 4b3df60 (pkg 0.287.0 PROVEN by gate 36445384965). Fleet of record: face 36446143946 IN FLIGHT (the v0.287.0 progress instrument's first field flight).
+- NEXT FIRE (0000): (1) MINE face 36446143946 - the ', walked N.N' suffix's first read: near-zero walked names the stuck class (a geometry cure), a real distance names the slow class (a budget bump or retry); the timeout family's size (2 named cases across two faces, both far-edge); step=/stepcut= fourth read (does 67% hold?), cut= growth off the record 5, the famine trend, the void stamp's sixth face, the F10 dry-shore class's fourth read; (2) the anatomy picks the walk cure (one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked three faces running).
+- OPEN FRONTS: the timeout-walk anatomy; the famine reversal x239; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
