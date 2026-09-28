@@ -1717,7 +1717,7 @@ export function createMiner ({
           passLogAt = Date.now()
           passLogs++
           const p = bot.entity.position
-          // (v0.267.0) the tithe: the pass line's o2 joins the one renderer
+          // (v0.268.0) the tithe: the pass line's o2 joins the one renderer
           // (o2SensorLabel) - the raw -1 sentinel prints NAMED like every
           // other site (the 1030 census: the pass lines were the last raw site).
           log(`${tag} water: pass ${passNo} head=${headWet ? 'wet' : 'dry'} shore=${dir ? `hit r=${dir.dist}` : 'none'} land=${land ? `${land.name} d=${land.dist.toFixed(0)}` : (headWet ? 'n/a' : 'none')} y=${p.y.toFixed(1)} o2=${o2SensorLabel(read.oxygen)} probes=${standingProbes} at=[${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}]`)

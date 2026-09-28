@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { drownContextLine } from '../../src/lib/statcarry.mjs'
 import { o2SensorLabel } from '../../src/lib/drowning.mjs'
 
-// (v0.267.0) THE TITHE - the last raw o2 print sites join the one renderer.
+// (v0.268.0) THE TITHE - the last raw o2 print sites join the one renderer.
 // The 1030 census (face 36369215771) caught the pass lines printing the raw
 // -1 sentinel while both death-side sites rendered NAMED - the decoder had
 // to re-derive the law from the v0.64.0 comment every read. The pass line,
@@ -98,13 +98,13 @@ test('drownContextLine: the legacy o2 shapes stay byte-identical', () => {
   assert.equal(l3, 'F3 death: drown context (o2 ?, feet water, head water, rescue never)')
 })
 
-test('the three rescue-lane o2 sites ride the one renderer (the v0.267.0 tithe)', () => {
+test('the three rescue-lane o2 sites ride the one renderer (the v0.268.0 tithe)', () => {
   assert.ok(minerSrc.includes('o2=${o2SensorLabel(read.oxygen)} probes='), 'the pass line renders the sentinel NAMED')
   assert.ok(minerSrc.includes('o2=${o2SensorLabel(read.oxygen)}${headWet'), 'the frozen-physics stand-down renders the sentinel NAMED')
   assert.ok(minerSrc.includes('o2 ${o2SensorLabel(read.oxygen)})'), 'the deep-pocket ascend renders the sentinel NAMED')
 })
 
-test('no raw o2 print site survives in miner.mjs (the one-renderer law, v0.267.0)', () => {
+test('no raw o2 print site survives in miner.mjs (the one-renderer law, v0.268.0)', () => {
   assert.ok(!minerSrc.includes('o2=${read.oxygen}'), 'the raw = form is gone')
   assert.ok(!minerSrc.includes('o2 ${read.oxygen}'), 'the raw space form is gone')
 })
