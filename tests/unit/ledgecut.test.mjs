@@ -14,7 +14,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { ledgeCutWanted, LEDGE_CUT_REACH, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, LEDGE_CUT_REACH, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
 
 test('the cut arithmetic: the dig count is dy-1 (the drop lands on the bot\'s own layer)', () => {
   assert.equal(ledgeCutWanted({ dy: 1, distXZ: 1.0, sealDepth: 1, fluidBelow: false }), 0, 'dy 1: no seal cells - the support shake alone lands the drop on my layer (the floor S-1 is solid by the sealed class itself)')
@@ -82,7 +82,6 @@ test('the ledge cut is wired: the miner cuts the near bucket (v0.275.0)', () => 
 // the tree could not say WHY (the probe's near bucket rides SUPPORT_DIG_REACH 2
 // while the cut's own magnet cap is LEDGE_CUT_REACH 1.5 - a 1.5-2.0 stand-off
 // reads 'cut' at the probe and refuses at the cut, in silence).
-import { ledgeCutRefusal } from '../../src/lib/drops.mjs'
 
 test('the cut refusal names its fence: each guard speaks (the mirror law)', () => {
   assert.equal(ledgeCutRefusal({ dy: 9, distXZ: 1.0, sealDepth: 3, fluidBelow: false }), 'the dy reads out of class', 'a dy outside the ledge class names the class fence')
@@ -119,7 +118,53 @@ test('the cut refusal is wired: the miner names the silent fences (v0.280.0)', (
   const dropsSrc = readFileSync(new URL('../../src/lib/drops.mjs', import.meta.url), 'utf8')
   assert.ok(dropsSrc.includes('export function ledgeCutRefusal'), 'the pure layer exports the refusal name')
   assert.ok(minerSrc.includes('ledgeCutRefusal'), 'the miner imports the refusal name')
-  assert.ok(minerSrc.includes("ledge cut refused - ${ledgeCutRefusal({ dy: dyNow, distXZ, sealDepth: sealN, fluidBelow: strikeSupport !== null })}"), 'the refusal call mirrors the cut call byte-true (the same gate reads the same probe)')
-  assert.ok(minerSrc.includes("} else if (cutRefusals <= 2) {"), 'the refusal line is capped like the support refusals - the sweep must not storm')
+  assert.ok(minerSrc.includes("const cutRefusal = ledgeCutRefusal({ dy: dyNow, distXZ, sealDepth: sealN, fluidBelow: strikeSupport !== null })"), 'the refusal call mirrors the cut call byte-true (the same gate reads the same probe - one read, one name, the v0.283.0 stance step shares the verdict)')
+  assert.ok(minerSrc.includes("ledge cut refused - ${cutRefusal} (seal ${sealN ?? '?'}, dy ${dyNow}, dist ${distXZ.toFixed(1)})"), 'the line renders the SAME verdict the stance step gates on (no second read, no drift)')
+  assert.ok(minerSrc.includes("if (cutRefusals <= 2) {"), 'the refusal line is capped like the support refusals - the sweep must not storm')
   assert.ok(minerSrc.includes("vein sweep: ledge cut refused"), 'the line rides the vein sweep band (the existing filter key - no fleet19 churn)')
+})
+
+test('the stance step: the gap band is ONE block wide (v0.283.0)', () => {
+  // the field's own shape: face 36411203362's candidates sat at 1.8-2.0
+  assert.equal(stanceStepBlocks(1.8), 1, 'the measured gap band reads 1 - one block re-enters the magnet')
+  assert.equal(stanceStepBlocks(1.51), 1, 'a hair past the magnet still reads 1')
+  assert.equal(stanceStepBlocks(2.0), 1, 'the probe\'s own bucket edge reads 1')
+  assert.equal(stanceStepBlocks(2.5), 1, 'the one-block band ends at 2.5 (ceil law)')
+  // the honest math beyond the probe's bucket (the far front's business)
+  assert.equal(stanceStepBlocks(2.6), 2, 'past the one-block band the count grows - the wiring caps at 1')
+  assert.equal(stanceStepBlocks(3.1), 2, 'the ceil law: 1.6 of gap reads 2 blocks')
+  // no step where no step applies
+  assert.equal(stanceStepBlocks(0), null, 'a stance at the column steps nothing')
+  assert.equal(stanceStepBlocks(1.5), null, 'the reach boundary is INSIDE the magnet - the cut arms, no step')
+  // junk law: a lost read steps nothing
+  assert.equal(stanceStepBlocks(NaN), null, 'a junk read steps nothing')
+  assert.equal(stanceStepBlocks(-0.5), null, 'a negative stand-off steps nothing')
+  assert.equal(stanceStepBlocks(Infinity), null, 'an infinite stand-off steps nothing (the walk cannot cure it)')
+  assert.equal(stanceStepBlocks(undefined), null, 'a missing read steps nothing')
+})
+
+test('the stance step: reach-injection coherence with the cut\'s own fence (v0.283.0)', () => {
+  // the same read through both gates: with the magnet's 1.5 the step arms,
+  // with the probe's wider 2.0 the cut ARMS and no step is owed - the two
+  // fences must stay band-for-band coherent (the 0.281.0 law)
+  assert.equal(stanceStepBlocks(1.8, LEDGE_CUT_REACH), 1, 'the default is the cut\'s own magnet')
+  assert.equal(stanceStepBlocks(1.8, 2), null, 'inside a wider reach the step is null - the probe\'s bucket never owes a walk')
+  // the mirror holds at the boundary: dist === reach steps nothing, just past it steps 1
+  assert.equal(stanceStepBlocks(1.5, 1.5), null, 'the boundary belongs to the magnet')
+  assert.equal(stanceStepBlocks(1.5 + 1e-9, 1.5), 1, 'a hair past the boundary owes exactly one block')
+})
+
+test('the stance step is wired: the miner walks the stand-off class only (v0.283.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const dropsSrc = readFileSync(new URL('../../src/lib/drops.mjs', import.meta.url), 'utf8')
+  assert.ok(dropsSrc.includes('export function stanceStepBlocks'), 'the pure layer exports the step')
+  assert.ok(minerSrc.includes('stanceStepBlocks'), 'the miner imports the step')
+  assert.ok(minerSrc.includes("cutRefusal === 'the stand-off exceeds the magnet'"), 'the step fires ONLY on the stand-off class - the other fences no walk can cure')
+  assert.ok(minerSrc.includes('stanceSteps < 1'), 'the step is capped ONE per sweep - the sweep must not orbit')
+  assert.ok(minerSrc.includes('stanceStepBlocks(distXZ) === 1'), 'the wiring caps the walk at ONE block (the far front\'s business)')
+  assert.ok(minerSrc.includes("ledgeCutWanted({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })"), 'the re-read reuses the cut\'s own probe shape byte-true - a lost read never arms a cut')
+  assert.ok(minerSrc.includes('vein sweep: stance step armed'), 'the armed form rides the vein sweep band')
+  assert.ok(minerSrc.includes('vein sweep: stance step landed'), 'the result form rides the vein sweep band')
+  assert.ok(minerSrc.includes('vein sweep: stance step refused - the walk contested'), 'the refusal form rides the vein sweep band')
+  assert.ok(minerSrc.includes("label: 'stance step'"), 'the walk carries its own label - the rescue telemetry reads it')
 })

@@ -641,3 +641,22 @@ export function ledgeCutRefusal ({ dy, distXZ, sealDepth, fluidBelow, reach = LE
   if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return 'the stand-off exceeds the magnet'
   return null
 }
+
+// (v0.283.0) THE STANCE STEP - the gap band's first behavior cure. Face
+// 36411203362's refusal census read the stand-off fence 4/4 (zero other
+// fence names): the 1.5-2.0 band IS the cut=0 mystery's field shape, and
+// the 0.281.0 brief named the cure - a stance change, NOT a wider magnet
+// (the magnet law stands). The atomic step: the minimum WHOLE blocks to
+// walk toward the fall column so the stand-off re-enters the magnet (the
+// whole 1.5-2.5 band reads 1 - the field's candidates sat at 1.8-2.0).
+// Junk-honest: a lost read steps nothing; a stance already inside the
+// magnet steps nothing (null = the cut arms, or the refusal belongs to a
+// fence no walk can cure - the dy class, the unmeasured floor, the wet
+// column). @param {number} distXZ the horizontal stand-off to the column
+// @param {number} [reach] the cut's own magnet cap (injected for the tests)
+// @returns {number|null} the whole-block step count, or null
+export function stanceStepBlocks (distXZ, reach = LEDGE_CUT_REACH) {
+  if (!Number.isFinite(distXZ) || distXZ < 0) return null
+  if (distXZ <= reach) return null
+  return Math.ceil(distXZ - reach)
+}
