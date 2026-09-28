@@ -345,6 +345,30 @@ export function sealReachBucket (distXZ, reach = SUPPORT_DIG_REACH) {
   return distXZ <= reach ? 'near' : 'far'
 }
 
+// (v0.277.0) THE CUT TARGET SPLIT - the near bucket's own divide. The reach
+// split's first field read (face 36387892453: near=4 far=11) proved the
+// ledge-cut brief STANDS - the near candidates EXIST - but the brief's next
+// question is unanswered: WHICH near candidates does the cut own? A near
+// THICK seal (depth >= 2) is the cut's target (the dig family stood off it,
+// a stance change is the cure); a near THIN seal (depth 1) is the dig
+// family's own missed candidate (its refusal reason is the anomaly to
+// decode - the dig should have converted it without any cut). Pure,
+// junk-honest: a far/junk distance claims no target (the reach split's
+// law carried), a junk depth (null/0/non-integer) claims no target - a
+// lost read never arms a count.
+/**
+ * Which cure does a NEAR sealed candidate demand?
+ * @param {number} distXZ the measured horizontal stand-off to the drop
+ * @param {number|null} sealDepth the measured seal depth (sealedColumnDepth's 1..3)
+ * @param {number} [reach] the dig family's reach cap (default SUPPORT_DIG_REACH)
+ * @returns {'cut'|'thin'|null} 'cut' = the ledge cut's target, 'thin' = the dig family's missed candidate, null = junk or far (never counted)
+ */
+export function sealCutClass (distXZ, sealDepth, reach = SUPPORT_DIG_REACH) {
+  if (sealReachBucket(distXZ, reach) !== 'near') return null
+  if (!Number.isInteger(sealDepth) || sealDepth < 1) return null
+  return sealDepth >= 2 ? 'cut' : 'thin'
+}
+
 // (v0.260.0) THE ALREADY-THERE FAST PATH - the skip verdict that spares the
 // funnel a zero-displacement instant done. MEASURED (face 36344554956, the
 // v0.256.0-era fleet): the run's named drop-walk failures carried x16
@@ -449,7 +473,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0, sealCutTargets = 0, sealNearThin = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -478,18 +502,24 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // (v0.275.0) THE LEDGE CUT joins the row - the sealed class's first
     // conversions (the near bucket's behavior cure: the seal column's top
     // dy-1 cells + the support, the drop lands on the bot's own layer)
-    ledgeCut: fl(ledgeCut)
+    ledgeCut: fl(ledgeCut),
+    // (v0.277.0) THE CUT TARGET SPLIT joins the row - the near bucket's own
+    // divide: nthick = the near THICK seals (the ledge cut's targets),
+    // nthin = the dig family's own missed near-thin candidates (the
+    // anomaly the decode needs)
+    sealCutTargets: fl(sealCutTargets),
+    sealNearThin: fl(sealNearThin)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N nthick=N nthin=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -511,9 +541,11 @@ export function belowResidueRow (records) {
     acc.sealNear += rec.sealNear
     acc.sealFar += rec.sealFar
     acc.ledgeCut += rec.ledgeCut
+    acc.sealCutTargets += rec.sealCutTargets
+    acc.sealNearThin += rec.sealNearThin
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut} nthick=${acc.sealCutTargets} nthin=${acc.sealNearThin}`
 }
 
 // (v0.275.0) THE LEDGE CUT - the sealed class's first behavior cure. The
