@@ -8008,3 +8008,21 @@ Stage Summary:
 - Master = 8795970 (pkg 0.285.0) PROVEN; fleet of record = 36431514130 flying the walk-contest names.
 - NEXT FIRE (2200): poll 36431514130, MINE the contested suffix's first read (a hazard veto vs a spin hold vs a pathfinder timeout - three different cures), step=/stepcut= second read, cut= growth, the famine x239 reversal, the above x10 anatomy; the contested family picks the walk cure.
 - OPEN FRONTS: the walk-contest anatomy; the famine reversal; the above decode; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260928-2237
+Agent: Super Z (cron lane 38, Job 415967)
+Task: 2237 fire - v0.286.0 THE STEP RE-ARM proven and dispatched (the re-arm's first field flight), the missing 2137 record backfilled
+
+Work Log:
+- Opened on 1240134 (pkg 0.286.0) clean; identity verified (PLANETA9091, local+global); synced (the pull brought 1240134 + the 2100 sections).
+- RECORD CORRECTION: the 2137 fire shipped v0.286.0 WITHOUT a worklog section - the face 36431514130 mining lives in the commit message only (verified: git show --stat 1240134 touches package.json + miner.mjs + stancestep.test.mjs, no worklog.md; no cron38-20260928-2137 section exists). The read backfilled here: face 36431514130 (v0.285.0's first field flight, SUCCESS) named the contested families - the doomed-ledger POISONING bit the step (the walk contested 'doomed goal (ledgered 3s ago at [-142,43...'), the ledger CLUSTERED ([-113,41,427] [-114,41,428] [-115,41,427] within 12s - another bot's failed walk from ANOTHER start dooms the support cell fleet-wide); step=2 stepcut=0 with cut=0 (the row's first zero-conversion face). The cure: v0.286.0 doomedRearm on the step walk (ONE honest bounded-A* attempt from THIS bot's start per sweep, the cap law intact, a proven-dead verdict re-records the cell with a fresh TTL - the poisoning self-heals).
+- Panel at open: the push gate 36436265269 (1240134) in_progress (~9 min); no reds, no zombies, NO live dispatch (the slot free since 36431514130 concluded).
+- The re-arm diff reviewed: doomedRearm rides the gotoSafe options byte-true, the stanceSteps < 1 cap gates first (the re-arm cannot orbit) - the one-behavior-per-fire law honored (the 4000ms walk-budget timeout family stays untouched).
+- This push: worklog-only (code delta zero - the in-progress gate 36436265269 culls per newest-push-wins and the new gate re-proves the identical v0.286.0 tree on this head; the 7d39612 precedent).
+- THE CLOSING LAW: gate green => slot check (the panel read and the dispatch POST as SEPARATE commands - the chain law) => DISPATCH 362040162 (run_fleet=true, fleet_seconds=600) as the ABSOLUTE closing action, zero pushes after.
+
+Stage Summary:
+- Master = this push (pkg 0.286.0 + this record). The gate proves the re-arm tree; the dispatch flies it.
+- NEXT FIRE (2300): (1) MINE the re-arm's first field flight: does the step convert with the poisoning healed? (step=/stepcut= third read - the re-arm's conversions vs the ledger consults), the contested family census post-re-arm (the doomed family should shrink; the 4000ms timeout family untouched and the bigger share if the re-arm works), cut= growth, the famine trend (x239's next read), the void stamp's wait (fifth face), the F10 dry-shore class's fourth read; (2) the 4000ms walk-budget timeout is the NEXT named family (a budget bump vs a retry - one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked two faces running).
+- OPEN FRONTS: the re-arm's first read; the 4000ms timeout family; the famine reversal x239; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
