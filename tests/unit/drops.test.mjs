@@ -42,13 +42,17 @@ test('dropTargets: maxDistance filters, cap truncates the nearest', () => {
   assert.deepEqual(capped[1], pos(102, 50, 100))
   assert.equal(dropTargets(entities, FROM).length, 4, 'defaults keep everything within reach')
   assert.ok(SWEEP_DROP_REACH === 8 && SWEEP_DROP_CAP === 8, 'the sweep constants pin')
-  // (v0.186.0) the probe half-step: the 4s walk budget covers the worst honest
-  // walk (reach 8 blocks x the 2x detour x 500ms/block = 4s, the CHEST_WALK
-  // arithmetic) and lets the 24s fence fit 6 probes; the total stays 24s
-  assert.ok(SWEEP_DROP_TIMEOUT_MS === 4000 && SWEEP_DROP_TOTAL_MS === 24000, 'the walk budgets pin (the v0.186.0 probe half-step)')
-  assert.ok(SWEEP_DROP_TIMEOUT_MS * 2 === 8000, 'the probe is HALF the legacy 8s - the doom class burns half')
-  assert.ok(SWEEP_DROP_TOTAL_MS / SWEEP_DROP_TIMEOUT_MS === 6, 'the fence fits 6 probes (was 3)')
-  assert.ok(SWEEP_DROP_REACH * 500 === SWEEP_DROP_TIMEOUT_MS, 'the probe covers the reach-8 walk at the house 500ms/block (the 2x detour is inside the 500ms, the CHEST_WALK arithmetic)')
+  // (v0.292.0) THE DROP BUDGET - the pendulum returns to the measured side:
+  // face 36469896303 read 38 of 71 failed drop walks = 'timeout after 4000ms'
+  // on 1-2 block walks; the measured starvation speed (~0.3 b/s, the v0.288.0
+  // stance arithmetic) prices the band's far edge at ~6.7s - the 4s probe bit
+  // mid-stride. The 8s budget is the stance walk family's own measured value;
+  // the 24s fence is UNCHANGED (3 live walks, the phase's worst case stays
+  // priced). The v0.186.0 doom-class economics are superseded by the deepSkip
+  // fence + the doomed-goal ledger (the gates that era built cap the burns).
+  assert.ok(SWEEP_DROP_TIMEOUT_MS === 8000 && SWEEP_DROP_TOTAL_MS === 24000, 'the walk budgets pin (the v0.292.0 measured bump - the fence untouched)')
+  assert.ok(SWEEP_DROP_TIMEOUT_MS * 0.3 / 1000 >= 2.2, 'the budget buys the band\'s far edge (~2 blocks) at the measured ~0.3 b/s plus margin (the v0.288.0 arithmetic)')
+  assert.ok(SWEEP_DROP_TOTAL_MS / SWEEP_DROP_TIMEOUT_MS === 3, 'the fence fits 3 live walks (the legacy count - the phase\'s worst case is unchanged by the bump)')
 })
 
 test('dropTargets: non-item entities are skipped (mob, arrow, xp orb classes)', () => {

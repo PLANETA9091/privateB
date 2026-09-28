@@ -35,7 +35,27 @@ export const SWEEP_DROP_CAP = 8 // the same per-batch cap sweep() and chopReacha
 // re-classify doctrine (a later sweep at a different stance may reach it); the
 // item despawn (300s) is ample. The same 2x-detour arithmetic as v0.18.5's
 // CHEST_WALK: bounded, never open-ended.
-export const SWEEP_DROP_TIMEOUT_MS = 4000 // one drop's walk budget - a sealed gallery fails faster
+// (v0.292.0) THE DROP BUDGET - the pendulum returns to the measured side. Face
+// 36469896303 (the raw stance step's first field flight, SUCCESS) read the
+// failed=71 drop-walk anatomy: 38 of 71 = 'sweep drops: timeout after 4000ms'
+// on 1-2 block walks (range 1-2, dy -2.0..1.6) - the SAME starvation anatomy
+// the stance step's v0.288.0 cure measured: the fleet's CPU-starved thread
+// walks at ~0.3 blocks/s, so the band's far edge (2 blocks) needs ~6.7s and
+// the 4000ms budget bites mid-stride. The v0.186.0 doom-class economics that
+// priced the 4s probe are superseded by the gates the same era built: the
+// deepSkip fence (v0.182.0, 30 refusals this face - deep targets never walk)
+// and the doomed-goal ledger already cap the sealed-gallery burns (6 doomed
+// walks this face), so the 8s budget's extra burn is capped where it always
+// should have been. The measured constant: 8000ms - the stance walk family's
+// own value (STANCE_STEP_WALK_MS, the same thread, the same measured speed);
+// the 24s SWEEP_DROP_TOTAL_MS fence is UNCHANGED (3 live walks per batch, the
+// phase's worst case stays priced - a bonus, never a clock burn). The next
+// face reads the conversion: the timeout class should shrink; a still-Timeout
+// 8000ms walk names the frozen-window class (the physics stall the raw hop's
+// field verdict measured - walked 0.0/0.1 across 10.5s), which no budget
+// cures (the walk-form front is exhausted; the read then moves to the walked
+// tail instrument).
+export const SWEEP_DROP_TIMEOUT_MS = 8000 // one drop's walk budget - the measured far edge (~2 blocks at ~0.3 b/s), the v0.288.0 arithmetic
 export const SWEEP_DROP_TOTAL_MS = 24000 // the whole drop-walk budget - a bonus, never a clock burn
 
 // (v0.178.0) THE DROP GOAL RANGE - the below-plane drops get the forgiving goal.
