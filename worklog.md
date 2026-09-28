@@ -8057,3 +8057,19 @@ Stage Summary:
 - Master = 196460c (pkg 0.286.0 PROVEN); fleet of record = 36438371944 pending (the re-arm's first field).
 - NEXT FIRE (2300): poll 36438371944, MINE the re-arm's conversions (step=/stepcut= third read, the doomed suffix's share, cut= off the zero), the 4000ms-timeout family's size (the next cure), famine/above trends; push this backlog first.
 - OPEN FRONTS: the 4000ms-timeout cure; the famine reversal; the above x15 decode; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260928-2237 addendum (the fire's closing record - final update)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the 2237 fire's outcome - the gate PROVEN, the dispatch surrendered to the parallel lane's live face (the chain law's first clean live exercise)
+
+Work Log:
+- Gate 36438031627 (eb9027f) polled to SUCCESS (~15 min) - v0.286.0 THE STEP RE-ARM PROVEN on this head; the older gate 36436265269 (1240134) also concluded SUCCESS (both proved the identical code).
+- Slot check (separate command, per the chain law): the panel showed the parallel lane's face 36438371944 (workflow_dispatch, head 196460c) IN FLIGHT - the slot NOT free. NO POST fired. The 2037 race did not repeat: the panel read preceded the POST decision and the read said NO.
+- The parallel lane's head 196460c inspected: their 2200-fire worklog section (face 36431514130 mined independently - the same reads: doomed-poisoning + the 4000ms timeout, the first zero-conversion row) riding my eb9027f (lineage verified: merge-base --is-ancestor YES). The code delta of 196460c over eb9027f is ZERO (worklog only) - the flying face runs the exact tree my gate just proved.
+- This addendum rides a worklog-only push (safe: the in-flight face 36438371944 is push-immune per the 1437 precedent; no pending dispatch of this lane exists).
+
+Stage Summary:
+- Master = 196460c (pkg 0.286.0). The fleet of record: face 36438371944 IN FLIGHT on the v0.286.0 re-arm tree (code proven by this lane's gate 36438031627 SUCCESS).
+- NEXT FIRE: (1) MINE face 36438371944 - the re-arm's first field flight: does the step convert with the poisoning healed? (step=/stepcut= third read; the contested family census post-re-arm - the doomed family should shrink, the 4000ms timeout family untouched and the bigger share if the re-arm works), cut= growth, the famine x239's next read, the void stamp's fifth face, the F10 dry-shore class's fourth read; (2) the 4000ms walk-budget timeout is the NEXT named family (a budget bump vs a retry - one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked two faces running).
+- OPEN FRONTS: the re-arm's first read; the 4000ms timeout family; the famine reversal x239; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
