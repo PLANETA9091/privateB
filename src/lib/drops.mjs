@@ -289,6 +289,40 @@ export function supportDigRefusal ({ dy, supportSolid, airBelow, fluidBelow, dis
   return null
 }
 
+// (v0.267.0) THE SEAL DEPTH READ - face 36369215771's census decoded the
+// support dig-down's zero-firing: ALL 30 refusals read air=0 below the
+// support - the SEALED POCKET is the world's dominant shape (15x sealed +
+// 7x high-and-sealed + the dy 3.0/4.0 timeouts sealed too). The single-cell
+// shake buys nothing there (the drop re-wedges one cell lower) and the fence
+// refused every candidate HONESTLY. The cure's variant choice needs the
+// seal's depth: a THIN seal (1-2 solid cells then air) converts with the
+// deep shake (dig the support and the seal, the drop lands measured); a
+// THICK one (3+ solid, the probe's cap) leaves only the ledge cut. This read
+// instruments the class BEFORE any variant ships - the v0.259.0 cover-anchor
+// cadence (telemetry -> decode -> cure).
+//
+/**
+ * How deep is the seal under a support cell (pure, junk-honest)? Takes the
+ * per-cell verdicts for the column BELOW the support (S-1..S-3, the probe's
+ * cap): 'solid' | 'air' | 'fluid' | null. Returns the leading solid run
+ * (1..cap) - the dig count the deep shake would need - or null when the face
+ * itself is not solid (not a seal - the caller's class gate should have
+ * refused earlier) or the first read is junk (a lost read claims no depth).
+ * A junk cell DEEPER in the run stops the count honestly (a partial read is
+ * a shallower measured seal, never a guessed one).
+ * @param {Array<string|null>} cells the column verdicts, face first
+ * @returns {number|null} 1..cells.length, or null
+ */
+export function sealedColumnDepth (cells) {
+  if (!Array.isArray(cells) || cells.length === 0) return null
+  let depth = 0
+  for (const c of cells) {
+    if (c === 'solid') { depth++; continue }
+    break
+  }
+  return depth >= 1 ? depth : null
+}
+
 // (v0.260.0) THE ALREADY-THERE FAST PATH - the skip verdict that spares the
 // funnel a zero-displacement instant done. MEASURED (face 36344554956, the
 // v0.256.0-era fleet): the run's named drop-walk failures carried x16
@@ -393,7 +427,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -406,7 +440,13 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // (v0.263.0) the support dig-down joins the row - a new tail token, the
     // v0.205.0 precedent (the existing tokens keep their positions, the
     // identity extends)
-    supportDig: fl(supportDig)
+    supportDig: fl(supportDig),
+    // (v0.267.0) THE SEAL DEPTH HISTOGRAM joins the row - the sealed pocket's
+    // measured depth split (the decode lead for the deep-shake variant: a thin
+    // seal converts, a thick one needs the ledge cut)
+    seal1: fl(seal1),
+    seal2: fl(seal2),
+    seal3: fl(seal3)
   }
 }
 
@@ -417,7 +457,7 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -433,7 +473,10 @@ export function belowResidueRow (records) {
     acc.deepSkip += rec.deepSkip
     acc.lipDig += rec.lipDig
     acc.supportDig += rec.supportDig
+    acc.seal1 += rec.seal1
+    acc.seal2 += rec.seal2
+    acc.seal3 += rec.seal3
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3}`
 }

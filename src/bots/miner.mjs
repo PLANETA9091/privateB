@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2869,6 +2869,9 @@ export function createMiner ({
         let lipRefusals = 0
         let supportDigs = 0
         let supportRefusals = 0
+        let seal1 = 0 // (v0.267.0) the seal depth histogram - the sealed refusals by measured depth
+        let seal2 = 0
+        let seal3 = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -2971,7 +2974,30 @@ export function createMiner ({
                     : supportDigRefusal(digParams)
                   if (why) {
                     supportRefusals++
-                    if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)})`)
+                    // (v0.267.0) THE SEAL DEPTH READ: the sealed pocket is the
+                    // world's dominant refusal shape (face 36369215771: ALL 30
+                    // refusals read air=0) - measure HOW deep the seal runs
+                    // before any deep-shake variant can be fenced. The probe
+                    // fires ONLY on the sealed class (three reads, capped); a
+                    // measured depth rides the line AND the ledger histogram
+                    // (seal1/seal2/seal3 - the uncapped aggregate); junk reads
+                    // 'seal ?' - a lost read claims no depth.
+                    let sealTail = ''
+                    if (why === 'sealed under the ledge') {
+                      const verdicts = []
+                      for (let sd = 1; sd <= 3; sd++) {
+                        const sb = bot.blockAt(new Vec3(supportCell.x, supportCell.y - sd, supportCell.z))
+                        verdicts.push(!sb ? null
+                          : sb.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(sb.name) ? 'solid'
+                          : sb.boundingBox === 'empty' && !SHAFT_FLUID_NAMES.has(sb.name) ? 'air' : 'fluid')
+                      }
+                      const sealN = sealedColumnDepth(verdicts)
+                      if (sealN === 1) seal1++
+                      else if (sealN === 2) seal2++
+                      else if (sealN === 3) seal3++
+                      sealTail = `, seal ${sealN ?? '?'}`
+                    }
+                    if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)}${sealTail})`)
                   }
                 }
               }
@@ -3054,7 +3080,7 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -3063,6 +3089,9 @@ export function createMiner ({
           sd.deepSkip += skipDeep
           sd.lipDig += lipDigs
           sd.supportDig += supportDigs
+          sd.seal1 += seal1
+          sd.seal2 += seal2
+          sd.seal3 += seal3
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }
