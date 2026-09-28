@@ -47,13 +47,13 @@ test('the sweepDropRecord row carries the split and floors junk (the v0.267.0 ta
   assert.equal(sweepDropRecord({ sealNear: 'x', sealFar: NaN }).sealNear, 0, 'junk floors at zero - the row never carries a guess')
   assert.equal(sweepDropRecord({ sealFar: -5 }).sealFar, 0)
   const row = belowResidueRow([{ sweeps: 1, seal3: 4, sealNear: 1, sealFar: 3 }])
-  assert.match(row, /seal3=4 near=1 far=3 cut=0 nthick=0 nthin=0$/, 'the split rides the row tail - the legacy tokens keep their positions')
+  assert.match(row, /seal3=4 near=1 far=3 cut=0 nthick=0 nthin=0 ngap=0$/, 'the split rides the row tail - the legacy tokens keep their positions')
 })
 
 test('belowResidueRow: the split aggregates across bots (and the all-junk row keeps its shape)', () => {
   const row = belowResidueRow([{ sealNear: 2, sealFar: 5 }, { sealNear: 1 }, null, undefined])
-  assert.match(row, /near=3 far=5 cut=0 nthick=0 nthin=0$/, 'the fleet row sums both buckets')
-  assert.match(belowResidueRow([null, undefined, {}]), /seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
+  assert.match(row, /near=3 far=5 cut=0 nthick=0 nthin=0 ngap=0$/, 'the fleet row sums both buckets')
+  assert.match(belowResidueRow([null, undefined, {}]), /seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
 })
 
 test('the reach split is wired: the miner counts it into the ledger (v0.273.0)', () => {

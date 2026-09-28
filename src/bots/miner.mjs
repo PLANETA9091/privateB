@@ -2992,6 +2992,7 @@ export function createMiner ({
         let cutDigs = 0 // (v0.275.0) the ledge cut - the sealed class's first conversions
         let sealCutTargets = 0 // (v0.277.0) the cut target split - the near THICK seals the ledge cut owns
         let sealNearThin = 0 // (v0.277.0) the near THIN seals - the dig family's own missed candidates
+        let sealCutGap = 0 // (v0.281.0) the reach gap - thick near seals the cut's 1.5 fence refuses, the stance side owns them
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -3125,6 +3126,7 @@ export function createMiner ({
                       // family's own missed candidate (a junk depth claims neither).
                       const cutClass = sealCutClass(distXZ, sealN)
                       if (cutClass === 'cut') sealCutTargets++
+                      else if (cutClass === 'gap') sealCutGap++ // (v0.281.0) the cut's own fence refuses - the band keeps its name
                       else if (cutClass === 'thin') sealNearThin++
                       if (sealReachBucket(distXZ) === 'near') sealNear++
                       else if (sealReachBucket(distXZ) === 'far') sealFar++
@@ -3245,7 +3247,7 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -3262,6 +3264,7 @@ export function createMiner ({
           sd.ledgeCut += cutDigs
           sd.sealCutTargets += sealCutTargets
           sd.sealNearThin += sealNearThin
+          sd.sealCutGap += sealCutGap
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }
