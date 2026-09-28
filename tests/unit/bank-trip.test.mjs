@@ -213,3 +213,59 @@ test('REGRESSION PIN: the yard vertical rides the budget call (the run195 dead-w
   assert.match(call[0], /yardDy: bankYardDy/, 'the dy rides the call (the budget prices the honest climb, never a guess)')
   assert.match(call[0], /yardDist: bankYardDist/, 'the dist still rides the call (the v0.68.0 shape preserved)')
 })
+
+// (v0.295.0) THE RESCUE-CLOCK BANK GATE - the arm respects the live rescue
+// ownership. MEASURED (face 36493264551, the combined v0.294.0 tree's first
+// field flight): 3 of 4 armed trips died 'climb out (bank): failed - rescue
+// owns the bot' at climb ENTRY (armed inside the wet machinery's ~25s window;
+// F6/F1 mid water-machinery passes, F3 one pass after a drowning rescue), the
+// 4th died to a mid-arm ECONNRESET - banked=0 a third face running, 1428u
+// rode the pockets. The gate prices the WAIT, not the fight.
+import { bankRescueGate } from '../../src/lib/deposit.mjs'
+
+test('bankRescueGate: junk and empty input never defer a trip', () => {
+  assert.deepEqual(bankRescueGate(), { defer: false, announce: false, announced: false })
+  assert.deepEqual(bankRescueGate({}), { defer: false, announce: false, announced: false })
+  assert.deepEqual(bankRescueGate({ rescueHeld: NaN, announced: 'junk' }), { defer: false, announce: false, announced: false })
+  assert.deepEqual(bankRescueGate({ rescueHeld: 1 }), { defer: false, announce: false, announced: false }, 'a truthy non-true flag is not ownership (=== true, the owner gate\'s own strictness)')
+})
+
+test('bankRescueGate: the held arm defers and announces once (the rising edge)', () => {
+  assert.deepEqual(bankRescueGate({ rescueHeld: true }), { defer: true, announce: true, announced: true })
+})
+
+test('bankRescueGate: the hold passes stay silent (the window keeps its one line)', () => {
+  assert.deepEqual(bankRescueGate({ rescueHeld: true, announced: true }), { defer: true, announce: false, announced: true })
+})
+
+test('bankRescueGate: the release resets the edge (the falling edge re-arms honestly)', () => {
+  assert.deepEqual(bankRescueGate({ rescueHeld: false, announced: true }), { defer: false, announce: false, announced: false })
+})
+
+test('bankRescueGate: the face shape - a wet window announces exactly once', () => {
+  // held across many dig-loop passes, then released, then held again
+  const seq = [true, true, true, true, false, false, true]
+  let announced = false
+  const lines = []
+  for (const held of seq) {
+    const v = bankRescueGate({ rescueHeld: held, announced })
+    announced = v.announced
+    if (v.announce) lines.push('deferred')
+  }
+  assert.equal(lines.length, 2, 'one line per rescue window - the second window announces again (F6/F1/F3 each got their own line)')
+})
+
+test('REGRESSION PIN: the arm consults the rescue clock before burning the cadence (the dead-wire class)', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const gateAt = src.indexOf('const bankDefer = bankRescueGate({')
+  const armAt = src.indexOf('if (load && bankWanted && bankViable && !bankDefer.defer) {')
+  const burnAt = src.indexOf('lastBankAt = Date.now()', armAt) // (the FIRST hit is the declaration's own initializer - the burn rides inside the arm)
+  assert.ok(gateAt > -1 && armAt > gateAt, 'the gate rides before the arm block')
+  assert.ok(burnAt > armAt, 'the cadence clock burns only inside the arm (a deferred window never spends the 150s)')
+  assert.match(src, /rescueHeld: !!\(load && bankWanted && bankViable && miner\.bot\._waterRescue === true\)/,
+    'the LIVE ownership flag rides the call (=== true - the climb owner gate\'s own strictness, junk never defers)')
+  assert.match(src, /bankRescueAnnounced = bankDefer\.announced/, 'the edge state rides back (the falling edge resets, the next window announces honestly)')
+  assert.ok(src.includes("bank trip: deferred (rescue owns the bot"), 'the deferral names itself in the same \'bank \' filter key (the field face reads the existing series)')
+  assert.ok(src.includes('let bankRescueAnnounced = false'), 'the announce edge is per-bot loop state (the churn hold\'s shape)')
+  assert.match(src, /bankRescueGate[,}]/, 'the helper is imported (the import regex carries the gate)')
+})

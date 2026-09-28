@@ -51,7 +51,7 @@ test('REGRESSION PIN: the arm folds into the legacy bank family, never a second 
 })
 
 test('REGRESSION PIN: the arm sets the plan exit clock inside the chain block (the failed arm waits it out)', () => {
-  const chainAt = fleetSrc.indexOf('if (load && bankWanted && bankViable) {')
+  const chainAt = fleetSrc.indexOf('if (load && bankWanted && bankViable && !bankDefer.defer) {') // (v0.295.0 re-pin: the rescue-clock gate joins the chain condition - the arm defers while a rescue owns the bot)
   const clockAt = fleetSrc.indexOf('duskTripUntil = duskPlan.untilMs')
   assert.ok(chainAt > -1 && clockAt > chainAt, 'the clock set lives inside the chain block (an armed trip owns its window; lastBankAt refractories beside it)')
   assert.ok(!/duskTripUntil\s*=[^=]/.test(fleetSrc.slice(clockAt + 10).split('\n').slice(0, 1)[0].replace('duskTripUntil = duskPlan.untilMs', '')) || true,

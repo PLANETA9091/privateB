@@ -23,7 +23,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -1164,6 +1164,7 @@ async function runBot (name, target, index) {
       let wetEvacUntil = 0 // (v0.223.0) the churn evacuation's exit clock - the plan owns it, the wiring only carries it (it survives relogs: the stance rides the runner, the cadence rides the client)
       let duskTripUntil = 0 // (v0.229.0) the dusk-bank plan's exit clock - the plan owns it, the wiring only carries it (the churn clock's shape)
       let lastBankTripMs = NaN // (v0.229.0) the wiring's MEASURED bank trip (the last DELIVERED chain's wall time) - the dusk plan prices with it; NaN = unmeasured, the plan reads no-time (it never prices a guess)
+      let bankRescueAnnounced = false // (v0.295.0) the rescue-clock gate's announce edge - one deferral line per rescue window, the hold passes stay silent (the churn hold's shape)
       let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
       // (v0.293.0) THE CHURN INTRA-GOAL READ - the boundary consult's blind
       // spot closed. Face 36476752446: F3/F11/F13 took 12-17 rescues each in
@@ -2130,7 +2131,22 @@ async function runBot (name, target, index) {
         // next fleet sizes the held class.
         const bankNightHold = surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'mid-bank' }) === 'hold'
         const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || needsBankingTripViable({ remainingMs: bankRemainingMs })) // (v0.229.0) the plan arm rides beside the legacy reasons - the hold still owns the sky first
-        if (load && bankWanted && bankViable) {
+        // (v0.295.0) THE RESCUE-CLOCK BANK GATE: the arm respects the live
+        // rescue ownership (bot._waterRescue - the same flag climbOwnerGate
+        // refuses on). Face 36493264551: 3 of 4 armed trips died 'rescue owns
+        // the bot' at climb ENTRY (armed inside the wet machinery's window),
+        // each burn ate the 150s cadence clock - banked=0 a third face
+        // running. The gate defers the arm while the rescue holds (the dig
+        // loop re-consults next pass, the budget prices fresh on release),
+        // announces once per window, and never fights the wet machinery for
+        // the controls (the climb's own owner gate stays the second line).
+        const bankDefer = bankRescueGate({
+          rescueHeld: !!(load && bankWanted && bankViable && miner.bot._waterRescue === true),
+          announced: bankRescueAnnounced
+        })
+        bankRescueAnnounced = bankDefer.announced
+        if (bankDefer.announce) console.log(`${name} bank trip: deferred (rescue owns the bot - the arm waits for the release, the budget never burns)`) // rides the same 'bank ' filter key, the class sizes itself
+        if (load && bankWanted && bankViable && !bankDefer.defer) {
           lastBankAt = Date.now()
           if (duskPlan.go) {
             duskTripUntil = duskPlan.untilMs // (v0.229.0) the plan owns the exit clock - the wiring only carries it (the failed arm waits it out, no re-arm storm)

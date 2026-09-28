@@ -550,6 +550,33 @@ export function bankTripBudgetMs ({ yardDist = 0, yardDy = 0, floorMs = BANK_TRI
   return Math.min(Math.max(raw, floor), cap)
 }
 
+// (v0.295.0) THE RESCUE-CLOCK BANK GATE - the bank arm respects the live
+// rescue ownership. MEASURED (face 36493264551, the combined v0.294.0 tree's
+// first field flight): the climb-priced budget CONVERTED (the arm reads the
+// yard's own vertical - 'the yard stands 24 levels up over 13b lateral', the
+// budgets grew to 173-178s) and the trips STILL delivered zero: 3 of 4 armed
+// trips died 'climb out (bank): failed - rescue owns the bot' at climb entry
+// (F6/F1 armed mid water-machinery passes, F3 one pass after a drowning
+// rescue), the 4th died to a mid-arm ECONNRESET - banked=0 for the THIRD
+// face running, the whole 1428u yield rode the pockets again. The ownership
+// flag (bot._waterRescue) is TRANSIENT - the wet machinery's own window
+// (~25s measured) - but the arm burns lastBankAt (the 150s cadence) and the
+// climb's owner gate refuses with 'no retry', so one unlucky arm ate the
+// whole trip. The cure prices the WAIT, not the fight: while the rescue owns
+// the bot the arm DEFERS (the dig loop re-consults next pass, the budget
+// prices fresh on release), announces ONCE per window (the churn hold's
+// rising-edge shape - the hold passes stay silent), and resets on the
+// release (the falling edge re-arms the next window honestly). Junk reads
+// free - a missing or non-boolean flag never defers a trip (every prior
+// fleet's exact arm shape preserved).
+export function bankRescueGate ({ rescueHeld = false, announced = false } = {}) {
+  if (rescueHeld === true) {
+    if (announced !== true) return { defer: true, announce: true, announced: true }
+    return { defer: true, announce: false, announced: true }
+  }
+  return { defer: false, announce: false, announced: false }
+}
+
 // (v0.68.0) THE MID-BANK BUDGET - one arithmetic for BOTH trip paths.
 //
 // MEASURED (run65, dispatch 35682159103, the second v0.66.0 fleet, NORMAL END):
