@@ -163,7 +163,7 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
  * unknown' - a missing or reset tracker NEVER masquerades as dry (the
  * -1 sentinel lesson: a reset is not a measurement). Pure.
  *
- * (v0.278.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
+ * (v0.279.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
  * measured 'wet unknown' on BOTH drown deaths (F13 x2) - the drown-timer's
  * early returns (the rescue's swimming state, the cooldown gate) freeze the
  * live tracker exactly while the bot is IN the water, and the surface-bob
@@ -241,7 +241,7 @@ export function drownContextLine (r = {}) {
   }
   const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
   // (v0.275.0) the wet window rides the tail - the trip-drown class's exposure measure
-  // (v0.278.0) the last-episode fallback rides beside it - a reset tracker with a prior
+  // (v0.279.0) the last-episode fallback rides beside it - a reset tracker with a prior
   // episode renders the previous wetting '@last' (face 36397191054: 'wet unknown' x2)
   return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName}, ${wetWindowLabel(headWetSince, now, lastWetMs)})`
 }

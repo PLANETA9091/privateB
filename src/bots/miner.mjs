@@ -396,7 +396,7 @@ export function createMiner ({
           rescueActive: bot._waterRescue === true,
           lastRescueAt,
           headWetSince, // (v0.275.0) the wet window - the head-wet exposure the trip took before the drown
-          lastWetMs: headWetLastMs, // (v0.278.0) the last-episode fallback - the reset eats the live read at the drown tick (face 36397191054: 'wet unknown' x2)
+          lastWetMs: headWetLastMs, // (v0.279.0) the last-episode fallback - the reset eats the live read at the drown tick (face 36397191054: 'wet unknown' x2)
           now: Date.now(),
           leg: bot._gotoSafeLabel ?? null // (v0.270.0) the trip leg stamp - which walk owned the death
         })
@@ -1581,7 +1581,7 @@ export function createMiner ({
   let lastGlitchLogAt = 0
   let lastBypassEchoAt = 0 // (v0.265.0) the bypass echo's rate limiter (the AIR_GLITCH_LOG_MS cadence)
   let headWetSince = 0
-  let headWetLastMs = 0 // (v0.278.0) the most recent COMPLETED wet episode's duration - the death context's fallback when the live tracker reads reset
+  let headWetLastMs = 0 // (v0.279.0) the most recent COMPLETED wet episode's duration - the death context's fallback when the live tracker reads reset
   let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
   let noOpRescueGateUntil = 0 // (v0.104.0) the dry-land proof's re-fire gate (the glitch-class backoff)
   // (v0.117.0) THE CHRONIC-LIAR LADDER state: glitchConfirmed counts the
@@ -2092,7 +2092,7 @@ export function createMiner ({
       const now = Date.now()
       const read = waterRead()
       const headWet = isWaterName(read.head)
-      // (v0.278.0) the completed-episode capture: a dry sample ends the wet
+      // (v0.279.0) the completed-episode capture: a dry sample ends the wet
       // episode - its DURATION survives in headWetLastMs so the death context
       // can render the previous wetting '@last' when the live tracker reads
       // reset (the surface-bob + rescue-gate freeze the field read proved)

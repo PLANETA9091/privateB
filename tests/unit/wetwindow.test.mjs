@@ -62,7 +62,7 @@ test('the wet window is wired: the death context passes the bot\'s tracker (v0.2
   assert.ok(minerSrc.indexOf('headWetSince, // (v0.275.0) the wet window') < minerSrc.indexOf('leg: bot._gotoSafeLabel ?? null'), 'the window precedes the leg in the call options')
 })
 
-// (v0.278.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
+// (v0.279.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
 // measured 'wet unknown' on BOTH drown deaths (F13 x2) - the drown-timer's
 // early returns (the rescue's swimming state, the cooldown gate) freeze the
 // live tracker while the bot is IN the water, and the surface-bob reset eats
@@ -103,8 +103,8 @@ test('drownContextLine: the @last tail rides the row (the bobbing-drown shape)',
   assert.ok(legacy.endsWith(', leg unknown, wet 12s@last)'), 'a legacy call with only lastWetMs still reads the fallback')
 })
 
-test('the last-episode fallback is wired: the tracker capture and the pass-through (v0.278.0)', () => {
-  assert.ok(minerSrc.includes('lastWetMs: headWetLastMs, // (v0.278.0) the last-episode fallback'), 'the drown context passes the bot\'s headWetLastMs capture')
+test('the last-episode fallback is wired: the tracker capture and the pass-through (v0.279.0)', () => {
+  assert.ok(minerSrc.includes('lastWetMs: headWetLastMs, // (v0.279.0) the last-episode fallback'), 'the drown context passes the bot\'s headWetLastMs capture')
   assert.ok(minerSrc.includes('if (headWetSince) headWetLastMs = now - headWetSince; headWetSince = 0'), 'the dry sample ends the episode - its duration survives the reset')
   assert.ok(statcarrySrc.includes('lastWetMs = null } = r || {}'), 'the context destructure grows the fallback option')
   assert.ok(statcarrySrc.includes('wetWindowLabel(headWetSince, now, lastWetMs)'), 'the renderer receives the fallback beside the live tracker')
