@@ -449,7 +449,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -474,18 +474,22 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // the ledge-cut brief WHICH seals the dig family can even own (near) vs
     // the ones a stance change owns first (far)
     sealNear: fl(sealNear),
-    sealFar: fl(sealFar)
+    sealFar: fl(sealFar),
+    // (v0.275.0) THE LEDGE CUT joins the row - the sealed class's first
+    // conversions (the near bucket's behavior cure: the seal column's top
+    // dy-1 cells + the support, the drop lands on the bot's own layer)
+    ledgeCut: fl(ledgeCut)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -506,7 +510,54 @@ export function belowResidueRow (records) {
     acc.seal3 += rec.seal3
     acc.sealNear += rec.sealNear
     acc.sealFar += rec.sealFar
+    acc.ledgeCut += rec.ledgeCut
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut}`
+}
+
+// (v0.275.0) THE LEDGE CUT - the sealed class's first behavior cure. The
+// split's first field read (face 36387892453: near=4 far=11) proved the
+// NEAR bucket is real: sealed drops the bot legally stands beside, which
+// every dig variant so far refused HONESTLY (the v0.263.0 fence needs an
+// air column to shake into; the seal has none). THE CUT'S ARITHMETIC: dig
+// the seal column's TOP dy-1 cells (S-1..S-(dy-1)), then the support - the
+// drop falls the cut column and lands ON THE BOT'S OWN LAYER (y = bot.y
+// exactly), where the pickup magnet owns it. THE FENCE, every guard a
+// measured law:
+//   - dy stays the ledge class (SUPPORT_DIG_MIN_DY..SUPPORT_DIG_MAX_DY):
+//     the cut is an above-family cure, nothing else;
+//   - sealDepth >= dy: the column's floor S-dy must read SOLID or the drop
+//     falls past the cut into an unmeasured depth (the v0.86.0 lesson - a
+//     zero-read window reports the WORST); a thin seal under a high ledge
+//     is refused honestly (the landing is unmeasured);
+//   - fluidBelow === false: the same dry guard every dig family rides (a
+//     wet cut drains the drop into fluid - the reachability dies there);
+//   - distXZ <= LEDGE_CUT_REACH (1.5, INSIDE the v0.263.0 stand-off): the
+//     lip dig's own field lesson (fleet 36181152847) measured the range-2
+//     arrival OUTSIDE the magnet - the cut's landing is level, so its 3D
+//     distance is exactly distXZ, and 1.5 is the honest magnet radius.
+// Junk law: a lost read never arms a cut (a finite-only gate) - the refusal
+// classes keep their telemetry, the cut only ever ADDS conversions.
+export const LEDGE_CUT_REACH = 1.5
+
+/**
+ * Should the sealed support become a ledge cut (pure, junk-honest)? Returns
+ * the dig count (dy - 1: the seal cells to dig BEFORE the support shake) or
+ * null when any guard refuses. A null is an honest refusal - the caller's
+ * telemetry keeps the class visible either way.
+ * @param {object} [p]
+ * @param {number} [p.dy] the drop's height over the bot (the ledge class 1..3)
+ * @param {number} [p.distXZ] the horizontal stand-off to the fall column
+ * @param {number|null} [p.sealDepth] the v0.267.0 probe's read (1..3, null = no read)
+ * @param {boolean} [p.fluidBelow] the wet guard read (true/undefined refuses)
+ * @param {number} [p.reach] the stand-off cap (injected for the tests)
+ * @returns {number|null} the seal-cell dig count (0 when dy === 1), or null
+ */
+export function ledgeCutWanted ({ dy, distXZ, sealDepth, fluidBelow, reach = LEDGE_CUT_REACH } = {}) {
+  if (!Number.isFinite(dy) || dy < SUPPORT_DIG_MIN_DY || dy > SUPPORT_DIG_MAX_DY) return null
+  if (!Number.isFinite(sealDepth) || sealDepth < dy) return null
+  if (fluidBelow !== false) return null
+  if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return null
+  return dy - 1
 }

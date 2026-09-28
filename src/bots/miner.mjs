@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, ledgeCutWanted, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2956,6 +2956,7 @@ export function createMiner ({
         let seal3 = 0
         let sealNear = 0 // (v0.273.0) the reach split - the sealed candidates the dig family can even own
         let sealFar = 0
+        let cutDigs = 0 // (v0.275.0) the ledge cut - the sealed class's first conversions
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -3086,6 +3087,29 @@ export function createMiner ({
                       // change first - the brief must not mistake one for the other.
                       if (sealReachBucket(distXZ) === 'near') sealNear++
                       else if (sealReachBucket(distXZ) === 'far') sealFar++
+                      // (v0.275.0) THE LEDGE CUT: the near bucket's first behavior
+                      // cure - dig the seal column's top dy-1 cells + the support,
+                      // the drop lands ON THE BOT'S LAYER (the magnet owns it). The
+                      // fence (src/lib/drops.mjs): the seal floor S-dy reads solid
+                      // (sealDepth >= dy - an unmeasured landing never cuts), the
+                      // column stays dry, the stance stays INSIDE the lip-dig's
+                      // measured magnet radius (1.5 < the v0.263.0 stand-off). A
+                      // null is an honest refusal - the telemetry above keeps the
+                      // class visible either way; a contested dig falls back to
+                      // the refusal ledger, never a failure.
+                      const cut = ledgeCutWanted({ dy: dyNow, distXZ, sealDepth: sealN, fluidBelow: strikeSupport !== null })
+                      if (cut !== null) {
+                        try {
+                          for (let cd = 1; cd <= cut; cd++) {
+                            const cb = bot.blockAt(new Vec3(supportCell.x, supportCell.y - cd, supportCell.z))
+                            if (!cb || cb.type === 0) break // a lost mid-read stops the column honestly
+                            await bot.fastDig(cb)
+                          }
+                          await bot.fastDig(support) // the shake: the drop falls the cut column to my layer
+                          cutDigs++
+                          log(`${tag} vein sweep: ledge cut - dug ${cut} seal cell(s) + the support, the drop falls to my layer (seal ${sealN}, dy ${dyNow})`)
+                        } catch { /* a contested dig falls back to the refusal ledger - never a failure */ }
+                      }
                       sealTail = `, seal ${sealN ?? '?'}`
                     }
                     if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)}${sealTail})`)
@@ -3171,7 +3195,7 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -3185,6 +3209,7 @@ export function createMiner ({
           sd.seal3 += seal3
           sd.sealNear += sealNear
           sd.sealFar += sealFar
+          sd.ledgeCut += cutDigs
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }

@@ -118,9 +118,9 @@ test('v0.263.0 instruments: the honest line family and the ledger row extend', (
   assert.match(minerSrc, /let supportDigs = 0/, 'the counter initializes with its siblings')
   assert.match(minerSrc, /let supportRefusals = 0/, 'the refusal counter initializes with its siblings')
   assert.match(minerSrc, /sd\.supportDig \+= supportDigs/, 'the ledger accumulates the shakes')
-  assert.match(minerSrc, /stats\.sweepDrops = \{ sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0 \}/, 'the stats seed grows the new counter (and the v0.267.0 seal histogram rides the tail)')
+  assert.match(minerSrc, /stats\.sweepDrops = \{ sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0 \}/, 'the stats seed grows the new counter (and the v0.267.0 seal histogram rides the tail)')
   const row = belowResidueRow([{ sweeps: 2, picked: 10, failed: 3, below: 1, above: 2, deepSkip: 1, lipDig: 0, supportDig: 1 }])
-  assert.match(row, /supportDig=1 seal1=0 seal2=0 seal3=0 near=0 far=0$/, 'the fleet row carries the tail token - the v0.205.0 precedent (existing tokens keep their positions)')
+  assert.match(row, /supportDig=1 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0$/, 'the fleet row carries the tail token - the v0.205.0 precedent (existing tokens keep their positions)')
   assert.match(row, /deepSkip=1 lipDig=0 supportDig=1/, 'the extended identity: the old tokens byte-unchanged')
 })
 
@@ -132,10 +132,10 @@ test('v0.263.0 ledger: junk floors and the clamped identity survive the extensio
   assert.equal(rec.supportDig, 2, 'the new counter floors and passes')
   const clamped = belowResidueRow([{ failed: 5, below: 2, above: 9, supportDig: 2 }])
   assert.match(clamped, /failed=5 \(below x2, plane x0, above x3\)/, 'above claims the rest of failed - the identity below + plane + above == failed holds')
-  assert.match(clamped, /supportDig=2 seal1=0 seal2=0 seal3=0 near=0 far=0$/, 'the clamped row still carries the tail token')
+  assert.match(clamped, /supportDig=2 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0$/, 'the clamped row still carries the tail token')
   const junk = sweepDropRecord()
   assert.equal(junk.supportDig, 0, 'no-arg tolerates - the null guard lives at the row caller (r ?? {}, the v0.203.0 shape)')
-  assert.equal(belowResidueRow([null, undefined, {}]), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0', 'the all-junk row keeps its shape with the new tokens (the v0.267.0 histogram rides the tail)')
+  assert.equal(belowResidueRow([null, undefined, {}]), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0', 'the all-junk row keeps its shape with the new tokens (the v0.267.0 histogram rides the tail)')
 })
 
 test('v0.263.0 the lip dig block is UNTOUCHED - the mirror does not bend the original', () => {
