@@ -323,6 +323,28 @@ export function sealedColumnDepth (cells) {
   return depth >= 1 ? depth : null
 }
 
+// (v0.273.0) THE SEAL REACH SPLIT - the histogram's first field read (face
+// 36378053182: seal1=0 seal2=0 seal3=18) measured the sealed class, but the
+// refusal order names the seal BEFORE the stand-off check, so the probe also
+// counts candidates the dig can never own (the field's own row opened with
+// 'air 0, dist 3.0, seal 3' - dist 3.0 is outside SUPPORT_DIG_REACH 2). The
+// ledge-cut design brief needs the split: a NEAR seal is the dig family's
+// candidate (the cut converts it); a FAR one needs a stance change first (a
+// walk-adjacent cure, a different front). Pure, junk-honest: a non-finite or
+// negative distance claims no bucket, a junk reach refuses the call - a lost
+// read never arms a count.
+/**
+ * Which side of the support-dig stand-off does a sealed candidate sit on?
+ * @param {number} distXZ the measured horizontal stand-off to the drop
+ * @param {number} [reach] the dig family's reach cap (default SUPPORT_DIG_REACH)
+ * @returns {'near'|'far'|null} null when any input is junk (never counted)
+ */
+export function sealReachBucket (distXZ, reach = SUPPORT_DIG_REACH) {
+  if (!Number.isFinite(distXZ) || distXZ < 0) return null
+  if (!Number.isFinite(reach) || reach < 0) return null
+  return distXZ <= reach ? 'near' : 'far'
+}
+
 // (v0.260.0) THE ALREADY-THERE FAST PATH - the skip verdict that spares the
 // funnel a zero-displacement instant done. MEASURED (face 36344554956, the
 // v0.256.0-era fleet): the run's named drop-walk failures carried x16
@@ -427,7 +449,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -446,18 +468,24 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // seal converts, a thick one needs the ledge cut)
     seal1: fl(seal1),
     seal2: fl(seal2),
-    seal3: fl(seal3)
+    seal3: fl(seal3),
+    // (v0.273.0) THE SEAL REACH SPLIT joins the row - the histogram's own
+    // field read proved the class all-thick, the stand-off split now tells
+    // the ledge-cut brief WHICH seals the dig family can even own (near) vs
+    // the ones a stance change owns first (far)
+    sealNear: fl(sealNear),
+    sealFar: fl(sealFar)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -476,7 +504,9 @@ export function belowResidueRow (records) {
     acc.seal1 += rec.seal1
     acc.seal2 += rec.seal2
     acc.seal3 += rec.seal3
+    acc.sealNear += rec.sealNear
+    acc.sealFar += rec.sealFar
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar}`
 }

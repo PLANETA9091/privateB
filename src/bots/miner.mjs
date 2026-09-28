@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2933,6 +2933,8 @@ export function createMiner ({
         let seal1 = 0 // (v0.267.0) the seal depth histogram - the sealed refusals by measured depth
         let seal2 = 0
         let seal3 = 0
+        let sealNear = 0 // (v0.273.0) the reach split - the sealed candidates the dig family can even own
+        let sealFar = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -3056,6 +3058,13 @@ export function createMiner ({
                       if (sealN === 1) seal1++
                       else if (sealN === 2) seal2++
                       else if (sealN === 3) seal3++
+                      // (v0.273.0) the reach split: the refusal names the seal BEFORE
+                      // the stand-off, so the probe counts candidates outside the dig's
+                      // reach too (the field's own row: 'air 0, dist 3.0, seal 3'). A NEAR
+                      // seal is the ledge-cut's candidate; a FAR one needs a stance
+                      // change first - the brief must not mistake one for the other.
+                      if (sealReachBucket(distXZ) === 'near') sealNear++
+                      else if (sealReachBucket(distXZ) === 'far') sealFar++
                       sealTail = `, seal ${sealN ?? '?'}`
                     }
                     if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)}${sealTail})`)
@@ -3141,7 +3150,7 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -3153,6 +3162,8 @@ export function createMiner ({
           sd.seal1 += seal1
           sd.seal2 += seal2
           sd.seal3 += seal3
+          sd.sealNear += sealNear
+          sd.sealFar += sealFar
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }
