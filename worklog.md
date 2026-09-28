@@ -7786,3 +7786,17 @@ Stage Summary:
 - Master = this push (pkg 0.278.0 after the renumber). The LEDGE CUT (eae9e6e) PROVEN (gate SUCCESS); face 36397191054 = the 1600 lane's fleet of record (the LEDGE CUT's first field flight + the split's third read + the nthick/nthin tokens) - this fire used their section, never re-mined a live face.
 - NEXT FIRE (1700): (1) poll this push's gate - green => v0.278.0 PROVEN; (2) MINE FACE 36397191054 if not yet mined (the LEDGE CUT's first field conversions: 'cut=N' vs the nthick=/nthin= row tail; the wet window's first field rows; the void fall class repeat), and sweep for 'void context' lines (a third void death now NAMES its cell + depth + leg - the column decode completes; the stamp arms on this push's tree, so its first field line waits for the NEXT dispatch); (3) the F8 storm vs the liar ladder's 40 cap (the override threshold); (4) the banking cadence (banked=546 + pocket=1992u vs the 150s end-phase law); (5) the rescues=167 storm's census vs the 1437 calm.
 - OPEN FRONTS: the ledge cut's first field read (the 1600 lane's face carries it); the void column decode (the stamp's next line answers it); the cut target split's first field read (v0.277.0); the dig family's thin-seal anomaly (nthin names it); the F8 glitch storm (r125, the liar ladder at the 40 override); the suffocate stamp's field line (armed); the far-seal stance-change front (15/17); the trip-drown water watch; the F9 wet-cycler conversion proof (armed); the ascend grace's wet-storm face; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260928-1638 (dispatch addendum)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the fire's closing action - the gate law completed, the dispatch landed
+
+Work Log:
+- THE GATE LAW COMPLETED: push gate 36401196555 (c22e031, the combined tree: their CUT TARGET SPLIT + my VOID STAMP + the 0.278.0 renumber) => completed SUCCESS => v0.278.0 PROVEN. Slot check: zero workflow_dispatch live (the 1600 lane's face 36397191054 concluded SUCCESS - the LEDGE CUT'S FIRST FIELD FLIGHT is banked for the 1700 fire to mine).
+- DISPATCH: POST ci.yml run_fleet=true fleet_seconds=600 => HTTP 204 at 09:17:33Z => face 36402553113 materialized IN_PROGRESS on c22e031 (the immediate in_progress = the immune state). The face flies the FULL new tree: the void stamp armed (its first field line waits for a void death), the cut target split's nthick=/nthin= tokens live, the renumbered 0.278.0.
+- This addendum rides the LAST push (the 1437-lane precedent: a worklog push mid-face does not cull a fleet dispatch - f555723 was pushed mid-flight of face 36387892453, which concluded SUCCESS).
+
+Stage Summary:
+- Master = c22e031 (pkg 0.278.0, PROVEN by gate 36401196555). Face 36402553113 = the fire's fleet of record IN FLIGHT (the void stamp armed + the cut split live on the LEDGE CUT tree).
+- NEXT FIRE (1700): (1) MINE FACE 36397191054 (the 1600 lane's, concluded, likely unmined: the LEDGE CUT's first conversions 'cut=N' vs the nthick/nthin row) AND FACE 36402553113 (this fire's: the void stamp armed, the cut split's first flight on the full tree); (2) sweep both for 'void context' lines (a third void death names its cell + depth + leg - the column decode completes); (3) the F8 storm vs the liar ladder's 40 cap; (4) the banking cadence; (5) the rescues census.
