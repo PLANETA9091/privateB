@@ -1717,7 +1717,10 @@ export function createMiner ({
           passLogAt = Date.now()
           passLogs++
           const p = bot.entity.position
-          log(`${tag} water: pass ${passNo} head=${headWet ? 'wet' : 'dry'} shore=${dir ? `hit r=${dir.dist}` : 'none'} land=${land ? `${land.name} d=${land.dist.toFixed(0)}` : (headWet ? 'n/a' : 'none')} y=${p.y.toFixed(1)} o2=${read.oxygen} probes=${standingProbes} at=[${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}]`)
+          // (v0.267.0) the tithe: the pass line's o2 joins the one renderer
+          // (o2SensorLabel) - the raw -1 sentinel prints NAMED like every
+          // other site (the 1030 census: the pass lines were the last raw site).
+          log(`${tag} water: pass ${passNo} head=${headWet ? 'wet' : 'dry'} shore=${dir ? `hit r=${dir.dist}` : 'none'} land=${land ? `${land.name} d=${land.dist.toFixed(0)}` : (headWet ? 'n/a' : 'none')} y=${p.y.toFixed(1)} o2=${o2SensorLabel(read.oxygen)} probes=${standingProbes} at=[${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}]`)
         }
         passNo++
         rescueReads.push({ wet: headWet, atMs: Date.now() })
@@ -1741,7 +1744,7 @@ export function createMiner ({
           if (physicsFrozen({ points: passPoints, window: frozenWindow })) {
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
-              log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${read.oxygen}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)
+              log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${o2SensorLabel(read.oxygen)}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)
             }
             frozenDown = true
             frozenDownWet = headWet === true
@@ -1825,7 +1828,7 @@ export function createMiner ({
               ascendDigs++
               try {
                 await withTimeout(bot.dig(ceil), 6000, 'ascend dig')
-                log(`${tag} water: deep-pocket ascend - dug the ceiling ${ceil.name} at [${cell.x},${cell.y},${cell.z}] (jump stalled ${ASCEND_STALL_PASSES}+ passes, o2 ${read.oxygen})`)
+                log(`${tag} water: deep-pocket ascend - dug the ceiling ${ceil.name} at [${cell.x},${cell.y},${cell.z}] (jump stalled ${ASCEND_STALL_PASSES}+ passes, o2 ${o2SensorLabel(read.oxygen)})`)
               } catch { /* the dig lost the race: the jump-only shape carries on */ }
             }
           }

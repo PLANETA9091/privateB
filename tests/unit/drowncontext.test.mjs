@@ -6,8 +6,17 @@
 // relation) so the next decode splits the class by context BEFORE any cure.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { drownContextLine } from '../../src/lib/statcarry.mjs'
 import { o2SensorLabel } from '../../src/lib/drowning.mjs'
+
+// (v0.267.0) THE TITHE - the last raw o2 print sites join the one renderer.
+// The 1030 census (face 36369215771) caught the pass lines printing the raw
+// -1 sentinel while both death-side sites rendered NAMED - the decoder had
+// to re-derive the law from the v0.64.0 comment every read. The pass line,
+// the frozen-physics stand-down and the deep-pocket ascend now ride
+// o2SensorLabel; the negative pins own the law: NO raw site returns.
+const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
 
 test('drownContextLine: the submerged-never-rescued shape (the F15/F18 class)', () => {
   const line = drownContextLine({
@@ -87,4 +96,15 @@ test('drownContextLine: the legacy o2 shapes stay byte-identical', () => {
   assert.equal(l2, 'F3 death: drown context (o2 12, feet water, head air, rescue never)')
   const l3 = drownContextLine({ tag: 'F3', oxygen: NaN, feet: 'water', head: 'water' })
   assert.equal(l3, 'F3 death: drown context (o2 ?, feet water, head water, rescue never)')
+})
+
+test('the three rescue-lane o2 sites ride the one renderer (the v0.267.0 tithe)', () => {
+  assert.ok(minerSrc.includes('o2=${o2SensorLabel(read.oxygen)} probes='), 'the pass line renders the sentinel NAMED')
+  assert.ok(minerSrc.includes('o2=${o2SensorLabel(read.oxygen)}${headWet'), 'the frozen-physics stand-down renders the sentinel NAMED')
+  assert.ok(minerSrc.includes('o2 ${o2SensorLabel(read.oxygen)})'), 'the deep-pocket ascend renders the sentinel NAMED')
+})
+
+test('no raw o2 print site survives in miner.mjs (the one-renderer law, v0.267.0)', () => {
+  assert.ok(!minerSrc.includes('o2=${read.oxygen}'), 'the raw = form is gone')
+  assert.ok(!minerSrc.includes('o2 ${read.oxygen}'), 'the raw space form is gone')
 })
