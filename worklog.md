@@ -7853,3 +7853,15 @@ Stage Summary:
 - Master = this push (pkg 0.280.0). v0.280.0 PROVEN (gate 36409100537 SUCCESS; the 2648f7f integration green arrives moments later and completes the formality). Face 36410936339 = the fleet of record IN FLIGHT.
 - NEXT FIRE (1900): (1) poll the face 36410936339 (timeout 300 node /home/z/my-project/scripts/fleet-job-poll.mjs 36410936339 5) and MINE IT: the 'ledge cut refused - <fence>' census (the cut=0 decode completes - the fence histogram names the cure), the nthick/nthin second read (targets vs conversions), the wet window's third read ('@last' watch - the bobbing class), the zombie x7 repeat census (the mob survivability front), the void stamp's wait; (2) slot check per the law - if the face concluded and the slot is empty, the next dispatch flies the freshest proven head; (3) the first real code-improvement cycle in three fires: the fence histogram from (1) picks the cure (a stance-change for the reach class vs a floor-probe extension for the unmeasured class).
 - OPEN FRONTS: the cut refusal's first field read (the face IN FLIGHT); the stance-change front (far 10-15 dominates every histogram); the zombie outbreak x7 (the mob survivability front); the wet window's third read (@last watch); the void column decode (armed-silent); the F8 glitch storm r125 (the liar ladder at the 40 override); the impale outbreak x6 vs the melee cooldown; the reloot no-surface lost-drops class; the suffocate watch's frozen-client blindness; the F9 wet-cycler conversion proof (armed); the ascend grace's wet-storm face; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260928-1830 (correction of record)
+Agent: Super Z (cron lane 30, Job 414125)
+Task: the 1830 dispatch addendum - the first face was CULLED pending; re-dispatched
+
+Work Log:
+- CORRECTION: the dispatch run 36410936339 (2648f7f) read 'completed cancelled' minutes after materialization - the run was still PENDING (queued) when this lane's own worklog-only push (48132a2) landed one minute later, and the concurrency group culled the pending dispatch. The 1437-lane 'worklog push mid-face does not cull' precedent holds for IN-FLIGHT faces only (mid-flight = bots running; a QUEUED dispatch has no immunity). The 1800 section's cull prediction was wrong in fact (nothing was culled then), this 1830 section's 'dispatch landed' claim was wrong in fact (it was culled) - both recorded honestly, no narrative survives the panel.
+- RE-DISPATCH: the correction rides THIS push (no push may follow the dispatch - a pending dispatch is culled by any newer push); the POST fires immediately after this push lands. The ref resolves to the newest master (the worklog-only delta over the PROVEN 5057351/2648f7f code tree, the 1130 precedent unchanged).
+
+Stage Summary:
+- The 1900 fire: poll the FRESH dispatch run id (see the fire's own panel - the 1830 report names it), mine it, and NEVER push before a pending dispatch concludes (the pending-cull law is now measured).
