@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split
+import { dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, highLedgeStanceWanted, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split; (v0.296.0) the high ledge stance
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -3293,6 +3293,55 @@ export function createMiner ({
                         }
                       }
                       sealTail = `, seal ${sealN ?? '?'}`
+                    } else if (why === 'the ledge reads too high' && stanceSteps < 1 && highLedgeStanceWanted({ dy: dyNow, supportSolid, distXZ })) {
+                      // (v0.296.0) THE HIGH-LEDGE STANCE - the too-high class's
+                      // first behavior cure. Face 36493264551: the HIGH band
+                      // dominates the above residue (aboveHigh 23/27,
+                      // supportDig=0) and SIX 'the ledge reads too high'
+                      // refusals (dist 1.5-2.4) had NO cure path at all - the
+                      // sealed branch's own machinery (the seal probe, the
+                      // ledge cut, the stance step) consults only inside
+                      // 'sealed under the ledge', so a high ledge abandons its
+                      // candidate whole. THE CURE prices the STANCE, not the
+                      // climb: ONE bounded step to the fall column (the
+                      // v0.291.0 two-stage walk verbatim - the raw hop first,
+                      // the bounded-A* attempt only when the raw walk did not
+                      // land), then the dig RE-CONSULTS from the column - the
+                      // dy cap guards the MEASURED FALL, and the stance under
+                      // the column is the stance that measurement needs (the
+                      // rising terrain shrinks the dy into the class; a shelf
+                      // over flat ground refuses again, named). The fences are
+                      // the band's own (highLedgeStanceWanted): the class
+                      // identity, the solid support read, the ONE-block close.
+                      // The cap law holds - the step rides the SAME
+                      // stanceSteps counter (one per sweep across BOTH
+                      // classes); the row carries the cure inside the existing
+                      // fields (step=, supportDig=), the lines name the class.
+                      stanceSteps++
+                      log(`${tag} vein sweep: stance step armed - the ledge reads too high (dy ${dyNow}, dist ${distXZ.toFixed(1)} - closing to the column)`)
+                      let stepFrom = null // the walk's own start - the progress read lives past the catch (the v0.287.0 shape)
+                      try {
+                        stepFrom = { x: bot.entity.position.x, z: bot.entity.position.z }
+                        const rawLanded = await stanceStepRawWalk(bot, supportCell)
+                        if (!rawLanded) {
+                          await gotoSafe(bot, new goals.GoalNear(supportCell.x, bot.entity.position.y, supportCell.z, 1), { timeoutMs: STANCE_STEP_WALK_MS, label: 'stance step', doomedRearm: true })
+                        }
+                        const dyAfter = d.y - bot.entity.position.y
+                        const distAfter = Math.hypot(d.x - bot.entity.position.x, d.z - bot.entity.position.z)
+                        const reParams = { dy: dyAfter, supportSolid, airBelow: airSupport, fluidBelow: strikeSupport !== null, distXZ: distAfter }
+                        if (supportDigWanted(reParams)) {
+                          try {
+                            await bot.fastDig(support)
+                            supportDigs++
+                            log(`${tag} vein sweep: high ledge stance landed - the dig takes it from the column (dy ${dyAfter}, dist ${distAfter.toFixed(1)})`)
+                          } catch { /* the shake is a bonus - never a failure */ }
+                        } else {
+                          const residual = supportDigRefusal(reParams)
+                          if (residual) log(`${tag} vein sweep: high ledge stance landed - dist ${distAfter.toFixed(1)}, the dig still refuses - ${residual}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); if (walked == null) return ''; let tail = `, walked ${walked.toFixed(1)}`; if (walked <= 0.3) { const pin = stancePinRead(bot.entity && bot.entity.position, supportCell, (x, y, z) => bot.blockAt(new Vec3(x, y, z))); if (pin) tail += `, pinned ${pin.name}@${`[${pin.x},${pin.y},${pin.z}]`}` } return tail })()}`)
+                        }
+                      } catch (e) {
+                        log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); if (walked == null) return ''; let tail = `, walked ${walked.toFixed(1)}`; if (walked <= 0.3) { const pin = stancePinRead(bot.entity && bot.entity.position, supportCell, (x, y, z) => bot.blockAt(new Vec3(x, y, z))); if (pin) tail += `, pinned ${pin.name}@${`[${pin.x},${pin.y},${pin.z}]`}` } return tail })()})`)
+                      }
                     }
                     if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)}${sealTail})`)
                   }

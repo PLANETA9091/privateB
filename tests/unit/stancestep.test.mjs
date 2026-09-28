@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, STANCE_STEP_RAW_MS, STANCE_STEP_RAW_REACH, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, STANCE_STEP_RAW_MS, STANCE_STEP_RAW_REACH, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow, highLedgeStanceWanted } from '../../src/lib/drops.mjs'
 
 test('the ceil law: the whole-block step count closes the stand-off honestly', () => {
   assert.equal(stanceStepBlocks(1.5), null, 'distXZ === reach is INSIDE the magnet - the cut arms without help, no step')
@@ -266,6 +266,39 @@ test('the stance pin read: the solid names itself (v0.292.0)', () => {
   assert.equal(stancePinRead({ x: NaN, y: 59, z: 2 }, cell, solid), null, 'a NaN coordinate refuses')
   assert.equal(stancePinRead(from, cell, () => { throw new Error('world gone') }), null, 'a throwing world read refuses (never throws)')
   assert.equal(stancePinRead(from, cell, () => null), null, 'a lost block read refuses')
+})
+
+test('the high ledge stance: the fence (v0.296.0)', () => {
+  // face 36493264551: the too-high class had NO cure path - the sealed
+  // branch's own machinery never consults outside 'sealed under the ledge',
+  // and SIX 'the ledge reads too high' refusals (dist 1.5-2.4, supportDig=0)
+  // abandoned their candidates whole. The fence prices the walk: the class
+  // identity (dy beyond the dig's own cap), a solid support read, and the
+  // ONE-block close (the sealed branch's own band).
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 2.0 }), true, 'the too-high class in the one-block band arms (dy 4, dist 2.0)')
+  assert.equal(highLedgeStanceWanted({ dy: 3.5, supportSolid: true, distXZ: 1.8 }), true, 'a dy past the cap arms (the cap is 3 - the measured-fall guard)')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 1.8 }), true, 'the band\'s near edge arms (the face\'s own datum)')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 2.4 }), true, 'the face\'s far datum arms (the one-block close)')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 2.5 }), true, 'the ceil law\'s own edge arms (ceil(1.0) = 1)')
+  assert.equal(highLedgeStanceWanted({ dy: 3, supportSolid: true, distXZ: 2.0 }), false, 'dy AT the cap is the dig\'s own business (the class identity)')
+  assert.equal(highLedgeStanceWanted({ dy: 2, supportSolid: true, distXZ: 2.0 }), false, 'an in-class dy never arms a walk')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: false, distXZ: 2.0 }), false, 'an unmeasured support never arms a walk')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 1.5 }), false, 'AT the magnet edge is not the walk\'s band (stanceStepBlocks reads null)')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: 2.6 }), false, 'a two-block close is the far front\'s own business (the v0.283.0 doctrine)')
+  assert.equal(highLedgeStanceWanted({ dy: NaN, supportSolid: true, distXZ: 2.0 }), false, 'a junk dy refuses (a missing read never arms an action)')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: NaN }), false, 'a junk stand-off refuses')
+  assert.equal(highLedgeStanceWanted({ dy: 4, supportSolid: true, distXZ: -1 }), false, 'a negative stand-off refuses')
+  assert.equal(highLedgeStanceWanted(), false, 'a junk call refuses wholesale')
+})
+
+test('the high ledge stance wiring: the two-stage walk rides the too-high class (v0.296.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes("} else if (why === 'the ledge reads too high' && stanceSteps < 1 && highLedgeStanceWanted({ dy: dyNow, supportSolid, distXZ })) {"), 'the cure arms on the too-high class inside the cap law (the SAME stanceSteps counter - one step per sweep across BOTH classes)')
+  assert.ok(minerSrc.includes('vein sweep: stance step armed - the ledge reads too high (dy ${dyNow}, dist ${distXZ.toFixed(1)} - closing to the column)'), 'the arm line rides the vein sweep band (the cause form)')
+  assert.ok(minerSrc.includes('vein sweep: high ledge stance landed - the dig takes it from the column'), 'the result form rides the band (the conversion\'s own voice)')
+  assert.ok(minerSrc.includes('the dig still refuses - ${residual}'), 'the refusal form names the residual class (the honest miss)')
+  assert.ok(minerSrc.includes('supportDigWanted(reParams)'), 'the dig RE-CONSULTS from the column (the re-read is the cure\'s whole point)')
+  assert.ok(minerSrc.includes('const rawLanded = await stanceStepRawWalk(bot, supportCell)'), 'the raw hop walks FIRST (the v0.291.0 two-stage shape verbatim)')
 })
 
 test('the stance pin read: the tail wiring (v0.292.0)', () => {

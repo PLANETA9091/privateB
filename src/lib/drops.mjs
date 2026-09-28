@@ -329,6 +329,31 @@ export function supportDigRefusal ({ dy, supportSolid, airBelow, fluidBelow, dis
   return null
 }
 
+// (v0.296.0) THE HIGH-LEDGE STANCE FENCE - the too-high class's walk band.
+// Face 36493264551 read the above residue dominated by the HIGH band
+// (aboveHigh 23/27, supportDig=0) with SIX 'the ledge reads too high'
+// refusals (dist 1.5-2.4) and ZERO cure paths: the sealed branch's own
+// machinery (the seal probe, the ledge cut, the stance step) consults only
+// inside 'sealed under the ledge', so a high ledge abandons its candidate
+// whole. The cure prices the STANCE, not the climb: one bounded step to the
+// fall column re-consults the dig from the stance the measurement prices -
+// the dig's own dy cap (SUPPORT_DIG_MAX_DY) guards the MEASURED FALL, and
+// the stance under the column is the stance that measurement needs (rising
+// terrain shrinks the dy into the class; a shelf over flat ground refuses
+// again, named). The fence is the band's own: the class identity (dy
+// strictly beyond the dig's cap), a solid support read (an unmeasured
+// column never arms a walk), and the ONE-block close (stanceStepBlocks ===
+// 1, the sealed branch's own band - a longer walk is the far front's own
+// business, the v0.283.0 doctrine). Junk reads refuse: a missing read never
+// arms an action (the v0.86.0 lesson).
+export function highLedgeStanceWanted ({ dy, supportSolid, distXZ } = {}) {
+  if (!Number.isFinite(dy)) return false
+  if (dy <= SUPPORT_DIG_MAX_DY) return false // not the too-high class - the dig's own business
+  if (supportSolid !== true) return false
+  if (stanceStepBlocks(distXZ) !== 1) return false // the one-block close (the sealed branch's own band)
+  return true
+}
+
 // (v0.267.0) THE SEAL DEPTH READ - face 36369215771's census decoded the
 // support dig-down's zero-firing: ALL 30 refusals read air=0 below the
 // support - the SEALED POCKET is the world's dominant shape (15x sealed +
