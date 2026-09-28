@@ -151,6 +151,29 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
 }
 
 /**
+ * (v0.275.0) THE WET WINDOW - the trip-drown class's exposure measure.
+ * Faces 36384223490 (x2) and 36378053182 read 'rescue never' x3 on the trip
+ * legs (fuel commons walk / deploy / next column) - the trip-drown class is
+ * CONFIRMED, but the line could not say HOW LONG the head had been wet
+ * before the drown took the bot: a 2s plunge (the pathing side owns the
+ * cure) and a 30s wade (the rescue gate's silence is the story) read
+ * identically. The bot's own wet tracker (miner.mjs headWetSince, the
+ * waterVerdict input) holds the wet-start ts; this renders the exposure
+ * window onto the row tail. Junk law: 0 / junk / a future ts reads 'wet
+ * unknown' - a missing or reset tracker NEVER masquerades as dry (the
+ * -1 sentinel lesson: a reset is not a measurement). Pure.
+ *
+ * @param {number|null} [headWetSince] the wet-start ts from the bot's tracker (0 = dry/reset)
+ * @param {number} [now] the read clock (junk/future refuses)
+ * @returns {string} 'wet Ns' or 'wet unknown'
+ */
+export function wetWindowLabel (headWetSince, now = Date.now()) {
+  if (!Number.isFinite(headWetSince) || headWetSince <= 0) return 'wet unknown'
+  if (!Number.isFinite(now) || now < headWetSince) return 'wet unknown'
+  return `wet ${Math.floor((now - headWetSince) / 1000)}s`
+}
+
+/**
  * (v0.249.0) THE DROWN-DEATH CONTEXT - the drowning-class telemetry gap.
  * Run36325553310 measured the Drowned-class as the RETURNED death leader
  * (4/6: 2x env drown + 2x slain by Drowned) with the shore law at ZERO
@@ -163,10 +186,11 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
  * (active / Ns ago / never). The line rides the 'drown context' filter key
  * in testbed/fleet19.mjs.
  *
- * SHAPES (the four-canonical-forms house law):
- *   result   'F3 death: drown context (o2 0, feet water, head water, rescue active)'
- *   result   'F3 death: drown context (o2 12, feet water, head air, rescue 7s ago)'
- *   result   'F3 death: drown context (o2 ?, feet water, head water, rescue never)'
+ * SHAPES (the four-canonical-forms house law; the v0.205.0 tail precedent -
+ * the row tail extends, the legacy tokens keep their positions):
+ *   result   'F3 death: drown context (o2 0, feet water, head water, rescue active, leg unknown, wet 12s)'
+ *   result   'F3 death: drown context (o2 12, feet water, head air, rescue 7s ago, leg unknown, wet unknown)'
+ *   result   'F3 death: drown context (o2 ?, feet water, head water, rescue never, leg unknown, wet 0s)'
  *   refusal  null - the caller prints nothing (junk world, nothing to say;
  *            the handler's try/catch owns this branch, a death must never throw)
  *
@@ -186,7 +210,7 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
 // UNCONDITIONAL (always present) so a missing stamp can never masquerade as
 // a deliberate omission in the next face's census.
 export function drownContextLine (r = {}) {
-  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now(), leg = null } = r || {}
+  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now(), leg = null, headWetSince = null } = r || {}
   if (feet === null && head === null && oxygen === null) return null
   // (v0.264.0) the -1 reset sentinel renders NAMED (the v0.64.0 law): face
   // 36365938885's F1 chain printed a raw 'o2 -1' in this line - the sentinel
@@ -203,7 +227,8 @@ export function drownContextLine (r = {}) {
     rescue = `${Math.floor((now - lastRescueAt) / 1000)}s ago`
   }
   const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
-  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName})`
+  // (v0.275.0) the wet window rides the tail - the trip-drown class's exposure measure
+  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName}, ${wetWindowLabel(headWetSince, now)})`
 }
 
 // (v0.274.0) THE SUFFOCATE DEATH CONTEXT - the suffocate-class telemetry gap.

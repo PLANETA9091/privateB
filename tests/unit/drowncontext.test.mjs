@@ -24,14 +24,14 @@ test('drownContextLine: the submerged-never-rescued shape (the F15/F18 class)', 
     feetWaterlogged: false, headWaterlogged: false,
     rescueActive: false, lastRescueAt: null, now: 5000
   })
-  assert.equal(line, 'F15 death: drown context (o2 0, feet water, head water, rescue never, leg unknown)', 'no leg passed reads unknown honestly (the v0.270.0 stamp is unconditional)')
+  assert.equal(line, 'F15 death: drown context (o2 0, feet water, head water, rescue never, leg unknown, wet unknown)', 'no leg passed reads unknown honestly (the v0.270.0 stamp is unconditional)')
 })
 
 test('drownContextLine: the active-rescue shape (the rescue was running at death)', () => {
   const line = drownContextLine({
     tag: 'F2', oxygen: 3, feet: 'water', head: 'water', rescueActive: true, lastRescueAt: 9999, now: 10000
   })
-  assert.equal(line, 'F2 death: drown context (o2 3, feet water, head water, rescue active, leg unknown)')
+  assert.equal(line, 'F2 death: drown context (o2 3, feet water, head water, rescue active, leg unknown, wet unknown)')
 })
 
 test('drownContextLine: the Ns-ago shape + the waterlogged flags ride the blocks', () => {
@@ -40,21 +40,21 @@ test('drownContextLine: the Ns-ago shape + the waterlogged flags ride the blocks
     feetWaterlogged: true, headWaterlogged: false,
     rescueActive: false, lastRescueAt: 3000, now: 10000
   })
-  assert.equal(line, 'F9 death: drown context (o2 12, feet water wl, head air, rescue 7s ago, leg unknown)')
+  assert.equal(line, 'F9 death: drown context (o2 12, feet water wl, head air, rescue 7s ago, leg unknown, wet unknown)')
 })
 
 test('drownContextLine: the stale-bar junk shape renders ? (the 26.2 sensor lesson)', () => {
   const line = drownContextLine({
     tag: 'F18', oxygen: null, feet: null, head: 'water', now: 5000
   })
-  assert.equal(line, 'F18 death: drown context (o2 ?, feet unknown, head water, rescue never, leg unknown)')
+  assert.equal(line, 'F18 death: drown context (o2 ?, feet unknown, head water, rescue never, leg unknown, wet unknown)')
 })
 
 test('drownContextLine: the future lastRescueAt (a junk clock) reads never', () => {
   const line = drownContextLine({
     tag: 'F4', oxygen: 8, feet: 'water', head: 'air', rescueActive: false, lastRescueAt: 99999, now: 10000
   })
-  assert.equal(line, 'F4 death: drown context (o2 8, feet water, head air, rescue never, leg unknown)')
+  assert.equal(line, 'F4 death: drown context (o2 8, feet water, head air, rescue never, leg unknown, wet unknown)')
 })
 
 test('drownContextLine: a fully junk world read refuses (null - nothing to say)', () => {
@@ -86,16 +86,16 @@ test('drownContextLine: the F1 chain shape - the sentinel burst after an active 
   const line = drownContextLine({
     tag: 'F1', oxygen: -1, feet: 'water', head: 'water', rescueActive: true
   })
-  assert.equal(line, 'F1 death: drown context (o2 reset(-1), feet water, head water, rescue active, leg unknown)')
+  assert.equal(line, 'F1 death: drown context (o2 reset(-1), feet water, head water, rescue active, leg unknown, wet unknown)')
 })
 
 test('drownContextLine: the legacy o2 shapes stay byte-identical modulo the leg stamp (v0.270.0 identity-extends)', () => {
   const l1 = drownContextLine({ tag: 'F3', oxygen: 0, feet: 'water', head: 'water' })
-  assert.equal(l1, 'F3 death: drown context (o2 0, feet water, head water, rescue never, leg unknown)')
+  assert.equal(l1, 'F3 death: drown context (o2 0, feet water, head water, rescue never, leg unknown, wet unknown)')
   const l2 = drownContextLine({ tag: 'F3', oxygen: 12, feet: 'water', head: 'air' })
-  assert.equal(l2, 'F3 death: drown context (o2 12, feet water, head air, rescue never, leg unknown)')
+  assert.equal(l2, 'F3 death: drown context (o2 12, feet water, head air, rescue never, leg unknown, wet unknown)')
   const l3 = drownContextLine({ tag: 'F3', oxygen: NaN, feet: 'water', head: 'water' })
-  assert.equal(l3, 'F3 death: drown context (o2 ?, feet water, head water, rescue never, leg unknown)')
+  assert.equal(l3, 'F3 death: drown context (o2 ?, feet water, head water, rescue never, leg unknown, wet unknown)')
 })
 
 test('the three rescue-lane o2 sites ride the one renderer (the v0.268.0 tithe)', () => {
@@ -121,13 +121,13 @@ test('drownContextLine: the leg stamp renders the owning walk (the F10 wood-trip
     rescueActive: false, lastRescueAt: 10000, now: 141000,
     leg: 'wood trip'
   })
-  assert.equal(line, 'F10 death: drown context (o2 reset(-1), feet water, head water, rescue 131s ago, leg wood trip)')
+  assert.equal(line, 'F10 death: drown context (o2 reset(-1), feet water, head water, rescue 131s ago, leg wood trip, wet unknown)')
 })
 
 test('drownContextLine: junk legs read unknown (a lost stamp claims no walk)', () => {
   for (const leg of [null, undefined, '', '   ', 42, NaN]) {
     const line = drownContextLine({ tag: 'F6', oxygen: 9, feet: 'water', head: 'water', leg })
-    assert.ok(line.endsWith(', leg unknown)'), `junk leg ${String(leg)} reads unknown, got: ${line}`)
+    assert.ok(line.endsWith(', leg unknown, wet unknown)'), `junk leg ${String(leg)} reads unknown, got: ${line}`)
   }
 })
 

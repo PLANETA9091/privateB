@@ -395,6 +395,7 @@ export function createMiner ({
           headWaterlogged: wr.headWaterlogged,
           rescueActive: bot._waterRescue === true,
           lastRescueAt,
+          headWetSince, // (v0.275.0) the wet window - the head-wet exposure the trip took before the drown
           now: Date.now(),
           leg: bot._gotoSafeLabel ?? null // (v0.270.0) the trip leg stamp - which walk owned the death
         })
