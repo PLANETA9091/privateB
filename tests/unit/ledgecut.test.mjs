@@ -75,3 +75,51 @@ test('the ledge cut is wired: the miner cuts the near bucket (v0.275.0)', () => 
   assert.ok(minerSrc.includes('sd.ledgeCut += cutDigs'), 'the counter rides stats for the fleet row')
   assert.ok(minerSrc.includes('sealNear: 0, sealFar: 0, ledgeCut: 0'), 'the stats view initializes the cut (the legacy fields keep their positions)')
 })
+
+// (v0.280.0) THE CUT REFUSAL NAME - the refusal form of the four-canonical-forms
+// law. Face 36402553113 read nthick=3 + cut=0 with ZERO 'ledge cut' lines: the
+// probe counted the near-thick candidates, the cut's fences refused them, and
+// the tree could not say WHY (the probe's near bucket rides SUPPORT_DIG_REACH 2
+// while the cut's own magnet cap is LEDGE_CUT_REACH 1.5 - a 1.5-2.0 stand-off
+// reads 'cut' at the probe and refuses at the cut, in silence).
+import { ledgeCutRefusal } from '../../src/lib/drops.mjs'
+
+test('the cut refusal names its fence: each guard speaks (the mirror law)', () => {
+  assert.equal(ledgeCutRefusal({ dy: 9, distXZ: 1.0, sealDepth: 3, fluidBelow: false }), 'the dy reads out of class', 'a dy outside the ledge class names the class fence')
+  assert.equal(ledgeCutRefusal({ dy: NaN, distXZ: 1.0, sealDepth: 3, fluidBelow: false }), 'the dy reads out of class', 'a junk dy names the class fence - a lost read never arms a cut')
+  assert.equal(ledgeCutRefusal({ dy: 3, distXZ: 1.0, sealDepth: 2, fluidBelow: false }), 'the seal floor reads unmeasured', 'the thin-seal-under-high-ledge refusal names the floor fence')
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: 1.0, sealDepth: null, fluidBelow: false }), 'the seal floor reads unmeasured', 'a junk depth names the floor fence (the junk law carried)')
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: 1.0, sealDepth: 2, fluidBelow: true }), 'the column reads wet', 'the wet cut names the dry fence')
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: 1.0, sealDepth: 2, fluidBelow: undefined }), 'the column reads wet', 'a lost fluid read refuses wet-named (true/undefined alike)')
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: 1.8, sealDepth: 2, fluidBelow: false }), 'the stand-off exceeds the magnet', 'THE FACE SHAPE: 1.8 reads cut-class at the probe (reach 2) and refuses at the cut (1.5)')
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: -0.1, sealDepth: 2, fluidBelow: false }), 'the stand-off exceeds the magnet', 'a negative distance names the reach fence (the junk law carried)')
+})
+
+test('the cut refusal is the exact mirror: refusal null iff the cut arms', () => {
+  const cases = [
+    { dy: 1, distXZ: 1.5, sealDepth: 1, fluidBelow: false },
+    { dy: 2, distXZ: 1.5, sealDepth: 3, fluidBelow: false },
+    { dy: 3, distXZ: 1.5, sealDepth: 3, fluidBelow: false },
+    { dy: 2, distXZ: 1.6, sealDepth: 2, fluidBelow: false },
+    { dy: 2, distXZ: 1.0, sealDepth: 1, fluidBelow: false },
+    { dy: 4, distXZ: 1.0, sealDepth: 3, fluidBelow: false },
+    { dy: 2, distXZ: 1.0, sealDepth: 2, fluidBelow: true },
+    { dy: 2, distXZ: NaN, sealDepth: 2, fluidBelow: false }
+  ]
+  for (const c of cases) {
+    const armed = ledgeCutWanted(c) !== null
+    const refused = ledgeCutRefusal(c) !== null
+    assert.notEqual(armed, refused, `mirror holds for ${JSON.stringify(c)} - exactly one of {armed, refused} is true`)
+  }
+  assert.equal(ledgeCutRefusal({ dy: 2, distXZ: 1.5, sealDepth: 2, fluidBelow: false }), null, 'the reach boundary dist === 1.5 ARMS the cut - the mirror reads no refusal there')
+})
+
+test('the cut refusal is wired: the miner names the silent fences (v0.280.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const dropsSrc = readFileSync(new URL('../../src/lib/drops.mjs', import.meta.url), 'utf8')
+  assert.ok(dropsSrc.includes('export function ledgeCutRefusal'), 'the pure layer exports the refusal name')
+  assert.ok(minerSrc.includes('ledgeCutRefusal'), 'the miner imports the refusal name')
+  assert.ok(minerSrc.includes("ledge cut refused - ${ledgeCutRefusal({ dy: dyNow, distXZ, sealDepth: sealN, fluidBelow: strikeSupport !== null })}"), 'the refusal call mirrors the cut call byte-true (the same gate reads the same probe)')
+  assert.ok(minerSrc.includes("} else if (cutRefusals <= 2) {"), 'the refusal line is capped like the support refusals - the sweep must not storm')
+  assert.ok(minerSrc.includes("vein sweep: ledge cut refused"), 'the line rides the vein sweep band (the existing filter key - no fleet19 churn)')
+})

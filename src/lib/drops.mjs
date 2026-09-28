@@ -593,3 +593,27 @@ export function ledgeCutWanted ({ dy, distXZ, sealDepth, fluidBelow, reach = LED
   if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return null
   return dy - 1
 }
+
+// (v0.280.0) THE CUT REFUSAL NAME - the refusal form of the four-canonical-forms
+// law. Face 36402553113 read nthick=3 + cut=0 with ZERO 'ledge cut' lines: the
+// probe counted the near-thick candidates, the cut's fences refused them, and
+// the tree could not say WHY - the decode died between the two counters (the
+// probe's near bucket rides SUPPORT_DIG_REACH 2 while the cut's own magnet cap
+// is LEDGE_CUT_REACH 1.5, so a 1.5-2.0 stand-off reads 'cut' at the probe and
+// refuses at the cut - the likeliest silent class on the face). Mirrors
+// ledgeCutWanted's fence ORDER - the same gate, the name of the FIRST fence
+// that fires; null = the cut would arm (not a refusal - the caller only asks
+// after a null cut). Pure, junk-honest: a junk read names its fence, never
+// arms a cut.
+/**
+ * Why did the sealed support refuse the ledge cut? (pure, junk-honest)
+ * @param {object} [p] ledgeCutWanted's own parameter shape
+ * @returns {string|null} the refusing fence's name, or null when the cut would arm
+ */
+export function ledgeCutRefusal ({ dy, distXZ, sealDepth, fluidBelow, reach = LEDGE_CUT_REACH } = {}) {
+  if (!Number.isFinite(dy) || dy < SUPPORT_DIG_MIN_DY || dy > SUPPORT_DIG_MAX_DY) return 'the dy reads out of class'
+  if (!Number.isFinite(sealDepth) || sealDepth < dy) return 'the seal floor reads unmeasured'
+  if (fluidBelow !== false) return 'the column reads wet'
+  if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > reach) return 'the stand-off exceeds the magnet'
+  return null
+}

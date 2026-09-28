@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2979,6 +2979,7 @@ export function createMiner ({
         let lipRefusals = 0
         let supportDigs = 0
         let supportRefusals = 0
+        let cutRefusals = 0 // (v0.280.0) the cut refusal line's cap - the support refusals' own law
         let seal1 = 0 // (v0.267.0) the seal depth histogram - the sealed refusals by measured depth
         let seal2 = 0
         let seal3 = 0
@@ -3145,6 +3146,15 @@ export function createMiner ({
                           cutDigs++
                           log(`${tag} vein sweep: ledge cut - dug ${cut} seal cell(s) + the support, the drop falls to my layer (seal ${sealN}, dy ${dyNow})`)
                         } catch { /* a contested dig falls back to the refusal ledger - never a failure */ }
+                      } else if (cutRefusals <= 2) {
+                        cutRefusals++
+                        // (v0.280.0) THE CUT REFUSAL LINE - the refusal form the
+                        // face 36402553113 decode needed (nthick=3 + cut=0 + ZERO
+                        // cut lines: the fences refused in silence between the two
+                        // counters). ONE named refusal per candidate, capped like
+                        // the support refusals - the sweep must not storm; the
+                        // line rides the 'vein sweep' band (the existing key).
+                        log(`${tag} vein sweep: ledge cut refused - ${ledgeCutRefusal({ dy: dyNow, distXZ, sealDepth: sealN, fluidBelow: strikeSupport !== null })} (seal ${sealN ?? '?'}, dy ${dyNow}, dist ${distXZ.toFixed(1)})`)
                       }
                       sealTail = `, seal ${sealN ?? '?'}`
                     }
