@@ -735,3 +735,71 @@ export function stepWalkProgress (from, to) {
 // bigger distance names the raw-walk front (the A*-free hop the deposit
 // side already owns for CPU-starved short walks).
 export const STANCE_STEP_WALK_MS = 8000
+
+// (v0.291.0) THE RAW STANCE STEP - face 36459280773 (the landed-short read's
+// debut flight, SUCCESS) named the STUCK class: 3x `timeout after 8000ms,
+// walked 0.0` - the doubled budget bought ZERO movement. The anatomy is the
+// v0.48.0 yard lesson verbatim: under the fleet's CPU saturation the A* think
+// never STARTS - the walk dies inside the thinker, the physics never moves,
+// and no budget of time can buy a step the thinker never priced. The stance
+// walk's own band is the raw hop's home shape: the arm gate caps the walk at
+// ONE block (stanceStepBlocks === 1, the probe's near bucket caps 2.0), open
+// terrain, the bot's own layer - a straight 1-2 block line needs ZERO A*.
+// THE CURE: the raw hop walks FIRST - raw controls, no pathfinder, no think
+// budget, an XZ success at the cell center (the stance walk walks at its own
+// layer; the height is the re-read's business, not the walk's) - and the
+// bounded-A* attempt only fires when the raw walk did NOT land (the deposit
+// caller's proven two-stage shape: the hop is best-effort by construction,
+// the pathfinder keeps the obstacle routing). The raw budget is wall-clock
+// honest: a 1-2 block sprint is ~0.5-1s of physics, 2500ms covers the
+// re-acquires with margin, and the cap law stays intact (ONE step per sweep:
+// the priced worst case is raw 2500 + bounded 8000, not an orbit). The walk's
+// outcome still reports through the band's existing forms byte-true (the
+// took/refuses/contested lines) - no new log line, no new filter key.
+export const STANCE_STEP_RAW_MS = 2500
+export const STANCE_STEP_RAW_REACH = 1.2
+
+/** The raw stance hop: steer the bot INTO the support cell with raw controls
+ * - no pathfinder, no think budget, no A* to starve. Best-effort by
+ * construction: any surprise (a lost entity, a bare mock, junk fields)
+ * returns false and the caller falls through to the bounded-A* attempt.
+ * Never throws. The success predicate is XZ to the cell center - the stance
+ * walk never climbs (the GoalNear call it replaces pinned the goal Y to the
+ * bot's own layer). */
+export async function stanceStepRawWalk (bot, cell, { ms = STANCE_STEP_RAW_MS, reach = STANCE_STEP_RAW_REACH } = {}) {
+  const cx = Number(cell?.x)
+  const cz = Number(cell?.z)
+  if (!Number.isFinite(cx) || !Number.isFinite(cz)) return false
+  const distXZ = () => {
+    try {
+      const p = bot?.entity?.position
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z)) return Infinity
+      return Math.hypot(cx + 0.5 - p.x, cz + 0.5 - p.z)
+    } catch { return Infinity }
+  }
+  if (distXZ() <= reach) return true
+  const deadline = Date.now() + (Number.isFinite(ms) && ms > 0 ? ms : STANCE_STEP_RAW_MS)
+  let lastD = distXZ()
+  try { await bot.lookAt({ x: cx + 0.5, y: bot.entity.position.y, z: cz + 0.5 }, true) } catch { /* steer on the initial bearing */ }
+  try { bot.setControlState('forward', true); bot.setControlState('sprint', true) } catch { return false }
+  try {
+    while (bot.entity && Date.now() < deadline) {
+      const d = distXZ()
+      if (!Number.isFinite(d)) return false
+      if (d <= reach) return true
+      if (d > lastD - 0.05) {
+        // not converging: re-acquire the bearing and hop the step (the
+        // rawHopWalk's stall shape - the shelter step-in's nudge)
+        try { await bot.lookAt({ x: cx + 0.5, y: bot.entity.position.y, z: cz + 0.5 }, true) } catch { /* keep the bearing */ }
+        try { bot.setControlState('jump', true) } catch { /* physics will drag us */ }
+        try { await bot.waitForTicks(3) } catch { return false }
+        try { bot.setControlState('jump', false) } catch { /* already clear */ }
+      }
+      lastD = d
+      try { await bot.waitForTicks(4) } catch { return false }
+    }
+  } finally {
+    try { bot.setControlState('forward', false); bot.setControlState('sprint', false); bot.setControlState('jump', false) } catch { /* nothing held */ }
+  }
+  return false
+}

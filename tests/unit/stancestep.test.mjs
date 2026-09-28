@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stanceStepBlocks, stepWalkProgress, STANCE_STEP_WALK_MS, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { stanceStepBlocks, stepWalkProgress, STANCE_STEP_WALK_MS, STANCE_STEP_RAW_MS, STANCE_STEP_RAW_REACH, stanceStepRawWalk, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
 
 test('the ceil law: the whole-block step count closes the stand-off honestly', () => {
   assert.equal(stanceStepBlocks(1.5), null, 'distXZ === reach is INSIDE the magnet - the cut arms without help, no step')
@@ -165,4 +165,79 @@ test('the landed-short read: the landed-refuses line measures its own walk (v0.2
   const tookAt = minerSrc.indexOf('the cut took the column')
   const tookLine = minerSrc.slice(tookAt, minerSrc.indexOf('\n', tookAt))
   assert.ok(!tookLine.includes(readExpr), 'the landed-TOOK line stays bare (a converted cut has nothing to explain)')
+})
+
+// (v0.291.0) THE RAW STANCE STEP - the walk mock: physics steps toward the
+// cell center inside waitForTicks (the real bot's movement timing), the
+// controls ledger records every setControlState (the finally-clear is
+// assertable), the surprises are switchable (noTicks).
+function rawWalkMock ({ cell, step, noTicks = false }) {
+  const tx = cell.x + 0.5
+  const tz = cell.z + 0.5
+  const p = { x: 0, y: 64, z: 0 }
+  const held = []
+  return {
+    entity: { position: p },
+    _held: held,
+    setControlState (name, on) { held.push(`${name}:${on ? 1 : 0}`) },
+    async lookAt () { /* the bearing re-acquire resolves */ },
+    async waitForTicks () {
+      if (noTicks) throw new Error('no ticks')
+      const dx = tx - p.x
+      const dz = tz - p.z
+      const d = Math.hypot(dx, dz)
+      if (d > 0 && step > 0) {
+        const k = Math.min(1, step / d)
+        p.x += dx * k
+        p.z += dz * k
+      }
+    }
+  }
+}
+
+test('the raw stance hop: the constants are priced (v0.291.0)', () => {
+  // face 36459280773 named the STUCK class: 3x `timeout after 8000ms, walked
+  // 0.0` - the A* think never STARTS under CPU saturation, no budget of time
+  // buys a step the thinker never priced (the v0.48.0 yard lesson verbatim).
+  // The raw budget covers a 1-2 block sprint plus the re-acquires; the cap
+  // law prices the worst case at raw + bounded, ONE step per sweep.
+  assert.equal(STANCE_STEP_RAW_MS, 2500, 'the raw budget is the wall-clock honest 2500ms - the 1-2 block sprint is ~0.5-1s of physics, the re-acquires covered')
+  assert.equal(STANCE_STEP_RAW_REACH, 1.2, 'the XZ reach is the cell-center landing - the walk lands where the GoalNear range-1 attempt did')
+  assert.ok(STANCE_STEP_RAW_MS + STANCE_STEP_WALK_MS <= 11000, 'the cap law stays priced: one step per sweep is raw 2500 + bounded 8000, not an orbit')
+})
+
+test('the raw stance hop: the walk itself (v0.291.0)', async () => {
+  const cell = { x: 3, z: 4 } // center (3.5, 4.5); the mock starts 5.7 away
+  const converging = rawWalkMock({ cell, step: 0.9 })
+  assert.equal(await stanceStepRawWalk(converging, cell), true, 'a converging walk lands true (raw controls, no pathfinder)')
+  assert.ok(converging._held.includes('forward:1') && converging._held.includes('sprint:1'), 'the raw controls engage')
+  assert.deepEqual(converging._held.slice(-3), ['forward:0', 'sprint:0', 'jump:0'], 'the finally clears every control on the landing path')
+  const there = rawWalkMock({ cell, step: 0 })
+  there.entity.position = { x: cell.x + 0.5, y: 64, z: cell.z + 0.5 }
+  assert.equal(await stanceStepRawWalk(there, cell), true, 'an already-landed bot returns true')
+  assert.equal(there._held.length, 0, 'the fast path touches no control')
+  assert.equal(await stanceStepRawWalk(rawWalkMock({ cell, step: 0.9 }), null), false, 'a junk cell claims no walk')
+  assert.equal(await stanceStepRawWalk(rawWalkMock({ cell, step: 0.9 }), { x: NaN, z: 4 }), false, 'a NaN cell claims no walk')
+  assert.equal(await stanceStepRawWalk({}, cell), false, 'a control-less bot returns false (the caller falls to the bounded A*)')
+})
+
+test('the raw stance hop: the stall shape and the deadline honesty (v0.291.0)', async () => {
+  const cell = { x: 3, z: 4 }
+  const stalled = rawWalkMock({ cell, step: 0 })
+  const t0 = Date.now()
+  assert.equal(await stanceStepRawWalk(stalled, cell, { ms: 40 }), false, 'a stalled walk burns the deadline and returns false (the caller falls to the bounded A*)')
+  assert.ok(Date.now() - t0 >= 35, 'the deadline bounds the stall (the worst case stays priced)')
+  assert.ok(stalled._held.includes('jump:1') && stalled._held.includes('jump:0'), 'the not-converging branch hops the step (the rawHopWalk stall shape)')
+  const slow = rawWalkMock({ cell, step: 0.04 })
+  assert.equal(await stanceStepRawWalk(slow, cell, { ms: 4000 }), true, 'a near-stall crawler still lands')
+  assert.ok(slow._held.includes('jump:1'), 'the hop re-acquire fired on the crawl (the re-acquire rides the not-converging branch)')
+  const noTicks = rawWalkMock({ cell, step: 0.9, noTicks: true })
+  assert.equal(await stanceStepRawWalk(noTicks, cell, { ms: 200 }), false, 'a waitForTicks surprise returns false, never throws')
+})
+
+test('the raw stance step wiring: the two-stage walk (v0.291.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes('const rawLanded = await stanceStepRawWalk(bot, supportCell)'), 'the raw hop walks FIRST (no pathfinder, no think budget - the stuck class\'s cure)')
+  assert.ok(/if \(!rawLanded\) \{\s*await gotoSafe\(bot, new goals\.GoalNear\(supportCell\.x, bot\.entity\.position\.y, supportCell\.z, 1\), \{ timeoutMs: STANCE_STEP_WALK_MS, label: 'stance step', doomedRearm: true \}\)\s*\}/.test(minerSrc), 'the bounded-A* attempt only fires when the raw walk did NOT land (the deposit caller\'s proven two-stage shape)')
+  assert.ok(minerSrc.includes('timeoutMs: STANCE_STEP_WALK_MS, label: \'stance step\''), 'the bounded stage keeps the measured 8000ms budget (the v0.288.0 wiring stands)')
 })
