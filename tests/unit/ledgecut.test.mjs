@@ -58,9 +58,9 @@ test('the row carries the cut: sweepDropRecord + the fleet row tail (the identit
   assert.equal(sweepDropRecord({ ledgeCut: 'x' }).ledgeCut, 0, 'junk floors at zero - the row never carries a guess')
   assert.equal(sweepDropRecord({ ledgeCut: -3 }).ledgeCut, 0)
   const row = belowResidueRow([{ sweeps: 1, seal3: 4, sealNear: 1, sealFar: 3, ledgeCut: 2 }])
-  assert.match(row, /near=1 far=3 cut=2 nthick=0 nthin=0 ngap=0$/, 'the cut rides the row tail - the legacy tokens keep their positions')
-  assert.match(belowResidueRow([{ ledgeCut: 2 }, { ledgeCut: 1 }, null, undefined]), /cut=3 nthick=0 nthin=0 ngap=0$/, 'the fleet row sums the cuts')
-  assert.match(belowResidueRow([null, undefined, {}]), /near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
+  assert.match(row, /near=1 far=3 cut=2 nthick=0 nthin=0 ngap=0 step=0 stepcut=0$/, 'the cut rides the row tail - the legacy tokens keep their positions')
+  assert.match(belowResidueRow([{ ledgeCut: 2 }, { ledgeCut: 1 }, null, undefined]), /cut=3 nthick=0 nthin=0 ngap=0 step=0 stepcut=0$/, 'the fleet row sums the cuts')
+  assert.match(belowResidueRow([null, undefined, {}]), /near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
 })
 
 test('the ledge cut is wired: the miner cuts the near bucket (v0.275.0)', () => {

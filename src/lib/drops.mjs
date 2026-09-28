@@ -491,7 +491,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0, sealCutTargets = 0, sealNearThin = 0, sealCutGap = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0, sealCutTargets = 0, sealNearThin = 0, sealCutGap = 0, stanceStep = 0, stanceCut = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -531,18 +531,25 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // cut's own 1.5 fence refuses (the 1.5-2.0 band the first histogram
     // exposed: nthick=3 cut=0 with zero attempt lines); the stance side
     // owns the last half block, the row keeps the class visible
-    sealCutGap: fl(sealCutGap)
+    sealCutGap: fl(sealCutGap),
+    // (v0.283.0) THE STANCE STEP joins the row - the gap band's behavior
+    // cure: stanceStep = the reposition walks taken (the cure's own census),
+    // stanceCut = the cuts the step bought (the conversions - the band's
+    // first field proof). The gap and the step COMPOSE: ngap counts the
+    // candidates, step/stepcut count the answer
+    stanceStep: fl(stanceStep),
+    stanceCut: fl(stanceCut)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N nthick=N nthin=N ngap=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N nthick=N nthin=N ngap=N step=N stepcut=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -567,9 +574,11 @@ export function belowResidueRow (records) {
     acc.sealCutTargets += rec.sealCutTargets
     acc.sealNearThin += rec.sealNearThin
     acc.sealCutGap += rec.sealCutGap
+    acc.stanceStep += rec.stanceStep
+    acc.stanceCut += rec.stanceCut
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut} nthick=${acc.sealCutTargets} nthin=${acc.sealNearThin} ngap=${acc.sealCutGap}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut} nthick=${acc.sealCutTargets} nthin=${acc.sealNearThin} ngap=${acc.sealCutGap} step=${acc.stanceStep} stepcut=${acc.stanceCut}`
 }
 
 // (v0.275.0) THE LEDGE CUT - the sealed class's first behavior cure. The

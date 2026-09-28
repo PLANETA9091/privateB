@@ -2990,10 +2990,11 @@ export function createMiner ({
         let sealNear = 0 // (v0.273.0) the reach split - the sealed candidates the dig family can even own
         let sealFar = 0
         let cutDigs = 0 // (v0.275.0) the ledge cut - the sealed class's first conversions
-        let stanceSteps = 0 // (v0.283.0) the stance step's one-per-sweep cap - the sweep must not orbit
+        let stanceSteps = 0 // (v0.283.0) the stance step's one-per-sweep cap - the sweep must not orbit (the row's step= census counts the armed walks)
         let sealCutTargets = 0 // (v0.277.0) the cut target split - the near THICK seals the ledge cut owns
         let sealNearThin = 0 // (v0.277.0) the near THIN seals - the dig family's own missed candidates
         let sealCutGap = 0 // (v0.281.0) the reach gap - thick near seals the cut's 1.5 fence refuses, the stance side owns them
+        let stanceCuts = 0 // (v0.283.0) the cuts the step bought - the band's first field proof (the row's stepcut=)
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -3188,6 +3189,7 @@ export function createMiner ({
                               }
                               await bot.fastDig(support) // the shake: the drop falls the cut column to my layer
                               cutDigs++
+                              stanceCuts++ // (v0.283.0) the row's stepcut= - the step bought THIS cut (the cure's own conversion census)
                               log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut took the column (dug ${recut} seal cell(s) + the support)`)
                             } else {
                               log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}`)
@@ -3280,7 +3282,7 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -3298,6 +3300,8 @@ export function createMiner ({
           sd.sealCutTargets += sealCutTargets
           sd.sealNearThin += sealNearThin
           sd.sealCutGap += sealCutGap
+          sd.stanceStep += stanceSteps
+          sd.stanceCut += stanceCuts
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }
