@@ -535,6 +535,65 @@ export function rangedCooldownLive ({ now = 0, until = null } = {}) {
   return t < until
 }
 
+// (v0.272.0) THE MELEE-FIGHT COOLDOWN - the melee twin of the v0.140.0 ranged
+// window. MEASURED (face 36378053182, the v0.268.0 tree): F18's fight hit the
+// chase ceiling ('melee chase ceiling held (chased 8.2b, drowned @4.2)') at
+// hp 12.2 after 8 swings with a wooden sword, the episode broke, and the
+// reopen contract is 'the next health drop reopens it' - the bot stood IDLE
+// against a live melee threat while it closed 4.2m -> 1.2m in seven seconds
+// and killed (died 05:01:06, in-water, y 61 - the water-flee line missed by
+// 0.2 hp: 12.2 > WATER_FLEE_HP 12). The F14 shape was already named in the
+// v0.169.0 comment ('died to the same Drowned @0.9 one line later') - the
+// class is the MELEE half of the v0.140.0 skeleton cascade, and the ranged
+// cooldown never covered it (only RANGED_HOSTILES arm their window). THE
+// CURE, mirrored measure for measure: a chase-ceiling break vs a non-ranged
+// (non-witch by construction - she breaks in her own lane) melee threat arms
+// the mob's window; the next verdict yields 'flee' where it used to stand
+// idle waiting for the next drop. The break exists because the CHASE loses -
+// but a wounded bot with a live killer closing must RETREAT, not wait to be
+// hit. MELEE_COOLDOWN_MS mirrors RANGED_COOLDOWN_MS (10000): the F18 gap was
+// 7s, the window spans the closing time with margin, and on expiry the
+// verdict re-opens the fight honestly (the mob left behind or dead reads no
+// window at all).
+export const MELEE_COOLDOWN_MS = 10000
+
+/**
+ * The wall-clock until-timestamp for a freshly armed MELEE cooldown, or null
+ * on a junk now (the caller then arms nothing - a guessed timestamp must
+ * never close the fight lane forever). Mirrors rangedCooldownUntil.
+ * @param {object} [p]
+ * @param {number} [p.now] wall clock ms (junk -> null)
+ * @param {number} [p.ms] cooldown length ms (junk -> MELEE_COOLDOWN_MS)
+ */
+export function meleeCooldownUntil ({ now, ms = MELEE_COOLDOWN_MS } = {}) {
+  // (the Number(null) lesson, the ranged twin's own guard) no destructuring
+  // default here ON PURPOSE: `= 0` would silently convert an undefined now
+  // into a real timestamp and arm a window that was never measured.
+  if (now == null) return null
+  const t = Number(now)
+  if (!Number.isFinite(t) || t < 0) return null
+  const d = Number.isFinite(ms) && ms > 0 ? Math.floor(ms) : MELEE_COOLDOWN_MS
+  return t + d
+}
+
+/**
+ * Is a MELEE cooldown window live? Junk on either side reads NOT live (an
+ * expired entry and a missing entry behave identically: the fight lane is
+ * open). Mirrors rangedCooldownLive.
+ * @param {object} [p]
+ * @param {number} [p.now] wall clock ms (junk -> false)
+ * @param {number|null|undefined} [p.until] the armed until-timestamp
+ *   (null/undefined/junk -> false)
+ */
+export function meleeCooldownLive ({ now = 0, until = null } = {}) {
+  // (the Number(null) lesson) a junk now must OPEN the lane, not read as
+  // epoch 0 - 0 < until would hold a phantom cooldown forever.
+  if (now == null) return false
+  const t = Number(now)
+  if (!Number.isFinite(t) || !Number.isFinite(until)) return false
+  return t < until
+}
+
 // (v0.234.0) THE TRIDENT STANDOFF RING - which threat reads the shelter ring's
 // RANGED (arrow-wall) mode at the miner's tryRingShelter call site. MEASURED
 // (run36289053811, the v0.233.0 era's fleet, the 0.232.0 tree): the impale
@@ -724,7 +783,7 @@ export const PAIR_SIZE = 2
  *   is still a fight).
  * @returns {'fight'|'flee'|'ignore'}
  */
-export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, attackersClose = 0, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false } = {}) {
+export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attackers = 1, attackersClose = 0, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false, meleeCooldown = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'ignore'
   if (!Number.isFinite(dist) || dist < 0) return 'ignore'
   const health = Number.isFinite(hp) ? hp : 20
@@ -779,6 +838,15 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
   // lane must never strand her v0.115.0 poison-drain chase even if a future
   // call site passes a cooldown by mistake).
   if (cooldown === true && name !== 'witch' && RANGED_HOSTILES.has(name) && dist <= engage) return 'flee'
+  // (v0.272.0) THE MELEE COOLDOWN: a mob inside ITS window is never stood
+  // against - the verdict yields 'flee' where the ceiling break used to leave
+  // the bot idling for the next health drop (the F18 shape: hp 12.2, drowned
+  // @4.2, dead @1.2 seven seconds later). Only the NON-ranged classes consult
+  // it (the shooters keep their own v0.140.0 window; the sets are disjoint,
+  // the witch is excluded twice - she is in RANGED_HOSTILES and the miner
+  // never arms her), and only when the verdict would have been 'fight' (the
+  // creeper/spider/unarmed/water/land lanes above keep their own verdicts).
+  if (meleeCooldown === true && name !== 'witch' && !RANGED_HOSTILES.has(name) && dist <= engage) return 'flee'
   if (dist <= engage) return 'fight'
   return 'ignore'
 }
@@ -794,14 +862,14 @@ export function threatVerdict ({ name = null, dist = Infinity, hp = 20, attacker
 // volume was 1. THE CURE: a lane-order mirror - threatVerdictLane walks the
 // EXACT threatVerdict branch order and returns the name of the first flee
 // lane that fires ('creeper-band', 'unarmed-band', 'land-flee', 'water-flee',
-// 'open-field-lens', 'swarm', 'pair-preempt', 'ranged-cooldown'), or 'none' when the verdict
+// 'open-field-lens', 'swarm', 'pair-preempt', 'ranged-cooldown', 'melee-cooldown'), or 'none' when the verdict
 // is fight/ignore. The markers gate on lane === 'open-field-lens': the printed
 // 'open-field yield' now means THE LENS WAS THE FIRST FIRING LANE - the
 // residual class stays unmarked beside the legacy lines it belongs to. The
 // coherence is brute-forced (threatVerdict flees iff the lane is named) - the
 // same by-construction law the v0.213.0 census rides. Junk-safe: the junk
 // reads return 'none' exactly where the verdict returns ignore.
-export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, attackers = 1, attackersClose = 0, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false } = {}) {
+export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, attackers = 1, attackersClose = 0, dark = true, armed = true, poisoned = false, inWater = false, sheltered = true, cooldown = false, meleeCooldown = false } = {}) {
   if (!name || !HOSTILE_NAMES.has(name)) return 'none'
   if (!Number.isFinite(dist) || dist < 0) return 'none'
   const health = Number.isFinite(hp) ? hp : 20
@@ -821,5 +889,6 @@ export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, atta
   if (crowd >= SWARM_SIZE && seen < SWARM_FLEE_HP) return 'swarm'
   if (crowdClose >= PAIR_SIZE) return 'pair-preempt'
   if (cooldown === true && name !== 'witch' && RANGED_HOSTILES.has(name) && dist <= engage) return 'ranged-cooldown'
+  if (meleeCooldown === true && name !== 'witch' && !RANGED_HOSTILES.has(name) && dist <= engage) return 'melee-cooldown'
   return 'none'
 }

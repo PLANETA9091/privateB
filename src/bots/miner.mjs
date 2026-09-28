@@ -28,7 +28,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, drownContextLine, drownedKillContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
@@ -1134,6 +1134,28 @@ export function createMiner ({
     if (!Number.isFinite(entityId)) return false
     return rangedCooldownLive({ now: Date.now(), until: rangedCooldowns.get(entityId) })
   }
+  // (v0.272.0) THE MELEE-FIGHT COOLDOWN ledger - the ranged ledger's twin
+  // (same shape, same prune, the same never-guess-a-timestamp law): armed
+  // ONLY by a chase-ceiling break vs a non-ranged melee threat (the F18
+  // shape - the bot stood idle vs a closing drowned and died @1.2 seven
+  // seconds after the break), consulted by every threatVerdict call site
+  // through meleeCdLive. The witch never arms it (her lane breaks above).
+  const meleeCooldowns = new Map()
+  function armMeleeCooldown (entityId) {
+    if (!Number.isFinite(entityId)) return
+    const until = meleeCooldownUntil({ now: Date.now() })
+    if (until == null) return
+    meleeCooldowns.set(entityId, until)
+    if (meleeCooldowns.size > 24) {
+      for (const [k, v] of meleeCooldowns) {
+        if (!meleeCooldownLive({ now: Date.now(), until: v })) meleeCooldowns.delete(k)
+      }
+    }
+  }
+  function meleeCdLive (entityId) {
+    if (!Number.isFinite(entityId)) return false
+    return meleeCooldownLive({ now: Date.now(), until: meleeCooldowns.get(entityId) })
+  }
   // The yard anchor: the world spawn point (setup-yard.mjs builds the fleet
   // hub at the spawn origin). Junk-safe: a missing read returns null and the
   // kite dissolves into the plain radial flee.
@@ -1166,8 +1188,8 @@ export function createMiner ({
     // any await) - the marker prints only when the LENS is the first firing
     // lane (run44's residual: hp 4.5 < FLEE_HP 8 is the legacy land-flee's
     // flee, the marker stays silent for it).
-    const lensLane = threatVerdictLane({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
-    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id) })
+    const lensLane = threatVerdictLane({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id), meleeCooldown: meleeCdLive(threat.entity?.id) })
+    const verdict = threatVerdict({ name: threat.name, dist: threat.dist, hp: hpAtVerdict, attackers: countHostiles(), attackersClose: countHostiles(ENGAGE_RANGE), dark: isDarkHere(), armed, poisoned: isPoisoned(bot), inWater: inWaterHere(), sheltered: !openFieldNight, cooldown: rangedCdLive(threat.entity?.id), meleeCooldown: meleeCdLive(threat.entity?.id) })
     if (verdict === 'ignore') return { action: 'ignore', threat: threat.name }
     defending = true
     stats.fights++
@@ -1390,6 +1412,17 @@ export function createMiner ({
               if (RANGED_HOSTILES.has(cur.name) && cur.name !== 'witch') {
                 armRangedCooldown(cur.entity?.id)
                 log(`${tag} combat: ranged cooldown armed vs ${cur.name} (${RANGED_COOLDOWN_MS / 1000}s) - the chase never wins the arrow trade`)
+              } else if (!RANGED_HOSTILES.has(cur.name)) {
+                // (v0.272.0) THE MELEE-FIGHT COOLDOWN: the same break vs a
+                // MELEE threat used to leave the bot idling ('the next drop
+                // reopens it') while the killer closed 4.2m -> 1.2m and
+                // collected the wounded bot (the F18 shape, face 36378053182).
+                // Arm the mob's window: the next verdict yields 'flee' - the
+                // wounded bot RETREATS instead of waiting to be hit. On expiry
+                // the fight re-opens honestly (the return wait + the finish
+                // own the re-engagement).
+                armMeleeCooldown(cur.entity?.id)
+                log(`${tag} combat: melee cooldown armed vs ${cur.name} (${MELEE_COOLDOWN_MS / 1000}s) - the ceiling break never idles vs a closing killer`)
               }
               break
             }
