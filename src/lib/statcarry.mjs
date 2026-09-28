@@ -43,7 +43,7 @@ export const CARRY_FIELDS = [
 // (v0.293.0) THE SWEEP CENSUS CARRY's field list - every monotone counter of
 // the miner's stats.sweepDrops view (the fleet row's sweeps=/picked=/failed=/
 // below=/above=/deepSkip=/lipDig=/supportDig=/seal=/near=/far=/cut=/nthick=/
-// nthin=/ngap=/step=/stepcut= tokens). The coherence pin in
+// nthin=/ngap=/step=/stepcut=/above1=/aboveHigh= tokens). The coherence pin in
 // tests/unit/statcarry.test.mjs cross-checks this list against the miner's
 // ride-site default init - a field added there must join here (the identity-
 // extend discipline). Nothing coordinate or timestamp-shaped lives in the
@@ -52,7 +52,7 @@ export const SWEEP_DROP_FIELDS = [
   'sweeps', 'picked', 'failed', 'below', 'above', 'deepSkip', 'lipDig',
   'supportDig', 'seal1', 'seal2', 'seal3', 'sealNear', 'sealFar',
   'ledgeCut', 'sealCutTargets', 'sealNearThin', 'sealCutGap',
-  'stanceStep', 'stanceCut'
+  'stanceStep', 'stanceCut', 'above1', 'aboveHigh'
 ]
 
 /**

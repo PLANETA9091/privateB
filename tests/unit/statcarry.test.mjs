@@ -177,10 +177,10 @@ test('the sweep census carry: the view survives the death (v0.293.0)', () => {
   // read step=0 stepcut=0 - line 822, F7 was blown up by a Creeper minutes
   // later; the carry moved only CARRY_FIELDS + byName and the census view
   // (v0.203.0) orphaned with the instance. The view rides the carry now.
-  const dead = { mined: 100, sweepDrops: { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3, junk: 5, bad: -1, nan: NaN } }
+  const dead = { mined: 100, sweepDrops: { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3, above1: 2, aboveHigh: 1, junk: 5, bad: -1, nan: NaN } }
   const carry = snapshotStats(dead)
   assert.equal(carry.mined, 100)
-  assert.deepEqual(carry.sweepDrops, { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3 }, 'the census view travels field-wise; junk/negative/NaN stay home')
+  assert.deepEqual(carry.sweepDrops, { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3, above1: 2, aboveHigh: 1 }, 'the census view travels field-wise; junk/negative/NaN stay home')
   // a fresh miner with NO view: the seed builds the FULL zeroed shape (the
   // miner's ride does `stats.sweepDrops ?? (stats.sweepDrops = {...})` - a
   // partial view would skip the init and NaN the first sd.sweeps++)
@@ -194,6 +194,8 @@ test('the sweep census carry: the view survives the death (v0.293.0)', () => {
   assert.equal(fresh.sweepDrops.stanceCut, 1)
   assert.equal(fresh.sweepDrops.stanceCut, 1)
   assert.equal(fresh.sweepDrops.sealNear, 0, 'untouched fields zero, not undefined (the ride += needs numbers)')
+  assert.equal(fresh.sweepDrops.above1, 2, 'the height bands ride the seed like every other field (v0.294.0)')
+  assert.equal(fresh.sweepDrops.aboveHigh, 1)
   // the ride continues on the seeded view and the next snapshot is absolute
   fresh.sweepDrops.sweeps += 2
   fresh.sweepDrops.stanceCut += 1

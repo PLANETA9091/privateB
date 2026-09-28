@@ -98,7 +98,7 @@ test('v0.260.0 wiring: the failure instrument and the lip dig-down survive the r
 })
 
 test('v0.260.0 wiring: the import carries the new verdict', () => {
-  assert.match(minerSrc, /import \{ dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted/, 'the miner imports the fast path from the pure lib')
+  assert.match(minerSrc, /import \{ dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted/, 'the miner imports the fast path from the pure lib')
 })
 
 test('v0.260.0 the goal fences are UNTOUCHED - the cure adds a skip, not a geometry', () => {

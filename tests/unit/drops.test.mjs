@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS, belowResidueRow } from '../../src/lib/drops.mjs'
+import { dropTargets, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS, belowResidueRow, aboveBandOf, DROP_ABOVE_HIGH_DY } from '../../src/lib/drops.mjs'
 
 const pos = (x, y, z) => ({ x, y, z })
 const item = (x, y, z, name = 'item') => ({ name, position: pos(x, y, z) })
@@ -330,7 +330,7 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
   // (v0.206.0) the import grew the refusal instrument (lipDigWanted ->
   // lipDigWanted, lipDigRefusal, ...) and the verdict call reads the SAME
   // measured params object the mirror consumes - one read, two verdicts.
-  assert.ok(src.includes("lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family (the refusal mirror rides it, v0.206.0; the v0.263.0 support mirror joins the same import; the v0.267.0 seal depth read rides it too; the v0.275.0 ledge cut joins the same import; the v0.277.0 cut target split rides it too; the v0.280.0 cut refusal name joins the same import; the v0.283.0 stance step joins the same import; the v0.288.0 step budget rides the same import; the v0.291.0 raw stance step joins the same import; the v0.292.0 pin read rides it too)')
+  assert.ok(src.includes("aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family (the refusal mirror rides it, v0.206.0; the v0.263.0 support mirror joins the same import; the v0.267.0 seal depth read rides it too; the v0.275.0 ledge cut joins the same import; the v0.277.0 cut target split rides it too; the v0.280.0 cut refusal name joins the same import; the v0.283.0 stance step joins the same import; the v0.288.0 step budget rides the same import; the v0.291.0 raw stance step joins the same import; the v0.292.0 pin read rides it too; the v0.294.0 above height split joins the same import)')
   const landedAt = src.indexOf('let landed = false')
   const digAt = src.indexOf('if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {')
   assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-family walk only (the dy family, not the range number - the v0.189.0 ABOVE shares the wide 2)')
@@ -422,7 +422,7 @@ test('belowResidueRow: the run22-measured class - below x6 with a clean split', 
     { sweeps: 2, picked: 0, failed: 2, below: 2, deepSkip: 1, lipDig: 0 }, // F5 x2
     { sweeps: 1, picked: 5, failed: 1, below: 1, deepSkip: 0, lipDig: 0 } // F7 x1
   ])
-  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0, above x0) deepSkip=1 lipDig=1 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0, above x0) deepSkip=1 lipDig=1 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
 })
 
 test('belowResidueRow: the triage identity - below + plane + above == failed on every mix', () => {
@@ -446,28 +446,28 @@ test('belowResidueRow: the run68 triage reads honestly - the above term lands wh
   // the day-2 row claimed 'below x82' with a dy sample of above x19 vs below
   // x5; the triage row would have told the truth: below x5, above x77
   const row = belowResidueRow([{ sweeps: 38, picked: 235, failed: 92, below: 5, above: 77, deepSkip: 28, lipDig: 0 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=38 picked=235u failed=92 (below x5, plane x10, above x77) deepSkip=28 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=38 picked=235u failed=92 (below x5, plane x10, above x77) deepSkip=28 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
 })
 
 test('belowResidueRow: the per-record clamp - junk below never swallows the fleet split', () => {
   // bot A: impossible record (below 9 on failed 0); bot B: the honest day-3 F13 class
   const row = belowResidueRow([{ failed: 0, below: 9 }, { failed: 3, below: 3 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
 })
 
 test('belowResidueRow: the clamp covers the above term - above claims only the failed rest', () => {
   // bot A: below 2 + above 9 on failed 3 - above clamps to the failed rest (1);
   // bot B: an honest above-only record (5/5)
   const row = belowResidueRow([{ failed: 3, below: 2, above: 9 }, { failed: 5, above: 5 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=8 (below x2, plane x0, above x6) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=8 (below x2, plane x0, above x6) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
 })
 
 test('belowResidueRow: junk floors at zero and the row prints ALWAYS', () => {
   assert.equal(
     belowResidueRow([{ sweeps: -2, picked: 3.9, failed: -1 }, 'junk', 42]),
-    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0'
+    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0'
   )
-  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0 seal1=0 seal2=0 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
 })
 
 test("REGRESSION PIN: the miner sweep rides stats.sweepDrops and the fleet prints the ledger", async () => {
@@ -495,6 +495,12 @@ test('v0.205.0 wiring: the ledger triage splits the wide-2 family by the walk dy
   const gate = minerSrc.match(/if \(range === DROP_GOAL_BELOW\) \{\s*\n\s*if \(dyWalk < DROP_GOAL_BELOW_DY\) belowFails\+\+\s*\n\s*else aboveFails\+\+\s*\n\s*\}/)
   assert.ok(gate, 'the failure gate splits the wide-2 family by the dy sign (the below bucket is no longer the above family\'s shadow)')
   assert.ok(minerSrc.includes('sd.above += aboveFails'), 'the above counters ride the stats ledger (the row carries the third term)')
+  assert.ok(minerSrc.includes('sd.above1 += above1Fails') && minerSrc.includes('sd.aboveHigh += aboveHighFails'),
+    'the height bands ride the same ledger (the row carries the above family\'s own divide, v0.294.0)')
+  assert.ok(minerSrc.includes('const aboveBand = aboveBandOf(dyWalk)'),
+    'the band read lives at the failure site (the walk\'s own dy, the sign gate\'s neighbor, v0.294.0)')
+  assert.ok(minerSrc.includes('above1: 0, aboveHigh: 0'),
+    'the ride-site init carries the band fields (the seed\'s full-shape law, v0.294.0)')
   assert.ok(minerSrc.includes('above-plane walk(s) timed out on the wide goal'),
     'the above family names its own residue line - silence is never evidence')
 })
@@ -559,4 +565,35 @@ test('v0.206.0 wiring: the refusal instrument rides the sweep block (the anatomy
     'the refusal counter is capped at 2 per sweep (the fail-line cap shape)')
   assert.ok(minerSrc.includes('const lipParams = { range, airBelow, fluidBelow: strike !== null, dy: dyLip }'),
     'the gate and the mirror read the SAME measured params (one read, two verdicts)')
+})
+
+test('aboveBandOf: the magnet line splits the above family (v0.294.0)', () => {
+  // the band edge is the magnet's own measured radius, not a tunable - the
+  // same line the above-fence comment prices 'ON ARRIVAL'
+  assert.equal(DROP_ABOVE_HIGH_DY, 1.5)
+  assert.equal(aboveBandOf(0.5), 'one')
+  assert.equal(aboveBandOf(1.4), 'one')
+  assert.equal(aboveBandOf(1.5), 'one', 'the edge rides inside the one band')
+  assert.equal(aboveBandOf(1.6), 'high')
+  assert.equal(aboveBandOf(3), 'high', 'the ledge sample the v0.205.0 dy instrument printed (dy +1..+3) splits honest')
+  assert.equal(aboveBandOf(0), null, 'the plane land never splits')
+  assert.equal(aboveBandOf(-0.7), null, 'the below family never splits')
+  assert.equal(aboveBandOf(NaN), null, 'a junk dy never splits (a missing read never names a family)')
+  assert.equal(aboveBandOf(undefined), null)
+  assert.equal(aboveBandOf('2'), null, 'a non-finite dy reads as the plane land - the walk\'s own dy is always a number')
+})
+
+test('the ledger row carries the above height bands (v0.294.0)', () => {
+  // the bands ride the row append-only (the v0.205.0 precedent: the existing
+  // tokens keep their positions, the identity extends)
+  const row = belowResidueRow([{ failed: 4, above: 4, above1: 3, aboveHigh: 1 }])
+  assert.ok(/\(below x0, plane x0, above x4\)/.test(row), 'the family split keeps its shape')
+  assert.ok(/above1=3 aboveHigh=1/.test(row), 'the bands print their own tokens at the row\'s tail')
+  // the bands clamp inside the above family - junk never invents height
+  const clamped = belowResidueRow([{ failed: 3, above: 2, above1: 9, aboveHigh: 9 }])
+  assert.ok(/above x2\).*above1=2 aboveHigh=0/.test(clamped), 'one claims its floor of above first, high the rest')
+  const zeroed = belowResidueRow([{ failed: 2, above: 1 }])
+  assert.ok(/above1=0 aboveHigh=0/.test(zeroed), 'untouched bands read zero, not undefined (the ride += needs numbers)')
+  const junk = belowResidueRow([{ failed: 5, above: 4, above1: 'junk', aboveHigh: NaN }])
+  assert.ok(/above1=0 aboveHigh=0/.test(junk), 'junk bands floor at zero (the ledger is junk-safe)')
 })

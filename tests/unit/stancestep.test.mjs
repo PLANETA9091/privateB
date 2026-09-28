@@ -41,10 +41,10 @@ test('the row carries the step: sweepDropRecord + the fleet row tail (the identi
   assert.equal(sweepDropRecord({ stanceStep: 'x' }).stanceStep, 0, 'junk floors at zero - the row never carries a guess')
   assert.equal(sweepDropRecord({ stanceCut: -3 }).stanceCut, 0)
   const row = belowResidueRow([{ sweeps: 1, seal3: 4, sealNear: 1, sealFar: 3, sealCutGap: 4, stanceStep: 2, stanceCut: 1 }])
-  assert.match(row, /ngap=4 step=2 stepcut=1$/, 'the step rides the row tail behind ngap - the legacy tokens keep their positions')
-  assert.match(belowResidueRow([{ stanceStep: 2 }, { stanceCut: 1 }, null, undefined]), /step=2 stepcut=1$/, 'the fleet row sums the step and its conversions')
-  assert.match(belowResidueRow([null, undefined, {}]), /ngap=0 step=0 stepcut=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
-  assert.equal(belowResidueRow(undefined).endsWith('ngap=0 step=0 stepcut=0'), true, 'the zero-arg row carries the full tail')
+  assert.match(row, /ngap=4 step=2 stepcut=1 above1=0 aboveHigh=0$/, 'the step rides the row tail behind ngap - the legacy tokens keep their positions')
+  assert.match(belowResidueRow([{ stanceStep: 2 }, { stanceCut: 1 }, null, undefined]), /step=2 stepcut=1 above1=0 aboveHigh=0$/, 'the fleet row sums the step and its conversions')
+  assert.match(belowResidueRow([null, undefined, {}]), /ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
+  assert.equal(belowResidueRow(undefined).endsWith('step=0 stepcut=0 above1=0 aboveHigh=0'), true, 'the zero-arg row carries the full tail')
 })
 
 test('the census is wired: the miner\'s step counts ride stats for the fleet row (the composition)', () => {

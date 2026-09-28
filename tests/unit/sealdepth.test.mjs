@@ -54,7 +54,7 @@ test('sealedColumnDepth: the honest partial - a deeper junk cell stops the count
 
 test('the ledger row grows the seal histogram at the END (the identity-extends precedent)', () => {
   const row = belowResidueRow([{ sweeps: 2, picked: 5, failed: 4, below: 1, above: 3, deepSkip: 1, lipDig: 0, supportDig: 0, seal1: 2, seal2: 1, seal3: 0 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=2 picked=5u failed=4 (below x1, plane x0, above x3) deepSkip=1 lipDig=0 supportDig=0 seal1=2 seal2=1 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=2 picked=5u failed=4 (below x1, plane x0, above x3) deepSkip=1 lipDig=0 supportDig=0 seal1=2 seal2=1 seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0')
   assert.ok(row.indexOf('supportDig=0') < row.indexOf('seal1='), 'the legacy tokens keep their positions - the histogram rides the tail')
 })
 

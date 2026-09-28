@@ -48,8 +48,8 @@ test('sealCutClass: the reach override passes through (the v0.273.0 signature fa
 test('the row tail extends: nthick=N nthin=N ride after far (the v0.205.0 tail precedent)', () => {
   const rec = sweepDropRecord({ sweeps: 2, failed: 1, seal3: 4, sealNear: 1, sealFar: 3, sealCutTargets: 1, sealNearThin: 0, sealCutGap: 1 })
   const row = belowResidueRow([rec])
-  assert.match(row, /seal3=4 near=1 far=3 cut=0 nthick=1 nthin=0 ngap=1 step=0 stepcut=0$/, 'the split rides the row tail - the legacy tokens keep their positions, ngap joins last')
-  assert.match(belowResidueRow([null, undefined, {}]), /seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
+  assert.match(row, /seal3=4 near=1 far=3 cut=0 nthick=1 nthin=0 ngap=1 step=0 stepcut=0 above1=0 aboveHigh=0$/, 'the split rides the row tail - the legacy tokens keep their positions, ngap joins last')
+  assert.match(belowResidueRow([null, undefined, {}]), /seal3=0 near=0 far=0 cut=0 nthick=0 nthin=0 ngap=0 step=0 stepcut=0 above1=0 aboveHigh=0$/, 'the all-junk row still renders the tokens (byte-true zeros)')
   const fl = sweepDropRecord({ sealCutTargets: NaN, sealNearThin: '3', sealCutGap: -1 })
   assert.equal(fl.sealCutTargets, 0, 'a junk target floors at zero')
   assert.equal(fl.sealNearThin, 0, 'a junk string floors at zero (the house junk law - a string is not a measurement)')
@@ -61,7 +61,7 @@ test('the fleet row sums both split counters across bots (the aggregate law)', (
     sweepDropRecord({ sealCutTargets: 2, sealNearThin: 1, sealCutGap: 1 }),
     sweepDropRecord({ sealCutTargets: 3, sealNearThin: 4, sealCutGap: 2 })
   ])
-  assert.match(row, /cut=0 nthick=5 nthin=5 ngap=3 step=0 stepcut=0$/, 'the fleet row sums all three buckets')
+  assert.match(row, /cut=0 nthick=5 nthin=5 ngap=3 step=0 stepcut=0 above1=0 aboveHigh=0$/, 'the fleet row sums all three buckets')
 })
 
 test('the cut target split is wired: drops exports, the miner counts both, the seed grows (v0.277.0)', () => {

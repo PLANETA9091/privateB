@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read
+import { dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2977,6 +2977,11 @@ export function createMiner ({
         let dropFails = 0
         let belowFails = 0
         let aboveFails = 0
+        // (v0.294.0) the above family's own height bands - the residue the
+        // support dig-down's verdict still leaves unpriced (the magnet's
+        // reach line divides the path class from the walk-then-shake class)
+        let above1Fails = 0
+        let aboveHighFails = 0
         let skipDeep = 0
         let skipWalks = 0
         let lipDigs = 0
@@ -3062,6 +3067,17 @@ export function createMiner ({
                 if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++
                 else aboveFails++
               }
+              // (v0.294.0) THE ABOVE HEIGHT SPLIT - the above family's own
+              // height bands ride the same failure site: a timeout the ~1.5
+              // pickup magnet should have covered ON ARRIVAL (dy <= 1.5) is
+              // the PATH class (the ledge floor never converges), a taller
+              // one the walk-then-shake class. The lib's band read nulls the
+              // below/plane families and a junk dy (a missing read never
+              // splits a family it cannot name) - the belowFails++ branch
+              // above never reaches here with a split verdict.
+              const aboveBand = aboveBandOf(dyWalk)
+              if (aboveBand === 'one') above1Fails++
+              else if (aboveBand === 'high') aboveHighFails++
               // (v0.263.0) THE SUPPORT DIG-DOWN: the ABOVE-family failure's last
               // mile - the lip dig-down mirrored up. The face 36359454749 ledger
               // read 'failed=94 (below x28, plane x30, above x36) lipDig=0': the
@@ -3361,12 +3377,16 @@ export function createMiner ({
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, above1: 0, aboveHigh: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
           sd.below += belowFails
           sd.above += aboveFails
+          // (v0.294.0) the height bands ride the same ledger - the row
+          // carries the above family's own divide at the run level
+          sd.above1 += above1Fails
+          sd.aboveHigh += aboveHighFails
           sd.deepSkip += skipDeep
           sd.lipDig += lipDigs
           sd.supportDig += supportDigs

@@ -159,6 +159,26 @@ export function dropGoalRange ({ dy = 0 } = {}) {
   return d < DROP_GOAL_BELOW_DY ? DROP_GOAL_BELOW : DROP_GOAL_PLANE
 }
 
+// (v0.294.0) THE ABOVE HEIGHT SPLIT - the above family's own divide, priced
+// by the magnet the walk already trusts. The v0.205.0 sign split made the
+// family visible (above x36 -> x10 across five faces) and the v0.263.0
+// support dig-down armed its last mile, but the residue's HEIGHT was never
+// read: a drop within the ~1.5 pickup magnet's own reach line (the same
+// line the above-fence comment prices 'ON ARRIVAL') that still times out is
+// a PATH failure (the ledge floor never converges - a walk-shaped cure),
+// while a drop above the line needs the shake from closer (the
+// walk-then-shake composition) or an honest despawn. The band edge is the
+// magnet's own measured radius, not a tunable. aboveBandOf: dy <= 0 or junk
+// -> null (the below/plane families and a missing read never split a family
+// it cannot name), dy <= DROP_ABOVE_HIGH_DY -> 'one', else 'high'.
+export const DROP_ABOVE_HIGH_DY = 1.5
+
+export function aboveBandOf (dy) {
+  const d = Number.isFinite(dy) ? dy : 0
+  if (d <= 0) return null
+  return d <= DROP_ABOVE_HIGH_DY ? 'one' : 'high'
+}
+
 // (v0.187.0) THE LIP DIG-DOWN - the range-2 arrival's LAST MILE. MEASURED
 // (fleet 36181152847, the v0.183.0+0.184.0+0.185.0 triple-union run): the
 // harvest converted (21 '+Nu walked' lines, 264 ores dug by 34 sweeps) but
@@ -511,7 +531,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0, sealCutTargets = 0, sealNearThin = 0, sealCutGap = 0, stanceStep = 0, stanceCut = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, above1 = 0, aboveHigh = 0, deepSkip = 0, lipDig = 0, supportDig = 0, seal1 = 0, seal2 = 0, seal3 = 0, sealNear = 0, sealFar = 0, ledgeCut = 0, sealCutTargets = 0, sealNearThin = 0, sealCutGap = 0, stanceStep = 0, stanceCut = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -558,18 +578,27 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     // first field proof). The gap and the step COMPOSE: ngap counts the
     // candidates, step/stepcut count the answer
     stanceStep: fl(stanceStep),
-    stanceCut: fl(stanceCut)
+    stanceCut: fl(stanceCut),
+    // (v0.294.0) THE ABOVE HEIGHT SPLIT joins the row - the above family's
+    // own height bands at the run level: above1 = the timeouts the ~1.5
+    // magnet should have covered ON ARRIVAL (a path failure, not a reach
+    // one), aboveHigh = the drops above the magnet line (the
+    // walk-then-shake class). The tokens keep the append-only law (the
+    // v0.205.0 precedent: the existing tokens keep their positions, the
+    // identity extends)
+    above1: fl(above1),
+    aboveHigh: fl(aboveHigh)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N nthick=N nthin=N ngap=N step=N stepcut=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N seal1=N seal2=N seal3=N near=N far=N cut=N nthick=N nthin=N ngap=N step=N stepcut=N above1=N aboveHigh=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, above1: 0, aboveHigh: 0, deepSkip: 0, lipDig: 0, supportDig: 0, seal1: 0, seal2: 0, seal3: 0, sealNear: 0, sealFar: 0, ledgeCut: 0, sealCutTargets: 0, sealNearThin: 0, sealCutGap: 0, stanceStep: 0, stanceCut: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -577,11 +606,18 @@ export function belowResidueRow (records) {
     // rest, the remainder is the plane class (the identity holds by design)
     if (rec.below > rec.failed) rec.below = rec.failed
     if (rec.above > rec.failed - rec.below) rec.above = Math.max(0, rec.failed - rec.below)
+    // (v0.294.0) the bands clamp inside the above family (junk never
+    // invents height: one claims its floor of above first, high the rest -
+    // the identity above1 + aboveHigh <= above holds by design)
+    if (rec.above1 > rec.above) rec.above1 = rec.above
+    if (rec.aboveHigh > rec.above - rec.above1) rec.aboveHigh = Math.max(0, rec.above - rec.above1)
     acc.sweeps += rec.sweeps
     acc.picked += rec.picked
     acc.failed += rec.failed
     acc.below += rec.below
     acc.above += rec.above
+    acc.above1 += rec.above1
+    acc.aboveHigh += rec.aboveHigh
     acc.deepSkip += rec.deepSkip
     acc.lipDig += rec.lipDig
     acc.supportDig += rec.supportDig
@@ -598,7 +634,7 @@ export function belowResidueRow (records) {
     acc.stanceCut += rec.stanceCut
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut} nthick=${acc.sealCutTargets} nthin=${acc.sealNearThin} ngap=${acc.sealCutGap} step=${acc.stanceStep} stepcut=${acc.stanceCut}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig} seal1=${acc.seal1} seal2=${acc.seal2} seal3=${acc.seal3} near=${acc.sealNear} far=${acc.sealFar} cut=${acc.ledgeCut} nthick=${acc.sealCutTargets} nthin=${acc.sealNearThin} ngap=${acc.sealCutGap} step=${acc.stanceStep} stepcut=${acc.stanceCut} above1=${acc.above1} aboveHigh=${acc.aboveHigh}`
 }
 
 // (v0.275.0) THE LEDGE CUT - the sealed class's first behavior cure. The
