@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   frozenBypassEcho, frozenReturnBypass, o2SensorLabel,
-  OXYGEN_CRITICAL_LEVEL, frozenRelogDecision
+  OXYGEN_CRITICAL_LEVEL, frozenRelogDecision, frozenReturnGate
 } from '../../src/lib/drowning.mjs'
 
 const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
@@ -76,7 +76,7 @@ test('miner wiring: the relog line grows the verdict tail (the identity-extends 
   assert.ok(minerSrc.includes('s (the frozen-return gate) - o2='), 'the tail joins AFTER the existing gate token - the legacy tokens keep their positions')
   assert.ok(minerSrc.includes('window=${frozenDownWindow ?? \'?\'}'), 'the condemning window rides the tail')
   assert.ok(minerSrc.includes('health=${bot.health ?? \'?\'}'), 'the health rides the tail')
-  assert.ok(minerSrc.includes('frozenBypassEcho({ oxygen: frozenDownO2 })'), 'the echo reads the bar captured at the verdict')
+  assert.ok(minerSrc.includes("frozenBypassEcho({ oxygen: frozenDownO2, headWet: frozenDownWet, underHold: true })"), 'the echo reads the bar captured at the verdict (v0.266.0 identity-extends: the verdict\'s wet + the hold arming ride the same mirror)')
 })
 
 test('miner wiring: the stand-down captures the bar and the window name', () => {
@@ -106,4 +106,73 @@ test('the F1 chain shape composed: wet-frozen at a dead bar relogs on verdict on
 test('the hold branch stays byte-identical (the legacy shape pinned)', () => {
   assert.ok(minerSrc.includes('frozen-return gate holds the page'), 'the hold line survives untouched')
   assert.ok(minerSrc.includes('frozen-return gate clears - the rescue completed with living physics'), 'the clear line survives untouched')
+})
+
+// (v0.266.0) THE SENTINEL BLINDNESS CURE pins - face 36369215771's F9 chain:
+// relog #3 armed 40s, the fresh client re-paged head WET with the v0.64.0
+// reset burst on the bar (o2=-1), the bypass's domain law read the sentinel
+// as 'not a measurement, not critical' - the hold kept the page, 'rescue
+// never', the bot drowned with the sentry watching. The bypass reads the
+// page's own class now.
+
+test('frozenReturnBypass: the F9 shape - junk bar + head WET + the armed hold bypasses', () => {
+  assert.equal(frozenReturnBypass({ oxygen: -1, headWet: true, underHold: true }), true,
+    'the sentinel burst must not hold a drowning page - the drain clock outranks the walk window')
+  assert.equal(frozenReturnBypass({ oxygen: NaN, headWet: true, underHold: true }), true,
+    'the NaN junk family rides the same disjunct (a lost read with wet evidence)')
+  assert.equal(frozenReturnBypass({ oxygen: 'lost', headWet: true, underHold: true }), true,
+    'the string-bar junk family too (the 26.2 sensor lesson)')
+})
+
+test('frozenReturnBypass: the disjunct keeps its fences', () => {
+  assert.equal(frozenReturnBypass({ oxygen: -1, headWet: false, underHold: true }), false,
+    'a junk bar with a DRY head claims nothing - the dry bot is harmless where it stands')
+  assert.equal(frozenReturnBypass({ oxygen: -1, headWet: true, underHold: false }), false,
+    'no hold riding - no bypass concept (the legacy callers\' world)')
+  assert.equal(frozenReturnBypass({ oxygen: -1 }), false,
+    'the defaults keep the v0.265.0 law byte-true (junk never bypasses by itself)')
+  assert.equal(frozenReturnBypass({ oxygen: 20, headWet: true, underHold: true }), false,
+    'a healthy bar never bypasses - the wet-cycler disjunct needs a LOST read')
+  assert.equal(frozenReturnBypass({ oxygen: 0 }), true,
+    'the legacy critical call stays true (the F1 shape, the old law)')
+  assert.equal(frozenReturnBypass({ oxygen: null }), true,
+    'the Number(null)=0 mirror stays (the gate\'s own arithmetic, documented)')
+})
+
+test('frozenBypassEcho: the mirror grows the wet-cycler claim with the gate', () => {
+  const line = frozenBypassEcho({ oxygen: -1, headWet: true, underHold: true })
+  assert.ok(typeof line === 'string' && line.includes('the wet-cycler bypass voids the armed hold'),
+    'the same inputs the gate sees claim the void - the mirror law holds')
+  assert.ok(line.startsWith('o2=reset(-1)'), 'the label renders the sentinel NAMED (the strict label law)')
+  assert.equal(frozenBypassEcho({ oxygen: -1 }), null,
+    'the sentinel\'s refusal stands with defaults (the v0.265.0 pin intent)')
+  assert.equal(frozenBypassEcho({ oxygen: -1, headWet: false, underHold: true }), null,
+    'the dry-hold junk keeps its silence')
+  const crit = frozenBypassEcho({ oxygen: 0, headWet: true, underHold: true })
+  assert.ok(crit !== null && crit.includes('the loop fuel') && !crit.includes('wet-cycler'),
+    'the domain-critical claim keeps its byte shape (the lane\'s F1 pin)')
+})
+
+test('the F9 chain composed: relog #3 arms 40s, the sentinel page bypasses, the echo claims it', () => {
+  // the exact F9 read from face 36369215771: relog #3 -> hold 40s -> the
+  // fresh client re-pages head WET, o2=-1 (the reset burst) -> the OLD gate
+  // held the page ('rescue never', drowned); the NEW gate bypasses.
+  const hold = frozenReturnGate({ consecutiveRelogs: 3 })
+  assert.equal(hold, 40000, 'relog #3 arms the 40s hold (the doubling ladder)')
+  const bypass = frozenReturnBypass({ oxygen: -1, headWet: true, underHold: true })
+  assert.equal(bypass, true, 'the sentinel page crosses - the drowning clock owns the hold')
+  const echo = frozenBypassEcho({ oxygen: -1, headWet: true, underHold: true })
+  assert.ok(echo !== null && echo.includes('the sentinel is not safety evidence'),
+    'the relog tail names the class at the moment it is armed')
+})
+
+test('miner wiring: the bypass reads the page\'s own class, the junk crossing prints its own line', () => {
+  assert.ok(minerSrc.includes('frozenReturnBypass({ oxygen: o2raw, headWet, underHold: frozenHoldLive })'),
+    'the gate\'s call carries the page\'s head-wet truth and the hold state')
+  assert.ok(minerSrc.includes('frozen-return gate bypassed (wet cycler o2='),
+    'the junk crossing prints the wet-cycler line (the loop signature, sentinel class)')
+  assert.ok(minerSrc.includes('the sentinel is not safety evidence, the drowning clock outranks the hold'),
+    'the line names the cure\'s law')
+  assert.ok(minerSrc.includes('frozenBypassEcho({ oxygen: frozenDownO2, headWet: frozenDownWet, underHold: true })'),
+    'the relog tail\'s echo mirrors the same inputs (the verdict\'s wet + the hold arming)')
 })

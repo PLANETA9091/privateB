@@ -1550,11 +1550,21 @@ export function frozenReturnGate ({ consecutiveRelogs = 0 } = {}) {
  * genuinely critical bar does - the ~35s drain-to-death clock outranks the
  * hold; wet and dry criticals both bypass (a dry critical is the liar
  * ladder's class, which paces itself; a wet critical is a real drowning).
- * Junk oxygen never bypasses (the gates-decide convention: a lost read
- * cannot spend an emergency). */
-export function frozenReturnBypass ({ oxygen = 20 } = {}) {
+ * Junk oxygen never bypasses BY ITSELF (the gates-decide convention: a lost
+ * read cannot spend an emergency) - (v0.266.0) THE SENTINEL BLINDNESS CURE:
+ * face 36369215771's F9 chain drowned INSIDE an armed hold - relog #3 armed
+ * 40s, the fresh client re-paged from the same water column head WET with
+ * the v0.64.0 reset burst on the bar (o2=-1), and the bypass's domain law
+ * read the sentinel as 'not a measurement, not critical' - the hold kept
+ * the page, 'rescue never', the bot drowned with the sentry watching. The
+ * evidence that spends the emergency is NOT the junk read: it is head WET
+ * + the armed hold itself (a wet-frozen relog JUST happened - the walk-out
+ * already failed once, the drain clock outranks the walk window). A junk
+ * read with a DRY head, or with no hold riding, still claims nothing. */
+export function frozenReturnBypass ({ oxygen = 20, headWet = false, underHold = false } = {}) {
   const raw = Number(oxygen)
-  return oxygenInDomain(raw) && raw <= OXYGEN_CRITICAL_LEVEL
+  if (oxygenInDomain(raw) && raw <= OXYGEN_CRITICAL_LEVEL) return true
+  return underHold === true && headWet === true && !oxygenInDomain(raw)
 }
 
 // (v0.265.0) THE BYPASS ECHO - face 36365938885's F1 chain closed the loop
@@ -1582,13 +1592,26 @@ export function frozenReturnBypass ({ oxygen = 20 } = {}) {
  * Non-null exactly when frozenReturnBypass says the gate will let the page
  * through: the returned string names the void (the relog line's tail). Null
  * means the hold will live (silence is the honest read) or the bar is lost.
+ * (v0.266.0) the mirror grows the wet-cycler disjunct with the gate: a junk
+ * bar claims nothing BY ITSELF, but the same inputs the gate will see (head
+ * WET + the hold the relog is arming) claim the void under the sentinel
+ * blindness cure - the claim names the class, the label renders the quality.
  * @param {object} [p]
- * @param {number|string} [p.oxygen] the o2 read at the verdict (junk -> null)
+ * @param {number|string} [p.oxygen] the o2 read at the verdict (junk -> null
+ *   unless the wet-cycler disjunct's own evidence rides)
+ * @param {boolean} [p.headWet] was the verdict head-wet (junk -> false)
+ * @param {boolean} [p.underHold] is a frozen-return hold arming/armed
+ *   (junk -> false)
  * @returns {string|null}
  */
-export function frozenBypassEcho ({ oxygen } = {}) {
+export function frozenBypassEcho ({ oxygen, headWet = false, underHold = false } = {}) {
   const raw = Number(oxygen)
-  if (!oxygenInDomain(raw)) return null
+  if (!oxygenInDomain(raw)) {
+    if (underHold === true && headWet === true) {
+      return `o2=${o2SensorLabel(oxygen)} - the wet-cycler bypass voids the armed hold on the next page (the sentinel is not safety evidence)`
+    }
+    return null
+  }
   if (raw > OXYGEN_CRITICAL_LEVEL) return null
   return `o2=${o2SensorLabel(oxygen)} - the critical bypass voids the armed hold on the next page (the loop fuel)`
 }

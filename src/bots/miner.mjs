@@ -1881,7 +1881,7 @@ export function createMiner ({
           // condemning window - and, when the bar is critical, the named void: the
           // hold this line arms is the hold the NEXT page bypasses (the F1 loop's
           // fuel, finally visible at the moment it is armed).
-          const bypassEcho = frozenBypassEcho({ oxygen: frozenDownO2 })
+          const bypassEcho = frozenBypassEcho({ oxygen: frozenDownO2, headWet: frozenDownWet, underHold: true })
           log(`${tag} water: frozen client relog (#${relogStreak} consecutive) (${esc.why}) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages ${Math.round(hold / 1000)}s (the frozen-return gate) - o2=${o2SensorLabel(frozenDownO2)} health=${bot.health ?? '?'} window=${frozenDownWindow ?? '?'}${bypassEcho ? ` - ${bypassEcho}` : ''}`)
           try { bot.end() } catch { /* the session loop owns the wreck */ }
         }
@@ -2106,7 +2106,11 @@ export function createMiner ({
         // lanes (the frozen cycler's own page class) hold; the liar ladder's
         // class keeps pacing itself through the v0.117.0 machinery on top.
         const frozenGateUntil = frozenReturnGates.get(username) || 0
-        if (Date.now() < frozenGateUntil && !frozenReturnBypass({ oxygen: o2raw })) {
+        const frozenHoldLive = Date.now() < frozenGateUntil
+        // (v0.266.0) the bypass reads the page's own class now: head WET + the
+        // armed hold + a junked bar (the reset sentinel) is the F9 evidence -
+        // the drowning clock outranks the hold even when the bar cannot say so.
+        if (frozenHoldLive && !frozenReturnBypass({ oxygen: o2raw, headWet, underHold: frozenHoldLive })) {
           if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
             lastGlitchLogAt = now
             log(`${tag} water: frozen-return gate holds the page (${Math.round((frozenGateUntil - now) / 1000)}s left) - the fresh client walks the hazard-ledgered column out`)
@@ -2119,7 +2123,10 @@ export function createMiner ({
         // other half was invisible on the reconnect side too. The echo names
         // the void and the streak: a critical page while a hold is armed AND a
         // relog streak is riding is the loop's own signature in one line.
-        if (Date.now() < frozenGateUntil && frozenRelogStreaks.get(username) > 0 && now - lastBypassEchoAt >= AIR_GLITCH_LOG_MS) {
+        if (frozenHoldLive && frozenRelogStreaks.get(username) > 0 && now - lastBypassEchoAt >= AIR_GLITCH_LOG_MS && !oxygenInDomain(Number(o2raw))) {
+          lastBypassEchoAt = now
+          log(`${tag} water: frozen-return gate bypassed (wet cycler o2=${o2SensorLabel(o2raw)} - the sentinel is not safety evidence, the drowning clock outranks the hold) - the rescue owns the clock (relog streak ${frozenRelogStreaks.get(username)})`)
+        } else if (frozenHoldLive && frozenRelogStreaks.get(username) > 0 && now - lastBypassEchoAt >= AIR_GLITCH_LOG_MS) {
           lastBypassEchoAt = now
           log(`${tag} water: frozen-return gate bypassed (critical read o2=${o2SensorLabel(o2raw)}) - the armed hold voids on arrival, the rescue owns the clock (relog streak ${frozenRelogStreaks.get(username)})`)
         }

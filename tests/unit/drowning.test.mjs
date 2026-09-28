@@ -1274,8 +1274,8 @@ test('the frozen-return wiring: the streak rides the relog, the gate arms at the
     'the gate arms at the relog site')
   assert.ok(src.includes('frozen-return gate clears - the rescue completed with living physics'),
     'an honest completion clears the streak and the hold')
-  assert.ok(src.includes('!frozenReturnBypass({ oxygen: o2raw })'),
-    'the sentry holds the page unless the bar is genuinely critical')
+  assert.ok(src.includes('!frozenReturnBypass({ oxygen: o2raw, headWet, underHold: frozenHoldLive })'),
+    'the sentry holds the page unless the bar is genuinely critical (v0.266.0 identity-extends: the page\'s own class rides the bypass - the F9 wet-cycler evidence)')
   assert.ok(src.includes('frozen-return gate holds the page'),
     'the hold names itself so the next mine reads the lane')
 })
