@@ -61,3 +61,15 @@ test('the census is wired: the miner\'s step counts ride stats for the fleet row
   const censusAt = minerSrc.indexOf('stanceCuts++')
   assert.ok(recutAt > 0 && censusAt > recutAt, 'the census increments AFTER the re-read arms - the count is the re-read\'s conversion, never a guess')
 })
+
+test('the walk contest names itself: the step\'s bottleneck speaks (v0.285.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // face 36423614693: step=5 stepcut=2 with THREE walks contested - the cure
+  // converts but its own bottleneck (the contested walk) stayed blind because
+  // the catch swallowed gotoSafe's named refusal (the water-rescue gate, the
+  // spin breaker, the doomed-goal ledger, the governor's timeout - every
+  // family already has a name in the message).
+  assert.ok(minerSrc.includes('vein sweep: stance step refused - the walk contested ('), 'the contest line keeps its byte-true prefix (the band pin holds) and grows the message window')
+  assert.ok(minerSrc.includes("String(e?.message ?? 'no error read').slice(0, 40)"), 'the refusal name rides the SAME line, capped at 40 chars (the write-off ladder trace\'s own cap)')
+  assert.ok(minerSrc.includes('} catch (e) {') || minerSrc.includes('catch (e)'), 'the catch binds the error - a swallowed contest is a blind decode')
+})

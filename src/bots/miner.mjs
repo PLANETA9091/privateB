@@ -3194,7 +3194,24 @@ export function createMiner ({
                             } else {
                               log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}`)
                             }
-                          } catch { log(`${tag} vein sweep: stance step refused - the walk contested`) }
+                          } catch (e) {
+                            // (v0.285.0) THE WALK CONTEST NAME - the contest's
+                            // first decode lead. Face 36423614693 (the composed
+                            // tree's first field flight) read the step's debut:
+                            // step=5 stepcut=2 (the cure CONVERTS - F4 1.7->1.0
+                            // and F10 2.2->1.4 both bought their cut through the
+                            // step), but 3 of the 5 walks CONTESTED and the line
+                            // could not say WHY - gotoSafe's refusal messages
+                            // already name the family (the water-rescue gate,
+                            // the spin breaker, the doomed-goal ledger, the
+                            // walk governor's timeout), the line swallowed them
+                            // and the step's own bottleneck stayed blind. The
+                            // name rides the SAME line (the byte-true prefix
+                            // keeps the band pin), the message capped at 40
+                            // chars (the write-off ladder trace's own cap - a
+                            // junk message cannot flood the row).
+                            log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)})`)
+                          }
                         }
                       }
                       sealTail = `, seal ${sealN ?? '?'}`
