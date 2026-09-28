@@ -50,7 +50,7 @@ import {
   frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
-  airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
+  airBarFalling, ascendStalled, ascendGraceWanted, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
   WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
@@ -1744,6 +1744,29 @@ export function createMiner ({
           // health freeze during the down window), a false negative costs hp.
           const frozenWindow = frozenWindowFor({ headWet, oxygen: read.oxygen })
           if (physicsFrozen({ points: passPoints, window: frozenWindow })) {
+            // (v0.271.0) THE ASCEND GRACE - the condemned pass goes to the
+            // ceiling dig when the grace's precondition holds (head wet,
+            // budget left, the stall armed at the SAME point count the fast
+            // freeze needs - the tie the old K=4 lost by exactly one pass;
+            // face 36378053182: F1's six finite-critical cycles relogged
+            // #1..#7 and never dug). A dug ceiling moves the y and the freeze
+            // never re-verdicts; a failed/absent/undiggable read falls
+            // through to the break byte for byte - the detector still owns
+            // the true freeze, one pass later at most.
+            if (ascendGraceWanted({ headWet, ascendDigs, points: passPoints })) {
+              const gcell = ceilingCell(bot.entity?.position)
+              const gceil = gcell
+                ? (() => { try { return bot.blockAt(new Vec3(gcell.x, gcell.y, gcell.z)) } catch { return null } })()
+                : null
+              if (gceil && gceil.diggable === true) {
+                ascendDigs++
+                try {
+                  await withTimeout(bot.dig(gceil), 6000, 'ascend grace dig')
+                  log(`${tag} water: ascend grace - dug the ceiling ${gceil.name} at [${gcell.x},${gcell.y},${gcell.z}] on the frozen verdict's pass (o2 ${o2SensorLabel(read.oxygen)}; the freeze re-verdicts next pass if the dig buys nothing)`)
+                  continue // the pass is spent on the dig - the loop re-reads fresh
+                } catch { /* the dig lost the race: the break below owns it */ }
+              }
+            }
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
               log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${o2SensorLabel(read.oxygen)}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)

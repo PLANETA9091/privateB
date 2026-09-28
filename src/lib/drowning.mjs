@@ -1385,8 +1385,36 @@ export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FR
 // true freeze (a dead client never digs either) and RESCUE_MAX_MS caps the
 // whole lane - the dig can never extend the budget, only spend it better.
 
-/** Flat-pass count before the submerged lane tries the ceiling dig. */
-export const ASCEND_STALL_PASSES = 4
+// (v0.271.0) THE ASCEND GRACE - the race the fast window silently won.
+//
+// MEASURED (face 36378053182, the seal-read fleet): F1's ladder went #1..#7
+// CONSECUTIVE in one water column [-134,41-42,406-408] and bled
+// health 20 -> 17.5 -> 14.8 -> 9.3 -> 5.3 -> dead. Every relog tail echoed
+// honestly (the v0.265.0 shape), every fresh page was critical-bypassed
+// honestly (streaks 2-5 carry the gate-side line), every rescue started -
+// and the DEEP-POCKET ASCEND, the lane's own ceiling move, fired ZERO times
+// in those cycles. The field's ascend lines all ride NON-critical bars
+// (o2=11, o2=16, o2=reset(-1) -> the legacy window): the dig only ever got
+// its chance when the freeze waited 10 passes. THE ARITHMETIC: the
+// wet-critical fast window condemns at WET_FROZEN_WINDOW=4 flat points
+// (physicsFrozen's length gate), while ascendStalled(minPasses=4) needs
+// K+1=5 points - the freeze broke the rescue on pass 4, one pass BEFORE the
+// stall could arm, in exactly the cycles whose clock bleeds hp. The race
+// was structural: a finite-critical wedge could never dig.
+//
+// THE CURE, two measured moves: (1) ASCEND_STALL_PASSES 4 -> 3 - the stall
+// arms at 4 points, the SAME pass the fast freeze arms (the tie invariant
+// ASCEND_STALL_PASSES + 1 === WET_FROZEN_WINDOW); (2) the miner's frozen
+// block spends the condemned pass on the ceiling dig when the grace's pure
+// precondition holds (head wet, budget left, stall armed) - the dig owns
+// the pass, the freeze re-verdicts next pass if the dig buys nothing. The
+// freeze still owns the true freeze (a failed/absent/undiggable read falls
+// through to the break byte for byte) and RESCUE_MAX_MS caps the lane.
+
+/** Flat-pass count before the submerged lane tries the ceiling dig. K+1
+ * points arm the stall - equal to the fast freeze's own point count, so
+ * the dig and the freeze arm on the SAME pass (the v0.271.0 tie). */
+export const ASCEND_STALL_PASSES = 3
 /** Per-pass y movement below which a submerged pass counts as stalled (blocks). */
 export const ASCEND_STALL_EPS = 0.15
 /** Ceiling digs one rescue may attempt (a thick roof climbs one block per
@@ -1425,6 +1453,30 @@ export function ascendStalled ({ points = null, minPasses = ASCEND_STALL_PASSES,
     if (Math.abs(cy - py) >= e) return false
   }
   return true
+}
+
+/**
+ * (v0.271.0) THE ASCEND GRACE'S PURE PRECONDITION - may the condemned pass
+ * be spent on the ceiling dig? The miner's frozen block consults this BEFORE
+ * its break: true means the dig owns the pass and the freeze re-verdicts
+ * next pass; false means the break fires byte for byte (the v0.268.0 shape).
+ * Junk-honest by composition: a junk points array leaves ascendStalled
+ * false (a lost reading never arms a dig), a junk budget reads spent, a
+ * dry head reads no grace (the dry bot has shores - the grace is the
+ * SUBMERGED lane's move only).
+ * @param {object} [p]
+ * @param {boolean} [p.headWet] the pass's head verdict
+ * @param {number} [p.ascendDigs] digs already spent this rescue
+ * @param {number} [p.budget] the rescue's ceiling-dig budget (default ASCEND_DIG_BUDGET)
+ * @param {Array<{x:number,y:number,z:number}>|null} [p.points] per-pass positions
+ * @returns {boolean} true -> try the ceiling dig on this condemned pass
+ */
+export function ascendGraceWanted ({ headWet = false, ascendDigs = 0, budget = ASCEND_DIG_BUDGET, points = null } = {}) {
+  if (headWet !== true) return false
+  const d = Number.isFinite(ascendDigs) ? Math.max(0, Math.floor(ascendDigs)) : 0
+  const b = Number.isFinite(budget) && budget > 0 ? Math.floor(budget) : ASCEND_DIG_BUDGET
+  if (d >= b) return false
+  return ascendStalled({ points, minPasses: ASCEND_STALL_PASSES }) === true
 }
 
 /**
