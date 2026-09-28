@@ -30,7 +30,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
+import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -368,8 +368,11 @@ export function createMiner ({
     // steers every bot away from the corpse, the stack despawns unattributed.
     // One read WHILE the inventory still lists, riding the 'death drop' filter
     // key. Guarded: the snapshot must never break the respawn path.
+    let dropPocketU = null // (v0.280.0) the write-off's stake - read while the inventory still lists
     try {
-      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
+      const dropItems = bot.inventory?.items?.() ?? null
+      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: dropItems })
+      dropPocketU = deathDropTotal(dropItems)
       if (drop) log(drop)
     } catch { /* the drop snapshot must never break a respawn */ }
     // (v0.249.0) THE DROWN-DEATH CONTEXT: run36325553310 measured the
@@ -501,7 +504,8 @@ export function createMiner ({
         // death moment. The respawned bot's ONE walk back is the runner's
         // decision (relootPlan's fences), never this handler's - a death
         // handler must never walk.
-        lastDeath = { spot: { x: dp.x, y: dp.y, z: dp.z }, at: Date.now(), attempted: false }
+        // (v0.280.0) the pocket stake rides the record - the write-off line names WHAT was at stake
+        lastDeath = { spot: { x: dp.x, y: dp.y, z: dp.z }, at: Date.now(), attempted: false, pocketU: dropPocketU }
         if (broadcastHazard) { try { broadcastHazard({ x: dp.x, y: dp.y, z: dp.z }) } catch { /* chat never kills a respawn */ } }
       }
     } catch { /* a death handler must never throw */ }

@@ -67,8 +67,12 @@ test('junk-safe: a non-array items read is null, junk entries filtered, fraction
 test('REGRESSION PIN: the miner death handler wires the drop snapshot', async () => {
   const fs = await import('node:fs')
   const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  assert.ok(/deathDropLine\(\{ tag, pos: bot\.entity\?\.position, items: bot\.inventory\?\.items\?\.\(\) \?\? null \}\)/.test(minerSrc),
-    'the death handler reads the inventory AT the death event with the guarded call shape')
+  assert.ok(/const dropItems = bot\.inventory\?\.items\?\.\(\) \?\? null/.test(minerSrc),
+    'the death handler reads the inventory AT the death event (v0.280.0: the items read hoists to a variable so the stake rides it)')
+  assert.ok(/deathDropLine\(\{ tag, pos: bot\.entity\?\.position, items: dropItems \}\)/.test(minerSrc),
+    'the guarded call shape holds - the same items read feeds the line')
+  assert.ok(/deathDropTotal\(dropItems\)/.test(minerSrc),
+    'the stake rides the same read (the write-off line names WHAT was at stake)')
   assert.ok(/if \(drop\) log\(drop\)/.test(minerSrc), 'a null read prints nothing, a line prints')
   // the snapshot sits BEFORE the death-spot block: the read must happen while
   // the inventory still lists, and the respawn path stays guarded by try/catch

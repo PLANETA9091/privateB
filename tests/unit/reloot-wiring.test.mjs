@@ -18,14 +18,14 @@ const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.u
 
 test('REGRESSION PIN: the miner death handler records the re-loot state', () => {
   assert.ok(minerSrc.includes('let lastDeath = null'), 'the state exists (per-instance, junk-safe)')
-  assert.ok(minerSrc.includes("lastDeath = { spot: { x: dp.x, y: dp.y, z: dp.z }, at: Date.now(), attempted: false }"),
-    'the record rides the SAME guarded read the death-spot memory uses (spot + clock + un-attempted)')
+  assert.ok(minerSrc.includes("lastDeath = { spot: { x: dp.x, y: dp.y, z: dp.z }, at: Date.now(), attempted: false, pocketU: dropPocketU }"),
+    'the record rides the SAME guarded read the death-spot memory uses (spot + clock + un-attempted; v0.280.0 grows the pocket stake for the write-off line)')
   assert.ok(minerSrc.includes('lastDeath: () => lastDeath'),
     'the miner exposes the record to the runner (the runner decides, never the death handler)')
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
     'the census rides the import (the runner reads the plan, the classifier, the scanner, the census, the surface ladder, the rim dig AND the v0.261.0 unarmed verdict from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 

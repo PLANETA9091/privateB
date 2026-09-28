@@ -137,7 +137,7 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
   const named = items
     .filter(it => it && typeof it.name === 'string' && Number.isFinite(it.count) && it.count > 0)
     .map(it => ({ name: it.name, count: Math.floor(it.count) }))
-  const total = named.reduce((s, it) => s + it.count, 0)
+  const total = deathDropTotal(items)
   const p = pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z) ? pos : null
   const at = p ? ` at [${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}]` : ''
   if (!total) return `${tag} death drop: pocket read empty at death (0u)`
@@ -148,6 +148,27 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
     .join(', ')
   const more = named.length > 5 ? `, +${named.length - 5} more` : ''
   return `${tag} death drop: ~${total}u lost${at} (${top}${more})`
+}
+
+/**
+ * (v0.280.0) THE POCKET STAKE - the deathDropLine's own total, exposed as a
+ * number. The reloot ladder's terminal write-off needs the stake at reloot
+ * time, but the death-drop line is a STRING - parsing it back would be
+ * junk-hostile (the string is the row's format, not a measurement). The
+ * arithmetic moves here (deathDropLine calls it - the output stays byte
+ * identical, the deathdrop pins hold) and the death handler stores the
+ * number on the reloot record (lastDeath.pocketU), so the write-off line
+ * can name WHAT was at stake when the ladder ends. Junk-safe: a non-array
+ * read is null (the caller renders 'unknown'), junk entries filter before
+ * the sum, fractions floor. Pure.
+ * @param {Array|null} items the inventory items at death
+ * @returns {number|null} the pocket total in units, or null when unreadable
+ */
+export function deathDropTotal (items = null) {
+  if (!Array.isArray(items)) return null
+  return items
+    .filter(it => it && typeof it.name === 'string' && Number.isFinite(it.count) && it.count > 0)
+    .reduce((s, it) => s + Math.floor(it.count), 0)
 }
 
 /**

@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
@@ -1584,6 +1584,25 @@ async function runBot (name, target, index) {
                   })()
                   if (!rs.go) {
                     console.log(`${name} reloot: retry failed (${e2.message}) - the drops stay lost${rs.why === 'not-no-path' ? '' : ` (no surface: ${rs.subWhy || rs.why})`}`)
+                    if (!(rs.why === 'no-surface' && rs.subWhy === 'sealed')) {
+                      // (v0.280.0) THE WRITE-OFF STAMP - the no-surface class's first voice: the
+                      // stake (the death event's stored pocket read), the age vs the despawn
+                      // window, and the full ladder trace on ONE line (the terminal log above
+                      // stays byte-identical - the sequence law). The sealed class keeps its
+                      // own per-leg logs - the rim dig owns its salvage below.
+                      try {
+                        console.log(relootWriteoffLine({
+                          tag: name,
+                          goal: rp.goal,
+                          pocketU: relootDeath.pocketU,
+                          ageMs: Date.now() - relootDeath.at,
+                          despawnMs: RELOOT_DESPAWN_MS,
+                          walkWhy: e?.message,
+                          retryWhy: e2?.message,
+                          surfaceWhy: rs.subWhy || rs.why
+                        }))
+                      } catch { /* the write-off must never break the ladder */ }
+                    }
                     // (v0.221.0) THE RIM DIG WIRING - the ladder's fourth leg,
                     // wired inside the surface gate's own refusal (the field
                     // sequence is strict: walk -> wide retry -> surface scan

@@ -547,3 +547,69 @@ export function relootRimDig ({
     windowMs: plan.windowMs
   }
 }
+
+// (v0.280.0) THE RELOOT WRITE-OFF STAMP - the no-surface class's first voice.
+// Face 36384223490's F1 died suffocating mid a 'map trip gravel' walk and
+// lost 153u - THE BIGGEST SINGLE DROP THE FLEET HAS EVER MEASURED - and the
+// reloot ladder ended mute: the walk died 'No path to the goal!', the wide
+// retry died the same death, the surface scan refused 'no surface: land'
+// (the ladder's surface leg is the WET-column cure - a dry unreachable
+// column has no fourth leg), and the ONE terminal line said 'the drops stay
+// lost' with NO stake, NO trace, NO age. The census could not say WHAT the
+// write-off cost or WHICH leg ended the ladder - the write-off class died
+// in silence exactly like the suffocate class did before its stamp.
+// ONE line per terminal write-off (the surface scan refused and the rim dig
+// does not own the salvage - the sealed class keeps its own per-leg logs):
+//   the goal cell (the death spot the ladder aimed at),
+//   the STAKE (the pocket estimate the death event stored - v0.280.0 grows
+//   lastDeath.pocketU via statcarry's deathDropTotal; a pre-stamp death or
+//   a junk read renders 'unknown', never a fabricated 0),
+//   the AGE vs the despawn window (did the drops expire stranded or stay
+//   stranded alive - the two write-off sub-classes the census needs),
+//   and the LADDER TRACE (the walk's failure verbatim -> the retry's ->
+//   the surface verdict; each verbatim capped at 40 chars - a junk message
+//   cannot flood the row).
+// The line NEVER returns null (the class already lost the biggest pocket
+// silently once). Pure: reads, never decides - the wiring's gate owns when.
+//
+// SHAPES:
+//   'F1 reloot: write-off (goal [112,45,424], stake ~153u, age 42s/300s
+//    window, walk 'No path to the goal!' -> retry 'No path to the goal!'
+//    -> surface 'land')'
+//   junk   every read 'unknown' - the line still stamps, the class stays
+//          visible, the census counts it honest
+/**
+ * @param {object} [r]
+ * @param {string} [r.tag] the bot tag ('F1')
+ * @param {{x: number, y: number, z: number}|null} [r.goal] the death spot the ladder aimed at
+ * @param {number|null} [r.pocketU] the stored pocket stake (the deathDropTotal read; junk/0 reads 'unknown')
+ * @param {number|null} [r.ageMs] now - deathAt (junk/negative reads 'unknown')
+ * @param {number} [r.despawnMs] the despawn window (default RELOOT_DESPAWN_MS)
+ * @param {string|null} [r.walkWhy] the walk's failure message (verbatim, capped 40)
+ * @param {string|null} [r.retryWhy] the wide retry's failure message (verbatim, capped 40)
+ * @param {string|null} [r.surfaceWhy] the surface scan's verdict token ('land'/'sealed'/...)
+ * @returns {string} the write-off line
+ */
+export function relootWriteoffLine ({
+  tag = '',
+  goal = null,
+  pocketU = null,
+  ageMs = null,
+  despawnMs = RELOOT_DESPAWN_MS,
+  walkWhy = null,
+  retryWhy = null,
+  surfaceWhy = null
+} = {}) {
+  const g = goal && Number.isFinite(goal.x) && Number.isFinite(goal.y) && Number.isFinite(goal.z)
+    ? `[${Math.floor(goal.x)},${Math.floor(goal.y)},${Math.floor(goal.z)}]`
+    : 'unknown'
+  const stake = Number.isFinite(pocketU) && pocketU > 0 ? `~${Math.floor(pocketU)}u` : 'unknown'
+  const age = Number.isFinite(ageMs) && ageMs >= 0 && Number.isFinite(despawnMs) && despawnMs > 0
+    ? `${Math.round(ageMs / 1000)}s/${Math.round(despawnMs / 1000)}s window`
+    : 'unknown'
+  const cap = (v, n) => (typeof v === 'string' && v.trim() ? `'${v.trim().slice(0, n)}'` : 'unknown')
+  const w = cap(walkWhy, 40)
+  const r = cap(retryWhy, 40)
+  const s = cap(surfaceWhy, 24)
+  return `${tag} reloot: write-off (goal ${g}, stake ${stake}, age ${age}, walk ${w} -> retry ${r} -> surface ${s})`
+}
