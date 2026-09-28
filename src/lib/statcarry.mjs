@@ -14,10 +14,45 @@ import { WATER_NAMES, o2SensorLabel } from './drowning.mjs'
 // in. Only MONOTONE counters travel (see CARRY_FIELDS - shaftEntryY is a
 // coordinate and startedAt is a timestamp; neither may be summed) plus the
 // byName mined-block histogram, merged additively.
+//
+// (v0.293.0) THE SWEEP CENSUS CARRY - the carry had a second mortality gap and
+// face 36476752446 read it live. F7's stance step CONVERTED this face (armed
+// dist 2.4 -> landed dist 0.9, `the cut took the column (dug 0 seal cell(s) +
+// the support)` - a legal dy-1 shake-only conversion) - and the fleet row read
+// `step=0 stepcut=0`. THE ANATOMY: line 822 - F7 was blown up by a Creeper
+// minutes later; the respawn rebuilt the miner and the v0.18.9 carry moved
+// only CARRY_FIELDS + byName - stats.sweepDrops (the v0.203.0 census view the
+// whole stance/drop program is judged by: step=/stepcut=/cut=/seal=/ngap=)
+// is NOT a CARRY_FIELD, so every bot death ORPHANS its sweep census. The
+// cures of five versions were being judged by a census that loses a bot's
+// whole contribution on every death (reconnects=8 this face). THE CURE: the
+// sweepDrops view rides the carry - snapshotStats picks its numeric >0
+// fields, seedStats sums them onto the fresh miner's view, creating the FULL
+// zeroed view when absent (the miner's ride reads `stats.sweepDrops ??
+// (stats.sweepDrops = {...})` - a PARTIAL view would skip the default init
+// and turn the first `sd.sweeps++` into NaN; the seed must always build the
+// whole shape). All 20 fields are monotone counters - nothing coordinate or
+// timestamp-shaped lives in the view. The seed-then-snapshot law is
+// unchanged (absolute totals, never merged twice).
 export const CARRY_FIELDS = [
   'mined', 'failed', 'skipped', 'flyFails', 'hookCalls', 'hookFails',
   'mapTrips', 'mapRecords', 'banked', 'planted', 'torched', 'fights',
   'climbs', 'shelters', 'rescues', 'airGlitches', 'claims', 'deaths'
+]
+
+// (v0.293.0) THE SWEEP CENSUS CARRY's field list - every monotone counter of
+// the miner's stats.sweepDrops view (the fleet row's sweeps=/picked=/failed=/
+// below=/above=/deepSkip=/lipDig=/supportDig=/seal=/near=/far=/cut=/nthick=/
+// nthin=/ngap=/step=/stepcut= tokens). The coherence pin in
+// tests/unit/statcarry.test.mjs cross-checks this list against the miner's
+// ride-site default init - a field added there must join here (the identity-
+// extend discipline). Nothing coordinate or timestamp-shaped lives in the
+// view, so the whole list travels.
+export const SWEEP_DROP_FIELDS = [
+  'sweeps', 'picked', 'failed', 'below', 'above', 'deepSkip', 'lipDig',
+  'supportDig', 'seal1', 'seal2', 'seal3', 'sealNear', 'sealFar',
+  'ledgeCut', 'sealCutTargets', 'sealNearThin', 'sealCutGap',
+  'stanceStep', 'stanceCut'
 ]
 
 /**
@@ -41,6 +76,17 @@ export function snapshotStats (stats) {
     }
     if (Object.keys(merged).length) out.byName = merged
   }
+  // (v0.293.0) the sweep census view rides the carry too - a dead bot's
+  // step=/stepcut=/seal=/cut= contributions used to orphan with the instance
+  const sd = stats.sweepDrops
+  if (sd && typeof sd === 'object') {
+    const carried = {}
+    for (const f of SWEEP_DROP_FIELDS) {
+      const v = sd[f]
+      if (Number.isFinite(v) && v > 0) carried[f] = v
+    }
+    if (Object.keys(carried).length) out.sweepDrops = carried
+  }
   return out
 }
 
@@ -62,6 +108,18 @@ export function seedStats (stats, carry) {
     stats.byName = stats.byName ?? {}
     for (const [k, v] of Object.entries(byName)) {
       if (Number.isFinite(v) && v > 0) stats.byName[k] = (stats.byName[k] ?? 0) + v
+    }
+  }
+  // (v0.293.0) the sweep census seeds onto the FULL zeroed view - a partial
+  // view would skip the miner's ride-site default init (`?? {...}`) and turn
+  // the first `sd.sweeps++` into NaN
+  const sd = carry.sweepDrops
+  if (sd && typeof sd === 'object') {
+    const view = stats.sweepDrops ?? (stats.sweepDrops = {})
+    for (const f of SWEEP_DROP_FIELDS) {
+      const v = Number.isFinite(view[f]) ? view[f] : 0
+      const c = sd[f]
+      view[f] = Number.isFinite(c) && c > 0 ? v + c : v
     }
   }
   return stats

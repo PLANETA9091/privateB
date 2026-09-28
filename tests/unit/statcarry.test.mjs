@@ -4,7 +4,8 @@
 // seed-then-snapshot contract here is what keeps the totals honest.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, drownedKillContextLine } from '../../src/lib/statcarry.mjs'
+import { readFileSync } from 'node:fs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -168,4 +169,57 @@ test('drowned-kill context: waterlogged gravel reads its class through the wl fl
     neighbors: [{ name: 'water', d: 'n' }], feetY: 63
   })
   assert.equal(line, 'F19 death: drowned-kill context (in-water, y 63, feet gravel wl, head water, water n)')
+})
+
+test('the sweep census carry: the view survives the death (v0.293.0)', () => {
+  // face 36476752446 read the mortality gap live: F7's stance step CONVERTED
+  // (armed 2.4 -> landed 0.9, a legal dy-1 shake-only took) and the fleet row
+  // read step=0 stepcut=0 - line 822, F7 was blown up by a Creeper minutes
+  // later; the carry moved only CARRY_FIELDS + byName and the census view
+  // (v0.203.0) orphaned with the instance. The view rides the carry now.
+  const dead = { mined: 100, sweepDrops: { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3, junk: 5, bad: -1, nan: NaN } }
+  const carry = snapshotStats(dead)
+  assert.equal(carry.mined, 100)
+  assert.deepEqual(carry.sweepDrops, { sweeps: 4, picked: 30, failed: 2, stanceStep: 1, stanceCut: 1, seal3: 3 }, 'the census view travels field-wise; junk/negative/NaN stay home')
+  // a fresh miner with NO view: the seed builds the FULL zeroed shape (the
+  // miner's ride does `stats.sweepDrops ?? (stats.sweepDrops = {...})` - a
+  // partial view would skip the init and NaN the first sd.sweeps++)
+  const fresh = {}
+  seedStats(fresh, carry)
+  for (const f of SWEEP_DROP_FIELDS) {
+    assert.ok(Number.isFinite(fresh.sweepDrops[f]), `the seeded view is whole: ${f} is finite`)
+  }
+  assert.equal(fresh.sweepDrops.sweeps, 4)
+  assert.equal(fresh.sweepDrops.stanceStep, 1)
+  assert.equal(fresh.sweepDrops.stanceCut, 1)
+  assert.equal(fresh.sweepDrops.stanceCut, 1)
+  assert.equal(fresh.sweepDrops.sealNear, 0, 'untouched fields zero, not undefined (the ride += needs numbers)')
+  // the ride continues on the seeded view and the next snapshot is absolute
+  fresh.sweepDrops.sweeps += 2
+  fresh.sweepDrops.stanceCut += 1
+  const carry2 = snapshotStats(fresh)
+  assert.equal(carry2.sweepDrops.sweeps, 6, 'absolute snapshot (seed included), never merged twice')
+  assert.equal(carry2.sweepDrops.stanceCut, 2)
+  // seeding onto an EXISTING view sums (the double-reconnect chain)
+  seedStats(fresh, { sweepDrops: { stanceCut: 3 } })
+  assert.equal(fresh.sweepDrops.stanceCut, 5)
+  // junk-safe
+  seedStats(fresh, { sweepDrops: 'junk' })
+  seedStats(fresh, { sweepDrops: null })
+  assert.equal(fresh.sweepDrops.stanceCut, 5, 'a junk view is a no-op')
+  assert.deepEqual(snapshotStats({ sweepDrops: {} }), {}, 'an empty census view carries nothing')
+})
+
+test('the sweep census carry: the field list covers the miner ride (v0.293.0)', () => {
+  // the lib owns the carry list; the miner owns the ride-site default init.
+  // The two must agree - a field added to the ride without joining the list
+  // would silently orphan again (the identity-extend discipline, pinned).
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const initAt = minerSrc.indexOf("stats.sweepDrops ?? (stats.sweepDrops = {")
+  assert.ok(initAt > 0, 'the ride-site default init exists')
+  const initEnd = minerSrc.indexOf('})', initAt)
+  const init = minerSrc.slice(initAt, initEnd)
+  for (const f of SWEEP_DROP_FIELDS) {
+    assert.ok(init.includes(`${f}: 0`), `the ride init carries ${f}: 0 (the lib's carry list covers it)`)
+  }
 })
