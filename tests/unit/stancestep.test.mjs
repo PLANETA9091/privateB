@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stanceStepBlocks, stepWalkProgress, STANCE_STEP_WALK_MS, STANCE_STEP_RAW_MS, STANCE_STEP_RAW_REACH, stanceStepRawWalk, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
+import { stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, STANCE_STEP_RAW_MS, STANCE_STEP_RAW_REACH, LEDGE_CUT_REACH, sealCutClass, sweepDropRecord, belowResidueRow } from '../../src/lib/drops.mjs'
 
 test('the ceil law: the whole-block step count closes the stand-off honestly', () => {
   assert.equal(stanceStepBlocks(1.5), null, 'distXZ === reach is INSIDE the magnet - the cut arms without help, no step')
@@ -240,4 +240,42 @@ test('the raw stance step wiring: the two-stage walk (v0.291.0)', () => {
   assert.ok(minerSrc.includes('const rawLanded = await stanceStepRawWalk(bot, supportCell)'), 'the raw hop walks FIRST (no pathfinder, no think budget - the stuck class\'s cure)')
   assert.ok(/if \(!rawLanded\) \{\s*await gotoSafe\(bot, new goals\.GoalNear\(supportCell\.x, bot\.entity\.position\.y, supportCell\.z, 1\), \{ timeoutMs: STANCE_STEP_WALK_MS, label: 'stance step', doomedRearm: true \}\)\s*\}/.test(minerSrc), 'the bounded-A* attempt only fires when the raw walk did NOT land (the deposit caller\'s proven two-stage shape)')
   assert.ok(minerSrc.includes('timeoutMs: STANCE_STEP_WALK_MS, label: \'stance step\''), 'the bounded stage keeps the measured 8000ms budget (the v0.288.0 wiring stands)')
+})
+
+test('the stance pin read: the solid names itself (v0.292.0)', () => {
+  // face 36469896303 refuted BOTH walk anatomies: the RAW stage burned its
+  // 2500ms first (the 8000ms contested line is the bounded stage - it only
+  // fires when the raw hop missed) and the bot still covered walked 0.0/0.1.
+  // A bot that holds forward+sprint+jump and covers zero ground is PINNED by
+  // geometry. The read probes the first cell along the bearing at the bot's
+  // own layer (the feet cell, then the head cell) and names the solid.
+  const cell = { x: 3, y: 59, z: 4 }
+  const from = { x: 1, y: 59.2, z: 2 } // bearing (2.83, 2.83)/4.0 -> probe cell (1.707, 2.707) -> floor (1, 2)
+  const solid = (x, y, z) => (y === 59 || y === 60) && x === 1 && z === 2 ? { name: 'stone' } : { name: 'air' }
+  assert.deepEqual(stancePinRead(from, cell, solid), { name: 'stone', x: 1, y: 59, z: 2 }, 'a feet-level solid names itself with its cell')
+  const headOnly = (x, y, z) => y === 60 && x === 1 && z === 2 ? { name: 'dirt' } : { name: 'air' }
+  assert.deepEqual(stancePinRead(from, cell, headOnly), { name: 'dirt', x: 1, y: 60, z: 2 }, 'a head-level solid names itself when the feet read open')
+  const open = (x, y, z) => ({ name: 'air' })
+  assert.equal(stancePinRead(from, cell, open), null, 'an open read (air at both) prints nothing - the pit class names itself by absence')
+  const wet = (x, y, z) => y === 59 && x === 1 && z === 2 ? { name: 'water' } : { name: 'air' }
+  assert.deepEqual(stancePinRead(from, cell, wet), { name: 'water', x: 1, y: 59, z: 2 }, 'a fluid pin names itself honestly (the wet class reads its own name)')
+  assert.equal(stancePinRead({ x: cell.x + 0.1, y: 59, z: cell.z + 0.1 }, cell, solid), null, 'standing at the cell - the pin is not ahead, it is the column itself')
+  assert.equal(stancePinRead(null, cell, solid), null, 'a junk from refuses')
+  assert.equal(stancePinRead(from, null, solid), null, 'a junk cell refuses')
+  assert.equal(stancePinRead(from, cell, null), null, 'a missing probe refuses (the read never fires blind)')
+  assert.equal(stancePinRead({ x: NaN, y: 59, z: 2 }, cell, solid), null, 'a NaN coordinate refuses')
+  assert.equal(stancePinRead(from, cell, () => { throw new Error('world gone') }), null, 'a throwing world read refuses (never throws)')
+  assert.equal(stancePinRead(from, cell, () => null), null, 'a lost block read refuses')
+})
+
+test('the stance pin read: the tail wiring (v0.292.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const pinExpr = 'const pin = stancePinRead(bot.entity && bot.entity.position, supportCell, (x, y, z) => bot.blockAt(new Vec3(x, y, z)))'
+  const count = minerSrc.split(pinExpr).length - 1
+  assert.ok(count >= 2, 'the pin read rides BOTH loss forms (the contested line + the landed-refuses line - one read, two riders)')
+  assert.ok(minerSrc.includes('if (walked <= 0.3)'), 'the pin rides the near-zero walked gate only (the pinned class\'s own signature - a real walk explains itself)')
+  assert.ok(minerSrc.includes('`, pinned ${pin.name}@${`[${pin.x},${pin.y},${pin.z}]`}`'), 'the pin token formats name@[x,y,z] (the doomed-ledger coord shape)')
+  const tookAt = minerSrc.indexOf('the cut took the column')
+  const tookLine = minerSrc.slice(tookAt, minerSrc.indexOf('\n', tookAt))
+  assert.ok(!tookLine.includes('stancePinRead'), 'the landed-TOOK line stays bare (a converted cut has nothing to explain)')
 })

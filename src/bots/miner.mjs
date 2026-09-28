@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -3254,7 +3254,7 @@ export function createMiner ({
                               // the gain (the range cure). The landed-TOOK line
                               // stays bare - a cut that converted has nothing to
                               // explain.
-                              log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); return walked == null ? '' : `, walked ${walked.toFixed(1)}` })()}`)
+                              log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); if (walked == null) return ''; let tail = `, walked ${walked.toFixed(1)}`; if (walked <= 0.3) { const pin = stancePinRead(bot.entity && bot.entity.position, supportCell, (x, y, z) => bot.blockAt(new Vec3(x, y, z))); if (pin) tail += `, pinned ${pin.name}@${`[${pin.x},${pin.y},${pin.z}]`}` } return tail })()}`)
                             }
                           } catch (e) {
                             // (v0.285.0) THE WALK CONTEST NAME - the contest's
@@ -3272,7 +3272,7 @@ export function createMiner ({
                             // keeps the band pin), the message capped at 40
                             // chars (the write-off ladder trace's own cap - a
                             // junk message cannot flood the row).
-                            log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); return walked == null ? '' : `, walked ${walked.toFixed(1)}` })()})`)
+                            log(`${tag} vein sweep: stance step refused - the walk contested (${String(e?.message ?? 'no error read').slice(0, 40)}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); if (walked == null) return ''; let tail = `, walked ${walked.toFixed(1)}`; if (walked <= 0.3) { const pin = stancePinRead(bot.entity && bot.entity.position, supportCell, (x, y, z) => bot.blockAt(new Vec3(x, y, z))); if (pin) tail += `, pinned ${pin.name}@${`[${pin.x},${pin.y},${pin.z}]`}` } return tail })()})`)
                           }
                         }
                       }

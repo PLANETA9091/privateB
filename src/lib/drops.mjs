@@ -803,3 +803,54 @@ export async function stanceStepRawWalk (bot, cell, { ms = STANCE_STEP_RAW_MS, r
   }
   return false
 }
+
+// (v0.292.0) THE STANCE PIN READ - the raw walk's debut refuted BOTH walk
+// anatomies in one face. Face 36469896303 (v0.291.0's first field flight,
+// SUCCESS) flew the two-stage walk and the contested lines still read
+// `timeout after 8000ms, walked 0.0` / `walked 0.1` - the RAW stage burned
+// its 2500ms first (the 8000ms line is the bounded-A* stage; it only fires
+// when the raw hop missed), so the A*-never-starts anatomy is DEAD: raw
+// controls have no thinker to starve and the bot STILL did not move. The
+// budget anatomy died the face before (the doubled budget bought zero).
+// What pins a bot that holds forward+sprint+jump and covers zero ground is
+// GEOMETRY - the bot's own dig site (a shaft wall, a pit lip, the seal
+// ledge itself) standing between the bot and the support cell. The cure
+// picks its tool from the pin's identity (a solid digs through, a lip
+// jumps down, a fluid names the wet class) - but no instrument has ever
+// read WHAT pins. THE READ: when the walked tail reads near-zero (the
+// pinned class's own signature, <= 0.3), probe the FIRST cell along the
+// bearing to the support cell at the bot's own layer - the feet cell and
+// the head cell the forward press would meet - and name the solid one.
+// A pure read (blockAt only, never a dig): the line gains `, pinned
+// stone@[-124,59,391]` on the SAME tail (the tail-append law, the
+// byte-true prefix keeps the band pin). An open read (air at both) prints
+// nothing - the pit class names itself by absence, honestly. The took line
+// stays bare.
+// @param {{x: number, y: number, z: number}|null|undefined} from the position the walk ended at
+// @param {{x: number, y: number, z: number}|null|undefined} cell the support cell the walk pressed toward
+// @param {(x: number, y: number, z: number) => {name?: string}|null|undefined} probeAt the world read (the caller owns the Vec3 wiring)
+// @returns {{name: string, x: number, y: number, z: number}|null} the pin (the solid block's name and cell), or null
+export function stancePinRead (from, cell, probeAt) {
+  if (!from || !cell || typeof probeAt !== 'function') return null
+  const fx = Number(from.x)
+  const fy = Number(from.y)
+  const fz = Number(from.z)
+  const cx = Number(cell.x)
+  const cy = Number(cell.y)
+  const cz = Number(cell.z)
+  if (![fx, fy, fz, cx, cy, cz].every(Number.isFinite)) return null
+  const dx = cx - fx
+  const dz = cz - fz
+  const len = Math.hypot(dx, dz)
+  if (len < 0.2) return null // standing at the cell - the pin is not ahead, it is the column itself
+  const px = Math.floor(fx + (dx / len))
+  const pz = Math.floor(fz + (dz / len))
+  const feetY = Math.floor(fy)
+  for (const y of [feetY, feetY + 1]) {
+    let b = null
+    try { b = probeAt(px, y, pz) } catch { return null }
+    const name = b && typeof b === 'object' && typeof b.name === 'string' ? b.name : null
+    if (name && name !== 'air') return { name, x: px, y, z: pz }
+  }
+  return null
+}
