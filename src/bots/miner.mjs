@@ -47,7 +47,7 @@ import {
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
-  frozenReturnGate, frozenReturnBypass, breathMirror, o2SensorLabel,
+  frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
@@ -1500,6 +1500,7 @@ export function createMiner ({
   let swimming = false
   let lastRescueAt = 0
   let lastGlitchLogAt = 0
+  let lastBypassEchoAt = 0 // (v0.265.0) the bypass echo's rate limiter (the AIR_GLITCH_LOG_MS cadence)
   let headWetSince = 0
   let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
   let noOpRescueGateUntil = 0 // (v0.104.0) the dry-land proof's re-fire gate (the glitch-class backoff)
@@ -1626,6 +1627,8 @@ export function createMiner ({
     let transitStalledFlag = false // once the walls own the swim, the release owns the pass
     let frozenDown = false // (v0.82.0) the physics flatlined - the reconnect lane owns the bot
     let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
+    let frozenDownO2 = null // (v0.265.0) the bar at the verdict - the bypass echo's read (the loop fuel)
+    let frozenDownWindow = null // (v0.265.0) which window condemned: the wet-critical fast one or the legacy ten-pass
     // The fleet map knows land the raw 12-block shore scan cannot: a tree log
     // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
     // known land cell, or null (no map / no entries / junk) - the caller then
@@ -1742,6 +1745,8 @@ export function createMiner ({
             }
             frozenDown = true
             frozenDownWet = headWet === true
+            frozenDownO2 = read.oxygen
+            frozenDownWindow = frozenWindow !== FROZEN_WINDOW ? 'wet-critical fast' : 'legacy'
             break
           }
         }
@@ -1871,7 +1876,13 @@ export function createMiner ({
           frozenRelogStreaks.set(username, relogStreak)
           const hold = frozenReturnGate({ consecutiveRelogs: relogStreak })
           frozenReturnGates.set(username, Date.now() + hold)
-          log(`${tag} water: frozen client relog (#${relogStreak} consecutive) (${esc.why}) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages ${Math.round(hold / 1000)}s (the frozen-return gate)`)
+          // (v0.265.0) THE BYPASS ECHO rides the line's tail (the identity-extends
+          // precedent): the verdict's full read - the labeled bar, the health, the
+          // condemning window - and, when the bar is critical, the named void: the
+          // hold this line arms is the hold the NEXT page bypasses (the F1 loop's
+          // fuel, finally visible at the moment it is armed).
+          const bypassEcho = frozenBypassEcho({ oxygen: frozenDownO2 })
+          log(`${tag} water: frozen client relog (#${relogStreak} consecutive) (${esc.why}) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages ${Math.round(hold / 1000)}s (the frozen-return gate) - o2=${o2SensorLabel(frozenDownO2)} health=${bot.health ?? '?'} window=${frozenDownWindow ?? '?'}${bypassEcho ? ` - ${bypassEcho}` : ''}`)
           try { bot.end() } catch { /* the session loop owns the wreck */ }
         }
       } else {
@@ -2101,6 +2112,16 @@ export function createMiner ({
             log(`${tag} water: frozen-return gate holds the page (${Math.round((frozenGateUntil - now) / 1000)}s left) - the fresh client walks the hazard-ledgered column out`)
           }
           return
+        }
+        // (v0.265.0) THE BYPASS ECHO - the gate side: a page crossing an ARMED
+        // hold through the critical bypass used to fall through SILENTLY (the
+        // hold branch printed, the bypass branch never did) - the F1 loop's
+        // other half was invisible on the reconnect side too. The echo names
+        // the void and the streak: a critical page while a hold is armed AND a
+        // relog streak is riding is the loop's own signature in one line.
+        if (Date.now() < frozenGateUntil && frozenRelogStreaks.get(username) > 0 && now - lastBypassEchoAt >= AIR_GLITCH_LOG_MS) {
+          lastBypassEchoAt = now
+          log(`${tag} water: frozen-return gate bypassed (critical read o2=${o2SensorLabel(o2raw)}) - the armed hold voids on arrival, the rescue owns the clock (relog streak ${frozenRelogStreaks.get(username)})`)
         }
         rescuePageWasGlitch = criticalOnDry // (v0.117.0) the completion handler ratchets only on the glitch class
         rescueFromWater(verdict).catch(() => { /* next tick re-checks */ })

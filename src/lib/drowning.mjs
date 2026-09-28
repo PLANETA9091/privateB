@@ -1557,6 +1557,42 @@ export function frozenReturnBypass ({ oxygen = 20 } = {}) {
   return oxygenInDomain(raw) && raw <= OXYGEN_CRITICAL_LEVEL
 }
 
+// (v0.265.0) THE BYPASS ECHO - face 36365938885's F1 chain closed the loop
+// with the bot's own machinery: the wet-frozen relog arms a frozen-return
+// hold, but the SAME verdict's critical air (o2=0) reads as a bypass class -
+// the hold voids ON ARRIVAL, the sentry re-pages within seconds, the physics
+// wedge re-freezes, the wet verdict relogs again. Four cycles, zero walks,
+// the bot drowned in place. The loop was INVISIBLE: the relog line promised
+// "holds non-critical pages 10s" while the hold it armed was already void,
+// and the bypass itself crossed the gate silently (the hold branch prints,
+// the bypass branch never did). This echo NAMES the void at the moment it
+// is armed - the first honest read of the loop's fuel.
+//
+// The mirror law (one read, one truth): the echo's junk gate MUST stay
+// byte-for-byte the gate's own bypass arithmetic (the same Number() read,
+// the same domain, the same critical line) - the claim describes what the
+// gate WILL do, so a divergence is a lie about the future. The label inside
+// stays STRICT (o2SensorLabel, no coercion): the claim mirrors the gate's
+// behavior, the label renders the read's quality. Junk o2 (a non-finite
+// after the gate's own coercion) claims nothing - a lost read cannot spend
+// the loop-fuel claim (the gates-decide convention).
+//
+/**
+ * Does the armed frozen-return hold VOID on the next page (pure, junk-safe)?
+ * Non-null exactly when frozenReturnBypass says the gate will let the page
+ * through: the returned string names the void (the relog line's tail). Null
+ * means the hold will live (silence is the honest read) or the bar is lost.
+ * @param {object} [p]
+ * @param {number|string} [p.oxygen] the o2 read at the verdict (junk -> null)
+ * @returns {string|null}
+ */
+export function frozenBypassEcho ({ oxygen } = {}) {
+  const raw = Number(oxygen)
+  if (!oxygenInDomain(raw)) return null
+  if (raw > OXYGEN_CRITICAL_LEVEL) return null
+  return `o2=${o2SensorLabel(oxygen)} - the critical bypass voids the armed hold on the next page (the loop fuel)`
+}
+
 /**
  * May a BOBBING-at-the-surface bot be released (pure, the v0.82.0 third
  * tier)? Run76's F9 toggles head dry/wet while bobbing y 48.2-50.2 in a
