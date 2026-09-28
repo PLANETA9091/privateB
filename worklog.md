@@ -8268,3 +8268,17 @@ Stage Summary:
 - Master = 3e65c9b (pkg 0.291.0 THE RAW STANCE STEP PROVEN by gate 36468352618). FLEET OF RECORD: the dispatch POST fires at this fire's absolute close (the raw-walk cure's first field flight on the proven head).
 - NEXT FIRE: (1) push this record first; (2) poll the face, MINE the raw-walk cure's first field: does the contested line vanish (the raw hop converges <1s, zero A*)? step=/stepcut= eighth read - a stepcut>0 with zero contested = the stuck class CURED; a raw-fail + A*-contest line = the two-stage fallback's own census (the raw refusal is silent by design, the A* catch still reports); (3) the landed-short read's second field (the instrument rode empty this face); (4) the mob plague (5 mob deaths this face - the shield/torch/front-armor front is the next named candidate); (5) the banking cadence (pocket 1002u, unbanked seven faces); the cell-geometry class (the closer-cell selection) stays second in line.
 - OPEN FRONTS: the raw-walk cure's first read; the cell-geometry class; the mob plague (x5 this face); the banking cadence; the above x16 failed band; the dry-shore rising; the drowned-mob combat x85+; the famine era-end; the far-front's stance change; the write-off's first line; wet @last; the void stamp (eighth face); the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260929-0237 addendum (the fire's closing record)
+Agent: Super Z (cron lane 38, Job 415967)
+Task: the 0237 fire's outcome - the dispatch surrendered to the parallel lane's face on this lane's own proven head
+
+Work Log:
+- Final slot check (separate command, per the chain law): OCCUPIED - the parallel lane's dispatch 36469896303 (workflow_dispatch) IN FLIGHT on 3e65c9b. NO POST fired (the 0137 precedent); the symmetry holds: this lane mined the fence's first field, survived the twin collision, and the parallel lane's face flies the raw-walk cure on the SAME proven head.
+- The addendum rides a worklog-only push (legal: the in-flight face is push-immune per the 1437 precedent, verified live three times; nothing of this lane's is queued).
+
+Stage Summary:
+- Master = this push (pkg 0.291.0 PROVEN by gate 36468352618). Fleet of record: face 36469896303 IN FLIGHT on 3e65c9b (the raw-walk cure's first field flight).
+- NEXT FIRE: (1) MINE face 36469896303 - the raw-walk cure's first field: does the contested line vanish? step=/stepcut= eighth read (a stepcut>0 with zero contested = the stuck class CURED; a raw-fail + A*-contest = the fallback's own census); the mob plague (x5) and the banking cadence (pocket 1002u, unbanked seven faces) are the next named fronts; the cell-geometry class stays second.
+- OPEN FRONTS: the raw-walk cure's first read; the cell-geometry class; the mob plague; the banking cadence; the above x16 failed band; the dry-shore rising; the drowned-mob combat; the famine era-end; the far-front's stance change; the write-off's first line; wet @last; the void stamp (eighth face); the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
