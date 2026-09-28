@@ -8091,3 +8091,18 @@ Stage Summary:
 - Master = this push (pkg 0.287.0 + this record). The gate proves the progress-instrument tree; the dispatch flies it.
 - NEXT FIRE (0000): (1) MINE the progress instrument's first field flight: the contested line's ', walked N.N' suffix - near-zero (the stuck class) vs a real distance (the slow class); the timeout family's size (2 named cases across two faces, both far-edge); step=/stepcut= fourth read (does 67% hold?), cut= growth off the record 5, the famine trend, the void stamp's wait (sixth face), the F10 dry-shore class's fourth read; (2) the anatomy picks the walk cure (geometry read vs budget bump vs retry - one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked three faces running).
 - OPEN FRONTS: the timeout-walk anatomy; the famine reversal x239; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260928-2300
+Agent: Super Z (cron lane 30, Job 414125)
+Task: 2300 cycle - face 36438371944 mined (the re-arm CONVERTS: cut=5 record, 67%, the doomed suffix gone), v0.287.0 THE STEP PROGRESS shipped, the gate in_progress at fire end
+
+Work Log:
+- The 2237b backlog pushed first (62c5dc8, clean). Face 36438371944 (the re-arm's first field) polled to SUCCESS; MINED: the row `near=9 far=10 cut=5 nthick=3 nthin=2 ngap=4 step=3 stepcut=2` - cut=5 the row's record, 67% conversion, the doomed-goal suffix GONE (the re-arm healed the poisoning; F17 2.3->1.4, F16 1.6->0.8), the only loss = the 4000ms timeout (F11, dist 2.5). Also: famine x256, above x26 (rising fast), wet rescues 116 (a burst), deaths 3 drowned.
+- v0.287.0 THE STEP PROGRESS (measure before the timeout cure): stepWalkProgress(from, to) - the XZ distance the walk covered; the start fixed at the arm (let stepFrom past the catch), the contested line grows ', walked N.N' (the tail-append, the 40-char window byte-true); junk names nothing. Near-zero = the stuck class, a real distance = the slow class. Tests: 2 new pins + the drops import pin identity-extended. Local: syntax 241, unit 127/127.
+- Pushed c7cb3c4 (rebased over c9925b5 - the parallel lane's addendum, worklog-only, no twin: their dispatch surrendered to 36438371944). Gate 36444142779 in_progress ~22min at fire end => NO dispatch (the proven-head law). This record stays a LOCAL commit (the push would cull the in-flight gate) - the next fire pushes it first.
+
+Stage Summary:
+- Master = c7cb3c4 (pkg 0.287.0), gate 36444142779 IN_PROGRESS; v0.286.0 remains PROVEN. Fleet slot FREE.
+- NEXT FIRE: wait out any pending gate, push this backlog, green => PROVEN => un-chained slot check => DISPATCH; MINE the progress anatomy (stuck vs slow), step=/stepcut= fourth read, the above x26 decode (the next big front), famine/above/wet trends.
+- OPEN FRONTS: the timeout anatomy; the above x26 decode; the famine reversal; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
