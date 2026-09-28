@@ -140,3 +140,29 @@ test('the step budget: the measured cure for the slow class (v0.288.0)', () => {
   assert.ok(minerSrc.includes('STANCE_STEP_WALK_MS, DROP_GOAL_BELOW'), 'the constant rides the dig-down import (the walk family imports together)')
   assert.ok(!minerSrc.includes("timeoutMs: 4000, label: 'stance step'"), 'the stance step\'s measured-insufficient 4000ms literal is GONE (the other walks\' own 4000ms budgets are not this fire\'s business)')
 })
+
+test('the landed-short read: the landed-refuses line measures its own walk (v0.289.0)', () => {
+  // face 36446143946 named the landed-short class: F14's step LANDED (no
+  // contest) but the cut still refused at dist 1.6 - the SAME dist the arm
+  // measured. Two anatomies fit: the GoalNear range-1 slack landed the bot
+  // SHORT of the cell (the range 1->0 tightening cures) OR the support cell
+  // itself sits geometrically outside the magnet (only a better cell cures
+  // - a range change is a no-op there). The contested line has measured its
+  // walk since v0.287.0; the landed-refuses line was blind. The same
+  // junk-safe read rides the refusal line's tail - a near-zero walked says
+  // the cell geometry is the bottleneck, a real distance says the slack ate
+  // the gain. The landed-TOOK line stays bare (a converted cut explains
+  // nothing).
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const readExpr = 'stepWalkProgress(stepFrom, bot.entity && bot.entity.position)'
+  const count = minerSrc.split(readExpr).length - 1
+  assert.ok(count >= 2, 'the progress read lives on BOTH loss forms (the contested line v0.287.0 + the landed-refuses line v0.289.0)')
+  const refusesAt = minerSrc.indexOf('the cut still refuses - ${ledgeCutRefusal(')
+  assert.ok(refusesAt > 0, 'the landed-refuses line exists in the miner')
+  const tailAt = minerSrc.indexOf(readExpr, refusesAt)
+  assert.ok(tailAt > refusesAt, 'the walked read rides the refusal line\'s TAIL (the tail-append law - the byte-true prefix keeps the band pin)')
+  assert.ok(minerSrc.includes("`, walked ${walked.toFixed(1)}`"), 'the distance formats identically on both loss forms (one read, two riders)')
+  const tookAt = minerSrc.indexOf('the cut took the column')
+  const tookLine = minerSrc.slice(tookAt, minerSrc.indexOf('\n', tookAt))
+  assert.ok(!tookLine.includes(readExpr), 'the landed-TOOK line stays bare (a converted cut has nothing to explain)')
+})

@@ -3218,7 +3218,26 @@ export function createMiner ({
                               stanceCuts++ // (v0.283.0) the row's stepcut= - the step bought THIS cut (the cure's own conversion census)
                               log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut took the column (dug ${recut} seal cell(s) + the support)`)
                             } else {
-                              log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}`)
+                              // (v0.289.0) THE LANDED-SHORT READ - face 36446143946
+                              // named the class: F14's step LANDED (no contest) but
+                              // the cut still refused at dist 1.6 - the SAME dist
+                              // the arm measured. Two anatomies fit and the cure
+                              // picks a side: the GoalNear range-1 slack landed the
+                              // bot SHORT of the cell (a range 1->0 tightening
+                              // cures) OR the support cell itself sits geometrically
+                              // outside the magnet (only a better cell cures - a
+                              // range change is a no-op there). The contested line
+                              // has measured its walk since v0.287.0; the
+                              // landed-refuses line was blind. The same junk-safe
+                              // progress read rides THIS line's tail (the
+                              // tail-append law, the byte-true prefix keeps the
+                              // band pin): a near-zero walked says the bot was
+                              // already AT the cell (the cell geometry is the
+                              // bottleneck), a real distance says the slack ate
+                              // the gain (the range cure). The landed-TOOK line
+                              // stays bare - a cut that converted has nothing to
+                              // explain.
+                              log(`${tag} vein sweep: stance step landed - dist ${dist2.toFixed(1)}, the cut still refuses - ${ledgeCutRefusal({ dy: dyNow, distXZ: dist2, sealDepth: sealN, fluidBelow: strikeSupport !== null })}${(() => { const walked = stepWalkProgress(stepFrom, bot.entity && bot.entity.position); return walked == null ? '' : `, walked ${walked.toFixed(1)}` })()}`)
                             }
                           } catch (e) {
                             // (v0.285.0) THE WALK CONTEST NAME - the contest's
