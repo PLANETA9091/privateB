@@ -2042,6 +2042,12 @@ async function runBot (name, target, index) {
         // refusal logs ONCE per window, never every loop iteration.
         const bankRemainingMs = deadline - Date.now()
         const bankYardDist = yardGoal ? miner.bot.entity.position.distanceTo(yardGoal) : 0
+        // (v0.294.0) THE CLIMB-PRICED BANK - the vertical separation rides the
+        // budget: the face 36484348043 trips armed 6x and delivered ZERO (the
+        // flat 90s climb term vs the measured 4.2s/level x 20-31 levels), the
+        // whole 1892u yield rode the pockets to t-0. The dy prices the honest
+        // climb; junk goals read 0 (the legacy flat term).
+        const bankYardDy = yardGoal ? Math.abs(miner.bot.entity.position.y - yardGoal.y) : 0
         // (v0.193.0) THE DUSK-FORECAST BANK ESCALATION: run46 measured 16/19
         // 'final bank deferred: night (tod 12400-13106)' - the skip gate hands
         // the pocket to the end-phase ('the end-phase owns the deadline
@@ -2145,6 +2151,7 @@ async function runBot (name, target, index) {
           // fired once (needsBanking resets lastBankAt on every attempt).
           const bankBudgetMs = midBankBudgetMs({
             yardDist: bankYardDist,
+            yardDy: bankYardDy,
             remainingMs: deadline - Date.now(),
             floorMs: MID_BANK_BUDGET
           })

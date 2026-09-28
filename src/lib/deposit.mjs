@@ -499,6 +499,12 @@ export const BANK_TRIP_MIN_REMAINING_MS = 240000 // never START a trip inside th
 export const BANK_TRIP_FLOOR_MS = 120000 // (v0.28.0) a late bank keeps the 120s mid-run cap as the floor
 export const BANK_TRIP_CAP_MS = 300000 // hard ceiling - the 420s hard-kill margin is sacred
 
+// (v0.294.0) THE CLIMB RATE - the bank trip's vertical pricing. MEASURED on
+// face 36484348043: 'climb out (bank): OK +11 levels (11 steps, 31 dug, 46s)'
+// = 4182ms/level, rounded to 4200. The deep era's trips died on the flat
+// 90000ms climb term (see bankTripBudgetMs).
+export const BANK_CLIMB_PER_LEVEL_MS = 4200
+
 /**
  * Should this bot START a planned bank trip now? True when the pockets hold
  * enough loot (units, non-KEEP), enough digging time passed since the last
@@ -519,14 +525,26 @@ export function bankTripDue ({ units = 0, msSinceBank = 0, remainingMs = Infinit
 /**
  * The chain budget a planned bank trip may use. The walk there AND back is
  * dist-scaled (2x the straight distance at CHEST_WALK_PER_BLOCK_MS is the
- * measured rule - fleet #128), plus the climb out (~90s measured across
- * v0.26-v0.29 fleets) and the deposit itself (~45s for the chest hops).
+ * measured rule - fleet #128), plus the climb out (the v0.294.0 pricing: the
+ * flat ~90s measured across v0.26-v0.29 fleets when the yard stands near the
+ * dig level, scaled by the VERTICAL separation at BANK_CLIMB_PER_LEVEL_MS
+ * when the fleet digs deep) and the deposit itself (~45s for the chest hops).
  * Clamped to [floor, cap] so arithmetic on junk input can never overrun the
  * hard-kill margin.
  */
-export function bankTripBudgetMs ({ yardDist = 0, floorMs = BANK_TRIP_FLOOR_MS, capMs = BANK_TRIP_CAP_MS } = {}) {
+export function bankTripBudgetMs ({ yardDist = 0, yardDy = 0, floorMs = BANK_TRIP_FLOOR_MS, capMs = BANK_TRIP_CAP_MS } = {}) {
   const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : 0
-  const raw = 90000 + 45000 + 2 * d * CHEST_WALK_PER_BLOCK_MS // climb + deposit + there-and-back
+  // (v0.294.0) THE CLIMB-PRICED TERM - face 36484348043's own measurement:
+  // 'climb out (bank): OK +11 levels (11 steps, 31 dug, 46s)' = 4.2s/level.
+  // The flat 90000ms priced a yard NEAR the dig level; the deep era (the
+  // flooded quarry's y=38-52 galleries under a y=76 yard) reads 20-31 levels
+  // of vertical - the flat term under-funded every trip (budgets 148-172s vs
+  // the 130s climb alone) and ALL SIX arms died 'budget exhausted (walk
+  // floor)' / 'no chest in range' - banked=0 for the whole face, the whole
+  // 1892u yield rode the pockets. Junk/missing dy reads the flat 90s (the
+  // legacy shape, every prior fleet keeps its exact budget).
+  const climbMs = Math.max(90000, Math.abs(Number.isFinite(yardDy) ? yardDy : 0) * BANK_CLIMB_PER_LEVEL_MS)
+  const raw = climbMs + 45000 + 2 * d * CHEST_WALK_PER_BLOCK_MS // climb + deposit + there-and-back
   const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BANK_TRIP_FLOOR_MS
   const cap = Number.isFinite(capMs) && capMs > floor ? capMs : BANK_TRIP_CAP_MS
   return Math.min(Math.max(raw, floor), cap)
@@ -555,13 +573,14 @@ export const MID_BANK_RETURN_MARGIN_MS = 90000 // the walk home after the deposi
 
 export function midBankBudgetMs ({
   yardDist = 0,
+  yardDy = 0,
   remainingMs = Infinity,
   floorMs = BANK_TRIP_FLOOR_MS,
   capMs = BANK_TRIP_CAP_MS,
   returnMs = MID_BANK_RETURN_MARGIN_MS
 } = {}) {
   const floor = Number.isFinite(floorMs) && floorMs > 0 ? floorMs : BANK_TRIP_FLOOR_MS
-  const want = bankTripBudgetMs({ yardDist, floorMs: floor, capMs })
+  const want = bankTripBudgetMs({ yardDist, yardDy, floorMs: floor, capMs })
   const left = Number.isFinite(remainingMs) ? remainingMs : Infinity
   if (!Number.isFinite(left)) return want // no deadline in play - the dist-scaled budget
   if (left <= 0) return 0

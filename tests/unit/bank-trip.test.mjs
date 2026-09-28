@@ -12,7 +12,8 @@ import assert from 'node:assert/strict'
 import {
   bankTripDue, bankTripBudgetMs, finalBankBudgetMs,
   BANK_TRIP_EVERY_MS, BANK_TRIP_MIN_UNITS, BANK_TRIP_MIN_REMAINING_MS,
-  BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS
+  BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS,
+  BANK_CLIMB_PER_LEVEL_MS
 } from '../../src/lib/deposit.mjs'
 
 // The doomed-goal ledger (v0.72.0) is a module-level singleton in jobqueue.mjs
@@ -174,4 +175,41 @@ test("REGRESSION PIN: the fleet gate refuses the pockets-full trip, advances the
   assert.ok(filterMatch, 'the bot-log filter regex found in fleet19.mjs')
   assert.ok(new RegExp(filterMatch[1]).test('[F7] bank trip: skipped (pockets full, 42s left < 150s - the end-phase owns the deadline banking)'),
     'the skip line reaches the artifact (the v0.176.0 filter-blind lesson)')
+})
+
+// (v0.294.0) THE CLIMB-PRICED BANK - face 36484348043's banking anatomy. Six
+// trips armed ('bank trip: planned/dusk budget 148-172s') and ALL delivered
+// ZERO: the flat 90000ms climb term priced a yard near the dig level, but the
+// deep era digs y=38-52 galleries under a y=76 yard - 20-31 levels of
+// vertical. The face's own measurement: 'climb out (bank): OK +11 levels (11
+// steps, 31 dug, 46s)' = 4.2s/level. The whole 1892u yield rode the pockets
+// to t-0 (mined=1893, pocket=1892u, banked=0).
+test('bankTripBudgetMs: the climb term prices the vertical separation (the face shape)', () => {
+  assert.equal(BANK_CLIMB_PER_LEVEL_MS, 4200, 'the measured rate rides the constant (46s / 11 levels, rounded)')
+  // the measured face shape: F14's yard 31 levels up over 20b lateral
+  const dy31 = bankTripBudgetMs({ yardDist: 37, yardDy: 31 })
+  assert.equal(dy31, 31 * BANK_CLIMB_PER_LEVEL_MS + 45000 + 2 * 37 * CHEST_WALK_PER_BLOCK_MS,
+    'the 31-level climb prices 130.2s, not the flat 90s - the whole chain funds')
+  assert.ok(dy31 > 210000 && dy31 < 300000, 'the honest budget ~212s fits under the sacred cap')
+  // the legacy shape: no dy (or junk dy) reads the flat 90s - every prior
+  // fleet's exact budget is preserved byte for byte
+  assert.equal(bankTripBudgetMs({ yardDist: 10 }), 90000 + 45000 + 2 * 10 * CHEST_WALK_PER_BLOCK_MS)
+  assert.equal(bankTripBudgetMs({ yardDist: 10, yardDy: 0 }), bankTripBudgetMs({ yardDist: 10 }))
+  for (const junk of [NaN, undefined, null, 'junk', Infinity]) {
+    assert.equal(bankTripBudgetMs({ yardDist: 10, yardDy: junk }), bankTripBudgetMs({ yardDist: 10 }), `junk dy ${String(junk)} reads the flat term`)
+  }
+  // a small dy stays on the flat 90s floor of the term (a shallow dig)
+  assert.equal(bankTripBudgetMs({ yardDist: 10, yardDy: 5 }), bankTripBudgetMs({ yardDist: 10 }), 'dy=5 (21s climb) stays under the flat 90s floor')
+  // the 420s hard-kill margin is still sacred - the cap clamps the vertical too
+  assert.equal(bankTripBudgetMs({ yardDist: 300, yardDy: 60 }), BANK_TRIP_CAP_MS)
+})
+
+test('REGRESSION PIN: the yard vertical rides the budget call (the run195 dead-wire class)', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /const bankYardDy = yardGoal \? Math\.abs\(miner\.bot\.entity\.position\.y - yardGoal\.y\) : 0/,
+    'the vertical separation is computed beside the dist (junk goals read 0 - the legacy flat term)')
+  const call = src.match(/midBankBudgetMs\(\{[\s\S]*?\}\)/)
+  assert.ok(call, 'the budget call exists')
+  assert.match(call[0], /yardDy: bankYardDy/, 'the dy rides the call (the budget prices the honest climb, never a guess)')
+  assert.match(call[0], /yardDist: bankYardDist/, 'the dist still rides the call (the v0.68.0 shape preserved)')
 })

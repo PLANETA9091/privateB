@@ -73,3 +73,20 @@ test('monotonicity: more remaining never shrinks the budget', () => {
     prev = b
   }
 })
+
+// (v0.294.0) THE CLIMB-PRICED BANK - the yardDy passthrough. The face
+// 36484348043 shape: the deep era's trips (148-172s budgets) all died on the
+// 20-31 level climbs - the dy grows the want term the same way the dist does,
+// the deadline arithmetic unchanged.
+test('midBankBudgetMs: the vertical separation grows the want, the legacy calls unchanged', () => {
+  const flat = midBankBudgetMs({ yardDist: 37, remainingMs: 450 * 1000 })
+  const priced = midBankBudgetMs({ yardDist: 37, yardDy: 31, remainingMs: 450 * 1000 })
+  assert.equal(priced, 31 * 4200 + 45000 + 2 * 37 * 500, 'the deep trip funds the honest climb (~212s at the mid-run clock)')
+  assert.ok(priced > flat, 'the dy never shrinks the budget')
+  // the near-deadline arithmetic still owns the clock: the dy want is clamped
+  // by the same guard (left <= guard reads the flat floor, not the want)
+  const near = midBankBudgetMs({ yardDist: 37, yardDy: 31, remainingMs: 150 * 1000 })
+  assert.ok(near <= 120000, 'near the deadline the floor semantics hold (the doomed chain is refused by the walk floor, not funded)')
+  // junk dy reads the legacy shape byte for byte
+  assert.equal(midBankBudgetMs({ yardDist: 37, yardDy: NaN, remainingMs: 450 * 1000 }), flat)
+})
