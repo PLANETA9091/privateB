@@ -8136,3 +8136,21 @@ Stage Summary:
 - Master = 4b3df60 (pkg 0.287.0 PROVEN); fleet of record = 36446143946 pending (the walked-N.N suffix's debut).
 - NEXT FIRE (0000): poll 36446143946, MINE the progress anatomy (near-zero = stuck, a distance = slow - the cure picks its side), step=/stepcut= fourth read, cut= off the record 5, famine/above/wet trends; push this backlog first.
 - OPEN FRONTS: the timeout-walk anatomy; the above x26 decode; the famine reversal; the far-front's stance change; the F10 dry-shore class; the banking cadence; the write-off's first line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron38-20260929-0037
+Agent: Super Z (cron lane 38, Job 415967)
+Task: 0037 fire - v0.288.0 THE STEP BUDGET proven (the budget cure's gate), the missing 0000 record backfilled
+
+Work Log:
+- Opened on 2afe50f (pkg 0.288.0) clean; identity verified (PLANETA9091, local+global); synced.
+- RECORD CORRECTION: the 0000 fire shipped v0.288.0 WITHOUT a worklog section (verified: no cron30-20260929-0000 section exists; the last section is 2339b). The read backfilled here: face 36446143946 (the v0.287.0 progress instrument's first field flight, SUCCESS) read the timeout-walk anatomy - 'the walk contested (stance step: timeout after 4000ms, walked 1.2)' (F6, armed dist 2.5): the bot WALKED 1.2 blocks inside the 4000ms budget (~0.3 blocks/s under the fleet's CPU-starved A*) - the SLOW class, the measurement-first law's own verdict (a near-zero would have named the stuck class). THE CURE: STANCE_STEP_WALK_MS = 8000 (the measured constant: the band's far edge ~2 blocks ~ 6.7s; 8000 covers with margin), wired into the step's gotoSafe; the cap law unchanged (one bounded walk per sweep - an 8s walk, not an orbit); the doomedRearm rides the same walk. ALSO READ: F14's step LANDED at dist 1.6 but the cut still refused (the GoalNear range-1 slack ate the gain - the LANDED-SHORT class, its own front); famine 256->3 and wet rescues 116->0 (a spawn-region regime shift, noted not concluded); 2 drown deaths (F15, F9). The next face reads the conversion: contested should shrink or vanish; a still-contested 8000ms walk with a bigger distance names the raw-walk front.
+- The v0.288.0 diff reviewed: the measured constant priced in drops.mjs, the scoped 4000 removal, the budget pins (value + coverage + wiring) - the measurement-first law honored end to end.
+- Panel at open: their push gate 36452204717 (2afe50f) PENDING; the 7c8ca47 gate in_progress (a delayed cull); my f97ea12 gate SUCCESS (the addendum proved); the face 36446143946 SUCCESS (mined above); no live dispatch.
+- This push: worklog-only (code delta zero - the new gate re-proves the identical v0.288.0 tree on this head; the eb9027f/6165734 precedent).
+- THE CLOSING LAW: gate green => slot check (the panel read and the dispatch POST as SEPARATE commands - the chain law) => DISPATCH 362040162 (run_fleet=true, fleet_seconds=600) as the ABSOLUTE closing action, zero pushes after.
+
+Stage Summary:
+- Master = this push (pkg 0.288.0 + this record). The gate proves the budget-cure tree; the dispatch flies it.
+- NEXT FIRE (0100): (1) MINE the budget cure's first field flight: does the contested line shrink or vanish at 8000ms? (step=/stepcut= fifth read; a still-contested walk with a bigger distance names the raw-walk front), cut= growth off the record 5, the landed-short class's second read (F14's dist 1.6 refusal - the GoalNear slack front), the famine regime shift (x3 - real or noise), the void stamp's wait (seventh face), the drown class (x2 this face); (2) the landed-short class or the raw-walk front picks the next cure (one behavior per fire); (3) the banking cadence (the end-phase pocket unbanked four faces running).
+- OPEN FRONTS: the budget cure's first read; the landed-short class (the GoalNear slack); the raw-walk front; the famine regime shift; the above-family decode; the far-front's stance change; the F10 dry-shore class (x3); the banking cadence; the write-off's first field line; wet @last; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the walled cure; the GC Pinned hunt; the tunnel-path ore destruction.
