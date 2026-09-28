@@ -1165,6 +1165,25 @@ async function runBot (name, target, index) {
       let duskTripUntil = 0 // (v0.229.0) the dusk-bank plan's exit clock - the plan owns it, the wiring only carries it (the churn clock's shape)
       let lastBankTripMs = NaN // (v0.229.0) the wiring's MEASURED bank trip (the last DELIVERED chain's wall time) - the dusk plan prices with it; NaN = unmeasured, the plan reads no-time (it never prices a guess)
       let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
+      // (v0.293.0) THE CHURN INTRA-GOAL READ - the boundary consult's blind
+      // spot closed. Face 36476752446: F3/F11/F13 took 12-17 rescues each in
+      // the flooded quarry while ZERO 'evacuation armed' lines printed - the
+      // drip strikes INSIDE one long digShaft (the water-table rotations
+      // 'the caller rotates' keep the goal open for minutes), and the
+      // goal-boundary consult never reads a full window. The dig loops read
+      // the plan LIVE through their shouldStop hooks: the go verdict stops
+      // the dig cooperatively, the loop's next pass consults the same plan
+      // and arms the evacuation (the announce once, the cooldown owns the
+      // exit, the rescue machinery untouched - the read is the pure plan's
+      // own, no new state, no new constants; the carry-clock respected - a
+      // holding evacuation reads .go=false, the dig never stops for churn
+      // while an evacuation is already live).
+      const churnDueNow = () => {
+        try {
+          const events = miner.wetRescueEvents?.() ?? []
+          return wetChurnPlan({ rescueEvents: events, now: Date.now(), evacUntil: wetEvacUntil }).go === true
+        } catch { return false }
+      }
       let dragonEvacAnnounced = false // (v0.225.0) the zone-entry story: one line per entry, the flag resets when the bot reads out
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
@@ -1382,7 +1401,7 @@ async function runBot (name, target, index) {
           : blindDirs[shaft % 4]
         if (steer) console.log(`${name} tunnel: steering ${steer.name} @ ${steer.dist}b (axis ${steer.axis}${steer.dir > 0 ? '+' : '-'}${steer.dir < 0 ? steer.dir : ''}, cross ${steer.cross}, ${reason})`)
         try {
-          const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline })
+          const tres = await miner.tunnel(tdir, { maxBlocks: 12, names: namesFor(true), shouldStop: () => Date.now() > deadline || churnDueNow() }) // (v0.293.0) the steered tunnel is the other wet-prone lane - the same live read
           console.log(`${name} tunnel: ${tres.done} blocks (branch mine at the floor${steer ? ', steered' : ''}, ${reason})${tres.done === 0 && tres.zeroWhy ? ` [${tres.zeroWhy}]` : ''}`)
           if (steer) rememberSkip(veerSkipped, `${steer.pos.x},${steer.pos.y},${steer.pos.z}`)
           // (v0.84.0) THE VEIN SWEEP: the gallery digs the LINE, the vein sits
@@ -1953,6 +1972,7 @@ async function runBot (name, target, index) {
               if (recoveryDueNow()) { interrupted = true; return true }
               if (upgradeDueNow()) { interrupted = true; return true } // a worn pickaxe must not break mid-shaft
               if (prePositionNow()) { interrupted = true; return true } // (v0.36.0) the walk home preempts the shaft
+              if (churnDueNow()) { interrupted = true; return true } // (v0.293.0) the wet drip inside the dig - the plan's go stops the shaft, the next pass arms the evacuation (the seal counter never reads a churn stop as an empty shaft)
               return false
             }
           })

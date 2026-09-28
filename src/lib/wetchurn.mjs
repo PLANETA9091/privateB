@@ -31,8 +31,15 @@ export const WET_CHURN_WINDOW_MS = 180000
 
 /** The evacuation cap - when the bot's own rescues inside the window
  *  reach this count, the next goal reads dry. Inclusive at the cap
- *  (avoidance errs toward resting, the inDragonZone convention). */
-export const WET_CHURN_RESCUE_CAP = 6
+ *  (avoidance errs toward resting, the inDragonZone convention).
+ *  (v0.293.0) recalibrated 6 -> 4 from face 36476752446's drip anatomy:
+ *  F3/F11/F13 took 12-17 rescues each in the flooded quarry while ZERO
+ *  'evacuation armed' lines printed - the goal-boundary consult never
+ *  saw a full 6-window (the drip strikes 3-4 times inside ONE long
+ *  digShaft, then the goal turns over). At 4 the storm bots arm at the
+ *  fourth in-window strike; the calm bots (F15 r7, F17 r9 spread over
+ *  the whole 600s) read 1-3 per window and stay working. */
+export const WET_CHURN_RESCUE_CAP = 4
 
 /** The cooldown (ms) - how long the evacuation stance holds before the
  *  bot reads its churn fresh. Shorter than the despawn economics: the

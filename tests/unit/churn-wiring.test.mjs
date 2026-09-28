@@ -44,11 +44,18 @@ test('REGRESSION PIN: the fleet imports the pure plan and the swap (the import l
 })
 
 test('REGRESSION PIN: the churn call carries every scalar (the run195 dead-wire class)', () => {
-  const call = fleetSrc.match(/wetChurnPlan\(\{[\s\S]*?\}\)/)
-  assert.ok(call, 'the call site exists in the work loop')
-  assert.match(call[0], /rescueEvents:\s*churnEvents/, "the bot's OWN rescue log rides the call (the per-bot cadence is the premise)")
-  assert.match(call[0], /now:\s*Date\.now\(\)/, "the caller's clock rides the call (the plan never reads the wall clock)")
-  assert.match(call[0], /evacUntil:\s*wetEvacUntil/, 'the wiring carry-clock rides the call (holding re-reads with the remaining time, never double-books)')
+  // (v0.293.0) TWO call sites now: the boundary consult (churnEvents) and
+  // the intra-goal helper (events). Each must carry the bot's OWN log, the
+  // caller's clock and the carry-clock.
+  const calls = fleetSrc.match(/wetChurnPlan\(\{[\s\S]*?\}\)/g) || []
+  assert.ok(calls.length >= 2, 'both the boundary consult and the intra-goal helper exist')
+  const consult = calls.find(c => c.includes('churnEvents'))
+  assert.ok(consult, 'the boundary consult call exists in the work loop')
+  assert.match(consult, /rescueEvents:\s*churnEvents/, "the bot's OWN rescue log rides the call (the per-bot cadence is the premise)")
+  for (const call of calls) {
+    assert.match(call, /now:\s*Date\.now\(\)/, "the caller's clock rides the call (the plan never reads the wall clock)")
+    assert.match(call, /evacUntil:\s*wetEvacUntil/, 'the wiring carry-clock rides the call (holding re-reads with the remaining time, never double-books)')
+  }
 })
 
 test('REGRESSION PIN: the arm carries the plan exit clock, the wiring never extends it', () => {
@@ -117,4 +124,41 @@ test('REGRESSION PIN: the recorder constants stay in the module (the wiring read
   assert.equal(WET_CHURN_REST_MS, 5000, 'the rest slice re-reads the plan every ~5s at night')
   assert.equal(WET_CHURN_WOOD_MS, 40000, 'the gather cap rides the bootstrap lane shape')
   assert.equal(WET_CHURN_WOOD_MIN_MS, 15000, 'the gather floor keeps the swap honest')
+})
+
+// (v0.293.0) THE CHURN INTRA-GOAL READ - the boundary consult's blind spot.
+// Face 36476752446: F3/F11/F13 took 12-17 rescues each in the flooded
+// quarry while ZERO 'evacuation armed' lines printed - the drip strikes
+// INSIDE one long digShaft (the water-table rotations keep the goal open),
+// and a goal-boundary consult never reads a full window. The dig loops
+// read the plan LIVE through their shouldStop hooks.
+test('REGRESSION PIN: churnDueNow reads the plan LIVE (the run195 dead-wire class)', () => {
+  assert.match(fleetSrc, /const churnDueNow = \(\) => \{/, 'the helper exists in the per-bot state block')
+  const helper = fleetSrc.match(/const churnDueNow = \(\) => \{[\s\S]*?\n      \}/)
+  assert.ok(helper, 'the helper body is readable')
+  assert.match(helper[0], /miner\.wetRescueEvents\?\.\(\)/, 'the helper reads the bot LIVE record (the recorder updates during the dig)')
+  assert.match(helper[0], /rescueEvents: events/, 'the events ride the call')
+  assert.match(helper[0], /now:\s*Date\.now\(\)/, 'the caller clock rides the call (the plan never reads the wall clock itself)')
+  assert.match(helper[0], /evacUntil:\s*wetEvacUntil/, 'the carry-clock rides the call (a holding evacuation reads .go=false - the dig never stops for churn mid-evacuation)')
+  assert.match(helper[0], /return false/, 'junk reads false - the dig never stops on a churn read error')
+})
+
+test('REGRESSION PIN: the shaft and the tunnel read the churn inside their dig loops', () => {
+  const shaftStop = fleetSrc.match(/shouldStop: \(\) => \{\n[\s\S]*?return false\n            \}/)
+  assert.ok(shaftStop, 'the shaft shouldStop block is readable')
+  assert.match(shaftStop[0], /if \(churnDueNow\(\)\) \{ interrupted = true; return true \}/,
+    'the go verdict stops the shaft cooperatively (interrupted=true - the seal counter never reads a churn stop as an empty shaft)')
+  const prePosAt = shaftStop[0].indexOf('prePositionNow()')
+  const churnAt = shaftStop[0].indexOf('churnDueNow()')
+  assert.ok(prePosAt > -1 && churnAt > prePosAt, 'the churn read rides AFTER the walk-home preempt (the existing due-order preserved)')
+  assert.match(fleetSrc, /shouldStop: \(\) => Date\.now\(\) > deadline \|\| churnDueNow\(\)/,
+    'the steered tunnel is the other wet-prone lane - the same live read')
+})
+
+test('REGRESSION PIN: the churn interrupt still rides the interrupted gate (the seal law)', () => {
+  const shaftAt = fleetSrc.indexOf('await miner.digShaft(namesFor(hasPickNow())')
+  const continueAt = fleetSrc.indexOf('if (interrupted) continue', shaftAt)
+  const churnStopAt = fleetSrc.indexOf('if (churnDueNow()) { interrupted = true; return true }')
+  assert.ok(shaftAt > -1 && continueAt > shaftAt && churnStopAt > -1, 'the blocks exist')
+  assert.ok(churnStopAt < continueAt, 'the interrupt lands BEFORE the interrupted continue (the shaft break reads as preempted, never as an empty seal)')
 })

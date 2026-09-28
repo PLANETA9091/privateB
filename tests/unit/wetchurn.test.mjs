@@ -60,6 +60,24 @@ test('wetChurnPlan: the cap boundary is inclusive - avoidance errs toward restin
   assert.equal(wetChurnPlan({ rescueEvents: under, now: NOW }).why, 'under-cap')
 })
 
+// (v0.293.0) THE DRIP SHAPE - face 36476752446's flooded-quarry anatomy.
+// The old storm shape (F9) burst 6+ inside one window and the boundary
+// consult caught it; the drip strikes 3-4 times inside ONE long dig and
+// the goal turns over before the window fills. At cap 4 the fourth
+// in-window strike arms (the intra-goal read rides the dig's own
+// shouldStop); the calm shape (the fleet's F15 r7 / F17 r9 spread over
+// the whole 600s) still reads 1-3 per window and keeps working.
+test('wetChurnPlan: the drip shape arms at the fourth strike, the calm shape works on', () => {
+  const drip = [NOW - 90000, NOW - 70000, NOW - 40000, NOW - 12000] // 4 strikes inside one dig
+  const p = wetChurnPlan({ rescueEvents: drip, now: NOW })
+  assert.equal(p.go, true, 'the fourth in-window strike arms (the face 36476752446 shape)')
+  assert.equal(p.why, 'churn')
+  const threeStrikes = drip.slice(1)
+  assert.equal(wetChurnPlan({ rescueEvents: threeStrikes, now: NOW }).why, 'under-cap', 'three strikes stay under - the arm waits for the fourth')
+  const calm = [NOW - 170000, NOW - 120000, NOW - 60000] // the calm fleet shape: spread over the window
+  assert.equal(wetChurnPlan({ rescueEvents: calm, now: NOW }).why, 'under-cap', 'the calm bots (r1-r9 over 600s) read 1-3 per window and stay working')
+})
+
 test('wetChurnPlan: the gates - no history reads vacuous, honest', () => {
   assert.equal(wetChurnPlan({ rescueEvents: null, now: NOW }).why, 'no-history')
   assert.equal(wetChurnPlan({ rescueEvents: [], now: NOW }).why, 'no-history')
@@ -87,7 +105,7 @@ test('wetChurnPlan: a fresh evacuation is a fixed cooldown, not a running sum', 
 
 test('the constants hold the plan shape for the wiring lane', () => {
   assert.equal(WET_CHURN_WINDOW_MS, 180000)
-  assert.equal(WET_CHURN_RESCUE_CAP, 6)
+  assert.equal(WET_CHURN_RESCUE_CAP, 4, '(v0.293.0) recalibrated 6 -> 4 from face 36476752446: the drip strikes 3-4 times inside ONE long digShaft, the boundary consult never read a full 6-window (zero armed lines against F3/F11/F13 r12-r17)')
   assert.equal(WET_CHURN_COOLDOWN_MS, 90000)
   assert.ok(WET_CHURN_COOLDOWN_MS < WET_CHURN_WINDOW_MS, 'the cooldown is shorter than the window - the bot returns to a fresh honest read')
 })
