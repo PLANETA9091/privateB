@@ -4548,8 +4548,22 @@ export function createMiner ({
         const known = mapTargetFor(LOG_NAMES, { maxDistance: 256, verify: false })
         if (known) {
           visitedTrunks.add(`${known.pos.x},${known.pos.z}`) // never loop on the same entry
+          // (v0.261.0) THE MAP-TARGET WALK LAW: this walk priced a 256-block
+          // license with a 24s budget - the exact class woodplan.mjs named
+          // "mathematically impossible" when the map trips priced 128 blocks
+          // with 14s (a walkable-but-slow shore was remembered in failedTrips -
+          // a self-inflicted blacklist). The face 36359454749 census caught the
+          // shape live: F13's famine trip climbed +4 levels in 17s and still
+          // gathered ZERO (sticks 4 -> sticks 4) while the shared map held the
+          // forest - the far trunk's 24s walk died, the visitedTrunks mark
+          // buried the target ("never loop on the same entry"), and the bot
+          // relocated blind. The walk now prices with TRIP_WALK_MS - the SAME
+          // proven constant mapTrip runs (45s spans the licensed range with
+          // headroom for one detour); the caller's own maxSeconds clock still
+          // caps the leg, and the stall escape still exits when the pocket is
+          // craftable - a far tree costs one honest walk, not the whole budget.
           try {
-            await gotoSafe(bot, standGoalNear(bot, goals, known.pos.x, known.pos.y, known.pos.z, { range: 4 }), { timeoutMs: 24000, label: 'wood trip' })
+            await gotoSafe(bot, standGoalNear(bot, goals, known.pos.x, known.pos.y, known.pos.z, { range: 4 }), { timeoutMs: TRIP_WALK_MS, label: 'wood trip' })
           } catch { /* chop whatever is in reach now */ }
           continue
         }

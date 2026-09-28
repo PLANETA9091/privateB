@@ -1740,6 +1740,28 @@ async function runBot (name, target, index) {
             console.log(`${name} tool recovery: OK (spare craft ${sp.tier}, holds ${sp.picks})`)
           } else {
             console.log(`${name} tool recovery: spare craft failed (${sp.reason}) - re-running the bootstrap`)
+            // (v0.261.0) THE RECOVERY ASCENT: the bootstrap's wood leg ran WHERE
+            // THE BOT STANDS - a pick-less bot stands in a shaft with stone above
+            // in every direction: findBlocks(48) reads zero trunks, the map-target
+            // walk digs at rock, the direction relocation tunnels stone - the leg
+            // lands logs=0 and ensureTools follows with 'no planks recipe' (the
+            // face 36359454749 census: 'no planks' x11 / 'no sticks' x10 / 'no
+            // materials' x4 vs no-pickaxe x14 in attempt 1 - the fleet cannot
+            // re-craft its picks; attempt 2 split the same shape: F13 'no table'
+            // -> 'no planks recipe' dead underground while F15, already standing
+            // at the woods' edge, recovered the SAME way). The famine trip
+            // (v0.179.0) solved this exact shape for TOOLED bots with an
+            // ensureSurface front; the recovery lane never got it. The wood leg
+            // now climbs FIRST (the 'wood trip' single-shot shape): a bot that
+            // reaches the sky gathers where trees actually grow; a bot whose
+            // climb refuses keeps the byte-identical legacy underground attempt
+            // (never worse than legacy - a cave wood once grew in is still worth
+            // one scan, and the v0.52.0 brake still owns the retry cadence).
+            if (await ensureSurface('tool recovery')) {
+              console.log(`${name} tool recovery: surfaced - the wood leg gathers where trees grow`)
+            } else {
+              console.log(`${name} tool recovery: climb refused - the underground attempt stands`)
+            }
             try {
               await miner.gatherWood({ want: 6, direction, shouldStop: () => Date.now() > deadline, maxSeconds: 40 })
             } catch { /* craft with whatever we have */ }
