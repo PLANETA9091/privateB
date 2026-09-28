@@ -47,7 +47,7 @@ import {
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
-  frozenReturnGate, frozenReturnBypass, breathMirror,
+  frozenReturnGate, frozenReturnBypass, breathMirror, o2SensorLabel,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
@@ -353,7 +353,9 @@ export function createMiner ({
           sentryVerdict: sentryLast?.verdict ?? null,
           sentryAgeMs: sentryLast ? now - sentryLast.at : null
         })
-        const o2Read = sentryLast && Number.isFinite(sentryLast.o2) ? sentryLast.o2 : '?'
+        // (v0.264.0) the -1 reset sentinel renders NAMED (o2SensorLabel) - the
+        // mirror's snapshot rides the same renderer as the death lines
+        const o2Read = o2SensorLabel(sentryLast ? sentryLast.o2 : null)
         const sAge = sentryLast ? `${Math.max(0, Math.round((now - sentryLast.at) / 100) / 10)}s old` : 'none'
         log(`${tag} water: breath mirror [${mirror.why}]${mirror.note ? ` - ${mirror.note}` : ''} (o2 ${o2Read}, ${sentryLast?.headWet ? 'head WET' : 'head dry/unknown'}, snapshot ${sAge})`)
       }

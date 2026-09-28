@@ -154,6 +154,27 @@ export const OXYGEN_RESET_SENTINEL = -1
 /** Is this oxygen value a REAL sensor reading (finite, inside the 0..20 domain)?
  * The reset sentinel (-1), NaN, undefined and +-Infinity all read false: none of
  * them may drive a rescue decision or a death-cause label. */
+// (v0.264.0) THE O2 SENSOR LABEL - the -1 reset sentinel gets its NAME in the
+// telemetry. The v0.64.0 law proved -1 arrives as a burst right after
+// 'rescue complete' / respawn (run60: 395 fleet-wide, F2 x250+) and
+// waterVerdict reads it as FULL - it is the client's reset sentinel, not a
+// bar state. But the death-side telemetry printed it RAW: face 36365938885
+// caught the F1 drowning chain printing 'o2 -1' in the drown-context line -
+// the decoder had to re-derive the sentinel from the v0.64.0 comment every
+// read. One renderer, every o2 print site: the sentinel renders
+// 'reset(-1)' (named, instantly readable as the post-rescue burst, distinct
+// from a real bar), a finite value renders itself, junk renders '?'.
+// Pure string work, junk-safe by construction.
+export function o2SensorLabel (raw) {
+  // the STRICT gate, no Number() coercion: the 26.2 sensor can deliver a
+  // STRING ('0' rides the stale-bar family) - a non-number was never a
+  // measurement and never the sentinel shape; it renders '?' (the v0.249.0
+  // junk pin owns this contract).
+  if (!Number.isFinite(raw)) return '?'
+  if (raw === -1) return 'reset(-1)'
+  return String(raw)
+}
+
 export function oxygenInDomain (raw) {
   return Number.isFinite(raw) && raw >= 0
 }

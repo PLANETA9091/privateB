@@ -7,6 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { drownContextLine } from '../../src/lib/statcarry.mjs'
+import { o2SensorLabel } from '../../src/lib/drowning.mjs'
 
 test('drownContextLine: the submerged-never-rescued shape (the F15/F18 class)', () => {
   const line = drownContextLine({
@@ -51,4 +52,39 @@ test('drownContextLine: a fully junk world read refuses (null - nothing to say)'
   assert.equal(drownContextLine({ tag: 'F1', oxygen: null, feet: null, head: null }), null)
   assert.equal(drownContextLine(null), null)
   assert.equal(drownContextLine({ oxygen: undefined, feet: undefined, head: undefined }), null)
+})
+// ---- (v0.264.0) THE O2 SENSOR LABEL - the -1 reset sentinel gets its name ----
+
+test('o2SensorLabel: the -1 reset sentinel renders NAMED (the v0.64.0 law)', () => {
+  assert.equal(o2SensorLabel(-1), 'reset(-1)')
+})
+
+test('o2SensorLabel: honest values and junk keep their shapes', () => {
+  assert.equal(o2SensorLabel(0), '0')
+  assert.equal(o2SensorLabel(20), '20')
+  assert.equal(o2SensorLabel(4), '4')
+  assert.equal(o2SensorLabel(-5), '-5', 'a non-sentinel negative prints its truth - only -1 is the named sentinel')
+  assert.equal(o2SensorLabel(null), '?')
+  assert.equal(o2SensorLabel(undefined), '?')
+  assert.equal(o2SensorLabel(NaN), '?')
+  assert.equal(o2SensorLabel('junk'), '?')
+})
+
+test('drownContextLine: the F1 chain shape - the sentinel burst after an active rescue reads off the line', () => {
+  // face 36365938885: F1 died 'server: drowned' with the line printing a raw
+  // 'o2 -1' - the v0.64.0 reset burst after its rescue, not a bar state. The
+  // named render arms the decode without re-deriving the law every read.
+  const line = drownContextLine({
+    tag: 'F1', oxygen: -1, feet: 'water', head: 'water', rescueActive: true
+  })
+  assert.equal(line, 'F1 death: drown context (o2 reset(-1), feet water, head water, rescue active)')
+})
+
+test('drownContextLine: the legacy o2 shapes stay byte-identical', () => {
+  const l1 = drownContextLine({ tag: 'F3', oxygen: 0, feet: 'water', head: 'water' })
+  assert.equal(l1, 'F3 death: drown context (o2 0, feet water, head water, rescue never)')
+  const l2 = drownContextLine({ tag: 'F3', oxygen: 12, feet: 'water', head: 'air' })
+  assert.equal(l2, 'F3 death: drown context (o2 12, feet water, head air, rescue never)')
+  const l3 = drownContextLine({ tag: 'F3', oxygen: NaN, feet: 'water', head: 'water' })
+  assert.equal(l3, 'F3 death: drown context (o2 ?, feet water, head water, rescue never)')
 })

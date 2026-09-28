@@ -1,4 +1,4 @@
-import { WATER_NAMES } from './drowning.mjs'
+import { WATER_NAMES, o2SensorLabel } from './drowning.mjs'
 // Per-bot stat survival across reconnects (v0.18.9).
 //
 // WHY: fleet19's runBot loop recreates the miner on every reconnect (a kick or
@@ -177,7 +177,11 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
 export function drownContextLine (r = {}) {
   const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now() } = r || {}
   if (feet === null && head === null && oxygen === null) return null
-  const o2 = Number.isFinite(oxygen) ? String(oxygen) : '?'
+  // (v0.264.0) the -1 reset sentinel renders NAMED (the v0.64.0 law): face
+  // 36365938885's F1 chain printed a raw 'o2 -1' in this line - the sentinel
+  // burst after its rescue, not a bar state. The renderer carries the name so
+  // the next decode reads it off the line.
+  const o2 = o2SensorLabel(oxygen)
   const f = feet === null ? 'unknown' : feet
   const h = head === null ? 'unknown' : head
   const fw = feetWaterlogged ? ' wl' : ''
