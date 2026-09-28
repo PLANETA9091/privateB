@@ -58,7 +58,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path
+import { dropTargets, dropGoalRange, dropWalkSkipped, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -2837,6 +2837,8 @@ export function createMiner ({
         let skipWalks = 0
         let lipDigs = 0
         let lipRefusals = 0
+        let supportDigs = 0
+        let supportRefusals = 0
         for (const d of targets) {
           if (shouldStop?.() || !bot.entity || Date.now() > dropFence) break
           // (v0.178.0) THE BELOW-PLANE GOAL RANGE: a drop resting 1-2 BELOW the
@@ -2903,6 +2905,45 @@ export function createMiner ({
               if (range === DROP_GOAL_BELOW) {
                 if (dyWalk < DROP_GOAL_BELOW_DY) belowFails++
                 else aboveFails++
+              }
+              // (v0.263.0) THE SUPPORT DIG-DOWN: the ABOVE-family failure's last
+              // mile - the lip dig-down mirrored up. The face 36359454749 ledger
+              // read 'failed=94 (below x28, plane x30, above x36) lipDig=0': the
+              // above walk that times out buys ZERO and the drop rides the despawn
+              // on its ledge, while the lip dig can never fire (it arms only on a
+              // CONVERGED below arrival - the below family failed x28). THE SHAKE:
+              // dig the ONE solid block the DROP rests on - the drop falls 1-2 down
+              // its own column, passes the bot's plane, the ~1.5 magnet sweeps it
+              // mid-fall or it lands at the stance where the plane/below families
+              // converge on the next pass (the v0.182.0 re-classify doctrine) -
+              // either way strictly better than the ledge despawn. The family gate
+              // reads the CURRENT stance (the walk failed - the bot digs from where
+              // it stands, not from where it started); dy >= 1 pins the support at
+              // the feet level or ABOVE, so the dig never opens the bot's own
+              // footing. Junk discipline: an unreadable, non-solid or fluid support
+              // leaves the probes null -> the gate refuses (a missing read never
+              // arms an action), and the refusal line names the support class.
+              if (dyWalk > DROP_GOAL_ABOVE_DY) {
+                const dyNow = d.y - bot.entity.position.y
+                const distXZ = Math.hypot(d.x - bot.entity.position.x, d.z - bot.entity.position.z)
+                const supportCell = new Vec3(Math.floor(d.x), Math.floor(d.y) - 1, Math.floor(d.z))
+                const support = bot.blockAt(supportCell)
+                const supportSolid = !!(support && support.boundingBox === 'block' && !SHAFT_FLUID_NAMES.has(support.name))
+                const airSupport = supportSolid ? dropAheadBelow(supportCell, { depth: 3 }) : null
+                const strikeSupport = supportSolid ? fluidStrikeBelow(supportCell, { depth: 3 }) : null
+                const digParams = { dy: dyNow, supportSolid, airBelow: airSupport, fluidBelow: strikeSupport !== null, distXZ }
+                if (supportDigWanted(digParams)) {
+                  try { await bot.fastDig(support); supportDigs++ } catch { /* the shake is a bonus - never a failure */ }
+                } else {
+                  const why = !support ? 'no support read'
+                    : support.boundingBox !== 'block' ? 'the support reads air'
+                    : SHAFT_FLUID_NAMES.has(support.name) ? 'the support reads fluid'
+                    : supportDigRefusal(digParams)
+                  if (why) {
+                    supportRefusals++
+                    if (supportRefusals <= 2) log(`${tag} vein sweep: support dig refused - ${why} (air ${airSupport}, dist ${distXZ.toFixed(1)})`)
+                  }
+                }
               }
             }
           }
@@ -2977,12 +3018,13 @@ export function createMiner ({
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
         if (skipWalks > 0) log(`${tag} vein sweep: ${skipWalks} drop(s) already inside the goal - the zero-displacement walk spared (the instant done the spin book reads as churn)`)
         if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
+        if (supportDigs > 0) log(`${tag} vein sweep: ${supportDigs} support dig-down(s) - the failed ledge walk shook the drop loose, the fall carries it to the magnet`)
         // (v0.203.0) the sweep drop ledger: the counters ride stats so the fleet
         // RESULT can aggregate them - the per-sweep lines were the only read and
         // the below-plane residue had no day-scale trend (the v0.187.0 unmeasured
         // plane class splits from the below class here at last)
         try {
-          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0 })
+          const sd = stats.sweepDrops ?? (stats.sweepDrops = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0 })
           sd.sweeps++
           sd.picked += picked
           sd.failed += dropFails
@@ -2990,6 +3032,7 @@ export function createMiner ({
           sd.above += aboveFails
           sd.deepSkip += skipDeep
           sd.lipDig += lipDigs
+          sd.supportDig += supportDigs
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }

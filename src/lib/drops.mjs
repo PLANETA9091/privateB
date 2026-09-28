@@ -214,6 +214,81 @@ export function lipDigRefusal ({ range, airBelow, fluidBelow, dy } = {}) {
   return null
 }
 
+// (v0.263.0) THE SUPPORT DIG-DOWN - the above-family FAILED walk's last mile,
+// the lip dig-down MIRRORED UP. MEASURED (face 36359454749 attempt 2, the
+// trio's second flight): the ledger read 'failed=94 (below x28, plane x30,
+// above x36) lipDig=0' - the ABOVE family is the largest failing bucket, and
+// the v0.189.0 wide goal did not save it: an above walk that times out buys
+// ZERO (4s of spiral, the drop rides the despawn on its ledge) - the same
+// guaranteed-loss shape the v0.182.0 deep skip named for the below family.
+// The lip dig fires only on a CONVERGED below arrival, so a run where the
+// below walks never converge (x28 failures) starves lipDig at exactly the
+// link the dig-down exists to close - while the ABOVE failures pile up
+// unconverted. THE CURE: when an ABOVE-family walk FAILS, dig the ONE solid
+// block the DROP rests on (its support, the cell under the drop) - the drop
+// falls 1-2 down its own column, passes the bot's plane, and the ~1.5 magnet
+// sweeps it mid-fall or it lands at the bot's stance where the plane/below
+// families converge on the NEXT pass (the v0.182.0 re-classify doctrine -
+// either way strictly better than the ledge despawn). The dig never opens
+// the bot's own footing: dy >= 1 pins the support at the bot's feet level or
+// ABOVE (a drop resting on the bot's own floor reads dy < 1 - the plane
+// class, the walk families' own cures own it). Every guard is a measured
+// fence, never new physics:
+//   - the drop must be in the MEASURED ledge class (dy 1..3 - the v0.189.0
+//     failure sample held +1.0 x6 / +1.2 / +2.0 x3 / +2.1 with one +4.0
+//     outlier; beyond the cap the fall lands unmeasured);
+//   - the support must read a solid, non-fluid block (junk refuses);
+//   - the fall column under the support must measure 1..2 air cells (the
+//     LIP_DIG_MAX_AIR window mirrored up; 0 = sealed under the ledge, 3+ =
+//     an open shaft the probe cannot see the bottom of - the landing is
+//     unknown, a zero-read window reports the WORST, the v0.86.0 lesson);
+//   - the column must read DRY (the same wet guard the lip rides);
+//   - the bot must stand within SUPPORT_DIG_REACH of the fall column
+//     (horizontal) - a far stance's shake drops the item where the magnet
+//     never reaches, the exact buy-nothing the cure exists to end.
+// Junk law: a missing read never arms a dig - the same inversion of the
+// junk-dy-keeps-legacy doctrine the lip dig rode.
+export const SUPPORT_DIG_MAX_AIR = 2 // the fall the support dig may buy (the lip window mirrored up)
+export const SUPPORT_DIG_MIN_DY = 1 // the drop rests a full cell UP - the measured ledge class
+export const SUPPORT_DIG_MAX_DY = 3 // the ledge cap - beyond it the fall lands unmeasured
+export const SUPPORT_DIG_REACH = 2 // the horizontal stand-off the fall must pass inside the magnet
+
+export function supportDigWanted ({ dy, supportSolid, airBelow, fluidBelow, distXZ } = {}) {
+  if (!Number.isFinite(dy)) return false
+  if (dy < SUPPORT_DIG_MIN_DY) return false
+  if (dy > SUPPORT_DIG_MAX_DY) return false
+  if (supportSolid !== true) return false
+  if (!Number.isFinite(airBelow)) return false
+  const a = Math.floor(airBelow)
+  if (a < 1 || a > SUPPORT_DIG_MAX_AIR) return false
+  if (fluidBelow !== false) return false // an unmeasured wet guard is a blind dig (the v0.86.0 lesson)
+  if (!Number.isFinite(distXZ) || distXZ < 0 || distXZ > SUPPORT_DIG_REACH) return false
+  return true
+}
+
+// (v0.263.0) THE SUPPORT REFUSAL INSTRUMENT - the mirror of supportDigWanted
+// that NAMES the guard that said no. The support-read classes (no read / air /
+// fluid) name themselves in the caller BEFORE this gate (the v0.259.0 cover
+// shape) - a solid support falls through to here. Returns the refusal REASON
+// for an above-family candidate, or null when the dig is wanted (or when this
+// is not a support candidate at all - the family fence is the caller's dy
+// check, so a sub-ledge dy has its refusal named here as 'below the ledge
+// class' only when the caller still consults).
+export function supportDigRefusal ({ dy, supportSolid, airBelow, fluidBelow, distXZ } = {}) {
+  if (!Number.isFinite(dy)) return 'unmeasured dy'
+  if (dy < SUPPORT_DIG_MIN_DY) return 'below the ledge class'
+  if (dy > SUPPORT_DIG_MAX_DY) return 'the ledge reads too high'
+  if (supportSolid !== true) return 'unmeasured support'
+  if (!Number.isFinite(airBelow)) return 'unmeasured air'
+  if (Math.floor(airBelow) < 1) return 'sealed under the ledge'
+  if (Math.floor(airBelow) > SUPPORT_DIG_MAX_AIR) return 'the fall reads open'
+  if (fluidBelow === true) return 'wet column'
+  if (fluidBelow !== false) return 'unmeasured wet guard'
+  if (!Number.isFinite(distXZ) || distXZ < 0) return 'unmeasured stand-off'
+  if (distXZ > SUPPORT_DIG_REACH) return 'outside the stand-off'
+  return null
+}
+
 // (v0.260.0) THE ALREADY-THERE FAST PATH - the skip verdict that spares the
 // funnel a zero-displacement instant done. MEASURED (face 36344554956, the
 // v0.256.0-era fleet): the run's named drop-walk failures carried x16
@@ -318,7 +393,7 @@ export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, c
 // and 'plane x' tokens keep their positions, the identity extends.
 
 /** One bot's accumulated sweep drop-walk counters (junk floors at zero). */
-export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0 } = {}) {
+export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0, above = 0, deepSkip = 0, lipDig = 0, supportDig = 0 } = {}) {
   const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
   return {
     sweeps: fl(sweeps),
@@ -327,18 +402,22 @@ export function sweepDropRecord ({ sweeps = 0, picked = 0, failed = 0, below = 0
     below: fl(below),
     above: fl(above),
     deepSkip: fl(deepSkip),
-    lipDig: fl(lipDig)
+    lipDig: fl(lipDig),
+    // (v0.263.0) the support dig-down joins the row - a new tail token, the
+    // v0.205.0 precedent (the existing tokens keep their positions, the
+    // identity extends)
+    supportDig: fl(supportDig)
   }
 }
 
 /**
  * The fleet-result row: the run's whole sweep drop-walk economy in one line.
  * @param {Array<object|null|undefined>} records one stats.sweepDrops per bot (junk tolerated)
- * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N'
+ * @returns {string} 'sweep drop ledger: sweeps=N picked=Nu failed=N (below xN, plane xN, above xN) deepSkip=N lipDig=N supportDig=N'
  */
 export function belowResidueRow (records) {
   const list = Array.isArray(records) ? records : []
-  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0 }
+  const acc = { sweeps: 0, picked: 0, failed: 0, below: 0, above: 0, deepSkip: 0, lipDig: 0, supportDig: 0 }
   for (const r of list) {
     const rec = sweepDropRecord(r ?? {})
     // per-record clamp: one bot's junk below/above never swallows the fleet's
@@ -353,7 +432,8 @@ export function belowResidueRow (records) {
     acc.above += rec.above
     acc.deepSkip += rec.deepSkip
     acc.lipDig += rec.lipDig
+    acc.supportDig += rec.supportDig
   }
   const plane = Math.max(0, acc.failed - acc.below - acc.above)
-  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig}`
+  return `sweep drop ledger: sweeps=${acc.sweeps} picked=${acc.picked}u failed=${acc.failed} (below x${acc.below}, plane x${plane}, above x${acc.above}) deepSkip=${acc.deepSkip} lipDig=${acc.lipDig} supportDig=${acc.supportDig}`
 }

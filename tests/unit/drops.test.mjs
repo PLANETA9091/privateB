@@ -326,7 +326,7 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
   // (v0.206.0) the import grew the refusal instrument (lipDigWanted ->
   // lipDigWanted, lipDigRefusal, ...) and the verdict call reads the SAME
   // measured params object the mirror consumes - one read, two verdicts.
-  assert.ok(src.includes("lipDigWanted, lipDigRefusal, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family (the refusal mirror rides it, v0.206.0)')
+  assert.ok(src.includes("lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, DROP_GOAL_BELOW"), 'the dig-down verdict is imported with the walk family (the refusal mirror rides it, v0.206.0; the v0.263.0 support mirror joins the same import)')
   const landedAt = src.indexOf('let landed = false')
   const digAt = src.indexOf('if (landed && dyWalk < DROP_GOAL_BELOW_DY && dyWalk >= DROP_GOAL_DEEP_DY) {')
   assert.ok(landedAt > 0 && digAt > landedAt, 'the dig-under gates on the CONVERGED below-family walk only (the dy family, not the range number - the v0.189.0 ABOVE shares the wide 2)')
@@ -410,13 +410,15 @@ test('dropGoalRange: the fence boundaries hold across all four verdicts (the pla
 // (v0.203.0) THE SWEEP DROP LEDGER - the run-level row.
 // (v0.205.0) the row carries the TRIAGE: above joins the split (the run68
 // pollution - the wide-2 family's above failures were counted as below).
+// (v0.263.0) the row carries the support dig-down as a tail token (the
+// identity extends, the existing tokens keep their positions).
 test('belowResidueRow: the run22-measured class - below x6 with a clean split', () => {
   const row = belowResidueRow([
     { sweeps: 3, picked: 12, failed: 3, below: 3, deepSkip: 0, lipDig: 1 }, // F13 x3
     { sweeps: 2, picked: 0, failed: 2, below: 2, deepSkip: 1, lipDig: 0 }, // F5 x2
     { sweeps: 1, picked: 5, failed: 1, below: 1, deepSkip: 0, lipDig: 0 } // F7 x1
   ])
-  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0, above x0) deepSkip=1 lipDig=1')
+  assert.equal(row, 'sweep drop ledger: sweeps=6 picked=17u failed=6 (below x6, plane x0, above x0) deepSkip=1 lipDig=1 supportDig=0')
 })
 
 test('belowResidueRow: the triage identity - below + plane + above == failed on every mix', () => {
@@ -440,28 +442,28 @@ test('belowResidueRow: the run68 triage reads honestly - the above term lands wh
   // the day-2 row claimed 'below x82' with a dy sample of above x19 vs below
   // x5; the triage row would have told the truth: below x5, above x77
   const row = belowResidueRow([{ sweeps: 38, picked: 235, failed: 92, below: 5, above: 77, deepSkip: 28, lipDig: 0 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=38 picked=235u failed=92 (below x5, plane x10, above x77) deepSkip=28 lipDig=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=38 picked=235u failed=92 (below x5, plane x10, above x77) deepSkip=28 lipDig=0 supportDig=0')
 })
 
 test('belowResidueRow: the per-record clamp - junk below never swallows the fleet split', () => {
   // bot A: impossible record (below 9 on failed 0); bot B: the honest day-3 F13 class
   const row = belowResidueRow([{ failed: 0, below: 9 }, { failed: 3, below: 3 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0, above x0) deepSkip=0 lipDig=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=3 (below x3, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0')
 })
 
 test('belowResidueRow: the clamp covers the above term - above claims only the failed rest', () => {
   // bot A: below 2 + above 9 on failed 3 - above clamps to the failed rest (1);
   // bot B: an honest above-only record (5/5)
   const row = belowResidueRow([{ failed: 3, below: 2, above: 9 }, { failed: 5, above: 5 }])
-  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=8 (below x2, plane x0, above x6) deepSkip=0 lipDig=0')
+  assert.equal(row, 'sweep drop ledger: sweeps=0 picked=0u failed=8 (below x2, plane x0, above x6) deepSkip=0 lipDig=0 supportDig=0')
 })
 
 test('belowResidueRow: junk floors at zero and the row prints ALWAYS', () => {
   assert.equal(
     belowResidueRow([{ sweeps: -2, picked: 3.9, failed: -1 }, 'junk', 42]),
-    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0'
+    'sweep drop ledger: sweeps=0 picked=3u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0'
   )
-  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0')
+  assert.equal(belowResidueRow(undefined), 'sweep drop ledger: sweeps=0 picked=0u failed=0 (below x0, plane x0, above x0) deepSkip=0 lipDig=0 supportDig=0')
 })
 
 test("REGRESSION PIN: the miner sweep rides stats.sweepDrops and the fleet prints the ledger", async () => {
