@@ -25,8 +25,8 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
-    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census, the surface ladder AND the rim dig from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census, the surface ladder, the rim dig AND the v0.261.0 unarmed verdict from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -89,8 +89,8 @@ test("REGRESSION PIN: the fleet filter carries the 'reloot' key", () => {
 test('v0.203.0: the unarmed refusal is a delay, not a verdict (the run71 starvation)', () => {
   const lane = fleetSrc.match(/const relootDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?reloot: walk failed/)
   assert.ok(lane, 'the lane exists')
-  const unarmed = lane[0].match(/else if \(!hasPickNow\(\)\) \{[\s\S]*?\n          \} else if/)
-  assert.ok(unarmed, 'the unarmed arm exists')
+  const unarmed = lane[0].match(/else if \(!hasPickNow\(\) && relootUnarmedVerdict\(\{ deathAt: relootDeath\.at, now: Date\.now\(\) \}\)\.defer\) \{[\s\S]*?\n          \} else if/)
+  assert.ok(unarmed, 'the unarmed arm exists (v0.261.0: the grace-bounded condition)')
   assert.ok(!unarmed[0].includes('attempted = true'),
     'the unarmed arm flips NOTHING - the plan read re-arms next pass (the bootstrap owns ~30-60s, the despawn window 300s)')
   const planArm = lane[0].match(/if \(!rp\.go\) \{[\s\S]*?\n          \} else if/)
@@ -350,4 +350,13 @@ test('v0.221.0: the rim dig counters reach the decompose (the field debut decode
   for (const needle of ['rim dig arms:', 'rim dig seals opened:', 'rim dig guard holds:', 'rim dig refusals:']) {
     assert.ok(dec.includes(needle), `the ${needle} counter exists`)
   }
+})
+
+test('v0.261.0: the unarmed grace escalates the deadlock class into the walk lane', () => {
+  // The measured deadlock (face 36359454749 attempt 1): F7 deferred x7 across
+  // t+2s..t+76s while every recovery burned on the woodless pocket and the
+  // death kit despawned unclaimed - the delay had no exit.
+  assert.ok(fleetSrc.includes('relootUnarmedVerdict'), 'the fleet imports the pure verdict')
+  assert.ok(fleetSrc.includes('the unarmed escalation'), 'the walking line carries the escalation marker for the census')
+  assert.ok(fleetSrc.includes('reloot: no walk (unarmed)'), 'the defer shape survives byte for byte')
 })

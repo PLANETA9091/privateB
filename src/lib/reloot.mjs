@@ -196,6 +196,54 @@ export function relootRetry ({
   return { go: true, range: RELOOT_RETRY_RANGE, budgetMs: budget }
 }
 
+/** (v0.261.0) THE UNARMED GRACE: the v0.203.0 delay class had no exit. MEASURED
+ * (face 36359454749 attempt 1, the 600s Big leg): F7 died at t+0 and deferred
+ * the salvage walk x7 across t+2s..t+76s ('reloot: no walk (unarmed)' every
+ * pass) while its tool recovery burned on the woodless pocket - the ride-wide
+ * census read 'no planks recipe' x11 and 'no sticks and no planks for sticks'
+ * x10 - and the death kit (F9: cobblestone 54, torch 24, coal 22; F16:
+ * clay_ball 32, oak_planks 16; F19: oak_planks 7, stick 6) despawned at
+ * t+300s unclaimed while the run ended at t+270s. The DEADLOCK: the reloot
+ * waits for an armed pocket, the pocket waits for wood, the wood waits for a
+ * forest that is eaten out, and the kit that would re-arm the bot lies on the
+ * ground expiring. The grace gives the respawn bootstrap its honest first
+ * window (run71's observations read the bootstrap still in flight at t+45s
+ * and t+61s; 90s bounds the 60s gatherWood + the craft legs) - past it, an
+ * unarmed pocket is the measured doom class and the salvage walk IS the best
+ * re-arm left: the death drops carry the very planks/sticks/cobble the spare
+ * craft cannot fund. Junk-safe: a junk clock or a junk grace DEFERS (the
+ * escalation ARMS a walk, so junk must never arm - the gates-decide
+ * convention). */
+export const RELOOT_UNARMED_GRACE_MS = 90000
+
+/**
+ * Should the unarmed deferral keep deferring, or has the grace expired and
+ * the salvage walk takes over? Pure, junk-safe.
+ * @param {object} [p]
+ * @param {number|null} [p.deathAt] ms clock of the death (junk -> defer)
+ * @param {number} [p.now] the caller's clock (default Date.now())
+ * @param {number} [p.graceMs] the bootstrap's first window (default RELOOT_UNARMED_GRACE_MS)
+ * @returns {{defer:boolean, why?:string, elapsedMs?:number}}
+ *   { defer:true, why:'grace' } while the window runs, { defer:false, elapsedMs }
+ *   once it expired (the caller falls through to the walk lane, whose night
+ *   fence still owns the surface).
+ */
+export function relootUnarmedVerdict ({
+  deathAt = null,
+  now = Date.now(),
+  graceMs = RELOOT_UNARMED_GRACE_MS
+} = {}) {
+  // null/undefined deathAt is JUNK (no death record), not the epoch: Number(null)
+  // would coerce to 0 and read a brand-new death as an ancient one - the exact
+  // escalation-on-junk the gates-decide convention forbids.
+  const el = deathAt == null ? NaN : Number(now) - Number(deathAt)
+  if (!Number.isFinite(el) || el < 0) return { defer: true, why: 'no-clock' }
+  const grace = Number(graceMs)
+  if (!Number.isFinite(grace) || grace <= 0) return { defer: true, why: 'junk-grace' }
+  if (el < grace) return { defer: true, why: 'grace' }
+  return { defer: false, elapsedMs: el }
+}
+
 /**
  * (v0.208.0) THE SURFACE GOAL - the flooded pit's own exit ramp. MEASURED
  * (run55, fleet 36226589855, the v0.207.0 retry's field debut): the chain

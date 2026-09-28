@@ -38,7 +38,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
@@ -1440,18 +1440,31 @@ async function runBot (name, target, index) {
           if (!rp.go) {
             relootDeath.attempted = true
             console.log(`${name} reloot: no walk (${rp.why})`)
-          } else if (!hasPickNow()) {
+          } else if (!hasPickNow() && relootUnarmedVerdict({ deathAt: relootDeath.at, now: Date.now() }).defer) {
             // (v0.203.0) THE DELAY CLASS - a delay, not a verdict: the read
             // re-arms for the next loop pass (the retry-storm law is
             // untouched - the WALK still fires at most once, attempted flips
             // before gotoSafe; the clock fences own the eventual expiry).
+            // (v0.261.0) THE UNARMED GRACE bounds the delay: face 36359454749
+            // attempt 1 caught F7 deferring x7 across t+2s..t+76s while every
+            // recovery burned on the woodless pocket and the death kit
+            // (planks 7-16, sticks 6, cobble 24-54) despawned unclaimed - the
+            // reloot waited for arms, the arms waited for wood, the wood was
+            // gone. The verdict defers through the bootstrap's first 90s
+            // window; past it this branch falls through to the walk lane
+            // (the night fence still owns the surface) and the salvage walk
+            // re-arms from the death drops themselves.
             console.log(`${name} reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)`)
           } else if (walkForbidden(miner.bot.time?.timeOfDay)) {
             relootDeath.attempted = true
             console.log(`${name} reloot: no walk (night) - the walk-forbidden window owns the surface, the drops ride out their clock`)
           } else {
             relootDeath.attempted = true
-            console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s)`)
+            // (v0.261.0) an unarmed stance here IS the escalation: the grace
+            // expired with the pocket still empty, the walk re-arms from the
+            // death drops (the marker rides the walking line for the census).
+            const relootUnarmedEscalation = !hasPickNow()
+            console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s${relootUnarmedEscalation ? ', the unarmed escalation' : ''})`)
             const relootT0 = Date.now()
             try {
               await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rp.goal.x, rp.goal.y, rp.goal.z, { range: rp.range }), { timeoutMs: rp.budgetMs, label: 'reloot' })

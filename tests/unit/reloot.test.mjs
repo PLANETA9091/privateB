@@ -9,9 +9,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, relootUnarmedVerdict, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
   RELOOT_SURFACE_RISE_MAX,
-  RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS
+  RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS, RELOOT_UNARMED_GRACE_MS
 } from '../../src/lib/reloot.mjs'
 import { WALK_CAP_MS, WALK_PER_BLOCK_MS } from '../../src/lib/tripplan.mjs'
 
@@ -567,4 +567,28 @@ test('the rim dig refuses honestly: the non-sealed classes ride verbatim, the pl
   assert.equal(relootRimDig({ ...shape, ...sealed, deathAt: now - RELOOT_DESPAWN_MS }).why, 'expired', 'the despawn window prices the dig walk too')
   assert.equal(relootRimDig({ ...shape, ...sealed, botPos: null }).why, 'no-bot')
   assert.equal(relootRimDig({ ...shape, ...sealed, botPos: { x: 500, y: 61, z: 400 } }).why, 'too-far', 'the 128 envelope holds')
+})
+
+test('v0.261.0: the unarmed grace defers through the bootstrap window (the delay class keeps its first shape)', () => {
+  assert.equal(RELOOT_UNARMED_GRACE_MS, 90000, 'the grace bounds the 60s gatherWood + the craft legs (run71: bootstrap in flight at t+45s/t+61s)')
+  const v = relootUnarmedVerdict({ deathAt: NOW, now: NOW + 89000 })
+  assert.equal(v.defer, true, 't+89s is still the bootstrap\'s window')
+  assert.equal(v.why, 'grace')
+  const edge = relootUnarmedVerdict({ deathAt: NOW, now: NOW + 90000 })
+  assert.equal(edge.defer, false, 'the boundary escalates (t >= grace)')
+  assert.equal(edge.elapsedMs, 90000)
+  const late = relootUnarmedVerdict({ deathAt: NOW, now: NOW + 210000 })
+  assert.equal(late.defer, false, 't+210s: 90s of despawn window still left - the walk is the best re-arm left')
+  assert.equal(late.elapsedMs, 210000)
+})
+
+test('v0.261.0: the escalation never arms on junk (the gates-decide convention)', () => {
+  assert.equal(relootUnarmedVerdict({ deathAt: null, now: NOW }).defer, true, 'junk death clock defers')
+  assert.equal(relootUnarmedVerdict({ deathAt: null, now: NOW }).why, 'no-clock')
+  assert.equal(relootUnarmedVerdict({ deathAt: NaN, now: NOW }).defer, true)
+  assert.equal(relootUnarmedVerdict({ deathAt: NOW + 5000, now: NOW }).defer, true, 'a negative elapsed (clock skew) defers')
+  assert.equal(relootUnarmedVerdict({ deathAt: NOW, now: NOW + 200000, graceMs: 0 }).defer, true, 'junk grace defers')
+  assert.equal(relootUnarmedVerdict({ deathAt: NOW, now: NOW + 200000, graceMs: -5 }).defer, true)
+  assert.equal(relootUnarmedVerdict({ deathAt: NOW, now: NOW + 200000, graceMs: NaN }).defer, true)
+  assert.equal(relootUnarmedVerdict({}).defer, true, 'no deathAt at all defers (default null)')
 })
