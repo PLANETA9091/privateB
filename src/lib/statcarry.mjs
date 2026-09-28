@@ -163,12 +163,25 @@ export function deathDropLine ({ tag = '', pos = null, items = null } = {}) {
  * unknown' - a missing or reset tracker NEVER masquerades as dry (the
  * -1 sentinel lesson: a reset is not a measurement). Pure.
  *
+ * (v0.278.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
+ * measured 'wet unknown' on BOTH drown deaths (F13 x2) - the drown-timer's
+ * early returns (the rescue's swimming state, the cooldown gate) freeze the
+ * live tracker exactly while the bot is IN the water, and the surface-bob
+ * reset eats the episode at the death tick. The most recent COMPLETED wet
+ * episode is still a measurement - of the previous wetting - so a reset
+ * tracker with a prior episode renders it honestly LABELED ('@last', never
+ * the live read); a tracker with no prior episode keeps 'wet unknown'.
+ *
  * @param {number|null} [headWetSince] the wet-start ts from the bot's tracker (0 = dry/reset)
  * @param {number} [now] the read clock (junk/future refuses)
- * @returns {string} 'wet Ns' or 'wet unknown'
+ * @param {number|null} [lastWetMs] the most recent COMPLETED wet episode's duration ms (junk refuses)
+ * @returns {string} 'wet Ns' | 'wet Ns@last' | 'wet unknown'
  */
-export function wetWindowLabel (headWetSince, now = Date.now()) {
-  if (!Number.isFinite(headWetSince) || headWetSince <= 0) return 'wet unknown'
+export function wetWindowLabel (headWetSince, now = Date.now(), lastWetMs = null) {
+  if (!Number.isFinite(headWetSince) || headWetSince <= 0) {
+    if (Number.isFinite(lastWetMs) && lastWetMs > 0) return `wet ${Math.floor(lastWetMs / 1000)}s@last`
+    return 'wet unknown'
+  }
   if (!Number.isFinite(now) || now < headWetSince) return 'wet unknown'
   return `wet ${Math.floor((now - headWetSince) / 1000)}s`
 }
@@ -210,7 +223,7 @@ export function wetWindowLabel (headWetSince, now = Date.now()) {
 // UNCONDITIONAL (always present) so a missing stamp can never masquerade as
 // a deliberate omission in the next face's census.
 export function drownContextLine (r = {}) {
-  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now(), leg = null, headWetSince = null } = r || {}
+  const { tag = '', oxygen = null, feet = null, head = null, feetWaterlogged = false, headWaterlogged = false, rescueActive = false, lastRescueAt = null, now = Date.now(), leg = null, headWetSince = null, lastWetMs = null } = r || {}
   if (feet === null && head === null && oxygen === null) return null
   // (v0.264.0) the -1 reset sentinel renders NAMED (the v0.64.0 law): face
   // 36365938885's F1 chain printed a raw 'o2 -1' in this line - the sentinel
@@ -228,7 +241,9 @@ export function drownContextLine (r = {}) {
   }
   const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
   // (v0.275.0) the wet window rides the tail - the trip-drown class's exposure measure
-  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName}, ${wetWindowLabel(headWetSince, now)})`
+  // (v0.278.0) the last-episode fallback rides beside it - a reset tracker with a prior
+  // episode renders the previous wetting '@last' (face 36397191054: 'wet unknown' x2)
+  return `${tag} death: drown context (o2 ${o2}, feet ${f}${fw}, head ${h}${hw}, rescue ${rescue}, leg ${legName}, ${wetWindowLabel(headWetSince, now, lastWetMs)})`
 }
 
 // (v0.274.0) THE SUFFOCATE DEATH CONTEXT - the suffocate-class telemetry gap.

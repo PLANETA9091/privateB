@@ -61,3 +61,51 @@ test('the wet window is wired: the death context passes the bot\'s tracker (v0.2
   assert.ok(minerSrc.includes('headWetSince, // (v0.275.0) the wet window'), 'the drown context passes the bot\'s headWetSince tracker')
   assert.ok(minerSrc.indexOf('headWetSince, // (v0.275.0) the wet window') < minerSrc.indexOf('leg: bot._gotoSafeLabel ?? null'), 'the window precedes the leg in the call options')
 })
+
+// (v0.278.0) THE LAST-EPISODE FALLBACK: face 36397191054's first field read
+// measured 'wet unknown' on BOTH drown deaths (F13 x2) - the drown-timer's
+// early returns (the rescue's swimming state, the cooldown gate) freeze the
+// live tracker while the bot is IN the water, and the surface-bob reset eats
+// the episode at the death tick. The most recent COMPLETED wet episode is
+// still a measurement - of the previous wetting - rendered honestly '@last'.
+test('wetWindowLabel: a reset tracker with a prior episode renders the last wetting @last (the face 36397191054 cure)', () => {
+  const now = 200000
+  assert.equal(wetWindowLabel(0, now, 9500), 'wet 9s@last', 'the completed episode\'s floor keeps the seconds honest, the @last label names it previous')
+  assert.equal(wetWindowLabel(0, now, 999), 'wet 0s@last', 'a sub-second episode is still an episode')
+  assert.equal(wetWindowLabel(null, now, 30000), 'wet 30s@last', 'the null tracker reads the fallback too')
+})
+
+test('wetWindowLabel: the live read always wins over the fallback (the @last is never the live window)', () => {
+  const now = 200000
+  assert.equal(wetWindowLabel(now - 12000, now, 9000), 'wet 12s', 'an armed tracker renders its OWN window - no @last, no fallback')
+})
+
+test('wetWindowLabel: the junk law holds for the fallback - junk lastWetMs never walks', () => {
+  const now = 200000
+  for (const junk of [0, null, undefined, NaN, -5000, '12', Infinity]) {
+    assert.equal(wetWindowLabel(0, now, junk), 'wet unknown', `junk last ${String(junk)} reads unknown - no prior measurement exists`)
+  }
+})
+
+test('wetWindowLabel: the junk-clock law keeps the unknown even with a prior episode (an armed tracker lies only through its clock)', () => {
+  assert.equal(wetWindowLabel(200000, NaN, 9000), 'wet unknown', 'a junk clock on an ARMED tracker reads unknown - the fallback is the reset tracker\'s cure only')
+  assert.equal(wetWindowLabel(200000, 199999, 9000), 'wet unknown', 'the future-skew refusal stands, the fallback never masquerades as the live window')
+})
+
+test('drownContextLine: the @last tail rides the row (the bobbing-drown shape)', () => {
+  const line = drownContextLine({
+    tag: 'F13', oxygen: 0, feet: 'water', head: 'water',
+    rescueActive: false, lastRescueAt: null, now: 300000,
+    leg: 'next column', headWetSince: null, lastWetMs: 12000
+  })
+  assert.equal(line, 'F13 death: drown context (o2 0, feet water, head water, rescue never, leg next column, wet 12s@last)', 'the reset tracker with a prior episode names the previous wetting on the tail')
+  const legacy = drownContextLine({ tag: 'F3', oxygen: 0, feet: 'water', head: 'water', lastWetMs: 12000 })
+  assert.ok(legacy.endsWith(', leg unknown, wet 12s@last)'), 'a legacy call with only lastWetMs still reads the fallback')
+})
+
+test('the last-episode fallback is wired: the tracker capture and the pass-through (v0.278.0)', () => {
+  assert.ok(minerSrc.includes('lastWetMs: headWetLastMs, // (v0.278.0) the last-episode fallback'), 'the drown context passes the bot\'s headWetLastMs capture')
+  assert.ok(minerSrc.includes('if (headWetSince) headWetLastMs = now - headWetSince; headWetSince = 0'), 'the dry sample ends the episode - its duration survives the reset')
+  assert.ok(statcarrySrc.includes('lastWetMs = null } = r || {}'), 'the context destructure grows the fallback option')
+  assert.ok(statcarrySrc.includes('wetWindowLabel(headWetSince, now, lastWetMs)'), 'the renderer receives the fallback beside the live tracker')
+})
