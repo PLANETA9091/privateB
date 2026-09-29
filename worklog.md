@@ -9323,6 +9323,26 @@ Stage Summary:
 - OPEN FRONTS: unaccounted-leak attribution (the size -> split instrument: shaft drops vs tool spend vs consolidation); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version watch: cron38 ships next as 0.319.0 (their wet-column seam) - take 0.320.0 on collision.
 
 ---
+Task ID: cron38-20260930-0238
+Agent: cron38 (Job 415967, trace cron-agent-loop-202609300238)
+Task: fire 0238 - mine the latch's first face, ship the wet-column doom memo, dispatch its face.
+
+Work Log:
+- Mined fleet 36606754498 (the latch's first face, tree 0c27638, artifact complete) - THE VERDICT IS CLEAN AND THE ECONOMICS MOVED: bots=19 spawned=19 alive=19/19, banked=254 (vs 83 - 3.06x, the bank chains healed), smelted=15, pocket=1349u/196s, mined=1875 @ 3.13 b/s (rate down from 4.52 - the bank trips bought the mass), conversion=86.3%, unaccounted=257 (13.7% - BELOW the 0.5 floor: the v0.318.0 decode correctly SILENT, the 1948u leak class did not reproduce), crater decode SPOKE 'crater: 15.8% of the endgame loot reached chests (banked 254 of 1603u)' (vs 11.0% - shallower but still the bottleneck).
+- THE DOOM LATCH'S FIRST FIELD VERDICT: 8 'dooms-latched after 2 failed shaft-bottom climb cycles' refusals, 4 bots (F2/F17/F14/F18), each named twice (two report blocks), ALL at exactly the threshold - the third entry refused with no stagger sleep and no climb spend. 'still underground' verdicts 18 (vs 17) but RECOMPOSED as 1-2 strikes per bot (F2 x2, F14 x2, F17 x2, F18 x2 at 1-2 attempts; ten more bots 1 strike) - the F9 x7 reconnect-loop CLASS IS GONE (F9: zero final-bank lines this face). The v0.315.0 live blind line flew 31 'water: rescue blind live' legs (pass 3, air=10-11, buoyancy-only); 15 blind brackets, all frozen-physics stand-downs (vs 9). reconnects=21 (vs 14, incl. 4 sampled mob deaths: Drowned/Skeleton/Zombie). Night hold fired once (F1, tod=12543). final write-off: 8 bots, top F14 182u/16s - the deadline pockets rode unbanked.
+- THE SEAM RE-PRICED ITSELF ON THE SAME ARTIFACT: 7 wet-wall yields and F15 condemned y=57 TWICE (pre-position climb yields, the final-bank ladder's very next climb re-probes the SAME column from the same shaft bottom, 4 MORE wet rotations, yields again - F18 y=45 the same shape twice; 'no retry (no retry for wet wall)' only after the second). The yield's verdict died with the climb that wrote it.
+- v0.319.0 THE WET-COLUMN DOOM MEMO shipped (5692081, rebased over cron30's 0230 worklog record 5130098 clean, pushed 85e208f): wetColumnMemoCondemn/wetColumnMemoBlocked in src/lib/surface.mjs (cap 32, oldest evicts; tolerance 1 - condemned at the yield level and below, a bot above the water climbs free; junk never condemns and never blocks), miner.mjs wiring: the yield point condemns the column lazily, climbOut refuses FAST at entry with the SAME 'wet wall' reason every retry gate already handles (memoRefusal: true, the v0.316.0 latch still counts the attempt, force keeps its ledger-escape meaning). Refusal line 'climb wet memo: column x,z already yielded (N wet rotations at y=Y) - refusing without the grind'.
+- Tests: tests/unit/wet-column-memo.test.mjs 13 (the F15 datum roundtrip, below/above the water, neighbor columns, junk battery + half-written-record edge, cap eviction + re-condemn updates, constants pin, 5 wiring pins incl. the byte-stable v0.312.0 yield line). Local: syntax OK, unit 2302/2302. One self-inflicted pin fixed pre-push (the 'no dry bearing' phrase lives in surface.mjs comments legitimately - the pin now checks the memo LOG LINE's words, not the lib file).
+- Gate 36616173092 (85e208f) polled to SUCCESS (~19 min shape). DISPATCHED: HTTP 204 -> 36617588210 (created 19:12:30Z, the memo's first face + the first live unaccounted-mass decode face), head read 41248a4 = cron30's 0300 worklog record - a WORKLOG-ONLY delta over my 85e208f, the proven-code question identical, zero loss, no re-dispatch (their 0300 record explicitly handed the dispatch to this fire).
+
+Stage Summary:
+- Master = 41248a4 (pkg 0.319.0 tree = my 85e208f + their worklog, gate 36616173092 SUCCESS). FLEET QUEUED: 36617588210. This record rides local until the fleet is IN FLIGHT (the stale-queued law - zero pushes while it queues).
+- NEXT FIRE (the 0338 handoff): ride + mine 36617588210 - 'climb wet memo:' lines (THE MEMO VERDICT: refusals firing = the seam cured), wet-wall yield count vs 7 and the F15-y57-x2 shape vs x1, still-underground vs 18, dooms-latched vs 8, banked vs 254, crater vs 15.8%, unaccounted vs 13.7% (silent expected below the floor), mined vs 1875/3.13, alive vs 19/19, reconnects vs 21. If the memo verdict is clean -> the underground-cache chest lane re-prices (the crater still spoke at 15.8% - the chains are the bottleneck, the memo only stops the double-pay).
+- Version next integer: 0.320.0 (0.319.0 claimed by commit 85e208f).
+- OPEN FRONTS: the underground-cache chest (the crater's second instrument); the blind frozen-physics class (15 brackets, all stand-downs - the reconnect lane owns the walk gate); reconnects 21 vs 14 (watch); shooter-band census; GC Pinned hunt; void stamp; staggered-night bank.
+
+---
+
 Task ID: cron30-20260930-0300
 Agent: cron30 (main lane, Job 414125)
 Task: fire 0300 - mine the latch's first face, prove v0.318.0, hand the dispatch behind the green gate.
