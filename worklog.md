@@ -8934,3 +8934,19 @@ Stage Summary:
 - Master = 7b8cd19 (pkg 0.308.0, the combined tree PROVEN in the field). Baseline: banked=1778, write-off 335u/2 holders, still-underground 3, pre-position 6 delivered/2 exhausted.
 - The next fire's fronts: the drowned class (the flooded band, 1+ death per face), the mined-rate recovery (3.41 b/s low - the worldmap/scout integration is the stated milestone), the air-bar page backoff (the storm's seed variance makes the datum thin - wait for a stormy face), the standing queue (the void stamp, the doomed-goal-cache, the GC Pinned hunt).
 - The queued-latest-kept law is now CONFIRMED for both push and dispatch events: queued runs die to any newer queue entry; in_progress runs survive. Dispatch only right after a gate green, never while a push is cooking.
+
+---
+Task ID: cron30-20260929-1730
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1730 - verify gates, ride my own fleet face to completion, MINE it.
+
+Work Log:
+- Arrival: master = 7b8cd19 (pkg 0.308.0). Both code gates green (36545007810 on 71f6c12 SUCCESS, 36544561973 on a240751 SUCCESS). The fleet 36547556739 (my 1700 dispatch) in_progress - slot held by my own run, no new dispatch.
+- Rode the face: unit shards green + Integration SUCCESS on the run; the Big fleet job materialized 09:32Z, completed SUCCESS 09:44Z (log 256KB - no flood).
+- MINED THE 0.307.0+0.308.0 FACE: (1) v0.308.0 THE PLANK CONVERSION RUNG PROVEN - 2 conversions (F19 3->11 need 8; F15 1->5 need 4), the v0.305.0 rung landed after (F6 'sword: table crafted from planks'), 'failed (no table)' fell 5 -> 1. (2) v0.307.0 dy-priced deep window: 6 delivered (+388 total) vs 4 last face; exhausted 3 holders F3/F4/F5 (was 4/750u); write-off fell 7/1273u -> 2/335u (F1 261u/15s is the biggest single loss). (3) Mob deaths 12 -> 6 (3 zombie, 1 skeleton, 1 creeper, 1 drowned) BUT the lens line count = 0 - the second hostile NEVER triggered this face: unproven, not refuted (no co-occurring second hostile in census range arose). (4) Refractory holds: 'pockets full' refusals 3 -> 0. (5) banked 1317 -> 1778 (record 2121).
+- NO CODE: the mining landed at minute ~18 of the box - the improvement prices off this face NEXT fire. No dispatch (the face just flown IS the current tree; slot free at fire end).
+
+Stage Summary:
+- Master = 7b8cd19 (pkg 0.308.0). FLEET OF RECORD: 36547556739 (completed success, MINED - the conversion rung proven, deaths halved, write-off 1273u -> 335u).
+- NEXT FIRE: (1) the death contexts - were the 6 mid-evasion (the lens's signature) or shelter-coffin? The lens never triggered: study census range/trigger gap if evasion deaths persist; (2) F1 261u/15s write-off - the single biggest loss, a bank-lane gap; (3) the 3 exhausted deep holders F3/F4/F5 - the window vs the budget split; (4) one atomic improvement prices off this face, then dispatch.
+- OPEN FRONTS: the shelter-vs-melee coffin (may now be THE death shape if the 6 weren't mid-evasion); the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
