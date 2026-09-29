@@ -20,6 +20,7 @@ import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, climbRearmTicks, CLIMB_REARM_TICKS, riseRecoveryPlan, isDigLanded, digRefusalDetail,
+  climbPouncePlan, CLIMB_POUNCE_BACK_TICKS, CLIMB_POUNCE_JUMP_TICKS, // (v0.311.0) the well pounce
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
@@ -4428,6 +4429,7 @@ export function createMiner ({
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
     let stillThereRearms = 0 // (v0.309.0) still-there re-arms this climb, first 3 landed / 2 failed logged
+    let wellPounces = 0 // (v0.311.0) well pounces this climb, first 2 landed / 2 failed logged
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
@@ -4901,6 +4903,46 @@ export function createMiner ({
           bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetNow.y, now: Date.now() })
           log(`${tag} climb: walkable surface at y=${feetNow.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over`)
           return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+        }
+        // (v0.311.0) THE WELL POUNCE - before the ladder spends its A* and its
+        // digs, the 8/10 well signature (fleet 36566021862: support=solid
+        // step=air head=air, 'did not rise' dug=1..30) gets the pathfinder's
+        // own jump-edge trick by hand: back off the face press, then forward+
+        // jump the long hold at the same bearing. One bounded attempt per
+        // level's first fail (climb-scoped cap 2), DRY feet only - the wet
+        // levels keep the longHold lane. Failure falls into the ladder below
+        // unchanged - the pounce widens nothing.
+        if (!rose && wellPounces < 2 && !isWetCell(readCell(feetNow))) {
+          const supportB = readCell(feetNow.offset(d.x, 0, d.z))
+          const stepB = readCell(feetNow.offset(d.x, 1, d.z))
+          const headB = readCell(feetNow.offset(0, 2, 0))
+          const pounce = climbPouncePlan({
+            supportSolid: !!supportB && supportB.boundingBox === 'block',
+            stepOpen: !!stepB && stepB.boundingBox === 'empty',
+            headOpen: !!headB && headB.boundingBox === 'empty'
+          })
+          if (pounce) {
+            wellPounces++
+            try {
+              await bot.lookAt(feetNow.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
+              bot.setControlState('forward', false)
+              bot.setControlState('backward', true)
+              await settleTicks(pounce.back, 'climb pounce back')
+              bot.setControlState('backward', false)
+              bot.setControlState('forward', true)
+              bot.setControlState('jump', true)
+              await settleTicks(pounce.jump, 'climb pounce jump')
+              bot.setControlState('forward', false)
+              bot.setControlState('jump', false)
+            } catch { /* the ladder below owns it */ }
+            const feetPounce = bot.entity ? bot.entity.position.floored() : feetNow
+            if (feetPounce.y > feetNow.y) {
+              steps++; fails = 0
+              log(`${tag} climb pounce: landed y=${feetPounce.y} (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the well geometry broken`)
+              continue
+            }
+            if (diagLevels < 3) log(`${tag} climb pounce: did not rise (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the assist ladder owns it`)
+          }
         }
         // (v0.27.0) RISE RECOVERY: two failed raw stepUps on geometry the dig
         // pass just verified clean is the fleet's 'did not rise (dug=0)' class

@@ -932,6 +932,60 @@ export function climbRearmTicks (opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.311.0) THE WELL POUNCE - the manual back-off the rise ladder lacks.
+//
+// MEASURED (fleet 36566021862, the double-0.309.0 + 0.310.0 face, the FIRST
+// full 600s survival since the OOM season: alive=19/19, mined=2361 @ 3.94 b/s,
+// banked=1117): the climb chain is now THE banked killer - 9 of 19 bots ended
+// 'still underground after N climb attempts' and the deadline write-off rode
+// 1120u unbanked. The climb diag census splits the loss: 41 wet-wall lines
+// (dug=0, the flooded levels the server prices shut) and 10 'did not rise'
+// lines of which 8 read the SAME signature: feet=air support=stone step=air
+// head=air - the v0.27.0 1x1 WELL: the bot stands fine, faces a 1-high step
+// with open air above, and the raw stepUp fails because pressed against the
+// step face the collision zeroes horizontal velocity while the jump arc needs
+// it. The ladder's cures all miss the well: the assist goto needs the
+// pathfinder's run-up the well cannot offer (NoPath, v0.52.0's own words),
+// the traverse gallery digs an L the well's guards often refuse, the rotate
+// re-digs 2+ cells per bearing and burns the fail budget on geometry ONE
+// back-step would break. The pathfinder's own jump-edge trick names the cure
+// (v0.27.0's comment: 'backs off, jumps with speed') - the pounce performs it
+// by hand: release forward, BACK up a few ticks (breaks the face press, opens
+// the collision), then forward+jump the long hold at the same bearing. No
+// digs, no pathfinder, no guards beyond the signature itself; the well floor
+// behind the bot is the shaft floor the bot is standing on. Pure, junk-tolerant.
+// ---------------------------------------------------------------------------
+
+export const CLIMB_POUNCE_BACK_TICKS = 4
+export const CLIMB_POUNCE_JUMP_TICKS = 24
+
+/**
+ * The well-pounce plan (back/jump ticks) for a failed climb rise, or null.
+ * Fires only on the FULL well signature - support solid at feet level toward
+ * the bearing, step open above it, head clearance open - the 8/10 fleet
+ * signature; anything else stays with the existing ladder. Pure, junk-tolerant.
+ * @param {object} [p]
+ * @param {boolean|null} [p.supportSolid] the feet-level block toward d is solid
+ * @param {boolean|null} [p.stepOpen] the block above the support is empty
+ * @param {boolean|null} [p.headOpen] the clearance above the bot's head is empty
+ * @param {number} [p.back] the back-off hold (default CLIMB_POUNCE_BACK_TICKS)
+ * @param {number} [p.jump] the forward+jump hold (default CLIMB_POUNCE_JUMP_TICKS)
+ * @returns {{back: number, jump: number}|null} the pounce plan, or null
+ */
+export function climbPouncePlan (opts = {}) {
+  // (the Number(null) lesson, sixth strike) the BODY guard, not a destructuring
+  // default: climbPouncePlan(null) would throw on the destructure itself.
+  const {
+    supportSolid = null, stepOpen = null, headOpen = null,
+    back = CLIMB_POUNCE_BACK_TICKS, jump = CLIMB_POUNCE_JUMP_TICKS
+  } = opts || {}
+  if (supportSolid !== true || stepOpen !== true || headOpen !== true) return null
+  const bt = Number.isFinite(back) && back > 0 ? back : CLIMB_POUNCE_BACK_TICKS
+  const jt = Number.isFinite(jump) && jump > 0 ? jump : CLIMB_POUNCE_JUMP_TICKS
+  return { back: bt, jump: jt }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //
