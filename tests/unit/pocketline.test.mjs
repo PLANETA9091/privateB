@@ -182,7 +182,7 @@ test('REGRESSION PIN: the write-off row rides the report block beside the loot l
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.321.0 extended the same import)')
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.322.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -364,7 +364,7 @@ test('pocketAnatomyRow: THE WIRING PIN - the report block judges the shape', () 
 })
 
 // ---------------------------------------------------------------------------
-// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// (v0.322.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
 // FACE: fleet 36617588210 (THE LANDMARK) read surplus=531u with the inflow
 // hypothesized as crafted units the mined counter never tracks - unmeasured
 // by name. These tests pin the classification law, the landmark datum, the

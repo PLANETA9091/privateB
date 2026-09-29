@@ -234,7 +234,7 @@ export function pocketAnatomyRow (miners, { total = null } = {}) {
   return `pocket anatomy: spread across ${holders.length} holders, top ${top.name} ${top.units}u = ${pct}% of ${t}u - the chains own the crater's face, no single walk cures it`
 }
 
-// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// (v0.322.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
 // FACE. Fleet 36617588210 (THE LANDMARK) read the ledger's first balance:
 // mined=2238, banked=2295, smelted=49, pocket=425u, unaccounted=0, surplus=531u
 // (conversion 123.7%) - and v0.201.0 named the hypothesis a decade of fires

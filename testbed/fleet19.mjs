@@ -3218,7 +3218,7 @@ console.log(writeOffRow(list))
 // one walk from the yard, a spread pocket is the chains' failure. Same
 // report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
 console.log(pocketAnatomyRow(list, { total: endPk.units }))
-// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// (v0.322.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
 // FACE: fleet 36617588210 (THE LANDMARK) read surplus=531u (the ledger's
 // first balance) with the inflow hypothesized as crafted units the mined
 // counter never tracks (the v0.201.0 note) - unmeasured by name. The row
