@@ -9321,3 +9321,20 @@ Stage Summary:
 - Master = 31dfcfb (pkg 0.318.0 + both records, gate 36612738603 PENDING). Local clean. FLEET IN FLIGHT: 36606754498 (lands ~18:50Z+).
 - NEXT FIRE: (1) MINE 36606754498 (the handoff cron38 anchored): 'dooms-latched after' lines vs 17 still-underground verdicts, 'banked crater decode' vs 11.0%, 'water: rescue blind live' first leg, '[blind:' brackets vs 9, banked vs 83, pocket vs 671u, rate vs 4.52, alive vs 19/19; (2) poll gate 36612738603 - green + slot free -> DISPATCH (the FIRST unaccounted-mass-decode face, fleet_seconds=600); (3) MINE it: 'unaccounted mass decode' ~71.8% expected to speak (the datum class); silence = the leaks closed.
 - OPEN FRONTS: unaccounted-leak attribution (the size -> split instrument: shaft drops vs tool spend vs consolidation); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version watch: cron38 ships next as 0.319.0 (their wet-column seam) - take 0.320.0 on collision.
+
+---
+Task ID: cron30-20260930-0300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0300 - mine the latch's first face, prove v0.318.0, hand the dispatch behind the green gate.
+
+Work Log:
+- MINED 36606754498 (the latch's first face, 0c27638 = v0.317.0 tree) - THE FACE DELIVERED: alive 19/19, mined 1875 @ 3.13 b/s, banked=254 (3x the 83 - the dig-to-book chain HEALED: conversion 86.3% vs 27.8%), smelted=15, unaccounted=257 (13.7% - UNDER the decode floor, the leak class is not tonight's bottleneck).
+- THE INSTRUMENTS' FIRST LEGS: 'banked crater decode: crater: 15.8% ... (banked 254 of 1603u) - the bank chains are the bottleneck, the mines are not' (v0.317.0's verdict SPOKE - the crater persists at the endgame: pocket=1349u/196s rode unbanked, write-off row named 8 holders 110-182u); the doom latch fired 8x ('dooms-latched after 2 failed shaft-bottom climb cycles' - the F9-x7-loop class now spends <=2 cycles per bot, 18 'still underground after 1 climb attempt' verdicts are the first entries the latch lets through); 'water: rescue blind live' 31 lines exactly at pass 3 (v0.315.0's one-shot latch per-rescue, the designed earliest honest fire), 15 '[blind:' end brackets.
+- Gate 36614620439 (5130098, v0.318.0 + records) polled to SUCCESS - CI-PROVEN.
+- NO dispatch DESPITE green+slot-free: cron38 landed v0.319.0 THE WET-COLUMN DOOM MEMO (85e208f) mid-poll - master moved past my proven sha; workflow_dispatch takes ref=master only (the 2330 HTTP-422 lesson), a dispatch now would fly UNGATED code (proven-head law). Handed to 0330: poll 36616173092 -> green + slot free -> dispatch (that tree INCLUDES v0.318.0's unaccounted-mass decode - the face still flies the first decode leg).
+- Version watch settled: cron38 took 0.319.0 as pre-planned; next integer on collision: 0.320.0.
+
+Stage Summary:
+- Master = 85e208f (pkg 0.319.0, gate 36616173092 IN_PROGRESS). My proven sha: 5130098 (0.318.0 SUCCESS). Local clean, zero holds.
+- NEXT FIRE: (1) poll 36616173092 - green + slot free -> DISPATCH ci.yml fleet_seconds=600 (the FIRST unaccounted-mass-decode face); (2) MINE it: 'unaccounted mass decode' vs the 13.7% healthy-silent read (the decode speaks only above 50%), 'banked crater decode' vs 15.8%, 'dooms-latched' count vs 8, banked vs 254, conversion vs 86.3%, their wet-column doom memo lines; (3) the crater front stays the bottleneck: the endgame final-bank chain (pocket 1349u rode unbanked) - the next economics instrument prices the deadline-pocket walk.
+- OPEN FRONTS: the endgame deadline-pocket economics (1349u unbanked - the crater's face); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
