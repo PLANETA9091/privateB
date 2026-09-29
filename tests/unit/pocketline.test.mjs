@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,8 +181,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.322.0 extended the same import)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.323.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -443,4 +443,66 @@ test('surplusFaceRow: THE WIRING PIN - the report block names the face', () => {
   const faceIdx = src.indexOf('surplusFaceRow(list')
   assert.ok(faceIdx > anatomyIdx, 'the face row prints AFTER the anatomy row - the same report-block class')
   assert.ok(src.includes('THE SURPLUS-FACE ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.323.0) THE BANK-FLOW ROW - the crater's FEASIBILITY was never priced:
+// fleet 36626921875 (the first pocket-anatomy face) read crater 41.3% with
+// the pocket sitting ~1639u through the endgame while banked crept
+// 1117->1154 across the final ~75s - a flow no line ever measured. These
+// tests pin the measured datum, the stood-still form, the Infinity guard,
+// the junk discipline, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('bankFlowRow: THE MEASURED FLOW (fleet 36626921875 tail: +37u over 75s)', () => {
+  assert.equal(BANK_FLOW_MIN_SAMPLES, 2)
+  const v = bankFlowRow([{ t: 0, banked: 1117 }, { t: 75, banked: 1154 }], { pocketUnits: 1639 })
+  assert.ok(v.startsWith('bank flow: 0.5u/s (banked +37u over 75s)'), v)
+  assert.match(v, /the 1639u pocket needs 3323s past the deadline$/, 'the pocket read prices the flow')
+})
+
+test('bankFlowRow: the living flow without a pocket read and the pocket-junk law', () => {
+  const v = bankFlowRow([{ t: 10, banked: 5 }, { t: 70, banked: 65 }])
+  assert.equal(v, 'bank flow: 1.0u/s (banked +60u over 60s)')
+  const v2 = bankFlowRow([{ t: 10, banked: 5 }, { t: 70, banked: 65 }], { pocketUnits: 'junk' })
+  assert.equal(v2, v)
+  const v3 = bankFlowRow([{ t: 10, banked: 5 }, { t: 70, banked: 65 }], { pocketUnits: 0 })
+  assert.equal(v3, v)
+})
+
+test('bankFlowRow: THE STOOD-STILL FORM - a dead chain owes no seconds (the Infinity guard)', () => {
+  const v = bankFlowRow([{ t: 0, banked: 100 }, { t: 60, banked: 100 }], { pocketUnits: 500 })
+  assert.equal(v, 'bank flow: 0.0u/s (banked +0u over 60s) - the chains stood still')
+  // a NEGATIVE delta (the counter drift correction) is still a still chain - no tail
+  const v2 = bankFlowRow([{ t: 0, banked: 100 }, { t: 30, banked: 90 }], { pocketUnits: 500 })
+  assert.equal(v2, 'bank flow: 0.0u/s (banked +-10u over 30s) - the chains stood still')
+})
+
+test('bankFlowRow: THE NONE-FORM and the junk discipline', () => {
+  // fewer than two valid samples is a verdict too (the 05:00 ledger-skip lesson)
+  assert.equal(bankFlowRow([]), 'bank flow: none (no cadence series this read)')
+  assert.equal(bankFlowRow([{ t: 5, banked: 10 }]), 'bank flow: none (no cadence series this read)')
+  assert.equal(bankFlowRow('junk'), 'bank flow: none (no cadence series this read)')
+  assert.equal(bankFlowRow(), 'bank flow: none (no cadence series this read)')
+  // impossible data skipped: non-finite and negative t/banked
+  const v = bankFlowRow([{ t: NaN, banked: 5 }, { t: -3, banked: 5 }, { t: 10, banked: NaN }, { t: 20, banked: -7 }, { t: 30, banked: 40 }, { t: 90, banked: 70 }])
+  assert.equal(v, 'bank flow: 0.5u/s (banked +30u over 60s)')
+  // a non-monotone t cannot make a window (equal and decreasing t skipped)
+  const v2 = bankFlowRow([{ t: 10, banked: 5 }, { t: 10, banked: 9 }, { t: 8, banked: 9 }, { t: 70, banked: 65 }])
+  assert.equal(v2, 'bank flow: 1.0u/s (banked +60u over 60s)')
+  // sub-second samples floor into the same tick - no zero-span window
+  const v3 = bankFlowRow([{ t: 10.2, banked: 5 }, { t: 10.9, banked: 9 }, { t: 70.1, banked: 65 }])
+  assert.equal(v3, 'bank flow: 1.0u/s (banked +60u over 60s)')
+})
+
+test('bankFlowRow: THE WIRING PIN - the report block prices the flow', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /bankFlowRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.match(src, /const bankFlowSamples = \[\]/)
+  assert.match(src, /bankFlowSamples\.push\(\{ t: Date\.now\(\) \/ 1000, banked \}\)/)
+  assert.match(src, /bankFlowRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units \}\)/)
+  const faceIdx = src.indexOf('surplusFaceRow(list')
+  const flowIdx = src.indexOf('bankFlowRow(bankFlowSamples')
+  assert.ok(flowIdx > faceIdx, 'the flow row prints AFTER the surplus-face row - the same report-block class')
+  assert.ok(src.includes('THE BANK-FLOW ROW'), 'the wiring carries its own doctrine comment')
 })

@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3065,6 +3065,13 @@ for (let i = 0; i < names.length; i++) {
 }
 
 let lastReportAt = Date.now()
+// (v0.323.0) THE BANK-FLOW CADENCE SERIES - one (t, banked) sample per
+// reporter tick; the final report's bank-flow row prices the endgame tail
+// (last BANK_FLOW_WINDOW samples) at its measured rate (fleet 36626921875:
+// the pocket sat ~1639u through the endgame while banked crept 1117->1154 -
+// a flow no line ever measured, so the crater's feasibility stayed unknown)
+const bankFlowSamples = []
+const BANK_FLOW_WINDOW = 20 // the last ~5min at the 15s tick = the endgame window
 const reporter = setInterval(() => {
   // (v0.18.15) self-annotated gaps: one skipped tick is normal under load (2.5x
   // tolerance); past that the line carries the [hb] attribution matrix inline
@@ -3080,6 +3087,8 @@ const reporter = setInterval(() => {
   // is the loot-conversion trend (the 93% loss made visible BEFORE the run ends)
   const pk = pocketTotals(list)
   console.log(`t-${Math.max(0, (deadline - Date.now()) / 1000).toFixed(0)}s alive=${aliveCount()}/${COUNT} mined=${s.mined} map=${mapRep.positions}p/${mapRep.chunksScanned}ch banked=${banked} smelted=${smelted} pocket=${pk.units}u/${pk.slots}s | ${per}`)
+  // (v0.323.0) the cadence sample rides the tick (t in seconds, the row's window unit)
+  bankFlowSamples.push({ t: Date.now() / 1000, banked })
   if (Object.keys(need).length) console.log(`   deficits: ${topDeficits()}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
@@ -3226,6 +3235,12 @@ console.log(pocketAnatomyRow(list, { total: endPk.units }))
 // surplus's visible face. Same report-block class (ALWAYS printed - the
 // 05:00 ledger-skip lesson).
 console.log(surplusFaceRow(list, { surplus: ledger.surplus }))
+// (v0.323.0) THE BANK-FLOW ROW - the crater's FEASIBILITY priced: the
+// endgame tail of the cadence series at its measured rate, the ledger's own
+// pocket read as the seconds the flow still owes. Separates a slow chain
+// from a dead one (the endgame bank-cadence front). Same report-block class
+// (ALWAYS printed - the 05:00 ledger-skip lesson).
+console.log(bankFlowRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units }))
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed

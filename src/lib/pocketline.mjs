@@ -313,3 +313,55 @@ export function surplusFaceRow (miners, { surplus = null } = {}) {
   const top = flows.slice(0, SURPLUS_FACE_TOP).map(f => `${f.name} ${f.units}u`).join(', ')
   return `surplus face: crafted-class ${cu}u of ${total}u pocket (${pct}%), top ${top} - the mined counter never saw these units${sNote}`
 }
+
+// (v0.323.0) THE BANK-FLOW ROW - the crater's FEASIBILITY was never priced.
+// Fleet 36626921875 (the first pocket-anatomy face) read crater 41.3% with
+// the partials showing the wound's motion: the pocket sat ~1639u/240s through
+// the endgame while banked crept 1117->1154 across the final ~75s - the bank
+// chains were ALIVE but their mass-flow rate was never measured, so no line
+// could say whether the deadline's write-off was a cadence short or a
+// cadence hopeless. The row prices the flow: rate = (last banked - first
+// banked) / (last t - first t) over the caller's sample window, and the
+// pocket's own read (endPk.units) becomes the seconds the flow still owes -
+// 'the 1639u pocket needs Ns past the deadline' at the measured rate (the
+// number the endgame bank-cadence front needs to separate a slow chain from
+// a dead one). Samples ride the partial reporter's tick; the caller owns the
+// window (the wiring passes the endgame tail, not the whole run). Junk law:
+// non-finite/negative t or banked are impossible data - skipped; a
+// non-monotone t cannot make a window - skipped; fewer than two valid
+// samples read 'none' (an absent cadence is a verdict too - the 05:00
+// ledger-skip lesson). ALWAYS printed.
+export const BANK_FLOW_MIN_SAMPLES = 2
+
+/**
+ * The endgame bank-flow verdict: at what rate did the chains move mass?
+ * @param {Array<{t?: number, banked?: number}>} samples the cadence series
+ * @param {{pocketUnits?: number|null}} [opts] the ledger's pocket read (endPk.units)
+ * @returns {string} the flow verdict, always speaks
+ */
+export function bankFlowRow (samples, { pocketUnits = null } = {}) {
+  const good = []
+  for (const s of (Array.isArray(samples) ? samples : [])) {
+    const t = s?.t
+    const b = s?.banked
+    if (!Number.isFinite(t) || t < 0 || !Number.isFinite(b) || b < 0) continue
+    if (good.length > 0 && t <= good[good.length - 1].t) continue // a non-monotone t cannot make a window
+    good.push({ t: Math.floor(t), b: Math.floor(b) })
+  }
+  if (good.length < BANK_FLOW_MIN_SAMPLES) return 'bank flow: none (no cadence series this read)'
+  const first = good[0]
+  const last = good[good.length - 1]
+  const span = last.t - first.t
+  const delta = last.b - first.b
+  if (span <= 0) return 'bank flow: none (no cadence series this read)'
+  const rate = delta / span
+  // the pocket tail needs a living flow - a still chain owes Infinity seconds,
+  // which is the verdict's own shape (no tail on the stood-still form)
+  const pNote = (rate > 0 && Number.isFinite(pocketUnits) && Math.floor(pocketUnits) > 0)
+    ? ` - the ${Math.floor(pocketUnits)}u pocket needs ${Math.ceil(Math.floor(pocketUnits) / rate)}s past the deadline`
+    : ''
+  if (delta <= 0) {
+    return `bank flow: 0.0u/s (banked +${delta}u over ${span}s) - the chains stood still${pNote}`
+  }
+  return `bank flow: ${rate.toFixed(1)}u/s (banked +${delta}u over ${span}s)${pNote}`
+}
