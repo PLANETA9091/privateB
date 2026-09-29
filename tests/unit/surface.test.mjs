@@ -814,7 +814,7 @@ test('wetCeilingAscendGate: junk reads never throw and never over-dig', () => {
 // classes keep their ladders byte for byte, the vertical digs only where the
 // escapes left the pass standing wet.
 test('WIRING PIN: the wet-ceiling ascend rides the blockedWet branch (v0.300.0)', () => {
-  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   assert.ok(minerSrc.includes('climb wet ascend: dug the ceiling'),
     'the ascend names its line (the same tag the fleet log filters)')
   assert.ok(/wetCeilingAscendGate,\s*WET_CEILING_DIG_BUDGET/.test(minerSrc),
