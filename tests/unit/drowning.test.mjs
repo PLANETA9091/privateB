@@ -1026,6 +1026,68 @@ test('vettedFleeTargetAbs: the ledger tier and the junk shape', () => {
     'a non-finite anchor y = null (the sample plane is unreadable)')
 })
 
+// ---- v0.298.0: THE THREAT-AWARE FLEE LADDER ----
+// Run36507990221 (the dual-v0.297.0 tree's first field flight, SUCCESS
+// 19/19) still lost F17 and F6 to creeper explosions on ONE shared
+// signature: the away bearing was water/hazard-vetoed, the first-pass
+// ladder handed the flee a +90/-90 TANGENT, and the creeper (closing
+// STRAIGHT) ate the arc - F17's flee never opened distance (6.2 -> 1.7)
+// and both bots' last rotations were 90deg turns. A dry rotation is not a
+// gaining rotation: under finite threat coords the ladder scores every
+// veto-passing candidate by post-hop distance from the threat and the
+// farthest wins (ties ride the legacy order). The away-axis geometry
+// (0-turn = d+12 >= sqrt(d^2+144)) keeps the unvetoed away flee byte-true.
+
+test('vettedFleeTargetAbs: the threat-aware ladder picks the farthest dry cell', () => {
+  const dry = () => 'grass_block'
+  // the away axis, threat on it, nothing vetoed: the 0-turn candidate scores
+  // exactly d+12 (14 from a threat 2 behind) - the geometric law keeps the
+  // legacy shape byte-true (no overrode fields, the tangent never outruns it)
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: -2, threatZ: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'the on-axis threat cannot beat d+12: the away flee rides unchanged')
+  // the d=0 edge: the tangent ties d+12 at exactly 12 - the legacy order stands
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 0, threatZ: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'a tied farthest score rides the legacy order (strict > keeps the earlier candidate)')
+  // the kite shape: the target bearing is NOT radial-away, so a rotation can
+  // genuinely out-distance - threat at (2,3) vs a (12,0) target: 0-turn scores
+  // sqrt(10^2+3^2)=10.44, the -90 quarter (0,-12) scores sqrt(2^2+15^2)=15.13
+  // and wins -> the return NAMES the override (overrode + firstTurns)
+  const v = vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 2, threatZ: 3 })
+  assert.deepEqual(v, { x: 0, z: -12, turns: 3, overrode: true, firstTurns: 0 },
+    'the off-axis threat flips the ladder to the farthest quarter (the override is named)')
+  // the F17/F6 class: the away bearing VETOED (water east), the tangent pair
+  // both dry - a threat south of the axis makes the NORTH quarter farther
+  // (threat (0,4): +90 scores sqrt(0+8^2)=8, -90 scores sqrt(0+16^2)=16)
+  const wetEast = (x, y, z) => (x > 6 ? 'water' : 'grass_block')
+  const v2 = vettedFleeTargetAbs({ sample: wetEast, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 0, threatZ: 4 })
+  assert.deepEqual(v2, { x: 0, z: -12, turns: 3, overrode: true, firstTurns: 1 },
+    'the vetoed away bearing + a displaced threat: the farther tangent wins and the override names the first dry bearing')
+})
+
+test('vettedFleeTargetAbs: the threat-aware ladder degrades to the legacy byte-true', () => {
+  const dry = () => 'grass_block'
+  // no threat coords: the first-pass short-circuit stands byte for byte
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'no threat coords = the legacy shape, no extra fields')
+  // junk threat coords (the Number(null) class): degrade to the legacy,
+  // never to a judged 0 that would manufacture a real bearing
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: NaN, threatZ: 0 }),
+    { x: 12, z: 0, turns: 0 }, 'a NaN threatX degrades to the first-pass ladder')
+  assert.deepEqual(vettedFleeTargetAbs({ sample: dry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 2, threatZ: undefined }),
+    { x: 12, z: 0, turns: 0 }, 'an undefined threatZ degrades to the first-pass ladder')
+  // all four candidates vetoed under a live threat: the raw original stands
+  // (the chasing mob beats the standstill - the geometric rule owns nothing here)
+  const ocean = () => 'water'
+  assert.deepEqual(vettedFleeTargetAbs({ sample: ocean, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 2, threatZ: 3 }),
+    { x: 12, z: 0, turns: 0 }, 'all four blocked = the raw original stands (no override fields)')
+  // a live threat cannot resurrect a water bearing: the veto outranks the distance
+  const lake = (x, y, z) => (x === 6 ? 'water' : 'grass_block')
+  const v = vettedFleeTargetAbs({ sample: lake, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 0, threatZ: -4 })
+  assert.equal(v.turns !== 0, true, 'the 0-turn path swims (water at x=6) - the ladder must rotate')
+  assert.equal(fleePathBlocked({ sample: lake, ax: 0, ay: 64, az: 0, tx: v.x, tz: v.z }), false,
+    'the threat-aware pick is still path-dry (the veto outranks the distance score)')
+})
+
 // ---- v0.95.0: THE FLEE PATH VETO + THE GLITCH ESCALATION ----
 // Run84a (35801416480, the v0.94.0 fleet, NORMAL END 19/19): smelted=3 (the
 // 11-run wall cracked), the flee-dry veto fired 4x - but (a) four bots died

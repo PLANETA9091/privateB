@@ -944,6 +944,26 @@ export function fleePathBlocked ({ sample = null, ax, ay, az, tx, tz } = {}) {
  * ALL candidates blocked (or the offset is junk) -> the original stands
  * (null only when the offset itself is non-finite - the caller keeps its
  * legacy target, which gotoSafe's own guards then own).
+ *
+ * (v0.298.0) THE THREAT-AWARE LADDER: run36507990221's twin creeper kills
+ * (F17 at 1.7, F6 at hp=4) share one signature - the away bearing was
+ * water/hazard-vetoed, the +90/-90 TANGENT won the first-pass ladder, and
+ * the creeper (which closes STRAIGHT) ate the tangent arc: a rotation that
+ * only proves the ground is dry does not prove the flee GAINS GROUND. When
+ * the caller passes finite threatX/threatZ, the ladder turns distance-aware:
+ * every veto-passing candidate is collected and the one whose post-hop cell
+ * sits FARTHEST from the threat wins (ties ride the legacy order - the
+ * strict > keeps the earlier candidate). The away-vector call site is
+ * geometrically byte-true under this rule (the 0-turn candidate scores
+ * exactly d+12 from a threat on the away axis - never below any rotated
+ * candidate's sqrt(d^2+12^2), equality only at d=0 where the legacy order
+ * decides), so only a vetoed/angled target (the kite hop, the vetoed away
+ * bearing) can actually rotate differently. An override returns
+ * {overrode: true, firstTurns: N} so the wiring can NAME the reason (the
+ * rotation was the threat's read, not the water's) - the legacy shapes stay
+ * byte-true (no extra fields) for every non-override outcome, and a missing
+ * or junk threat coordinate keeps the first-pass short-circuit byte for
+ * byte.
  * @param {object} p
  * @param {Function|null} [p.sample] the live-world reader (see fleeTargetBlocked)
  * @param {Function|null} [p.hazardNear] the ledger reader (see fleeTargetBlocked)
@@ -952,14 +972,20 @@ export function fleePathBlocked ({ sample = null, ax, ay, az, tx, tz } = {}) {
  * @param {number} p.az anchor z
  * @param {number} p.tx the raw hop target x (radial away or kite hop)
  * @param {number} p.tz the raw hop target z
- * @returns {{x:number,z:number,turns:number}|null}
+ * @param {number} [p.threatX] the threat's live x (enables the distance-aware ladder)
+ * @param {number} [p.threatZ] the threat's live z (enables the distance-aware ladder)
+ * @returns {{x:number,z:number,turns:number,overrode?:boolean,firstTurns?:number}|null}
  */
-export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay, az, tx, tz } = {}) {
+export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay, az, tx, tz, threatX, threatZ } = {}) {
   // no coordinate defaults (see fleeTargetBlocked): an omitted field must be
   // junk, never a silently manufactured 0 that turns into a judgeable bearing
   const odx = tx - ax
   const odz = tz - az
   if (!Number.isFinite(odx) || !Number.isFinite(odz) || !Number.isFinite(ax) || !Number.isFinite(az) || !Number.isFinite(ay)) return null
+  // (v0.298.0) the ladder is distance-aware ONLY under a finite threat pair;
+  // junk threat coords degrade to the legacy first-pass (never to a judged 0)
+  const threatAware = Number.isFinite(threatX) && Number.isFinite(threatZ)
+  const passing = []
   for (const turns of [0, 1, 3, 2]) {
     const r = rotateBearingXZ(odx, odz, turns)
     const x = ax + r.x
@@ -969,9 +995,19 @@ export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay,
     // must be water-free at the target AND along the straight line to it.
     if (fleeTargetBlocked({ sample, hazardNear, x, y: ay, z })) continue
     if (fleePathBlocked({ sample, ax, ay, az, tx: x, tz: z })) continue
-    return { x, z, turns }
+    if (!threatAware) return { x, z, turns }
+    passing.push({ x, z, turns })
   }
-  return { x: ax + odx, z: az + odz, turns: 0 }
+  if (!threatAware || !passing.length) return { x: ax + odx, z: az + odz, turns: 0 }
+  let best = passing[0]
+  let bestD = -1
+  for (const c of passing) {
+    const d = Math.hypot(c.x - threatX, c.z - threatZ)
+    // strict > keeps the legacy order on ties (the earlier candidate stands)
+    if (d > bestD) { bestD = d; best = c }
+  }
+  if (best.turns === passing[0].turns) return { x: best.x, z: best.z, turns: best.turns }
+  return { x: best.x, z: best.z, turns: best.turns, overrode: true, firstTurns: passing[0].turns }
 }
 
 // ---- v0.59.0: the WATER MEMORY ----

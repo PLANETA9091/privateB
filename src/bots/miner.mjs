@@ -638,10 +638,14 @@ export function createMiner ({
           // hop target must be water-free by the live world AND outside the
           // hazard ledger; a blocked bearing rotates a quarter turn before the
           // original stands (a chasing mob beats a standstill).
-          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z })
+          // (v0.298.0) the threat's live coords ride the vetting: the ladder
+          // turns distance-aware (run36507990221's twin creeper kills ate the
+          // tangent arc - a dry rotation is not a gaining rotation).
+          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z })
           const fx = v ? v.x : hopT.x
           const fz = v ? v.z : hopT.z
-          if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the yard target) vs ${threat.name} (${reason})`)
+          if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the yard rotation) vs ${threat.name} (${reason})`)
+          else if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the yard target) vs ${threat.name} (${reason})`)
           goal = new goals.GoalXZ(fx, fz)
           log(`${tag} combat: flee kite hop toward the yard (${fx.toFixed(0)},${fz.toFixed(0)}) vs ${threat.name} (${reason})`)
         }
@@ -654,9 +658,14 @@ export function createMiner ({
         // water-free by the live world AND outside the hazard ledger before
         // the hop commits; a blocked bearing rotates a quarter turn (order
         // 0/+90/-90/180) before the original stands.
+        // (v0.298.0) the threat coords ride this vetting too: on the away
+        // axis the 0-turn candidate scores exactly d+12 from the threat -
+        // geometrically unbeatable - so the ladder only re-rotates when the
+        // first dry bearing was NOT the away bearing (the tangent classes).
         const raw = { x: bot.entity.position.x + (dx / len) * 12, z: bot.entity.position.z + (dz / len) * 12 }
-        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z })
-        if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the away target) vs ${threat.name} (${reason})`)
+        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z })
+        if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the away rotation) vs ${threat.name} (${reason})`)
+        else if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the away target) vs ${threat.name} (${reason})`)
         const fx = v ? v.x : raw.x
         const fz = v ? v.z : raw.z
         goal = new goals.GoalXZ(fx, fz)
