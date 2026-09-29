@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3113,6 +3113,12 @@ const ledger = lootLedger({ mined: s.mined, banked, smelted, pocket: endPk.units
 // over-accounting slack used to hide behind the clamp - run63's 396u read as
 // "unaccounted=0, the ledger balances" to one decoder and "hidden loss" to another
 console.log(`loot ledger: mined=${ledger.mined} banked=${banked} smelted=${smelted} pocket=${endPk.units}u/${endPk.slots}s accounted=${ledger.accounted} unaccounted=${ledger.unaccounted} surplus=${ledger.surplus}u conversion=${ledger.conversion == null ? 'n/a' : (ledger.conversion * 100).toFixed(1) + '%'}`)
+// (v0.302.0) THE WRITE-OFF'S FIRST LINE: fleet 36517770723 read pocket=1894u/265s
+// with no per-bot echo - F9's five refused windows + the budget-exhausted trip
+// stayed invisible behind the aggregate. The row names the holders desc by
+// units, ALWAYS printed (the 05:00 ledger-skip lesson). Same report-block
+// class as the loot ledger line above.
+console.log(writeOffRow(list))
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed

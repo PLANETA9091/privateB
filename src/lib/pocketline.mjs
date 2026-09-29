@@ -45,6 +45,48 @@ export function pocketTotals (miners) {
   return { units, slots }
 }
 
+// (v0.302.0) THE WRITE-OFF'S FIRST LINE. Fleet 36517770723 (the v0.299.0
+// field face) read pocket=1894u/265s at the deadline - banked=446 proved the
+// famine era over, but the aggregate ledger never named WHO held the stake:
+// F9's end-phase refused five bank windows ('pockets full, Ns left < 150s'),
+// its one armed trip died 'bank fallback: none (budget exhausted)', and the
+// cargo rode out with no end-of-run echo. pocketTotals sums the fleet; this
+// row names the holders, desc by units, so the write-off class is attributable
+// the way the sentry row (v0.195.0) made airGlitches attributable. ALWAYS
+// printed - the none-form is a verdict too (the 05:00 ledger-skip lesson: an
+// absent line class is indistinguishable from a filter blind spot).
+export const WRITE_OFF_MIN_UNITS = 64
+
+/**
+ * The end-of-run per-bot write-off row.
+ * @param {Array<{username?: string, bot?: {inventory?: {items?: Function}}}>} miners
+ * @param {{minUnits?: number}} [opts] the stake floor (default one stack, 64)
+ * @returns {string} 'final write-off: F9 412u/6s, F6 308u/4s (the deadline pocket rode unbanked)'
+ *   or the none-verdict when every pocket sits under the floor
+ */
+export function writeOffRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } = {}) {
+  const min = (Number.isFinite(minUnits) && minUnits > 0) ? Math.floor(minUnits) : WRITE_OFF_MIN_UNITS
+  const holders = []
+  for (const m of (Array.isArray(miners) ? miners : [])) {
+    try {
+      const items = m?.bot?.inventory?.items?.()
+      if (!Array.isArray(items)) continue
+      let units = 0
+      for (const it of items) {
+        // the same junk law as pocketTotals: NaN/Infinity AND negative counts
+        // are impossible data - zeroed, never a phantom stake
+        const c = it?.count
+        units += (Number.isFinite(c) && c > 0) ? c : 0
+      }
+      if (units >= min) holders.push({ name: m?.username || 'F?', units, slots: items.length })
+    } catch { /* a torn window view on a dying bot holds nothing this read */ }
+  }
+  if (holders.length === 0) return `final write-off: none (every pocket under ${min} units)`
+  // desc by units; the tie-break is the name so the row is byte-stable
+  holders.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
+  return `final write-off: ${holders.map(h => `${h.name} ${h.units}u/${h.slots}s`).join(', ')} (the deadline pocket rode unbanked)`
+}
+
 /**
  * Where the mined yield ended up. Everything not visibly banked, smelted or
  * still pocketed is UNACCOUNTED - the 93% class, now a number per run.

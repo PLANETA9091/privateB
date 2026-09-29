@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 
@@ -113,4 +113,77 @@ test("REGRESSION PIN: the fleet ledger print carries the surplus term (v0.201.0)
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(/unaccounted=\$\{ledger\.unaccounted\} surplus=\$\{ledger\.surplus\}u conversion=/.test(fleetSrc),
     'surplus prints ALWAYS in the loot ledger line - the 05:00 ledger-skip lesson (an absent term is a filter blind spot)')
+})
+
+// ---- (v0.302.0) THE WRITE-OFF'S FIRST LINE ----
+// fleet 36517770723: pocket=1894u/265s rode the deadline unbanked while the
+// aggregate ledger named nobody - F9's five refused windows + the
+// budget-exhausted trip had no end-of-run echo. The row attributes the stake.
+
+test('writeOffRow: the fleet-36517770723 datum - holders named desc by units, the noise pocket stays unnamed', () => {
+  const f9 = inv([{ name: 'iron_ore', count: 200 }, { name: 'cobblestone', count: 212 }]) // 412u/2s
+  const f6 = inv([{ name: 'coal', count: 308 }]) // 308u/1s
+  const f2 = inv([{ name: 'dirt', count: 30 }]) // 30u - under the floor
+  const line = writeOffRow([{ username: 'F9', ...f9 }, { username: 'F6', ...f6 }, { username: 'F2', ...f2 }])
+  assert.strictEqual(line,
+    'final write-off: F9 412u/2s, F6 308u/1s (the deadline pocket rode unbanked)',
+    'the F9 datum: the two holders in desc order with units+slots, F2 under the 64u floor never named')
+})
+
+test('writeOffRow: the none-verdict prints when every pocket sits under the floor (ALWAYS-printed law)', () => {
+  const f2 = inv([{ name: 'dirt', count: 63 }]) // one under the floor
+  assert.strictEqual(writeOffRow([{ username: 'F2', ...f2 }]),
+    `final write-off: none (every pocket under ${WRITE_OFF_MIN_UNITS} units)`)
+  assert.strictEqual(writeOffRow([]),
+    `final write-off: none (every pocket under ${WRITE_OFF_MIN_UNITS} units)`)
+})
+
+test('writeOffRow: junk inputs degrade to the none-verdict, never a throw', () => {
+  const noneForm = `final write-off: none (every pocket under ${WRITE_OFF_MIN_UNITS} units)`
+  assert.strictEqual(writeOffRow(undefined), noneForm)
+  assert.strictEqual(writeOffRow(null), noneForm)
+  assert.strictEqual(writeOffRow('nope'), noneForm)
+  assert.strictEqual(writeOffRow([{}, { bot: {} }, { bot: { inventory: {} } }]), noneForm)
+})
+
+test('writeOffRow: the torn-window and impossible-count laws match pocketTotals', () => {
+  const torn = { username: 'F4', bot: { inventory: { items: () => { throw new Error('window closed') } } } }
+  const weird = inv([{ name: 'x', count: NaN }, { name: 'y', count: -5 }, { name: 'z', count: 80 }])
+  const line = writeOffRow([torn, { username: 'F8', ...weird }])
+  assert.strictEqual(line,
+    'final write-off: F8 80u/3s (the deadline pocket rode unbanked)',
+    'the torn view holds nothing, the NaN/negative counts zero out - only the honest 80u names itself')
+})
+
+test('writeOffRow: the floor is tunable and junk floors fall back to the constant', () => {
+  const f2 = inv([{ name: 'dirt', count: 30 }])
+  assert.match(writeOffRow([{ username: 'F2', ...f2 }], { minUnits: 10 }), /F2 30u\/1s/,
+    'a lower floor names the small pocket')
+  assert.match(writeOffRow([{ username: 'F2', ...f2 }], { minUnits: NaN }),
+    /every pocket under 64 units/, 'a NaN floor falls back to the constant')
+  assert.match(writeOffRow([{ username: 'F2', ...f2 }], { minUnits: -5 }),
+    /every pocket under 64 units/, 'a negative floor falls back to the constant')
+})
+
+test('writeOffRow: the tie on units breaks by name so the row is byte-stable', () => {
+  const a = inv([{ name: 'stone', count: 100 }])
+  const b = inv([{ name: 'dirt', count: 100 }])
+  const line = writeOffRow([{ username: 'F9', ...a }, { username: 'F6', ...b }])
+  assert.strictEqual(line, 'final write-off: F6 100u/1s, F9 100u/1s (the deadline pocket rode unbanked)',
+    'same units -> name order, deterministic across runs')
+})
+
+test('writeOffRow: the constants pin', () => {
+  assert.strictEqual(WRITE_OFF_MIN_UNITS, 64, 'one stack - below this the pocket is noise, not a stake')
+})
+
+test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
+  const fs = await import('node:fs')
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row from the pocket instrument')
+  const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
+  const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
+  assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
+  assert.ok(fleetSrc.includes('THE WRITE-OFF\'S FIRST LINE'), 'the wiring carries its own doctrine comment')
 })
