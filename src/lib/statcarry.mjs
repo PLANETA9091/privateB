@@ -246,6 +246,63 @@ export function rescueHoleRow (bots = []) {
   return `rescue hole: spread - top ${top.name} holds ${top.u}u of ${total}u (${pct}%) - no single walk owns the leak`
 }
 
+// (v0.329.0) THE STORM-DIET ROW - the hole row names WHERE the unrescued mass
+// lives; the next miner's question is WHY those walks drown in glitches. Face
+// 36640056641's sentry read F11 g421/r29 + F15 g555/r18 with all 17 other
+// bots at g0 - a storm that concentrated is a storm with an ADDRESS, and the
+// fleet already carries the diet of every walk: stats.byName, the mined-block
+// histogram that survives reconnects. THE THEORY THE ROW TESTS: the glitch
+// whales are the BEACH walkers - sand, gravel, dirt and clay generate at and
+// under the waterline, so a diet dominated by the beach class says the bot's
+// territory is wet and the air sentry rides it all day. THE ROW: for every
+// whale (airGlitches at or above STORM_DIET_MIN_GLITCHES - a smaller counter
+// is grain, the ledger-grain law) print the beach-class share of its mined
+// mass with its top beach blocks named (byte-stable: count desc, name asc);
+// a whale with no mined mass reads dark ('no mined mass this read') - the
+// honest silence is a form, not an omission (the 05:00 lesson); junk counts
+// never enter the diet (the body-guard law). The row READS a theory, it does
+// not convict one: 100% beach-class is evidence, 0% is evidence too. Pure:
+// reads, never mutates.
+export const STORM_DIET_MIN_GLITCHES = 100
+export const STORM_DIET_BEACH_BLOCKS = ['sand', 'gravel', 'dirt', 'clay']
+
+/**
+ * What do the glitch whales mine? The beach-territory theory, read per whale.
+ * @param {Array<{name?: string, stats?: {airGlitches?: number, byName?: Object<string, number>}}|null>} bots
+ * @returns {string|null} 'storm diet: ...' when any whale clears the glitch floor
+ */
+export function stormDietRow (bots = []) {
+  if (!Array.isArray(bots)) return null
+  const beach = new Set(STORM_DIET_BEACH_BLOCKS)
+  const whales = []
+  for (const b of bots) {
+    const s = b && typeof b === 'object' ? b.stats : null
+    const g = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+    if (g < STORM_DIET_MIN_GLITCHES) continue
+    const hist = s.byName && typeof s.byName === 'object' ? s.byName : {}
+    let total = 0
+    const beachNamed = []
+    for (const [k, v] of Object.entries(hist)) {
+      const n = Number.isFinite(v) && v > 0 ? Math.floor(v) : 0
+      if (n <= 0) continue
+      total += n
+      if (beach.has(k)) beachNamed.push({ name: k, n })
+    }
+    whales.push({ name: b.name ?? '?', total, beachNamed })
+  }
+  if (!whales.length) return null
+  // byte-stable beach blocks: count desc, name asc; keep the top two
+  const named = whales.map(w => {
+    if (w.total <= 0) return `${w.name} no mined mass this read`
+    const bTotal = w.beachNamed.reduce((a, x) => a + x.n, 0)
+    w.beachNamed.sort((a, b) => (b.n - a.n) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    const top = w.beachNamed.slice(0, 2).map(x => `${x.name} ${x.n}`).join(', ')
+    const pct = ((bTotal / w.total) * 100).toFixed(1)
+    return `${w.name} ${pct}% beach-class${top ? ` (${top})` : ''}`
+  })
+  return `storm diet: ${named.join(' | ')} - the wet territory mines the storm`
+}
+
 /**
  * (v0.199.0) THE DEATH-DROP LINE - run84 (fleet 36207216784) named the class:
  * mined=3027 but conversion=51.1% with unaccounted=1479, and the fleet pocket

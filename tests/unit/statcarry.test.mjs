@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -355,4 +355,75 @@ test('rescueHoleRow: THE WIRING PIN - the hole row rides the economy verdict', (
   const holeIdx = src.indexOf('rescueHoleRow(list.map')
   assert.ok(holeIdx > econLogIdx, 'the hole row prints after the economy verdict, inside its conditional')
   assert.ok(src.includes('THE RESCUE-HOLE ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// (v0.329.0) THE STORM-DIET ROW - the hole row names WHERE, the diet row reads
+// WHY: the whales' carried byName histogram judged against the beach class
+// (sand/gravel/dirt/clay generate at and under the waterline - a wet
+// territory's signature). The battery: the two-whale datum, the glitch floor,
+// the dark-diet form, the byte-stable beach blocks, the junk battery, the
+// wiring pin.
+test('stormDietRow: THE TWO-WHALE DATUM - the beach share names itself', () => {
+  assert.equal(STORM_DIET_MIN_GLITCHES, 100)
+  assert.deepEqual([...STORM_DIET_BEACH_BLOCKS], ['sand', 'gravel', 'dirt', 'clay'])
+  // face 36640056641's storm shape with constructed diets: F15 is the deep
+  // beach walker, F11 the gravel bank
+  const row = stormDietRow([
+    { name: 'F15', stats: { airGlitches: 555, byName: { sand: 210, gravel: 45, stone: 15 } } },
+    { name: 'F11', stats: { airGlitches: 421, byName: { gravel: 120, sand: 30, stone: 50 } } },
+    { name: 'F3', stats: { airGlitches: 2, byName: { sand: 400 } } },
+    { name: 'F9', stats: { airGlitches: 0, byName: { stone: 900 } } }
+  ])
+  assert.equal(row, 'storm diet: F15 94.4% beach-class (sand 210, gravel 45) | F11 75.0% beach-class (gravel 120, sand 30) - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE GLITCH FLOOR - a 99-glitch bot is grain', () => {
+  // no whale at the floor -> no storm class, no line
+  assert.equal(stormDietRow([{ name: 'F7', stats: { airGlitches: 99, byName: { sand: 500 } } }]), null)
+  // exactly at the floor the bot is a whale (the >= law)
+  const row = stormDietRow([{ name: 'F7', stats: { airGlitches: 100, byName: { sand: 40 } } }])
+  assert.equal(row, 'storm diet: F7 100.0% beach-class (sand 40) - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE DARK DIET and the dry verdict', () => {
+  // a whale with no mined mass reads dark - the honest silence is a form
+  const dark = stormDietRow([{ name: 'F11', stats: { airGlitches: 421, byName: {} } }])
+  assert.equal(dark, 'storm diet: F11 no mined mass this read - the wet territory mines the storm')
+  // a zero-beach diet is evidence TOO: the theory is read, not convicted
+  const dry = stormDietRow([{ name: 'F15', stats: { airGlitches: 555, byName: { stone: 300, coal_ore: 100 } } }])
+  assert.equal(dry, 'storm diet: F15 0.0% beach-class - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE BYTE-STABLE BEACH BLOCKS and the junk battery', () => {
+  // equal counts break on name ascending (dirt before gravel before sand)
+  const tie = stormDietRow([{ name: 'F4', stats: { airGlitches: 200, byName: { sand: 10, dirt: 10, gravel: 10, stone: 5 } } }])
+  assert.equal(tie, 'storm diet: F4 85.7% beach-class (dirt 10, gravel 10) - the wet territory mines the storm')
+  // non-array / empty fleet: no census, no storm
+  assert.equal(stormDietRow(null), null)
+  assert.equal(stormDietRow(undefined), null)
+  assert.equal(stormDietRow('junk'), null)
+  assert.equal(stormDietRow([]), null)
+  // junk stats and junk counts never enter the diet (the body-guard law)
+  assert.equal(stormDietRow([
+    { name: 'F1', stats: null },
+    { name: 'F2', stats: { airGlitches: NaN, byName: { sand: 5 } } },
+    { name: 'F3' }
+  ]), null)
+  const junk = stormDietRow([{ name: 'F8', stats: { airGlitches: 300, byName: { sand: 'x', gravel: -4, dirt: 0, clay: 7.9, stone: 3 } } }])
+  assert.equal(junk, 'storm diet: F8 70.0% beach-class (clay 7) - the wet territory mines the storm')
+  // a missing name still reports its diet under '?'
+  const anon = stormDietRow([{ stats: { airGlitches: 150, byName: { sand: 9 } } }])
+  assert.equal(anon, 'storm diet: ? 100.0% beach-class (sand 9) - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE WIRING PIN - the diet rides the storm class', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /stormDietRow[\s\S]*?from '\.\.\/src\/lib\/statcarry\.mjs'/)
+  assert.match(src, /if \(stormDiet\) console\.log\(stormDiet\)/)
+  const holeIdx = src.indexOf('if (rescueHole) console.log(rescueHole)')
+  const dietIdx = src.indexOf('const stormDiet = stormDietRow(list.map')
+  const closeIdx = src.indexOf('}\n// (v0.52.0) the server-death verdict')
+  assert.ok(dietIdx > holeIdx, 'the diet row prints after the hole row it explains')
+  assert.ok(closeIdx > dietIdx, 'the diet row lives inside the economy conditional')
+  assert.ok(src.includes('THE STORM-DIET ROW'), 'the wiring carries its own doctrine comment')
 })
