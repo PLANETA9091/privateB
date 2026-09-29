@@ -9110,3 +9110,19 @@ Stage Summary:
 - Master = becf29e (pkg 0.311.0, gate-proven 36572181489). FLEET OF RECORD: 36575662869 (in flight at fire end - the pounce + jump-watch face). Local ahead: f21bea6 (v0.312.0, green, unpushed) + THIS worklog commit.
 - NEXT FIRE: (1) poll fleet 36575662869 to completion; MINE it: the pounce watch ('climb pounce: landed/did not rise' vs the 8/10 well class), the sub-floor jump watch ('[stormguard] RSS JUMP' - expected silent on a healthy face = honest negative), banked vs 1117, write-off vs 1120u, mined-rate vs 3.94 b/s, alive vs 19/19, the blind-decode absence (v0.312.0 not aboard); (2) push f21bea6 + this worklog AFTER the fleet completes; (3) poll the v0.312.0 gate -> green + slot free -> dispatch the next face (fleet_seconds=600).
 - OPEN FRONTS: the F10 zero-probe rescue floor (priced, the rescue engaged and burned o2 3->0 over 5 passes with probes=0 - the live-side cure for the blind class); the wet-wall rotate economy (41 diags); F12 'no chest in range'; the staggered-night bank economy; the GC Pinned hunt; the shooter-band census (unproven); the void stamp; the doomed-goal-cache.
+
+---
+Task ID: cron30-20260929-2200
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2200 - push the held v0.312.0 tree, mind the slot, mine what flies.
+
+Work Log:
+- The 2130 face NEVER FLEW: fleet 36575662869 = CANCELLED - it sat queued behind the becf29e push gate (36575651957, success 13:30-13:52Z window), and when cron38 re-dispatched at 13:52:35Z the supersede rule killed the older PENDING dispatch. Their second face 36578367034 (becf29e, the SAME pounce + jump-watch tree) is the one that flies.
+- Pushed the held commits clean: becf29e..b4e10a7 (f21bea6 v0.312.0 CONTROLS-BLIND DECODE + the 2130 worklog) -> master tip b4e10a7. The 2130 record feared a push would cancel the in-flight face - wrong: concurrency is cancel-in-progress FALSE, the push gate just QUEUES behind it (36579784520 PENDING on b4e10a7, verified the fleet run survived the push).
+- Monitored 36578367034: unit green both nodes (22+24), integration/fleet leg in_progress with fleet 600s - ETA ~14:26Z, past this fire's box. NO dispatch (slot busy, protocol point 6; own gate also PENDING). The pounce + jump-watch field data mines next fire.
+- This record rides LOCAL: own gate 36579784520 PENDING -> queued-latest-kept.
+
+Stage Summary:
+- Master = b4e10a7 (pkg 0.312.0 aboard, pushed). Local: this worklog only. IN FLIGHT: 36578367034 (becf29e tree - pounce watch 'climb pounce: landed/did not rise' + '[stormguard] RSS JUMP' get their FIRST field legs; blind-decode absent, v0.312.0 not aboard that face).
+- NEXT FIRE: (1) mine 36578367034 (pounce verdicts, RSS JUMP silence-or-naming, banked vs 1117, rate vs 3.94, alive vs 19/19); (2) poll gate 36579784520 on the v0.312.0 tip - green + slot free -> dispatch ci.yml fleet_seconds=600 (the controls-blind decode face); (3) push this record first.
+- OPEN FRONTS: the F10 zero-probe rescue floor (priced); the wet-wall rotate economy (41 diags); F12 'no chest in range'; the staggered-night bank economy; the GC Pinned hunt; the shooter-band census (unproven); the void stamp; the doomed-goal-cache.
