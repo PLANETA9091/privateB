@@ -8728,3 +8728,18 @@ Stage Summary:
 - The gate 36529461136 pending at fire end - the NEXT FIRE dispatches on its green (the gate law).
 - OPEN FRONTS: the 'no chest in range' finals (381u), the low-o2 finals (334u), the Drowned in-water combat (the stamp now names it), the rescue still-wet timeouts, the dusk-bank collision, the void stamp, the doomed-goal-cache, the GC Pinned hunt, the tunnel-path ore destruction.
 Identity: PLANETA9091.
+
+---
+Task ID: cron-20260929-1337 addendum
+Agent: Super Z (cron lane, Job 415967, the 1337 fire)
+Task: the gate red fixed + the dispatch landed
+
+Work Log:
+- The gate 36529461136 (9c7919e) went RED: the CI caught two hop-loop WALK ANCHORS pinned byte for byte - chestascent ('a cleared doom falls through to the legacy hop') + deposit-hop-doom ('the hop loop walk anchor exists') - the new yardGraceHolder: yardGrace threading made their depositToChest indexOf read -1 (the integration job failed on the same unit re-run; the code itself clean). THE LESSON compounds (the v0.301.0 class): a wiring pin's anchor list is part of the pin - the call-site kwarg joins the battery BEFORE the push.
+- The pins restated on the post-yard-grace tree (13bf456) - the intent (the doom consult + the skip line BEFORE the walk) verified by the node -e replay (gate < walk, skip < walk, the old anchor gone); the doomed 0b5ec9a gate cancelled (HTTP 202).
+- The gate 36530084638 (13bf456) GREEN => the dispatch landed clean (POST 204 => 36531522422, workflow 362040162, workflow_dispatch, ref=master -> 13bf456 = the proven v0.303.0 tree). FLEET OF RECORD: 36531522422.
+
+Stage Summary:
+- Master = 13bf456 (pkg 0.303.0 SHARED keep-both). CI GREEN. FLEET OF RECORD 36531522422 (the yard grace's first field flight - watch 'yard grace: the d=N walk rides...' / 'yard grace: not granted (...)', the walk-floor class's fall from 14, the write-off total vs 1713u, the death stamp's debut).
+- NEXT FIRE: (1) mine 36531522422; (2) 0.304.0 candidates: the end-phase pre-position (arm the bank walk BEFORE the climb eats the clock) or the ascend budget scaled by remaining vertical; the no-chest-in-range finals (381u) need the earlier stagger or a closer camp chest.
+Identity: PLANETA9091.
