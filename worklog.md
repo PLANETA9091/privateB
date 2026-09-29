@@ -9459,3 +9459,22 @@ Stage Summary:
 - Master = 6e02d62 (pkg 0.323.0). Local clean. FLEET IN FLIGHT: 36631612575 (353f06d = v0.322.0 - the FIRST surplus-face face).
 - NEXT FIRE: (1) poll 36631612575 to landing and MINE it: 'surplus face' first leg vs the crafted-inflow theory (top flows by name), anatomy leg #2 vs spread-18/15.7%, crater vs 41.3%, ledger vs unaccounted=0/surplus=23, F17 vs their 245u stake; (2) poll the newest gate (6e02d62 re-queues) - green + slot free -> DISPATCH (the FIRST bank-flow face, v0.323.0); (3) MINE it: 'bank flow' first leg vs 0.5u/s-3323s - the cadence-short vs cadence-hopeless split is the endgame-bank-cadence front's first measured fork.
 - OPEN FRONTS: endgame bank cadence (crater 41.3%, spread-18, flow 0.5u/s priced); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.324.0.
+
+---
+
+Task ID: cron38-20260930-0438-addendum
+Agent: cron38 (Job 415967)
+Task: ride + mine the three-instrument face (36631612575) - the addendum.
+
+Work Log:
+- RODE the union-tree face to SUCCESS (21:50:16Z: queued 21:11->~21:22Z, fleet leg ~20 min) and mined the artifact complete.
+- THE ROUTE LATCH'S FIRST FIELD VERDICT: 0 'route-latched after' lines, wet memo refusals 2 - the latch CORRECTLY stayed silent: no bot accumulated 3 memo refusals on a drier world (the F17 x21 class needs a wet-doomed route to fire; the instrument is installed, gated, CI-proven, and armed - the threshold discipline held, no false latch).
+- THE WHALE VERDICT'S FIRST FIRE (v0.320.0's discrimination, proven in the field): 'pocket anatomy: whale F12 220u = 31.1% of the unbanked 707u (17 holders) - one walk owns the crater's face' - face N-1 read spread-18 (top 15.7%), this face reads whale (31.1% >= 0.25): the instrument DISCRIMINATES whale vs spread across worlds, exactly its design.
+- THE SURPLUS FACE'S FIRST FIELD LEG (v0.321.0-theirs): 'surplus face: crafted-class 174u of 707u pocket (24.6%), top torch 61u, stick 54u, oak_planks 44u - the mined counter never saw these units' - a quarter of the unbanked pocket is crafted-class units outside the mined ledger's worldview.
+- FLEET SHAPE: NORMAL END, alive 19/19, banked=1378, mined=2166 @ 3.61 b/s, reconnects=13 (F3 g0/r19 sentry outlier), rescues=75 + airGlitches=699 (both SPIKING - the watch front), unaccounted=72 (3.3%), conversion=96.7%, write-off 3 holders (F12 220u whale, F3 111u, F6 104u).
+
+Stage Summary:
+- Master = a8cf50b (pkg 0.322.0 union tree, all gates green). FLEET OF RECORD: 36631612575 (mined - the whale fire + the surplus first leg).
+- HANDOFF to 0538: (1) the WHALE cure prices now: when the anatomy reads whale (>= 0.25), the crater's face is ONE walk - the F12-class route/chest assignment is the instrument (why did one bot hold 220u? its route, its chest range, its cadence); when spread, the chains instrument owns it - the anatomy now ROUTES the cure; (2) the airGlitches=699 + rescues=75 spike is the watch front (the 257 -> 699 jump wants a name); (3) the route latch's datum class needs a wet world - no fix pending, the instrument waits.
+- Version next integer: 0.324.0 (0.323.0 claimed mid-fire by their BANK-FLOW ROW 6e02d62 - the watch moved twice this fire).
+- OPEN FRONTS: the whale-walk instrument (the anatomy's routed cure, F12 220u/31.1% datum); the airGlitches/rescues spike census; F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp.
