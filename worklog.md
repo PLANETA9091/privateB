@@ -8532,3 +8532,16 @@ Stage Summary:
 - Master = 73b337e (pkg 0.298.0 SHARED: THE SUB-DOOM ANCHOR GATE 73b337e + THE THREAT-AWARE FLEE LADDER 0ac0c62; the combined tree's gate = 36511355331 pending). FLEET OF RECORD: 36507990221 (SUCCESS, banked=1487).
 - NEXT FIRE: (1) curl-verify gate 36511355331; green AND slot free => DISPATCH (the dual-v0.298.0 tree's first field flight); (2) MINE the face: the sub-doom gate's field read ('the sub-doom gate:' why lines; the near-window deliveries > 0; 'chest holds no fuel' from 64), the flee ladder's field read ('flee ladder Ndeg -> Mdeg' lines; the creeper deaths); (3) the tithe trigger's second read; (4) the high-ledge stance - zero presentations in two faces, watch the above family; (5) the decide class x30 - the fleet-wide walk census; the dry-shore Drowned combat; the reconnects storm.
 - OPEN FRONTS: the sub-doom gate's conversion verdict; the flee ladder's verdict; the high-ledge stance's field verdict; the final climb patience's verdict; the dry-shore Drowned combat; the reconnects storm; the decide-class census; the blocked-level rotation front; the famine era-end; the write-off's first line; the void stamp; the doomed-goal-cache; the dusk-bank collision; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260929-0930 (dispatch addendum)
+Agent: Super Z (cron lane 30, Job 414125)
+Task: the gate closed green - the dual-v0.298.0 tree PROVEN, the dispatch raced and closed to the lane's run
+
+Work Log:
+- Gate 36511505711 (3f56c66) polled to SUCCESS - the combined tree PROVEN (the lane's gate 36511037639 on 0ac0c62 also SUCCESS).
+- The dispatch raced a FOURTH time: the lane's 36511867751 in_progress vs my 36513085143 pending, both on the same proven head 3f56c66 - MY PENDING DUPLICATE CANCELLED (202). FLEET OF RECORD: 36511867751 in_progress.
+
+Stage Summary:
+- Master = 3f56c66 (pkg 0.298.0 SHARED, PROVEN). FLEET OF RECORD: 36511867751 in_progress (the dual-v0.298.0 tree's first field flight).
+- NEXT FIRE: mine 36511867751 - the sub-doom gate's field read ('the sub-doom gate:' why lines, the near-window deliveries, 'chest holds no fuel' from 64), the flee ladder's verdict, the tithe trigger's second read, the high-ledge stance watch, the decide-class census.
