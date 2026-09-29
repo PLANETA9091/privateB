@@ -192,6 +192,19 @@ export const SHORE_MAX_RADIUS = 12
 /** After a rescue, the sentry waits this long before re-firing (a bot treading
  * in a flooded shaft re-triggers otherwise every 5 s and starves the work loop). */
 export const RESCUE_COOLDOWN_MS = 3000
+// (v0.312.0) THE CONTROLS-BLIND HORIZON - when a climb-owned death stops being
+// an honest 'controls-owned' decode. MEASURED (fleet 36566021862, F14, the
+// first full-survival face): the mirror blessed the death 'controls-owned' -
+// 'the wet-escape climb owned the controls, its own lines own the story' -
+// while the sentry's own snapshot was 35.8s OLD (o2 read 20 at it, head
+// dry/unknown): the o2 burned 20 -> 0 during the ownership with the sentry's
+// sight dead for the whole burn. An owner-owned tick is only an honest decode
+// while the owner is WATCHED; past the horizon the decode must say the watch
+// failed, not bless the owner. 15s = ~2 of the sentry's own cycler windows
+// above the live cadence (the rearm/cooldown pacing is 3-12s), 2.4x under
+// the datum's 35.8s; junk/absent sentryAgeMs never reads blind (missing
+// evidence is not blindness - the body-guard law).
+export const BREATH_OWNER_STALE_MS = 15000
 // (v0.104.0) THE DRY-LAND PROOF - run93 (35835942682) mined 2026-09-23: F9/F15
 // stood DRY on the quarry rim with a bar stuck at 0; the v0.95.0 streak
 // escalation paged 'drowning', the rescue broke out in 0.0 s (dry + on
@@ -1860,6 +1873,10 @@ export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = T
  *                       timeout) own the failure story
  *   - 'controls-owned'  climb/defend/swim owned the tick - the sentry
  *                       returned before any verdict
+ *   - 'controls-blind'  (v0.312.0) a CLIMB owned the tick but the sentry's
+ *                       sight died before the death - the o2 burned unwatched
+ *                       while the owner failed (the F14 class: a stale
+ *                       snapshot is the blindness evidence)
  *   - 'dry-backoff'     the glitch-lie class held the page (critical bar on
  *                       DRY contact, un-witnessed - the gate's own shape)
  *   - 'surface-hold'    the open-water float's re-arm pacing held the page
@@ -1922,6 +1939,17 @@ export function breathMirror (r) {
   const age = Number.isFinite(rescueAgeMs) && rescueAgeMs >= 0 ? rescueAgeMs : null
   const maxMs = Number.isFinite(RESCUE_MAX_MS) ? RESCUE_MAX_MS : 25000
   if (own === 'climb' || own === 'defend') {
+    // (v0.312.0) the controls-blind split: the climb class only - the defend
+    // context owns its o2 burn inside the flee story, and a FRESH snapshot
+    // means the sentry watched the escape fail (an honest owner class). The
+    // blindness needs POSITIVE evidence (a stale-enough snapshot age); junk
+    // or missing age keeps the owner blessing byte for byte.
+    if (own === 'climb' && Number.isFinite(sentryAgeMs) && sentryAgeMs >= BREATH_OWNER_STALE_MS) {
+      return {
+        why: 'controls-blind',
+        note: `the wet-escape climb owned the controls but the sentry's sight died ${Math.round(sentryAgeMs / 1000)}s before death - the o2 burned unwatched while the owner failed (the F14 36566021862 class: the snapshot was the blindness evidence)`
+      }
+    }
     return {
       why: 'controls-owned',
       note: own === 'climb'
