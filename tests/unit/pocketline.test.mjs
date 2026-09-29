@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,12 +181,72 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the crater decode from the pocket instrument (v0.317.0 extended the same import)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.318.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
   assert.ok(fleetSrc.includes('THE WRITE-OFF\'S FIRST LINE'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.318.0) THE UNACCOUNTED-MASS DECODE - the ledger line's last column
+// (unaccounted) never judged itself: fleet 36592026195 read unaccounted=1948u
+// of 2713 mined (71.8%) and no line sized the leak. These tests pin the
+// measured datum, the floor boundary (at the floor the leak speaks), the
+// surplus clamp, the dead-run and junk disciplines, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('unaccountedMassDecode: THE MEASURED MASS (fleet 36592026195: 1948u of 2713)', () => {
+  const v = unaccountedMassDecode({ mined: 2713, banked: 83, smelted: 11, pocket: 671 })
+  assert.ok(v && v.startsWith('unaccounted: 71.8% of the mined mass never reached the books (1948u of 2713)'), v)
+  assert.match(v, /the shaft drops, the tool spend and the consolidation own the leak/)
+})
+
+test('unaccountedMassDecode: THE FLOOR - at the floor the leak speaks, below it stays quiet', () => {
+  assert.equal(UNACCOUNTED_FLOOR_SHARE, 0.5)
+  // exactly at the floor: half the mass gone is no grain - it speaks
+  assert.ok(unaccountedMassDecode({ mined: 100, banked: 50, smelted: 0, pocket: 0 }).startsWith('unaccounted: 50.0%'))
+  // one unit of accounting more: quiet
+  assert.equal(unaccountedMassDecode({ mined: 100, banked: 51, smelted: 0, pocket: 0 }), null)
+  // a healthy conversion (the run class that read 76.3%): quiet
+  assert.equal(unaccountedMassDecode({ mined: 1000, banked: 763, smelted: 0, pocket: 0 }), null)
+})
+
+test('unaccountedMassDecode: THE SURPLUS CLAMP and the dead run', () => {
+  // accounted > mined: the surplus is the ledger line's story (v0.201.0),
+  // not this verdict's - clamped to zero, never a negative share
+  assert.equal(unaccountedMassDecode({ mined: 100, banked: 80, smelted: 0, pocket: 50 }), null)
+  // nothing exists -> nothing to name
+  assert.equal(unaccountedMassDecode({ mined: 0, banked: 0, smelted: 0, pocket: 0 }), null)
+})
+
+test('unaccountedMassDecode: THE JUNK DISCIPLINE - junk never invents a mass', () => {
+  // a null ledger is not a zero ledger (the Number(null)=0 seventh-strike law)
+  assert.equal(unaccountedMassDecode({ mined: null, banked: 83, smelted: 11, pocket: 671 }), null)
+  assert.equal(unaccountedMassDecode({ mined: 2713, banked: null, smelted: 11, pocket: 671 }), null)
+  assert.equal(unaccountedMassDecode({ mined: 2713, banked: 83, smelted: null, pocket: 671 }), null)
+  assert.equal(unaccountedMassDecode({ mined: 2713, banked: 83, smelted: 11, pocket: null }), null)
+  assert.equal(unaccountedMassDecode({ mined: NaN, banked: 0, smelted: 0, pocket: 0 }), null)
+  assert.equal(unaccountedMassDecode({ mined: '2713', banked: 0, smelted: 0, pocket: 0 }), null)
+  assert.equal(unaccountedMassDecode({ mined: -5, banked: 0, smelted: 0, pocket: 0 }), null)
+  assert.equal(unaccountedMassDecode(), null)
+  assert.equal(unaccountedMassDecode(null), null)
+})
+
+test('unaccountedMassDecode: THE WIRING PIN - the report block sizes the gap', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the import carries the decode
+  assert.match(src, /unaccountedMassDecode[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  // the call feeds the same four columns the ledger line prints
+  assert.match(src, /unaccountedMassDecode\(\{ mined: s\.mined, banked, smelted, pocket: endPk\.units \}\)/)
+  // the line form: rides the report block after the crater (ALWAYS printed when it speaks)
+  assert.match(src, /unaccounted mass decode: \$\{mass\}/)
+  const ledgerIdx = src.indexOf('loot ledger: mined=')
+  const craterIdx = src.indexOf('banked crater decode:')
+  const massIdx = src.indexOf('unaccounted mass decode:')
+  assert.ok(massIdx > craterIdx && craterIdx > ledgerIdx, 'the mass decode prints after the crater - the same report-block class')
+  assert.ok(src.includes('THE UNACCOUNTED-MASS DECODE'), 'the wiring carries its own doctrine comment')
 })
 
 // ---------------------------------------------------------------------------

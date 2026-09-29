@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3155,6 +3155,15 @@ console.log(`loot ledger: mined=${ledger.mined} banked=${banked} smelted=${smelt
 // share is healthy or nothing exists (junk never invents a crater).
 const crater = bankedCraterDecode({ banked, pocket: endPk.units })
 if (crater) console.log(`banked crater decode: ${crater}`)
+// (v0.318.0) THE UNACCOUNTED-MASS DECODE - the ledger line's last column
+// never judged itself: fleet 36592026195 read unaccounted=1948u of 2713
+// mined (71.8%) with no verdict on the scale of the leak - the crater
+// decode above judges the loot-that-exists pair, not the gap. Same
+// report-block class (ALWAYS printed - the 05:00 ledger-skip lesson);
+// silent when the gap sits under the floor or nothing exists (junk never
+// invents a mass).
+const mass = unaccountedMassDecode({ mined: s.mined, banked, smelted, pocket: endPk.units })
+if (mass) console.log(`unaccounted mass decode: ${mass}`)
 // (v0.302.0) THE WRITE-OFF'S FIRST LINE: fleet 36517770723 read pocket=1894u/265s
 // with no per-bot echo - F9's five refused windows + the budget-exhausted trip
 // stayed invisible behind the aggregate. The row names the holders desc by

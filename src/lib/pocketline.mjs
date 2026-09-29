@@ -149,3 +149,40 @@ export function bankedCraterDecode (opts = {}) {
   if (share >= BANK_CRATER_FLOOR_SHARE) return null
   return `crater: ${(share * 100).toFixed(1)}% of the endgame loot reached chests (banked ${b} of ${mass}u) - the bank chains are the bottleneck, the mines are not`
 }
+
+// (v0.318.0) THE UNACCOUNTED-MASS DECODE - the ledger line's last column
+// never judged ITSELF. Fleet 36592026195 (the four-instrument face) read
+// unaccounted=1948u of 2713 mined - 71.8% of the mined mass left the books
+// unwatched while the crater decode (v0.317.0) judged only the
+// banked/pocket pair (the loot-that-exists side, 754u - the gap is nearly
+// three craters wide and no line sized it). The classic leaks were named in
+// v0.54.0 but never measured against a floor: drops landing out of pickup
+// range in the shaft, tool-upgrade consumption, consolidation losses. The
+// verdict: share = unaccounted / mined. At or above the floor the leak
+// speaks (the ledger grain is ~5-10%, so half the mass is no grain); below
+// it the class stays quiet. The surplus side (accounted > mined) is the
+// ledger line's own story (v0.201.0) - clamped to zero here, never a
+// negative share. Junk never invents a mass (the body-guard law, same
+// discipline as the crater decode).
+export const UNACCOUNTED_FLOOR_SHARE = 0.5
+
+/**
+ * The unaccounted-mass verdict: how much of the mined mass left the books?
+ * Pure, junk-tolerant - null means 'quiet' or 'cannot tell'.
+ * @param {{mined?: number|null, banked?: number|null, smelted?: number|null, pocket?: number|null}} p
+ * @returns {string|null} 'unaccounted: ...' when the gap crosses the floor
+ */
+export function unaccountedMassDecode (opts = {}) {
+  const { mined = null, banked = null, smelted = null, pocket = null } = opts || {}
+  const parts = [mined, banked, smelted, pocket]
+  // a null ledger is not a zero ledger - Number(null)=0 would read an
+  // unreadable run as a perfectly balanced one (the seventh-strike law)
+  if (parts.some(x => !Number.isFinite(x) || x < 0)) return null
+  const m = Math.floor(mined)
+  if (m === 0) return null // nothing exists -> nothing to name
+  const accounted = [banked, smelted, pocket].reduce((a, x) => a + Math.floor(x), 0)
+  const unaccounted = Math.max(0, m - accounted)
+  const share = unaccounted / m
+  if (share < UNACCOUNTED_FLOOR_SHARE) return null
+  return `unaccounted: ${(share * 100).toFixed(1)}% of the mined mass never reached the books (${unaccounted}u of ${m}) - the shaft drops, the tool spend and the consolidation own the leak`
+}
