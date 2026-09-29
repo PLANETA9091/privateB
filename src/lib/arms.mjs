@@ -22,7 +22,7 @@
 // The policy layer (when to craft, which tier) lives HERE; the mechanism
 // (phantom-safe craft, grid sweeps) stays in src/bots/tools.mjs, like
 // toolupgrade.mjs before it.
-import { countItem, hasKind, craftUntil, placeTable } from '../bots/tools.mjs'
+import { countItem, hasKind, craftUntil, placeTable, craftPlanksFromLogs } from '../bots/tools.mjs'
 
 // Best first. Index order IS the priority order of the tier pick.
 export const SWORD_TIERS = ['iron_sword', 'stone_sword', 'wooden_sword']
@@ -149,10 +149,28 @@ export async function craftSword (bot, { log = null, maxSwords = 1, deps = {} } 
       // same-type planks; 4 split planks craft nothing - the v0.102.0 lesson).
       // A refused/failed rung keeps the legacy failure line byte for byte.
       const plan = swordTablePlan({ tableItem: tableItemCount(bot), maxSameTypePlanks: countMaxPlankType(bot) })
-      if (plan.craftTable) {
+      let rungPlan = plan
+      if (!plan.craftTable && plankRungWanted({ tableItem: tableItemCount(bot), maxSameTypePlanks: countMaxPlankType(bot), logs: hasKind(bot, 'log') ? 1 : 0 })) {
+        // (v0.308.0) THE PLANK CONVERSION RUNG - face 36535536162 (the v0.304.0
+        // +0.305.0 field) read 5x 'sword: failed (no table)' beside 5 rung
+        // crafts: the refusals are the mixed/short plank pockets (the v0.305.0
+        // honest why) - but a LOG is 4 same-type planks, and the pocket that
+        // refuses the rung may still hold the sword's own bootstrap stream.
+        // craftPlanksFromLogs (the camp lane's own converter, 'plank rung:'
+        // key) converts the dominant log stack; the plan re-reads and the
+        // v0.305.0 rung fires unchanged. A pocket without logs (or with the
+        // rung already fireable, or a held table item) never converts - the
+        // legacy refusal line stays byte for byte.
+        const conv = await craftPlanksFromLogs(bot, { need: SWORD_TABLE_PLANKS, log: step })
+        if (conv.ok) {
+          step(`sword: planks converted for the table rung (${conv.why})`)
+          rungPlan = swordTablePlan({ tableItem: tableItemCount(bot), maxSameTypePlanks: countMaxPlankType(bot) })
+        }
+      }
+      if (rungPlan.craftTable) {
         const made = await craftUntilFn(bot, 'crafting_table', { times: 1, want: 1, tries: 2, log: step })
         if (made) {
-          step(`sword: table crafted from planks (${plan.why})`)
+          step(`sword: table crafted from planks (${rungPlan.why})`)
           const retried = await tableOf(bot)
           if (retried) { return await finishSword(bot, { chk, craftUntilFn, table: retried, step }) }
         }
@@ -191,6 +209,27 @@ export function swordTablePlan ({ tableItem = 0, maxSameTypePlanks = 0 } = {}) {
   const maxSame = jit(maxSameTypePlanks)
   if (maxSame >= SWORD_TABLE_PLANKS) return { craftTable: true, why: `${maxSame} planks of one type` }
   return { craftTable: false, why: `no table item and largest same-type plank stack ${maxSame}/${SWORD_TABLE_PLANKS}` }
+}
+
+/**
+ * (v0.308.0) THE PLANK CONVERSION GATE - the pure half of the conversion
+ * rung. The v0.305.0 rung refuses the mixed/short plank pocket honestly, but
+ * a log IS 4 same-type planks: a pocket that refuses the rung while holding
+ * logs is one craft away from the table. Pure, junk-tolerant: a held table
+ * item defers to placeTable (the conversion buys nothing there), an already-
+ * fireable rung needs no conversion, and a log-less pocket keeps the legacy
+ * refusal byte for byte.
+ * @param {object} [p]
+ * @param {number} [p.tableItem] crafting_table items held but not placed
+ * @param {number} [p.maxSameTypePlanks] the LARGEST single plank-type stack
+ * @param {number} [p.logs] log items held (any _log kind; 1 log = 4 planks)
+ * @returns {boolean}
+ */
+export function plankRungWanted ({ tableItem = 0, maxSameTypePlanks = 0, logs = 0 } = {}) {
+  const jit = v => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0)
+  if (jit(tableItem) > 0) return false // placeTable owns the held item - the conversion buys nothing
+  if (jit(maxSameTypePlanks) >= SWORD_TABLE_PLANKS) return false // the rung already fires
+  return jit(logs) > 0 // one log is 4 same-type planks - the rung becomes fireable
 }
 
 /** The sword craft tail shared by the direct and the table-rung paths. */

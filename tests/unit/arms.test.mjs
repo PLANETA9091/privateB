@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import {
   SWORD_TIERS, SWORD_STICKS, SWORD_MATERIAL_COST, COBBLE_RESERVE, INGOT_RESERVE, SWORD_TABLE_PLANKS,
   countSwords, swordCheck, craftSword, swordTablePlan
-} from '../../src/lib/arms.mjs'
+, plankRungWanted } from '../../src/lib/arms.mjs'
 
 function it (name, count = 1) {
   return { name, count }
@@ -267,8 +267,50 @@ test('wiring pin: the rung rides between the null table and the legacy failure',
   assert.match(src, /const table = await tableOf\(bot\)\n    if \(!table\) \{\n      \/\/ \(v0\.305\.0\) THE SWORD'S TABLE RUNG/, 'the rung opens where the table read fails')
   assert.match(src, /swordTablePlan\(\{ tableItem: tableItemCount\(bot\), maxSameTypePlanks: countMaxPlankType\(bot\) \}\)/, 'the plan reads the live pocket')
   assert.match(src, /craftUntilFn\(bot, 'crafting_table', \{ times: 1, want: 1, tries: 2, log: step \}\)/, 'the table craft rides the proven craftUntil shape')
-  assert.match(src, /step\(`sword: table crafted from planks \(\$\{plan\.why\}\)`\)/, 'the landing names itself on the sword key')
+  assert.match(src, /step\(`sword: table crafted from planks \(\$\{rungPlan\.why\}\)`\)/, 'the landing names itself on the sword key (v0.308.0 re-pin: the plan variable is rungPlan - the converted plan re-read feeds the same landing)')
   const rungAt = src.indexOf('THE SWORD\'S TABLE RUNG')
   const legacyAt = src.indexOf("step('sword: no table reachable or placeable')")
   assert.ok(rungAt > -1 && legacyAt > rungAt, 'the legacy failure stays after the rung')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.308.0) THE PLANK CONVERSION GATE - the v0.305.0 rung refuses the
+// mixed/short plank pocket honestly, but a log IS 4 same-type planks: face
+// 36535536162 read 5 rung crafts BESIDE 5 refusals ('planks available' ->
+// 'failed (no table)'). plankRungWanted arms the conversion only where it
+// can help; the log-less pocket keeps the legacy refusal byte for byte.
+test('plankRungWanted: the conversion datum - the mixed pocket with a log converts', () => {
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 2, logs: 1 }), true, '2 same-type planks + a log = the rung one craft away')
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 3, logs: 3 }), true, 'the 3/4 shortfall converts too')
+})
+
+test('plankRungWanted: the refusals never arm the converter', () => {
+  assert.equal(plankRungWanted({ tableItem: 1, maxSameTypePlanks: 2, logs: 2 }), false, 'a held table item defers to placeTable - the conversion buys nothing')
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 4, logs: 2 }), false, 'the rung already fires - no conversion needed')
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 6, logs: 1 }), false, 'a rich same-type stack needs no conversion either')
+})
+
+test('plankRungWanted: junk and log-less pockets keep the legacy refusal (byte for byte)', () => {
+  for (const junk of [NaN, -1, 0, 'junk', null]) {
+    assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 2, logs: junk }), false, `logs=${String(junk)} reads 0 - the legacy 'no table' verdict stands`)
+    assert.equal(plankRungWanted({ tableItem: junk, maxSameTypePlanks: 2, logs: 1 }), true, `junk tableItem=${String(junk)} reads 0 - the conversion may arm`)
+    assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: junk, logs: 1 }), true, `junk planks=${String(junk)} reads 0 - the conversion may arm`)
+  }
+  assert.equal(plankRungWanted(), false, 'the bare call never arms (no logs proven)')
+})
+
+test('plankRungWanted: the boundary - exactly 4 same-type planks need no converter', () => {
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 4, logs: 1 }), false, 'SWORD_TABLE_PLANKS met - the rung fires directly')
+  assert.equal(plankRungWanted({ tableItem: 0, maxSameTypePlanks: 3, logs: 1 }), true, '3/4 is the convert-me shape')
+})
+
+test('WIRING PIN: the conversion rides the sword rung branch (v0.308.0)', () => {
+  const src = readFileSync(new URL('../../src/lib/arms.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes("!plan.craftTable && plankRungWanted({"), 'the converter arms ONLY beside the refused rung (the fireable rung keeps the v0.305.0 path)')
+  assert.ok(src.includes("craftPlanksFromLogs(bot, { need: SWORD_TABLE_PLANKS, log: step })"), 'the conversion rides the camp lane own proven converter (need = the rung own floor)')
+  assert.ok(src.includes('sword: planks converted for the table rung'), 'the landing names itself on the sword key')
+  assert.ok(src.includes('rungPlan = swordTablePlan({ tableItem: tableItemCount(bot), maxSameTypePlanks: countMaxPlankType(bot) })'), 'the plan re-reads after the conversion (the pocket changed)')
+  const convIdx = src.indexOf('plankRungWanted({')
+  const rungIdx = src.indexOf('if (rungPlan.craftTable) {')
+  assert.ok(rungIdx > convIdx, 'the rung consumes the (possibly converted) plan')
 })
