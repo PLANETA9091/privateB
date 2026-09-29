@@ -8797,3 +8797,21 @@ Stage Summary:
 - The deep pre-position's field watch (its first dispatch): 'still underground' finals should fall from 14; 'pre-position bank:' fires should rise from 0; the write-off total should shrink from 2615u/13 holders; banked should jump from 764.
 - The sword rung's field watch: 'sword: table crafted from planks' appears; 'sword: failed (no table)' falls from 6.
 - Still open: the drowned deaths (F17 this face; the flooded band owns them), the F8 frozen-physics x low-o2 seam (the O2-verified re-read candidate), the 4x 'budget exhausted' chain verdicts, the dry-tail proof's field verdict, the void stamp, the doomed-goal-cache, the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1500
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1500 - mine the v0.303.0 face (36531522422), one atomic improvement, CI, worklogs.
+
+Work Log:
+- Arrival: master = 20c0fc4 (pkg 0.305.0); cron38's worklog 32c9c97 landed mid-fire (they mined the same face: 19/19 zero finals, still-underground dy 27-29, the yard grace's zero = the FAR class owns the wall) + they DISPATCHED 36535536162 (the v0.304.0+0.305.0 tree's first field flight) - the slot held all fire, no dispatch from this lane.
+- MINED 36531522422 (the v0.303.0 face, artifacts -> run36531522422/): banked=764, alive 19/19, deaths 2 only (F17 drowned, F10 fell - the flooded band still owns them), fights=0 kills=0 (the v0.303.0 death stamp correctly never fired - no mid-fight death existed), airGlitches=0 (the liar-bar storm did not reproduce), rescues=32, smelted=5, unaccounted=0.
+- THE WRITE-OFF GREW: 13 holders / 2615u (F12 269u tops) vs 10/1871u the face before; still-underground finals = 14 (vs 7); 'no chest in range' 2x; 'budget exhausted' verdicts 4x; 64 'climb out' lines; sword 'failed (no table)' 9x (vs 6 - the v0.305.0 rung flies in 36535536162).
+- THE DISCOVERY: 13932 'bank trip: skipped (pockets full, Ns left < 150s)' lines (38 the face before) - the log grew 5x to 1.6MB. THE GAP: the refusal branch advances lastBankAt (the v0.181.0 design) but the bankWanted gate's needsBanking term never READS it - the idle full-pocket bot re-logs the refusal at the decide-loop spin rate, not the cadence.
+- SHIPPED v0.306.0 THE REFUSAL REFRACTORY (0681564): bankRefusalDue (deposit.mjs, pure, the bankTripDue family junk shape) gates the needsBanking term; the branch's lastBankAt advance silences BOTH refusal families (the pockets-full skip + the night deferral); the end-phase holds <= 1 refusal line per bot (13932 -> <= 19); the planned/dusk arms keep their fences byte for byte; the arm path gains the retry fence the v0.33.0 comment already claimed. Tests: the flood datum + junk battery + everyMs fallback/override + the wiring pin; the dusk-wiring regression pin restated (the 1337 lesson).
+- Local: syntax 243, unit 129/129 (the bank-trip battery grown). Integration skipped (time-box; CI owns the verdict). Pushed 0681564 clean (32c9c97..0681564, no collision - 0.306.0 free on origin).
+
+Stage Summary:
+- Master = 0681564 (pkg 0.306.0; gate 36536957490 pending at fire end). FLEET OF RECORD: 36535536162 (cron38's dispatch, the v0.304.0+0.305.0 tree, in_progress).
+- NEXT FIRE: (1) verify gate 36536957490 GREEN (covers 0.304.0 + 0.305.0 + 0.306.0); (2) mine 36535536162 when done: the deep pre-position's field verdict ('still underground' falls from 14? dy 27-29 bots climb home at t-150s?), the sword rung's field watch ('sword: table crafted from planks' appears; 'no table' falls from 9), the write-off stake vs 2615u; (3) dispatch the 0.306.0 face when the slot frees AND the gate reads green.
+- OPEN FRONTS: the refusal refractory's field verdict (the 'pockets full ... < 150s' count falls from 13932?); the deep pre-position's field verdict; the sword rung's conversion; the drowned deaths (2 this face); the F8 frozen-physics x low-o2 seam (cron38's naming); the 4x 'budget exhausted' finals; the dry-tail proof's field verdict; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
