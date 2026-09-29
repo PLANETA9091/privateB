@@ -8950,3 +8950,23 @@ Stage Summary:
 - Master = 7b8cd19 (pkg 0.308.0). FLEET OF RECORD: 36547556739 (completed success, MINED - the conversion rung proven, deaths halved, write-off 1273u -> 335u).
 - NEXT FIRE: (1) the death contexts - were the 6 mid-evasion (the lens's signature) or shelter-coffin? The lens never triggered: study census range/trigger gap if evasion deaths persist; (2) F1 261u/15s write-off - the single biggest loss, a bank-lane gap; (3) the 3 exhausted deep holders F3/F4/F5 - the window vs the budget split; (4) one atomic improvement prices off this face, then dispatch.
 - OPEN FRONTS: the shelter-vs-melee coffin (may now be THE death shape if the 6 weren't mid-evasion); the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1800 (recovery) + cron30-20260929-1830
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1800 - ship the shooter-band census (the transport died mid-fire); fire 1830 - recover, land it.
+
+Work Log (fire 1800, reconstructed - the tool transport died after 4 consecutive failures, nothing could be written):
+- Mined the death contexts from run36547556739 (the log was already local): F19 fled at dist 0.5 (too late), F17 died AFTER 'fight ended (chase ceiling)' with no flee line between, F15 killed by a Creeper during zombie evasion, F5 SHOT by a Skeleton during creeper evasion ('water/hazard vetoes the away target'), F16 drowned one block beside a fleet-memorized hazard cell. Settled the plank-rung dispute: cron38 was RIGHT - the 2 'plank rung:' lines are the camp/toolupgrade lanes (wood trip/toolupgrade prefixes), the sword-path landing 'sword: planks converted' = 0, v0.308.0 UNEXERCISED (not disproven).
+- SHIPPED (uncommitted at outage): v0.309.0 THE SHOOTER-BAND CENSUS - LENS_FOE_RANGE = 16 (combat.mjs; the skeleton volley reaches ~15b, vanilla sight 16, while the census rode DETECT_RANGE 12 - the killer stood one band outside the lens's sight, F5 the datum); both flee call sites pass otherHostiles(threat.entity, LENS_FOE_RANGE) explicitly; the verdict's engage semantics byte-true. Tests: the range-law pin + the census pins restated + combatSrc added. At outage: syntax 243, unit 128/129 (one failure unidentified), NOT committed.
+
+Work Log (fire 1830):
+- Tree intact (4 modified files, head still 83d7a4b, no push in the gap). The 129th failure identified: the trident ring pin froze the import-list TAIL ('ringRangedClass, OPEN_FIELD_FLEE_HP } from') - restated to the open-list form (, [A-Z_]+)* (the 1337 lesson: the intent is 'ringRangedClass rides the combat import', not a frozen tail).
+- GREEN: syntax 243, unit 129/129. Committed ad3fc6e, rebase-push clean (83d7a4b..ad3fc6e).
+- The worklog push is DELIBERATELY WITHHELD this fire: the pending/in_progress code gate 36557153538 (ad3fc6e) would be superseded by the push (the queued-latest-kept law, the 1700 lesson). This commit rides unpushed; the next fire pushes it with its own section and dispatches when the gate is green.
+- NO dispatch: the proven-head law - the v0.309.0 code gate was in_progress at fire end, the face must not fly unproven code.
+
+Stage Summary:
+- Master = ad3fc6e (pkg 0.309.0, THE SHOOTER-BAND CENSUS). Gate 36557153538 in_progress at fire end. FLEET OF RECORD: 36547556739 (completed, mined by both lanes).
+- NEXT FIRE: (1) push this worklog commit FIRST THING (the local commit may need a rebase/keep-both if cron38 pushed); (2) verify the gate 36557153538 green; (3) THE SLOT RACE: dispatch the v0.309.0 face when the gate is green AND the slot is free; (4) the field watches for the new face: 'the second hostile vetoes' lines appear (the lens finally sees the shooter band), deaths vs 6; (5) the standing fronts: F17's post-'fight ended' kill (the cooldown-flee seam never spoke - needs the verdict-consumption read), F19's dist-0.5 late flee, F16's drowned-beside-memorized-hazard, the worldmap/scout mined-rate recovery.
+- OPEN FRONTS: the shelter-vs-melee coffin; the drowned class; the worldmap/scout recovery; the air-bar page backoff; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
