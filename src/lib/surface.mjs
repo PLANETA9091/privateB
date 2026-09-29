@@ -1034,6 +1034,86 @@ export function wetWallYield (opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.319.0) THE WET-COLUMN DOOM MEMO - the yield's verdict must outlive the
+// climb that wrote it.
+//
+// MEASURED (fleet 36606754498, the v0.316.0 doom-latch face): 7 wet-wall
+// yields and the seam the 0138 handoff priced is real - F15 condemned y=57
+// ('no dry bearing owns this column') and the final-bank ladder's very next
+// climb re-probed the SAME column from the same shaft bottom, ground 4 MORE
+// wet rotations and yielded again (F18 y=45 the same shape twice). The yield
+// says the column is rotation-doomed, but nothing remembers it, so the chain
+// pays for the same water twice.
+// THE CURE: a per-bot memo (a plain Map on the bot) records the condemned
+// column at the yield point; climbOut checks it at entry and refuses FAST
+// with the SAME 'wet wall' reason every retry gate already handles (fleet19's
+// 'no retry for wet wall' composes untouched, the v0.316.0 doom latch still
+// counts the attempt). The tolerance gate keeps the memo honest: water is
+// static, so the column is condemned at its yield level and BELOW (a climb
+// starting there must pass through); a bot standing ABOVE the water climbs
+// free. Junk never condemns and never blocks (the body-guard law). The cap
+// bounds the book (32 columns is ~5x the six unique ones this face produced;
+// the oldest column evicts first - Map insertion order is the queue).
+// ---------------------------------------------------------------------------
+
+export const WET_COLUMN_MEMO_CAP = 32
+export const WET_COLUMN_MEMO_TOLERANCE = 1
+
+/**
+ * Record a condemned column in the memo (mutates the Map in place).
+ * Junk-tolerant: a non-Map memo or any non-finite coordinate leaves the
+ * book untouched - junk never condemns.
+ * @param {Map} memo the bot's memo book (the wiring creates it lazily)
+ * @param {object} [p]
+ * @param {number} [p.x] floored column x
+ * @param {number} [p.z] floored column z
+ * @param {number} [p.y] the yield level
+ * @param {number} [p.wetRotations] the wet rotations the verdict cost
+ * @param {number} [p.dryRotations] the dry rotations seen (0 at a yield)
+ * @param {number} [p.cap] the book's size cap (default WET_COLUMN_MEMO_CAP)
+ * @returns {Map} the same memo, for call-site clarity
+ */
+export function wetColumnMemoCondemn (memo, opts = {}) {
+  if (!(memo instanceof Map)) return memo
+  const { x, z, y, wetRotations = 0, dryRotations = 0, cap = WET_COLUMN_MEMO_CAP } = opts || {}
+  if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(y)) return memo
+  if (!Number.isFinite(cap) || cap <= 0) return memo
+  const key = `${Math.floor(x)},${Math.floor(z)}`
+  while (memo.size >= cap && !memo.has(key)) memo.delete(memo.keys().next().value)
+  memo.set(key, {
+    y: Math.floor(y),
+    wet: Math.max(0, Math.floor(wetRotations) || 0),
+    dry: Math.max(0, Math.floor(dryRotations) || 0)
+  })
+  return memo
+}
+
+/**
+ * The memo's verdict for a climb about to start in a column. Pure,
+ * junk-tolerant: blocks only on a KNOWN column at a level that must pass
+ * through the condemned water (feet at or below memoY + tolerance).
+ * @param {Map} memo the bot's memo book
+ * @param {object} [p]
+ * @param {number} [p.x] floored column x
+ * @param {number} [p.z] floored column z
+ * @param {number} [p.y] the climb's starting level
+ * @param {number} [p.tolerance] levels above memoY still blocked (default
+ *   WET_COLUMN_MEMO_TOLERANCE)
+ * @returns {{blocked: boolean, record: {y: number, wet: number, dry: number}|null}}
+ */
+export function wetColumnMemoBlocked (memo, opts = {}) {
+  const none = { blocked: false, record: null }
+  if (!(memo instanceof Map)) return none
+  const { x, z, y, tolerance = WET_COLUMN_MEMO_TOLERANCE } = opts || {}
+  if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(y)) return none
+  const record = memo.get(`${Math.floor(x)},${Math.floor(z)}`) || null
+  if (!record || !Number.isFinite(record.y)) return none
+  const tol = Number.isFinite(tolerance) && tolerance >= 0 ? tolerance : WET_COLUMN_MEMO_TOLERANCE
+  if (Math.floor(y) > record.y + tol) return none
+  return { blocked: true, record }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //

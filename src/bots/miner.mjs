@@ -22,6 +22,7 @@ import {
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, climbRearmTicks, CLIMB_REARM_TICKS, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   climbPouncePlan, CLIMB_POUNCE_BACK_TICKS, CLIMB_POUNCE_JUMP_TICKS, // (v0.311.0) the well pounce
   wetWallYield, WET_WALL_YIELD_ROTATIONS, // (v0.312.0) the wet-wall yield
+  wetColumnMemoCondemn, wetColumnMemoBlocked, // (v0.319.0) the wet-column doom memo
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
@@ -4432,6 +4433,21 @@ export function createMiner ({
     }
     const failLimit = entry.failLimit // stage ladder, replaces PILLAR_FAIL_LIMIT
     const wetAttempts = entry.wetAttempts // stage ladder, replaces TRAVERSE_MAX_ATTEMPTS
+    // (v0.319.0) THE WET-COLUMN DOOM MEMO: a column a previous climb's
+    // wet-wall yield condemned is not re-judged - the refusal is instant
+    // and borrows the SAME 'wet wall' reason every retry gate already
+    // handles. MEASURED (fleet 36606754498): F15's final-bank ladder
+    // re-probed the y=57 water its own pre-position climb had condemned
+    // seconds earlier - 4 more wet rotations for the identical verdict
+    // (F18 y=45 the same shape twice). force keeps its v0.21.0 meaning
+    // (the exhausted-LEDGER escape hatch); a memoed water column is not
+    // ledger state - refusing it under force is the honest fast path, the
+    // walk and relocation lanes own the movement from here.
+    const memoVerdict = wetColumnMemoBlocked(bot._wetColumnMemo, { x: feet0.x, z: feet0.z, y: feet0.y })
+    if (memoVerdict.blocked) {
+      log(`${tag} climb wet memo: column ${feet0.x},${feet0.z} already yielded (${memoVerdict.record.wet} wet rotations at y=${memoVerdict.record.y}) - refusing without the grind`)
+      return { ok: false, reason: 'wet wall', gained: 0, dug: 0, steps: 0, traversed: 0, memoRefusal: true }
+    }
     // horizontal bearing for the staircase: the caller's deployment direction is
     // a fine default (it leads AWAY from the yard); snap it to a pure cardinal.
     // An escalated stage starts on a ROTATED bearing - repeated calls must not
@@ -4886,6 +4902,10 @@ export function createMiner ({
         // low-o2 shape, an ok=false reason every caller already handles.
         const wallYield = wetWallYield({ wetRotations: wetRotLevel, dryRotations: dryRotLevel })
         if (wallYield.yield) {
+          // (v0.319.0) condemn the column: the NEXT climb that starts here
+          // refuses on the memo instead of grinding the same water again.
+          if (!bot._wetColumnMemo) bot._wetColumnMemo = new Map()
+          wetColumnMemoCondemn(bot._wetColumnMemo, { x: feet.x, z: feet.z, y: feet.y, wetRotations: wetRotLevel, dryRotations: dryRotLevel })
           log(`${tag} climb wet-wall yield: ${wetRotLevel} wet rotations vs ${dryRotLevel} dry at y=${feet.y} - no dry bearing owns this column, the fence reserve returns to the chain`)
           return { ok: false, reason: wallYield.reason, gained: 0, dug, steps, traversed }
         }
