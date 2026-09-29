@@ -8743,3 +8743,20 @@ Stage Summary:
 - Master = 13bf456 (pkg 0.303.0 SHARED keep-both). CI GREEN. FLEET OF RECORD 36531522422 (the yard grace's first field flight - watch 'yard grace: the d=N walk rides...' / 'yard grace: not granted (...)', the walk-floor class's fall from 14, the write-off total vs 1713u, the death stamp's debut).
 - NEXT FIRE: (1) mine 36531522422; (2) 0.304.0 candidates: the end-phase pre-position (arm the bank walk BEFORE the climb eats the clock) or the ascend budget scaled by remaining vertical; the no-chest-in-range finals (381u) need the earlier stagger or a closer camp chest.
 Identity: PLANETA9091.
+
+---
+Task ID: cron30-20260929-1400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1400 - mine the v0.302.0 face (the write-off row's debut), one atomic improvement.
+
+Work Log:
+- Mined 36525740882 (the v0.302.0 field face, SUCCESS): the write-off row's DEBUT read 'final write-off: F10 270u/16s, F6 236u/22s, F11 192u/20s, F7 189u/20s, F4 171u/19s, F15 158u/18s, F8 154u/17s, F13 137u/16s, F19 108u/16s, F14 98u/22s' - ten holders named, the 64u floor honored; the stake did NOT shrink (1871u across 10 bots vs F9's solo 1894u) despite the wet-ceiling ascend's field debut (F6 'climb wet ascend ... 1/4' + the deep-pocket ascends).
+- The cause anatomy: 13 staggered final banks -> +5/+269/ELEVEN zeroes (7x 'still underground ... doomed walks', 2x 'no chest in range', 1x 'nothing to deposit', 1x 'chest unreachable'); the pre-position fired twice: F1 t-88s 'pre-position bank: +191' (the lane delivers) vs F6 t-48s 'climb out (pre-position): failed - stopped (traversed 3)'. THE GAP: prePositionDue prices only the straight-line dist - the shaft-bottom bot under the yard reads near while the climb costs the whole 90s window.
+- Shipped v0.304.0 THE DEEP PRE-POSITION (1f19f69, rebased onto the 1337 addendum's 97dc816): prePositionDue reads yardDy - dy >= 12 below the yard is deep, auto-qualifies the distance (the v0.294.0 dy law) and opens at PRE_POSITION_UNDERGROUND_WINDOW_MS=150000 (the cadence-handoff boundary); junk dy -> legacy byte for byte; the night hold stays first (the nightsafety pin restated to carry the wire between hold and call). Wiring: const yardDy in prePositionNow. Tests: the F6 datum + the exact boundaries + the legacy shape + junk + constants pin + wiring pin.
+- Local: syntax 242, unit 128/128; integration hung twice on the FRESH world (the sand-degradation reset; the 1130 transient class) - honest note, not claimed green, left to CI.
+- Convergence note: the 1337 addendum named the end-phase pre-position as a 0.304.0 candidate - this fire took it; the dispatch slot stayed cron38's (36531522422, the v0.303.0 face, in_progress at fire end; no duplicate dispatch created).
+
+Stage Summary:
+- Master = 1f19f69 (pkg 0.304.0). Gate 36531905518 pending at fire end - the NEXT fire verifies green before any dispatch.
+- The deep pre-position's field watch (its first dispatch): 'still underground' finals should fall from 7; 'pre-position:' fires should rise from 2; the write-off total should shrink from 1871u/10 holders.
+- Still open: the drowned deaths (5, the flooded band; F13's liar bar airGlitches=87), the zombie kills (F3/F9; F9 swung a wooden_pickaxe at 7 swings - the weapon selection read is cheap), the dry-tail proof's field verdict (v0.300.0 unflown), the no-chest-in-range finals (2x, 381u class per the 1337 addendum), the void stamp, the doomed-goal-cache, the dusk-bank collision, the GC Pinned hunt, the tunnel-path ore destruction.
