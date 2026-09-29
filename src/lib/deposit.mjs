@@ -1070,6 +1070,48 @@ export function effectiveWalkBudget ({ distBudget = CHEST_WALK_BASE_MS, remainin
 export const CHEST_WALK_SHORT_DIST = 16
 export const CHEST_WALK_SHORT_MS = 15000
 
+// (v0.303.0) THE YARD GRACE GATE - the walk floor's one-shot short-class
+// pardon, measured on fleet 36525740882 (the v0.302.0 tree's first field).
+//
+// MEASURED: F10's final bank chain climbed to the yard (15 steps, 62 dug,
+// 11 traversed) and arrived d=9..16 from FOUR chests with the chain clock
+// spent - every hop refused instantly: 14x 'budget exhausted (walk floor)',
+// ALL of them at d=9..16, and the 270u pocket (the face's TOP write-off
+// holder) stranded at the yard among the chests. The floor exists to refuse
+// DOOMED walks ('returning budget exhausted beats burning it on a guaranteed
+// timeout', the v0.27.0 docstring) - but a d<=16 walk is the v0.56.0
+// SHORT-HOP CLASS by definition: pinned at 15s because it physically needs
+// ~8s. A walk that is provably affordable must not die to a floor built for
+// provably doomed ones - the final bank's whole purpose is converting the
+// pocket, and the hard-kill margin (deadline+420s) absorbs a 15s overshoot
+// many times over.
+//
+// THE CURE is one-shot, not a floor change: the FIRST short-class floor
+// refusal in a chain converts to a CHEST_WALK_SHORT_MS grace walk (its own
+// timeout bounds it; the doom guard, the ledger skips and the far-class
+// refusals all stand untouched); every later refusal stays byte-identical
+// ('the grace already rode' - a retry storm can never re-arm it). Junk-safe:
+// a distance that reads junk has no affordability proof - the floor verdict
+// stands. The gate NEVER loosens the floor itself: effectiveWalkBudget
+// returns 0 exactly as before, the grace is a separate, logged, bounded
+// decision the chain makes after the refusal.
+//
+// Pure. @param {object} [p]
+// @param {number} [p.dist] the live bot->chest distance (junk/null -> no proof)
+// @param {boolean} [p.graceUsed] the chain's grace already rode?
+// @param {number} [p.shortDist] the short-class boundary (default CHEST_WALK_SHORT_DIST)
+// @param {number} [p.graceMs] the granted budget (default CHEST_WALK_SHORT_MS)
+// @returns {{grant: boolean, budgetMs: number, why: string}}
+export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHEST_WALK_SHORT_DIST, graceMs = CHEST_WALK_SHORT_MS } = {}) {
+  if (graceUsed) return { grant: false, budgetMs: 0, why: 'the grace already rode (one-shot per chain)' }
+  const cap = Number.isFinite(shortDist) && shortDist > 0 ? shortDist : CHEST_WALK_SHORT_DIST
+  const ms = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : CHEST_WALK_SHORT_MS
+  const d = Number.isFinite(dist) && dist > 0 ? dist : null
+  if (d == null) return { grant: false, budgetMs: 0, why: 'the distance reads junk - affordability unproven' }
+  if (d > cap) return { grant: false, budgetMs: 0, why: `d=${Math.round(d)} beyond the short class (${Math.round(cap)}) - the doom guard stands` }
+  return { grant: true, budgetMs: ms, why: 'the short walk is provably affordable' }
+}
+
 // (v0.113.0) THE CHEST DOOM HALF-LIFE - a chest cell's walk-verdict lives 15s,
 // not the no-path ledger's 45/90s. Run100 (35874523075, the v0.112.0 fleet)
 // named the class: the yard chest row [-113..-143,70,398-408] was doom-ledgered
@@ -1223,6 +1265,7 @@ export async function depositToChest (bot, {
   exclude = [], // (v0.23.1) chest positions already dead-ended ('No path') - skipped in the scan
   noPathLedger = null, // (v0.62.0) a SHARED array across the fleet: 'No path' verdicts skip the A* for everyone
   fullChestLedger = null, // (v0.65.0) a SHARED array across the fleet: 'chest full' verdicts skip the paid walk
+  yardGraceHolder = null, // (v0.303.0) the chain's one-shot yard-grace holder { used: boolean }; null = a per-call one
   depositClickTimeoutMs = 5000, // (v0.70.0) per-click wall; tests inject a small value instead of sleeping 5s
   netProgressMs // (v0.149.0) the raw hop's net-progress floor; undefined = RAW_HOP_NETPROGRESS_MS (walkRawToward's default)
 } = {}) {
@@ -1260,8 +1303,30 @@ export async function depositToChest (bot, {
   // re-issue from THIS bot's start (the v0.87.0 semantics, finally wired for
   // the walks that turn mined blocks into banked stock). A failed honest walk
   // still records the dead geometry (the ledger stays truthful).
+  //
+  // (v0.303.0) THE YARD GRACE - the walk floor's one-shot short-class pardon.
+  // The holder lives at the CHAIN scope (depositToChests passes one shared
+  // object across every chest hop; a bare caller gets a per-call one - the
+  // grace still rides once, never per attempt). The floor arithmetic is
+  // UNTOUCHED: effectiveWalkBudget returns 0 exactly as before, and only a
+  // proven-affordable short walk (d<=16, the v0.56.0 class) may convert its
+  // FIRST refusal into a bounded CHEST_WALK_SHORT_MS walk. A refused grace
+  // logs the why and re-throws the byte-identical floor verdict.
+  const yardGrace = yardGraceHolder && typeof yardGraceHolder === 'object' ? yardGraceHolder : { used: false }
+  const graceTopUp = (site) => {
+    const dGrace = (() => { try { const d = bot.entity?.position?.distanceTo?.(chest.position); return Number.isFinite(d) ? d : null } catch { return null } })()
+    const g = yardGraceGate({ dist: dGrace, graceUsed: yardGrace.used === true })
+    if (!g.grant) {
+      log(`${tag} yard grace: not granted (${g.why}) - the floor verdict stands`)
+      return 0
+    }
+    yardGrace.used = true
+    log(`${tag} yard grace: the d=${Math.round(dGrace)} walk rides the one-shot ${Math.round(g.budgetMs / 1000)}s grace (${site}; the floor refused - the short walk is provably affordable)`)
+    return g.budgetMs
+  }
   const walkOnce = async (label, { rearm = false } = {}) => {
     let ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
+    if (ms <= 0) ms = graceTopUp('entry')
     if (ms <= 0) throw new Error('budget exhausted (walk floor)')
     // (v0.56.0) THE APPROACH SEGMENT - the run51 F17 cure. F17 surfaced d=33..43
     // from the chest rows and 7x 'No path to the goal!' fired under the WIDENED
@@ -1294,6 +1359,7 @@ export async function depositToChest (bot, {
         log: m => log?.(`${tag} ${m}`)
       })
       ms = effectiveWalkBudget({ distBudget: budget, remainingMs: remaining() })
+      if (ms <= 0) ms = graceTopUp('post-approach')
       if (ms <= 0) throw new Error('budget exhausted (walk floor)')
     }
     // (v0.48.0) RAW FIRST: the flat yard platform needs no A* - 19 concurrent
@@ -1629,6 +1695,10 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   if (hasBudget && budgetMs <= 0) return { deposited: 0, chestsUsed: 0, chestReport: ['budget exhausted'] }
   const deadline = hasBudget && budgetMs > 0 ? Date.now() + budgetMs : null
   const remaining = () => (deadline == null ? Infinity : deadline - Date.now())
+  // (v0.303.0) THE YARD GRACE HOLDER - one-shot across EVERY chest hop of this
+  // chain: the first short-class walk-floor refusal converts to a bounded
+  // CHEST_WALK_SHORT_MS walk, the rest stay byte-identical floor refusals.
+  const yardGrace = { used: false }
   const bankableItems = () => {
     try {
       return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
@@ -1804,7 +1874,7 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         continue
       }
     }
-    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger })
+    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
       // (v0.39.1) THE FAILED HOP NAMES ITSELF: a zero hop used to vanish into a
