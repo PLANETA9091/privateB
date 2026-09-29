@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,8 +181,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.318.0 extended the same import)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.321.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -361,4 +361,86 @@ test('pocketAnatomyRow: THE WIRING PIN - the report block judges the shape', () 
   const anatomyIdx = src.indexOf('pocketAnatomyRow(list')
   assert.ok(anatomyIdx > rowIdx, 'the anatomy row prints AFTER the write-off row - the same report-block class')
   assert.ok(src.includes('THE POCKET-ANATOMY ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// FACE: fleet 36617588210 (THE LANDMARK) read surplus=531u with the inflow
+// hypothesized as crafted units the mined counter never tracks - unmeasured
+// by name. These tests pin the classification law, the landmark datum, the
+// byte-stable top flows, the none-form, the junk discipline, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('isCraftedClassName: THE CLASSIFICATION LAW - conservative on purpose', () => {
+  // the exact names the fleet only crafts
+  for (const n of ['stick', 'torch', 'ladder', 'chest', 'crafting_table', 'furnace', 'charcoal']) {
+    assert.equal(isCraftedClassName(n), true, n)
+  }
+  // the suffix families (every planks and every ingot)
+  for (const n of ['oak_planks', 'birch_planks', 'iron_ingot', 'gold_ingot', 'copper_ingot']) {
+    assert.equal(isCraftedClassName(n), true, n)
+  }
+  // mined-class on this fleet's books: mined AND craftable stays OUT, mob drops stay OUT
+  for (const n of ['coal_block', 'cobblestone', 'stone', 'dirt', 'sand', 'gravel', 'iron_ore', 'blaze_rod', 'rotten_flesh']) {
+    assert.equal(isCraftedClassName(n), false, n)
+  }
+  // junk names are never crafted-class
+  assert.equal(isCraftedClassName(''), false)
+  assert.equal(isCraftedClassName(null), false)
+  assert.equal(isCraftedClassName(undefined), false)
+  assert.equal(isCraftedClassName(42), false)
+})
+
+test('surplusFaceRow: THE LANDMARK DATUM - the surplus gets a face by name', () => {
+  assert.equal(SURPLUS_FACE_TOP, 3)
+  const mk = (name, items) => ({ username: name, bot: { inventory: { items: () => items } } })
+  // the landmark's pocket shape, crafted inflow visible: sticks, planks, an ingot
+  const miners = [
+    mk('F1', [{ name: 'stick', count: 64 }, { name: 'cobblestone', count: 100 }]),
+    mk('F3', [{ name: 'oak_planks', count: 40 }, { name: 'iron_ingot', count: 21 }, { name: 'dirt', count: 200 }]),
+    mk('F5', [{ name: 'torch', count: 33 }])
+  ]
+  const v = surplusFaceRow(miners, { surplus: 531 })
+  assert.ok(v.startsWith('surplus face: crafted-class 158u of 458u pocket (34.5%), top stick 64u, oak_planks 40u, torch 33u'), v)
+  assert.match(v, /the mined counter never saw these units/)
+  assert.match(v, /\(surplus 531u\)/, 'the ledger surplus rides as the note')
+})
+
+test('surplusFaceRow: THE PURE-MINED FORM - no crafted flows, no invented face', () => {
+  const mk = (name, items) => ({ username: name, bot: { inventory: { items: () => items } } })
+  const v = surplusFaceRow([mk('F9', [{ name: 'cobblestone', count: 300 }])], { surplus: 396 })
+  assert.equal(v, 'surplus face: crafted-class 0u of 300u pocket - the pocket is pure mined-class mass, the surplus\'s face is not in the pockets (surplus 396u)')
+  // no surplus read -> no note (junk never invents a claim)
+  const v2 = surplusFaceRow([mk('F9', [{ name: 'stone', count: 12 }])], { surplus: null })
+  assert.equal(v2, 'surplus face: crafted-class 0u of 12u pocket - the pocket is pure mined-class mass, the surplus\'s face is not in the pockets')
+})
+
+test('surplusFaceRow: THE NONE-FORM - an empty pocket is a verdict too', () => {
+  assert.equal(surplusFaceRow([], { surplus: 531 }), 'surplus face: none (no pocket exists at the deadline)')
+  assert.equal(surplusFaceRow(), 'surplus face: none (no pocket exists at the deadline)')
+  assert.equal(surplusFaceRow(null), 'surplus face: none (no pocket exists at the deadline)')
+  assert.equal(surplusFaceRow('junk'), 'surplus face: none (no pocket exists at the deadline)')
+  assert.equal(surplusFaceRow([{ username: 'F8' }]), 'surplus face: none (no pocket exists at the deadline)')
+})
+
+test('surplusFaceRow: THE JUNK DISCIPLINE - torn views, impossible counts, nameless stacks', () => {
+  const torn = { username: 'F2', bot: { inventory: { items: () => { throw new Error('torn window') } } } }
+  const junk = { username: 'F6', bot: { inventory: { items: () => [{ count: NaN }, { count: -5 }, { name: 'stick', count: 7 }] } } }
+  const v = surplusFaceRow([torn, junk], { surplus: 100 })
+  assert.ok(v.startsWith('surplus face: crafted-class 7u of 7u pocket (100.0%), top stick 7u'), v)
+  // a nameless stack reads unclassified mined-class - the total stays consistent
+  const nameless = { username: 'F4', bot: { inventory: { items: () => [{ count: 5 }, { name: 'iron_ingot', count: 3 }] } } }
+  const v2 = surplusFaceRow([nameless])
+  assert.ok(v2.startsWith('surplus face: crafted-class 3u of 8u pocket (37.5%), top iron_ingot 3u'), v2)
+  assert.match(v2, /the mined counter never saw these units$/, 'no surplus note without a surplus read')
+})
+
+test('surplusFaceRow: THE WIRING PIN - the report block names the face', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /surplusFaceRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.match(src, /surplusFaceRow\(list, \{ surplus: ledger\.surplus \}\)/)
+  const anatomyIdx = src.indexOf('pocketAnatomyRow(list')
+  const faceIdx = src.indexOf('surplusFaceRow(list')
+  assert.ok(faceIdx > anatomyIdx, 'the face row prints AFTER the anatomy row - the same report-block class')
+  assert.ok(src.includes('THE SURPLUS-FACE ROW'), 'the wiring carries its own doctrine comment')
 })

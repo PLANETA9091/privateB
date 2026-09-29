@@ -233,3 +233,83 @@ export function pocketAnatomyRow (miners, { total = null } = {}) {
   }
   return `pocket anatomy: spread across ${holders.length} holders, top ${top.name} ${top.units}u = ${pct}% of ${t}u - the chains own the crater's face, no single walk cures it`
 }
+
+// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// FACE. Fleet 36617588210 (THE LANDMARK) read the ledger's first balance:
+// mined=2238, banked=2295, smelted=49, pocket=425u, unaccounted=0, surplus=531u
+// (conversion 123.7%) - and v0.201.0 named the hypothesis a decade of fires
+// ago: pockets count crafted/collected units the mined counter never tracks
+// (sticks, planks, smelted ingots, the grass_block->dirt grain) - but the
+// inflow was never measured by name, so the surplus stayed a faceless number
+// and the "crafted inflow" theory untestable. The row splits the DEADLINE
+// POCKET by source class (crafted: sticks/planks/ingots/torches/... vs the
+// mined-class rest) and names the top flows - the pocket is the only place
+// item NAMES are readable at the deadline (the chests are not re-read), so
+// this is the surplus's visible face, not a full attribution (the banks and
+// the smelt flow hold their share; the row says so, it does not guess it).
+// Same inventory walk as the anatomy row (the junk law: NaN/Infinity AND
+// negative counts zeroed, a torn window view holds nothing this read); a
+// nameless stack reads as 'unclassified' mined-class - the total stays
+// consistent with the ledger's pocket read. ALWAYS printed - the none-form
+// is a verdict too (the 05:00 ledger-skip lesson).
+export const SURPLUS_FACE_TOP = 3
+
+// the crafted class: exact names the fleet only crafts (never mines) plus the
+// suffix families. Conservative on purpose - the row is a measurement
+// instrument with grain, and a mined item wrongly called crafted poisons the
+// split (coal_block is mined AND craftable - it stays out; blaze_rod is a mob
+// drop - mined-class on this fleet's books).
+const CRAFTED_CLASS_EXACT = new Set(['stick', 'torch', 'ladder', 'chest', 'crafting_table', 'furnace', 'charcoal'])
+
+/**
+ * Is this item name the crafted/collected class the mined counter never tracks?
+ * @param {string} name
+ * @returns {boolean}
+ */
+export function isCraftedClassName (name) {
+  if (typeof name !== 'string' || name === '') return false
+  if (CRAFTED_CLASS_EXACT.has(name)) return true
+  return name.endsWith('_planks') || name.endsWith('_ingot')
+}
+
+/**
+ * The surplus's face: what part of the deadline pocket is crafted-class mass?
+ * @param {Array<{bot?: {inventory?: {items?: Function}}}>} miners
+ * @param {{surplus?: number|null}} [opts] the ledger's own surplus read
+ * @returns {string} the face verdict, always speaks
+ */
+export function surplusFaceRow (miners, { surplus = null } = {}) {
+  const byName = new Map()
+  for (const m of (Array.isArray(miners) ? miners : [])) {
+    try {
+      const items = m?.bot?.inventory?.items?.()
+      if (!Array.isArray(items)) continue
+      for (const it of items) {
+        // the junk law: impossible counts are zeroed, never a phantom flow
+        const c = it?.count
+        const units = (Number.isFinite(c) && c > 0) ? c : 0
+        if (units === 0) continue
+        // a nameless stack cannot be classified - it reads as unclassified
+        // mined-class mass so the row's total stays consistent with the ledger
+        const n = (typeof it?.name === 'string' && it.name !== '') ? it.name : 'unclassified'
+        byName.set(n, (byName.get(n) || 0) + units)
+      }
+    } catch { /* a torn window view on a dying bot holds nothing this read */ }
+  }
+  const total = [...byName.values()].reduce((a, b) => a + b, 0)
+  if (total === 0) return 'surplus face: none (no pocket exists at the deadline)'
+  const flows = []
+  let cu = 0
+  for (const [name, units] of byName) {
+    if (isCraftedClassName(name)) { flows.push({ name, units }); cu += units }
+  }
+  const pct = ((cu / total) * 100).toFixed(1)
+  const sNote = (Number.isFinite(surplus) && Math.floor(surplus) > 0) ? ` (surplus ${Math.floor(surplus)}u)` : ''
+  if (flows.length === 0) {
+    return `surplus face: crafted-class 0u of ${total}u pocket - the pocket is pure mined-class mass, the surplus's face is not in the pockets${sNote}`
+  }
+  // desc by units; the tie-break is the name so the row is byte-stable
+  flows.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
+  const top = flows.slice(0, SURPLUS_FACE_TOP).map(f => `${f.name} ${f.units}u`).join(', ')
+  return `surplus face: crafted-class ${cu}u of ${total}u pocket (${pct}%), top ${top} - the mined counter never saw these units${sNote}`
+}

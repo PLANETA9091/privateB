@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3218,6 +3218,14 @@ console.log(writeOffRow(list))
 // one walk from the yard, a spread pocket is the chains' failure. Same
 // report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
 console.log(pocketAnatomyRow(list, { total: endPk.units }))
+// (v0.321.0) THE SURPLUS-FACE ROW - the ledger's surplus column never had a
+// FACE: fleet 36617588210 (THE LANDMARK) read surplus=531u (the ledger's
+// first balance) with the inflow hypothesized as crafted units the mined
+// counter never tracks (the v0.201.0 note) - unmeasured by name. The row
+// splits the deadline pocket by source class and names the top flows - the
+// surplus's visible face. Same report-block class (ALWAYS printed - the
+// 05:00 ledger-skip lesson).
+console.log(surplusFaceRow(list, { surplus: ledger.surplus }))
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed
