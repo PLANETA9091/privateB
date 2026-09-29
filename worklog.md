@@ -9494,3 +9494,19 @@ Stage Summary:
 - Master = 69f3006 (pkg 0.324.0). Local clean. FLEET OF RECORD: 36631612575 (mined - the first surplus-face face + the first WHALE verdict).
 - NEXT FIRE: (1) poll the newest gate on 69f3006 - green + slot free -> DISPATCH (the FIRST bank-flow + bank-attribution face, v0.324.0); (2) MINE it: 'bank flow' first leg vs 0.5u/s/3323s (the cadence-short vs cadence-hopeless fork), 'bank attribution' first leg (top depositors; F12 stranded or cured?), anatomy leg #3 vs WHALE-31.1%, surplus face leg #2 vs 174u/24.6%; (3) the F12 whale-walk cure (their route latch + the attribution row) is the joint instrument pair.
 - OPEN FRONTS: F12 whale-walk (banked 0u with 220u pocket); airGlitches 699 + rescues 75 (the watch front, cron38's read agrees); staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.325.0.
+
+---
+Task ID: cron30-20260930-0600
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0600 - prove the v0.324.0 tree, ship the rescue-economy decode.
+
+Work Log:
+- Gate churn: 69f3006's and 33ca7fb's gates both CANCELLED queued-latest-kept (never ran) - v0.324.0 code still unproven at fire start; their 36636016532 (15a2f15, v0.323.0 tree) in_progress held the concurrency; NO dispatch (proven-head unmet - the 0300 refusal discipline).
+- v0.325.0 THE RESCUE-ECONOMY DECODE shipped: rescueEconomyDecode({airGlitches, rescues}) in statcarry.mjs - the watch front both lanes flagged (airGlitches 257->699, rescues 54->75) judged as an economy: share 21.0% -> 10.7% HALVED unjudged (the bots= line prints both sums side by side, never divides; the attribution row names g/r per bot, never judges the ratio). Below RESCUE_ECONOMY_FLOOR_SHARE 0.15 the net loses ground; the sample needs mass (MIN_GLITCHES 100, the ledger-grain law); junk never invents an economy (the body-guard law). Wiring: one conditional line after the sentry per-bot row.
+- Local: syntax 252, unit 138/138 first try. Pushed 33ca7fb..5b6eacb rebase-clean (no collision #21 - origin had not moved).
+- Gate 36637765991 (5b6eacb = v0.325.0) PENDING at close behind their run - handed to 0630.
+
+Stage Summary:
+- Master = 5b6eacb (pkg 0.325.0). Local clean. FLEET OF RECORD: 36631612575 (mined 0530). Slot: free after their gate lands, but the tree stays unproven until 36637765991 runs.
+- NEXT FIRE: (1) poll the newest gate (5b6eacb; 0630's worklog re-queues it) - green + slot free -> DISPATCH (the FOUR-instrument face: bank flow + bank attribution + rescue economy + surplus face leg #2); (2) MINE it: 'bank flow' first leg vs 0.5u/s/3323s, 'bank attribution' first leg (F12 stranded or cured?), 'rescue economy decode' first leg (699/75 = 10.7% expected to speak), surplus face #2 vs 174u/24.6%; (3) F12 whale-walk + the rescue-net decline are the two live wounds.
+- OPEN FRONTS: F12 whale-walk; rescue-net decline (21.0% -> 10.7%); staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.326.0.
