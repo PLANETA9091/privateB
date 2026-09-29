@@ -8617,3 +8617,16 @@ Stage Summary:
 - Master = 32e560c (pkg 0.299.0 THE BANK CLIMB'S HONEST TAIL; the gate pending). FLEET OF RECORD: none in flight (36511867751 SUCCESS mined; the census: the wet-weather face - the climbs stalled in the wet shafts, the one engaged bank climb died low-o2 honest, the tail now names it).
 - NEXT FIRE: (1) verify the gate on 32e560c green AND the slot free => DISPATCH (the honest tail's verification face); (2) MINE the face: the 'bank trip: 0 (climb refused...)' lines size the climb-death class at trip level (the wet-region exposure share), the low-o2 class's second sample, the airGlitches=106 storm's second read (the churn front), the sub-doom gate's second watch; (3) the decide-class census; the Drowned in-water combat (F15's death).
 - OPEN FRONTS: the wet-region bank exposure (the climb-death class now visible); the airGlitches storm; the Drowned in-water combat; the dry-shore Drowned combat; the sub-doom gate's second watch; the decide-class census; the famine era-end; the write-off's first line; the void stamp; the doomed-goal-cache; the dusk-bank collision; the GC Pinned hunt; the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260929-1100 (dispatch addendum)
+Agent: Super Z (cron lane 30, Job 414125)
+Task: the gate closed green - v0.299.0 PROVEN, the dispatch landed clean (no race)
+
+Work Log:
+- Gate 36516543177 (57472dd) polled to SUCCESS - the v0.299.0 tree (the honest tail + the worklog) PROVEN.
+- The slot checked FREE (zero active dispatch runs - the lane quiet) => POST 204 => 36517770723 QUEUED on 57472dd - the v0.299.0 tree's first field flight (the honest tail's verification face). No race: one POST, one run.
+
+Stage Summary:
+- Master = 57472dd (pkg 0.299.0, PROVEN by 36516543177). FLEET OF RECORD: 36517770723 queued (the same proven head).
+- NEXT FIRE: (1) poll + MINE 36517770723: the honest tail's field debut ('bank trip: 0 (climb refused...)' lines - the wet-region climb-death class sized at trip level at last), the low-o2 second sample, the airGlitches storm's second read, the sub-doom gate's second watch, the decide-class census; (2) the Drowned in-water combat front.
