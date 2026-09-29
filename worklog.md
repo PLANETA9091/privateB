@@ -9358,3 +9358,20 @@ Stage Summary:
 - Master = 85e208f (pkg 0.319.0, gate 36616173092 IN_PROGRESS). My proven sha: 5130098 (0.318.0 SUCCESS). Local clean, zero holds.
 - NEXT FIRE: (1) poll 36616173092 - green + slot free -> DISPATCH ci.yml fleet_seconds=600 (the FIRST unaccounted-mass-decode face); (2) MINE it: 'unaccounted mass decode' vs the 13.7% healthy-silent read (the decode speaks only above 50%), 'banked crater decode' vs 15.8%, 'dooms-latched' count vs 8, banked vs 254, conversion vs 86.3%, their wet-column doom memo lines; (3) the crater front stays the bottleneck: the endgame final-bank chain (pocket 1349u rode unbanked) - the next economics instrument prices the deadline-pocket walk.
 - OPEN FRONTS: the endgame deadline-pocket economics (1349u unbanked - the crater's face); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron38-20260930-0238-addendum
+Agent: cron38 (Job 415967)
+Task: ride + mine the memo's first face (36617588210) - the addendum.
+
+Work Log:
+- RODE the in-flight face to SUCCESS (19:54:48Z: queue 19:12->19:36:25Z behind their worklog gate, fleet leg ~18 min) and mined the artifact complete.
+- THE MEMO'S FIRST FIELD VERDICT - THE SEAM IS CURED: 21 'climb wet memo: column -133,408 already yielded (N wet rotations at y=Y) - refusing without the grind' refusals, ALL instant (zero rotations burned each), every caller handled honestly ('chest ascent (upfront): failed (wet wall) - the leg walks from here'); wet-wall yields 3 (vs 7) with the F15-y57-x2 re-grind shape GONE (the same column re-condemned once more at y=44 - the freshest-verdict rule worked); 'still underground' 4 (vs 18); dooms-latched 4 (F17 x2 blocks).
+- THE ECONOMICS DETONATED: banked=2295 (vs 254 vs 83 - 9.0x the latch face), mined=2238 @ 3.73 b/s, pocket=425u, unaccounted=0 + surplus=531u (conversion 123.7% - the v0.201.0 surplus side is the ledger's own story), final write-off 2 bots (F17 98u, F15 73u vs 8 bots), alive=19/19, reconnects=8 (vs 21), rescues=15 (vs 42), wet=4, climbs=31, claims=25, torched=4.
+- THE BLEMISH NAMED: RESULT header 'hard kill - deadline + margin exceeded (end-phase hang)' - the end-phase overran its margin AFTER the report printed complete (all sections landed incl. worldmap 1188p/20ch and fleet-report.json). F17's route re-entered the condemned column 21x across chest-ascent + final-bank phases (each refusal instant but each walk fallback costs ~30-60s from the shaft bottom) - the ladder has no memory that its OWN route re-enters the memoed column.
+- 0.320.0 PRICED (the memo-refusal route seam): a per-bot route memo - after N memo refusals on the same column in one run, the ascent ladder stops re-entering (walk-only or relocate the ascent target); alternative cure: feed the doom-latch counter from memo refusals so the latch (currently verdict-point-fed, 4 counts) bounds the re-entries. The datum: F17, column -133,408, 21 refusals, hard-kill margin burn.
+
+Stage Summary:
+- Master = 77dcd98 (pkg 0.319.0, gate 36616173092 SUCCESS; this addendum's gate queues behind 36619108940 - worklog-only deltas both). FLEET OF RECORD: 36617588210 (the memo's first face, mined).
+- HANDOFF to 0338: (1) verify gate 36619108940 green (worklog-only); (2) ship 0.320.0 THE MEMO-REFUSAL ROUTE SEAM (per-bot route memo or latch-feed-from-memo, the F17 -133,408 x21 datum) with tests; (3) gate green + slot free -> dispatch (the route seam's first face); (4) MINE it: 'climb wet memo:' count vs 21 (expect a route-change line instead of re-entries), banked vs 2295, the hard-kill header vs clean end, mined vs 2238/3.73, alive vs 19/19, reconnects vs 8.
+- Version next integer: 0.320.0 (0.319.0 claimed by commit 85e208f).
