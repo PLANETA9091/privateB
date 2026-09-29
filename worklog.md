@@ -8831,3 +8831,20 @@ Stage Summary:
 - Master = 2f97702 (pkg 0.306.0; head gate 36537049666 pending at fire end). FLEET OF RECORD: 36535536162 in_progress (the v0.304.0+0.305.0 face).
 - NEXT FIRE: (1) mine 36535536162 when complete: the deep pre-position's field verdict ('still underground' falls from 14? the dy 27-29 bots climb home at t-150s?), the sword rung's conversion ('sword: table crafted from planks' appears; 'no table' falls from 9), the write-off stake vs 2615u, the run length anomaly (19+ min - the end-phase stretch?); (2) verify the head gate green (the proven head for 0.306.0's dispatch); (3) dispatch the 0.306.0 face when the slot frees AND the gate reads green - the refractory's own watch rides that face (the refusal count falls from 13932 to <= ~19).
 - OPEN FRONTS: unchanged from the 1500 fire plus the run-length anomaly; the front choice prices off the new face first.
+---
+Task ID: 415967-1438-addendum
+Agent: cron-fire (main lane, Job 415967)
+Task: fire 1438 addendum - the v0.304.0+0.305.0 tree's first field flight (36535536162) mined - both debuts verified.
+
+Work Log:
+- Face 36535536162 (SUCCESS) - THE DELIVERY ERA OPENS: banked=2121 (the all-time record, 2.8x the v0.303.0 face's 764), pocket=680u/107s (4.2x less rode the deadline), unaccounted=0, conversion=115.1%.
+- v0.304.0 THE DEEP PRE-POSITION'S FIELD VERDICT - every watch target hit: 'pre-position bank:' fired 8x (F4 +189, F13 +51, F8 +15 delivered = +255; 5x 'budget exhausted' refusals - the 150s window spent before the walk for the far bots); 'still underground' finals fell 14 -> 4; the write-off row shrank 13 holders/2615u -> 4 holders/600u (F14 256u top); the end-phase DELIVERED its first final banks of the deep era (F12 +88, F17 +53, F2 +45...).
+- v0.305.0 THE SWORD'S TABLE RUNG'S FIELD VERDICT: 4x 'sword: table crafted from planks' (F11 7 planks, F6 6, F8 7, F3 5) - the rung fires in the field; 'no table' failures persist only as F10's 2x (its pocket, its verdict - the legacy shape held).
+- THE TRADE (honest costs): mined=2446 (4.08 b/s) vs 3263 (5.44 b/s) - the fleet dug 25% less; the climbs home, the pre-position walks and the COMBAT STORM bought the +1357 banked. fights=65, kills=14 (the bots fought back - the v0.303.0 face had fights=0), and TWELVE deaths: F10/F18/F11 slain by Zombie, F12 shot by Skeleton, F2 slain by Spider, F15 blown up by Creeper (+ more) - the SURFACE combat storm replaced the flooded band's Drowned as the top killer. The mid-fight death stamp: unexercised again ('died mid-fight' 0 - the deaths landed OUTSIDE fight episodes, surprise hits from range/behind).
+- Two inference CONTRADICTIONS recorded (F11 zombie-vs-skeleton, F12 skeleton-shot-vs-zombie@5.3) - the nearest-harm heuristic names the wrong killer when a ranged mob shoots beside a melee one; the server kind stays the authority (the design held).
+- airGlitches=0 (the FOURTH clean read - the churn cure is durable). reconnects=2 (the frozen-physics relog lane exercised; relogins=20 counted by the server guard, losses=0).
+
+Stage Summary:
+- Master = 32c9c97 (worklog on the proven 20c0fc4 code tree; pkg 0.305.0). Both debuts PROVEN in the field; the delivery era's baseline: banked=2121, write-off 600u/4 holders, still-underground 4.
+- The NEXT WALL (the next fire's datum): the surface combat storm - 12 mob deaths at the yard band, 0 'died mid-fight' (the deaths are surprise hits outside episodes - the fight ENGAGEMENT radius/trigger is the gap, not the fight loop). Watch: deaths by kind, the engagement triggers, the Creeper class (F15's blast).
+- Still open: the 5x 'budget exhausted' pre-position refusals (the 150s window vs the far deep bots), the ranged-attribution contradictions (cosmetic - the server verdict rules), the dry-tail proof's field verdict, the void stamp, the doomed-goal-cache, the GC Pinned hunt.
