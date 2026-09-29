@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -272,9 +272,87 @@ test('rescueEconomyDecode: THE WIRING PIN - the report block judges the net', ()
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /rescueEconomyDecode[\s\S]*?from '\.\.\/src\/lib\/statcarry\.mjs'/)
   assert.match(src, /rescueEconomyDecode\(\{\s*\n\s*airGlitches: list\.reduce/)
-  assert.match(src, /if \(rescueEconomy\) console\.log\(`rescue economy decode: \$\{rescueEconomy\}`\)/)
+  assert.match(src, /if \(rescueEconomy\) \{\s*\n\s*console\.log\(`rescue economy decode: \$\{rescueEconomy\}`\)/)
   const sentryIdx = src.indexOf('sentryAttributionRow(list.map')
   const econIdx = src.indexOf('rescueEconomyDecode({')
   assert.ok(econIdx > sentryIdx, 'the decode rides right after the per-bot attribution row')
   assert.ok(src.includes('THE RESCUE-ECONOMY DECODE'), 'the wiring carries its own doctrine comment')
+})
+
+// (v0.326.0) THE RESCUE-HOLE ROW - the economy decode judges the net, the hole
+// row judges WHERE the unrescued mass lives: one walk's reach (local) or a
+// saturated net (spread). The battery: the run190 face (F7's hole), the
+// spread face, the half-boundary, the mass floor, the junk battery, the
+// byte-stable tie, the wiring pin.
+test('rescueHoleRow: THE RUN190 FACE - F7 holds the hole (local)', () => {
+  assert.equal(RESCUE_HOLE_MIN_UNRESCUED, 50)
+  assert.equal(RESCUE_HOLE_HOLD_SHARE, 0.5)
+  // F7 g343/r8 -> 335 unrescued; F16 g12/r0 -> 12; the rest silent (347 total)
+  const row = rescueHoleRow([
+    { name: 'F7', stats: { airGlitches: 343, rescues: 8 } },
+    { name: 'F16', stats: { airGlitches: 12, rescues: 0 } },
+    { name: 'F1', stats: { airGlitches: 0, rescues: 0 } }
+  ])
+  assert.equal(row, 'rescue hole: local - F7 holds 335u of 347u unrescued (96.5%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE SPREAD FACE - no single walk owns the leak', () => {
+  // three holders: 200 + 150 + 140 = 490, the top 200 clears only 40.8%
+  const row = rescueHoleRow([
+    { name: 'F2', stats: { airGlitches: 250, rescues: 50 } },
+    { name: 'F9', stats: { airGlitches: 170, rescues: 20 } },
+    { name: 'F13', stats: { airGlitches: 140, rescues: 0 } }
+  ])
+  assert.equal(row, 'rescue hole: spread - top F2 holds 200u of 490u (40.8%) - no single walk owns the leak')
+})
+
+test('rescueHoleRow: THE HALF BOUNDARY and the byte-stable tie', () => {
+  // exactly half is local (the >= law), and the tie breaks on name ascending
+  // even when the larger-name bot comes first in the array
+  const row = rescueHoleRow([
+    { name: 'F9', stats: { airGlitches: 250, rescues: 0 } },
+    { name: 'F2', stats: { airGlitches: 250, rescues: 0 } }
+  ])
+  assert.equal(row, 'rescue hole: local - F2 holds 250u of 500u unrescued (50.0%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE MASS FLOOR - 49u is weather, 50u is a leak', () => {
+  assert.equal(rescueHoleRow([{ name: 'F4', stats: { airGlitches: 49, rescues: 0 } }]), null)
+  const row = rescueHoleRow([{ name: 'F4', stats: { airGlitches: 50, rescues: 0 } }])
+  assert.equal(row, 'rescue hole: local - F4 holds 50u of 50u unrescued (100.0%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE JUNK BATTERY - garbage never digs a hole', () => {
+  // non-array input is no census at all
+  assert.equal(rescueHoleRow(null), null)
+  assert.equal(rescueHoleRow('junk'), null)
+  assert.equal(rescueHoleRow(undefined), null)
+  // an empty fleet has no mass to judge
+  assert.equal(rescueHoleRow([]), null)
+  // junk stats read g0/r0 (the silent class, the body-guard law)
+  assert.equal(rescueHoleRow([
+    { name: 'F1', stats: null },
+    { name: 'F2', stats: { airGlitches: 'x', rescues: {} } },
+    { name: 'F3' }
+  ]), null)
+  // negative counters are impossible data
+  assert.equal(rescueHoleRow([{ name: 'F3', stats: { airGlitches: -5, rescues: -2 } }]), null)
+  // rescues outcounting glitches is a carried-counter overhang, not a hole:
+  // the row measures holes, not accounting disputes
+  assert.equal(rescueHoleRow([{ name: 'F4', stats: { airGlitches: 10, rescues: 30 } }]), null)
+  // everything rescued: no hole, no line
+  assert.equal(rescueHoleRow([{ name: 'F5', stats: { airGlitches: 100, rescues: 100 } }]), null)
+  // a missing name still reports its mass under '?'
+  const row = rescueHoleRow([{ stats: { airGlitches: 60, rescues: 0 } }])
+  assert.equal(row, 'rescue hole: local - ? holds 60u of 60u unrescued (100.0%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE WIRING PIN - the hole row rides the economy verdict', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /rescueHoleRow[\s\S]*?from '\.\.\/src\/lib\/statcarry\.mjs'/)
+  assert.match(src, /if \(rescueEconomy\) \{\s*\n\s*console\.log\(`rescue economy decode: \$\{rescueEconomy\}`\)[\s\S]*?rescueHoleRow\(list\.map/)
+  const econLogIdx = src.indexOf('rescue economy decode: ${rescueEconomy}')
+  const holeIdx = src.indexOf('rescueHoleRow(list.map')
+  assert.ok(holeIdx > econLogIdx, 'the hole row prints after the economy verdict, inside its conditional')
+  assert.ok(src.includes('THE RESCUE-HOLE ROW'), 'the wiring carries its own doctrine comment')
 })

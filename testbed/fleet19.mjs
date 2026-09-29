@@ -43,7 +43,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3194,7 +3194,15 @@ const rescueEconomy = rescueEconomyDecode({
   airGlitches: list.reduce((a, m) => a + (m.stats?.airGlitches ?? 0), 0),
   rescues: list.reduce((a, m) => a + (m.stats?.rescues ?? 0), 0)
 })
-if (rescueEconomy) console.log(`rescue economy decode: ${rescueEconomy}`)
+if (rescueEconomy) {
+  console.log(`rescue economy decode: ${rescueEconomy}`)
+  // (v0.326.0) THE RESCUE-HOLE ROW rides the verdict: the economy decode names
+  // the wound (the net is losing ground), the hole row names WHERE - a single
+  // walk's reach (local) or a saturated net (spread). A healthy run prints
+  // neither line.
+  const rescueHole = rescueHoleRow(list.map(m => ({ name: m.username, stats: m.stats })))
+  if (rescueHole) console.log(rescueHole)
+}
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)

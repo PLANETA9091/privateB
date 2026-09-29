@@ -201,6 +201,51 @@ export function rescueEconomyDecode (opts = {}) {
   return `rescue economy: ${r} rescues for ${g} air glitches = ${(share * 100).toFixed(1)}% - the net is losing ground`
 }
 
+// (v0.326.0) THE RESCUE-HOLE ROW - the economy decode judges the NET; the next
+// question a miner asks is WHERE the leak lives. The per-bot row (v0.195.0)
+// names every g/r pair but never ranks the unrescued mass (g - r), so a bot
+// sitting on a third of the leak reads as one more pair in the list. THE FORK:
+// LOCAL (one walk holds at least half the fleet's unrescued mass - the cure is
+// a single bot's rescue reach) vs SPREAD (no holder clears half - the net
+// itself is saturated, the cure is fleet-wide). The mass floor keeps a small
+// face from rendering a verdict (the ledger-grain law: 49 unrescued units is
+// weather, 50 is a leak); bots whose rescues outcount their glitches (the
+// carried counters can overhang across reconnects) clamp to zero mass - the
+// row measures holes, not accounting disputes; junk counters read g0/r0 (the
+// silent class, the body-guard law). Pure: reads, never mutates.
+export const RESCUE_HOLE_MIN_UNRESCUED = 50
+export const RESCUE_HOLE_HOLD_SHARE = 0.5
+
+/**
+ * Where does the unrescued glitch mass live? LOCAL vs SPREAD, by holder.
+ * @param {Array<{name?: string, stats?: {airGlitches?: number, rescues?: number}}|null>} bots
+ * @returns {string|null} 'rescue hole: ...' when the mass clears the floor
+ */
+export function rescueHoleRow (bots = []) {
+  if (!Array.isArray(bots)) return null
+  const holders = []
+  let total = 0
+  for (const b of bots) {
+    const s = b && typeof b === 'object' ? b.stats : null
+    const g = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+    const r = s && Number.isFinite(s.rescues) && s.rescues > 0 ? Math.floor(s.rescues) : 0
+    const u = Math.max(0, g - r)
+    if (u > 0) holders.push({ name: b.name ?? '?', u })
+    total += u
+  }
+  if (total < RESCUE_HOLE_MIN_UNRESCUED) return null
+  // byte-stable pick: largest mass wins, ties break on name ascending
+  let top = holders[0]
+  for (const h of holders) {
+    if (h.u > top.u || (h.u === top.u && h.name < top.name)) top = h
+  }
+  const pct = ((top.u / total) * 100).toFixed(1)
+  if (top.u / total >= RESCUE_HOLE_HOLD_SHARE) {
+    return `rescue hole: local - ${top.name} holds ${top.u}u of ${total}u unrescued (${pct}%) - aim the cure there`
+  }
+  return `rescue hole: spread - top ${top.name} holds ${top.u}u of ${total}u (${pct}%) - no single walk owns the leak`
+}
+
 /**
  * (v0.199.0) THE DEATH-DROP LINE - run84 (fleet 36207216784) named the class:
  * mined=3027 but conversion=51.1% with unaccounted=1479, and the fleet pocket
