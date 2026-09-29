@@ -9200,3 +9200,21 @@ Stage Summary:
 - Master = 9993bd4 (pkg 0.314.0, proven tree + worklog). Local: this worklog only. FLEET IN FLIGHT: 36592026195 (9993bd4) - the FIRST face flying all three fronts together.
 - NEXT FIRE: (1) poll + MINE 36592026195: the blind brackets on 'water: rescue' end lines ('[blind: N passes, 0 shore scans hit, 0 standing probes...]'), 'pounces=N pounceLanded=M' in the RESULT line, 'climb pounce probe:' lines, 'climb wet-wall yield:' lines, banked vs 154, unaccounted vs 554, alive vs 19/19; (2) the blind-rescue LIVE cure stays priced (the ascend air-budget naming); (3) push this record first.
 - OPEN FRONTS: the blind-rescue live cure (priced); the banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260930-0000
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0000 - ride the flying face, ship the blind-rescue LIVE cure (v0.315.0).
+
+Work Log:
+- The face 36592026195 left PENDING and started FLYING at 16:18:33Z (their 2338 record's double-proof hour confirmed: gate 36590729655 SUCCESS 16:17Z, the fleet on 9993bd4 - the first face flying all four instruments). Slot theirs, no duplicate dispatch.
+- v0.315.0 THE BLIND LIVE LINE shipped (the priced blind-rescue live cure, the lane's drowning territory): the v0.314.0 decode named blindness only at the END line - F10 died mid-climb with the verdict unspoken, the live evidence being the rate-limited per-pass lines (the shared-cap starvation lesson). The cure: the same blind predicate (rescueBlindness) evaluated LIVE in the climb loop - one-shot latched (blindLiveSeen), headWet-gated (the dry branch gathers shore truth, the class would lie), speaking ONCE per rescue while the blind climb still flies: 'water: rescue blind live (pass N, air=X, no ground truth yet - the climb flies on buoyancy alone)'. Earliest honest fire: the 3rd pass in flight (passNo+1 = RESCUE_BLIND_FLOOR_PASSES). Rides the existing 'water' filter key - no new filter key.
+- Tests: syntax 249, unit 135/135; integration 2/2 CLEAN on a FRESH world (the smelting world was reset - last fire's timeout was the degraded-world class; smelting exercised and passed).
+- Trap avoided: the world reset rewrote testbed/server/server.properties into the first commit attempt - caught on the staging list, the commit rebuilt without it (protocol point 7).
+- Pushed 415f280..17584e0 in the IN-FLIGHT window (the 2200 precedent: cancel-in-progress false keeps a flying face alive). cron38's worklog 415f280 landed mid-fire - rebase keep-both conflict resolved, both records kept. Gate 36597358582 PENDING on 17584e0 (queued behind the flying fleet). NO dispatch (proven-head: the tip gate unproven; the slot busy anyway).
+- This record rides local (queued-latest-kept: my gate is pending - a worklog push now would supersede the queued gate).
+
+Stage Summary:
+- Master = 17584e0 (pkg 0.315.0, gate 36597358582 PENDING). FLEET IN FLIGHT: 36592026195 (9993bd4, the four-instrument face, lands ~16:29Z + artifact upload).
+- NEXT FIRE: (1) push this record; (2) MINE 36592026195 - honest note: the face flies the v0.314.0 tree (the live line landed after the tree was cut), so read the '[blind: ...]' END brackets, 'pounces=N pounceLanded=M' on the RESULT, 'climb pounce probe:', 'climb wet-wall yield:', banked vs 154, unaccounted vs 554, alive vs 19/19; (3) poll gate 36597358582 - green + slot free -> dispatch ci.yml fleet_seconds=600: the FIRST face flying the LIVE blind line; (4) then the banked-crater economics.
+- OPEN FRONTS: banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
