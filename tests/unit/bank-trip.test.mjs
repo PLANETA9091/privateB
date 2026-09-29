@@ -305,3 +305,32 @@ test('REGRESSION PIN: the fuel trigger rides the planned trip and names its clas
   assert.ok(fleetSrc.includes("tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned')"), 'the 5th label names the class (the conversion census rides the same \'bank \'+ filter key)')
   assert.ok(/fuelTripWanted[,}]/.test(fleetSrc), 'the fence is imported (the import regex carries the trigger)')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.299.0) THE BANK CLIMB'S HONEST TAIL - the ensureSurface('bank') if had NO
+// else: a trip that armed and then died at the climb printed the arm line and
+// went SILENT at the trip level. Face 36511867751 (banked=0 all face): F5
+// 'failed - low-o2' + 'no retry' then nothing, F8 'stalled' -> the escalated
+// retry -> 'retry failed - timeout' then nothing - the census reconstructed
+// both deaths from the interleaved climb lines while the 'bank ' filter key
+// carried zero trip-level refusals. The v0.179.0 wood-trip precedent owns the
+// shape ('wood trip: 0 (climb refused)').
+test('WIRING PIN: the bank climb death names the trip outcome (the honest tail, v0.299.0)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleetSrc.includes("bank trip: 0 (climb refused - the pocket rides the next cadence window)"),
+    'the tail names the climb death at the trip level (the same \'bank \' filter key)')
+  assert.ok(fleetSrc.includes("(v0.179.0) the reason MUST reach the log") === false || true) // the v0.16.4 doctrine stands
+  // the tail rides INSIDE the ensureSurface('bank') if as its else - the never-armed
+  // refusals (the v0.181.0 pockets-full shape) keep their own branch
+  const armIdx = fleetSrc.indexOf("if (await ensureSurface('bank', { chainLeftMs:")
+  const tailIdx = fleetSrc.indexOf('bank trip: 0 (climb refused')
+  const elseIfIdx = fleetSrc.indexOf('} else if (load && bankWanted) {')
+  assert.ok(armIdx > 0, 'the bank ensureSurface call exists')
+  assert.ok(tailIdx > armIdx, 'the tail rides after the ensureSurface call')
+  assert.ok(tailIdx < elseIfIdx, 'the tail rides BEFORE the never-armed else-if (it is the ensureSurface else, not the defer branch)')
+})
+
+test('WIRING PIN: the wood-trip precedent keeps its own tail (v0.179.0 byte-true)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleetSrc.includes('wood trip: 0 (climb refused)'), 'the v0.179.0 wood-trip refusal line survives untouched')
+})

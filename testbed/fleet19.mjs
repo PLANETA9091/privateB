@@ -2212,6 +2212,25 @@ async function runBot (name, target, index) {
               // range' zero cost fleet #122 its whole banking chain (v0.16.1 lesson)
               console.log(`${name} bank: 0 (${res.reason})`)
             }
+          } else {
+            // (v0.299.0) THE BANK CLIMB'S HONEST TAIL: the ensureSurface-if had NO
+            // else - a trip that armed and then died at the climb printed the arm
+            // line and went SILENT. Face 36511867751 (the dual-v0.298.0 tree's first
+            // field, banked=0 all face): F5 armed 'planned budget 173s', the climb
+            // died 'failed - low-o2' + 'no retry (no retry for low-o2)' - and the
+            // trip level named NOTHING (the low-o2 no-retry is CORRECT - the rescue
+            // lane owned the bot's air; the silence is the gap); F8 armed 'planned
+            // budget 155s', the climb stalled, the escalated retry 'retry failed -
+            // timeout [stage 1]' - and the trip level named NOTHING. The census
+            // reconstructed both deaths from the interleaved climb lines; the
+            // 'bank ' filter key carried zero trip-level refusals all face. The
+            // v0.179.0 wood-trip precedent owns the shape ('wood trip: 0 (climb
+            // refused)'): the climb's own lines above name the exact reason, the
+            // tail names the TRIP's outcome - the pocket rides the next cadence
+            // window (lastBankAt already advanced at the arm, the 150s cadence
+            // owns the re-arm; no retry storm - the gate never re-arms inside
+            // this branch).
+            console.log(`${name} bank trip: 0 (climb refused - the pocket rides the next cadence window)`)
           }
         } else if (load && bankWanted) {
           // (v0.181.0) the gate's refusal names itself once per cadence window
