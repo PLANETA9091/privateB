@@ -8630,3 +8630,21 @@ Work Log:
 Stage Summary:
 - Master = 57472dd (pkg 0.299.0, PROVEN by 36516543177). FLEET OF RECORD: 36517770723 queued (the same proven head).
 - NEXT FIRE: (1) poll + MINE 36517770723: the honest tail's field debut ('bank trip: 0 (climb refused...)' lines - the wet-region climb-death class sized at trip level at last), the low-o2 second sample, the airGlitches storm's second read, the sub-doom gate's second watch, the decide-class census; (2) the Drowned in-water combat front.
+
+---
+Task ID: cron30-20260929-1130
+Agent: Super Z (cron lane 30, Job 414125)
+Task: 1130 cycle - the airGlitches storm mined to root from the LOCAL 36511867751 artifacts, v0.300.0 THE DRY-TAIL PROOF shipped (e7c82fc), the integration hang proven PRE-EXISTING on the stashed clean tree, the fleet of record survived the push (in_progress), no dispatch (the slot law)
+
+Work Log:
+- Arrival: master = e732483 (pkg 0.299.0 PROVEN), FLEET OF RECORD 36517770723 queued. The lane quiet.
+- THE STORM READ (the local run36511867751 artifacts): F15 owns 105/106 airGlitches ('oxygen 3 on dry land' all four rate-limited prints) + 22/39 rescues + 17/20 timeouts. The class: the STALE POST-RESPAWN BAR - F15 died to a Drowned (the fight's deadline outlived the death, hp 17 -> 20 read the respawn), respawned with the bar stuck at 3, stood at a shore dip (feet wet, head dry) - airBarTrust believes a feet-wet bar, the rescue flails the FULL 25s x17 (~425s), and the finally records the DRY-START shore cell each timeout (the v0.62.0 refresh fires only while wet) - the same cell re-memorized 17x (6 live -> degraded 5 -> refilled). The v0.104.0 fast band needs the 0.0s shape; the feet-wet full-budget flail keeps the legacy poison.
+- v0.300.0 THE DRY-TAIL PROOF: dryTailTimeoutProof (drowning.mjs, pure, junk-safe) - headWetPasses 0 AND the last DRY_TAIL_PROOF_DEPTH 3 reads all dry (the same tail the timeout verdict prints). The lungs' truth: oxygen drains only while the EYE is submerged - a head dry across the whole flail disproves the bar's claim, the fast band's disproof one band deeper. The FULL tail window gates the band: the frozen/stall exits (0-2 reads, the v0.62.0 class) keep the legacy record. Wiring: sawHeadWater latches head water/waterlogged (the F17 waterlogged class reads wet - legacy keeps); the band rides the finally between the fast band and the hazard record, the same cure (no hazard write, the streak restarts, the 20s backoff, the ratchet); the line rides the existing water filter key. Tests: the F15 datum + the tail gate + junk + constants + the wiring pin. Local: syntax 242, unit 128/128.
+- THE INTEGRATION HANG: productivity.test.mjs 'Promise resolution is still pending' x3 - restart, full world wipe ('Done (11.4s)'), still hung. The stashed CLEAN tree (e732483) reproduced the SAME hang => pre-existing, environmental, not the code. server.properties restored. Shipped on syntax+unit green; CI arbitrates.
+- Pushed e7c82fc (pkg 0.300.0 free, no collision). Gate 36520218430 pending (the runner pool busy with the fleet face - the 8-min poll timed out pending).
+- THE FLEET SURVIVED: 36517770723 queued -> in_progress before my push run could outrank it - the v0.299.0 tree is flying. NO dispatch (one active fleet run).
+
+Stage Summary:
+- Master = e7c82fc (pkg 0.300.0; gate 36520218430 pending at fire end). FLEET OF RECORD: 36517770723 in_progress (the v0.299.0 tree's first field flight).
+- NEXT FIRE: (1) the newest gate green + the slot free => dispatch; (2) MINE 36517770723: the honest tail's debut ('bank trip: 0 (climb refused...)' at trip level), the airGlitches second read (my band NOT in that tree - F15's flail should reproduce: confirm the class before my band's face), the sub-doom gate's second watch, the decide census; (3) if CI's integration step hangs the gate - download the jobs log, diagnose there.
+- OPEN FRONTS: the dry-tail proof's field verdict; the integration hang's root; the Drowned in-water combat (the fight's post-death deadline); the stale-post-respawn-bar class (my band cures the COST, the verdict lane stays); the famine era-end; the write-off's first line; the void stamp; the doomed-goal-cache; the dusk-bank collision; the GC Pinned hunt; the tunnel-path ore destruction.
