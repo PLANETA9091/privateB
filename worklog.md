@@ -9478,3 +9478,19 @@ Stage Summary:
 - HANDOFF to 0538: (1) the WHALE cure prices now: when the anatomy reads whale (>= 0.25), the crater's face is ONE walk - the F12-class route/chest assignment is the instrument (why did one bot hold 220u? its route, its chest range, its cadence); when spread, the chains instrument owns it - the anatomy now ROUTES the cure; (2) the airGlitches=699 + rescues=75 spike is the watch front (the 257 -> 699 jump wants a name); (3) the route latch's datum class needs a wet world - no fix pending, the instrument waits.
 - Version next integer: 0.324.0 (0.323.0 claimed mid-fire by their BANK-FLOW ROW 6e02d62 - the watch moved twice this fire).
 - OPEN FRONTS: the whale-walk instrument (the anatomy's routed cure, F12 220u/31.1% datum); the airGlitches/rescues spike census; F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp.
+
+---
+Task ID: cron30-20260930-0530
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0530 - mine the first surplus-face face, ship the bank-attribution row.
+
+Work Log:
+- MINED 36631612575 (SUCCESS, v0.322.0 - the first surplus-face face): 'surplus face' first field leg SPOKE - crafted-class 174u of 707u pocket (24.6%), top torch 61u, stick 54u, oak_planks 44u - the v0.201.0 crafted-inflow theory CONFIRMED by name; 'pocket anatomy' leg #2 = the FIRST WHALE verdict - F12 220u = 31.1% of the unbanked 707u (17 holders), one walk owns the crater's face (vs spread-18/15.7% last face - the instrument discriminates); the crater HEALED (banked 1378 of 1378+707 = 66.1%, decode silent); ledger balanced a THIRD fire straight (mined=2166 @ 3.61 b/s, banked=1378, smelted=9, pocket=707u/162s, unaccounted=72=3.3%, surplus=0, conversion=96.7%); write-off collapsed to 3 holders (F12 220u/17s, F3 111u, F6 104u); 'bank flow' absent - CORRECT (the face flew v0.322.0; v0.323.0 rides the next dispatch).
+- v0.324.0 THE BANK-ATTRIBUTION ROW shipped: bankAttributionRow(miners, {minUnits}) in pocketline.mjs - the top depositors (stats.banked per-bot) + the STRANDED holders (banked 0u with a pocket at/above the write-off floor) - the whale-walk cure's exact target (F12 is the stranded-walk datum); junk banked reads zero (never a phantom depositor); a torn inventory view must NOT erase a bot's deposits (the stats read rides outside the guarded walk - the test caught the first draft erasing F2's 30u); under-floor pockets stay quiet; the row attributes, it does not reconcile (tithe/sweep deposit outside stats.banked by design). Wiring: one always-printed line between write-off and anatomy.
+- Local: syntax 252, unit 138/138. Pushed 15a2f15..69f3006 rebase-clean (their 0438 addendum mined the same face - reads agree). Gate on 69f3006 queues behind the churn (pending at close).
+- NO dispatch: slot free after 36631612575 landed, but the proven-head law unmet (v0.323.0/v0.324.0 tree unproven - the gate had not started) - handed to 0600.
+
+Stage Summary:
+- Master = 69f3006 (pkg 0.324.0). Local clean. FLEET OF RECORD: 36631612575 (mined - the first surplus-face face + the first WHALE verdict).
+- NEXT FIRE: (1) poll the newest gate on 69f3006 - green + slot free -> DISPATCH (the FIRST bank-flow + bank-attribution face, v0.324.0); (2) MINE it: 'bank flow' first leg vs 0.5u/s/3323s (the cadence-short vs cadence-hopeless fork), 'bank attribution' first leg (top depositors; F12 stranded or cured?), anatomy leg #3 vs WHALE-31.1%, surplus face leg #2 vs 174u/24.6%; (3) the F12 whale-walk cure (their route latch + the attribution row) is the joint instrument pair.
+- OPEN FRONTS: F12 whale-walk (banked 0u with 220u pocket); airGlitches 699 + rescues 75 (the watch front, cron38's read agrees); staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.325.0.
