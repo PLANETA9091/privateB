@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,7 +181,7 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode } from '../src/lib/pocketline.mjs'"),
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow } from '../src/lib/pocketline.mjs'"),
     'the fleet imports the write-off row + the decodes from the pocket instrument (v0.318.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
@@ -300,4 +300,65 @@ test('bankedCraterDecode: THE WIRING PIN - the report block judges the pair', ()
   assert.match(src, /bankedCraterDecode\(\{ banked, pocket: endPk\.units \}\)/)
   // the line form: rides the report block (ALWAYS printed when it speaks)
   assert.match(src, /banked crater decode: \$\{crater\}/)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
+// never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
+// stakes (top F14 182u = 13.5%) with the cure differing by shape - a whale
+// pocket is one walk from the yard, a spread pocket is the chains' failure.
+// These tests pin the measured datum, the whale boundary, the none-form, the
+// junk discipline, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('pocketAnatomyRow: THE MEASURED SHAPE (fleet 36606754498: top 182u of 1349u, 8 stakes)', () => {
+  const mk = (name, units) => ({ username: name, bot: { inventory: { items: () => [{ count: units }] } } })
+  const miners = [mk('F14', 182), mk('F3', 179), mk('F15', 152), mk('F5', 141), mk('F7', 121), mk('F1', 117), mk('F8', 116), mk('F13', 110)]
+  const v = pocketAnatomyRow(miners, { total: 1349 })
+  assert.ok(v.startsWith('pocket anatomy: spread across 8 holders, top F14 182u = 13.5% of 1349u'), v)
+  assert.match(v, /the chains own the crater's face, no single walk cures it/)
+})
+
+test('pocketAnatomyRow: THE WHALE BOUNDARY - a quarter of the unbanked mass is one walk', () => {
+  assert.equal(POCKET_WHALE_SHARE, 0.25)
+  const mk = (name, units) => ({ username: name, bot: { inventory: { items: () => [{ count: units }] } } })
+  // exactly at the floor: the whale speaks (>= law, the crater decode's mirror)
+  const at = pocketAnatomyRow([mk('F9', 250), mk('F3', 250), mk('F5', 250), mk('F7', 250)], { total: 1000 })
+  assert.ok(at.startsWith('pocket anatomy: whale F3 250u = 25.0% of the unbanked 1000u (4 holders)'), at) // the tie at 250u breaks by name - F3 is byte-first
+  assert.match(at, /one walk owns the crater's face/)
+  // one unit of concentration less: spread
+  const below = pocketAnatomyRow([mk('F9', 249), mk('F3', 249), mk('F5', 248), mk('F7', 248)], { total: 1000 })
+  assert.match(below, /^pocket anatomy: spread across 4 holders, top F3 249u = 24.9%/) // one tenth under the floor: spread
+})
+
+test('pocketAnatomyRow: THE NONE-FORM and the junk total', () => {
+  // an empty fleet still gets its verdict (the 05:00 ledger-skip lesson)
+  assert.equal(pocketAnatomyRow([], { total: 1349 }), 'pocket anatomy: none (no pocket exists at the deadline)')
+  assert.equal(pocketAnatomyRow(), 'pocket anatomy: none (no pocket exists at the deadline)')
+  assert.equal(pocketAnatomyRow(null), 'pocket anatomy: none (no pocket exists at the deadline)')
+  // a junk total falls back to the holders' sum - never a divided-by-zero
+  const mk = (name, units) => ({ username: name, bot: { inventory: { items: () => [{ count: units }] } } })
+  const v = pocketAnatomyRow([mk('F1', 300), mk('F3', 100)], { total: NaN })
+  assert.ok(v.startsWith('pocket anatomy: whale F1 300u = 75.0% of the unbanked 400u (2 holders)'), v)
+  assert.equal(pocketAnatomyRow([mk('F1', 300), mk('F3', 100)], { total: null }), v.replace('75.0', '75.0'))
+})
+
+test('pocketAnatomyRow: THE JUNK DISCIPLINE - torn views and impossible counts hold nothing', () => {
+  const torn = { username: 'F2', bot: { inventory: { items: () => { throw new Error('torn window') } } } }
+  const junk = { username: 'F6', bot: { inventory: { items: () => [{ count: NaN }, { count: -5 }, { count: 90 }] } } }
+  const v = pocketAnatomyRow([torn, junk], { total: 90 })
+  assert.ok(v.startsWith('pocket anatomy: whale F6 90u = 100.0% of the unbanked 90u (1 holder)'), v)
+  // non-array miners and missing inventories read as empty pockets
+  assert.equal(pocketAnatomyRow('junk', { total: 5 }), 'pocket anatomy: none (no pocket exists at the deadline)')
+  assert.equal(pocketAnatomyRow([{ username: 'F8' }], { total: 5 }), 'pocket anatomy: none (no pocket exists at the deadline)')
+})
+
+test('pocketAnatomyRow: THE WIRING PIN - the report block judges the shape', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /pocketAnatomyRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.match(src, /pocketAnatomyRow\(list, \{ total: endPk\.units \}\)/)
+  const rowIdx = src.indexOf('console.log(writeOffRow(list))')
+  const anatomyIdx = src.indexOf('pocketAnatomyRow(list')
+  assert.ok(anatomyIdx > rowIdx, 'the anatomy row prints AFTER the write-off row - the same report-block class')
+  assert.ok(src.includes('THE POCKET-ANATOMY ROW'), 'the wiring carries its own doctrine comment')
 })

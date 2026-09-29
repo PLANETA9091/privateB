@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3170,6 +3170,12 @@ if (mass) console.log(`unaccounted mass decode: ${mass}`)
 // units, ALWAYS printed (the 05:00 ledger-skip lesson). Same report-block
 // class as the loot ledger line above.
 console.log(writeOffRow(list))
+// (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
+// never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
+// stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is
+// one walk from the yard, a spread pocket is the chains' failure. Same
+// report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
+console.log(pocketAnatomyRow(list, { total: endPk.units }))
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed

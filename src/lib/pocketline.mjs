@@ -186,3 +186,50 @@ export function unaccountedMassDecode (opts = {}) {
   if (share < UNACCOUNTED_FLOOR_SHARE) return null
   return `unaccounted: ${(share * 100).toFixed(1)}% of the mined mass never reached the books (${unaccounted}u of ${m}) - the shaft drops, the tool spend and the consolidation own the leak`
 }
+
+// (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders
+// but never judged their SHAPE. Fleet 36606754498 (the latch's first face)
+// read pocket=1349u spread across 8 stakes (top F14 182u = 13.5%) with the
+// crater verdict saying 'the bank chains are the bottleneck' - but the shape
+// was never measured, and the cure differs: a WHALE pocket (one holder owns
+// a quarter or more of the unbanked mass) is one walk away from banking, a
+// SPREAD pocket is the chains' failure no single walk cures. The row rides
+// the same inventory walk as writeOffRow (the junk law: NaN/Infinity AND
+// negative counts are impossible data - zeroed; a torn window view holds
+// nothing this read). The total argument is the ledger's own pocket read
+// (endPk.units) - when it is junk the holders' sum stands in, never a
+// divided-by-zero. ALWAYS printed - the none-form is a verdict too (the
+// 05:00 ledger-skip lesson).
+export const POCKET_WHALE_SHARE = 0.25
+
+/**
+ * The deadline-pocket anatomy: whale or spread?
+ * @param {Array<{username?: string, bot?: {inventory?: {items?: Function}}}>} miners
+ * @param {{total?: number|null}} [opts] the ledger's pocket read (endPk.units)
+ * @returns {string} the anatomy verdict, always speaks
+ */
+export function pocketAnatomyRow (miners, { total = null } = {}) {
+  const holders = []
+  for (const m of (Array.isArray(miners) ? miners : [])) {
+    try {
+      const items = m?.bot?.inventory?.items?.()
+      if (!Array.isArray(items)) continue
+      let units = 0
+      for (const it of items) {
+        const c = it?.count
+        units += (Number.isFinite(c) && c > 0) ? c : 0
+      }
+      if (units > 0) holders.push({ name: m?.username || 'F?', units })
+    } catch { /* a torn window view on a dying bot holds nothing this read */ }
+  }
+  if (holders.length === 0) return 'pocket anatomy: none (no pocket exists at the deadline)'
+  holders.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
+  const t = (Number.isFinite(total) && total > 0) ? total : holders.reduce((a, h) => a + h.units, 0)
+  const top = holders[0]
+  const share = top.units / t
+  const pct = (share * 100).toFixed(1)
+  if (share >= POCKET_WHALE_SHARE) {
+    return `pocket anatomy: whale ${top.name} ${top.units}u = ${pct}% of the unbanked ${t}u (${holders.length} holder${holders.length > 1 ? 's' : ''}) - one walk owns the crater's face`
+  }
+  return `pocket anatomy: spread across ${holders.length} holders, top ${top.name} ${top.units}u = ${pct}% of ${t}u - the chains own the crater's face, no single walk cures it`
+}
