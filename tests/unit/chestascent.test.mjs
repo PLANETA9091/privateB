@@ -31,7 +31,10 @@ test('v0.256.0 wiring: the doom branch consults the OPTIONAL hook BEFORE the leg
   assert.ok(reDoomIdx > hookCallIdx, 'after a climb the strict gate RE-EVALUATES from the new altitude')
   const skipIdx = depositSrc.indexOf("log(`[${bot.username ?? 'bot'}] chest skip (vertical doom: ${doom.why} - the walk ladder cannot climb)`)", reDoomIdx)
   assert.ok(skipIdx > reDoomIdx, 'the legacy skip line rides AFTER the hook block - the skip stays byte for byte')
-  const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger })')
+  // (v0.303.0) the anchor restated on the post-yard-grace tree: the hop call
+  // threads the chain's yardGraceHolder - the gate-before-walk ORDER the pin
+  // owns is untouched.
+  const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })')
   assert.ok(walkIdx > skipIdx, 'a cleared doom falls through to the legacy hop - the climb buys the ladder its route')
   assert.match(depositSrc, /onVerticalDoom = null/, 'the hook defaults to null - no caller change reads the legacy shape')
 })
