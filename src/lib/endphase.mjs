@@ -137,6 +137,22 @@ export const END_BANK_BUDGET_MS = 150000
  * the 420s hard-kill margin intact regardless. */
 export const END_BANK_BUDGET_CAP_MS = 280000
 
+/** (v0.296.0) THE FINAL CLIMB PATIENCE - the bounded wait a final climb spends
+ * on a LIVE water rescue before attempting. MEASURED (face 36499444700, the
+ * combined v0.295.0 tree's first field flight): 8 final climbs failed
+ * ('rescue owns the bot' x2, 'low-o2' x1, 'stalled' x3, 'timeout' x2) and the
+ * 8 'still underground' verdicts ate the end-phase pockets - banked=805 was
+ * the FIRST delivery since the deep era began, ~1672u still rode the pockets
+ * at t-0. The wet band (the water table y=60-62 under the y=76 yard) owns the
+ * shaft columns the final climb must pass, and a rescue held at climb start
+ * makes the attempt a BURN (the climb's owner gate refuses at entry, the
+ * ownership class never retries). The wet machinery's own window measured
+ * ~25s (the drowning-rescue passes), so 30s waits it out with a settle
+ * margin; a rescue that outlives the wait is a stuck sentry - the attempt
+ * proceeds and the owner gate rules (the caller's own retry bound stops it,
+ * the waitForWaterRescueClear contract). */
+export const FINAL_CLIMB_RESCUE_WAIT_MS = 30000
+
 /**
  * Parse the FLEET_END_BUDGET_MS env value. Pure, junk-tolerant: unset, empty,
  * junk, zero or negative -> the default budget (an env of 0 reads as 'unset':

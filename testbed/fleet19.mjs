@@ -24,7 +24,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
@@ -2497,6 +2497,24 @@ async function runBot (name, target, index) {
             // every iteration; mid-run climbs keep their escalation - this is
             // the FINAL climb only, where the chain's reserve outranks a
             // deeper staircase attempt).
+            // (v0.296.0) THE FINAL CLIMB PATIENCE - the attempt waits out a live
+            // water rescue instead of burning on the owner gate. MEASURED (face
+            // 36499444700): 8 final climbs failed ('rescue owns the bot' x2,
+            // 'low-o2' x1, 'stalled' x3, 'timeout' x2) and the 8 'still
+            // underground' verdicts ate the end-phase pockets - banked=805 was
+            // the FIRST delivery since the deep era began, ~1672u still rode
+            // the pockets at t-0. The wet band (the water table y=60-62 under
+            // the y=76 yard) owns the columns the final climb must pass; a
+            // rescue held at climb start makes the attempt a BURN ('no retry'
+            // for the ownership class). The v0.295.0 arm gate's doctrine
+            // reaches the final phase: wait the bounded measured window, the
+            // wet machinery keeps the controls the whole time, the owner gate
+            // stays the second line, and the class names itself in the log.
+            if (miner.bot?._waterRescue === true) {
+              const waitStart = Date.now()
+              const cleared = await waitForWaterRescueClear(miner.bot, { maxMs: FINAL_CLIMB_RESCUE_WAIT_MS })
+              console.log(`${name} final climb: ${cleared ? `waited out the wet rescue (${Math.round((Date.now() - waitStart) / 1000)}s) - the attempt starts honest` : `the rescue held the whole ${Math.round(FINAL_CLIMB_RESCUE_WAIT_MS / 1000)}s wait - the attempt proceeds (the owner gate rules)`}`) // rides the 'final climb' filter key, the class sizes itself
+            }
             const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)
             const climbFenceAt = Date.now() + climbFenceMs
             cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
@@ -2517,6 +2535,14 @@ async function runBot (name, target, index) {
             const retryPlan = climbRetryPlan({ attempts: climbAttempts, reason: cr.reason, sliceLeftMs: Math.max(0, schedule.climbSliceMs - (Date.now() - climbSliceStart)) })
             if (!cr.ok && retryPlan.retry) {
               console.log(`${name} final climb: retry (${retryPlan.why}, ${Math.round(retryPlan.maxMs / 1000)}s fence)`)
+              // (v0.296.0) the patience rides the retry too - a rescue that
+              // started after the first attempt failed (the wet band grabs
+              // stalled climbers) must not burn attempt 2 the same way.
+              if (miner.bot?._waterRescue === true) {
+                const retryWaitStart = Date.now()
+                const retryCleared = await waitForWaterRescueClear(miner.bot, { maxMs: FINAL_CLIMB_RESCUE_WAIT_MS })
+                console.log(`${name} final climb: ${retryCleared ? `waited out the wet rescue (${Math.round((Date.now() - retryWaitStart) / 1000)}s) - the attempt starts honest` : `the rescue held the whole ${Math.round(FINAL_CLIMB_RESCUE_WAIT_MS / 1000)}s wait - the attempt proceeds (the owner gate rules)`}`)
+              }
               const retryFenceAt = Date.now() + retryPlan.maxMs
               cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
               climbAttempts = 2

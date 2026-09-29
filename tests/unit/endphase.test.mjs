@@ -340,3 +340,43 @@ test('bankClimbRetry: no chain clock = the single-shot legacy stays byte-identic
   // the attempt cap passes through from climbRetryPlan
   assert.equal(bankClimbRetry({ chainLeftMs: 120000, spentMs: 1000, reason: 'stalled', attempts: 2 }).retry, false)
 })
+
+// (v0.296.0) THE FINAL CLIMB PATIENCE - the final climb waits out a live water
+// rescue before burning an attempt. MEASURED (face 36499444700, the combined
+// v0.295.0 tree's first field flight): 8 final climbs failed ('rescue owns the
+// bot' x2, 'low-o2' x1, 'stalled' x3, 'timeout' x2) and the 8 'still
+// underground' verdicts ate the end-phase pockets - banked=805 was the FIRST
+// delivery since the deep era began, ~1672u still rode the pockets at t-0.
+// The wet band (the water table y=60-62 under the y=76 yard) owns the columns
+// the final climb must pass; a rescue held at climb start makes the attempt a
+// BURN (the owner gate refuses at entry, the ownership class never retries -
+// the v0.50.0 policy). The v0.295.0 arm gate's doctrine reaches the final
+// phase: BOTH attempts wait the bounded measured window first.
+import { FINAL_CLIMB_RESCUE_WAIT_MS } from '../../src/lib/endphase.mjs'
+import { readFileSync } from 'node:fs'
+
+test('FINAL_CLIMB_RESCUE_WAIT_MS: the measured window + settle margin (the wet machinery owns ~25s)', () => {
+  assert.equal(FINAL_CLIMB_RESCUE_WAIT_MS, 30000)
+  assert.ok(FINAL_CLIMB_RESCUE_WAIT_MS > 25000, 'above the measured ~25s rescue window (the wait clears an honest rescue)')
+  assert.ok(FINAL_CLIMB_RESCUE_WAIT_MS < CLIMB_MIN_SLICE_MS * 3, 'far below the climb floor x3 (the wait can never eat the slice economy)')
+})
+
+test('REGRESSION PIN: both final climb attempts wait out the rescue before burning (the dead-wire class)', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // attempt 1: the wait rides BEFORE the fence clock (the slice starts post-wait)
+  const wait1 = src.indexOf('if (miner.bot?._waterRescue === true) {')
+  const fence1 = src.indexOf('const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)')
+  assert.ok(wait1 > -1 && fence1 > wait1, 'attempt 1 waits before its fence clock starts')
+  // attempt 2 (the retry): the same patience rides
+  const wait2 = src.indexOf('if (miner.bot?._waterRescue === true) {', wait1 + 1)
+  const retryFence = src.indexOf('const retryFenceAt = Date.now() + retryPlan.maxMs')
+  assert.ok(wait2 > -1 && retryFence > wait2, 'the retry waits before its fence clock starts')
+  assert.ok(src.split('waitForWaterRescueClear(miner.bot, { maxMs: FINAL_CLIMB_RESCUE_WAIT_MS })').length - 1 === 2, 'both attempt sites ride the SAME bounded constant')
+  // the strict ownership read (=== true - the owner gate's own strictness, junk never waits)
+  assert.match(src, /miner\.bot\?\._waterRescue === true/, 'the LIVE ownership flag reads strict')
+  // the class names itself in the existing 'final climb' filter key
+  assert.ok(src.includes('waited out the wet rescue ('), 'the waited-out form names itself')
+  assert.ok(src.includes('the attempt proceeds (the owner gate rules)'), 'the held-past form names the honest fallthrough')
+  // the constant is imported (the import regex carries it)
+  assert.match(src, /FINAL_CLIMB_RESCUE_WAIT_MS\s*[,}]/, 'the constant rides the endphase import')
+})
