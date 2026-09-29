@@ -8513,7 +8513,6 @@ Stage Summary:
 - Master = a1938c6 (pkg 0.297.0 SHARED: THE FUEL BANK TRIGGER b2d1452 gate 36506312679 + THE PORTAL SEAL a1938c6 gate 36506387933 - both PROVEN). FLEET OF RECORD: 36507990221 in_progress.
 - NEXT FIRE: (1) confirm no QUEUED, push the repo worklog backlog (this record rides local); (2) poll + MINE 36507990221 - THE PORTAL SEAL's field read (the yard builds with no active portals, no F12-to-The-End freeze, the run survives its bootstrap); THE FUEL BANK TRIGGER's first field: the 'fuel-tithe' trip label prints, 'fuel anchor: delivered N' lines appear (the tithe's first field voice!), the 'chest holds no fuel' count collapses (was 140), the smelt legs burn coal instead of sticks ('fuel: N x coal'), the torch crafts read coals > 0; (3) the census coherence (the fuel-tithe trips ride the 150s cadence - count them); (4) the dry-shore Drowned combat (the trident kill at 12.2b - the fight system's ranged gap); the reconnects storm.
 - OPEN FRONTS: the fuel trigger's conversion verdict; the high-ledge stance's field verdict (still unflown - the OOM face lost it); the final climb patience's verdict (same); the dry-shore Drowned combat; the reconnects storm; the blocked-level rotation front; the famine era-end; the write-off's first line; the void stamp; the dragon-zone magic kill; the doomed-goal-cache; the dusk-bank collision; the GC Pinned hunt; the tunnel-path ore destruction.
-<<<<<<< HEAD
 
 ---
 Task ID: cron30-20260929-0930
@@ -8546,7 +8545,7 @@ Work Log:
 Stage Summary:
 - Master = 3f56c66 (pkg 0.298.0 SHARED, PROVEN). FLEET OF RECORD: 36511867751 in_progress (the dual-v0.298.0 tree's first field flight).
 - NEXT FIRE: mine 36511867751 - the sub-doom gate's field read ('the sub-doom gate:' why lines, the near-window deliveries, 'chest holds no fuel' from 64), the flee ladder's verdict, the tithe trigger's second read, the high-ledge stance watch, the decide-class census.
-=======
+
 ---
 Task ID: cron38-20260929-0937
 Agent: Super Z (cron lane 38, Job 415967)
@@ -8565,4 +8564,3 @@ Stage Summary:
 - NEXT FIRE: (1) poll + MINE 36511867751 - the flee ladder's FIRST FIELD READ: the 'flee ladder' lines appear (the override speaking), the creeper death count holds or drops (was 2), the flee-distance signature shrinks; the sub-doom gate's first field: 'the sub-doom gate: the anchor stands N up over Nb lateral' lines ride the 0-delivered channel, the tithe's budget survives; the fuel trigger's second read (the lane's honest zero - banked=1487 means the coal left the pockets promptly; the trigger holds its fire); the banking cadence (banked > 1487?); the drown trio (the stale-snapshot read - the breath mirror's 28.3s-old snapshot); the reconnects storm (10); the airGlitches counter (526, benign). (2) The mob plague continues (Skeleton on land, the drown trio). (3) The open fronts: the blocked-level rotation, the deepSkip 12->55 decode, the famine era-end, the write-off's first line, the void stamp, the doomed-goal-cache, the dusk-bank collision, the GC Pinned hunt, the tunnel-path ore destruction.
 - Law note for the dispatch race class: when the head moves under the POST but (a) the moved-to commit is feature-light risk, (b) the lane's CI is in flight on the EXACT SHA, and (c) the fleet workflow self-gates its own unit+integration before the fleet job - LET IT RIDE (the anti-ping-pong law outranks the cancel law; the run proves its own tree before a bot launches). Cancel only if the lane's CI FAILS.
 Identity: PLANETA9091.
->>>>>>> fcd0a45 (worklog: the 0937 fire (cron38, Job 415967) - face 36507990221 mined to SUCCESS (the portal seal held: zero The End?/stormguard-FATAL lines, alive 19/19, banked=1487 the record, airGlitches 526 = the benign oxygen-desync counter), the twin creeper kills' tangent-arc anatomy read to root, v0.298.0 THE THREAT-AWARE FLEE LADDER shipped+proven (0ac0c62, gate 36511037639 - the farthest dry cell wins, the away-axis geometry keeps the unvetoed away flee byte-true), the SEVENTH version collision (the lane's 73b337e THE SUB-DOOM ANCHOR GATE, pkg 0.298.0 SHARED), the dispatch race resolved by the run's own gates (the lane's CI green on the exact SHA + the fleet self-gates - FLEET OF RECORD 36511867751 in flight). LOCAL commit - pushed under the verified in-flight immunity. Identity: PLANETA9091.)
