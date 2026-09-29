@@ -8776,3 +8776,24 @@ Work Log:
 Stage Summary:
 - Master = 38d4b48 (pkg 0.305.0). The v0.303.0 face (36531522422) completed - the NEXT fire mines it (the yard grace + the death stamp debuts).
 - The sword lane's field watch (its first dispatch): 'sword: table crafted from planks' appears, 'sword: failed (no table)' falls from 6; the kitless bot's post-respawn fight upgrades from the pickaxe.
+---
+Task ID: 415967-1438
+Agent: cron-fire (main lane, Job 415967)
+Task: fire 1438 - mine the v0.303.0 face (the yard grace + the death stamp's debut flight), prove the 0.304.0+0.305.0 head, dispatch.
+
+Work Log:
+- Mined 36531522422 (the v0.303.0 field face, SUCCESS, the first read left by the 1430 fire): mined=3263 (5.44 b/s = 326/min, a strong read), banked=764 - ALL of it mid-run, smelted=5, pocket=2825u/291s (the record ride), accounted=3594, unaccounted=0, surplus=331u, conversion=110.1%.
+- The good columns hold: alive 19/19, reconnects=0, kicks=0, airGlitches=0 (the THIRD clean read - the churn cure holds), fights=0, kills=0, rescues=32, climbs=38, tools=16, upgraded=21, swords=19. Two deaths only: F17 drowned (the server kind, the inference blind to it - the drowned class persists) and F10 fell from a high place (the inference corroborated).
+- THE END-PHASE COLLAPSE - the face's real story: 19/19 final banks delivered ZERO. The verdicts: 14x 'still underground' (3x after 1 climb attempt, 11x after 2), 4x 'budget exhausted', 1x 'chest unreachable (walk floor)'. The write-off row named 13 holders (F12 269u top, F9 259, F19 249, F4 246, F3 237, F7 229, F11 204, F14 204, F5 202, F16 180, F18 148, F15 98, F17 90) = 2615u rode the deadline; the whole end-phase pocket never banked.
+- The deep climb-out wall quantified: the final climbs read 'the yard stands 29 levels up over 28b lateral' (F17), '29 levels up over 9b' (F8), '27 levels up over 9b' (F18) - the shaft bottoms sit dy 27-29 BELOW the yard; the 38 final climb lines hold 6x 'stage 1 stalled' + 4x 'stage 1 timeout' + the low-o2 yields. At the measured 4.2s/level the honest vertical alone is ~122s.
+- THE F8 CASE (frozen-physics x low-o2 interaction): F8 froze head-wet at y=43 o2=6 (10 flat passes - the frozen physics read), the relog lane owned the client, the final climb then read o2=6 AT THE FLOOR ('the climb wet escape: oxygen 6 at the floor - the escape yields'), the no-retry law held ('no retry (no retry for low-o2)' - the air owns the wet escape), and the bot sat out the end-phase with its pocket. The O2 read was the FROZEN state's lie - the relog would have healed it. A final climb that yields low-o2 while the client is freshly relogged is a candidate for ONE O2-verified re-read (not a blind retry - the law's intent stays).
+- THE YARD GRACE'S DEBUT VERDICT: zero firings - CONSISTENT, not a failure. The grace pardons d<=16 SHORT walks; this face's bots never got that close (dy 27-29 at the shaft bottoms - the FAR class owns the wall). The wall moved up the shaft, and the v0.304.0 deep pre-position targets exactly it.
+- The mid-fight death stamp's debut: unexercised (fights=0, kills=0 - the Drowned never engaged; rescues handled the wet threats). The mechanism is unproven, not disproven.
+- CI: the head 20c0fc4 (v0.304.0 + v0.305.0 aboard) gate 36533202604 - unit green x2, integration GREEN. The head is PROVEN.
+- DISPATCH LANDED: 36535536162 (workflow 362040162, ref=master = 20c0fc4, run_fleet=true fleet_seconds=600) - the v0.304.0+0.305.0 tree's FIRST field flight.
+
+Stage Summary:
+- Master = 20c0fc4 (pkg 0.305.0, proven by 36533202604). Face 36535536162 in flight at fire end - the NEXT fire mines it.
+- The deep pre-position's field watch (its first dispatch): 'still underground' finals should fall from 14; 'pre-position bank:' fires should rise from 0; the write-off total should shrink from 2615u/13 holders; banked should jump from 764.
+- The sword rung's field watch: 'sword: table crafted from planks' appears; 'sword: failed (no table)' falls from 6.
+- Still open: the drowned deaths (F17 this face; the flooded band owns them), the F8 frozen-physics x low-o2 seam (the O2-verified re-read candidate), the 4x 'budget exhausted' chain verdicts, the dry-tail proof's field verdict, the void stamp, the doomed-goal-cache, the GC Pinned hunt.
