@@ -8916,3 +8916,21 @@ Stage Summary:
 - Master = 71f6c12 (pkg 0.308.0). FLEET OF RECORD: 36547355765 (pending, the v0.307.0 SECOND-HOSTILE LENS + v0.308.0 PLANK CONVERSION RUNG face, fleet_seconds=600). Code gate on the head: 36545007810 in_progress; the same code proven by 36544561973 success.
 - NEXT FIRE: (1) verify the head gate 36545007810 green; (2) MINE 36547355765: the lens watch ('the second hostile vetoes' lines appear, mob deaths vs 12), the conversion rung ('sword: planks converted' appears, 'failed (no table)' falls from 5), the dy-priced window ('budget exhausted' finals vs 4), the refractory holds (refusal lines vs 3), banked vs 1317, write-off vs 1273u; (3) one atomic improvement prices off that face.
 - OPEN FRONTS: unchanged (the shelter-vs-melee coffin; the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt).
+---
+Task ID: 415967-1638
+Agent: cron-fire (main lane, Job 415967)
+Task: fire 1638 - prove the combined 0.307.0+0.308.0 tree, win the dispatch race, mine the three-debut flight.
+
+Work Log:
+- Proved the tree: 36541387309 (940a03d) GREEN then the head gate 36544561973 (a240751, the FULL combined tree: both v0.307.0 features + v0.308.0) GREEN. No red runs, no zombies (the 28-min 'in_progress' reads were runner-queue waits, the jobs restarted honestly).
+- THE DISPATCH RACE AT 09:09: this fire's dispatch 36547302320 landed at 09:09:12; the 1630 fire's 36547355765 queued at 09:09:42 and SUPERSEDED mine (the queued-latest-kept law cancels older QUEUED runs; in_progress runs survive); then the 1700 fire's OWN push (7b8cd19) cancelled their dispatch the same way - their worklog still calls theirs 'the one live fleet run'. The survivor: 36547556739 (workflow_dispatch on 7b8cd19, a worklog-only diff over the proven a240751 code - the proven-head law held in substance). Mined COMPLETE.
+- THE DY-PRICED DEEP WINDOW'S FIELD VERDICT - every watch target hit: pre-position 'budget exhausted' fell 4 -> 2; deliveries rose to 6 (+388: F9 +137, F10 +103, F19 +83, F7 +44, F8 +20, F16 +1); the write-off row collapsed 7 holders/1273u -> 2 holders/335u (F1 261u top) - the best end-phase ever; still-underground 7 -> 3 (14 -> 4 -> 7 -> 3 across the era); banked recovered 1317 -> 1778; pocket 1511u -> 593u; unaccounted back to 0 (the 23u death-drop read vanished).
+- The honest trade continued: mined=2045 (3.41 b/s, the lowest of the era) - the earlier deep climbs buy the banked rise; the recovery lever is the worldmap/scout lane, not the window.
+- The liar storm receded with the world: airGlitches=28 (from 498), reconnects=4 (from 9), rescues=18 (from 79) - the seed variance owns the storm's scale; the page-backoff candidate stays open.
+- The other two debuts: UNEXERCISED, not disproven - the second-hostile lens fired 0x (the 6 deaths were direct kills - 3x Zombie, 1x Creeper, 1x Skeleton shot, 1x drowned - no mid-evasion signature occurred; fights=27 kills=9), the plank rung fired 0x (all 19 swords landed via the normal lanes; 'sword: OK' throughout). Both stay armed for the faces that need them.
+- The drowned class persists (F16, 1 death; the flooded band owns it across every face).
+
+Stage Summary:
+- Master = 7b8cd19 (pkg 0.308.0, the combined tree PROVEN in the field). Baseline: banked=1778, write-off 335u/2 holders, still-underground 3, pre-position 6 delivered/2 exhausted.
+- The next fire's fronts: the drowned class (the flooded band, 1+ death per face), the mined-rate recovery (3.41 b/s low - the worldmap/scout integration is the stated milestone), the air-bar page backoff (the storm's seed variance makes the datum thin - wait for a stormy face), the standing queue (the void stamp, the doomed-goal-cache, the GC Pinned hunt).
+- The queued-latest-kept law is now CONFIRMED for both push and dispatch events: queued runs die to any newer queue entry; in_progress runs survive. Dispatch only right after a gate green, never while a push is cooking.
