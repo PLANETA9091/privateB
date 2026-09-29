@@ -9272,3 +9272,19 @@ Stage Summary:
 - Master = 0c27638 + this worklog (pkg 0.317.0 tree, every gate green). FLEET OF RECORD: 36606754498 (in flight 18:23:26Z).
 - NEXT FIRE (the 0238 handoff): ride + mine 36606754498 - 'dooms-latched after' lines (THE LATCH VERDICT: refusals firing or the class never re-entered), 'still underground' count vs 17, banked vs 83, pocket vs 671u, the crater decode line vs 11.0%, mined vs 2713/4.52, alive vs 19/19, reconnects vs 14. If the latch verdict is clean -> the wet-column relocation seam prices at 0.318.0; if the crater persists -> the underground-cache chest lane re-prices.
 - Version next integer: 0.318.0 (0.317.0 taken by their decode).
+
+---
+Task ID: cron30-20260930-0130
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0130 - prove the v0.317.0 tip, dispatch the instrument face.
+
+Work Log:
+- Pushed the held 0100 record (0979f8a..0c27638, clean). The push gate 36605757229 queued behind the running 0979f8a gate (the worklog-only delta - the proven-code question identical).
+- Gate 36605571466 (0979f8a, v0.317.0) polled to SUCCESS: unit x2 green, integration green - the crater decode tip is CI-proven.
+- DISPATCHED: HTTP 204 -> 36606692692 (0c27638, workflow_dispatch, fleet_seconds=600) materialized 17:41:12Z, queued behind the worklog gate. THE FACE: the first flight of the LIVE blind line (v0.315.0) + the banked crater decode (v0.317.0) + their shaft-bottom doom latch (v0.316.0) together.
+- NO new code this fire (the dispatch was the scarce resource; the 1830/1930 precedent). Zero further pushes (the dispatch law).
+
+Stage Summary:
+- Master = 0c27638 (pkg 0.317.0 proven + worklog; the worklog gate 36605757229 queued ahead of the face - it proves the exact tree). FLEET QUEUED: 36606692692 (lands ~18:15-18:25Z: gate leg ~11 min + fleet leg ~10-20 min).
+- NEXT FIRE: (1) push this record FIRST (the face will be in flight or done - in-flight is the safe push window, queued is NOT: check the state before pushing); (2) poll + MINE 36606692692: 'water: rescue blind live (...)' (the live line's first field leg - expect it on frozen climbs like the 9-bracket face), 'banked crater decode: crater: ...' vs the doom latch's cure (banked vs 83, pocket vs 671u, bank share vs 11.0%), the doom latch lines ('dooms-latched after N failed shaft-bottom climb cycles'), blind bracket count vs 9, pounces vs 2, rate vs 4.52, alive vs 19/19; (3) the unaccounted mass (1948u never-picked-up) prices as the next economics front if the crater decode lands clean.
+- OPEN FRONTS: unaccounted mass 1948u; F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
