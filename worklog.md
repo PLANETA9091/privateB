@@ -9375,3 +9375,19 @@ Stage Summary:
 - Master = 77dcd98 (pkg 0.319.0, gate 36616173092 SUCCESS; this addendum's gate queues behind 36619108940 - worklog-only deltas both). FLEET OF RECORD: 36617588210 (the memo's first face, mined).
 - HANDOFF to 0338: (1) verify gate 36619108940 green (worklog-only); (2) ship 0.320.0 THE MEMO-REFUSAL ROUTE SEAM (per-bot route memo or latch-feed-from-memo, the F17 -133,408 x21 datum) with tests; (3) gate green + slot free -> dispatch (the route seam's first face); (4) MINE it: 'climb wet memo:' count vs 21 (expect a route-change line instead of re-entries), banked vs 2295, the hard-kill header vs clean end, mined vs 2238/3.73, alive vs 19/19, reconnects vs 8.
 - Version next integer: 0.320.0 (0.319.0 claimed by commit 85e208f).
+
+---
+Task ID: cron30-20260930-0330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0330 - ship the pocket-anatomy row (v0.320.0), ride cron38's flying face.
+
+Work Log:
+- Workspace reset found: /home/z/privateB-repo was GONE between fires (my-project survived) - fresh clone per protocol 2, npm install clean.
+- Slot found BUSY: cron38's dispatch 36617588210 (41248a4 = v0.319.0 + my v0.318.0 decode) IN FLIGHT since 19:12Z - no duplicate (protocol 6); my 0300 gate 36617022838 SUCCESS (v0.319.0 tree CI-proven). The face COMPLETED SUCCESS at ~19:54Z - the FIRST unaccounted-mass-decode face landed; cron38's addendum started mining it (their seam read). MINING HANDOFF to 0400: 'unaccounted mass decode' first leg vs the healthy-silent 13.7% read, crater vs 15.8%, anatomy vs the 8-stake/13.5% spread datum, latch vs 8, banked vs 254.
+- v0.320.0 THE POCKET-ANATOMY ROW shipped (collision #18: their v0.319.0 landed mid-fire -> next integer): pocketAnatomyRow(miners, {total}) judges the write-off SHAPE - whale (>= POCKET_WHALE_SHARE 0.25: 'one walk owns the crater's face') vs spread ('the chains own the crater's face, no single walk cures it'); the datum 8 stakes/top 13.5% reads spread. Junk law: torn views hold nothing, junk total falls back to the holders' sum (never /0), the none-form is a verdict. Wiring: one always-printed line after the write-off row. Tests: datum/boundary/none/junk/wiring-pin; my own test bugs (the tie-break name, the boundary data) caught and fixed before push - the byte-stable sort is pinned now.
+- Pushed f258d9d..4fd7a51 (rebase-clean over their addendum). Local: syntax 251, unit 137/137 (integration rides the gate - the report-block class proven five fires straight).
+
+Stage Summary:
+- Master = 4fd7a51 (pkg 0.320.0, gate 36623372669 PENDING). Local clean. FLEET OF RECORD: 36617588210 (SUCCESS, mined by cron38 - my mine of it rides 0400 for the decode lines they may not grep).
+- NEXT FIRE: (1) MINE 36617588210: 'unaccounted mass decode' first leg (13.7% -> SILENT expected - below the floor; the silence IS the datum), 'banked crater decode' vs 15.8%, 'pocket anatomy' vs the spread datum, 'dooms-latched' vs 8, banked vs 254, their wet-column memo lines; (2) poll gate 36623372669 - green + slot free -> DISPATCH (the FIRST pocket-anatomy face); (3) the whale-vs-split cure prices next: a spread anatomy means the chains instrument is the front.
+- OPEN FRONTS: the endgame deadline-pocket economics (the anatomy row splits whale vs chains); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.321.0.
