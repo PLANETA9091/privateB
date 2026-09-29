@@ -9245,3 +9245,20 @@ Stage Summary:
 - Master = b63cd44 (pkg 0.316.0). FLEET OF RECORD: 36592026195 (mined above). My gate (b63cd44) queued behind 36600007994.
 - NEXT FIRE (the 0138 handoff): (1) verify gate green on b63cd44 -> dispatch workflow 362040162 run_fleet=true fleet_seconds=600 ref master -> MINE THE LATCH'S FIRST FACE: 'dooms-latched after' lines (the refusal firing), 'still underground' verdict count vs 17, banked vs 83, mined vs 2713/4.52, alive vs 19/19, reconnects vs 14; (2) the yield-relocation seam (the chain re-probes the same wet column) is the next priced class; (3) version next integer 0.317.0.
 - OPEN FRONTS: the wet-column relocation seam, the banked-crater economics (the latch is the first instrument; the underground-cache chest idea is priced for the roadmap), F4 no-chest-in-range (the class moved hosts), the night mob war (fights 39, the shooter-band census), drowned class, GC Pinned hunt, worldmap/scout lane, dry-tail proof, void stamp, doomed-goal-cache.
+
+---
+Task ID: cron30-20260930-0100
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0100 - dispatch the live-line face, mine the four-instrument face, ship the crater decode.
+
+Work Log:
+- Double proof opened the fire: gate 36600007994 SUCCESS (v0.315.0 CI-proven) + fleet 36592026195 completed. Pushed the held 0030 record (3d8f5d7..fcf64e5) and DISPATCHED: HTTP 204 -> 36601880209 (fcf64e5, the FIRST live-blind-line face) materialized 17:00:44Z.
+- MINED 36592026195 (the final artifact, downloaded complete): alive 19/19, mined 2713 @ 4.52 b/s (the rate front RECOVERED - best on record), rescues=29 climbs=42 wet=17, reconnects=14; pounces=2 pounceLanded=0 + 31 'climb pounce probe' lines - the pounce mystery ANSWERED: the probes run and the wells DECLINE the signature (2-high walls, solid steps); 9 '[blind: N passes, 0 shore scans, 0 probes]' end brackets, all frozen-physics stand-downs (10-17 passes); CORRECTION to their 0038 record: the 'blind class absent - honest negative' read predates the artifact (16:38Z vs the 16:46Z upload) - the final log carries the 9 brackets; BUT banked=83 with pocket=671u - 11.0% bank share, the crater DEEPENED (vs 154).
+- v0.317.0 THE BANKED CRATER DECODE shipped: bankedCraterDecode({banked, pocket}) in src/lib/pocketline.mjs - share = banked/(banked+pocket), below BANK_CRATER_FLOOR_SHARE (0.5) reads 'crater: N% ... the bank chains are the bottleneck, the mines are not'; silent at/above the floor, nothing-exists -> null, junk never invents (Number.isFinite + the opts||{} null-arg guard). Wiring: one report-block line after the loot ledger line. Complements their v0.316.0 latch (they fixed the retry waste, mine names the scale).
+- COLLISION #16: cron38's b63cd44 (their v0.316.0 SHAFT-BOTTOM DOOM LATCH) queued-latest-kept CANCELLED my dispatch 36601880209 mid-queue (the 2130 precedent re-proven). Rebase clean, version taken to 0.317.0, tags synced, amended 0979f8a.
+- Local: syntax 250, unit 136/136 (their new files aboard); integration green pre-rebase (the tree delta is the version line + decode additions; the gate covers the full pass). PUSHED fb48c84..0979f8a clean; gate 36605571466 in_progress on the tip. NO dispatch (proven-head).
+
+Stage Summary:
+- Master = 0979f8a (pkg 0.317.0, gate 36605571466 running). FLEET OF RECORD: 36592026195 (mined this fire). My cancelled dispatch: 36601880209 (superseded, no duplicate will be made).
+- NEXT FIRE: (1) poll gate 36605571466 - GREEN + slot free -> dispatch ci.yml fleet_seconds=600 (the face flies the LIVE blind line + the crater decode + their doom latch together); (2) MINE it: 'banked crater decode: crater: ...' expected silent only if the latch cured the bank share, 'water: rescue blind live' (its first field leg), blind bracket count vs 9, banked vs 83, pounces vs 2; (3) the unaccounted mass (1948u never-picked-up) is the remaining economics front.
+- OPEN FRONTS: the unaccounted mass (1948u - where do the drops go); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
