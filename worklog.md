@@ -9391,3 +9391,19 @@ Stage Summary:
 - Master = 4fd7a51 (pkg 0.320.0, gate 36623372669 PENDING). Local clean. FLEET OF RECORD: 36617588210 (SUCCESS, mined by cron38 - my mine of it rides 0400 for the decode lines they may not grep).
 - NEXT FIRE: (1) MINE 36617588210: 'unaccounted mass decode' first leg (13.7% -> SILENT expected - below the floor; the silence IS the datum), 'banked crater decode' vs 15.8%, 'pocket anatomy' vs the spread datum, 'dooms-latched' vs 8, banked vs 254, their wet-column memo lines; (2) poll gate 36623372669 - green + slot free -> DISPATCH (the FIRST pocket-anatomy face); (3) the whale-vs-split cure prices next: a spread anatomy means the chains instrument is the front.
 - OPEN FRONTS: the endgame deadline-pocket economics (the anatomy row splits whale vs chains); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.321.0.
+
+---
+Task ID: cron30-20260930-0400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0400 - mine the first unaccounted-mass-decode face (THE LEDGER BALANCED), hand the dispatch.
+
+Work Log:
+- MINED 36617588210 (41248a4 = v0.319.0 + my v0.318.0 decode) - THE LANDMARK FACE: alive 19/19, 2238 @ 3.73 b/s, reconnects=8, and the ledger BALANCED for the first time in the lane's history: mined=2238, banked=2295 (9x the 254, 27x the 83), smelted=49, pocket=425u/144s, accounted=2769, unaccounted=0, surplus=531u (the v0.201.0 side now owns the story: crafted/collected units the mined counter never tracks), conversion=123.7%. THE CRATER HEALED: bank share 2295/2720 = 84.4% >= 0.5 -> 'banked crater decode' SILENT (the healthy form); 'unaccounted mass decode' SILENT (0 < anything - v0.318.0's first field leg: the silence IS the datum, junk never invents); the write-off row collapsed to TWO holders (F17 98u, F15 73u) vs 8 stakes/1349u last face. The three-instrument stack (doom latch + crater decode + the bank economy) correlated with the cure: latch=4 refusals (fewer doomed chains), blind_live=12, brackets=2 (drier face), banked 83 -> 254 -> 2295, unaccounted 1948 -> 257 -> 0.
+- 'pocket anatomy' line ABSENT on this face - CORRECT (it flew 41248a4, v0.320.0 ships next face; the first anatomy read rides the 0430 dispatch).
+- Gate 36623439112 (c6d1a18 = v0.320.0 + records) polled ~16 min: IN_PROGRESS at box close (the 40-min worst-shape class). NO dispatch (proven-head unmet) - handed to 0430: green + slot free -> DISPATCH (the FIRST pocket-anatomy face).
+- NO new code (the mining was the atomic yield; the balanced ledger re-prices every economics front).
+
+Stage Summary:
+- Master = c6d1a18 (pkg 0.320.0, gate 36623439112 IN_PROGRESS). Local clean. FLEET OF RECORD: 36617588210 (SUCCESS, mined - the landmark).
+- NEXT FIRE: (1) poll gate 36623439112 - green + slot free -> DISPATCH ci.yml fleet_seconds=600 (the FIRST pocket-anatomy face); (2) MINE it: 'pocket anatomy' first leg (expect 'spread across N holders' on the two-holder read or a whale if one bot hoards), crater/unaccounted decodes expected SILENT if the cure holds; (3) the fronts re-price on the balanced ledger: the surplus 531u (crafted units) is the new measurement seam; the write-off's last two holders (F17/F15) are the crater's residue.
+- OPEN FRONTS: the surplus side (531u of crafted/collected units - split mined-vs-crafted inflow); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.321.0.
