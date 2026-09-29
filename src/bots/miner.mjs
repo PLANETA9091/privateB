@@ -29,7 +29,7 @@ import {
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP, LENS_FOE_RANGE } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
@@ -661,7 +661,7 @@ export function createMiner ({
           // (v0.298.0) the threat's live coords ride the vetting: the ladder
           // turns distance-aware (run36507990221's twin creeper kills ate the
           // tangent arc - a dry rotation is not a gaining rotation).
-          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })
+          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity, LENS_FOE_RANGE) })
           const fx = v ? v.x : hopT.x
           const fz = v ? v.z : hopT.z
           if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the yard rotation) vs ${threat.name} (${reason})`)
@@ -684,7 +684,7 @@ export function createMiner ({
         // geometrically unbeatable - so the ladder only re-rotates when the
         // first dry bearing was NOT the away bearing (the tangent classes).
         const raw = { x: bot.entity.position.x + (dx / len) * 12, z: bot.entity.position.z + (dz / len) * 12 }
-        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })
+        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity, LENS_FOE_RANGE) })
         if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the away rotation) vs ${threat.name} (${reason})`)
         else if (v && v.foesVetoed) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (the second hostile vetoes the away target) vs ${threat.name} (${reason})`)
         else if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the away target) vs ${threat.name} (${reason})`)

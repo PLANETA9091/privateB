@@ -72,7 +72,10 @@ test('THE FIGHT VERDICT STAYS BYTE FOR BYTE: the drowned is still NOT in RANGED_
 })
 
 test('REGRESSION PIN: the ring mode reads the dedicated predicate at the tryRingShelter site (the run195 dead-wire class - only the call site proves it)', () => {
-  assert.match(minerSrc, /ringRangedClass, OPEN_FIELD_FLEE_HP \} from '\.\.\/lib\/combat\.mjs'/, 'the miner imports ringRangedClass from the combat layer')
+  // (v0.309.0 restatement: the import list grew LENS_FOE_RANGE after
+  // OPEN_FIELD_FLEE_HP - the pin's intent is 'ringRangedClass rides the
+  // combat.mjs import', not a frozen tail; the 1337 lesson)
+  assert.match(minerSrc, /ringRangedClass, OPEN_FIELD_FLEE_HP(, [A-Z_]+)* \} from '\.\.\/lib\/combat\.mjs'/, 'the miner imports ringRangedClass from the combat layer')
   const call = minerSrc.match(/const ranged = ringRangedClass\(\{ name: threat\.name, dist: threat\.dist \}\)/)
   assert.ok(call, 'the tryRingShelter mode selection carries the predicate with the LIVE threat name AND distance')
   assert.ok(!minerSrc.match(/const ranged = RANGED_HOSTILES\.has\(threat\.name\) && threat\.name !== 'witch'/), 'the old full-set selection is GONE from the ring site (a predicate defined but not called is the dead-wire class)')

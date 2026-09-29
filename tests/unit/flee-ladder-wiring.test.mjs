@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs'
 
 const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
 const drownSrc = readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+const combatSrc = readFileSync(new URL('../../src/lib/combat.mjs', import.meta.url), 'utf8')
 
 test('REGRESSION PIN: the drowning module owns the distance-aware ladder', () => {
   assert.ok(drownSrc.includes('const threatAware = Number.isFinite(threatX) && Number.isFinite(threatZ)'),
@@ -27,11 +28,11 @@ test('REGRESSION PIN: the drowning module owns the distance-aware ladder', () =>
 })
 
 test('REGRESSION PIN: both flee call sites carry the threat coords', () => {
-  // the kite hop site (v0.307.0 re-pin: the second-hostile census joins the call)
-  assert.ok(minerSrc.includes('tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })'),
+  // the kite hop site (v0.309.0 re-pin: the census rides the shooter band LENS_FOE_RANGE)
+  assert.ok(minerSrc.includes('tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity, LENS_FOE_RANGE) })'),
     'the kite-hop vetting reads the threat live AND the second-hostile census (the tangent classes died where the coords were missing, the delivery-era pair kills where the foes were missing)')
   // the away-vector site
-  assert.ok(minerSrc.includes('tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })'),
+  assert.ok(minerSrc.includes('tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity, LENS_FOE_RANGE) })'),
     'the away-vector vetting reads the threat live AND the census (the geometric law keeps the on-axis away flee byte-true, the vetoed one turns distance-aware, the second mob joins the score)')
 })
 
@@ -51,7 +52,7 @@ test('REGRESSION PIN: the second-hostile lens rides both flee call sites (v0.307
   // vetting read the second mob NOWHERE. Both sites feed the census and both
   // name the lens reason before the legacy water/hazard line (else-if order:
   // the override > the lens > the water/hazard).
-  const sites = minerSrc.split('foes: otherHostiles(threat.entity)').length - 1
+  const sites = minerSrc.split('foes: otherHostiles(threat.entity, LENS_FOE_RANGE)').length - 1
   assert.equal(sites, 2, 'the kite hop AND the away-vector sites read the second-hostile census')
   assert.ok(minerSrc.includes('const foes = []'), 'the census helper builds its own list (junk entity reads skipped)')
   assert.ok(minerSrc.includes('e === threatEntity'), 'the census excludes the threat itself (the v0.298.0 threat term stays the score floor)')
@@ -61,4 +62,16 @@ test('REGRESSION PIN: the second-hostile lens rides both flee call sites (v0.307
   const waterIdx = minerSrc.indexOf('v && v.turns')
   const overIdx = minerSrc.indexOf('v && v.overrode')
   assert.ok(overIdx > -1 && lensIdx > overIdx && waterIdx > lensIdx, 'the else-if ladder: the override speaks first, then the lens, then the legacy rotation')
+})
+
+test('REGRESSION PIN: (v0.309.0) the lens census rides the shooter band, not the engage scan', () => {
+  // face 36547556739: F5 was SHOT by a Skeleton mid-evasion of a creeper and
+  // the second-hostile lens fired 0x all face - the census radius rode
+  // DETECT_RANGE (12b) while the skeleton's volley reaches ~15b (sight 16).
+  // The lens range is its own constant: the verdict's engage semantics keep
+  // DETECT_RANGE/RANGED_ENGAGE_RANGE byte-true, the LENS sees the punishers.
+  assert.ok(combatSrc.includes('export const LENS_FOE_RANGE = 16'), 'the shooter band is a named policy constant (16: vanilla sight, the volley reaches past the 12b scan)')
+  assert.ok(combatSrc.includes('the census at 12 never saw the killer'), 'the constant names its field datum (the F5 shot)')
+  assert.ok(minerSrc.includes("otherHostiles(threat.entity, LENS_FOE_RANGE)"), 'both flee sites pass the shooter band explicitly')
+  assert.ok(!minerSrc.includes('otherHostiles(threat.entity, DETECT_RANGE)'), 'the legacy default stays implicit - the lens range is not the scan range')
 })

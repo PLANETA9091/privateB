@@ -45,6 +45,7 @@ export const CREEPER_FLEE_RANGE = 7  // beyond the 3-block explosion radius, wit
 export const FLEE_HP = 8             // 4 hearts - one skeleton volley from death
 export const SWARM_FLEE_HP = 14      // 7 hearts against 3+ attackers is losing
 export const SWARM_SIZE = 3
+export const LENS_FOE_RANGE = 16     // (v0.309.0) the flee lens's foe census radius - the shooter band, NOT the engage scan: a skeleton's volley reaches past the 12b DETECT_RANGE (vanilla sight 16 / volley ~15b), and face 36547556739's F5 was shot by a Skeleton mid-evasion of a creeper while the second-hostile lens fired 0x all face - the census at 12 never saw the killer
 
 // (v0.112.0) THE POISON LENS - run99 (35869329042) named the witch the new top
 // mob front (3 deaths, spider x0): the splash poison drains the bar UNDER the
