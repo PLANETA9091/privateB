@@ -1205,3 +1205,68 @@ test('REGRESSION PIN: the fuel commons walk labels carry the chest identity (the
     'the nudge retry keeps the same chest identity')
   assert.ok(!src.includes("label: 'fuel commons walk'"), 'the old single label is gone (the structural exposure)')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.298.0) THE SUB-DOOM BAND - the far-up anchor shape (dy >= 12 up,
+// lateral >= 24b) the v0.159.0 strict gate's walkable-band claim misses.
+// Face 36507990221: F4 at [-118,54,443] vs the anchor [-117,70,407] - the
+// strict gate passed it (dy 16 < 20, lateral > dy), the field killed it
+// ('Took to long to decide path to goal!' x2, the nudge segment stalled,
+// the 15s tithe budget died). The gate skips BEFORE the walk; the near
+// windows own the delivery (the same bot's earlier window: d=13, dy 5).
+import { anchorSubDoom, ANCHOR_SUBDOOM_MIN_DY, ANCHOR_SUBDOOM_MIN_LATERAL } from '../../src/lib/fuelbank.mjs'
+
+test('ANCHOR SUB-DOOM: the face 36507990221 F4 datum dooms (dy 16 over ~36b lateral)', () => {
+  const r = anchorSubDoom({ botPos: { x: -118, y: 54, z: 443 }, chestPos: { x: -117, y: 70, z: 407 } })
+  assert.equal(r.doom, true, 'the far-up band dooms: the decide class owns the walk')
+  assert.equal(r.dy, 16)
+  assert.equal(r.lateral, 36)
+  assert.ok(r.why.includes('16 up over 36b lateral'), `the why names the shape: ${r.why}`)
+})
+
+test('ANCHOR SUB-DOOM: the band boundaries', () => {
+  // dy exactly at the floor, far lateral => doom
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 0, z: 0 }, chestPos: { x: 30, y: 12, z: 0 } }).doom, true,
+    'dy 12 lateral 30 dooms (the floor is inclusive)')
+  // dy just below the floor => no doom
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 0, z: 0 }, chestPos: { x: 30, y: 11, z: 0 } }).doom, false,
+    'dy 11 stays the legacy walk (below the sub-doom floor)')
+  // lateral just below the floor => no doom (the near ladder may route it)
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 0, z: 0 }, chestPos: { x: 23, y: 16, z: 0 } }).doom, false,
+    'dy 16 lateral 23 keeps the legacy ladder (near-up)')
+  // far up, deeper band => doom
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 40, z: 0 }, chestPos: { x: 0, y: 59, z: 40 } }).doom, true,
+    'dy 19 lateral 40 dooms')
+})
+
+test('ANCHOR SUB-DOOM: the near window keeps the legacy walk (the honest split)', () => {
+  const r = anchorSubDoom({ botPos: { x: -113, y: 65, z: 415 }, chestPos: { x: -117, y: 70, z: 407 } })
+  assert.equal(r.doom, false, 'the F4 near window (d 13, dy 5) stays deliverable')
+  assert.ok(r.why.includes('below the sub-doom floor'), `the why names the band: ${r.why}`)
+})
+
+test('ANCHOR SUB-DOOM: junk-safe (unreadable reads no doom - the legacy shape)', () => {
+  assert.equal(anchorSubDoom({}).doom, false, 'no positions => no doom')
+  assert.equal(anchorSubDoom({ botPos: null, chestPos: { x: 0, y: 70, z: 0 } }).doom, false)
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: NaN, z: 0 }, chestPos: { x: 0, y: 70, z: 0 } }).doom, false,
+    'a NaN y reads no vertical => no doom')
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 50, z: 0 }, chestPos: { x: 0, y: NaN, z: 0 } }).doom, false)
+  assert.equal(anchorSubDoom({ botPos: { x: 0, y: 50, z: 0 } }).doom, false, 'a missing chest reads no doom')
+})
+
+test('ANCHOR SUB-DOOM: the constants hold the field-priced floors', () => {
+  assert.equal(ANCHOR_SUBDOOM_MIN_DY, 12, 'the sub-doom floor: below the strict 20, above the walkable dy 8')
+  assert.equal(ANCHOR_SUBDOOM_MIN_LATERAL, 24, 'the lateral floor: the far shape only')
+})
+
+test('SUB-DOOM WIRING PIN: the gate rides deliverFuelTithe after the strict gate, same why channel', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const strictIdx = src.indexOf('the vertical gate: ${doom.why}')
+  const subIdx = src.indexOf('the sub-doom gate: ${sub.why}')
+  assert.ok(strictIdx > 0, 'the v0.159.0 strict gate stays')
+  assert.ok(subIdx > strictIdx, 'the sub-doom gate rides AFTER the strict gate')
+  assert.ok(src.includes('anchorSubDoom({ botPos: bot?.entity?.position ?? null, chestPos: anchor })'),
+    'the gate reads the live bot and the picked anchor')
+  assert.ok(src.includes("- the near window owns the delivery` }"),
+    'the why names the honest split (the near window owns it)')
+})

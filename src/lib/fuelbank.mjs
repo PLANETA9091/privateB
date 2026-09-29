@@ -413,6 +413,51 @@ export function fuelPocketOverage (bot) {
   return over
 }
 
+// (v0.298.0) THE SUB-DOOM BAND - the far-up anchor shape the v0.159.0 strict
+// gate's own walkable-band claim misses. Face 36507990221 (the dual-v0.297.0
+// tree's first field): F4 stood at [-118,54,443], the anchor chest read at
+// [-117,70,407] - dy 16 over ~36b lateral (3D d 39.8) - and the strict gate
+// PASSED it (dy 16 < the doom floor 20: 'inside the walkable band'; lateral
+// 36 > dy: 'the ladder may route it'). The field disagreed: the decide step
+// timed out ('Took to long to decide path to goal!'), the v0.155.0 nudge
+// walked one segment without a position delta, the re-issue failed the same
+// way, and the tithe's 15s budget died on a walk no path decision would ever
+// start. The SAME bot's earlier window disagreed with the doom too - the
+// anchor read from d=13, dy 5: walkable, deliverable. THE GATE: the far-up
+// band (dy >= 12 up, lateral >= 24b) returns the named skip BEFORE the walk
+// burns the budget - the pocket keeps its coal for a window the bot spends
+// nearer or lower (the v0.159.0 honest split, one band deeper). The strict
+// gate stays byte for byte (dy >= 20 mostly-up stays doom; the near-up shape
+// - lateral < 24 - keeps the legacy ladder: a staircase that exists is still
+// routable, and the decide class keeps its nudge machinery there). Junk-safe:
+// any unreadable position reads no doom - the legacy walk attempt runs byte
+// for byte.
+export const ANCHOR_SUBDOOM_MIN_DY = 12
+export const ANCHOR_SUBDOOM_MIN_LATERAL = 24
+
+export function anchorSubDoom ({ botPos = null, chestPos = null } = {}) {
+  try {
+    if (!botPos || !chestPos) return { doom: false, why: 'no position read' }
+    const y = Number.isFinite(botPos.y) ? botPos.y : null
+    const cy = Number.isFinite(chestPos.y) ? chestPos.y : null
+    if (y == null || cy == null) return { doom: false, why: 'no vertical read' }
+    const dy = cy - y
+    if (dy < ANCHOR_SUBDOOM_MIN_DY) return { doom: false, why: `dy ${Math.round(dy)} below the sub-doom floor` }
+    const lateral = Math.hypot(botPos.x - chestPos.x, botPos.z - chestPos.z)
+    if (!(Number.isFinite(lateral) && lateral >= ANCHOR_SUBDOOM_MIN_LATERAL)) {
+      return { doom: false, why: `the anchor stands ${Math.round(dy)} up but only ${Number.isFinite(lateral) ? Math.round(lateral) : '?'}b over - the near ladder may route it` }
+    }
+    return {
+      doom: true,
+      dy: Math.round(dy),
+      lateral: Math.round(lateral),
+      why: `the anchor stands ${Math.round(dy)} up over ${Math.round(lateral)}b lateral`
+    }
+  } catch {
+    return { doom: false, why: 'no position read' }
+  }
+}
+
 /**
  * (v0.124.0) THE ANCHOR DELIVERY - the tithe's dedicated inflow. The pocket
  * fuel over FUEL_TITHE_BOUND rides to the fleet's ONE fuel chest BEFORE the
@@ -452,6 +497,16 @@ export async function deliverFuelTithe (bot, {
   {
     const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: anchor })
     if (doom.doom) return { delivered: 0, why: `the vertical gate: ${doom.why} - the walk ladder cannot climb` }
+  }
+  // (v0.298.0) THE SUB-DOOM GATE - the far-up band (dy >= 12 up, lateral
+  // >= 24b) skips the walk BEFORE the decide class burns the tithe's budget;
+  // the why rides the caller's existing 'fuel anchor: 0 delivered (...) -
+  // the legacy scatter carries the tithe' line (the same filter key - no
+  // new key). The near windows own the delivery (the F4 face read: the same
+  // anchor delivered from d=13, dy 5).
+  {
+    const sub = anchorSubDoom({ botPos: bot?.entity?.position ?? null, chestPos: anchor })
+    if (sub.doom) return { delivered: 0, why: `the sub-doom gate: ${sub.why} - the near window owns the delivery` }
   }
   let dist = (() => {
     try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return 8 }
