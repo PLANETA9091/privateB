@@ -66,3 +66,24 @@ test('tally: buckets the yard block names, ignores strays, handles null', () => 
   assert.deepEqual(tallyYardBlocks(null), { chests: 0, barrels: 0, furnaces: 0, blastFurnaces: 0, smokers: 0 })
   assert.deepEqual(tallyYardBlocks([]), { chests: 0, barrels: 0, furnaces: 0, blastFurnaces: 0, smokers: 0 })
 })
+
+// (v0.297.0) THE PORTAL SEAL - the yard no longer builds ACTIVE dimension
+// portals. MEASURED (face 36504055279, the combined v0.296.0 tree's dispatch,
+// fleet FAILURE at ts~80s): the yard's own 1x1 end portal (one block ON the
+// walk floor at Y(1)) took F12 to THE END 9s after its join - the client's
+// End-dimension load froze the MAIN thread 5s+ while rss burst 732M -> 1984M
+// past the 1200M storm floor, and the freeze-storm FATAL SIGTERMed the WHOLE
+// fleet (exit 143) - 19 bots lost mid-join, the 600s run and the dispatch
+// slot gone to one yard block. The stormguard worked as designed; the hazard
+// was OURS. The nether portal carried the identical mechanism.
+import { readFileSync } from 'node:fs'
+
+test('REGRESSION PIN: the yard build creates NO active dimension portals (the seal)', () => {
+  const src = readFileSync(new URL('../../scripts/setup-yard.mjs', import.meta.url), 'utf8')
+  assert.ok(!src.includes("'minecraft:end_portal'"), 'no end portal block is ever placed (the freeze-storm class: face 36504055279 lost the whole fleet to one yard portal block)')
+  assert.ok(!src.includes('minecraft:end_portal_frame'), 'no end portal frames (the end build is gone entirely - no plan ever used it)')
+  assert.ok(!src.includes("'minecraft:nether_portal'"), 'no nether portal block (the identical dimension-entry mechanism, sealed pre-emptively)')
+  // the frame landmark survives with a SEALED interior (a future era re-arms deliberately)
+  assert.ok(src.includes("fill(X(19), Y(2), Z(-2), X(20), Y(4), Z(-2), 'minecraft:air')"), 'the nether frame interior reads air (the landmark stays, the hazard dies)')
+  assert.ok(src.includes("'minecraft:obsidian')\n  label(X(18), Y(6), Z(-2), 'NETHER (SEALED)')") || src.includes('NETHER (SEALED)'), 'the label names the seal (the field reads the truth)')
+})

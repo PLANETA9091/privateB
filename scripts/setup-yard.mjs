@@ -1,8 +1,28 @@
 #!/usr/bin/env node
 // Builds the crafting/smelting yard at the world spawn on the test server:
 // floor, furnaces, blast furnaces, smokers, stonecutters, crafting tables, anvils,
-// water pool for concrete, nether + end portals, a bed, lighting and a labelled chest
-// warehouse. Everything is placed through the server console pipe (no client needed).
+// water pool for concrete, a bed, lighting and a labelled chest warehouse. Everything is
+// placed through the server console pipe (no client needed).
+//
+// (v0.297.0) THE PORTAL SEAL - the yard no longer builds ACTIVE dimension
+// portals. MEASURED (face 36504055279, the combined v0.296.0 tree's dispatch,
+// fleet FAILURE at ts~80s): the yard's own 1x1 end portal (one block ON the
+// walk floor at Y(1)) took F12 to THE END 9s after its join ('The End?' at
+// 00:51:46, the server's legacy dragon-fight scan right behind it) - the
+// client's End-dimension load froze the MAIN thread 5s+ while rss burst
+// 732M -> 1984M past the 1200M storm floor, and the freeze-storm FATAL
+// SIGTERMed the WHOLE fleet (exit 143) - 19 bots disconnected mid-join, the
+// 600s run and the dispatch slot lost to one yard block. The stormguard
+// worked exactly as designed (the SIGTERM landed BEFORE the V8 OOM - the
+// run53/36292057377 lessons held); the hazard itself was OURS. The nether
+// portal carried the identical mechanism (a dimension entry loads the same
+// client-side chunk storm) - its interior now reads air, the obsidian frame
+// and the NETHER label stay as the landmark (a future nether era can re-arm
+// the frame deliberately, with the entry problem priced first). The end
+// portal (frame, block, label) is gone entirely - no plan ever used it, and
+// the walks cannot be fenced against a hazard that kills the WITNESS
+// (the v0.18.15-era climb machinery already treats portal blocks as
+// 'stop - never dig'; walking was the unprotected half).
 //
 // (v0.18.17) FIRE-AND-FORGET IS FORBIDDEN: run 35521952724 lost ~159 of 169
 // commands in the fifo transport (only the last 11 executed - zero feedback,
@@ -91,20 +111,16 @@ function buildYard (ox, oy, oz) {
   for (let i = 0; i < 9; i++) set(X(-20 + i * 5), Y(1), Z(14), 'minecraft:barrel')
   label(X(-22), Y(2), Z(14), 'OUTPUT')
 
-  log('nether + end portals')
-  // nether portal: obsidian frame 4x5 at x 18..21, z -2
+  log('nether portal frame (SEALED - the v0.297.0 portal seal)')
+  // the obsidian frame 4x5 at x 18..21, z -2 stays as the landmark; the
+  // interior reads AIR - a dimension entry loads a client-side chunk storm
+  // that froze the main thread and killed the whole fleet (face 36504055279:
+  // the yard's own end portal took F12 to THE END at ts=48s, the freeze-storm
+  // FATAL SIGTERMed 19 bots mid-join). No active portal is ever built at the
+  // yard again; a future era re-arms deliberately, with the entry priced.
   fill(X(18), Y(1), Z(-2), X(21), Y(5), Z(-2), 'minecraft:obsidian')
-  fill(X(19), Y(2), Z(-2), X(20), Y(4), Z(-2), 'minecraft:nether_portal')
-  label(X(18), Y(6), Z(-2), 'NETHER')
-  // end portal: 3x3 frame of end portal frames with eyes, then portal inside
-  for (let x = -21; x <= -19; x++) {
-    for (let z = -3; z <= -1; z++) {
-      const edge = x === -21 || x === -19 || z === -3 || z === -1
-      if (edge) set(X(x), Y(1), Z(z), 'minecraft:end_portal_frame[eye=true]')
-    }
-  }
-  fill(X(-20), Y(1), Z(-2), X(-20), Y(1), Z(-2), 'minecraft:end_portal')
-  label(X(-21), Y(3), Z(-4), 'END')
+  fill(X(19), Y(2), Z(-2), X(20), Y(4), Z(-2), 'minecraft:air')
+  label(X(18), Y(6), Z(-2), 'NETHER (SEALED)')
 
   log('spawn point / bed / lighting')
   set(X(0), Y(1), Z(0), 'minecraft:red_bed[facing=south,part=foot]')
