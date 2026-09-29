@@ -1,6 +1,7 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
+import fs from 'node:fs'
 
 const inv = (items) => ({ bot: { inventory: { items: () => items } } })
 
@@ -180,10 +181,63 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row from the pocket instrument')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the crater decode from the pocket instrument (v0.317.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
   assert.ok(fleetSrc.includes('THE WRITE-OFF\'S FIRST LINE'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.317.0) THE BANKED-CRATER DECODE - the ledger line read banked and
+// pocket side by side but never judged the pair: fleet 36592026195 measured
+// banked=83 with pocket=671u at deadline (11.0% of the endgame loot reached
+// chests) and no line named the crater. These tests pin the measured datum,
+// the floor boundary, the dead-run and junk disciplines, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('bankedCraterDecode: THE MEASURED CRATER (fleet 36592026195: banked 83 of 754u)', () => {
+  const v = bankedCraterDecode({ banked: 83, pocket: 671 })
+  assert.ok(v && v.startsWith('crater: 11.0% of the endgame loot reached chests (banked 83 of 754u)'), v)
+  assert.match(v, /the bank chains are the bottleneck, the mines are not/)
+})
+
+test('bankedCraterDecode: THE FLOOR - half the loot landing is the honest line', () => {
+  assert.equal(BANK_CRATER_FLOOR_SHARE, 0.5)
+  // exactly at the floor: the banking works, silent
+  assert.equal(bankedCraterDecode({ banked: 50, pocket: 50 }), null)
+  // one unit below: crater
+  assert.ok(bankedCraterDecode({ banked: 49, pocket: 51 }).startsWith('crater: 49.0%'))
+  // comfortably green: silent (a healthy run needs no line)
+  assert.equal(bankedCraterDecode({ banked: 1117, pocket: 200 }), null)
+})
+
+test('bankedCraterDecode: THE DEAD RUN and the total crater', () => {
+  // nothing exists: nothing to name (a dead run reads its own way)
+  assert.equal(bankedCraterDecode({ banked: 0, pocket: 0 }), null)
+  // everything held, nothing banked: the total crater speaks
+  assert.ok(bankedCraterDecode({ banked: 0, pocket: 500 }).startsWith('crater: 0.0%'))
+})
+
+test('bankedCraterDecode: THE JUNK DISCIPLINE - junk never invents a crater', () => {
+  // the Number(null)=0 seventh strike: a null ledger would read as 0 banked = total crater
+  assert.equal(bankedCraterDecode({ banked: null, pocket: null }), null)
+  assert.equal(bankedCraterDecode({ banked: null, pocket: 500 }), null)
+  assert.equal(bankedCraterDecode({ banked: 83, pocket: null }), null)
+  assert.equal(bankedCraterDecode({ banked: NaN, pocket: 500 }), null)
+  assert.equal(bankedCraterDecode({ banked: '83', pocket: 671 }), null)
+  assert.equal(bankedCraterDecode({ banked: -5, pocket: 671 }), null)
+  assert.equal(bankedCraterDecode(), null)
+  assert.equal(bankedCraterDecode(null), null)
+})
+
+test('bankedCraterDecode: THE WIRING PIN - the report block judges the pair', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the import carries the decode
+  assert.match(src, /bankedCraterDecode[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  // the call feeds the same pair the ledger line prints
+  assert.match(src, /bankedCraterDecode\(\{ banked, pocket: endPk\.units \}\)/)
+  // the line form: rides the report block (ALWAYS printed when it speaks)
+  assert.match(src, /banked crater decode: \$\{crater\}/)
 })

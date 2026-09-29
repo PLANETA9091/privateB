@@ -115,3 +115,37 @@ export function lootLedger ({ mined = 0, banked = 0, smelted = 0, pocket = 0 } =
   const conversion = m > 0 ? accounted / m : null
   return { mined: m, accounted, unaccounted, surplus, conversion }
 }
+
+// (v0.317.0) THE BANKED-CRATER DECODE - the ledger line reads banked and
+// pocket side by side but never JUDGES the pair. Fleet 36592026195 measured
+// banked=83 with pocket=671u at deadline - 11.0% of the endgame loot reached
+// chests (the crater both lanes flagged; the write-off row names the holders
+// but not the scale of the failure, and the write-off units live INSIDE
+// pocket - they explain the crater's face, not the bank chains' refusal).
+// The verdict: share = banked / (banked + pocket), the fraction of
+// loot-that-exists the bank chains landed. At or above the floor the banking
+// works (silent - a healthy run needs no line); below it reads 'crater' with
+// the exact numbers. Nothing exists -> nothing to name (a dead run reads its
+// own way). Junk never invents a crater (the body-guard law - the
+// Number(null) lesson seventh strike: Number(null)=0 would read a null
+// ledger as a total crater).
+export const BANK_CRATER_FLOOR_SHARE = 0.5
+
+/**
+ * The banked-crater verdict: did the endgame loot reach the chests?
+ * Pure, junk-tolerant - null means 'healthy' or 'cannot tell'.
+ * @param {{banked?: number|null, pocket?: number|null}} p
+ * @returns {string|null} 'crater: ...' when the bank share is below the floor
+ */
+export function bankedCraterDecode (opts = {}) {
+  const { banked = null, pocket = null } = opts || {}
+  if (!Number.isFinite(banked) || !Number.isFinite(pocket)) return null
+  if (banked < 0 || pocket < 0) return null
+  const b = Math.floor(banked)
+  const p = Math.floor(pocket)
+  const mass = b + p
+  if (mass === 0) return null
+  const share = b / mass
+  if (share >= BANK_CRATER_FLOOR_SHARE) return null
+  return `crater: ${(share * 100).toFixed(1)}% of the endgame loot reached chests (banked ${b} of ${mass}u) - the bank chains are the bottleneck, the mines are not`
+}
