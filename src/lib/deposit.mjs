@@ -512,14 +512,38 @@ export const BANK_CLIMB_PER_LEVEL_MS = 4200
  * colliding with the end-phase (trip budget <= 300s + the 90s return walk fits
  * inside minRemainingMs). Junk input = no trip (the mining loop must decide
  * fast and never on garbage).
+ *
+ * (v0.297.0) THE FUEL BANK TRIGGER: the tithe-worthy fuel surplus (coal over
+ * FUEL_TITHE_BOUND) is trip-worthy stock the units gate cannot see - a
+ * coal-rich but LIGHT pocket never trips needsBanking nor the 48-unit floor,
+ * the tithe call (which rides the bank trip's consolidation) never fires, the
+ * anchor chest stays empty, and the fleet's fuel asks starve (face
+ * 36499444700: 'fuel anchor' printed ZERO lines while the commons read 'chest
+ * holds no fuel' 140 times and one miner held 25 coal in its pocket). The
+ * fuelTrip flag bypasses ONLY the units gate - the cadence (everyMs) and the
+ * end-phase fence (minRemainingMs) still hold, so the trigger cannot storm.
  */
-export function bankTripDue ({ units = 0, msSinceBank = 0, remainingMs = Infinity, everyMs = BANK_TRIP_EVERY_MS, minUnits = BANK_TRIP_MIN_UNITS, minRemainingMs = BANK_TRIP_MIN_REMAINING_MS } = {}) {
+export function bankTripDue ({ units = 0, msSinceBank = 0, remainingMs = Infinity, everyMs = BANK_TRIP_EVERY_MS, minUnits = BANK_TRIP_MIN_UNITS, minRemainingMs = BANK_TRIP_MIN_REMAINING_MS, fuelTrip = false } = {}) {
   const u = Number.isFinite(units) && units > 0 ? units : 0
-  if (u < minUnits) return false // nothing worth the walk
+  if (u < minUnits && fuelTrip !== true) return false // nothing worth the walk (the fuel-tithe trigger counts the surplus the units gate cannot see)
   if (!Number.isFinite(remainingMs) || remainingMs < minRemainingMs) return false // too late for a full trip
   const every = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : BANK_TRIP_EVERY_MS
   const since = Number.isFinite(msSinceBank) && msSinceBank > 0 ? msSinceBank : 0
   return since >= every
+}
+
+// (v0.297.0) THE FUEL TRIP FENCE - when the fuel surplus alone is worth the
+// walk. The measured class (face 36499444700): one miner held 25 coal in its
+// pocket all run while the commons read 'chest holds no fuel' 140 times and
+// the smelt legs burned sticks (2 sticks = 1 smelt, vs 1 coal = 8). The bound
+// is the tithe's own FUEL_TITHE_BOUND (6) plus a real surplus margin: a
+// pocket 2 over the bound is the tithe's own business at the NEXT natural
+// bank, a pocket 8+ over is a fleet-wide fuel stock the anchor needs NOW.
+// Junk-safe: a non-finite or negative overage never arms a trip.
+export const FUEL_TRIP_MIN_OVERAGE = 8
+export function fuelTripWanted ({ overage = 0 } = {}) {
+  const o = Number.isFinite(overage) && overage > 0 ? Math.floor(overage) : 0
+  return o >= FUEL_TRIP_MIN_OVERAGE
 }
 
 /**

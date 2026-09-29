@@ -10,7 +10,7 @@ import { test, beforeEach } from 'node:test'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import {
-  bankTripDue, bankTripBudgetMs, finalBankBudgetMs,
+  bankTripDue, bankTripBudgetMs, finalBankBudgetMs, fuelTripWanted, FUEL_TRIP_MIN_OVERAGE,
   BANK_TRIP_EVERY_MS, BANK_TRIP_MIN_UNITS, BANK_TRIP_MIN_REMAINING_MS,
   BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS,
   BANK_CLIMB_PER_LEVEL_MS
@@ -268,4 +268,40 @@ test('REGRESSION PIN: the arm consults the rescue clock before burning the caden
   assert.ok(src.includes("bank trip: deferred (rescue owns the bot"), 'the deferral names itself in the same \'bank \' filter key (the field face reads the existing series)')
   assert.ok(src.includes('let bankRescueAnnounced = false'), 'the announce edge is per-bot loop state (the churn hold\'s shape)')
   assert.match(src, /bankRescueGate[,}]/, 'the helper is imported (the import regex carries the gate)')
+})
+
+test('the fuel trip fence: the surplus the units gate cannot see (v0.297.0)', () => {
+  // face 36499444700: ONE miner held 25 coal in its pocket all run while the
+  // anchor chest stayed empty (the tithe rides the bank trip's consolidation
+  // - a coal-rich but LIGHT pocket never trips needsBanking nor the 48-unit
+  // floor) and the commons read 'chest holds no fuel' 140 times while the
+  // smelt legs burned sticks. The fence prices the fleet-wide surplus: the
+  // tithe's own bound (6) plus a real margin.
+  assert.equal(fuelTripWanted({ overage: 25 }), true, 'the face\'s own pocket (25 coal) arms')
+  assert.equal(fuelTripWanted({ overage: FUEL_TRIP_MIN_OVERAGE }), true, 'the fence\'s own bound arms')
+  assert.equal(fuelTripWanted({ overage: 8.9 }), true, 'a fractional overage floors to the whole count')
+  assert.equal(fuelTripWanted({ overage: 7 }), false, 'below the fence is the tithe\'s own business at the next natural bank')
+  assert.equal(fuelTripWanted({ overage: 0 }), false, 'a lean pocket never arms')
+  assert.equal(fuelTripWanted({ overage: -3 }), false, 'a negative overage refuses')
+  assert.equal(fuelTripWanted({ overage: NaN }), false, 'a junk overage refuses (never arms on garbage)')
+  assert.equal(fuelTripWanted(), false, 'a junk call refuses wholesale')
+})
+
+test('the fuel trip rides the trip gate: the units bypass, the cadence and the end-phase fence hold (v0.297.0)', () => {
+  const cadence = { msSinceBank: BANK_TRIP_EVERY_MS, remainingMs: BANK_TRIP_MIN_REMAINING_MS }
+  assert.equal(bankTripDue({ ...cadence, units: 5, fuelTrip: true }), true, 'a LIGHT pocket with the fuel surplus trips (the bypass is the cure\'s whole point)')
+  assert.equal(bankTripDue({ ...cadence, units: 5 }), false, 'the same light pocket without the surplus stays home (the units gate stands)')
+  assert.equal(bankTripDue({ ...cadence, units: BANK_TRIP_MIN_UNITS, fuelTrip: true }), true, 'a full pocket trips unchanged (the legacy shape byte-true)')
+  assert.equal(bankTripDue({ msSinceBank: BANK_TRIP_EVERY_MS - 1, remainingMs: BANK_TRIP_MIN_REMAINING_MS, units: 5, fuelTrip: true }), false, 'the cadence still holds inside the bypass (the trigger cannot storm)')
+  assert.equal(bankTripDue({ msSinceBank: BANK_TRIP_EVERY_MS, remainingMs: BANK_TRIP_MIN_REMAINING_MS - 1, units: 5, fuelTrip: true }), false, 'the end-phase fence still holds inside the bypass (the deadline banking stays the end-phase\'s own)')
+  assert.equal(bankTripDue({ ...cadence, units: 0, fuelTrip: true }), true, 'a zero-unit pocket with the surplus trips (the fuel IS the stock)')
+})
+
+test('REGRESSION PIN: the fuel trigger rides the planned trip and names its class (v0.297.0)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleetSrc.includes('const fuelOverage = fuelPocketOverage(miner.bot)'), 'the overage read rides the trip gate (the same strict pocket read the tithe consumes)')
+  assert.ok(fleetSrc.includes('const fuelTrip = fuelTripWanted({ overage: fuelOverage })'), 'the fence consumes the overage (the trigger is the fence\'s own verdict)')
+  assert.ok(/fuelTrip\n\s*\}\)\)\)/.test(fleetSrc) || fleetSrc.includes('fuelTrip\n        }))'), 'the fuelTrip flag rides the bankTripDue call (the bypass is wired, not dead code)')
+  assert.ok(fleetSrc.includes("tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned')"), 'the 5th label names the class (the conversion census rides the same \'bank \'+ filter key)')
+  assert.ok(/fuelTripWanted[,}]/.test(fleetSrc), 'the fence is imported (the import regex carries the trigger)')
 })

@@ -23,7 +23,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -2026,10 +2026,23 @@ async function runBot (name, target, index) {
         // scales with the distance to the yard. lastBankAt resets on EVERY attempt
         // - a failed trip must not retry-storm every loop iteration.
         const load = (() => { try { return inventoryLoad(miner.bot) } catch { return null } })()
+        // (v0.297.0) THE FUEL BANK TRIGGER - the tithe-worthy surplus is
+        // trip-worthy stock the units gate cannot see. Face 36499444700: ONE
+        // miner held 25 coal in its pocket all run while the anchor chest
+        // stayed empty (the tithe call rides the bank trip's consolidation -
+        // a coal-rich but LIGHT pocket never trips needsBanking nor the
+        // 48-unit floor, so the tithe never armed) and the commons read
+        // 'chest holds no fuel' 140 times while the smelt legs burned sticks.
+        // The fuel trip rides the SAME cadence (everyMs 150s) and the SAME
+        // end-phase fence (minRemainingMs) - the trigger cannot storm; the
+        // class names itself on the trip line ('fuel-tithe').
+        const fuelOverage = fuelPocketOverage(miner.bot)
+        const fuelTrip = fuelTripWanted({ overage: fuelOverage })
         const tripPlanned = !!(load && bankTripDue({
           units: load.units,
           msSinceBank: Date.now() - lastBankAt,
-          remainingMs: deadline - Date.now()
+          remainingMs: deadline - Date.now(),
+          fuelTrip
         }))
         // (v0.181.0) THE DOOMED TRIP GATE: the needsBanking path fires at ANY
         // remaining clock (only the PLANNED path has minRemainingMs) - run180
@@ -2173,7 +2186,7 @@ async function runBot (name, target, index) {
           })
           // (v0.193.0) the dusk trip names itself ('dusk') - a third label on
           // the same 'bank ' filter key, so the next fleet sizes the class.
-          console.log(`${name} bank trip: ${tripPlanned ? 'planned' : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key
+          console.log(`${name} bank trip: ${tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned') : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key; (v0.297.0) the 5th label: the fuel-tithe trip names itself (the trigger's own conversion census)
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
           // OWN remaining chain clock: everything spent since lastBankAt

@@ -59,8 +59,8 @@ test('REGRESSION PIN: the arm sets the plan exit clock inside the chain block (t
 })
 
 test('REGRESSION PIN: the plan arm names itself in the label ladder (the class sizes in the same bank filter key)', () => {
-  assert.match(fleetSrc, /bank trip: \$\{tripPlanned \? 'planned' : bankDusk \? 'dusk' : needsBanking\(miner\.bot\) \? 'pockets full' : 'dusk-plan'\}/,
-    "the 4th label 'dusk-plan' rides the SAME 'bank trip:' line (no new filter key, the field face reads the existing series)")
+  assert.match(fleetSrc, /bank trip: \$\{tripPlanned \? \(fuelTrip \? 'fuel-tithe' : 'planned'\) : bankDusk \? 'dusk' : needsBanking\(miner\.bot\) \? 'pockets full' : 'dusk-plan'\}/,
+    "the 4th label 'dusk-plan' rides the SAME 'bank trip:' line (no new filter key, the field face reads the existing series); (v0.297.0) the 5th label 'fuel-tithe' joins the ladder's planned arm - the trigger's own conversion census")
 })
 
 test('REGRESSION PIN: the measurement rides the DELIVERED landing (a failed chain prices nothing)', () => {
