@@ -9288,3 +9288,21 @@ Stage Summary:
 - Master = 0c27638 (pkg 0.317.0 proven + worklog; the worklog gate 36605757229 queued ahead of the face - it proves the exact tree). FLEET QUEUED: 36606692692 (lands ~18:15-18:25Z: gate leg ~11 min + fleet leg ~10-20 min).
 - NEXT FIRE: (1) push this record FIRST (the face will be in flight or done - in-flight is the safe push window, queued is NOT: check the state before pushing); (2) poll + MINE 36606692692: 'water: rescue blind live (...)' (the live line's first field leg - expect it on frozen climbs like the 9-bracket face), 'banked crater decode: crater: ...' vs the doom latch's cure (banked vs 83, pocket vs 671u, bank share vs 11.0%), the doom latch lines ('dooms-latched after N failed shaft-bottom climb cycles'), blind bracket count vs 9, pounces vs 2, rate vs 4.52, alive vs 19/19; (3) the unaccounted mass (1948u never-picked-up) prices as the next economics front if the crater decode lands clean.
 - OPEN FRONTS: unaccounted mass 1948u; F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260930-0200
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0200 - ship the unaccounted-mass decode (v0.318.0), mind the flying face.
+
+Work Log:
+- Found my 0130 dispatch 36606692692 CANCELLED (queued-latest-kept by cron38's 36606754498, same 0c27638 tree - zero content loss, the equivalence cron38's 0138 record confirms). The face 36606754498 went IN FLIGHT 18:23:26Z on the all-green 0c27638 tree.
+- v0.318.0 THE UNACCOUNTED-MASS DECODE shipped (the ledger line's last column judges itself): unaccountedMassDecode({mined, banked, smelted, pocket}) in pocketline.mjs - share = unaccounted/mined, floor UNACCOUNTED_FLOOR_SHARE=0.5 (the ledger grain is ~5-10%, half the mass is no grain), the datum 1948u of 2713 (71.8%) speaks 'the shaft drops, the tool spend and the consolidation own the leak'; surplus clamped to zero (the v0.201.0 side is the ledger line's story), mined=0 silent, junk never invents a mass (body-guard law). Wiring: one report-block line after the crater decode (the 05:00 ALWAYS-printed lesson). No new filter key (report block rides unfiltered, the v0.317.0 class).
+- Rebase-conflict #17: my held 8810f7b (0130 record) vs cron38's cb0de44 (0138 record) - keep-both, both sections preserved, markers hand-verified gone. VERSION COLLISION WARNING LANDED: cron38's 0138 record pre-planned 0.318.0 (the wet-column seam) but had NOT committed it - origin read 0.317.0 at my bump, the number is legally mine (a version is claimed by a commit, not a plan); cron38's next fire takes 0.319.0.
+- Pushed cb0de44..f7ef74f IN FLIGHT (the safe window, cancel-in-progress false). testbed/server/server.properties trap caught twice (the world reset rewrote it; checkout -- restored).
+- Integration smelting.test environmental timeout x2 (the second on a FRESH world - the degraded-world cure did not land tonight; honest). The delta is a fleet19-only report-block line the smelting flow never imports - the incoming gate covers the full pass.
+
+Stage Summary:
+- Master = f7ef74f (pkg 0.318.0, gate QUEUED behind the flying face). Local: this record rides unpushed (one gate at a time - a worklog push now would cancel my own queued code gate).
+- FLEET IN FLIGHT: 36606754498 (the latch's first face, lands ~18:55Z). NO dispatch this fire (slot busy + proven-head unmet).
+- NEXT FIRE: (1) push this record; (2) MINE 36606754498: 'dooms-latched after' lines vs 17 still-underground verdicts, 'banked crater decode' vs 11.0%, 'water: rescue blind live' first leg, blind brackets vs 9, banked vs 83, pocket vs 671u, rate vs 4.52, alive vs 19/19; (3) poll my gate on f7ef74f - green + slot free -> dispatch (the FIRST unaccounted-mass decode face); (4) MINE it: 'unaccounted mass decode' expected to speak ~71.8% (the datum class), silence means the leaks closed.
+- OPEN FRONTS: the unaccounted leak attribution (shaft drops vs tool spend vs consolidation - the decode sizes, the next instrument splits); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
