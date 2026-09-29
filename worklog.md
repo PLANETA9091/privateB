@@ -9540,3 +9540,17 @@ Stage Summary:
 - Master = 9dcdd65 (pkg 0.328.0). FLEET OF RECORD: 36640056641. Gate 36643889188 (9dcdd65) PENDING at close. NO dispatch (proven-head unmet - the 0600 refusal discipline).
 - NEXT FIRE: poll 36643889188 - green + slot free -> DISPATCH THE SIX-INSTRUMENT FACE (hole row FIRST LEG vs the F15 57.8% stake + gap row FIRST LEG vs the 172s-short datum + flow #2 + attribution #2 + surplus #3 + anatomy #3). If F11/F15 storm again, the WHY front opens.
 - OPEN FRONTS: F11/F15 glitch storm; rescue-net decline; bank cadence (172s priced); F2/F4 stranded; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.329.0.
+
+---
+Task ID: cron30-20260930-0730
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0730 - break the proven-head chase, dispatch the six-instrument face.
+
+Work Log:
+- Gate queue pathological: 36642945341 (0690899, v0.327.0) SUCCESS after ~30 min; my head's gate 36643987414 (f7ddf9a, the first v0.328.0 run) queued 35+ min despite a free group - proven-head unmet all box, NO dispatch (the 0300 discipline).
+- v0.329.0 THE STORM-DIET ROW: stormDietRow(bots) in statcarry.mjs - the hole row names WHERE, the diet row reads WHY: for every glitch whale (>= STORM_DIET_MIN_GLITCHES 100) the carried byName histogram judged against the beach class (sand/gravel/dirt/clay, the waterline generators); beach share + top two beach blocks byte-stable; dark-diet form; a 0.0% beach diet is evidence too; junk never enters the diet. Wiring: one conditional line after the hole row inside the storm class. Tests: the two-whale datum, the floor law, the dark/dry forms, byte-stable ties, the junk battery, the wiring pin. Local: syntax 253, unit 139/139, integration 2/2. Pushed f7ddf9a..73ab835 rebase-clean; gate 36646943613 (73ab835) pending at close.
+
+Stage Summary:
+- Master = 73ab835 (pkg 0.329.0). FLEET OF RECORD: 36640056641. NO dispatch (proven-head unmet).
+- NEXT FIRE: poll 36646943613 - green + slot free -> DISPATCH THE SIX-INSTRUMENT FACE; MINE hole row vs F15 57.8%, diet row vs the beach theory, gap row vs 172s-short. If the whales storm again AND read beach-class -> the territory-cure front; if dry -> the air-sensor theory on trial.
+- OPEN FRONTS: F11/F15 storm (WHY instrumented); rescue-net decline; bank cadence 172s; F2/F4 stranded; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.330.0.
