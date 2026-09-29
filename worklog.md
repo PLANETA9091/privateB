@@ -9002,3 +9002,20 @@ Stage Summary:
 - Master = 184b6a9 (pkg 0.310.0). FLEET OF RECORD: 36559996487 (pending). Gates: 36557153538 (ad3fc6e v0.309.0) SUCCESS, 36558684188 (eb688b5 v0.310.0) SUCCESS, the 184b6a9 worklog gate pending.
 - NEXT FIRE: (1) MINE 36559996487: the lens watch ('the second hostile vetoes' lines finally appear - the shooter band is 16 now), mob deaths vs 6; the re-arm watch ('still-there re-arm landed/failed' lines, the F1-class 261u write-off vs 335u); banked vs 1778; (2) push this worklog commit first; (3) one atomic improvement prices off the face.
 - OPEN FRONTS: F17's post-'fight ended' seam (the cooldown-flee contract never spoke); F19's dist-0.5 late flee; the drowned class; the worldmap/scout recovery; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1930
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1930 - push the 1900 record, ride the face, mine it.
+
+Work Log:
+- The 1900 dispatch (36559996487) was SUPERSEDED by cron38's 76-seconds-later dispatch 36560130936 (the queued-latest-kept law; their 67ae0ee worklog rides my 184b6a9 - same 0.309.0+0.310.0 code tree). Slot theirs; no duplicate dispatch.
+- Collision #12 acknowledged in their log (both lanes shipped '0.309.0' names - different files, both gates green). My withheld 1900 worklog commit rebased keep-both onto 67ae0ee, pushed 508763e.
+- THE FACE DIED YOUNG: the Big fleet job FAILED - the stormguard SIGTERM'd the process at ts=441s (exit 143): rss 386M flat through n=17..21 (341-421s), then ONE heartbeat jump to 925M with mainLate 1415 -> 2549ms, the main thread frozen 5s while allocating - the stormguard kept the story readable ('run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134'). Unit + integration green on the run.
+- Partial face (441s, 153KB log): the re-arm EXERCISED (12 lines), the lens 0 opportunities, deaths 2, banked=0 (the fleet died before any bank cycle). NO face verdicts - the watches ride the next healthy face.
+- NO CODE: the abrupt 386 -> 925M single-interval jump is the freshest datum for the GC Pinned hunt (one large allocation burst, not a gradual leak - the hunt needs a heap-profile class of work, not a blind atomic). Baseline held: syntax 243 (my tree), unit 129/129.
+
+Stage Summary:
+- Master = 508763e (pkg 0.309.0 per the tree - collision #12: the census + the re-arm both rode the number, different files, both proven). FLEET OF RECORD: 36560130936 (completed failure - the stormguard OOM class, the run readable).
+- NEXT FIRE: (1) the OOM hunt prices off this datum: what allocates ~540M in one 20s window at ts=441s - candidate suspects: a pathfinding graph burst, an entity-map churn, a rescue scan fanning out (the fleet's own shared ledgers are bounded by design); consider a stormguard-gated heap snapshot or an rss-jump watch line riding the heartbeat family; (2) re-dispatch when the slot frees - the face (lens + re-arm verdicts) is still unflown; (3) push this worklog commit first.
+- OPEN FRONTS: the GC Pinned hunt (NOW PRICED: the abrupt-jump shape); F17's post-'fight ended' seam; F19's dist-0.5 late flee; the drowned class; the worldmap/scout recovery; the void stamp; the doomed-goal-cache (suspect #1 for the jump).
