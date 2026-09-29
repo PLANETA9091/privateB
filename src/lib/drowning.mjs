@@ -1012,9 +1012,10 @@ export function fleePathBlocked ({ sample = null, ax, ay, az, tx, tz } = {}) {
  * @param {number} p.tz the raw hop target z
  * @param {number} [p.threatX] the threat's live x (enables the distance-aware ladder)
  * @param {number} [p.threatZ] the threat's live z (enables the distance-aware ladder)
- * @returns {{x:number,z:number,turns:number,overrode?:boolean,firstTurns?:number}|null}
+ * @param {Array<{x:number,z:number}>|null} [p.foes] (v0.307.0) the OTHER hostiles' live x/z (the second-mob class) - the score becomes the min distance over ALL of them; junk/empty reads the legacy threat-only shape byte for byte
+ * @returns {{x:number,z:number,turns:number,overrode?:boolean,firstTurns?:number,foesVetoed?:boolean}|null}
  */
-export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay, az, tx, tz, threatX, threatZ } = {}) {
+export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay, az, tx, tz, threatX, threatZ, foes = null } = {}) {
   // no coordinate defaults (see fleeTargetBlocked): an omitted field must be
   // junk, never a silently manufactured 0 that turns into a judgeable bearing
   const odx = tx - ax
@@ -1037,15 +1038,55 @@ export function vettedFleeTargetAbs ({ sample = null, hazardNear = null, ax, ay,
     passing.push({ x, z, turns })
   }
   if (!threatAware || !passing.length) return { x: ax + odx, z: az + odz, turns: 0 }
+  // (v0.307.0) THE SECOND-HOSTILE LENS: face 36535536162 (the delivery era's
+  // first field) read 12 mob deaths ALL in the surface band, and the sampled
+  // anatomy is one signature - the bot mid-EVASION of mob A killed by mob B
+  // (F13 fled a skeleton, a zombie landed the kill; F18's water-vetoed 180
+  // rotation walked into the zombie's arc; F10 ringed the spider, the zombie
+  // chewed). The v0.298.0 ladder maximizes the distance from THE threat and
+  // reads the second mob NOWHERE. The lens folds the other hostiles into the
+  // score: each candidate scores its MIN distance over the threat plus every
+  // finite foe (the nearest hostile is the killer - maximizing the nearest's
+  // distance IS the survival metric), so a rotation that lands 4 blocks from
+  // the second zombie loses to one 14 from both. An empty/junk foe list
+  // collapses the score to the v0.298.0 threat distance byte for byte (the
+  // strict-> tie law keeps the legacy order), and the pick is flagged
+  // foesVetoed ONLY when the lens MOVED it off the threat-only winner (the
+  // wiring names the reason; a far-away second mob keeps the legacy line).
+  const foeList = Array.isArray(foes) ? foes.filter(f => f && Number.isFinite(f.x) && Number.isFinite(f.z)) : []
+  const scoreOf = (c) => {
+    let m = Math.hypot(c.x - threatX, c.z - threatZ)
+    for (const f of foeList) {
+      const fd = Math.hypot(c.x - f.x, c.z - f.z)
+      if (fd < m) m = fd
+    }
+    return m
+  }
   let best = passing[0]
   let bestD = -1
   for (const c of passing) {
-    const d = Math.hypot(c.x - threatX, c.z - threatZ)
+    const d = scoreOf(c)
     // strict > keeps the legacy order on ties (the earlier candidate stands)
     if (d > bestD) { bestD = d; best = c }
   }
-  if (best.turns === passing[0].turns) return { x: best.x, z: best.z, turns: best.turns }
-  return { x: best.x, z: best.z, turns: best.turns, overrode: true, firstTurns: passing[0].turns }
+  let foesVetoed = false
+  if (foeList.length) {
+    let tBest = passing[0]
+    let tBestD = -1
+    for (const c of passing) {
+      const d = Math.hypot(c.x - threatX, c.z - threatZ)
+      if (d > tBestD) { tBestD = d; tBest = c }
+    }
+    foesVetoed = tBest.turns !== best.turns
+  }
+  if (best.turns === passing[0].turns) {
+    const out = { x: best.x, z: best.z, turns: best.turns }
+    if (foesVetoed) out.foesVetoed = true
+    return out
+  }
+  const out = { x: best.x, z: best.z, turns: best.turns, overrode: true, firstTurns: passing[0].turns }
+  if (foesVetoed) out.foesVetoed = true
+  return out
 }
 
 // ---- v0.59.0: the WATER MEMORY ----

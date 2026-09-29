@@ -1950,3 +1950,57 @@ test('the shore law wiring: the aquatic flee is shore-bound in runAway', async (
   assert.ok(src.includes('combat: flee toward shore (${pick.dx},${pick.dz} step ${pick.step})'), 'the verified line keeps the legacy shape (the decode greps survive)')
 })
 
+
+// ---------------------------------------------------------------------------
+// (v0.307.0) THE SECOND-HOSTILE LENS - face 36535536162 (the delivery era's
+// first field) read 12 mob deaths ALL in the surface band; the sampled
+// anatomy is one signature: the bot mid-EVASION of mob A killed by mob B
+// (F13 fled a skeleton, a zombie landed the kill; F18's water-vetoed 180
+// rotation walked into the zombie's arc). vettedFleeTargetAbs folds the
+// other hostiles into the score: each candidate scores its MIN distance
+// over the threat plus every finite foe; an empty/junk list collapses to
+// the v0.298.0 threat-only shape byte for byte.
+const lensDry = () => 'grass_block'
+const lensWetEast = (x, y, z) => (x > 6 ? 'water' : 'grass_block')
+test('vettedFleeTargetAbs: the F18-class datum - the second zombie vetoes the 180 rotation', () => {
+  // dry world, threat east at (12,0): the threat-only winner is west (-12,0),
+  // 24 blocks from the threat. The second zombie at (-8,0) makes west a 4-block
+  // coffin; south (0,12) is 14.4 from both - the lens rotates +90 and flags.
+  const pick = vettedFleeTargetAbs({ sample: lensDry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 12, threatZ: 0, foes: [{ x: -8, z: 0 }] })
+  assert.equal(pick.turns, 1, 'the +90 tangent wins (the min-distance score)')
+  assert.equal(pick.x, 0); assert.equal(pick.z, 12)
+  assert.equal(pick.foesVetoed, true, 'the lens names itself when it moves the pick')
+  // the threat-only read keeps the v0.298.0 winner byte for byte
+  const legacy = vettedFleeTargetAbs({ sample: lensDry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 12, threatZ: 0 })
+  assert.equal(legacy.turns, 2, 'the 180 rotation stands without foes')
+  assert.equal(legacy.foesVetoed, undefined, 'no flag without the lens')
+})
+
+test('vettedFleeTargetAbs: a far second mob never moves the pick nor flags', () => {
+  // the zombie 40 blocks out cannot beat any candidate's threat distance -
+  // the score collapses to the threat read, the legacy winner and shape stand
+  const pick = vettedFleeTargetAbs({ sample: lensDry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 12, threatZ: 0, foes: [{ x: 0, z: 40 }] })
+  assert.equal(pick.turns, 2)
+  assert.equal(pick.foesVetoed, undefined)
+})
+
+test('vettedFleeTargetAbs: junk foes read empty - the legacy shapes byte for byte', () => {
+  for (const junk of [null, undefined, 'junk', [{ x: NaN, z: 0 }], [{}, 42], [{ x: Infinity, z: 0 }]]) {
+    const pick = vettedFleeTargetAbs({ sample: lensDry, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 12, threatZ: 0, foes: junk })
+    assert.equal(pick.turns, 2, `foes=${JSON.stringify(junk)} collapses to the threat-only read`)
+    assert.equal(pick.foesVetoed, undefined, 'no lens flag on junk (the legacy verdict stands)')
+  }
+})
+
+test('vettedFleeTargetAbs: the lens pulls the wet-east pick back to the first-pass cell', () => {
+  // wet east blocks the away bearing (the override shape without foes: the
+  // threat-only winner is west); the zombie on the west arc (-8,0) makes west
+  // a 4-block coffin and the min-distance score returns the first-pass south
+  // cell - the lens flag names the move, the legacy overrode stays silent
+  // (the OUTCOME is the first-pass candidate)
+  const pick = vettedFleeTargetAbs({ sample: lensWetEast, ax: 0, ay: 64, az: 0, tx: 12, tz: 0, threatX: 12, threatZ: 0, foes: [{ x: -8, z: 0 }] })
+  assert.equal(pick.foesVetoed, true, 'the lens moved the pick off the threat-only winner')
+  assert.equal(pick.turns, 1, 'the first-pass south cell serves')
+  assert.equal(pick.x, 0); assert.equal(pick.z, 12)
+  assert.equal(pick.overrode, undefined, 'the outcome is the first-pass candidate - no override flag')
+})

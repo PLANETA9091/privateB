@@ -545,6 +545,24 @@ export function createMiner ({
     return n
   }
 
+  // (v0.307.0) THE SECOND-HOSTILE CENSUS for the flee vetting: the OTHER
+  // hostiles inside range (the threat itself excluded) as bare {x,z} cells.
+  // Face 36535536162 (the delivery era's first field): 12 mob deaths in the
+  // surface band, the sampled anatomy one signature - the bot mid-EVASION of
+  // mob A killed by mob B (F13 fled a skeleton, a zombie landed the kill;
+  // F18's water-vetoed 180 rotation walked into the zombie's arc). The flee
+  // ladder's vetting read the second mob NOWHERE - the census feeds the lens.
+  // Junk entity reads are skipped; an empty list reads the legacy vetting.
+  function otherHostiles (threatEntity, range = DETECT_RANGE) {
+    const foes = []
+    if (!bot.entity) return foes
+    for (const e of Object.values(bot.entities)) {
+      if (!e || e === bot.entity || e === threatEntity || !isHostileEntity(e) || !e.position) continue
+      if (e.position.distanceTo(bot.entity.position) <= range) foes.push({ x: e.position.x, z: e.position.z })
+    }
+    return foes
+  }
+
   // (v0.238.0) THE CRITICAL-BAR READ for the flee sites. MEASURED
   // (run36301385048, the v0.237.0 tree's field day, 7 deaths): the F19
   // anatomy - the verdict flipped to flee at hp 5.0, the flee spent its
@@ -643,10 +661,11 @@ export function createMiner ({
           // (v0.298.0) the threat's live coords ride the vetting: the ladder
           // turns distance-aware (run36507990221's twin creeper kills ate the
           // tangent arc - a dry rotation is not a gaining rotation).
-          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z })
+          const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: hopT.x, tz: hopT.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })
           const fx = v ? v.x : hopT.x
           const fz = v ? v.z : hopT.z
           if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the yard rotation) vs ${threat.name} (${reason})`)
+          else if (v && v.foesVetoed) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (the second hostile vetoes the yard target) vs ${threat.name} (${reason})`)
           else if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the yard target) vs ${threat.name} (${reason})`)
           goal = new goals.GoalXZ(fx, fz)
           log(`${tag} combat: flee kite hop toward the yard (${fx.toFixed(0)},${fz.toFixed(0)}) vs ${threat.name} (${reason})`)
@@ -665,8 +684,9 @@ export function createMiner ({
         // geometrically unbeatable - so the ladder only re-rotates when the
         // first dry bearing was NOT the away bearing (the tangent classes).
         const raw = { x: bot.entity.position.x + (dx / len) * 12, z: bot.entity.position.z + (dz / len) * 12 }
-        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z })
+        const v = vettedFleeTargetAbs({ sample, hazardNear: fleeHazardNear, ax: bot.entity.position.x, ay: here.y, az: bot.entity.position.z, tx: raw.x, tz: raw.z, threatX: threat.entity.position.x, threatZ: threat.entity.position.z, foes: otherHostiles(threat.entity) })
         if (v && v.overrode) log(`${tag} combat: flee ladder ${v.firstTurns * 90}deg -> ${v.turns * 90}deg (the threat reads the away rotation) vs ${threat.name} (${reason})`)
+        else if (v && v.foesVetoed) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (the second hostile vetoes the away target) vs ${threat.name} (${reason})`)
         else if (v && v.turns) log(`${tag} combat: flee bearing rotated ${v.turns * 90}deg (water/hazard vetoes the away target) vs ${threat.name} (${reason})`)
         const fx = v ? v.x : raw.x
         const fz = v ? v.z : raw.z
