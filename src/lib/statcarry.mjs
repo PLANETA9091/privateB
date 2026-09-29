@@ -167,6 +167,40 @@ export function sentryAttributionRow (bots = []) {
   return `sentry per-bot: ${named.join(' ')} | ${silent} g0/r0`
 }
 
+// (v0.325.0) THE RESCUE-ECONOMY DECODE - the sentry counters were attributed
+// per bot (the row above) but never JUDGED as an economy. The watch front's
+// two faces: fleet 36626921875 read 257 air glitches with 54 rescues (21.0%),
+// fleet 36631612575 read 699 with 75 (10.7%) - the share HALVED while the
+// raw count nearly tripled, and no line said so: the bots= line prints both
+// sums side by side but never divides them, and the per-bot row attributes
+// without judging. The verdict: share = rescues / airGlitches over the whole
+// run; at or above the floor the net holds (silent - a healthy run needs no
+// line); below it the net is losing ground and the line names the exact
+// numbers. The glitch sample needs mass before it speaks (minGlitches: a
+// 30-glitch face is grain, not a trend - the ledger-grain law); junk never
+// invents an economy (Number(null)=0 would read a blind sentry as a perfect
+// one - the body-guard law, seventh strike).
+export const RESCUE_ECONOMY_FLOOR_SHARE = 0.15
+export const RESCUE_ECONOMY_MIN_GLITCHES = 100
+
+/**
+ * The rescue-net verdict: is the net keeping up with the glitches?
+ * Pure, junk-tolerant - null means 'healthy', 'small sample' or 'cannot tell'.
+ * @param {{airGlitches?: number|null, rescues?: number|null}} p
+ * @returns {string|null} 'rescue economy: ...' when the net is losing ground
+ */
+export function rescueEconomyDecode (opts = {}) {
+  const { airGlitches = null, rescues = null } = opts || {}
+  if (!Number.isFinite(airGlitches) || !Number.isFinite(rescues)) return null
+  if (airGlitches < 0 || rescues < 0) return null
+  const g = Math.floor(airGlitches)
+  const r = Math.floor(rescues)
+  if (g < RESCUE_ECONOMY_MIN_GLITCHES) return null
+  const share = r / g
+  if (share >= RESCUE_ECONOMY_FLOOR_SHARE) return null
+  return `rescue economy: ${r} rescues for ${g} air glitches = ${(share * 100).toFixed(1)}% - the net is losing ground`
+}
+
 /**
  * (v0.199.0) THE DEATH-DROP LINE - run84 (fleet 36207216784) named the class:
  * mined=3027 but conversion=51.1% with unaccounted=1479, and the fleet pocket

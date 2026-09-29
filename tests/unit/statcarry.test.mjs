@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -224,4 +224,57 @@ test('the sweep census carry: the field list covers the miner ride (v0.293.0)', 
   for (const f of SWEEP_DROP_FIELDS) {
     assert.ok(init.includes(`${f}: 0`), `the ride init carries ${f}: 0 (the lib's carry list covers it)`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// (v0.325.0) THE RESCUE-ECONOMY DECODE - the sentry pair judged as an
+// economy: fleet 36626921875 read 257 glitches/54 rescues (21.0%), fleet
+// 36631612575 read 699/75 (10.7%) - the share halved unjudged. These tests
+// pin the two faces, the floor boundary, the sample-mass floor, the junk
+// discipline, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('rescueEconomyDecode: THE TWO FACES - 21.0% stays quiet, 10.7% speaks', () => {
+  assert.equal(RESCUE_ECONOMY_FLOOR_SHARE, 0.15)
+  assert.equal(RESCUE_ECONOMY_MIN_GLITCHES, 100)
+  // the healthy face: 54/257 = 21.0% >= the floor - the net holds, silent
+  assert.equal(rescueEconomyDecode({ airGlitches: 257, rescues: 54 }), null)
+  // the worsening face: 75/699 = 10.7% < the floor - the net loses ground
+  const v = rescueEconomyDecode({ airGlitches: 699, rescues: 75 })
+  assert.equal(v, 'rescue economy: 75 rescues for 699 air glitches = 10.7% - the net is losing ground')
+})
+
+test('rescueEconomyDecode: THE FLOOR BOUNDARY - at the floor the net holds', () => {
+  // exactly at the floor: holds (the >= law)
+  assert.equal(rescueEconomyDecode({ airGlitches: 100, rescues: 15 }), null)
+  // one rescue under: speaks
+  const v = rescueEconomyDecode({ airGlitches: 100, rescues: 14 })
+  assert.equal(v, 'rescue economy: 14 rescues for 100 air glitches = 14.0% - the net is losing ground')
+})
+
+test('rescueEconomyDecode: THE SAMPLE-MASS FLOOR and the junk discipline', () => {
+  // a small sample is grain, not a trend
+  assert.equal(rescueEconomyDecode({ airGlitches: 30, rescues: 0 }), null)
+  // zero glitches: no sample, no verdict (and never a division)
+  assert.equal(rescueEconomyDecode({ airGlitches: 0, rescues: 0 }), null)
+  // junk never invents an economy (the body-guard law)
+  assert.equal(rescueEconomyDecode({}), null)
+  assert.equal(rescueEconomyDecode(null), null)
+  assert.equal(rescueEconomyDecode({ airGlitches: NaN, rescues: 5 }), null)
+  assert.equal(rescueEconomyDecode({ airGlitches: 699, rescues: NaN }), null)
+  assert.equal(rescueEconomyDecode({ airGlitches: null, rescues: 75 }), null)
+  // negative counters are impossible data
+  assert.equal(rescueEconomyDecode({ airGlitches: -5, rescues: 3 }), null)
+  assert.equal(rescueEconomyDecode({ airGlitches: 699, rescues: -3 }), null)
+})
+
+test('rescueEconomyDecode: THE WIRING PIN - the report block judges the net', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /rescueEconomyDecode[\s\S]*?from '\.\.\/src\/lib\/statcarry\.mjs'/)
+  assert.match(src, /rescueEconomyDecode\(\{\s*\n\s*airGlitches: list\.reduce/)
+  assert.match(src, /if \(rescueEconomy\) console\.log\(`rescue economy decode: \$\{rescueEconomy\}`\)/)
+  const sentryIdx = src.indexOf('sentryAttributionRow(list.map')
+  const econIdx = src.indexOf('rescueEconomyDecode({')
+  assert.ok(econIdx > sentryIdx, 'the decode rides right after the per-bot attribution row')
+  assert.ok(src.includes('THE RESCUE-ECONOMY DECODE'), 'the wiring carries its own doctrine comment')
 })

@@ -43,7 +43,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3184,6 +3184,17 @@ console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${k
 // attributes. ALWAYS printed - even all-zero (an absent line class is
 // indistinguishable from a filter blind spot - the 05:00 ledger-skip lesson).
 console.log(sentryAttributionRow(list.map(m => ({ name: m.username, stats: m.stats }))))
+// (v0.325.0) THE RESCUE-ECONOMY DECODE - the sentry pair judged as an
+// economy: fleet 36626921875 read 257 glitches/54 rescues (21.0%), fleet
+// 36631612575 read 699/75 (10.7%) - the share halved unjudged. Below the
+// floor the net is losing ground (the watch front's escalation reads
+// years later); at/above it or on a small sample the decode stays silent
+// (junk never invents an economy).
+const rescueEconomy = rescueEconomyDecode({
+  airGlitches: list.reduce((a, m) => a + (m.stats?.airGlitches ?? 0), 0),
+  rescues: list.reduce((a, m) => a + (m.stats?.rescues ?? 0), 0)
+})
+if (rescueEconomy) console.log(`rescue economy decode: ${rescueEconomy}`)
 // (v0.52.0) the server-death verdict joins the report: a run whose server died
 // mid-way must be readable as such years later (run49's hang read as a
 // pathfinder bug for a whole session before the socket burst was mined)
