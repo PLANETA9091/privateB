@@ -365,3 +365,70 @@ export function bankFlowRow (samples, { pocketUnits = null } = {}) {
   }
   return `bank flow: ${rate.toFixed(1)}u/s (banked +${delta}u over ${span}s)${pNote}`
 }
+
+// (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
+// NAMES. Fleet 36631612575 (the first surplus-face face) healed the crater
+// (66.1% bank share, the decode silent) but the anatomy row flipped to WHALE:
+// F12 220u = 31.1% of the unbanked 707u - 'one walk owns the crater's face' -
+// and F12 is the same bot the no-chest front names. The per-bot counters
+// already saw every deposit (stats.banked, the v0.9.0 deposit ledger), but no
+// line attributed them: who actually carried the fleet's banking, and who
+// sits STRANDED - banked zero while holding a live pocket at the deadline.
+// The row names both: the top depositors (the chains that work) and the
+// stranded holders (the walk that never delivered - the whale-walk cure's
+// exact target). Same inventory walk as the write-off row (the junk law:
+// impossible counts zeroed, a torn window view holds nothing this read); a
+// junk banked counter reads zero (never a phantom depositor); a pocket under
+// the write-off floor is not stranded (the healthy lean pocket stays quiet -
+// the v0.181.0 cadence shape). The sum stays the counters' own sum - the row
+// attributes, it does not reconcile the ledger (the tithe and sweep flows
+// deposit outside stats.banked; that share rides unattributed on purpose).
+// ALWAYS printed - the none-form is a verdict too (the 05:00 ledger-skip
+// lesson).
+export const BANK_ATTRIBUTION_TOP = 3
+
+/**
+ * Who banked, and who is stranded with a live pocket?
+ * @param {Array<{username?: string, stats?: {banked?: number}, bot?: {inventory?: {items?: Function}}}>} miners
+ * @param {{minUnits?: number}} [opts] the stranded-pocket floor (default one stack, 64)
+ * @returns {string} the attribution verdict, always speaks
+ */
+export function bankAttributionRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } = {}) {
+  const min = (Number.isFinite(minUnits) && minUnits > 0) ? Math.floor(minUnits) : WRITE_OFF_MIN_UNITS
+  const depositors = []
+  const stranded = []
+  for (const m of (Array.isArray(miners) ? miners : [])) {
+    // the banked counter rides stats, not the inventory window - a torn view
+    // must not erase a bot's deposits from the attribution
+    const raw = m?.stats?.banked
+    const banked = (Number.isFinite(raw) && raw > 0) ? Math.floor(raw) : 0
+    let pocket = 0
+    try {
+      const items = m?.bot?.inventory?.items?.()
+      if (Array.isArray(items)) {
+        for (const it of items) {
+          const c = it?.count
+          pocket += (Number.isFinite(c) && c > 0) ? c : 0
+        }
+      }
+    } catch { /* a torn window view on a dying bot holds nothing this read */ }
+    const name = m?.username || 'F?'
+    if (banked > 0) depositors.push({ name, banked })
+    if (banked === 0 && pocket >= min) stranded.push({ name, pocket })
+  }
+  // desc, the tie-break is the name so the row is byte-stable
+  depositors.sort((a, b) => (b.banked - a.banked) || (a.name < b.name ? -1 : 1))
+  stranded.sort((a, b) => (b.pocket - a.pocket) || (a.name < b.name ? -1 : 1))
+  if (depositors.length === 0 && stranded.length === 0) {
+    return 'bank attribution: none (no banked units this run)'
+  }
+  const top = depositors.slice(0, BANK_ATTRIBUTION_TOP).map(d => `${d.name} ${d.banked}u`).join(', ')
+  if (depositors.length === 0) {
+    return `bank attribution: none deposited - stranded with pockets: ${stranded.map(s => `${s.name} ${s.pocket}u`).join(', ')}`
+  }
+  let v = `bank attribution: top ${top}`
+  if (stranded.length > 0) {
+    v += `; stranded: ${stranded.map(s => `${s.name} 0u/${s.pocket}u pocket`).join(', ')} - the walk never delivered`
+  }
+  return v
+}

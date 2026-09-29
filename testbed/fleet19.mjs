@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankAttributionRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3221,6 +3221,13 @@ if (mass) console.log(`unaccounted mass decode: ${mass}`)
 // units, ALWAYS printed (the 05:00 ledger-skip lesson). Same report-block
 // class as the loot ledger line above.
 console.log(writeOffRow(list))
+// (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
+// NAMES: fleet 36631612575 healed the crater but the anatomy row flipped to
+// WHALE F12 (220u = 31.1%) - the same bot the no-chest front names. The row
+// names the top depositors and the STRANDED holders (banked 0u with a live
+// pocket at the deadline) - the whale-walk cure's exact target. Same
+// report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
+console.log(bankAttributionRow(list))
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is

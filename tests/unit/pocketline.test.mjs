@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,8 +181,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.323.0 extended the same import)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankAttributionRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.324.0 extended the same import)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -505,4 +505,77 @@ test('bankFlowRow: THE WIRING PIN - the report block prices the flow', () => {
   const flowIdx = src.indexOf('bankFlowRow(bankFlowSamples')
   assert.ok(flowIdx > faceIdx, 'the flow row prints AFTER the surplus-face row - the same report-block class')
   assert.ok(src.includes('THE BANK-FLOW ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
+// NAMES: fleet 36631612575 healed the crater but the anatomy row flipped to
+// WHALE F12 (220u = 31.1% of the unbanked 707u) - the same bot the no-chest
+// front names. These tests pin the face datum, the stranded-only form, the
+// floor law, the junk discipline, and the wiring.
+// ---------------------------------------------------------------------------
+
+test('bankAttributionRow: THE FACE DATUM - the whale names itself stranded', () => {
+  assert.equal(BANK_ATTRIBUTION_TOP, 3)
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  // fleet 36631612575's shape: three whales held 435u while the fleet banked 1378u
+  const miners = [
+    mk('F3', 300, [{ name: 'cobblestone', count: 111 }]),
+    mk('F5', 250, [{ name: 'dirt', count: 5 }]),
+    mk('F7', 180, [{ name: 'sand', count: 12 }]),
+    mk('F12', 0, [{ name: 'cobblestone', count: 220 }]),
+    mk('F9', 0, [{ name: 'gravel', count: 90 }])
+  ]
+  const v = bankAttributionRow(miners)
+  assert.ok(v.startsWith('bank attribution: top F3 300u, F5 250u, F7 180u'), v)
+  assert.match(v, /; stranded: F12 0u\/220u pocket, F9 0u\/90u pocket - the walk never delivered$/, v)
+})
+
+test('bankAttributionRow: THE STRANDED-ONLY FORM - a fleet that never deposited', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const v = bankAttributionRow([mk('F12', 0, [{ name: 'dirt', count: 220 }]), mk('F6', 0, [{ name: 'sand', count: 104 }])])
+  assert.equal(v, 'bank attribution: none deposited - stranded with pockets: F12 220u, F6 104u')
+})
+
+test('bankAttributionRow: THE NONE-FORM and the floor law', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  assert.equal(bankAttributionRow([]), 'bank attribution: none (no banked units this run)')
+  assert.equal(bankAttributionRow(), 'bank attribution: none (no banked units this run)')
+  assert.equal(bankAttributionRow(null), 'bank attribution: none (no banked units this run)')
+  // a healthy lean pocket under the floor is not stranded (the v0.181.0 shape)
+  const v = bankAttributionRow([mk('F3', 500, [{ name: 'dirt', count: 3 }]), mk('F9', 0, [{ name: 'sand', count: 63 }])])
+  assert.equal(v, 'bank attribution: top F3 500u')
+  // the floor is inclusive at the write-off floor (64u = one stack strands)
+  const v2 = bankAttributionRow([mk('F3', 500, []), mk('F9', 0, [{ name: 'sand', count: 64 }])])
+  assert.match(v2, /; stranded: F9 0u\/64u pocket - the walk never delivered$/)
+  // a custom floor is honored
+  const v3 = bankAttributionRow([mk('F9', 0, [{ name: 'sand', count: 100 }])], { minUnits: 128 })
+  assert.equal(v3, 'bank attribution: none (no banked units this run)')
+})
+
+test('bankAttributionRow: THE JUNK DISCIPLINE - torn views and impossible counters', () => {
+  const torn = { username: 'F2', stats: { banked: 30 }, bot: { inventory: { items: () => { throw new Error('torn window') } } } }
+  const junk = { username: 'F6', stats: { banked: NaN }, bot: { inventory: { items: () => [{ count: NaN }, { count: -5 }, { name: 'stick', count: 70 }] } } }
+  const v = bankAttributionRow([torn, junk])
+  assert.ok(v.startsWith('bank attribution: top F2 30u'), v)
+  assert.match(v, /; stranded: F6 0u\/70u pocket - the walk never delivered$/, 'a junk banked counter reads zero - never a phantom depositor')
+  // missing stats and missing inventories read zero/empty pockets
+  const bare = { username: 'F8' }
+  assert.equal(bankAttributionRow([bare]), 'bank attribution: none (no banked units this run)')
+  // the tie breaks byte-stable by name
+  const a = { username: 'F1', stats: { banked: 100 }, bot: { inventory: { items: () => [] } } }
+  const b = { username: 'F3', stats: { banked: 100 }, bot: { inventory: { items: () => [] } } }
+  assert.match(bankAttributionRow([b, a]), /^bank attribution: top F1 100u, F3 100u/)
+})
+
+test('bankAttributionRow: THE WIRING PIN - the report block names the walkers', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /bankAttributionRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.match(src, /console\.log\(bankAttributionRow\(list\)\)/)
+  const rowIdx = src.indexOf('console.log(writeOffRow(list))')
+  const attrIdx = src.indexOf('console.log(bankAttributionRow(list))')
+  const anatomyIdx = src.indexOf('pocketAnatomyRow(list')
+  assert.ok(attrIdx > rowIdx, 'the attribution row prints AFTER the write-off row')
+  assert.ok(anatomyIdx > attrIdx, 'the anatomy row still prints AFTER the attribution row')
+  assert.ok(src.includes('THE BANK-ATTRIBUTION ROW'), 'the wiring carries its own doctrine comment')
 })
