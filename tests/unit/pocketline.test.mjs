@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,8 +181,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankAttributionRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.324.0 extended the same import)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.324.0 extended the same import, v0.328.0 rode it)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -578,4 +578,77 @@ test('bankAttributionRow: THE WIRING PIN - the report block names the walkers', 
   assert.ok(attrIdx > rowIdx, 'the attribution row prints AFTER the write-off row')
   assert.ok(anatomyIdx > attrIdx, 'the anatomy row still prints AFTER the attribution row')
   assert.ok(src.includes('THE BANK-ATTRIBUTION ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.328.0) THE BANK-BUDGET GAP ROW - the flow row prices the pocket's NEED
+// ('needs 322s past the deadline', face 36640056641) but the budget side never
+// printed. These tests pin the face datum (322s vs the v0.27.0 150s clock),
+// the covered-silence law, the <= boundary, the sibling arithmetic (the two
+// rows must never disagree), and the wiring.
+// ---------------------------------------------------------------------------
+test('bankBudgetGapRow: THE FACE DATUM - 322s of need vs the 150s clock', () => {
+  assert.equal(BANK_GAP_MIN_BUDGET_MS, 0)
+  // fleet 36640056641's tail: +622u over 285s = 2.2u/s, the 702u pocket
+  const samples = [{ t: 0, banked: 995 }, { t: 285, banked: 1617 }]
+  const v = bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: 150000 })
+  assert.equal(v, 'bank budget gap: 322s needed, 150s budgeted - 172s short at 2.2u/s - the end bank chains outran the clock')
+})
+
+test('bankBudgetGapRow: THE SIBLING ARITHMETIC - the gap row agrees with the flow row', () => {
+  // the need the gap row computes must equal the seconds the flow row prints
+  const samples = [{ t: 0, banked: 995 }, { t: 285, banked: 1617 }]
+  const flow = bankFlowRow(samples, { pocketUnits: 702 })
+  const gap = bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: 300000 })
+  assert.match(flow, /the 702u pocket needs 322s past the deadline/)
+  assert.match(gap, /322s needed/)
+  assert.equal(gap, 'bank budget gap: 322s needed, 300s budgeted - 22s short at 2.2u/s - the end bank chains outran the clock')
+  // a huge budget converts ms to seconds honestly - and covers the pocket (the <= law, silence)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: 9990000 }), null)
+})
+
+test('bankBudgetGapRow: THE COVERED SILENCE and the <= boundary', () => {
+  const samples = [{ t: 0, banked: 995 }, { t: 285, banked: 1617 }]
+  // a lean pocket fits the clock: 327u needs ceil(327*285/622)=150s - covered, silent
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 327, budgetMs: 150000 }), null)
+  // one unit more: 151s needed - the scandal prints with the exact shortage
+  const v = bankBudgetGapRow(samples, { pocketUnits: 328, budgetMs: 150000 })
+  assert.equal(v, 'bank budget gap: 151s needed, 150s budgeted - 1s short at 2.2u/s - the end bank chains outran the clock')
+  // a zero budget is a real config edge, priced honestly
+  const z = bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: 0 })
+  assert.equal(z, 'bank budget gap: 322s needed, 0s budgeted - 322s short at 2.2u/s - the end bank chains outran the clock')
+})
+
+test('bankBudgetGapRow: THE JUNK BATTERY - garbage never prices a clock', () => {
+  const samples = [{ t: 0, banked: 995 }, { t: 285, banked: 1617 }]
+  // impossible config
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: -1 }), null)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: NaN }), null)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: null }), null)
+  // no pocket, no need to price
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: null, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: 0, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: NaN, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow(samples, { pocketUnits: -5, budgetMs: 150000 }), null)
+  // no series / stood still / empty: the flow row's story, told there
+  assert.equal(bankBudgetGapRow([], { pocketUnits: 702, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow(null, { pocketUnits: 702, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow([{ t: 5, banked: 100 }], { pocketUnits: 702, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow([{ t: 0, banked: 100 }, { t: 10, banked: 100 }], { pocketUnits: 702, budgetMs: 150000 }), null)
+  assert.equal(bankBudgetGapRow([{ t: 0, banked: 110 }, { t: 10, banked: 100 }], { pocketUnits: 702, budgetMs: 150000 }), null)
+  // junk samples ride the sibling filter: a junk entry is skipped, not fatal
+  const mixed = [{ t: 'x', banked: 1 }, { t: 0, banked: 995 }, { t: 285, banked: 1617 }]
+  const v = bankBudgetGapRow(mixed, { pocketUnits: 702, budgetMs: 150000 })
+  assert.equal(v, 'bank budget gap: 322s needed, 150s budgeted - 172s short at 2.2u/s - the end bank chains outran the clock')
+})
+
+test('bankBudgetGapRow: THE WIRING PIN - the gap row prices the granted clock', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /bankBudgetGapRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.match(src, /console\.log\(bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: END_BANK_BUDGET \}\)\)/)
+  const flowIdx = src.indexOf('console.log(bankFlowRow(bankFlowSamples')
+  const gapIdx = src.indexOf('console.log(bankBudgetGapRow(bankFlowSamples')
+  assert.ok(gapIdx > flowIdx, 'the gap row prints right after the flow row it prices')
+  assert.match(src, /const END_BANK_BUDGET = endBankBudgetMs/, 'the budget priced is the fleet\'s own clock')
+  assert.ok(src.includes('THE BANK-BUDGET GAP ROW'), 'the wiring carries its own doctrine comment')
 })

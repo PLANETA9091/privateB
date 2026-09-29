@@ -366,6 +366,49 @@ export function bankFlowRow (samples, { pocketUnits = null } = {}) {
   return `bank flow: ${rate.toFixed(1)}u/s (banked +${delta}u over ${span}s)${pNote}`
 }
 
+// (v0.328.0) THE BANK-BUDGET GAP ROW - the flow row (v0.323.0) prices the
+// pocket's NEED ('needs 322s past the deadline', face 36640056641) but the
+// budget side never prints: END_BANK_BUDGET lives in the fleet's head (the
+// v0.27.0 150s chain clock) and no line judges one against the other, so a
+// miner cannot tell whether 322s is a scandal or slack. THE ROW prices the
+// same window at the same rate (the sibling-shape law: same sample filter,
+// same unrounded rate, the same ceil on the need - the two rows must never
+// disagree about the arithmetic they share); the verdict speaks only when the
+// need EXCEEDS the budget (the leanness law - a covered pocket is a healthy
+// run, silence is its shape); junk never prices a clock (the body-guard law:
+// a junk pocket has no need, a negative budget is impossible config, a stood
+// -still or empty series is the flow row's story, told there). Pure: reads,
+// never mutates.
+export const BANK_GAP_MIN_BUDGET_MS = 0
+
+/**
+ * Price the end-bank budget against the pocket's measured need.
+ * @param {Array<{t?: number, banked?: number}>|null} samples
+ * @param {{pocketUnits?: number|null, budgetMs?: number|null}} opts
+ * @returns {string|null} 'bank budget gap: ...' when the need outruns the budget
+ */
+export function bankBudgetGapRow (samples, { pocketUnits = null, budgetMs = null } = {}) {
+  if (!Number.isFinite(budgetMs) || budgetMs < BANK_GAP_MIN_BUDGET_MS) return null
+  if (!Number.isFinite(pocketUnits) || Math.floor(pocketUnits) <= 0) return null
+  const good = []
+  for (const s of (Array.isArray(samples) ? samples : [])) {
+    const t = s?.t
+    const b = s?.banked
+    if (!Number.isFinite(t) || t < 0 || !Number.isFinite(b) || b < 0) continue
+    if (good.length > 0 && t <= good[good.length - 1].t) continue // a non-monotone t cannot make a window
+    good.push({ t: Math.floor(t), b: Math.floor(b) })
+  }
+  if (good.length < BANK_FLOW_MIN_SAMPLES) return null
+  const span = good[good.length - 1].t - good[0].t
+  const delta = good[good.length - 1].b - good[0].b
+  if (span <= 0 || delta <= 0) return null // none / stood-still is the flow row's story
+  const rate = delta / span
+  const need = Math.ceil(Math.floor(pocketUnits) / rate)
+  const budget = Math.floor(budgetMs / 1000)
+  if (need <= budget) return null // the <= law: at the budget the chains fit
+  return `bank budget gap: ${need}s needed, ${budget}s budgeted - ${need - budget}s short at ${rate.toFixed(1)}u/s - the end bank chains outran the clock`
+}
+
 // (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
 // NAMES. Fleet 36631612575 (the first surplus-face face) healed the crater
 // (66.1% bank share, the decode silent) but the anatomy row flipped to WHALE:

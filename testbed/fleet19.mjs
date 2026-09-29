@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankAttributionRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3313,6 +3313,11 @@ console.log(surplusFaceRow(list, { surplus: ledger.surplus }))
 // from a dead one (the endgame bank-cadence front). Same report-block class
 // (ALWAYS printed - the 05:00 ledger-skip lesson).
 console.log(bankFlowRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units }))
+// (v0.328.0) THE BANK-BUDGET GAP ROW prices the NEED above against the fleet's
+// own end-bank clock: the flow row names the pocket's seconds, the gap row
+// judges the budget that was granted - a covered pocket prints nothing (the
+// leanness law), an outrun clock names the exact shortage.
+console.log(bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: END_BANK_BUDGET }))
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed
