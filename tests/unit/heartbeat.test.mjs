@@ -224,3 +224,23 @@ test('REAL worker smoke: boots from the eval source, beats, and exits on stop', 
   await sleep(120)
   assert.ok(hb.stopped)
 })
+
+test('heartbeat source: the freeze-storm FATAL carries the blackbox story (v0.310.0 the freeze post-mortem)', () => {
+  // MEASURED (fleet 36560130936, the double-0.309.0 face, exit 143 at ts=446):
+  // the freeze kill fired (rss 984M -> 2006M, the run53 OOM class, fifth kill)
+  // while the mainLate read sat STALE at 2549ms - the >= 5s freeze dump never
+  // armed (a stale read sits under the threshold forever once the main locks),
+  // the sgStory probe line is the ticking-main path only, and the post-mortem
+  // got two rss numbers and ZERO activity labels: the allocator went unnamed.
+  // The freeze FATAL now carries the SAME sgStory(8) the probe and the ceiling
+  // FATAL ride - the ring froze with the main, so the labels are the last REAL
+  // work the main thread did before the lock.
+  assert.match(HEARTBEAT_WORKER_SRC, /closure cannot land; run 36292057377[^']*' \+ sgStory\(8\)/, 'the freeze FATAL line ends with the activity story')
+  // parity: all three verdict lines (probe, ceiling FATAL, freeze FATAL) ride the story
+  const count = (HEARTBEAT_WORKER_SRC.match(/sgStory\(8\)/g) || []).length
+  assert.ok(count >= 3, `expected the story on >= 3 verdict lines (probe, ceiling, freeze), found ${count}`)
+  // the kill still fires AFTER the lines land (the story never replaces the kill)
+  const fatalIdx = HEARTBEAT_WORKER_SRC.indexOf('closure cannot land; run 36292057377')
+  const killIdx = HEARTBEAT_WORKER_SRC.indexOf("process.kill(process.pid, 'SIGTERM')", fatalIdx)
+  assert.ok(fatalIdx !== -1 && killIdx !== -1 && killIdx > fatalIdx, 'the emergency SIGTERM follows the FATAL lines')
+})

@@ -170,7 +170,21 @@ function sgTick () {
     if (pvFrozen !== null && pvFrozen >= sgPulseVoidMs && r >= sgFloor && fsPrev > 0 && r > fsPrev) {
       stopped = true // no further lines race the emergency report
       try { clearTimeout(timer); clearInterval(sgTimer) } catch { /* dying anyway */ }
-      try { fs.writeSync(writeFd, '[stormguard] FATAL (freeze storm: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's, rss ' + fsPrev + 'M -> ' + r + 'M growing past the ' + sgFloor + 'M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134)\\n') } catch { /* stdout closed - kill anyway */ }
+      // (v0.310.0) THE FREEZE POST-MORTEM - the activity story rides the FATAL
+      // line. MEASURED (fleet 36560130936, the double-0.309.0 face, exit 143 at
+      // ts=446): the freeze kill fired at rss 984M -> 2006M while the mainLate
+      // read was STALE at 2549ms - the >= 5s freeze dump never armed (the stale
+      // read sits under the threshold forever once the main locks), the
+      // sgStory(8) probe line is the TICKING-main path only, and the
+      // post-mortem was left holding two rss numbers and ZERO activity labels:
+      // the allocator (the run53 OOM class, fifth kill) went unnamed. The
+      // OTHER two verdict paths already ride the story (the v0.64.0 probe
+      // line, the ceiling FATAL); the freeze path now carries the SAME
+      // sgStory(8) - the ring froze with the main, so the labels are the last
+      // REAL work the main thread did before the lock, which is exactly the
+      // evidence this class keeps erasing. An empty ring degrades to the
+      // legacy line byte for byte (sgStory returns '').
+      try { fs.writeSync(writeFd, '[stormguard] FATAL (freeze storm: main pulse frozen ' + Math.round(pvFrozen / 1000) + 's, rss ' + fsPrev + 'M -> ' + r + 'M growing past the ' + sgFloor + 'M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134' + sgStory(8) + ')\\n') } catch { /* stdout closed - kill anyway */ }
       try { fs.writeSync(writeFd, '[stormguard] the MAIN thread is locked while allocating (run53/35647216505 OOM class; mainLate read ' + mainLate + 'ms but the pulse has been frozen ' + Math.round(pvFrozen / 1000) + 's - the reading was stale) - every closure applier lives on the locked main; emergency SIGTERM keeps the story readable (exit 143)\\n') } catch { /* stdout closed - kill anyway */ }
       try { process.kill(process.pid, 'SIGTERM') } catch { /* already dying */ }
       return
