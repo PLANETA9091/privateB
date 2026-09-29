@@ -7,7 +7,10 @@
 // the end lines carried the counts but never named the blindness. These tests
 // pin the decode (the floor, the seen-exemptions, the junk discipline) and
 // the wiring (the bracket rides the existing 'water: rescue' end line) so the
-// blind class can never silently rot back into unnamed o2 deaths.
+// blind class can never silently rot back into unnamed o2 deaths. The
+// v0.315.0 block pins the LIVE side: the same blind predicate spoken once
+// per rescue while the climb still flies (the one-shot latch, the headWet
+// exemption, the own-budget line).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -67,4 +70,53 @@ test('THE DOC PIN: the decode names the F10 datum and the pricing it closes', ()
   assert.match(src, /pass 0 o2=3 y=46\.0/)
   assert.match(src, /pass 5 o2=0 y=50\.3/)
   assert.match(src, /missing evidence is not blindness/)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.315.0) THE LIVE BLIND LINE - the decode spoke at the END line, but F10
+// died MID-climb with the verdict still unspoken. The live line speaks the
+// same blind predicate ONCE per rescue while the climb still flies, naming
+// the air budget. Same class ('blind'), same floor, same exemptions - the
+// wiring reuses rescueBlindness; these tests pin the live gate's semantics
+// (the passNo+1 indexing, the headWet exemption) and the wiring so the live
+// line can never silently starve like the per-pass lines did.
+// ---------------------------------------------------------------------------
+
+test('THE LIVE GATE INDEXING: the live check counts the pass in flight (passNo + 1)', () => {
+  // the gate runs BEFORE passNo++ - passNo is 0-based, so the 3rd pass in
+  // flight passes passNo + 1 = RESCUE_BLIND_FLOOR_PASSES: the earliest the
+  // live verdict is honest
+  assert.equal(rescueBlindness({ passes: RESCUE_BLIND_FLOOR_PASSES, probes: 0, shoreHits: 0 }), 'blind')
+  // two passes flown (passNo = 1): still too early to call
+  assert.equal(rescueBlindness({ passes: RESCUE_BLIND_FLOOR_PASSES - 1, probes: 0, shoreHits: 0 }), null)
+})
+
+test('THE LIVE EXEMPTIONS: ground truth mutes the live line exactly like the decode', () => {
+  // the shore ledger moved this rescue: it saw, the live blind class would lie
+  assert.equal(rescueBlindness({ passes: 4, probes: 0, shoreHits: 1 }), null)
+  // a standing probe ran: same
+  assert.equal(rescueBlindness({ passes: 4, probes: 1, shoreHits: 0 }), null)
+  // junk never fires the live line either (the body-guard law holds mid-climb)
+  assert.equal(rescueBlindness({ passes: null, probes: 0, shoreHits: 0 }), null)
+})
+
+test('THE LIVE WIRING PINS: one-shot latch, headWet gate, the own-budget line', () => {
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the latch declared beside the ground-truth ledger, one-shot per rescue
+  assert.match(minerSrc, /let blindLiveSeen = false \/\/ \(v0\.315\.0\) the live blind line's one-shot latch/)
+  // the gate: unlatched AND head-wet AND the blind predicate (passNo + 1)
+  assert.match(minerSrc, /if \(!blindLiveSeen && headWet && rescueBlindness\(\{ passes: passNo \+ 1, probes: standingProbes, shoreHits \}\)\)/)
+  // the latch closes before the line speaks: one line per rescue, its own budget
+  assert.match(minerSrc, /blindLiveSeen = true/)
+  // the line rides the existing 'water' filter key (fleet19.mjs 'water' family)
+  assert.match(minerSrc, /water: rescue blind live \(pass \$\{passNo \+ 1\}, air=\$\{o2SensorLabel\(read\.oxygen\)\}, no ground truth yet/)
+  // the headWet exemption lives in the gate itself - the dry branch never speaks
+  assert.match(minerSrc, /!blindLiveSeen && headWet && rescueBlindness/)
+})
+
+test('THE LIVE DOC PIN: the decode header names the live side shipped', () => {
+  const src = fs.readFileSync(new URL('../../src/lib/drowning.mjs', import.meta.url), 'utf8')
+  assert.match(src, /the LIVE side shipped/)
+  assert.match(src, /v0\.315\.0 in the miner's climb/)
+  assert.match(src, /water: rescue blind live/)
 })

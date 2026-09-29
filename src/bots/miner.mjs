@@ -1758,6 +1758,7 @@ export function createMiner ({
     const passPoints = [] // (v0.82.0) per-pass positions feed the frozen-physics detector
     let standingProbes = 0
     let shoreHits = 0 // (v0.314.0) shore scans that returned a bearing - the ground-truth ledger
+    let blindLiveSeen = false // (v0.315.0) the live blind line's one-shot latch - one line per rescue, its own budget
     let ascendDigs = 0 // (v0.125.0) the deep-pocket ascend ceiling-dig budget
     let passNo = 0
     let passLogAt = 0
@@ -1866,6 +1867,20 @@ export function createMiner ({
           // (o2SensorLabel) - the raw -1 sentinel prints NAMED like every
           // other site (the 1030 census: the pass lines were the last raw site).
           log(`${tag} water: pass ${passNo} head=${headWet ? 'wet' : 'dry'} shore=${dir ? `hit r=${dir.dist}` : 'none'} land=${land ? `${land.name} d=${land.dist.toFixed(0)}` : (headWet ? 'n/a' : 'none')} y=${p.y.toFixed(1)} o2=${o2SensorLabel(read.oxygen)} probes=${standingProbes} at=[${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}]`)
+        }
+        // (v0.315.0) THE LIVE BLIND LINE - the v0.314.0 decode names the
+        // blindness at the END line, but F10's climb died mid-climb with the
+        // verdict still unspoken: the only live evidence was the per-pass
+        // lines, and those are rate-limited (PASS_LOG_INTERVAL_MS / cap) -
+        // the shared-cap starvation lesson the pounce probe taught. This
+        // line speaks ONCE per rescue while the blind climb still flies,
+        // naming the air budget it burns (the F10 shape: pass 0 o2=3 ->
+        // pass 5 o2=0). The dry branch is exempt (headWet gate): it gathers
+        // shore truth, the blind class would lie there. Rides the existing
+        // 'water' filter key in fleet19.mjs - no new filter key.
+        if (!blindLiveSeen && headWet && rescueBlindness({ passes: passNo + 1, probes: standingProbes, shoreHits })) {
+          blindLiveSeen = true
+          log(`${tag} water: rescue blind live (pass ${passNo + 1}, air=${o2SensorLabel(read.oxygen)}, no ground truth yet - the climb flies on buoyancy alone)`)
         }
         passNo++
         rescueReads.push({ wet: headWet, atMs: Date.now() })

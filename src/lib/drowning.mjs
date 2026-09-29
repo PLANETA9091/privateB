@@ -1994,7 +1994,9 @@ export function breathMirror (r) {
 // end lines ('standing down (frozen physics)', 'timeout (still wet, ...)'),
 // carried the pass counts but never named the blindness. The pricing (fire
 // 2100): 'rescue passes with no shore probe must self-name; probes>0 or
-// honest blind'. THE CURE (pure, the decode side - a live cure stays priced):
+// honest blind'. THE CURE (pure, the decode side; the LIVE side shipped
+// v0.315.0 in the miner's climb - 'water: rescue blind live', one-shot latched,
+// naming the air budget while the blind climb still flies):
 // rescueBlindness({passes, probes, shoreHits}) reads BLIND when a rescue ran
 // >= RESCUE_BLIND_FLOOR_PASSES passes with ZERO shore scans hit and ZERO
 // standing probes - no ground truth was ever gathered, the swim was flown on
