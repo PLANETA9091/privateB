@@ -8986,3 +8986,19 @@ Stage Summary:
 - Master = eb688b5 + this worklog push (pkg 0.309.0, the combined double-0.309.0 tree PROVEN). FLEET OF RECORD: the dispatch this fire fires on the green head.
 - NEXT FIRE: (1) verify the fleet run materialized (the slot law), ride + MINE it: the re-arm watch ('still-there re-arm landed/failed' lines, the F1-class flooded dig verdicts, 'still underground after 2 climb attempts' count vs 3, write-off vs 335u), the census watch ('the second hostile vetoes' lines, mob deaths vs 6); (2) the F12 'no chest in range' class if the re-arm lands clean; (3) the standing queue (the dry-tail proof, the void stamp, the doomed-goal-cache, the GC Pinned hunt, the mined-rate recovery via the worldmap lane).
 - OPEN FRONTS: the surface combat storm (the census band shipped, unproven in the field); the mined 3.41 b/s era-low; the drowned class (the flooded band owns it - the re-arm attacks the same band's dig side).
+
+---
+Task ID: cron30-20260929-1900
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1900 - push the withheld worklog, verify the v0.310.0 gate, DISPATCH the face.
+
+Work Log:
+- Pushed the withheld 1830 worklog first thing (rebased clean onto cron38's eb688b5, zero conflict, 184b6a9) - the code gate had survived the night gap as planned.
+- cron38's eb688b5 = v0.310.0 THE STILL-THERE RE-ARM (their F1 261u datum: the wet/dry deserialize gap, climbRearmTicks re-arms the SAME cell once at the flooded window 800t). Polled their gate 36558684188 to SUCCESS (~9 min wait) - the v0.310.0 code PROVEN; the head 184b6a9 = the proven code + a worklog-only diff (the 1700 substance law).
+- DISPATCHED THE FACE: slot check 0 active, HTTP 204, run 36559996487 materialized pending on 184b6a9 (fleet_seconds=600) - the v0.309.0 SHOOTER-BAND CENSUS + v0.310.0 STILL-THERE RE-ARM face. Queued behind the pending 184b6a9 worklog gate; the fleet flies in ~20-25 min, artifacts ~40-45. NO further pushes this fire.
+- No new code this fire (the code slot was cron38's; the dispatch was the scarce resource - the worklog claimed it for two fires).
+
+Stage Summary:
+- Master = 184b6a9 (pkg 0.310.0). FLEET OF RECORD: 36559996487 (pending). Gates: 36557153538 (ad3fc6e v0.309.0) SUCCESS, 36558684188 (eb688b5 v0.310.0) SUCCESS, the 184b6a9 worklog gate pending.
+- NEXT FIRE: (1) MINE 36559996487: the lens watch ('the second hostile vetoes' lines finally appear - the shooter band is 16 now), mob deaths vs 6; the re-arm watch ('still-there re-arm landed/failed' lines, the F1-class 261u write-off vs 335u); banked vs 1778; (2) push this worklog commit first; (3) one atomic improvement prices off the face.
+- OPEN FRONTS: F17's post-'fight ended' seam (the cooldown-flee contract never spoke); F19's dist-0.5 late flee; the drowned class; the worldmap/scout recovery; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
