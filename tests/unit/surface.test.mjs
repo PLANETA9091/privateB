@@ -15,7 +15,8 @@ import {
   CLIMB_DIG_TICKS, CLIMB_DIG_TICKS_WET, climbDigWindow,
   veinDigRefusal, VEIN_DROP_REFUSE,
   verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY,
-  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING, chestVerticalDoom
+  wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING, chestVerticalDoom,
+  wetCeilingAscendGate, WET_CEILING_DIG_BUDGET // (v0.300.0) the wet-ceiling ascend
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -764,4 +765,66 @@ test('bridgeRefusalDetail: junk inputs print placeholders instead of throwing', 
   assert.match(bridgeRefusalDetail({ postLanded: true, postName: '' }), /post=block LANDED/)
   // a false postLanded with a junk postName keeps the placeholder
   assert.match(bridgeRefusalDetail({ postLanded: false, postName: 7 }), /post=\? STILL OPEN/)
+})
+
+// (v0.300.0) THE WET-CEILING ASCEND - the climb's answer to the sealed water
+// column. Face 36517770723: 17 climb deaths 'failed - stalled', every sampled
+// diag 'blocked toward X (dug=0, wet) water (stop)' at EVERY bearing - the
+// staircase stood in the flooded band with no horizontal answer. The gate
+// budgets the vertical digs per climb (the rescue's v0.125.0 shape).
+test('wetCeilingAscendGate: room while ascendDigs < budget, spent at the cap', () => {
+  // fresh climb: the vertical answer is available
+  assert.deepEqual(wetCeilingAscendGate({ ascendDigs: 0 }),
+    { dig: true, why: `ascend room (0/${WET_CEILING_DIG_BUDGET})` })
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 2 }).dig, true)
+  // the last room still digs
+  assert.equal(wetCeilingAscendGate({ ascendDigs: WET_CEILING_DIG_BUDGET - 1 }).dig, true)
+  // at the cap the climb ends honestly through the rotate ladder
+  assert.deepEqual(wetCeilingAscendGate({ ascendDigs: WET_CEILING_DIG_BUDGET }),
+    { dig: false, why: `ascend budget spent (${WET_CEILING_DIG_BUDGET}/${WET_CEILING_DIG_BUDGET})` })
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 9 }).dig, false)
+})
+
+test('wetCeilingAscendGate: a custom budget resizes the room (the pin keeps the shape)', () => {
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 4, budget: 6 }).dig, true)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 6, budget: 6 }).dig, false)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 0, budget: 1 }).dig, true)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 1, budget: 1 }).dig, false)
+})
+
+test('wetCeilingAscendGate: junk reads never throw and never over-dig', () => {
+  // junk ascendDigs reads 0 (a fresh climb) - the budget holds
+  assert.equal(wetCeilingAscendGate({ ascendDigs: NaN }).dig, true)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: -3 }).dig, true)
+  assert.equal(wetCeilingAscendGate({}).dig, true)
+  // junk budget reads the constant, so a huge spent count still refuses
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 4, budget: NaN }).dig, false)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: Infinity, budget: Infinity }).dig, false)
+  // fractional digs floor (3.7 spent = 3) - the 4th dig keeps its room
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 3.7 }).dig, true)
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 4.2 }).dig, false)
+})
+
+// (v0.300.0) THE WIRING PIN - the ascend rides INSIDE the blockedWet branch,
+// after the wet-escape ladders and BEFORE the surface handoff: the escape
+// classes keep their ladders byte for byte, the vertical digs only where the
+// escapes left the pass standing wet.
+test('WIRING PIN: the wet-ceiling ascend rides the blockedWet branch (v0.300.0)', () => {
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes('climb wet ascend: dug the ceiling'),
+    'the ascend names its line (the same tag the fleet log filters)')
+  assert.ok(/wetCeilingAscendGate,\s*WET_CEILING_DIG_BUDGET/.test(minerSrc),
+    'the gate + the budget are imported (the wiring is live, not dead code)')
+  const wetGateIdx = minerSrc.indexOf('const wetGate = wetEscapeGate({ wetTries, wetAttempts, wetWalks })')
+  const escIdx = minerSrc.indexOf("if (esc.resumed) continue // fresh position - let the main loop re-judge")
+  const ascIdx = minerSrc.indexOf('climb wet ascend: dug the ceiling')
+  const handoffIdx = minerSrc.indexOf('(v0.37.0) SURFACE HANDOFF on the blocked path')
+  assert.ok(wetGateIdx > 0, 'the wet-escape gate call exists')
+  assert.ok(ascIdx > escIdx && escIdx > wetGateIdx, 'the ascend rides AFTER the escape ladders (inside the blockedWet branch)')
+  assert.ok(ascIdx < handoffIdx, 'the ascend rides BEFORE the surface handoff (the dry path keeps its shape)')
+  // the budget reads the CONSTANT (not a literal) and the dig falls through on failure
+  assert.ok(minerSrc.includes('wetCeilingAscendGate({ ascendDigs: wetAscendDigs })'),
+    'the gate consumes the per-climb counter')
+  assert.ok(/catch \{ \/\* the dig lost the race: the rotate ladder owns it \*\/ \}/.test(minerSrc),
+    'a lost dig falls through to the rotate ladder byte for byte')
 })

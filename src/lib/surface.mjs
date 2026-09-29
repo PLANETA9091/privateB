@@ -141,6 +141,49 @@ export function wetEscapeGate ({
   return { escape: false, why: `the wet ladder is spent (sealed ${tries}/${att}, walked ${walks}/${cap})` }
 }
 
+// (v0.300.0) THE WET-CEILING ASCEND - the climb's answer to the sealed water
+// column. MEASURED (face 36517770723, the v0.299.0 tree's first field, the
+// economy RECOVERED banked=446 after three banked=0 faces): 17 climb deaths
+// read 'failed - stalled' and every sampled diag line is the same shape -
+// 'blocked toward -1,0 (dug=0, wet) water (stop)' at EVERY bearing (F1 y=46,
+// F5 y=51, F12 y=60): the staircase climbed INTO the flooded band, all four
+// cardinal step cells read water, the wet-escape galleries walked and
+// re-judged into the next water column, and the rotate ladder spent its
+// fails standing in the same column. The rescue lane solved this exact shape
+// long ago (the v0.125.0 deep-pocket ascend: 'the jump is producing nothing
+// and the head is WET - a ceiling owns the pocket: surface to the ceiling
+// and dig up'). The climb never got the sibling: its blockedWet branch ends
+// at the rotate ladder. The cure digs the ceiling (feet+2) when the wet
+// blocked verdict stands - one vertical block re-judges the whole column
+// (the water above falls into the dug cell, the staircase's next scan reads
+// it, and the escape ladders own whatever remains). BUDGETED: a per-climb
+// cap (default 4) bounds the digs so a pathological ceiling stack ends the
+// climb honestly inside the existing maxMs + failLimit fences - the same
+// shape the rescue's ASCEND_DIG_BUDGET (3) and the wet-escape walked ladder
+// (WET_ESCAPE_WALK_CEILING, 4) already use. The gate is PURE: the caller
+// reads the block, runs the dig, and names its line.
+export const WET_CEILING_DIG_BUDGET = 4
+
+/**
+ * Should this climb's wet-blocked pass try the ceiling dig? Pure, junk-safe:
+ * room while ascendDigs < budget. The caller alone decides WHEN to consult
+ * (the blockedWet branch after the wet-escape ladders), which blocks are
+ * diggable, and how the dig failure falls through to the rotate ladder.
+ * @param {object} [p]
+ * @param {number} [p.ascendDigs] ceiling digs spent so far this climb (default 0)
+ * @param {number} [p.budget] per-climb cap (default WET_CEILING_DIG_BUDGET)
+ * @returns {{dig: boolean, why: string}}
+ */
+export function wetCeilingAscendGate ({
+  ascendDigs = 0,
+  budget = WET_CEILING_DIG_BUDGET
+} = {}) {
+  const digs = Number.isFinite(ascendDigs) && ascendDigs >= 0 ? Math.floor(ascendDigs) : 0
+  const cap = Number.isFinite(budget) && budget > 0 ? Math.floor(budget) : WET_CEILING_DIG_BUDGET
+  if (digs >= cap) return { dig: false, why: `ascend budget spent (${digs}/${cap})` }
+  return { dig: true, why: `ascend room (${digs}/${cap})` }
+}
+
 /**
  * Classify a finished wet-escape and advance the matching counter (pure,
  * junk-tolerant). walked > 0 means the gallery MOVED the bot out of the water

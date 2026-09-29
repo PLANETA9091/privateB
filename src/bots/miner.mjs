@@ -26,6 +26,7 @@ import {
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
+  wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
@@ -4381,6 +4382,7 @@ export function createMiner ({
     let fails = 0
     let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
     let wetWalks = 0 // (v0.159.0) wet-escape galleries that MOVED the bot - the walked ladder
+    let wetAscendDigs = 0 // (v0.300.0) ceiling digs this climb - the wet column's vertical answer
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
@@ -4617,6 +4619,37 @@ export function createMiner ({
               return { ok: false, reason: 'low-o2', gained: 0, dug, steps, traversed }
             }
             if (esc.resumed) continue // fresh position - let the main loop re-judge
+          }
+          // (v0.300.0) THE WET-CEILING ASCEND: the escape ladders ran and the
+          // pass still stands wet-blocked (the gate spent, or the gallery
+          // walked into the NEXT water column, or a sealed pocket refused) -
+          // the rescue lane's v0.125.0 deep-pocket shape, ported: dig the
+          // ceiling (feet+2) and rise into the fresh cell. Face 36517770723's
+          // anatomy: every sampled climb diag read 'blocked toward X (dug=0,
+          // wet) water (stop)' at EVERY bearing - the staircase climbed INTO
+          // the flooded band and the rotate ladder burned its fails standing
+          // in the same column. One vertical dig re-judges the whole column;
+          // the per-climb budget (WET_CEILING_DIG_BUDGET) bounds the digs so
+          // a pathological ceiling stack still ends the climb honestly. A
+          // failed/absent/undiggable read falls through to the surface
+          // handoff and the rotate ladder byte for byte.
+          const ascGate = wetCeilingAscendGate({ ascendDigs: wetAscendDigs })
+          if (ascGate.dig) {
+            const acell = ceilingCell(bot.entity?.position)
+            const aceil = acell
+              ? (() => { try { return bot.blockAt(new Vec3(acell.x, acell.y, acell.z)) } catch { return null } })()
+              : null
+            if (aceil && aceil.diggable === true) {
+              wetAscendDigs++
+              try {
+                await withTimeout(bot.dig(aceil), 6000, 'wet ceiling ascend dig')
+                log(`${tag} climb wet ascend: dug the ceiling ${aceil.name} at [${acell.x},${acell.y},${acell.z}] (the water column owns every bearing - the vertical digs instead, ${wetAscendDigs}/${WET_CEILING_DIG_BUDGET})`)
+                bot.setControlState('jump', true) // rise into the fresh column
+                await settleTicks(10, 'wet ceiling ascend rise')
+                bot.setControlState('jump', false)
+                continue // the pass is spent on the dig - the main loop re-judges fresh
+              } catch { /* the dig lost the race: the rotate ladder owns it */ }
+            }
           }
         }
         // (v0.37.0) SURFACE HANDOFF on the blocked path. Fleet 35566494961 (the
