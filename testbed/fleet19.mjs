@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -2652,6 +2652,52 @@ async function runBot (name, target, index) {
               cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
               if (!cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot - the retry counts too
               climbAttempts = 2
+            } else if (!cr.ok && cr.reason === 'wet wall') {
+              // (v0.327.0) THE WET-SHIFT FINAL CLIMB - the no-retry law is right
+              // about the COLUMN (re-grinding it pays the same water twice; the
+              // memo refuses the re-entry anyway) but says nothing about the
+              // NEIGHBOR. The whale F12's 220u died exactly here (fleet
+              // 36631612575: wet wall at y=60 -> 'no retry for wet wall' ->
+              // 'still underground' -> the write-off row's top line). The wet
+              // wall's own yield RETURNS the fence reserve to the chain - the
+              // shift spends that reserve ONCE: a memo-clean cardinal column
+              // (the yard's way preferred) gets the tunnel (the gallery machine,
+              // its fluid/roof guards own the mover) and the fresh column gets
+              // the fenced climb. The landed feet are the one truth (the
+              // tunnel's z-normalization is diagonal - long-standing gallery
+              // behavior): the landed column is re-checked against the memo and
+              // a shift that never left the condemned column climbs nothing.
+              const shiftPlan = wetShiftPlan(miner.bot?._wetColumnMemo ?? null, {
+                x: miner.bot?.entity?.position?.x,
+                z: miner.bot?.entity?.position?.z,
+                y: miner.bot?.entity?.position?.y,
+                preferX: yardGoal && miner.bot?.entity ? yardGoal.x - miner.bot.entity.position.x : null,
+                preferZ: yardGoal && miner.bot?.entity ? yardGoal.z - miner.bot.entity.position.z : null
+              })
+              const shiftSliceMs = Math.max(0, schedule.climbSliceMs - (Date.now() - climbSliceStart))
+              if (!shiftPlan.shift) {
+                console.log(`${name} final climb: no retry (${retryPlan.why}) - wet shift refused: ${shiftPlan.why}`)
+              } else if (shiftSliceMs < WET_SHIFT_MIN_SLICE_MS) {
+                console.log(`${name} final climb: no retry (${retryPlan.why}) - wet shift refused: ${Math.round(shiftSliceMs / 1000)}s of slice cannot fund the tunnel and a fenced climb`)
+              } else {
+                console.log(`${name} final climb: wet shift - ${shiftPlan.why} (${Math.round(shiftSliceMs / 1000)}s of slice left)`)
+                const feet0 = miner.bot.entity.position.floored()
+                const shiftFenceAt = Date.now() + WET_SHIFT_TUNNEL_MAX_MS
+                const tun = await miner.tunnel({ x: shiftPlan.bearing.x, z: shiftPlan.bearing.z }, { maxBlocks: WET_SHIFT_BLOCKS, maxMs: WET_SHIFT_TUNNEL_MAX_MS, shouldStop: () => Date.now() > shiftFenceAt })
+                const feet1 = miner.bot.entity ? miner.bot.entity.position.floored() : null
+                if (!feet1 || (feet1.x === feet0.x && feet1.z === feet0.z)) {
+                  console.log(`${name} final climb: wet shift stalled (tunnel done=${tun?.done ?? '?'}${tun?.stopped ? ` ${tun.stopped}` : ''}) - the climb stays home (a re-entry would ride the memo's refusal)`)
+                } else if (wetColumnMemoBlocked(miner.bot._wetColumnMemo, { x: feet1.x, z: feet1.z, y: feet1.y }).blocked) {
+                  console.log(`${name} final climb: wet shift landed condemned (${feet1.x},${feet1.z}) - the fresh column was wet too, the attempt stays home`)
+                } else {
+                  const climbSliceLeft = Math.max(0, schedule.climbSliceMs - (Date.now() - climbSliceStart))
+                  const shiftClimbFence = Math.min(PILLAR_MAX_MS, climbSliceLeft)
+                  const shiftClimbAt = Date.now() + shiftClimbFence
+                  cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: shiftClimbFence, shouldStop: () => Date.now() > shiftClimbAt })
+                  if (!cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the shifted climb counts too
+                  climbAttempts = 2
+                }
+              }
             } else if (!cr.ok) {
               console.log(`${name} final climb: no retry (${retryPlan.why})`)
             }

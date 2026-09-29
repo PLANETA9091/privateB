@@ -1114,6 +1114,92 @@ export function wetColumnMemoBlocked (memo, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.327.0) THE WET-SHIFT FINAL CLIMB - the memo turned the wet wall from a
+// life sentence into a navigation problem.
+//
+// MEASURED (fleet 36631612575, the three-instrument face): the whale F12
+// held 220u = 31.1% of the unbanked 707u at the deadline ('pocket anatomy:
+// whale ... one walk owns the crater's face') and died UNDERGROUND - the
+// mid-run bank climb stalled twice, the pre-position climb stopped at stage
+// 1, and the final climb's single attempt hit the wet wall at y=60 ('climb
+// wet-wall yield: 4 wet rotations vs 0 dry ... the fence reserve returns to
+// the chain') whose no-retry gate then ended the chain. The no-retry law is
+// right about the COLUMN: re-grinding a condemned column pays the same water
+// twice (the v0.316.0 doctrine, and the v0.319.0 memo refuses the re-entry
+// anyway) - but the law says nothing about the NEIGHBOR column. Water is
+// local: a wet band owns columns, not the world. THE CURE: when the final
+// climb dies on 'wet wall', read the memo's condemned set and shift the
+// climb entry LATERALLY (WET_SHIFT_BLOCKS, the first memo-clean cardinal
+// bearing, the yard's way preferred) - the fresh column gets the attempt,
+// funded by the fence reserve the yield already returned to the chain. A
+// shift is not a retry: the retry re-asks the same column (the gates refuse
+// it, the memo refuses it harder); the shift moves the bot and asks a
+// different column. The mover is the tunnel (the gallery machine - its
+// guards: the fluid stop, the gravity roof fence, the named zero verdicts);
+// the driver re-reads the LANDED column and re-checks it against the memo
+// (the tunnel's z-bearing normalization is diagonal - long-standing gallery
+// behavior, not redefined here - so the plan's target is advisory and the
+// landed feet are the one truth). Junk never plans a shift (the body-guard
+// law); a neighbor condemned at or above the feet level is not clean (the
+// tolerance arithmetic rides wetColumnMemoBlocked itself); every neighbor
+// condemned stays home ('no dry column in reach' is a verdict too).
+// ---------------------------------------------------------------------------
+
+export const WET_SHIFT_BLOCKS = 2
+// the shift must fund the tunnel AND a fenced climb (PILLAR_MAX_MS-class):
+// a thinner slice buys a climb the fence kills at the wall clock anyway
+export const WET_SHIFT_MIN_SLICE_MS = 90000
+export const WET_SHIFT_TUNNEL_MAX_MS = 15000
+
+/**
+ * Plan a lateral shift for a wet-wall-dead final climb (pure, junk-safe).
+ * @param {Map|null} memo the bot's wet-column memo (the condemned set)
+ * @param {object} [p]
+ * @param {number} [p.x] the failed climb's feet x
+ * @param {number} [p.z] the failed climb's feet z
+ * @param {number} [p.y] the failed climb's feet y
+ * @param {number} [p.preferX] the preferred bearing's x component (the yard's way - it earns the first roll when it maps to a cardinal)
+ * @param {number} [p.preferZ] the preferred bearing's z component
+ * @param {number} [p.shiftBlocks] the lateral distance (default WET_SHIFT_BLOCKS = 2)
+ * @returns {{shift: boolean, bearing: {x: number, z: number}|null, tx: number|null, tz: number|null, why: string}}
+ */
+export function wetShiftPlan (memo, opts = {}) {
+  const none = { shift: false, bearing: null, tx: null, tz: null, why: '' }
+  if (!(memo instanceof Map)) return { ...none, why: 'no wet memo - the shift needs the condemned set' }
+  const { x, z, y, preferX = null, preferZ = null, shiftBlocks = WET_SHIFT_BLOCKS } = opts || {}
+  if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(y)) {
+    return { ...none, why: 'junk feet - the shift cannot plan' }
+  }
+  const blocks = (Number.isFinite(shiftBlocks) && shiftBlocks > 0) ? Math.floor(shiftBlocks) : WET_SHIFT_BLOCKS
+  const cardinals = [
+    { x: 1, z: 0 },
+    { x: -1, z: 0 },
+    { x: 0, z: 1 },
+    { x: 0, z: -1 }
+  ]
+  // the preferred bearing (the yard's way) earns the first roll; the rest
+  // keep the fixed cardinal order so the plan stays byte-stable
+  let ordered = cardinals
+  if (Number.isFinite(preferX) || Number.isFinite(preferZ)) {
+    const px = Math.sign(preferX) || 0
+    const pz = Math.sign(preferZ) || 0
+    const pref = cardinals.find(c => c.x === px && c.z === pz)
+    if (pref) ordered = [pref, ...cardinals.filter(c => c !== pref)]
+  }
+  const fx = Math.floor(x)
+  const fz = Math.floor(z)
+  for (const c of ordered) {
+    const tx = fx + c.x * blocks
+    const tz = fz + c.z * blocks
+    const verdict = wetColumnMemoBlocked(memo, { x: tx, z: tz, y })
+    if (!verdict.blocked) {
+      return { shift: true, bearing: { x: c.x, z: c.z }, tx, tz, why: `shifting ${blocks}b to the fresh column ${tx},${tz} (the condemned column stays condemned)` }
+    }
+  }
+  return { ...none, why: 'every neighbor column is condemned too - the shift stays home' }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.321.0) THE ROUTE REFUSAL LATCH - a bank route the memo keeps refusing
 // is not asked again; the third refusal condemns the ROUTE, not just the
 // climb.
