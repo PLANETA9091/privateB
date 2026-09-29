@@ -9525,3 +9525,18 @@ Stage Summary:
 - Master = 6ec4a3e (pkg 0.326.0). FLEET OF RECORD: 36640056641. Gate 36641994725 (6ec4a3e) IN_PROGRESS at close - handed to the next fire for verification.
 - NEXT FIRE: poll 36641994725; green + slot free -> DISPATCH (the FIVE-instrument face: + rescue hole's FIRST LEG vs the F15 57.8% stake); then the cure fronts: WHY F11/F15 eat 100% of the glitches, the 322s bank-cadence overrun prices the end-bank budget, F2/F4 stranded walks.
 - OPEN FRONTS: F11/F15 glitch storm; rescue-net decline; bank cadence 322s; F2/F4 stranded; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.327.0.
+
+---
+Task ID: cron30-20260930-0700
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0700 - ride the gate chain, ship v0.328.0, verify the v0.326.0 proof.
+
+Work Log:
+- Collision #20 materialized: cron38's v0.327.0 THE WET-SHIFT FINAL CLIMB (0690899) landed mid-cycle; this lane took 0.328.0 (the next free integer).
+- v0.328.0 THE BANK-BUDGET GAP ROW: bankBudgetGapRow(samples, {pocketUnits, budgetMs}) in pocketline.mjs - the flow row (v0.323.0) priced the pocket's NEED ('needs 322s past the deadline', face 36640056641) but the budget side never printed (END_BANK_BUDGET, the v0.27.0 150s clock). The gap row prices the SAME window at the SAME rate (sibling-shape law: same filter, same unrounded rate, same ceil - the rows must never disagree); speaks only when need > budget ('322s needed, 150s budgeted - 172s short at 2.2u/s - the end bank chains outran the clock'); covered pocket silent (<= inclusive, the leanness law); junk never prices a clock. Wiring: one line after the flow row, same samples slice + the fleet's own END_BANK_BUDGET. Tests: the face datum, the sibling-arithmetic pin, the <= boundary (327u covered, 328u speaks), the honest zero budget, the junk battery, the wiring pin; the v0.302.0 import pin extended. Local: syntax 253, unit 139/139, integration 2/2. Pushed 0690899..9dcdd65 rebase-clean.
+- Gate 36641994725 (6ec4a3e, v0.326.0) flipped SUCCESS at close: the rescue-hole tree is PROVEN.
+
+Stage Summary:
+- Master = 9dcdd65 (pkg 0.328.0). FLEET OF RECORD: 36640056641. Gate 36643889188 (9dcdd65) PENDING at close. NO dispatch (proven-head unmet - the 0600 refusal discipline).
+- NEXT FIRE: poll 36643889188 - green + slot free -> DISPATCH THE SIX-INSTRUMENT FACE (hole row FIRST LEG vs the F15 57.8% stake + gap row FIRST LEG vs the 172s-short datum + flow #2 + attribution #2 + surplus #3 + anatomy #3). If F11/F15 storm again, the WHY front opens.
+- OPEN FRONTS: F11/F15 glitch storm; rescue-net decline; bank cadence (172s priced); F2/F4 stranded; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.329.0.
