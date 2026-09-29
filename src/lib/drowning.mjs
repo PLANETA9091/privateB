@@ -1979,3 +1979,49 @@ export function breathMirror (r) {
     note: `no hold and no fresh rescue - the sentry never paged (the last verdict '${v}', ${sAge}${criticalOnDry === true ? ', the bar read critical on dry contact' : ''}${witnessed === true ? ', the witness corroborated' : ''})`
   }
 }
+
+// ---------------------------------------------------------------------------
+// (v0.314.0) THE BLIND RESCUE DECODE - the rescue that never touched ground
+// truth names itself at the end line.
+//
+// MEASURED (fleet 36566021862, the first full-survival face, F10 y=46-53):
+// the rescue started at o2 3 with the head wet and the climb consumed the
+// entire budget - pass 0 o2=3 y=46.0, pass 5 o2=0 y=50.3, pass 10 o2=reset(-1)
+// y=53.2 - while EVERY pass line read 'shore=none land=n/a probes=0': the
+// shore scan only runs when the head is DRY and the standing probe only runs
+// in the dry branch, so a head-wet climb gathers ZERO ground truth by
+// construction - the rescue ascended blind, the air died mid-climb, and the
+// end lines ('standing down (frozen physics)', 'timeout (still wet, ...)'),
+// carried the pass counts but never named the blindness. The pricing (fire
+// 2100): 'rescue passes with no shore probe must self-name; probes>0 or
+// honest blind'. THE CURE (pure, the decode side - a live cure stays priced):
+// rescueBlindness({passes, probes, shoreHits}) reads BLIND when a rescue ran
+// >= RESCUE_BLIND_FLOOR_PASSES passes with ZERO shore scans hit and ZERO
+// standing probes - no ground truth was ever gathered, the swim was flown on
+// buoyancy alone. Any probe or any shore hit keeps the rescue's own lines as
+// the story (they saw; the blindness class would lie). Below the floor too
+// early to call (a 1-2 pass rescue barely has time to look). Junk never
+// invents blindness (missing evidence is not blindness - the body-guard law,
+// seventh strike of the Number(null) lesson). The decode rides the existing
+// 'water: rescue' end line as a bracket - no new filter key.
+// ---------------------------------------------------------------------------
+
+/** A rescue runs this many passes before the blind verdict is honest. */
+export const RESCUE_BLIND_FLOOR_PASSES = 3
+
+/**
+ * The blind-rescue decode: did this rescue gather ANY ground truth?
+ * Pure, junk-tolerant - null means 'not blind' or 'cannot tell'.
+ * @param {object} [p]
+ * @param {number|null} [p.passes] pass lines emitted by the rescue
+ * @param {number|null} [p.probes] standing probes spent
+ * @param {number|null} [p.shoreHits] shore scans that returned a bearing
+ * @returns {string|null} 'blind' when the rescue flew ground-truth-free, else null
+ */
+export function rescueBlindness (opts = {}) {
+  const { passes = null, probes = null, shoreHits = null } = opts || {}
+  if (!Number.isFinite(passes) || !Number.isFinite(probes) || !Number.isFinite(shoreHits)) return null
+  if (passes < RESCUE_BLIND_FLOOR_PASSES) return null
+  if (probes > 0 || shoreHits > 0) return null
+  return 'blind'
+}

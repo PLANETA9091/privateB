@@ -55,6 +55,7 @@ import {
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ascendGraceWanted, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
   dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
+  rescueBlindness, RESCUE_BLIND_FLOOR_PASSES, // (v0.314.0) the blind rescue decode
   WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
@@ -1756,6 +1757,7 @@ export function createMiner ({
     const rescueReads = []
     const passPoints = [] // (v0.82.0) per-pass positions feed the frozen-physics detector
     let standingProbes = 0
+    let shoreHits = 0 // (v0.314.0) shore scans that returned a bearing - the ground-truth ledger
     let ascendDigs = 0 // (v0.125.0) the deep-pocket ascend ceiling-dig budget
     let passNo = 0
     let passLogAt = 0
@@ -1850,6 +1852,7 @@ export function createMiner ({
           // tunnel/shelter lesson: no pathfinder while conditions are hostile)
           if (headDrySince == null) headDrySince = Date.now()
           dir = shoreDirection(sample, bot.entity.position.floored())
+          if (dir) shoreHits++ // (v0.314.0) the rescue SAW a shore at least once
           if (!dir) land = landBearingFromMap()
         } else {
           headDrySince = null // submerged again: the dry clock restarts
@@ -2013,7 +2016,12 @@ export function createMiner ({
                 : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head))
                   ? 'complete'
                   : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
-      log(`${tag} water: rescue ${done} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
+      // (v0.314.0) THE BLIND RESCUE DECODE - the bracket rides the existing end
+      // line: a rescue that ran >= RESCUE_BLIND_FLOOR_PASSES passes with zero
+      // shore scans hit and zero standing probes flew on buoyancy alone (the F10
+      // class: o2 3 -> 0 over a head-wet climb, every pass 'shore=none probes=0').
+      const blindness = rescueBlindness({ passes: passNo, probes: standingProbes, shoreHits })
+      log(`${tag} water: rescue ${done}${blindness ? ` [${blindness}: ${passNo} passes, ${shoreHits} shore scans hit, ${standingProbes} standing probes - no ground truth ever gathered]` : ''} in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s`)
       // (v0.129.0) a surface-safe release certifies the bot as FLOATING and
       // breathing - arm the sentry's re-arm pacing from here (the F15 class:
       // 39 starts / 36 releases on one open lake, every cycle a walk cancel
