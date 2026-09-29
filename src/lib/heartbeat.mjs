@@ -88,6 +88,13 @@ var sgHoldWritten = false
 // kill off missing evidence).
 var sgPulseVoidMs = Number(process.env.FLEET_STORM_PULSE_VOID_MS) || 4000
 var sgVoidWritten = false
+// (v0.311.0) THE SUB-FLOOR JUMP WATCH - one named line per growth streak for
+// the forming-storm leg (mirrors stormguard.rssJumpVerdict, the CI-tested
+// reference; this eval worker cannot import ESM). The dip reset (below) both
+// clears the window AND re-arms the watch - one line per climb, never a spam.
+var sgJumpWritten = false
+var sgJumpGainMb = Math.max(50, Number(process.env.FLEET_STORM_JUMP_MB) || 150)
+var sgJumpMaxStepMs = Math.max(5000, Number(process.env.FLEET_STORM_JUMP_MAX_STEP_MS) || 25000)
 // (v0.104.0) THE STORM CELL - the worker->main verdict channel. The main
 // thread's alloc valve ticker is starved by the very storm it cures (run93:
 // the FATAL named the main thread FROZEN; the valve fired ZERO lines); this
@@ -153,8 +160,25 @@ function sgTick () {
     var pvFrozen = pulseFrozenMs(Date.now())
     var r = Math.round(process.memoryUsage().rss / 1048576)
     var t = Date.now()
-    if (sgWin.length && r < sgWin[sgWin.length - 1].rss) sgWin.length = 0 // growth streak broken
+    if (sgWin.length && r < sgWin[sgWin.length - 1].rss) { sgWin.length = 0; sgJumpWritten = false } // growth streak broken - the watch re-arms
     sgWin.push({ ts: t, rss: r })
+    // (v0.311.0) THE SUB-FLOOR JUMP WATCH - fleet 36560130936's first leg
+    // (386 -> 925M in one window, mainLate 1415 -> 2549ms) flew unnamed: every
+    // verdict band starts at the 1200M floor, so the forming storm had no line
+    // until the FATAL. Here the streak's own last pair is the honest one-step
+    // read; the jump line carries sgStory(8) - the ring is STILL ALIVE at a
+    // sub-floor jump (the main ticks at 2.5s lateness), so the labels are the
+    // allocator's phase, the evidence the kill lines can never have. The
+    // floor band stays the kill lines' own - the watch never doubles it.
+    if (!sgJumpWritten && r < sgFloor && sgWin.length >= 2) {
+      var jwPrev = sgWin[sgWin.length - 2]
+      var jwStep = t - jwPrev.ts
+      var jwGain = r - jwPrev.rss
+      if (jwStep > 0 && jwStep <= sgJumpMaxStepMs && jwGain >= sgJumpGainMb) {
+        sgJumpWritten = true
+        try { fs.writeSync(writeFd, '[stormguard] RSS JUMP: rss ' + jwPrev.rss + 'M -> ' + r + 'M (+' + Math.round(jwGain) + 'M in ' + Math.round(jwStep / 1000) + 's = ' + (Math.round(jwGain / (jwStep / 1000) * 10) / 10) + 'MB/s, below the ' + sgFloor + 'M floor - the forming-storm leg the kill lines never name' + sgStory(8) + ')\\n') } catch { /* stdout closed - the watch never kills */ }
+      }
+    }
     // (v0.235.0) THE FREEZE-STORM EARLY KILL - mirrored from
     // stormguard.freezeStormVerdict (the eval worker cannot import ESM).
     // run 36292057377: the main locked ~65s (mainLate froze at exactly

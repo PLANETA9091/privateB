@@ -163,6 +163,67 @@ export function freezeStormVerdict ({ rssMb = 0, prevRssMb = 0, pulseFrozenMs = 
   return { kill: true, reason: 'freeze storm: main pulse frozen ' + Math.round(frozen / 1000) + 's, rss ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M growing past the ' + Math.round(floor) + 'M floor - the closure cannot land' }
 }
 
+// (v0.311.0) THE SUB-FLOOR JUMP WATCH - the forming-storm leg the kill lines
+// never name. MEASURED (fleet 36560130936, the 1930 fire's post-mortem): rss
+// sat FLAT at 386M for 420s, then jumped 386 -> 925M in ONE guard window
+// (~27MB/s) while the main was still ticking (mainLate 1415 -> 2549ms) - and
+// NO line named it: every verdict band starts at the 1200M floor (the
+// freeze-storm kill, the two-strike probe, the valve's 450M/80MB/s fast
+// anchor all price RATE past a floor), the funnel probe had no consults to
+// ride (pathfinder 4a/0q - moderate, no queue), and the next line was the
+// FATAL at 984 -> 2006M. The post-mortem was left holding three rss numbers
+// and ZERO jump labels. THE CURE (worker-side, the writeSync-while-frozen
+// doctrine): the guard's own 5s streak window already holds the honest pairs
+// (the dip reset keeps growth measured over one tick); when ONE step gains
+// >= STORM_JUMP_GAIN_MB while still BELOW the floor, write ONE named jump
+// line carrying sgStory(8) - the ring is still ALIVE at this point (the main
+// ticks at 2.5s lateness), so the labels are the allocator's phase, the
+// evidence the FATAL can never have. Once per growth streak (the dip resets
+// the flag with the window); a step past the floor is the kill lines' band -
+// the watch never doubles their coverage; a stale step (> 25s - a starved
+// worker, not a storm leg) reads named and silent.
+export const STORM_JUMP_GAIN_MB_DEFAULT = 150 // one guard-tick step: 5x the healthy band's width (356-386M), 3.5x under the datum's +539M
+export const STORM_JUMP_MAX_STEP_MS = 25000 // one tick is 5s; 5 ticks of silence is a dead clock, not a storm leg
+
+/**
+ * (v0.311.0) The sub-floor jump verdict, pure so the tests pin it and the
+ * eval worker can mirror the arithmetic by hand. Given the CURRENT rss, the
+ * PREVIOUS sample's rss (the streak's own dip reset keeps honest pairs), and
+ * the wall-clock step between the two samples:
+ *   jump  - one step gained >= gainMb while rss still below the floor: the
+ *           forming-storm leg, name it while the main still ticks
+ *   none  - every other shape, each with a named reason the caller stays
+ *           silent on (sub jump / past floor / recede / stale step / junk)
+ * Junk rss never jumps; a step longer than maxStepMs never jumps (the
+ * v0.235.0 flat-freeze class samples CONTINUE on the worker thread - only a
+ * genuinely dead worker clock produces a stale step, and a dead clock's
+ * reading is not evidence).
+ * @param {{rssMb?: number, prevRssMb?: number, stepMs?: number|null, floorMb?: number, gainMb?: number, maxStepMs?: number}} s
+ * @returns {{jump: boolean, reason: string, rate: number}}
+ */
+export function rssJumpVerdict ({ rssMb = 0, prevRssMb = 0, stepMs = null, floorMb = STORM_FLOOR_MB_DEFAULT, gainMb = STORM_JUMP_GAIN_MB_DEFAULT, maxStepMs = STORM_JUMP_MAX_STEP_MS } = {}) {
+  const r = Number(rssMb)
+  if (!Number.isFinite(r) || r <= 0) return { jump: false, reason: 'junk rss', rate: 0 }
+  const pr = Number(prevRssMb)
+  if (!Number.isFinite(pr) || pr <= 0) return { jump: false, reason: 'no prior', rate: 0 }
+  if (r < pr) return { jump: false, reason: 'recede', rate: 0 }
+  // the null/undefined check comes FIRST: Number(null) is 0 and 0 is finite -
+  // an absent step would masquerade as a 0ms step and read 'junk step' into
+  // what is really missing evidence (the freezeStormVerdict pulse masquerade
+  // lesson, byte for byte)
+  if (stepMs === null || stepMs === undefined) return { jump: false, reason: 'no step clock', rate: 0 }
+  const step = Number(stepMs)
+  if (!Number.isFinite(step) || step <= 0) return { jump: false, reason: 'junk step', rate: 0 }
+  if (step > Number(maxStepMs)) return { jump: false, reason: 'stale step', rate: 0 }
+  const floor = Number(floorMb)
+  if (Number.isFinite(floor) && floor > 0 && r >= floor) return { jump: false, reason: 'past floor', rate: 0 }
+  const gain = r - pr
+  const bar = Number(gainMb)
+  if (!Number.isFinite(bar) || bar <= 0 || gain < bar) return { jump: false, reason: 'sub jump', rate: 0 }
+  const rate = Math.round((gain / (step / 1000)) * 10) / 10
+  return { jump: true, reason: 'rss jump ' + Math.round(pr) + 'M -> ' + Math.round(r) + 'M (+' + Math.round(gain) + 'M in ' + Math.round(step / 1000) + 's = ' + rate + 'MB/s, below the ' + Math.round(floor) + 'M floor - the forming-storm leg the kill lines never name)', rate }
+}
+
 /**
  * (v0.64.0) The two-strike response policy, pure so the tests pin it and the
  * eval worker can mirror the arithmetic by hand. Given the CURRENT verdict's
