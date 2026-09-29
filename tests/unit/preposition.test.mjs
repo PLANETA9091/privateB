@@ -153,8 +153,12 @@ test('deep lane boundary: the threshold and the 150s window are exact', () => {
   assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: PRE_POSITION_UNDERGROUND_DY - 1 }), false)
   // dy 12 opens the deep lane
   assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: PRE_POSITION_UNDERGROUND_DY }), true)
-  // one ms above the deep window: still digging
-  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25 }), false)
+  // one ms above the deep window: still digging. (v0.307.0 RESTATED: the
+  // dy-25 bot's window is the PRICED 210s now (25 * 4200 * 2) - the flat
+  // boundary's refusal moved to the dy<=17 shafts (the crossover battery
+  // below); the dy-25 read inside the flat window is INSIDE its priced
+  // window and fires)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25 }), true)
   // the boundary itself opens (inclusive, the legacy convention)
   assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS, yardDist: 8, yardDy: 25 }), true)
   // a deep bot inside the LEGACY window with a qualifying dist still fires
@@ -180,7 +184,10 @@ test('deep lane: the legacy shallow shape stays byte for byte (no yardDy passed)
 test('deep lane junk: garbage window overrides fall back to the defaults', () => {
   // junk undergroundWindowMs reads the default 150s, not a wide-open gate
   assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25, undergroundWindowMs: NaN }), true)
-  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25, undergroundWindowMs: NaN }), false)
+  // (v0.307.0 RESTATED: the default 150s is the FLOOR now - the dy-25 price
+  // (210s) grows it, so the flat boundary's one-ms-above read is INSIDE the
+  // priced window; the refusal itself lives on the dy<=17 crossover battery)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25, undergroundWindowMs: NaN }), true)
   assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25, undergroundWindowMs: -1 }), true)
   // junk legacy window override on a shallow bot: the legacy fallback holds
   assert.equal(prePositionDue({ remainingMs: 89000, yardDist: 250, windowMs: NaN, yardDy: 0 }), true)
@@ -202,4 +209,90 @@ test('deep lane wiring pin: the vertical rides the fleet call', () => {
   const holdAt = wrapper.indexOf('walkForbidden(miner.bot.time?.timeOfDay)')
   const gateAt = wrapper.indexOf('prePositionDue(')
   assert.ok(holdAt > -1 && gateAt > holdAt, 'the night hold precedes the deep gate')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.307.0) THE DY-PRICED DEEP WINDOW - the flat 150s boundary is the deep
+// window's FLOOR, and the price grows with the honest climb. Face
+// 36539598929 (the v0.305.0 field): 8 deep pre-position firings - 4
+// delivered (+799: F3 +195, F4 +221, F17 +216, F8 +167) and 4x 'budget
+// exhausted'; the exhausted pockets (F16 207u, F19 171u, F7 239u, F10 133u
+// = 750u) rode the write-off row (7 holders/1273u). The anatomy: the
+// honest vertical alone prices dy*4.2s (dy 29 = 122s of climb), and the
+// wet bands' rescue windows (rescues=79 that face, ~25s each), the yard
+// walk and the deposit passes ride ON TOP - the flat 150s could not carry
+// the deep bottoms. THE CURE: uwEff = max(150s, dy * 4.2s * 2) capped at
+// 300s (the junk-dy guard); the dy<=17 shafts read exactly the flat
+// boundary (the priced shape sits under it); the deep read never narrows
+// the legacy shallow lane; a caller override wider than the cap is
+// honoured (the cap guards the price, not the intent).
+import { DEEP_CLIMB_MS_PER_LEVEL, DEEP_WINDOW_MARGIN, DEEP_WINDOW_MAX_MS } from '../../src/lib/endphase.mjs'
+
+test('dy-priced window: the exhausted datum - dy 29 opens at t-243.6s', () => {
+  // the face's deep bottom (the 303 face's F8/F17 shapes: 29 levels up over
+  // 9-28b lateral): the priced window is 29*4200*2 = 243600ms
+  assert.equal(prePositionDue({ remainingMs: 243600, yardDist: 9, yardDy: 29 }), true)
+  // one ms above the priced boundary: still digging
+  assert.equal(prePositionDue({ remainingMs: 243601, yardDist: 9, yardDy: 29 }), false)
+  // the flat boundary's start (t-150s) sits INSIDE the priced window now -
+  // the deep bot gets its climb home 94s earlier than the flat lane gave
+  assert.equal(prePositionDue({ remainingMs: 150000, yardDist: 9, yardDy: 29 }), true)
+})
+
+test('dy-priced window: the crossover - dy 17 keeps the flat boundary, dy 18 prices out', () => {
+  // 17 * 8400 = 142800 sits under the flat 150s: the flat boundary owns it
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 17 }), false)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS, yardDist: 8, yardDy: 17 }), true)
+  // 18 * 8400 = 151200 prices past it: the boundary rides the price now
+  assert.equal(prePositionDue({ remainingMs: 151200, yardDist: 8, yardDy: 18 }), true)
+  assert.equal(prePositionDue({ remainingMs: 151201, yardDist: 8, yardDy: 18 }), false)
+})
+
+test('dy-priced window: the 300s cap clamps a corrupted dy', () => {
+  // a corrupted 100-level read prices 840s - the cap clamps to 300s
+  assert.equal(prePositionDue({ remainingMs: 300000, yardDist: 9, yardDy: 100 }), true)
+  assert.equal(prePositionDue({ remainingMs: 300001, yardDist: 9, yardDy: 100 }), false)
+  // an honest deep-bottom shape (the deepest field freeze: y=29.2 under a
+  // ~y=64 yard) still fits under the cap without clamping
+  assert.equal(prePositionDue({ remainingMs: 294000, yardDist: 9, yardDy: 35 }), true)
+  assert.equal(prePositionDue({ remainingMs: 294001, yardDist: 9, yardDy: 35 }), false)
+})
+
+test('dy-priced window: the flat lane never narrows (the v0.304.0 shapes hold)', () => {
+  // the F6 datum (v0.304.0): dy 25 at t-140s - the priced window is 210s,
+  // the verdict holds (the deep lane only ever grows)
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25 }), true)
+  // dy 12-16 shafts: the priced shape sits under the flat window - the flat
+  // boundary is byte for byte
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS, yardDist: 8, yardDy: 12 }), true)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 12 }), false)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 16 }), false)
+  // the deep read never narrows the legacy shallow lane
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: 250, yardDy: 25 }), true)
+})
+
+test('dy-priced window: junk dy stays shallow, a wide override survives the cap', () => {
+  // junk/negative dy -> shallow (the legacy shape, the flat window owns it)
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: NaN }), false)
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: -30 }), false)
+  // a junk undergroundWindowMs falls back to the 150s default, then the
+  // price still grows it (the price is the floor's growth, not its
+  // replacement)
+  assert.equal(prePositionDue({ remainingMs: 243600, yardDist: 9, yardDy: 29, undergroundWindowMs: NaN }), true)
+  assert.equal(prePositionDue({ remainingMs: 243601, yardDist: 9, yardDy: 29, undergroundWindowMs: NaN }), false)
+  // a caller override WIDER than the cap is honoured: 400s overrides, dy 100
+  // prices 840s, the cap clamps to max(override, 300s) = 400s - not 300s
+  assert.equal(prePositionDue({ remainingMs: 400000, yardDist: 9, yardDy: 100, undergroundWindowMs: 400000 }), true)
+  assert.equal(prePositionDue({ remainingMs: 400001, yardDist: 9, yardDy: 100, undergroundWindowMs: 400000 }), false)
+})
+
+test('dy-priced window constants pin: the measured rate and the guards', () => {
+  // the v0.294.0 measurement (46s / 11 levels, rounded) - the same datum
+  // deposit.mjs's BANK_CLIMB_PER_LEVEL_MS rides; the two pins move together
+  assert.equal(DEEP_CLIMB_MS_PER_LEVEL, 4200)
+  // the vertical doubled: the wet bands' rescue windows + the walk + the
+  // deposit ride on the climb
+  assert.equal(DEEP_WINDOW_MARGIN, 2)
+  // the junk-dy ceiling (a corrupted 100-level read would open 840s)
+  assert.equal(DEEP_WINDOW_MAX_MS, 300000)
 })

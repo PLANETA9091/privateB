@@ -204,8 +204,44 @@ export const PRE_POSITION_UNDERGROUND_DY = 12
  * refusal already reads (NEEDS_BANKING_MIN_REMAINING_MS) - below it the
  * cadence trip refuses and the end-phase owns the deadline banking, so the
  * deep bot's climb home starts exactly where the ownership handoff happens.
+ *
+ * (v0.307.0) The boundary is the deep window's FLOOR now: the flat 150s fit
+ * the dy~25 shafts, but the deeper bottoms price past it - the window grows
+ * with the honest climb (see DEEP_CLIMB_MS_PER_LEVEL / DEEP_WINDOW_MARGIN).
  */
 export const PRE_POSITION_UNDERGROUND_WINDOW_MS = 150000
+
+/**
+ * (v0.307.0) The measured climb price per level - the v0.294.0 datum (46s /
+ * 11 levels, rounded) that deposit.mjs's BANK_CLIMB_PER_LEVEL_MS rides too.
+ * The two pins must move together: one measurement, two consumers (the bank
+ * trip's budget and the deep pre-position's window).
+ */
+export const DEEP_CLIMB_MS_PER_LEVEL = 4200
+
+/**
+ * (v0.307.0) The deep window's vertical multiplier. Face 36539598929 (the
+ * v0.305.0 field): 8 deep pre-position firings - 4 delivered (+799) and 4x
+ * 'budget exhausted'; the exhausted pockets (F16 207u, F19 171u, F7 239u,
+ * F10 133u = 750u) rode the write-off row (7 holders/1273u). The anatomy:
+ * the honest vertical alone prices dy*4.2s (dy 29 = 122s), and the wet
+ * bands' rescue windows (rescues=79 that face, ~25s each), the yard walk
+ * and the deposit passes all ride ON TOP of the climb - the flat 150s
+ * could not carry the deep bottoms. Doubling the vertical absorbs the
+ * wet machinery + the walk + the deposit (dy 29 -> 243.6s, ~30s spare over
+ * the ~212s honest cost).
+ */
+export const DEEP_WINDOW_MARGIN = 2
+
+/**
+ * (v0.307.0) The deep window's ceiling - the junk-dy guard. Honest shafts
+ * read dy 12-35 (the field read 27-29, the deepest freeze y=29.2); a
+ * corrupted 100-level read would otherwise open the gate for the whole
+ * run (100*8400 = 840s). dy 36+ clamps here; a caller's undergroundWindowMs
+ * override wider than the cap is honoured (the cap guards the price, not
+ * the caller's intent).
+ */
+export const DEEP_WINDOW_MAX_MS = 300000
 
 /**
  * Should this bot stop digging and walk home now? True when the run is
@@ -221,6 +257,15 @@ export const PRE_POSITION_UNDERGROUND_WINDOW_MS = 150000
  * (traversed 3)' and 236u rode the deadline; the same climb from t-150s
  * fits). Junk/negative yardDy reads 0 -> the legacy shallow shape byte for
  * byte; the night hold above the call stays the owner in the dark.
+ *
+ * (v0.307.0) THE DY-PRICED DEEP WINDOW: the deep window is no longer flat -
+ * it is max(150s, dy * 4.2s * 2) capped at 300s. The flat 150s fit dy~25
+ * but the deeper bottoms exhausted (4 of 8 deep firings 'budget exhausted',
+ * 750u rode the write-off); the priced window opens the deep climb early
+ * enough for the climb + the wet bands + the walk + the deposit to fit
+ * before the deadline. The dy<=17 shafts keep the flat boundary byte for
+ * byte (the priced shape sits under 150s there); the deep read still never
+ * narrows the legacy shallow lane.
  * @param {object} [p]
  * @param {number} [p.remainingMs] ms left before the deadline
  * @param {number} [p.yardDist] straight-line distance to the yard, blocks
@@ -240,7 +285,18 @@ export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, yardDy =
   const deep = dy >= PRE_POSITION_UNDERGROUND_DY
   const w = Number.isFinite(windowMs) && windowMs > 0 ? windowMs : PRE_POSITION_WINDOW_MS
   const uw = Number.isFinite(undergroundWindowMs) && undergroundWindowMs > 0 ? undergroundWindowMs : PRE_POSITION_UNDERGROUND_WINDOW_MS
-  if (remainingMs > (deep ? uw : w)) return false
+  // (v0.307.0) THE DY-PRICED DEEP WINDOW: the flat 150s boundary is the
+  // floor - the window grows with the honest climb (dy * 4.2s, the v0.294.0
+  // measurement) doubled for the wet bands + the walk + the deposit, capped
+  // against a corrupted dy read. The dy<=17 shafts read exactly the flat
+  // boundary (12*8400=100.8s, 17*8400=142.8s both sit under it); a caller
+  // override wider than the cap survives (the cap guards the price, not the
+  // intent); the deep read never narrows anything.
+  const uwEff = Math.min(
+    Math.max(uw, Math.round(dy * DEEP_CLIMB_MS_PER_LEVEL * DEEP_WINDOW_MARGIN)),
+    Math.max(uw, DEEP_WINDOW_MAX_MS)
+  )
+  if (remainingMs > (deep ? uwEff : w)) return false
   // the deep bot auto-qualifies the distance: the climb IS the far walk
   return deep ? true : d >= m
 }
