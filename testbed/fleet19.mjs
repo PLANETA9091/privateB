@@ -23,7 +23,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -2139,7 +2139,16 @@ async function runBot (name, target, index) {
             })
           } catch { return { go: false, why: 'unknown' } }
         })()
-        const bankWanted = !!(needsBanking(miner.bot) || tripPlanned || bankDusk || duskPlan.go)
+        // (v0.306.0) THE REFUSAL REFRACTORY: the needsBanking term joins the
+        // cadence clock (bankRefusalDue) - the v0.181.0 promise ('the
+        // pockets-full state re-checks in 150s, not every loop iteration')
+        // becomes code. Face 36531522422 measured 13932 refusal lines (38 the
+        // face before) off the idle full-pocket decide-loop spin; now the term
+        // speaks once per window and both branch families (the pockets-full
+        // skip + the night deferral) log at the cadence, not at the spin rate.
+        // The planned/dusk arms keep their own fences byte for byte.
+        const bankRefusalOpen = bankRefusalDue({ msSinceBank: Date.now() - lastBankAt })
+        const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
         // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
         // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full

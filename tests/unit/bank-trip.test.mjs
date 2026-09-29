@@ -10,7 +10,7 @@ import { test, beforeEach } from 'node:test'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import {
-  bankTripDue, bankTripBudgetMs, finalBankBudgetMs, fuelTripWanted, FUEL_TRIP_MIN_OVERAGE,
+  bankTripDue, bankRefusalDue, bankTripBudgetMs, finalBankBudgetMs, fuelTripWanted, FUEL_TRIP_MIN_OVERAGE,
   BANK_TRIP_EVERY_MS, BANK_TRIP_MIN_UNITS, BANK_TRIP_MIN_REMAINING_MS,
   BANK_TRIP_FLOOR_MS, BANK_TRIP_CAP_MS, CHEST_WALK_PER_BLOCK_MS,
   BANK_CLIMB_PER_LEVEL_MS
@@ -333,4 +333,53 @@ test('WIRING PIN: the bank climb death names the trip outcome (the honest tail, 
 test('WIRING PIN: the wood-trip precedent keeps its own tail (v0.179.0 byte-true)', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(fleetSrc.includes('wood trip: 0 (climb refused)'), 'the v0.179.0 wood-trip refusal line survives untouched')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.306.0) THE REFUSAL REFRACTORY - the needsBanking term joins the cadence
+// clock. MEASURED (face 36531522422, the v0.303.0 field): 13932 'bank trip:
+// skipped (pockets full, Ns left < 150s)' lines (38 in the face before) - the
+// refusal branch advanced lastBankAt but the bankWanted gate's needsBanking
+// term never read it, so an idle-full-pocket bot re-logged the refusal on
+// EVERY decide-loop spin (the log grew 5x, 1.6MB). bankRefusalDue folds the
+// spin back to the cadence the v0.181.0 comment always claimed.
+test('bankRefusalDue: the flood datum - the idle spin speaks once per window', () => {
+  // the fresh read (lastBankAt just advanced) stays silent
+  assert.equal(bankRefusalDue({ msSinceBank: 0 }), false)
+  // the whole refractory window is silent - the spin no longer re-logs
+  for (const since of [1, 1000, 60000, 149999]) {
+    assert.equal(bankRefusalDue({ msSinceBank: since }), false, `since=${since} rides inside the refractory`)
+  }
+  // the speak lands exactly at the family cadence (the >= boundary, bankTripDue's own)
+  assert.equal(bankRefusalDue({ msSinceBank: BANK_TRIP_EVERY_MS }), true, 'the term speaks at exactly 150000')
+  assert.equal(bankRefusalDue({ msSinceBank: 300000 }), true, 'the next window speaks too')
+})
+
+test('bankRefusalDue: junk since never arms a speak (the family shape)', () => {
+  assert.equal(bankRefusalDue(), false)
+  assert.equal(bankRefusalDue({}), false)
+  for (const junk of [NaN, -5, 'junk', null]) {
+    assert.equal(bankRefusalDue({ msSinceBank: junk }), false, `junk since=${String(junk)} reads 0 - silent, bankTripDue's own junk law`)
+  }
+})
+
+test('bankRefusalDue: junk everyMs falls back to the family cadence', () => {
+  for (const junk of [0, NaN, -1, 'junk']) {
+    assert.equal(bankRefusalDue({ msSinceBank: 149999, everyMs: junk }), false, `junk everyMs=${String(junk)} falls back to 150000 - 149999 still silent`)
+    assert.equal(bankRefusalDue({ msSinceBank: 150000, everyMs: junk }), true, `junk everyMs=${String(junk)} falls back to 150000 - the speak lands`)
+  }
+  // a REAL override prices a tighter window and is honored
+  assert.equal(bankRefusalDue({ msSinceBank: 29999, everyMs: 30000 }), false)
+  assert.equal(bankRefusalDue({ msSinceBank: 30000, everyMs: 30000 }), true)
+})
+
+test('WIRING PIN: the refusal refractory gates the needsBanking term (v0.306.0)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const wire = fleetSrc.match(/const bankRefusalOpen = bankRefusalDue\(\{ msSinceBank: Date\.now\(\) - lastBankAt \}\)\n\s*const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go\)/)
+  assert.ok(wire, 'bankWanted reads the refractory on the needsBanking term; the planned/dusk arms keep their own fences')
+  // the refusal branch still advances the clock - the v0.181.0 silencer for
+  // BOTH families (the pockets-full skip + the night deferral) must survive
+  const openIdx = fleetSrc.indexOf('const bankRefusalOpen')
+  const advanceIdx = fleetSrc.indexOf('lastBankAt = Date.now()', openIdx)
+  assert.ok(advanceIdx > openIdx, 'the branch still advances lastBankAt downstream (the silencer)')
 })

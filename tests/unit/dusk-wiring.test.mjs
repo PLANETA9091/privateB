@@ -44,8 +44,15 @@ test('REGRESSION PIN: the dusk call carries every scalar (the run195 dead-wire c
 })
 
 test('REGRESSION PIN: the arm folds into the legacy bank family, never a second chain', () => {
-  const wanted = fleetSrc.match(/const bankWanted = !!\((needsBanking\(miner\.bot\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go)\)/)
-  assert.ok(wanted, 'bankWanted carries the plan arm beside the legacy reasons (planned/dusk/pockets-full keep priority)')
+  // (v0.306.0 re-pin: the needsBanking term joins the refusal refractory -
+  // bankRefusalDue - inside the same legacy family; the planned/dusk/pockets-full
+  // priority ORDER is unchanged, the pockets-full term only gained the cadence
+  // clock its v0.181.0 comment always claimed. The intent stands: one family,
+  // no second chain.)
+  const wanted = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go\)/)
+  assert.ok(wanted, 'bankWanted carries the plan arm beside the legacy reasons (planned/dusk keep priority; the pockets-full term rides the v0.306.0 refractory)')
+  const refractory = fleetSrc.match(/const bankRefusalOpen = bankRefusalDue\(\{ msSinceBank: Date\.now\(\) - lastBankAt \}\)/)
+  assert.ok(refractory, 'the refractory read rides immediately beside the gate (the cadence clock feeds the term)')
   const viable = fleetSrc.match(/const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| needsBankingTripViable/)
   assert.ok(viable, 'bankViable carries the arm BEHIND the night hold (the v0.140.1 hold stays untouchable - the wire never sends a bot toward night)')
 })

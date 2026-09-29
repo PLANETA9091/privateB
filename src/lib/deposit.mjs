@@ -532,6 +532,31 @@ export function bankTripDue ({ units = 0, msSinceBank = 0, remainingMs = Infinit
   return since >= every
 }
 
+// (v0.306.0) THE REFUSAL REFRACTORY - the needsBanking term joins the cadence
+// clock its own comment always claimed. MEASURED (face 36531522422, the
+// v0.303.0 field): 13932 'bank trip: skipped (pockets full, Ns left < 150s)'
+// lines (38 in the face before) - the refusal branch DOES advance lastBankAt,
+// but the bankWanted gate's needsBanking term never READS it: a bot whose
+// pockets STAY full re-evaluates bankWanted on EVERY decide-loop iteration,
+// and an idle-full-pocket bot spins the loop fast - the log grew 5x (1.6MB)
+// and drowned the face's signal. The v0.181.0 comment says it plainly ('the
+// pockets-full state re-checks in 150s, not every loop iteration') - this
+// gate makes the code keep the promise: the term may speak only when the
+// refractory since the last arm/refusal has expired; the branch's own
+// lastBankAt advance (the v0.33.0 line) is the silencer for BOTH refusal
+// families on the branch (the pockets-full skip AND the night deferral).
+// End-phase effect: the < 150s window holds at most ONE refusal line per bot
+// (13932 -> <= 19). The planned/dusk arm paths keep their own fences byte for
+// byte (bankTripDue/duskBankDue read msSinceBank themselves). Junk-safe in
+// the family shape (bankTripDue's own): a junk since reads 0 and never arms a
+// speak; the wiring's Date.now() clock cannot tear and lastBankAt is a
+// Date.now()-seeded number, so the wiring cannot produce the junk read.
+export function bankRefusalDue ({ msSinceBank = 0, everyMs = BANK_TRIP_EVERY_MS } = {}) {
+  const every = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : BANK_TRIP_EVERY_MS
+  const since = Number.isFinite(msSinceBank) && msSinceBank > 0 ? msSinceBank : 0
+  return since >= every
+}
+
 // (v0.297.0) THE FUEL TRIP FENCE - when the fuel surplus alone is worth the
 // walk. The measured class (face 36499444700): one miner held 25 coal in its
 // pocket all run while the commons read 'chest holds no fuel' 140 times and
