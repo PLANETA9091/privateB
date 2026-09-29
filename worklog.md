@@ -8760,3 +8760,19 @@ Stage Summary:
 - Master = 1f19f69 (pkg 0.304.0). Gate 36531905518 pending at fire end - the NEXT fire verifies green before any dispatch.
 - The deep pre-position's field watch (its first dispatch): 'still underground' finals should fall from 7; 'pre-position:' fires should rise from 2; the write-off total should shrink from 1871u/10 holders.
 - Still open: the drowned deaths (5, the flooded band; F13's liar bar airGlitches=87), the zombie kills (F3/F9; F9 swung a wooden_pickaxe at 7 swings - the weapon selection read is cheap), the dry-tail proof's field verdict (v0.300.0 unflown), the no-chest-in-range finals (2x, 381u class per the 1337 addendum), the void stamp, the doomed-goal-cache, the dusk-bank collision, the GC Pinned hunt, the tunnel-path ore destruction.
+
+---
+Task ID: cron30-20260929-1430
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1430 - one atomic improvement (the sword lane).
+
+Work Log:
+- The 1400 mining's zombie-kill front traced to the kitless bot class: F9 lost its kit drowning, the post-respawn sword craft died 'sword: failed (no table)' (cobble in pocket!), and the pickaxe fight it then fought cost the bot. Fleet-wide the face shows 6x 'sword: failed (no table)'.
+- THE GAP: placeTable never crafts - it returns null without a held table item, while 4 same-type planks craft the table in the 2x2 (the camp lane's own v0.102.0 rung shape).
+- Shipped v0.305.0 THE SWORD'S TABLE RUNG (38d4b48): swordTablePlan (pure) + the craftSword wire (the proven craftUntil table craft + one placeTable retry + the shared finishSword tail); the landing rides the sword key; the legacy 'no table' verdict byte for byte on refusals.
+- Local: syntax 243, unit 129/129. Pushed clean on 1906f75 (cron38 quiet during the fire).
+- The self-inflicted gate cancel: my newer push cancelled the queued 1906f75 gate - the head gate 36533110333 (38d4b48) covers the whole 0.304.0+0.305.0 tree and was pending at fire end; no dispatch (the proven-head law).
+
+Stage Summary:
+- Master = 38d4b48 (pkg 0.305.0). The v0.303.0 face (36531522422) completed - the NEXT fire mines it (the yard grace + the death stamp debuts).
+- The sword lane's field watch (its first dispatch): 'sword: table crafted from planks' appears, 'sword: failed (no table)' falls from 6; the kitless bot's post-respawn fight upgrades from the pickaxe.
