@@ -19,7 +19,7 @@ import { torchDue, torchWallDirs, torchRestockWanted, countTorches } from '../li
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
-  stepDigPlan, STEP_MAX_PASSES, climbDigWindow, riseRecoveryPlan, isDigLanded, digRefusalDetail,
+  stepDigPlan, STEP_MAX_PASSES, climbDigWindow, climbRearmTicks, CLIMB_REARM_TICKS, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
@@ -4423,9 +4423,11 @@ export function createMiner ({
     let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
     let wetWalks = 0 // (v0.159.0) wet-escape galleries that MOVED the bot - the walked ladder
     let wetAscendDigs = 0 // (v0.300.0) ceiling digs this climb - the wet column's vertical answer
+    let stillThereRearmFails = 0 // (v0.309.0) re-arms the flooded window could not carry, first 2 logged
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
+    let stillThereRearms = 0 // (v0.309.0) still-there re-arms this climb, first 3 landed / 2 failed logged
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
@@ -4598,6 +4600,27 @@ export function createMiner ({
               dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1
               if (staleRecovered++ < 3) log(`${tag} climb dig: stale read recovered at [${cellPos.x},${cellPos.y},${cellPos.z}] (${cellB.name}) - the server removed it, the client world lagged`)
               continue
+            }
+            // (v0.309.0) THE STILL-THERE RE-ARM: the stale recheck just said
+            // 'the server never broke it' (postLanded === false). If the dig
+            // ran the DRY window, the eye/feet wet read may have mispriced
+            // the server's own dig price (the F1 class: a relogged client's
+            // air-pocket read took 200t while the server's wet x5 + airborne
+            // x5 stack needed ~562t) - the spam could never cover the price.
+            // ONE re-arm at the flooded window (800t) gives the server its
+            // honest budget; a wet-window dig that still reads STILL THERE
+            // is a genuine verdict and re-arms nowhere (the v0.42.0
+            // wet-escape route stays the wet failure's owner).
+            const rearmTicks = climbRearmTicks({ digWindow, postLanded: false, rearmTicks: CLIMB_REARM_TICKS })
+            if (rearmTicks > 0) {
+              let rearmLanded = false
+              try { rearmLanded = await bot.fastDig(cellB, { maxTicks: rearmTicks }) } catch { rearmLanded = false }
+              if (rearmLanded) {
+                dug++; stats.mined++; stats.byName[cellB.name] = (stats.byName[cellB.name] || 0) + 1
+                if (stillThereRearms++ < 3) log(`${tag} climb dig: still-there re-arm landed at [${cellPos.x},${cellPos.y},${cellPos.z}] (${cellB.name}) - the dry window mispriced the server's own dig price, the flooded window carried it`)
+                continue
+              }
+              if (++stillThereRearmFails <= 2) log(`${tag} climb dig: still-there re-arm failed at [${cellPos.x},${cellPos.y},${cellPos.z}] (${cellB.name}) - the flooded window could not price the refusal either, the server verdict stands`)
             }
             digFailCell = {
               cell: [cellPos.x, cellPos.y, cellPos.z], name: cellB.name,

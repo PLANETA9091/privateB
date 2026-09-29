@@ -872,6 +872,66 @@ export function climbDigWindow ({ eyeWet = false, feetWet = false, dryTicks = CL
 }
 
 // ---------------------------------------------------------------------------
+// (v0.309.0) THE STILL-THERE RE-ARM - the client's wet read is a suspect, the
+// server's dig price is the honest one.
+//
+// MEASURED (fleet 36547556739, the 0.307.0+0.308.0 face, COMPLETED SUCCESS
+// but 3 of 4 zero-banks rode 'still underground after 2 climb attempts'):
+// F1's end-phase burned both climb attempts on ONE flooded-band cell class -
+// 6x 'climb diag: ... dig failed at [...] diorite (held=wooden_pickaxe,
+// airborne, post=diorite STILL THERE (server never broke it))' - and 261u
+// rode the write-off row. The heartbeat cadence prices each failed dig at
+// ~20s (= the DRY 200t window at the relogged client's half-rate tick clock),
+// while wooden-pick diorite under the vanilla wet x5 + airborne x5 stack
+// needs ~562 SERVER progress ticks: the dig ran the dry window and the spam
+// could never cover the server's own price. The v0.42.0 wet window EXISTS
+// (800t covers the 562t stack) but it was never offered: the eye/feet wet
+// read (bot.entity.position.offset cells, ONE read per step attempt, on a
+// client that had just relogged) saw the air pocket the bot stands in and
+// took the dry window - while the server priced the dig from the digger's
+// own (desynced or bounding-box-wet) state. Two reads, two verdicts, the
+// dig died in the gap.
+//
+// THE CURE is not a wider read (the eye/feet geometry is honest; the
+// desync is not client-visible) - it is the SECOND ATTEMPT: when a climb
+// dig's stale recheck says the block is STILL THERE (postLanded === false,
+// the v0.76.0 verdict for 'the server never broke it') and the dig ran the
+// DRY window, re-arm the SAME cell once at the flooded window (800t). The
+// server's x25 stack (~562t for a pick on stone-family) completes inside it;
+// a bare-hand hopeless stack (3750t) still fails at 40s and keeps the
+// v0.42.0 wet-escape route untouched. A dig that already ran the wet window
+// never re-arms (the refusal is a genuine server verdict, not a window
+// misprice - and no infinite loops), and a non-false postLanded (the
+// stale-read class, or an unknown read) re-arms nowhere: the stale class
+// owns its recovery, the unknown class has no evidence the server held the
+// cell. Junk digWindow reads as the dry window (the conservative honest
+// price: the F1 log line carries no window field); junk rearmTicks falls to
+// the 800 default.
+export const CLIMB_REARM_TICKS = CLIMB_DIG_TICKS_WET
+
+/**
+ * The still-there re-arm window (ticks) for one failed climb dig, or 0.
+ * Pure, junk-tolerant.
+ * @param {object} [p]
+ * @param {number} [p.digWindow] the window the failed dig ran (ticks)
+ * @param {boolean|null} [p.postLanded] the stale recheck's verdict - only the
+ *   strict false ('server never broke it') re-arms
+ * @param {number} [p.rearmTicks] the flooded re-arm window (default
+ *   CLIMB_REARM_TICKS)
+ * @returns {number} maxTicks for the re-arm fastDig, or 0 (no re-arm)
+ */
+export function climbRearmTicks (opts = {}) {
+  // (the Number(null) lesson, fifth strike) the BODY guard, not a destructuring
+  // default: climbRearmTicks(null) would throw on the destructure itself.
+  const { digWindow = null, postLanded = null, rearmTicks = CLIMB_REARM_TICKS } = opts || {}
+  if (postLanded !== false) return 0
+  const ran = Number.isFinite(digWindow) ? digWindow : CLIMB_DIG_TICKS
+  const wet = Number.isFinite(rearmTicks) && rearmTicks > 0 ? rearmTicks : CLIMB_DIG_TICKS_WET
+  if (ran >= wet) return 0
+  return wet
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //
