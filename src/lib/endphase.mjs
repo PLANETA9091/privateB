@@ -448,3 +448,41 @@ export function bankClimbRetry ({ chainLeftMs = 0, spentMs = 0, reason = '', att
   const maxMs = Math.min(cap, plan.maxMs)
   return { retry: true, maxMs, why: `${plan.why}, fenced to ${Math.round(maxMs / 1000)}s of the ${Math.round(sliceLeft / 1000)}s the chain has left` }
 }
+
+// ---------------------------------------------------------------------------
+// (v0.316.0) THE SHAFT-BOTTOM DOOM LATCH - the doomed final-bank chain stops
+// paying retries it has already priced. MEASURED (fleet 36592026195, the
+// four-instrument face, mined 2713 @ 4.52 b/s the richest dig ever):
+// banked=83 - and the anatomy is ONE class: every bot's final bank read 0,
+// 17 verdicts rode 'still underground after 1-2 climb attempts - the chain
+// from the shaft bottom is doomed walks', and F9 alone printed the SAME
+// verdict SEVEN times (log lines 1766->2514) - each reconnect re-entry
+// re-slept the stagger, re-spent two fenced climbOut calls on the same
+// shaft bottom, and re-earned the identical zero. The verdict text itself
+// prices the chain ('doomed walks', the v0.27.0 doctrine); the retry loop
+// was the only part still paying for it. THE CURE: count each bot's failed
+// final-bank climb cycles (the 'still underground' verdict site -
+// climbAttempts > 0 by construction, so a respawned-at-yard bot can never
+// feed the latch); from the third entry the chain is refused at the door -
+// no stagger sleep, no climb spend, no path churn - the verdict names the
+// latch and the clock goes back to the dig (the pockets ride the deadline
+// either way; the difference is the ten doomed climb calls an F9-class bot
+// stops paying).
+export const FINAL_BANK_DOOM_LATCH_CYCLES = 2
+
+/**
+ * The shaft-bottom doom latch (pure, junk-safe).
+ * @param {object} [p]
+ * @param {number} [p.failedCycles] failed final-bank climb cycles recorded for this bot (junk/negative -> never latches, the body-guard law)
+ * @param {number} [p.latchCycles] the refusal threshold (default FINAL_BANK_DOOM_LATCH_CYCLES = 2)
+ * @returns {{latched: boolean, failed: number}}
+ */
+export function finalBankDoomLatch (opts = {}) {
+  // (the Number(null) lesson, eighth strike) the BODY guard, not a
+  // destructuring default: junk never latches - missing evidence is not a doom.
+  const { failedCycles = 0, latchCycles = FINAL_BANK_DOOM_LATCH_CYCLES } = opts || {}
+  const n = Number(failedCycles)
+  if (!Number.isFinite(n) || n < 0) return { latched: false, failed: 0 }
+  const c = Number.isFinite(latchCycles) && latchCycles > 0 ? Math.floor(latchCycles) : FINAL_BANK_DOOM_LATCH_CYCLES
+  return { latched: n >= c, failed: n }
+}

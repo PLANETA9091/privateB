@@ -24,7 +24,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
@@ -839,6 +839,11 @@ async function runBot (name, target, index) {
   // hit the end-phase gates, the retry rebuilt the miner, and the un-evaluated
   // record died with the old closure before the plan ever SAW the death.
   let deathCarry = null
+  // (v0.316.0) THE SHAFT-BOTTOM DOOM LATCH: per-bot count of failed final-bank
+  // climb cycles (the 'still underground' verdicts). From the 3rd entry the
+  // chain is refused at the door - F9 printed the identical verdict 7x on face
+  // 36592026195, each re-entry re-paying two fenced climbs on the same bottom.
+  let finalBankDoomCycles = 0
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -2444,7 +2449,16 @@ async function runBot (name, target, index) {
       // lost at the hard kill either way; the DEATH is the only real loss (the
       // re-bootstrap cascade, the fight episodes, the relogins). Hold: stay
       // underground, alive; the loot rides the respawn rules honestly.
-      if (bankable && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
+      // (v0.316.0) THE SHAFT-BOTTOM DOOM LATCH: from the 3rd failed climb
+      // cycle the chain is refused at the door - no stagger sleep, no climb
+      // spend, the verdict names the latch and the clock goes back to the dig.
+      // Gated on bankable (an empty pocket was never doomed, it was just
+      // empty); the latch verdict outranks the night hold (the refusal is the
+      // terminal truth - the deferral would only re-arm the doomed walk).
+      const doomLatch = finalBankDoomLatch({ failedCycles: finalBankDoomCycles })
+      if (bankable && doomLatch.latched) {
+        console.log(`${name} final bank: 0 (dooms-latched after ${doomLatch.failed} failed shaft-bottom climb cycles - the chain is refused, the clock mines on)`)
+      } else if (bankable && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
         console.log(`${name} final bank deferred: night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the pocket rides out the dark alive (the v0.140.1 night hold)`)
       } else if (bankable) {
         // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the
@@ -2624,6 +2638,9 @@ async function runBot (name, target, index) {
           // the wall clock (the process ends early, the report prints).
           if (!cr.ok && climbAttempts > 0) {
             console.log(`${name} final bank: 0 (still underground after ${climbAttempts} climb attempt${climbAttempts > 1 ? 's' : ''} - the chain from the shaft bottom is doomed walks)`)
+            // (v0.316.0) the failed cycle feeds the doom latch - the 3rd entry
+            // refuses the chain at the door (finalBankDoomLatch above).
+            finalBankDoomCycles++
           } else {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
             if (res.deposited > 0) {
