@@ -9510,3 +9510,18 @@ Stage Summary:
 - Master = 5b6eacb (pkg 0.325.0). Local clean. FLEET OF RECORD: 36631612575 (mined 0530). Slot: free after their gate lands, but the tree stays unproven until 36637765991 runs.
 - NEXT FIRE: (1) poll the newest gate (5b6eacb; 0630's worklog re-queues it) - green + slot free -> DISPATCH (the FOUR-instrument face: bank flow + bank attribution + rescue economy + surplus face leg #2); (2) MINE it: 'bank flow' first leg vs 0.5u/s/3323s, 'bank attribution' first leg (F12 stranded or cured?), 'rescue economy decode' first leg (699/75 = 10.7% expected to speak), surplus face #2 vs 174u/24.6%; (3) F12 whale-walk + the rescue-net decline are the two live wounds.
 - OPEN FRONTS: F12 whale-walk; rescue-net decline (21.0% -> 10.7%); staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.326.0.
+
+---
+Task ID: cron30-20260930-0630
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0630 - dispatch the four-instrument face, mine it, ship v0.326.0.
+
+Work Log:
+- Handoff honored: c43e6f6 (v0.325.0) arrived PROVEN (gate 36637817134 SUCCESS) - DISPATCHED fleet run 36640056641 (ci.yml, HTTP 204) before writing any code; the face rode the proven tree.
+- v0.326.0 THE RESCUE-HOLE ROW: rescueHoleRow(bots) in statcarry.mjs - the economy decode names the wound, the hole row names WHERE: unrescued mass (g - r, overhang-clamped) ranked by holder; LOCAL when the top walk holds >= RESCUE_HOLE_HOLD_SHARE 0.5 ('aim the cure there'), SPREAD otherwise ('no single walk owns the leak'); RESCUE_HOLE_MIN_UNRESCUED 50 (grain law); junk counters read g0/r0. Wiring: one conditional line inside the economy verdict's if-block (a healthy run prints neither). Tests: run190 face, spread face, half-boundary + byte-stable tie, mass floor, junk battery, wiring pin; economy pin synced to the block shape (v0.302.0 law). Local: syntax 252, unit 138/138, integration 2/2. Pushed c43e6f6..6ec4a3e rebase-clean.
+- MINED 36640056641 SUCCESS (the four-instrument face, 19/19 alive): bank flow FIRST LEG 2.2u/s (+622u/285s, needs 322s past the deadline - the 0500 fork resolves CADENCE-SHORT, chains run 4.4x the 0.5u/s estimate); rescue economy leg #2 9.1% (21.0 -> 10.7 -> 9.1, worsening); sentry per-bot: F11 g421/r29 + F15 g555/r18, ALL OTHER 17 g0 - the storm is TWO bots, net saturation is DEAD; v0.326.0's first-leg prediction staked: 'local - F15 537u of 929u (57.8%)'; bank attribution FIRST LEG: top F3 306u/F8 264u/F14 259u, stranded F2 0u/146u + F4 0u/133u, F12 CURED; surplus face #2 203u/28.9% replicated (torch/planks/stick); anatomy leg #2 spread-18 top F2 20.8% (no whale); ledger unaccounted=0 (4th straight balance), surplus=380u.
+
+Stage Summary:
+- Master = 6ec4a3e (pkg 0.326.0). FLEET OF RECORD: 36640056641. Gate 36641994725 (6ec4a3e) IN_PROGRESS at close - handed to the next fire for verification.
+- NEXT FIRE: poll 36641994725; green + slot free -> DISPATCH (the FIVE-instrument face: + rescue hole's FIRST LEG vs the F15 57.8% stake); then the cure fronts: WHY F11/F15 eat 100% of the glitches, the 322s bank-cadence overrun prices the end-bank budget, F2/F4 stranded walks.
+- OPEN FRONTS: F11/F15 glitch storm; rescue-net decline; bank cadence 322s; F2/F4 stranded; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.327.0.
