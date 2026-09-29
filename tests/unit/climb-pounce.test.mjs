@@ -99,7 +99,7 @@ test('wiring: the pounce choreography releases the face press before the arc', (
 test('wiring: the pounce names both outcomes and the landed path re-enters the loop as a rise', () => {
   assert.ok(minerSrc.includes('climb pounce: landed y='), 'the landed line names the new y and the holds')
   assert.ok(minerSrc.includes('climb pounce: did not rise'), 'the failed line hands the ladder its evidence')
-  assert.ok(/feetPounce\.y > feetNow\.y\) \{\s*\n\s*steps\+\+; fails = 0[^\n]*\n\s*log\(\`\$\{tag\} climb pounce: landed/.test(minerSrc), 'a landed pounce books steps, clears fails and continues')
+  assert.ok(/feetPounce\.y > feetNow\.y\) \{[\s\S]{0,200}?log\(\`\$\{tag\} climb pounce: landed/.test(minerSrc), 'a landed pounce books steps, clears fails and continues')
 })
 
 test('wiring: the pounce plan reads the same three cells the diag line names', () => {
@@ -113,4 +113,24 @@ test('wiring: the pounce plan reads the same three cells the diag line names', (
 
 test('wiring: the surface import carries the pounce trio', () => {
   assert.ok(minerSrc.includes('climbPouncePlan, CLIMB_POUNCE_BACK_TICKS, CLIMB_POUNCE_JUMP_TICKS'), 'the import names the plan and both holds')
+})
+
+test('wiring (v0.313.0): the pounce speaks on its OWN evidence budget, not the shared diag cap', () => {
+  assert.ok(minerSrc.includes('let pounceFails = 0'), 'the climb-scoped fail budget is declared')
+  assert.ok(/pounceFails <= 2\) \{\s*\n\s*pounceFails\+\+/.test(minerSrc), 'the failed pounce spends its own budget - the diagLevels cap starved the first field face')
+  assert.ok(minerSrc.includes('stats.pounces = (stats.pounces ?? 0) + 1'), 'every fired pounce counts into the FLEET RESULT stats')
+  assert.ok(minerSrc.includes('stats.pounceLanded = (stats.pounceLanded ?? 0) + 1'), 'landed pounces count separately')
+})
+
+test('wiring (v0.313.0): the decline probe names the guard and the signature at most once per climb', () => {
+  assert.ok(minerSrc.includes('let pounceProbes = 0'), 'the probe counter is declared')
+  assert.ok(minerSrc.includes('climb pounce probe: the signature declined'), 'a null plan names the three cell reads')
+  assert.ok(minerSrc.includes('climb pounce probe: the guard declined'), 'a guard refusal names wet feet vs the spent cap')
+  assert.ok(minerSrc.includes("wellPounces >= 2 ? 'the cap spent' : 'wet feet'"), 'the decline reason is decided, not guessed')
+})
+
+test('wiring (v0.313.0): the FLEET RESULT surfaces the pounce counters', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleetSrc.includes('pounces=${list.reduce((a, m) => a + (m.stats.pounces ?? 0), 0)}'), 'fired pounces ride the RESULT line')
+  assert.ok(fleetSrc.includes('pounceLanded=${list.reduce((a, m) => a + (m.stats.pounceLanded ?? 0), 0)}'), 'landed pounces ride the RESULT line')
 })

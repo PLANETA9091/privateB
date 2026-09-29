@@ -4433,6 +4433,8 @@ export function createMiner ({
     let staleRecovered = 0 // (v0.76.0) stale-read recoveries this climb, first 3 logged
     let stillThereRearms = 0 // (v0.309.0) still-there re-arms this climb, first 3 landed / 2 failed logged
     let wellPounces = 0 // (v0.311.0) well pounces this climb, first 2 landed / 2 failed logged
+    let pounceFails = 0 // (v0.313.0) the pounce's OWN evidence budget - the diagLevels cap must never starve it again
+    let pounceProbes = 0 // (v0.313.0) one decline-naming probe per climb - the field mystery needs the guard's voice
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
@@ -4940,6 +4942,7 @@ export function createMiner ({
           })
           if (pounce) {
             wellPounces++
+            stats.pounces = (stats.pounces ?? 0) + 1
             try {
               await bot.lookAt(feetNow.offset(d.x, 1, d.z).offset(0.5, 0.5, 0.5), true)
               bot.setControlState('forward', false)
@@ -4955,11 +4958,25 @@ export function createMiner ({
             const feetPounce = bot.entity ? bot.entity.position.floored() : feetNow
             if (feetPounce.y > feetNow.y) {
               steps++; fails = 0; wetRotLevel = 0; dryRotLevel = 0
+              stats.pounceLanded = (stats.pounceLanded ?? 0) + 1
               log(`${tag} climb pounce: landed y=${feetPounce.y} (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the well geometry broken`)
               continue
             }
-            if (diagLevels < 3) log(`${tag} climb pounce: did not rise (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the assist ladder owns it`)
+            // (v0.313.0) the failed pounce logs on its OWN budget: the first
+            // field face (36578367034) showed 5 well-signature diags and ZERO
+            // pounce lines while the shared diagLevels cap burned on the
+            // blocked path first - the evidence starvation suspicion. The
+            // count speaks in the FLEET RESULT regardless.
+            if (pounceFails <= 2) {
+              pounceFails++
+              log(`${tag} climb pounce: did not rise (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the assist ladder owns it`)
+            }
+          } else if (pounceProbes++ < 1) {
+            const pname = b => (b && b.name) ? b.name : 'null'
+            log(`${tag} climb pounce probe: the signature declined (support=${pname(supportB)}, step=${pname(stepB)}, head=${pname(headB)}) - the well census continues`)
           }
+        } else if (!rose && pounceProbes++ < 1) {
+          log(`${tag} climb pounce probe: the guard declined (${wellPounces >= 2 ? 'the cap spent' : 'wet feet'}) - the ladder owns the level`)
         }
         // (v0.27.0) RISE RECOVERY: two failed raw stepUps on geometry the dig
         // pass just verified clean is the fleet's 'did not rise (dug=0)' class
