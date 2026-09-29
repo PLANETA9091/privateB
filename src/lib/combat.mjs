@@ -892,3 +892,43 @@ export function threatVerdictLane ({ name = null, dist = Infinity, hp = 20, atta
   if (meleeCooldown === true && name !== 'witch' && !RANGED_HOSTILES.has(name) && dist <= engage) return 'melee-cooldown'
   return 'none'
 }
+
+// ---- (v0.303.0) THE MID-FIGHT DEATH VERDICT ----
+// THE DATUM: F15, fleet 36511867751 - the Drowned fight's deadline OUTLIVED
+// the death. The Drowned landed the kill (hp 17 -> 0), the respawn reset the
+// bar to 20 and teleported the entity to spawn, and the melee loop kept its
+// `bot.entity && Date.now() < deadline` contract: the entity SURVIVES the
+// respawn (mineflayer reuses it, position teleports), so neither the loop's
+// own bot-entity check nor the deadline caught the death - the fight burned
+// its full budget swinging at a mob a world away and the fight-end line read
+// the respawn signature (hp 17 -> 20) with no death named. The guard reads
+// the per-bot death stamp (mineflayer emits 'death' exactly once per death):
+// a stamp that moved AFTER the fight armed ends the episode IMMEDIATELY - the
+// respawn owns the next move, the deadline does not. The hp <= 0 read is the
+// second signal (the death window itself: health 0 IS death in vanilla, no
+// alive shape ever reads it). The exit rides the EXISTING 'combat: fight
+// ended' line (no new filter key) - the hp 17 -> 20 signature plus the named
+// exit IS the F15 class, now attributable at the census.
+/**
+ * Decide whether an active fight must break on the mid-fight death (pure,
+ * junk-safe).
+ * @param {object} [p]
+ * @param {number} [p.stampAtArm] the per-bot death stamp read when the fight armed
+ * @param {number} [p.stampNow] the stamp read this round
+ * @param {number} [p.hpNow] the bot's current health read this round
+ * @returns {{broke: boolean, exit: string}} exit '' = keep fighting; otherwise
+ *   the byte-stable exit name for the fight-end line
+ */
+export function fightDeathVerdict ({ stampAtArm = 0, stampNow = 0, hpNow = NaN } = {}) {
+  // the junk law goes the SAFE direction: junk stamps never arm a break (a
+  // torn read must not end a healthy fight) - both wired reads come from the
+  // same per-bot counter, so junk is impossible in the field, but the pure
+  // verdict keeps the repo's own contract (junk defaults, never acts)
+  const armOk = Number.isFinite(stampAtArm) && Number.isFinite(stampNow)
+  const stampMoved = armOk && stampNow !== stampAtArm
+  const zeroBar = Number.isFinite(hpNow) && hpNow <= 0
+  if (stampMoved || zeroBar) {
+    return { broke: true, exit: 'died mid-fight (the respawn owns the next move)' }
+  }
+  return { broke: false, exit: '' }
+}

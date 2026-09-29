@@ -29,7 +29,7 @@ import {
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
 } from '../lib/surface.mjs'
-import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
+import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
@@ -1349,7 +1349,18 @@ export function createMiner ({
       // out 'ignore' verdicts on a melee threat that is still inside the drift
       // band (reset by every swing - a swing means the mob was in reach again).
       let driftWindows = 0
+      // (v0.303.0) THE MID-FIGHT DEATH STAMP: the stamp read when the fight
+      // armed - a move AFTER the arm is a death DURING the episode (F15,
+      // fleet 36511867751: the Drowned's kill outlived the deadline's whole
+      // budget - the entity survives the respawn so the loop's own
+      // bot-entity check never fired). The verdict rides the fight-end line's
+      // exit slot (no new filter key).
+      const deathStampAtArm = deathStamp
       while (bot.entity && Date.now() < deadline) {
+        // (v0.303.0) the death guard reads FIRST - a dead bot's rounds are
+        // the F15 poison (the deadline outliving the death)
+        const deathVerdict = fightDeathVerdict({ stampAtArm: deathStampAtArm, stampNow: deathStamp, hpNow: bot.health })
+        if (deathVerdict.broke) { exit = deathVerdict.exit; break }
         // (v0.169.0) THE KILL LEDGER: the fought entity left bot.entities -
         // the swing landed. The episode ends NAMED ('mob down') and the kill
         // is counted: run78's ten fight-end lines carried ZERO kills and the
@@ -1508,6 +1519,15 @@ export function createMiner ({
       return { action: 'fight', threat: threat.name }
     } finally { defending = false }
   }
+
+  // ---- (v0.303.0) THE PER-BOT DEATH STAMP ----
+  // mineflayer emits 'death' exactly once per death. The counter feeds the
+  // fight loop's death guard (the F15 class: the Drowned fight's deadline
+  // outlived the death because the entity SURVIVES the respawn - only the
+  // event names it deterministically). A death BEFORE the fight's arm read
+  // is baseline history, never a false break.
+  let deathStamp = 0
+  bot.on('death', () => { deathStamp++ })
 
   // Reactive sentry: mineflayer emits 'health' on every damage tick. A drop that
   // is NOT ours to fix by waiting (fall/lava/starvation) is a mob hit when a

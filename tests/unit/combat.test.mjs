@@ -9,7 +9,7 @@ import {
   HOSTILE_NAMES, RANGED_HOSTILES, DETECT_RANGE, ENGAGE_RANGE, RANGED_ENGAGE_RANGE,
   CREEPER_FLEE_RANGE, FLEE_HP, SWARM_FLEE_HP, SWARM_SIZE,
   FLEE_STALEMATE_EPISODES, FLEE_STALEMATE_MARGIN, KITE_ARRIVE_DIST, KITE_HOP_BLOCKS,
-  isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict,
+  isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, fightDeathVerdict,
   fleeStalemate, fleeResponse, kiteHopTarget,
   effectiveHp, isPoisoned, POISON_HP_BUDGET, POISON_EFFECT_ID,
   WITCH_CHASE_CEILING, witchFightStep,
@@ -928,4 +928,63 @@ test('REGRESSION PIN: the marker reads the verdict-time lens answer (the v0.214.
     'the re-verdict marker gates on the captured lane at the flip site (the args mirror the re-verdict call)')
   assert.ok(/const flipLane = threatVerdictLane\(\{ name: cur\.name, dist: cur\.dist, hp: hpNow[\s\S]{0,600}?flipLane === 'pair-preempt'\) log/.test(minerSrc),
     'the re-verdict pair-preempt marker gates on the SAME captured lane (one capture, both attributions)')
+})
+
+// ---- (v0.303.0) THE MID-FIGHT DEATH VERDICT ----
+// F15, fleet 36511867751: the Drowned's kill outlived the fight deadline -
+// hp 17 -> 20 read the respawn, the loop swung at a world-away mob until the
+// full budget burned. The stamp guard ends the episode on the death itself.
+
+test('fightDeathVerdict: the F15 datum - a stamp moved after the arm breaks the fight with the respawn exit', () => {
+  const v = fightDeathVerdict({ stampAtArm: 0, stampNow: 1, hpNow: 20 })
+  assert.strictEqual(v.broke, true, 'the death event moved the stamp - the fight must end NOW, not at the deadline')
+  assert.strictEqual(v.exit, 'died mid-fight (the respawn owns the next move)')
+})
+
+test('fightDeathVerdict: the zero-bar window breaks too (health 0 IS death, no alive shape reads it)', () => {
+  const v = fightDeathVerdict({ stampAtArm: 2, stampNow: 2, hpNow: 0 })
+  assert.strictEqual(v.broke, true)
+  assert.strictEqual(v.exit, 'died mid-fight (the respawn owns the next move)')
+})
+
+test('fightDeathVerdict: a healthy fight never breaks (hp low but alive, stamp quiet)', () => {
+  assert.deepStrictEqual(fightDeathVerdict({ stampAtArm: 3, stampNow: 3, hpNow: 14 }), { broke: false, exit: '' })
+  assert.deepStrictEqual(fightDeathVerdict({ stampAtArm: 3, stampNow: 3, hpNow: 0.5 }), { broke: false, exit: '' })
+})
+
+test('fightDeathVerdict: junk reads never break a healthy fight', () => {
+  assert.deepStrictEqual(fightDeathVerdict({}), { broke: false, exit: '' })
+  assert.deepStrictEqual(fightDeathVerdict({ stampAtArm: 1, stampNow: 1, hpNow: NaN }), { broke: false, exit: '' })
+  assert.deepStrictEqual(fightDeathVerdict({ stampAtArm: NaN, stampNow: NaN, hpNow: 'junk' }), { broke: false, exit: '' },
+    'NaN stamps compare unequal but both-junk must NOT read as a death - the baseline is the arm read, junk stamps never arm a break')
+
+})
+
+test('fightDeathVerdict: a death BEFORE the arm is baseline history, never a false break', () => {
+  // the fall that triggered the defend already advanced the stamp; the arm
+  // read captured it - the fight proceeds on its own merits
+  assert.deepStrictEqual(fightDeathVerdict({ stampAtArm: 1, stampNow: 1, hpNow: 17 }), { broke: false, exit: '' })
+})
+
+test('fightDeathVerdict: the constants pin - the exit rides the EXISTING fight-ended line (no new key)', () => {
+  const v = fightDeathVerdict({ stampAtArm: 0, stampNow: 1, hpNow: 20 })
+  assert.ok(v.exit.startsWith('died mid-fight'), 'the exit names the death class')
+  assert.ok(v.exit.includes('the respawn owns the next move'), 'the exit names the owner (the respawn, not the deadline)')
+})
+
+test('WIRING PIN: the death stamp rides the fight loop (v0.303.0)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(minerSrc.includes('fightDeathVerdict'), 'the fleet imports the death verdict')
+  assert.ok(minerSrc.includes("bot.on('death', () => { deathStamp++ })"),
+    'the per-bot death stamp listens to the death event (the deterministic signal - the entity survives the respawn)')
+  const armIdx = minerSrc.indexOf('const deathStampAtArm = deathStamp')
+  const loopIdx = minerSrc.indexOf('while (bot.entity && Date.now() < deadline) {')
+  const guardIdx = minerSrc.indexOf('const deathVerdict = fightDeathVerdict({ stampAtArm: deathStampAtArm, stampNow: deathStamp, hpNow: bot.health })')
+  const killLedgerIdx = minerSrc.indexOf('if (foughtEntityGone(bot.entities, lastTargetId))')
+  assert.ok(armIdx > 0 && armIdx < loopIdx, 'the arm read precedes the loop (a move after it is a MID-FIGHT death)')
+  assert.ok(guardIdx > loopIdx, 'the guard reads inside the loop')
+  assert.ok(guardIdx < killLedgerIdx, 'the guard reads FIRST - a dead bot\'s rounds are the F15 poison')
+  assert.ok(minerSrc.includes("if (deathVerdict.broke) { exit = deathVerdict.exit; break }"),
+    'the break rides the exit slot - the fight-end line stays the single census key')
 })
