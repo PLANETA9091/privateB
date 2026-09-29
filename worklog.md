@@ -9058,3 +9058,21 @@ Stage Summary:
 - v0.311.0 (x2, keep-both) on master edc758f: THE WELL POUNCE (this lane) + THE SUB-FLOOR JUMP WATCH (parallel lane). Gate pending at session end - NEXT FIRE verifies green then dispatches (proven-head law).
 - NEXT FIRE: (1) verify gate 36571812964 on edc758f, dispatch fleet_seconds=600 on green, ride + MINE: pounce watch ('climb pounce: landed/did not rise' - the 8/10 well signature class), sub-floor jump watch ('[stormguard] RSS JUMP'), banked vs 1117, write-off vs 1120u, mined-rate vs 3.94 b/s, alive vs 19/19; (2) the wet-wall band (41 diags, dug=0, y=48/51/57) is the remaining climb class - the flooded window failed its 2 field trials, consider a dry-bearing-first rotate or a wet-level abandon-and-restart ladder; (3) version the next change 0.312.0 (TWO 0.311.0s are aboard).
 - OPEN FRONTS: the wet-wall rotate economy; F12 'no chest in range' (3 pre-position lines); the staggered-night bank economy (8 bots); drowned class (F14/F10); the GC Pinned hunt (the story instrument + the jump watch aboard); mined-rate recovery beyond 3.94 (worldmap lane); dry-tail proof; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260929-2000
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2000 - push the 1930 record, price the OOM datum, one atomic, gate, dispatch if free.
+
+Work Log:
+- The withheld 1930 worklog pushed first (rebase onto cron38's a57200a clean, mine a1708ef; their v0.310.0 THE FREEZE POST-MORTEM rode in - the freeze FATAL now carries sgStory(8)). Their worklog ba424e4 + dispatch 36566021862 (v0.310.0 face) followed mid-fire: slot theirs, no duplicate (p.6).
+- THE ATOM: v0.311.0 THE SUB-FLOOR JUMP WATCH (stormguard.rssJumpVerdict + the eval-worker mirror in sgTick). The 36560130936 datum's FIRST leg (386 -> 925M in one guard window at ~27MB/s, mainLate 1415 -> 2549ms) flew unnamed - every verdict band starts at the 1200M floor, the funnel had no consults to ride (4a/0q), the next line was the FATAL. The cure: one named '[stormguard] RSS JUMP' line per growth streak when ONE guard step gains >= 150M below the floor - the ring is STILL ALIVE there, so sgStory(8) rides the jump and names the allocator's phase, the evidence the kill lines can never have. Dip reset re-arms; past-floor steps stay the kill lines' band; stale steps (25s cap) and junk shapes read named and silent; env knobs FLEET_STORM_JUMP_MB / FLEET_STORM_JUMP_MAX_STEP_MS.
+- The template-literal trap bitten and fixed in-fire: the worker's writeSync needed ')\\n' (the eval-src escape), the first cut's single '\n' killed the worker silently - heartbeat.test caught it (0 beats). Lesson: in HEARTBEAT_WORKER_SRC, byte tails of string literals are intent too.
+- Local: syntax 245, unit 131/131 files, integration 2/2. Pushed 8fad93d on ba424e4 (clean rebase, v0.311.0 free on origin).
+- THE GATE STUCK QUEUED: 36569957476 sat queued 25+ min behind the freed slot (GitHub queue lag - the dispatch 36566021862 completed success at ~12:31Z, the slot is free, my run never started). No dispatch: the proven-head law - the face must not fly an unproven tree.
+
+Stage Summary:
+- Master = 8fad93d (pkg 0.311.0) + THIS worklog commit held UNPUSHED (the queued-latest-kept law: the 1830 fire precedent - a push would supersede the queued gate).
+- FLEET OF RECORD: 36566021862 (cron38's v0.310.0 face, completed success - MINE IT: the freeze FATAL's sgStory labels are the GC Pinned hunt's first field read; correct 're-arm' reads against the exact 'still-there re-arm' key per their warning).
+- NEXT FIRE: (1) push THIS worklog first; (2) poll 36569957476 (or the then-latest gate on the 0.311.0 tree) - green + slot free -> dispatch ci.yml fleet_seconds=600; (3) the face's RSS JUMP lines are the new watch: if a sub-floor jump precedes a kill, the sgStory labels name the allocator - feed the GC Pinned hunt; if the watch stays silent through a healthy face, it is honest negative evidence.
+- OPEN FRONTS: the GC Pinned hunt (the story instrument aboard + the jump watch now names the forming leg); the bank-trip failure season anatomy (12 failed climbs = banked=0 root, if it recurs); the surface combat storm (the census band unproven); the mined-rate recovery (worldmap lane); the dry-tail proof; the void stamp; the doomed-goal-cache.
