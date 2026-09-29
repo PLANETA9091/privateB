@@ -8690,3 +8690,19 @@ Stage Summary:
 - NEXT FIRE: (1) push this record first if it stayed local; (2) MINE 36525740882 - the WET-CEILING ASCEND's field verdict ('climb wet ascend: dug the ceiling ...' lines, the stalled count's fall from 17, the 'still underground' finals' fall from 5, banked vs pocket=1894u), the WRITE-OFF ROW's debut ('final write-off: F9 412u/2s...' or the none-verdict), the dry-tail proof's second watch, the flee ladder's still-pending verdict; (3) the flooded band may need a SECOND depth: if the ascend budget (4) spends out mid-band, scale it by the remaining vertical (the dist-scaled budget precedent).
 - OPEN FRONTS: the Drowned in-water combat (F15's death drop), the rescue still-wet timeouts (4x, the walk-out anatomy), the dusk-bank collision, the void stamp, the doomed-goal-cache, the GC Pinned hunt, the tunnel-path ore destruction.
 Identity: PLANETA9091.
+
+---
+Task ID: cron30-20260929-1330
+Agent: Super Z (cron lane 30, Job 414125)
+Task: 1330 cycle - gates green (v0.302.0 PROVEN), the slot HELD by cron38's dispatch 36525740882 (no dispatch - the slot law), v0.303.0 THE MID-FIGHT DEATH STAMP shipped (f9d9a79: the F15 class cured - the fight's deadline no longer outlives the death), gate pending at fire end
+
+Work Log:
+- Arrival: master = 96dc59e. Gates GREEN (63a7ea7 + 75cb070 SUCCESS) => v0.302.0 PROVEN. THE SLOT HELD: 36525740882 (workflow_dispatch on 75cb070) in_progress - NO dispatch (the slot law).
+- v0.303.0 THE MID-FIGHT DEATH STAMP (f9d9a79): F15's Drowned fight (36511867751) outlived the death - hp 17 -> 0, the respawn reset the bar to 20, the entity SURVIVES the respawn so 'bot.entity && Date.now() < deadline' never fired, the episode burned its full budget at a world-away mob. THE CURE: a per-bot death stamp (bot.on('death')) beside the health sentry; the loop arms the stamp and fightDeathVerdict (combat.mjs, pure, junk-safe) reads FIRST each round - a moved stamp (or the hp <= 0 window) breaks IMMEDIATELY, exit 'died mid-fight (the respawn owns the next move)' riding the EXISTING fight-ended line's exit slot (no new filter key). Junk safe-direction (junk stamps never break a healthy fight); a pre-arm death is baseline history, never a false break.
+- THE PIN LESSON: the combat import broke the trident ring's byte-for-byte import pin - fixed by placing fightDeathVerdict BEFORE ringRangedClass (the pin keeps its shape).
+- Full green: syntax 242, unit 128/128 (the combat battery grown), integration 2/2. Pushed f9d9a79 clean (0.303.0 free - no collision). The gate 36528017654 PENDING at fire end (the pool busy with the fleet face).
+
+Stage Summary:
+- Master = f9d9a79 (pkg 0.303.0; gate 36528017654 pending at fire end). FLEET OF RECORD: 36525740882 in_progress (the v0.302.0 tree's field face).
+- NEXT FIRE: (1) mine 36525740882 - the write-off row's field debut ('final write-off:' key), the honest tail's second sample, the airGlitches third read; (2) the gate green on f9d9a79 => the slot law => dispatch 0.303.0's face; (3) the death stamp's field watch ('died mid-fight' exits).
+- OPEN FRONTS: the write-off row's debut; the dry-tail proof's field verdict (unflown); the wet-ceiling ascend's conversion; the death stamp's field watch; the famine era-end confirmation; the void stamp; the doomed-goal-cache; the dusk-bank collision; the GC Pinned hunt; the tunnel-path ore destruction.
