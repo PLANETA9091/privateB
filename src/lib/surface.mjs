@@ -986,6 +986,54 @@ export function climbPouncePlan (opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.312.0) THE WET-WALL YIELD - the honest early exit the wet band lacks.
+//
+// MEASURED (fleet 36566021862, the first full-survival face): 47 wet-blocked
+// rotations on just 8 distinct bot-levels - F6 y=48 x12, F4 y=51 x12, F12
+// y=57 x9, F7 y=51 x8 - each level re-probing the SAME water cell 8-12 times
+// until the 89s/90s fence killed the attempt ('F12 final climb: failed -
+// timeout [stage 2]' right after three consecutive identical wet diags on
+// the same bearing). The wet machinery (the v0.17.0 gallery, the v0.159.0
+// ladder, the v0.300.0 ascend) runs FIRST and owns the crossing - the
+// v0.159.0 comment already says the band 'gets crossed by repeated galleries,
+// instead of one' - but once the escape and ascend budgets are spent, the
+// rotate ladder keeps grinding a column where EVERY bearing reads water and
+// rotation can provably change nothing (water is rotation-independent). The
+// fence reserve that was meant for the REST of the bank chain dies there.
+// THE CURE: count the wet-blocked rotations per level (reset on every real
+// rise); when a full bearing sweep has read wet with ZERO dry walls seen at
+// this level, yield the climb honestly - the v0.85.0 low-o2 handoff shape,
+// an ok=false reason return every caller already handles - instead of
+// burning the fence to its timeout. A single dry bearing keeps the rotate
+// ladder working (dry walls are diggable material). Junk never yields (the
+// conservative honest price: the status-quo ladder keeps the level).
+// ---------------------------------------------------------------------------
+
+export const WET_WALL_YIELD_ROTATIONS = 4
+
+/**
+ * The wet-wall yield verdict for a climb level's blocked rotations.
+ * Pure, junk-tolerant: yields only on a FINITE count of wet rotations at or
+ * past the sweep threshold with ZERO finite dry rotations at the same level.
+ * @param {object} [p]
+ * @param {number} [p.wetRotations] wet-blocked rotations at this level
+ * @param {number} [p.dryRotations] dry-blocked (diggable) rotations here
+ * @param {number} [p.threshold] the sweep size (default WET_WALL_YIELD_ROTATIONS)
+ * @returns {{yield: boolean, reason: string}} the verdict
+ */
+export function wetWallYield (opts = {}) {
+  // (the Number(null) lesson, seventh strike) the BODY guard, not a
+  // destructuring default: wetWallYield(null) would throw on the destructure.
+  const { wetRotations = null, dryRotations = null, threshold = WET_WALL_YIELD_ROTATIONS } = opts || {}
+  if (!Number.isFinite(wetRotations) || !Number.isFinite(dryRotations)) return { yield: false, reason: '' }
+  if (wetRotations < 0 || dryRotations < 0) return { yield: false, reason: '' }
+  const th = Number.isFinite(threshold) && threshold > 0 ? threshold : WET_WALL_YIELD_ROTATIONS
+  if (wetRotations < th) return { yield: false, reason: '' }
+  if (dryRotations > 0) return { yield: false, reason: '' }
+  return { yield: true, reason: 'wet wall' }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //

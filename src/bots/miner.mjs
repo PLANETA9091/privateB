@@ -21,6 +21,7 @@ import {
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, climbRearmTicks, CLIMB_REARM_TICKS, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   climbPouncePlan, CLIMB_POUNCE_BACK_TICKS, CLIMB_POUNCE_JUMP_TICKS, // (v0.311.0) the well pounce
+  wetWallYield, WET_WALL_YIELD_ROTATIONS, // (v0.312.0) the wet-wall yield
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
@@ -4424,6 +4425,8 @@ export function createMiner ({
     let wetTries = 0 // (v0.17.0) wet-escape galleries opened this climb
     let wetWalks = 0 // (v0.159.0) wet-escape galleries that MOVED the bot - the walked ladder
     let wetAscendDigs = 0 // (v0.300.0) ceiling digs this climb - the wet column's vertical answer
+    let wetRotLevel = 0 // (v0.312.0) wet-blocked rotations at the current level, reset on every rise
+    let dryRotLevel = 0 // (v0.312.0) dry-blocked rotations at the current level - one dry wall keeps the ladder working
     let stillThereRearmFails = 0 // (v0.309.0) re-arms the flooded window could not carry, first 2 logged
     let traversed = 0 // (v0.17.0) horizontal escape blocks walked
     let diagLevels = 0 // climb diag: log the first 3 failed levels per climb, not all 30
@@ -4847,6 +4850,20 @@ export function createMiner ({
             : (digFailCell ? ` dig failed at [${digFailCell.cell.join(',')}] ${digFailCell.name}${digFailCell.detail ? ` (${digFailCell.detail})` : ''}` : '')
           log(`${tag} climb diag: level at y=${feet.y} blocked toward ${d.x},${d.z} (dug=${dug}${blockedWet ? ', wet' : ''})${refusal}`)
         }
+        if (blockedWet) wetRotLevel++; else dryRotLevel++
+        // (v0.312.0) THE WET-WALL YIELD - after the wet machinery had its
+        // chance (the gallery ladder, the ascend budget), a full bearing
+        // sweep that read wet with ZERO dry walls is rotation-proof: water
+        // is rotation-independent, the rotate ladder can only grind the
+        // fence to its timeout (fleet 36566021862: F6 y=48 x12, F4 y=51 x12,
+        // F12 y=57 x9 wet diags, each level dying 'failed - timeout' with
+        // the chain's reserve unspent). Yield honestly - the v0.85.0
+        // low-o2 shape, an ok=false reason every caller already handles.
+        const wallYield = wetWallYield({ wetRotations: wetRotLevel, dryRotations: dryRotLevel })
+        if (wallYield.yield) {
+          log(`${tag} climb wet-wall yield: ${wetRotLevel} wet rotations vs ${dryRotLevel} dry at y=${feet.y} - no dry bearing owns this column, the fence reserve returns to the chain`)
+          return { ok: false, reason: wallYield.reason, gained: 0, dug, steps, traversed }
+        }
         fails++
         rotate()
         await settleTicks(4, 'climb rotate settle')
@@ -4876,7 +4893,7 @@ export function createMiner ({
       if (!rose) {
         try { rose = await stepUp(24) } catch { /* rotate below */ }
       }
-      if (rose) { steps++; fails = 0 } else {
+      if (rose) { steps++; fails = 0; wetRotLevel = 0; dryRotLevel = 0 } else {
         // (v0.23.0) WALKABLE SURFACE: the fleet measured bots burning their whole
         // fail budget ON the biome surface (F2: 'y=63 did not rise, dug=60, feet=air
         // support=grass_block step=air' - the stale entry target demanded levels the
@@ -4937,7 +4954,7 @@ export function createMiner ({
             } catch { /* the ladder below owns it */ }
             const feetPounce = bot.entity ? bot.entity.position.floored() : feetNow
             if (feetPounce.y > feetNow.y) {
-              steps++; fails = 0
+              steps++; fails = 0; wetRotLevel = 0; dryRotLevel = 0
               log(`${tag} climb pounce: landed y=${feetPounce.y} (back ${pounce.back}t + jump ${pounce.jump}t toward ${d.x},${d.z}) - the well geometry broken`)
               continue
             }
@@ -4984,7 +5001,7 @@ export function createMiner ({
           } catch (e) { assistNote = `goto: ${e.message}` }
         }
         const feetAfter = bot.entity ? bot.entity.position.floored() : null
-        if (rose || (feetAfter && feetAfter.y > feetNow.y)) { steps++; fails = 0; continue }
+        if (rose || (feetAfter && feetAfter.y > feetNow.y)) { steps++; fails = 0; wetRotLevel = 0; dryRotLevel = 0; continue }
         if (assistMoved && feetAfter && (feetAfter.x !== feetNow.x || feetAfter.z !== feetNow.z)) {
           log(`${tag} climb rise assist: repositioned to ${feetAfter.x},${feetAfter.y},${feetAfter.z} - the loop re-judges`)
           continue // fresh position - let the main loop re-judge (the wet-escape resumed pattern)
@@ -5033,7 +5050,7 @@ export function createMiner ({
               } catch { /* the re-judge below still runs from wherever we stand */ }
               if (walkedIn) {
                 const feetGal = bot.entity ? bot.entity.position.floored() : feetNow
-                if (feetGal.y > feetNow.y) { steps++; fails = 0; continue }
+                if (feetGal.y > feetNow.y) { steps++; fails = 0; wetRotLevel = 0; dryRotLevel = 0; continue }
                 log(`${tag} climb run-up: gallery opened toward ${d.x},${d.z} (digs ${plan.digs.length}) - the rise re-judges from the L-mouth`)
                 // falls through to the rotate: the loop re-probes all bearings
                 // from the gallery cell, where a jump finally has run-up space

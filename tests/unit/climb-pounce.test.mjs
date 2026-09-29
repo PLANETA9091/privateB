@@ -99,7 +99,7 @@ test('wiring: the pounce choreography releases the face press before the arc', (
 test('wiring: the pounce names both outcomes and the landed path re-enters the loop as a rise', () => {
   assert.ok(minerSrc.includes('climb pounce: landed y='), 'the landed line names the new y and the holds')
   assert.ok(minerSrc.includes('climb pounce: did not rise'), 'the failed line hands the ladder its evidence')
-  assert.ok(/feetPounce\.y > feetNow\.y\) \{\s*\n\s*steps\+\+; fails = 0\s*\n\s*log\(\`\$\{tag\} climb pounce: landed/.test(minerSrc), 'a landed pounce books steps, clears fails and continues')
+  assert.ok(/feetPounce\.y > feetNow\.y\) \{\s*\n\s*steps\+\+; fails = 0[^\n]*\n\s*log\(\`\$\{tag\} climb pounce: landed/.test(minerSrc), 'a landed pounce books steps, clears fails and continues')
 })
 
 test('wiring: the pounce plan reads the same three cells the diag line names', () => {
