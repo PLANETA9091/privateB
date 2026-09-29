@@ -31,6 +31,7 @@ import {
   hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
+  dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
   glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
   drowningCorroborated, DROWN_CORROBORATION_HP, airGlitchLogLine,
   frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
@@ -1204,6 +1205,64 @@ test('dryLandProof: junk inputs judge NOTHING (false = legacy path)', () => {
   assert.equal(dryLandProof({ wetPasses: NaN, elapsedMs: 100 }), false)
   assert.equal(dryLandProof({ wetPasses: 0, elapsedMs: -5 }), false)
   assert.equal(dryLandProof({ wetPasses: -1, elapsedMs: 100 }), false)
+})
+
+// (v0.300.0) THE DRY-TAIL PROOF - face 36511867751 mined F15 x17 'rescue
+// timeout (still wet, 50 passes, 0 probes, tail dry/dry/dry)' at ONE shore
+// dip: the feet-wet shallow-dip flail latched sawWater (feet in a 1-deep
+// puddle), ran the FULL 25s budget ~425s fleet-wide, and re-memorized the
+// same dry-start shore cell each timeout (the ledger 6 live -> degraded 5 ->
+// refilled). The game law: oxygen drains only while the EYE is submerged -
+// a head that never wet across the whole flail disproves the bar's claim,
+// the v0.104.0 fast band's own disproof one band deeper.
+test('dryTailTimeoutProof: the lungs-truth band - a full-budget dry-head flail disproves the page (face 36511867751 F15 shape)', () => {
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: 3 }), true, 'the F15 datum: 50 passes, tail dry/dry/dry - the proof')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: 50 }), true, 'a long tail admits (the tail window is the last DEPTH reads)')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 1, tailReads: 3 }), false, 'a wet read in the tail keeps the legacy hazard record')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 3, tailReads: 3 }), false, 'a fully wet tail keeps the legacy record (a real submersion)')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 1, tailWet: 0, tailReads: 3 }), false, 'any head water contact (the waterlogged F17 class) keeps the legacy record')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 1, tailWet: 1, tailReads: 3 }), false)
+})
+
+test('dryTailTimeoutProof: the FULL tail window is the band gate - the frozen/stall exits keep the legacy record', () => {
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: 2 }), false, 'the v0.62.0 dead-physics stall (0-2 reads) judges NOTHING')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: 0 }), false, 'an empty tail (0 passes) judges NOTHING')
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: DRY_TAIL_PROOF_DEPTH }), true, 'AT the depth admits (>=)')
+})
+
+test('dryTailTimeoutProof: junk inputs judge NOTHING (false = legacy path)', () => {
+  assert.equal(dryTailTimeoutProof({}), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: null, tailWet: 0, tailReads: 3 }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: null, tailReads: 3 }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: 0, tailReads: null }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: NaN, tailWet: 0, tailReads: 3 }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: -1, tailWet: 0, tailReads: 3 }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: NaN, tailReads: 3 }), false)
+  assert.equal(dryTailTimeoutProof({ headWetPasses: 0, tailWet: -2, tailReads: 3 }), false)
+})
+
+test('the dry-tail constants: the depth matches the timeout verdict\'s own tail', () => {
+  assert.ok(DRY_TAIL_PROOF_DEPTH === 3, 'the same tail the timeout line prints (tail dry/dry/dry)')
+})
+
+test('WIRING PIN: the dry-tail proof rides between the fast band and the hazard record (v0.300.0)', async () => {
+  const fs = await import('node:fs')
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the band order: the fast dryLandProof, then the dry-tail band, then the hazard record
+  const fastIdx = minerSrc.indexOf('const proof = dryLandProof({ wetPasses: sawWater ? 1 : 0, elapsedMs: Date.now() - lastRescueAt })')
+  const tailIdx = minerSrc.indexOf('} else if (dryTailTimeoutProof({')
+  const hazardIdx = minerSrc.indexOf('} else if (hazardCell) {', tailIdx)
+  assert.ok(fastIdx > 0, 'the fast band call exists')
+  assert.ok(tailIdx > fastIdx, 'the dry-tail band rides AFTER the fast band')
+  assert.ok(hazardIdx > tailIdx, 'the dry-tail band rides BEFORE the hazard record (the poison is gated)')
+  // the head latch rides inside the inWater refresh (the feet-wet flail latches it)
+  const latchIdx = minerSrc.indexOf('if (isWaterName(read.head) || read.headWaterlogged === true) sawHeadWater = true')
+  assert.ok(latchIdx > 0 && latchIdx > minerSrc.indexOf('sawWater = true'), 'the head latch rides the water-contact refresh')
+  // the tail reads the SAME window the timeout verdict prints
+  assert.ok(minerSrc.includes('rescueReads.slice(-DRY_TAIL_PROOF_DEPTH).filter(r => r && r.wet).length'), 'the tail wet count rides the rescueReads tail')
+  assert.ok(minerSrc.includes('Math.min(rescueReads.length, DRY_TAIL_PROOF_DEPTH)'), 'the tail depth gate rides the rescueReads length')
+  // the line rides the water filter key (no new key)
+  assert.ok(minerSrc.includes('water: dry-tail proof (the'), 'the proof line rides the existing water key')
 })
 
 test('the dry-land constants: the backoff stays under the drain-to-death clock', () => {

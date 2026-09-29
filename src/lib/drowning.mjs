@@ -288,6 +288,44 @@ export function dryLandProof ({ wetPasses = null, elapsedMs = null } = {}) {
   return w === 0 && e <= DRY_PROOF_MAX_MS
 }
 
+/** (v0.300.0) THE DRY-TAIL PROOF DEPTH - the head-tail window the band reads.
+ * Face 36511867751 mined F15 x17 'rescue timeout (still wet, 50 passes, 0
+ * probes, tail dry/dry/dry)' at ONE shore dip: ~425 s of rescue budget per
+ * face, the same dry-start cell re-memorized each timeout (the ledger read
+ * 6 live, degraded to 5, refilled). The fast band (dryLandProof) needs the
+ * 0.0s shape - the feet-wet shallow-dip flail (feet in a 1-deep shore puddle,
+ * the head in air all 50 passes) ran the FULL budget with sawWater latched,
+ * so the legacy hazard record poisoned a walkable shore column. Three reads
+ * is the same tail the timeout verdict prints ('tail dry/dry/dry') - the
+ * band demands the FULL window so the frozen-physics stall (0-2 reads, the
+ * v0.62.0 dead-connection class) keeps its legacy record. */
+export const DRY_TAIL_PROOF_DEPTH = 3
+
+/**
+ * (v0.300.0) THE DRY-TAIL PROOF (pure): did this rescue flail its whole
+ * budget with the HEAD never wet - the lungs' truth outranking the bar? The
+ * game law: oxygen drains only while the EYE is submerged, so a dry head
+ * across the whole flail disproves the drowning the bar claimed - the same
+ * disproof the v0.104.0 fast band owns for the 0.0s shape, one band deeper.
+ * headWetPasses latches ANY head water/waterlogged contact in the loop (the
+ * F17 waterlogged class reads wet and keeps the legacy record); tailWet
+ * counts wet reads inside the last DRY_TAIL_PROOF_DEPTH pass reads; tailReads
+ * is how many reads the tail actually holds - below the depth the band
+ * judges NOTHING (frozen/stall exits keep the legacy hazard record).
+ * Junk-safe: junk inputs judge NOTHING (false = legacy path).
+ * @param {{headWetPasses?: number, tailWet?: number, tailReads?: number}} p
+ * @returns {boolean}
+ */
+export function dryTailTimeoutProof ({ headWetPasses = null, tailWet = null, tailReads = null } = {}) {
+  const w = Number.isFinite(headWetPasses) ? headWetPasses : NaN
+  const t = Number.isFinite(tailWet) ? tailWet : NaN
+  const n = Number.isFinite(tailReads) ? tailReads : NaN
+  if (!Number.isFinite(w) || w < 0) return false
+  if (!Number.isFinite(t) || t < 0) return false
+  if (!Number.isFinite(n) || n < DRY_TAIL_PROOF_DEPTH) return false
+  return w === 0 && t === 0
+}
+
 /**
  * The one-look verdict. Inputs are the raw reads the bot already has:
  *   feet/head : block NAME at the feet cell / head cell (string | null when

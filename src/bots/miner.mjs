@@ -51,6 +51,7 @@ import {
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ascendGraceWanted, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
+  dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
   WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
@@ -1698,6 +1699,7 @@ export function createMiner ({
     noteGlobal('water:rescue') // (v0.62.0) run53's OOM and run60's 150s freeze both began mid-rescue - mark the site
     let standingWet = false // exited via the standing-in-shallow-water policy
     let sawWater = false // (v0.104.0) the dry-land proof's water-contact latch
+    let sawHeadWater = false // (v0.300.0) the dry-tail proof's HEAD-contact latch (the lungs' truth: the eye submerged is the only thing that drains oxygen)
     // (v0.80.0) THE OPEN-WATER TRANSIT state: the continuous-dry clock (reset
     // on every submerged read) and the surface-safe release flag.
     let headDrySince = null
@@ -1788,6 +1790,10 @@ export function createMiner ({
         if (inWater && bot.entity?.position) {
           hazardCell = { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
           sawWater = true
+          // (v0.300.0) the head latch: a feet-wet shallow-dip flail (the F15
+          // face class) latches sawWater and keeps the legacy hazard record
+          // forever - the lungs' truth needs its own latch to disprove it.
+          if (isWaterName(read.head) || read.headWaterlogged === true) sawHeadWater = true
         }
         if (!inWater && bot.entity.onGround) break // out and standing: done
         const headWet = isWaterName(read.head)
@@ -2059,6 +2065,31 @@ export function createMiner ({
         // confirmed lie - the next override needs a FRESH streak past a
         // laddered cap (8/16/24... bounded 40); the real-drain shape
         // (run84a F17's 675+ sustained reads) still outruns the ladder.
+        if (rescuePageWasGlitch) {
+          glitchConfirmed++
+          log(`${tag} water: liar ladder ratchets - confirmed no-op glitch page #${glitchConfirmed}, the next override needs ${glitchStreakCap(glitchConfirmed)} fresh critical-on-dry reads`)
+        }
+        noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
+      } else if (dryTailTimeoutProof({
+        headWetPasses: sawHeadWater ? 1 : 0,
+        tailWet: rescueReads.length
+          ? rescueReads.slice(-DRY_TAIL_PROOF_DEPTH).filter(r => r && r.wet).length
+          : 0,
+        tailReads: Math.min(rescueReads.length, DRY_TAIL_PROOF_DEPTH)
+      })) {
+        // (v0.300.0) THE DRY-TAIL PROOF: the feet-wet shallow-dip flail (face
+        // 36511867751 F15 x17: 25s budget, 50 passes, head dry all passes,
+        // 'tail dry/dry/dry', the same shore cell re-memorized each timeout)
+        // - the lungs' truth outranks the bar: oxygen drains only while the
+        // EYE is submerged, so a dry head across the whole flail disproves
+        // the drowning the bar claimed. The SAME cure as the fast band (no
+        // hazard write, the streak restarts, the backoff, the ratchet) - the
+        // frozen/stall exits (0-2 reads) keep the legacy record (the full
+        // tail window is the band's own gate).
+        if (dryGlitchStreak > 0) {
+          dryGlitchStreak = 0
+          log(`${tag} water: dry-tail proof (the ${passNo}-pass flail never wet the head in ${((Date.now() - lastRescueAt) / 1000).toFixed(1)}s, the tail read dry) - the critical-on-dry streak restarts, the next glitch page waits ${Math.round(DRY_PROOF_BACKOFF_MS / 1000)}s`)
+        }
         if (rescuePageWasGlitch) {
           glitchConfirmed++
           log(`${tag} water: liar ladder ratchets - confirmed no-op glitch page #${glitchConfirmed}, the next override needs ${glitchStreakCap(glitchConfirmed)} fresh critical-on-dry reads`)
