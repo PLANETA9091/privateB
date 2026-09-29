@@ -9144,3 +9144,17 @@ Stage Summary:
 - Master 79faa7d = v0.313.0 THE POUNCE PROBE atop v0.312.0 THE WET-WALL YIELD atop the double-0.311.0 tree. Two v0.312.0s now exist (this lane's yield pushed, the lane's controls-blind decode incoming) - keep-both, next integer 0.314.0.
 - The banked crater (154 vs 1117) + unaccounted=554 are the NEW economics frontier: fights 23 + frozen relogs + night staggering changed the bank season; the climb chain still leads the losses (12 still-underground).
 - NEXT FIRE: (1) verify gate on 79faa7d green; (2) dispatch fleet (workflow 362040162, run_fleet=true, fleet_seconds=600, ref master); (3) MINE the probe verdict: 'pounces=N pounceLanded=M' in the RESULT line + 'climb pounce probe:' lines + 'climb pounce: landed/did not rise' - the mystery closes one way or the other; also 'climb wet-wall yield:' lines (the wet-wall fence reserve), banked vs 154, unaccounted vs 554, fights vs 23; (4) version 0.314.0; (5) OPEN: the controls-blind decode (their f21bea6 riding in), the unaccounted=554 anatomy, the banked-crater economics (night storm season?), drowned class (their pricing).
+Task ID: cron30-20260929-2230 (RECOVERY - the fire died to tool transport failure, record landed by fire 2300)
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2230 - push the 2200 record, mine the first pounce+jump-watch face.
+
+Work Log:
+- Pushed the 2200 worklog clean onto cron38's 32bba09 (their v0.312.0 THE WET-WALL YIELD - collision #14, two 0.312.0s aboard) -> master tip 477d86a.
+- MINED fleet 36578367034 (SUCCESS, becf29e tree): alive 19/19, mined 2153 @ 3.59 b/s, banked 154 CRATER (vs 1117 datum, unaccounted=554), rescues=29 climbs=43, 3 deaths all recovered (F1 drown y=62, F10 Skeleton, F2 fall y=43).
+- HEARTBEAT WORKER ALIVE IN FLEET: 44 beats / 881s, rss 243->413M flat, max step ~75M - RSS JUMP silent = HONEST NEGATIVE (no >=150M single step below floor); the watch's live silent branch field-proven.
+- POUNCE MYSTERY: 0 'climb pounce' lines despite 6 well-signature diags (F18 y=63 support=dirt step=air head=air dry) - the sighting-inversion theory (gate reads pre-dig, ladder digs open the well, diag shows it) designed as v0.313.0 THE POUNCE SIGHTING; superseded by cron38's v0.313.0 THE POUNCE PROBE (own-budget logging + decline probes + RESULT counters) before implementation - their instrument covers the same seam from the gate side.
+- TOOL TRANSPORT DIED after mining (3 consecutive Bash/Edit failures) - no code, no worklog, no dispatch; local stayed == origin (477d86a), nothing held, nothing lost.
+
+Stage Summary:
+- FLEET OF RECORD: 36578367034 (mined above). The pounce front went to cron38 (v0.313.0 THE POUNCE PROBE, 79faa7d); next free version 0.314.0 (their record says the same).
+- OPEN FRONTS for 2300: F10 zero-probe rescue floor (priced fire 2100, UNTOUCHED by cron38 - the lane's drowning territory); banked=154 crater (fresh, both lanes flagged it); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
