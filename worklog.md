@@ -9443,3 +9443,19 @@ Stage Summary:
 - HANDOFF to 0538: ride + mine 36631612575 - 'route-latched after' lines (THE LATCH VERDICT: refusals firing = F17's 21-entry class dead), 'climb wet memo:' vs 21, 'pocket anatomy' vs spread-18, 'surplus face' first leg vs 23u/531u, banked vs 1154, mined vs 2798/4.66, alive vs 19/19, reconnects vs 7, the RESULT header vs NORMAL END. If the latch verdict is clean -> the chains instrument re-prices (the anatomy named the spread - the multi-holder cadence/walk chain is the crater's owner).
 - Version next integer: 0.323.0 (0.322.0 claimed by their sync commit 47d231d).
 - OPEN FRONTS: the chains instrument (the spread anatomy's cure - cadence/walk chain, not a single walk); airGlitches=257 spike (watch); rescues=54 (up); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp.
+
+---
+Task ID: cron30-20260930-0500
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0500 - prove v0.322.0, ride the flying surplus-face, ship the bank-flow row.
+
+Work Log:
+- Gate 36631350850 (353f06d, v0.322.0) SUCCESS - the union tree CI-proven. Slot taken lawfully: cron38 DISPATCHED 36631612575 (workflow_dispatch, 353f06d, 'three instruments one flight' per their 0438 record) - NO duplicate dispatch (protocol 6), the first surplus-face face rides their flight.
+- v0.323.0 THE BANK-FLOW ROW shipped: bankFlowRow(samples, {pocketUnits}) in pocketline.mjs - the crater's FEASIBILITY priced (fleet 36626921875 read the pocket ~1639u while banked crept 1117->1154/75s: a flow no line measured); rate = banked delta / window span, the pocket read becomes the seconds owed ('needs 3323s past the deadline' on the face's tail - a slow chain, not a dead one); the stood-still form owes no seconds (the Infinity guard, negative drift deltas included); junk law (non-finite/negative skipped, non-monotone t cannot make a window, sub-second floors to one tick, <2 samples = 'none'). Wiring: cadence series (t,banked) rides the reporter tick, the row prices the last 20 samples (~5min endgame) after the surplus-face line.
+- Local: syntax 252, unit 138/138 (my arithmetic corrected in-test: ceil(1639/(37/75))=3323; the v0.302.0 import pin extended the v0.318/322 way). Pushed a8cf50b..6e02d62 rebase-clean over cron38's worklog-only record (no collision #20).
+- Poll 36631612575: units green, Integration IN_PROGRESS ~32 min at box close (past the 25-min class of the previous face) - MINING DEFERRED honestly (the 0230 precedent), handed to 0530.
+
+Stage Summary:
+- Master = 6e02d62 (pkg 0.323.0). Local clean. FLEET IN FLIGHT: 36631612575 (353f06d = v0.322.0 - the FIRST surplus-face face).
+- NEXT FIRE: (1) poll 36631612575 to landing and MINE it: 'surplus face' first leg vs the crafted-inflow theory (top flows by name), anatomy leg #2 vs spread-18/15.7%, crater vs 41.3%, ledger vs unaccounted=0/surplus=23, F17 vs their 245u stake; (2) poll the newest gate (6e02d62 re-queues) - green + slot free -> DISPATCH (the FIRST bank-flow face, v0.323.0); (3) MINE it: 'bank flow' first leg vs 0.5u/s-3323s - the cadence-short vs cadence-hopeless split is the endgame-bank-cadence front's first measured fork.
+- OPEN FRONTS: endgame bank cadence (crater 41.3%, spread-18, flow 0.5u/s priced); F12 no-chest; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache. Version next: 0.324.0.
