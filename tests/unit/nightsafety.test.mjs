@@ -125,8 +125,10 @@ test('REGRESSION PIN: the v0.185.0 night lane gate rides the fleet source', () =
   assert.match(fleetSrc, /bank trip: deferred night \(tod=/, 'the hold names itself in the bank lane')
   assert.match(fleetSrc, /the yard walk rides out the dark alive/, 'the deferral names the doctrine')
   // the pre-position gate: the walk-forbidden read sits INSIDE the try, ahead
-  // of prePositionDue (junk clock falls through to the legacy walk)
-  assert.match(fleetSrc, /if \(walkForbidden\(miner\.bot\.time\?\.timeOfDay\)\) return false\n\s*return prePositionDue/, 'the pre-position holds underground when the clock forbids the walk')
+  // of prePositionDue (junk clock falls through to the legacy walk). The
+  // v0.304.0 deep wire (the const yardDy read + the call arg) rides BETWEEN
+  // the hold and the call - the hold keeps its place ahead of BOTH.
+  assert.match(fleetSrc, /if \(walkForbidden\(miner\.bot\.time\?\.timeOfDay\)\) return false\n\s*\/\/ \(v0\.304\.0\) THE DEEP PRE-POSITION WIRE[\s\S]{0,700}?return prePositionDue\(/, 'the pre-position holds underground when the clock forbids the walk')
 })
 
 test('REGRESSION PIN: the v0.140.1 night hold rides the fleet source', () => {

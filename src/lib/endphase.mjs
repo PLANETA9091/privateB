@@ -192,25 +192,57 @@ export const PRE_POSITION_WINDOW_MS = 90000
 export const PRE_POSITION_MIN_DIST = 48
 
 /**
+ * (v0.304.0) A bot this many levels BELOW the yard is deep: the climb out
+ * alone costs ~50s at the measured 4.2s/level (the v0.294.0 climb pricing),
+ * more than half the legacy window - the straight-line dist says "near the
+ * yard" while the climb says "far".
+ */
+export const PRE_POSITION_UNDERGROUND_DY = 12
+
+/**
+ * (v0.304.0) The deep bot's window: the 150s handoff boundary the cadence
+ * refusal already reads (NEEDS_BANKING_MIN_REMAINING_MS) - below it the
+ * cadence trip refuses and the end-phase owns the deadline banking, so the
+ * deep bot's climb home starts exactly where the ownership handoff happens.
+ */
+export const PRE_POSITION_UNDERGROUND_WINDOW_MS = 150000
+
+/**
  * Should this bot stop digging and walk home now? True when the run is
  * inside the pre-position window AND the bot is far enough from the yard
  * for the walk to matter. Pure, junk-tolerant: junk/negative remaining =
  * false (a bot must never abandon mining on garbage), junk dist = 0 ->
  * false (a near bot has nothing to pre-position for).
+ *
+ * (v0.304.0) THE DEEP LANE: a bot yardDy+ levels below the yard is deep -
+ * the climb IS the far walk (the v0.294.0 law: the dy prices the honest
+ * climb), so the deep bot auto-qualifies the distance and gets the wider
+ * underground window (F6's t-48s climb out read 'failed - stopped
+ * (traversed 3)' and 236u rode the deadline; the same climb from t-150s
+ * fits). Junk/negative yardDy reads 0 -> the legacy shallow shape byte for
+ * byte; the night hold above the call stays the owner in the dark.
  * @param {object} [p]
  * @param {number} [p.remainingMs] ms left before the deadline
  * @param {number} [p.yardDist] straight-line distance to the yard, blocks
+ * @param {number} [p.yardDy] vertical separation below the yard, levels (default 0 - the legacy shallow shape)
  * @param {number} [p.windowMs] window width (default PRE_POSITION_WINDOW_MS)
  * @param {number} [p.minDistBlocks] minimum distance worth walking (default PRE_POSITION_MIN_DIST)
+ * @param {number} [p.undergroundWindowMs] deep-lane window width (default PRE_POSITION_UNDERGROUND_WINDOW_MS)
  * @returns {boolean}
  */
-export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, windowMs = PRE_POSITION_WINDOW_MS, minDistBlocks = PRE_POSITION_MIN_DIST } = {}) {
+export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, yardDy = 0, windowMs = PRE_POSITION_WINDOW_MS, minDistBlocks = PRE_POSITION_MIN_DIST, undergroundWindowMs = PRE_POSITION_UNDERGROUND_WINDOW_MS } = {}) {
   if (!Number.isFinite(remainingMs) || remainingMs <= 0) return false
-  const w = Number.isFinite(windowMs) && windowMs > 0 ? windowMs : PRE_POSITION_WINDOW_MS
-  if (remainingMs > w) return false
   const d = Number.isFinite(yardDist) && yardDist > 0 ? yardDist : 0
   const m = Number.isFinite(minDistBlocks) && minDistBlocks >= 0 ? minDistBlocks : PRE_POSITION_MIN_DIST
-  return d >= m
+  // (v0.304.0) the deep read: junk/negative dy = 0 -> shallow, the legacy
+  // shape untouched; a junk window override falls back to the default.
+  const dy = Number.isFinite(yardDy) && yardDy > 0 ? yardDy : 0
+  const deep = dy >= PRE_POSITION_UNDERGROUND_DY
+  const w = Number.isFinite(windowMs) && windowMs > 0 ? windowMs : PRE_POSITION_WINDOW_MS
+  const uw = Number.isFinite(undergroundWindowMs) && undergroundWindowMs > 0 ? undergroundWindowMs : PRE_POSITION_UNDERGROUND_WINDOW_MS
+  if (remainingMs > (deep ? uw : w)) return false
+  // the deep bot auto-qualifies the distance: the climb IS the far walk
+  return deep ? true : d >= m
 }
 
 // ---------------------------------------------------------------------------

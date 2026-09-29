@@ -8,6 +8,7 @@
 // yard-walk budget that finally scales with the distance instead of the flat
 // 120s pin (yardWalkBudgetMs, deposit.mjs).
 import { test, beforeEach } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { resetDoomedGoalLedger } from '../../src/lib/jobqueue.mjs'
 import assert from 'node:assert/strict'
 import { prePositionDue, PRE_POSITION_WINDOW_MS, PRE_POSITION_MIN_DIST, END_BANK_BUDGET_CAP_MS, HARD_KILL_MARGIN_MS } from '../../src/lib/endphase.mjs'
@@ -116,4 +117,89 @@ test('invariants: the walk budget stays inside the chain clock and the hard-kill
   // and the cap chain stays sane: walk cap <= chain cap, chain cap <= margin
   assert.ok(YARD_WALK_CAP_MS <= END_BANK_BUDGET_CAP_MS, 'the walk cannot want more than the chain can give')
   assert.ok(END_BANK_BUDGET_CAP_MS < HARD_KILL_MARGIN_MS, 'the chain cap sits inside the margin')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.304.0) THE DEEP PRE-POSITION - the climb IS the far walk. Face
+// 36525740882 (the v0.302.0 field, the write-off row's debut): 13 staggered
+// final banks delivered +5 and +269 and ELEVEN zeroes - 7x 'still underground
+// after N climb attempts - the chain from the shaft bottom is doomed walks'.
+// The pre-position lane PROVED it delivers (F1: t-88s, 'pre-position bank:
+// +191') but fired exactly twice: the gate's straight-line dist says a
+// shaft-bottom bot standing under the yard is 'near' (48b read), while its
+// climb out costs ~4.2s/level (the v0.294.0 measurement) - the whole legacy
+// 90s window. F6 DID fire (t-48s, the slot the stagger gave it) and its
+// 'climb out (pre-position): failed - stopped (traversed 3)' left 236u to
+// ride the deadline. THE CURE: prePositionDue reads the vertical (yardDy) -
+// a bot PRE_POSITION_UNDERGROUND_DY+ levels below the yard is deep, the deep
+// read auto-qualifies the distance and opens the gate at the 150s handoff
+// boundary the cadence refusal already reads. Junk dy reads 0 -> the legacy
+// shallow shape byte for byte; the night hold above the call stays the
+// owner in the dark (the v0.185.0 law untouched).
+import { PRE_POSITION_UNDERGROUND_DY, PRE_POSITION_UNDERGROUND_WINDOW_MS } from '../../src/lib/endphase.mjs'
+
+test('deep lane: the F6 datum - under the yard, deep, inside the 150s boundary', () => {
+  // the exact class the 7 'still underground' finals named: the bot stands
+  // ~8 blocks (straight-line) from the yard but 25 levels below it - the
+  // legacy gate said 'near, keep digging' twice over (dist < 48 AND the 90s
+  // window closed at t-140s); the deep read opens the climb home
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25 }), true)
+  // a deeper shaft with zero horizontal offset - same verdict
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 2, yardDy: 30 }), true)
+})
+
+test('deep lane boundary: the threshold and the 150s window are exact', () => {
+  // dy 11 = a shallow cellar - the legacy shape owns it (the window closed)
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: PRE_POSITION_UNDERGROUND_DY - 1 }), false)
+  // dy 12 opens the deep lane
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: PRE_POSITION_UNDERGROUND_DY }), true)
+  // one ms above the deep window: still digging
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25 }), false)
+  // the boundary itself opens (inclusive, the legacy convention)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS, yardDist: 8, yardDy: 25 }), true)
+  // a deep bot inside the LEGACY window with a qualifying dist still fires
+  // (the deep read never narrows the legacy lane)
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: 250, yardDy: 25 }), true)
+})
+
+test('deep lane: the legacy shallow shape stays byte for byte (no yardDy passed)', () => {
+  // every legacy assertion re-run with yardDy absent (default 0 = shallow)
+  assert.equal(prePositionDue({ remainingMs: 200000, yardDist: 250 }), false)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_WINDOW_MS + 1, yardDist: 250 }), false)
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: PRE_POSITION_MIN_DIST - 1 }), false)
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: PRE_POSITION_MIN_DIST }), true)
+  // a shallow bot near the yard inside the 90s window keeps digging even
+  // when the caller passes a junk/negative dy
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: 8, yardDy: NaN }), false)
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: 8, yardDy: -4 }), false)
+  assert.equal(prePositionDue({ remainingMs: 60000, yardDist: 8, yardDy: 0 }), false)
+  // a bot ABOVE the yard (rooftop) is not deep - the climb home is downhill
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: -30 }), false)
+})
+
+test('deep lane junk: garbage window overrides fall back to the defaults', () => {
+  // junk undergroundWindowMs reads the default 150s, not a wide-open gate
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25, undergroundWindowMs: NaN }), true)
+  assert.equal(prePositionDue({ remainingMs: PRE_POSITION_UNDERGROUND_WINDOW_MS + 1, yardDist: 8, yardDy: 25, undergroundWindowMs: NaN }), false)
+  assert.equal(prePositionDue({ remainingMs: 140000, yardDist: 8, yardDy: 25, undergroundWindowMs: -1 }), true)
+  // junk legacy window override on a shallow bot: the legacy fallback holds
+  assert.equal(prePositionDue({ remainingMs: 89000, yardDist: 250, windowMs: NaN, yardDy: 0 }), true)
+})
+
+test('deep lane constants pin: the pricing boundary is measured, not tuned', () => {
+  assert.equal(PRE_POSITION_UNDERGROUND_DY, 12)
+  assert.equal(PRE_POSITION_UNDERGROUND_WINDOW_MS, 150000)
+})
+
+test('deep lane wiring pin: the vertical rides the fleet call', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the wire computes yardDy from the live positions and passes it beside yardDist
+  assert.match(fleetSrc, /const yardDy = Math\.max\(0, yardGoal\.y - miner\.bot\.entity\.position\.y\)/, 'the vertical separation is computed from the live positions')
+  assert.match(fleetSrc, /prePositionDue\(\{\s*\n\s*remainingMs: deadline - Date\.now\(\),\s*\n\s*yardDist: miner\.bot\.entity\.position\.distanceTo\(yardGoal\),\s*\n\s*yardDy\s*\n\s*\}\)/, 'the gate receives the vertical beside the straight-line dist')
+  // the night hold stays FIRST in the wrapper (the v0.185.0 law): the dark
+  // owns the bot before the deep read can ever fire
+  const wrapper = fleetSrc.slice(fleetSrc.indexOf('const prePositionNow'), fleetSrc.indexOf('const prePositionNow') + 2200)
+  const holdAt = wrapper.indexOf('walkForbidden(miner.bot.time?.timeOfDay)')
+  const gateAt = wrapper.indexOf('prePositionDue(')
+  assert.ok(holdAt > -1 && gateAt > holdAt, 'the night hold precedes the deep gate')
 })

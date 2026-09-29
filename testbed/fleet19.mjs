@@ -1077,9 +1077,18 @@ async function runBot (name, target, index) {
           // second (bankableNow already says so) and the final-bank hold owns
           // the pocket. Junk clock walks (the legacy shape byte for byte).
           if (walkForbidden(miner.bot.time?.timeOfDay)) return false
+          // (v0.304.0) THE DEEP PRE-POSITION WIRE: the vertical separation
+          // rides the gate (prePositionDue's yardDy) - the shaft-bottom bot
+          // standing under the yard reads a near straight-line dist while
+          // its climb out costs the whole legacy window (7x 'final bank: 0
+          // (still underground)' named the class). The night hold above
+          // stays the owner in the dark; the junk position read falls
+          // through to the legacy shallow shape byte for byte.
+          const yardDy = Math.max(0, yardGoal.y - miner.bot.entity.position.y)
           return prePositionDue({
             remainingMs: deadline - Date.now(),
-            yardDist: miner.bot.entity.position.distanceTo(yardGoal)
+            yardDist: miner.bot.entity.position.distanceTo(yardGoal),
+            yardDy
           })
         } catch { return false }
       }
