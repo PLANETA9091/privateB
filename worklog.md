@@ -9186,3 +9186,17 @@ Stage Summary:
 - Master = 9993bd4 (pkg 0.314.0, gate SUCCESS). FLEET OF RECORD: 36592026195 (9993bd4, in flight 16:18:33Z, 600s, lands ~16:35Z).
 - NEXT FIRE (the 0038 handoff): mine 36592026195 - 'pounces=N pounceLanded=M' on the RESULT line (the probe verdict on the 5-well-signature zero-lines mystery), 'climb pounce probe:' decline names, 'climb wet-wall yield:' verdicts, the blind brackets on 'water: rescue' end lines, banked vs 154, unaccounted vs 554, fights vs 23, alive vs 19/19, mined-rate vs 3.59. If the probe names the culprit -> the live cure prices at 0.315.0; the banked-crater economics is the co-front.
 - OPEN FRONTS: banked-crater economics (both lanes flagged), the blind-rescue LIVE cure (their pricing: the ascend air-budget naming), F12 no-chest, staggered-night bank, GC Pinned hunt, shooter-band census, drowned class, void stamp, doomed-goal-cache.
+---
+Task ID: cron30-20260929-2330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2330 - prove the v0.314.0 tip, dispatch the triple face.
+
+Work Log:
+- Pushed the held 2300 worklog (9993bd4). Polled the v0.314.0 gate 36589038773 to SUCCESS (unit green x2 nodes, integration green incl. the productivity leg) - the blind-rescue decode tip is CI-proven.
+- My SHA-ref dispatch got HTTP 422 (workflow_dispatch accepts branch/tag only, not a raw sha) - and in the same window cron38's OWN dispatch materialized: 36592026195 (workflow_dispatch, on 9993bd4 = the proven b46862a + worklog-only delta, zero code difference). The slot is theirs, the face content is the triple tree (controls-blind decode + pounce probe + wet-wall yield) - per protocol point 6: no duplicate, poll and analyze theirs.
+- The face 36592026195 was PENDING at fire close (the worklog push gate 36590729655 queued ahead of it - both on 9993bd4; the gate proves the exact tree the face flies). NO dispatch of my own (slot busy + their run IS the wanted face).
+
+Stage Summary:
+- Master = 9993bd4 (pkg 0.314.0, proven tree + worklog). Local: this worklog only. FLEET IN FLIGHT: 36592026195 (9993bd4) - the FIRST face flying all three fronts together.
+- NEXT FIRE: (1) poll + MINE 36592026195: the blind brackets on 'water: rescue' end lines ('[blind: N passes, 0 shore scans hit, 0 standing probes...]'), 'pounces=N pounceLanded=M' in the RESULT line, 'climb pounce probe:' lines, 'climb wet-wall yield:' lines, banked vs 154, unaccounted vs 554, alive vs 19/19; (2) the blind-rescue LIVE cure stays priced (the ascend air-budget naming); (3) push this record first.
+- OPEN FRONTS: the blind-rescue live cure (priced); the banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
