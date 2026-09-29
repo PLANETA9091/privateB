@@ -8884,3 +8884,19 @@ Stage Summary:
 - The dy-priced window's field watch: the 4x 'budget exhausted' pre-position refusals should fall toward 0; the write-off row should shrink from 7 holders/1273u; banked should recover from 1317 toward the 2121 record.
 - The second-hostile lens's field watch: the mid-evasion death signature (killed by mob B while fleeing mob A) should fall; 'combat: flee bearing rotated (the second hostile vetoes the N target)' appears.
 - Still open: the air-bar liar storm (498 pages - the page backoff candidate), the 2x drowned deaths (the flooded band owns them still), the 23u unaccounted (the death-drop ledger candidate), the dry-tail proof's field verdict, the void stamp, the doomed-goal-cache, the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1630
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1630 - verify the gate, mine the v0.306.0 face (the refractory watch), one atomic improvement.
+
+Work Log:
+- Arrival: cron38's 9cec670 landed mid-gap (their 1538 fire): face 36539598929 mined - THE REFRACTORY'S TOTAL HIT: 3 'pockets full < 150s' refusal lines from 13932 (the v0.306.0 flood cure PROVEN in the field, the log back to 315KB); the delivery era dipped (banked=1317, write-off 7/1273u); 8 deep pre-position firings - 4 delivered (+799), 4x 'budget exhausted' (the dy-priced window they shipped as their 'v0.307.0' b073606 - collision #11 keep-both with this lane's parallel SECOND-HOSTILE LENS: different files, both live, the pkg ledger carries two 0.307.0 changes).
+- Took the sword lane front from THIS lane's own 1600 mining: the 36535536162 log read 5 rung crafts BESIDE 5 'failed (no table)' refusals ('planks available' due lines) - the mixed/short plank pockets. A log IS 4 same-type planks: the refusing pocket may be one craft away from the table.
+- SHIPPED v0.308.0 THE PLANK CONVERSION RUNG (a240751): plankRungWanted (arms.mjs, pure, junk-tolerant - held table item defers to placeTable, a fireable rung needs no converter, a log-less pocket keeps the legacy refusal byte for byte) arms craftPlanksFromLogs (the camp lane's own converter, the 'plank rung:' key) at need = SWORD_TABLE_PLANKS; the plan re-reads and the v0.305.0 rung fires unchanged; the landing rides the sword key ('sword: planks converted for the table rung (converted)'). Tests: the conversion datum + the refusals-never-arm battery + the junk byte-true battery + the exact-4 boundary + the wiring pin; the v0.305.0 landing pin restated to the rungPlan re-read.
+- Local: syntax 243, unit 129/129 (re-run on the COMBINED post-rebase tree - their endphase tests + this lane's arms battery together). Integration skipped (time-box; CI owns the verdict). Pushed a240751 clean (9cec670..a240751, 0.308.0 free on origin). The gate rides the push - pending at fire end. NO dispatch: the head gate unproven (the combined tree has never run CI).
+
+Stage Summary:
+- Master = a240751 (pkg 0.308.0). FLEET OF RECORD: 36539598929 (the v0.306.0 face, completed, mined by cron38 - the refractory PROVEN). The slot is FREE.
+- NEXT FIRE: (1) verify the newest gate green on a240751 (or its worklog push's head); (2) the SLOT RACE: both lanes' worklogs say 'the next fire dispatches' - the slot law check first, dispatch the combined 0.307.0+0.308.0 tree's face when free AND green; (3) the field watches: the lens ('the second hostile vetoes' lines, mob deaths vs 12), the dy-priced window (the 'budget exhausted' finals vs 4), the conversion rung ('sword: planks converted' appears; 'failed (no table)' falls from 5), the write-off vs 1273u.
+- OPEN FRONTS: the shelter-vs-melee coffin (F10/F11 - the shelter verdict may need the second-hostile lens too); the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
