@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -252,6 +252,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       console.log(`${miner.username} chest ascent: refused (${plan.why}) - the skip stands`)
       return false
     }
+    // (v0.321.0) THE ROUTE REFUSAL LATCH: a route the memo has refused
+    // ROUTE_REFUSAL_LATCH_CYCLES times is not asked again - the hook's
+    // own climb is skipped and the legacy skip stands (fleet 36617588210:
+    // F17 paid 21 instant refusals on one condemned column all run).
+    const routeLatch = routeRefusalLatch({ refusedCycles: miner.bot?._routeRefusals })
+    if (routeLatch.latched) {
+      console.log(`${miner.username} chest ascent: route-latched after ${routeLatch.refused} refused climbs - the route is condemned, the skip stands`)
+      return false
+    }
     const dir = miner.bot?.entity && chestPos && Number.isFinite(chestPos.x) && Number.isFinite(chestPos.z)
       ? new Vec3(chestPos.x - miner.bot.entity.position.x, 0, chestPos.z - miner.bot.entity.position.z)
       : null
@@ -259,6 +268,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     console.log(`${miner.username} chest ascent: ${doom?.why ?? 'vertical doom'} - climbing toward the chest before the hop`)
     try {
       const cr = await miner.climbOut({ dir: dir || undefined, targetY: cy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
+      if (cr && !cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot: every memo-refused climb feeds the route latch
       if (cr && cr.ok) {
         console.log(`${miner.username} chest ascent: climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop gets its route`)
         return true
@@ -293,6 +303,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       } catch { return { ascend: false, why: 'plan error' } }
     })()
     if (!plan.ascend) return false
+    // (v0.321.0) the route latch at the upfront leg: a condemned route is
+    // never funded twice - the leg walks from here without asking.
+    const routeLatch = routeRefusalLatch({ refusedCycles: miner.bot?._routeRefusals })
+    if (routeLatch.latched) {
+      console.log(`${miner.username} chest ascent (upfront): route-latched after ${routeLatch.refused} refused climbs - the route is condemned, the leg walks the whole route`)
+      return false
+    }
     console.log(`${miner.username} chest ascent (upfront): ${plan.why} - funding the climb before the leg's walks`)
     const dir = miner.bot?.entity && yardGoal
       ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
@@ -300,6 +317,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     const fenceAt = Date.now() + plan.climbMs
     try {
       const cr = await miner.climbOut({ dir: dir || undefined, targetY: yy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
+      if (cr && !cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count
       if (cr && cr.ok) {
         console.log(`${miner.username} chest ascent (upfront): climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop ladder is pre-funded`)
         return true
@@ -359,6 +377,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           } catch { return { ascend: false, why: 'plan error' } }
         })()
         if (ascent.ascend) {
+          // (v0.321.0) the route latch at the quarry ascent: a condemned
+          // route is not climbed again - the walk owns the route (and dies
+          // by its own gates, honestly named).
+          const routeLatch = routeRefusalLatch({ refusedCycles: miner.bot?._routeRefusals })
+          if (routeLatch.latched) {
+            console.log(`${miner.username} quarry ascent: route-latched after ${routeLatch.refused} refused climbs - the route is condemned, the walk owns the route`)
+          } else {
           const ascentDir = miner.bot?.entity && yardGoal
             ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
             : null
@@ -366,10 +391,12 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           console.log(`${miner.username} quarry ascent: ${ascent.why} - climbing toward the yard before the walk`)
           try {
             const cr = await miner.climbOut({ dir: ascentDir || direction, targetY: yardGoal.y, force: true, maxMs: ascent.climbMs, shouldStop: () => Date.now() > fenceAt })
+            if (cr && !cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count
             if (cr && cr.ok) console.log(`${miner.username} quarry ascent: climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the walk ladder gets its route`)
             else console.log(`${miner.username} quarry ascent: failed (${cr?.reason ?? 'no read'}) - the pocket rides the next window`)
           } catch (e) {
             console.log(`${miner.username} quarry ascent: failed (${e?.message ?? 'error'}) - the pocket rides the next window`)
+          }
           }
         } else {
           console.log(`${miner.username} bank: ${doomAtWalk.why} - the walk ladder cannot climb, the pocket rides the next window`)
@@ -1126,6 +1153,7 @@ async function runBot (name, target, index) {
           if (doom.doom) console.log(`${name} climb out (${reason}): ${doom.why} - the climb raises its target to the yard's level`)
         }
         let r = await miner.climbOut({ dir: direction, targetY: doom.doom ? yardGoal.y : null, shouldStop: () => Date.now() > deadline })
+        if (!r.ok && r.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count (the door owns the gate)
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         // (v0.154.0) THE BANK CLIMB RETRY: the mid-run bank trip's climb was
@@ -1151,6 +1179,7 @@ async function runBot (name, target, index) {
         console.log(`${name} climb out (${reason}): retry (${plan.why})`)
         const retryFenceAt = Date.now() + plan.maxMs
         r = await miner.climbOut({ dir: direction, targetY: doom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, plan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+        if (!r.ok && r.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count (the door owns the gate)
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): retry OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): retry failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
         return r.ok
@@ -2183,6 +2212,16 @@ async function runBot (name, target, index) {
         bankRescueAnnounced = bankDefer.announced
         if (bankDefer.announce) console.log(`${name} bank trip: deferred (rescue owns the bot - the arm waits for the release, the budget never burns)`) // rides the same 'bank ' filter key, the class sizes itself
         if (load && bankWanted && bankViable && !bankDefer.defer) {
+          // (v0.321.0) THE ROUTE LATCH AT THE TRIP DOOR: a route the memo has
+          // condemned is not armed, not consolidated, not climbed, not held -
+          // the pocket mines on (F17's doomed trips burned arm + walk + a 45s
+          // smelt-leg hold every cadence window). lastBankAt advances so the
+          // cadence re-checks later, not every loop (the v0.181.0 shape).
+          const tripRouteLatch = routeRefusalLatch({ refusedCycles: miner.bot?._routeRefusals })
+          if (tripRouteLatch.latched) {
+            lastBankAt = Date.now()
+            console.log(`${name} bank trip: route-latched after ${tripRouteLatch.refused} refused climbs - the route is condemned, the pocket mines on`)
+          } else {
           lastBankAt = Date.now()
           if (duskPlan.go) {
             duskTripUntil = duskPlan.untilMs // (v0.229.0) the plan owns the exit clock - the wiring only carries it (the failed arm waits it out, no re-arm storm)
@@ -2254,6 +2293,7 @@ async function runBot (name, target, index) {
             // owns the re-arm; no retry storm - the gate never re-arms inside
             // this branch).
             console.log(`${name} bank trip: 0 (climb refused - the pocket rides the next cadence window)`)
+          }
           }
         } else if (load && bankWanted) {
           // (v0.181.0) the gate's refusal names itself once per cadence window
@@ -2583,6 +2623,7 @@ async function runBot (name, target, index) {
             const climbFenceAt = Date.now() + climbFenceMs
             cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
             if (!cr.ok && cr.reason === 'timeout') cr.reason = `timeout (fenced at ${Math.round(climbFenceMs / 1000)}s - the chain keeps its reserve)`
+            if (!cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot - the final bank's climbs count, the doom latch owns the gate
             climbAttempts = 1
             // (v0.50.0) THE FINAL-CLIMB RETRY: fleet 35630279913 measured 13
             // fast 'stalled' climbs and then 13 underground chains burning
@@ -2609,6 +2650,7 @@ async function runBot (name, target, index) {
               }
               const retryFenceAt = Date.now() + retryPlan.maxMs
               cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+              if (!cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot - the retry counts too
               climbAttempts = 2
             } else if (!cr.ok) {
               console.log(`${name} final climb: no retry (${retryPlan.why})`)

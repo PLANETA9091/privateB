@@ -1114,6 +1114,54 @@ export function wetColumnMemoBlocked (memo, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.321.0) THE ROUTE REFUSAL LATCH - a bank route the memo keeps refusing
+// is not asked again; the third refusal condemns the ROUTE, not just the
+// climb.
+//
+// MEASURED (fleet 36617588210, the memo's first face): F17 entered climbOut
+// through its condemned column (-133,408) 21 times across chest-ascent +
+// quarry-ascent + bank-trip phases - every entry refused instantly (the
+// memo worked, zero rotations) but the LADDER had no memory of its own
+// route: 21 attempts, 18 walk fallbacks that also died ('no chest in
+// range (24 blocks from yard)'), 'bank trip: 0 (climb refused)' cadence
+// after cadence, a 45s smelt-leg HOLD inside a trip that could never
+// deliver - F17 banked ZERO while the fleet banked 2295. The wasted route
+// clock is the hard-kill margin's food.
+// THE CURE: count the memo-refused climbs per bot (bot._routeRefusals - the
+// bot object carries it across the deposit-leg and main-loop scopes, the
+// _climbLedger precedent); at ROUTE_REFUSAL_LATCH_CYCLES the ascent ladders
+// and the bank-trip door refuse WITHOUT the climb - the pocket mines on
+// (the v0.316.0 doom latch owns the final bank's own door, byte for byte
+// untouched; its climbs still COUNT here - one truth per bot). The
+// threshold prices the honest ladder: first refusal records the column,
+// second confirms the route (water is static, one cell never justifies a
+// second grind), third condemns the route itself.
+// ---------------------------------------------------------------------------
+
+export const ROUTE_REFUSAL_LATCH_CYCLES = 3
+
+/**
+ * The route verdict for a bot about to fund another climb through its
+ * bank route. Pure, junk-tolerant: latches only on a FINITE count at or
+ * past the threshold; junk never latches (the body-guard law).
+ * @param {object} [p]
+ * @param {number} [p.refusedCycles] memo-refused climbs this bot has paid
+ * @param {number} [p.latchCycles] the threshold (default ROUTE_REFUSAL_LATCH_CYCLES)
+ * @returns {{latched: boolean, refused: number}} the verdict (refused echoes
+ *   the sanitized count the log lines name)
+ */
+export function routeRefusalLatch (opts = {}) {
+  // (the Number(null) lesson, ninth strike) the BODY guard, not a
+  // destructuring default: routeRefusalLatch(null) would throw on the
+  // destructure.
+  const { refusedCycles = 0, latchCycles = ROUTE_REFUSAL_LATCH_CYCLES } = opts || {}
+  const n = Number(refusedCycles)
+  if (!Number.isFinite(n) || n < 0) return { latched: false, refused: 0 }
+  const c = Number.isFinite(latchCycles) && latchCycles > 0 ? Math.floor(latchCycles) : ROUTE_REFUSAL_LATCH_CYCLES
+  return { latched: n >= c, refused: n }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //
