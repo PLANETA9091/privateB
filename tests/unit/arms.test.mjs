@@ -4,10 +4,11 @@
 // pins the ORDER (sticks first, then table, then the sword) without mocking
 // mineflayer - the same shape the toolupgrade tests use.
 import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import {
-  SWORD_TIERS, SWORD_STICKS, SWORD_MATERIAL_COST, COBBLE_RESERVE, INGOT_RESERVE,
-  countSwords, swordCheck, craftSword
+  SWORD_TIERS, SWORD_STICKS, SWORD_MATERIAL_COST, COBBLE_RESERVE, INGOT_RESERVE, SWORD_TABLE_PLANKS,
+  countSwords, swordCheck, craftSword, swordTablePlan
 } from '../../src/lib/arms.mjs'
 
 function it (name, count = 1) {
@@ -137,7 +138,11 @@ test('craftSword: table fail -> ok:false with the reason, no craft attempted', a
     craftUntil: async (bot, item) => { calls.push(item); return true },
     placeTable: async () => null
   }
-  const bot = fakeBot([it('oak_planks', 4), it('stick', 2)])
+  // (v0.305.0 restate) the pocket now holds NO table item and only 2 planks
+  // of one type - the table rung refuses (4 split/short planks craft nothing),
+  // so the legacy verdict stands and the craft never runs. The rung's own
+  // happy/sad paths ride the tests below.
+  const bot = fakeBot([it('oak_planks', 2), it('stick', 2)])
   const res = await craftSword(bot, { deps })
   assert.equal(res.ok, false)
   assert.match(res.reason, /no table/)
@@ -171,4 +176,99 @@ test('craftSword: stick craft fails -> ok:false, sword never attempted', async (
 test('craftSword: never throws on a junk bot', async () => {
   const res = await craftSword(null, { deps: { craftUntil: async () => true, placeTable: async () => null } })
   assert.equal(res.ok, false)
+})
+
+// ---------------------------------------------------------------------------
+// (v0.305.0) THE SWORD'S TABLE RUNG - face 36525740882 (the v0.302.0 field)
+// measured 6x 'sword: failed (no table)' (F2 x4, F9, F10, F11) while the
+// check read 'cobble available'/'planks available': placeTable finds or
+// places a table item, never crafts one, and the pocket that holds sword
+// materials usually holds no TABLE item. F9's failure landed between its
+// second death and the zombie that killed it - the kitless bot then fought
+// the pickaxe fight it lost. The rung: 4 planks of ONE type craft the table
+// in the 2x2 grid (no table needed), the proven craftUntil call crafts it,
+// placeTable retries ONCE. The mixed-stack trap stays named (the v0.102.0
+// camp lesson: 4 split planks craft nothing).
+
+test('swordTablePlan: the F9 datum - cobble in pocket, no table item, planks of one type', () => {
+  const plan = swordTablePlan({ tableItem: 0, maxSameTypePlanks: 6 })
+  assert.equal(plan.craftTable, true)
+  assert.match(plan.why, /6 planks of one type/)
+})
+
+test('swordTablePlan: the 4-plank boundary is exact (the vanilla 2x2 recipe)', () => {
+  assert.equal(swordTablePlan({ tableItem: 0, maxSameTypePlanks: SWORD_TABLE_PLANKS }).craftTable, true)
+  assert.equal(swordTablePlan({ tableItem: 0, maxSameTypePlanks: SWORD_TABLE_PLANKS - 1 }).craftTable, false)
+  assert.equal(SWORD_TABLE_PLANKS, 4)
+})
+
+test('swordTablePlan: a held table item defers to placeTable (it owns find-or-place)', () => {
+  const plan = swordTablePlan({ tableItem: 1, maxSameTypePlanks: 6 })
+  assert.equal(plan.craftTable, false)
+  assert.match(plan.why, /placeTable owns it/)
+})
+
+test('swordTablePlan: the mixed-stack trap and junk refuse honestly', () => {
+  // 2+2 split across types crafts nothing - the v0.102.0 lesson byte for byte
+  assert.equal(swordTablePlan({ tableItem: 0, maxSameTypePlanks: 2 }).craftTable, false)
+  // junk/negative reads are 0 -> the honest refusal, never a fire
+  assert.equal(swordTablePlan({ tableItem: NaN, maxSameTypePlanks: NaN }).craftTable, false)
+  assert.equal(swordTablePlan({ tableItem: -1, maxSameTypePlanks: -4 }).craftTable, false)
+  assert.equal(swordTablePlan({}).craftTable, false)
+  assert.match(swordTablePlan({ tableItem: 0, maxSameTypePlanks: 3 }).why, /3\/4/)
+})
+
+test('craftSword: the table rung crafts the table and the sword lands (the F9 cure)', async () => {
+  const calls = []
+  const deps = {
+    craftUntil: async (bot, what) => {
+      calls.push(what)
+      bot.inventory.items().push({ name: what, count: 1 }) // the craft DELIVERS (the count-rose verify)
+      return true
+    },
+    placeTable: async (bot) => bot.inventory.items().some(i => i.name === 'crafting_table') ? { name: 'crafting_table' } : null
+  }
+  const bot = fakeBot([it('cobblestone', 8), it('stick', 3), it('oak_planks', 6)]) // the F9/F2 pocket: sword materials + table planks, no table item
+  const res = await craftSword(bot, { deps })
+  assert.deepEqual(calls, ['crafting_table', 'stone_sword'], 'the rung crafts the table, then the tier')
+  assert.equal(res.ok, true)
+  assert.equal(res.tier, 'stone_sword')
+})
+
+test('craftSword: a failed rung keeps the legacy no-table verdict', async () => {
+  const calls = []
+  const deps = {
+    craftUntil: async (bot, what) => { calls.push(what); return what !== 'crafting_table' },
+    placeTable: async () => null // never finds a table - the rung's craft fails too, the legacy verdict stands
+  }
+  const bot = fakeBot([it('cobblestone', 8), it('stick', 3), it('oak_planks', 6)])
+  const res = await craftSword(bot, { deps })
+  assert.deepEqual(calls, ['crafting_table'], 'the rung fired and failed - the tier craft never runs')
+  assert.equal(res.ok, false)
+  assert.equal(res.reason, 'no table')
+})
+
+test('craftSword: a refused rung keeps the legacy no-table verdict byte for byte', async () => {
+  let craftCalls = 0
+  const deps = {
+    craftUntil: async () => { craftCalls++; return true },
+    placeTable: async () => null
+  }
+  const bot = fakeBot([it('cobblestone', 8), it('stick', 3), it('oak_planks', 2)]) // planks 2 < 4 - the rung refuses
+  const res = await craftSword(bot, { deps })
+  assert.equal(craftCalls, 0, 'the rung never crafts from a split pocket')
+  assert.equal(res.ok, false)
+  assert.equal(res.reason, 'no table')
+})
+
+test('wiring pin: the rung rides between the null table and the legacy failure', () => {
+  const src = readFileSync(new URL('../../src/lib/arms.mjs', import.meta.url), 'utf8')
+  // the consult sits AFTER the first placeTable null and BEFORE the legacy line
+  assert.match(src, /const table = await tableOf\(bot\)\n    if \(!table\) \{\n      \/\/ \(v0\.305\.0\) THE SWORD'S TABLE RUNG/, 'the rung opens where the table read fails')
+  assert.match(src, /swordTablePlan\(\{ tableItem: tableItemCount\(bot\), maxSameTypePlanks: countMaxPlankType\(bot\) \}\)/, 'the plan reads the live pocket')
+  assert.match(src, /craftUntilFn\(bot, 'crafting_table', \{ times: 1, want: 1, tries: 2, log: step \}\)/, 'the table craft rides the proven craftUntil shape')
+  assert.match(src, /step\(`sword: table crafted from planks \(\$\{plan\.why\}\)`\)/, 'the landing names itself on the sword key')
+  const rungAt = src.indexOf('THE SWORD\'S TABLE RUNG')
+  const legacyAt = src.indexOf("step('sword: no table reachable or placeable')")
+  assert.ok(rungAt > -1 && legacyAt > rungAt, 'the legacy failure stays after the rung')
 })

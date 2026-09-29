@@ -38,6 +38,9 @@ export const SWORD_MATERIAL_COST = { iron_sword: 2, stone_sword: 2, wooden_sword
 // 3 ingots = the iron pickaxe recipe keepForIron holds for the upgrade chain.
 export const COBBLE_RESERVE = 4
 export const INGOT_RESERVE = 3
+// (v0.305.0) The table rung's plank floor: the vanilla crafting table is 4
+// planks of ONE type in the 2x2 grid (no table needed - that is the point).
+export const SWORD_TABLE_PLANKS = 4
 export const STICK_CRAFT_PLANKS = 2 // 2 planks of one type -> 4 sticks (2x2 grid)
 
 const invItems = bot => {
@@ -132,16 +135,70 @@ export async function craftSword (bot, { log = null, maxSwords = 1, deps = {} } 
     }
     const table = await tableOf(bot)
     if (!table) {
+      // (v0.305.0) THE SWORD'S TABLE RUNG - face 36525740882 (the v0.302.0
+      // field) measured the class: 6x 'sword: failed (no table)' (F2 x4, F9,
+      // F10, F11) while swordCheck read 'cobble available'/'planks available'
+      // - F9's failure landed between its second death and the zombie that
+      // killed it (the pickaxe fight the kitless bot then lost). placeTable
+      // returns null the moment the pocket holds no crafting_table ITEM (it
+      // finds or places, never crafts) - but 4 planks of ONE type craft the
+      // table in the 2x2 grid, no table needed. The pure plan (swordTablePlan)
+      // reads the pocket; when the rung fires, the proven craftUntil call
+      // crafts the table (the tools.mjs camp lane's own shape, line 875) and
+      // placeTable retries ONCE. The mixed-stack trap stays named (a log is 4
+      // same-type planks; 4 split planks craft nothing - the v0.102.0 lesson).
+      // A refused/failed rung keeps the legacy failure line byte for byte.
+      const plan = swordTablePlan({ tableItem: tableItemCount(bot), maxSameTypePlanks: countMaxPlankType(bot) })
+      if (plan.craftTable) {
+        const made = await craftUntilFn(bot, 'crafting_table', { times: 1, want: 1, tries: 2, log: step })
+        if (made) {
+          step(`sword: table crafted from planks (${plan.why})`)
+          const retried = await tableOf(bot)
+          if (retried) { return await finishSword(bot, { chk, craftUntilFn, table: retried, step }) }
+        }
+      }
       step('sword: no table reachable or placeable')
       return { ok: false, tier: null, reason: 'no table' }
     }
-    const before = countSwords(bot)
-    const ok = await craftUntilFn(bot, chk.tier, { times: 1, want: 1, table, tries: 2, log: step })
-    const after = countSwords(bot)
-    const done = ok && after > before
-    step(`sword: ${done ? 'OK' : 'craft did not land'} (${chk.tier}, holds ${after})`)
-    return { ok: done, tier: chk.tier, swords: after }
+    return await finishSword(bot, { chk, craftUntilFn, table, step })
   } catch (e) {
     return { ok: false, tier: null, reason: `error: ${e.message}` }
   }
+}
+
+/** Crafting-table items held in the pocket (junk-safe read). */
+function tableItemCount (bot) {
+  try { return invItems(bot).filter(i => i && i.name === 'crafting_table').reduce((a, i) => a + (i.count ?? 1), 0) } catch { return 0 }
+}
+
+/**
+ * (v0.305.0) THE SWORD'S TABLE PLAN - the pure half of the table rung. The
+ * sword lane died 'no table' while the pocket held the sword's OWN materials:
+ * placeTable finds or places a table item, never crafts one, and 4 planks of
+ * ONE type craft the table in the 2x2 grid (no table needed - the vanilla
+ * recipe). Pure, junk-tolerant: junk/negative reads = 0, a held table item
+ * defers to placeTable (it owns find-or-place), a mixed plank pocket (the
+ * largest single-type stack below the floor) refuses honestly - 4 split
+ * planks craft nothing (the v0.102.0 camp lesson byte for byte).
+ * @param {object} [p]
+ * @param {number} [p.tableItem] crafting_table items held but not placed
+ * @param {number} [p.maxSameTypePlanks] the LARGEST single plank-type stack
+ * @returns {{craftTable: boolean, why: string}}
+ */
+export function swordTablePlan ({ tableItem = 0, maxSameTypePlanks = 0 } = {}) {
+  const jit = v => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0)
+  if (jit(tableItem) > 0) return { craftTable: false, why: 'table item held - placeTable owns it' }
+  const maxSame = jit(maxSameTypePlanks)
+  if (maxSame >= SWORD_TABLE_PLANKS) return { craftTable: true, why: `${maxSame} planks of one type` }
+  return { craftTable: false, why: `no table item and largest same-type plank stack ${maxSame}/${SWORD_TABLE_PLANKS}` }
+}
+
+/** The sword craft tail shared by the direct and the table-rung paths. */
+async function finishSword (bot, { chk, craftUntilFn, table, step }) {
+  const before = countSwords(bot)
+  const ok = await craftUntilFn(bot, chk.tier, { times: 1, want: 1, table, tries: 2, log: step })
+  const after = countSwords(bot)
+  const done = ok && after > before
+  step(`sword: ${done ? 'OK' : 'craft did not land'} (${chk.tier}, holds ${after})`)
+  return { ok: done, tier: chk.tier, swords: after }
 }
