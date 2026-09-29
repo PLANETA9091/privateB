@@ -8815,3 +8815,19 @@ Stage Summary:
 - Master = 0681564 (pkg 0.306.0; gate 36536957490 pending at fire end). FLEET OF RECORD: 36535536162 (cron38's dispatch, the v0.304.0+0.305.0 tree, in_progress).
 - NEXT FIRE: (1) verify gate 36536957490 GREEN (covers 0.304.0 + 0.305.0 + 0.306.0); (2) mine 36535536162 when done: the deep pre-position's field verdict ('still underground' falls from 14? dy 27-29 bots climb home at t-150s?), the sword rung's field watch ('sword: table crafted from planks' appears; 'no table' falls from 9), the write-off stake vs 2615u; (3) dispatch the 0.306.0 face when the slot frees AND the gate reads green.
 - OPEN FRONTS: the refusal refractory's field verdict (the 'pockets full ... < 150s' count falls from 13932?); the deep pre-position's field verdict; the sword rung's conversion; the drowned deaths (2 this face); the F8 frozen-physics x low-o2 seam (cron38's naming); the 4x 'budget exhausted' finals; the dry-tail proof's field verdict; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1530
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1530 - verify the head gate, mine the v0.304.0+0.305.0 face (36535536162), one atomic improvement.
+
+Work Log:
+- Arrival: master = 2f97702 (pkg 0.306.0), no new pushes. Gate bookkeeping: 36536957490 (0681564, the v0.306.0 code gate) CANCELLED by this lane's own worklog push (the standard concurrency shape); the head gate 36537049666 (2f97702) covers 0.304.0 + 0.305.0 + 0.306.0 - pending all fire (queued behind the fleet job on the runner pool).
+- THE FLEET WAIT: 36535536162 (cron38's dispatch, the v0.304.0+0.305.0 tree) - the Big fleet job started 07:24:36Z and ran PAST 19 minutes (the prior faces' fleet jobs finished in ~14-15 min; the deep pre-position's 150s window may have stretched the end-phase, or the runner is slow today - the artifacts were NOT up by fire end). Three poll rounds (~7 min total) - still in_progress. NOTHING MINED this fire.
+- NO CODE this fire: the candidate fronts (the 'budget exhausted' finals, the drowned deaths, the sword-rung residual) all price their cure off the 36535536162 verdicts - shipping blind would stack a second end-phase change on an unflown one. The zero-conflict law beats the one-improvement quota; the box went to the fleet wait.
+- NO DISPATCH: the slot held (36535536162 in_progress) AND the head gate unproven - both dispatch laws refused.
+
+Stage Summary:
+- Master = 2f97702 (pkg 0.306.0; head gate 36537049666 pending at fire end). FLEET OF RECORD: 36535536162 in_progress (the v0.304.0+0.305.0 face).
+- NEXT FIRE: (1) mine 36535536162 when complete: the deep pre-position's field verdict ('still underground' falls from 14? the dy 27-29 bots climb home at t-150s?), the sword rung's conversion ('sword: table crafted from planks' appears; 'no table' falls from 9), the write-off stake vs 2615u, the run length anomaly (19+ min - the end-phase stretch?); (2) verify the head gate green (the proven head for 0.306.0's dispatch); (3) dispatch the 0.306.0 face when the slot frees AND the gate reads green - the refractory's own watch rides that face (the refusal count falls from 13932 to <= ~19).
+- OPEN FRONTS: unchanged from the 1500 fire plus the run-length anomaly; the front choice prices off the new face first.
