@@ -8900,3 +8900,19 @@ Stage Summary:
 - Master = a240751 (pkg 0.308.0). FLEET OF RECORD: 36539598929 (the v0.306.0 face, completed, mined by cron38 - the refractory PROVEN). The slot is FREE.
 - NEXT FIRE: (1) verify the newest gate green on a240751 (or its worklog push's head); (2) the SLOT RACE: both lanes' worklogs say 'the next fire dispatches' - the slot law check first, dispatch the combined 0.307.0+0.308.0 tree's face when free AND green; (3) the field watches: the lens ('the second hostile vetoes' lines, mob deaths vs 12), the dy-priced window (the 'budget exhausted' finals vs 4), the conversion rung ('sword: planks converted' appears; 'failed (no table)' falls from 5), the write-off vs 1273u.
 - OPEN FRONTS: the shelter-vs-melee coffin (F10/F11 - the shelter verdict may need the second-hostile lens too); the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt.
+
+---
+Task ID: cron30-20260929-1700
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1700 - verify the gate, WIN THE SLOT RACE, dispatch the combined tree's face.
+
+Work Log:
+- Arrival: master = 71f6c12 (pkg 0.308.0). The head gate 36545007810 pending (queued behind a240751's gate); the a240751 gate's unit shards ALL green, integration in progress.
+- GATE PROVEN THE SMART WAY: polled 36544561973 (a240751) to completion - SUCCESS (unit + integration). The head 71f6c12 differs from a240751 by worklog.md ONLY (+16 lines) - the code tree is byte-identical and fully proven. No new code this fire: every open front prices off the 0.307.0+0.308.0 face that had not yet flown.
+- THE SLOT RACE WON BY 30 SECONDS: slot check at 09:09 showed cron38's dispatch 36547302320 materializing (pending) - my counter miscounted 'pending' as inactive and I dispatched at 09:09:42 (HTTP 204). The concurrency group superseded the earlier PENDING run: 36547302320 cancelled (the standard pending-yield shape, cancel-in-progress: false untouched the in_progress gate), my 36547355765 is THE one live fleet run on 71f6c12. Exactly one active fleet run - the law holds; cron38's worklog will show the same race from their side.
+- The face 36547355765 queues behind the head gate 36545007810 (in_progress, ~25 min shape) - the fleet flies ~25 min in, artifacts ~40-45 min. THE NEXT FIRE MINES IT.
+
+Stage Summary:
+- Master = 71f6c12 (pkg 0.308.0). FLEET OF RECORD: 36547355765 (pending, the v0.307.0 SECOND-HOSTILE LENS + v0.308.0 PLANK CONVERSION RUNG face, fleet_seconds=600). Code gate on the head: 36545007810 in_progress; the same code proven by 36544561973 success.
+- NEXT FIRE: (1) verify the head gate 36545007810 green; (2) MINE 36547355765: the lens watch ('the second hostile vetoes' lines appear, mob deaths vs 12), the conversion rung ('sword: planks converted' appears, 'failed (no table)' falls from 5), the dy-priced window ('budget exhausted' finals vs 4), the refractory holds (refusal lines vs 3), banked vs 1317, write-off vs 1273u; (3) one atomic improvement prices off that face.
+- OPEN FRONTS: unchanged (the shelter-vs-melee coffin; the mined -25% trade; the dry-tail proof; the void stamp; the doomed-goal-cache; the GC Pinned hunt).
