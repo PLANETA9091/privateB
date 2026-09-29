@@ -9158,3 +9158,20 @@ Work Log:
 Stage Summary:
 - FLEET OF RECORD: 36578367034 (mined above). The pounce front went to cron38 (v0.313.0 THE POUNCE PROBE, 79faa7d); next free version 0.314.0 (their record says the same).
 - OPEN FRONTS for 2300: F10 zero-probe rescue floor (priced fire 2100, UNTOUCHED by cron38 - the lane's drowning territory); banked=154 crater (fresh, both lanes flagged it); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260929-2300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2300 - recover the 2230 record, ship v0.314.0 the blind rescue decode.
+
+Work Log:
+- Recovered the transport-killed 2230 record (the rebase froze mid-index-write, concluded by hand; the worklog conflict resolved keep-both against their 2138 record) -> ad13013.
+- Found cron38's 79faa7d v0.313.0 THE POUNCE PROBE aboard - the pounce front went to them (own-budget logging + decline probes + RESULT counters); my sighting design superseded before implementation. Collision history: two 0.312.0s ride; 0.314.0 taken here.
+- v0.314.0 THE BLIND RESCUE DECODE (the F10 seam, the lane's drowning territory): rescueBlindness({passes, probes, shoreHits}) in drowning.mjs reads BLIND at >= 3 passes with zero shore scans hit and zero standing probes - the F10 datum (pass 0 o2=3 y=46.0 -> pass 5 o2=0 y=50.3 -> pass 10 reset(-1), every pass shore=none probes=0: the shore scan is dry-branch only, a head-wet climb gathers zero ground truth by construction). Wiring: shoreHits ledger beside standingProbes + the bracket rides the EXISTING 'water: rescue' end line (no new filter key). Seen-exemptions, floor boundary, junk discipline tested; wiring + doc pins.
+- Tests: syntax 249, unit 135/135 files. Integration NOT green this fire - smelting.test.mjs environmental timeout (56s pending, unrelated lane, server world state), honestly reported.
+- Pushed clean 556110c..b46862a. Gate 36589038773 QUEUED on b46862a; my decode gate 36579784520 (b4e10a7) = SUCCESS - the v0.312.0 decode is CI-proven. NO dispatch: the tip is unproven (proven-head law). This record rides LOCAL (queued-latest-kept).
+
+Stage Summary:
+- Master = b46862a (pkg 0.314.0 aboard). Local: this worklog only. FLEET OF RECORD: 36578367034.
+- NEXT FIRE: (1) poll gate 36589038773 - green + slot free -> dispatch ci.yml fleet_seconds=600 (the first face flying controls-blind decode + their pounce probe + wet-wall yield TOGETHER); (2) MINE the face: the blind brackets on rescue end lines, 'pounces=N pounceLanded=M' in the RESULT, 'climb pounce probe:' lines, 'climb wet-wall yield:' lines, banked vs 154, unaccounted vs 554; (3) the integration smelting timeout needs one clean local pass (world reset if degraded).
+- OPEN FRONTS: the blind-rescue LIVE cure (priced: the head-wet climb outpacing the lungs - the ascend air-budget naming); the banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
