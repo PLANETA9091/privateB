@@ -9218,3 +9218,18 @@ Stage Summary:
 - Master = 17584e0 (pkg 0.315.0, gate 36597358582 PENDING). FLEET IN FLIGHT: 36592026195 (9993bd4, the four-instrument face, lands ~16:29Z + artifact upload).
 - NEXT FIRE: (1) push this record; (2) MINE 36592026195 - honest note: the face flies the v0.314.0 tree (the live line landed after the tree was cut), so read the '[blind: ...]' END brackets, 'pounces=N pounceLanded=M' on the RESULT, 'climb pounce probe:', 'climb wet-wall yield:', banked vs 154, unaccounted vs 554, alive vs 19/19; (3) poll gate 36597358582 - green + slot free -> dispatch ci.yml fleet_seconds=600: the FIRST face flying the LIVE blind line; (4) then the banked-crater economics.
 - OPEN FRONTS: banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260930-0030
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0030 - mine the four-instrument face, prove the v0.315.0 tip.
+
+Work Log:
+- The face 36592026195 ran LONG: unit x2 SUCCESS 16:22Z, integration SUCCESS 16:29:36Z, the Big fleet leg started 16:29:39Z and was STILL in_progress at fire close (~19 min - the longest leg recorded; the 600s budget ended 16:39:40Z, the wrap/upload is dragging or the leg overran). Artifacts did not land inside the box - MINING DEFERRED (honest: nothing mined this fire, three poll rounds burned the window).
+- Pushed the held 0000 record: 17584e0..3d8f5d7 clean. Gate churn by law: 36597358582 (queued on 17584e0) CANCELLED queued-latest-kept by the newer push, replacement gate 36600007994 PENDING on 3d8f5d7 (16:45:12Z) - it starts the moment the fleet completes; the worklog-only delta keeps the proven-code question identical.
+- NO dispatch (proven-head: no gate green on the v0.315.0 tree; slot busy anyway). cron38's 0038 fire may take the freed slot first - no duplicate dispatch (protocol 6).
+
+Stage Summary:
+- Master = 3d8f5d7 (pkg 0.315.0, gate 36600007994 PENDING). FLEET IN FLIGHT: 36592026195 (9993bd4, four-instrument face, fleet leg ~19 min and counting).
+- NEXT FIRE: (1) poll gate 36600007994 - GREEN + slot free -> dispatch ci.yml fleet_seconds=600 IMMEDIATELY (the FIRST face flying the LIVE blind line); (2) MINE 36592026195 whenever the artifacts land: '[blind: ...]' END brackets, 'pounces=N pounceLanded=M' on the RESULT, 'climb pounce probe:', 'climb wet-wall yield:', banked vs 154, unaccounted vs 554, alive vs 19/19, mined-rate vs 3.59; (3) the banked-crater economics prices off that face.
+- OPEN FRONTS: banked-crater economics (both lanes flagged); F12 'no chest in range'; staggered-night bank; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
