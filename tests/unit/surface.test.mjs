@@ -797,9 +797,13 @@ test('wetCeilingAscendGate: junk reads never throw and never over-dig', () => {
   assert.equal(wetCeilingAscendGate({ ascendDigs: NaN }).dig, true)
   assert.equal(wetCeilingAscendGate({ ascendDigs: -3 }).dig, true)
   assert.equal(wetCeilingAscendGate({}).dig, true)
-  // junk budget reads the constant, so a huge spent count still refuses
+  // junk budget reads the constant, so a spent count over the constant refuses
   assert.equal(wetCeilingAscendGate({ ascendDigs: 4, budget: NaN }).dig, false)
-  assert.equal(wetCeilingAscendGate({ ascendDigs: Infinity, budget: Infinity }).dig, false)
+  // the double-junk read (both Infinity) is a FRESH climb by the junk contract:
+  // junk ascendDigs reads 0 AND junk budget reads the constant - the room holds
+  assert.equal(wetCeilingAscendGate({ ascendDigs: Infinity, budget: Infinity }).dig, true)
+  // a genuinely spent climb refuses even with junk text in the budget slot
+  assert.equal(wetCeilingAscendGate({ ascendDigs: 12, budget: 'junk' }).dig, false)
   // fractional digs floor (3.7 spent = 3) - the 4th dig keeps its room
   assert.equal(wetCeilingAscendGate({ ascendDigs: 3.7 }).dig, true)
   assert.equal(wetCeilingAscendGate({ ascendDigs: 4.2 }).dig, false)
