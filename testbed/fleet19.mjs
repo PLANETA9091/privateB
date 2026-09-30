@@ -2537,12 +2537,22 @@ async function runBot (name, target, index) {
         // min(want, margin) construction cannot be outrun - the extension
         // moves the clock, never the kill. A covered pocket speaks nothing
         // (the leanness law); a clamped extension names the clamp.
-        const endPocketUnits = miner.bot.inventory
-          ? miner.bot.inventory.items()
-              .filter(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
-              .reduce((a, i) => a + ((Number.isFinite(i?.count) && i.count > 0) ? i.count : 0), 0)
-          : 0
-        const flowClock = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: endPocketUnits, baseMs: END_BANK_BUDGET })
+        // (v0.349.0) THE FLEET-DENOMINATOR CURE - face 36706516734 shipped the
+        // clock SILENT while the gap row read '447s needed, 248s budgeted -
+        // 199s short at 1.9u/s': the clock priced THIS bot's pocket (top F15
+        // 105u = 12.4% of 846u across 16 holders -> per-bot need ~60s ->
+        // covered) against the FLEET flow. The flow is the SHARED drain - the
+        // pocket that needs it is the fleet's. The denominator now reads the
+        // SAME sum the gap row prices (pocketTotals over every live miner) -
+        // the sibling-shape law restored by scope: the row that prices the
+        // shortage and the clock that pays it read ONE number. (Composed with
+        // the v0.348.0 tail-burst guard: the guard owns the RATE - a deposit
+        // wave is not a pace - this cure owns the DENOMINATOR; the fleet
+        // pocket 846u on the ex-burst 1.1u/s reads 768s and the clock finally
+        // speaks where both cures ride alone it stays silent - 216s at the
+        // wave's 4.0u/s fleet-pocketed, 99s at the ex-burst per-bot.)
+        const fleetPocketUnits = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean)).units
+        const flowClock = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetPocketUnits, baseMs: END_BANK_BUDGET })
         const chainBudgetMs = finalBankBudgetMs({
           yardDist,
           marginLeftMs: entryMarginMs,
@@ -2562,7 +2572,7 @@ async function runBot (name, target, index) {
           const burstNote = flowClock.burst
             ? ` - the tail burst (${flowClock.burst.spanS}s, ${flowClock.burst.delta}u, ${Math.round(flowClock.burst.share * 100)}% of the window's delta) is not a rate - priced at the ex-burst ${flowClock.rate.toFixed(1)}u/s`
             : ''
-          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (pocket ${endPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${burstNote}${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
+          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (fleet pocket ${fleetPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${burstNote}${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
         }
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,

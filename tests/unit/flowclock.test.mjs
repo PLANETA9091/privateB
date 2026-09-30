@@ -13,7 +13,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { flowPriceClock, FLOW_PRICE_MARGIN_S, END_BANK_BUDGET_MS, FLOW_BURST_DELTA_SHARE, FLOW_BURST_SPAN_SHARE } from '../../src/lib/endphase.mjs'
-import { bankBudgetGapRow } from '../../src/lib/pocketline.mjs'
+import { bankBudgetGapRow, pocketTotals } from '../../src/lib/pocketline.mjs'
+
+// (v0.349.0) THE FLEET-DENOMINATOR - the wiring's denominator reads the FLEET
+// pocket (pocketTotals over every live miner - the same sum the gap row
+// prices). Composed with the v0.348.0 tail-burst guard: the guard owns the
+// RATE (a deposit wave is not a pace), the fleet denominator owns the POCKET
+// (the flow is the shared drain) - face 8's honest read is 846u on the
+// ex-burst 1.1u/s = a 768s floor; either cure alone stays silent (216s
+// fleet-pocketed at the wave's 4.0u/s, 99s per-bot at the ex-burst rate).
 
 // the sixth-face datum: flow 2.6u/s (962u banked over a 370s span), pocket 962u
 const FACE6 = [{ t: 1000, banked: 834 }, { t: 1370, banked: 1796 }]
@@ -111,25 +119,32 @@ test('the shape is ALWAYS the four-key verdict plus the burst name (the always-a
   }
 })
 
-test('the wiring: fleet19 prices the clock at the final-bank entry from the live window and the bankable pocket', () => {
+test('the wiring: fleet19 prices the clock at the final-bank entry from the live window and the FLEET pocket', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   // the import rides the endphase family
   assert.match(src, /FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock \} from '\.\.\/src\/lib\/endphase\.mjs'/)
   // the pricing reads the LIVE flow window (the same slice the rows read)
-  assert.match(src, /flowPriceClock\(\{ samples: bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), pocketUnits: endPocketUnits, baseMs: END_BANK_BUDGET \}\)/)
+  assert.match(src, /flowPriceClock\(\{ samples: bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), pocketUnits: fleetPocketUnits, baseMs: END_BANK_BUDGET \}\)/)
+  // (v0.349.0) the denominator is the FLEET sum - the same number the gap row
+  // prices (pocketTotals over every live miner): the sibling-shape law
+  // restored by scope. The KEEP nuance is the scope law's price: the row
+  // prices pocketTotals.units, so the clock prices it too - the two must
+  // never disagree.
+  assert.match(src, /const fleetPocketUnits = pocketTotals\(\[\.\.\.bots\.values\(\)\]\.map\(e => e\.miner\)\.filter\(Boolean\)\)\.units/)
+  // the per-bot denominator is GONE (the scope bug's exact shape must not return)
+  assert.doesNotMatch(src, /pocketUnits: endPocketUnits/)
   // the floor feeds finalBankBudgetMs - the kill-margin construction untouched
   assert.match(src, /floorMs: flowClock\.floorMs/)
-  // the pocket is the BANKABLE mass (the KEEP items never ride a chest)
-  assert.match(src, /\.filter\(i => !DEPOSIT_KEEP\.some\(k => i\.name\.includes\(k\)\)\)/)
 })
 
 test('the wiring: the extension speaks (rides the final bank filter-key) and a clamp names the margin', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   // the speak guard is the extension itself (a covered pocket prints nothing)
   assert.match(src, /if \(flowClock\.extended\) \{/)
-  // the line rides the 'final bank' filter-key and names the pricing
+  // the line rides the 'final bank' filter-key and names the pricing - and
+  // (v0.349.0) the FLEET scope of the denominator (the cure is legible in the log)
   assert.match(src, /final bank budget: flow-priced/)
-  assert.match(src, /needs \$\{flowClock\.needS\}s\)/)
+  assert.match(src, /fleet pocket \$\{fleetPocketUnits\}u at \$\{flowClock\.rate\.toFixed\(1\)\}u\/s needs \$\{flowClock\.needS\}s\)/)
   assert.match(src, /the static \$\{\(END_BANK_BUDGET \/ 1000\)\.toFixed\(0\)\}s covered only the fast flows/)
   // a clamped extension names the kill margin (the law's own words)
   assert.match(src, /clamped to \$\{\(chainBudgetMs \/ 1000\)\.toFixed\(0\)\}s \(the kill margin\)/)
@@ -184,6 +199,26 @@ test('the inversion: a big pocket extends on the ex-burst rate where the naive r
   assert.equal(c.needS, 275)
   assert.equal(c.floorMs, 275000)
   assert.ok(Math.abs(c.rate - EX_BURST_RATE) < 1e-9)
+})
+
+test('the COMPOSED face-8 datum (v0.349.0): the FLEET pocket 846u on the ex-burst rate prices a 768s floor', () => {
+  // the denominator the 0.345.0 wiring starved: the FLEET pocket (the gap
+  // row's own 846u across 16 holders) priced on the guard's ex-burst rate -
+  // ceil(846 / (286/258)) = 764, + 4 = 768 > 248: the clock extends, speaks
+  // and moves (either cure alone stays silent: 216s fleet-pocketed at the
+  // wave's 4.0u/s, 99s per-bot at the ex-burst rate - the composition is the
+  // cure)
+  const c = flowPriceClock({ samples: FACE8, pocketUnits: 846 })
+  assert.equal(c.burst.spanS, 42)
+  assert.equal(c.burst.delta, 928)
+  assert.ok(Math.abs(c.rate - EX_BURST_RATE) < 1e-9)
+  assert.equal(c.needS, 768)
+  assert.equal(c.floorMs, 768000)
+  assert.equal(c.extended, true)
+  // the pocketTotals sum is the wiring's denominator shape: the fleet sum
+  // over every live miner (junk-safe by its own law), not one bot's inventory
+  const fake = [{ bot: { inventory: { items: () => [{ name: 'stone', count: 100 }, { name: 'trash', count: NaN }] } } }, null, { bot: { inventory: { items: () => [{ name: 'oak_log', count: 2 }] } } }]
+  assert.equal(pocketTotals(fake).units, 102)
 })
 
 test('the dead remainder: a window that is ALL wave keeps the static floor (the dead-flow law)', () => {
