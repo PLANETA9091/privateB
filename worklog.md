@@ -10170,3 +10170,19 @@ Stage Summary:
 - Master = d3abb73 (pkg 0.353.0). FLEET OF RECORD: face 11 (36726048100) IN_PROGRESS on 0.352.0.
 - NEXT FIRE (2230): (1) Poll face 11 -> mine the four cures' first field legs + the storm sequel. (2) Poll gate 36729192819 (or successor) -> green proves 0.353.0 -> DISPATCH FACE 12: the seal cross's first field leg ('seal cross LANDED' after 'pre-seal LANDED' - the eaten-seal stall never repeats). (3) CHECK ORIGIN FIRST (0.354.0).
 - OPEN FRONTS: the seal cross's first field leg (face 12); the composed clock / probe-first / doom re-arm / named refusal field legs (face 11 in flight); the rescue net healing (126->89->43->36->10); ticking-flat freeze head (cron38's lane); F12 chest-unreachable; GC Pinned hunt; shooter-band census; void stamp. Version next: 0.354.0.
+
+---
+Task ID: cron30-20260930-2230
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2230 - v0.354.0 the blind old-space cure; face 11's fleet leg still in flight.
+
+Work Log:
+- Face 11 (36726048100, 0.352.0) integration SUCCESS (the named refusal survived a FRESH CI world - the aquifer cure verified on the gate), the Big fleet leg in flight all box.
+- v0.354.0 THE BLIND OLD-SPACE CURE (a78e327): the mem line's old= printed -1M on EVERY row of EVERY face since v0.55.0 - the reader asked for `name`/`size_used`, the documented schema of v8.getHeapSpaceStatistics() (Node 22 AND 24 verified) is `space_name`/`space_used_size`; the find never matched. The OOM diagnosis's KEY pool (old_space = retained JS objects, the v0.55.0 comment's own law) was blind the whole campaign - faces 7/8/9 re-read: storm and calm both rode old=-1M, the GC Pinned hunt had no eyes. THE CURE: heapSpaceUsedMb (src/lib/heapspace.mjs, pure, junk-safe) reads BOTH schemas (documented first, legacy fallback), a zero is a REAL zero (the ?? law), junk keeps the -1 sentinel (the honest unknown). Wiring = one line; the mem line format stable. LIVE READ verified: old_space = 3 MB on a fresh process.
+- Tests: the documented schema, the legacy fallback, the real-zero law, the junk battery, the wiring pins (the broken reader verified DEAD). Local: syntax 266, unit 150/150, integration 2/2 (warm world). Pushed 6017744..a78e327 rebase-clean.
+- GATES: 36729192819 (d3abb73, 0.353.0) = SUCCESS - the seal cross is PROVEN; 36731195407 (a78e327, 0.354.0) in_progress at close. NO dispatch this box: face 11 held the fleet slot (the max-one-fleet-run law).
+
+Stage Summary:
+- Master = a78e327 (pkg 0.354.0). FLEET OF RECORD: face 11 (36726048100) in flight on 0.352.0.
+- NEXT FIRE (2300): (1) Poll face 11 -> mine the artifact: the composed clock's / the probe-first rescue's / the doom re-arm's / the named refusal's first field legs + the storm sequel. (2) Poll gate 36731195407 -> green proves 0.354.0. (3) Slot free + green -> DISPATCH FACE 12 on a78e327: the seal cross's first field leg + the first live old-space print. (4) CHECK ORIGIN FIRST (0.355.0).
+- OPEN FRONTS: the seal cross's first field leg (face 12); face 11's artifact mining; the old-space print's first live face (face 12); the GC Pinned hunt (eyes restored); the rescue net healing; ticking-flat freeze head (cron38's lane); F12 chest-unreachable; shooter-band census; void stamp. Version next: 0.355.0.
