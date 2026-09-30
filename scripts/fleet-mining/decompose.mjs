@@ -56,6 +56,38 @@ for (const l of ledger.orphanEndLines) console.log('  ORPHAN END:', l)
 for (const l of ledger.unclosedLines) console.log('  UNCLOSED START:', l)
 console.log(`  mid-episode: shore-stall ${ledger.midEvents.shoreStall || 0}, transit-stall ${ledger.midEvents.transitStall || 0}, blind-live ${ledger.midEvents.blindLive || 0}, no-ground-truth ${ledger.midEvents.noGroundTruth || 0}, repeat-wet standdown ${ledger.midEvents.repeatWetStanddown || 0}`)
 console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${b}{${Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(' ') || 'none')
+// (v0.376.0) THE RELEASE STARVATION CENSUS - released is 0/230 across five
+// faces and the timeout lines already carry the proof: the tail field is the
+// last three wet/dry reads, and the release's own stability criterion is
+// tail-dry-3 (STABILITY_TAIL_DRY). A timeout with tail dry/dry/dry is a bot
+// that was SURFACE-STABLE when the budget died - the release branch (the
+// pass ladder: bearing -> land -> release -> probes) never ran for it or its
+// window starved, and '0 probes' marks the bearing branch eating every pass
+// (face 15: all five timeouts are zero-probe - the v0.367.0 stall latch
+// never fired there, no stall line exists). The cure's field leg (face 16)
+// must convert this class: stall lines first, probes > 0, released leaving
+// 0, dry-tail timeouts shrinking toward 0. Mining-surface only: zero fleet
+// wiring, zero new log lines.
+const timeoutTailRe = /water: rescue timeout \(still wet, (\d+) passes, (\d+) probes, tail (dry|wet)\/(dry|wet)\/(dry|wet)\)/
+const tailDist = {}
+let stableT = 0; let nearT = 0; let zeroProbeT = 0; let totalT = 0
+const stableBots = {}
+for (const l of lines) {
+  const m = typeof l === 'string' ? l.match(timeoutTailRe) : null
+  if (!m) continue
+  totalT++
+  const dry = [m[3], m[4], m[5]].filter(s => s === 'dry').length
+  tailDist[`${dry}dry/3`] = (tailDist[`${dry}dry/3`] || 0) + 1
+  const bot = (l.match(/^F(\d+)\s/) || [])[1]
+  if (dry === 3) { stableT++; if (bot) stableBots[`F${bot}`] = (stableBots[`F${bot}`] || 0) + 1 }
+  if (dry === 2) nearT++
+  if (m[2] === '0') zeroProbeT++
+}
+console.log('--- RELEASE STARVATION CENSUS (v0.376.0) ---')
+console.log('  timeout tails (dry reads of 3):', Object.entries(tailDist).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}x${n}`).join(' ') || 'none')
+console.log(`  surface-stable timeouts (tail dry/dry/dry - the release's own tail criterion held at budget death): ${stableT}`, 'per-bot:', fmt(stableBots))
+console.log(`  near-surface timeouts (2 of 3 tail dry): ${nearT}`)
+console.log(`  zero-probe timeouts (the bearing branch ate every pass): ${zeroProbeT} of ${totalT}`)
 console.log('  per-bot glitch pages(air-bar ignored):', fmt(perBot(/air-bar glitch ignored/)))
 console.log('  liar ladder ratchets:', count(/liar ladder ratchets/), 'per-bot:', fmt(perBot(/liar ladder ratchets/)))
 console.log('  liar ladder resets:', count(/liar ladder resets/))
