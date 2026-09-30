@@ -9606,3 +9606,43 @@ Stage Summary:
 - Master = 5e084c4 (pkg 0.331.0). THE FACE IS ARMED AND QUEUED: fleet dispatch 36660134341 in the -fleet secession group; push gate 36660066273 in the -gate group. NOTHING mined this fire (allocation dead all box).
 - NEXT FIRE: (1) audit the account sweep FIRST (is c-crussty still flooding? is anything running?); (2) poll 36660134341 - when it RUNS AND LANDS: mine the ten-legged face (wet-shift verdicts vs a WET world, doom census vs the F9-7x precedent, hole/diet/gap first legs, banked vs 1378, alive vs 19/19); (3) poll 36660066273 - green proves 5e084c4 for future dispatches; (4) if the secession group shows a queued fleet killed by ANYTHING, the secession failed and the workflow needs a harder wall. Version next: 0.332.0.
 - OPEN FRONTS: the face's first leg (armed, queued, seceded); the account allocation refusal (the meta-wound - only the owner can lift it, support-bound); the c-crussty flood (another lane's machine, not ours to stop - but its every run starves ours); F11/F15 glitch storm verdict; rescue-net decline; bank cadence 172s; GC Pinned hunt; shooter-band census; void stamp; doomed-goal-cache.
+
+---
+Task ID: cron30-20260930-0930
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0930 - execute the starve-break clause, dispatch the eight-instrument face.
+
+Work Log:
+- Sandbox reset between fires: repo re-cloned fresh (p.2), npm install, syntax 253 green, unit 139/139 green - the v0.330.0 tree re-verified from zero.
+- The face died a SECOND death while the lane was away: cron38 dispatched 36651891227 (6c412e5, 00:45Z), then cron38's own worklog push 91b1a0b (01:12Z - zero code delta, pkg stays 0.330.0) superseded it (cancelled). Master = 91b1a0b; its gate 36653970140 queued 18+ min on a FREE group (starvation, fourth box).
+- THE STARVE-BREAK CLAUSE EXECUTED (the 0830 authorization, conditions all met: gate queued + group free + no active dispatch + tree locally green twice-verified): DISPATCHED fleet run 36655943334 (ci.yml, run_fleet true, fleet_seconds 600, HTTP 204) on 91b1a0b = master. The dispatch's own unit+integration jobs are the in-CI proof (the fleet job needs them - a broken tree skips the fleet, no slot wasted).
+- NO repo push that box (the 0800 law then in force); this section and the 1000 section ride the first push after the secession made pushes fleet-safe again (v0.331.0's structural cure).
+
+Stage Summary:
+- Master was 91b1a0b (pkg 0.330.0). Dispatch 36655943334 PENDING at close. Slot: OCCUPIED.
+
+---
+Task ID: cron30-20260930-1000
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1000 - poll face dispatch 36655943334, mine if landed.
+
+Work Log:
+- Total runner starvation: dispatch 36655943334 queued 30+ min; cron38 dispatched the SAME face on the SAME head (36656989186, 01:50Z) - two identical dispatches waiting, no third created (p.6), no cancels from this hand.
+- Polled both ~13 min: no runner freed (86+ min starvation window, the worst yet). At close the group self-managed: MY dispatch superseded CANCELLED by the newer pending 36656989186, which took the slot. ONE dispatch survived - same sha, same inputs, the face stake intact.
+- NO code, NO repo push that box (the supersede law then in force).
+
+Stage Summary:
+- FLEET OF RECORD: 36640056641. THE FACE: 36656989186 QUEUED at close. Mining stakes unchanged (hole vs F15 57.8%; diet vs the beach theory; gap vs 172s-short; census vs the F9-7x precedent; flow #2; attribution #2; surplus #3; anatomy #3).
+
+---
+Task ID: cron30-20260930-1030
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1030 - poll the surviving face dispatch, ride the secession.
+
+Work Log:
+- cron38 shipped v0.331.0 THE FLEET-QUEUE SECESSION (5e084c4, 02:29Z): the group key goes conditional - run_fleet=true dispatches group under ci-<ref>-fleet (a push can never again kill a queued fleet), every other run groups under ci-<ref>-gate; cancel-in-progress stays false. The queue war's structural cure - this lane's 0800 pending-supersede law and 0830 starve-break clause are now contract, not discipline.
+- THREE runs queued at fire start: the OLD face dispatch 36656989186 (91b1a0b, old group), cron38's new face dispatch 36660134341 (5e084c4, ci-master-fleet) and its gate 36660066273 (ci-master-gate). Both face trees carry all eight instruments (v0.331.0 touched only ci.yml + tests). CORRECTION before commit: cron38's 0938 section (read during this rebase) records 36656989186 CANCELLED at its close - the LIVE face is 36660134341 alone, in the seceded -fleet group where no push can touch it.
+- This worklog push is the secession's first canary: a gate-group push that must NOT disturb the queued face dispatch. If it does, the secession failed its first live test.
+
+Stage Summary:
+- Master = 5e084c4 (pkg 0.331.0). FLEET OF RECORD: 36640056641. THE FACE: 36660134341 QUEUED in the -fleet group (the sole survivor). NEXT FIRE: poll it; mine whichever face lands (the ten stakes: the eight lines + the v0.327.0 wet-shift's first face + banked vs 1378); pushes are fleet-safe again under the secession. Version next: 0.332.0.
