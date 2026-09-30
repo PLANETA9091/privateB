@@ -490,21 +490,50 @@ export function bankClimbRetry ({ chainLeftMs = 0, spentMs = 0, reason = '', att
 // stops paying).
 export const FINAL_BANK_DOOM_LATCH_CYCLES = 2
 
+// (v0.351.0) THE ONE-SHOT RE-ARM - face 36710193486 (the ninth, calm) priced
+// the latch's own tail: F16 latched at 2 failed climb cycles and its chain
+// was refused for the REST of the run ('final bank: 0 (dooms-latched ...)'
+// five verdicts deep) while the pocket grew unbanked - the doom evidence was
+// never re-tested. The latch now carries ONE re-arm: the first latched
+// verdict opens this cooldown; once it is paid, the door opens for exactly
+// one more cycle. A still-doomed bottom re-latches terminally (the re-arm is
+// spent either way - the v0.316.0 storm's ten doomed climb calls stay
+// impossible: one extra cycle, never a second). A proven climb un-dooms the
+// bottom entirely (the wiring resets the count on cr.ok - the evidence was
+// refuted, the latch rides fresh).
+export const FINAL_BANK_DOOM_REARM_MS = 120000
+
 /**
  * The shaft-bottom doom latch (pure, junk-safe).
  * @param {object} [p]
  * @param {number} [p.failedCycles] failed final-bank climb cycles recorded for this bot (junk/negative -> never latches, the body-guard law)
  * @param {number} [p.latchCycles] the refusal threshold (default FINAL_BANK_DOOM_LATCH_CYCLES = 2)
- * @returns {{latched: boolean, failed: number}}
+ * @param {boolean} [p.rearmed] the one-shot re-arm already rode for this bot (no second re-arm, ever)
+ * @param {number} [p.latchAt] the epoch ms of the latch's first verdict (0/undefined/junk -> the cooldown never opened, no re-arm)
+ * @param {number} [p.now] the current epoch ms (junk -> no re-arm, the terminal latch stands)
+ * @param {number} [p.rearmMs] the re-arm cooldown (default FINAL_BANK_DOOM_REARM_MS; junk/<=0 -> no re-arm)
+ * @returns {{latched: boolean, failed: number, rearmGranted: boolean}}
  */
 export function finalBankDoomLatch (opts = {}) {
   // (the Number(null) lesson, eighth strike) the BODY guard, not a
   // destructuring default: junk never latches - missing evidence is not a doom.
-  const { failedCycles = 0, latchCycles = FINAL_BANK_DOOM_LATCH_CYCLES } = opts || {}
+  const { failedCycles = 0, latchCycles = FINAL_BANK_DOOM_LATCH_CYCLES, rearmed = false, latchAt = 0, now = 0, rearmMs = FINAL_BANK_DOOM_REARM_MS } = opts || {}
   const n = Number(failedCycles)
-  if (!Number.isFinite(n) || n < 0) return { latched: false, failed: 0 }
+  if (!Number.isFinite(n) || n < 0) return { latched: false, failed: 0, rearmGranted: false }
   const c = Number.isFinite(latchCycles) && latchCycles > 0 ? Math.floor(latchCycles) : FINAL_BANK_DOOM_LATCH_CYCLES
-  return { latched: n >= c, failed: n }
+  const latchedBase = n >= c
+  // (v0.351.0) THE ONE-SHOT RE-ARM: latched && not yet spent && the cooldown
+  // is verifiably paid (a positive latch timestamp, a finite now, a positive
+  // rearm window). Junk in any clock keeps the terminal latch - missing
+  // evidence is not a re-arm, the same body-guard law that owns the count.
+  let rearmGranted = false
+  if (latchedBase && !rearmed) {
+    const t0 = Number(latchAt)
+    const t = Number(now)
+    const ms = Number(rearmMs)
+    if (Number.isFinite(t0) && t0 > 0 && Number.isFinite(t) && Number.isFinite(ms) && ms > 0 && t >= t0 + ms) rearmGranted = true
+  }
+  return { latched: latchedBase && !rearmGranted, failed: n, rearmGranted }
 }
 
 // ---------------------------------------------------------------------------

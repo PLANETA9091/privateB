@@ -79,3 +79,77 @@ test('wiring: the fleet runner feeds the latch and refuses at the door', () => {
   assert.ok(FLEET.includes('dooms-latched after'), 'the refusal line names the latch')
   assert.ok(FLEET.includes('the chain is refused, the clock mines on'), 'the refusal names where the clock goes')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.351.0) THE ONE-SHOT RE-ARM - face 36710193486 (the ninth, calm) priced
+// the latch's own tail: F16 latched at 2 failed climb cycles and the chain was
+// refused for the REST of the run ('final bank: 0 (dooms-latched ...)' five
+// verdicts deep) while the pocket grew unbanked. The latch now carries ONE
+// re-arm: the first latched verdict opens the 120s cooldown; once paid, the
+// door opens for exactly one more cycle - a still-doomed bottom re-latches
+// terminally, a proven climb un-dooms the bottom entirely.
+import { FINAL_BANK_DOOM_REARM_MS } from '../../src/lib/endphase.mjs'
+
+test('the face-9 datum: the re-arm grants after the cooldown, never before it', () => {
+  const t0 = 1000000
+  // the first latched verdict: no timestamp yet -> the latch stands, no re-arm
+  const first = finalBankDoomLatch({ failedCycles: 2, rearmed: false, latchAt: 0, now: t0 })
+  assert.equal(first.latched, true)
+  assert.equal(first.rearmGranted, false)
+  // the cooldown riding: 119s in - still the terminal latch
+  const mid = finalBankDoomLatch({ failedCycles: 2, rearmed: false, latchAt: t0, now: t0 + 119000 })
+  assert.equal(mid.latched, true)
+  assert.equal(mid.rearmGranted, false)
+  // the cooldown paid: the door opens for exactly one more cycle
+  const armed = finalBankDoomLatch({ failedCycles: 2, rearmed: false, latchAt: t0, now: t0 + 120000 })
+  assert.equal(armed.latched, false, 'the re-armed chain rides')
+  assert.equal(armed.rearmGranted, true, 'the grant names itself')
+  // the exact boundary is inclusive (t0 + rearmMs grants)
+  assert.equal(finalBankDoomLatch({ failedCycles: 2, rearmed: false, latchAt: t0, now: t0 + FINAL_BANK_DOOM_REARM_MS }).rearmGranted, true)
+})
+
+test('the one-shot law: a spent re-arm never grants again - the next failure re-latches terminally', () => {
+  const t0 = 1000000
+  const spent = finalBankDoomLatch({ failedCycles: 3, rearmed: true, latchAt: t0, now: t0 + 999999 })
+  assert.equal(spent.latched, true, 'the re-armed cycle failed -> terminal')
+  assert.equal(spent.rearmGranted, false, 'no second re-arm, ever')
+  // even a still-standing count cannot re-grant once the shot is spent
+  assert.equal(finalBankDoomLatch({ failedCycles: 2, rearmed: true, latchAt: t0, now: t0 + 120000 }).latched, true)
+})
+
+test('the re-arm junk battery: junk in any clock keeps the terminal latch (missing evidence is not a re-arm)', () => {
+  const t0 = 1000000
+  for (const [latchAt, now, rearmMs] of [[0, t0 + 999999, 120000], [t0, NaN, 120000], [t0, undefined, 120000], [t0, t0 + 999999, 0], [t0, t0 + 999999, -5], [NaN, t0 + 999999, 120000]]) {
+    const v = finalBankDoomLatch({ failedCycles: 2, rearmed: false, latchAt, now, rearmMs })
+    assert.equal(v.latched, true, `latchAt=${latchAt} now=${now} rearmMs=${rearmMs} never re-arms`)
+    assert.equal(v.rearmGranted, false)
+  }
+  // the deeper body-guard: junk counts keep the fresh shape (rearmGranted rides)
+  const junk = finalBankDoomLatch({ failedCycles: 'three' })
+  assert.equal(junk.latched, false)
+  assert.equal(junk.rearmGranted, false)
+})
+
+test('the constants pin: the re-arm cooldown sits at 120s', () => {
+  assert.equal(FINAL_BANK_DOOM_REARM_MS, 120000)
+})
+
+test('wiring: the re-arm rides the door, outranks the night hold, and a proven climb un-dooms the bottom', () => {
+  // the re-arm state lives next to the per-bot cycle counter (run-scoped)
+  assert.ok(FLEET.includes('let finalBankDoomLatchAt = 0'), 'the cooldown timestamp is declared')
+  assert.ok(FLEET.includes('let finalBankDoomRearmed = false'), 'the one-shot spend flag is declared')
+  // the latch call feeds the re-arm inputs
+  assert.ok(/finalBankDoomLatch\(\{ failedCycles: finalBankDoomCycles, rearmed: finalBankDoomRearmed, latchAt: finalBankDoomLatchAt, now: Date\.now\(\) \}\)/.test(FLEET), 'the latch reads the re-arm state')
+  // the re-arm line names the window and the terminal consequence
+  assert.ok(FLEET.includes('the doom latch re-arms once'), 'the re-arm names itself at the door')
+  assert.ok(FLEET.includes('the next failure re-latches'), 'the re-arm names the terminal consequence')
+  // the night hold yields to the re-arm (a deferral would spend the shot on the hold)
+  const rearmIdx = FLEET.indexOf('the doom latch re-arms once')
+  const nightGateIdx = FLEET.indexOf("!doomLatch.rearmGranted && surfaceHoldVerdict")
+  assert.ok(rearmIdx > 0 && nightGateIdx > rearmIdx, 'the night-hold gate carries the re-arm exemption after the re-arm line')
+  // a proven climb resets the doom state (the evidence was refuted)
+  const okIdx = FLEET.indexOf('A PROVEN CLIMB UN-DOOMS THE BOTTOM')
+  assert.ok(okIdx > 0, 'the un-doom comment rides the OK site')
+  const resetIdx = FLEET.indexOf('finalBankDoomCycles = 0', okIdx)
+  assert.ok(resetIdx > okIdx && resetIdx - okIdx < 300, 'the reset rides the OK verdict')
+})

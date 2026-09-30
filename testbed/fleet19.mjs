@@ -24,7 +24,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
@@ -880,6 +880,11 @@ async function runBot (name, target, index) {
   // chain is refused at the door - F9 printed the identical verdict 7x on face
   // 36592026195, each re-entry re-paying two fenced climbs on the same bottom.
   let finalBankDoomCycles = 0
+  // (v0.351.0) THE ONE-SHOT RE-ARM state: the latch's first verdict opens the
+  // cooldown (latchAt), the re-arm itself is spent once (rearmed) - a
+  // successful climb resets all three (the doom evidence was refuted).
+  let finalBankDoomLatchAt = 0
+  let finalBankDoomRearmed = false
   for (let attempt = 0; attempt < 12 && Date.now() < deadline; attempt++) {
     let miner
     let claimSync = null // (v0.15.0) cross-process PVB2 claim hearing, attached after login
@@ -2504,10 +2509,19 @@ async function runBot (name, target, index) {
       // Gated on bankable (an empty pocket was never doomed, it was just
       // empty); the latch verdict outranks the night hold (the refusal is the
       // terminal truth - the deferral would only re-arm the doomed walk).
-      const doomLatch = finalBankDoomLatch({ failedCycles: finalBankDoomCycles })
+      const doomLatch = finalBankDoomLatch({ failedCycles: finalBankDoomCycles, rearmed: finalBankDoomRearmed, latchAt: finalBankDoomLatchAt, now: Date.now() })
+      if (doomLatch.latched && finalBankDoomLatchAt === 0) finalBankDoomLatchAt = Date.now() // (v0.351.0) the re-arm cooldown opens at the latch's first verdict
+      if (bankable && doomLatch.rearmGranted) {
+        // (v0.351.0) THE ONE-SHOT RE-ARM - the face-9 F16 shape: the latch
+        // refused the chain for the rest of the run while the pocket grew.
+        // One bounded chance rides NOW; the re-arm is spent whether the cycle
+        // wins or loses, and the next failure re-latches terminally.
+        finalBankDoomRearmed = true
+        console.log(`${name} final bank: the doom latch re-arms once (${doomLatch.failed} failed shaft-bottom climb cycles, the ${Math.round(FINAL_BANK_DOOM_REARM_MS / 1000)}s cooldown paid) - one more cycle rides, the next failure re-latches`)
+      }
       if (bankable && doomLatch.latched) {
         console.log(`${name} final bank: 0 (dooms-latched after ${doomLatch.failed} failed shaft-bottom climb cycles - the chain is refused, the clock mines on)`)
-      } else if (bankable && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
+      } else if (bankable && !doomLatch.rearmGranted && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
         console.log(`${name} final bank deferred: night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the pocket rides out the dark alive (the v0.140.1 night hold)`)
       } else if (bankable) {
         // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the
@@ -2840,7 +2854,15 @@ async function runBot (name, target, index) {
               console.log(`${name} final climb: no retry (${retryPlan.why})`)
             }
           }
-          if (cr.ok) console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
+          if (cr.ok) {
+            console.log(`${name} final climb: OK +${cr.gained} levels (${cr.steps} steps, ${cr.dug} dug${cr.traversed ? `, ${cr.traversed} traversed` : ''}, ${cr.secs?.toFixed(0)}s)`)
+            // (v0.351.0) A PROVEN CLIMB UN-DOOMS THE BOTTOM - the doom
+            // evidence was refuted, the latch state rides fresh (a later doom
+            // starts its own count and its own one-shot re-arm).
+            finalBankDoomCycles = 0
+            finalBankDoomLatchAt = 0
+            finalBankDoomRearmed = false
+          }
           else console.log(`${name} final climb: failed - ${cr.reason}${cr.waitSecs ? ` (wait ${cr.waitSecs}s)` : ''}${cr.stage ? ` [stage ${cr.stage}]` : ''}`)
           // (v0.27.0) the chain runs under a wall-clock budget: doomed walks
           // give up with a named reason instead of churning the path queue
