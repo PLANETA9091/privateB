@@ -34,7 +34,7 @@ import {
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP, LENS_FOE_RANGE } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
-import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine } from '../lib/statcarry.mjs'
+import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine, wetRescueWindowLive } from '../lib/statcarry.mjs' // (v0.357.0) the wet-rescue window classifier - the storm verdict's exclusion feed
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
@@ -135,7 +135,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, wetRescueGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -1668,6 +1668,7 @@ export function createMiner ({
   let lastBypassEchoAt = 0 // (v0.265.0) the bypass echo's rate limiter (the AIR_GLITCH_LOG_MS cadence)
   let headWetSince = 0
   let headWetLastMs = 0 // (v0.279.0) the most recent COMPLETED wet episode's duration - the death context's fallback when the live tracker reads reset
+  let headWetEndedAt = 0 // (v0.357.0) the epoch ms that episode ended - the wet-rescue window's tail anchor
   let dryGlitchStreak = 0 // (v0.95.0) consecutive critical-on-dry readings - the escalation ladder's fuel
   let noOpRescueGateUntil = 0 // (v0.104.0) the dry-land proof's re-fire gate (the glitch-class backoff)
   // (v0.117.0) THE CHRONIC-LIAR LADDER state: glitchConfirmed counts the
@@ -2285,7 +2286,7 @@ export function createMiner ({
       // episode - its DURATION survives in headWetLastMs so the death context
       // can render the previous wetting '@last' when the live tracker reads
       // reset (the surface-bob + rescue-gate freeze the field read proved)
-      if (headWet) { if (!headWetSince) headWetSince = now } else { if (headWetSince) headWetLastMs = now - headWetSince; headWetSince = 0 }
+      if (headWet) { if (!headWetSince) headWetSince = now } else { if (headWetSince) { headWetLastMs = now - headWetSince; headWetEndedAt = now } headWetSince = 0 }
       // (v0.119.0) feed the falling-bar history - in-domain readings only
       // (the -1 reset sentinel and NaN never enter; the verdict's trend lane
       // needs an honest tail). Capped so the window stays recent.
@@ -2336,6 +2337,15 @@ export function createMiner ({
         // expired (run102 F3: 15 starts, 10 proofs, 4 relogs - a rescue every
         // ~25 s for the whole run). Fresh evidence only.
         if (Date.now() >= noOpRescueGateUntil) dryGlitchStreak++
+        // (v0.357.0) THE WET-RESCUE CLASSIFICATION - face 36733939481 read a
+        // 600-glitch storm that decomposed to ONE bot's ONE wet rescue: the
+        // rescue's surface-bob reads dry block contact while the bar is
+        // genuinely low, and every such read counted as an ambient glitch.
+        // A read inside the wet window (head wet NOW, or within the 45s tail
+        // after the episode ended or a rescue fired) counts BOTH counters -
+        // the total keeps its meaning for the economy and the diet (no
+        // cascade), the wet share is the storm verdict's exclusion feed.
+        if (wetRescueWindowLive({ headWetNow: headWetSince > 0, lastWetEndAt: headWetEndedAt, lastRescueAt, now })) stats.wetRescueGlitches = (stats.wetRescueGlitches ?? 0) + 1
         stats.airGlitches++
         if (now - lastGlitchLogAt >= AIR_GLITCH_LOG_MS) {
           lastGlitchLogAt = now

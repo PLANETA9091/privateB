@@ -38,6 +38,10 @@ export const CARRY_FIELDS = [
   'mined', 'failed', 'skipped', 'flyFails', 'hookCalls', 'hookFails',
   'mapTrips', 'mapRecords', 'banked', 'planted', 'torched', 'fights',
   'climbs', 'shelters', 'rescues', 'airGlitches', 'claims', 'deaths',
+  // (v0.357.0) THE WET-RESCUE CARRY - born inside the list (the v0.346.0
+  // lesson byte for byte): a relog mid-wet-rescue must not orphan the wet
+  // share the storm verdict excludes with.
+  'wetRescueGlitches',
   // (v0.346.0) THE ABANDON CARRY - the storm row's hands counter rode the
   // report-time stats, but a relog after the hand rebuilt the miner and the
   // v0.18.9 carry moved only this list: face 36700431959 printed F18's hand
@@ -650,22 +654,85 @@ export function voidContextLine (r = {}) {
 // (never NaN hands - the body-guard law). Pure: reads, never mutates.
 export const STORM_GLITCH_FLOOR = 100
 
+// ---------------------------------------------------------------------------
+// (v0.357.0) THE WET-RESCUE EXCLUSION - the storm verdict's feed is polluted
+// by one measured class: face 36733939481 read 'storm verdict: STORM - 600
+// air glitches (60.0/min), top F12 g600 (100%), 1 abandon hand' while the
+// anatomy decomposed ALL 600 to ONE bot's ONE wet rescue (F12 took a wet
+// column at [-161,55,401], the drowning rescue ran 8+ passes - o2 4->1->reset,
+// buoyancy climbs - and every critical-on-dry read inside that window counted
+// as a glitch: the rescue's surface-bob reads dry block contact while the bar
+// is genuinely low, physiologically true, class-wise not the ambient storm).
+// The liar ladder's own abandon proved the class ('liar ladder abandons the
+// glitch class - 2 confirmed no-op pages, the streak lane stands down'). The
+// storm verdict is the fleet's loudest weather signal - a wet rescue must
+// never read as a storm. THE CURE: the increment classifies (a read inside
+// the wet window - head wet NOW, or within WET_RESCUE_GLITCH_WINDOW_MS after
+// the wet episode ended or after a rescue fired - counts BOTH counters, the
+// total keeps its meaning for the economy and the diet, no cascade) and the
+// verdict reads the DRY sum: a face whose storm is all wet downgrades to the
+// honest WET class, a mixed face names the excluded share, a clean face
+// renders byte-identical to v0.356.0 (wetGlitches absent or zero changes
+// nothing - the sync law).
+export const WET_RESCUE_GLITCH_WINDOW_MS = 45000
+
+/**
+ * Is the read inside the wet-rescue window? Pure, junk-safe: junk never
+ * invents a window (the body-guard law) - a junk telemetry read classifies
+ * as NOT wet, so the total counter never undercounts.
+ * @param {object} [p]
+ * @param {boolean} [p.headWetNow] the head is in water at read time
+ * @param {number|null} [p.lastWetEndAt] the epoch ms the last wet head episode ended
+ * @param {number|null} [p.lastRescueAt] the epoch ms the last drowning rescue fired
+ * @param {number|null} [p.now] the read's epoch ms
+ * @returns {boolean}
+ */
+export function wetRescueWindowLive (p = {}) {
+  const { headWetNow = false, lastWetEndAt = null, lastRescueAt = null, now = null } = p || {}
+  if (headWetNow === true) return true
+  const nowN = Number.isFinite(now) && now > 0 ? now : null
+  if (nowN === null) return false
+  for (const at of [lastWetEndAt, lastRescueAt]) {
+    const t = Number.isFinite(at) && at > 0 ? at : null
+    if (t !== null && nowN >= t && nowN - t < WET_RESCUE_GLITCH_WINDOW_MS) return true
+  }
+  return false
+}
+
 /**
  * The per-face storm verdict: STORM (at/above the floor: rate + top holder +
- * abandon hands) or CALM (below it). Always a string - never null.
+ * abandon hands) or CALM (below it). The v0.357.0 wet-rescue exclusion: a
+ * wetGlitches input carves the wet-rescue class out of the storm arithmetic -
+ * if only the wet share crosses the floor the verdict downgrades to the
+ * honest WET class (never silent - a downgrade is a verdict, the 05:00
+ * ledger-skip lesson). Always a string - never null.
  * @param {object} [opts]
  * @param {number|null} [opts.airGlitches] the fleet-wide glitch sum
+ * @param {number|null} [opts.wetGlitches] the wet-rescue-window share of that sum
  * @param {number|null} [opts.secs] the run duration in seconds (junk drops the rate)
  * @param {Array<{name?: string, stats?: {airGlitches?: number}|null}>} [opts.bots]
  * @param {number|null} [opts.abandons] the fleet-wide abandonment hand sum
  * @returns {string} 'storm verdict: ...'
  */
 export function stormVerdictRow (opts = {}) {
-  const { airGlitches = null, secs = null, bots = [], abandons = null } = opts || {}
+  const { airGlitches = null, wetGlitches = null, secs = null, bots = [], abandons = null } = opts || {}
   const g = Number.isFinite(airGlitches) && airGlitches > 0 ? Math.floor(airGlitches) : 0
+  // (v0.357.0) the wet share: junk reads 0 (no wet input = the v0.356.0 face,
+  // byte-identical), negatives clamp to 0, an overcount clamps to g (the wet
+  // share is a subset of the total, never a second storm on top).
+  const wRaw = Number.isFinite(wetGlitches) && wetGlitches > 0 ? Math.floor(wetGlitches) : 0
+  const w = Math.min(wRaw, g)
   const a = Number.isFinite(abandons) && abandons > 0 ? Math.floor(abandons) : 0
   const hands = a > 0 ? `, ${a} abandon hand${a === 1 ? '' : 's'}` : ''
   if (g >= STORM_GLITCH_FLOOR) {
+    const dry = g - w
+    if (dry < STORM_GLITCH_FLOOR) {
+      // (v0.357.0) THE WET CLASS - the storm was one rescue's tail, named and
+      // stood down: the count still speaks (the raw sum is on the line), the
+      // wet/dry split is on the line, the hands join (face 36733939481's 1
+      // hand rides), and the signal reads calm for every storm consumer.
+      return `storm verdict: WET - ${g} air glitches (${w} wet-rescued, dry ${dry}) - the storm signal stays calm${hands}`
+    }
     const t = Number.isFinite(secs) && secs > 0 ? Math.floor(secs) : null
     const rate = t ? ` (${((g / t) * 60).toFixed(1)}/min)` : ''
     let topName = null
@@ -676,7 +743,8 @@ export function stormVerdictRow (opts = {}) {
       if (bg > topG) { topG = bg; topName = (typeof b.name === 'string' && b.name) ? b.name : '?' }
     }
     const top = topName ? `, top ${topName} g${topG} (${Math.round((topG / g) * 100)}%)` : ''
-    return `storm verdict: STORM - ${g} air glitches${rate}${top}${hands}`
+    const wet = w > 0 ? `, wet-rescued ${w}` : ''
+    return `storm verdict: STORM - ${g} air glitches${rate}${top}${hands}${wet}`
   }
   return `storm verdict: CALM - ${g} air glitches${hands}`
 }

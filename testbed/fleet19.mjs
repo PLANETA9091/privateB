@@ -3445,6 +3445,10 @@ console.log(sentryAttributionRow(list.map(m => ({ name: m.username, stats: m.sta
 // (the 05:00 ledger-skip lesson), not a silence.
 console.log(stormVerdictRow({
   airGlitches: list.reduce((a, m) => a + (m.stats?.airGlitches ?? 0), 0),
+  // (v0.357.0) the wet-rescue exclusion feed - the face's wet-window share
+  // carves the rescue class out of the storm arithmetic (face 36733939481's
+  // 600-glitch storm was ONE bot's ONE wet rescue)
+  wetGlitches: list.reduce((a, m) => a + (m.stats?.wetRescueGlitches ?? 0), 0),
   secs,
   bots: list.map(m => ({ name: m.username, stats: m.stats })),
   abandons: list.reduce((a, m) => a + (m.stats?.glitchAbandons ?? 0), 0)

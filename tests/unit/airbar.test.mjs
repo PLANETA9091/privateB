@@ -81,8 +81,8 @@ test('the counter rides CARRY_FIELDS from birth (the v0.346.0 lesson applied the
 
 test('the wiring: the seed carries the counter, the override site counts it, the fleet prints the row after the storm row', () => {
   const seed = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  // the stats seed carries the counter
-  assert.match(seed, /airGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0/)
+  // the stats seed carries the counter (re-tailed by the sync law: v0.357.0's wetRescueGlitches joins the seed)
+  assert.match(seed, /airGlitches: 0, wetRescueGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0/)
   // the override hand counts INSIDE the streak-cap gate (the exact believe page)
   assert.match(seed, /if \(dryGlitchStreak === streakCap\) \{[^]*?stats\.airBarOverrides = \(stats\.airBarOverrides \?\? 0\) \+ 1[^]*?airGlitchLogLine\(\{ kind: 'override'/)
   // the counter rides the log band that names the override

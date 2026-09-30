@@ -105,7 +105,7 @@ test('drownContextLine: the @last tail rides the row (the bobbing-drown shape)',
 
 test('the last-episode fallback is wired: the tracker capture and the pass-through (v0.279.0)', () => {
   assert.ok(minerSrc.includes('lastWetMs: headWetLastMs, // (v0.279.0) the last-episode fallback'), 'the drown context passes the bot\'s headWetLastMs capture')
-  assert.ok(minerSrc.includes('if (headWetSince) headWetLastMs = now - headWetSince; headWetSince = 0'), 'the dry sample ends the episode - its duration survives the reset')
+  assert.ok(minerSrc.includes('if (headWetSince) { headWetLastMs = now - headWetSince; headWetEndedAt = now } headWetSince = 0'), 'the dry sample ends the episode - its duration survives the reset (re-tailed by the sync law: v0.357.0 stamps headWetEndedAt at the same page)')
   assert.ok(statcarrySrc.includes('lastWetMs = null } = r || {}'), 'the context destructure grows the fallback option')
   assert.ok(statcarrySrc.includes('wetWindowLabel(headWetSince, now, lastWetMs)'), 'the renderer receives the fallback beside the live tracker')
 })
