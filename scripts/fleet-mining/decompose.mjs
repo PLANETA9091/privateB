@@ -88,6 +88,23 @@ console.log('  death drowned-kill context (the hound won):', count(/death: drown
 // counting the arenas separately.
 console.log('  hound-kill arenas: dry-shore', count(/drowned-kill context \(dry-shore/), '| in-water', count(/drowned-kill context \(in-water/))
 console.log('  dry-shore hound kills per-bot:', fmt(perBot(/drowned-kill context \(dry-shore/)))
+// (v0.375.0) THE TRAPPED-FLEE READ - the flee line's (dX,dZ) is the shore
+// bearing the combat layer chose; face 15 showed F12 re-choosing the SAME
+// bearing (3,6) event after event - a flee into the same pocket the hound
+// owns, and the re-verdicts are the hound re-engaging the trapped flee. A
+// trapped flee cannot be outrun by repeating it: the cure (a bearing
+// diversity rule or a climb-out) prices off this histogram. Both verdicts
+// count (plain + re-verdict) - the pressure per bearing is the signal.
+// Mining-surface only: zero fleet wiring, zero new log lines.
+const fleeBearing = {}
+for (const l of lines) {
+  const m = typeof l === 'string' ? l.match(/^(F\d+)\b.*combat: flee toward shore \((-?\d+),(-?\d+) step \d+\) vs drowned \(proximity/) : null
+  if (!m) continue
+  const k = `${m[1]}(${m[2]},${m[3]})`
+  fleeBearing[k] = (fleeBearing[k] || 0) + 1
+}
+console.log('  flee bearings repeated >=2:', Object.entries(fleeBearing).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}x${n}`).join(' ') || 'none (every flee chose a fresh bearing)')
+console.log('  flee bearing diversity:', Object.keys(fleeBearing).length, 'distinct bearings over', Object.values(fleeBearing).reduce((a, b) => a + b, 0), 'flee events')
 console.log('  drowned-kill per-bot:', fmt(perBot(/death: drowned-kill context/)))
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
