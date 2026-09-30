@@ -56,6 +56,7 @@ import {
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ascendGraceWanted, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
+  lidScanPlan, ASCEND_LID_SCAN, // (v0.343.0) the lid scan - dig the roof, never the fluid
   dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
   rescueBlindness, RESCUE_BLIND_FLOOR_PASSES, // (v0.314.0) the blind rescue decode
   WATER_DEATH_TTL_MS
@@ -86,6 +87,22 @@ export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 's
 // sentry's non-critical pages for frozenReturnGate(streak) after each relog.
 const frozenRelogStreaks = new Map()
 const frozenReturnGates = new Map()
+
+// (v0.343.0) THE LID SCAN'S MECHANICAL READ - the column above the head,
+// the legacy probe (floor(y)+2) first, then ASCEND_LID_SCAN lid cells up.
+// Each read carries what the pure plan needs and nothing else: the fluid
+// law (isWaterName) and the data's own diggable. A lost read rides null -
+// the plan refuses it honestly (a lost reading never arms a dig).
+const lidReads = (bot, cell) => {
+  if (!cell) return []
+  const reads = []
+  for (let i = 0; i <= ASCEND_LID_SCAN; i++) {
+    let b = null
+    try { b = bot.blockAt(new Vec3(cell.x, cell.y + i, cell.z)) } catch { b = null }
+    reads.push(b == null ? null : { diggable: b.diggable === true, isWater: isWaterName(b.name) === true })
+  }
+  return reads
+}
 
 export function createMiner ({
   host = '127.0.0.1',
@@ -1923,15 +1940,24 @@ export function createMiner ({
             // through to the break byte for byte - the detector still owns
             // the true freeze, one pass later at most.
             if (ascendGraceWanted({ headWet, ascendDigs, points: passPoints })) {
+              // (v0.343.0) THE LID SCAN at the grace: the column read plans
+              // the dig (water cells are the lid, never the target; the
+              // first diggable non-water cell is the ceiling) - the legacy
+              // probe accepted the fluid itself (water reads diggable:true,
+              // hardness 100) and burned the 6s inside the silent catch.
               const gcell = ceilingCell(bot.entity?.position)
-              const gceil = gcell
-                ? (() => { try { return bot.blockAt(new Vec3(gcell.x, gcell.y, gcell.z)) } catch { return null } })()
+              const gplan = lidScanPlan({ reads: lidReads(bot, gcell) })
+              const gtgt = gplan.offset >= 0 && gcell
+                ? { x: gcell.x, y: gcell.y + gplan.offset, z: gcell.z }
                 : null
-              if (gceil && gceil.diggable === true) {
+              const gceil = gtgt
+                ? (() => { try { return bot.blockAt(new Vec3(gtgt.x, gtgt.y, gtgt.z)) } catch { return null } })()
+                : null
+              if (gceil && gceil.diggable === true && isWaterName(gceil.name) !== true) {
                 ascendDigs++
                 try {
                   await withTimeout(bot.dig(gceil), 6000, 'ascend grace dig')
-                  log(`${tag} water: ascend grace - dug the ceiling ${gceil.name} at [${gcell.x},${gcell.y},${gcell.z}] on the frozen verdict's pass (o2 ${o2SensorLabel(read.oxygen)}; the freeze re-verdicts next pass if the dig buys nothing)`)
+                  log(`${tag} water: ascend grace - dug the ceiling ${gceil.name} at [${gtgt.x},${gtgt.y},${gtgt.z}]${gplan.offset > 0 ? ` through a ${gplan.offset}-cell lid` : ''} on the frozen verdict's pass (o2 ${o2SensorLabel(read.oxygen)}; the freeze re-verdicts next pass if the dig buys nothing)`)
                   continue // the pass is spent on the dig - the loop re-reads fresh
                 } catch { /* the dig lost the race: the break below owns it */ }
               }
@@ -2029,15 +2055,24 @@ export function createMiner ({
           // frozen detector still owns the true freeze and RESCUE_MAX_MS
           // caps the lane.
           if (ascendDigs < ASCEND_DIG_BUDGET && ascendStalled({ points: passPoints })) {
+            // (v0.343.0) THE LID SCAN at the pass loop: the column read plans
+            // the dig - water cells are the lid (skipped; the old probe aimed
+            // at the column's own water, whose diggable:true burned the 6s
+            // timeout in the silent catch), the first diggable non-water cell
+            // is the ceiling, every refusal keeps the jump-only shape.
             const cell = ceilingCell(bot.entity?.position)
-            const ceil = cell
-              ? (() => { try { return bot.blockAt(new Vec3(cell.x, cell.y, cell.z)) } catch { return null } })()
+            const plan = lidScanPlan({ reads: lidReads(bot, cell) })
+            const tgt = plan.offset >= 0 && cell
+              ? { x: cell.x, y: cell.y + plan.offset, z: cell.z }
               : null
-            if (ceil && ceil.diggable === true) {
+            const ceil = tgt
+              ? (() => { try { return bot.blockAt(new Vec3(tgt.x, tgt.y, tgt.z)) } catch { return null } })()
+              : null
+            if (ceil && ceil.diggable === true && isWaterName(ceil.name) !== true) {
               ascendDigs++
               try {
                 await withTimeout(bot.dig(ceil), 6000, 'ascend dig')
-                log(`${tag} water: deep-pocket ascend - dug the ceiling ${ceil.name} at [${cell.x},${cell.y},${cell.z}] (jump stalled ${ASCEND_STALL_PASSES}+ passes, o2 ${o2SensorLabel(read.oxygen)})`)
+                log(`${tag} water: deep-pocket ascend - dug the ceiling ${ceil.name} at [${tgt.x},${tgt.y},${tgt.z}]${plan.offset > 0 ? ` through a ${plan.offset}-cell lid` : ''} (jump stalled ${ASCEND_STALL_PASSES}+ passes${plan.offset > 0 ? `; ${plan.why}` : ''}, o2 ${o2SensorLabel(read.oxygen)})`)
               } catch { /* the dig lost the race: the jump-only shape carries on */ }
             }
           }

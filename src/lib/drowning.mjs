@@ -1733,6 +1733,64 @@ export function ceilingCell (pos) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.343.0) THE LID SCAN - the deep-pocket ascend's second leg.
+//
+// MEASURED (face 36690923417, the fifth face): F1's climb rose 45.0 -> 47.2
+// and PINNED - passes 9-19 all read y=47.2 with the head WET and the o2
+// draining 8 -> 5, and not one 'deep-pocket ascend' line ever printed.
+// Two data laws own the silence. (1) ceilingCell probes EXACTLY floor(y)+2
+// - one cell above the head - so a column deeper than one lid cell never
+// sees its roof: the probe aims at the column's own water. (2) minecraft-
+// data 26.2 reads WATER diggable: true (hardness 100) - the probe's own
+// 'diggable === true' gate ACCEPTS the fluid and bot.dig(water) burns the
+// whole 6s withTimeout inside the silent catch (a fired dig that can never
+// complete prints nothing - the loop fuel hid inside the budget). The bot
+// was never pinned under a roof - it was pinned under a LID. Six relogs
+// into the same column (o2 5 -> 0, health 20 -> 0.3) rebuilt the client
+// and left the lid standing; the relog was the disease's taxi.
+//
+// THE CURE: plan the dig from the COLUMN READ, not the one-cell probe.
+// Water cells are the LID (skipped - a fluid is never the target), the
+// first diggable non-water cell above is the CEILING (sources do not flow
+// up, so opening the roof over a source opens air the buoyant bot can
+// rise into), anything else refuses and the legacy jump-only shape carries
+// byte for byte. Bounded by ASCEND_LID_SCAN cells past the legacy probe;
+// the budget (ASCEND_DIG_BUDGET) and the freeze verdict still own the lane.
+export const ASCEND_LID_SCAN = 4
+
+/**
+ * (v0.343.0) THE LID SCAN'S PURE PLAN - which read above the head does the
+ * stalled climb dig? The reads walk the legacy probe first (floor(y)+2),
+ * then the lid cells upward. Water skips (the lid), diggable non-water
+ * digs (the ceiling), everything else refuses honestly and the caller
+ * keeps the jump-only shape. Junk-safe by law: a null read, a non-array,
+ * an empty array, or a junk entry never arms a dig - a lost reading never
+ * condemns a bot.
+ * @param {Array<{diggable?: boolean|null, isWater?: boolean|null}|null>|null} [reads]
+ *   the column above the head, lowest cell first
+ * @returns {{offset: number, why: string}} offset 0 = the legacy ceiling
+ *   cell; offset > 0 = lifted through the lid; offset -1 = refuse
+ */
+export function lidScanPlan ({ reads = null } = {}) {
+  if (!Array.isArray(reads) || reads.length === 0) return { offset: -1, why: 'no reads - the scan never armed' }
+  for (let i = 0; i < reads.length; i++) {
+    const r = reads[i]
+    if (r == null) return { offset: -1, why: `read ${i} lost (null) - a lost reading never arms a dig` }
+    if (r.isWater === true) continue // the lid: never the target, scan on
+    if (r.diggable === true) {
+      return {
+        offset: i,
+        why: i === 0
+          ? 'the ceiling reads diggable at the legacy probe'
+          : `the lid is ${i} water cell(s) - the ceiling reads diggable at +${i}`
+      }
+    }
+    return { offset: -1, why: `read ${i} is neither lid nor diggable (air above? bedrock-class?) - the scan refuses` }
+  }
+  return { offset: -1, why: `the bound (${reads.length} cells) never left the lid - the scan refuses` }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.87.0) THE FROZEN-CLIENT RELOG - the stand-down needs a floor.
 //
 // MEASURED (run79, dispatch 35766110886 on c59d9f3): F8 burned 93 stand-downs
