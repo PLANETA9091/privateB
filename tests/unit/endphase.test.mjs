@@ -380,3 +380,31 @@ test('REGRESSION PIN: both final climb attempts wait out the rescue before burni
   // the constant is imported (the import regex carries it)
   assert.match(src, /FINAL_CLIMB_RESCUE_WAIT_MS\s*[,}]/, 'the constant rides the endphase import')
 })
+
+// ---------------------------------------------------------------------------
+// (v0.334.0) THE PRICED CLOCK - the default chain budget obeys the gap row.
+// Face 36660134341 (the eight-instrument face's first leg) read:
+//   'bank budget gap: 164s needed, 150s budgeted - 14s short at 6.4u/s'
+// The flow cures (2.2 -> 6.4u/s) made the pocket CLEARABLE - the clock, not
+// the walkers, became the binding constraint. The cure is priced: 180s.
+import { END_BANK_BUDGET_MS, END_BANK_BUDGET_CAP_MS, endBankBudgetMs } from '../../src/lib/endphase.mjs'
+
+test('END_BANK_BUDGET_MS: the priced clock covers the face 36660134341 need with margin', () => {
+  assert.equal(END_BANK_BUDGET_MS, 168000, 'the cure is exactly the priced 168s (collision #21: the integer and the value are cron30\'s, one truth on master)')
+  assert.ok(END_BANK_BUDGET_MS > 164000, 'the face\'s measured need (164s) must fit inside the clock')
+})
+
+test('END_BANK_BUDGET_MS: the stagger arithmetic still lands inside the hard-kill margin', () => {
+  // the sizing law (v0.27.0): worst chain end = stagger cap 120s + budget
+  assert.ok(120000 + END_BANK_BUDGET_MS < HARD_KILL_MARGIN_MS,
+    'deadline + 120s + 168s = 288s < the 420s hard-kill margin - natural finish preserved')
+  assert.ok(END_BANK_BUDGET_MS <= END_BANK_BUDGET_CAP_MS,
+    'the default must ride under the distance-scaled cap (280s)')
+})
+
+test('endBankBudgetMs: the default resolution rides the priced constant', () => {
+  assert.equal(endBankBudgetMs({}), 168000)
+  assert.equal(endBankBudgetMs({ env: '' }), 168000)
+  assert.equal(endBankBudgetMs({ env: 'junk' }), 168000)
+  assert.equal(endBankBudgetMs({ env: '200000' }), 200000, 'the env override still wins')
+})
