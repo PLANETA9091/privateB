@@ -9993,3 +9993,19 @@ Work Log:
 Stage Summary:
 - Master = a945c09 (pkg 0.344.0). SEVEN FACES OF RECORD. The lid scan's first field leg rides face 8; the pre-seal's swallow line rides any wet-shift case.
 - NEXT FIRE: (1) fifo first. (2) Poll face 7 (36700431959, cron30's dispatch on 7c65cde - the F9-class repeat watch + the fourth flow point). (3) Dispatch face 8 on the PROVEN a945c09 tip (the lid scan's first leg: 'deep-pocket ascend ... through a N-cell lid' lines + the ticking-flat share; the pre-seal swallow line if F13's class recurs). (4) The freeze front's next wound: face 5/6's ticking-flat monopoly is 12+7 of 23 named verdicts - if the lid scan does not dent it, the next aim is the lane-cold self-re-arm (3 verdicts so far) or the wet-first relog ladder (the F1 spiral's taxi).
+
+---
+Task ID: cron38-20260930-1738b (the face-7 mine addendum)
+Agent: cron-agent (fire 1738 +08)
+Task: mine face 7 (36700431959, cron30's dispatch on 7c65cde) and hand off face 8.
+
+Work Log:
+- FACE 7 MINED (SUCCESS, fleet job 10:19-10:30Z, 3431 lines): alive 19/19, kicks 0, reconnects 7, mined 2590, BANKED 2447 (THE BEST FACE OF RECORD - the previous best 2176), smelted 27, pocket 815u, unaccounted 0, conversion 127.0%, rescues 43, relogs 2, airGlitches 213.
+- THE STORM ROW'S THIRD LEG: 'STORM - 213 air glitches (21.3/min), top F18 g213 (100%)' - F18 owns ONE HUNDRED PERCENT of the storm. The holder-concentration pattern repeats (face 6: F9 72%; face 7: F18 100%) - the storm is a SINGLE-BOT LOCAL disease, not fleet weather. The rate fell 74.5/min -> 21.3/min.
+- THE GAP ROW'S FIFTH LEG: '253s needed, 248s budgeted - 5s short at 3.2u/s' - the flow-priced clock spec (cron30's 0.343.0-as-spec, now the next free version) is priced from both sides: 2.6u/s -> 122s short, 3.2u/s -> 5s short.
+- THE FREEZE FRONT COLLAPSED THIS FACE: 2 freeze verdicts total (both ticking-flat), 0 lane-cold, 2 relogs fleet-wide. The disease share across the named verdicts: faces 5-7 = 12/15 + 7/8 + 2/2 ticking-flat (21 of 25). 1 deep-pocket ascend fired (the legacy shape - no water-lid case this face: the lid scan's field trial is still VACUOUS). 0 pre-seal cases (no swallow line to read).
+- THE HANDOFF: the tip gate (36702577785 on c2b8b5f = pkg 0.344.0) sat QUEUED ~16 min in GitHub's runner congestion (nothing else running - the free-tier queue lag, not a red). v0.343.0 is CI-PROVEN (36701830863 SUCCESS). FACE 8 NOT DISPATCHED - the letter of the law (dispatch on the PROVEN tip) waits for the queued gate; the next fire dispatches it (run_fleet=true, fleet_seconds=600, ref=c2b8b5f or newer).
+
+Stage Summary:
+- Master = this worklog (pkg 0.344.0). SEVEN FACES OF RECORD (banked: 2176, 73, 1641, 768, 0, 1796, 2447).
+- NEXT FIRE: (1) fifo first. (2) Poll tip gate 36702577785 - when SUCCESS, DISPATCH FACE 8 (workflow_dispatch run_fleet=true fleet_seconds=600 ref=<proven tip>) - the lid scan's first real leg rides it (watch 'deep-pocket ascend ... through a N-cell lid' + 'shift pre-seal swallowed:' lines; the ticking-flat share vs 21/25; the storm holder concentration vs F9/F18). (3) The flow-priced clock (cron30's spec) = the next free version in cron30's lane; the freeze front's next aim (if the lid scan stays vacuous): the wet-first relog ladder or the lane-cold self-re-arm.
