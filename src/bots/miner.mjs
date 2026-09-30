@@ -52,7 +52,7 @@ import {
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision, freezeClass,
-  frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel,
+  frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel, rescueEndVerdict,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
   airBarFalling, ascendStalled, ascendGraceWanted, ceilingCell, ASCEND_DIG_BUDGET, ASCEND_STALL_PASSES,
@@ -1805,6 +1805,12 @@ export function createMiner ({
     let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
     let frozenDownO2 = null // (v0.265.0) the bar at the verdict - the bypass echo's read (the loop fuel)
     let frozenDownWindow = null // (v0.265.0) which window condemned: the wet-critical fast one or the legacy ten-pass
+    // (v0.374.0) THE DEATH LATCH: the death EVENT fires at the death moment,
+    // before any respawn - the finally's health read races the respawn (face
+    // 36760275928's F11 died to a hound mid-rescue and closed 'rescue
+    // complete in 25.1s' on the respawned health). The latch outranks every
+    // legacy branch in the verdict below.
+    let diedMidRescue = false
     // The fleet map knows land the raw 12-block shore scan cannot: a tree log
     // STANDS on land, sand/gravel LINE shores. One unit bearing to the nearest
     // known land cell, or null (no map / no entries / junk) - the caller then
@@ -1843,6 +1849,8 @@ export function createMiner ({
       ? { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }
       : null
     log(`${tag} water: drowning rescue start (${verdict}, oxygen ${bot.oxygenLevel ?? '?'})`)
+    const onRescueDeath = () => { diedMidRescue = true }
+    try { bot.on('death', onRescueDeath) } catch { /* a client this dead never fires or removes it */ }
     try {
       try { bot.pathfinder.setGoal(null) } catch { /* idle already */ }
       try { bot.clearControlStates() } catch { /* nothing held */ }
@@ -1859,7 +1867,9 @@ export function createMiner ({
       while (bot.entity && Date.now() - lastRescueAt < RESCUE_MAX_MS) {
         // (v0.62.0) a dead bot cannot swim: exit now. The tracked wet cell is
         // already the death spot - the hazard is exactly where the water won.
-        if ((bot.health ?? 20) <= 0) break
+        // (v0.374.0) the death latch breaks too: a respawned client reads
+        // health 20 and the loop would swim ON posthumously otherwise.
+        if (diedMidRescue || (bot.health ?? 20) <= 0) break
         const read = waterRead()
         // (v0.104.0) waterlogged contact counts: a bot standing in a
         // waterlogged stair IS in water (the F17 class) - the rescue must swim
@@ -2108,19 +2118,24 @@ export function createMiner ({
           await settle(5)
         }
       }
-      const done = !bot.entity
-        ? 'aborted (bot gone)'
-        : ((bot.health ?? 20) <= 0)
-          ? 'aborted (dead - the hazard stays at the death spot)'
-          : standingWet
-            ? 'complete (standing wet - shallow water is not drowning)'
-            : releasedSafe
-              ? 'released (surface-safe, open water - no land known; the walk gate reopens)'
-              : frozenDown
-                ? 'standing down (frozen physics - the walk gate reopens, the reconnect lane owns a dead client)'
-                : (!(isWaterName(waterRead().feet) || isWaterName(waterRead().head))
-                  ? 'complete'
-                  : `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')})`)
+      // (v0.374.0) THE DEATH LATCH reads FIRST (the pure gate: the respawned
+      // health read cannot launder a mid-rescue death into a completion) -
+      // the ladder below the latch is the field's byte-identical history.
+      const endWet = diedMidRescue || !bot.entity || (bot.health ?? 20) <= 0 || standingWet || releasedSafe || frozenDown
+        ? { feetWet: false, headWet: false }
+        : { feetWet: isWaterName(waterRead().feet), headWet: isWaterName(waterRead().head) }
+      const done = rescueEndVerdict({
+        diedMidRescue,
+        hasEntity: !!bot.entity,
+        health: bot.health ?? 20,
+        standingWet,
+        releasedSafe,
+        frozenDown,
+        ...endWet,
+        passNo,
+        standingProbes,
+        tail: rescueReads.slice(-3).map(r => r.wet ? 'wet' : 'dry').join('/')
+      })
       // (v0.314.0) THE BLIND RESCUE DECODE - the bracket rides the existing end
       // line: a rescue that ran >= RESCUE_BLIND_FLOOR_PASSES passes with zero
       // shore scans hit and zero standing probes flew on buoyancy alone (the F10
@@ -2211,6 +2226,7 @@ export function createMiner ({
       // the flags still reset in the finally. Name the abort, keep the reset.
       log(`${tag} water: rescue aborted (${err?.message ?? 'error'})`)
     } finally {
+      try { bot.off('death', onRescueDeath) } catch { /* the listener never fires twice - the teardown stays honest */ }
       try { bot.clearControlStates() } catch { /* nothing held */ }
       // (v0.59.0 + v0.62.0) the WATER MEMORY write happens on EVERY exit path
       // (complete, timeout, abort, death) - but it records the TRACKED wet

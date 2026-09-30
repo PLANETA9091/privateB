@@ -2274,3 +2274,53 @@ export function rescueBlindness (opts = {}) {
   if (probes > 0 || shoreHits > 0) return null
   return 'blind'
 }
+
+// (v0.374.0) THE DEATH LATCH - face 36760275928's F11 posthumous completion:
+// the hound won mid-rescue (line 3633 'died - respawning (was slain by
+// Drowned)'), the rescue's finally ran 13 seconds later, and the verdict's
+// health read found the RESPAWNED bot (health 20, dry spawn) - the episode
+// closed 'rescue complete in 25.1s' after the bot was already dead. The
+// v0.62.0 lesson fixed the HAZARD CELL for this exact race (a respawned bot
+// poisoned the hazard ledger with spawn-area cells) but left the VERDICT
+// racing: every mid-rescue death that respawns before the finally unblocks
+// inflates the ledger's complete class and hides the hound's kill window
+// from the mining surface. The cure: the death EVENT latches (the event
+// fires at the death moment, before any respawn), the latch breaks the
+// loop (a dead bot never swims on), and the verdict ladder reads the latch
+// FIRST - the posthumous completion is impossible by construction.
+
+/**
+ * The rescue's end verdict (pure, junk-safe) - the inline `done` ladder
+ * extracted so the death latch can be tested without a live bot. The
+ * ladder order below the latch is the field's byte-identical history:
+ * bot-gone, dead (direct health read), standing-wet, released, frozen,
+ * the dry complete, the still-wet timeout. The latch prepends ONE branch:
+ * a death event outranks everything, including a respawned health read.
+ *
+ * @param {object} [p]
+ * @param {boolean} [p.diedMidRescue] did the bot's death event fire inside
+ *   this rescue (junk -> false: the legacy ladder rides)
+ * @param {boolean} [p.hasEntity] does the bot still have an entity
+ * @param {number} [p.health] the bot's health at the finally (junk -> alive:
+ *   the legacy read's `?? 20` shape)
+ * @param {boolean} [p.standingWet] the shallow-water policy exited the loop
+ * @param {boolean} [p.releasedSafe] the surface-safe release fired
+ * @param {boolean} [p.frozenDown] the physics flatlined
+ * @param {boolean} [p.feetWet] is the feet cell water at the verdict
+ * @param {boolean} [p.headWet] is the head cell water at the verdict
+ * @param {number} [p.passNo] passes spent (the timeout line's count)
+ * @param {number} [p.standingProbes] standing probes spent
+ * @param {string} [p.tail] the wet/dry tail triple (the caller joins it)
+ * @returns {string} the `done` fragment of the end line (the log prints
+ *   `water: rescue ${done} in Ns`)
+ */
+export function rescueEndVerdict ({ diedMidRescue = false, hasEntity = true, health = 20, standingWet = false, releasedSafe = false, frozenDown = false, feetWet = false, headWet = false, passNo = 0, standingProbes = 0, tail = 'dry/dry/dry' } = {}) {
+  if (diedMidRescue === true) return 'aborted (dead mid-rescue - the hazard stays at the death spot)'
+  if (!hasEntity) return 'aborted (bot gone)'
+  if (Number.isFinite(health) && health <= 0) return 'aborted (dead - the hazard stays at the death spot)'
+  if (standingWet === true) return 'complete (standing wet - shallow water is not drowning)'
+  if (releasedSafe === true) return 'released (surface-safe, open water - no land known; the walk gate reopens)'
+  if (frozenDown === true) return 'standing down (frozen physics - the walk gate reopens, the reconnect lane owns a dead client)'
+  if (!(feetWet === true || headWet === true)) return 'complete'
+  return `timeout (still wet, ${passNo} passes, ${standingProbes} probes, tail ${tail})`
+}
