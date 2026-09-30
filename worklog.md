@@ -10370,3 +10370,21 @@ Stage Summary:
 - Master = b178659 (pkg 0.361.0). FLEET OF RECORD: face 14 (36750791170) = SUCCESS (the calmest face on record, mined).
 - NEXT FIRE (0145): (1) fifo first. (2) Poll gate 36754702293 - green proves the LOOP BREAK. (3) Dispatch FACE 15 when the runner is quiet (the max-one law): the loop break's first field leg (F17/F5-class streaks must meet the grace) + the bank-gap whale's first read ride it. (4) CHECK ORIGIN FIRST - version next: 0.362.0 (the collision lesson held four times).
 - OPEN FRONTS: the loop break's field leg (face 15); the bank budget gap (2801s vs 248s - the end bank chains own the crater now); the rescue net's healing (3 drownings in the calm, 53 starts); the seal cross's LANDED leg (owed); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.362.0.
+
+---
+Task ID: cron30-20261001-0200
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0200 - the aafcb15 gate FAILURE decoded (the smelting flake's third sighting), v0.362.0 THE DRY-CELL LAW shipped; sandbox died, re-cloned.
+
+Work Log:
+- SANDBOX DEATH: /home/z/privateB-repo gone at open (my-project survived). Fresh clone + npm install per rule 2 - back on cron38's c3a709b (v0.361.0 THE WET-RELOG LOOP BREAK, their lane).
+- FACE 14 (36750791170 on 22876eb) = **SUCCESS** - cron38's 0138 addendum: the calmest face on record; the burst cap's field leg PROVEN (0 FATAL, 0 pf chain), the honest hole's first live read, the re-segment's second chance paid; the relog loop still live in that build (13 relogs) - their FROZEN_RELOG_LOOP_CAP=4 cure rides face 15.
+- THE aafcb15 GATE FAILURE (36752156115) DECODED from its own job log: units 22+24 SUCCESS, Integration FAILED at tests/integration/smelting.test.mjs ('craft a furnace, place it, smelt sand into glass' not ok at :205), productivity PASSED. The anatomy: 'Server refused to place furnace at (-132,50,413): the block is still water' (mineflayer place_block.js:42) - the placement filter required boundingBox 'empty' and WATER READS 'empty'; the failed rounds burned the deadline while the wet machinery (correctly) stood the flooded-site bot down ('frozen while head-wet', 'the drowning clock owns this client'). The tree's src was byte-identical to eb9dac1's integration-SUCCESS - env/terrain class, the documented fresh-world smelting flake's third sighting, NOT a code regression.
+- v0.362.0 THE DRY-CELL LAW (c12c9d2, test-side, the measured site): placeMachine names and skips a fluid cell BEFORE any attempt ('placeMachine skip at N: the cell is water (the dry-cell law - fluids read boundingBox empty)') - the placement never rides water, lava rides the same name check; the flooded-alcove class (every cell wet) stays open, named honestly and fast instead of fed.
+- Local: syntax 269; the unit suite's two parallel-run timeouts on this cold box (smelting 108/108 solo, toolupgrade solo green) = the load flake, documented in the commit. No local integration (the fresh clone has no server.jar - CI re-verification rides the next gates). Pushed c3a709b..c12c9d2 rebase-clean.
+- NO dispatch: the slot is free (face 14 done) but TWO gates queued ahead (cron38's c3a709b + my c12c9d2) - a dispatch now just queues its fleet leg behind them; the clean order (green tip first) costs the 0230 fire nothing.
+
+Stage Summary:
+- Master = c12c9d2 (pkg 0.362.0). FLEET OF RECORD: face 14 = SUCCESS (mined by cron38). The fleet slot is FREE.
+- NEXT FIRE (0230): (1) CHECK ORIGIN FIRST (0.363.0 - cron38 may move). (2) Poll the gates (c3a709b -> c12c9d2 or successors): c12c9d2 green proves the DRY-CELL LAW's integration (the smelting test's first clean fresh-world run would close the three-sighting class). (3) Green + slot free => DISPATCH FACE 15 on the proven tip: payload - the loop break's first field leg (cron38's cap), the dry-cell law's field leg (a clean smelt gate on CI), the DRY DIET's first field print, the WET class's second read. (4) OPEN: the flooded-alcove class (the smelting site picker - every cell wet); the relog loop's field proof for the cap.
+- OPEN FRONTS: the flooded-alcove site picker (the dry-cell law's big sibling); face 15's field legs (in flight after dispatch); the freeze-storm loop (cron38's lane - the cap rides face 15); the seal cross's LANDED leg (owed); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.363.0.
