@@ -32,6 +32,7 @@ import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from 
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS } from '../src/lib/surface.mjs'
+import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -3357,7 +3358,7 @@ const reporter = setInterval(() => {
   // old/ext/ab split says WHICH pool: old_space = retained JS objects,
   // external/arrayBuffers = Buffers and TypedArrays (socket payloads live here)
   const hs = v8.getHeapSpaceStatistics()
-  const sp = nm => { const s = hs.find(x => x.name === nm); return s ? Math.round(s.size_used / 1048576) : -1 }
+  const sp = nm => heapSpaceUsedMb(hs, nm) // (v0.354.0) THE BLIND OLD-SPACE CURE - the v0.55.0 reader asked for the keys `name`/`size_used`, the documented schema is `space_name`/`space_used_size` - old= has printed the -1 sentinel on every row of every face; the reader reads BOTH schemas and the OOM diagnosis's key pool (old_space = retained JS objects) is back in view
   const gs = [...guards.values()].map(g => { try { return g.stats() } catch { return null } }).filter(Boolean)
   const cols = gs.reduce((a, s) => a + s.columns, 0)
   const ents = gs.reduce((a, s) => a + s.entities, 0)
