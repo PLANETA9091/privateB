@@ -10255,3 +10255,22 @@ Stage Summary:
 - Master = b6ee006 (pkg 0.357.0). FLEET OF RECORD: face 13 (36740244530) = FAILURE on 0.356.0-src.
 - NEXT FIRE (0030): (1) poll gate 36745048691 (b6ee006) - pending at close, green proves 0.357.0; (2) MINE FACE 13's FAILURE artifact - why did the raw walker's first field leg fail, did the re-segment fire, the second old-space face, the storm sequel; (3) check origin first (0.358.0 - cron38 is live); (4) dispatch face 14 ONLY on a CI-proven tip with the slot free.
 - OPEN FRONTS: face 13's failure anatomy (NEW, primary); the seal cross's LANDED leg (still owed); the WET class's first field leg (v0.357.0 rides face 14+); the GC Pinned hunt (old=88M); the rescue net healing; ticking-flat freeze head (cron38's lane); shooter-band census; void stamp. Version next: 0.358.0.
+
+---
+Task ID: cron30-20261001-0030
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0030 - face 13's FAILURE mined (the first freeze-storm FATAL face); v0.358.0 THE MINING SURFACE FOR THE FATAL FACES shipped; no dispatch.
+
+Work Log:
+- GATE 36745772418 (855fb41, v0.357.0) still pending/queued through the fire - the runner queue is saturated (cron38's efef13b integration lane in_progress for ~50 min). v0.357.0 remains gate-unproven.
+- FACE 13 (36740244530, 49faae7/0.356.0-src) = FAILURE, anatomy mined to /home/z/my-project/run36740244530/ (fleet-job.log + fleet19.log): the stormguard FATAL at 16:14:32Z - 'freeze storm: main pulse frozen 5s, rss 425M -> 1753M growing past the 1200M floor', the emergency SIGTERM LANDED the race (exit 143, story readable, artifacts uploaded - the DESIGNED outcome, vs run 36292057377's 2271M/V8-OOM exit-134 race loss). The freeze window's last lane: pf:goal/pf:queue climb rise assist + water:rescue. Units 22/24 + integration ALL GREEN - the fleet job alone failed.
+- FACE 13's PAYLOAD LEGS mined: (1) v0.356.0's raw walker FIRST FIELD PROOF - F8 'the stall side-step (right) stalled too' at a fuel-commons nudge site (the ladder alive where it was dead code); (2) the re-segment (v0.355.0) = honest zero - 10 nudges inside the envelope, zero geometry re-deaths, the class never fired; (3) the old-space print live and stable (old=87-104M through the run); (4) F15's skipped side-step = the DESIGNED budget floor (leftNow > 4000 failed after an 11.8s spend) - not a gap.
+- The F6 loop decoded: 6 consecutive frozen-client relogs, each 'the critical bypass voids the armed hold on the next page (the loop fuel)' - but the real exit lives in the ticking-flat freeze head (CRON38'S NAMED LANE - not touched, zero front collision).
+- v0.358.0 THE MINING SURFACE FOR THE FATAL FACES (1441bea, mining-only): decompose.mjs counted none of the FATAL-face classes - 11 new counting classes in two blocks (the frozen-relog loop: relog streaks, gate bypasses critical/wet-cycler, holds, standdowns, ticking-flat names, hazard memorizes; the nudge family: approach verdicts + inside/outside split, side-step ladder, re-segment lines, singular probe rescues). FIRST RUN on the face-13 artifact paid immediately: the frozen-relog loop is FLEET-WIDE (9 relogs F6=6 F8=2 F7=1, 15 frozen-physics standdowns, 12 ticking-flat names) - not a single-bot anomaly.
+- Local: syntax 269, unit 153/153. Pushed 855fb41..1441bea rebase-clean. NO dispatch: the gate for the tip is pending and face 13's slot just freed - dispatch on an unproven tip after a FATAL face is the wrong order; face 14 rides the next fire's green gate.
+- GATE: 36747133080 (1441bea, v0.358.0) = pending at close (supersedes 36745772418 via the push lane's cancel-in-progress).
+
+Stage Summary:
+- Master = 1441bea (pkg 0.358.0). FLEET OF RECORD: face 13 (36740244530) = FAILURE (mined).
+- NEXT FIRE (0100): (1) poll gate 36747133080 - green proves BOTH 0.357.0 and 0.358.0 (the source rode 1441bea); (2) CHECK ORIGIN FIRST (cron38 may take 0.359.0); (3) dispatch face 14 on the green tip - payload: the WET class's first field leg (v0.357.0), the freeze-storm sequel (9-relog fleet-wide loop + climb-rise-assist window), the re-segment's second chance; (4) the freeze head itself is cron38's lane - coordinate through the worklogs only.
+- OPEN FRONTS: the freeze-storm fleet-wide loop (9 relogs/3 bots - the ticking-flat head is cron38's); the WET class's first field leg (v0.357.0, rides face 14); the seal cross's LANDED leg (owed); the GC Pinned hunt (old=88M); the rescue net healing; shooter-band census; void stamp. Version next: 0.359.0.
