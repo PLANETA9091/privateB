@@ -1795,6 +1795,12 @@ export function createMiner ({
     let mapMissLogged = false
     let transitPlan = null // (v0.82.0) the progress latch: { key, d0, atPass, logged }
     let transitStalledFlag = false // once the walls own the swim, the release owns the pass
+    // (v0.367.0) the shore-bearing latch: the same shape the land branch runs
+    // (key = the bearing octant, d0 = the ring radius at first sight) - face
+    // 36750791170's F10/F14 swam a bearing the walls owned for the WHOLE
+    // budget because this branch had no stall test and the release sat one
+    // branch below, unreachable while a bearing existed.
+    let dirPlan = null // { key, d0, atPass, logged }
     let frozenDown = false // (v0.82.0) the physics flatlined - the reconnect lane owns the bot
     let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
     let frozenDownO2 = null // (v0.265.0) the bar at the verdict - the bypass echo's read (the loop fuel)
@@ -1990,12 +1996,34 @@ export function createMiner ({
           }
         }
         if (!headWet) {
-          if (dir) {
-            bot.setControlState('jump', true) // stay at the surface while swimming
-            try { await withTimeout(bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false), 2000, 'rescue look') } catch { /* keep the bearing */ }
-            bot.setControlState('forward', true)
-            await settle(8)
-            bot.setControlState('forward', false)
+          if (dir && !transitStalledFlag) {
+            // (v0.367.0) THE SHORE-STALL YIELD: the land branch has owned the
+            // progress latch since v0.82.0 (run76's F9 steered at d=7 that
+            // never shrank) - the shore-bearing branch never did. Face
+            // 36750791170's F10/F14 paid the gap: 'rescue blind live' then a
+            // full-budget timeout ('still wet, 14/44 passes, 0 probes, tail
+            // dry/dry/dry') swimming a bearing the walls owned, while the
+            // release sat one branch below - unreachable while a bearing
+            // existed. The same latch, the same patience (transitStalled):
+            // track the bearing's ring radius from first sight, condemn the
+            // plan when the radius stops shrinking, and the release/probe
+            // branches below take over this pass and every pass after (one
+            // flag, one policy - the land branch's latch is the same latch).
+            const dkey = `${dir.dx},${dir.dz}`
+            if (!dirPlan || dirPlan.key !== dkey) dirPlan = { key: dkey, d0: dir.dist, atPass: passNo, logged: false }
+            if (transitStalled({ d0: dirPlan.d0, d: dir.dist, passes: passNo - dirPlan.atPass })) {
+              if (!dirPlan.logged) {
+                dirPlan.logged = true
+                log(`${tag} water: shore transit stalled (r=${dir.dist.toFixed(0)} after ${passNo - dirPlan.atPass} passes - the walls own this swim; the release takes over)`)
+              }
+              transitStalledFlag = true
+            } else {
+              bot.setControlState('jump', true) // stay at the surface while swimming
+              try { await withTimeout(bot.lookAt(bot.entity.position.offset(dir.dx, 0, dir.dz), false), 2000, 'rescue look') } catch { /* keep the bearing */ }
+              bot.setControlState('forward', true)
+              await settle(8)
+              bot.setControlState('forward', false)
+            }
           } else if (land && !transitStalledFlag) {
             // (v0.82.0) THE TRANSIT PROGRESS LATCH: run76's transits steered
             // at d=7-8 that NEVER shrank (the shaft walls own the swim) while
