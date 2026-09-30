@@ -11,7 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES } from '../lib/jobqueue.mjs'
 import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
@@ -4040,6 +4040,7 @@ export function createMiner ({
     let queue = null
     let areaStats = { mined: 0, byName: {} }
     let emptyHops = 0
+    let unreachableBatches = 0 // (v0.352.0) the unreachable-spin guard's streak
     while (!shouldStop?.() && bot.entity && !overBudget()) {
       // 1. find candidates and fill a fresh queue (previous queue is either done or exhausted)
       const positions = bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: count * 3 })
@@ -4096,6 +4097,17 @@ export function createMiner ({
       // 2. drain the queue: only pathfinder-verified targets, hard timeout on every collect
       await queue.run({ shouldStop: () => shouldStop?.() || !bot.entity || overBudget() })
       log(`${tag} batch done: done=${queue.stats.done} failed=${queue.stats.failed} left=${queue.size}`)
+      // (v0.352.0) THE UNREACHABLE-SPIN GUARD: a zero-yield batch whose probes
+      // ALL answered unreachable would re-fill the SAME targets and re-probe at
+      // ~30ms cadence until the phase's own deadline spoke (face 36721007616:
+      // ~4700 cycles in 150s, zero progress). Three in a row mean the area is
+      // genuinely fenced - name it and hand the clock back to the caller.
+      const spinVerdict = unreachableBatchVerdict(queue.stats, unreachableBatches)
+      if (spinVerdict === 'fenced') {
+        log(`${tag} collectArea: ${UNREACHABLE_FENCE_BATCHES} unreachable batches in a row - the area is fenced (water or a wall), the caller's clock owns the rest`)
+        break
+      }
+      unreachableBatches = spinVerdict === 'count' ? unreachableBatches + 1 : 0
       // everything drained and targets remain in range -> refill immediately, no hop needed
       if (!queue.size && bot.findBlocks({ matching: b => names.includes(b.name), maxDistance: 64, count: 1 }).length) continue
       // nothing reachable here: walk along our own direction (keeps the fleet spread out)

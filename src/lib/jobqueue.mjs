@@ -195,6 +195,33 @@ import { PATH_PRIO_BANK } from './pathsemaphore.mjs'
 const fleetPaths = createPathThrottle({ maxConcurrent: Number(process.env.PATH_MAX_CONCURRENT || 6) })
 export function pathThrottleStats () { return fleetPaths.stats() }
 
+// (v0.352.0) THE UNREACHABLE-SPIN GUARD - face 36721007616's integration cobble
+// hunt: 24 stone targets in range, every pathfinder probe answered unreachable
+// (the aquifer fenced the area), the 16-block hop failed fast in the water, and
+// the same targets re-filled and re-probed at ~30ms cadence - ~4700 cycles of
+// pure CPU burn in 150s, zero progress, until the phase's own deadline spoke.
+// A zero-yield batch whose probes ALL answered unreachable is the spin's atom;
+// three in a row mean the area is genuinely fenced and the caller's clock owns
+// the recovery (its own rounds: rotate the shaft, walk on, next cadence).
+export const UNREACHABLE_FENCE_BATCHES = 3
+
+/**
+ * The unreachable-spin verdict (pure, junk-safe).
+ * @param {{done?: number, unreachable?: number}|null} stats the batch's own queue stats
+ * @param {number} streak the zero-yield streak BEFORE this batch
+ * @returns {'count'|'reset'|'fenced'} count -> the streak grows (streak+1), reset -> 0, fenced -> stop gathering
+ */
+export function unreachableBatchVerdict (stats, streak) {
+  const done = Number(stats?.done)
+  const unreachable = Number(stats?.unreachable)
+  // a yield (done > 0) or a batch that EXECUTED jobs (done counts them) is not
+  // the spin's atom - the blacklist already rotates those positions
+  if (!(Number.isFinite(done) && done === 0)) return 'reset'
+  if (!(Number.isFinite(unreachable) && unreachable > 0)) return 'reset'
+  const n = (Number.isFinite(streak) && streak > 0 ? Math.floor(streak) : 0) + 1
+  return n >= UNREACHABLE_FENCE_BATCHES ? 'fenced' : 'count'
+}
+
 // (v0.79.0) THE REFUSAL PACE - see gotoSafe's comment. One 25ms yield per
 // refusal: invisible to legitimate callers, lethal to pathological retry
 // loops whose only pacing was the walk's own duration.

@@ -171,22 +171,35 @@ async function digAbove (bot, miner, cell) {
 async function carveAlcove (bot, miner) {
   const { Vec3 } = await import('vec3')
   const feet = bot.entity.position.floored()
+  // (v0.352.0) THE NAMED REFUSAL: a wall that is not a carve target used to
+  // `continue` silently - a bot standing next to the aquifer probed 4 water
+  // cells, refused 3 times with ZERO log lines, and the assert fired on a
+  // WORLD, not a pipeline bug (face 36721007616). Water reads an 'empty'
+  // bounding box like air, so the refusals count and NAME the class: air vs
+  // fluid (water/lava/kelp - the wet column) vs floor-gap; the wet verdict
+  // feeds the relocate handoff at the call sites (walk out, probe dry walls).
+  const refusals = { air: 0, fluid: 0, floor: 0 }
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     const cell = feet.offset(dx, 0, dz)
     const wall = bot.blockAt(cell)
     const floorBelow = bot.blockAt(cell.offset(0, -1, 0))
-    if (!wall || wall.type === 0 || wall.boundingBox !== 'block') continue
-    if (!floorBelow || floorBelow.boundingBox !== 'block') continue
+    if (!wall || wall.type === 0 || wall.boundingBox !== 'block') {
+      if (wall && /water|lava|kelp|seagrass|bubble/.test(wall.name)) refusals.fluid++
+      else refusals.air++
+      continue
+    }
+    if (!floorBelow || floorBelow.boundingBox !== 'block') { refusals.floor++; continue }
     try {
       // fastDig: server-confirmed break (bot.dig resolves instantly under the rage
       // digTime=0 patch - the block would never actually break), tool auto-equipped
       await withTimeout(bot.fastDig(wall), 15000, `alcove dig ${cell}`)
       await bot.waitForTicks(3)
       const now = bot.blockAt(cell)
-      if (now && now.boundingBox === 'empty') { log(`alcove carved at ${cell}`); return cell }
+      if (now && now.boundingBox === 'empty') { log(`alcove carved at ${cell}`); return { cell, wet: false } }
     } catch (e) { log(`alcove dig failed at ${cell}: ${e.message}`) }
   }
-  return false
+  log(`alcove: no diggable wall at ${feet} (air ${refusals.air}, fluid ${refusals.fluid}, floor-gap ${refusals.floor})`)
+  return { cell: null, wet: refusals.fluid > 0 }
 }
 
 test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { timeout: 390000 }, async t => {
@@ -452,15 +465,30 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
         return
       }
     }
+    // (v0.352.0) the budget law's own gap: the table phase was the one phase
+    // without a clock check - a wet world that starved the cobble hunt left
+    // the carve attempts on fumes (face 36721007616 asserted with ~100s of
+    // "budget" the spin had already burned). The v0.184.0 comment's own law:
+    // an environment flake must not look like a pipeline failure.
+    if (budgetLeft() < 60000) {
+      t.skip(`no budget left for the table phase (${Math.round(budgetLeft() / 1000)}s left) - chain not exercised`)
+      return
+    }
     for (let attempt = 0; attempt < 3 && !table; attempt++) {
-      const carved = await carveAlcove(bot, miner)
-      if (carved) {
+      const carve = await carveAlcove(bot, miner)
+      if (carve.cell) {
         // (v0.184.0) digAbove now targets THE carved cell (carveAlcove returns
         // it) - the gravity column above the fresh alcove is the refill race
         // that eats the cell (measured live 2026-09-19)
-        await digAbove(bot, miner, carved)
+        await digAbove(bot, miner, carve.cell)
         table = await placeMachine(bot, 'crafting_table')
         log(`table attempt ${attempt}: carved, placed=${table?.position?.floored() ?? 'FAILED'}`)
+      } else if (carve.wet) {
+        // (v0.352.0) the wet column is not a pipeline failure - walk out of
+        // the water (the fleet's relocate escalation, the tools phase's own
+        // wet-spawn cure) and let the next attempt probe dry walls
+        log(`table attempt ${attempt}: the column is wet - relocating to solid ground`)
+        try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
       }
     }
   }
@@ -505,11 +533,14 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   // carve digs through the LANDED gravel, no entity race), digs the gravity
   // column above THE carved cell (carveAlcove now returns it), and re-places.
   for (let attempt = 0; attempt < 3 && !furnaceBlock; attempt++) {
-    const carved = await carveAlcove(bot, miner)
-    if (carved) {
-      await digAbove(bot, miner, carved)
+    const carve = await carveAlcove(bot, miner)
+    if (carve.cell) {
+      await digAbove(bot, miner, carve.cell)
       furnaceBlock = await placeMachine(bot, 'furnace')
       log(`furnace attempt ${attempt}: carved, placed=${furnaceBlock?.position?.floored() ?? 'FAILED'}`)
+    } else if (carve.wet) {
+      log(`furnace attempt ${attempt}: the column is wet - relocating to solid ground`)
+      try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
     }
   }
   assert.ok(furnaceBlock, 'furnace must be placeable on a free neighbour cell')
