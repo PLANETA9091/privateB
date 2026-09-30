@@ -2148,7 +2148,7 @@ export function createMiner ({
         // on arrival, the bar sank o2 4 -> 1 -> 0 across the bypass echoes)
         // and the transient stall gets its grace; the legacy threshold
         // still owns the next relog if the freeze persists.
-        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet, consecutiveRelogs: frozenRelogStreaks.get(username) || 0 })
+        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet, oxygen: frozenDownO2, consecutiveRelogs: frozenRelogStreaks.get(username) || 0 })
         if (esc.relog) {
           frozenStandDowns = 0
           // (v0.119.0) THE FROZEN-RETURN GATE arms here: run103's F14 relogged

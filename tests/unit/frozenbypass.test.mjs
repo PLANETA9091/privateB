@@ -194,6 +194,6 @@ test('miner wiring: the loop-break decision reads the streak, the refusal prints
   const breakLine = minerSrc.split('\n').find(l => l.includes('frozen-relog loop break (#'))
   assert.ok(breakLine && !breakLine.includes('frozen client relog'),
     'the loop-break line stays OUT of the decompose.mjs relog counter\'s lane (it counts /frozen client relog/)')
-  assert.ok(minerSrc.includes('headWet: frozenDownWet, consecutiveRelogs:'),
-    'the decision call passes the streak in the same object literal as the verdict\'s wet (the F6 read, one call)')
+  assert.ok(minerSrc.includes('headWet: frozenDownWet, oxygen: frozenDownO2, consecutiveRelogs:'),
+    'the decision call passes the streak in the same object literal as the verdict\'s wet and bar (the F6 read, one call - v0.372.0 the critical-lung veto reads the lungs there)')
 })

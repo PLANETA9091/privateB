@@ -1891,13 +1891,36 @@ export const FROZEN_RELOG_LOOP_CAP = 4
  * @param {number} [p.threshold] verdicts required (default FROZEN_RELOG_AFTER)
  * @param {number} [p.consecutiveRelogs] the bot's frozen-relog streak (junk -> 0:
  *   the break needs PROVEN cycles, a missing counter never invents one)
+ * @param {number} [p.oxygen] the bar at the verdict (junk -> 20: a lost read
+ *   never spends a veto - the gates-decide convention)
  * @returns {{relog: boolean, why: string, loopBreak?: boolean}}
  */
-export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, headWet = false, threshold = FROZEN_RELOG_AFTER, consecutiveRelogs = 0 } = {}) {
+export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, headWet = false, oxygen = 20, threshold = FROZEN_RELOG_AFTER, consecutiveRelogs = 0 } = {}) {
   const t = Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : FROZEN_RELOG_AFTER
   const n = Number.isFinite(frozenStandDowns) && frozenStandDowns > 0 ? Math.floor(frozenStandDowns) : 0
   if (!hasEntity) return { relog: false, why: 'no entity - the session loop already owns it' }
   if (Number.isFinite(health) && health <= 0) return { relog: false, why: 'bot dead - the respawn owns it' }
+  const r = Number.isFinite(consecutiveRelogs) && consecutiveRelogs > 0 ? Math.floor(consecutiveRelogs) : 0
+  // (v0.372.0) THE CRITICAL-LUNG VETO: one relog already failed to break the
+  // freeze (r >= 1 - the column loop's own signature) and the bar reads
+  // critical - face 36760275928's F6 ladder is the proof: four consecutive
+  // wet relogs dropped the bot back into the SAME lake column, the server
+  // kept draining across every reconnect dead window (o2 4 -> 1 -> 0), and
+  // the fatal page woke to a 1.9s window it could not spend ('breath mirror
+  // [rescue-ran] ... paged 1.9s before death'). The veto stops the ladder at
+  // the FIRST critical read: the remaining air stays in-session (no
+  // reconnect spend), the sentry re-pages, the rescue re-verdicts, and if
+  // the client unfreezes even once the rescue swims with the full remainder.
+  // The first relog (r = 0) keeps the saver - a one-off freeze with dying
+  // lungs is exactly the fast lane's client (the v0.96.0 law stands). The
+  // veto outranks the CAP break's why when both arm (the lungs are the
+  // sharper story at o2=0) and outranks the legacy threshold - the lungs do
+  // not care which path armed the relog. Junk oxygen reads 20 - a lost read
+  // never spends a veto.
+  const crit = Number.isFinite(oxygen) && oxygen <= OXYGEN_CRITICAL_LEVEL
+  if (headWet === true && r >= 1 && crit) {
+    return { relog: false, loopBreak: true, why: `critical lungs on a proven column (o2=${oxygen}, ${r} relog${r === 1 ? '' : 's'} deep) - the reconnect spends the air the rescue still owns, the session rides the freeze` }
+  }
   if (n < t) {
     // (v0.96.0) THE WET-FROZEN RELOG: a head-wet frozen bot is on the
     // drowning clock - the stand-down would hand a DYING bot to a lane that
@@ -1911,7 +1934,6 @@ export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, h
     // still owns the next relog if the freeze persists (the break is a
     // grace, never a residency). Junk streaks read 0 - never breaks.
     if (headWet === true) {
-      const r = Number.isFinite(consecutiveRelogs) && consecutiveRelogs > 0 ? Math.floor(consecutiveRelogs) : 0
       if (r >= FROZEN_RELOG_LOOP_CAP) return { relog: false, loopBreak: true, why: `wet-relog loop proven (${r} consecutive) - the relog lane feeds it, the transient stall rides the grace, the legacy threshold owns the next relog` }
       return { relog: true, why: `frozen while head-wet (${n} verdict${n === 1 ? '' : 's'}) - the drowning clock owns this client` }
     }
