@@ -1,6 +1,7 @@
 // Decompose a fleet19.log into the evidence classes the worklog tracks.
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
+import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -28,6 +29,24 @@ console.log('  start(other):', count(/drowning rescue start \((?!drowning|wet)/)
 console.log('  rescue complete 0.0s:', count(/rescue complete in 0\.0s/))
 console.log('  rescue complete >0s:', count(/rescue complete in [1-9]/))
 console.log('  per-bot rescue starts:', fmt(perBot(/drowning rescue start/)))
+// (v0.368.0) THE RESCUE END-STATE LEDGER - face 14's '53 starts / 27
+// completed' left 26 episodes unaccounted: the tool counted ONLY the
+// 'rescue complete' line while the machinery names seven more terminations
+// in the same line shape (the timeout's full-budget burn, the surface-safe
+// release, the frozen standdown, the dead-in-rescue abort - the drowning
+// attribution, the bot-gone and error aborts) plus episodes a FATAL face
+// leaves open at EOF. The pure pairing lives in src/lib/rescue-ledger.mjs
+// (unit-pinned); this block is its field read.
+const ledger = rescueLedger(lines)
+console.log('--- RESCUE END-STATE LEDGER (v0.368.0) ---')
+console.log(`  starts: ${ledger.totals.starts}  unclosed at EOF: ${ledger.totals.unclosed}  orphans: ${ledger.orphanEnds}`)
+console.log(`  complete: ${ledger.totals.complete} (standing-wet ${ledger.totals.completeStandingWet})  released: ${ledger.totals.released}  frozen standdown: ${ledger.totals.frozenStanddown}`)
+console.log(`  timeout: ${ledger.totals.timeout}  dead-in-rescue: ${ledger.totals.dead}  bot-gone: ${ledger.totals.botGone}  error abort: ${ledger.totals.abortedError}`)
+const timeoutRe = RESCUE_END_CLASSES.find(c => c.key === 'timeout').re
+const timeoutSeconds = lines.reduce((a, l) => a + (timeoutRe.test(l) ? (rescueEndSeconds(l) ?? 0) : 0), 0)
+console.log(`  timeout budget burned: ${timeoutSeconds.toFixed(1)}s`)
+console.log(`  mid-episode: shore-stall ${ledger.midEvents.shoreStall || 0}, transit-stall ${ledger.midEvents.transitStall || 0}, blind-live ${ledger.midEvents.blindLive || 0}, no-ground-truth ${ledger.midEvents.noGroundTruth || 0}, repeat-wet standdown ${ledger.midEvents.repeatWetStanddown || 0}`)
+console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${b}{${Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(' ') || 'none')
 console.log('  per-bot glitch pages(air-bar ignored):', fmt(perBot(/air-bar glitch ignored/)))
 console.log('  liar ladder ratchets:', count(/liar ladder ratchets/), 'per-bot:', fmt(perBot(/liar ladder ratchets/)))
 console.log('  liar ladder resets:', count(/liar ladder resets/))
