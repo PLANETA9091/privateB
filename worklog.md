@@ -10492,3 +10492,20 @@ Stage Summary:
 - Master = 2ee22f8 (pkg 0.368.0). FLEET OF RECORD: face 15 = 36760275928 (queued on 3772bd3).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.369.0). (2) Poll the tip gate (2ee22f8): green proves 0.363..0.368 cumulatively. (3) Poll face 15 TO COMPLETION -> mine with the NEW ledger block: the end histogram answers WHERE the lost episodes go - the rescue-net healing's DECODE prices its cure off this read. (4) Green tip + slot free => dispatch face 16 (the picker/hold/fleet-dry-cell/shore-stall field legs at once).
 - OPEN FRONTS: face 15's legs (queued); the ledger's first field face (the healing decode, face 15/16); the picker/hold/wide-scan field legs (face 16+); the bank chains' walk deliveries (cron38's lane); the seal cross's LANDED leg (owed); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.369.0.
+
+---
+Task ID: cron30-20261001-0430
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0430 - NO CODE fire per the repo's own law (the tree 0.363..0.368 unproven, face 15 owns the next cure's verdict): the rescue-ledger's LONGITUDINAL read across the four freshest held artifacts - the rescue-healing front's field target quantified.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip = 3a865da (the 0400 worklog), pkg 0.368.0, cron38 quiet - 0.369.0 free and UNTOUCHED this fire (no version bump). Tip gate 36771341427 (3a865da) queued; face 15 (36760275928) STILL queued (untouched since 19:38Z - patience, not cancel).
+- WHY NO CODE: every push gate since 3772bd3's SUCCESS is cancelled-as-superseded - six versions ride an unproven tree; the 0400 ledger's seams (blind probes, the orphan) are single-datum; the rescue wet branch is cron38's fresh 0.367.0 territory. The zero-conflict law beats the quota (the NO CODE precedent).
+- THE LONGITUDINAL LEDGER READ (newest first): face 13 (FATAL): 21 starts = 5 complete + 15 frozen + 1 unclosed (F2 - the freeze FATAL killed the process mid-rescue; the open-at-EOF class PROVEN). face 12: 54 = 33 complete + 16 frozen + 4 timeout + 1 unclosed. run36726048100: 68 = 28 complete + 2 frozen + 37 TIMEOUT + 1 unclosed - THE WHALE: timeout budget burned 943.9s (37 x ~25.5s full-budget burns, the shore-stall family at fleet scale - the 0.367.0 cure's field target). run36592026195: 32 = 10 complete + 15 frozen + 7 timeout. All four reconcile EXACTLY - the ledger's vocabulary covers the whole era's done ladder.
+- CROSS-FACE TOTALS: 175 starts, 76 complete (43.4%), 48 frozen, 48 timeout, 3 unclosed, 0 dead, 0 bot-gone, 0 error abort - THE CONVERSION BASELINE: released = 0/175 and complete standing-wet = 0/175. The release/probe branches the 0.367.0 shore-yield cure rides have NEVER terminated an episode in the window - the cure's conversion mechanism is unproven by construction; the shore-yield field leg must beat 0.
+- GC Pinned hunt note: the doomed-goal-cache is EXONERATED as the suspect - src/lib/nopath.mjs's ledger is capped (NOPATH_CAP=24, prune-then-append, the v0.96.0 re-doom backoff); the 540M burst is allocation-shape, not the cache.
+
+Stage Summary:
+- Master = 3a865da (pkg 0.368.0). FLEET OF RECORD: face 15 = 36760275928 (queued on 3772bd3). No version bump this fire (0.369.0 still free).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.369.0). (2) Poll the tip gate 36771341427 (3a865da) - green proves 0.363..0.368 cumulatively. (3) Poll face 15 TO COMPLETION -> mine with the ledger: the timeout class MUST collapse (the 943.9s/37-timeout before-picture) and the release/probe conversions MUST leave 0 - if they stay 0, the shore-yield cure converted nothing and the rescue-healing decode prices its next move off THAT. (4) Green tip + slot free => dispatch face 16.
+- OPEN FRONTS: the release-branch zero-conversion question (0/175 - rides the face-15 read); the orphan class (1 in face 12, unexplained); the rescue net's healing (face 15/16); the picker/hold/wide-scan/shore-yield field legs (face 15/16); the bank chains' walk deliveries (cron38's lane); the seal cross's LANDED leg; the GC Pinned hunt (allocation-shape, needs heap-profile work); shooter-band census; void stamp. Version next: 0.369.0.
