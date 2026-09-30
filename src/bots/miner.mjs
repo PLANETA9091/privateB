@@ -2114,7 +2114,13 @@ export function createMiner ({
       // A dead bot / no entity never escalates (the respawn owns those exits).
       if (frozenDown) {
         frozenStandDowns++
-        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet })
+        // (v0.361.0) the decision reads the bot's frozen-relog streak: the
+        // wet first-verdict saver stands down once the loop is proven (the
+        // F6 ladder - six consecutive wet relogs, every armed hold voided
+        // on arrival, the bar sank o2 4 -> 1 -> 0 across the bypass echoes)
+        // and the transient stall gets its grace; the legacy threshold
+        // still owns the next relog if the freeze persists.
+        const esc = frozenRelogDecision({ frozenStandDowns, hasEntity: !!bot.entity, health: bot.health ?? 20, headWet: frozenDownWet, consecutiveRelogs: frozenRelogStreaks.get(username) || 0 })
         if (esc.relog) {
           frozenStandDowns = 0
           // (v0.119.0) THE FROZEN-RETURN GATE arms here: run103's F14 relogged
@@ -2137,6 +2143,15 @@ export function createMiner ({
           const bypassEcho = frozenBypassEcho({ oxygen: frozenDownO2, headWet: frozenDownWet, underHold: true })
           log(`${tag} water: frozen client relog (#${relogStreak} consecutive) (${esc.why}) - ending the session, the reconnect lane rebuilds the physics; the drowning sentry holds non-critical pages ${Math.round(hold / 1000)}s (the frozen-return gate) - o2=${o2SensorLabel(frozenDownO2)} health=${bot.health ?? '?'} window=${frozenDownWindow ?? '?'}${bypassEcho ? ` - ${bypassEcho}` : ''}`)
           try { bot.end() } catch { /* the session loop owns the wreck */ }
+        } else if (esc.loopBreak === true) {
+          // (v0.361.0) THE LOOP-BREAK LINE - the refusal used to fall
+          // through SILENTLY (the relog branch printed, the refusal never
+          // did - the v0.265.0 echo lesson, one lane deeper). The line
+          // names the proven loop, the grace's owner and the backstop.
+          // No throttle: the completion handler runs once per rescue end.
+          // Worded to stay OUT of the decompose.mjs relog counter's lane
+          // (it counts /frozen client relog/ - this is not one).
+          log(`${tag} water: frozen-relog loop break (#${frozenRelogStreaks.get(username) || 0} consecutive) (${esc.why}) - the session rides the freeze, the sentry re-pages and the rescue re-verdicts`)
         }
       } else {
         frozenStandDowns = 0 // living physics: the escalation restarts

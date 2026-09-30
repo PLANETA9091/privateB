@@ -1826,6 +1826,43 @@ export const FROZEN_RELOG_AFTER = 3
 // the bot out). A DRY frozen bot is harmless where it stands - the legacy
 // threshold keeps protecting it from a premature session end.
 
+// (v0.361.0) THE WET-RELOG LOOP BREAK - face 36740244530's F6 ladder closed
+// the v0.265.0 echo's loop with SIX consecutive wet-frozen relogs: #1..#4
+// escalated on their first verdict each (the v0.96.0 saver, honest every
+// time), while the bypass echoes named the void at streaks 3, 4 and 5
+// ('the critical bypass voids the armed hold on the next page - the loop
+// fuel') and the bar sank o2 4 -> 1 -> 0 across the echoes, health 20 ->
+// 18 -> 12.67. The arithmetic the loop lives on: the server keeps ticking
+// the drowning clock while the client is down (the v0.96.0 lesson), so
+// EVERY relog cycle bleeds ~3 o2 units the bot cannot spare, and the
+// escalating hold (10s -> 60s) never holds a single page - a bot that
+// relogged wet returns CRITICAL by construction (the drain ran while it
+// was down), the critical bypass voids the hold ON ARRIVAL (the death
+// clock outranks the hold - the v0.119.0 law, correct every time), and
+// the rescue re-fires on the same column. The relog lane was feeding the
+// loop it exists to break. THE CURE: after FROZEN_RELOG_LOOP_CAP
+// consecutive wet-frozen relogs the wet first-verdict escalation STANDS
+// DOWN (the loop is proven twice over - two bypass echoes named the
+// void) and gives the transient stall its only window: the v0.82.0
+// doctrine ('a transient stall recovers within 1-2 verdicts') was
+// structurally unreachable in this class because the FIRST verdict
+// always relogged. The break is bounded by construction: the per-bot
+// counter keeps counting, the legacy threshold (3 verdicts) still owns
+// the next relog if the freeze persists - the grace costs at most two
+// fast windows, and the legacy saver keeps its full authority for the
+// first CAP cycles (F6's relogs #1-#4 - the streaks 0-3, o2 20/10/7/1 -
+// each kept a real chance; the grace starts where #5 would have fired). A
+// LIVING-physics rescue end still clears the whole ladder (the streak,
+// the hold, the counter) - the honest exit stands.
+
+/** Consecutive wet-frozen relogs after which the wet first-verdict
+ * escalation stands down for the loop-break grace. F6's log: the loop
+ * was proven by the second bypass echo (streak 4's hold voided, o2=1) -
+ * the decision reads the streak BEFORE the increment, so CAP=4 keeps
+ * the proven saver for relogs #1-#4 (streaks 0-3) and breaks the feed
+ * from the fifth consecutive wet relog (r >= 4) on. */
+export const FROZEN_RELOG_LOOP_CAP = 4
+
 /**
  * Should a frozen-physics stand-down escalate to a forced session end (pure,
  * junk-safe)? The counter counts CONSECUTIVE frozen verdicts - the caller
@@ -1834,6 +1871,17 @@ export const FROZEN_RELOG_AFTER = 3
  * with no entity or a dead one never needs the escalation: the respawn and
  * the session loop already own those exits.
  *
+ * (v0.361.0) the wet first-verdict escalation grows the loop break: when
+ * the bot's consecutive frozen-relog streak has reached
+ * FROZEN_RELOG_LOOP_CAP, a head-wet frozen verdict REFUSES the relog
+ * (loopBreak: true, the honest why) - the relog lane feeds the proven
+ * loop, the transient stall gets its grace, the legacy threshold still
+ * owns the next relog. The DRY legacy path and the n >= t threshold path
+ * NEVER break (the grace's own backstop must keep firing); junk streaks
+ * read 0 - a missing counter never invents a loop (the gates-decide
+ * convention), so a legacy caller without the new argument rides the
+ * byte-identical saver.
+ *
  * @param {object} [p]
  * @param {number} [p.frozenStandDowns] consecutive frozen verdicts so far (junk -> 0)
  * @param {boolean} [p.hasEntity] does the bot still have an entity
@@ -1841,9 +1889,11 @@ export const FROZEN_RELOG_AFTER = 3
  * @param {boolean} [p.headWet] is the head under water at the verdict (junk -> false:
  *   only a boolean TRUE accelerates - the gates-decide convention)
  * @param {number} [p.threshold] verdicts required (default FROZEN_RELOG_AFTER)
- * @returns {{relog: boolean, why: string}}
+ * @param {number} [p.consecutiveRelogs] the bot's frozen-relog streak (junk -> 0:
+ *   the break needs PROVEN cycles, a missing counter never invents one)
+ * @returns {{relog: boolean, why: string, loopBreak?: boolean}}
  */
-export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, headWet = false, threshold = FROZEN_RELOG_AFTER } = {}) {
+export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, health = 20, headWet = false, threshold = FROZEN_RELOG_AFTER, consecutiveRelogs = 0 } = {}) {
   const t = Number.isFinite(threshold) && threshold >= 1 ? Math.floor(threshold) : FROZEN_RELOG_AFTER
   const n = Number.isFinite(frozenStandDowns) && frozenStandDowns > 0 ? Math.floor(frozenStandDowns) : 0
   if (!hasEntity) return { relog: false, why: 'no entity - the session loop already owns it' }
@@ -1853,7 +1903,18 @@ export function frozenRelogDecision ({ frozenStandDowns = 0, hasEntity = true, h
     // drowning clock - the stand-down would hand a DYING bot to a lane that
     // takes ~75s to arm. One verdict is proof enough (the bot cannot swim
     // out client-side and the server does not care about client excuses).
-    if (headWet === true) return { relog: true, why: `frozen while head-wet (${n} verdict${n === 1 ? '' : 's'}) - the drowning clock owns this client` }
+    // (v0.361.0) THE LOOP BREAK: after FROZEN_RELOG_LOOP_CAP consecutive
+    // wet-frozen relogs the saver stands down - the streak says the relog
+    // lane is FEEDING the loop (every cycle bleeds o2 the server keeps
+    // ticking, the critical bypass voids every armed hold on arrival),
+    // the transient stall gets its only window, and the legacy threshold
+    // still owns the next relog if the freeze persists (the break is a
+    // grace, never a residency). Junk streaks read 0 - never breaks.
+    if (headWet === true) {
+      const r = Number.isFinite(consecutiveRelogs) && consecutiveRelogs > 0 ? Math.floor(consecutiveRelogs) : 0
+      if (r >= FROZEN_RELOG_LOOP_CAP) return { relog: false, loopBreak: true, why: `wet-relog loop proven (${r} consecutive) - the relog lane feeds it, the transient stall rides the grace, the legacy threshold owns the next relog` }
+      return { relog: true, why: `frozen while head-wet (${n} verdict${n === 1 ? '' : 's'}) - the drowning clock owns this client` }
+    }
     return { relog: false, why: `${n}/${t} flat stand-downs` }
   }
   return { relog: true, why: `${n} consecutive frozen verdicts` }

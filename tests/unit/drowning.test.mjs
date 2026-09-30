@@ -28,7 +28,7 @@ import {
   frozenWindowFor, WET_FROZEN_WINDOW,
   BOB_WINDOW, BOB_MIN_DRY, BOB_RELEASE_O2, TRANSIT_STALL_PASSES, TRANSIT_STALL_MARGIN,
   HAZARD_ZONE_MERGE_DIST, HAZARD_ZONE_MIN_COUNT, HAZARD_ZONE_MARGIN, HAZARD_ZONE_Y_BAND,
-  hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER,
+  hazardZones, frozenRelogDecision, FROZEN_RELOG_AFTER, FROZEN_RELOG_LOOP_CAP,
   rotateBearingXZ, fleeTargetBlocked, vettedFleeTargetAbs, fleePathBlocked,
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
   dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
@@ -891,6 +891,45 @@ test('frozenRelogDecision: the respawn and the session loop own the dead exits',
     'a dead bot is the respawn\'s exit, not a relog')
   assert.equal(frozenRelogDecision({ frozenStandDowns: 9, health: 1 }).relog, true,
     'a half-dead frozen bot still gets the fresh client')
+})
+
+test('frozenRelogDecision: THE WET-RELOG LOOP BREAK (v0.361.0, the F6 ladder - six consecutive wet relogs, every hold voided on arrival, o2 4->1->0)', () => {
+  assert.equal(FROZEN_RELOG_LOOP_CAP, 4, 'the saver keeps relogs #1-#4 (streaks 0-3), the grace owns #5+')
+  // F6's relogs #1..#4: the streak rides 0..3, the v0.96.0 saver keeps its
+  // full authority (each cycle had a real chance) - the why is byte-identical.
+  for (let r = 0; r < 4; r++) {
+    const d = frozenRelogDecision({ frozenStandDowns: 1, headWet: true, consecutiveRelogs: r })
+    assert.deepEqual(d, { relog: true, why: 'frozen while head-wet (1 verdict) - the drowning clock owns this client' },
+      `streak ${r} (relog #${r + 1}): the proven saver, byte-identical why`)
+  }
+  // From the FIFTH consecutive wet relog on (r >= 4): the loop is proven
+  // (F6's second bypass echo, o2=1) - the relog lane stands down and the
+  // transient stall gets its grace. loopBreak names the refusal class.
+  const brk = frozenRelogDecision({ frozenStandDowns: 1, headWet: true, consecutiveRelogs: 4 })
+  assert.equal(brk.relog, false, 'the fifth consecutive wet relog is refused - the lane feeds the loop')
+  assert.equal(brk.loopBreak, true, 'the refusal names its class for the caller\'s log lane')
+  assert.match(brk.why, /wet-relog loop proven \(4 consecutive\)/, 'the why names the proven streak')
+  assert.match(brk.why, /the legacy threshold owns the next relog/, 'the why names the backstop')
+  const deeper = frozenRelogDecision({ frozenStandDowns: 1, headWet: true, consecutiveRelogs: 6 })
+  assert.equal(deeper.loopBreak, true, 'F6\'s #7 would break too - the break is not a one-rung shelf')
+})
+
+test('frozenRelogDecision: the loop break is bounded - the legacy threshold still owns the next relog', () => {
+  // The grace's own backstop: the per-bot verdict counter keeps counting
+  // through the refusals, the third verdict relogs via the legacy lane
+  // (whose why must stay byte-identical - the threshold never breaks).
+  assert.deepEqual(frozenRelogDecision({ frozenStandDowns: 3, headWet: true, consecutiveRelogs: 5 }),
+    { relog: true, why: '3 consecutive frozen verdicts' }, 'the legacy threshold outranks the break')
+  assert.deepEqual(frozenRelogDecision({ frozenStandDowns: 3, headWet: false, consecutiveRelogs: 9 }),
+    { relog: true, why: '3 consecutive frozen verdicts' }, 'the DRY legacy path never breaks (streak 9 rides the threshold)')
+})
+
+test('frozenRelogDecision: junk streaks never invent a loop (the gates-decide convention)', () => {
+  for (const junk of [undefined, null, NaN, -4, 0, '7']) {
+    const d = frozenRelogDecision({ frozenStandDowns: 1, headWet: true, consecutiveRelogs: junk })
+    assert.equal(d.relog, true, `junk streak ${String(junk)} reads 0 - the saver keeps its authority`)
+    assert.equal(d.loopBreak, undefined, 'no break field on the saver path')
+  }
 })
 
 test('frozenRelogDecision: junk never condemns (the Number(null) lesson, seventh strike)', () => {

@@ -176,3 +176,24 @@ test('miner wiring: the bypass reads the page\'s own class, the junk crossing pr
   assert.ok(minerSrc.includes('frozenBypassEcho({ oxygen: frozenDownO2, headWet: frozenDownWet, underHold: true })'),
     'the relog tail\'s echo mirrors the same inputs (the verdict\'s wet + the hold arming)')
 })
+
+// (v0.361.0) THE WET-RELOG LOOP BREAK pins - the echo's loop, CLOSED.
+// Face 36740244530's F6 ladder: six consecutive wet-frozen relogs, the
+// bypass echoes named the void at streaks 3/4/5 (o2 4 -> 1 -> 0), health
+// 20 -> 18 -> 12.67, zero walk-outs - the relog lane was feeding the loop
+// it exists to break. The cure: the wet first-verdict saver stands down
+// once the streak proves the loop (FROZEN_RELOG_LOOP_CAP), the transient
+// stall gets its grace, the legacy threshold still owns the next relog.
+test('miner wiring: the loop-break decision reads the streak, the refusal prints its own line', () => {
+  assert.ok(minerSrc.includes('consecutiveRelogs: frozenRelogStreaks.get(username) || 0'),
+    'the decision call carries the bot\'s frozen-relog streak (a missing counter reads 0 - never breaks)')
+  assert.ok(minerSrc.includes("esc.loopBreak === true"), 'the refusal has its own branch - it never falls through silently again')
+  assert.ok(minerSrc.includes('frozen-relog loop break (#'), 'the loop-break line exists and names the streak')
+  assert.ok(minerSrc.includes('the session rides the freeze, the sentry re-pages and the rescue re-verdicts'),
+    'the line names the grace\'s owner and the backstop')
+  const breakLine = minerSrc.split('\n').find(l => l.includes('frozen-relog loop break (#'))
+  assert.ok(breakLine && !breakLine.includes('frozen client relog'),
+    'the loop-break line stays OUT of the decompose.mjs relog counter\'s lane (it counts /frozen client relog/)')
+  assert.ok(minerSrc.includes('headWet: frozenDownWet, consecutiveRelogs:'),
+    'the decision call passes the streak in the same object literal as the verdict\'s wet (the F6 read, one call)')
+})
