@@ -10440,3 +10440,19 @@ Stage Summary:
 - Master = caf264a (pkg 0.365.0). FLEET OF RECORD: face 15 = 36760275928 (queued on 3772bd3, cron38's dispatch).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.366.0). (2) Poll gate 36764172350 (caf264a): green proves 0.363.0 + 0.364.0 + 0.365.0 cumulatively. (3) Poll face 15 (36760275928) -> mine: the loop break's first field leg, the dry-cell law's integration read, the DRY DIET's first print, the WET class's second read. (4) Green tip + slot free => dispatch face 16.
 - OPEN FRONTS: face 15's legs (queued); the picker/hold/fleet-dry-cell field legs (face 16+); the bank chains' walk deliveries (cron38's lane - the NoPath-at-19-45b whale); the rescue net's healing (3 drownings in the calm); the seal cross's LANDED leg (owed); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.366.0.
+
+---
+Task ID: cron30-20261001-0330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0330 - v0.366.0 THE FLOODED-ALCOVE WIDENING REACHES THE CAMP FURNACE (the v0.363.0 lib's third consumer); face 15 in flight at close - polled, not duplicated.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip = 65436d6, pkg 0.365.0, cron38 quiet -> 0.366.0. The 3772bd3 push gate = SUCCESS (v0.362.0 tree PROVEN - face 15 rides a proven tree); face 15 (36760275928) finally IN_PROGRESS.
+- v0.366.0 (dfaf197): placeItemBlock imports the v0.363.0 lib (RING1_OFFSETS verbatim - one source of truth across the integration placeMachine and the fleet core; RING2_OFFSETS; floodedAlcove) and widens its scan to ring 2 when ring 1 produced ZERO attempts, BEFORE the legacy dig-below - whose next step ate the block BELOW and dropped the bot into the very water it was failing to place around (a flooded floor's dig-below = a bot standing IN the pond). The wide scan rides the same dry-cell law + floor filter, stays carve-free (the same surface the integration picker offers); the trigger stays narrow (any rejected attempt = the rounds ladder's class, no widening - the body-guard law); rejected counters ride the existing silent catches (no log lines - the scan stays mute, no filter-key wiring); placeTable keeps its own copy + relocate ladder untouched (the established pattern).
+- Tests: tests/unit/furnace-wide-scan.test.mjs - the wide scan takes the dry ring-2 cell BEFORE the dig-below (place 1 at (2,0), digs 0); the dry-cell law rides the wide scan; all-wet both rings = the honest give-up (the item survives, the dig-below still owns the fully-drowned site); a rejected ring-1 attempt never widens (the tempting dry ring-2 cell stays unoffered). Test fix during the fire: the seed needed a ring-1 override - the first draft left [1,0] wet and the widening HONESTLY fired (the tool worked, the seed lied). Local: syntax 273, unit 156/156.
+- Pushed 65436d6..dfaf197 rebase-clean. Gate 36767078606 = pending at close. Face 15: still IN_PROGRESS at close (no artifact yet) - the mining rides the next fire. NO dispatch (the slot is face 15's, the max-one law).
+
+Stage Summary:
+- Master = dfaf197 (pkg 0.366.0). FLEET OF RECORD: face 15 = 36760275928 (in_progress on the proven 3772bd3 tree).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.367.0). (2) Poll face 15 (36760275928) TO COMPLETION -> download the artifact -> decompose.mjs: the loop break's first field leg, the dry-cell law's integration read, the DRY DIET's first field print, the WET class's second read, the bank hold's first read. (3) Poll gate 36767078606 (dfaf197): green proves 0.363..0.366 cumulatively. (4) Green tip + slot free => dispatch face 16 (the wide furnace scan's field leg).
+- OPEN FRONTS: face 15's legs (in flight); the picker/hold/wide-scan field legs (face 16+); the bank chains' walk deliveries (cron38's lane); the rescue net's healing (3 drownings in the calm - the deep front); the seal cross's LANDED leg (owed); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.367.0.
