@@ -636,20 +636,45 @@ test('scanYardChests: the matcher keeps the palette-candidate rule, the yard fil
 // (findBlocks, count 256) lies empty 2/2 while the singular find (findBlock,
 // the engine's count-1 shape) still opens chests in the same window. The
 // rescue borrows the proven path; every exit names itself; junk never throws.
-test('scanYardChests: the singular probe rescues the empty scan (the run546 F5 shape)', () => {
+// (v0.350.0) THE PROBE RIDES FIRST - the field's unanimous split across three
+// faces (36700431959/36706516734/36710193486: 122 empty-return events; the
+// probe rescued 122/122; the second plural attempt answered 0/122): the rescue
+// now lands after ONE plural empty and the second plural attempt never rides
+// between the lie and the proven shape.
+test('scanYardChests: the singular probe rides FIRST after the named empty (the run546 F5 shape, v0.350.0)', () => {
   const lines = []
   const log = m => lines.push(m)
   const rescued = { name: 'chest', position: new Vec3(12.4, 63.8, -7.2) }
+  let findBlocksCalls = 0
   const bot = {
     entity: { position: new Vec3(30.5, 64, 30.5) },
-    findBlocks: () => [], // the plural lie: 2/2 empty, the run546 shape
+    findBlocks: () => { findBlocksCalls++; return [] }, // the plural lie: the face-9 startup shape
     findBlock: ({ matching }) => (matching(rescued) ? rescued : null) // the proven path
   }
   const out = scanYardChests(bot, { yardCenter: { x: 0, y: 64, z: 0 }, radius: 64, log })
   assert.deepEqual(out, [{ x: 12, y: 63, z: -8 }], 'the rescue chest becomes the one-cell list, floored')
+  assert.equal(findBlocksCalls, 1, 'ONE plural attempt rode - the 0/122 re-query does not ride between the lie and the probe')
   assert.equal(lines.filter(l => l.includes("returned empty (attempt 1/2) at [31,64,31] yard d=43")).length, 1, 'the empty line names the position and the yard distance')
-  assert.equal(lines.filter(l => l.includes("returned empty (attempt 2/2)")).length, 1, 'both attempts named themselves before the rescue')
-  assert.equal(lines.filter(l => l.includes('the singular probe rescued the scan (chest at [12,63,-8])')).length, 1, 'the rescue names itself and its chest')
+  assert.match(lines[0], /the palette empty-return class, the singular probe rides first/, 'the named class promises the probe, not a re-query')
+  assert.equal(lines.filter(l => l.includes('attempt 2/2')).length, 0, 'the second plural attempt never rode - the probe\'s verdict was final')
+  assert.equal(lines.filter(l => l.includes('the palette read empty x1 - the singular probe rescued the scan (chest at [12,63,-8])')).length, 1, 'the rescue names itself, its window (x1) and its chest')
+})
+
+test('scanYardChests: the probe rides first, the second plural attempt rides LAST (the v0.350.0 ordering)', () => {
+  const near = { name: 'chest', position: new Vec3(2.5, 64, 2.5) }
+  let calls = 0
+  const bot = {
+    entity: { position: new Vec3(0, 64, 0) },
+    findBlocks: () => { if (calls++ === 0) return []; return [near] }, // the palette lie, then the truth
+    findBlock: () => null // the probe finds nothing in the same window
+  }
+  const lines = []
+  const out = scanYardChests(bot, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => lines.push(l) })
+  assert.deepEqual(out, [{ x: 2, y: 64, z: 2 }], 'the second plural attempt answers after the probe came up empty - the last resort survives')
+  assert.equal(calls, 2, 'exactly two plural attempts (the probe rode between them)')
+  assert.equal(lines.filter(l => l.includes('the singular probe found nothing after the palette empty-return - the second plural attempt rides last')).length, 1, 'the probe\'s miss named itself and deferred to the last resort')
+  assert.equal(lines.filter(l => l.includes('attempt 2/2')).length, 0, 'the answering attempt owes no empty line')
+  assert.equal(lines.filter(l => l.includes('the singular probe rescued the scan')).length, 0, 'no rescue line rode - the plural list won honestly')
 })
 
 test('scanYardChests: the rescue finds nothing / throws - the honest empty stands, never throws', () => {
@@ -1031,14 +1056,17 @@ test('scanYardChests: the empty-return retry - the palette desync\'s SILENT face
   assert.deepEqual(scanYardChests(flaky, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => lines.push(l) }), [{ x: 2, y: 64, z: 2 }],
     'the re-query answers after one empty scan')
   assert.equal(calls, 2, 'exactly two attempts')
-  assert.equal(lines.length, 1, 'the empty named itself once')
-  assert.match(lines[0], /fuel anchor scan returned empty \(attempt 1\/2\) at \[0,64,0\] yard d=0 - the palette empty-return class, re-querying/, 'the empty line names the position and the yard distance (v0.133.0)')
+  assert.equal(lines.length, 4, 'the empty named itself, the probe\'s two internal swallows rode, the miss deferred to the last resort')
+  assert.match(lines[0], /fuel anchor scan returned empty \(attempt 1\/2\) at \[0,64,0\] yard d=0 - the palette empty-return class, the singular probe rides first/, 'the empty line names the position and the yard distance (v0.133.0; the v0.350.0 promise rides the same line)')
+  assert.match(lines[3], /the singular probe found nothing after the palette empty-return - the second plural attempt rides last/, 'the probe\'s miss named itself before the re-query (v0.350.0)')
   const dead = { entity: { position: new Vec3(0, 64, 0) }, findBlocks: () => [] }
   const deadLines = []
   assert.deepEqual(scanYardChests(dead, { yardCenter: { x: 0, y: 64, z: 0 }, log: l => deadLines.push(l) }), [], 'two empties still read empty')
-  assert.equal(deadLines.length, 5, 'BOTH empties + the probe\'s two internal swallows + the rescue miss named themselves - no bare swallow')
-  assert.match(deadLines[1], /fuel anchor scan returned empty \(attempt 2\/2\) at \[0,64,0\] yard d=0$/, 'the second empty does not promise a re-query')
-  assert.match(deadLines[4], /the singular probe found nothing either/, 'the rescue-less empty names the probe (v0.133.0)')
+  assert.equal(deadLines.length, 8, 'BOTH empties + the probe\'s four internal swallows (the probe rode twice) + the defer + the rescue miss named themselves - no bare swallow')
+  assert.match(deadLines[0], /fuel anchor scan returned empty \(attempt 1\/2\) at \[0,64,0\] yard d=0/, 'the first empty names itself')
+  assert.match(deadLines[3], /the singular probe found nothing after the palette empty-return/, 'the between-attempts miss names itself')
+  assert.match(deadLines[4], /fuel anchor scan returned empty \(attempt 2\/2\) at \[0,64,0\] yard d=0$/, 'the second empty does not promise a re-query')
+  assert.match(deadLines[7], /the singular probe found nothing either/, 'the rescue-less empty names the probe (v0.133.0)')
 })
 
 test('withdrawFuelCommons: the fresh-empty memory cannot un-anchor - a chest seen empty a minute ago is STILL read first', async () => {

@@ -231,8 +231,32 @@ export function pickFuelAnchor (chests, yardCenter) {
  * the honest [], the probe's throw is swallowed (the rescue never kills the
  * scan), and the empty line now carries the bot's position + the yard distance
  * so the next mine can split the range face (bot 64+ blocks out) from the
- * engine face (empty at the yard) at a glance. */
+ * engine face (empty at the yard) at a glance.
+ *
+ * (v0.350.0) THE PROBE RIDES FIRST - three faces named the split unanimous
+ * (36700431959/36706516734/36710193486: 122 empty-return events; the singular
+ * probe rescued 122/122; the second plural attempt answered 0/122 - never
+ * once, not one chest). The re-query that never worked does not ride between
+ * the lie and the proven shape: after attempt 1's named empty the probe runs
+ * IMMEDIATELY, and the second plural attempt survives as the last resort
+ * behind it (the transient-throw classes keep today's path byte for byte -
+ * a throw is a different face and keeps the re-query). */
 export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radius = YARD_CHEST_RADIUS, log = () => {} } = {}) {
+  // (v0.350.0) THE PROBE CELL - one singular findChest probe (the field's
+  // proven count-1 shape), shared by the between-attempts ride and the
+  // last-resort rescue. Junk-safe: a throw or a junk position reads null and
+  // the caller's honest face stands.
+  const probeCell = () => {
+    try {
+      const rescue = findChest(bot, { maxDistance, yardCenter, yardRadius: radius, log })
+      if (!rescue || !rescue.position) return null
+      const x = Math.floor(Number(rescue.position.x))
+      const y = Math.floor(Number(rescue.position.y))
+      const z = Math.floor(Number(rescue.position.z))
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
+      return { x, y, z }
+    } catch { return null }
+  }
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       if (typeof bot?.findBlocks !== 'function') return []
@@ -263,8 +287,23 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
       // from 'empty at the yard'; the next mine can.
       if (out.length === 0) {
         const at = yardWhere(bot, yardCenter)
-        try { log(`fuel anchor scan returned empty (attempt ${attempt}/2)${at}${attempt === 1 ? ' - the palette empty-return class, re-querying' : ''}`) } catch { /* log never kills a scan */ }
-        if (attempt === 1) continue
+        try { log(`fuel anchor scan returned empty (attempt ${attempt}/2)${at}${attempt === 1 ? ' - the palette empty-return class, the singular probe rides first' : ''}`) } catch { /* log never kills a scan */ }
+        if (attempt === 1) {
+          // (v0.350.0) THE PROBE RIDES FIRST - the field's unanimous split
+          // (faces 36700431959/36706516734/36710193486: 122 empty-return
+          // events; the probe rescued 122/122; the second plural attempt
+          // answered 0/122): the probe runs NOW, one wasted count-256
+          // re-query saved per event, and the second plural attempt rides
+          // LAST (the transient-throw classes keep today's path byte for
+          // byte - a throw is a different face and keeps the re-query).
+          const cell = probeCell()
+          if (cell) {
+            try { log(`fuel anchor scan: the palette read empty x1 - the singular probe rescued the scan (chest at [${cell.x},${cell.y},${cell.z}])`) } catch { /* log never kills a scan */ }
+            return [cell]
+          }
+          try { log('fuel anchor scan: the singular probe found nothing after the palette empty-return - the second plural attempt rides last') } catch { /* log never kills a scan */ }
+          continue
+        }
         break // (v0.133.0) both plural attempts read empty - fall through to the singular probe rescue
       }
       return out
@@ -278,27 +317,19 @@ export function scanYardChests (bot, { yardCenter = null, maxDistance = 64, radi
       try { log(`fuel anchor scan swallowed: ${e?.message || e}${at} (attempt ${attempt}/2)`) } catch { /* log never kills a scan */ }
     }
   }
-  // (v0.133.0) THE SINGULAR PROBE RESCUE - both plural attempts read empty and
-  // the field says the singular shape still works in that exact window (F5,
-  // run546: scans 0/0, findChest open + bank +154 seconds later). One probe,
-  // the proven path; its chest is a one-cell list, the anchor walk and the
-  // tithe deposit run unchanged from there.
-  try {
-    const rescue = findChest(bot, { maxDistance, yardCenter, yardRadius: radius, log })
-    const cell = (() => {
-      if (!rescue || !rescue.position) return null
-      const x = Math.floor(Number(rescue.position.x))
-      const y = Math.floor(Number(rescue.position.y))
-      const z = Math.floor(Number(rescue.position.z))
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
-      return { x, y, z }
-    })()
-    if (cell) {
-      try { log(`fuel anchor scan empty x2 - the singular probe rescued the scan (chest at [${cell.x},${cell.y},${cell.z}])`) } catch { /* log never kills a scan */ }
-      return [cell]
-    }
-    try { log('fuel anchor scan empty x2 - the singular probe found nothing either') } catch { /* log never kills a scan */ }
-  } catch { /* the rescue never kills the scan - the honest empty stands */ }
+  // (v0.133.0) THE SINGULAR PROBE RESCUE - the loop's last resort: both plural
+  // attempts are spent (or threw) and the field says the singular shape still
+  // works in that exact window (F5, run546: scans 0/0, findChest open + bank
+  // +154 seconds later). One probe, the proven path; its chest is a one-cell
+  // list, the anchor walk and the tithe deposit run unchanged from there.
+  // (v0.350.0) the same probe already rode between the attempts - reaching
+  // here means it found nothing there either; the honest empty stands.
+  const cell = probeCell()
+  if (cell) {
+    try { log(`fuel anchor scan empty x2 - the singular probe rescued the scan (chest at [${cell.x},${cell.y},${cell.z}])`) } catch { /* log never kills a scan */ }
+    return [cell]
+  }
+  try { log('fuel anchor scan empty x2 - the singular probe found nothing either') } catch { /* log never kills a scan */ }
   return []
 }
 
