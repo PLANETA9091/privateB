@@ -45,6 +45,15 @@ console.log(`  timeout: ${ledger.totals.timeout}  dead-in-rescue: ${ledger.total
 const timeoutRe = RESCUE_END_CLASSES.find(c => c.key === 'timeout').re
 const timeoutSeconds = lines.reduce((a, l) => a + (timeoutRe.test(l) ? (rescueEndSeconds(l) ?? 0) : 0), 0)
 console.log(`  timeout budget burned: ${timeoutSeconds.toFixed(1)}s`)
+// (v0.369.0) THE FORENSICS - the counts name the anomaly, the lines name its
+// story: the per-bot timeout budget attributes the whale (the shore-yield
+// cure's before/after read is per-bot: F10/F14 must shrink), and the
+// verbatim ORPHAN END / UNCLOSED START lines turn the unexplained orphan
+// class (1 in face 12) and the FATAL-face open-at-EOF episodes into
+// self-explaining reads - no hand grep on the next anomaly.
+console.log('  timeout budget per-bot:', Object.entries(ledger.timeoutSecondsByBot).map(([b, s]) => `${b}=${s.toFixed(1)}s`).join(' ') || 'none')
+for (const l of ledger.orphanEndLines) console.log('  ORPHAN END:', l)
+for (const l of ledger.unclosedLines) console.log('  UNCLOSED START:', l)
 console.log(`  mid-episode: shore-stall ${ledger.midEvents.shoreStall || 0}, transit-stall ${ledger.midEvents.transitStall || 0}, blind-live ${ledger.midEvents.blindLive || 0}, no-ground-truth ${ledger.midEvents.noGroundTruth || 0}, repeat-wet standdown ${ledger.midEvents.repeatWetStanddown || 0}`)
 console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${b}{${Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(' ') || 'none')
 console.log('  per-bot glitch pages(air-bar ignored):', fmt(perBot(/air-bar glitch ignored/)))

@@ -84,11 +84,20 @@ export function rescueEndSeconds (line) {
 /**
  * Pair every start with its terminus, per bot, in file order.
  *
- * Returns { totals, perBot, midEvents, orphanEnds }:
+ * Returns { totals, perBot, midEvents, orphanEnds, orphanEndLines,
+ * unclosedLines, timeoutSecondsByBot }:
  *   totals     - the fleet-wide end histogram (ZERO_ENDS shape + starts)
  *   perBot     - { F12: { starts, ...end histogram } } for every bot seen
  *   midEvents  - the mid-episode event counters (fleet-wide)
  *   orphanEnds - end lines with no open episode for that bot (truncation)
+ *
+ * (v0.369.0) THE FORENSICS RETURNS - the counts name the anomaly, the lines
+ * name its story: orphanEndLines carries the verbatim orphan end lines and
+ * unclosedLines the verbatim start lines of the episodes that never closed
+ * (the superseded rebuild starts and the EOF-open FATAL-face starts), each
+ * capped at 12 entries so a whale face cannot balloon the readout; and
+ * timeoutSecondsByBot attributes the timeout budget to the bot that burned
+ * it (the shore-yield cure's before/after read is per-bot, not fleet-wide).
  *
  * A second start for a bot with an episode still open closes the old one as
  * unclosed (superseded) before opening the new - the relog/rebuild class.
@@ -100,8 +109,16 @@ export function rescueLedger (lines) {
   const perBot = {}
   const midEvents = {}
   let orphanEnds = 0
-  if (!Array.isArray(lines)) return { totals, perBot, midEvents, orphanEnds }
+  const orphanEndLines = []
+  const unclosedLines = []
+  const timeoutSecondsByBot = {}
+  const LINE_CAP = 12 // the forensics arrays stay bounded on a whale face
+  const pushCapped = (arr, line) => { if (arr.length < LINE_CAP) arr.push(line) }
+  if (!Array.isArray(lines)) {
+    return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot }
+  }
   const open = new Map() // bot -> true while an episode is open
+  const openStartLine = new Map() // bot -> the verbatim start line of its open episode
 
   const botOf = (l) => {
     const b = l.match(BOT_TAG_RE)
@@ -126,23 +143,37 @@ export function rescueLedger (lines) {
       if (open.get(bot)) { // superseded: the old episode never terminated
         totals.unclosed++
         row.unclosed++
+        pushCapped(unclosedLines, openStartLine.get(bot) ?? '(start line unavailable)')
       }
       open.set(bot, true)
+      openStartLine.set(bot, line)
       continue
     }
 
     const end = rescueEndClass(line)
     if (!end) continue
     const bot = botOf(line)
-    if (!bot || !open.get(bot)) { orphanEnds++; continue }
+    if (!bot || !open.get(bot)) {
+      orphanEnds++
+      pushCapped(orphanEndLines, line)
+      continue
+    }
     totals[end]++
     rowOf(bot)[end]++
+    if (end === 'timeout') {
+      const s = rescueEndSeconds(line)
+      if (s != null) timeoutSecondsByBot[bot] = (timeoutSecondsByBot[bot] || 0) + s
+    }
     open.set(bot, false)
   }
 
   for (const [bot, isOpen] of open) {
-    if (isOpen) { totals.unclosed++; perBot[bot].unclosed++ }
+    if (isOpen) {
+      totals.unclosed++
+      perBot[bot].unclosed++
+      pushCapped(unclosedLines, openStartLine.get(bot) ?? '(start line unavailable)')
+    }
   }
 
-  return { totals, perBot, midEvents, orphanEnds }
+  return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot }
 }

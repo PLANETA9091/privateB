@@ -159,3 +159,66 @@ test('junk arrays return the zero ledger, never a throw', () => {
   }
   assert.equal(rescueLedger([null, 42, {}]).totals.starts, 0) // junk lines inside a real array are skipped
 })
+
+// (v0.369.0) THE FORENSICS - the counts name the anomaly, the lines name its
+// story. Every assertion exact; the cap keeps a whale face bounded.
+
+test('an orphan end line is collected verbatim (the count names it, the line tells it)', () => {
+  const line = end('complete', 'F7')
+  const r = rescueLedger([line])
+  assert.equal(r.orphanEnds, 1)
+  assert.deepEqual(r.orphanEndLines, [line])
+})
+
+test('a superseded start leaves the OLD start line in unclosedLines (the rebuild story)', () => {
+  const first = start('F2')
+  const second = start('F2')
+  const r = rescueLedger([first, second, end('complete', 'F2')])
+  assert.equal(r.totals.unclosed, 1)
+  assert.deepEqual(r.unclosedLines, [first]) // the old episode's marker, not the new start
+})
+
+test('an EOF-open episode leaves its start line in unclosedLines (the FATAL-face class)', () => {
+  const only = start('F2')
+  const r = rescueLedger([only])
+  assert.equal(r.totals.unclosed, 1)
+  assert.deepEqual(r.unclosedLines, [only])
+})
+
+test('the timeout budget is attributed per bot and never crosses (F10 x2 vs F14)', () => {
+  const r = rescueLedger([
+    start('F10'),
+    end('timeout', 'F10', 20.5, ' (still wet, 14 passes, 0 probes, tail dry/dry/dry)'),
+    start('F14'),
+    end('timeout', 'F14', 31.5, ' (still wet, 44 passes, 1 probes, tail dry/dry/dry)'),
+    start('F10'),
+    end('timeout', 'F10', 8, ' (still wet, 3 passes, 0 probes, tail dry/dry/dry)'),
+    start('F10'),
+    end('complete', 'F10', 1.5) // a non-timeout end never feeds the budget
+  ])
+  assert.equal(r.totals.timeout, 3)
+  assert.equal(r.timeoutSecondsByBot.F10, 28.5)
+  assert.equal(r.timeoutSecondsByBot.F14, 31.5)
+  assert.ok(!('F1' in r.timeoutSecondsByBot))
+})
+
+test('the forensics lines cap at 12 while the counts stay honest', () => {
+  const lines = []
+  for (let i = 0; i < 15; i++) lines.push(end('complete', 'F7')) // 15 orphans
+  const r = rescueLedger(lines)
+  assert.equal(r.orphanEnds, 15) // the count never truncates
+  assert.equal(r.orphanEndLines.length, 12) // the story caps
+})
+
+test('the zero ledger carries the forensics fields empty (junk stays junk)', () => {
+  for (const junk of [null, undefined, 'not an array']) {
+    const r = rescueLedger(junk)
+    assert.deepEqual(r.orphanEndLines, [])
+    assert.deepEqual(r.unclosedLines, [])
+    assert.deepEqual(r.timeoutSecondsByBot, {})
+  }
+  const r = rescueLedger([null, 42, {}])
+  assert.deepEqual(r.orphanEndLines, [])
+  assert.deepEqual(r.unclosedLines, [])
+  assert.deepEqual(r.timeoutSecondsByBot, {})
+})
