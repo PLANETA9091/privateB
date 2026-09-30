@@ -10186,3 +10186,20 @@ Stage Summary:
 - Master = a78e327 (pkg 0.354.0). FLEET OF RECORD: face 11 (36726048100) in flight on 0.352.0.
 - NEXT FIRE (2300): (1) Poll face 11 -> mine the artifact: the composed clock's / the probe-first rescue's / the doom re-arm's / the named refusal's first field legs + the storm sequel. (2) Poll gate 36731195407 -> green proves 0.354.0. (3) Slot free + green -> DISPATCH FACE 12 on a78e327: the seal cross's first field leg + the first live old-space print. (4) CHECK ORIGIN FIRST (0.355.0).
 - OPEN FRONTS: the seal cross's first field leg (face 12); face 11's artifact mining; the old-space print's first live face (face 12); the GC Pinned hunt (eyes restored); the rescue net healing; ticking-flat freeze head (cron38's lane); F12 chest-unreachable; shooter-band census; void stamp. Version next: 0.355.0.
+
+---
+Task ID: cron30-20260930-2300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2300 - face 11's artifact mined (all four cures PROVEN in the calm); v0.355.0 THE FALSIFIED ENVELOPE RE-SEGMENT shipped; face 12 dispatched.
+
+Work Log:
+- Face 11 (36726048100, 0.352.0) = **SUCCESS**, artifact mined (4067 lines): the composed clock PROVEN (12+ faces: 'flow-priced 4365s (fleet pocket 1850u at 0.4u/s needs 4365s) ... clamped to 300s (the kill margin)'); the probe-first rescue PROVEN 12/12 bots ('the palette read empty x1 - the singular probe rescued the scan'); the doom re-arm PROVEN (the streak named x1, zero spirals; ledger 222/134/31/1); the named refusal calm-field-silent but gate-proven on the fresh CI world; the storm sequel **CALM** (0 air glitches, plan 1/31, 839 positions).
+- Residual pain counted: 40 'Took to long to decide path to goal!' deaths - the dominant shape the nudge's OWN verdict falsified ('path nudge ... d=16.2 (inside the direct envelope)' -> 'chest walk failed after the nudge'); 15 sweep-drops timeouts, each goal unique.
+- v0.355.0 THE FALSIFIED ENVELOPE RE-SEGMENT (162e6b2): the envelope's verdict is a DISTANCE read, the death is a DECISION read - they disagree 40 times a face. nudgeReSegmentPlan (approach.mjs, pure): NUDGE_SHOT_MAX=2, STRICT envelope read, the geometry trio, NUDGE_RESEGMENT_FLOOR_MS=2000, junk never crosses (the walledCure shape). Wiring: fuelbank.mjs commons rides the post-nudge catch; the four canonical lines (deferred/LANDED/stalled/swallowed) ride the existing 'fuel' filter key; every fall-through keeps the exclude; the doom ledger intact on the third walk.
+- Tests: happy/strict/bound/trio/floor-boundary/junk/constants/wiring pins (the two-door arrived law). Local: syntax 267, unit 151/151, integration 2/2. Pushed 64d235b..162e6b2 rebase-clean.
+- DISPATCHED FACE 12: 36733939481 (on 64d235b - src identical to proven a78e327/0.354.0), HTTP 204, in flight at close. Payload: the seal cross's FIRST FIELD LEG + the FIRST live old-space print.
+
+Stage Summary:
+- Master = 162e6b2 (pkg 0.355.0). FLEET OF RECORD: face 12 (36733939481) on 0.354.0-src.
+- NEXT FIRE (2330): (1) Poll face 12 -> mine the seal cross's first field leg + the first live old-space print. (2) Poll 162e6b2's gate -> green proves 0.355.0. (3) Face 13 dispatch only after face 12 lands (the max-one law). (4) CHECK ORIGIN FIRST (0.356.0).
+- OPEN FRONTS: the seal cross's first field leg (face 12); the first live old-space print (face 12); the re-segment's first field leg (face 13); the GC Pinned hunt; the sweep-drops timeout verdict candidate; the rescue net healing (126->89->43->36->10); ticking-flat freeze head (cron38's lane); shooter-band census; void stamp. Version next: 0.356.0.
