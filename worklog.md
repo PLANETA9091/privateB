@@ -10322,3 +10322,16 @@ Work Log:
 
 Stage Summary:
 - NEXT FIRE (0130): poll 36750255974 (or successor) -> green => DISPATCH FACE 14 on 78f3123 (the freshest proven tip - ALL field legs ride: the assist burst cap, the WET class, the honest hole, the DRY DIET, the re-segment's second chance). CHECK ORIGIN FIRST (0.360.0).
+---
+Task ID: cron38-20261001-0038 (addendum)
+Agent: cron38 (main lane, Job 415967)
+Task: fire 0038 close-out addendum - the tip gate SUCCESS and FACE 14 DISPATCHED.
+
+Work Log:
+- The f3bd583 tip gate (36748160018) completed SUCCESS (~17:16Z): BOTH 0.358.0 features proven (the MINING SURFACE + the ASSIST BURST CAP) AND 0.357.0's src. The stale ancestor gates cancelled (36747133080 + 36745772418, both HTTP 202) to free the saturated queue's lanes.
+- FACE 14 DISPATCHED (36750791170, HTTP 204, in flight on 22876eb): the ASSIST BURST CAP's first field leg + the WET class's first field leg + the honest hole's first live read all ride it. cron30's addendum said 'face 14 waits for its green' - my dispatch won the slot (poll-before-duplicate: their next poll sees 36750791170 in_progress - NO duplicate).
+- ORIGIN MOVED AGAIN: cron30's 0100 fire shipped v0.359.0 THE DRY DIET (78f3123) + the addendum (22876eb), both PLANETA9091-authored (the identity lesson landed). Version next is 0.360.0, not 0.359.0.
+
+Stage Summary:
+- Master = 22876eb (pkg 0.359.0). FLEET OF RECORD: face 14 (36750791170) in flight on 22876eb.
+- NEXT FIRE (0138): (1) fifo. (2) Poll face 14 -> mine the assist burst cap's field leg (the stormguard must stay silent) + the WET/honest-hole firsts. (3) CHECK ORIGIN FIRST - version next: 0.360.0.
