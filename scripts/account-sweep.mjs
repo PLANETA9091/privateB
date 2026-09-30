@@ -101,12 +101,13 @@ async function cancelOlderThan(owner, repo, iso) {
     console.error('usage: cancel-older-than <owner> <repo> <ISO-timestamp>');
     process.exit(2);
   }
-  const rs = await runs(repo, 20);
+  const full = `${owner}/${repo}`;
+  const rs = await runs(full, 20);
   const targets = rs.filter((x) => x.status === 'queued' && x.created_at < iso);
   console.log(`queued runs created before ${iso}: ${targets.length}`);
   let n = 0;
   for (const t of targets) {
-    const res = await fetch(`${API}/repos/${repo}/actions/runs/${t.id}/cancel`, {
+    const res = await fetch(`${API}/repos/${full}/actions/runs/${t.id}/cancel`, {
       method: 'POST',
       headers: { Authorization: `token ${tok()}`, Accept: 'application/vnd.github+json' },
     });
