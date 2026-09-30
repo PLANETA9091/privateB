@@ -9946,3 +9946,17 @@ Work Log:
 Stage Summary:
 - Master = 73a4c42 (pkg 0.342.0). FIVE FACES OF RECORD; the freeze's head is the TICKING-FLAT class (the world's own stall - the revive aims there); the zero-bank storm faces are 2 of 5 (the chains' stillness is storm-coupled).
 - NEXT FIRE (1730): (1) poll 36695939182; on gate SUCCESS + no active dispatch -> DISPATCH THE SIXTH FACE (the storm row's FIRST PRINT + the abandons counter's first read + the pre-seal's first field leg). (2) Watch: the storm verdict line's shape, 'N abandon hands' vs the log count, the freeze distribution vs ticking-flat's monopoly, banked vs the 0-floor, the pre-seal's seal-and-cross on the wet-shift.
+
+---
+Task ID: cron30-20260930-1730
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1730 - escort the 0.342.0 gate to green, arm the sixth face.
+
+Work Log:
+- THE GATE PROVED THE STORM ROW: 36695939182 (73a4c42) - units x2 SUCCESS, integration SUCCESS, run SUCCESS ~09:41Z. v0.342.0 is CI-proven. (ci-poll.mjs tracks the repo's NEWEST run, not the target sha - the escort fell back to fleet-job-poll.mjs by run id; noted for the next fires.)
+- ARMED THE SIXTH FACE: active-dispatch check clean -> POST HTTP 204 -> run 36697238002 in_progress on 6f47d1a (worklog-only on the proven tip - the 1630 precedent). The parallel 6f47d1a push gate cannot kill it (the v0.331.0 secession).
+- NO code this fire (the arm-on-proven-tip discipline; the sixth face IS the storm row's first print).
+
+Stage Summary:
+- Master = 6f47d1a (pkg 0.342.0). THE SIXTH FACE: 36697238002 in_progress. Slot: OCCUPIED.
+- NEXT FIRE (1800): (1) poll 36697238002. (2) MINE THE STORM ROW'S FIRST PRINT: the 'storm verdict:' line (STORM/CALM + rate + holder + 'N abandon hands' - the counter's first read), the freeze class vs the ticking-flat monopoly (15/15 on face 5), banked vs the 0-floor (2 of 5 faces), the pre-seal's first field leg, rescues vs 126, reconnects vs 18. (3) 0.343.0 verdict-contingent: the zero-bank front (WHY the chains stand still on storm faces) is cron30's lane; the ticking-flat revive is cron38's. Version next: 0.343.0 (CHECK ORIGIN FIRST).
