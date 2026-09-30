@@ -10549,3 +10549,23 @@ Stage Summary:
 - Master = f061706 (pkg 0.370.0). FLEET OF RECORD: face 15 = 36760275928 (in_progress on 3772bd3 - finally moving).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.371.0). (2) Poll gate 36778960923 (f061706): green proves 0.363..0.370 cumulatively (the anchor drop + the forensics together - the longest unproven stack yet). (3) Poll face 15 TO COMPLETION -> mine with the FORENSICS readout: the timeout class MUST collapse (the 943.9s/37-burn before-picture), the release/probe conversions MUST leave 0, and the per-bot budget row now names WHICH bot still flails; expect orphan>0 as ECHOES (benign) - do not mistake echo-detector counts for bookkeeping holes. (4) Green tip + slot free => dispatch face 16.
 - OPEN FRONTS: the release-branch zero-conversion question (0/175, rides the face-15 read); the echo-detector refinement (count [Fx] doubled-tag ends separately? a future forensics leg); the rescue net's healing (face 15/16); the picker/hold/wide-scan/shore-yield/anchor-drop field legs (face 15/16); the bank chains' walk deliveries (cron38's lane); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.371.0.
+
+---
+Task ID: cron30-20261001-0530
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0530 - THE FACE-15 MINE (no code, the 0430 precedent): the forensics-equipped decompose's second field run reads the completed face 15; the F18 whale confirms the shore-stall family; the release zero-conversion question answered again; dispatch blocked by the runner-starved gate.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip = cf4411f (the 0500 worklog), pkg 0.370.0, 0.371.0 free and UNTOUCHED (no version bump - the mine is the fire's atomic deliverable, the 0430 precedent). cron38 quiet this gap.
+- FACE 15 = 36760275928 COMPLETED SUCCESS at 21:25:56Z (the 2.5h queue finally drained). Artifact 11127082948 (fleet19-log, 44682 bytes) downloaded and mined.
+- THE LEDGER'S SECOND FIELD RUN - 55 starts reconcile EXACTLY: 40 complete + 10 frozen standdown + 5 timeout + 0 unclosed + 0 orphans. FLEET RESULT: normal end at the 600s deadline; storm verdict WET (199 air glitches, 105 wet-rescued / dry 94, 1 abandon hand).
+- THE WHALE'S FACE: timeout budget 126.1s = F18 75.6s (3 burns, 11 starts - the fleet's wettest bot) + F14 50.5s (2 burns). F18's anatomy IS the shore-stall family verbatim: 'still wet, 56/62/56 passes, 0 probes' - the dir-bearing branch re-swam every pass and never descended to the probes, EXACTLY the class the v0.367.0 shore-yield cure condemns. The cure rides the new tree; face 15 ran 3772bd3 (v0.362.0) - so the cure's field leg is still owed, and F18 proves the target class alive in the field.
+- THE CONVERSION BASELINE CONFIRMED AGAIN: released = 0/55 (now 0/230 across five artifacts), standing-wet = 0/55. The release/probe branches have NEVER converted an episode; the shore-yield's field leg must beat 0.
+- THE ECHO DETECTOR read: 0 orphans, 0 unclosed - face 15 has no frozen-relog echo zone around any rescue end (face 12's single orphan stays the only sighting). The [Fx] doubled-tag zone in face 15 is combat-only ('flee toward shore vs drowned' - the drowned-hound pressure is the drowning SOURCE, not the rescue machinery).
+- NO dispatch: the tip gate 36779355519 (cf4411f) is queued with ZERO jobs materialized after 7 polls + a direct jobs probe (the c-crussty saturation persists for gates too). The dispatch law holds: green tip + slot free; the slot IS free (face 15 done) but the tip is NOT green - the field wait continues. Recorded honestly.
+- CI: gate 36779355519 pending at close; the three predecessors (981d915/f061706/8885007 gates) all cancelled-as-superseded by the next push (the established pattern).
+
+Stage Summary:
+- Master = cf4411f (pkg 0.370.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined). No version bump this fire (0.371.0 still free).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.371.0). (2) Poll gate 36779355519 (cf4411f): green proves 0.363..0.370 cumulatively. (3) If green AND no active dispatch run => DISPATCH FACE 16 immediately (the shore-yield + anchor-drop + forensics tree's first field leg; F18's 0-probe burns are the shore-yield's named target - 'shore transit stalled' lines must precede releases, F18/F14-class full-budget burns must shrink, and the released count must leave 0). (4) Mine face 16 with the forensics readout; orphans > 0 are ECHOES (benign), not holes.
+- OPEN FRONTS: face 16 dispatch (the cure stack's field leg); the drowned-hound pressure (the flee-vs-drowned storm - the drowning source, a future decode front); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.371.0.
