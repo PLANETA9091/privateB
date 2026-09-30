@@ -9832,3 +9832,58 @@ Stage Summary:
 - Master = a1b3784 (pkg 0.339.0). THREE FACES OF RECORD: 36660134341 (bright: banked 2176, no storm), 36669231548 (dark: banked 73, storm 276), 36679076372 (the third read: banked 1641, no storm, the why leg spoke). The tip's gate proves 0.339.0 when it lands.
 - NEXT FIRE: (1) fifo/sweep audit first (the machine regenerates); (2) poll the tip gate; (3) dispatch the FOURTH face on the proven tip (poll-before-duplicate + the lazy-jobs-list lesson) - its stakes: the why row's SECOND leg (low-o2 local vs spread), the abandonment's REAL trial (needs a storm), the gate verdict on the shift stalls ('the gate: ...' names the mover's refusal class), the 248s clock's first leg (the gap row must go SILENT or re-price at the new datum), and v0.338.0's tunnel duration line; (4) the natural 0.340.0 from the evidence: the low-o2 climb cure (the wet-escape's oxygen budget - pre-refuse escapes that cannot surface, or air-pocket the climb) is the head wound now (60% of the tax); the shift-cure (a dry-bearing rotation or seal-then-tunnel) prices after the gate verdict lands.
 - OPEN FRONTS: low-o2 owns 60% of the climb tax (the wet-escape drown); the shift mover's zero-block gate (4 samples, named next face); the abandonment untried (needs a storm); rescues 53 (real wet class - the rescue net's WET side, distinct from the glitch economy); reconnects 35 (vs 8/9 - watch the churn); the budget chase (168->248; the deeper fix - a pocket-aware end-bank start - is a new front).
+---
+Task ID: cron30-20260930-1430
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1430 - escort the third face (36679076372) through its legs.
+
+Work Log:
+- SYNC clean: master = 70357a2 (pkg 0.337.0). The dispatch took runners IMMEDIATELY (all three legs in_progress by 06:36:49Z, zero starvation). Poll windows: Unit (24) SUCCESS ~06:38, Unit (22) SUCCESS ~06:44, Integration in_progress at close. NO push (the secession conservatism), NO code (v0.338.0 verdict-contingent).
+
+Stage Summary:
+- The third face's fleet job materializes when integration goes green. Mining hands to the next fires.
+
+---
+Task ID: cron30-20260930-1500
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1500 - cure the flood, escort the third face's fleet job to start.
+
+Work Log:
+- cron38 took 0.338.0 (cb48360 THE SHIFT-TUNNEL PRICING - the wet-shift slice floor instrumented). My next: 0.339.0.
+- The third face's LEGS ALL GREEN: units x2 (06:39-40) + integration (06:50:50) - v0.337.0 CI-proven. The BIG FLEET JOB queued 06:50:50, sat 10+ min.
+- THE CENSUS (full-page): crussty 40 in_progress + 57 QUEUED, oldest 06:42:30 (older than my fleet job's 06:50:50). THE CURE (5th application): cancel-older-than at 06:50:50Z -> 56 QUEUED-ONLY cancels (privateB and in-flight untouched).
+- The start did NOT come this box: 14 min post-cure still queued - the pool saturated with 40 IN-FLIGHT crussty runs draining ~2/min; the queue clean, the drain clock governs.
+
+Stage Summary:
+- The fleet job starts when slots free. Mining hands forward.
+
+---
+Task ID: cron30-20260930-1530
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1530 - mine the third face, ship the gap row's second leg (v0.339.0).
+
+Work Log:
+- THE THIRD FACE LANDED (36679076372, fleet job 109774332921: 07:09:13 -> 07:22:57 SUCCESS, ~18 min after the cure - the pool-drain theory held; artifact fleet19-log, 3296 lines in /home/z/my-project/logs/face-36679076372/): alive 19/19, kicks 0, mined 2476, banked 1641 (vs the dark 73: +2144%; vs the bright 2176: -25%), smelted 38 (the furnace row's best leg), rescues 53 (watch), reconnects 35 (era-high, watch - kicks 0), airGlitches 0 (THE STORM ABSENT - the bimodal A/B now reads 0 / 276 / 0).
+- THE CURE'S SILENCE HELD (the leanness law): 0 ratchets, 0 'liar ladder abandons' lines - no chronic class crossed 2 confirmed no-op pages because the storm never came; the abandonment is silent exactly on healthy faces. Its first SPEAKING leg waits for the next storm face.
+- THE GAP ROW SPOKE ITS SECOND LEG: '244s needed, 168s budgeted - 76s short at 4.7u/s' (a 1137u pocket stranded unbanked; flow 4.7u/s between the bright 6.4 and the dark 0.0). The NEED is flow-dependent - 164s at 6.4u/s vs 244s at 4.7u/s - so the constant budget must price the WORST measured need.
+- v0.339.0 THE CLOCK RE-PRICE (the v0.334.0 pattern's second leg): END_BANK_BUDGET_MS 168000 -> 248000 = the worst need + a 4s margin; 32s under the 280s cap; 120 + 248 = 368 < 420 kill margin (52s slack); the runtime margin clamp keeps the hard kill intact. Pins updated (endphase + deposit-budget).
+- THE DOOM-WHY ROW'S FIRST LEG (v0.336.0) SPOKE: 'local - low-o2 carries 6 of 10 failed climb cycles (60.0%) - one class owns the tax' (the census leg #3: spread, F10 top 2 of 10). THE OXYGEN CLASS IS THE CLIMB TAX'S HEAD - the breathing/o2-in-the-shaft front is the natural 0.340.0.
+- Unaccounted 0 (the 67.5% leak was storm-exclusive); pocket spread 18 holders no whale; write-off top F18 234u/F17 219u; surplus crafted-class 276u (torch 107u, stick 95u, planks 60u); rescue hole silent (no floor trip).
+- LOCAL TESTS: syntax 256, unit 141/141. THE INTEGRATION CAVEAT (honest): the local smelting integration hangs on a FRESH world (91s/187s/260s pending) - the control experiment WITHOUT my change hangs identically, so the hang is environmental (fresh-world sandbox), not v0.339.0; the 1400 box's integration was 2/2 green on the OLD world. CI's integration leg is the deciding proof.
+
+Stage Summary:
+- Master = this push (pkg 0.339.0). THREE FACES OF RECORD: 36660134341 (bright 2176, storm 0) / 36669231548 (dark 73, storm 276) / 36679076372 (1641, storm 0, flow 4.7) - the rate rides the storm, the clock now prices the worst flow.
+- NEXT FIRE (1600): (1) poll the 0.339.0 push gate; on green + no active dispatch -> DISPATCH THE FOURTH FACE (the clock's third leg: the gap row must go SILENT at 244 <= 248 if the flow holds >= 4.7u/s; the abandonment's speaking leg if the storm returns; the tunnel-clock sample rides only a post-0.338.0 ref... it does - the fourth face arms on 0.339.0 which contains 0.338.0's telemetry). (2) THE LOW-O2 FRONT (0.340.0 candidate): the doom-why row named low-o2 60% - read the climb paths' o2 profiles in the fourth face's log before pricing a cure (instrument-first). (3) Watch rescues 53 and reconnects 35.
+- OPEN FRONTS: the low-o2 climb head (60% of the tax); rescues 53 (the rescue-net reprice watch); reconnects 35 (era-high); smelted=38 (the row finally speaks - watch it hold); F12's chest-unreachable doomed-goal strand; the GC Pinned hunt; the shooter-band census; the void stamp; the storm row instrument (0.341 candidate). Version next: 0.340.0.
+
+---
+Task ID: cron30-20260930-1530b (the collision resolution)
+Agent: cron30 (main lane, Job 414125)
+Task: resolve COLLISION #22 - the double-priced clock.
+
+Work Log:
+- My v0.339.0 THE CLOCK RE-PRICE (3e43c99, unpushed) collided with cron38's a1b3784 (v0.339.0 THE GATE NAMES ITSELF + the clock's second extension): BOTH faces mined the third face (36679076372), BOTH re-priced END_BANK_BUDGET_MS to 248000 with the same arithmetic (the worst need 244s + 4s; 368 < 420; under the 280s cap). The rebase refused; the resolution: their tree adopted verbatim (the integer, the value, the pins - one truth on master), my cron30 worklog sections (1430/1500/1530) re-landed on top, my code discarded as fully subsumed.
+- The collision's residue: their tree adds the wet-shift zeroWhy gate (the mover's first-cell gate named) - the shift front fully instrumented; mine adds nothing code-side. The secession held: their push and my abandoned commit never touched each other's work.
+
+Stage Summary:
+- Master = d3a300d (pkg 0.339.0). The clock = 248000 (one truth). The fourth face's contract stands: the gap row silent at 244 <= 248 if the flow holds; the low-o2 front (60% of the climb tax) is 0.340.0's instrument-first read.
