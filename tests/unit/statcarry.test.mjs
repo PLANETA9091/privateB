@@ -427,3 +427,31 @@ test('stormDietRow: THE WIRING PIN - the diet rides the storm class', () => {
   assert.ok(closeIdx > dietIdx, 'the diet row lives inside the economy conditional')
   assert.ok(src.includes('THE STORM-DIET ROW'), 'the wiring carries its own doctrine comment')
 })
+
+// (v0.346.0) THE ABANDON CARRY - face 36700431959 printed F18's hand (log
+// line 1423) and the storm row still read no hands tail: the relog after the
+// hand rebuilt the miner and the v0.18.9 carry moved only CARRY_FIELDS - the
+// v0.342.0 counter was born outside the list (the v0.293.0 sweepDrops
+// mortality's exact shape).
+test('stat carry: the abandon hand survives the respawn (the face-7 mismatch cure)', () => {
+  // the hand exists pre-relog: snapshotStats must pick it up
+  const carry = snapshotStats({ mined: 5, glitchAbandons: 1 })
+  assert.equal(carry.glitchAbandons, 1)
+  // the respawn seeds it back onto the fresh miner's stats
+  const fresh = { mined: 0, glitchAbandons: 0 }
+  seedStats(fresh, carry)
+  assert.equal(fresh.glitchAbandons, 1, 'the report-time counter must still read the hand')
+  assert.equal(fresh.mined, 5)
+  // a second hand after the relog sums on top (monotone)
+  const fresh2 = { glitchAbandons: 2 }
+  seedStats(fresh2, { glitchAbandons: 1 })
+  assert.equal(fresh2.glitchAbandons, 3)
+})
+
+test('stat carry: glitchAbandons rides CARRY_FIELDS (the storm row hands source)', () => {
+  assert.ok(CARRY_FIELDS.includes('glitchAbandons'))
+  // the junk gates still hold: zero and NaN never travel
+  assert.deepEqual(snapshotStats({ glitchAbandons: 0 }), {})
+  assert.deepEqual(snapshotStats({ glitchAbandons: NaN }), {})
+  assert.deepEqual(snapshotStats({ glitchAbandons: -1 }), {})
+})

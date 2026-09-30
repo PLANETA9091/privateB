@@ -37,7 +37,17 @@ import { WATER_NAMES, o2SensorLabel } from './drowning.mjs'
 export const CARRY_FIELDS = [
   'mined', 'failed', 'skipped', 'flyFails', 'hookCalls', 'hookFails',
   'mapTrips', 'mapRecords', 'banked', 'planted', 'torched', 'fights',
-  'climbs', 'shelters', 'rescues', 'airGlitches', 'claims', 'deaths'
+  'climbs', 'shelters', 'rescues', 'airGlitches', 'claims', 'deaths',
+  // (v0.346.0) THE ABANDON CARRY - the storm row's hands counter rode the
+  // report-time stats, but a relog after the hand rebuilt the miner and the
+  // v0.18.9 carry moved only this list: face 36700431959 printed F18's hand
+  // ('liar ladder abandons the glitch class - 2 confirmed no-op pages', log
+  // line 1423) and the storm row still read no hands tail (counter 0 at
+  // report time, reconnects=7 that face). Six faces the counter matched the
+  // logs; the seventh split - the v0.293.0 sweepDrops mortality's exact
+  // shape (a new counter born outside the list, orphaned by every respawn).
+  // Monotone, integer, >0-gated by both ends - the round-trip is free.
+  'glitchAbandons'
 ]
 
 // (v0.293.0) THE SWEEP CENSUS CARRY's field list - every monotone counter of
