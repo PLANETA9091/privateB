@@ -300,13 +300,42 @@ test('smeltChainReserve: a smeltable pocket holds a slice for the smelt leg (run
 
 test('smeltChainReserve: the reserve never touches the final deposit\'s own slice', () => {
   // a chain barely above the deposit reserve: the cap b - 30s protects the clicks
+  // (v0.363.0 re-tail: the walk-home clamp binds FIRST on thin chains - a 60s
+  // chain never had a 90s return walk in its budget, face 36750791170 F6)
   const thin = smeltChainReserve({ budgetMs: 60000, carriesSmeltables: true, smeltBudgetSecs: 90 })
-  assert.equal(thin.reserveMs, 30000, '60s chain: max(floor, share) capped at b - FINAL_DEPOSIT_RESERVE_MS')
+  assert.equal(thin.reserveMs, 0, '60s chain: the walk-home clamp (b - 90s) reads 0 - no smelt slice, no doomed promise')
+  assert.equal(thin.why, 'chain too small for a smelt slice')
   const tooThin = smeltChainReserve({ budgetMs: 25000, carriesSmeltables: true, smeltBudgetSecs: 90 })
   assert.equal(tooThin.reserveMs, 0, 'a chain smaller than the deposit reserve has no smelt slice')
   assert.equal(tooThin.why, 'chain too small for a smelt slice')
+  // the walk clamp removed (walkReserveMs 0 = the legacy no-return-walk caller):
+  // the b - 30s deposit cap alone prices the slice again
+  const thinNoWalk = smeltChainReserve({ budgetMs: 60000, carriesSmeltables: true, smeltBudgetSecs: 90, walkReserveMs: 0 })
+  assert.equal(thinNoWalk.reserveMs, 30000, 'the legacy shape stays reachable - walkReserveMs 0 removes the clamp')
   // the smelt leg's own clamp still keeps the deposit reserve: reserve - 30s is smelt's usable
   // (verified against smeltClampSeconds: a 45s reserve at the gate = 15s of smelt)
+})
+
+test('smeltChainReserve: THE DELIVERY-PRICED HOLD (v0.363.0, face 36750791170 F6 - 45s hold + 90s walk margin > the 120s trip BY CONSTRUCTION)', () => {
+  // F6's floor-120s trip: the walk home keeps its 90s margin, the smelt hold
+  // prices from what is LEFT (30s) - the trip can no longer promise a delivery
+  // it cannot pay for. The why names the law when the walk clamp binds.
+  const f6 = smeltChainReserve({ budgetMs: 120000, carriesSmeltables: true, smeltBudgetSecs: 90 })
+  assert.equal(f6.reserveMs, 30000, '120s trip: min(floor 45s, b-30s, b-90s) = 30s - the walk home keeps its margin')
+  assert.match(f6.why, /30s of 120s for the smelt leg - the walk home owns the rest/, 'the binding walk clamp names the delivery law')
+  // the 120s trip with the clamp removed reads the legacy 45s floor byte for byte
+  const f6Legacy = smeltChainReserve({ budgetMs: 120000, carriesSmeltables: true, smeltBudgetSecs: 90, walkReserveMs: 0 })
+  assert.equal(f6Legacy.reserveMs, 45000, 'no walk clamp = the v0.87.0 floor shape')
+  assert.equal(f6Legacy.why, 'holding 45s of 120s for the smelt leg', 'the legacy why keeps its byte')
+})
+
+test('smeltChainReserve: junk walkReserveMs reads the default (the gates-decide convention)', () => {
+  for (const junk of [undefined, null, NaN, -5, '90']) {
+    const r = smeltChainReserve({ budgetMs: 120000, carriesSmeltables: true, smeltBudgetSecs: 90, walkReserveMs: junk })
+    assert.equal(r.reserveMs, 30000, `junk walkReserveMs ${String(junk)} reads the 90s default - the clamp still prices the walk`)
+  }
+  // a junk share still falls back to the constant (the v0.87.0 battery, unchanged)
+  assert.equal(smeltChainReserve({ budgetMs: 150000, carriesSmeltables: true, share: NaN }).reserveMs, 45000)
 })
 
 test('smeltChainReserve: empty pockets and junk keep the legacy shape byte for byte', () => {

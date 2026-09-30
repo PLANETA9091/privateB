@@ -23,7 +23,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, MID_BANK_RETURN_MARGIN_MS, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -234,7 +234,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // the skip (the v0.183.0 shape byte for byte).
   const fuelPlan = SMELT ? pickFuel(miner.bot, { itemsNeeded: 1 }) : null
   const pocketFuel = countItem(miner.bot, 'coal') + countItem(miner.bot, 'charcoal')
-  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, hasFuel: fuelPlan != null, smeltBudgetSecs: SMELT_BUDGET })
+  const { reserveMs: smeltReserveMs, why: reserveWhy } = smeltChainReserve({ budgetMs, carriesSmeltables: carriesSmelt, hasFuel: fuelPlan != null, smeltBudgetSecs: SMELT_BUDGET, walkReserveMs: MID_BANK_RETURN_MARGIN_MS })
   if (smeltReserveMs > 0) console.log(`${miner.username} bank: ${reserveWhy}`)
   else if (reserveWhy.startsWith('smelt hold skipped')) console.log(`${miner.username} bank: ${reserveWhy} (coal ${pocketFuel})`)
   const preSmeltRemaining = () => (smeltReserveMs > 0 ? Math.max(0, remaining() - smeltReserveMs) : remaining())

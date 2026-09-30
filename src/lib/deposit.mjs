@@ -991,6 +991,26 @@ export const SMELT_CHAIN_FLOOR_MS = 45000
  * exceeds the smelt budget itself (a reserve bigger than the smelt could
  * spend is dead weight the walk would starve for).
  *
+ * (v0.363.0) THE DELIVERY-PRICED HOLD: the reserve grows one more clamp -
+ * the trip's own walk economics. MEASURED (fleet 36750791170, face 14, the
+ * calmest face on record yet 656u stranded in 9 pockets): F6's floor-120s
+ * trip reserved 45s for the smelt leg while its own walk home prices 90s
+ * (MID_BANK_RETURN_MARGIN_MS) - 45 + 90 = 135 > 120 BY CONSTRUCTION, the
+ * trip was over-committed at the hold moment; the walks then died (chest
+ * NoPath at 41b, the yard walk timeout 38.9s, the approach refused the
+ * retry) and the whole 196u pocket rode the deadline. The clamp caps the
+ * reserve at max(0, b - walkReserveMs): a 120s trip holds 30s (the walk
+ * keeps 90s), a 60s-or-less chain holds nothing (it never had a return
+ * walk in its budget - the v0.87.0 arithmetic was promising a delivery it
+ * could not pay for), and every budget past 150s rides byte-identical
+ * (the walk clamp never binds there). The v0.87.0 law stands inverted per
+ * trip size: on a chain that CAN afford both, the smelt keeps its slice;
+ * on a chain that cannot, the WALK delivers the mass and the smelt rides
+ * the next cadence window (an unsmelted pocket in the chest beats a
+ * smelted pocket stranded at the shaft). Junk walkReserveMs reads the
+ * default; an explicit 0 removes the clamp (the legacy shape for a caller
+ * with no return walk).
+ *
  * @param {object} [p]
  * @param {number} [p.budgetMs] the chain budget at entry (junk/negative -> 0)
  * @param {boolean} [p.carriesSmeltables] does the pocket hold smeltable items
@@ -1002,9 +1022,11 @@ export const SMELT_CHAIN_FLOOR_MS = 45000
  * @param {number} [p.smeltBudgetSecs] the fleet's SMELT_BUDGET (seconds, default 90)
  * @param {number} [p.share] chain share (default SMELT_CHAIN_SHARE)
  * @param {number} [p.floorMs] minimum reserve when the budget allows (default SMELT_CHAIN_FLOOR_MS)
+ * @param {number} [p.walkReserveMs] the trip's walk-home margin the reserve must
+ *   never eat (default MID_BANK_RETURN_MARGIN_MS; junk -> the default; 0 -> no clamp)
  * @returns {{reserveMs: number, why: string}}
  */
-export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, hasFuel = true, smeltBudgetSecs = 90, share = SMELT_CHAIN_SHARE, floorMs = SMELT_CHAIN_FLOOR_MS } = {}) {
+export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, hasFuel = true, smeltBudgetSecs = 90, share = SMELT_CHAIN_SHARE, floorMs = SMELT_CHAIN_FLOOR_MS, walkReserveMs = MID_BANK_RETURN_MARGIN_MS } = {}) {
   if (!carriesSmeltables) return { reserveMs: 0, why: 'nothing to smelt' }
   // (v0.183.0) THE FUEL GATE: a pocket with smeltables but NO fuel can never
   // run the smelt leg - the furnace has nothing to burn - yet the legacy shape
@@ -1027,9 +1049,19 @@ export function smeltChainReserve ({ budgetMs = 0, carriesSmeltables = false, ha
   const sh = Number.isFinite(share) && share > 0 && share <= 1 ? share : SMELT_CHAIN_SHARE
   const shareMs = Math.floor(b * sh)
   const fl = Number.isFinite(floorMs) && floorMs > 0 ? Math.floor(floorMs) : 0
+  // (v0.363.0) the walk clamp: junk reads the default, an explicit 0 removes
+  // the clamp (max(0, b - 0) = b never binds) - the legacy shape stays
+  // reachable for a caller with no return walk.
+  const wr = Number.isFinite(walkReserveMs) && walkReserveMs > 0 ? Math.floor(walkReserveMs) : (walkReserveMs === 0 ? 0 : MID_BANK_RETURN_MARGIN_MS)
+  const walkCap = wr > 0 ? Math.max(0, b - wr) : b
   const want = Math.max(fl, shareMs)
-  const cap = Math.min(s * 1000, want, Math.max(0, b - FINAL_DEPOSIT_RESERVE_MS))
+  const cap = Math.min(s * 1000, want, Math.max(0, b - FINAL_DEPOSIT_RESERVE_MS), walkCap)
   if (cap <= 0) return { reserveMs: 0, why: 'chain too small for a smelt slice' }
+  // the walk clamp naming: only when the walk cap is the BINDING clamp (and
+  // the reserve survived) does the why name the delivery law - the legacy
+  // shapes keep their byte for byte otherwise.
+  const walkBound = walkCap < want && walkCap < s * 1000 && walkCap < Math.max(0, b - FINAL_DEPOSIT_RESERVE_MS)
+  if (walkBound) return { reserveMs: cap, why: `holding ${Math.round(cap / 1000)}s of ${Math.round(b / 1000)}s for the smelt leg - the walk home owns the rest (the delivery-priced hold)` }
   return { reserveMs: cap, why: `holding ${Math.round(cap / 1000)}s of ${Math.round(b / 1000)}s for the smelt leg` }
 }
 
