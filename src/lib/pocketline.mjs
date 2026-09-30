@@ -475,3 +475,39 @@ export function bankAttributionRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } =
   }
   return v
 }
+
+// (v0.330.0) THE FINAL-BANK DOOM CENSUS - the attribution row names the
+// stranded walkers ('the walk never delivered') but their WHY lives in
+// scattered 'final bank: 0 (still underground...)' verdicts and the v0.316.0
+// doom latch's closure counter, invisible to the report. The census sums the
+// failed shaft-bottom climb cycles per walker (the latch's own input - each
+// cycle re-pays fenced climbs on the same bottom): a latched bot's worth of
+// mass (DOOM_CENSUS_MIN_CYCLES 3, the latch's own trip point - the grain law)
+// gets its anatomy. Same shape as the rescue-hole row: LOCAL when one shaft
+// bottom owns the strand (top >= DOOM_CENSUS_LOCAL_SHARE 0.5), SPREAD when the
+// climb tax is fleet-wide. A strand without climb failures stays silent here -
+// the census reads the doom class, not every strand's cause. Junk counts never
+// enter the census (the body-guard law); a healthy run prints nothing (the
+// leanness law).
+export const DOOM_CENSUS_MIN_CYCLES = 3
+export const DOOM_CENSUS_LOCAL_SHARE = 0.5
+
+export function doomCensusRow (entries) {
+  const holders = []
+  let total = 0
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const raw = e?.cycles
+    const cycles = (Number.isFinite(raw) && raw > 0) ? Math.floor(raw) : 0
+    if (cycles <= 0) continue
+    holders.push({ name: e?.name || '?', cycles })
+    total += cycles
+  }
+  if (total < DOOM_CENSUS_MIN_CYCLES) return null
+  holders.sort((a, b) => (b.cycles - a.cycles) || (a.name < b.name ? -1 : 1))
+  const top = holders[0]
+  const pct = ((top.cycles / total) * 100).toFixed(1)
+  if (top.cycles / total >= DOOM_CENSUS_LOCAL_SHARE) {
+    return `final bank doom census: local - ${top.name} carries ${top.cycles} of ${total} failed climb cycles (${pct}%) - the shaft bottom owns the strand`
+  }
+  return `final bank doom census: spread - top ${top.name} carries ${top.cycles} of ${total} failed climb cycles (${pct}%) - the strand is a fleet-wide climb tax`
+}

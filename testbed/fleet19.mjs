@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -160,6 +160,11 @@ let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (
 let swordsCrafted = 0 // (v0.67.0) swords landed by the arms chain - the fleet stopped fist-fighting
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
+// (v0.330.0) THE DOOM CENSUS LEDGER: per-bot failed final-bank climb cycles,
+// keyed by walker. The closure counter (v0.316.0) drives the latch in the
+// moment but dies unread - this ledger lets the report read the strand's
+// anatomy at the end (the doom census row).
+const finalBankDoomByBot = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -2729,6 +2734,9 @@ async function runBot (name, target, index) {
             // (v0.316.0) the failed cycle feeds the doom latch - the 3rd entry
             // refuses the chain at the door (finalBankDoomLatch above).
             finalBankDoomCycles++
+            // (v0.330.0) the same cycle feeds the census ledger - the report's
+            // read of WHY the walk never delivered.
+            finalBankDoomByBot.set(name, (finalBankDoomByBot.get(name) || 0) + 1)
           } else {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
             if (res.deposited > 0) {
@@ -3298,6 +3306,12 @@ console.log(writeOffRow(list))
 // pocket at the deadline) - the whale-walk cure's exact target. Same
 // report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
 console.log(bankAttributionRow(list))
+// (v0.330.0) THE FINAL-BANK DOOM CENSUS - the attribution row names the
+// stranded, the census reads their WHY: the failed shaft-bottom climb cycles
+// the doom latch counted, summed per walker. A strand without climb failures
+// stays silent here (the census reads the doom class, not every strand); a
+// healthy run prints nothing (the leanness law).
+console.log(doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles }))))
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is

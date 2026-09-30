@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,8 +181,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.324.0 extended the same import, v0.328.0 rode it)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -651,4 +651,81 @@ test('bankBudgetGapRow: THE WIRING PIN - the gap row prices the granted clock', 
   assert.ok(gapIdx > flowIdx, 'the gap row prints right after the flow row it prices')
   assert.match(src, /const END_BANK_BUDGET = endBankBudgetMs/, 'the budget priced is the fleet\'s own clock')
   assert.ok(src.includes('THE BANK-BUDGET GAP ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.330.0) THE FINAL-BANK DOOM CENSUS - the attribution row names the
+// stranded ('the walk never delivered'), the census reads their WHY: the
+// failed shaft-bottom climb cycles the v0.316.0 doom latch counted. Face
+// 36592026195: F9 printed the identical 'still underground' verdict 7x, each
+// re-entry re-paying two fenced climbs on the same bottom - and the report
+// never summed it.
+
+test('doomCensusRow: the F9 datum - a latched bot owns the strand (local form)', () => {
+  // face 36592026195's shape: F9 latched (7 failed cycles), F2 paid two
+  const entries = [{ name: 'F9', cycles: 7 }, { name: 'F2', cycles: 2 }]
+  assert.strictEqual(doomCensusRow(entries),
+    'final bank doom census: local - F9 carries 7 of 9 failed climb cycles (77.8%) - the shaft bottom owns the strand',
+    'the F9 datum: local - one shaft bottom owns the strand, the cure is a climb fix there')
+})
+
+test('doomCensusRow: the spread form - the climb tax is fleet-wide', () => {
+  const entries = [{ name: 'F1', cycles: 2 }, { name: 'F2', cycles: 2 }, { name: 'F3', cycles: 2 }]
+  assert.strictEqual(doomCensusRow(entries),
+    'final bank doom census: spread - top F1 carries 2 of 6 failed climb cycles (33.3%) - the strand is a fleet-wide climb tax',
+    'no single shaft bottom owns it - the cure is the climb policy, not one cell')
+})
+
+test('doomCensusRow: the grain floor - the latch\'s own trip point (3 cycles)', () => {
+  assert.strictEqual(DOOM_CENSUS_MIN_CYCLES, 3, 'the floor is the doom latch\'s own trip point')
+  // under the floor: two scattered failures are weather
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 2 }]), null)
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 1 }, { name: 'F2', cycles: 1 }]), null)
+  // exactly the floor: one full latch's worth speaks - 2+1 sums to the floor
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 2 }, { name: 'F2', cycles: 1 }]),
+    'final bank doom census: local - F9 carries 2 of 3 failed climb cycles (66.7%) - the shaft bottom owns the strand')
+  // a single latched bot reads local at 100%
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 3 }]),
+    'final bank doom census: local - F9 carries 3 of 3 failed climb cycles (100.0%) - the shaft bottom owns the strand')
+})
+
+test('doomCensusRow: the half boundary is inclusive, byte-stable ties name asc', () => {
+  // exactly 50.0% counts as local (>=, the hole row's boundary law)
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 2 }, { name: 'F4', cycles: 2 }]),
+    'final bank doom census: local - F4 carries 2 of 4 failed climb cycles (50.0%) - the shaft bottom owns the strand')
+  // byte-stable tie at 1=1=1: F2 wins the name-asc tie-break over F3/F9
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 1 }, { name: 'F2', cycles: 1 }, { name: 'F3', cycles: 1 }]),
+    'final bank doom census: spread - top F2 carries 1 of 3 failed climb cycles (33.3%) - the strand is a fleet-wide climb tax')
+})
+
+test('doomCensusRow: the junk battery - junk counts never enter the census', () => {
+  assert.strictEqual(doomCensusRow(null), null)
+  assert.strictEqual(doomCensusRow('junk'), null)
+  assert.strictEqual(doomCensusRow(42), null)
+  assert.strictEqual(doomCensusRow([]), null, 'a healthy run: no failed cycles, no census')
+  // junk entries skipped, not fatal: NaN, negative, zero, missing, null
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: NaN }, { name: 'F2', cycles: -1 }, { cycles: 0 }, null, { name: 'F4' }]), null)
+  // a junk zero rides beside real mass: filtered, the mass still prices
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: NaN }, { name: 'F3', cycles: 3 }]),
+    'final bank doom census: local - F3 carries 3 of 3 failed climb cycles (100.0%) - the shaft bottom owns the strand')
+  // fractional cycles floor to the ledger's integer grain: 2.9 -> 2, 0.5 -> 0
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 2.9 }, { name: 'F2', cycles: 0.5 }]), null)
+  assert.strictEqual(doomCensusRow([{ name: 'F9', cycles: 2.9 }, { name: 'F2', cycles: 1.5 }]),
+    'final bank doom census: local - F9 carries 2 of 3 failed climb cycles (66.7%) - the shaft bottom owns the strand')
+  // a missing name never blocks the census
+  assert.strictEqual(doomCensusRow([{ cycles: 4 }]),
+    'final bank doom census: local - ? carries 4 of 4 failed climb cycles (100.0%) - the shaft bottom owns the strand')
+})
+
+test('doomCensusRow: THE WIRING PIN - the census rides the attribution block (v0.330.0)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /doomCensusRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.ok(src.includes('console.log(doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles }))))'),
+    'the census reads the fleet\'s own doom ledger')
+  const attrIdx = src.indexOf('console.log(bankAttributionRow(list))')
+  const censusIdx = src.indexOf('console.log(doomCensusRow(')
+  assert.ok(censusIdx > attrIdx, 'the census prints right after the attribution row it explains')
+  assert.match(src, /finalBankDoomByBot\.set\(name, \(finalBankDoomByBot\.get\(name\) \|\| 0\) \+ 1\)/,
+    'the failed climb cycle feeds the ledger at the doom latch\'s increment site')
+  assert.ok(src.includes('THE FINAL-BANK DOOM CENSUS'), 'the wiring carries its own doctrine comment')
 })
