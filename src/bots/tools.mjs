@@ -375,6 +375,19 @@ export async function placeTable (bot, { rounds = 8, maxMs = 22000 } = {}) {
         const cellB = bot.blockAt(cell)
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
         if (!floorB || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') continue
+        // (v0.365.0) THE DRY-CELL LAW REACHES THE FLEET: fluids read boundingBox
+        // 'empty', so the box filter alone let a water cell through to placeBlock -
+        // the same wrong-try CI 36752156115 fed the integration placeMachine
+        // ('Server refused to place ...: the block is still water', mineflayer
+        // place_block.js:42), here burning the 5-tick pre-click pacing + the
+        // refused packet + the 10-tick verify on a placement vanilla ALWAYS refuses
+        // (a beach/river bot's whole round: 'bots in a river bed failed 3/3 rounds')
+        // while the relocation above only dries the bot's OWN feet - the neighbour
+        // cells stay wet. A fluid cell is skipped BEFORE any attempt and the scan
+        // reaches the dry neighbour at once; the check rides the SAME shape the
+        // v0.362.0 integration cure shipped (name && /water|lava/ - a nameless block
+        // keeps the legacy attempt: junk never invents a skip, the body-guard law).
+        if (cellB && cellB.name && /water|lava/.test(cellB.name)) continue
         if (cellB && cellB.boundingBox === 'empty') {
           try {
             // vanilla ignores right-clicks that arrive less than 4 game ticks apart: firing
@@ -725,6 +738,12 @@ export async function placeItemBlock (bot, itemName, { rounds = 8, maxMs = 22000
         const cellB = bot.blockAt(cell)
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
         if (!floorB || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') continue
+        // (v0.365.0) THE DRY-CELL LAW reaches this core too: fluids read boundingBox
+        // 'empty', so the box filter alone let a water/lava cell through to placeBlock
+        // (the CI 36752156115 refusal class) - skipped BEFORE any attempt, the same
+        // name-check shape as placeTable's v0.365.0 skip and the v0.362.0 integration
+        // cure; a nameless block keeps the legacy attempt (the body-guard law).
+        if (cellB && cellB.name && /water|lava/.test(cellB.name)) continue
         if (cellB && cellB.boundingBox === 'empty') {
           try {
             await tickWait(bot, 5, `placeItemBlock ${itemName} pre-click`)
