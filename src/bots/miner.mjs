@@ -2384,6 +2384,17 @@ export function createMiner ({
           ? 'none'
           : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
       sentryLast = { at: now, verdict, criticalOnDry, witnessed, o2: o2raw, headWet } // (v0.248.0) the mirror's snapshot
+      // (v0.356.0) THE HONEST HOLE - the ignored reads counter. The glitch
+      // counter counts EVERY critical-on-dry read, but the reads whose
+      // verdict is NOT a rescue page are the class the net DISPROVED (the
+      // gate-held, the ladder-held, the abandoned - the ignore class burns
+      // nothing, the v0.347.0 law). Counting them as unrescued mass let the
+      // hole row aim the cure at a sensor ghost: face 36733939481's F12 read
+      // g600/r5 -> 'rescue hole: local - F12 holds 595u (100%)' while the net
+      // actually HELD (4 override hands, 6 starts, the ladder ratcheted 3x).
+      // The honest hole = raw - disproved - rescued. Monotone, integer, and
+      // it rides CARRY_FIELDS from birth (the v0.346.0 lesson, third strike).
+      if (criticalOnDry && verdict !== 'drowning') stats.airGlitchIgnored = (stats.airGlitchIgnored ?? 0) + 1
       if (witnessed && now - lastWitnessLogAt >= AIR_GLITCH_LOG_MS) {
         lastWitnessLogAt = now
         log(`${tag} water: drowning witnessed by damage (health ${criticalHealthSeen} -> ${bot.health} on a 'dry' critical bar) - the witness outranks the ladder and the gate`)

@@ -52,7 +52,13 @@ export const CARRY_FIELDS = [
   // v0.346.0 lesson applied the day it ships, not a face late): an override
   // hand BELIEVED the bar and paid a rescue - a relog after the hand must
   // not erase the burn.
-  'airBarOverrides'
+  'airBarOverrides',
+  // (v0.356.0) THE HONEST HOLE's counter rides the carry from BIRTH (the same
+  // v0.346.0 lesson, third strike law): every critical-on-dry read the net
+  // DISPROVED (verdict not a rescue page - the gate-held, the ladder-held,
+  // the abandoned). Without the carry a relog after the disprovals would
+  // re-inflate the hole row's raw mass and re-aim the cure at the ghost.
+  'airGlitchIgnored'
 ]
 
 // (v0.293.0) THE SWEEP CENSUS CARRY's field list - every monotone counter of
@@ -228,12 +234,24 @@ export function rescueEconomyDecode (opts = {}) {
 // carried counters can overhang across reconnects) clamp to zero mass - the
 // row measures holes, not accounting disputes; junk counters read g0/r0 (the
 // silent class, the body-guard law). Pure: reads, never mutates.
+// (v0.356.0) THE HONEST HOLE - the raw mass (g - r) counted the reads the net
+// DISPROVED as unrescued mass, and the mis-aim is measured: face 36733939481
+// printed 'rescue hole: local - F12 holds 595u of 595u unrescued (100%) - aim
+// the cure there' while the net actually HELD the whole class (4 override
+// hands, 6 starts, the ladder ratcheted 3x, the abandonment stood down) - the
+// 595u was disproven sensor reads, not lost bots. The honest mass subtracts
+// the disproved reads (stats.airGlitchIgnored, the v0.356.0 counter) beside
+// the rescues: u = max(0, g - ignored - r). A bot whose counter predates the
+// cure (no ignored field) reads exactly the legacy shape - the row never
+// invents disprovals (the body-guard law: a MISSING counter is zero, not a
+// claim). The byte shapes stand untouched - the honest numbers just replace
+// the polluted ones (the account-of-record law).
 export const RESCUE_HOLE_MIN_UNRESCUED = 50
 export const RESCUE_HOLE_HOLD_SHARE = 0.5
 
 /**
  * Where does the unrescued glitch mass live? LOCAL vs SPREAD, by holder.
- * @param {Array<{name?: string, stats?: {airGlitches?: number, rescues?: number}}|null>} bots
+ * @param {Array<{name?: string, stats?: {airGlitches?: number, rescues?: number, airGlitchIgnored?: number}}|null>} bots
  * @returns {string|null} 'rescue hole: ...' when the mass clears the floor
  */
 export function rescueHoleRow (bots = []) {
@@ -244,7 +262,10 @@ export function rescueHoleRow (bots = []) {
     const s = b && typeof b === 'object' ? b.stats : null
     const g = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
     const r = s && Number.isFinite(s.rescues) && s.rescues > 0 ? Math.floor(s.rescues) : 0
-    const u = Math.max(0, g - r)
+    // (v0.356.0) the honest mass: the disproved reads leave the leak - a
+    // missing counter reads 0 (the legacy shape, never an invented disproval)
+    const ig = s && Number.isFinite(s.airGlitchIgnored) && s.airGlitchIgnored > 0 ? Math.floor(s.airGlitchIgnored) : 0
+    const u = Math.max(0, g - ig - r)
     if (u > 0) holders.push({ name: b.name ?? '?', u })
     total += u
   }
@@ -705,4 +726,43 @@ export function airBarLedgerRow (miners, { minOverrides = AIR_BAR_LEDGER_MIN_OVE
   if (total < floor) return null
   const top = topName ? `, top ${topName} ${topOv}` : ''
   return `air-bar ledger: ${total} override hand${total === 1 ? '' : 's'} on ${lied} lied reads${top} - each hand believed the lie and paid a rescue`
+}
+
+// (v0.356.0) THE SENSOR-LIAR CENSUS - the honest hole row (the disproved
+// reads leave the leak) goes SILENT on exactly the face that needs a new
+// line: face 36733939481's F12 read g600 with the net holding (4 override
+// hands, 6 starts, 3 ladder ratchets) - after the cure the hole row prints
+// nothing, and a bar that lied 600 reads would leave no trace in the report
+// (the honest silence is a form, but an unpriced 600-read lie is a hole in
+// the account, the 05:00 lesson's twin). The census prices the disprovals:
+// when a bot's ignored mass clears the floor, the line names who disproved
+// how much and what it cost the net instead (the override hands, the
+// rescues) - the sensor story the hole row can no longer tell. The floor
+// keeps grain out (200 reads: face 36700431959's F18 carried 213 lied reads
+// - the smallest whale the watch front named; a smaller class is weather,
+// the ledger-grain law). Byte-stable pick: largest disproved mass wins,
+// ties break on name ascending (the hole row's own law). Junk counters
+// never enter the census (the body-guard law). Pure: reads, never mutates.
+export const SENSOR_LIAR_MIN_IGNORED = 200
+
+/**
+ * Who disproved the biggest sensor lie this face? (pure, junk-safe)
+ * @param {Array<{name?: string, stats?: {airGlitchIgnored?: number, airGlitches?: number, rescues?: number, airBarOverrides?: number}}|null>} miners
+ * @param {object} [opts]
+ * @param {number} [opts.minIgnored] the speak floor (default SENSOR_LIAR_MIN_IGNORED = 200)
+ * @returns {string|null} null when no bot's disproved mass clears the floor (the leanness law)
+ */
+export function sensorLiarRow (miners, { minIgnored = SENSOR_LIAR_MIN_IGNORED } = {}) {
+  if (!Array.isArray(miners)) return null
+  const floor = Number.isFinite(minIgnored) && minIgnored > 0 ? Math.floor(minIgnored) : SENSOR_LIAR_MIN_IGNORED
+  let top = null
+  for (const m of miners) {
+    const s = m && typeof m === 'object' ? m.stats : null
+    const ig = s && Number.isFinite(s.airGlitchIgnored) && s.airGlitchIgnored > 0 ? Math.floor(s.airGlitchIgnored) : 0
+    if (ig <= 0) continue
+    const name = (typeof m.name === 'string' && m.name) ? m.name : '?'
+    if (!top || ig > top.ig || (ig === top.ig && name < top.name)) top = { ig, name }
+  }
+  if (!top || top.ig < floor) return null
+  return `sensor liar census: ${top.name} disproved ${top.ig} reads - the bar lies, the net held (the honest hole row reads clean)`
 }

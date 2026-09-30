@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS, sensorLiarRow, SENSOR_LIAR_MIN_IGNORED } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -454,4 +454,113 @@ test('stat carry: glitchAbandons rides CARRY_FIELDS (the storm row hands source)
   assert.deepEqual(snapshotStats({ glitchAbandons: 0 }), {})
   assert.deepEqual(snapshotStats({ glitchAbandons: NaN }), {})
   assert.deepEqual(snapshotStats({ glitchAbandons: -1 }), {})
+})
+
+// ---------------------------------------------------------------------------
+// (v0.356.0) THE HONEST HOLE - the raw mass (g - r) counted the reads the net
+// DISPROVED, and face 36733939481's F12 ghost is the proof: g600/r5 printed
+// 'rescue hole: local - F12 holds 595u (100%) - aim the cure there' while the
+// net actually HELD (4 override hands, 6 starts, 3 ladder ratchets). The
+// honest mass subtracts stats.airGlitchIgnored beside the rescues; the
+// sensor-liar census prices the disprovals the honest hole row hides.
+// ---------------------------------------------------------------------------
+test('rescueHoleRow: THE FACE-12 GHOST - the disproved reads leave the leak', () => {
+  // the exact face-12 shape: g600/r5 with 594 reads disproved reads u=1 -
+  // below the 50u floor the row goes silent (the ghost stops mis-aiming)
+  assert.equal(rescueHoleRow([{ name: 'F12', stats: { airGlitches: 600, rescues: 5, airGlitchIgnored: 594 } }]), null)
+  // a ghost beside a REAL holder: the aim moves to the honest leak
+  const row = rescueHoleRow([
+    { name: 'F12', stats: { airGlitches: 600, rescues: 5, airGlitchIgnored: 594 } },
+    { name: 'F9', stats: { airGlitches: 120, rescues: 10, airGlitchIgnored: 0 } }
+  ])
+  assert.equal(row, 'rescue hole: local - F9 holds 110u of 111u unrescued (99.1%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE MISSING COUNTER READS LEGACY - no invented disprovals', () => {
+  // a bot whose stats predate the cure (no airGlitchIgnored field) reads
+  // exactly the legacy shape - the face-12 line stands as the pin (the
+  // body-guard law: a MISSING counter is zero, not a claim)
+  const row = rescueHoleRow([{ name: 'F12', stats: { airGlitches: 600, rescues: 5 } }])
+  assert.equal(row, 'rescue hole: local - F12 holds 595u of 595u unrescued (100.0%) - aim the cure there')
+  // junk ignored counters read zero the same way
+  const junk = rescueHoleRow([{ name: 'F4', stats: { airGlitches: 60, rescues: 0, airGlitchIgnored: 'x' } }])
+  assert.equal(junk, 'rescue hole: local - F4 holds 60u of 60u unrescued (100.0%) - aim the cure there')
+})
+
+test('rescueHoleRow: THE IGNORED CLAMP - disprovals never dig a negative hole', () => {
+  // ignored >= g clamps to zero mass (overhang junk, the carried-counter law)
+  assert.equal(rescueHoleRow([{ name: 'F4', stats: { airGlitches: 100, rescues: 0, airGlitchIgnored: 150 } }]), null)
+  assert.equal(rescueHoleRow([{ name: 'F4', stats: { airGlitches: 100, rescues: 30, airGlitchIgnored: 100 } }]), null)
+  // negative ignored is impossible data (reads zero, the legacy shape)
+  const row = rescueHoleRow([{ name: 'F4', stats: { airGlitches: 60, rescues: 0, airGlitchIgnored: -5 } }])
+  assert.equal(row, 'rescue hole: local - F4 holds 60u of 60u unrescued (100.0%) - aim the cure there')
+})
+
+test('sensorLiarRow: THE FLOOR BOUNDARY - 199 disprovals are weather, 200 are a lie', () => {
+  assert.equal(SENSOR_LIAR_MIN_IGNORED, 200)
+  assert.equal(sensorLiarRow([{ name: 'F12', stats: { airGlitchIgnored: 199 } }]), null)
+  const row = sensorLiarRow([{ name: 'F12', stats: { airGlitchIgnored: 200 } }])
+  assert.equal(row, 'sensor liar census: F12 disproved 200 reads - the bar lies, the net held (the honest hole row reads clean)')
+})
+
+test('sensorLiarRow: THE BYTE-STABLE TIE and the junk battery', () => {
+  // the largest disproved mass wins, ties break on name ascending
+  const tie = sensorLiarRow([
+    { name: 'F9', stats: { airGlitchIgnored: 300 } },
+    { name: 'F2', stats: { airGlitchIgnored: 300 } }
+  ])
+  assert.equal(tie, 'sensor liar census: F2 disproved 300 reads - the bar lies, the net held (the honest hole row reads clean)')
+  const big = sensorLiarRow([
+    { name: 'F9', stats: { airGlitchIgnored: 301 } },
+    { name: 'F2', stats: { airGlitchIgnored: 300 } }
+  ])
+  assert.equal(big, 'sensor liar census: F9 disproved 301 reads - the bar lies, the net held (the honest hole row reads clean)')
+  // junk battery: non-array, empty, missing stats, junk counters, sub-floor
+  assert.equal(sensorLiarRow(null), null)
+  assert.equal(sensorLiarRow('junk'), null)
+  assert.equal(sensorLiarRow(undefined), null)
+  assert.equal(sensorLiarRow([]), null)
+  assert.equal(sensorLiarRow([{ name: 'F1', stats: null }, { name: 'F2' }]), null)
+  assert.equal(sensorLiarRow([{ name: 'F3', stats: { airGlitchIgnored: 'x' } }]), null)
+  assert.equal(sensorLiarRow([{ name: 'F4', stats: { airGlitchIgnored: -5 } }]), null)
+  // a junk counter beside a real one: the real one speaks
+  const mixed = sensorLiarRow([
+    { name: 'F1', stats: { airGlitchIgnored: 'x' } },
+    { name: 'F2', stats: { airGlitchIgnored: 250 } }
+  ])
+  assert.equal(mixed, 'sensor liar census: F2 disproved 250 reads - the bar lies, the net held (the honest hole row reads clean)')
+  // a custom floor rides opts (the speak floor is a knob, not a constant)
+  assert.equal(sensorLiarRow([{ name: 'F5', stats: { airGlitchIgnored: 100 } }], { minIgnored: 99 }).includes('F5'), true)
+})
+
+test('stat carry: airGlitchIgnored rides CARRY_FIELDS (the honest hole source)', () => {
+  assert.ok(CARRY_FIELDS.includes('airGlitchIgnored'))
+  // the junk gates still hold: zero and NaN never travel
+  assert.deepEqual(snapshotStats({ airGlitchIgnored: 0 }), {})
+  assert.deepEqual(snapshotStats({ airGlitchIgnored: NaN }), {})
+  assert.deepEqual(snapshotStats({ airGlitchIgnored: -1 }), {})
+  // the relog round-trip: the disprovals survive the respawn
+  const carry = snapshotStats({ mined: 7, airGlitchIgnored: 594 })
+  assert.equal(carry.airGlitchIgnored, 594)
+  const fresh = { mined: 0, airGlitchIgnored: 0 }
+  seedStats(fresh, carry)
+  assert.equal(fresh.airGlitchIgnored, 594, 'the disproved reads must outlive the relog')
+})
+
+test('THE HONEST HOLE: the wiring pins (the counter, the honest input, the census)', () => {
+  // the miner counts the non-drowning critical-on-dry reads (the disproved class)
+  const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.match(minerSrc, /if \(criticalOnDry && verdict !== 'drowning'\) stats\.airGlitchIgnored = \(stats\.airGlitchIgnored \?\? 0\) \+ 1/, 'the increment rides the sentry verdict, after it is computed')
+  const incIdx = minerSrc.indexOf("if (criticalOnDry && verdict !== 'drowning') stats.airGlitchIgnored")
+  const sentryIdx = minerSrc.indexOf('sentryLast = { at: now, verdict, criticalOnDry, witnessed, o2: o2raw, headWet }')
+  assert.ok(incIdx > sentryIdx, 'the counter reads the verdict the mirror already computed')
+  // the fleet wires the census beside the air-bar ledger and feeds the
+  // economy decode the honest sum (raw - disproved)
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /sensorLiarRow[\s\S]*?from '\.\.\/src\/lib\/statcarry\.mjs'/, 'the census rides the statcarry import line')
+  assert.match(fleetSrc, /airGlitches: list\.reduce\(\(a, m\) => a \+ \(m\.stats\?\.airGlitches \?\? 0\) - \(m\.stats\?\.airGlitchIgnored \?\? 0\), 0\)/, 'the economy decode reads the honest sum')
+  const censusIdx = fleetSrc.indexOf('const sensorLiar = sensorLiarRow(')
+  const ledgerIdx = fleetSrc.indexOf('const airBarLedger = airBarLedgerRow(')
+  assert.ok(censusIdx > ledgerIdx, 'the census prints beside the ledger it completes')
+  assert.ok(fleetSrc.includes('THE SENSOR-LIAR CENSUS'), 'the wiring carries its own doctrine comment')
 })

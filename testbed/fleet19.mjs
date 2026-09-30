@@ -44,7 +44,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3456,6 +3456,15 @@ console.log(stormVerdictRow({
 // nothing). Sits right after the storm row it prices.
 const airBarLedger = airBarLedgerRow(list)
 if (airBarLedger) console.log(airBarLedger)
+// (v0.356.0) THE SENSOR-LIAR CENSUS - the honest hole row (the disproved
+// reads leave the leak) goes silent on exactly the face that needs a new
+// line: face 36733939481's F12 disproved ~595 reads with the net holding -
+// after the cure that story prints here or not at all (the 05:00 lesson's
+// twin: an unpriced lie is a hole in the account). Sits beside the air-bar
+// ledger it completes: the ledger prices the hands that BELIEVED, the
+// census prices the reads the net DISPROVED.
+const sensorLiar = sensorLiarRow(list.map(m => ({ name: m.username, stats: m.stats })))
+if (sensorLiar) console.log(sensorLiar)
 // (v0.325.0) THE RESCUE-ECONOMY DECODE - the sentry pair judged as an
 // economy: fleet 36626921875 read 257 glitches/54 rescues (21.0%), fleet
 // 36631612575 read 699/75 (10.7%) - the share halved unjudged. Below the
@@ -3463,9 +3472,17 @@ if (airBarLedger) console.log(airBarLedger)
 // years later); at/above it or on a small sample the decode stays silent
 // (junk never invents an economy).
 const rescueEconomy = rescueEconomyDecode({
-  airGlitches: list.reduce((a, m) => a + (m.stats?.airGlitches ?? 0), 0),
+  airGlitches: list.reduce((a, m) => a + (m.stats?.airGlitches ?? 0) - (m.stats?.airGlitchIgnored ?? 0), 0),
   rescues: list.reduce((a, m) => a + (m.stats?.rescues ?? 0), 0)
 })
+// (v0.356.0) THE HONEST INPUT - the decode judges the NET against the
+// glitches the net OWED, and the raw sum counted the reads the net
+// DISPROVED: face 36733939481 read 53/600 = 8.8% 'losing ground' while the
+// net held the whole class (F12's 595 disproved reads). The honest sum
+// subtracts the disproved reads - a face of pure ignores reads a small
+// sample and stays silent (the MIN_GLITCHES gate), a face of real losses
+// keeps its verdict (the ignored counter cannot hide a genuine drain: the
+// witnessed/wet pages never ride the ignore lane).
 if (rescueEconomy) {
   console.log(`rescue economy decode: ${rescueEconomy}`)
   // (v0.326.0) THE RESCUE-HOLE ROW rides the verdict: the economy decode names
