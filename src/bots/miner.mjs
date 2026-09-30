@@ -51,7 +51,7 @@ import {
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
-  openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision,
+  openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision, freezeClass,
   frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
@@ -1585,6 +1585,15 @@ export function createMiner ({
   // becomes a one-heart scratch plus a ~1s dig. The physicsTick emitter only
   // fires with physics enabled, a ready entity and a loaded chunk, so the
   // unspawned/unloaded shapes never even reach the guards below.
+  // (v0.340.0) THE FREEZE TRACKER - the tick age is the one gate the
+  // mineflayer source does not expose (shouldUsePhysics is a closure var),
+  // so the frozen verdict infers the lane's state from the loop's own
+  // heartbeat: silent >= FREEZE_TICK_SILENT_MS with every gate open means
+  // the forced-move re-arm never came. One field write per tick - cheaper
+  // than the verdict it feeds.
+  bot._lastPhysicsTickAt = Date.now()
+  bot.on('physicsTick', () => { bot._lastPhysicsTickAt = Date.now() })
+
   let suffocateBusy = false
   let suffocateWatchTick = 0
   bot.on('physicsTick', () => {
@@ -1930,6 +1939,21 @@ export function createMiner ({
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
               log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${o2SensorLabel(read.oxygen)}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)
+              // (v0.340.0) THE FREEZE NAMES ITSELF - the verdict above
+              // condemns, this line diagnoses: the gates read the
+              // mineflayer source's own skip order (state -> entity ->
+              // chunk -> enabled -> the lane's tick age). Junk-safe: an
+              // unreadable gate passes as null and the classifier refuses
+              // to name what it cannot prove ('unproven'). The relog
+              // decision below keeps its byte-for-byte shape.
+              const frz = freezeClass({
+                clientState: (() => { try { return bot._client?.state ?? null } catch { return null } })(),
+                hasFiniteEntity: (() => { try { const p = bot.entity?.position; return !!p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) } catch { return null } })(),
+                chunkLoaded: (() => { try { const p = bot.entity?.position; return p ? bot.blockAt(p) != null : null } catch { return null } })(),
+                physicsEnabled: (() => { try { return bot.physicsEnabled === true } catch { return null } })(),
+                tickAgeMs: (() => { try { const t = bot._lastPhysicsTickAt; return Number.isFinite(t) ? Date.now() - t : null } catch { return null } })()
+              })
+              log(`${tag} water: freeze named ${frz.cls} - ${frz.why}`)
             }
             frozenDown = true
             frozenDownWet = headWet === true

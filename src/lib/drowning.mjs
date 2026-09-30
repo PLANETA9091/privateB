@@ -1518,6 +1518,83 @@ export function physicsFrozen ({ points = null, window = FROZEN_WINDOW, eps = FR
 }
 
 // ---------------------------------------------------------------------------
+// (v0.340.0) THE FREEZE NAMES ITSELF - face 36679076372's ledger: 57
+// frozen-physics verdicts in one 600s run, ALL 31 rescue stand-downs frozen
+// (100%), 24 forced relogs, and three bots (F16 x12, F15 x11, F13 x11)
+// spent their whole run in the freeze->relog->resume-wet loop while the
+// doom census blamed 'low-o2' for 60% of the climb tax. The freeze was
+// always a VERDICT, never a DIAGNOSIS - the line condemned the physics and
+// handed the bot to the relog lane without naming WHY a live socket
+// flatlines. The mineflayer 4.39.0 source (lib/plugins/physics.js) read in
+// this fire holds the answer: tickPhysics has exactly four silent gates
+// that skip the simulation WITHOUT touching the socket, in source order -
+//   1. `bot._client.state !== 'play'` (a configuration phase owns the
+//      client - play-state movement packets are not allowed),
+//   2. the entity missing or its position non-finite,
+//   3. `bot.blockAt(bot.entity.position) == null` (THE CHUNK UNLOADED
+//      under the bot - physics skips silently),
+//   4. `bot.physicsEnabled` false.
+// and behind them sits the closure var the source never exposes:
+// `shouldUsePhysics` - set false on mount/death/respawn/login/
+// start_configuration and re-armed ONLY by the forced-move handler (a
+// server-initiated position packet). If the server never corrects us, the
+// lane stays cold forever: the interval runs, every gate is open, and
+// simulatePlayer never fires (waitForTicks times out - the rescue's own
+// 'dead physics' reads). The tracker's tick age separates the two:
+// physicsTick silent >= FREEZE_TICK_SILENT_MS with all gates open =
+// 'lane-cold' (the re-arm never came); ticking recently yet the position
+// holds = 'ticking-flat' (the simulate runs and the world owns the bot -
+// a DIFFERENT disease that a relog may not cure).
+//
+// THE TELEMETRY-FIRST LAW: instrument, then cure. This version only NAMES
+// the freeze at the verdict; the relog decision keeps its byte-for-byte
+// shape (the safe lane is the safe lane). The next face's class
+// distribution aims the revive: a 'lane-cold' fleet gets the cheap
+// self-re-arm instead of a 10-20s relog churn.
+export const FREEZE_TICK_SILENT_MS = 1000
+
+/**
+ * Name WHY the physics flatlined (pure, junk-safe). The gates read the
+ * mineflayer source's own skip order; an unreadable gate (null) is a LOST
+ * reading, not a verdict - the Number(null) lesson: a missing read never
+ * condemns a class the code cannot prove.
+ * @param {object} [p]
+ * @param {string|null} [p.clientState] bot._client?.state ('play' expected; null = unreadable)
+ * @param {boolean|null} [p.hasFiniteEntity] entity present with finite position (null = unreadable)
+ * @param {boolean|null} [p.chunkLoaded] blockAt(entity.position) != null (null = unreadable)
+ * @param {boolean|null} [p.physicsEnabled] bot.physicsEnabled (null = unreadable)
+ * @param {number|null} [p.tickAgeMs] ms since the last physicsTick (null = the tracker was not armed)
+ * @returns {{cls: string, why: string}}
+ */
+export function freezeClass ({
+  clientState = null,
+  hasFiniteEntity = null,
+  chunkLoaded = null,
+  physicsEnabled = null,
+  tickAgeMs = null
+} = {}) {
+  if (clientState != null && clientState !== 'play') {
+    return { cls: 'config-state', why: `client state ${clientState} - play-state movement packets are not allowed` }
+  }
+  if (hasFiniteEntity === false) {
+    return { cls: 'entity-lost', why: 'the entity is missing or its position is not finite' }
+  }
+  if (chunkLoaded === false) {
+    return { cls: 'chunk-lost', why: 'the chunk under the bot is unloaded - physics skips silently' }
+  }
+  if (physicsEnabled === false) {
+    return { cls: 'physics-disabled', why: 'physicsEnabled is false - the simulate gate is shut' }
+  }
+  if (Number.isFinite(tickAgeMs) && tickAgeMs >= 0) {
+    if (tickAgeMs >= FREEZE_TICK_SILENT_MS) {
+      return { cls: 'lane-cold', why: `no physicsTick for ${Math.round(tickAgeMs)}ms with every gate open - the forced-move lane is cold (shouldUsePhysics never re-armed)` }
+    }
+    return { cls: 'ticking-flat', why: `physicsTick ${Math.round(tickAgeMs)}ms ago yet the position holds - the simulate runs and the world owns the bot` }
+  }
+  return { cls: 'unproven', why: 'the tick tracker was not armed - the gates could not be read in time' }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.125.0) THE DEEP-POCKET ASCEND - the ceiling class the jump-only lane
 // cannot own.
 //
