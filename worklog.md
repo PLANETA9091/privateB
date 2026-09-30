@@ -9932,3 +9932,17 @@ Work Log:
 
 Stage Summary:
 - Master = d28726a (pkg 0.341.0). FIFTH FACE IN FLIGHT (36690923417 on bfee4a8): the freezeClass diagnosis's FIRST LEG + the storm row's first proof + the abandonment's second leg. SIXTH face rides d28726a: the shift pre-seal's first field leg (the LANDED count vs the gate-keeps count) + the freeze classes' second leg. Version next: 0.342.0 = the freeze cure aimed by face 5's class distribution (lane-cold -> the self-re-arm; chunk-lost -> chunk healing; ticking-flat -> world-side).
+
+---
+Task ID: cron30-20260930-1700
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1700 - ship v0.342.0 THE STORM ROW, mine the fifth face's freezeClass first leg.
+
+Work Log:
+- v0.342.0 THE STORM ROW (73a4c42): stormVerdictRow() in statcarry.mjs - the face's bimodal class NAMED (STORM: rate/min + top holder + abandon hands; CALM: the zero; ALWAYS printed; floor 100 = the ledger-grain law, the split 0 vs 257+ holds both sides). The stats.glitchAbandons counter rides BOTH band hands in miner.mjs (the exact crossing page); the row prints OUTSIDE the rescue-economy gate in fleet19.mjs. Junk-safe throughout (junk sums read CALM-0). Tests: 12 pins. Local: syntax 259, unit 144/144 files; the fresh-world smelting integration hang reproduced (environmental, the 1530 precedent) - CI decides.
+- THE FIFTH FACE MINED (36690923417 on 0.340.0, 4330 lines in /home/z/my-project/logs/face-36690923417/): alive 19/19, reconnects 18, mined 2029, BANKED 0 (flow 0.0u/s - the chains stood still, pocket ~1848u stranded), smelted 10, rescues 126, airGlitches 340 (the A/B: 0/276/0/1323/340 - a third storm face). THE FREEZECLASS INSTRUMENT'S FIRST LEG: 15 freeze verdicts ALL 'ticking-flat' (physicsTick 0-2ms ago yet the position holds - 'the simulate runs and the world owns the bot') - ONE class owns the freeze; the config/entity/chunk/lane-cold gates hold nothing here; 11 frozen relogs. The abandonment's second speaking leg: 2 hands (F9, F12).
+- PUSH: 8046a03..73a4c42 clean (no collision with cron38's d28726a/8046a03). Push gate 36695939182 in_progress at close.
+
+Stage Summary:
+- Master = 73a4c42 (pkg 0.342.0). FIVE FACES OF RECORD; the freeze's head is the TICKING-FLAT class (the world's own stall - the revive aims there); the zero-bank storm faces are 2 of 5 (the chains' stillness is storm-coupled).
+- NEXT FIRE (1730): (1) poll 36695939182; on gate SUCCESS + no active dispatch -> DISPATCH THE SIXTH FACE (the storm row's FIRST PRINT + the abandons counter's first read + the pre-seal's first field leg). (2) Watch: the storm verdict line's shape, 'N abandon hands' vs the log count, the freeze distribution vs ticking-flat's monopoly, banked vs the 0-floor, the pre-seal's seal-and-cross on the wet-shift.
