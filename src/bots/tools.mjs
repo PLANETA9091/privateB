@@ -5,6 +5,9 @@ import { gotoSafe, withTimeout, nearDoomedGoal, DOOMED_GOAL_RADIUS } from '../li
 import { surplusPlan, sticksFromPlanks } from '../lib/surplus.mjs'
 import { torchCraftPlan, metalFuelReserve, countTorches, torchResupplyAsk, TORCH_POCKET_CAP } from '../lib/torch.mjs'
 import { smeltablesIn, findMachineBlocks, METAL_INPUTS } from '../lib/smelting.mjs'
+// (v0.366.0) the placement rings + the flooded-alcove trigger - the same unit-pinned
+// lib the integration placeMachine imports (the v0.363.0 shapes)
+import { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove } from '../lib/placement-rings.mjs'
 
 export const LOG_BLOCKS = ['oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'cherry_log', 'pale_oak_log', 'dark_oak_log', 'mangrove_log', 'bamboo_block', 'crimson_stem', 'warped_stem']
 
@@ -733,7 +736,8 @@ export async function placeItemBlock (bot, itemName, { rounds = 8, maxMs = 22000
       await withTimeout(bot.equip(item, 'hand'), EQUIP_FENCE_MS, `equip ${itemName}`)
       const feet = bot.entity.position.floored()
       let placed = false
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+      let rejected = 0
+      for (const [dx, dz] of RING1_OFFSETS) {
         const cell = feet.offset(dx, 0, dz)
         const cellB = bot.blockAt(cell)
         const floorB = bot.blockAt(cell.offset(0, -1, 0))
@@ -752,7 +756,7 @@ export async function placeItemBlock (bot, itemName, { rounds = 8, maxMs = 22000
             const placedB = bot.blockAt(cell)
             if (placedB && placedB.name === itemName) return placedB
             placed = true
-          } catch { /* next neighbour */ }
+          } catch { rejected++ /* next neighbour */ }
         } else if (cellB && cellB.boundingBox === 'block' && bot.fastDig) {
           try {
             await tickWait(bot, 5, `placeItemBlock ${itemName} carve pre`)
@@ -767,10 +771,40 @@ export async function placeItemBlock (bot, itemName, { rounds = 8, maxMs = 22000
               if (placedB && placedB.name === itemName) return placedB
               placed = true
             }
-          } catch { /* next neighbour */ }
+          } catch { rejected++ /* next neighbour */ }
         }
       }
       if (placed) continue
+      // (v0.366.0) THE FLOODED-ALCOVE WIDENING reaches the camp furnace: rejected === 0
+      // after ring 1 means the placement never even TRIED - every cell was skipped (the
+      // all-wet camp site, the flooded shaft bottom). The legacy next step ate the block
+      // BELOW and fell to the terrain - on a flooded floor that is a bot standing IN the
+      // water it just failed to escape. The widened scan offers ring 2 (16 cells at
+      // Chebyshev distance 2, nearest-first) BEFORE the dig-below: a dry cell one block
+      // past the pond's edge is a furnace, not a drowning. The wide scan rides the same
+      // dry-cell law and the same floor filter, and stays carve-free (the same surface
+      // the v0.363.0 integration picker offers); any rejected attempt keeps the narrow
+      // behavior - a refusal is the rounds ladder's class, not a wider scan's.
+      if (floodedAlcove(rejected)) {
+        for (const [dx, dz] of RING2_OFFSETS) {
+          const cell = feet.offset(dx, 0, dz)
+          const cellB = bot.blockAt(cell)
+          const floorB = bot.blockAt(cell.offset(0, -1, 0))
+          if (!floorB || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') continue
+          if (cellB && cellB.name && /water|lava/.test(cellB.name)) continue
+          if (cellB && cellB.boundingBox === 'empty') {
+            try {
+              await tickWait(bot, 5, `placeItemBlock ${itemName} wide pre-click`)
+              await withTimeout(bot.placeBlock(floorB, new Vec3(0, 1, 0)), PLACE_FENCE_MS, `placeBlock ${itemName} (wide)`)
+              await tickWait(bot, 10, `placeItemBlock ${itemName} wide verify`)
+              const placedB = bot.blockAt(cell)
+              if (placedB && placedB.name === itemName) return placedB
+              placed = true
+            } catch { /* next wide neighbour */ }
+          }
+        }
+        if (placed) continue
+      }
       // nowhere to place: eat the block below and fall to the terrain (treetop/mid-air)
       const below = bot.blockAt(bot.entity.position.floored().offset(0, -1, 0))
       if (below && below.type !== 0 && below.boundingBox !== 'fluid') {
