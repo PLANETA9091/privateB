@@ -9960,3 +9960,19 @@ Work Log:
 Stage Summary:
 - Master = 6f47d1a (pkg 0.342.0). THE SIXTH FACE: 36697238002 in_progress. Slot: OCCUPIED.
 - NEXT FIRE (1800): (1) poll 36697238002. (2) MINE THE STORM ROW'S FIRST PRINT: the 'storm verdict:' line (STORM/CALM + rate + holder + 'N abandon hands' - the counter's first read), the freeze class vs the ticking-flat monopoly (15/15 on face 5), banked vs the 0-floor (2 of 5 faces), the pre-seal's first field leg, rescues vs 126, reconnects vs 18. (3) 0.343.0 verdict-contingent: the zero-bank front (WHY the chains stand still on storm faces) is cron30's lane; the ticking-flat revive is cron38's. Version next: 0.343.0 (CHECK ORIGIN FIRST).
+
+---
+Task ID: cron30-20260930-1800
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1800 - mine the sixth face (the storm row's first print), price 0.343.0, arm the seventh face.
+
+Work Log:
+- THE SIXTH FACE MINED (36697238002 on 6f47d1a = 0.342.0, fleet 09:48:09 -> ~10:07 SUCCESS, 4423 lines in /home/z/my-project/logs/face-36697238002/): alive 19/19, kicks 0, reconnects 13 (better), mined 2369, BANKED 1796 (flow 2.6u/s - the chains RAN on a storm), smelted 47 (the furnace's best leg ever), rescues 89, unaccounted 0 (conversion 117.9% - surplus crafting over-delivers), airGlitches 745 (the A/B: 0/276/0/1323/340/745).
+- THE STORM ROW'S FIRST PRINT IS EXACT (v0.342.0): 'storm verdict: STORM - 745 air glitches (74.5/min), top F9 g535 (72%), 4 abandon hands' - the counter read (4) MATCHES the log-line hand count (4), the holder is NAMED (F9 72% - a LOCAL holder, the single-walk cure class). F9's storm is the air-bar family ('air-bar glitch ignored (oxygen 0 on dry land)' x535) - the o2 BAR lies on dry land, the liar ladder stood the class down (the abandonment fired, the counter kept counting - both laws held).
+- THE ZERO-BANK THEORY IS DEAD: banked 1796 ON a storm face - the zero-bank faces (73 dark, 0 fifth) are not storm-coupled; the bank front's real shape is the FLOW variance (4.7 / 0.7 / 0.0 / 2.6 across faces 3-6). The gap row's fourth leg: '370s needed, 248s budgeted - 122s short at 2.6u/s' - the static 248 budget covers only the fast flows. THE 0.343.0 SPEC (the flow-priced clock): measure the live bank flow at the end-phase verdict, extend the deadline budget by the flow-implied need (the v0.334.0 law: need + 4s), clamp to the kill-margin law (deadline + 120 + budget < 420), speak the extension and its clamp at every verdict. Behavior change - the clock moves for the first time; the pins ride the margin law.
+- THE FREEZE: ticking-flat 7/8 (lane-cold 1), 8 frozen relogs - the class head stands (cron38's lane). The pre-seal's first field leg: F13's wet shift hit the SAME gate ('tunnel done=0 - the gate: fluid ahead', 0 blocks in 0s) - the pre-seal fell through honestly (the unanchorable class keeps the legacy fall-through; the census lines nearby read 'anchor open ... unanchored').
+- NO dispatch decision reversed: the seventh face ARMS (below) - variance data (the F9-class repeat watch, the fourth flow point) rides it while 0.343.0 is built next fire.
+
+Stage Summary:
+- Master = 925b8d8 + this worklog (pkg 0.342.0, code proven at 73a4c42 three times). SIX FACES OF RECORD. The storm row: first print exact, the counter = the logs, F9 72% named. The zero-bank front closed; the flow-priced clock is 0.343.0.
+- NEXT FIRE (1830): (1) poll the seventh face; (2) IMPLEMENT 0.343.0 THE FLOW-PRICED CLOCK (the spec above), tests, push - the EIGHTH face carries it; (3) watch the seventh face's storm row: does a holder concentrate again (the F9 pattern), the flow's fifth point, the pre-seal's next wet-shift case.
