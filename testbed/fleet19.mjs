@@ -2690,6 +2690,62 @@ async function runBot (name, target, index) {
                 console.log(`${name} final climb: no retry (${retryPlan.why}) - wet shift refused: ${Math.round(shiftSliceMs / 1000)}s of slice cannot fund the tunnel and a fenced climb`)
               } else {
                 console.log(`${name} final climb: wet shift - ${shiftPlan.why} (${Math.round(shiftSliceMs / 1000)}s of slice left)`)
+                // (v0.341.0) THE SHIFT PRE-SEAL - the gate named itself (face
+                // 36679076372 + face 36686530635: every observed shift stall
+                // rode zeroWhy 'fluid ahead' - the v0.242.0 fluid law stops the
+                // mover's FIRST cell while the slice burns) and the cure is
+                // already proven one lane over: the mining tunnel's
+                // seal-and-cross (v0.244-0.250.0 - the census, the geometry,
+                // the two-round placement; face 36686530635 line: F19's
+                // 'seal-and-cross CROSSED: cobblestone sealed the step-1 fluid
+                // - the steered line resumes'). The shift gets the same cure
+                // aimed at its first cell: fluid at step 1 along the bearing ->
+                // census (water + stock) -> plan (anchor + headroom) -> place
+                // -> verify. A landed seal turns the gate's fluid into a floor
+                // and the tunnel walks; every refusal falls through byte for
+                // byte (the honest zeroWhy stall line stays the account of
+                // record). Lean first leg: one cell, no dig-around - the walled
+                // class keeps the legacy fall-through until the field prices it.
+                try {
+                  const sealFrom = miner.bot.entity?.position?.floored?.() ?? null
+                  const sCell = sealFrom ? sealFrom.offset(shiftPlan.bearing.x, 0, shiftPlan.bearing.z) : null
+                  const sFeet = sCell ? miner.bot.blockAt(sCell) : null
+                  const sHead = sCell ? miner.bot.blockAt(sCell.offset(0, 1, 0)) : null
+                  if (steerFluidLock({ feetBox: sFeet?.boundingBox ?? null, headBox: sHead?.boundingBox ?? null, feetName: sFeet?.name ?? null, headName: sHead?.name ?? null })) {
+                    const census = sealCensus({ fluidNames: [sFeet?.name ?? null, sHead?.name ?? null], pocket: (miner.bot.inventory?.items?.() ?? []) })
+                    console.log(`${name} final climb: shift pre-seal census: ${census.fluid ?? 'unclassified'} at the bearing cell, ${census.blocks} sealable in pocket${census.top ? ` (top ${census.top})` : ''} - the pre-seal is ${census.fluid === 'water' && census.sealable ? 'ARMED' : 'bare'}`)
+                    if (census.fluid === 'water' && census.sealable) {
+                      const feetWet = (sFeet?.boundingBox === 'fluid') || tunnelFluidName(sFeet?.name ?? null)
+                      const anchorB = feetWet ? miner.bot.blockAt(sCell.offset(0, -1, 0)) : sFeet
+                      const headroomB = feetWet ? sHead : miner.bot.blockAt(sCell.offset(0, 2, 0))
+                      const sPlan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+                      console.log(`${name} final climb: shift pre-seal plan: anchor ${sPlan.anchor ? 'solid' : 'open'}, headroom ${sPlan.headroom ? 'clear' : 'solid'} - the seal is ${sPlan.plan}`)
+                      if (sPlan.plan === 'buildable') {
+                        const tgt = sealCrossTarget({ feetWet })
+                        const target = sCell.offset(0, tgt.targetDy, 0)
+                        const item = (miner.bot.inventory?.items?.() ?? []).find(i => i && i.name === census.top)
+                        let sealed = false
+                        if (item) {
+                          for (let round = 0; round < 2 && !sealed; round++) {
+                            if (round > 0) await miner.bot.waitForTicks(6)
+                            try {
+                              const anchor = miner.bot.blockAt(target.offset(0, -1, 0))
+                              if (!anchor || anchor.boundingBox !== 'block') break // the geometry moved under us - the plan is stale
+                              await miner.bot.equip(item, 'hand')
+                              await miner.bot.waitForTicks(5)
+                              await withTimeout(miner.bot.placeBlock(anchor, new Vec3(tgt.face.x, tgt.face.y, tgt.face.z)), SEAL_PLACE_TIMEOUT_MS, 'shift pre-seal place')
+                              await miner.bot.waitForTicks(10)
+                              const after = miner.bot.blockAt(target)
+                              if (sealLanded({ afterName: after?.name ?? null, afterBox: after?.boundingBox ?? null })) sealed = true
+                            } catch { /* the round's refusal - one more round, then the gate keeps the cell */ }
+                          }
+                        }
+                        if (sealed) console.log(`${name} final climb: shift pre-seal LANDED: ${census.top} sealed the bearing fluid - the mover owns the walk`)
+                        else console.log(`${name} final climb: shift pre-seal refused: ${item ? 'the seal did not land (2 rounds)' : `no ${census.top} in the pocket to place`} - the gate keeps the cell`)
+                      }
+                    }
+                  }
+                } catch { /* a junk stance never kills the shift - the tunnel attempt owns the account */ }
                 const feet0 = miner.bot.entity.position.floored()
                 const shiftFenceAt = Date.now() + WET_SHIFT_TUNNEL_MAX_MS
                 const shiftTunnelStart = Date.now()
