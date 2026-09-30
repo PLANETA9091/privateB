@@ -590,3 +590,57 @@ export function voidContextLine (r = {}) {
   const legName = (typeof leg === 'string' && leg.trim()) ? leg.trim() : 'unknown'
   return `${tag} death: void context (cell ${cell}, depth ${depth === null ? 'unknown' : depth}, leg ${legName})`
 }
+
+// (v0.342.0) THE STORM ROW - the per-face storm VERDICT naming the holder.
+// Four faces of record priced the bimodal law: 36660134341 (2176 banked,
+// storm 0), 36669231548 (73 banked, storm 276), 36679076372 (1641, storm 0,
+// flow 4.7), 36686530635 (768, storm 1323 - the worst on record). The rate
+// rides the storm, but no line ever NAMED the face's class: a miner digging
+// through the logs reads airGlitches=1323 in the bots= line and must do the
+// bimodal arithmetic by hand, and the v0.337.0 abandonment's first speaking
+// leg (5 hands on that face, the witness guard proven in the field) left no
+// counter at all - the hands lived only in rate-limited log lines. The row
+// renders ALWAYS (the 05:00 ledger-skip lesson: a CALM verdict is a verdict;
+// an absent line class is a filter blind spot), the STORM side names the
+// glitch rate per minute and the top per-bot holder with its share (the hole
+// row's WHERE, aimed at the storm's own holder), and the abandonment hands
+// join when they exist (a storm with hands and a witness proof reads in one
+// line years later). The floor is the ledger-grain law's own number (the
+// rescue economy's minGlitches = 100): below it the face is weather, and the
+// clean bimodal split (0 vs 257+) holds the floor from both sides.
+// JUNK-SAFE: a junk fleet sum reads g0 (CALM - garbage never renders as a
+// storm), a junk duration drops the rate (the count still speaks), a junk
+// bot entry is silent in the holder scan, a junk hand count renders no hands
+// (never NaN hands - the body-guard law). Pure: reads, never mutates.
+export const STORM_GLITCH_FLOOR = 100
+
+/**
+ * The per-face storm verdict: STORM (at/above the floor: rate + top holder +
+ * abandon hands) or CALM (below it). Always a string - never null.
+ * @param {object} [opts]
+ * @param {number|null} [opts.airGlitches] the fleet-wide glitch sum
+ * @param {number|null} [opts.secs] the run duration in seconds (junk drops the rate)
+ * @param {Array<{name?: string, stats?: {airGlitches?: number}|null}>} [opts.bots]
+ * @param {number|null} [opts.abandons] the fleet-wide abandonment hand sum
+ * @returns {string} 'storm verdict: ...'
+ */
+export function stormVerdictRow (opts = {}) {
+  const { airGlitches = null, secs = null, bots = [], abandons = null } = opts || {}
+  const g = Number.isFinite(airGlitches) && airGlitches > 0 ? Math.floor(airGlitches) : 0
+  const a = Number.isFinite(abandons) && abandons > 0 ? Math.floor(abandons) : 0
+  const hands = a > 0 ? `, ${a} abandon hand${a === 1 ? '' : 's'}` : ''
+  if (g >= STORM_GLITCH_FLOOR) {
+    const t = Number.isFinite(secs) && secs > 0 ? Math.floor(secs) : null
+    const rate = t ? ` (${((g / t) * 60).toFixed(1)}/min)` : ''
+    let topName = null
+    let topG = 0
+    for (const b of (Array.isArray(bots) ? bots : [])) {
+      const s = b && typeof b === 'object' ? b.stats : null
+      const bg = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+      if (bg > topG) { topG = bg; topName = (typeof b.name === 'string' && b.name) ? b.name : '?' }
+    }
+    const top = topName ? `, top ${topName} g${topG} (${Math.round((topG / g) * 100)}%)` : ''
+    return `storm verdict: STORM - ${g} air glitches${rate}${top}${hands}`
+  }
+  return `storm verdict: CALM - ${g} air glitches${hands}`
+}

@@ -118,7 +118,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, claims: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, glitchAbandons: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -2163,7 +2163,12 @@ export function createMiner ({
           // (v0.337.0) the abandonment hand: the exact page that crosses
           // GLITCH_ABANDON_PAGES names the stand-down once - the class is
           // retired until wet contact or a wet rescue re-arms it.
-          if (glitchConfirmed === GLITCH_ABANDON_PAGES) log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
+          if (glitchConfirmed === GLITCH_ABANDON_PAGES) {
+            // (v0.342.0) the hand counter rides the hand log - the storm row
+            // names the abandonment's leg without re-reading rate-limited lines.
+            stats.glitchAbandons = (stats.glitchAbandons ?? 0) + 1
+            log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
+          }
         }
         noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
       } else if (dryTailTimeoutProof({
@@ -2192,7 +2197,12 @@ export function createMiner ({
           // (v0.337.0) the abandonment hand: the exact page that crosses
           // GLITCH_ABANDON_PAGES names the stand-down once - the class is
           // retired until wet contact or a wet rescue re-arms it.
-          if (glitchConfirmed === GLITCH_ABANDON_PAGES) log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
+          if (glitchConfirmed === GLITCH_ABANDON_PAGES) {
+            // (v0.342.0) the hand counter rides the hand log - the storm row
+            // names the abandonment's leg without re-reading rate-limited lines.
+            stats.glitchAbandons = (stats.glitchAbandons ?? 0) + 1
+            log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
+          }
         }
         noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
       } else if (hazardCell) {
