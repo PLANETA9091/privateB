@@ -2549,14 +2549,14 @@ async function runBot (name, target, index) {
           floorMs: flowClock.floorMs,
           capMs: END_BANK_BUDGET_CAP_MS
         })
-        // (v0.347.0) THE GRANTED CLOCK - the gap row judges the budget the
+        // (v0.348.0) THE GRANTED CLOCK - the gap row judges the budget the
         // fleet actually granted (the max chainBudgetMs across the chain
         // entries), not the static constant - the sibling-shape law: the
         // clock that pays and the row that judges must read the same number.
         if (Number.isFinite(chainBudgetMs) && chainBudgetMs > grantedChainBudgetMs) grantedChainBudgetMs = chainBudgetMs
         if (flowClock.extended) {
           const clamped = chainBudgetMs < flowClock.floorMs
-          // (v0.347.0) a tripped burst guard names itself - the wave was not
+          // (v0.348.0) a tripped burst guard names itself - the wave was not
           // a rate, the ex-burst pace is the honest one (the sibling law's
           // own words ride the line)
           const burstNote = flowClock.burst
@@ -3253,7 +3253,7 @@ let lastReportAt = Date.now()
 // a flow no line ever measured, so the crater's feasibility stayed unknown)
 const bankFlowSamples = []
 const BANK_FLOW_WINDOW = 20 // the last ~5min at the 15s tick = the endgame window
-// (v0.347.0) THE GRANTED CLOCK - the max chainBudgetMs across the fleet's
+// (v0.348.0) THE GRANTED CLOCK - the max chainBudgetMs across the fleet's
 // chain entries; the gap row judges THIS (the granted truth), falling back to
 // the static constant only when no chain ever entered. Declared beside the
 // samples it complements: the window measures the flow, this measures what
@@ -3501,7 +3501,7 @@ if (bankFlow) console.log(bankFlow)
 // leanness law), an outrun clock names the exact shortage.
 // (v0.336.0) the silence law rides the gap row - a COVERED pocket prints
 // nothing (the leanness law this row's own doctrine already claimed).
-// (v0.347.0) the judged budget is the GRANTED clock (the max chainBudgetMs
+// (v0.348.0) the judged budget is the GRANTED clock (the max chainBudgetMs
 // the fleet's entries paid) - the sibling-shape law's completion: the clock
 // that pays and the row that judges read the same number. No chain ever
 // entered -> the static constant keeps the row's voice (nothing was granted).

@@ -136,7 +136,7 @@ test('the wiring: the extension speaks (rides the final bank filter-key) and a c
 })
 
 // ---------------------------------------------------------------------------
-// (v0.347.0) THE BURST-PRICED CLOCK - the eighth face (36706516734) convicted
+// (v0.348.0) THE BURST-PRICED CLOCK - the eighth face (36706516734) convicted
 // the window rate itself: banked stood at 0 for the whole mining phase, then
 // rode a deposit wave 0 -> 1214u (928u of it inside the last 26s). At the
 // chain's entry the window read ~4.0u/s - the WAVE's pace - every bot's

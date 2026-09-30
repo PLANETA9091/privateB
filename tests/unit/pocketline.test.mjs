@@ -645,7 +645,7 @@ test('bankBudgetGapRow: THE JUNK BATTERY - garbage never prices a clock', () => 
 test('bankBudgetGapRow: THE WIRING PIN - the gap row prices the granted clock', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /bankBudgetGapRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
-  assert.match(src, /const bankGap = bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: grantedChainBudgetMs > 0 \? grantedChainBudgetMs : END_BANK_BUDGET \}\)/, 'the v0.347.0 granted clock: the row judges the max chainBudgetMs the fleet paid, the static constant only when nothing was granted')
+  assert.match(src, /const bankGap = bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: grantedChainBudgetMs > 0 \? grantedChainBudgetMs : END_BANK_BUDGET \}\)/, 'the v0.348.0 granted clock: the row judges the max chainBudgetMs the fleet paid, the static constant only when nothing was granted')
   assert.match(src, /if \(bankGap\) console\.log\(bankGap\)/, 'the silence law: a covered pocket prints nothing, never the word null')
   const flowIdx = src.indexOf('const bankFlow = bankFlowRow(bankFlowSamples')
   const gapIdx = src.indexOf('const bankGap = bankBudgetGapRow(bankFlowSamples')

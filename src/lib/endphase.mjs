@@ -529,7 +529,7 @@ export function finalBankDoomLatch (opts = {}) {
 // row that prices the shortage and the clock that pays it must never
 // disagree).
 //
-// (v0.347.0) THE BURST-PRICED CLOCK - the eighth face (36706516734) convicted
+// (v0.348.0) THE BURST-PRICED CLOCK - the eighth face (36706516734) convicted
 // the window rate itself: the fleet's banked counter stood at 0 for the whole
 // mining phase, then rode a deposit wave 0 -> 1214u across t-119s -> t-0
 // (928u of it inside the LAST 26s). At the chain's entry the 20-sample window
@@ -588,7 +588,7 @@ export function flowPriceClock ({ samples = [], pocketUnits = null, baseMs = END
   // a stood-still or negative flow is the storm front's business - the clock
   // keeps the static floor (no budget covers a dead flow)
   if (!(rate > 0)) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
-  // (v0.347.0) THE TAIL-BURST WALK: accumulate trailing segments from the end
+  // (v0.348.0) THE TAIL-BURST WALK: accumulate trailing segments from the end
   // and stop at the SMALLEST tail that trips the guard (a wave is a wave, the
   // first tail that owns it is the honest one). No trip -> the v0.345.0 path.
   let tailSpan = 0
