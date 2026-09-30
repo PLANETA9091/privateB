@@ -79,6 +79,15 @@ console.log('  flee-shore vs drowned:', count(/combat: flee toward shore \([0-9,
 console.log('  hound re-verdicts (the re-engaged hound):', count(/vs drowned \(proximity re-verdict\)/))
 console.log('  death drown context (the water did it):', count(/death: drown context/))
 console.log('  death drowned-kill context (the hound won):', count(/death: drowned-kill context/))
+// (v0.373.0) THE HOUND-KILL SPLIT - the death context's first field names
+// the arena: 'dry-shore' (feet air, water none - the hound chased the flee
+// ashore and won on LAND, the shore is not a safe haven) vs 'in-water' (the
+// hound won in the swim). Five dry-shore kills across the held artifacts
+// (face 12 x2, face 13 x2, face 15 x1) name the decode: the dry-shore hound
+// needs a COMBAT answer, not a swim answer - pricing that cure starts with
+// counting the arenas separately.
+console.log('  hound-kill arenas: dry-shore', count(/drowned-kill context \(dry-shore/), '| in-water', count(/drowned-kill context \(in-water/))
+console.log('  dry-shore hound kills per-bot:', fmt(perBot(/drowned-kill context \(dry-shore/)))
 console.log('  drowned-kill per-bot:', fmt(perBot(/death: drowned-kill context/)))
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
