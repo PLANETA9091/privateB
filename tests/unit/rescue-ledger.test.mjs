@@ -160,7 +160,7 @@ test('junk arrays return the zero ledger, never a throw', () => {
   assert.equal(rescueLedger([null, 42, {}]).totals.starts, 0) // junk lines inside a real array are skipped
 })
 
-// (v0.369.0) THE FORENSICS - the counts name the anomaly, the lines name its
+// (v0.370.0) THE FORENSICS - the counts name the anomaly, the lines name its
 // story. Every assertion exact; the cap keeps a whale face bounded.
 
 test('an orphan end line is collected verbatim (the count names it, the line tells it)', () => {

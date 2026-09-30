@@ -91,7 +91,7 @@ export function rescueEndSeconds (line) {
  *   midEvents  - the mid-episode event counters (fleet-wide)
  *   orphanEnds - end lines with no open episode for that bot (truncation)
  *
- * (v0.369.0) THE FORENSICS RETURNS - the counts name the anomaly, the lines
+ * (v0.370.0) THE FORENSICS RETURNS - the counts name the anomaly, the lines
  * name its story: orphanEndLines carries the verbatim orphan end lines and
  * unclosedLines the verbatim start lines of the episodes that never closed
  * (the superseded rebuild starts and the EOF-open FATAL-face starts), each

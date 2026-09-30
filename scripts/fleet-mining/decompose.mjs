@@ -45,7 +45,7 @@ console.log(`  timeout: ${ledger.totals.timeout}  dead-in-rescue: ${ledger.total
 const timeoutRe = RESCUE_END_CLASSES.find(c => c.key === 'timeout').re
 const timeoutSeconds = lines.reduce((a, l) => a + (timeoutRe.test(l) ? (rescueEndSeconds(l) ?? 0) : 0), 0)
 console.log(`  timeout budget burned: ${timeoutSeconds.toFixed(1)}s`)
-// (v0.369.0) THE FORENSICS - the counts name the anomaly, the lines name its
+// (v0.370.0) THE FORENSICS - the counts name the anomaly, the lines name its
 // story: the per-bot timeout budget attributes the whale (the shore-yield
 // cure's before/after read is per-bot: F10/F14 must shrink), and the
 // verbatim ORPHAN END / UNCLOSED START lines turn the unexplained orphan
