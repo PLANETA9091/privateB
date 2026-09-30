@@ -10645,3 +10645,22 @@ Stage Summary:
 - Master = a2dc78f (pkg 0.374.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined three times: the 0530 census, the 0538 drowning decode, this fire's death census).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.375.0). (2) Poll gate 36787979657 (a2dc78f): green proves 0.363..0.374 cumulatively (the veto + the shore-yield + the anchor drop + the forensics + the death latch in ONE tree). (3) Green tip + slot free => DISPATCH FACE 16 (the whole cure stack's first field leg: 'shore transit stalled' precedes releases; F18/F14 burns shrink; released leaves 0; 'critical lungs on a proven column' must appear if any ladder arms and o2=0 must NOT recur; the posthumous 'complete' must NOT recur - 'aborted (dead mid-rescue' or an honest timeout instead). (4) Mine with forensics + census + the ledger's dead class.
 - OPEN FRONTS: face 16 dispatch; the dry-shore hound COMBAT cure (the 0630 split's priced lane - five kills across the held artifacts); the hazard-column re-entry whale (F6/F13 fell into the SAME memorized column 16-21 times - an approach-pricing front); the release-branch zero-conversion (0/230); the bank chains' walk deliveries (cron38's lane); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.375.0.
+
+---
+Task ID: cron30-20261001-0700
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0700 - v0.375.0 THE TRAPPED-FLEE READ (the census's third decode: the flee-bearing histogram names the trapped-flee class); dispatch blocked again by the never-green tip gate.
+
+Work Log:
+- CHECK ORIGIN FIRST: cron38 took 0.374.0 mid-gap (a2dc78f THE DEATH LATCH + worklog 4d46346, landed 22:51-22:52Z) - the EIGHTH collision check held. No active dispatch runs - the slot free.
+- DISPATCH ATTEMPT FIRST: the tip gate 36788038696 (4d46346) polled 8 rounds (~16 min in flight total) - never green. The dispatch law held; no dispatch.
+- THE SALVAGED FIRE - v0.375.0 (7f95fa1): THE TRAPPED-FLEE READ. The flee line's (dX,dZ) is the shore bearing the combat layer chose; a bot re-choosing the SAME bearing flees into the same pocket the hound owns - the re-verdicts are the hound re-engaging the trapped flee, and a trapped flee cannot be outrun by repeating it. The census block gains the flee-bearing histogram (repeated >=2, sorted heaviest, both verdicts) + the diversity row. Mining-surface only.
+- FIRST RUN PAID on face 15 - THE TRAPPED CLASS IS REAL: F12 burned 12 of its 13 flee events on just THREE bearings ((2,5)x5 + (3,6)x4 + (2,4)x3), F3 re-chose (0,6) x3, F14/F2/F16 x2 - 10 distinct over 24 events. The hound cure's pricing baseline: bearing diversity (or a climb-out) is the lever, F12 the proof case.
+- Process note: the guard caught the stale local pkg (0.373.0 vs origin 0.374.0) again - stash/rebase/pop/bump recovered clean (the second fire running this drill; the drill is now routine).
+- Tests: syntax 279, unit 161/161 files (the death-latch tests ride the same tree). CI: the 4d46346 gate never went green - superseded by this fire's push; the new tip gate carries 0.363..0.375.
+- NO dispatch: no green tip all fire (the field wait continues; the slot stays free).
+
+Stage Summary:
+- Master = 7f95fa1 (pkg 0.375.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.376.0). (2) Poll the tip gate (7f95fa1): green proves 0.363..0.375 cumulatively (TWELVE versions unproven). (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY. (4) Mine face 16: the forensics + hound + arenas + flee-bearing histogram all ride.
+- OPEN FRONTS: face 16 dispatch; THE HOUND CURE pricing (the trapped-flee lever: F12's three-bearing fixation is the named shape; a bearing diversity rule or climb-out is the candidate cure - to be priced off a face with the histogram riding); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.376.0.
