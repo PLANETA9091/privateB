@@ -528,8 +528,34 @@ export function finalBankDoomLatch (opts = {}) {
 // (same sample filter, same unrounded rate, the same ceil on the need - the
 // row that prices the shortage and the clock that pays it must never
 // disagree).
+//
+// (v0.347.0) THE BURST-PRICED CLOCK - the eighth face (36706516734) convicted
+// the window rate itself: the fleet's banked counter stood at 0 for the whole
+// mining phase, then rode a deposit wave 0 -> 1214u across t-119s -> t-0
+// (928u of it inside the LAST 26s). At the chain's entry the 20-sample window
+// therefore read ~4.0u/s - the WAVE's pace, not the chains' crawl - and every
+// bot's pocket priced 'covered' (a 105u pocket at 4u/s is 31s), so the
+// extension never fired (0 'flow-priced' lines) and the chains then crawled
+// at the report-time 1.9u/s: '447s needed, 248s budgeted - 199s short'. The
+// row and the clock never saw the same truth - the sibling-shape law's own
+// field violation. THE CURE: the tail-burst guard. A terminal tail that owns
+// > FLOW_BURST_DELTA_SHARE of the window's delta while spanning <=
+// FLOW_BURST_SPAN_SHARE of the window's time is NOT a rate (a 26s wave is not
+// a 300s pace); the clock prices the need on the EX-BURST remainder's rate
+// (the head span - the closest honest proxy for the chain's crawl), and a
+// dead remainder keeps the static floor (the dead-flow law: no budget covers
+// a dead flow). The guard shares the gap row's sample filter byte for byte
+// (v0.345.0 claimed 'same sample filter' but never actually filtered - the
+// filter debt is paid here too). A smooth window prices exactly as v0.345.0
+// (the passthrough law); a mid-window burst is NOT this guard's business (the
+// tail is where the entry-time wave lives by construction - the chains' own
+// deposits land in the window's tail).
 /** The v0.334.0 margin: the priced need always carries a 4s cushion. */
 export const FLOW_PRICE_MARGIN_S = 4
+/** The tail must own MORE than this share of the window's delta to be a burst. */
+export const FLOW_BURST_DELTA_SHARE = 0.6
+/** ...while spanning AT MOST this share of the window's time (inclusive). */
+export const FLOW_BURST_SPAN_SHARE = 0.4
 
 /**
  * Price the end-bank floor from the LIVE bank flow (pure, junk-safe).
@@ -537,28 +563,59 @@ export const FLOW_PRICE_MARGIN_S = 4
  * @param {Array<{t: number, banked: number}>} [p.samples] the fleet's bank-flow samples (t in seconds; junk/short -> the static clock)
  * @param {number|null} [p.pocketUnits] the pocket this chain must carry (junk/<=0 -> the static clock)
  * @param {number} [p.baseMs] the static floor to extend (default END_BANK_BUDGET_MS; junk/<=0 -> END_BANK_BUDGET_MS)
- * @returns {{floorMs: number, rate: number|null, needS: number|null, extended: boolean}} extended=false reads the static clock (the leanness law: a covered pocket speaks nothing)
+ * @returns {{floorMs: number, rate: number|null, needS: number|null, extended: boolean, burst: {spanS: number, delta: number, share: number, rate: number}|null}} extended=false reads the static clock (the leanness law: a covered pocket speaks nothing); burst names the tripped tail guard (null = a smooth window)
  */
 export function flowPriceClock ({ samples = [], pocketUnits = null, baseMs = END_BANK_BUDGET_MS } = {}) {
   const base = (Number.isFinite(baseMs) && baseMs > 0) ? baseMs : END_BANK_BUDGET_MS
   const pocket = Number(pocketUnits)
-  if (!Number.isFinite(pocket) || Math.floor(pocket) <= 0) return { floorMs: base, rate: null, needS: null, extended: false }
-  if (!Array.isArray(samples) || samples.length < 2) return { floorMs: base, rate: null, needS: null, extended: false }
-  const first = samples[0]
-  const last = samples[samples.length - 1]
-  const t0 = Number(first?.t)
-  const t1 = Number(last?.t)
-  const b0 = Number(first?.banked)
-  const b1 = Number(last?.banked)
-  if (!Number.isFinite(t0) || !Number.isFinite(t1) || !Number.isFinite(b0) || !Number.isFinite(b1)) return { floorMs: base, rate: null, needS: null, extended: false }
-  const span = t1 - t0
-  if (!(span > 0)) return { floorMs: base, rate: null, needS: null, extended: false }
-  const rate = (b1 - b0) / span
+  if (!Number.isFinite(pocket) || Math.floor(pocket) <= 0) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
+  if (!Array.isArray(samples) || samples.length < 2) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
+  // the gap row's own filter, byte for byte (the sibling law): junk dropped,
+  // a non-monotone t cannot make a window, the counters floor to integers
+  const good = []
+  for (const s of (Array.isArray(samples) ? samples : [])) {
+    const t = s?.t
+    const b = s?.banked
+    if (!Number.isFinite(t) || t < 0 || !Number.isFinite(b) || b < 0) continue
+    if (good.length > 0 && t <= good[good.length - 1].t) continue // a non-monotone t cannot make a window
+    good.push({ t: Math.floor(t), b: Math.floor(b) })
+  }
+  if (good.length < 2) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
+  const span = good[good.length - 1].t - good[0].t
+  if (!(span > 0)) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
+  const delta = good[good.length - 1].b - good[0].b
+  const rate = delta / span
   // a stood-still or negative flow is the storm front's business - the clock
   // keeps the static floor (no budget covers a dead flow)
-  if (!(rate > 0)) return { floorMs: base, rate: null, needS: null, extended: false }
+  if (!(rate > 0)) return { floorMs: base, rate: null, needS: null, extended: false, burst: null }
+  // (v0.347.0) THE TAIL-BURST WALK: accumulate trailing segments from the end
+  // and stop at the SMALLEST tail that trips the guard (a wave is a wave, the
+  // first tail that owns it is the honest one). No trip -> the v0.345.0 path.
+  let tailSpan = 0
+  let tailDelta = 0
+  let burst = null
+  for (let i = good.length - 1; i > 0; i--) {
+    tailSpan += good[i].t - good[i - 1].t
+    tailDelta += good[i].b - good[i - 1].b
+    if (tailDelta > FLOW_BURST_DELTA_SHARE * delta && tailSpan <= FLOW_BURST_SPAN_SHARE * span) {
+      const headSpan = span - tailSpan
+      const headDelta = delta - tailDelta
+      burst = { spanS: tailSpan, delta: tailDelta, share: tailDelta / delta }
+      if (headSpan > 0 && headDelta > 0) burst.rate = headDelta / headSpan
+      break
+    }
+  }
+  if (burst) {
+    // the dead remainder: the window's whole story is the wave - the head has
+    // no honest rate, so no budget covers the need (the dead-flow law)
+    if (burst.rate == null) return { floorMs: base, rate: null, needS: null, extended: false, burst }
+    const needS = Math.ceil(Math.floor(pocket) / burst.rate) + FLOW_PRICE_MARGIN_S
+    const needMs = needS * 1000
+    if (!(needMs > base)) return { floorMs: base, rate: burst.rate, needS, extended: false, burst }
+    return { floorMs: needMs, rate: burst.rate, needS, extended: true, burst }
+  }
   const needS = Math.ceil(Math.floor(pocket) / rate) + FLOW_PRICE_MARGIN_S
   const needMs = needS * 1000
-  if (!(needMs > base)) return { floorMs: base, rate, needS, extended: false }
-  return { floorMs: needMs, rate, needS, extended: true }
+  if (!(needMs > base)) return { floorMs: base, rate, needS, extended: false, burst: null }
+  return { floorMs: needMs, rate, needS, extended: true, burst: null }
 }

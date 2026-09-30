@@ -2549,9 +2549,20 @@ async function runBot (name, target, index) {
           floorMs: flowClock.floorMs,
           capMs: END_BANK_BUDGET_CAP_MS
         })
+        // (v0.347.0) THE GRANTED CLOCK - the gap row judges the budget the
+        // fleet actually granted (the max chainBudgetMs across the chain
+        // entries), not the static constant - the sibling-shape law: the
+        // clock that pays and the row that judges must read the same number.
+        if (Number.isFinite(chainBudgetMs) && chainBudgetMs > grantedChainBudgetMs) grantedChainBudgetMs = chainBudgetMs
         if (flowClock.extended) {
           const clamped = chainBudgetMs < flowClock.floorMs
-          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (pocket ${endPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
+          // (v0.347.0) a tripped burst guard names itself - the wave was not
+          // a rate, the ex-burst pace is the honest one (the sibling law's
+          // own words ride the line)
+          const burstNote = flowClock.burst
+            ? ` - the tail burst (${flowClock.burst.spanS}s, ${flowClock.burst.delta}u, ${Math.round(flowClock.burst.share * 100)}% of the window's delta) is not a rate - priced at the ex-burst ${flowClock.rate.toFixed(1)}u/s`
+            : ''
+          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (pocket ${endPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${burstNote}${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
         }
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
@@ -3242,6 +3253,12 @@ let lastReportAt = Date.now()
 // a flow no line ever measured, so the crater's feasibility stayed unknown)
 const bankFlowSamples = []
 const BANK_FLOW_WINDOW = 20 // the last ~5min at the 15s tick = the endgame window
+// (v0.347.0) THE GRANTED CLOCK - the max chainBudgetMs across the fleet's
+// chain entries; the gap row judges THIS (the granted truth), falling back to
+// the static constant only when no chain ever entered. Declared beside the
+// samples it complements: the window measures the flow, this measures what
+// the clock actually paid for it.
+let grantedChainBudgetMs = 0
 const reporter = setInterval(() => {
   // (v0.18.15) self-annotated gaps: one skipped tick is normal under load (2.5x
   // tolerance); past that the line carries the [hb] attribution matrix inline
@@ -3484,7 +3501,11 @@ if (bankFlow) console.log(bankFlow)
 // leanness law), an outrun clock names the exact shortage.
 // (v0.336.0) the silence law rides the gap row - a COVERED pocket prints
 // nothing (the leanness law this row's own doctrine already claimed).
-const bankGap = bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: END_BANK_BUDGET })
+// (v0.347.0) the judged budget is the GRANTED clock (the max chainBudgetMs
+// the fleet's entries paid) - the sibling-shape law's completion: the clock
+// that pays and the row that judges read the same number. No chain ever
+// entered -> the static constant keeps the row's voice (nothing was granted).
+const bankGap = bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: grantedChainBudgetMs > 0 ? grantedChainBudgetMs : END_BANK_BUDGET })
 if (bankGap) console.log(bankGap)
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
