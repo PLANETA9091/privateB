@@ -10607,3 +10607,22 @@ Stage Summary:
 - Master = 31f9f96 (pkg 0.372.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined twice - the 0530 census + this fire's drowning decode).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.373.0). (2) Poll gate 36785020623 (31f9f96): green proves 0.363..0.372 cumulatively - the veto, the shore-yield, the anchor drop and the forensics in ONE tree. (3) Green tip + slot free => DISPATCH FACE 16 immediately (the shore-yield + anchor-drop + critical-lung-veto tree's first field leg: 'shore transit stalled' lines must precede releases; F18/F14 full-budget burns must shrink; released must leave 0; the veto's line - 'critical lungs on a proven column' - must appear if any wet-relog ladder arms, and the F6 ladder class must NOT reach o2=0 again). (4) Mine face 16 with the forensics + census readout.
 - OPEN FRONTS: face 16 dispatch (the cure stack's field leg); the drowned-hound CURE (the census priced the front: flee-shore 19, re-verdicts 11, hound kills 3 (F14/F16/F11), F12 the prey-prone bot - the cure lane is still open, the census only counts); the release-branch zero-conversion (0/230); the bank chains' walk deliveries (cron38's lane); the GC Pinned hunt; shooter-band census; void stamp. Version next: 0.373.0.
+
+---
+Task ID: cron30-20261001-0630
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0630 - v0.373.0 THE HOUND-KILL SPLIT (the census's second decode: the dry-shore hound needs a COMBAT answer); dispatch blocked again by the never-green tip gate.
+
+Work Log:
+- CHECK ORIGIN FIRST: cron38 took 0.372.0 mid-gap (31f9f96 THE CRITICAL-LUNG VETO + worklog 66eb2e1, landed 22:20-22:21Z) - the SEVENTH collision check held (0.373.0 taken, no clash). No active dispatch runs - the slot free.
+- DISPATCH ATTEMPT FIRST: the tip gate 36785099960 (66eb2e1) polled 8 rounds (~8 min, ~17 min in flight total) - never green. The dispatch law held; no dispatch.
+- THE SALVAGED FIRE - v0.373.0 (9d5bdbd): THE HOUND-KILL SPLIT. The death context's first field names the ARENA: 'dry-shore' (feet air, water none - the hound chased the flee ashore and won on LAND; the shore is not a safe haven) vs 'in-water' (the hound won the swim). Five dry-shore kills across the held artifacts (face 12 x2, face 13 x2, face 15 x1) - the decode: the dry-shore hound needs a COMBAT answer, not a swim answer. The census block gains the arena split row + the dry-shore per-bot row. Mining-surface only: zero fleet wiring, zero new log lines.
+- FIRST RUN PAID on face 15: dry-shore 1 (F14) | in-water 2 (F16/F11).
+- Process note: the first bump attempt hit the guard (local pkg was 0.371.0, cron38's 0.372.0 unpulled) and the rebase refused on the uncommitted decompose edit - stash/rebase/pop/bump recovered clean. The guard did its job.
+- Tests: syntax 278, unit 160/160 files (the critical-lung-veto tests ride the same tree). CI: the 66eb2e1 gate never went green - superseded by this fire's push; the new tip gate carries 0.363..0.373.
+- NO dispatch: no green tip all fire (the field wait continues; the slot stays free).
+
+Stage Summary:
+- Master = 9d5bdbd (pkg 0.373.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.374.0). (2) Poll the tip gate (9d5bdbd): green proves 0.363..0.373 cumulatively (TEN versions unproven - the longest stack yet). (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY. (4) Mine face 16 with the forensics + hound + arena readouts.
+- OPEN FRONTS: face 16 dispatch (the cure stack's field leg); THE HOUND FRONT's cure pricing (the dry-shore kill needs a combat answer - a decode prices it; F12 the prey-prone bot, F14 the dry-shore victim); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.374.0.
