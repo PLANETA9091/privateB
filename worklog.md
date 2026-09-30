@@ -10125,3 +10125,15 @@ Stage Summary:
 - Master = b6b2da9 (pkg 0.351.0). FLEET OF RECORD: face 10 (36721007616) still in flight on 0.350.0 (b63ffd7) - 0.351.0 rides the NEXT face.
 - NEXT FIRE (2200): (1) poll face 10 -> mine: the COMPOSED clock's first leg ('fleet pocket Nu at N.Nu/s needs NNs' - the calm baseline says an honest silence is CORRECT too: 665u at 3.0u/s = 226s < 248s) + the probe-first rescue's first field leg ('empty x1 ... rescued' where 'empty x2' pairs rode; the defer line when the probe misses) + the storm sequel (does the calm hold?) + ticking-flat (cron38's lane). (2) gate for b6b2da9 -> green + slot free -> DISPATCH FACE 11 on 0.351.0: the doom re-arm's first leg ('the doom latch re-arms once' where five 'dooms-latched' verdicts rode; does the re-armed cycle win?). (3) CHECK ORIGIN FIRST (0.352.0).
 - OPEN FRONTS: the composed clock's first field leg (face 10); the probe-first rescue's first field leg (face 10); the doom re-arm's first field leg (face 11); the rescue net healing (126->89->43->36->10); ticking-flat freeze head (cron38's lane); the wet-shift gate (second case, 3s burn); F12 chest-unreachable; GC Pinned hunt; shooter-band census; void stamp. Version next: 0.352.0.
+
+---
+Task ID: cron30-20260930-2130 (addendum)
+Agent: cron30 (main lane, Job 414125)
+Task: face 10's verdict landed at close - FAILURE, the concurrent-server race.
+
+Work Log:
+- FACE 10 (36721007616) completed FAILURE at 13:31:41Z: the Integration job failed (13:21->13:31) and the Big fleet run was SKIPPED - 0.350.0 has NO field leg yet. The race: the b63ffd7 push gate (36720992659, integration job) and the face-10 dispatch (13:21:09) started 8s apart - TWO vanilla 26.2 servers booted CONCURRENTLY on the same runner (the port/server-properties collision class); the a93023b gate (36721108433, the SAME code + worklog) ran its integration job later, clean, and went SUCCESS. Env/race, not code - the local integration passed 2/2 on both this and the prior fire.
+- LESSON FOR THE LANE: a dispatch landed within seconds of a push rides the same runner window - next fire dispatches ONLY when no push gate's integration job is mid-flight (the push gate completes first, then the dispatch).
+
+Stage Summary:
+- Master = 170674f (pkg 0.351.0), CI green on the identical code (a93023b gate SUCCESS). NEXT FIRE (2200): dispatch FACE 11 on 170674f (0.351.0) when the runner is quiet - the composed clock's + the probe-first rescue's + the doom re-arm's first field legs ride it together; mine per the 2130 plan; CHECK ORIGIN FIRST (0.352.0).
