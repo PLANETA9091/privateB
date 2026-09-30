@@ -2705,7 +2705,13 @@ async function runBot (name, target, index) {
                 console.log(`${name} final climb: wet shift tunnel: ${tun?.done ?? '?'} blocks in ${Math.round(shiftTunnelMs / 1000)}s${tun?.stopped ? ` (${tun.stopped})` : ''}`)
                 const feet1 = miner.bot.entity ? miner.bot.entity.position.floored() : null
                 if (!feet1 || (feet1.x === feet0.x && feet1.z === feet0.z)) {
-                  console.log(`${name} final climb: wet shift stalled (tunnel done=${tun?.done ?? '?'}${tun?.stopped ? ` ${tun.stopped}` : ''}) - the climb stays home (a re-entry would ride the memo's refusal)`)
+                  // (v0.339.0) THE GATE NAMES ITSELF - the shift's stall is
+                  // never the slice (face 36679076372: three attempts with
+                  // 286s/267s/168s slices, all done=0): the mover's own
+                  // first-cell gate refuses and the verdict rode invisible.
+                  // zeroWhy (v0.240.0) rides the tunnel's return when done=0 -
+                  // the stall line carries it so the next pricing is aimed.
+                  console.log(`${name} final climb: wet shift stalled (tunnel done=${tun?.done ?? '?'}${tun?.stopped ? ` ${tun.stopped}` : ''}${tun?.zeroWhy ? ` - the gate: ${tun.zeroWhy}` : ''}) - the climb stays home (a re-entry would ride the memo's refusal)`)
                 } else if (wetColumnMemoBlocked(miner.bot._wetColumnMemo, { x: feet1.x, z: feet1.z, y: feet1.y }).blocked) {
                   console.log(`${name} final climb: wet shift landed condemned (${feet1.x},${feet1.z}) - the fresh column was wet too, the attempt stays home`)
                 } else {

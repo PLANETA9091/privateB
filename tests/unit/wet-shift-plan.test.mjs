@@ -140,6 +140,11 @@ test('the wiring: the branch rides the wet-wall no-retry seam, the tunnel is the
   assert.ok(startIdx > 0 && startIdx < tunnelCallIdx, 'the tunnel clock opens before the mover')
   assert.ok(priceIdx > tunnelCallIdx, 'the duration speaks after the tunnel returns')
   assert.ok(fleetSrc.includes('const shiftTunnelMs = Date.now() - shiftTunnelStart'), 'the duration is measured, not asserted')
+  // (v0.339.0) THE GATE NAMES ITSELF - the stall line carries the tunnel's
+  // zeroWhy (the mover's first-cell verdict): three face-36679076372 attempts
+  // stalled at done=0 with big slices, so the gate is the mover's, not the
+  // clock's - the next pricing is aimed at the named gate.
+  assert.match(fleetSrc, /wet shift stalled \(tunnel done=\$\{tun\?\.done \?\? '\?'\}\$\{tun\?\.stopped \? ` \$\{tun\.stopped\}` : ''\}\$\{tun\?\.zeroWhy \? ` - the gate: \$\{tun\.zeroWhy\}` : ''\}\)/, 'the stall line carries the mover\'s own gate verdict')
   // the shifted climb counts on the route latch (one truth per bot)
   const shiftClimbIdx = fleetSrc.indexOf('const shiftClimbFence = Math.min(PILLAR_MAX_MS, climbSliceLeft)')
   const latchIdx = fleetSrc.indexOf("(v0.321.0) the shifted climb counts too")

@@ -138,8 +138,19 @@ export function hardKillDelayMs ({ runSeconds = 600, marginMs = HARD_KILL_MARGIN
 // need was unmeasurable; at 6.4u/s the same 150s no longer covers the
 // measured 164s need. 168s = the need + a 4s margin, still 132s under the
 // cap (280s) and 132s under the kill margin's worst-chain arithmetic.
+//
+// (v0.339.0) 168s -> 248s: the third face (36679076372, the v0.337.0 tree)
+// priced the clock again: '244s needed, 168s budgeted - 76s short at 4.7u/s'
+// with a 1137u pocket stranded - the flow varies run to run (6.4, then the
+// storm's 0.0, now 4.7u/s) and the need rode the pocket (1137u) against the
+// flow. The same move as v0.334.0 at the new datum: 248s = the need + a 4s
+// margin; the worst chain end is deadline + 120s + 248s = 368s < the 420s
+// kill margin (52s of headroom left). The budget prices the HEALTHY-flow
+// case only - the storm case (face 36669231548: flow 0.0u/s, an unbounded
+// need) is the storm front's business (v0.337.0's abandonment), not the
+// clock's: no static budget covers a dead flow.
 /** Default wall-clock budget for one bot's whole final bank chain. */
-export const END_BANK_BUDGET_MS = 168000
+export const END_BANK_BUDGET_MS = 248000
 
 /** (v0.34.0) Ceiling for the distance-scaled final bank budget: a far bot may
  * use up to 280s of chain - the runtime margin clamp (RUN_KILL_AT based) keeps

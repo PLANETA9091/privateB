@@ -390,21 +390,21 @@ test('REGRESSION PIN: both final climb attempts wait out the rescue before burni
 import { END_BANK_BUDGET_MS, END_BANK_BUDGET_CAP_MS, endBankBudgetMs } from '../../src/lib/endphase.mjs'
 
 test('END_BANK_BUDGET_MS: the priced clock covers the face 36660134341 need with margin', () => {
-  assert.equal(END_BANK_BUDGET_MS, 168000, 'the cure is exactly the priced 168s (collision #21: the integer and the value are cron30\'s, one truth on master)')
+  assert.equal(END_BANK_BUDGET_MS, 248000, 'v0.339.0: the third face\'s gap row (36679076372) priced the need at 244s and the clock rides it - the collision-era one-truth note stands (the integer was cron30\'s at 0.334.0, cron38 extends it at 0.339.0 with the same need+4s law)')
   assert.ok(END_BANK_BUDGET_MS > 164000, 'the face\'s measured need (164s) must fit inside the clock')
 })
 
 test('END_BANK_BUDGET_MS: the stagger arithmetic still lands inside the hard-kill margin', () => {
   // the sizing law (v0.27.0): worst chain end = stagger cap 120s + budget
   assert.ok(120000 + END_BANK_BUDGET_MS < HARD_KILL_MARGIN_MS,
-    'deadline + 120s + 168s = 288s < the 420s hard-kill margin - natural finish preserved')
+    'deadline + 120s + 248s = 368s < the 420s hard-kill margin - natural finish preserved (v0.339.0 re-proves the law at the new clock)')
   assert.ok(END_BANK_BUDGET_MS <= END_BANK_BUDGET_CAP_MS,
     'the default must ride under the distance-scaled cap (280s)')
 })
 
 test('endBankBudgetMs: the default resolution rides the priced constant', () => {
-  assert.equal(endBankBudgetMs({}), 168000)
-  assert.equal(endBankBudgetMs({ env: '' }), 168000)
-  assert.equal(endBankBudgetMs({ env: 'junk' }), 168000)
+  assert.equal(endBankBudgetMs({}), 248000)
+  assert.equal(endBankBudgetMs({ env: '' }), 248000)
+  assert.equal(endBankBudgetMs({ env: 'junk' }), 248000)
   assert.equal(endBankBudgetMs({ env: '200000' }), 200000, 'the env override still wins')
 })
