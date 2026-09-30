@@ -824,6 +824,35 @@ export function glitchStreakCap (confirmed = 0) {
   return Math.min(AIR_GLITCH_STREAK_CAP + n * GLITCH_LADDER_STEP, GLITCH_LADDER_MAX)
 }
 
+// (v0.337.0) THE GLITCH ABANDONMENT - the ladder (v0.117.0) paced the chronic
+// liar but never retired it: face 36669231548 (the dark twin) mined F14's
+// liar-ladder loop running the WHOLE run - 276 airGlitches, confirmed no-op
+// pages ratcheting toward the bound, the rescue hole 100% F14 (267u
+// unrescued), the chains stood still (bank flow 0.0u/s), banked 73 vs the
+// 2176 record. The fleet's rate is bimodal on the storm and the storm's face
+// was one bot's unbounded loop. THE CURE: after GLITCH_ABANDON_PAGES
+// confirmed no-op pages the uncorroborated critical-on-dry class stands down
+// - the bot abandons the phantom and walks. The guards: the witness outranks
+// the abandonment (a corroborated drain still pages - run536 F8's law), wet
+// pages never ride the lane (a wet critical is a real drowning), and the
+// v0.117.0 resets (wet contact = a new page class; a rescue that keeps its
+// water/long record = the real-drain shape) clear the count and re-arm the
+// lane. The abandoned lane is strictly safer than the bound ladder it
+// replaces: GLITCH_LADDER_MAX 40 (~24s of fresh reads + the 20s gate) was
+// already past the death clock - the witness guarded that class, and the
+// same witness guards this one. Junk-safe: a junk count never abandons.
+export const GLITCH_ABANDON_PAGES = 2
+
+/** Whether the uncorroborated critical-on-dry class has earned its stand-down:
+ * `confirmed` no-op pages at or past GLITCH_ABANDON_PAGES. Junk reads 0
+ * (never abandons); the confirmations reset on wet contact or a rescue that
+ * keeps its water/long record, which re-arms the lane. */
+export function glitchAbandoned (confirmed = 0, pages = GLITCH_ABANDON_PAGES) {
+  const n = Number.isFinite(confirmed) && confirmed > 0 ? Math.floor(confirmed) : 0
+  const p = Number.isFinite(pages) && pages > 0 ? Math.floor(pages) : GLITCH_ABANDON_PAGES
+  return n >= p
+}
+
 // (v0.195.0) THE AIR-GLITCH MAP PIN - run82 (36201371882, the v0.192.0 union)
 // mined 2026-09-26: the fleet's airGlitches counter read 588 while the decode
 // greps ('airGlitch') found ZERO lines - the blind spot was a SEARCH miss (the

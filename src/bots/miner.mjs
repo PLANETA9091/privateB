@@ -45,6 +45,7 @@ import {
   OXYGEN_RESCUE_LEVEL, rescueDone, fleePlan, verifyShoreCell, HazardLedger,
   shoreCandidates, firstVerifiedShore, AQUATIC_SHORE_CANDIDATES,
   vettedFleeTargetAbs, AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_BACKOFF_MS, glitchStreakCap,
+  glitchAbandoned, GLITCH_ABANDON_PAGES,
   drowningCorroborated, DROWN_CORROBORATION_HP, WITNESS_COMBAT_BAND, airGlitchLogLine,
   frozenWindowFor, WET_FROZEN_WINDOW,
   historyAdmissible, O2_HISTORY_CAP,
@@ -2135,6 +2136,10 @@ export function createMiner ({
         if (rescuePageWasGlitch) {
           glitchConfirmed++
           log(`${tag} water: liar ladder ratchets - confirmed no-op glitch page #${glitchConfirmed}, the next override needs ${glitchStreakCap(glitchConfirmed)} fresh critical-on-dry reads`)
+          // (v0.337.0) the abandonment hand: the exact page that crosses
+          // GLITCH_ABANDON_PAGES names the stand-down once - the class is
+          // retired until wet contact or a wet rescue re-arms it.
+          if (glitchConfirmed === GLITCH_ABANDON_PAGES) log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
         }
         noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
       } else if (dryTailTimeoutProof({
@@ -2160,6 +2165,10 @@ export function createMiner ({
         if (rescuePageWasGlitch) {
           glitchConfirmed++
           log(`${tag} water: liar ladder ratchets - confirmed no-op glitch page #${glitchConfirmed}, the next override needs ${glitchStreakCap(glitchConfirmed)} fresh critical-on-dry reads`)
+          // (v0.337.0) the abandonment hand: the exact page that crosses
+          // GLITCH_ABANDON_PAGES names the stand-down once - the class is
+          // retired until wet contact or a wet rescue re-arms it.
+          if (glitchConfirmed === GLITCH_ABANDON_PAGES) log(`${tag} water: liar ladder abandons the glitch class - ${glitchConfirmed} confirmed no-op pages, the streak lane stands down (wet contact or a wet rescue re-arms)`)
         }
         noOpRescueGateUntil = Date.now() + DRY_PROOF_BACKOFF_MS
       } else if (hazardCell) {
@@ -2285,9 +2294,21 @@ export function createMiner ({
       // legacy verdict machinery - the lie ladder + the gates keep their say.
       const witnessHostile = nearestHostile({ range: WITNESS_COMBAT_BAND })
       const witnessed = drowningCorroborated({ criticalOnDry, healthNow: bot.health, healthSeenMax: criticalHealthSeen, hostileNear: !!witnessHostile })
+      // (v0.337.0) THE GLITCH ABANDONMENT - after GLITCH_ABANDON_PAGES
+      // confirmed no-op pages the UNCORROBORATED critical-on-dry class stands
+      // down (the ladder paced the chronic liar but never retired it; face
+      // 36669231548's F14 looped the whole run - 276 glitches, the rescue hole
+      // 100% F14, the chains stood still). The guards: the witness outranks
+      // the abandonment (a corroborated drain still pages), wet pages never
+      // ride this lane, and the v0.117.0 resets (wet contact, a wet rescue)
+      // re-arm the class. The telemetry above keeps counting - the storm
+      // metric stays honest, only the page dies.
+      const abandoned = !witnessed && criticalOnDry && glitchAbandoned(glitchConfirmed)
       const verdict = witnessed
         ? 'drowning'
-        : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
+        : abandoned
+          ? 'none'
+          : waterVerdict({ ...read, headWetMs: headWet ? now - headWetSince : 0, dryGlitchStreak, dryGlitchCap: glitchStreakCap(glitchConfirmed), airHistory: o2History.slice() })
       sentryLast = { at: now, verdict, criticalOnDry, witnessed, o2: o2raw, headWet } // (v0.248.0) the mirror's snapshot
       if (witnessed && now - lastWitnessLogAt >= AIR_GLITCH_LOG_MS) {
         lastWitnessLogAt = now

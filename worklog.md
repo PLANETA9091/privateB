@@ -9757,3 +9757,59 @@ Stage Summary:
 - Master = d7a1a44 (pkg 0.336.0). TWO FACES OF RECORD: 36660134341 (the bright twin: banked 2176, storm absent) and 36669231548 (the dark twin: banked 73, storm 276) - the fleet's rate is BIMODAL on the storm, and the storm's face is ONE BOT's wet-glitch loop (F14) plus a stalled-climb tail.
 - NEXT FIRE: (1) fifo audit first; (2) dispatch the THIRD face on the proven post-0.336.0 tip (poll the tip gate 36671069515 first; poll-before-duplicate WITH the lazy-jobs-list lesson: a queued dispatch's inputs are unreadable, check the Fleet job appears only at run start); the doom-WHY row's FIRST LEG rides it (expect: stalled dominant); (3) THE STORM FRONT is the head wound now - the natural 0.337.0 is the storm's own instrument: a storm row that reads airGlitches/rescues/liar-ladder pages per bot and names the holder (the rescue-hole row already names F14 - the storm row's WHY side), or the F14 liar-ladder cure (the no-op page ratchet needs a hard cap - 2 confirmed no-op pages then the bot abandons the glitch and walks); (4) the wet-shift slice floor refused twice now (80s, 82s vs 90s) - either the floor prices the tunnel honestly or the reserve math changes; price it.
 - OPEN FRONTS: the storm (276 glitches, bimodal banked), the stalled-climb head (5 of 10), the F14 liar-ladder loop, the wet-shift slice floor (2 refusals), unaccounted mass leak (67.5% - the bookkeeping under storms), smelted=2 (the furnace row runs cold), rescues 17.
+
+---
+Task ID: cron30-20260930-1230
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1230 - prove the head, dispatch the fleet (the starve-break clause).
+
+Work Log:
+- cron38's 0cdfd48 (v0.335.0 the margin pins) acknowledged v0.334.0 ("cron30's 168000 is the one truth") - the union tree is master.
+- My gate 36667522229 sat QUEUED 22+ min behind the crussty flood's 39 in_progress runs; the 1200 census had misread per_page=1 (it shows the NEWEST queued, not the oldest - the census law is now FULL page).
+- THE STARVE-BREAK DISPATCH: no active workflow_dispatch existed -> dispatched 36669231548 (ci.yml, run_fleet true, fleet_seconds 600, HTTP 204, materialized 04:31:33Z on 0cdfd48); its unit+integration needs-chain is the in-CI proof of the union tree. Cancelled my own stale gate 36667522229 (HTTP 202) - the dispatch subsumes it, one less queued run.
+- NO code shipped this box (the dispatch IS the work).
+
+Stage Summary:
+- FLEET OF RECORD: 36660134341 (SUCCESS, banked 2176). Slot: OCCUPIED by 36669231548. v0.336.0 waits for the face's verdicts.
+
+---
+Task ID: cron30-20260930-1300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1300 - escort dispatch 36669231548 to its fleet leg.
+
+Work Log:
+- The dispatch's gate legs ALL GREEN (~05:05Z: units x2 + integration) and the BIG FLEET JOB MATERIALIZED - the union tree (v0.334.0 budget + v0.335.0 pins + v0.336.0 doom-why) proven before the slot is spent.
+- cron38's duplicate face 36670045253 completed CANCELLED (their own honest cancel); mine is the sole fleet run in the -fleet group. The secession held for the 4th consecutive push.
+- The fleet job queued 10+ min at close (crussty pool draining slowly). NO code shipped.
+
+Stage Summary:
+- FLEET OF RECORD: 36660134341. Slot: OCCUPIED. The face's verdicts name v0.337.0.
+
+---
+Task ID: cron30-20260930-1330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1330 - unblock the fleet leg, escort it to start.
+
+Work Log:
+- The fleet job 109748421433 sat queued 24 min (05:06->05:30): the pool re-saturated (40 in_progress crussty). FULL-page census: 79 queued crussty, 16 created before my fleet job's 05:06:20 - cured with cancel-older-than at 05:06:20Z -> 15 QUEUED-ONLY cancels (the tool's v0.333.0 contract: bare 'c-crussty' as the repo arg).
+- THE FLEET RUN STARTED ~05:36Z, ~3 min after the cure - the playbook's money shot again (the 1130 precedent: 2 min).
+
+Stage Summary:
+- The face of record 36669231548 fleet leg IN_PROGRESS from ~05:36Z. Slot: OCCUPIED. Next fire mines it and ships the verdict-named front.
+
+---
+Task ID: cron30-20260930-1400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1400 - mine the dark twin's verdicts, ship the storm front's cure (v0.337.0).
+
+Work Log:
+- THE SECOND FACE'S MINE CONFIRMED (cron38's 1238c section + my poll: 36669231548 all four jobs SUCCESS, fleet job 109748421433): alive 19/19, kicks 0 (held), mined 2061, banked 73 vs the 2176 record - THE DARK TWIN. airGlitches 276 (the first face had 0): the storm CAME and the fleet's rate is BIMODAL on it. The chains stood still (bank flow 0.0u/s), so the 168s clock was never binding - the CHAINS were, not the clock. Unaccounted 1391 (67.5% leak). Doom census leg #2: SPREAD again, the tax DEEPENED (10 cycles vs 7; stalled 5 owns this face). Rescue hole LOCAL: F14 100% (267u unrescued). Pocket anatomy flipped: whale F6 266u = 44.7%.
+- THE VERDICT-NAMED FRONT: F14's liar-ladder no-op water-glitch loop - the v0.117.0 ladder PACED the chronic liar but never RETIRED it (confirmed no-op pages ratcheting toward the bound, the loop ran the whole run). The wart line 'null' caught in the wild rode the PRE-v0.336.0 tree (0cdfd48) - the silence law's necessity confirmed, no new bug.
+- v0.337.0 THE GLITCH ABANDONMENT: GLITCH_ABANDON_PAGES = 2 + glitchAbandoned(confirmed, pages) in src/lib/drowning.mjs (junk-safe, never abandons on junk); the verdict stands the UNCORROBORATED critical-on-dry class down after 2 confirmed no-op pages - the bot abandons the phantom and walks. The guards: the witness outranks the abandonment (run536 F8's law - a corroborated drain still pages), wet pages never ride the lane, and the v0.117.0 resets (wet contact = a new page class; a wet-record rescue = the real-drain shape) re-arm it. The abandonment lane is strictly safer than the bound ladder it replaces (40 fresh reads + the 20s gate was already past the death clock - the same witness guards both). Telemetry keeps counting (the storm metric stays honest - only the page dies). Both confirmation bands (fast + dry-tail) log the hand ONCE at the exact crossing; the line rides the 'water' filter key.
+- Tests: the dark-twin hand pin (GLITCH_ABANDON_PAGES = 2), the boundary battery (0/1/2/3), the junk battery (never abandons on junk), the tunable bound battery, the wiring pins (the import, the verdict shape, the once-log at both bands, the laddered cap still riding). Local: syntax 256, unit 141/141, integration 2/2 (the sandbox reset ate the JDK25 + server.jar - restored from the project copy, sha1 verified 823e2250, server up).
+- The repo worklog backfill: the 1230/1300/1330 sections ride this push (they had no code of their own).
+
+Stage Summary:
+- Master = this push (pkg 0.337.0). TWO FACES OF RECORD: 36660134341 (bright: banked 2176, storm 0) and 36669231548 (dark: banked 73, storm 276) - the rate is bimodal on the storm.
+- NEXT FIRE (1430): (1) dispatch the THIRD face on the proven 0.337.0 tip if no active dispatch (poll-before-duplicate WITH the lazy-jobs-list lesson); the abandonment's FIRST LEG rides it: expect the 'liar ladder abandons the glitch class' line after F-class loops cross 2 confirmed no-op pages, airGlitches bounded (~2 pages per class, not unbounded), the rescue hole (F14-class) closed, banked off the floor. (2) Mine: the doom-why row's first leg (post-0.336.0 ref), the wet-shift slice floor's third refusal watch, unaccounted vs 67.5%. (3) The storm row instrument remains OPEN (the per-face storm verdict naming the holder) if the cure's leg needs a WHY side.
+- OPEN FRONTS: the stalled-climb head (5 of 10); the wet-shift slice floor (2 refusals: 80s, 82s vs 90s); unaccounted mass leak (67.5% under storms - the bookkeeping); smelted=2 (the furnace row runs cold); rescues 17; F12's chest-unreachable doomed-goal strand. Version next: 0.338.0.

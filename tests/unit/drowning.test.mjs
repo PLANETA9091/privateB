@@ -33,6 +33,7 @@ import {
   AIR_GLITCH_STREAK_CAP, dryLandProof, DRY_PROOF_MAX_MS, DRY_PROOF_BACKOFF_MS,
   dryTailTimeoutProof, DRY_TAIL_PROOF_DEPTH,
   glitchStreakCap, GLITCH_LADDER_STEP, GLITCH_LADDER_MAX,
+  glitchAbandoned, GLITCH_ABANDON_PAGES,
   drowningCorroborated, DROWN_CORROBORATION_HP, airGlitchLogLine,
   frozenReturnGate, frozenReturnBypass, FROZEN_RETURN_GATE_BASE_MS, FROZEN_RETURN_GATE_MAX_MS,
   ascendStalled, ceilingCell, ASCEND_STALL_PASSES, ASCEND_STALL_EPS, ASCEND_DIG_BUDGET
@@ -1340,6 +1341,55 @@ test('the liar-ladder wiring: the miner holds the streak in the gate, ratchets o
     'wet contact resets the ladder (a new page class) - v0.127.0 shares the single trust read')
   assert.ok(src.includes('the rescue kept its water/long record'),
     'the non-proof exit resets the ladder (the real-drain shape keeps the fast lane)')
+})
+
+// (v0.337.0) THE GLITCH ABANDONMENT - face 36669231548 (the dark twin) mined
+// F14's liar-ladder loop running the whole run: 276 airGlitches, the rescue
+// hole 100% F14 (267u unrescued), the chains stood still (bank flow 0.0u/s),
+// banked 73 vs the 2176 record. The ladder paced the chronic liar but never
+// retired it. The cure: after 2 confirmed no-op pages the uncorroborated
+// critical-on-dry class stands down - the bot abandons the phantom and walks.
+test('glitchAbandoned: the dark twin\'s hand - 2 confirmed no-op pages stand the lane down', () => {
+  assert.equal(GLITCH_ABANDON_PAGES, 2, 'page 1 trusted at the legacy weight (the v0.117.0 first-page law), page 2 confirms the lie, the third never fires')
+  assert.equal(glitchAbandoned(0), false, 'no confirmations = the lane is armed')
+  assert.equal(glitchAbandoned(1), false, 'one page trusted - the first page is always the old weight')
+  assert.equal(glitchAbandoned(2), true, 'the second confirmed no-op page retires the class')
+  assert.equal(glitchAbandoned(3), true, 'past the cap stays abandoned')
+})
+
+test('glitchAbandoned: junk counts never abandon (the lane cannot die by accident)', () => {
+  assert.equal(glitchAbandoned(), false, 'no argument')
+  assert.equal(glitchAbandoned(null), false)
+  assert.equal(glitchAbandoned(undefined), false)
+  assert.equal(glitchAbandoned(NaN), false)
+  assert.equal(glitchAbandoned(-5), false, 'a negative count is not debt')
+  assert.equal(glitchAbandoned('x'), false)
+  assert.equal(glitchAbandoned(1.9), false, 'floats floor to a whole confirmation (1)')
+  assert.equal(glitchAbandoned(2.9), true, '2.9 floors to 2 - abandoned')
+})
+
+test('glitchAbandoned: the pages bound is tunable and junk-safe', () => {
+  assert.equal(glitchAbandoned(2, 3), false, 'a 3-page hand holds the lane at 2 confirmations')
+  assert.equal(glitchAbandoned(3, 3), true, 'the third page crosses the 3-page hand')
+  assert.equal(glitchAbandoned(2, NaN), true, 'junk pages read the default 2')
+  assert.equal(glitchAbandoned(2, 0), true, 'a zero bound reads the default 2')
+  assert.equal(glitchAbandoned(2, -1), true, 'a negative bound reads the default 2')
+  assert.equal(glitchAbandoned(2, 'junk'), true)
+})
+
+test('the glitch abandonment wiring: the verdict stands the uncorroborated dry class down, the witness outranks, the hand logs once', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('glitchAbandoned, GLITCH_ABANDON_PAGES'), 'the miner imports the abandonment verdict')
+  assert.ok(src.includes('const abandoned = !witnessed && criticalOnDry && glitchAbandoned(glitchConfirmed)'),
+    'the stand-down rides ONLY the uncorroborated critical-on-dry class (the witness and the wet lanes keep their say)')
+  assert.ok(src.includes("? 'none'"), 'the abandoned verdict is none - no page, the bot walks')
+  assert.ok(src.includes('liar ladder abandons the glitch class'),
+    'the abandonment hand names itself so the next mine reads the lane')
+  assert.equal((src.match(/glitchConfirmed === GLITCH_ABANDON_PAGES/g) || []).length, 2,
+    'both confirmation bands (fast + dry-tail) log the hand at the exact crossing')
+  assert.ok(src.includes('glitchStreakCap(glitchConfirmed)'),
+    'the laddered cap still rides the verdict for the un-abandoned classes')
 })
 
 // (v0.119.0) THE FROZEN-RETURN GATE - run103 (35895546754): the v0.96.0
