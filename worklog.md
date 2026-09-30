@@ -10664,3 +10664,21 @@ Stage Summary:
 - Master = 7f95fa1 (pkg 0.375.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.376.0). (2) Poll the tip gate (7f95fa1): green proves 0.363..0.375 cumulatively (TWELVE versions unproven). (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY. (4) Mine face 16: the forensics + hound + arenas + flee-bearing histogram all ride.
 - OPEN FRONTS: face 16 dispatch; THE HOUND CURE pricing (the trapped-flee lever: F12's three-bearing fixation is the named shape; a bearing diversity rule or climb-out is the candidate cure - to be priced off a face with the histogram riding); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.376.0.
+
+---
+Task ID: cron30-20261001-0730
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0730 - v0.376.0 THE RELEASE STARVATION CENSUS shipped (the timeout tail is the release's own stability criterion read at budget death - the starvation class is named and cross-face); dispatch blocked by the never-green tip gate.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip = 719bea6, pkg 0.375.0, 0.376.0 free; cron38 quiet; no active dispatch runs.
+- DISPATCH ATTEMPT FIRST: the tip gate 36789505984 (719bea6) polled 8 rounds - never green (~40 min total in flight; the first gate in six fires to live un-superseded). Law held: no dispatch. Upstream positive: 7b84cdd (0600 worklog) = SUCCESS - first green CI in the 0.363+ stack, proves 0.363..0.371 cumulatively.
+- v0.376.0 (cd66d99): THE RELEASE STARVATION CENSUS - decompose gains the release-starvation block (timeout-tail distribution, surface-stable timeouts per-bot, near-surface row, zero-probe row). The decode: tail dry/dry/dry at timeout = the bot was surface-stable at budget death (the release's own tail-dry-3 criterion held) while the pass ladder (bearing -> land -> release -> probes) never reached the release branch; 0 probes = the bearing branch ate every pass. Mining-surface only: zero fleet wiring, zero new log lines.
+- FIRST RUN PAID on both held faces: face 15 = 2 surface-stable (F18, F14) + 2 near-surface + 5/5 zero-probe; face 12 = 3 (F7 x2, F1) + 4/4 zero-probe. Cumulative 5 of 9 timeouts surface-stable at budget death, 9 of 9 zero-probe (the v0.367.0 stall latch never fired on either face). Face 16's field criteria: stall lines first, probes > 0, released > 0, dry-tail timeouts -> 0.
+- Process note: the pre-push rebase refused on the uncommitted decompose edit; origin unmoved (base verified by ancestor check), commit landed clean, push 719bea6..cd66d99 straight through.
+- Tests: syntax 279, unit 161/161. CI gate 36792564313 (cd66d99) in_progress at close (2 honest poll rounds) - carries 0.363..0.376.
+
+Stage Summary:
+- Master = cd66d99 (pkg 0.376.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.377.0). (2) Poll the tip gate (cd66d99). (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY. (4) Mine face 16 with the full readout stack (forensics + hound + arenas + flee-bearing histogram + release-starvation census).
+- OPEN FRONTS: face 16 dispatch; the hound cure pricing (the trapped-flee lever); the release-branch zero-conversion (the census now names its mechanism); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.377.0.
