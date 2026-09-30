@@ -54,7 +54,7 @@
 import pathfinderPkg from 'mineflayer-pathfinder'
 import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
-import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND } from './deposit.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND, walkRawToward } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
 import { approachWalk, PATH_GEOMETRY_RE, nudgeReSegmentPlan, NUDGE_RESEGMENT_FLOOR_MS } from './approach.mjs'
 import { chestVerticalDoom } from './surface.mjs'
@@ -584,7 +584,7 @@ export async function deliverFuelTithe (bot, {
       const nudgeMs = Math.min(remainingMs(), 15000)
       if (nudgeMs > 1000) {
         try {
-          const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, closeShot: true, log: m => log(`fuel anchor: path nudge ${m}`) })
+          const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel anchor: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - the side-step ladder was dead here
           log(`fuel anchor: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying from the new start`}`)
         } catch { /* the nudge never kills the chain */ }
         try { dist = Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { /* the stale dist still bounds the retry */ }
@@ -884,7 +884,7 @@ export async function withdrawFuelCommons (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`fuel commons: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel commons: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - F14's stall had no side-step to fire
             nudgeShots = 1 // the first shot is spent - the re-segment plan prices the second
             nudgedInside = n.walked === true // the strict read: only a declared envelope can be falsified
             log(`fuel commons: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
@@ -926,7 +926,7 @@ export async function withdrawFuelCommons (bot, {
                 } else {
                   nudgeShots++
                   try {
-                    const n2 = await approachWalk(bot, chest.position, { budgetMs: Math.min(remainingMs(), 15000), closeShot: true, log: m => log(`fuel commons: envelope re-segment nudge ${m}`) })
+                    const n2 = await approachWalk(bot, chest.position, { budgetMs: Math.min(remainingMs(), 15000), closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel commons: envelope re-segment nudge ${m}`) }) // (v0.356.0) the raw walker rides the re-segment too
                     log(`fuel commons: envelope re-segment nudge ${n2.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n2.d) ? n2.d.toFixed(1) : '?'} - retrying the same chest`}`)
                     if (remainingMs() > NUDGE_RESEGMENT_FLOOR_MS) {
                       const distR = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()

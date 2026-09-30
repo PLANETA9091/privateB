@@ -98,7 +98,7 @@ test('the wiring pins: the four canonical lines ride the fuel filter key', () =>
 
 test('the wiring pins: the re-segment walk is bounded and its own label', () => {
   assert.match(fuelSrc, /label: `fuel commons walk @\$\{Math\.round\(chest\.position\.x\)\},\$\{Math\.round\(chest\.position\.z\)\} \(envelope re-segment\)`/) // the distinct label
-  assert.match(fuelSrc, /budgetMs: Math\.min\(remainingMs\(\), 15000\), closeShot: true, log: m => log\(`fuel commons: envelope re-segment nudge \$\{m\}`\)/)
+  assert.match(fuelSrc, /budgetMs: Math\.min\(remainingMs\(\), 15000\), closeShot: true, rawWalk: walkRawToward, log: m => log\(`fuel commons: envelope re-segment nudge \$\{m\}`\)/) // (v0.356.0) the raw walker rides the re-segment too
   assert.match(fuelSrc, /remainingMs\(\) > NUDGE_RESEGMENT_FLOOR_MS/) // the floor gate on the third walk
   assert.match(fuelSrc, /doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS \}\)\n                        log\('fuel commons: the envelope re-segment LANDED/s) // the doom ledger stays intact on the third walk
 })

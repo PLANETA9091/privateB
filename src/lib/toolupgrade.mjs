@@ -19,7 +19,7 @@
 // This module is the POLICY layer (when to upgrade, to which tier). The MECHANISM
 // (phantom-safe crafting, table placement, grid sweeps) stays in src/bots/tools.mjs.
 import { countItem, hasKind, craftUntil, craftPlanksFromLogs, placeTable, upgradeTools as toolsUpgradeFlow } from '../bots/tools.mjs'
-import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, depositStackDirect } from './deposit.mjs'
+import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, depositStackDirect, walkRawToward } from './deposit.mjs'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
 import { chestVerticalDoom } from './surface.mjs'
@@ -560,7 +560,7 @@ export async function withdrawIronCommune (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`iron commune: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`iron commune: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - the side-step ladder was dead here
             log(`iron commune: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape): the
             // approach's slice is a budget, not a hard per-segment wall - the
@@ -790,7 +790,7 @@ export async function seedIronPool (bot, {
         const nudgeMs = Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
-            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`pool seed: path nudge ${m}`) })
+            const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`pool seed: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - the side-step ladder was dead here
             log(`pool seed: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD (the fuel-commons shape) - the
             // same floor the commune and commons retries hold.
