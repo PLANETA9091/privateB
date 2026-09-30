@@ -511,3 +511,53 @@ export function doomCensusRow (entries) {
   }
   return `final bank doom census: spread - top ${top.name} carries ${top.cycles} of ${total} failed climb cycles (${pct}%) - the strand is a fleet-wide climb tax`
 }
+
+// (v0.336.0) THE DOOM-WHY CLASSIFIER - the census names WHO carries the
+// failed climb cycles, this names WHY each cycle failed. climbOut's reason
+// strings are decorated at the call sites ('timeout (fenced at 90s - the
+// chain keeps its reserve)'), so the class rides a keyword include, not an
+// equality. Junk (undefined, numbers, an empty string) falls to 'other' - a
+// reason that never names a class is still a cycle (the body-guard law: the
+// count is the truth, the class is the read). The classes are the face's own
+// taxonomy: stalled 3, wet wall 3, low-o2 1 (36660134341 - the oxygen class
+// the ladder never named before that run).
+export function climbWhyClass (reason) {
+  const s = String(reason ?? '').toLowerCase()
+  if (s.includes('stalled')) return 'stalled'
+  if (s.includes('wet wall')) return 'wet wall'
+  if (s.includes('low-o2')) return 'low-o2'
+  if (s.includes('timeout')) return 'timeout'
+  if (s.includes('exhausted')) return 'exhausted'
+  if (s.includes('stopped')) return 'stopped'
+  return 'other'
+}
+
+// (v0.336.0) THE DOOM-WHY ROW - the census's WHY side: the same failed climb
+// cycles the census summed per WALKER, summed per FAILURE CLASS. The same
+// grain floor as the census (DOOM_CENSUS_MIN_CYCLES - the latch's own trip
+// point, the grain law), the same half boundary (DOOM_CENSUS_LOCAL_SHARE),
+// the same leanness law (a healthy run prints nothing), byte-stable ties
+// (cycles desc, class asc). Face 36660134341's datum: 'spread - stalled 3,
+// wet wall 3, low-o2 1 of 7 failed climb cycles - the tax splits 3 ways' -
+// neither head is a whale, so the cure is a fleet-wide one (the grind and
+// the water, not one broken bot).
+export function doomWhyRow (entries) {
+  const classes = []
+  let total = 0
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const raw = e?.cycles
+    const cycles = (Number.isFinite(raw) && raw > 0) ? Math.floor(raw) : 0
+    if (cycles <= 0) continue
+    classes.push({ cls: String(e?.cls || '').trim() || '?', cycles })
+    total += cycles
+  }
+  if (total < DOOM_CENSUS_MIN_CYCLES) return null
+  classes.sort((a, b) => (b.cycles - a.cycles) || (a.cls < b.cls ? -1 : 1))
+  const top = classes[0]
+  const pct = ((top.cycles / total) * 100).toFixed(1)
+  if (top.cycles / total >= DOOM_CENSUS_LOCAL_SHARE) {
+    return `final bank doom why: local - ${top.cls} carries ${top.cycles} of ${total} failed climb cycles (${pct}%) - one class owns the tax`
+  }
+  const list = classes.map(c => `${c.cls} ${c.cycles}`).join(', ')
+  return `final bank doom why: spread - ${list} of ${total} failed climb cycles - the tax splits ${classes.length} ways`
+}

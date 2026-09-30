@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -181,7 +181,7 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow } from '../src/lib/pocketline.mjs'"),
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow } from '../src/lib/pocketline.mjs'"),
     'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
@@ -645,9 +645,10 @@ test('bankBudgetGapRow: THE JUNK BATTERY - garbage never prices a clock', () => 
 test('bankBudgetGapRow: THE WIRING PIN - the gap row prices the granted clock', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /bankBudgetGapRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
-  assert.match(src, /console\.log\(bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: END_BANK_BUDGET \}\)\)/)
-  const flowIdx = src.indexOf('console.log(bankFlowRow(bankFlowSamples')
-  const gapIdx = src.indexOf('console.log(bankBudgetGapRow(bankFlowSamples')
+  assert.match(src, /const bankGap = bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: END_BANK_BUDGET \}\)/)
+  assert.match(src, /if \(bankGap\) console\.log\(bankGap\)/, 'the silence law: a covered pocket prints nothing, never the word null')
+  const flowIdx = src.indexOf('const bankFlow = bankFlowRow(bankFlowSamples')
+  const gapIdx = src.indexOf('const bankGap = bankBudgetGapRow(bankFlowSamples')
   assert.ok(gapIdx > flowIdx, 'the gap row prints right after the flow row it prices')
   assert.match(src, /const END_BANK_BUDGET = endBankBudgetMs/, 'the budget priced is the fleet\'s own clock')
   assert.ok(src.includes('THE BANK-BUDGET GAP ROW'), 'the wiring carries its own doctrine comment')
@@ -720,12 +721,105 @@ test('doomCensusRow: the junk battery - junk counts never enter the census', () 
 test('doomCensusRow: THE WIRING PIN - the census rides the attribution block (v0.330.0)', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /doomCensusRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
-  assert.ok(src.includes('console.log(doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles }))))'),
+  assert.ok(src.includes('const doomCensus = doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles })))'),
     'the census reads the fleet\'s own doom ledger')
+  assert.match(src, /if \(doomCensus\) console\.log\(doomCensus\)/, 'the silence law: the nullable census never prints the word null')
   const attrIdx = src.indexOf('console.log(bankAttributionRow(list))')
-  const censusIdx = src.indexOf('console.log(doomCensusRow(')
+  const censusIdx = src.indexOf('const doomCensus = doomCensusRow(')
   assert.ok(censusIdx > attrIdx, 'the census prints right after the attribution row it explains')
   assert.match(src, /finalBankDoomByBot\.set\(name, \(finalBankDoomByBot\.get\(name\) \|\| 0\) \+ 1\)/,
     'the failed climb cycle feeds the ledger at the doom latch\'s increment site')
   assert.ok(src.includes('THE FINAL-BANK DOOM CENSUS'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.336.0) THE DOOM-WHY ROW - the census names WHO carries the failed
+// climb cycles (per walker), the why row names WHY each cycle failed (per
+// failure class). Face 36660134341 (the ten-legged face): 7 failed cycles
+// split stalled 3 (F17/F7/F9), wet wall 3 (F15/F14/F5), low-o2 1 (F9's
+// first cycle - the oxygen class the instrument never named before) - the
+// tax has two heads, and neither is a whale, so the cure is fleet-wide.
+// ---------------------------------------------------------------------------
+
+test('climbWhyClass: the face\'s own taxonomy - the decorated reasons classify by keyword', () => {
+  // the real reason strings face 36660134341 printed at the doom site
+  assert.strictEqual(climbWhyClass('stalled'), 'stalled')
+  assert.strictEqual(climbWhyClass('wet wall'), 'wet wall')
+  assert.strictEqual(climbWhyClass('low-o2'), 'low-o2')
+  assert.strictEqual(climbWhyClass('timeout (fenced at 90s - the chain keeps its reserve)'), 'timeout')
+  assert.strictEqual(climbWhyClass('exhausted'), 'exhausted')
+  assert.strictEqual(climbWhyClass('stopped'), 'stopped')
+  // decorated / case-wrapped forms ride the same include
+  assert.strictEqual(climbWhyClass('timeout (fenced at 104s)'), 'timeout')
+  assert.strictEqual(climbWhyClass('Wet Wall'), 'wet wall')
+  // junk never crashes the classifier - it names the class 'other'
+  assert.strictEqual(climbWhyClass(undefined), 'other')
+  assert.strictEqual(climbWhyClass(null), 'other')
+  assert.strictEqual(climbWhyClass(''), 'other')
+  assert.strictEqual(climbWhyClass(42), 'other')
+  assert.strictEqual(climbWhyClass('chest unreachable (No path to the goal!)'), 'other')
+})
+
+test('doomWhyRow: the face datum - the tax splits two ways, neither head a whale (spread form)', () => {
+  // face 36660134341's exact distribution, byte-stable ties class asc
+  const entries = [{ cls: 'stalled', cycles: 3 }, { cls: 'wet wall', cycles: 3 }, { cls: 'low-o2', cycles: 1 }]
+  assert.strictEqual(doomWhyRow(entries),
+    'final bank doom why: spread - stalled 3, wet wall 3, low-o2 1 of 7 failed climb cycles - the tax splits 3 ways')
+})
+
+test('doomWhyRow: the local form - one class owns the tax', () => {
+  // wet wall 4 of 7 = 57.1% crosses the half boundary
+  assert.strictEqual(doomWhyRow([{ cls: 'wet wall', cycles: 4 }, { cls: 'stalled', cycles: 2 }, { cls: 'low-o2', cycles: 1 }]),
+    'final bank doom why: local - wet wall carries 4 of 7 failed climb cycles (57.1%) - one class owns the tax')
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 3 }]),
+    'final bank doom why: local - stalled carries 3 of 3 failed climb cycles (100.0%) - one class owns the tax')
+})
+
+test('doomWhyRow: the grain floor is the census\'s own trip point, byte-stable ties class asc', () => {
+  assert.strictEqual(DOOM_CENSUS_MIN_CYCLES, 3, 'the floor stays the doom latch\'s own trip point')
+  // under the floor: silent (the leanness law)
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 2 }]), null)
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 1 }, { cls: 'wet wall', cycles: 1 }]), null)
+  // at the floor: it speaks
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 2 }, { cls: 'wet wall', cycles: 1 }]),
+    'final bank doom why: local - stalled carries 2 of 3 failed climb cycles (66.7%) - one class owns the tax')
+  // the half boundary is inclusive: 2 of 4 = 50.0% is local
+  assert.strictEqual(doomWhyRow([{ cls: 'wet wall', cycles: 2 }, { cls: 'stalled', cycles: 2 }]),
+    'final bank doom why: local - stalled carries 2 of 4 failed climb cycles (50.0%) - one class owns the tax')
+})
+
+test('doomWhyRow: the junk battery - junk classes never enter the tax', () => {
+  assert.strictEqual(doomWhyRow(null), null)
+  assert.strictEqual(doomWhyRow('junk'), null)
+  assert.strictEqual(doomWhyRow(42), null)
+  assert.strictEqual(doomWhyRow([]), null, 'a healthy run: no failed cycles, no why row')
+  // junk entries skipped, not fatal: NaN, negative, zero, missing, null
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: NaN }, { cls: 'wet wall', cycles: -1 }, { cycles: 0 }, null, { cls: 'stalled' }]), null)
+  // a junk zero rides beside real mass: filtered, the mass still prices
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: NaN }, { cls: 'wet wall', cycles: 3 }]),
+    'final bank doom why: local - wet wall carries 3 of 3 failed climb cycles (100.0%) - one class owns the tax')
+  // fractional cycles floor to the ledger's integer grain: 2.9 -> 2, 0.5 -> 0
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 2.9 }, { cls: 'wet wall', cycles: 0.5 }]), null)
+  assert.strictEqual(doomWhyRow([{ cls: 'stalled', cycles: 2.9 }, { cls: 'wet wall', cycles: 1.5 }]),
+    'final bank doom why: local - stalled carries 2 of 3 failed climb cycles (66.7%) - one class owns the tax')
+  // a missing class never blocks the row
+  assert.strictEqual(doomWhyRow([{ cycles: 4 }]),
+    'final bank doom why: local - ? carries 4 of 4 failed climb cycles (100.0%) - one class owns the tax')
+})
+
+test('doomWhyRow: THE WIRING PIN - the why row rides the census block (v0.336.0)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /doomWhyRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
+  assert.ok(src.includes('const finalBankDoomWhy = new Map()'), 'the why ledger lives beside the census ledger')
+  // the classifier feeds the why ledger at the census's own increment site
+  const censusFeed = src.indexOf('finalBankDoomByBot.set(name,')
+  const whyFeed = src.indexOf('finalBankDoomWhy.set(whyCls,')
+  assert.ok(whyFeed > 0 && whyFeed - censusFeed < 400, 'the why ledger feeds at the census\'s own increment site')
+  assert.ok(src.includes('climbWhyClass(cr.reason)'), 'the classifier reads the climb\'s own reason')
+  const censusIdx = src.indexOf('const doomCensus = doomCensusRow(')
+  const whyIdx = src.indexOf('const doomWhy = doomWhyRow(')
+  assert.ok(whyIdx > censusIdx, 'the why row prints right after the census it explains')
+  assert.match(src, /if \(doomWhy\) console\.log\(doomWhy\)/, 'the why row obeys the same leanness law')
+  assert.match(src, /if \(bankFlow\) console\.log\(bankFlow\)/, 'the silence law rides the flow row')
+  assert.ok(src.includes('THE DOOM-WHY ROW'), 'the wiring carries its own doctrine comment')
 })

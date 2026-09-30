@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -165,6 +165,10 @@ let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cook
 // moment but dies unread - this ledger lets the report read the strand's
 // anatomy at the end (the doom census row).
 const finalBankDoomByBot = new Map()
+// (v0.336.0) THE DOOM-WHY LEDGER: the same failed cycles keyed by FAILURE
+// CLASS (the census's WHY side - the walk-level WHO already lives above).
+// Fed at the census's own increment site, printed by the doom-why row.
+const finalBankDoomWhy = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -2737,6 +2741,10 @@ async function runBot (name, target, index) {
             // (v0.330.0) the same cycle feeds the census ledger - the report's
             // read of WHY the walk never delivered.
             finalBankDoomByBot.set(name, (finalBankDoomByBot.get(name) || 0) + 1)
+            // (v0.336.0) the same cycle feeds the WHY ledger - the census
+            // names the walker, the why row names the failure class.
+            const whyCls = climbWhyClass(cr.reason)
+            finalBankDoomWhy.set(whyCls, (finalBankDoomWhy.get(whyCls) || 0) + 1)
           } else {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
             if (res.deposited > 0) {
@@ -3311,7 +3319,17 @@ console.log(bankAttributionRow(list))
 // the doom latch counted, summed per walker. A strand without climb failures
 // stays silent here (the census reads the doom class, not every strand); a
 // healthy run prints nothing (the leanness law).
-console.log(doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles }))))
+// (v0.336.0) THE SILENCE LAW - the census is nullable by design (a strand
+// without climb failures stays silent) but the bare print said 'null' out
+// loud on exactly those healthy runs. The guard is the law: the report
+// never prints the word null again.
+const doomCensus = doomCensusRow([...finalBankDoomByBot].map(([name, cycles]) => ({ name, cycles })))
+if (doomCensus) console.log(doomCensus)
+// (v0.336.0) THE DOOM-WHY ROW - the census's WHY side: the same failed
+// cycles, summed by failure class (the census's grain floor and half
+// boundary apply; silent under the same leanness law).
+const doomWhy = doomWhyRow([...finalBankDoomWhy].map(([cls, cycles]) => ({ cls, cycles })))
+if (doomWhy) console.log(doomWhy)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is
@@ -3331,12 +3349,18 @@ console.log(surplusFaceRow(list, { surplus: ledger.surplus }))
 // pocket read as the seconds the flow still owes. Separates a slow chain
 // from a dead one (the endgame bank-cadence front). Same report-block class
 // (ALWAYS printed - the 05:00 ledger-skip lesson).
-console.log(bankFlowRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units }))
+// (v0.336.0) the silence law rides the flow row too (few samples or a
+// stood-still tail is its silence - never the word null).
+const bankFlow = bankFlowRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units })
+if (bankFlow) console.log(bankFlow)
 // (v0.328.0) THE BANK-BUDGET GAP ROW prices the NEED above against the fleet's
 // own end-bank clock: the flow row names the pocket's seconds, the gap row
 // judges the budget that was granted - a covered pocket prints nothing (the
 // leanness law), an outrun clock names the exact shortage.
-console.log(bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: END_BANK_BUDGET }))
+// (v0.336.0) the silence law rides the gap row - a COVERED pocket prints
+// nothing (the leanness law this row's own doctrine already claimed).
+const bankGap = bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: END_BANK_BUDGET })
+if (bankGap) console.log(bankGap)
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the
 // v0.187.0 unmeasured plane class splits from the below class. ALWAYS printed
