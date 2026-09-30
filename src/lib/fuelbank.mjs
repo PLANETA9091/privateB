@@ -56,7 +56,7 @@ import { Vec3 } from 'vec3'
 import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
-import { approachWalk, PATH_GEOMETRY_RE } from './approach.mjs'
+import { approachWalk, PATH_GEOMETRY_RE, nudgeReSegmentPlan, NUDGE_RESEGMENT_FLOOR_MS } from './approach.mjs'
 import { chestVerticalDoom } from './surface.mjs'
 
 const { goals } = pathfinderPkg
@@ -790,6 +790,8 @@ export async function withdrawFuelCommons (bot, {
   let taken = 0
   let chestsVisited = 0
   let nudgeUsed = false // (v0.147.0) ONE path-geometry nudge per commons visit
+  let nudgeShots = 0 // (v0.355.0) the shot ledger - the re-segment plan counts the ladder
+  let nudgedInside = false // (v0.355.0) STRICT - only a nudge that DECLARED the envelope can falsify it
   let doomLogged = false // (v0.159.0) ONE vertical-gate line per ask
   const planAll = []
   // (v0.124.0) THE ANCHOR FIRST READ: the tithe's delivery target is the
@@ -883,6 +885,8 @@ export async function withdrawFuelCommons (bot, {
         if (nudgeMs > 1000) {
           try {
             const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, log: m => log(`fuel commons: path nudge ${m}`) })
+            nudgeShots = 1 // the first shot is spent - the re-segment plan prices the second
+            nudgedInside = n.walked === true // the strict read: only a declared envelope can be falsified
             log(`fuel commons: path nudge ${n.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n.d) ? n.d.toFixed(1) : '?'} - retrying the same chest`}`)
             // (v0.156.0) THE NUDGE CLOCK GUARD: run555 (36049735813, the
             // v0.154.0 fleet) measured the segment OVERRUNNING its slice -
@@ -905,6 +909,41 @@ export async function withdrawFuelCommons (bot, {
                 arrived = true
               } catch (e2) {
                 log(`fuel commons: chest walk failed after the nudge (${e2?.message || e2})`)
+                // (v0.355.0) THE FALSIFIED ENVELOPE RE-SEGMENT: the envelope's
+                // verdict is a DISTANCE read, the death is a DECISION read -
+                // face 11 measured the disagreement 40 times in one calm face
+                // ('path nudge ... inside the direct envelope' at d=16.2, then
+                // 'chest walk failed after the nudge (Took to long ...)'). When
+                // the nudge DECLARED the envelope and the re-goto died the
+                // geometry class anyway, the verdict is falsified - ONE more
+                // start-change (the second approachWalk shot from the NEW
+                // position) before the exclude. Every defer/refusal/stall falls
+                // through to the exclude byte for byte (the account of record
+                // law); the ladder is bounded by NUDGE_SHOT_MAX and the floor.
+                const plan = nudgeReSegmentPlan({ shotsUsed: nudgeShots, envelopeInside: nudgedInside, failMsg: e2?.message || String(e2 ?? ''), remainingMs: remainingMs() })
+                if (!plan.retry) {
+                  log(`fuel commons: envelope re-segment deferred: ${plan.why}`)
+                } else {
+                  nudgeShots++
+                  try {
+                    const n2 = await approachWalk(bot, chest.position, { budgetMs: Math.min(remainingMs(), 15000), closeShot: true, log: m => log(`fuel commons: envelope re-segment nudge ${m}`) })
+                    log(`fuel commons: envelope re-segment nudge ${n2.walked ? 'inside the direct envelope' : `closed to d=${Number.isFinite(n2.d) ? n2.d.toFixed(1) : '?'} - retrying the same chest`}`)
+                    if (remainingMs() > NUDGE_RESEGMENT_FLOOR_MS) {
+                      const distR = (() => { try { return Math.round(bot.entity.position.distanceTo(chest.position)) } catch { return null } })()
+                      try {
+                        await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2), { timeoutMs: Math.min(chestWalkBudgetMs(distR ?? 8), remainingMs()), label: `fuel commons walk @${Math.round(chest.position.x)},${Math.round(chest.position.z)} (envelope re-segment)`, doomedRearm: true, doomTtl: CHEST_DOOM_TTL_MS })
+                        log('fuel commons: the envelope re-segment LANDED - the walk owns the chest now')
+                        arrived = true
+                      } catch (e3) {
+                        log(`fuel commons: envelope re-segment stalled: ${e3?.message || e3} - the exclude owns the chest`)
+                      }
+                    } else {
+                      log(`fuel commons: the re-segment spent the walk slice (${Math.round(remainingMs())}ms left) - the exclude owns the chest`)
+                    }
+                  } catch (eRe) {
+                    log(`fuel commons: envelope re-segment swallowed: ${eRe?.message || eRe} - the exclude owns the chest`)
+                  }
+                }
               }
             } else {
               log(`fuel commons: the nudge spent the walk slice (${Math.round(remainingMs())}ms left) - no re-goto clock`)

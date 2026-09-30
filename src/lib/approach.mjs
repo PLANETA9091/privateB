@@ -414,3 +414,36 @@ export function yardApproachPlan ({
     budgetMs: Math.max(0, left - floor)
   }
 }
+
+// (v0.355.0) THE FALSIFIED ENVELOPE RE-SEGMENT - the nudge ladder's second
+// start-change. MEASURED (fleet 36726048100, face 11, the calm): 40
+// 'Took to long to decide path to goal!' deaths in ONE 600s face, and the
+// dominant shape is the nudge's OWN verdict falsified - 'path nudge
+// approach: 1 segment(s) walked in 0.3s, goal now d=16.2 (inside the
+// direct envelope)' followed by 'chest walk failed after the nudge (Took
+// to long to decide path to goal!)'. The v0.147.0 law says the verdict is
+// about the FAILED START; the nudge moved the start 0.3s of walking and
+// the envelope's threshold (24b) declared 'direct from here' - but the A*
+// still could not decide from the new start either. The envelope's verdict
+// is a DISTANCE read, the death is a DECISION read - across quarried/wet
+// terrain the two disagree, and the field says they disagree 40 times a
+// face. THE CURE: when the nudge declared inside-envelope AND the re-goto
+// died the geometry class anyway, the verdict is FALSIFIED - one more
+// start-change (the second approachWalk shot from the NEW position, the
+// close shot owning the inside-envelope geometry) before the exclude. The
+// ladder is bounded: NUDGE_SHOT_MAX shots, the caller's remainingMs floor
+// still governs (the v0.156.0 negative-clock lesson), and every
+// defer/refusal/stall falls through to the exclude byte for byte (the
+// account of record law - the legacy single-shot shape stays the spine).
+export const NUDGE_SHOT_MAX = 2
+export const NUDGE_RESEGMENT_FLOOR_MS = 2000 // the v0.156.0 re-goto floor - a negative clock is a fake death
+
+export function nudgeReSegmentPlan (p = {}) {
+  const { shotsUsed = 0, envelopeInside = false, failMsg = null, remainingMs = null } = p || {} // the body-guard law (the walledCure shape)
+  if (!Number.isFinite(shotsUsed) || shotsUsed < 0) return { retry: false, why: 'the nudge shot ledger lies - the exclude owns the chest' }
+  if (shotsUsed >= NUDGE_SHOT_MAX) return { retry: false, why: `the nudge ladder is spent (${NUDGE_SHOT_MAX} shots) - the exclude owns the chest` }
+  if (envelopeInside !== true) return { retry: false, why: 'the first verdict was not the envelope - the exclude owns the chest' }
+  if (typeof failMsg !== 'string' || !PATH_GEOMETRY_RE.test(failMsg)) return { retry: false, why: 'the post-nudge death is not the geometry class - the exclude owns the chest' }
+  if (!Number.isFinite(remainingMs) || remainingMs <= NUDGE_RESEGMENT_FLOOR_MS) return { retry: false, why: `no re-segment clock (the ${NUDGE_RESEGMENT_FLOOR_MS}ms floor) - the exclude owns the chest` }
+  return { retry: true, why: 'the envelope lied (direct verdict, geometry death) - one more start-change' }
+}
