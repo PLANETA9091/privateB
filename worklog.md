@@ -10569,3 +10569,22 @@ Stage Summary:
 - Master = cf4411f (pkg 0.370.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined). No version bump this fire (0.371.0 still free).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.371.0). (2) Poll gate 36779355519 (cf4411f): green proves 0.363..0.370 cumulatively. (3) If green AND no active dispatch run => DISPATCH FACE 16 immediately (the shore-yield + anchor-drop + forensics tree's first field leg; F18's 0-probe burns are the shore-yield's named target - 'shore transit stalled' lines must precede releases, F18/F14-class full-budget burns must shrink, and the released count must leave 0). (4) Mine face 16 with the forensics readout; orphans > 0 are ECHOES (benign), not holes.
 - OPEN FRONTS: face 16 dispatch (the cure stack's field leg); the drowned-hound pressure (the flee-vs-drowned storm - the drowning source, a future decode front); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.371.0.
+
+---
+Task ID: cron30-20261001-0600
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0600 - v0.371.0 THE DROWNED-HOUND CENSUS (the drowning SOURCE armed as a mining surface); dispatch attempt blocked by the never-green tip gate (37 min in flight, still pending) - the field wait continues.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip = df9edae (the 0530 worklog), pkg 0.370.0, 0.371.0 free. cron38 quiet. No active dispatch runs (face 15 done, the slot free).
+- DISPATCH ATTEMPT FIRST: the plan was green-tip-then-face-16. The tip gate 36780320997 (df9edae) had run_started_at set (a runner assigned at 21:34:40Z) but stayed PENDING through 18 polls across ~37 minutes (the integration leg crawling in the saturated pool). Never green => the dispatch law held (green tip + slot free; only the slot was free). No dispatch.
+- THE SALVAGED FIRE - v0.371.0 (6719612): THE DROWNED-HOUND CENSUS, the drowning SOURCE the rescue net only mops after. Face 15's log is full of 'combat: flee toward shore (dX,dZ step N) vs drowned (proximity)' - drowned mobs hound the wet bot while it swims, the rescue ledger counts the SYMPTOM (the starts), the PRESSURE rode unread. decompose gains the census block: flee-shore vs drowned (plain proximity, per-bot), the hound re-verdict subclass (the closing paren keeps the classes disjoint), death: drown context (the water did it) vs death: drowned-kill context (the hound won), drowned-kill per-bot. Mining-surface only: zero fleet wiring, zero new log lines (the blind-tool lesson).
+- FIRST RUN PAID on face 15: flee-shore 19 (F12=13 - the hounds' favorite prey by 3x over F3/F14/F15), re-verdicts 11, drown context 2, drowned-kill 3 (F14/F16/F11). The hound front's baseline is named: ~30 flee events + 3 mob-caused deaths per 600s face.
+- Tests: syntax 277, unit 159/159 files (decompose-only change, the v0.358.0/v0.360.0 precedent - no lib, no unit file; the census regexes ride the field check instead).
+- CI: gate 36780320997 (df9edae) PENDING at close (~37 min, never finished) - superseded by this fire's push (6719612); the new tip gate carries 0.363..0.371. Recorded honestly.
+- NO dispatch: no green tip all fire (the field wait continues; the slot stays free for the next materialized dispatch).
+
+Stage Summary:
+- Master = 6719612 (pkg 0.371.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.372.0). (2) Poll the tip gate (6719612): green proves 0.363..0.371 cumulatively. (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY (the shore-yield + anchor-drop tree's first field leg; F18's 0-probe burns are the named target; the hound census now rides every future mine). (4) Mine face 16 with the forensics + hound readouts.
+- OPEN FRONTS: face 16 dispatch (the cure stack's field leg); THE HOUND FRONT (the drowning source's cure - F12's 13 flee events make it the prey-prone bot; a decode prices the cure next); the release-branch zero-conversion (0/230); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.372.0.
