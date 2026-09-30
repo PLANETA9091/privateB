@@ -123,6 +123,18 @@ async function placeMachine (bot, itemName) {
     const cellB = bot.blockAt(cell)
     const floorB = bot.blockAt(cell.offset(0, -1, 0))
     if (!cellB || !floorB) { skipped++; log(`placeMachine skip at ${cell}: null read (client chunk lag)`) ; continue }
+    // (v0.362.0) THE DRY-CELL LAW: fluids read boundingBox 'empty', so the box
+    // filter alone let a water cell through - CI 36752156115 fed a water cell
+    // to placeBlock and died 'Server refused to place furnace at ...: the block
+    // is still water' (mineflayer place_block.js:42), burning 5-tick rounds on
+    // a placement vanilla refuses while the wet machinery stood the bot down.
+    // A fluid cell is named and skipped BEFORE any attempt: the placement
+    // never rides water (the measured smelting-flake class, third sighting).
+    if (cellB.name && /water|lava/.test(cellB.name)) {
+      skipped++
+      log(`placeMachine skip at ${cell}: the cell is ${cellB.name} (the dry-cell law - fluids read boundingBox empty)`)
+      continue
+    }
     if (cellB.boundingBox !== 'empty' || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') {
       skipped++
       log(`placeMachine skip at ${cell}: cell=${cellB.boundingBox} floor=${floorB.boundingBox} (floor ${floorB.name ?? '?'})`)
