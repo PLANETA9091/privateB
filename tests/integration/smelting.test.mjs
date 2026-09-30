@@ -29,6 +29,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 // ba63208: a craft oak_planks timeout died 'ReferenceError: recoverCraftWindow
 // is not defined' instead of sweeping the poisoned grid).
 const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
+// (v0.363.0) the placement rings + the flooded-alcove trigger live in a unit-pinned
+// lib - the integration helper imports the same shapes the unit tests pin
+const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
 const HOST = process.env.MC_HOST || '127.0.0.1'
 const PORT = Number(process.env.MC_PORT || 25565)
 
@@ -100,7 +103,11 @@ async function craftItem (bot, itemName, times, table, { tries = 3 } = {}) {
 
 // place a machine block on a free neighbour cell (same rules as placeTable: vanilla
 // refuses placements that intersect an entity hitbox, and right-clicks throttled to
-// 4 game ticks - hence the waitForTicks(5) before each attempt)
+// 4 game ticks - hence the waitForTicks(5) before each attempt). (v0.363.0) the
+// candidate pool is the ring-1 literals' import (src/lib/placement-rings.mjs) plus
+// the FLOODED-ALCOVE SITE PICKER: when ring 1 produced zero attempts (everything
+// skipped - the all-wet signature), the scan widens to ring 2 under the same
+// dry-cell law instead of giving up one block short of dry ground.
 async function placeMachine (bot, itemName) {
   const { Vec3 } = await import('vec3')
   const stack = bot.inventory.items().find(i => i.name === itemName)
@@ -114,32 +121,11 @@ async function placeMachine (bot, itemName) {
   const feet = bot.entity.position.floored()
   let skipped = 0
   let rejected = 0
-  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-    const cell = feet.offset(dx, 0, dz)
-    // never place into the cell the bot itself occupies (vanilla refuses placements
-    // that intersect an entity hitbox - the bot often falls into the freshly carved cell)
-    const feetB = bot.blockAt(feet)
-    if (feetB && cell.equals(feetB.position)) continue
-    const cellB = bot.blockAt(cell)
-    const floorB = bot.blockAt(cell.offset(0, -1, 0))
-    if (!cellB || !floorB) { skipped++; log(`placeMachine skip at ${cell}: null read (client chunk lag)`) ; continue }
-    // (v0.362.0) THE DRY-CELL LAW: fluids read boundingBox 'empty', so the box
-    // filter alone let a water cell through - CI 36752156115 fed a water cell
-    // to placeBlock and died 'Server refused to place furnace at ...: the block
-    // is still water' (mineflayer place_block.js:42), burning 5-tick rounds on
-    // a placement vanilla refuses while the wet machinery stood the bot down.
-    // A fluid cell is named and skipped BEFORE any attempt: the placement
-    // never rides water (the measured smelting-flake class, third sighting).
-    if (cellB.name && /water|lava/.test(cellB.name)) {
-      skipped++
-      log(`placeMachine skip at ${cell}: the cell is ${cellB.name} (the dry-cell law - fluids read boundingBox empty)`)
-      continue
-    }
-    if (cellB.boundingBox !== 'empty' || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') {
-      skipped++
-      log(`placeMachine skip at ${cell}: cell=${cellB.boundingBox} floor=${floorB.boundingBox} (floor ${floorB.name ?? '?'})`)
-      continue
-    }
+  // (v0.363.0) the shared per-cell body, factored so the widened scan cannot
+  // drift from the historic ring-1 behavior: the same skip checks in the same
+  // order (null read -> dry-cell law -> box/floor), the same equip -> place ->
+  // settle-verify attempt, every verdict still naming itself.
+  const attemptCell = async (cell, floorB) => {
     try {
       await bot.equip(stack, 'hand')
       await bot.waitForTicks(5)
@@ -159,8 +145,56 @@ async function placeMachine (bot, itemName) {
       rejected++
       log(`placeMachine ${itemName} at ${cell}: placeBlock resolved but the verify never read it back (client lag)`)
     } catch (e) { rejected++; log(`placeMachine ${itemName} at ${cell}: ${e.message}`) }
+    return null
   }
-  log(`placeMachine ${itemName}: all 8 cells tried (skipped=${skipped} rejected=${rejected})`)
+  const scanCell = async (cell) => {
+    const cellB = bot.blockAt(cell)
+    const floorB = bot.blockAt(cell.offset(0, -1, 0))
+    if (!cellB || !floorB) { skipped++; log(`placeMachine skip at ${cell}: null read (client chunk lag)`) ; return null }
+    // (v0.362.0) THE DRY-CELL LAW: fluids read boundingBox 'empty', so the box
+    // filter alone let a water cell through - CI 36752156115 fed a water cell
+    // to placeBlock and died 'Server refused to place furnace at ...: the block
+    // is still water' (mineflayer place_block.js:42), burning 5-tick rounds on
+    // a placement vanilla refuses while the wet machinery stood the bot down.
+    // A fluid cell is named and skipped BEFORE any attempt: the placement
+    // never rides water (the measured smelting-flake class, third sighting).
+    if (cellB.name && /water|lava/.test(cellB.name)) {
+      skipped++
+      log(`placeMachine skip at ${cell}: the cell is ${cellB.name} (the dry-cell law - fluids read boundingBox empty)`)
+      return null
+    }
+    if (cellB.boundingBox !== 'empty' || floorB.boundingBox === 'empty' || floorB.boundingBox === 'fluid') {
+      skipped++
+      log(`placeMachine skip at ${cell}: cell=${cellB.boundingBox} floor=${floorB.boundingBox} (floor ${floorB.name ?? '?'})`)
+      return null
+    }
+    return attemptCell(cell, floorB)
+  }
+  for (const [dx, dz] of RING1_OFFSETS) {
+    const cell = feet.offset(dx, 0, dz)
+    // never place into the cell the bot itself occupies (vanilla refuses placements
+    // that intersect an entity hitbox - the bot often falls into the freshly carved cell)
+    const feetB = bot.blockAt(feet)
+    if (feetB && cell.equals(feetB.position)) continue
+    const placed = await scanCell(cell)
+    if (placed) return placed
+  }
+  // (v0.363.0) THE FLOODED-ALCOVE SITE PICKER: rejected === 0 after ring 1 means
+  // the placement never even TRIED - every cell was named-and-skipped (the all-wet
+  // signature CI 36752156115 died on). Widen to ring 2 (16 cells at Chebyshev
+  // distance 2, nearest-first) under the same dry-cell law: a dry cell one block
+  // past the pond's edge is a placement, not a give-up. Any rejected attempt keeps
+  // the narrow behavior - a gravity refill or a server refusal is the carve
+  // ladder's class, not a wider scan's.
+  const widened = floodedAlcove(rejected)
+  if (widened) {
+    log(`placeMachine ${itemName}: the first ring is all-skip (skipped=${skipped}, rejected=0) - the flooded-alcove signature, widening the scan to the second ring`)
+    for (const [dx, dz] of RING2_OFFSETS) {
+      const placed = await scanCell(feet.offset(dx, 0, dz))
+      if (placed) return placed
+    }
+  }
+  log(`placeMachine ${itemName}: all ${widened ? `${RING1_OFFSETS.length + RING2_OFFSETS.length} cells across both rings` : '8 cells'} tried (skipped=${skipped} rejected=${rejected})`)
   return null
 }
 
