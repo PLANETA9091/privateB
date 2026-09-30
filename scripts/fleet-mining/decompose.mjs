@@ -34,6 +34,26 @@ console.log('  liar ladder resets:', count(/liar ladder resets/))
 console.log('  overrides (believe the bar):', count(/air-bar glitch override/))
 console.log('  wet-critical fast window:', count(/wet-critical fast window/))
 console.log('  GRACE HOLD/VOID:', count(/GRACE (HOLD|VOID)/), ' STORM PROBE:', count(/STORM PROBE/), ' FATAL:', count(/FATAL/))
+// (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
+// FATAL face, exit 143) was mined by hand because the tool counted none of
+// its classes: the frozen-relog loop (#N consecutive + the bypass echoes),
+// the freeze closure's own anatomy, and the nudge family's field legs (the
+// v0.356.0 side-step ladder, the v0.355.0 re-segment) rode the artifact
+// unread. A FATAL face never prints the FLEET RESULT - the mid-run lines
+// are ALL the account there is; the tool must read them.
+console.log('--- FROZEN-RELOG LOOP / FREEZE CLOSURE ---')
+console.log('  frozen client relogs:', count(/frozen client relog/), 'per-bot:', fmt(perBot(/frozen client relog/)))
+console.log('  gate bypassed (critical):', count(/gate bypassed \(critical read/), ' (wet cycler):', count(/gate bypassed \(wet cycler/))
+console.log('  gate holds the page:', count(/frozen-return gate holds the page/))
+console.log('  frozen physics standdowns:', count(/rescue standing down \(frozen physics/))
+console.log('  ticking-flat freeze names:', count(/freeze named ticking-flat/))
+console.log('  hazard memorized:', count(/hazard memorized/))
+console.log('--- NUDGE FAMILY FIELD LEGS ---')
+console.log('  nudge approach verdicts:', count(/path nudge approach:/), 'per-bot:', fmt(perBot(/path nudge approach:/)))
+console.log('  nudge inside envelope:', count(/inside the direct envelope\)/), ' still outside:', count(/still outside/))
+console.log('  stall side-step lines:', count(/stall side-step/), 'per-bot:', fmt(perBot(/stall side-step/)))
+console.log('  envelope re-segment lines:', count(/envelope re-segment/))
+console.log('  singular probe rescues:', count(/the singular probe rescued the scan/))
 
 console.log('=== GOAL BRAKE / DUCK / VALVE ===')
 console.log('  brake refuse lines:', count(/goal brake:.*refus/), 'per-bot:', fmt(perBot(/goal brake:.*refus/)))
