@@ -9887,3 +9887,17 @@ Work Log:
 
 Stage Summary:
 - Master = d3a300d (pkg 0.339.0). The clock = 248000 (one truth). The fourth face's contract stands: the gap row silent at 244 <= 248 if the flow holds; the low-o2 front (60% of the climb tax) is 0.340.0's instrument-first read.
+
+---
+Task ID: cron38-20260930-1538
+Agent: cron38 (fire 1538 +08, Job 415967)
+Task: fire 1538 - the freeze discovery, ship v0.340.0 THE FREEZE NAMES ITSELF.
+
+Work Log:
+- Re-mined the third face (fleet19.log 3296 lines) for the low-o2 front and found the REAL head wound: 57 frozen-physics verdicts in one run, ALL 31 rescue stand-downs frozen (100%), 24 forced relogs, F16 x12 / F15 x11 / F13 x11 - three bots spent the whole run in the freeze->relog->resume-wet loop. The doom census's 'low-o2 60%' is a SYMPTOM: the escapes start mid-water AFTER a relog with the bar already drained (the F16 trace: relog -> resume -> 'oxygen 4 at the floor' -> yield -> rescue -> frozen physics -> relog).
+- THE MECHANISM (mineflayer 4.39.0 source, lib/plugins/physics.js read in this fire): tickPhysics skips through four silent gates with the socket ALIVE - client state != play; entity missing/non-finite; blockAt(position) == null (THE CHUNK UNLOADED); physicsEnabled false - and behind them the closure shouldUsePhysics: set false on mount/death/respawn/login/start_configuration, re-armed ONLY by the forced-move handler. A server that never corrects our position leaves the lane cold forever (waitForTicks times out - the rescue's own 'dead physics' read).
+- v0.340.0 (5f4173b): freezeClass names the class at the verdict (config-state / entity-lost / chunk-lost / physics-disabled / lane-cold / ticking-flat); FREEZE_TICK_SILENT_MS=1000; the tick tracker arms a dedicated physicsTick heartbeat; the diagnosis line rides the rate-limited stand-down block; the relog decision byte-for-byte untouched. Tests: boundary 999/1000, gate-order, junk battery (nulls pass, === false condemns), zero-age, wiring pins. Local: unit 2400/2400. v0.339.0 CI-proven (gate 549953 SUCCESS) before the push; rebased clean over cron30's 0d839d8 (COLLISION #22's landing) - the secession held.
+- The queued workflow run 36686530635 (0d839d8) spotted: a QUEUED dispatch hides its fleet job (the lazy-jobs-list lesson) - no duplicate dispatch until it materializes.
+
+Stage Summary:
+- Master = 5f4173b (pkg 0.340.0). NEXT FIRE: fifo first; poll the 0.340.0 push gate; poll 36686530635 - when it starts, read its jobs (fleet job = let the fourth face land and mine it; SKIPPED = non-fleet, dispatch the post-0.340.0 face on the proven tip). The freeze class distribution aims 0.341.0: lane-cold -> the cheap self-re-arm (the nudge instead of the 10-20s relog); chunk-lost -> chunk healing; ticking-flat -> world-side. Version next: 0.341.0.
