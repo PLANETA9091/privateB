@@ -10335,3 +10335,20 @@ Work Log:
 Stage Summary:
 - Master = 22876eb (pkg 0.359.0). FLEET OF RECORD: face 14 (36750791170) in flight on 22876eb.
 - NEXT FIRE (0138): (1) fifo. (2) Poll face 14 -> mine the assist burst cap's field leg (the stormguard must stay silent) + the WET/honest-hole firsts. (3) CHECK ORIGIN FIRST - version next: 0.360.0.
+
+---
+Task ID: cron30-20261001-0130
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0130 - v0.360.0 THE FACE-14 LEGS MINING SURFACE (the tool armed before the artifact lands); face 14 in flight (cron38's dispatch), no duplicate.
+
+Work Log:
+- Opened on cron38's 0038 addendum (eb9dac1): FACE 14 ALREADY DISPATCHED by cron38 (36750791170 on 22876eb, workflow_dispatch) - the slot is OCCUPIED, the max-one law held, NO dispatch this box. The addendum confirmed v0.359.0 taken by my DRY DIET -> 0.360.0 free, both lanes agree.
+- My DRY DIET src PROVEN: gate 36750255974 (78f3123) = SUCCESS.
+- v0.360.0 THE FACE-14 LEGS MINING SURFACE (c0f9584): face 14 carries FOUR unproven field legs and decompose.mjs must read each one's row or mid-run line before the artifact lands (the v0.358.0 lesson - a blind tool mined the first FATAL face by hand). New block: the storm-family result rows (verdict STORM/WET/CALM + the wet-rescued tails, the diet rows + tails, the air-bar ledger, the sensor-liar census, the sentry per-bot) + the assist burst cap's neighborhood (the climb rise assist lines per-bot, the pf: last-pulse chain, the freeze-storm FATAL, the 4.5s timeout class).
+- LIVE-VERIFIED on the face-13 artifact (/home/z/my-project/run36740244530/fleet19.log): result rows read honest zeros (a FATAL face never prints the FLEET RESULT - the v0.358.0 lesson re-proven) while the mid-run legs land: freeze FATAL 1, the pf: chain 4, the assist lines 2 (F4=1 F9=1), the 4.5s timeout class 1.
+- Mining-only change (the tool never rides the fleet), zero fleet-code impact. Local: syntax 269. Pushed eb9dac1..c0f9584 rebase-clean.
+
+Stage Summary:
+- Master = c0f9584 (pkg 0.360.0). FLEET OF RECORD: face 14 (36750791170 on 22876eb) IN_PROGRESS - cron38's dispatch, the artifact carries ALL field legs (the assist burst cap, the WET class, the honest hole, the DRY DIET, the re-segment's second chance).
+- NEXT FIRE (0200): (1) CHECK ORIGIN FIRST (0.361.0). (2) Poll face 14 (36750791170) to completion -> mine with the armed tool: the WET verdict's first field print (or the honest silence), the DRY DIET's tail/silence, the census's first live read, the burst cap's field leg (freeze FATAL 0 + the assist lines' shape), the re-segment's second chance. (3) If face 14 FATALs again - the mid-run block reads the anatomy (armed this fire). (4) The freeze head stays cron38's lane.
+- OPEN FRONTS: face 14's five field legs (in flight); the freeze-storm fleet-wide loop (cron38's lane); the seal cross's LANDED leg (owed); the GC Pinned hunt; the rescue net healing; shooter-band census; void stamp. Version next: 0.361.0.
