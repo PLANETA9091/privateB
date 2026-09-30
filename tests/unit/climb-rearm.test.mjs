@@ -17,7 +17,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 import {
-  gotoSafe, recordDoomedGoal, doomedGoalStats, resetDoomedGoalLedger, DOOMED_GOAL_RADIUS
+  gotoSafe, recordDoomedGoal, doomedGoalStats, resetDoomedGoalLedger, DOOMED_GOAL_RADIUS,
+  ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS
 } from '../../src/lib/jobqueue.mjs'
 
 const minerSrc = readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
@@ -86,4 +87,115 @@ test('doomed-goal ledger: a genuinely dead step cell still fails honestly throug
   )
   assert.equal(calls.goto, 1, 'the re-arm is not a free pass - the dead geometry still costs its verdict')
   assert.equal(doomedGoalStats().records, 1, 'the verdict still records (the ledger learns from the re-armed failure too)')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.358.0) THE ASSIST BURST CAP - face 13 (36740244530, exit 143) stormguard-
+// FATAL'd on a NEAR goal: the climb rise assist's step cell sits 1-2 blocks
+// out, the v0.144.0 far-goal cap (distance-keyed) never applied, and the boot
+// 32/2000 burst ran on open-water geometry - the swimmable frontier exploded,
+// rss 425M -> 1753M in one burst, the main locked 5s, every closure applier
+// dead on the locked thread. The assist now rides caller-explicit burst knobs
+// (the far-cap's proven 24/500 pair) - radius 24 is an order of magnitude
+// past any legal 1-2 block jump, so the cap only kills the pathological
+// flood-fill, and the swap restores in gotoSafe's finally (the deposit law).
+// ---------------------------------------------------------------------------
+test('THE ASSIST BURST CAP: the explicit knobs bound the burst and restore on resolve', async () => {
+  resetDoomedGoalLedger()
+  assert.equal(ASSIST_BURST_SEARCH_RADIUS, 24, 'the far-cap PROVEN radius (one burst shape, one law)')
+  assert.equal(ASSIST_BURST_THINK_TIMEOUT_MS, 500, 'the far-cap PROVEN think (the v0.144.0 math: ~4x fewer nodes, 4x sooner yield)')
+  const seen = {}
+  const bot = {
+    _waterRescue: false,
+    pathfinder: {
+      searchRadius: 32,
+      thinkTimeout: 2000,
+      goto () {
+        seen.radius = bot.pathfinder.searchRadius
+        seen.think = bot.pathfinder.thinkTimeout
+        return Promise.resolve('done')
+      },
+      stop () {},
+      setGoal () {}
+    },
+    waitForTicks: () => Promise.resolve()
+  }
+  await gotoSafe(bot, { x: 10, y: FLOOR + 7, z: 10 }, { timeoutMs: 500, label: 'burst probe', burstRadius: ASSIST_BURST_SEARCH_RADIUS, burstThinkMs: ASSIST_BURST_THINK_TIMEOUT_MS })
+  assert.equal(seen.radius, 24, 'the burst radius is the capped pair DURING the walk')
+  assert.equal(seen.think, 500, 'the burst think is the capped pair DURING the walk')
+  assert.equal(bot.pathfinder.searchRadius, 32, 'the boot radius is restored after the resolve (the crippled-pathfinder class)')
+  assert.equal(bot.pathfinder.thinkTimeout, 2000, 'the boot think is restored after the resolve')
+})
+
+test('THE ASSIST BURST CAP: the restore survives the rejection (a dead walk never cripples the bot)', async () => {
+  resetDoomedGoalLedger()
+  const seen = {}
+  const bot = {
+    _waterRescue: false,
+    pathfinder: {
+      searchRadius: 32,
+      thinkTimeout: 2000,
+      goto () {
+        seen.radius = bot.pathfinder.searchRadius
+        return Promise.reject(new Error('No path to the goal!'))
+      },
+      stop () {},
+      setGoal () {}
+    },
+    waitForTicks: () => Promise.resolve()
+  }
+  await assert.rejects(
+    async () => gotoSafe(bot, { x: 11, y: FLOOR + 7, z: 10 }, { timeoutMs: 500, label: 'burst probe reject', burstRadius: 24, burstThinkMs: 500 }),
+    /No path/
+  )
+  assert.equal(seen.radius, 24, 'the cap rode the failing walk too')
+  assert.equal(bot.pathfinder.searchRadius, 32, 'the boot radius is restored after the reject')
+  assert.equal(bot.pathfinder.thinkTimeout, 2000, 'the boot think is restored after the reject')
+})
+
+test('THE ASSIST BURST CAP: junk knobs read uncapped - a missing cap never invents one', async () => {
+  resetDoomedGoalLedger()
+  const seen = {}
+  const bot = {
+    _waterRescue: false,
+    pathfinder: {
+      searchRadius: 32,
+      thinkTimeout: 2000,
+      goto () {
+        seen.radius = bot.pathfinder.searchRadius
+        seen.think = bot.pathfinder.thinkTimeout
+        return Promise.resolve('done')
+      },
+      stop () {},
+      setGoal () {}
+    },
+    waitForTicks: () => Promise.resolve()
+  }
+  // NaN, zero and negative are impossible caps - the walk runs at boot defaults
+  // (a unique cell per iteration: the mock never arrives, so a shared cell
+  // would ledger a doomed verdict and refuse the second probe)
+  let idx = 0
+  for (const junk of [NaN, 0, -5]) {
+    await gotoSafe(bot, { x: 12, y: FLOOR + 7, z: 10 + idx }, { timeoutMs: 500, label: `junk burst ${idx}`, burstRadius: junk, burstThinkMs: 500 })
+    assert.equal(seen.radius, 32, `junk radius ${junk} reads uncapped (the body-guard law)`)
+    assert.equal(seen.think, 2000, `junk radius ${junk} never touches the think`)
+    idx++
+  }
+  await gotoSafe(bot, { x: 13, y: FLOOR + 7, z: 40 }, { timeoutMs: 500, label: 'junk burst think', burstRadius: 24, burstThinkMs: NaN })
+  assert.equal(seen.radius, 32, 'a junk think caps nothing (both knobs or none)')
+  assert.equal(seen.think, 2000, 'a junk think reads the boot default')
+})
+
+test('THE ASSIST BURST CAP: the wiring pins (the call carries the knobs, the restore rides burstOn)', () => {
+  // the dead-wire class: the knobs exist but are not passed is the failure shape
+  const call = minerSrc.match(/gotoSafe\(bot, new goals\.GoalBlock\(recovery\.stepTop\.[\s\S]*?\)\)/)
+  assert.match(call[0], /burstRadius:\s*ASSIST_BURST_SEARCH_RADIUS/, 'the burst radius rides the assist call')
+  assert.match(call[0], /burstThinkMs:\s*ASSIST_BURST_THINK_TIMEOUT_MS/, 'the burst think rides the assist call')
+  // the restore guard keys on the COMBINED cap (the far cap keeps precedence;
+  // an explicit-only walk must restore too)
+  assert.match(minerSrc, /from '\.\.\/lib\/jobqueue\.mjs'/)
+  const jobSrc = readFileSync(new URL('../../src/lib/jobqueue.mjs', import.meta.url), 'utf8')
+  assert.ok(jobSrc.includes("if (!burstOn || !pf) return"), 'the restore guard keys on the combined cap (the explicit-only walk restores too)')
+  assert.match(jobSrc, /const burstRadiusEff = capThink \? FAR_GOAL_SEARCH_RADIUS : Math\.floor\(burstRadius\)/, 'the far cap keeps precedence over the caller hint')
+  assert.ok(jobSrc.includes('THE ASSIST BURST CAP knobs'), 'the knobs carry their own doctrine comment')
 })

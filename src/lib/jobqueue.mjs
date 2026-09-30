@@ -626,6 +626,21 @@ export const STORM_DUCK_MS_DEFAULT = 15000 // the duck window: inside the worker
 // wedge) to the few-hundred-MB class the GC drains between bursts.
 export const FAR_GOAL_SEARCH_RADIUS = 24
 export const FAR_GOAL_THINK_TIMEOUT_MS = 500
+// (v0.358.0) THE ASSIST BURST CAP knobs (see gotoSafe's burstRadius/burstThinkMs
+// options). MEASURED (fleet 36740244530, face 13, exit 143): the stormguard
+// FATAL'd on a NEAR goal - the climb rise assist's step cell sits 1-2 blocks
+// out, so the v0.144.0 far-goal cap never applied and the boot 32/2000 burst
+// ran on open-water geometry, where the swimmable frontier explodes: rss
+// 425M -> 1753M in one burst window, the main locked 5s while allocating,
+// every closure applier dead on the locked thread (the run53/35647216505 OOM
+// class - run 36292057377's probe spent 2271M the same way). The assist's
+// legitimate geometry is a 1-2 block jump with a 2-3 block run-up - radius
+// 24 is an order of magnitude past any legal plan, so the cap only kills the
+// pathological flood-fill. The values ride the far-cap's PROVEN pair (the
+// v0.144.0 math: ~4x fewer nodes, 4x sooner yield) instead of inventing a
+// new envelope - one burst shape, one law.
+export const ASSIST_BURST_SEARCH_RADIUS = 24
+export const ASSIST_BURST_THINK_TIMEOUT_MS = 500
 let duckUntilMs = 0
 let duckArms = 0
 let duckSeqApplied = -1 // the cell seq that armed the current duck (one verdict, one arm)
@@ -949,7 +964,7 @@ function clearStaleStop (bot) {
   } catch { /* diagnostics must never block the walk they precede */ }
 }
 
-export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false, doomTtl = null } = {}) {
+export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priority = 0, doomedRearm = false, doomTtl = null, burstRadius = null, burstThinkMs = null } = {}) {
   // (v0.270.0) THE TRIP LEG STAMP: the label lives on the bot so the drown
   // context can name the leg the bot was last ASKED to walk (face 36378053182:
   // F10 drowned 123s after a completed rescue with ZERO rescue lines in the
@@ -1171,6 +1186,19 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
   // walk never leaves its bot's pathfinder crippled.
   const farGoal = walkDistanceOf(bot, goal)
   const capThink = Number.isFinite(farGoal) && farGoal > ALLOC_VALVE_NEAR_BLOCKS_DEFAULT
+  // (v0.358.0) THE ASSIST BURST CAP - the caller's explicit burst bound for
+  // the near goal it KNOWS is tiny-geometry (the climb rise assist's step
+  // cell): the v0.144.0 cap keys on DISTANCE and a near goal keeps the boot
+  // 32/2000 byte for byte - exactly the envelope face 13's wet assist burst
+  // died in. The explicit knobs shrink the burst for THIS walk only; junk
+  // (NaN, zero, negative) reads uncapped - a missing cap never invents one
+  // (the body-guard law). The far cap keeps precedence when both apply (the
+  // fleet-wide law outranks the caller's hint; the pair values coincide at
+  // 24/500 so the shapes compose).
+  const explicitCap = Number.isFinite(burstRadius) && burstRadius > 0 && Number.isFinite(burstThinkMs) && burstThinkMs > 0
+  const burstOn = capThink || explicitCap
+  const burstRadiusEff = capThink ? FAR_GOAL_SEARCH_RADIUS : Math.floor(burstRadius)
+  const burstThinkEff = capThink ? FAR_GOAL_THINK_TIMEOUT_MS : Math.floor(burstThinkMs)
   return fleetPaths.run(() => {
     clearStaleStop(bot) // (v0.20.0) consume a stale stopPathing flag BEFORE the new goal registers its listeners
     noteGlobal(`pf:goal ${label}`)
@@ -1178,16 +1206,16 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
     let prevRadius
     let prevThink
     const pf = bot.pathfinder
-    if (capThink && pf) {
+    if (burstOn && pf) {
       try {
         prevRadius = pf.searchRadius
         prevThink = pf.thinkTimeout
-        pf.searchRadius = FAR_GOAL_SEARCH_RADIUS
-        pf.thinkTimeout = FAR_GOAL_THINK_TIMEOUT_MS
+        pf.searchRadius = burstRadiusEff
+        pf.thinkTimeout = burstThinkEff
       } catch { /* bare mocks - the walk below still runs */ }
     }
     const restore = () => {
-      if (!capThink || !pf) return
+      if (!burstOn || !pf) return // (v0.358.0) the explicit cap restores too - a dead walk never leaves its bot's pathfinder crippled
       try { if (prevRadius !== undefined) pf.searchRadius = prevRadius } catch { /* mocks */ }
       try { if (prevThink !== undefined) pf.thinkTimeout = prevThink } catch { /* mocks */ }
     }

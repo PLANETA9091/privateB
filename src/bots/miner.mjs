@@ -11,7 +11,7 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES, ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS } from '../lib/jobqueue.mjs'
 import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
@@ -5184,7 +5184,18 @@ export function createMiner ({
             // cell still fails honestly (NoPath/timeout) into the existing
             // rotate ladder - the flag widens nothing (the radius, the ttl
             // and the record rules are untouched).
-            await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist', doomedRearm: true })
+            // (v0.358.0) THE ASSIST BURST CAP - the assist's step cell sits
+            // 1-2 blocks out, so the v0.144.0 far-goal cap (distance-keyed)
+            // never applied and the boot 32/2000 burst ran on whatever the
+            // geometry held - face 13 (36740244530, exit 143) held OPEN
+            // WATER: the swimmable frontier exploded, rss 425M -> 1753M in
+            // one burst, the main locked 5s, the stormguard FATAL'd (the
+            // run53 OOM class). The assist rides the caller-explicit burst
+            // knobs (the far-cap's PROVEN 24/500 pair) - radius 24 is an
+            // order of magnitude past any legal 1-2 block jump plan, so the
+            // cap only kills the pathological flood-fill, and the swap
+            // restores in gotoSafe's finally (the deposit.mjs law).
+            await gotoSafe(bot, new goals.GoalBlock(recovery.stepTop.x, recovery.stepTop.y, recovery.stepTop.z), { timeoutMs: recovery.timeoutMs, label: 'climb rise assist', doomedRearm: true, burstRadius: ASSIST_BURST_SEARCH_RADIUS, burstThinkMs: ASSIST_BURST_THINK_TIMEOUT_MS })
             assistMoved = true
           } catch (e) { assistNote = `goto: ${e.message}` }
         }
