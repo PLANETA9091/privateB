@@ -62,6 +62,24 @@ console.log('  liar ladder resets:', count(/liar ladder resets/))
 console.log('  overrides (believe the bar):', count(/air-bar glitch override/))
 console.log('  wet-critical fast window:', count(/wet-critical fast window/))
 console.log('  GRACE HOLD/VOID:', count(/GRACE (HOLD|VOID)/), ' STORM PROBE:', count(/STORM PROBE/), ' FATAL:', count(/FATAL/))
+// (v0.371.0) THE DROWNED-HOUND CENSUS - face 15 (36760275928, the first
+// SUCCESS face the ledger read) showed the drowning SOURCE the rescue net
+// only ever mops after: drowned mobs hound the wet bot while it swims, the
+// combat layer answers 'flee toward shore vs drowned (proximity)' dozens of
+// times a face, the re-verdict subclass marks the hound that re-engaged, and
+// the death lines split 'drown context' (the water did it) from
+// 'drowned-kill context' (the mob did it - the hound won). The rescue
+// ledger's starts count the SYMPTOM; this census counts the PRESSURE - the
+// decode that prices a cure (the hound front) needs both, and the tool must
+// read them (the blind-tool lesson). Mining-surface only: zero fleet wiring,
+// zero new log lines - the census reads the lines the combat and death
+// blocks already own.
+console.log('--- DROWNED-HOUND CENSUS (v0.371.0) ---')
+console.log('  flee-shore vs drowned:', count(/combat: flee toward shore \([0-9,-]+ step [0-9]+\) vs drowned \(proximity\)/), 'per-bot:', fmt(perBot(/combat: flee toward shore \([0-9,-]+ step [0-9]+\) vs drowned \(proximity\)/)))
+console.log('  hound re-verdicts (the re-engaged hound):', count(/vs drowned \(proximity re-verdict\)/))
+console.log('  death drown context (the water did it):', count(/death: drown context/))
+console.log('  death drowned-kill context (the hound won):', count(/death: drowned-kill context/))
+console.log('  drowned-kill per-bot:', fmt(perBot(/death: drowned-kill context/)))
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
 // its classes: the frozen-relog loop (#N consecutive + the bypass echoes),
