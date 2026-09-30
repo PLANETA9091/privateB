@@ -24,7 +24,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
@@ -2526,12 +2526,33 @@ async function runBot (name, target, index) {
         // read the distance as 0 (the bankTripBudgetMs floor) - a 0 distance must
         // never be mistaken for 'standing at the yard' by the slot order.
         const yardDist = yardGoal && miner.bot.entity ? miner.bot.entity.position.distanceTo(yardGoal) : null
+        // (v0.345.0) THE FLOW-PRICED CLOCK - the static 248s floor priced the
+        // HEALTHY flow it was measured on; face 36697238002 read '370s needed,
+        // 248s budgeted - 122s short at 2.6u/s' (the gap row's own verdict).
+        // The chain's entry now prices the LIVE fleet flow against THIS bot's
+        // bankable pocket (the non-KEEP mass - the KEEP items never ride a
+        // chest, pricing them would be a lie) and extends the floor by the
+        // flow-implied need (+ the v0.334.0 4s margin). The kill-margin law is
+        // untouched: the floor only feeds finalBankBudgetMs, whose
+        // min(want, margin) construction cannot be outrun - the extension
+        // moves the clock, never the kill. A covered pocket speaks nothing
+        // (the leanness law); a clamped extension names the clamp.
+        const endPocketUnits = miner.bot.inventory
+          ? miner.bot.inventory.items()
+              .filter(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
+              .reduce((a, i) => a + ((Number.isFinite(i?.count) && i.count > 0) ? i.count : 0), 0)
+          : 0
+        const flowClock = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: endPocketUnits, baseMs: END_BANK_BUDGET })
         const chainBudgetMs = finalBankBudgetMs({
           yardDist,
           marginLeftMs: entryMarginMs,
-          floorMs: END_BANK_BUDGET,
+          floorMs: flowClock.floorMs,
           capMs: END_BANK_BUDGET_CAP_MS
         })
+        if (flowClock.extended) {
+          const clamped = chainBudgetMs < flowClock.floorMs
+          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (pocket ${endPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
+        }
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
         // path throttle 6a/10q - every walk budget burned in the queue). Index-

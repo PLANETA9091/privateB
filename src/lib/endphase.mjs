@@ -506,3 +506,59 @@ export function finalBankDoomLatch (opts = {}) {
   const c = Number.isFinite(latchCycles) && latchCycles > 0 ? Math.floor(latchCycles) : FINAL_BANK_DOOM_LATCH_CYCLES
   return { latched: n >= c, failed: n }
 }
+
+// ---------------------------------------------------------------------------
+// (v0.345.0) THE FLOW-PRICED CLOCK - the static end-bank budget priced the
+// HEALTHY flow it was measured on, and the field convicted the static: face
+// 36697238002 (the sixth face) read flow 2.6u/s against the static 248s and
+// the gap row named the shortage exactly ('370s needed, 248s budgeted - 122s
+// short at 2.6u/s'). The flow variance IS the front (4.7 / 0.7 / 0.0 / 2.6
+// across faces 3-6 - the zero-bank theory died on face 6: banked 1796 ON a
+// storm), so the clock now reads the LIVE bank flow at the chain's entry and
+// extends the floor to the flow-implied need. The v0.334.0 law rides: need +
+// a 4s margin. The dead-flow case stays the storm front's business, not the
+// clock's (a 0.0u/s flow prices an unbounded need - no static budget covers
+// it, the endphase v0.34.0 note's own law). The kill-margin law is NOT
+// re-implemented here: the floor only feeds finalBankBudgetMs, whose
+// min(want, margin) construction the v0.41.0 note already owns ('the margin
+// cannot be outrun, same construction as v0.34.0') - the extension can move
+// the clock, never the kill.
+//
+// Sibling-shape law: the rate is the SAME arithmetic as bankBudgetGapRow's
+// (same sample filter, same unrounded rate, the same ceil on the need - the
+// row that prices the shortage and the clock that pays it must never
+// disagree).
+/** The v0.334.0 margin: the priced need always carries a 4s cushion. */
+export const FLOW_PRICE_MARGIN_S = 4
+
+/**
+ * Price the end-bank floor from the LIVE bank flow (pure, junk-safe).
+ * @param {object} [p]
+ * @param {Array<{t: number, banked: number}>} [p.samples] the fleet's bank-flow samples (t in seconds; junk/short -> the static clock)
+ * @param {number|null} [p.pocketUnits] the pocket this chain must carry (junk/<=0 -> the static clock)
+ * @param {number} [p.baseMs] the static floor to extend (default END_BANK_BUDGET_MS; junk/<=0 -> END_BANK_BUDGET_MS)
+ * @returns {{floorMs: number, rate: number|null, needS: number|null, extended: boolean}} extended=false reads the static clock (the leanness law: a covered pocket speaks nothing)
+ */
+export function flowPriceClock ({ samples = [], pocketUnits = null, baseMs = END_BANK_BUDGET_MS } = {}) {
+  const base = (Number.isFinite(baseMs) && baseMs > 0) ? baseMs : END_BANK_BUDGET_MS
+  const pocket = Number(pocketUnits)
+  if (!Number.isFinite(pocket) || Math.floor(pocket) <= 0) return { floorMs: base, rate: null, needS: null, extended: false }
+  if (!Array.isArray(samples) || samples.length < 2) return { floorMs: base, rate: null, needS: null, extended: false }
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const t0 = Number(first?.t)
+  const t1 = Number(last?.t)
+  const b0 = Number(first?.banked)
+  const b1 = Number(last?.banked)
+  if (!Number.isFinite(t0) || !Number.isFinite(t1) || !Number.isFinite(b0) || !Number.isFinite(b1)) return { floorMs: base, rate: null, needS: null, extended: false }
+  const span = t1 - t0
+  if (!(span > 0)) return { floorMs: base, rate: null, needS: null, extended: false }
+  const rate = (b1 - b0) / span
+  // a stood-still or negative flow is the storm front's business - the clock
+  // keeps the static floor (no budget covers a dead flow)
+  if (!(rate > 0)) return { floorMs: base, rate: null, needS: null, extended: false }
+  const needS = Math.ceil(Math.floor(pocket) / rate) + FLOW_PRICE_MARGIN_S
+  const needMs = needS * 1000
+  if (!(needMs > base)) return { floorMs: base, rate, needS, extended: false }
+  return { floorMs: needMs, rate, needS, extended: true }
+}
