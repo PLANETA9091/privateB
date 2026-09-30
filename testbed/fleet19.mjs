@@ -2692,7 +2692,17 @@ async function runBot (name, target, index) {
                 console.log(`${name} final climb: wet shift - ${shiftPlan.why} (${Math.round(shiftSliceMs / 1000)}s of slice left)`)
                 const feet0 = miner.bot.entity.position.floored()
                 const shiftFenceAt = Date.now() + WET_SHIFT_TUNNEL_MAX_MS
+                const shiftTunnelStart = Date.now()
                 const tun = await miner.tunnel({ x: shiftPlan.bearing.x, z: shiftPlan.bearing.z }, { maxBlocks: WET_SHIFT_BLOCKS, maxMs: WET_SHIFT_TUNNEL_MAX_MS, shouldStop: () => Date.now() > shiftFenceAt })
+                const shiftTunnelMs = Date.now() - shiftTunnelStart
+                // (v0.338.0) THE SHIFT-TUNNEL PRICING - two faces refused the
+                // shift at the slice floor (80s, 82s vs the 90s floor) and the
+                // floor has no data to re-price itself with: no completed
+                // shift-tunnel sample exists (the one attempt stalled at
+                // done=0). The duration speaks at EVERY verdict now - the
+                // floor's next pricing rides the tunnel's real distribution,
+                // not a guess (the telemetry-first law: instrument, then price).
+                console.log(`${name} final climb: wet shift tunnel: ${tun?.done ?? '?'} blocks in ${Math.round(shiftTunnelMs / 1000)}s${tun?.stopped ? ` (${tun.stopped})` : ''}`)
                 const feet1 = miner.bot.entity ? miner.bot.entity.position.floored() : null
                 if (!feet1 || (feet1.x === feet0.x && feet1.z === feet0.z)) {
                   console.log(`${name} final climb: wet shift stalled (tunnel done=${tun?.done ?? '?'}${tun?.stopped ? ` ${tun.stopped}` : ''}) - the climb stays home (a re-entry would ride the memo's refusal)`)

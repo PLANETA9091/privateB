@@ -131,6 +131,15 @@ test('the wiring: the branch rides the wet-wall no-retry seam, the tunnel is the
   assert.match(fleetSrc, /wetColumnMemoBlocked\(miner\.bot\._wetColumnMemo, \{ x: feet1\.x, z: feet1\.z, y: feet1\.y \}\)\.blocked/, 'the landed feet ride the memo check')
   // a shift that never left the column climbs nothing
   assert.match(fleetSrc, /wet shift stalled \(tunnel done=/, 'the stalled shift names its tunnel verdict')
+  // (v0.338.0) THE SHIFT-TUNNEL PRICING - the tunnel's duration speaks at
+  // every verdict: two slice-floor refusals (80s, 82s vs 90s) and zero
+  // completed samples means the floor is unpriced - instrument, then price.
+  const tunnelCallIdx = fleetSrc.indexOf('const tun = await miner.tunnel(')
+  const startIdx = fleetSrc.indexOf('const shiftTunnelStart = Date.now()')
+  const priceIdx = fleetSrc.indexOf("wet shift tunnel: ${tun?.done ?? '?'} blocks in")
+  assert.ok(startIdx > 0 && startIdx < tunnelCallIdx, 'the tunnel clock opens before the mover')
+  assert.ok(priceIdx > tunnelCallIdx, 'the duration speaks after the tunnel returns')
+  assert.ok(fleetSrc.includes('const shiftTunnelMs = Date.now() - shiftTunnelStart'), 'the duration is measured, not asserted')
   // the shifted climb counts on the route latch (one truth per bot)
   const shiftClimbIdx = fleetSrc.indexOf('const shiftClimbFence = Math.min(PILLAR_MAX_MS, climbSliceLeft)')
   const latchIdx = fleetSrc.indexOf("(v0.321.0) the shifted climb counts too")
