@@ -16,7 +16,17 @@ on:
         default: '300'
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # (v0.331.0) THE FLEET-QUEUE SECESSION: one shared group let CI push-churn
+  # starve and supersede the fleet's own dispatch - 36647887487 (the
+  # eight-instrument face) died queued exactly that way, and the fires from
+  # 0638 to 0938 watched six gates die behind the same churn. The fleet now
+  # secedes: a dispatch with run_fleet=true groups under ...-fleet and is
+  # untouchable by CI churn; every other run (push gates + CI dispatches)
+  # groups under ...-gate with the same behavior as before. cancel-in-progress
+  # stays false: a RUNNING fleet is never killed by a newer arrival - a
+  # duplicate dispatch queues behind it instead (the poll-before-duplicate
+  # protocol still governs the dispatchers).
+  group: ci-${{ github.ref }}-${{ github.event.inputs.run_fleet == 'true' && 'fleet' || 'gate' }}
   cancel-in-progress: false
 
 jobs:
