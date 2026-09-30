@@ -303,6 +303,17 @@ export function rescueHoleRow (bots = []) {
 // never enter the diet (the body-guard law). The row READS a theory, it does
 // not convict one: 100% beach-class is evidence, 0% is evidence too. Pure:
 // reads, never mutates.
+// (v0.359.0) THE DRY DIET - the wet-rescue exclusion reaches the floor: a
+// whale qualifies on its DRY sum (airGlitches minus the clamped wet-window
+// share) - face 36733939481's F12 (600 glitches from ONE wet rescue, the
+// mined mass all beach) would have been the storm's biggest whale and the
+// row would have convicted its beach territory on rescue noise. The
+// mined-mass read never changes (the histogram is the territory's evidence
+// either way); a whale that survives on dry mass names the excluded share
+// (', wet-rescued N' - the v0.357.0 mixed form); junk wet keeps the total
+// (junk never invents an exclusion - the body-guard law); an all-wet whale
+// drops below the floor and the row stays silent (the honest silence is a
+// form); a zero-wet face renders byte-identical to v0.358.0 (the sync law).
 export const STORM_DIET_MIN_GLITCHES = 100
 export const STORM_DIET_BEACH_BLOCKS = ['sand', 'gravel', 'dirt', 'clay']
 
@@ -317,7 +328,11 @@ export function stormDietRow (bots = []) {
   const whales = []
   for (const b of bots) {
     const s = b && typeof b === 'object' ? b.stats : null
-    const g = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+    const gRaw = s && Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+    // (v0.359.0) the dry sum: the wet-window share never qualifies a whale
+    const wRaw = s && Number.isFinite(s.wetRescueGlitches) && s.wetRescueGlitches > 0 ? Math.floor(s.wetRescueGlitches) : 0
+    const wet = Math.min(wRaw, gRaw)
+    const g = gRaw - wet
     if (g < STORM_DIET_MIN_GLITCHES) continue
     const hist = s.byName && typeof s.byName === 'object' ? s.byName : {}
     let total = 0
@@ -328,7 +343,7 @@ export function stormDietRow (bots = []) {
       total += n
       if (beach.has(k)) beachNamed.push({ name: k, n })
     }
-    whales.push({ name: b.name ?? '?', total, beachNamed })
+    whales.push({ name: b.name ?? '?', total, beachNamed, wet })
   }
   if (!whales.length) return null
   // byte-stable beach blocks: count desc, name asc; keep the top two
@@ -338,7 +353,8 @@ export function stormDietRow (bots = []) {
     w.beachNamed.sort((a, b) => (b.n - a.n) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     const top = w.beachNamed.slice(0, 2).map(x => `${x.name} ${x.n}`).join(', ')
     const pct = ((bTotal / w.total) * 100).toFixed(1)
-    return `${w.name} ${pct}% beach-class${top ? ` (${top})` : ''}`
+    // (v0.359.0) a whale that survives on dry mass names the excluded share
+    return `${w.name} ${pct}% beach-class${top ? ` (${top})` : ''}${w.wet > 0 ? `, wet-rescued ${w.wet}` : ''}`
   })
   return `storm diet: ${named.join(' | ')} - the wet territory mines the storm`
 }

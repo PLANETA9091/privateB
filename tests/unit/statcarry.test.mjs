@@ -564,3 +564,63 @@ test('THE HONEST HOLE: the wiring pins (the counter, the honest input, the censu
   assert.ok(censusIdx > ledgerIdx, 'the census prints beside the ledger it completes')
   assert.ok(fleetSrc.includes('THE SENSOR-LIAR CENSUS'), 'the wiring carries its own doctrine comment')
 })
+
+// (v0.359.0) THE DRY DIET - the wet-rescue exclusion reaches the whale floor
+test('stormDietRow: THE DRY DIET - an all-wet whale is the rescue, not the territory (the face-12 replay)', () => {
+  // F12's shape: 600 glitches all inside the wet window, the mined mass all beach
+  assert.equal(
+    stormDietRow([{ name: 'F12', stats: { airGlitches: 600, wetRescueGlitches: 600, byName: { sand: 310, dirt: 180 } } }]),
+    null
+  )
+})
+
+test('stormDietRow: THE DRY DIET - the clamp keeps the exclusion honest', () => {
+  // wet > total: clamped to the total, dry 0 drops the whale
+  assert.equal(
+    stormDietRow([{ name: 'F3', stats: { airGlitches: 100, wetRescueGlitches: 250, byName: { sand: 90 } } }]),
+    null
+  )
+})
+
+test('stormDietRow: THE DRY DIET - a mixed whale survives and names the excluded share', () => {
+  const row = stormDietRow([{ name: 'F8', stats: { airGlitches: 300, wetRescueGlitches: 150, byName: { sand: 40, dirt: 30, stone: 30 } } }])
+  assert.equal(row, 'storm diet: F8 70.0% beach-class (sand 40, dirt 30), wet-rescued 150 - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE DRY DIET - the floor reads the dry sum from both sides', () => {
+  // dry exactly the floor: stays (inclusive, the v0.329.0 law)
+  const at = stormDietRow([{ name: 'F6', stats: { airGlitches: 200, wetRescueGlitches: 100, byName: { gravel: 12 } } }])
+  assert.equal(at, 'storm diet: F6 100.0% beach-class (gravel 12), wet-rescued 100 - the wet territory mines the storm')
+  // dry one under: grain
+  assert.equal(
+    stormDietRow([{ name: 'F6', stats: { airGlitches: 199, wetRescueGlitches: 100, byName: { gravel: 12 } } }]),
+    null
+  )
+})
+
+test('stormDietRow: THE DRY DIET - junk wet never invents an exclusion (the sync law)', () => {
+  const base = { airGlitches: 120, byName: { sand: 12 } }
+  const legacy = stormDietRow([{ name: 'F9', stats: { ...base } }])
+  assert.equal(legacy, 'storm diet: F9 100.0% beach-class (sand 12) - the wet territory mines the storm')
+  for (const junk of [0, NaN, -5, '7', null, undefined]) {
+    assert.equal(stormDietRow([{ name: 'F9', stats: { ...base, wetRescueGlitches: junk } }]), legacy)
+  }
+})
+
+test('stormDietRow: THE DRY DIET - the all-wet whale leaves the line, the mixed one names its share', () => {
+  const row = stormDietRow([
+    { name: 'F12', stats: { airGlitches: 600, wetRescueGlitches: 600, byName: { sand: 310 } } },
+    { name: 'F8', stats: { airGlitches: 300, wetRescueGlitches: 150, byName: { sand: 40, dirt: 30, stone: 30 } } },
+    { name: 'F2', stats: { airGlitches: 3, byName: { sand: 3 } } }
+  ])
+  assert.equal(row, 'storm diet: F8 70.0% beach-class (sand 40, dirt 30), wet-rescued 150 - the wet territory mines the storm')
+})
+
+test('stormDietRow: THE DRY DIET - the dark all-wet whale stays dark and silent', () => {
+  assert.equal(stormDietRow([{ name: 'F11', stats: { airGlitches: 421, wetRescueGlitches: 421, byName: {} } }]), null)
+})
+
+test('stormDietRow: THE DRY DIET - the wiring pin (the fleet feed carries the stats object)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /stormDietRow\(list\.map\(m => \(\{ name: m\.username, stats: m\.stats \}\)\)\)/, 'the diet row reads the per-bot stats (wetRescueGlitches rides inside)')
+})
