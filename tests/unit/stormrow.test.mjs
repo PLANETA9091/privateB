@@ -91,7 +91,7 @@ test('the fractional glitch sums floor (the counters are integers)', () => {
 test('the wiring: the counter rides both band hands in miner.mjs and the stats seed carries it', () => {
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
   // the stats seed carries the counter
-  assert.match(src, /rescues: 0, airGlitches: 0, glitchAbandons: 0, claims: 0/)
+  assert.match(src, /rescues: 0, airGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0/) // (v0.347.0) the air-bar counter joins the seed
   // both confirmation bands count the hand at the exact crossing page
   const hands = src.match(/stats\.glitchAbandons = \(stats\.glitchAbandons \?\? 0\) \+ 1/g) || []
   assert.equal(hands.length, 2)

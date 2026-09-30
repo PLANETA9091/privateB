@@ -135,7 +135,7 @@ export function createMiner ({
   bot.loadPlugin(collectBlockPlugin) // ready-made: pathfind to block, pick tool, dig, collect drops
   bot.loadPlugin(autoeat)
 
-  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, glitchAbandons: 0, claims: 0, byName: {}, startedAt: 0 }
+  const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
 
@@ -2344,6 +2344,11 @@ export function createMiner ({
         }
         const streakCap = glitchStreakCap(glitchConfirmed)
         if (dryGlitchStreak === streakCap) {
+          // (v0.347.0) the air-bar ledger's counter: this hand BELIEVED the
+          // bar and pays a rescue - the face-level row prices the hands (the
+          // v0.346.0 lesson: the counter rides CARRY_FIELDS from birth, a
+          // relog after the hand must not orphan it)
+          stats.airBarOverrides = (stats.airBarOverrides ?? 0) + 1
           // (v0.195.0) the map pin rides the override verdict too
           log(airGlitchLogLine({ kind: 'override', tag, streak: dryGlitchStreak, pos: bot.entity?.position }))
         }

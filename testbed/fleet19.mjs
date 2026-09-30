@@ -43,7 +43,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3364,6 +3364,13 @@ console.log(stormVerdictRow({
   bots: list.map(m => ({ name: m.username, stats: m.stats })),
   abandons: list.reduce((a, m) => a + (m.stats?.glitchAbandons ?? 0), 0)
 }))
+// (v0.347.0) THE AIR-BAR LEDGER - the storm row named the holder; the ledger
+// prices the lie's COST: every override hand believed the bar and paid a
+// rescue (face 36700431959: two hands rode F18's 213 lied reads). A face of
+// pure ignores prints nothing (the leanness law - the ignore class burns
+// nothing). Sits right after the storm row it prices.
+const airBarLedger = airBarLedgerRow(list)
+if (airBarLedger) console.log(airBarLedger)
 // (v0.325.0) THE RESCUE-ECONOMY DECODE - the sentry pair judged as an
 // economy: fleet 36626921875 read 257 glitches/54 rescues (21.0%), fleet
 // 36631612575 read 699/75 (10.7%) - the share halved unjudged. Below the

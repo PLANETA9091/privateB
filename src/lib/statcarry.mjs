@@ -47,7 +47,12 @@ export const CARRY_FIELDS = [
   // logs; the seventh split - the v0.293.0 sweepDrops mortality's exact
   // shape (a new counter born outside the list, orphaned by every respawn).
   // Monotone, integer, >0-gated by both ends - the round-trip is free.
-  'glitchAbandons'
+  'glitchAbandons',
+  // (v0.347.0) THE AIR-BAR LEDGER's counter rides the carry from BIRTH (the
+  // v0.346.0 lesson applied the day it ships, not a face late): an override
+  // hand BELIEVED the bar and paid a rescue - a relog after the hand must
+  // not erase the burn.
+  'airBarOverrides'
 ]
 
 // (v0.293.0) THE SWEEP CENSUS CARRY's field list - every monotone counter of
@@ -653,4 +658,51 @@ export function stormVerdictRow (opts = {}) {
     return `storm verdict: STORM - ${g} air glitches${rate}${top}${hands}`
   }
   return `storm verdict: CALM - ${g} air glitches${hands}`
+}
+
+// ---------------------------------------------------------------------------
+// (v0.347.0) THE AIR-BAR LEDGER - the storm row names the holder (F9 72%,
+// F18 100% - two faces say the storm is ONE bot's air-bar lie) but never
+// priced the lie's COST: every 'air-bar glitch override' hand BELIEVED the
+// bar and paid a rescue (face 36700431959: F18's 213 lied reads carried two
+// override hands - lines 1264/1418, 'believing the bar'). The ignore class
+// burns nothing (pure telemetry); the override class burns real rescue
+// machinery on a sensor that sat broken. The row prices the hands at the
+// face level: how many overrides fired, on how many lied reads, and who
+// owns them. Silence IS the healthy verdict (a face of pure ignores prints
+// nothing - the leanness law).
+//
+// The v0.346.0 lesson applied at birth: the new counter rides CARRY_FIELDS
+// the day it ships - a relog after a hand must not orphan it (the seventh
+// face's exact mortality).
+/** One override is one real rescue burn - the grain is 1. */
+export const AIR_BAR_LEDGER_MIN_OVERRIDES = 1
+
+/**
+ * The face-level air-bar override ledger (pure, junk-safe).
+ * @param {Array<{name?: string, stats?: {airGlitches?: number, airBarOverrides?: number}}>} miners
+ * @param {object} [opts]
+ * @param {number} [opts.minOverrides] the speak floor (default AIR_BAR_LEDGER_MIN_OVERRIDES = 1)
+ * @returns {string|null} null reads healthy (no override burned anything - the leanness law)
+ */
+export function airBarLedgerRow (miners, { minOverrides = AIR_BAR_LEDGER_MIN_OVERRIDES } = {}) {
+  if (!Array.isArray(miners)) return null
+  const floor = Number.isFinite(minOverrides) && minOverrides > 0 ? Math.floor(minOverrides) : AIR_BAR_LEDGER_MIN_OVERRIDES
+  let total = 0
+  let lied = 0
+  let topName = null
+  let topOv = 0
+  for (const m of miners) {
+    const s = m && typeof m === 'object' ? m.stats : null
+    if (!s || typeof s !== 'object') continue
+    const ov = Number.isFinite(s.airBarOverrides) && s.airBarOverrides > 0 ? Math.floor(s.airBarOverrides) : 0
+    if (ov <= 0) continue
+    total += ov
+    const lg = Number.isFinite(s.airGlitches) && s.airGlitches > 0 ? Math.floor(s.airGlitches) : 0
+    lied += lg
+    if (ov > topOv) { topOv = ov; topName = (typeof m.name === 'string' && m.name) ? m.name : '?' }
+  }
+  if (total < floor) return null
+  const top = topName ? `, top ${topName} ${topOv}` : ''
+  return `air-bar ledger: ${total} override hand${total === 1 ? '' : 's'} on ${lied} lied reads${top} - each hand believed the lie and paid a rescue`
 }
