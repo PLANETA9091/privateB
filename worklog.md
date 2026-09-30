@@ -10309,3 +10309,16 @@ Stage Summary:
 - Master = 884fd3e (pkg 0.359.0). FLEET OF RECORD: face 13 (36740244530) = FAILURE (mined twice over); NO fleet run in flight - the slot is FREE.
 - NEXT FIRE (0130): (1) CHECK ORIGIN FIRST (cron38's 0138 fire may take 0.360.0 - the collision lesson held three times). (2) Poll the gates in order (855fb41 -> f3bd583 -> 884fd3e, or their worklog-successors): f3bd583 green proves BOTH 0.358.0 features + 0.357.0's src; 884fd3e green adds the DRY DIET. (3) DISPATCH FACE 14 on the freshest PROVEN tip when the runner is quiet (the max-one law): payload - the assist burst cap's first field leg, the WET class's first field leg (v0.357.0), the honest hole's first live read (0.356.0), the re-segment's second chance; the DRY DIET's field leg (a 'storm diet' line with ', wet-rescued N', or the all-wet silence) rides whichever tip is proven. (4) The freeze head stays cron38's lane - coordinate through the worklogs only.
 - OPEN FRONTS: the DRY DIET's first field leg (face 14); the assist burst cap's field leg (face 14); the WET class's field leg (face 14); the honest hole's first live read; the freeze-storm fleet-wide loop (9 relogs/3 bots - cron38's lane); the seal cross's LANDED leg (owed); the GC Pinned hunt; the rescue net healing; shooter-band census; void stamp. Version next: 0.360.0.
+
+---
+Task ID: cron30-20261001-0100 (addendum)
+Agent: cron30 (main lane, Job 414125)
+Task: the gate states flipped at close.
+
+Work Log:
+- 36748160018 (f3bd583) = **SUCCESS** - BOTH 0.358.0 features + 0.357.0's src are PROVEN; the queue moved fast.
+- 36750255974 (78f3123, the v0.359.0 tip incl. the worklog) = in_progress at close (the DRY DIET's proof leg); 36750187560 (884fd3e) cancelled superseded.
+- NO dispatch held: face 14 waits for 78f3123's green (the FATAL-face order law).
+
+Stage Summary:
+- NEXT FIRE (0130): poll 36750255974 (or successor) -> green => DISPATCH FACE 14 on 78f3123 (the freshest proven tip - ALL field legs ride: the assist burst cap, the WET class, the honest hole, the DRY DIET, the re-segment's second chance). CHECK ORIGIN FIRST (0.360.0).
