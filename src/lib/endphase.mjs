@@ -123,14 +123,23 @@ export function hardKillDelayMs ({ runSeconds = 600, marginMs = HARD_KILL_MARGIN
 // never reached printFinalReport and the evidence stayed partial (no
 // fleet-report.json, no worldmap save).
 //
-// THE CURE: the final bank chain gets a wall-clock budget (default 150s).
+// THE CURE: the final bank chain gets a wall-clock budget (default 168s).
 // Budget sizing: stagger cap 120s runs BEFORE the chain, so the worst chain
-// end is deadline + 120s + 150s = 270s < the 420s hard-kill margin - the
+// end is deadline + 120s + 168s = 288s < the 420s hard-kill margin - the
 // process now finishes NATURALLY (full report) with the kill as a pure
 // safety net, and each bot's doomed walks give up with a named reason
 // instead of churning the path queue.
+//
+// (v0.334.0) 150s -> 168s: the ten-legged face (36660134341, the v0.331.0
+// tree) priced the end bank at 6.4u/s (the flow row - 3x the 2.2u/s datum)
+// and the gap row spoke its first leg: '164s needed, 150s budgeted - 14s
+// short' with a 1044u pocket stranded unbanked. The chains now ALMOST fit
+// the clock - the budget was sized when the flow was 2.2u/s and the pocket
+// need was unmeasurable; at 6.4u/s the same 150s no longer covers the
+// measured 164s need. 168s = the need + a 4s margin, still 132s under the
+// cap (280s) and 132s under the kill margin's worst-chain arithmetic.
 /** Default wall-clock budget for one bot's whole final bank chain. */
-export const END_BANK_BUDGET_MS = 150000
+export const END_BANK_BUDGET_MS = 168000
 
 /** (v0.34.0) Ceiling for the distance-scaled final bank budget: a far bot may
  * use up to 280s of chain - the runtime margin clamp (RUN_KILL_AT based) keeps

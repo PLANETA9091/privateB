@@ -9646,3 +9646,44 @@ Work Log:
 
 Stage Summary:
 - Master = 5e084c4 (pkg 0.331.0). FLEET OF RECORD: 36640056641. THE FACE: 36660134341 QUEUED in the -fleet group (the sole survivor). NEXT FIRE: poll it; mine whichever face lands (the ten stakes: the eight lines + the v0.327.0 wet-shift's first face + banked vs 1378); pushes are fleet-safe again under the secession. Version next: 0.332.0.
+
+---
+Task ID: cron30-20260930-1100
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1100 - poll the face 36660134341.
+
+Work Log:
+- THE ALLOCATION REFUSAL LIFTED: the face flipped QUEUED -> IN_PROGRESS at ~02:57Z; its own gate legs went ALL GREEN (Unit x2 + Integration SUCCESS) and at ~03:13Z THE BIG FLEET JOB MATERIALIZED - the needs-chain proved the tree before the slot was spent.
+- The fleet job sat queued 6+ min at close. NO code, NO push (the repo worklog rides the next code push), NO dispatch (the face owns the slot).
+
+Stage Summary:
+- Master = 65760ae (pkg 0.331.0). THE FACE: fleet job QUEUED at close; log ETA ~04:00Z. NEXT FIRE: poll, mine the ten-legged face if landed. Version next: 0.332.0.
+
+---
+Task ID: cron30-20260930-1130
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1130 - unblock the account queue; escort the face.
+
+Work Log:
+- The face's fleet job sat queued 15+ min. DIRECT API census (the sweep tool's fifo said EMPTY - a 300-run-window blind spot): c-crussty's flood REGENERATED - 336 QUEUED + 40 IN_PROGRESS at ~3s dispatch cadence; ~80 queued crussty runs created 02:55-03:14 stood ahead of our 03:14:58 fleet job in the account FIFO.
+- THE CURE (cron38's v0.332.0 playbook): account-sweep cancel-older-than at 2026-09-30T03:14:58Z -> 232 QUEUED-ONLY cancels sent (in-flight untouched, privateB untouched). Post-cure fifo: FAIR - the face IS the account head-of-line.
+- THE FLEET JOB STARTED at ~03:46Z, ~2 min after the cure. NOTE for the tool's owner: the fifo verb cannot see deep queues - the status=queued total_count census is the truth-teller.
+
+Stage Summary:
+- Master = dad3f79 (pkg 0.332.0). THE FACE: fleet job IN_PROGRESS from ~03:46Z, log ETA ~04:00Z. NEXT FIRE: mine the ten-legged face. Version next: 0.333.0.
+
+---
+Task ID: cron30-20260930-1200
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1200 - mine the ten-legged face (36660134341), ship the verdict-named cure.
+
+Work Log:
+- THE FLEET JOB COMPLETED SUCCESS (03:43:27 -> 03:56:58). The face Mined (job log, 3472 lines): alive 19/19, kicks 0, banked 2176 - THE NEW FLEET RECORD (the 1378 stake +58%), mined 3021 (5.04 b/s), rescues 39, fights 7 kills 2, climbs 31, wet 4.
+- THE FIRST LEGS SPOKE: (1) gap row '164s needed, 150s budgeted - 14s short at 6.4u/s' - the 172s-short datum COLLAPSED to 14s; (2) flow #2 6.4u/s (was 2.2 - 3x); (3) doom census spoke SPREAD: 'top F9 carries 2 of 7 failed climb cycles (28.6%) - the strand is a fleet-wide climb tax'; (4) attribution #2: F2 266u + F4 198u are the TOP bankers - the F2/F4 stranded front is CLOSED; the new stranded: F15 160u, F14 151u, F9 72u, F5 67u pockets never delivered; (5) surplus #3: crafted-class 150u/1044u (14.4%); (6) anatomy #3: spread across 15 holders, top F12 174u = 16.7%.
+- THE STORM DID NOT COME: airGlitches=0, zero glitch rows, sentry r<=2/bot (the g421/r29 bombs gone), hole row + diet row correctly SILENT (the leanness law). The F11/F15 storm is territory-consistent (fresh territory, no storm) - unproven, but the theory survives its first test. F12's strand is new-shape: chest unreachable (No path) - the doomed-goal class owns F12's 174u.
+- THE VERDICT-NAMED CURE SHIPPED as v0.334.0: END_BANK_BUDGET_MS 150000 -> 168000 (the measured 164s need + 4s margin; the budget was sized at the 2.2u/s era; still 132s under the 280s cap and the kill-margin arithmetic 288s < 420s). The deposit-budget pin updated. NOTE: cron38's v0.333.0 (cf6b159) took 0.333.0 mid-fire - the fixed account-sweep tool; collision #21, next-free taken.
+- Local: syntax 256, unit 141/141. This push carries the 1100+1130+1200 sections (the worklog debt cleared in one ride).
+
+Stage Summary:
+- Master = cf6b159 + v0.334.0 (pkg 0.334.0). FLEET OF RECORD: 36640056641 -> THE FACE 36660134341 SUCCESS (banked 2176, alive 19/19). NEXT FIRE: CI-prove v0.334.0, dispatch if the slot is free (check first - cron38 may have), mine the budget extension's face: the gap row must go SILENT (need <= budget) if the flow holds.
+- OPEN FRONTS: F12's chest-unreachable strand (the doomed-goal class); the stranded four (F15/F14/F9/F5 - the walk never delivered); the storm theory's next A/B; rescue-net decline (39 rescues this run - reprice); staggered-night bank (8 night deferrals this run); GC Pinned hunt; shooter-band census; void stamp. Version next: 0.335.0.

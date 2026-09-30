@@ -235,7 +235,7 @@ test('approach: the legacy unbounded mid-run call keeps byte-identical behavior'
 
 test('endBankBudgetMs: default, env parse, junk tolerance', () => {
   assert.equal(endBankBudgetMs(), END_BANK_BUDGET_MS)
-  assert.equal(END_BANK_BUDGET_MS, 150000, 'the default: deadline 600s + stagger 120s + 150s < the 420s kill margin')
+  assert.equal(END_BANK_BUDGET_MS, 168000, 'v0.334.0: the face 36660134341 gap row priced the need at 164s (6.4u/s, a 1044u pocket) against the old 150s - the new default is the need + 4s margin; deadline 600s + stagger 120s + 168s = 288s < the 420s kill margin')
   assert.equal(endBankBudgetMs({ env: '200000' }), 200000, 'a valid env wins')
   assert.equal(endBankBudgetMs({ env: 'junk' }), END_BANK_BUDGET_MS)
   assert.equal(endBankBudgetMs({ env: '0' }), END_BANK_BUDGET_MS, '0 reads as unset - a finite <= 0 budget would kill every final bank')
