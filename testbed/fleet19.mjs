@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS } from '../src/lib/surface.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
@@ -2796,8 +2796,43 @@ async function runBot (name, target, index) {
                             } catch { /* the round's refusal - one more round, then the gate keeps the cell */ }
                           }
                         }
-                        if (sealed) console.log(`${name} final climb: shift pre-seal LANDED: ${census.top} sealed the bearing fluid - the mover owns the walk`)
-                        else console.log(`${name} final climb: shift pre-seal refused: ${item ? 'the seal did not land (2 rounds)' : `no ${census.top} in the pocket to place`} - the gate keeps the cell`)
+                        if (sealed) {
+                          console.log(`${name} final climb: shift pre-seal LANDED: ${census.top} sealed the bearing fluid - the mover owns the walk`)
+                          // (v0.353.0) THE SEAL CROSS - the mover must not eat the seal
+                          // it funded (face 36710193486: the pre-seal LANDED and the
+                          // tunnel's first cut dug the seal back out - '2 blocks in 3s'
+                          // stalled home). The cross rides ONLY the landed feetWet
+                          // shape; every refusal and every stall falls through to the
+                          // tunnel byte for byte (the account of record law).
+                          try {
+                            const cHead = miner.bot.blockAt(sCell.offset(0, 1, 0))
+                            const crossPlan = wetShiftCrossPlan({ sealed, feetWet, headBox: cHead?.boundingBox ?? null, headName: cHead?.name ?? null })
+                            if (!crossPlan.cross) {
+                              console.log(`${name} final climb: seal cross deferred: ${crossPlan.why}`)
+                            } else {
+                              let crossed = false
+                              for (let round = 0; round < SEAL_CROSS_ROUNDS && !crossed; round++) {
+                                if (round > 0) await miner.bot.waitForTicks(6)
+                                try {
+                                  await miner.bot.lookAt(sCell.offset(0.5, 1.5, 0.5), true)
+                                  miner.bot.setControlState('jump', true)
+                                  miner.bot.setControlState('forward', true)
+                                  await miner.bot.waitForTicks(SEAL_CROSS_SETTLE_TICKS)
+                                } finally {
+                                  miner.bot.setControlState('jump', false)
+                                  miner.bot.setControlState('forward', false)
+                                }
+                                await miner.bot.waitForTicks(2)
+                                const to = miner.bot.entity ? miner.bot.entity.position.floored() : null
+                                crossed = !!to && wetShiftCrossLanded({ toX: to.x, toY: to.y, toZ: to.z, cellX: sCell.x, cellY: sCell.y, cellZ: sCell.z })
+                              }
+                              if (crossed) console.log(`${name} final climb: seal cross LANDED: the walk resumes from the seal's top - the mover digs forward now`)
+                              else console.log(`${name} final climb: seal cross stalled: the feet stayed home (${SEAL_CROSS_ROUNDS} rounds) - the tunnel digs as before`)
+                            }
+                          } catch (e) {
+                            console.log(`${name} final climb: seal cross swallowed: ${e && e.message ? e.message : 'unknown throw'} - the tunnel digs as before`)
+                          }
+                        } else console.log(`${name} final climb: shift pre-seal refused: ${item ? 'the seal did not land (2 rounds)' : `no ${census.top} in the pocket to place`} - the gate keeps the cell`)
                       }
                     }
                   }

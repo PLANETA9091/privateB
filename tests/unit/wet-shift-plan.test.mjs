@@ -118,8 +118,8 @@ test('the fence constants ride the doctrine (the tunnel and a fenced climb must 
 })
 
 test('the wiring: the branch rides the wet-wall no-retry seam, the tunnel is the mover, the landed feet are the truth', () => {
-  // the import rides the surface line
-  assert.match(fleetSrc, /wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS \} from '\.\.\/src\/lib\/surface\.mjs'/, 'the shift imports ride the surface line')
+  // the import rides the surface line (the v0.353.0 seal-cross tail rides beside its semantic siblings)
+  assert.match(fleetSrc, /wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS \} from '\.\.\/src\/lib\/surface\.mjs'/, 'the shift imports ride the surface line')
   // the branch order: the escalated retry first, the wet-wall shift second, the legacy no-retry last
   const retryIdx = fleetSrc.indexOf('if (!cr.ok && retryPlan.retry) {')
   const shiftIdx = fleetSrc.indexOf("} else if (!cr.ok && cr.reason === 'wet wall') {")

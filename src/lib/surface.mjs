@@ -1200,6 +1200,86 @@ export function wetShiftPlan (memo, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.353.0) THE SEAL CROSS - the mover must not eat the seal it funded.
+//
+// MEASURED (fleet 36710193486, the ninth face - the calm): a wet shift armed
+// perfectly - the pre-seal census ARMED, the plan buildable, the seal LANDED -
+// and then the tunnel call ate the cure: 'wet shift tunnel: 2 blocks in 3s
+// (stalled)' + 'wet shift stalled (tunnel done=2 ...)' with the feet still at
+// home. The raw tunnel loop (the gallery machine) digs every solid feet cell
+// in its path - and the seal IS a solid feet cell in its path: the v0.341.0
+// pre-seal filled the step-1 fluid cell with cobblestone, the tunnel's first
+// cut dug that exact cell back out, the water returned, and the shift stalled
+// home having spent a landed seal and ~3s for nothing. The v0.341.0 comment's
+// own law named the intent ('a landed seal turns the gate's fluid into a
+// floor and the tunnel walks') - but the raw tunnel does not walk on floors,
+// it digs them.
+// THE CURE: when the seal landed on the feetWet shape, the wiring crosses
+// BEFORE the tunnel call - jump onto the seal (the shelter's proven pacing:
+// bounded rounds, a settle before the verify), the walk resumes one level up,
+// and the tunnel digs FORWARD from the seal's top instead of re-digging the
+// cell it stands on. The headroom law: the seal's head cell must be passable
+// for the cross to land (a solid headroom is a wall the bot cannot enter -
+// the walledCure class); a fluid headroom rides (standing in water on the
+// seal is the climb's own wet machinery, the crossing is physics-legal); a
+// box-lie headroom (box 'block' + a fluid name) refuses blind (the v0.250.0
+// second-eye law). Junk never crosses (the body-guard law); the landing
+// verdict is exact (the feet stand ON the seal column, one level up - a
+// halfway hop or a slide-off is NOT a landing: the tunnel follows as the
+// account of record, the v0.344.0 law - every refusal and every stall falls
+// through byte for byte).
+// ---------------------------------------------------------------------------
+
+export const SEAL_CROSS_ROUNDS = 2
+export const SEAL_CROSS_SETTLE_TICKS = 10
+
+/**
+ * Should the wet shift cross onto its own landed seal before the tunnel
+ * rides (pure, junk-safe)?
+ * @param {object} [p]
+ * @param {boolean} [p.sealed] the pre-seal's own verify verdict (sealLanded)
+ * @param {boolean} [p.feetWet] the seal aimed at the step-1 feet cell (the
+ *   head-level seal leaves the walk path clear - the tunnel digs as before)
+ * @param {string|null} [p.headBox] the seal's head cell boundingBox (fresh
+ *   read, after the placement)
+ * @param {string|null} [p.headName] the seal's head cell name (the second
+ *   eye - the box lie class vetoes)
+ * @returns {{cross: boolean, why: string}}
+ */
+export function wetShiftCrossPlan (p = {}) {
+  const { sealed = false, feetWet = false, headBox = null, headName = null } = p || {} // the body-guard law (the walledCure shape)
+  if (sealed !== true) return { cross: false, why: 'the seal did not land - the tunnel digs as before' }
+  if (feetWet !== true) return { cross: false, why: 'the head-level seal left the walk path clear - the tunnel digs as before' }
+  if (headBox === 'block') {
+    if (typeof headName === 'string' && headName && tunnelFluidName(headName)) {
+      return { cross: false, why: 'the seal headroom box lies (block + a fluid name) - no blind cross' }
+    }
+    return { cross: false, why: 'the seal headroom is solid - the cross cannot land' }
+  }
+  return { cross: true, why: 'the seal holds the step-1 floor - jump on, the walk resumes one level up' }
+}
+
+/**
+ * Did the cross land (pure, junk-safe)? The exact verdict: the feet stand ON
+ * the seal column - same x/z, one level up (a halfway hop, a slide-off or a
+ * swim-past is NOT a landing - the tunnel follows as the account of record
+ * and its own stall line speaks).
+ * @param {object} [p]
+ * @param {number} [p.toX] the feet x after the cross (floored)
+ * @param {number} [p.toY] the feet y after the cross (floored)
+ * @param {number} [p.toZ] the feet z after the cross (floored)
+ * @param {number} [p.cellX] the seal cell x (floored, the block's own level)
+ * @param {number} [p.cellY] the seal cell y
+ * @param {number} [p.cellZ] the seal cell z (floored)
+ * @returns {boolean}
+ */
+export function wetShiftCrossLanded (p = {}) {
+  const { toX, toY, toZ, cellX, cellY, cellZ } = p || {} // the body-guard law
+  if (![toX, toY, toZ, cellX, cellY, cellZ].every(Number.isFinite)) return false
+  return toX === cellX && toZ === cellZ && toY === cellY + 1
+}
+
+// ---------------------------------------------------------------------------
 // (v0.321.0) THE ROUTE REFUSAL LATCH - a bank route the memo keeps refusing
 // is not asked again; the third refusal condemns the ROUTE, not just the
 // climb.
