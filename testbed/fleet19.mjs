@@ -2745,7 +2745,22 @@ async function runBot (name, target, index) {
                       }
                     }
                   }
-                } catch { /* a junk stance never kills the shift - the tunnel attempt owns the account */ }
+                } catch (e) {
+                  // (v0.344.0) THE PRE-SEAL SPEAKS - face 36697238002's hole:
+                  // F13's pre-seal printed census ARMED + plan buildable and
+                  // then went SILENT until the tunnel attempt ('wet shift
+                  // tunnel: 0 blocks in 0s'). The LANDED/refused lines are
+                  // unconditional inside the buildable branch, so only a
+                  // throw reaching THIS catch can eat the account - and the
+                  // freeze class owns exactly the waits this block sits on
+                  // (ticking-flat 7/8 on the same face: the ticks the
+                  // waitForTicks chain waits on are the ticks the freeze
+                  // holds). The wrapper keeps its law: a junk stance never kills the shift -
+                  // the attempt survives byte for byte - but the silence is
+                  // dead: the swallow names itself and
+                  // the tunnel attempt follows as the account of record.
+                  console.log(`${name} final climb: shift pre-seal swallowed: ${e && e.message ? e.message : 'unknown throw'} - the gate keeps the cell, the account never sleeps`)
+                }
                 const feet0 = miner.bot.entity.position.floored()
                 const shiftFenceAt = Date.now() + WET_SHIFT_TUNNEL_MAX_MS
                 const shiftTunnelStart = Date.now()

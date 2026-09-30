@@ -77,3 +77,26 @@ test('the fall-through pins: every refusal is named and the gates close the arms
   const nextTunnelIdx = src.indexOf('await miner.tunnel({ x: shiftPlan.bearing.x', base)
   assert.ok(walledDigIdx === -1 || walledDigIdx > nextTunnelIdx, 'no dig-around in the pre-seal (the lean first leg)')
 })
+
+// ---- (v0.344.0) THE PRE-SEAL SPEAKS - the swallow can never eat the account ----
+//
+// Face 36697238002's hole: F13's pre-seal printed census ARMED + plan
+// buildable and then went SILENT until the tunnel attempt - the LANDED/
+// refused lines are unconditional, so only a throw reaching the outer
+// catch can eat the account. The cure: the catch names itself; the shift
+// attempt survives byte for byte.
+
+test('the swallow pin: the outer catch speaks and the tunnel attempt still follows it', async () => {
+  const fs = await import('node:fs')
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const base = src.indexOf('THE SHIFT PRE-SEAL')
+  const swallowIdx = src.indexOf('shift pre-seal swallowed:', base)
+  assert.ok(swallowIdx > base, 'the swallow line names itself - the account never sleeps')
+  const catchIdx = src.indexOf("} catch (e) {", base)
+  assert.ok(catchIdx > base && swallowIdx > catchIdx, 'the speak rides the outer catch (e)')
+  const feet0Idx = src.indexOf('const feet0 = miner.bot.entity.position.floored()', base)
+  const tunnelIdx = src.indexOf('await miner.tunnel({ x: shiftPlan.bearing.x', base)
+  assert.ok(swallowIdx < feet0Idx && feet0Idx < tunnelIdx, 'the fall-through order is byte for byte: swallow -> feet0 -> tunnel attempt')
+  assert.ok(src.includes('a junk stance never kills the shift', base), 'the wrapper law survives in the comment')
+  assert.ok(src.includes("e && e.message ? e.message : 'unknown throw'"), 'a message-less throw still names itself')
+})
