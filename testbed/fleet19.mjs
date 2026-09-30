@@ -31,7 +31,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
@@ -2773,10 +2773,50 @@ async function runBot (name, target, index) {
                     console.log(`${name} final climb: shift pre-seal census: ${census.fluid ?? 'unclassified'} at the bearing cell, ${census.blocks} sealable in pocket${census.top ? ` (top ${census.top})` : ''} - the pre-seal is ${census.fluid === 'water' && census.sealable ? 'ARMED' : 'bare'}`)
                     if (census.fluid === 'water' && census.sealable) {
                       const feetWet = (sFeet?.boundingBox === 'fluid') || tunnelFluidName(sFeet?.name ?? null)
-                      const anchorB = feetWet ? miner.bot.blockAt(sCell.offset(0, -1, 0)) : sFeet
-                      const headroomB = feetWet ? sHead : miner.bot.blockAt(sCell.offset(0, 2, 0))
-                      const sPlan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+                      let anchorB = feetWet ? miner.bot.blockAt(sCell.offset(0, -1, 0)) : sFeet
+                      let headroomB = feetWet ? sHead : miner.bot.blockAt(sCell.offset(0, 2, 0))
+                      let sPlan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
                       console.log(`${name} final climb: shift pre-seal plan: anchor ${sPlan.anchor ? 'solid' : 'open'}, headroom ${sPlan.headroom ? 'clear' : 'solid'} - the seal is ${sPlan.plan}`)
+                      // (v0.369.0) THE ANCHOR DROP - face 36733939481's 'anchor open, headroom
+                      // solid - the seal is unanchored' starved the LANDED leg: the unanchored
+                      // class is a BLOCKER, not a fate (the v0.250.0 walled lesson). The home
+                      // column owns a solid cell at the anchor's own level (the floor the bot
+                      // stands on) and the bearing is single-axis by construction - click its
+                      // face, land a sealable block INTO the anchor cell, the column grows a
+                      // floor, and the seal re-plans. One drop round, the cap, the honest
+                      // verify; every refusal falls through to the gate keeping the cell.
+                      if (sPlan.plan === 'unanchored') {
+                        const dp = anchorDrop({ plan: sPlan, anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null })
+                        console.log(`${name} final climb: shift anchor drop armed: ${dp.why}`)
+                        if (dp.drop) {
+                          try {
+                            const dtgt = sealCrossTarget({ feetWet })
+                            const dropCell = sCell.offset(0, dtgt.anchorDy, 0)
+                            const dropRef = miner.bot.blockAt(sealFrom.offset(0, dtgt.anchorDy, 0))
+                            const dItem = (miner.bot.inventory?.items?.() ?? []).find(i => i && i.name === census.top)
+                            if (!dropRef || dropRef.boundingBox !== 'block' || !dItem) {
+                              console.log(`${name} final climb: shift anchor drop refused: ${!dItem ? `no ${census.top} in the pocket` : 'the reference face is gone'} - the gate keeps the cell`)
+                            } else {
+                              await miner.bot.equip(dItem, 'hand')
+                              await miner.bot.waitForTicks(5)
+                              await withTimeout(miner.bot.placeBlock(dropRef, new Vec3(shiftPlan.bearing.x, 0, shiftPlan.bearing.z)), ANCHOR_DROP_TIMEOUT_MS, 'shift anchor drop')
+                              await miner.bot.waitForTicks(10)
+                              const dAfter = miner.bot.blockAt(dropCell)
+                              if (sealLanded({ afterName: dAfter?.name ?? null, afterBox: dAfter?.boundingBox ?? null })) {
+                                console.log(`${name} final climb: shift anchor drop LANDED: the column grew a floor - the seal re-plans`)
+                                anchorB = miner.bot.blockAt(sCell.offset(0, dtgt.anchorDy, 0))
+                                headroomB = miner.bot.blockAt(sCell.offset(0, dtgt.targetDy + 1, 0))
+                                sPlan = sealPlan({ anchorName: anchorB?.name ?? null, anchorBox: anchorB?.boundingBox ?? null, headroomName: headroomB?.name ?? null, headroomBox: headroomB?.boundingBox ?? null })
+                                console.log(`${name} final climb: shift pre-seal plan (re-planned): anchor ${sPlan.anchor ? 'solid' : 'open'}, headroom ${sPlan.headroom ? 'clear' : 'solid'} - the seal is ${sPlan.plan}`)
+                              } else {
+                                console.log(`${name} final climb: shift anchor drop refused: the drop did not land - the gate keeps the cell`)
+                              }
+                            }
+                          } catch (e) {
+                            console.log(`${name} final climb: shift anchor drop swallowed: ${e && e.message ? e.message : 'unknown throw'} - the gate keeps the cell`)
+                          }
+                        }
+                      }
                       if (sPlan.plan === 'buildable') {
                         const tgt = sealCrossTarget({ feetWet })
                         const target = sCell.offset(0, tgt.targetDy, 0)

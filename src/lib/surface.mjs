@@ -1896,6 +1896,61 @@ export function walledCure (r) {
   return { dig: true, why: 'the headroom is solid and dry - dig it, re-plan, and the buildable seal may follow' }
 }
 
+// (v0.369.0) THE ANCHOR DROP - the unanchored seal earns its floor.
+//
+// MEASURED (face 36733939481, face 12): the wet shift armed, the census
+// ARMED, and the pre-seal plan refused the class the canon never cured:
+// 'anchor open, headroom solid - the seal is unanchored' - zero cross lines,
+// the LANDED leg starved. Face 12's OTHER read starved it deeper: the wet
+// shifts that never even armed died at the tunnel gate (done=0 fluid-ahead)
+// or the budget - but the UNANCHORED class is the one the cross arms can
+// never survive, and it is a BLOCKER, not a fate (the v0.250.0 walled
+// lesson): the anchor cell below the target is OPEN (a fluid or air column
+// - the flooded step's floor is the water itself), and the HOME column owns
+// a solid cell at the anchor's own level - the floor the bot stands on.
+// That cell is face-adjacent to the anchor (the bearing is single-axis by
+// construction - the four canonical shifts), so the bot can CLICK its face
+// and land a sealable block INTO the anchor cell: the column grows a floor,
+// the anchor goes solid, and the seal re-plans - 'buildable' rides the
+// existing placement, the cross gets its chance, the LANDED leg unstarves.
+// The gates (the two-eye law): the plan must BE the unanchored class; a
+// solid anchorBox contradicts the plan (the box lie class - no blind drop);
+// a solid anchor NAME contradicts it too (the second eye - only a REAL
+// solid name vetoes; a fluid name rides, a blind name rides - air and
+// water both take the placement). Junk never drops (the body-guard law).
+// One drop round, ANCHOR_DROP_TIMEOUT_MS capped (the PILLAR lesson); the
+// verify is sealLanded on the anchor cell (the honest read, never guess);
+// every refusal falls through to the gate keeping the cell byte for byte.
+
+/** The anchor drop's place cap: one placeBlock call (the SEAL_PLACE law - a rejected placement resolves slow). */
+export const ANCHOR_DROP_TIMEOUT_MS = 3000
+
+/**
+ * Should the unanchored seal drop its own anchor first (pure, junk-safe)?
+ * @param {object} [r]
+ * @param {{plan?: string}|null} [r.plan] the sealPlan verdict (its .plan
+ *   field must read exactly 'unanchored')
+ * @param {string|null} [r.anchorName] the anchor cell's block name (the
+ *   second eye)
+ * @param {string|null} [r.anchorBox] the anchor cell's boundingBox (the
+ *   first eye)
+ * @returns {{drop: boolean, why: string}} the drop decision + the decode
+ *   ready why (the log lines print it verbatim)
+ */
+export function anchorDrop (r = {}) {
+  const { plan = null, anchorName = null, anchorBox = null } = r || {} // the body-guard law
+  if (!plan || plan.plan !== 'unanchored') {
+    return { drop: false, why: 'not the unanchored class' }
+  }
+  if (anchorBox === 'block') {
+    return { drop: false, why: 'the anchor box speaks solid - the plan lied, no blind drop' }
+  }
+  if (typeof anchorName === 'string' && anchorName && !tunnelFluidName(anchorName)) {
+    return { drop: false, why: 'the anchor name reads solid - the second eye vetoes the drop' }
+  }
+  return { drop: true, why: 'the anchor cell is open - drop a block into it, the seal re-plans on a floor' }
+}
+
 /**
  * The crossing's placement geometry (v0.247.0): which cells does the seal
  * touch, from the runner's stand position?

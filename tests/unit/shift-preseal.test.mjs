@@ -44,7 +44,7 @@ test('the machinery pins: the proven seal chain is consulted in the source order
   assert.ok(lockIdx > base, 'the fluid lock reads the bearing cell with the two-eye law')
   const censusIdx = src.indexOf('const census = sealCensus({ fluidNames: [sFeet?.name ?? null, sHead?.name ?? null]', base)
   assert.ok(censusIdx > lockIdx, 'the census follows the lock (water + stock before geometry)')
-  const planIdx = src.indexOf('const sPlan = sealPlan({ anchorName: anchorB?.name ?? null', base)
+  const planIdx = src.indexOf('let sPlan = sealPlan({ anchorName: anchorB?.name ?? null', base)
   assert.ok(planIdx > censusIdx, 'the geometry follows the census (anchor + headroom)')
   const placeIdx = src.indexOf("withTimeout(miner.bot.placeBlock(anchor, new Vec3(tgt.face.x, tgt.face.y, tgt.face.z)), SEAL_PLACE_TIMEOUT_MS, 'shift pre-seal place')", base)
   assert.ok(placeIdx > planIdx, 'the placement rides the 3s fence (the PILLAR lesson)')
