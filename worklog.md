@@ -10203,3 +10203,20 @@ Stage Summary:
 - Master = 162e6b2 (pkg 0.355.0). FLEET OF RECORD: face 12 (36733939481) on 0.354.0-src.
 - NEXT FIRE (2330): (1) Poll face 12 -> mine the seal cross's first field leg + the first live old-space print. (2) Poll 162e6b2's gate -> green proves 0.355.0. (3) Face 13 dispatch only after face 12 lands (the max-one law). (4) CHECK ORIGIN FIRST (0.356.0).
 - OPEN FRONTS: the seal cross's first field leg (face 12); the first live old-space print (face 12); the re-segment's first field leg (face 13); the GC Pinned hunt; the sweep-drops timeout verdict candidate; the rescue net healing (126->89->43->36->10); ticking-flat freeze head (cron38's lane); shooter-band census; void stamp. Version next: 0.356.0.
+
+---
+Task ID: cron30-20260930-2330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2330 - 0.355.0 gate PROVEN; face 12 mined (old-space print LIVE, storm = one wet rescue); v0.356.0 THE RAW WALKER WAKE shipped; face 13 dispatched.
+
+Work Log:
+- Gate 36735680214 (162e6b2, 0.355.0) = **SUCCESS**. Origin unmoved - 0.356.0 free.
+- FACE 12 (36733939481, 0.354.0-src) = **SUCCESS** (44 min), mined: THE FIRST LIVE OLD-SPACE PRINT ('old=88M', 85-92M rows - the sentinel is dead in the field; old_space = ~80% of the heap, the GC hunt's eyes open); the seal cross honestly deferred ('pre-seal plan: anchor open, headroom solid - the seal is unanchored', zero cross lines - the LANDED leg still owed); the storm sequel **STORM** ('600 air glitches (60.0/min), top F12 g600 (100%), 1 abandon hand') decomposed to ONE wet rescue (F12 at [-161,55,401], 8+ drowning passes, the liar ladder stood down) - the glitch counter ate the wet-rescue class; bank flow 0.0u/s in the storm window; doomed ledger 276/1102/43.
+- v0.356.0 THE RAW WALKER WAKE (49faae7): the v0.147.0 nudge family (fuel anchor, fuel commons, the re-segment, iron commune, pool seed) lacked rawWalk: walkRawToward - the v0.167.0 side-step ladder was DEAD CODE there (F14's 'd=26.3 still outside - a segment stalled' with no side-step line; 7 side-step lines at the injected sites prove the machinery). THE CURE: the deposit chain's own walker injected at 5 sites; the phantom-raw cure stays the truth. Tests: five wake pins, import pins, the ledger pin, the behavioral consult test; the v0.355.0 re-segment pin re-tailed (the sync law). Local: syntax 268, unit 152/152, integration 2/2. Pushed 0f4b97d..49faae7 rebase-clean.
+- GATES: 36735680214 (0.355.0) SUCCESS; 36739586032 (0.356.0) units 2x SUCCESS, integration in flight at close.
+- DISPATCHED FACE 13: 36740244530 (on 49faae7/0.356.0, units-proven), HTTP 204, queued at close. Payload: the raw walker's first field leg + the re-segment's first field leg + the second live old-space face.
+
+Stage Summary:
+- Master = 49faae7 (pkg 0.356.0). FLEET OF RECORD: face 13 (36740244530) on 0.356.0.
+- NEXT FIRE (0000): (1) Poll face 13 -> mine the raw walker's + the re-segment's first field legs, the second old-space face, the storm sequel; (2) poll 36739586032 -> green proves 0.356.0; (3) face 14 dispatch only after face 13 lands; (4) CHECK ORIGIN FIRST (0.357.0); (5) candidate: the storm verdict's wet-rescue exclusion on the glitch streak.
+- OPEN FRONTS: the seal cross's LANDED leg (owed); the storm's wet-rescue glitch pollution (measured); the GC Pinned hunt (old=88M/110M); the rescue net healing; ticking-flat freeze head (cron38's lane); shooter-band census; void stamp. Version next: 0.357.0.
