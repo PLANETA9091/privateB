@@ -55,6 +55,29 @@ console.log('  stall side-step lines:', count(/stall side-step/), 'per-bot:', fm
 console.log('  envelope re-segment lines:', count(/envelope re-segment/))
 console.log('  singular probe rescues:', count(/the singular probe rescued the scan/))
 
+// (v0.360.0) THE FACE-14 LEGS - face 14 (dispatched on 22876eb) carries FOUR
+// unproven field legs and the tool must read each one's row or mid-run line:
+// the WET verdict class (v0.357.0 - an all-wet face downgrades to
+// 'storm verdict: WET - N air glitches (N wet-rescued, dry 0)'), the DRY
+// DIET tail (v0.359.0 - a mixed whale names ', wet-rescued N', an all-wet
+// whale leaves the diet silent), the honest hole's first live read (0.356.0
+// - 'sensor liar census: F.. disproved N reads'), and the assist burst cap's
+// neighborhood (the climb rise assist lines, the pf: last-pulse chain, the
+// freeze-storm FATAL the 24/500 pair must kill). A FATAL face never prints
+// the FLEET RESULT - the mid-run legs stay the account (the v0.358.0
+// lesson), so the burst-cap counts ride beside the result-row counts.
+console.log('--- FACE-14 LEGS (the storm family rows + the burst-cap neighborhood) ---')
+console.log('  verdict STORM:', count(/storm verdict: STORM/), ' WET:', count(/storm verdict: WET/), ' CALM:', count(/storm verdict: CALM/))
+console.log('  verdict wet-rescued tails:', count(/storm verdict: .*wet-rescued/))
+console.log('  storm diet rows:', count(/storm diet:/), ' diet wet tails:', count(/storm diet: .*wet-rescued/))
+console.log('  air-bar ledger rows:', count(/air-bar ledger:/))
+console.log('  sensor liar census rows:', count(/sensor liar census:/))
+console.log('  sentry per-bot rows:', count(/sentry per-bot:/))
+console.log('  freeze storm FATAL lines:', count(/freeze storm/))
+console.log('  last-pulse chain lines (pf:):', count(/pf:(goal|queue|done)/))
+console.log('  climb rise assist lines:', count(/climb rise assist/), 'per-bot:', fmt(perBot(/climb rise assist/)))
+console.log('  assist timeouts (the 4.5s class):', count(/climb rise assist: .*timeout/))
+
 console.log('=== GOAL BRAKE / DUCK / VALVE ===')
 console.log('  brake refuse lines:', count(/goal brake:.*refus/), 'per-bot:', fmt(perBot(/goal brake:.*refus/)))
 console.log('  spin breaker lines:', count(/spin breaker/), 'per-bot:', fmt(perBot(/spin breaker/)))
