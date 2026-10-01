@@ -188,7 +188,7 @@ test('mapTripGap: the face-31 composition hand-counted, the honest nulls when a 
   assert.equal(g3.mapPositions, null, 'no map tail = the knowledge side unknown, never a zero that lies')
 })
 
-// (v0.446.0) THE TRIP RECEIPT - the delivery leg's yield. The counter tail
+// (v0.447.0) THE TRIP RECEIPT - the delivery leg's yield. The counter tail
 // parser rides the tiling law (the pairs must TILE the tail or the whole
 // sample reads null); the composer rides the trip census's own parser
 // (parseMapTrip - no re-parse drift). The verbatim t-lines are face 32's

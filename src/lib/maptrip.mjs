@@ -156,7 +156,7 @@ export function mapTripGap (mt, map, stuck) {
   }
 }
 
-// (v0.446.0) THE TRIP RECEIPT - the delivery leg's YIELD arrives. The
+// (v0.447.0) THE TRIP RECEIPT - the delivery leg's YIELD arrives. The
 // v0.415.0 lens priced the launch economics, the v0.445.0 gap priced the
 // knowledge side - but neither read whether the launches that DID leave
 // ever moved the pocket. The periodic pulse line carries the fleet-wide
