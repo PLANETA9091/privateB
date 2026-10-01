@@ -25,6 +25,7 @@ import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, MID_BANK_RETURN_MARGIN_MS, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
+import { deliverableNow } from '../src/lib/deliverability.mjs' // (v0.385.0) THE DELIVERABILITY ARM - the gate compares, flowPriceClock prices (the sibling law)
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
 import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, countItem, consolidateSurplus, craftPlanksFromLogs } from '../src/bots/tools.mjs'
@@ -2197,7 +2198,35 @@ async function runBot (name, target, index) {
         // skip + the night deferral) log at the cadence, not at the spin rate.
         // The planned/dusk arms keep their own fences byte for byte.
         const bankRefusalOpen = bankRefusalDue({ msSinceBank: Date.now() - lastBankAt })
-        const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go)
+        // (v0.385.0) THE DELIVERABILITY ARM - the bank-flow whale's priced lever
+        // (v0.382.0 priced the 495u stranded pocket; v0.384.0 made the deficit
+        // STRUCTURAL: the end-phase grants 300s against needs the flow prices at
+        // 2433-2789s - an 11% granted share - so the only lever is EARLIER
+        // delivery). The gate joins the arming ladder as the LAST trigger: the
+        // legacy family (planned/dusk/pockets-full) keeps priority byte for
+        // byte, the arm only spends a pass they declined. The cadence clock
+        // (bankRefusalOpen) owns the re-price (150s, no loop spin); the bot
+        // must hold SOMETHING bankable (load.units > 0 - an empty pocket's trip
+        // delivers nothing but a walk). THE SIBLING LAW rides twice: the need
+        // is flowPriceClock's own needS (the same samples, the same tail-burst
+        // guard the end-phase clock reads) and the granted clock is the SAME
+        // finalBankBudgetMs call the chain entry makes at THIS instant - the
+        // arm's limits and the final bank's budget are one arithmetic, a gate
+        // that conjured its own pace would diverge from the row that judges it
+        // (the v0.348.0 lesson's shape). Junk-safe: an unpriced flow refuses
+        // (the dead-flow law). The trips below price their own budgets
+        // (midBankBudgetMs) - the arm names the TRIGGER, never the spend.
+        const deliverableArm = (() => {
+          const eligible = bankRefusalOpen && !tripPlanned && !bankDusk && !duskPlan.go && !!load && load.units > 0
+          if (!eligible) return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null }
+          try {
+            const fleetUnits = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean)).units
+            const midFlow = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetUnits, baseMs: END_BANK_BUDGET })
+            const grantedS = finalBankBudgetMs({ yardDist: bankYardDist, marginLeftMs: Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now()), floorMs: midFlow.floorMs, capMs: END_BANK_BUDGET_CAP_MS }) / 1000
+            return { ...deliverableNow({ needS: midFlow.needS, grantedS, timeLeftS: bankRemainingMs / 1000 }), rate: midFlow.rate, fleetUnits }
+          } catch { return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null } }
+        })()
+        const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go || deliverableArm.go)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
         // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
         // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full
@@ -2263,7 +2292,14 @@ async function runBot (name, target, index) {
           })
           // (v0.193.0) the dusk trip names itself ('dusk') - a third label on
           // the same 'bank ' filter key, so the next fleet sizes the class.
-          console.log(`${name} bank trip: ${tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned') : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key; (v0.297.0) the 5th label: the fuel-tithe trip names itself (the trigger's own conversion census)
+          console.log(`${name} bank trip: ${tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned') : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : deliverableArm.go ? 'deliverable' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key; (v0.297.0) the 5th label: the fuel-tithe trip names itself (the trigger's own conversion census); (v0.385.0) the 6th label: the deliverability arm names itself
+          if (!tripPlanned && !bankDusk && deliverableArm.go && !needsBanking(miner.bot)) {
+            // (v0.385.0) the cause form: the priced numbers ride the line, the
+            // class sizes itself in the 'bank ' filter key (the census reads
+            // need-vs-limit straight off it, the v0.382.0 shape)
+            const dl = deliverableArm
+            console.log(`${name} bank trip: deliverable (${dl.term}) - fleet pocket ${dl.fleetUnits}u at ${dl.rate != null ? dl.rate.toFixed(1) : '?'}u/s needs ${dl.needS != null ? Math.round(dl.needS) : '?'}s vs ${dl.limitS != null ? Math.round(dl.limitS) : '?'}s ${dl.term === 'clamp' ? 'the final bank can never grant - the surplus must ride now' : 'the run cannot drain in the time left'} - the trip fires early`)
+          }
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
           // OWN remaining chain clock: everything spent since lastBankAt

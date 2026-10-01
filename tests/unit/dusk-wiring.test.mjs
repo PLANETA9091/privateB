@@ -49,12 +49,21 @@ test('REGRESSION PIN: the arm folds into the legacy bank family, never a second 
   // priority ORDER is unchanged, the pockets-full term only gained the cadence
   // clock its v0.181.0 comment always claimed. The intent stands: one family,
   // no second chain.)
-  const wanted = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go\)/)
-  assert.ok(wanted, 'bankWanted carries the plan arm beside the legacy reasons (planned/dusk keep priority; the pockets-full term rides the v0.306.0 refractory)')
+  // (v0.385.0 re-pin: the deliverability arm joins the SAME family as the
+  // LAST trigger - the legacy terms keep priority, the arm only spends a pass
+  // they declined, and it rides the SAME bankViable/bankDefer ladder below -
+  // still one family, still no second chain.)
+  const wanted = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| deliverableArm\.go\)/)
+  assert.ok(wanted, 'bankWanted carries the plan arm beside the legacy reasons (planned/dusk keep priority; the pockets-full term rides the v0.306.0 refractory; the v0.385.0 deliverability arm joins last on the same cadence clock)')
   const refractory = fleetSrc.match(/const bankRefusalOpen = bankRefusalDue\(\{ msSinceBank: Date\.now\(\) - lastBankAt \}\)/)
   assert.ok(refractory, 'the refractory read rides immediately beside the gate (the cadence clock feeds the term)')
   const viable = fleetSrc.match(/const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| needsBankingTripViable/)
   assert.ok(viable, 'bankViable carries the arm BEHIND the night hold (the v0.140.1 hold stays untouchable - the wire never sends a bot toward night)')
+  // (v0.385.0) the deliverability arm must be COMPUTED on the same refractory
+  // clock the needsBanking term rides - an arm that re-prices every loop
+  // iteration would spin the pocket census (the v0.306.0 lesson's own shape)
+  const armEligible = fleetSrc.match(/const eligible = bankRefusalOpen && !tripPlanned && !bankDusk && !duskPlan\.go && !!load && load\.units > 0/)
+  assert.ok(armEligible, 'the deliverability arm prices on the refractory cadence only, and only when no legacy arm owns the pass')
 })
 
 test('REGRESSION PIN: the arm sets the plan exit clock inside the chain block (the failed arm waits it out)', () => {
@@ -66,8 +75,11 @@ test('REGRESSION PIN: the arm sets the plan exit clock inside the chain block (t
 })
 
 test('REGRESSION PIN: the plan arm names itself in the label ladder (the class sizes in the same bank filter key)', () => {
-  assert.match(fleetSrc, /bank trip: \$\{tripPlanned \? \(fuelTrip \? 'fuel-tithe' : 'planned'\) : bankDusk \? 'dusk' : needsBanking\(miner\.bot\) \? 'pockets full' : 'dusk-plan'\}/,
-    "the 4th label 'dusk-plan' rides the SAME 'bank trip:' line (no new filter key, the field face reads the existing series); (v0.297.0) the 5th label 'fuel-tithe' joins the ladder's planned arm - the trigger's own conversion census")
+  // (v0.385.0 re-pin: the 6th label 'deliverable' joins before the dusk-plan
+  // fallback - the deliverability arm's trigger names itself, the ladder's
+  // legacy labels keep their order byte for byte)
+  assert.match(fleetSrc, /bank trip: \$\{tripPlanned \? \(fuelTrip \? 'fuel-tithe' : 'planned'\) : bankDusk \? 'dusk' : needsBanking\(miner\.bot\) \? 'pockets full' : deliverableArm\.go \? 'deliverable' : 'dusk-plan'\}/,
+    "the 4th label 'dusk-plan' rides the SAME 'bank trip:' line (no new filter key, the field face reads the existing series); (v0.297.0) the 5th label 'fuel-tithe' joins the ladder's planned arm - the trigger's own conversion census; (v0.385.0) the 6th label 'deliverable' joins before the fallback")
 })
 
 test('REGRESSION PIN: the measurement rides the DELIVERED landing (a failed chain prices nothing)', () => {

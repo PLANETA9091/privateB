@@ -375,8 +375,13 @@ test('bankRefusalDue: junk everyMs falls back to the family cadence', () => {
 
 test('WIRING PIN: the refusal refractory gates the needsBanking term (v0.306.0)', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  const wire = fleetSrc.match(/const bankRefusalOpen = bankRefusalDue\(\{ msSinceBank: Date\.now\(\) - lastBankAt \}\)\n\s*const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go\)/)
-  assert.ok(wire, 'bankWanted reads the refractory on the needsBanking term; the planned/dusk arms keep their own fences')
+  // (v0.385.0 re-pin: the deliverability arm joins the SAME family as the
+  // LAST trigger - the legacy terms keep priority, the arm only spends a
+  // pass they declined; one family, never a second chain)
+  const wire = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| deliverableArm\.go\)/)
+  assert.ok(wire, 'bankWanted reads the refractory on the needsBanking term; the planned/dusk arms keep their own fences; the v0.385.0 deliverability arm joins as the last trigger on the same cadence clock')
+  const armOpen = fleetSrc.match(/const deliverableArm = \(\(\) => \{\n\s*const eligible = bankRefusalOpen && !tripPlanned && !bankDusk && !duskPlan\.go && !!load && load\.units > 0/)
+  assert.ok(armOpen, 'the deliverability arm prices on the refractory cadence only (the v0.306.0 shape: the term joins the clock, no loop spin)')
   // the refusal branch still advances the clock - the v0.181.0 silencer for
   // BOTH families (the pockets-full skip + the night deferral) must survive
   const openIdx = fleetSrc.indexOf('const bankRefusalOpen')
