@@ -11,6 +11,7 @@ import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
+import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.412.0) the vein sweep's per-fail drop-walk line
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -562,6 +563,29 @@ if (hopZero.total > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0
     const wfDecide = walkFailCensus(lines).decideTotal
     console.log(`  A* starvation GRAND TOTAL (hop + walk-fail + sweep + bank): ${hopDecide + wfDecide + bf.decideTotal} (bank's own = ${bf.decideTotal})`)
+  }
+}
+
+// (v0.412.0) THE DROP-WALK LENS - the vein sweep's per-fail drop-walk line.
+// The run-level economy rides drops.mjs's own 'sweep drop ledger:' row (the
+// failed= split below/plane/above), and the smelt sweep's verdicts ride the
+// walk-fail lens - but the PER-FAIL line ('the drop walk to [x,y,z] failed -
+// <the walk layer's verdict> (dy D, range R)') stayed unread. Face 26 carried
+// 18 of them: the dy family split (the v0.205.0 law), the WHY split (timeout
+// vs the doomed-goal ledger vs the fleet goal ceiling) and the timeouts'
+// budget-edge read (max == the constant says systemic, scatter says noise).
+{
+  const dw = dropWalkCensus(lines)
+  if (dw.fails > 0 || dw.unparsed > 0) {
+    console.log("--- DROP-WALK CENSUS (v0.412.0: the vein sweep's per-fail drop-walk line) ---")
+    const db = Object.entries(dw.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const dwy = Object.entries(dw.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  drop-walk fails: ${dw.fails}${dw.unparsed ? ` (unparsed ${dw.unparsed})` : ''} by why: ${dwy || 'none'} - per bot: ${db || 'none'}`)
+    if (dw.timeouts.n > 0) console.log(`  timeouts: n=${dw.timeouts.n} max=${dw.timeouts.maxMs}ms sum=${dw.timeouts.sumMs}ms`)
+    if (dw.doomed.n > 0) console.log(`  doomed: n=${dw.doomed.n} maxAge=${dw.doomed.maxAgeS}s withSpot=${dw.doomed.withSpot}`)
+    if (dw.ceiling.n > 0) console.log(`  ceiling: n=${dw.ceiling.n} maxGoals=${dw.ceiling.maxGoals} maxRefused=${dw.ceiling.maxRefusedS}s`)
+    const rng = Object.entries(dw.range).sort((a, b) => a[0] - b[0]).map(([k, v]) => `r${k}=${v}`).join(' ')
+    console.log(`  dy families: below=${dw.dy.below} plane=${dw.dy.plane} above=${dw.dy.above} (min ${dw.dy.min} max ${dw.dy.max}) - range: ${rng || 'none'}`)
   }
 }
 
