@@ -38,6 +38,15 @@ export const PLAN_TOP_ROW_RE = /^\s*plan top: (.+)$/
 // byte, so the two boards read as ONE board on the decompose's page.
 const ENTRY_RE = /([a-z_][a-z_0-9]*) (\d+)\/(\d+) \((\d+(?:\.\d+)?)%\)/g
 
+// (v0.442.0) THE LEAK SENTINELS: a plan resource key can never be the JS
+// literals `undefined` or `null` - face 30 (36926711080) caught the emitter
+// printing exactly that (`plan top: undefined 157926/0 (0.0%) ...`, the res
+// key missing from the materialsProgress value) and the grammar read the
+// token as an honest-looking name, building a fake named stuck signature out
+// of the leak. A slot named by a sentinel reads bad - counted unparsed, the
+// escape hatch screams, the seat math never sees a fake name.
+const LEAK_SENTINELS = new Set(['undefined', 'null'])
+
 /**
  * Parse one plan-top row. Returns null on every non-match (junk, the
  * deficits line, the other lanes' shapes, prose). Slots ride the emitter's
@@ -46,7 +55,9 @@ const ENTRY_RE = /([a-z_][a-z_0-9]*) (\d+)\/(\d+) \((\d+(?:\.\d+)?)%\)/g
  * THE TILING LAW (the deficits parser's, inherited): the entries must TILE
  * THE TAIL (one optional space between consecutive matches, no leading or
  * trailing garbage). Any future format edge reads bad - counted unparsed,
- * never silently half-read.
+ * never silently half-read. THE LEAK SENTINELS (v0.442.0): a slot named
+ * `undefined`/`null` reads bad too - the emitter's own JS leak never
+ * becomes a name (face 30's field regression, pinned in the tests).
  */
 export function parsePlanTopRow (line) {
   const m = typeof line === 'string' ? line.match(PLAN_TOP_ROW_RE) : null
@@ -60,6 +71,7 @@ export function parsePlanTopRow (line) {
     last = e.index + e[0].length
   }
   if (slots.length === 0 || last !== tail.length) return { bad: true, slots }
+  if (slots.some(s => LEAK_SENTINELS.has(s.res))) return { bad: true, slots }
   return { bad: false, slots }
 }
 

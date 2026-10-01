@@ -1015,14 +1015,22 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   if (pt.rows > 0 || pt.unparsed > 0) {
     console.log('--- PLAN TOP NAMES (v0.440.0: the stuck slot has a name) ---')
     console.log(`  named boards: ${pt.rows} rows, slots/row ${pt.slotsPerRow.min}..${pt.slotsPerRow.max}`)
-    const st = pt.seat
-    const seatNote = st.distinctNames.length === 1
-      ? ' - THE NAMED STUCK SIGNATURE: ONE resource held the worst seat all face'
-      : ` - the seat changed hands ${st.handChanges} time(s): the board is stuck, not one resource`
-    console.log(`  worst seat: ${st.firstName} -> ${st.lastName} (${st.distinctNames.length} distinct name(s)${st.distinctNames.length <= 3 ? `: ${st.distinctNames.join(' -> ')}` : ''})${seatNote}`)
-    const residents = Object.entries(pt.byRes).sort((a, b) => b[1].n - a[1].n).slice(0, 3)
-    for (const [res, a] of residents) {
-      console.log(`  ${res}: n=${a.n} pct ${a.firstPct}%..${a.lastPct}% (min ${a.minPct}%, max ${a.maxPct}%), have ${a.minHave}..${a.maxHave}`)
+    if (pt.rows === 0) {
+      // (v0.442.0) THE LEAK VERDICT: every named row escaped - face 30's
+      // emitter leak class (the res key never rode the materialsProgress
+      // value, the JS-undefined token printed in the name's seat). The seat
+      // line stays silent (no fake name math); the escape hatch speaks.
+      console.log('  worst seat: unnamed - EVERY named row escaped the grammar (the emitter-leak class: the name\'s source printed a token no resource key can own); the named signature needs the emitter fix, the deficits clock still reads')
+    } else {
+      const st = pt.seat
+      const seatNote = st.distinctNames.length === 1
+        ? ' - THE NAMED STUCK SIGNATURE: ONE resource held the worst seat all face'
+        : ` - the seat changed hands ${st.handChanges} time(s): the board is stuck, not one resource`
+      console.log(`  worst seat: ${st.firstName} -> ${st.lastName} (${st.distinctNames.length} distinct name(s)${st.distinctNames.length <= 3 ? `: ${st.distinctNames.join(' -> ')}` : ''})${seatNote}`)
+      const residents = Object.entries(pt.byRes).sort((a, b) => b[1].n - a[1].n).slice(0, 3)
+      for (const [res, a] of residents) {
+        console.log(`  ${res}: n=${a.n} pct ${a.firstPct}%..${a.lastPct}% (min ${a.minPct}%, max ${a.maxPct}%), have ${a.minHave}..${a.maxHave}`)
+      }
     }
     if (pt.unparsed > 0) console.log(`  unparsed rows: ${pt.unparsed} (the named-row shape escaped - counted, never dropped)`)
   }

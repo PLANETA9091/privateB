@@ -837,7 +837,15 @@ function materialsProgress () {
     // stayed starved (2/31 for an era). The optional chain reads the window
     // honestly: no inventory yet = 0 have from THIS bot, the tick lives.
     const have = list.reduce((a, m) => a + (m.bot?.inventory ? planHave(m.bot.inventory.items(), res) : 0), 0)
-    out[res] = { required, have, item: planItemsOf(res).join('+'), pct: Math.min(100, (have / required) * 100) }
+    // (v0.442.0) THE RES KEY RIDES THE OBJECT: face 30 (36926711080) caught
+    // the named board's first field read printing the JS-undefined token -
+    // `plan top: undefined 157926/0 (0.0%) ...` - because topDeficitNames
+    // reads m.res while this literal never carried it (the loop's own `res`
+    // never entered the value; the anonymous deficits line could not see the
+    // gap - it reads required/have/pct only). The key IS the plan's resource
+    // key (what MINABLE_OF and PLAN_ALIAS_OF speak); the deficits line stays
+    // byte-identical.
+    out[res] = { res, required, have, item: planItemsOf(res).join('+'), pct: Math.min(100, (have / required) * 100) }
   }
   return out
 }

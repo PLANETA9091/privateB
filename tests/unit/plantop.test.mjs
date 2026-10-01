@@ -126,3 +126,46 @@ test('the regex pin: the token is the emitter\'s own and anchors the whole gramm
   assert.ok(!PLAN_TOP_ROW_RE.test('   deficits: 1/1 (100.0%)'))
   assert.ok(!PLAN_TOP_ROW_RE.test('the plan top: of the morning'))
 })
+
+// (v0.442.0) THE FIELD REGRESSION: face 30 (36926711080) - the named board's
+// first field read printed the JS-undefined token in every seat (the res key
+// never rode the materialsProgress value). The grammar matched the token as
+// an honest-looking name and the decompose built a fake named stuck
+// signature out of the leak. The leak sentinels read bad - counted
+// unparsed, the seat math never sees a fake name.
+test('field regression (face 30): the verbatim undefined-leak row reads bad, the census counts it unparsed and keeps the seat math empty', () => {
+  const leak = '   plan top: undefined 157926/0 (0.0%) undefined 149380/0 (0.0%) undefined 31860/0 (0.0%) undefined 27420/0 (0.0%) undefined 10725/0 (0.0%)'
+  const r = parsePlanTopRow(leak)
+  assert.ok(r && r.bad, 'the tiling matched but the leak sentinels refuse the row')
+  assert.strictEqual(r.slots.length, 5, 'the parsed prefix survives for the escape-hatch count')
+  const c = planTopCensus([leak, leak, leak])
+  assert.strictEqual(c.rows, 0, 'no fake rows feed the math')
+  assert.strictEqual(c.unparsed, 3, 'every leak row counts - the escape hatch screams')
+  assert.strictEqual(c.seat.firstName, null, 'no fake name in the seat')
+  assert.deepEqual(c.byRes, {}, 'no fake per-resource arcs')
+})
+
+test('leak sentinels: one undefined seat poisons the whole row; the literal null too; mixed healthy+leak reads bad', () => {
+  const oneLeak = parsePlanTopRow('plan top: iron_ingot 100/0 (0.0%) undefined 90/9 (10.0%) stick 80/8 (10.0%)')
+  assert.ok(oneLeak && oneLeak.bad, 'a single leaked seat is enough - the row is not half-trusted')
+  const nullLeak = parsePlanTopRow('plan top: null 100/0 (0.0%) dirt 50/5 (10.0%)')
+  assert.ok(nullLeak && nullLeak.bad, 'null is the same leak class')
+  const trailingLeak = parsePlanTopRow('plan top: iron_ingot 100/0 (0.0%) stick 80/8 (10.0%) null 70/7 (10.0%)')
+  assert.ok(trailingLeak && trailingLeak.bad, 'the leak in any seat poisons the row')
+  const healthy = parsePlanTopRow('plan top: undefined_ingot 100/0 (0.0%) nullstone 50/5 (10.0%)')
+  assert.ok(healthy && !healthy.bad, 'a resource key CONTAINING the sentinel words is a legal key - only the EXACT tokens leak')
+  assert.strictEqual(healthy.slots[0].res, 'undefined_ingot')
+  assert.strictEqual(healthy.slots[1].res, 'nullstone')
+})
+
+test('census: a healthy row after leak rows still feeds the math (the leak never blinds the board that did parse)', () => {
+  const rows = [
+    '   plan top: undefined 157926/0 (0.0%) undefined 149380/0 (0.0%)',
+    '   plan top: iron_ingot 157926/0 (0.0%) stick 90000/92 (0.1%)'
+  ]
+  const c = planTopCensus(rows)
+  assert.strictEqual(c.rows, 1)
+  assert.strictEqual(c.unparsed, 1)
+  assert.strictEqual(c.seat.firstName, 'iron_ingot')
+  assert.ok(c.byRes.iron_ingot, 'the healthy row\'s arcs live')
+})
