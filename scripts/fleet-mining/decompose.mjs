@@ -2,6 +2,7 @@
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
+import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -172,6 +173,29 @@ for (const l of lines) {
 }
 console.log('  sight-loss windows (s before death):', sightSecs.length ? sightSecs.join(', ') : 'none')
 console.log('  o2=reset(-1) pass lines (the blind reads between starts):', count(/o2=reset\(-1\)/))
+// (v0.382.0) THE BANK-FLOW CENSUS - face 19 (36802577873) closed 19/19 ALIVE
+// with a 495u pocket still unbanked (38.6% of it crafted-class surplus the
+// mined counter never sees) and the flow-priced budgets naming the gap: the
+// static 248s window vs 2433-2789s of delivery need at the observed flow
+// (11 static windows), both stranded pockets zero-delivered ('the walk never
+// delivered'). The end-phase bank lines already print every number the
+// walk-deliveries cure needs; the tool never read them (the blind-tool
+// lesson). The pure parser lives in src/lib/bankcensus.mjs (unit-pinned);
+// this block is its field read. Mining-surface only: zero fleet wiring,
+// zero new log lines - the v0.379.0 precedent. The cure's field criteria
+// (face 21+ on a cure tree): strandedZeroDelivered shrinking, the surplus
+// crafted-class share shrinking, maxGapWindows leaving double digits.
+console.log('--- BANK-FLOW CENSUS (v0.382.0) ---')
+const bankCensus = bankFlowCensus(lines)
+if (bankCensus.loot) console.log(`  loot ledger: mined ${bankCensus.loot.mined} banked ${bankCensus.loot.banked} pocket ${bankCensus.loot.pocketUnits}u surplus ${bankCensus.loot.surplus}u conversion ${bankCensus.loot.conversionPct}%`)
+if (bankCensus.pocket) console.log(`  pocket anatomy: ${bankCensus.pocket.holders} holders, top ${bankCensus.pocket.topBot} ${bankCensus.pocket.topUnits}u (${bankCensus.pocket.topPct}%) - ${bankCensus.pocket.tail}`)
+if (bankCensus.surplus) console.log(`  surplus face: crafted-class ${bankCensus.surplus.craftedUnits}u of ${bankCensus.surplus.pocketUnits}u (${bankCensus.surplus.craftedPct}%), top ${bankCensus.surplus.top.map((t) => `${t.item} ${t.units}u`).join(', ') || 'none'}`)
+if (bankCensus.flow) console.log(`  bank flow: ${bankCensus.flow.rateUPerS}u/s (+${bankCensus.flow.bankedDelta}u over ${bankCensus.flow.windowS}s) - the ${bankCensus.flow.pocketUnits}u pocket needs ${bankCensus.flow.secondsPastDeadline}s past the deadline`)
+if (bankCensus.budgetAgg) console.log(`  flow-priced budgets: ${bankCensus.budgetAgg.count} printed, ${bankCensus.budgetAgg.uncovered} uncovered, max need ${bankCensus.budgetAgg.maxNeedsS}s vs static ${bankCensus.budgetAgg.staticS}s = ${bankCensus.budgetAgg.maxGapWindows} static windows (per-bot: ${bankCensus.budgets.map((b) => `${b.bot}=${b.flowPricedS}s${b.covered ? ' covered' : ''}`).join(' ') || 'none'})`)
+if (bankCensus.attribution) console.log(`  stranded pockets (the walk never delivered): ${bankCensus.attribution.stranded.map((s) => `${s.bot} ${s.deliveredU}u/${s.pocketU}u`).join(', ') || 'none'} - zero-delivered: ${bankCensus.attribution.strandedZeroDelivered}`)
+if (bankCensus.writeOff.length) console.log(`  final write-off: ${bankCensus.writeOff.map((w) => `${w.bot} ${w.units}u/${w.seconds}s`).join(', ')}`)
+if (bankCensus.doom?.why) console.log(`  bank doom why: ${bankCensus.doom.why.whyClass} owns ${bankCensus.doom.why.carried} of ${bankCensus.doom.why.total} failed climb cycles (${bankCensus.doom.why.pct}%)`)
+if (!bankCensus.loot && !bankCensus.budgetAgg) console.log('  (no end-phase bank block - a FATAL face truncates it)')
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
 // its classes: the frozen-relog loop (#N consecutive + the bypass echoes),
