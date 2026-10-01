@@ -1474,6 +1474,17 @@ export const BOB_RELEASE_O2 = 15
 export const TRANSIT_STALL_PASSES = 15
 /** ...by this margin (blocks) = the walls own the swim. */
 export const TRANSIT_STALL_MARGIN = 2
+// (v0.378.0), part 1 - the time patience. Faces 12/15/16
+// paid the pass-count patience's blind spot ELEVEN times (11/11 zero-probe
+// timeouts): the pass cadence varies 4x across faces (13 passes in 26.2s on
+// face 16 vs 56 passes in 25.1s on face 15 - the lookAt+settle cost depends
+// on the terrain), so a pass-count latch cannot fire inside a SLOW-budget
+// rescue (13 passes < 15 patience = mathematically impossible), and a
+// FAST-budget rescue burns 3.7 budgets' worth of passes before it fires.
+// Time is the budget's own currency: steering one bearing for TRANSIT_STALL_MS
+// without closing the margin is the same wall, at any cadence - and the
+// remaining ~15s belong to the release/probe branches the ladder keeps below.
+export const TRANSIT_STALL_MS = 10000
 
 /**
  * Did the bot's position FLATLINE across the last `window` pass records
@@ -2093,7 +2104,7 @@ export function bobbingRelease ({ reads = null, oxygen = 20, window = BOB_WINDOW
  * @param {number} [p.margin] progress required (default TRANSIT_STALL_MARGIN)
  * @returns {boolean} true -> the transit is stalled, drop the plan
  */
-export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = TRANSIT_STALL_PASSES, margin = TRANSIT_STALL_MARGIN } = {}) {
+export function transitStalled ({ d0 = null, d = null, passes = 0, ms = null, maxPasses = TRANSIT_STALL_PASSES, margin = TRANSIT_STALL_MARGIN, maxMs = TRANSIT_STALL_MS } = {}) {
   if (d0 == null || d == null) return false
   const a = Number(d0), b = Number(d)
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false
@@ -2101,7 +2112,48 @@ export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = T
   if (!Number.isFinite(p)) return false
   const mp = Number.isFinite(maxPasses) ? Math.floor(maxPasses) : TRANSIT_STALL_PASSES
   const m = Number.isFinite(margin) ? margin : TRANSIT_STALL_MARGIN
-  return p >= mp && b > a - m
+  // (v0.378.0) BESIDE the pass patience - a call that
+  // omits ms (the land branch keeps its byte-identical call) decides on the
+  // pass count alone; a junk ms is a lost reading, never a condemnation.
+  const timed = ms != null && Number.isFinite(Number(ms)) &&
+    Number.isFinite(Number(maxMs)) && Number(maxMs) > 0 && Number(ms) >= Number(maxMs)
+  return (p >= mp || timed) && b > a - m
+}
+
+// (v0.378.0), part 2 - the wobble-tolerant latch key.
+// The shore scan's unit bearing wobbles between adjacent integer deltas pass
+// to pass (face 15's flee histogram: F12 burned 12 of 13 flee events on THREE
+// bearings of the same shore - (2,5)x5 + (3,6)x4 + (2,4)x3), and the dir
+// branch's plan key was the EXACT bearing pair - every wobble reset d0 and
+// the pass clock, so `passes` never accumulated to 15 on one key and the
+// latch never fired (zero stall lines in three faces). The sector key
+// quantizes the bearing to BEARING_SECTORS angular buckets: a wobble inside
+// one sector is the SAME direction at the same wall, the clock survives, and
+// the patience (pass OR time) finally gets its chance to fire.
+export const BEARING_SECTORS = 16
+
+/**
+ * The wobble-tolerant latch key for a shore bearing (v0.378.0): the
+ * bearing's angular sector (0..BEARING_SECTORS-1). Junk never keys (null ->
+ * the caller keeps its legacy exact-pair key): a missing or non-finite delta
+ * or a zero vector (the shore scan should never emit one, but Number coercion
+ * holes have a three-strike record) returns null.
+ * @param {object} [p]
+ * @param {number|null} [p.dx] bearing delta x (junk -> null)
+ * @param {number|null} [p.dz] bearing delta z (junk -> null)
+ * @param {number} [p.sectors] bucket count (default BEARING_SECTORS)
+ * @returns {number|null} the sector index, or null on junk
+ */
+export function bearingSectorKey ({ dx = null, dz = null, sectors = BEARING_SECTORS } = {}) {
+  // (the v0.75.1 lesson, fourth strike) a MISSING delta activates the default
+  // null and Number(null) is 0 - a phantom bearing at the positive-x axis.
+  // Explicit null/undefined check BEFORE the coercion; a legit 0 delta passes.
+  if (dx == null || dz == null) return null
+  const x = Number(dx), z = Number(dz)
+  if (!Number.isFinite(x) || !Number.isFinite(z) || (x === 0 && z === 0)) return null
+  const n = Number.isFinite(sectors) && sectors > 0 ? Math.floor(sectors) : BEARING_SECTORS
+  const ang = Math.atan2(z, x)
+  return ((Math.round((ang / (2 * Math.PI)) * n) % n) + n) % n
 }
 
 export const SHORE_PIN_PASSES = 8

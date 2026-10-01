@@ -52,6 +52,7 @@ import {
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
   openWaterRelease, physicsFrozen, transitStalled, shorePinned, frozenRelogDecision, freezeClass,
+  bearingSectorKey,
   frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel, rescueEndVerdict,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
@@ -2045,9 +2046,16 @@ export function createMiner ({
             // plan when the radius stops shrinking, and the release/probe
             // branches below take over this pass and every pass after (one
             // flag, one policy - the land branch's latch is the same latch).
-            const dkey = `${dir.dx},${dir.dz}`
-            if (!dirPlan || dirPlan.key !== dkey) dirPlan = { key: dkey, d0: dir.dist, atPass: passNo, logged: false }
-            if (transitStalled({ d0: dirPlan.d0, d: dir.dist, passes: passNo - dirPlan.atPass })) {
+            // (v0.378.0): the latch keys the bearing's
+            // SECTOR (the wobble-tolerant key - faces 12/15/16 paid 11/11
+            // zero-probe timeouts while exact-pair resets starved the clock)
+            // and the patience gains TIME (a slow-cadence rescue dies at 13
+            // passes - under the pass patience - with the whole budget spent
+            // on one bearing; 10s without margin progress is the same wall at
+            // any cadence). The land branch keeps its byte-identical call.
+            const dkey = bearingSectorKey({ dx: dir.dx, dz: dir.dz }) ?? `${dir.dx},${dir.dz}`
+            if (!dirPlan || dirPlan.key !== dkey) dirPlan = { key: dkey, d0: dir.dist, atPass: passNo, atMs: Date.now(), logged: false }
+            if (transitStalled({ d0: dirPlan.d0, d: dir.dist, passes: passNo - dirPlan.atPass, ms: Date.now() - dirPlan.atMs })) {
               if (!dirPlan.logged) {
                 dirPlan.logged = true
                 log(`${tag} water: shore transit stalled (r=${dir.dist.toFixed(0)} after ${passNo - dirPlan.atPass} passes - the walls own this swim; the release takes over)`)
