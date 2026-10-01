@@ -18,6 +18,7 @@ import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the mate
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
+import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -859,5 +860,25 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       ? Object.entries(mem.stormByBot).map(([b, s]) => `${b}=${s.count}(max ${s.maxConsecutive})`).join(' ')
       : 'none'
     console.log(`  distress: storm cooldowns ${mem.stormCooldowns} (${stormNote}), oom locks ${mem.oomLocks}`)
+  }
+}
+
+// (v0.421.0) THE GC POOL LENS - the GC Pinned hunt's own eyes. The v0.354.0
+// blind-old-space cure returned the pool split to the mem gauge (heapspace.mjs's
+// law: 'the old/ext/ab split says WHICH pool') and the split has flowed on every
+// face since - but nobody read it: the mem-hb lens owns the ceilings/eviction
+// slice, the storm census the freeze clock. This row reads the POOLS: old =
+// retained JS (the leak class), ext = external native, ab = ArrayBuffer backing
+// store (the GC-pinned class proper - collectible only when every ref drops).
+// The verdict shape beside the freeze clocks: a freeze face with FLAT pools
+// points AWAY from GC-pinned; ext/ab climb AT the freeze names the pool.
+{
+  const gp = gcPoolCensus(lines)
+  if (gp.reads > 0) {
+    const p = gp.pools
+    console.log('=== GC POOLS (the gc-pool lens, v0.421.0) ===')
+    console.log(`  gauges: ${gp.reads} reads, unknown pool fields ${gp.unknowns} (the -1 sentinel)`)
+    console.log(`  old (retained js): max ${p.old.max}M last ${p.old.last}M, peak climb ${gp.jump.old}M/gauge; ext (external): max ${p.ext.max}M last ${p.ext.last}M, peak climb ${gp.jump.ext}M/gauge; ab (arraybuffer): max ${p.ab.max}M last ${p.ab.last}M, peak climb ${gp.jump.ab}M/gauge`)
+    console.log(`  pinned share (ext+ab)/rss max ${gp.pinnedShareMax}%; v8 headroom min ${gp.headroomMin}M (heapTotal-heapUsed)`)
   }
 }
