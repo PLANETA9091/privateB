@@ -9,6 +9,7 @@ import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the hone
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
+import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -494,6 +495,41 @@ if (hopZero.total > 0) {
   if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
 } else {
   console.log('  zero-hops: 0 (a clean delivery face - the honest zero)')
+}
+
+// (v0.410.0) THE WALK-FAIL LENS - the A* starvation census's fleet-wide leg.
+// The hop-zero census above reads the HOP lane only; the SAME decide/no-path
+// starvation walks the tool lanes' own chest walks (fuel commons / iron
+// commune / pool seed) and the smelt sweep's per-machine verdicts unread.
+// Face 25 attempt 2 carried 79 decide lines - the hop lane owned 42, the
+// other 37 rode in shapes nobody parsed. This block reads them and prices
+// the fleet-wide starvation beside the hop lane's own count.
+{
+  const wf = walkFailCensus(lines)
+  const hasWalk = wf.walk.total > 0
+  const hasSweep = wf.sweep.lines > 0
+  if (hasWalk || hasSweep) {
+    console.log('--- WALK-FAIL CENSUS (v0.410.0: the A* starvation beyond the hop lane) ---')
+  }
+  if (hasWalk) {
+    const lanes = Object.entries(wf.walk.byLane).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const whys = Object.entries(wf.walk.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const bots = Object.entries(wf.walk.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  chest-walk fails: ${wf.walk.total} (nudge ${wf.walk.nudge}) by lane: ${lanes || 'none'}`)
+    console.log(`  by why: ${whys || 'none'} - per bot: ${bots || 'none'}`)
+    if (wf.walk.timeouts.length) console.log(`  lane walk timeouts ms: ${wf.walk.timeouts.join(',')}`)
+  }
+  if (hasSweep) {
+    const sw = Object.entries(wf.sweep.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const sb = Object.entries(wf.sweep.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  sweep verdicts: ${wf.sweep.lines} line(s), machine-unreachable ${wf.sweep.machinesUnreachable} (${sw || 'none'}) busy=${wf.sweep.busy} deferred=${wf.sweep.deferred}${wf.sweep.unparsed ? ` unparsed=${wf.sweep.unparsed}` : ''}`)
+    console.log(`  sweep per bot: ${sb || 'none'}`)
+    if (wf.sweep.timeouts.length) console.log(`  sweep walk timeouts ms: ${wf.sweep.timeouts.join(',')}`)
+  }
+  if ((hasWalk || hasSweep) && wf.decideTotal > 0) {
+    const hopDecide = hopZero.byWhy['decide-timeout'] || 0
+    console.log(`  A* starvation (decide) fleet-wide: walk-fail lanes + sweep = ${wf.decideTotal}, the hop lane's own = ${hopDecide}, total ${wf.decideTotal + hopDecide}`)
+  }
 }
 
 // (v0.409.0) THE STORM EVENT CENSUS - the stormguard verdicts', the
