@@ -30,6 +30,17 @@
 // owns the death lines; this census keys on the combat marker only, so the
 // shooter inference inside a death line ('inferred: skeleton@14.7') never
 // double-counts.
+//
+// (v0.394.0) THE HONEST WALL MISS - the fleet's wall-scan verdict line
+// renamed from 'shelter skip (open field: no diggable wall, ...)' to
+// 'shelter wall miss (open field: no diggable wall, ring next, ...)': the
+// line is a ROUTE MARKER (the ring attempt follows and may SUCCEED - the
+// success line 'sheltering from ...' follows it), naming it a skip made the
+// census double-count one shelter attempt as two skips (face 15: 150 skips
+// over 76 tries). The miss is its own verb + its own count
+// (shelter.wallMiss); the SKIP_REASON_RES 'no-diggable-wall' key stays for
+// the HISTORICAL faces (they parse byte-identical). The terrain cure's
+// pricing now reads the wall-miss row, not a skip why.
 
 const num = (s) => Number(s)
 
@@ -125,6 +136,11 @@ const VERBS = [
   ['ring-try', /^shelter ring try/],
   ['shelter-dig-earn', /^shelter dig-earn/],
   ['shelter-earn', /^shelter earn/],
+  // (v0.394.0) the wall-scan verdict - BEFORE 'shelter skip' in the family
+  // order (most-specific-first); the two prefixes never collide ('shelter
+  // skip' does not match a 'shelter wall miss' body and vice versa), the
+  // position is the family reading order.
+  ['shelter-wall-miss', /^shelter wall miss/],
   ['shelter-skip', /^shelter skip/],
   ['shelter-try', /^shelter try/],
   ['sheltering', /^sheltering from/],
@@ -192,7 +208,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -218,6 +234,9 @@ export function shooterCensus (lines) {
   let tries = 0
   let skips = 0
   let ringTries = 0
+  // (v0.394.0) the wall-scan verdict count - the route marker the ring
+  // attempt follows; the terrain class of the shelter cure reads THIS now
+  let wallMiss = 0
   let withDist = 0
   let maxDist = null
   entries.forEach((e, i) => {
@@ -246,6 +265,7 @@ export function shooterCensus (lines) {
     if (e.verb === 'ranged-cooldown') cooldownArmed++
     if (e.verb === 'verdict-flip') verdictFlips++
     if (e.verb === 'shelter-try') tries++
+    if (e.verb === 'shelter-wall-miss') wallMiss++
     if (e.verb === 'shelter-skip') {
       skips++
       // (v0.391.0) the why split - the parens prose carries the reasons
@@ -277,7 +297,7 @@ export function shooterCensus (lines) {
       byAttacker: rangedByAttacker
     },
     verdictFlips,
-    shelter: { tries, skips, ringTries },
+    shelter: { tries, skips, ringTries, wallMiss },
     skipWhys,
     withDist,
     maxDist

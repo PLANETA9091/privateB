@@ -952,8 +952,13 @@ export function createMiner ({
     // and the threatVerdict calls (both sites) read sheltered: false - the
     // yield line lifts to OPEN_FIELD_FLEE_HP in the dark (the run60 killing
     // sequence: the trade the bot cannot win it should not stand for).
+    // (v0.394.0) THE HONEST WALL MISS: this line is a ROUTE MARKER, not a
+    // skip - the ring attempt follows it and may SUCCEED (face 15 read 150
+    // 'skips' over 76 tries ~= 2 lines per attempt because every wall miss
+    // was named a skip). The verb is 'shelter wall miss'; the ring's own
+    // verdict (built / its own skip line) is the attempt's honest outcome.
     openFieldNight = true
-    log(`${tag} combat: shelter skip (open field: no diggable wall, ${threatStill ? `${threatStill.name}@${threatStill.dist.toFixed(1)}` : 'threat gone'})`)
+    log(`${tag} combat: shelter wall miss (open field: no diggable wall, ring next, ${threatStill ? `${threatStill.name}@${threatStill.dist.toFixed(1)}` : 'threat gone'})`)
     try { return await tryRingShelter(reason) } catch (e) {
       log(`${tag} combat: shelter skip (open field: ring failed: ${e.message})`)
       return false

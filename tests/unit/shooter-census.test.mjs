@@ -124,7 +124,8 @@ test('raw text blob input and empty input both hold', () => {
   assert.equal(blob.total, 2)
   const empty = shooterCensus([])
   assert.equal(empty.total, 0)
-  assert.deepEqual(empty.shelter, { tries: 0, skips: 0, ringTries: 0 })
+  // (v0.394.0) the shelter aggregate carries the wall-miss row (default 0)
+  assert.deepEqual(empty.shelter, { tries: 0, skips: 0, ringTries: 0, wallMiss: 0 })
 })
 
 // (v0.391.0) THE SHELTER-SKIP WHY TAXONOMY - face-15 verbatims
@@ -216,4 +217,58 @@ test('byBotVerb: the untagged line lands in unknown; the zero face is empty', ()
   assert.deepEqual(c.byBotVerb.unknown, { fighting: 1 })
   const zero = shooterCensus(['F1 [F1] water: shore pinned (r=1 after 8 passes - the shoreline owns this swim; the release takes over)'])
   assert.deepEqual(zero.byBotVerb, {})
+})
+
+// (v0.394.0) THE HONEST WALL MISS - the wall-scan verdict is a ROUTE MARKER
+// (the ring attempt follows and may succeed), not a skip. The fleet line
+// renamed 'shelter skip (open field: no diggable wall, ...)' ->
+// 'shelter wall miss (open field: no diggable wall, ring next, ...)'.
+const WALL_MISS = 'F15 [F15] combat: shelter wall miss (open field: no diggable wall, ring next, drowned@5.1)'
+
+test('shelter wall miss: its own verb, priced attacker, never a skip', () => {
+  const e = parseCombatLine(WALL_MISS)
+  assert.equal(e.verb, 'shelter-wall-miss')
+  assert.equal(e.bot, 'F15')
+  assert.equal(e.attacker, 'drowned')
+  assert.equal(e.dist, 5.1)
+  // the whole-shape read: one miss line, ZERO skips, no why rows
+  const c = shooterCensus([WALL_MISS])
+  assert.equal(c.shelter.wallMiss, 1)
+  assert.equal(c.shelter.skips, 0)
+  assert.deepEqual(c.skipWhys, {})
+})
+
+test('the honest sequence: wall miss -> ring try -> sheltering reads ONE attempt', () => {
+  // the old naming logged a 'skip' for an attempt that SUCCEEDED - the
+  // census read 2 lines per attempt (face 15: 150 skips over 76 tries)
+  const c = shooterCensus([
+    WALL_MISS,
+    'F15 [F15] combat: shelter ring try vs drowned (dist 5.1, -x+z-x-z first, full ring, proximity re-verdict)',
+    'F15 [F15] combat: sheltering from drowned (ring 8/8, proximity re-verdict)'
+  ])
+  assert.equal(c.shelter.wallMiss, 1)
+  assert.equal(c.shelter.skips, 0)
+  assert.equal(c.shelter.ringTries, 1)
+  assert.equal(c.byVerb.sheltering, 1)
+  assert.equal(c.byAttacker.drowned, 3, 'the attacker is priced on all three lines')
+  assert.deepEqual(c.skipWhys, {})
+})
+
+test('the miss line\'s threat-gone form: unpriced attacker, still its own verb', () => {
+  const c = shooterCensus(['F3 [F3] combat: shelter wall miss (open field: no diggable wall, ring next, threat gone)'])
+  assert.equal(c.shelter.wallMiss, 1)
+  assert.equal(c.shelter.skips, 0)
+  const e = parseCombatLine('F3 [F3] combat: shelter wall miss (open field: no diggable wall, ring next, threat gone)')
+  assert.equal(e.verb, 'shelter-wall-miss')
+  assert.equal(e.attacker, null)
+})
+
+test('the HISTORICAL skip form still parses byte-identical (faces 15/18/19)', () => {
+  const oldLine = 'F15 [F15] combat: shelter skip (open field: no diggable wall, drowned@5.1)'
+  const e = parseCombatLine(oldLine)
+  assert.equal(e.verb, 'shelter-skip')
+  const c = shooterCensus([oldLine])
+  assert.equal(c.shelter.skips, 1)
+  assert.equal(c.shelter.wallMiss, 0)
+  assert.deepEqual(c.skipWhys, { 'no-diggable-wall': 1 })
 })

@@ -736,8 +736,16 @@ test('REGRESSION PIN: the fight loop wires the open-field lens (the v0.212.0 lan
   assert.ok(/let openFieldNight = false/.test(minerSrc), 'the flag starts sheltered (the legacy verdicts until a scan proves the terrain)')
   assert.ok(/openFieldNight = false/.test(minerSrc), 'every terrain scan re-derives the flag (a stale open read never outlives its scan)')
   // the set site rides the open-field verdict line (the scan's named result)
-  const setSite = minerSrc.match(/const threatStill = nearestHostile\(\)[\s\S]{0,600}?openFieldNight = true/)
+  // (v0.394.0) the span grows 600 -> 1100: the verdict block gains the HONEST
+  // WALL MISS comment + the renamed route-marker log line between the flag
+  // set and the scan (the set site's own shape grew, the pin's intent -
+  // threatStill derives, the flag sets after an empty scan - unchanged)
+  const setSite = minerSrc.match(/const threatStill = nearestHostile\(\)[\s\S]{0,1100}?openFieldNight = true/)
   assert.ok(setSite, 'the wall scan\'s empty result writes the flag (open field: no diggable wall)')
+  // (v0.394.0) the verdict line is the ROUTE MARKER, not a skip: the ring
+  // attempt follows it and may succeed - naming it a skip double-counted
+  // one shelter attempt as two skips in the census (150 skips / 76 tries)
+  assert.ok(/combat: shelter wall miss \(open field: no diggable wall, ring next, /.test(minerSrc), 'the wall miss line names its route (the ring next, never a skip for an attempt that may succeed)')
   // the yield markers: the decode counts which flees came from the lifted line
   assert.ok(/open-field yield vs/.test(minerSrc), 'the flee names its lens for the run decode (the marker rides beside the legacy lines, never instead)')
   assert.ok(/OPEN_FIELD_FLEE_HP/.test(minerSrc), 'the line value rides the import (never hardcoded in the marker)')

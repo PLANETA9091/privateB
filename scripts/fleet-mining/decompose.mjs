@@ -281,7 +281,12 @@ if (shooter.total > 0) {
     console.log(`  combat-whale lens ${b} (${n} lines): ${vr || '-'}`)
   }
   console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
-  console.log(`  verdict flips: ${shooter.verdictFlips} - shelter: tries ${shooter.shelter.tries} / skips ${shooter.shelter.skips} / ring-tries ${shooter.shelter.ringTries}`)
+  // (v0.394.0) the wall-miss row - the wall-scan verdict line (formerly
+  // 'shelter skip (open field: no diggable wall ...)') is a ROUTE MARKER,
+  // not a skip: the ring attempt follows and may succeed. Naming it a skip
+  // double-counted one attempt as two skips (face 15: 150 skips / 76 tries).
+  // The terrain class of the shelter cure reads THIS row now.
+  console.log(`  verdict flips: ${shooter.verdictFlips} - shelter: tries ${shooter.shelter.tries} / skips ${shooter.shelter.skips} / ring-tries ${shooter.shelter.ringTries} / wall-miss ${shooter.shelter.wallMiss ?? 0}`)
   if (shooter.shelter.skips > 0) {
     // (v0.391.0) the why split - the shelter cure's design input (ring-stock
     // prices inventory, no-diggable-wall prices terrain/tool,
