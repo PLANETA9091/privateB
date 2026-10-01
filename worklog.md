@@ -11574,3 +11574,17 @@ Stage Summary:
 - THE VERDICT: AIM B FIRST, AIM A RE-PRICED AFTER. (1) The seats are behavior burning real budget (15-19 passes per burn, repeating); the blind share is a read with no lever. (2) The seat cure partially SELF-HEALS Aim A: the pinned occupancy [-131,411]x17 IS the seat - a bot that breaks the re-arm loop stops generating the same unread channels; the blind share re-reads on the same face and if it shrinks, Aim A closes as second-order. (3) The blind share has an unknown honest floor (unloaded chunks read nothing) - unmeasurable while the seats pin bots at the same coords; price Aim A AFTER the seat cure's face. (4) THE STAGED PLAN: (a) the fresh face (attempt 4, 36901025087) must REPRODUCE the zero-gain loop on current-tree terrain - pocket share dominant, gains ~0, the pinned-seat flag firing on the same targets; (b) then wire THE SAME-TARGET RE-ARM BRAKE (a pure gate at the transit re-arm: after a zero-gain stall a same-target re-arm takes a DIFFERENT approach cell or sits a cooldown; junk/absence walks legacy byte-for-byte; the decompose gains the re-arm family row); (c) the face after re-reads the blind share - Aim A's verdict falls out of that row.
 
 - THE PRE-FLIGHT (this fire's second leg): the FULL union decompose (10+ lenses, five keep-both merges) had never run end-to-end on a held log - smoke-ran v0.435.0's decompose against the held 1749-line fleet19 log: EXIT 0, 250 rows, every block either prints or honestly skips (sentry/transit skip n=0 on the old tree; hound presence 5 = fight 4 F18=2 F17=2 F19=1 on the OLD log - the lens reads across trees; death causes 'none, UNPARSED 17' = the DESIGNED escape hatch for the old tree's bare 'died - respawning' form, not grammar drift). The union is READY for attempt 4's artifact.
+
+---
+Task ID: cron30-20261002-0300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0300 - v0.436.0 THE UNDERGROUND ATTEMPTS READ (the still-underground class's own N: the ladder fails twice before every write-off, the doom is fleet-wide); no dispatch - attempt 4 (36901025087) not yet the zombie law.
+
+Work Log:
+- CHECK ORIGIN FIRST: 4df8343 the tip (the water-cure brief; the brake STAGED after attempt 4 - respected, not coded here). 0.436.0 free. Attempt 4 STILL 0 jobs ~1h21m.
+- THE LENS: bankfail.mjs reads the 'after N climb attempts' N (both singular/plural forms; the prose variant reads null); bankFailCensus zeros gain the underground slice {n, attempts series, byBot}; decompose gains the still-underground row + THE SHAFT-BOTTOM SEAT marker.
+- THE FIELD READ (held faces, live): face 27 - 10 zeros, attempts 1..2 avg 1.8, six bots (F13 the seat x5); face 26 - 5 zeros ALL N=2, five bots. The ladder fails, never refuses; the geometry owns the class.
+- Tests: bankfail 13/13 (5 new; one mid-fire fix - the tagless verbatim the first draft mistagged). Syntax 344/0, unit 199/199. Push 4df8343..79a9378 CLEAN. Gate 36912044797 pending 0 jobs at close.
+
+Stage Summary:
+- Master = 79a9378 (pkg 0.436.0). NEXT FIRE: attempt 4 >2h-0-jobs => the zombie law; version next 0.437.0. Identity: PLANETA9091.
