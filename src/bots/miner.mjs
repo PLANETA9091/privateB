@@ -66,6 +66,7 @@ import {
   rescueBlindness, RESCUE_BLIND_FLOOR_PASSES, // (v0.314.0) the blind rescue decode
   WATER_DEATH_TTL_MS
 } from '../lib/drowning.mjs'
+import { noteTransitStall, rearmVerdict } from '../lib/rearm.mjs' // (v0.443.0) THE SAME-TARGET RE-ARM BRAKE - the zero-gain loop's cross-episode gate
 import { suffocateRescueTargets, SUFFOCATE_WATCH_EVERY_TICKS, SUFFOCATE_DIG_MAX_TICKS } from '../lib/suffocate.mjs'
 import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn recorder's memory cap (the plan's own constant)
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
@@ -1741,6 +1742,14 @@ export function createMiner ({
   const wetRescueLog = []
   let swimming = false
   let lastRescueAt = 0
+  // (v0.443.0) THE SAME-TARGET RE-ARM BRAKE's ledger: target key -> the last
+  // transit stall's epoch ms. PER-BOT and CROSS-EPISODE (this closure outlives
+  // every rescue) - the v0.82.0 latch condemns a swim for the rest of its
+  // EPISODE, this ledger carries the verdict to the NEXT one (face 30's F8
+  // launched 26 times at one [-143,430] oak_log, ground gained 0..0 - every
+  // episode paid the same wall from its first pass). The gate lives in
+  // landBearingFromMap; the record rides the land branch's stall verdict.
+  const rearmStalls = new Map()
   let lastGlitchLogAt = 0
   let lastBypassEchoAt = 0 // (v0.265.0) the bypass echo's rate limiter (the AIR_GLITCH_LOG_MS cadence)
   let headWetSince = 0
@@ -1870,6 +1879,7 @@ export function createMiner ({
     let passLogAt = 0
     let passLogs = 0
     let mapMissLogged = false
+    let rearmBrakeLogged = false // (v0.443.0) the brake line's once-per-rescue latch (the mapMissLogged shape)
     let transitPlan = null // (v0.82.0) the progress latch: { key, d0, atPass, logged }
     let transitStalledFlag = false // once the walls own the swim, the release owns the pass
     // (v0.367.0) the shore-bearing latch: the same shape the land branch runs
@@ -1897,15 +1907,33 @@ export function createMiner ({
     const landBearingFromMap = () => {
       if (!map || !bot.entity?.position) return null
       const here = bot.entity.position
+      // (v0.443.0) THE SAME-TARGET RE-ARM BRAKE: a nearest land whose key sits
+      // in its stall cooldown is SKIPPED - the next LAND_PROXY is the different
+      // approach cell; no proxy left = null = the release/probes/hold branches
+      // own the pass (the cooldown leg the episode machinery already built).
+      // Junk/absence reads verdict-null - the legacy launch byte-identical.
+      let braked = null // the refused target's evidence ({ name, x, z, ageMs }) - one line per rescue
       for (const name of LAND_PROXIES) {
         let p = null
         try { p = map.nearest(name, here, { maxDistance: TRANSIT_MAP_RANGE }) } catch { /* junk map read */ }
         if (!p) continue
         const b = transitBearing({ hx: here.x, hz: here.z, lx: p.x, lz: p.z })
         if (b) {
+          // the key is the stall ledger's own (the land branch's tkey shape -
+          // name + the rounded planar target - same source cell, same string)
+          const rkey = `${name},${Math.round(p.x)},${Math.round(p.z)}`
+          const brakedV = rearmVerdict(rearmStalls, { key: rkey, now: Date.now() })
+          if (brakedV) {
+            if (!braked) braked = { name, x: p.x, z: p.z, ageMs: brakedV.ageMs }
+            continue // THE BRAKE: the next proxy (a different approach cell) or the release owns this swim
+          }
           log(`${tag} water: transit toward known land (${name}) at [${p.x},${p.z}] d=${b.dist.toFixed(0)}`)
           return { ...b, name, tx: p.x, tz: p.z }
         }
+      }
+      if (braked && !rearmBrakeLogged) {
+        rearmBrakeLogged = true
+        log(`${tag} water: same-target re-arm braked (${braked.name} at [${braked.x},${braked.z}] stalled ${(braked.ageMs / 1000).toFixed(0)}s ago - the next proxy or the release owns this swim)`)
       }
       // (v0.81.0) the map-miss evidence, once per rescue: run75 could not tell
       // 'the transit never ran' from 'the map knows no land here' - this line
@@ -2179,6 +2207,12 @@ export function createMiner ({
             if (transitStalled({ d0: transitPlan.d0, d: land.dist, passes: passNo - transitPlan.atPass })) {
               if (!transitPlan.logged) {
                 transitPlan.logged = true
+                // (v0.443.0) THE BRAKE'S FUEL: the stall verdict enters the
+                // cross-episode ledger - the NEXT rescue episode's
+                // landBearingFromMap reads it and skips this target's
+                // cooldown (the same-target re-arm the three held faces
+                // paid for never re-arms free).
+                noteTransitStall(rearmStalls, { key: tkey, now: Date.now() })
                 log(`${tag} water: transit stalled (d=${land.dist.toFixed(0)} after ${passNo - transitPlan.atPass} passes - the walls own this swim; the release takes over)`)
               }
               transitStalledFlag = true

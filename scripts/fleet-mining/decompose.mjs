@@ -23,6 +23,7 @@ import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowni
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split
+import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1195,6 +1196,25 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       }
     }
     if (tc.unparsed > 0) console.log(`  unparsed: ${tc.unparsed} transit-lane line(s) the grammar refused - the escape hatch`)
+  }
+}
+
+// (v0.443.0) THE RE-ARM BRAKE CENSUS - the zero-gain loop's cross-episode
+// gate's own family row (the water-cure brief's stage (b) field verdict).
+// The brake line speaks when the ledger refused a same-target re-arm (the
+// loop the three held faces paid for: face 27's F1 x73, face 29's two
+// pinned seats, face 30's F8 x26 at zero ground gained). n=0 on a face with
+// launches+stalls = the brake never armed (no same-target re-arm happened);
+// n>0 = the brake owns the loop (the ages are the cooldown's field window).
+{
+  const rc = rearmCensus(lines)
+  if (rc.brakes.n > 0 || rc.unparsed > 0) {
+    console.log(`  re-arm brakes (v0.443.0): ${rc.brakes.n} refused same-target re-arm(s)${rc.brakes.age.n > 0 ? `, age ${rc.brakes.age.min}..${rc.brakes.age.max}s (avg ${(rc.brakes.age.sum / rc.brakes.age.n).toFixed(1)}s)` : ''}`)
+    for (const t of rc.targets.slice(0, 3)) {
+      const botsRow = Object.entries(t.bots).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join('+')
+      console.log(`    braked target [${t.x},${t.z}] (${t.land}) x${t.total} bots ${botsRow}`)
+    }
+    if (rc.unparsed > 0) console.log(`    unparsed: ${rc.unparsed} re-arm-lane line(s) the grammar refused - the escape hatch`)
   }
 }
 
