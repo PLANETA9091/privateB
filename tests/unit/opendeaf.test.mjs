@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parsePulseAnchor, parseValveClose, parseValveOpen, parseOpenRetry, openDeafCensus,
+  parsePulseAnchor, parseValveClose, parseValveOpen, parseOpenRetry, openDeafCensus, chestFateLedger,
 } from '../../src/lib/opendeaf.mjs'
 
 // THE ROUND-TRIP LAW (the walkoutcensus precedent): the test lines are the
@@ -221,4 +221,68 @@ test('autopsy matchedLost: the drift legs read honestly - a lost with no autopsy
   const clean = openDeafCensus([ZERO, ANCHOR_TRUNC])
   assert.equal(clean.autopsies.matchedLost, null)
   assert.equal(clean.autopsies.n, 0)
+})
+
+// (v0.448.0) THE DEAD CHEST LEDGER - the returns to the autopsied chests.
+// The ride-the-parser law holds: the approaches come through hopcensus's
+// own parseHopZero, the identity through parseOpenAutopsy - the test
+// lines are the FIELD'S OWN VERBATIM FORMS (face 32, fleet 36935489850).
+
+test('chestFateLedger: the face-32 join hand-counted - the walk/open split, the one-off stale, the honest exclusions', () => {
+  const lines = [
+    // F15's dead chest: 4 approaches (1 open-zero + 3 walk-zeros), the autopsy read chest
+    'F15 [F15] hop: chest at [-139,68,380] d=6 zero: chest unreachable (Took to long to decide path to goal!)',
+    'F15 [F15] hop: chest at [-139,68,380] d=41 zero: chest unreachable (No path to the goal!)',
+    'F15 [F15] hop: chest at [-139,68,380] d=54 zero: chest beyond the hop search radius 48 - walking home instead',
+    'F15 [F15] hop: chest at [-139,68,380] d=16 zero: cannot open chest (open chest: timeout after 10000ms)',
+    'F15 [F15] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-139,68,380] - the zero follows',
+    'F15 [F15] deposit: open lost autopsy: block at [-139,68,380] reads chest (a chest reads chest) - the attempts spent, the zero follows',
+    // F19's stale coord: exactly 1 approach (the open-zero), the autopsy read dirt
+    'F19 [F19] hop: chest at [-103,68,396] d=36 zero: cannot open chest (open chest: timeout after 10000ms)',
+    'F19 [F19] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-103,68,396] - the zero follows',
+    'F19 [F19] deposit: open lost autopsy: block at [-103,68,396] reads dirt (a chest reads chest) - the attempts spent, the zero follows',
+    // a hop zero at a coord NO autopsy ever named - ignored (the ledger keys on the autopsies)
+    'F12 [F12] hop: chest at [-143,68,404] d=7 zero: chest unreachable (Took to long to decide path to goal!)',
+  ]
+  const f = chestFateLedger(lines)
+  assert.equal(f.n, 2)
+  assert.equal(f.staleRepeats, 0, 'face 32 had no stale re-burn - the blacklist cure waits')
+  const f15 = f.coords.find((c) => c.chest === '-139,68,380')
+  assert.equal(f15.verdict, 'chest')
+  assert.equal(f15.block, 'chest')
+  assert.deepEqual(f15.approaches, { open: 1, walk: 3, total: 4, dMin: 6, dMax: 54, byBot: { F15: 4 } })
+  const f19 = f.coords.find((c) => c.chest === '-103,68,396')
+  assert.equal(f19.verdict, 'stale')
+  assert.equal(f19.block, 'dirt')
+  assert.deepEqual(f19.approaches, { open: 1, walk: 0, total: 1, dMin: 36, dMax: 36, byBot: { F19: 1 } })
+  // junk: non-array, no autopsies, the '?' chest has no position (no key, no bucket)
+  assert.deepEqual(chestFateLedger('not an array'), { n: 0, coords: [], staleRepeats: 0 })
+  assert.deepEqual(chestFateLedger([ZERO, ANCHOR_TRUNC]).n, 0)
+  const q = 'F6 [F6] deposit: open lost autopsy: block at [?] reads gravel (a chest reads chest) - the attempts spent, the zero follows'
+  const fq = chestFateLedger([q, 'F6 [F6] hop: chest at [-136,72,407] d=13 zero: cannot open chest (open chest: timeout after 10000ms)'])
+  assert.equal(fq.n, 0, 'the ? chest has no position - nothing to join')
+})
+
+test('chestFateLedger: the re-read law and the repeat verdict - the blacklist cure\'s direct case', () => {
+  // the same coord read twice: chest first, dirt later - the rot happened between, stale wins, the last block shown
+  const reRead = [
+    'F3 [F3] deposit: open lost autopsy: block at [-113,68,398] reads chest (a chest reads chest) - the attempts spent, the zero follows',
+    'F3 [F3] deposit: open lost autopsy: block at [-113,68,398] reads dirt (a chest reads chest) - the attempts spent, the zero follows',
+    'F3 [F3] hop: chest at [-113,68,398] d=3 zero: cannot open chest (open chest: timeout after 10000ms)',
+    'F3 [F3] hop: chest at [-113,68,398] d=5 zero: cannot open chest (open chest: timeout after 10000ms)',
+  ]
+  const f = chestFateLedger(reRead)
+  assert.equal(f.n, 1)
+  assert.equal(f.coords[0].block, 'dirt', 'the last read shown')
+  assert.equal(f.coords[0].verdict, 'stale', 'ANY non-chest read prices stale - the rot happened between the reads')
+  assert.equal(f.staleRepeats, 1, 'a stale coord re-burned to another open-zero: THE REPEAT - the cure\'s direct case')
+  // a chest-verdict coord re-burned is the arrival front's evidence, NOT the stale count
+  const occl = [
+    'F15 [F15] deposit: open lost autopsy: block at [-139,68,380] reads chest (a chest reads chest) - the attempts spent, the zero follows',
+    'F15 [F15] hop: chest at [-139,68,380] d=16 zero: cannot open chest (open chest: timeout after 10000ms)',
+    'F15 [F15] hop: chest at [-139,68,380] d=16 zero: cannot open chest (open chest: timeout after 10000ms)',
+  ]
+  const f2 = chestFateLedger(occl)
+  assert.equal(f2.coords[0].verdict, 'chest')
+  assert.equal(f2.staleRepeats, 0, 'the occlusion leg\'s repeats are another front\'s fuel')
 })

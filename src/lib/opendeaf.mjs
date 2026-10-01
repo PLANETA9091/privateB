@@ -210,3 +210,63 @@ export function openDeafCensus (lines, { lateMs = 400 } = {}) {
     ms: { n: mss.length, min: mss.length ? Math.min(...mss) : 0, max: mss.length ? Math.max(...mss) : 0, sum: mss.reduce((s, m) => s + m, 0) },
   }
 }
+
+// (v0.448.0) THE DEAD CHEST LEDGER - the fleet's RETURNS to the autopsied
+// chests. The v0.444.0 autopsy priced the cure fork (a block still reading
+// chest = occlusion/lag, the arrival front; a replaced block = stale
+// coords, the map-rot leg) - but the fork's SECOND question stayed open:
+// does the fleet COME BACK to a chest whose rot it already paid for?
+// Face 32 (fleet 36935489850) showed the join's shape: F15's dead chest
+// [-139,68,380] (the autopsy read chest) was approached 4x this face - but
+// only 1 of the 4 was an open-zero (the other 3 were walk failures, the
+// walk lanes' own burn), and F19's stale coord [-103,68,396] (the autopsy
+// read dirt) saw exactly 1 approach: a one-off rot, not a repeat. The
+// repeat verdict is the preflight/blacklist cure's fuel:
+//   - a STALE coord re-approached to another open-zero = the fleet burned
+//     on rot it had already paid for - the cure's direct case
+//   - a one-off stale = the preflight prices only a FUTURE return (20s of
+//     burn it would have skipped)
+//   - a chest-verdict coord's repeats are the arrival front's evidence,
+//     not this lane's
+// The ride-the-parser law holds: the approaches come through hopcensus's
+// own parseHopZero (the same classification the zero clock reads), the
+// identity through parseOpenAutopsy - no re-parse drift. A '?' chest has
+// no position: excluded (no key, no bucket - the hopcensus law).
+export function chestFateLedger (lines) {
+  const rows = Array.isArray(lines) ? lines.filter((l) => typeof l === 'string') : []
+  const coords = new Map()
+  for (const l of rows) {
+    const au = parseOpenAutopsy(l)
+    if (!au || !au.chest) continue
+    const prev = coords.get(au.chest)
+    if (!prev) {
+      coords.set(au.chest, { chest: au.chest, bot: au.bot, block: au.block, verdict: au.block === 'chest' ? 'chest' : 'stale', approaches: null })
+    } else {
+      // a second autopsy read of the same coord: the last block shown, and
+      // ANY non-chest read prices stale - the rot happened between the reads
+      prev.block = au.block
+      if (au.block !== 'chest') prev.verdict = 'stale'
+    }
+  }
+  for (const l of rows) {
+    const e = parseHopZero(l)
+    if (!e || e.x === null || e.z === null) continue
+    const c = coords.get(`${e.x},${e.y},${e.z}`)
+    if (!c) continue
+    if (!c.approaches) c.approaches = { open: 0, walk: 0, total: 0, dMin: null, dMax: null, byBot: {} }
+    c.approaches.total++
+    if (e.klass.why === 'open-timeout') c.approaches.open++
+    else c.approaches.walk++
+    if (e.dist !== null) {
+      c.approaches.dMin = c.approaches.dMin === null ? e.dist : Math.min(c.approaches.dMin, e.dist)
+      c.approaches.dMax = c.approaches.dMax === null ? e.dist : Math.max(c.approaches.dMax, e.dist)
+    }
+    c.approaches.byBot[e.bot] = (c.approaches.byBot[e.bot] || 0) + 1
+  }
+  const list = [...coords.values()]
+  return {
+    n: list.length,
+    coords: list,
+    staleRepeats: list.filter((c) => c.verdict === 'stale' && c.approaches && c.approaches.open > 1).length,
+  }
+}

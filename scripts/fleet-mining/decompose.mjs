@@ -9,7 +9,7 @@ import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the hone
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
-import { openDeafCensus } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes
+import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
@@ -696,6 +696,33 @@ if (openDeaf.openDeaf.length > 0) {
   if (au.n > 0) {
     const bb = Object.entries(au.byBlock).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
     console.log(`  open lost autopsy: n=${au.n} blocks: ${bb} (matches the ${r.byKind.lost} lost: ${au.matchedLost}) - chest reads price occlusion/lag, the rest prices stale coords`)
+    // (v0.448.0) THE DEAD CHEST LEDGER row - the fleet's RETURNS to the
+    // autopsied chests: per coord, the hop approaches split by class
+    // (open-zeros are THIS lane's burn, walk-zeros are the walk lanes'),
+    // and the repeat verdict: a stale coord re-burned to another open-zero
+    // is the preflight/blacklist cure's direct fuel; a one-off stale
+    // prices only a future return. A chest-verdict coord's repeats are
+    // the arrival front's evidence, named but not owned here.
+    const fate = chestFateLedger(lines)
+    if (fate.n > 0) {
+      console.log('--- DEAD CHEST LEDGER (v0.448.0: the returns to the autopsied chests - the stale-cure\'s fuel) ---')
+      for (const c of fate.coords) {
+        const leg = c.verdict === 'stale'
+          ? 'THE STALE LEG (the map rotted under the plan)'
+          : 'the occlusion leg (the arrival front owns the burn)'
+        const ap = c.approaches
+        const reads = ap
+          ? `approached ${ap.total}x (open ${ap.open}, walk ${ap.walk}${ap.dMin !== null ? `, d ${ap.dMin}..${ap.dMax}` : ''})`
+          : 'no hop-zero approaches this face'
+        const verdict = c.verdict === 'stale'
+          ? (ap && ap.open > 1
+            ? ' - THE REPEAT: the fleet burned on rot it had already paid for, the blacklist cure\'s direct case'
+            : ' - a one-off this face, the preflight prices a future return\'s 20s')
+          : ''
+        console.log(`  [${c.chest}]: reads ${c.block} - ${leg}; ${reads}${verdict}`)
+      }
+      console.log(`  stale repeats: ${fate.staleRepeats} coord(s) opened-lost more than once - ${fate.staleRepeats > 0 ? 'the blacklist cure has its fuel' : 'the blacklist cure waits for its fuel'}`)
+    }
   } else if (r.byKind.lost > 0) {
     console.log(`  open lost autopsy: 0 lines against ${r.byKind.lost} lost (a pre-v0.444.0 face - the dead chests' identity is not distinguishable by design)`)
   }
