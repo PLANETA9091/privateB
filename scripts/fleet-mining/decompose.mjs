@@ -9,6 +9,7 @@ import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the hone
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
+import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -586,3 +587,23 @@ console.log('  legacy dusk arms (the v0.193.0 forecast lane, untouched):', count
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))
+
+// (v0.408.0) THE MEM-HB LENS - the OOM precursors mechanical. FACE 25
+// attempt 1 (36857777922) died the run53 OOM class at launch and the
+// trigger was priced BY HAND off the dying log's mem gauges (the 1938
+// fire: path 6a/10q, evictions 216 -> 788 in ~2 min). The fleet's own
+// mem heartbeat carries the precursors as fields - the next face answers
+// 'did the eviction velocity spike?' from this row, not a hand grep.
+{
+  const mem = memHbCensus(lines)
+  if (mem.reads > 0) {
+    const ev = mem.evicted
+    console.log('=== MEMORY / OOM PRECURSORS (the mem-hb lens, v0.408.0) ===')
+    console.log(`  gauges: ${mem.reads} reads, rss max ${mem.rssMax}M, heap max ${mem.heapUsedMax}/${mem.heapLimitLast}M, cols max ${mem.colsMax}, ents max ${mem.entsMax}, stale max ${mem.staleMax}`)
+    console.log(`  evicted: max ${ev.max}, first ${ev.first} -> last ${ev.last}, peak jump ${ev.peakJump}/gauge, ${ev.resets} guard-reset(s); path peak ${mem.path.peakActive}a/${mem.path.peakQueue}q (max ${mem.path.pathMax})`)
+    const stormNote = mem.stormCooldowns > 0
+      ? Object.entries(mem.stormByBot).map(([b, s]) => `${b}=${s.count}(max ${s.maxConsecutive})`).join(' ')
+      : 'none'
+    console.log(`  distress: storm cooldowns ${mem.stormCooldowns} (${stormNote}), oom locks ${mem.oomLocks}`)
+  }
+}
