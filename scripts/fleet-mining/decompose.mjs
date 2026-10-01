@@ -20,6 +20,7 @@ import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowni
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
+import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -74,6 +75,41 @@ if (sweep.keywordOnly.length) {
       const spanNote = c.firstTs === c.lastTs ? `at ts=${c.firstTs}s` : `span ts=${c.firstTs}..${c.lastTs}s`
       console.log(`  death clock: ${c.timed} timed ${spanNote}, clock end ts=${c.clockEnd}s, end-phase(${c.endPhaseWindowS}s) ${c.endPhase}, max burst ${c.maxBurst} in ${c.burstWindowS}s${untimedNote}`)
     }
+  }
+}
+
+// (v0.423.0) THE VOID CENSUS - the out-of-world stamp's field read. "void"
+// is the physical fall below the overworld floor (y < -64; the server's
+// 'fell out of the world [kind=other]'), "stamp" = the v0.277.0 'void
+// context' snapshot (cell / depth / leg) the death handler prints for it.
+// Two history deaths stand, both mute (pre-stamp trees): F12 [117,-90,0]
+// depth 26, F3 [118,-148,2] depth 84 - the ~17-blocks-east-of-anchor column
+// (x 117-118, z 0-2) is the recurrence signature the census pins. The stamp
+// has been ARMED-SILENT in every field face since (no void death occurred);
+// this block renders the read ALWAYS (the 05:00 ledger-skip lesson: a CALM
+// verdict is a verdict, an absent line class is a filter blind spot), so
+// the stamp's first field line lands in a mechanical row, not a grep.
+{
+  const vc = voidCensus(lines)
+  console.log("--- VOID CENSUS (v0.423.0: the out-of-world stamp's field read) ---")
+  if (vc.stamps > 0 || vc.serverVoidDeaths > 0 || vc.unparsed > 0) {
+    const vb = Object.entries(vc.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  void stamps: ${vc.stamps} - per bot: ${vb || 'none'}${vc.unparsed ? ` (unparsed ${vc.unparsed})` : ''}`)
+    const cols = Object.entries(vc.byColumn).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    for (const [key, n] of cols) {
+      const ys = vc.cells.filter(cell => `${cell.x},${cell.z}` === key).map(cell => cell.y)
+      console.log(`  column ${key}: n=${n} (y ${Math.min(...ys)}..${Math.max(...ys)})`)
+    }
+    console.log(`  depth below floor: n=${vc.depths.n} (min ${vc.depths.min === null ? '-' : vc.depths.min} max ${vc.depths.max === null ? '-' : vc.depths.max}) unknown=${vc.depths.unknown} (negative = above floor - the contradiction is the datum)`)
+    if (vc.stamps > 0) {
+      const legs = Object.entries(vc.byLeg).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+      console.log(`  legs: ${legs}`)
+      if (vc.knownColumn > 0) console.log(`  THE KNOWN COLUMN (x 117..118, z 0..2, ~17b east of the dragon-zone anchor [100,49,1]): ${vc.knownColumn} of ${vc.stamps} land on it - the recurrence signature REPEATS`)
+    }
+    if (vc.serverVoidDeaths > 0) console.log(`  server void deaths: ${vc.serverVoidDeaths} (kind=other ${vc.serverKindOther})`)
+    if (vc.muted) console.log(`  THE MUTE FLAG: ${vc.serverVoidDeaths} server void death(s) with ZERO stamp lines - a pre-v0.277.0 tree is legitimately mute; otherwise the emit site's verb gate failed and the front opens`)
+  } else {
+    console.log("  reads: 0 (the stamp armed-silent - no void death this face; the two history deaths [117,-90,0] depth 26 / [118,-148,2] depth 84 stay the record)")
   }
 }
 
