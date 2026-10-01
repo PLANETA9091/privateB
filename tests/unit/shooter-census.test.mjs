@@ -333,3 +333,47 @@ test('whale-feed: per-bot isolation + the honest zero + junk safety', () => {
   const zero = shooterCensus(['launching 19 bots for 600s', hb(1, 20)])
   assert.deepEqual(zero.sessions.byBot, {})
 })
+
+// (v0.398.0) THE SEAL-STOCK BASELINE - the ring-stock have/need pairs off
+// the skip prose. The battery is the CORRECTED LIVE face-15 read (the
+// artifact re-downloaded, the census run on the real log): seen 43,
+// zeroHave 41 - 0/2=27, 0/8=6, 0/1=4, 0/7=3, 7/8=2, 0/6=1 (the a84d6d2
+// hand count said 40/43 and 0/2=26 - the mechanical read wins). The
+// census must reproduce the live distribution from the same verbatim
+// shapes.
+const stockSkip = (stock) => `F2 [F2] combat: shelter skip (open field: ring stock ${stock}, ground earns nothing)`
+
+test('seal-stock: the corrected live face-15 distribution reproduces mechanically', () => {
+  const lines = [
+    ...Array.from({ length: 27 }, () => stockSkip('0/2')),
+    ...Array.from({ length: 6 }, () => stockSkip('0/8')),
+    ...Array.from({ length: 4 }, () => stockSkip('0/1')),
+    ...Array.from({ length: 2 }, () => stockSkip('0/7')),
+    ...Array.from({ length: 2 }, () => stockSkip('7/8')),
+    stockSkip('0/6'),
+    'F3 [F3] combat: shelter skip (open field: ring stock 0/7 after digging 1)'
+  ]
+  const c = shooterCensus(lines)
+  assert.equal(c.ringStock.seen, 43)
+  assert.equal(c.ringStock.zeroHave, 41)
+  assert.deepEqual(c.ringStock.pairs, { '0/2': 27, '0/8': 6, '0/1': 4, '0/7': 3, '7/8': 2, '0/6': 1 })
+  // the ring-stock why key co-counts (the co-occurrence law)
+  assert.equal(c.skipWhys['ring-stock'], 43)
+})
+
+test('seal-stock: nonzero have stays out of zeroHave; non-stock skips never count', () => {
+  const c = shooterCensus([
+    stockSkip('2/8'),
+    stockSkip('1/2'),
+    'F4 [F4] combat: shelter skip (open field: no diggable wall, drowned@5.1)',
+    'F5 [F5] combat: shelter wall miss (open field: no diggable wall, ring next, drowned@5.1)'
+  ])
+  assert.equal(c.ringStock.seen, 2)
+  assert.equal(c.ringStock.zeroHave, 0)
+  assert.deepEqual(c.ringStock.pairs, { '2/8': 1, '1/2': 1 })
+})
+
+test('seal-stock: the honest zero + junk safety', () => {
+  const c = shooterCensus(['launching 19 bots', hb(1, 30), 'F9 [F9] combat: fighting skeleton', null, 7])
+  assert.deepEqual(c.ringStock, { seen: 0, zeroHave: 0, pairs: {} })
+})

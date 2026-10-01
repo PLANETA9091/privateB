@@ -306,6 +306,14 @@ if (shooter.total > 0) {
     const whyRow = Object.entries(shooter.skipWhys).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w}=${n}`).join(' ')
     console.log(`  skip whys (co-occurrence census - the sum may exceed ${shooter.shelter.skips}): ${whyRow || '-'}`)
   }
+  // (v0.398.0) THE SEAL-STOCK BASELINE - the v0.396.0 reserve's before/after
+  // metric: face 15 reads 43 ring-stock skips / 41 zero-have (95%, the
+  // corrected live read) - the post-reserve faces must walk the share DOWN.
+  if (shooter.ringStock.seen > 0) {
+    const pct = Math.round(100 * shooter.ringStock.zeroHave / shooter.ringStock.seen)
+    const pairRow = Object.entries(shooter.ringStock.pairs).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${p}=${n}`).join(' ')
+    console.log(`  seal-stock baseline: ${shooter.ringStock.seen} ring-stock skips, ${shooter.ringStock.zeroHave} zero-have (${pct}%) - pairs: ${pairRow}`)
+  }
   if (shooter.maxDist !== null) console.log(`  engagement dist: max @${shooter.maxDist}u priced across ${shooter.withDist} dists`)
   const verbRow = Object.entries(shooter.byVerb).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([v, n]) => `${v}=${n}`).join(' ')
   if (verbRow) console.log(`  top verbs: ${verbRow}`)

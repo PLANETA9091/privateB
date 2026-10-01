@@ -54,6 +54,24 @@
 // essentially the whole run, not churned micro-bouts; the shelter cure
 // must break siege PERSISTENCE (density/mobility), not just single
 // attempts. F12 the same shape an octave down (79 lines / 3, max 53).
+//
+// (v0.398.0) THE SEAL-STOCK BASELINE - the combat side of the v0.396.0
+// seal reserve's before/after read. The skip whys name 'ring-stock' but
+// never said HOW MUCH stock the bot walked in with - the parens carries
+// it ('ring stock 0/2, ground earns nothing'); the a84d6d2 measurement
+// was hand-grepped (face 15: 40 of 43 ring-stock skips read stock ZERO
+// - pairs 0/2 x26, 0/8 x6, 0/1 x4, 0/7 x2, 0/6 x1, 0/7-after-digging-1
+// x1). The census captures the have/need pairs mechanically: every
+// shelter-skip whose whys include 'ring-stock' contributes one
+// have/need pair (the SKIP_REASON_RES key guarantees the shape - the
+// why regex IS 'ring stock \\d+/\\d+'), zeroHave counts the arrivals at
+// seal-zero. THE BASELINE (LIVE, the artifact re-downloaded and re-read
+// - the a84d6d2 hand count was off by one): face 15 reads seen 43,
+// zeroHave 41 (95%) - pairs 0/2=27, 0/8=6, 0/1=4, 0/7=3, 7/8=2, 0/6=1;
+// the 7/8 arrivals are the reserve's own confirmation: a bot carrying
+// SEVEN still cannot ring (the bound must be the FULL 8). The
+// post-reserve faces must walk the zeroHave share DOWN; the row is the
+// field verdict's own metric.
 
 const num = (s) => Number(s)
 
@@ -123,6 +141,10 @@ export const SKIP_REASON_RES = [
   ['step-in-incomplete', /step-in incomplete/],
   ['cells-not-free', /cells not free/]
 ]
+
+// (v0.398.0) the ring-stock pair - the skip prose's own 'ring stock N/M'
+// (have/need); the 'ring-stock' why key guarantees the shape matches.
+const RING_STOCK_RE = /ring stock (\d+)\/(\d+)/
 
 /**
  * Parse one skip body (the text after 'combat: shelter skip ') into its
@@ -229,7 +251,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, sessions: {gapS: number, endVerbs: string[], byBot: Object<string,{sessions: number, maxLen: number}>}, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, ringStock: {seen: number, zeroHave: number, pairs: Object<string,number>}, sessions: {gapS: number, endVerbs: string[], byBot: Object<string,{sessions: number, maxLen: number}>}, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -254,6 +276,11 @@ export function shooterCensus (lines) {
   const byVerb = {}
   const otherVerbs = {}
   const skipWhys = {}
+  // (v0.398.0) the seal-stock baseline counters - have/need pairs off the
+  // skip prose, the v0.396.0 reserve's before/after metric
+  const ringStockPairs = {}
+  let ringStockSeen = 0
+  let ringStockZero = 0
   const rangedByAttacker = {}
   let arrowWall = 0
   let ringRangedRefused = 0
@@ -301,6 +328,17 @@ export function shooterCensus (lines) {
       const whys = parseSkipWhys(body ? body[1] : '')
       if (whys.length === 0) skipWhys.unknown = (skipWhys.unknown || 0) + 1
       for (const w of whys) skipWhys[w] = (skipWhys[w] || 0) + 1
+      // (v0.398.0) the seal-stock pair - the 'ring-stock' why guarantees
+      // the 'ring stock N/M' shape; zeroHave prices the seal-empty arrival
+      if (whys.includes('ring-stock')) {
+        const sm = (body ? body[1] : '').match(RING_STOCK_RE)
+        if (sm) {
+          ringStockSeen++
+          if (num(sm[1]) === 0) ringStockZero++
+          const pk = `${sm[1]}/${sm[2]}`
+          ringStockPairs[pk] = (ringStockPairs[pk] || 0) + 1
+        }
+      }
     }
     if (e.verb === 'ring-try') ringTries++
     if (e.dist !== null) {
@@ -356,6 +394,7 @@ export function shooterCensus (lines) {
     verdictFlips,
     shelter: { tries, skips, ringTries, wallMiss },
     skipWhys,
+    ringStock: { seen: ringStockSeen, zeroHave: ringStockZero, pairs: ringStockPairs },
     sessions: { gapS: SESSION_GAP_S, endVerbs: SESSION_END_VERBS, byBot: byBotSessions },
     withDist,
     maxDist
