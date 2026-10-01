@@ -11619,3 +11619,20 @@ Stage Summary:
 - VERDICTS FOR THE NEXT FIRES: (1) the brief's stage (a) waits for a WET face - no water wiring until then. (2) The walk-delivery band geometry is the dominant: price the chest arrival-cell admission (the GOAL ADMISSION's pattern applied to the deposit approach) against the bands' own read. (3) The GC pin + mainLate 800ms price the memory front's next instrument. (4) The deficits' static top slot names the plan's stuck resource.
 
 - THE IDENTITY REWRITE (the fleet-completed gate met): 10 Z User commits found on master (the 0100/0130 fires' 0.426.0 FROZEN + 0.427.0 TRANSIT four, the 0200/0230/0300 fires' six through 0.436.0) - history-rewritten per the law (rebase --exec amend --reset-author over 5fbef57~1..HEAD, the fire-0300 lane's config never took despite its message's claim). Tree byte-identical (diff vs ac9b80e EMPTY), version 0.436.0 intact, the last 25 commits all PLANETA9091. Pushed force-with-lease AFTER attempt 4 completed (the law's own timing). No version bump (read + hygiene, no code).
+
+---
+Task ID: cron30-20261002-0400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0400 - attempt 4 SUCCESS => THE FIRST FULL-UNION FACE MINED; v0.438.0 THE OPEN-DEAF WINDOW (the open-timeout zero's distress clock priced: the valve hypothesis DIES, the chronic tick-spike owns it); fleet dispatch legal again (36920928626 live).
+
+Work Log:
+- CHECK ORIGIN FIRST: 5ad435e the tip at fetch; a FORCED update landed mid-fire (5ad435e...327637c) - adjudicated NOT hostile: the parallel lane's IDENTITY REWRITE (tree byte-identical, 10 Z User commits -> PLANETA9091) + their own FACE 28 READ worklog (+17 lines). My rebase took it conflict-free; my read agrees with theirs; my delta beyond theirs: the open-deaf pairing.
+- ATTEMPT 4 (36901025087) COMPLETED SUCCESS + gate 36915845093 SUCCESS. Artifacts downloaded (run111: fleet19.log 1285 lines); the FULL UNION decompose exit 0.
+- THE FACE 28 READ: 0 deaths, 0 transit stalls, 0 walk-out lines - THE ZERO-GAIN LOOP DID NOT REPRODUCE (the brake stays STAGED, the brief's stage (a) unmet on a dry face); still-underground collapsed 10 -> 1 (F4, attempts 2); hop zeros 15 (no-path 9 / open-timeout 5 / decide-timeout 1) all in the y=72 warehouse band; climb pay 73%; best economy in the record (mined 564 banked 331, conversion 134.9%) with the deficits' STUCK SIGNATURE (all 5 slots 0.0% all face).
+- THE LENS (v0.438.0): opendeaf.mjs - parsePulseAnchor rides BOTH field truncations ('b] n=N ts=Ts' AND the full '[hb]' form; missing mainLate reads null, never a zero lie), parseValveClose/parseValveOpen ride the ts-stamped pair, the hop zero rides hopcensus's own parseHopZero (ride-the-parser law); openDeafCensus brackets each open-timeout zero with pulse anchors, tests the bracket against valve spans + mainLate>=400. SEMANTICS: no overlap = the HYPOTHESIS KILL (definitely outside); overlap = only POSSIBLE (a bracket is a window, not a moment); unclosed valve counts, never intersects.
+- THE FIELD VERDICT: 5 zeros bracketed 200..501s vs the valve window 83..95s -> bracket-in-window 0 of 5, the valve-closure lag hypothesis DIES; late-bracket 5 of 5 (18 of 27 anchors late>=400ms) - the opens burn in CHRONIC tick-spike windows: the pricing a bounded open-retry cure needs (a later fire's wire).
+- Tests: opendeaf 10/10 (two mid-fire fixes, both TEST-side - the closing anchors carried mainLate=462 into valve-semantics tests). Syntax 348/0, unit 201/201. Push 327637c..65eac61 CLEAN.
+- Gate 36920845928 (65eac61) in_progress at close; fleet DISPATCH legal (no active dispatch run) -> 36920928626 (workflow_dispatch, 600s) in_progress at close - the poll caught no verdict in the box.
+
+Stage Summary:
+- Master = 65eac61 (pkg 0.438.0). NEXT FIRE: (1) gate 36920845928 + fleet 36920928626 verdicts - SUCCESS => mine face 29 with the walk-out witness AND the open-deaf row live; (2) the hop-family cure is now DOUBLE-PRICED by two lanes (the parallel lane's chest arrival-cell admission vs this lane's bounded open-retry) - READ THE WORKLOG before wiring either, do not double-code; (3) version next 0.439.0. Identity: PLANETA9091.
