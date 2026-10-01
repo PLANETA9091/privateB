@@ -11731,3 +11731,19 @@ Work Log:
 
 Stage Summary:
 - Master = fb7eb64 (pkg 0.444.0). NEXT FIRE: (1) DISPATCH FIRST (none active) => face 32 carries THE BRAKE LIVE (the stage-(b) verdict: refused re-arms, the cooldown's own cadence) AND THE AUTOPSY LIVE (the dead chests' identity: chest reads price occlusion/lag, air/unloaded price stale coords - the cure direction's fork); (2) the SAND lever: the plan's top deficit is sand all face - price the sand acquisition leg (digging class? smelting chain? the plan's own aliasing) as a pure read before any wire; (3) gate 36934161360 verdict; (4) version next 0.445.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0630
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0630 - DISPATCH FIRST (fleet 36935489850, face 32 = the brake + the autopsy live); v0.445.0 THE MAP TRIP GAP (the knowledge side arrives - the sand story's delivery leg priced: 10x demanded, 9 unreachable, 7 shaft-locked, 1 launch, the map holds 226 positions); gate 36934161360 (v0.444.0) SUCCESS.
+
+Work Log:
+- CHECK ORIGIN FIRST: 7292051 the tip, no parallel activity in the box, 0.445.0 free. Gate 36934161360 (fb7eb64, v0.444.0) SUCCESS mid-fire (the anomaly resolved - it was just slow).
+- DISPATCH FIRST: fleet 36935489850 (7292051, 600s, HTTP 204) - face 32 carries THE BRAKE LIVE (b3df4ce's re-arm gate's stage-(b) verdict: refused re-arms, the cooldown cadence) AND THE AUTOPSY LIVE (the dead chests' identity fork: chest reads price occlusion/lag, air/unloaded price stale coords).
+- THE SAND LEVER (the read-before-wire): materialplan.mjs's own header names the disease's age - the v0.6.9 era collected ZERO sand while the map held 194 positions; MINABLE_OF.sand exists; STEER_ORES does NOT include sand (the underground trio only); the map-trip lane is the delivery path. THE FACE-31 ANATOMY: the worldmap tail holds sand=226 (top-3 of 1130); the trips demanded sand or gravel 10x; 9x 'sand,gravel unreachable' (the A* walk dies inside TRIP_WALK_MS=45s), 7x 'cannot leave the shaft' (the underground tax), 1 launch (F14, interrupted by a water rescue - F14 later held sand:6). THE KNOWLEDGE-DELIVERY GAP: knowledge fat, delivery starving - 435 versions unpriced per face.
+- THE LENS (v0.445.0): maptrip.mjs append-only - parseWorldmapTail (the run-end knowledge snapshot; the plantop tiling law inherited; the autosave emitter is another lane) + mapTripGap (the composer riding the v0.415.0 census's own numbers + the map tail + the plantop seat's stuck name; missing legs read null/honest-unknown). Decompose: the MAP TRIP GAP row after PLAN TOP NAMES ('sand: demanded 10x (launches 1, unreachable 9, shaft-locked 7); the map holds 226 sand position(s) - the delivery leg, not the knowledge leg, is the lever'); face 30 verified honest-skip (the leak-era board has no name).
+- THE MID-FIRE SAVE: the first draft WROTE OVER the v0.415.0 maptrip.mjs (a name collision MY OWN decompose import caught) - restored from git, re-shaped as append-only. The compose-first lesson: read the lib's own exports before Write.
+- Tests: maptrip 13/13 (2 new: the tail's tiling law + junk battery incl. the autosave lane; the gap's hand-counted composition + the honest nulls; one import-line fix). Syntax 354/0, unit 204/204. Push 7292051..364f410 CLEAN.
+
+Stage Summary:
+- Master = 364f410 (pkg 0.445.0). NEXT FIRE: (1) fleet 36935489850 verdict => face 32: THE BRAKE's stage-(b) verdict (refused re-arms + the cooldown cadence - the water-cure brief's own law) AND THE AUTOPSY's first field read (the dead chests' identity - the cure fork priced); (2) the sand cure pricing is now TWO-LEGGED: the delivery leg (unreachable: the walk budget/the shore pathing; shaft-locked: the surface gate) vs the plan leg (157926 needs a quarry-scale design, trips deliver a trickle) - READ THE GAP ROW before wiring either; (3) gate 36936369602 (364f410) verdict; (4) version next 0.446.0. Identity: PLANETA9091.
