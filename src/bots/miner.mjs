@@ -28,6 +28,7 @@ import {
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, veinDigRefusal,
   climbO2Watch, // (v0.379.0) the wet-sentinel watch - the escape's o2 arms as one gate
+  tunnelStepRefusal, // (v0.425.0) THE TUNNEL STEP FENCE - the raw step's vertical truth
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
@@ -3267,6 +3268,32 @@ export function createMiner ({
           (headB && (headB.boundingBox === 'fluid' || isWaterName(headB.name)))
         if (fluidAhead) {
           zeroWhy = tunnelZeroWhy({ feetBox: feetB?.boundingBox ?? null, headBox: headB?.boundingBox ?? null, feetName: feetB?.name ?? null, headName: headB?.name ?? null }) // (v0.240.0) the water-table band's verdict
+          break
+        }
+        // (v0.425.0) THE TUNNEL STEP FENCE - the walking lane's own vertical
+        // truth, probed BEFORE any dig of the step cell. The fleet fences
+        // every other motion primitive against the 4+ drop (the shaft digger
+        // sidesteps it, the vein sweep fences its cells, the support/lip dig
+        // probe theirs, the wet-escape's traverseStep has the GAP GUARD) - the
+        // raw one-block step was the LAST unfenced motion: dig the step cell
+        // ahead, hold forward, 'let gravity handle the drop' at ANY depth.
+        // THE FIELD WITNESS (face 27, 36870593766): F14 'fell from a high
+        // place' [kind=fall] at [-132,45,405] - the ONLY fall death across
+        // faces 26+27. A 4+ drop under the step cell (fall damage begins at
+        // 4 - the shaft's own threshold), a fluid strike under it, or a blind
+        // read (dropAheadBelow's depth-return on zero reads - the v0.86.0
+        // stale-window law) refuses the iteration and the caller rotates -
+        // the fluidAhead break's own shape. The verdict rides zeroWhy when
+        // the gallery reads zero (the v0.240.0 silent-break law) and the
+        // fence names itself in the log (the v0.35.0 lesson - a silent abort
+        // is the hole the guards close).
+        const stepAirBelow = dropAheadBelow(feetCell)
+        const stepFluidBelow = fluidStrikeBelow(feetCell, { depth: 3 })
+        const stepFence = tunnelStepRefusal({ airBelow: stepAirBelow, fluidBelow: stepFluidBelow !== null })
+        if (stepFence) {
+          stats.stepFenceRefused = (stats.stepFenceRefused ?? 0) + 1
+          log(`${tag} tunnel: step fence - ${stepFence} at ${feetCell.x},${feetCell.y},${feetCell.z} - the caller rotates`)
+          zeroWhy = `step fence: ${stepFence}`
           break
         }
         // (v0.140.0) THE GRAVITY ROOF FENCE - the gallery face is the suffocate

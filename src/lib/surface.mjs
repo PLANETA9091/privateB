@@ -289,6 +289,31 @@ export function veinDigRefusal ({ airBelow = 0, blind = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.425.0) THE TUNNEL STEP FENCE - the walking lane's own vertical truth.
+// MEASURED (face 27, 36870593766): F14 'fell from a high place' [kind=fall]
+// at [-132,45,405] - the ONLY fall death across faces 26+27 - while the
+// tunnel's raw one-block step (v0.10.4 lesson 2) was the fleet's LAST motion
+// primitive without the dropAheadBelow fence: the shaft digger sidesteps
+// (dropAheadBelow >= 4 + the v0.86.0 stale-window refusal), the vein sweep
+// fenced its cells (v0.98.0 THE VEIN FALL FENCE above), the support dig and
+// the lip dig probe theirs (v0.267.0/v0.206.0), the wet-escape's
+// traverseStep carries the GAP GUARD - the tunnel dug the step cell ahead
+// and held forward 'let gravity handle the drop' at ANY depth. The fence
+// probes the floor under the step cell BEFORE any dig: a 4+ drop (fall
+// damage begins at 4 - the shaft's own threshold), a fluid strike under it,
+// or a blind read refuses the iteration and the caller rotates - the
+// fluidAhead break's own shape, the verdict rides zeroWhy when the gallery
+// reads zero. Pure decision, CI-testable.
+export function tunnelStepRefusal ({ airBelow = 0, blind = false, fluidBelow = false } = {}) {
+  if (blind === true) return 'blind read (stale window) - a tunnel never steps blind'
+  if (fluidBelow === true) return 'fluid below the step cell - the step waits for solid ground'
+  const a = Number(airBelow)
+  if (!Number.isFinite(a) || a < 0) return 'junk drop read - refuse'
+  if (a >= VEIN_DROP_REFUSE) return `drop of ${a} below the step cell (cave?) - the gallery waits for a floored bearing`
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // DEEP CLIMB PERSISTENCE (v0.18.0) - a STAGE LADDER across climbOut calls.
 //
 // MEASURED (fleet 2026-09-20, 17:05 + verification runs): from the y=42

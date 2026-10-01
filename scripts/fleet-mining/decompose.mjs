@@ -23,6 +23,7 @@ import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM prec
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
+import { deathKindCensus } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -56,6 +57,24 @@ for (const l of sweep.deaths) console.log(' ', l.slice(0, 160))
 if (sweep.keywordOnly.length) {
   console.log(`  (the anatomy sweep filtered ${sweep.keywordOnly.length} keyword-carrier line(s) - prose, not deaths):`)
   for (const l of sweep.keywordOnly.slice(0, 6)) console.log('   ~', l.slice(0, 140))
+}
+// (v0.425.0) THE DEATH KIND CENSUS - the sweep LISTS the deaths, the census
+// CLASSIFIES them by the server's own kind= verdict (the announce payload's
+// authority - the v0.117.0 doctrine) so every face counts fall/drown/mob/...
+// mechanically (faces 26/27 mined by hand before this row existed). The
+// vertical row is the F-9 front's read: the fall/void family names its
+// death cell and the inference verdict - 'kind=fall' never re-counted by
+// eye again; an unparsed announce-shaped line surfaces, never vanishes.
+{
+  const kinds = deathKindCensus(lines)
+  const causeRow = kinds.total
+    ? Object.entries(kinds.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    : 'none'
+  const unparsedNote = kinds.unparsed.length ? `, UNPARSED ${kinds.unparsed.length}` : ''
+  console.log(`  death causes: ${causeRow}${unparsedNote}`)
+  for (const v of kinds.vertical) {
+    console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)
+  }
 }
 // (v0.403.0) THE SEAL DEATH LEDGER - the seal economy's third leg: what
 // DEATH erased. The reserve keeps at bank time, death bypasses the pocket
