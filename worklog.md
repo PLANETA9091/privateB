@@ -11636,3 +11636,19 @@ Work Log:
 
 Stage Summary:
 - Master = 65eac61 (pkg 0.438.0). NEXT FIRE: (1) gate 36920845928 + fleet 36920928626 verdicts - SUCCESS => mine face 29 with the walk-out witness AND the open-deaf row live; (2) the hop-family cure is now DOUBLE-PRICED by two lanes (the parallel lane's chest arrival-cell admission vs this lane's bounded open-retry) - READ THE WORKLOG before wiring either, do not double-code; (3) version next 0.439.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0430
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0430 - v0.439.0 THE OPEN-RETRY VOICE (the v0.25.0 two-attempt open loop speaks after 200 silent versions); THE READ-BEFORE-WIRE SAVE: the priced cure already existed, only its voice was missing.
+
+Work Log:
+- CHECK ORIGIN FIRST: 4a0a667 the tip, 0.439.0 free. Gate 36920845928 (65eac61, v0.438.0) SUCCESS mid-fire; fleet 36920928626 unit shards + integration GREEN, the Big-fleet job RUNNING past the box.
+- THE SAVE: this fire set out to wire the bounded open-retry (the open-deaf lens's priced cure) - the deposit.mjs read found the loop ALREADY WIRED since v0.25.0 (TWO open attempts + a lookAt between; 'a slow window open must not void a 60s walk'). The face-28 zeros each burned TWO 10s attempts: the TRUE open-deaf burn is 100s where the log priced 50s - and the loop printed NOTHING.
+- THE WIRE (minimal, emitter only): three lines in the loop's own outcome space (cause/won/lost; no defer shape exists in a 2-attempt loop, none invented); ride the EXISTING 'deposit' filter key (no fleet19.mjs change); the zero line's reason byte-identical (the hopcensus pins hold); coords carry for pairing.
+- THE LENS: parseOpenRetry + the retries ledger {n, byKind, byBot, chests, matched} (matched = won+lost==cause consistency; a cause with no outcome reads matched:false, never assumed). Decompose: the open retry voice row (the 2x burn pricing; a pre-v0.439.0 face reads 'not distinguishable by design').
+- Tests: opendeaf 15/15 (5 new). Syntax 348/0, unit 201/201. Push 4a0a667..e6be8c3 CLEAN.
+- Gate 36923132329 (e6be8c3) pending at close; fleet 36920928626 still in_progress at close (the Big-fleet job ~19 min in - no verdict in the box, no new dispatch: the max-one law holds).
+
+Stage Summary:
+- Master = e6be8c3 (pkg 0.439.0). NEXT FIRE: (1) fleet 36920928626 verdict => mine face 29 (the open-deaf row + walk-out witness live); (2) the retry voice's FIRST field read prices the chronic-spike cure question: if won >> lost, the spikes are transient (a longer open budget might beat a third attempt); if lost ~ won, the row's chests are contented-or-dead (the parallel lane's arrival-cell admission gains evidence); (3) version next 0.440.0. Identity: PLANETA9091.
