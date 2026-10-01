@@ -1210,7 +1210,32 @@ export function recordWaterHazard (hazards, pos = null, now = Date.now(), { ttlM
   if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)) {
     const cell = { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z), at: now }
     if (Number.isFinite(recordTtlMs) && recordTtlMs > 0) cell.ttl = recordTtlMs
-    live.push(cell)
+    // (v0.382.0) THE DEDUPE - the same live cell re-records as a REFRESH, not
+    // a twin. Face 36802577873's pocket [-110,62,375] was memorized FIVE times
+    // by two bots ('hazard memorized ... 5 live' -> '10 live' for ONE cell):
+    // every re-entry rescue re-pushed the record, the ledger's count lied to
+    // the census, and the zone envelopes derived from the records leaned
+    // toward the duplicated cell. The refresh renews the twin's `at` (the
+    // cell is hazardous NOW) and the tenure reads the LONGER of the two ttls
+    // - a rescue record (the ledger default) must never shorten a death
+    // spot's v0.209.0 tenure, and a death spot landing on a rescue cell
+    // extends it. An EXPIRED twin never dedupes (the prune above removed it
+    // - a fresh record is a fresh fact); distinct cells (the y-variant of the
+    // same pocket) stay distinct records - they ARE two data points.
+    const twinIdx = live.findIndex(h => h.x === cell.x && h.y === cell.y && h.z === cell.z)
+    if (twinIdx >= 0) {
+      // the refresh rebuilds the record (the pure law: the caller's old
+      // objects are never mutated, the returned array owns fresh records)
+      const twin = live[twinIdx]
+      const effTwin = Number.isFinite(twin.ttl) ? twin.ttl : ttlMs
+      const effCell = Number.isFinite(cell.ttl) ? cell.ttl : ttlMs
+      live[twinIdx] = {
+        x: twin.x, y: twin.y, z: twin.z, at: cell.at,
+        ttl: effCell > effTwin ? cell.ttl : twin.ttl
+      }
+    } else {
+      live.push(cell)
+    }
   }
   return live.slice(-cap)
 }
