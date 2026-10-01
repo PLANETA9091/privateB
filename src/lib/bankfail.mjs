@@ -83,7 +83,7 @@ export function bankFailCensus (lines) {
   const walkBack = { total: 0, byWhy: {}, byBot: {}, dists: { n: 0, max: 0, sum: 0 } }
   const zeros = { total: 0, byArm: {}, byWhy: {}, byBot: {} }
   let decide = 0
-  // (v0.412.0) the decide clock - the walk-fail lens's own rail (the last
+  // (v0.413.0) the decide clock - the walk-fail lens's own rail (the last
   // hb ts stamps every bank decide refusal; the death clock's shape).
   const stamps = []
   let lastT = null

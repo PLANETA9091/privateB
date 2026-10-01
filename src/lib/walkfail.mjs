@@ -37,7 +37,7 @@ import { parseHeartbeat } from './stormcensus.mjs'
 
 const num = (s) => Number(s)
 
-// (v0.412.0) THE DECIDE CLOCK's window - the death clock's own 30s law
+// (v0.413.0) THE DECIDE CLOCK's window - the death clock's own 30s law
 // (the v0.407.0 burst window): the hb cadence is the fleet's shared rail,
 // the densest sliding window reads the cohort's clustering against it.
 export const DECIDE_BURST_WINDOW_S = 30
@@ -156,7 +156,7 @@ export function walkFailCensus (lines) {
   const walk = { total: 0, nudge: 0, byLane: {}, byWhy: {}, byBot: {}, timeouts: [] }
   const sweep = { lines: 0, machinesUnreachable: 0, byWhy: {}, byBot: {}, busy: 0, deferred: 0, unparsed: 0, timeouts: [] }
   let decide = 0
-  // (v0.412.0) the decide clock: every decide refusal rides the last hb ts
+  // (v0.413.0) the decide clock: every decide refusal rides the last hb ts
   // (a sweep pair's n attempts ALL stamp at their line's moment - the
   // emitter emitted them between two heartbeats; the burst reads attempt
   // density, the cohort's clustering question's own currency).

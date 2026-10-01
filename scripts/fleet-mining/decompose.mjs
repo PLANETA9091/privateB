@@ -11,7 +11,7 @@ import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
-import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.412.0) the vein sweep's per-fail drop-walk line
+import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -531,7 +531,7 @@ if (hopZero.total > 0) {
   if ((hasWalk || hasSweep) && wf.decideTotal > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0
     console.log(`  A* starvation (decide) fleet-wide: walk-fail lanes + sweep = ${wf.decideTotal}, the hop lane's own = ${hopDecide}, total ${wf.decideTotal + hopDecide}`)
-    // (v0.412.0) THE DECIDE CLOCK - the cohort's clustering read (the death
+    // (v0.413.0) THE DECIDE CLOCK - the cohort's clustering read (the death
     // clock's v0.407.0 shape): a dense burst names a CPU/pressure window;
     // a spread read names geometry.
     const dc = wf.clock
@@ -581,7 +581,7 @@ if (hopZero.total > 0) {
   }
 }
 
-// (v0.412.0) THE DROP-WALK LENS - the vein sweep's per-fail drop-walk line.
+// (v0.413.0) THE DROP-WALK LENS - the vein sweep's per-fail drop-walk line.
 // The run-level economy rides drops.mjs's own 'sweep drop ledger:' row (the
 // failed= split below/plane/above), and the smelt sweep's verdicts ride the
 // walk-fail lens - but the PER-FAIL line ('the drop walk to [x,y,z] failed -
@@ -592,7 +592,7 @@ if (hopZero.total > 0) {
 {
   const dw = dropWalkCensus(lines)
   if (dw.fails > 0 || dw.unparsed > 0) {
-    console.log("--- DROP-WALK CENSUS (v0.412.0: the vein sweep's per-fail drop-walk line) ---")
+    console.log("--- DROP-WALK CENSUS (v0.413.0: the vein sweep's per-fail drop-walk line) ---")
     const db = Object.entries(dw.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     const dwy = Object.entries(dw.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  drop-walk fails: ${dw.fails}${dw.unparsed ? ` (unparsed ${dw.unparsed})` : ''} by why: ${dwy || 'none'} - per bot: ${db || 'none'}`)
