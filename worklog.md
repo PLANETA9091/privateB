@@ -10719,3 +10719,21 @@ Stage Summary:
 - Master = 782fc3c (pkg 0.378.0). FLEET OF RECORD: face 17 = 36796588698 (SUCCESS, artifact unmined). Face 18 = 36799188224 in flight (cron38's tree).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.379.0). (2) MINE FACE 17 (run 36796588698) with the full stack: stall lines? released? hound back? + the shore-pin break's first field leg. (3) Mine face 18 (36799188224) when landed. (4) The ladder-order cure's field leg is face 19+ (0.378.0 tree): shore-transit-stall lines exist, probes > 0, released > 0, dry-tail timeouts shrink.
 - OPEN FRONTS: the ladder-order cure's field leg; the shore-pin break's field leg (face 18); the hound cure pricing; the F17 superseded-rebuild decode; the GC Pinned hunt; the bank chains' walk deliveries; shooter-band census; void stamp. Version next: 0.379.0.
+
+---
+Task ID: cron30-20261001-0900
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0900 - FACE 17 MINED (36796588698, af780fb/0.376.0): the F14 four-budget whale, 13/13 zero-probe across four faces, the o2-RESET death class named; NO CODE fire.
+
+Work Log:
+- CHECK ORIGIN: tip d4918a9, pkg 0.378.0, 0.379.0 free; cron38's face 18 (36799188224) still in flight - slot occupied, no dispatch (max-one law).
+- MINED FACE 17: 20 starts / 8 complete / 4 timeouts (101.7s ALL F14: 27, 92, 152, 95 passes in flat ~25s - the cadence varies 5.6x across budgets of the SAME bot, the cadence-blind patience decode proven again) / 1 dead (F12) / 7 frozen standdowns / 0 released / 0 orphans / 0 unclosed (cleanest pairing ever).
+- RELEASE STARVATION CENSUS: surface-stable 0 (first zero), all four tails 1dry/3 (the actively-wet bob class vs the surface-stable class of faces 12/15/16), zero-probe 4/4 - cumulative 13/13; the stall latch 0 again (this face runs 0.376.0 - both cures ship after).
+- THE o2-RESET DEATH CLASS (F12, NEW): o2 reset(-1) mid-rescue, head AIR, feet water - the bot drowned head-dry at the surface while the rescue lane flew blind on a reset sensor (consecutive o2=reset(-1) passes + a rescue blind live page). The third sensor class after the liar ladder and the ratchet.
+- Hound census 0 (second CALM face); shore-pin break has no leg here (tree predates 0.377.0 - its leg rides face 18); freeze family mild (3 relogs, 7 standdowns, 0 FATAL).
+- NO bump, NO dispatch.
+
+Stage Summary:
+- Master = d4918a9 (pkg 0.378.0). FLEET OF RECORD: face 17 = 36796588698 (SUCCESS, mined at 0900). Face 18 = 36799188224 in flight (cron38's tree).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.379.0). (2) Mine face 18 when landed (the shore-pin break's first field leg + the census on their tree). (3) Green tip + slot free => DISPATCH FACE 19 (the 0.378.0 cure's field leg: stall lines exist, probes > 0, released leaves 0; the F14 whale is the named target). (4) The o2-RESET class is the newest decode front.
+- OPEN FRONTS: the ladder-order cure's field leg; the o2-RESET decode; the shore-pin break's leg (face 18); the F14 whale; the hound re-baseline; the GC Pinned hunt; the bank chains' walk deliveries; shooter-band census; void stamp. Version next: 0.379.0.
