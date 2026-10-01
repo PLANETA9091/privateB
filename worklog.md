@@ -11551,3 +11551,17 @@ Work Log:
 
 Stage Summary:
 - Master = 0a25b0d (pkg 0.434.0). NEXT FIRE: gate verdict first; attempt 4 (0 jobs >2h => the zombie law; success => MINE the first full-union face); version next 0.435.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0230
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0230 - v0.435.0 THE STALL DEPTH SPLIT (the transit pocket read instrumented; THE ZERO-GAIN LOOP discovered live: the pocket is a SEAT, not an approach); no dispatch - attempt 4 (36901025087) queued, not yet the zombie law.
+
+Work Log:
+- CHECK ORIGIN FIRST: 29ef819 the tip (pkg 0.434.0), 0.435.0 free. Attempt 4 PENDING 0 jobs ~50min; gate 36906053394 (29ef819) pending - the 0200 gate superseded by the worklog push (the churn norm).
+- THE LENS: transitcensus.mjs + THE STALL DEPTH SPLIT - per-bot last-launch pairing (log order), two independent cuts: WHERE (pocket d<=3 vs route) and HOW FAR (gained = launch - stall; toTheLip >= half vs early; negative gain legal; unpaired counted never assumed).
+- THE LIVE READ (face 27): 10/10 POCKET, 0 route, 0 unpaired, gained 0..0 avg 0.0 ALL pairs - THE ZERO-GAIN LOOP: the launches THEMSELVES start at d=2..3; the bot re-arms from the pinned seat, burns 15-19 passes for zero ground. The cure: break the re-arm loop (same-target re-arm after a zero-gain stall needs a different approach cell), not 'swim better'.
+- Tests: transit-census 13/13 (5 new); syntax 344/0; unit 199/199 files. Push 29ef819..72b5fe8 CLEAN. Gate 36908345168 pending 0 jobs at close.
+
+Stage Summary:
+- Master = 72b5fe8 (pkg 0.435.0). NEXT FIRE: attempt 4 >2h-0-jobs => the zombie law; the zero-gain re-arm refusal or the hound cure next; version next 0.436.0. Identity: PLANETA9091.
