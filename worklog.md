@@ -11389,3 +11389,18 @@ Work Log:
 Stage Summary:
 - Master = d3b1b10 (pkg 0.416.0). FACE 28 attempt 2 (36880909698, ee39024) + gate 36884789358 queued at close.
 - NEXT FIRE: poll gate 36884789358; FACE 28 attempt 2 completed => MINE with the local decompose (drop-walk + map-trip + drop-clock rows): the drop lane's WHEN first read, the budget-edge invariant's fourth sample, the dy flip's third read, the map-trip launch rate's fourth sample. THE MID-VISIT GUARD'S FIELD LEG: the mystery's line should print every visit now - a tithe-line-without-summary face would name the surviving throw path through the arm-2 net's 'visit died mid-visit' hop line (the mystery closes either way). Open: the underground=21 read, the F10 frozen-while-head-wet class, the hound cure, the F17 anomaly, GC Pinned, void stamp, the vertical doom, the seal death cure. Version next: 0.417.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261001-2330
+Agent: PLANETA9091 (cron fire 2330, Job 414125)
+Task: fire 2330 - v0.417.0 THE DEFICITS CLOCK shipped (the plan's HARVEST side - the map-trip lens's complement); FACE 28 attempt 2 still QUEUED at close (pool congested), no mining; the parallel lane's dispatch (36886234997) appeared - concurrency arbitrates.
+
+Work Log:
+- CHECK ORIGIN FIRST: 9860ae1 still tip; 0.417.0 the free slot. Gate 36884789358 (MID-VISIT GUARD) still QUEUED; FACE 28 attempt 2 (36880909698) still QUEUED.
+- v0.417.0 THE DEFICITS CLOCK (72f0399): the per-tick '   deficits: 100/5 (5.0%) ...' row (fleet19's topDeficits - five ANONYMOUS required/have (pct%) slots, the worst at index 0) was COMPLETELY unread while the launch side got v0.415.0's lens. src/lib/deficitrow.mjs (pure): parseDeficitsRow (THE FIELD SHAPE pinned by the emitter, not assumed: entries carry a space INSIDE and join with ' ' - the ENTRY_RE matchAll tiling walk with the one-join-space law, a 2+ gap or trailing garbage reads bad); deficitsCensus (the slot-0 arc + drift, the distinct pct count - 1 = THE STUCK SIGNATURE (the worst slot never moved all face - the launch starvation's harvest-side read), the deepest dip; distinctBoards = the multiset churn; the index caveat split honestly). The decompose gains the DEFICITS CLOCK block beside the MAP-TRIP CENSUS - the plan economy's both clocks. Mining-surface only: zero fleet wiring, zero new log lines.
+- Tests: deficitrow 9 (the naive split(' ') bug caught mid-fire - the field shape pinned by the emitter; the join-space tiling law). Syntax 318/0, unit 185/185; integration skipped - no JDK/server jar. Push 9860ae1..72f0399 CLEAN. Gate 36886662452 PENDING at poll close - left in flight per protocol.
+- FLEET SLOT at close: TWO dispatch runs queued (36880909698 on ee39024 + 36886234997 on 9860ae1) - the concurrency group cancels one; no duplicate dispatch from this lane.
+
+Stage Summary:
+- Master = 72f0399 (pkg 0.417.0). Gates 36884789358 + 36886662452 in flight; dispatch arbitration pending.
+- NEXT FIRE: poll the gates + whichever dispatch survived - completed => MINE (the decompose carries the DEFICITS CLOCK row now): the deficits clock's FIRST field read (the drift, the churn, the stuck signature), the drop lane's WHEN, the map-trip launch rate's next sample. The launch-starved vs harvest-starved split is mechanically priced per face from this fire on. Open: the underground=21 read, the F10 frozen-while-head-wet class, the hound cure, the F17 anomaly, GC Pinned, void stamp, the vertical doom, the seal death cure. Version next: 0.418.0. Identity: PLANETA9091.
