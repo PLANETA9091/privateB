@@ -17,6 +17,7 @@ import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the ve
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
+import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -168,6 +169,27 @@ for (const l of ledger.orphanEndLines) console.log('  ORPHAN END:', l)
 for (const l of ledger.unclosedLines) console.log('  UNCLOSED START:', l)
 console.log(`  mid-episode: shore-stall ${ledger.midEvents.shoreStall || 0}, transit-stall ${ledger.midEvents.transitStall || 0}, blind-live ${ledger.midEvents.blindLive || 0}, no-ground-truth ${ledger.midEvents.noGroundTruth || 0}, repeat-wet standdown ${ledger.midEvents.repeatWetStanddown || 0}`)
 console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${b}{${Object.entries(r).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(',')}}`).join(' ') || 'none')
+// (v0.431.0) THE RESCUE CLOCK - the rescue lane's price leg: every end's
+// 'in Ns' duration (the ledger prices only the timeout class) + the frozen
+// standdown's blind bracket - the three counters of the self-diagnosis the
+// field reads 0/0 fourteen times (the frozen dive gathers nothing).
+{
+  const rc = rescueClockCensus(lines)
+  if (rc.ends > 0 || rc.unparsed > 0) {
+    console.log('--- RESCUE CLOCK (v0.431.0: the rescue lane\'s price leg) ---')
+    const classes = Object.entries(rc.byClass).map(([k, n]) => `${k} ${n}`).join(', ')
+    console.log(`  ends: ${rc.ends}${classes ? ` (${classes})` : ''}`)
+    const priced = Object.entries(rc.durations).filter(([, s]) => s.n > 0)
+    for (const [k, s] of priced) console.log(`  price ${k}: n${s.n}, avg ${(s.sum / s.n).toFixed(1)}s, max ${s.max}s`)
+    const unpriced = Object.entries(rc.durations).filter(([, s]) => s.unpriced > 0).map(([k, s]) => `${k}:${s.unpriced}`).join(' ')
+    if (unpriced) console.log(`  unpriced (the shape carries no tail): ${unpriced}`)
+    if (rc.blind.lines > 0 || rc.blind.bracketlessStanddowns > 0) {
+      const p = rc.blind.passes
+      console.log(`  the frozen blindness: brackets ${rc.blind.lines} (passes n${p.n}, avg ${p.n > 0 ? (p.sum / p.n).toFixed(1) : 'n/a'}, max ${p.max}), full-blind (0 shore + 0 probes) ${rc.blind.fullBlind}${rc.blind.fullBlind > 0 ? ' - THE FROZEN DIVE GATHERS NOTHING before the reconnect lane takes over' : ''}, bracketless ${rc.blind.bracketlessStanddowns}`)
+    }
+    if (rc.unparsed > 0) console.log(`  unparsed: ${rc.unparsed} refused blind: token(s) - the escape hatch`)
+  }
+}
 // (v0.376.0) THE RELEASE STARVATION CENSUS - released is 0/230 across five
 // faces and the timeout lines already carry the proof: the tail field is the
 // last three wet/dry reads, and the release's own stability criterion is
