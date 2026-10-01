@@ -11537,3 +11537,17 @@ Work Log:
 Stage Summary:
 - Master = 9a840f7 (pkg 0.433.0). TEN open fronts closed or instrumented in one batch; the union's unit suite rides gate 1605.
 - NEXT FIRE: (1) gate 1605 verdict FIRST (validates the 0.433.0 union; red => fix). (2) FACE 28 attempt 4 (36901025087): 0 jobs >2h => the zombie law; SUCCESS => download + MINE with the local decompose - THE FIRST FULL-UNION FACE: the walked split (the admission's field read - the stuck share should now name 'goal admission' refusals and shrink), the hound presence rows (face 27's four answer moments must reproduce), the death-kind causes, the hot-spot BANDS, the transit seats, the deficits clock. (3) The drop-lane residue: what remains of the timeouts after the admission's share leaves the lane. (4) Version next: 0.434.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0200
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0200 - v0.434.0 THE WIRING PIN REPAIR (the union's suite caught its own cross-lane regression: the 0.432.0 import additions broke the v0.260.0 wiring pin's adjacency regex; the pin now reads INTENT); no dispatch - attempt 4 (36901025087) owns the slot.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip 3a3e15f (pkg 0.433.0, the parallel-10 fire's worklog), next slot 0.434.0 free. Attempt 4 PENDING 0 jobs ~20min in - no duplicate (the max-one law).
+- THE RED SUITE on the tip: dropalready 'v0.260.0 wiring' FAILED - the 0.432.0 GOAL ADMISSION lane's dropGoalAdmission/DROP_ADMISSION_WHY additions sat between dropWalkSkipped and aboveBandOf in miner.mjs's drops.mjs import; the pin anchored the import PREFIX. Gate 36903171864 0-jobs queued - CI never read the red, the local baseline did.
+- THE FIX (test-only): the drops.mjs import matched wholesale (no $ anchor - the trailing stamp comment), each v0.260.0 symbol demanded by name; the 0.432.0 additions untouched. dropalready 10/10, full unit 199/199, syntax 344/0. Push 3a3e15f..0a25b0d CLEAN.
+- Gate 36905634343 (0a25b0d) pending 0 jobs at close (the congested pool); attempt 4 (36901025087) pending 0 jobs ~30min in - queue != zombie.
+
+Stage Summary:
+- Master = 0a25b0d (pkg 0.434.0). NEXT FIRE: gate verdict first; attempt 4 (0 jobs >2h => the zombie law; success => MINE the first full-union face); version next 0.435.0. Identity: PLANETA9091.
