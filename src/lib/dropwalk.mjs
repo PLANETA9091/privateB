@@ -50,6 +50,19 @@
 // walked split on the TIMEOUT verdicts only (a refusal throws inside the
 // 25ms pace with the bot unmoved - its walked 0.0 says nothing and would
 // pollute the stuck share).
+//
+// (v0.420.0) THE NOPATH GOAL ROW - the no-path verdict's own detail leg.
+// MEASURED (face 27, run 36870593766, the F17 anomaly): the fleet's ONLY
+// no-path rode F17's terrace walk to [-122,55,408] (dy -0.4, range 1) - the
+// A* PROVED the goal sphere dead beside the live water column [-126,53..54,
+// 407..408], and the doomed ledger's consult (radius 2, dy 4) then refused
+// the NEXT walk in the same batch ('ledgered 0s ago at [-122,53,407]')
+// WITHOUT a second A* - one proof killed two of F17's three fails. The
+// byWhy count (v0.414.0) named the shape but not the PLACE; the goal
+// coordinate rides every fail line already, so the census keeps it now:
+// dedup'd first-seen goal strings, capped at the no-path ledger's own cap
+// (the fleet's NOPATH_CAP law - a face never proves 24 distinct dead
+// spheres, the belt is for the absurd).
 
 import { parseHeartbeat } from './stormcensus.mjs'
 import { decideClock } from './walkfail.mjs'
@@ -65,6 +78,10 @@ const DOOMED_RE = /^doomed goal \(ledgered (\d+)s ago(?: at \[(-?\d+),(-?\d+),(-
 const CEILING_RE = /^fleet goal ceiling: (\d+) goals fleet-wide in (\d+)s - sweep drops refused for (\d+)s$/
 const WATER_RESCUE_RE = /^water rescue in progress \(sweep drops refused\)$/
 const NO_PATH_RE = /^No path to the goal!$/
+
+// (v0.420.0) the goal row's belt - src/lib/nopath.mjs's own cap (the fleet
+// no-path ledger never keeps more; a census must not outgrow its subject).
+export const NOPATH_GOAL_CAP = 24
 
 /**
  * Classify the walk layer's own verdict text into the lens's buckets.
@@ -150,6 +167,9 @@ export function dropWalkCensus (lines) {
     timeouts: { n: 0, maxMs: 0, sumMs: 0, walked0: 0, moved1: 0, walkedNull: 0, maxWalked: null },
     doomed: { n: 0, maxAgeS: 0, withSpot: 0 },
     ceiling: { n: 0, maxGoals: 0, maxRefusedS: 0 },
+    // (v0.420.0) the no-path detail: the count + the dedup'd goal spheres
+    // the A* proved dead (first-seen order, NOPATH_GOAL_CAP belt).
+    nopath: { n: 0, goals: [] },
     dy: { min: null, max: null, below: 0, plane: 0, above: 0 },
     range: {},
     unparsed: 0
@@ -195,6 +215,16 @@ export function dropWalkCensus (lines) {
       c.ceiling.n++
       c.ceiling.maxGoals = Math.max(c.ceiling.maxGoals, p.ceilingGoals)
       c.ceiling.maxRefusedS = Math.max(c.ceiling.maxRefusedS, p.refusedS)
+    } else if (p.why === 'no-path') {
+      // (v0.420.0) the goal row: the fail line's own coordinate IS the goal
+      // the walk layer proved dead (the emitter prints the drop's cell) -
+      // dedup'd, first-seen, capped (the newest distinct spheres survive).
+      c.nopath.n++
+      const g = `[${p.x},${p.y},${p.z}]`
+      if (!c.nopath.goals.includes(g)) {
+        c.nopath.goals.push(g)
+        if (c.nopath.goals.length > NOPATH_GOAL_CAP) c.nopath.goals.shift()
+      }
     }
     if (c.dy.min === null || p.dy < c.dy.min) c.dy.min = p.dy
     if (c.dy.max === null || p.dy > c.dy.max) c.dy.max = p.dy
@@ -217,5 +247,6 @@ export function dropWalkCensus (lines) {
   c.ceiling.n = fl(c.ceiling.n)
   c.ceiling.maxGoals = fl(c.ceiling.maxGoals)
   c.ceiling.maxRefusedS = fl(c.ceiling.maxRefusedS)
+  c.nopath.n = fl(c.nopath.n)
   return { ...c, clock: decideClock(stamps, clockEnd) }
 }

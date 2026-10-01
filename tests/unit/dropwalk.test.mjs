@@ -259,3 +259,71 @@ test('drop clock: no heartbeats - every fail untimed, clockEnd null; non-array i
   const e = dropWalkCensus('not an array')
   assert.deepEqual([e.clock.timed, e.clock.clockEnd], [0, null])
 })
+
+// (v0.420.0) THE NOPATH GOAL ROW - the no-path verdict's own detail leg. The
+// F17 anomaly (face 27: the fleet's ONLY no-path, 3 of the 9 fails) proved
+// the byWhy count alone cannot name WHERE the walk layer proves dead
+// geometry - the goal coordinate rides every fail line already, the census
+// keeps it now (dedup'd first-seen, NOPATH_GOAL_CAP belt).
+test('no-path: the goal row counts and dedups the A*-proved dead goals', () => {
+  const c = dropWalkCensus([
+    // the face-27 verbatim (F17 r1): the terrace goal beside the live water
+    // column [-126,53..54,407..408]
+    'F17 [F17] vein sweep: the drop walk to [-122,55,408] failed - No path to the goal! (dy -0.4, range 1)',
+    // the same sphere re-proved from another stance - deduped, n counts both
+    'F17 [F17] vein sweep: the drop walk to [-122,55,408] failed - No path to the goal! (dy -0.4, range 1)',
+    // a second dead sphere from a different bot
+    'F4 [F4] vein sweep: the drop walk to [-110,45,396] failed - No path to the goal! (dy 0.0, range 1)'
+  ])
+  assert.equal(c.fails, 3)
+  assert.equal(c.nopath.n, 3)
+  assert.deepEqual(c.nopath.goals, ['[-122,55,408]', '[-110,45,396]'])
+  // first-seen order survives a later repeat
+  assert.equal(c.nopath.goals[0], '[-122,55,408]')
+})
+
+test('no-path: honest zero without the shape; the cap keeps the newest 24', () => {
+  const c = dropWalkCensus([
+    'F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)',
+    'F9 [F9] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago at [-143,56,419]) - sweep drops refused (dy -2.0, range 2)'
+  ])
+  assert.equal(c.nopath.n, 0)
+  assert.deepEqual(c.nopath.goals, [])
+  // 26 distinct dead spheres - the belt drops the OLDEST two (first-seen)
+  const lines = []
+  for (let i = 0; i < 26; i++) {
+    lines.push(`F${(i % 19) + 1} [F${(i % 19) + 1}] vein sweep: the drop walk to [-1${i},45,40${i % 10}] failed - No path to the goal! (dy 0.0, range 1)`)
+  }
+  const capped = dropWalkCensus(lines)
+  assert.equal(capped.nopath.n, 26)
+  assert.equal(capped.nopath.goals.length, 24)
+  // by hand: i=0 ('-10') and i=1 ('-11') fell off the front, i=2 leads
+  assert.equal(capped.nopath.goals[0], '[-12,45,402]')
+  assert.equal(capped.nopath.goals[23], '[-125,45,405]')
+})
+
+test('no-path: the face-27 anomaly battery reproduces by hand - 9 fails, F17 leads, one dead sphere', () => {
+  // the face's own 9 drop-walk fails, in log order (lines 490..798):
+  // F17 no-path + doomed (the ledger echo, 0s), F11 x2, F13 x2, F17 timeout,
+  // F10 timeout + doomed - the anomaly's exact shape
+  const c = dropWalkCensus([
+    'F17 [F17] vein sweep: the drop walk to [-122,55,408] failed - No path to the goal! (dy -0.4, range 1)',
+    'F17 [F17] vein sweep: the drop walk to [-122,53,407] failed - doomed goal (ledgered 0s ago at [-122,53,407]) - sweep drops refused (dy -2.0, range 2)',
+    'F11 [F11] vein sweep: the drop walk to [-133,48,408] failed - sweep drops: timeout after 8000ms (dy -1.0, range 2)',
+    'F11 [F11] vein sweep: the drop walk to [-132,47,408] failed - sweep drops: timeout after 8000ms (dy -1.8, range 2)',
+    'F13 [F13] vein sweep: the drop walk to [-130,46,407] failed - sweep drops: timeout after 8000ms (dy 1.0, range 2)',
+    'F17 [F17] vein sweep: the drop walk to [-127,55,411] failed - sweep drops: timeout after 8000ms (dy 0.0, range 1)',
+    'F13 [F13] vein sweep: the drop walk to [-129,46,406] failed - sweep drops: timeout after 8000ms (dy 1.0, range 2)',
+    'F10 [F10] vein sweep: the drop walk to [-132,47,409] failed - sweep drops: timeout after 8000ms (dy 0.0, range 1)',
+    'F10 [F10] vein sweep: the drop walk to [-128,45,408] failed - doomed goal (ledgered 26s ago at [-129,45,408]) - sweep drops refused (dy -1.1, range 2)'
+  ])
+  assert.equal(c.fails, 9)
+  assert.deepEqual(c.byWhy, { 'no-path': 1, doomed: 2, timeout: 6 })
+  assert.deepEqual(c.byBot, { F17: 3, F11: 2, F13: 2, F10: 2 })
+  assert.deepEqual(c.nopath, { n: 1, goals: ['[-122,55,408]'] })
+  // the terrace/deep split by hand: F17's three ride y 53..55 (the water
+  // terrace), every other bot's fail rides y 45..48 (the deep floor)
+  assert.equal(c.dy.min, -2.0)
+  assert.equal(c.dy.max, 1.0)
+  assert.deepEqual([c.dy.below, c.dy.plane, c.dy.above], [5, 2, 2])
+})

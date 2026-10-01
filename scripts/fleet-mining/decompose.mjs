@@ -612,6 +612,11 @@ if (hopZero.total > 0) {
       console.log(`  walked split: stuck=${dw.timeouts.walked0} moved=${dw.timeouts.moved1} (max ${mx}b) legacy=${dw.timeouts.walkedNull}`)
     }
     if (dw.doomed.n > 0) console.log(`  doomed: n=${dw.doomed.n} maxAge=${dw.doomed.maxAgeS}s withSpot=${dw.doomed.withSpot}`)
+    // (v0.420.0) THE NOPATH GOAL ROW - the no-path verdict's own detail leg
+    // (the F17 anomaly's read: the A* PROVES the goal sphere dead, the doomed
+    // ledger then refuses the neighborhood without a second A*). Goals
+    // dedup'd first-seen, cap 24 (nopath.mjs's own NOPATH_CAP parity).
+    if (dw.nopath.n > 0) console.log(`  no-path: n=${dw.nopath.n} goals ${dw.nopath.goals.join(' ') || 'none'}`)
     if (dw.ceiling.n > 0) console.log(`  ceiling: n=${dw.ceiling.n} maxGoals=${dw.ceiling.maxGoals} maxRefused=${dw.ceiling.maxRefusedS}s`)
     const rng = Object.entries(dw.range).sort((a, b) => a[0] - b[0]).map(([k, v]) => `r${k}=${v}`).join(' ')
     console.log(`  dy families: below=${dw.dy.below} plane=${dw.dy.plane} above=${dw.dy.above} (min ${dw.dy.min} max ${dw.dy.max}) - range: ${rng || 'none'}`)
