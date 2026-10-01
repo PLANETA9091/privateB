@@ -292,6 +292,18 @@ if (shooter.total > 0) {
     })
     .join(' | ')
   if (feedRow) console.log(`  whale feed (split on fight-end/yield or > ${shooter.sessions.gapS}s silence): ${feedRow}`)
+  // (v0.399.0) THE SIEGE VERDICT - the diffusion question answered per
+  // face: a bot whose longest session reaches the bound carries THE SIEGE
+  // (face 15's F2: max 278 >= 120); the churn octave (F12: max 53) never
+  // does. An empty map reads 'none' - the honest zero (faces 17/18/19).
+  {
+    const siegeBots = Object.entries(shooter.sessions.siegeByBot || {})
+    const maxOf = Object.values(shooter.sessions.byBot || {}).reduce((m, s) => Math.max(m, s.maxLen), 0)
+    const verdict = siegeBots.length > 0
+      ? siegeBots.map(([b, m]) => `${b} (max session ${m} >= ${shooter.sessions.siegeMinLen})`).join(', ')
+      : `none (max session ${maxOf} < ${shooter.sessions.siegeMinLen})`
+    console.log(`  SIEGE verdict: ${verdict}`)
+  }
   console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
   // (v0.394.0) the wall-miss row - the wall-scan verdict line (formerly
   // 'shelter skip (open field: no diggable wall ...)') is a ROUTE MARKER,

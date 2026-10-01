@@ -72,6 +72,19 @@
 // SEVEN still cannot ring (the bound must be the FULL 8). The
 // post-reserve faces must walk the zeroHave share DOWN; the row is the
 // field verdict's own metric.
+//
+// (v0.399.0) THE SIEGE VERDICT - the whale-feed sessions named the siege
+// read but left the DIFFUSION question unanswerable by the tool: does
+// every mob face carry a siege bot, or was face 15's F2 a one-off? The
+// verdict is mechanical off the sessions the lens already builds: a bot
+// whose LONGEST session reaches SIEGE_MIN_SESSION_LEN carries THE SIEGE.
+// THE OBSERVED SEPARATION (live, face 15): the churn octave F12 tops out
+// at max 53 lines in one session; the siege F2 runs 278 - the gap is
+// wide, and 120 sits conservatively past the churn octave (a fighter
+// churning micro-bouts never stacks 120 lines in ONE session at the
+// observed shapes) while staying under half the known siege. The
+// threshold is a NAMED constant, not a magic number - the next face's
+// read either confirms the separation or the tests say loudly it moved.
 
 const num = (s) => Number(s)
 
@@ -167,6 +180,11 @@ export function parseSkipWhys (body) {
 export const SESSION_END_VERBS = ['fight-ended', 'open-field-yield']
 export const SESSION_GAP_S = 45
 
+// (v0.399.0) THE SIEGE VERDICT bound - a bot's longest session reaching
+// this many lines names the SIEGE bot (the churn octave F12 maxes at 53,
+// the siege F2 runs 278; 120 is the conservative mid-gap read).
+export const SIEGE_MIN_SESSION_LEN = 120
+
 // The heartbeat line: '[hb] n=1 ts=21s rss=251M late=5ms mainLate=0ms'
 const HB_RE = /\[hb\] n=\d+ ts=(\d+)s/
 
@@ -251,7 +269,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, ringStock: {seen: number, zeroHave: number, pairs: Object<string,number>}, sessions: {gapS: number, endVerbs: string[], byBot: Object<string,{sessions: number, maxLen: number}>}, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, ringStock: {seen: number, zeroHave: number, pairs: Object<string,number>}, sessions: {gapS: number, endVerbs: string[], siegeMinLen: number, byBot: Object<string,{sessions: number, maxLen: number}>, siegeByBot: Object<string,number>}, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -375,6 +393,14 @@ export function shooterCensus (lines) {
       byBotSessions[b] = { sessions: st[b].sessions, maxLen: st[b].maxLen }
     }
   }
+  // (v0.399.0) THE SIEGE VERDICT - the diffusion read off the sessions the
+  // lens already built: every bot whose longest session reaches the bound
+  // is a siege carrier; an EMPTY map is the honest zero (no siege bot on
+  // the face - faces 17/18/19 read exactly this).
+  const siegeByBot = {}
+  for (const [b, s] of Object.entries(byBotSessions)) {
+    if (s.maxLen >= SIEGE_MIN_SESSION_LEN) siegeByBot[b] = s.maxLen
+  }
   const rangedEvents = entries.filter((e) => e.ranged).length
   return {
     total: entries.length,
@@ -395,7 +421,7 @@ export function shooterCensus (lines) {
     shelter: { tries, skips, ringTries, wallMiss },
     skipWhys,
     ringStock: { seen: ringStockSeen, zeroHave: ringStockZero, pairs: ringStockPairs },
-    sessions: { gapS: SESSION_GAP_S, endVerbs: SESSION_END_VERBS, byBot: byBotSessions },
+    sessions: { gapS: SESSION_GAP_S, endVerbs: SESSION_END_VERBS, siegeMinLen: SIEGE_MIN_SESSION_LEN, byBot: byBotSessions, siegeByBot },
     withDist,
     maxDist
   }

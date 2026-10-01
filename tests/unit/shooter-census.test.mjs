@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseCombatLine, shooterCensus } from '../../src/lib/shootercensus.mjs'
+import { parseCombatLine, shooterCensus, SIEGE_MIN_SESSION_LEN } from '../../src/lib/shootercensus.mjs'
 
 // face-15 verbatims (the ranged band + the verdict/shelter mechanics)
 const RING_RANGED = 'F9 [F9] combat: shelter ring ranged mode: the full ring is refused, the arrow wall owns it vs skeleton@2.8'
@@ -332,6 +332,49 @@ test('whale-feed: per-bot isolation + the honest zero + junk safety', () => {
   assert.equal(c.sessions.byBot.F9.sessions, 2)
   const zero = shooterCensus(['launching 19 bots for 600s', hb(1, 20)])
   assert.deepEqual(zero.sessions.byBot, {})
+})
+
+// (v0.399.0) THE SIEGE VERDICT - the diffusion read: a bot whose longest
+// session reaches SIEGE_MIN_SESSION_LEN carries THE SIEGE. The separation
+// is the live face-15 gap: the churn octave F12 maxes at 53, the siege F2
+// runs 278. The stream builder rides the same cadence the real log shows
+// (five combat lines per ~20s heartbeat tick - no false gap splits).
+const siegeStream = (bot, n, startTs = 40) => {
+  const out = []
+  for (let i = 0; i < n; i++) {
+    if (i % 5 === 0) out.push(hb(1 + i / 5, startTs + (i / 5) * 20))
+    out.push(`${bot} [${bot}] combat: fighting skeleton`)
+  }
+  return out
+}
+
+test('siege verdict: a bot reaching the bound is named - the F2 shape reads SIEGE', () => {
+  const c = shooterCensus(siegeStream('F2', 125))
+  assert.equal(c.sessions.byBot.F2.sessions, 1)
+  assert.equal(c.sessions.byBot.F2.maxLen, 125)
+  assert.deepEqual(c.sessions.siegeByBot, { F2: 125 })
+  assert.equal(c.sessions.siegeMinLen, SIEGE_MIN_SESSION_LEN)
+  assert.equal(SIEGE_MIN_SESSION_LEN, 120)
+})
+
+test('siege verdict: churn stays under the bound - the F12 octave reads none', () => {
+  const lines = [
+    ...siegeStream('F12', 53),
+    hb(99, 300),
+    ...siegeStream('F12', 26, 300)
+  ]
+  const c = shooterCensus(lines)
+  assert.equal(c.sessions.byBot.F12.sessions, 2)
+  assert.equal(c.sessions.byBot.F12.maxLen, 53)
+  assert.deepEqual(c.sessions.siegeByBot, {})
+})
+
+test('siege verdict: the bound is inclusive + the honest zero on a silent face', () => {
+  const edge = shooterCensus(siegeStream('F7', 120))
+  assert.deepEqual(edge.sessions.siegeByBot, { F7: 120 })
+  const silent = shooterCensus(['launching 19 bots for 600s'])
+  assert.deepEqual(silent.sessions.siegeByBot, {})
+  assert.equal(silent.sessions.siegeMinLen, 120)
 })
 
 // (v0.398.0) THE SEAL-STOCK BASELINE - the ring-stock have/need pairs off
