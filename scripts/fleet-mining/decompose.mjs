@@ -25,6 +25,7 @@ import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the st
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
 import { deathKindCensus } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg
+import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -272,6 +273,26 @@ for (const l of lines) {
 console.log('  flee bearings repeated >=2:', Object.entries(fleeBearing).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}x${n}`).join(' ') || 'none (every flee chose a fresh bearing)')
 console.log('  flee bearing diversity:', Object.keys(fleeBearing).length, 'distinct bearings over', Object.values(fleeBearing).reduce((a, b) => a + b, 0), 'flee events')
 console.log('  drowned-kill per-bot:', fmt(perBot(/death: drowned-kill context/)))
+// (v0.433.0) THE HOUND-PRESENCE LENS - eight faces of 'hound absent' were a
+// blind read, not an honest zero: the rows above count only the WET flee
+// ('flee toward shore ... (proximity)') and the hound-won death
+// ('drowned-kill context'), while the combat block's own lines carry the
+// hound in the forms the fleet actually answers with. Face 27 (36870593766)
+// proves it in held log: FOUR answer moments vs drowned - F10 sheltered and
+// fled one on dry land, F9 and F14 fought and KILLED theirs (wooden_sword,
+// 5-6 rounds) - every legacy row zero. The lens reads the whole anatomy (the
+// v0.389.0 deathsweep lesson, one parser per emitter): presence = the answer
+// moments (fight / flee-dry / shelter / flee-shore incl. the cornered
+// no-cell form / the escape hatch), defeats = 'fight ended (mob down)' (the
+// fleet WON), hops/flips/re-verdicts = the episode's own detail, kills vs
+// drown-contexts split the won/lost deaths. Mining-surface only: zero fleet
+// wiring, zero new log lines.
+const hound = houndCensus(lines)
+console.log(`  hound presence (any form): ${hound.presence} answer moment(s) - fight ${hound.fight} / flee-dry ${hound.fleeDry} / shelter ${hound.shelter} / flee-shore ${hound.fleeShore} (legacy-plain ${hound.fleeShorePlain}) / shore-no-cell ${hound.shoreNoCell} / other ${hound.other}`, 'per-bot:', fmt(hound.presenceByBot))
+console.log(`  hound defeats (the fleet won - mob down): ${hound.fightsWon}`, 'per-bot:', fmt(hound.fightsWonByBot), `| other fight exits: ${hound.fightEndsOther}`)
+console.log(`  hound episode detail: flee hops ${hound.fleeHops} / verdict flips ${hound.verdictFlips} / re-verdicts ${hound.reVerdicts}`)
+console.log(`  hound kills (the hound won): ${hound.kills} (dry-shore ${hound.killsDryShore} / in-water ${hound.killsInWater} / waterline ${hound.killsWaterline}) | drown contexts (the water did it): ${hound.drownContexts}`)
+for (const s of hound.otherSamples) console.log("   ~ hound other:", s.slice(0, 140))
 // (v0.379.0) THE O2-RESET DEATH CENSUS - the sensor-class ledger gains its
 // third entry: the oxygen read RESET (reset(-1), the lost read rendered) and
 // the death context names the two forms it kills in - face 17 paid the
