@@ -19,10 +19,10 @@ const F19 = [
   'pocket anatomy: spread across 19 holders, top F1 102u = 20.6% of 495u - the chains own the crater\'s face, no single walk cures it',
   'surplus face: crafted-class 191u of 495u pocket (38.6%), top stick 96u, oak_planks 70u, torch 12u - the mined counter never saw these units (surplus 240u)',
   'bank flow: 2.1u/s (banked +611u over 288s) - the 495u pocket needs 234s past the deadline',
-  'F8 final bank budget: flow-priced 2771s (fleet pocket 933u at 0.3u/s needs 2771s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not',
-  'F19 final bank budget: flow-priced 2789s (fleet pocket 939u at 0.3u/s needs 2789s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not',
-  'F6 final bank budget: flow-priced 2599s (fleet pocket 875u at 0.3u/s needs 2599s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not',
-  'F11 final bank budget: flow-priced 2433s (fleet pocket 819u at 0.3u/s needs 2433s) - the static 248s covered only the fast flows - the tail burst (93s, 206u, 78% of the window\'s delta) is not',
+  'F8 final bank budget: flow-priced 2771s (fleet pocket 933u at 0.3u/s needs 2771s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not a rate - priced at the ex-burst 0.3u/s - clamped to 300s (the kill margin)',
+  'F19 final bank budget: flow-priced 2789s (fleet pocket 939u at 0.3u/s needs 2789s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not a rate - priced at the ex-burst 0.3u/s - clamped to 300s (the kill margin)',
+  'F6 final bank budget: flow-priced 2599s (fleet pocket 875u at 0.3u/s needs 2599s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not a rate - priced at the ex-burst 0.3u/s - clamped to 300s (the kill margin)',
+  'F11 final bank budget: flow-priced 2433s (fleet pocket 819u at 0.3u/s needs 2433s) - the static 248s covered only the fast flows - the tail burst (93s, 206u, 78% of the window\'s delta) is not a rate - priced at the ex-burst 0.3u/s - clamped to 300s (the kill margin)',
   'worldmap: 840 positions, 16 chunks scanned, top: oak_log=259 sand=194 coal_ore=193 copper_ore=80 birch_log=55',
 ]
 
@@ -59,20 +59,28 @@ test('bank flow parsed - the delivery pricing (234s past the deadline)', () => {
   assert.equal(c.flow.secondsPastDeadline, 234)
 })
 
-test('flow-priced budgets: four bots, ALL uncovered, the 11x gap pinned', () => {
+test('flow-priced budgets: four bots, ALL clamped, the granted clock 300s vs need 2789s', () => {
   const c = bankFlowCensus(F19)
   assert.equal(c.budgets.length, 4)
   assert.equal(c.budgetAgg.count, 4)
-  assert.equal(c.budgetAgg.covered, 0)
-  assert.equal(c.budgetAgg.uncovered, 4)
+  assert.equal(c.budgetAgg.clamped, 4)
+  assert.equal(c.budgetAgg.grantedMaxS, 300)
   assert.equal(c.budgetAgg.maxNeedsS, 2789)
   assert.equal(c.budgetAgg.staticS, 248)
-  assert.equal(c.budgetAgg.maxGapWindows, 11)
+  assert.equal(c.budgetAgg.grantedSharePct, 11)
   assert.equal(c.budgets[0].bot, 'F8')
   assert.equal(c.budgets[0].flowPricedS, 2771)
-  assert.equal(c.budgets[0].tailBurstPct, 67)
+  assert.deepEqual(c.budgets[0].burst, { spanS: 78, deltaU: 118, pct: 67, exBurstRate: 0.3 })
+  assert.equal(c.budgets[0].grantedS, 300)
+  assert.equal(c.budgets[0].clamped, true)
   assert.equal(c.budgets[3].bot, 'F11')
-  assert.equal(c.budgets[3].tailBurstU, 206)
+  assert.deepEqual(c.budgets[3].burst, { spanS: 93, deltaU: 206, pct: 78, exBurstRate: 0.3 })
+})
+
+test('the fantasy covered form never parses (the leanness law: a covered pocket speaks nothing)', () => {
+  const c = bankFlowCensus(['F8 final bank budget: flow-priced 2771s (fleet pocket 933u at 0.3u/s needs 2771s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not covered'])
+  assert.deepEqual(c.budgets, [])
+  assert.equal(c.budgetAgg, null)
 })
 
 test('stranded pockets: both zero-delivered - the walk never delivered', () => {
@@ -122,12 +130,22 @@ test('the Number(null) lesson: partial lines do not parse as entries', () => {
   assert.equal(parseDoomWhy('no class owns it'), null)
 })
 
-test('a covered budget line parses its coverage flag (the cure\'s success shape)', () => {
-  const c = bankFlowCensus(['F8 final bank budget: flow-priced 240s (fleet pocket 70u at 0.3u/s needs 240s) - the static 248s covered only the fast flows - the tail burst (10s, 20u, 12% of the window\'s delta) is not covered'])
-  assert.equal(c.budgets[0].covered, true)
-  assert.equal(c.budgetAgg.covered, 1)
-  assert.equal(c.budgetAgg.uncovered, 0)
-  assert.equal(c.budgetAgg.maxGapWindows, 1)
+test('the smooth-window form: no burst note, no clamp - the granted clock is null (the share reads null)', () => {
+  const c = bankFlowCensus(['F8 final bank budget: flow-priced 240s (fleet pocket 70u at 0.3u/s needs 240s) - the static 248s covered only the fast flows'])
+  assert.equal(c.budgets[0].burst, null)
+  assert.equal(c.budgets[0].grantedS, null)
+  assert.equal(c.budgets[0].clamped, false)
+  assert.equal(c.budgetAgg.clamped, 0)
+  assert.equal(c.budgetAgg.grantedMaxS, null)
+  assert.equal(c.budgetAgg.grantedSharePct, null)
+})
+
+test('a clamp without a burst note parses (the v0.345.0 smooth window can still hit the margin)', () => {
+  const c = bankFlowCensus(['F8 final bank budget: flow-priced 2771s (fleet pocket 933u at 0.3u/s needs 2771s) - the static 248s covered only the fast flows - clamped to 280s (the kill margin)'])
+  assert.equal(c.budgets[0].burst, null)
+  assert.equal(c.budgets[0].grantedS, 280)
+  assert.equal(c.budgets[0].clamped, true)
+  assert.equal(c.budgetAgg.grantedSharePct, 10)
 })
 
 test('last line wins: a later ledger print supersedes the earlier', () => {

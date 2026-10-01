@@ -62,7 +62,18 @@ const LOOT_RE = /^loot ledger: mined=(\d+) banked=(\d+) smelted=(\d+) pocket=(\d
 const POCKET_ANATOMY_RE = /^pocket anatomy: spread across (\d+) holders, top (F\d+) (\d+)u = ([\d.]+)% of (\d+)u - (.+)$/
 const SURPLUS_FACE_RE = /^surplus face: crafted-class (\d+)u of (\d+)u pocket \(([\d.]+)%\), top (.+?) - the mined counter never saw these units \(surplus (\d+)u\)$/
 const BANK_FLOW_RE = /^bank flow: ([\d.]+)u\/s \(banked \+(\d+)u over (\d+)s\) - the (\d+)u pocket needs (\d+)s past the deadline$/
-const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet pocket (\d+)u at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not( covered)?/
+// (v0.384.0) THE GRANTED-CLOCK FIX - the v0.382.0 regex modeled the budget
+// line's suffix from imagination ('is not covered'): the field line ends
+// 'is not a rate - priced at the ex-burst N.Nu/s' (the v0.348.0 tail-burst
+// guard's own words) and may carry ' - clamped to Ns (the kill margin)' (the
+// v0.41.0 margin clamp). A covered pocket speaks nothing (the leanness law)
+// - the line only prints when the clock EXTENDED, so a 'covered' flag was
+// dead code by construction. The GRANTED clock (the clamped chain budget)
+// is the whale's key number: granted 300s vs a 2433-2789s need = the
+// structural deficit the kill margin owns by construction. The $ anchor is
+// the anatomy law: the print template ends at one of the three forms - an
+// imagined suffix must never parse as a budget line again.
+const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet pocket (\d+)u at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows(?: - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not a rate - priced at the ex-burst ([\d.]+)u\/s)?(?: - clamped to (\d+)s \(the kill margin\))?$/
 const ATTRIBUTION_RE = /^bank attribution: top (.+?); stranded: (.+)$/
 
 // The census: feed the full fleet19.log lines. Every field is null/[] when
@@ -110,7 +121,9 @@ export function bankFlowCensus(lines) {
     pocketUnits: num(bfM[4]), secondsPastDeadline: num(bfM[5]),
   } : null
 
-  // The per-bot flow-priced budgets: the static window vs the flow's need.
+  // The per-bot flow-priced budgets: the static window vs the flow's need,
+  // the tail-burst guard's ex-burst rate, and the GRANTED clock (the kill
+  // margin's clamp - the deficit the chain actually received).
   const budgets = []
   for (const l of rows) {
     const m = l.match(BUDGET_RE)
@@ -118,19 +131,23 @@ export function bankFlowCensus(lines) {
     budgets.push({
       bot: m[1], flowPricedS: num(m[2]), pocketUnits: num(m[3]),
       rateUPerS: num(m[4]), needsS: num(m[5]), staticS: num(m[6]),
-      tailBurstS: num(m[7]), tailBurstU: num(m[8]), tailBurstPct: num(m[9]),
-      covered: m[10] !== undefined,
+      burst: m[7] !== undefined ? { spanS: num(m[7]), deltaU: num(m[8]), pct: num(m[9]), exBurstRate: num(m[10]) } : null,
+      grantedS: m[11] !== undefined ? num(m[11]) : null,
+      clamped: m[11] !== undefined,
     })
   }
   const maxNeedsS = budgets.reduce((a, b) => Math.max(a, b.needsS), 0)
+  const grantedList = budgets.filter((b) => b.grantedS != null).map((b) => b.grantedS)
+  const grantedMaxS = grantedList.length ? Math.max(...grantedList) : null
   const budgetAgg = budgets.length ? {
     count: budgets.length,
-    covered: budgets.filter((b) => b.covered).length,
-    uncovered: budgets.filter((b) => !b.covered).length,
+    clamped: budgets.filter((b) => b.clamped).length,
+    grantedMaxS,
     maxNeedsS,
     staticS: budgets[0].staticS,
-    // The coverage gap: how many static windows the slowest flow needs.
-    maxGapWindows: budgets[0].staticS > 0 ? Math.round(maxNeedsS / budgets[0].staticS) : null,
+    // The granted share: how much of the slowest need the margin actually
+    // granted (null when no line carried the clamp - the clock moved free).
+    grantedSharePct: grantedMaxS != null && maxNeedsS > 0 ? Math.round((grantedMaxS / maxNeedsS) * 100) : null,
   } : null
 
   // The stranded pockets: the attribution's walk-never-delivered class.

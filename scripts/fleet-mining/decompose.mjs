@@ -182,16 +182,24 @@ console.log('  o2=reset(-1) pass lines (the blind reads between starts):', count
 // walk-deliveries cure needs; the tool never read them (the blind-tool
 // lesson). The pure parser lives in src/lib/bankcensus.mjs (unit-pinned);
 // this block is its field read. Mining-surface only: zero fleet wiring,
-// zero new log lines - the v0.379.0 precedent. The cure's field criteria
-// (face 21+ on a cure tree): strandedZeroDelivered shrinking, the surplus
-// crafted-class share shrinking, maxGapWindows leaving double digits.
+// zero new log lines - the v0.379.0 precedent.
+// (v0.384.0) THE GRANTED-CLOCK FIX - the v0.382.0 census modeled the budget
+// line's suffix from imagination ('is not covered'): the field line ends 'is
+// not a rate - priced at the ex-burst N.Nu/s' (the v0.348.0 guard's words)
+// plus ' - clamped to Ns (the kill margin)' - and face 19's four lines are
+// ALL clamped to 300s against a 2433-2789s need: the GRANTED share is 11%,
+// the deficit is structural (the kill margin owns it by construction - the
+// v0.41.0 clamp law). The cure's lever is EARLIER delivery (a mid-run
+// deliverability arm when pocket/rate outruns the time left), not a longer
+// final clock. Cure criteria (face 21+): grantedSharePct leaving the teens,
+// strandedZeroDelivered shrinking, the crafted-class share shrinking.
 console.log('--- BANK-FLOW CENSUS (v0.382.0) ---')
 const bankCensus = bankFlowCensus(lines)
 if (bankCensus.loot) console.log(`  loot ledger: mined ${bankCensus.loot.mined} banked ${bankCensus.loot.banked} pocket ${bankCensus.loot.pocketUnits}u surplus ${bankCensus.loot.surplus}u conversion ${bankCensus.loot.conversionPct}%`)
 if (bankCensus.pocket) console.log(`  pocket anatomy: ${bankCensus.pocket.holders} holders, top ${bankCensus.pocket.topBot} ${bankCensus.pocket.topUnits}u (${bankCensus.pocket.topPct}%) - ${bankCensus.pocket.tail}`)
 if (bankCensus.surplus) console.log(`  surplus face: crafted-class ${bankCensus.surplus.craftedUnits}u of ${bankCensus.surplus.pocketUnits}u (${bankCensus.surplus.craftedPct}%), top ${bankCensus.surplus.top.map((t) => `${t.item} ${t.units}u`).join(', ') || 'none'}`)
 if (bankCensus.flow) console.log(`  bank flow: ${bankCensus.flow.rateUPerS}u/s (+${bankCensus.flow.bankedDelta}u over ${bankCensus.flow.windowS}s) - the ${bankCensus.flow.pocketUnits}u pocket needs ${bankCensus.flow.secondsPastDeadline}s past the deadline`)
-if (bankCensus.budgetAgg) console.log(`  flow-priced budgets: ${bankCensus.budgetAgg.count} printed, ${bankCensus.budgetAgg.uncovered} uncovered, max need ${bankCensus.budgetAgg.maxNeedsS}s vs static ${bankCensus.budgetAgg.staticS}s = ${bankCensus.budgetAgg.maxGapWindows} static windows (per-bot: ${bankCensus.budgets.map((b) => `${b.bot}=${b.flowPricedS}s${b.covered ? ' covered' : ''}`).join(' ') || 'none'})`)
+if (bankCensus.budgetAgg) console.log(`  flow-priced budgets: ${bankCensus.budgetAgg.count} printed, ${bankCensus.budgetAgg.clamped} clamped by the kill margin, granted max ${bankCensus.budgetAgg.grantedMaxS ?? 'n/a'}s vs max need ${bankCensus.budgetAgg.maxNeedsS}s = ${bankCensus.budgetAgg.grantedSharePct != null ? bankCensus.budgetAgg.grantedSharePct + '% granted share' : 'the clock moved free'} (per-bot: ${bankCensus.budgets.map((b) => `${b.bot}=${b.flowPricedS}s${b.grantedS != null ? `->${b.grantedS}s` : ''}${b.burst ? ` ex-burst ${b.burst.exBurstRate}u/s` : ''}`).join(' ') || 'none'})`)
 if (bankCensus.attribution) console.log(`  stranded pockets (the walk never delivered): ${bankCensus.attribution.stranded.map((s) => `${s.bot} ${s.deliveredU}u/${s.pocketU}u`).join(', ') || 'none'} - zero-delivered: ${bankCensus.attribution.strandedZeroDelivered}`)
 if (bankCensus.writeOff.length) console.log(`  final write-off: ${bankCensus.writeOff.map((w) => `${w.bot} ${w.units}u/${w.seconds}s`).join(', ')}`)
 if (bankCensus.doom?.why) console.log(`  bank doom why: ${bankCensus.doom.why.whyClass} owns ${bankCensus.doom.why.carried} of ${bankCensus.doom.why.total} failed climb cycles (${bankCensus.doom.why.pct}%)`)
