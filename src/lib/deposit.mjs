@@ -1746,6 +1746,17 @@ export async function depositToChest (bot, {
   // chest window's slots [chestSlots..] mirror the SERVER's player inventory
   // exactly, so the honest pocket - both the iteration and the verified diff -
   // reads from the mirror when a chest-shaped window is open.
+  // (v0.416.0) THE MID-VISIT GUARD, arm 1: the fallback read was UNGUARDED -
+  // a bot disconnected mid-respawn (the v0.157.0 respawn-window class) threw
+  // right here, and the throw escaped the visit AFTER the in-loop tithe/seal
+  // lines had landed but BEFORE the per-visit summary: the mystery's every
+  // symptom (face 24: 0 of 10 deposits printed the summary while the tithe
+  // lines all landed, byte-identical code both trees, tee captured all
+  // stdout) - the intermittent shape is the race's timing, not the tree. The
+  // dying inventory reads honest zeros now (the v0.157.0 optional-chain
+  // law): the visit completes, the summary prints, the moved-diff read on an
+  // unreadable pocket stays the pre-read's word (an upper bound of one
+  // stack, bought once per disconnect race).
   const pocketItems = () => {
     try {
       const slots = Array.isArray(window.slots) ? window.slots : (typeof window.slots === 'function' ? window.slots() : null)
@@ -1753,7 +1764,7 @@ export async function depositToChest (bot, {
         return slots.slice(chestSlots).filter(s => s && s.count > 0)
       }
     } catch { /* a dead window falls back */ }
-    return bot.inventory.items()
+    return (bot.inventory && typeof bot.inventory.items === 'function') ? bot.inventory.items() : []
   }
   const countOf = name => pocketItems().filter(i => i.name === name).reduce((a, i) => a + i.count, 0)
   try {
@@ -2094,7 +2105,25 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
         continue
       }
     }
-    const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })
+    // (v0.416.0) THE MID-VISIT GUARD, arm 2 - the chain net: a visit that
+    // THROWS anyway (a throwing inventory read the arm-1 guard cannot
+    // absorb, any future emitter's edge) used to kill the WHOLE chain and
+    // every counter with it (stats.banked never saw the units the visit
+    // already moved - the deposit happened server-side, the bookkeeping
+    // died). The net names the death through the 'hop:' family (the fleet
+    // filter-key's own lane, zero wiring), excludes the chest and lets the
+    // loop's bankable re-read decide: a transient window race retries the
+    // next chest, a dead inventory reads bankable 0 and ends the chain.
+    // Bounded by maxChests end to end.
+    let res
+    try {
+      res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })
+    } catch (e) {
+      const msg = e && e.message ? e.message : 'unknown'
+      log(`[${bot.username ?? 'bot'}] hop: chest at [${chest.position?.x ?? '?'},${chest.position?.y ?? '?'},${chest.position?.z ?? '?'}]${hopDist != null ? ` d=${hopDist}` : ''} zero: visit died mid-visit (${msg}) - the chain excludes it, the pocket rides the next window`)
+      tried.push(typeof chest.position.floored === 'function' ? chest.position.floored() : chest.position)
+      continue
+    }
     reports.push(res.reason)
     if (res.deposited > 0) { total += res.deposited; chestsUsed++ } else {
       // (v0.39.1) THE FAILED HOP NAMES ITSELF: a zero hop used to vanish into a

@@ -34,7 +34,9 @@ test('v0.256.0 wiring: the doom branch consults the OPTIONAL hook BEFORE the leg
   // (v0.303.0) the anchor restated on the post-yard-grace tree: the hop call
   // threads the chain's yardGraceHolder - the gate-before-walk ORDER the pin
   // owns is untouched.
-  const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })')
+  // (v0.416.0) the call rides the chain net now (res = await inside try) -
+  // the mid-visit guard's arm 2; the gate-before-walk ORDER is untouched.
+  const walkIdx = depositSrc.indexOf('res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })')
   assert.ok(walkIdx > skipIdx, 'a cleared doom falls through to the legacy hop - the climb buys the ladder its route')
   assert.match(depositSrc, /onVerticalDoom = null/, 'the hook defaults to null - no caller change reads the legacy shape')
 })

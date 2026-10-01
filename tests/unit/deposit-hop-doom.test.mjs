@@ -25,7 +25,9 @@ test('v0.188.0 wiring: the hop loop consults chestVerticalDoom BEFORE the deposi
   // (v0.303.0) the anchor restated on the post-yard-grace tree: the hop call
   // threads the chain's yardGraceHolder - the gate-before-walk order and the
   // skip shape are unchanged.
-  const walkIdx = depositSrc.indexOf('const res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })')
+  // (v0.416.0) the call rides the chain net now (res = await inside try) -
+  // the mid-visit guard's arm 2; the gate-before-walk order is untouched.
+  const walkIdx = depositSrc.indexOf('res = await depositToChest(bot, { chestBlock: chest, keep, log, budgetMs: remaining(), noPathLedger, fullChestLedger, yardGraceHolder: yardGrace })')
   assert.ok(walkIdx > -1, 'the hop loop walk anchor exists')
   // (v0.256.0) the consult reads `let doom` now - the chest ascent hook
   // rebinds the verdict after a climb and the gate re-evaluates; the
