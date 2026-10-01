@@ -25,8 +25,29 @@
 //
 // One parser per emitter; mining-surface only: zero fleet wiring, zero new
 // log lines (the v0.379.0/v0.403.0/v0.408.0/v0.421.0/v0.426.0 precedent).
+//
+// (v0.435.0) THE STALL DEPTH SPLIT - the pocket read the face-27 field scan
+// named: F1's 10 stalls ALL died at d=2..3 after 15..19 passes - THE WALLS
+// OWN THE LAST 2-3 BLOCKS, not the route. The split makes that read
+// mechanical on every future face. Each stall joins the bot's MOST RECENT
+// launch (the log's order is the swim's order) and is cut twice,
+// independently:
+//   WHERE IT DIED: pocket (d <= TRANSIT_POCKET_DEPTH, the lip walls - the
+//                  range/lip cure's class) vs route (further out).
+//   HOW FAR IT SWAM: ground gained = launch dist - stall dist;
+//                  toTheLip (gained >= half the launch distance - the swim
+//                  WORKED, the final approach refused) vs early (gained <
+//                  half - the launch column or the push-back owned it, NOT
+//                  the lip). A NEGATIVE gain is legal evidence (the current
+//                  can push the bot back past the plan point).
+// A stall with no preceding launch by that bot is UNPAIRED - counted, never
+// assumed (the honest-evidence law).
 
 const TAG = '^(F\\d+) \\[\\1\\] '
+
+// (v0.435.0) the pocket's own depth - the face read's d=2..3 band, the
+// wall-lip class the range/lip cure aims at.
+export const TRANSIT_POCKET_DEPTH = 3
 
 const TRANSIT_LAUNCH_RE = new RegExp(TAG +
   'water: transit toward known land \\(([a-z][a-z0-9_]*)\\) at \\[(-?\\d+),(-?\\d+)\\] d=(\\d+)$')
@@ -64,16 +85,25 @@ export function parseTransitStall (line) {
  * The targets carry per-bot attribution (the pinned-seat read: a target
  * hit by ONE bot many times is the walls class, by MANY bots the map's
  * concentration) - the planar key law (x,z) from the hot-spot lens.
+ * (v0.435.0) The stalls carry the DEPTH SPLIT: pocket vs route (where it
+ * died) and pairs (ground gained vs the bot's most recent launch: toTheLip
+ * vs early) + unpairedN (no launch to pair - evidence, never assumed).
  * @param {string[]|string} [lines] the face log
- * @returns {{launches: {n: number, byBot: {}, byLand: {}, dist: {n: number, min: number|null, max: number|null, sum: number}}, stalls: {n: number, byBot: {}, distMax: number|null, passesMax: number|null}, targets: Array<{key: string, x: number, z: number, total: number, bots: {}, land: string}>, unparsed: number}}
+ * @returns {{launches: {n: number, byBot: {}, byLand: {}, dist: {n: number, min: number|null, max: number|null, sum: number}}, stalls: {n: number, byBot: {}, distMax: number|null, passesMax: number|null, pocketN: number, routeN: number, pairs: {n: number, gainedMin: number|null, gainedMax: number|null, gainedSum: number, toTheLipN: number, earlyN: number}, unpairedN: number}, targets: Array<{key: string, x: number, z: number, total: number, bots: {}, land: string}>, unparsed: number}}
  */
 export function transitCensus (lines) {
   const rows = Array.isArray(lines)
     ? lines
     : (typeof lines === 'string' ? lines.split('\n') : [])
   const launches = { n: 0, byBot: {}, byLand: {}, dist: { n: 0, min: null, max: null, sum: 0 } }
-  const stalls = { n: 0, byBot: {}, distMax: null, passesMax: null }
+  const stalls = {
+    n: 0, byBot: {}, distMax: null, passesMax: null,
+    pocketN: 0, routeN: 0,
+    pairs: { n: 0, gainedMin: null, gainedMax: null, gainedSum: 0, toTheLipN: 0, earlyN: 0 },
+    unpairedN: 0
+  }
   const targets = new Map()
+  const lastLaunch = new Map() // (v0.435.0) bot -> its most recent launch dist (the swim's order)
   let unparsed = 0
   for (const l of rows) {
     const p = parseTransitLaunch(l)
@@ -93,6 +123,7 @@ export function transitCensus (lines) {
       }
       t.total++
       t.bots[p.bot] = (t.bots[p.bot] || 0) + 1
+      lastLaunch.set(p.bot, p.dist)
       continue
     }
     const s = parseTransitStall(l)
@@ -101,6 +132,21 @@ export function transitCensus (lines) {
       stalls.byBot[s.bot] = (stalls.byBot[s.bot] || 0) + 1
       if (stalls.distMax === null || s.dist > stalls.distMax) stalls.distMax = s.dist
       if (stalls.passesMax === null || s.passes > stalls.passesMax) stalls.passesMax = s.passes
+      // (v0.435.0) THE STALL DEPTH SPLIT - where it died vs how far it swam.
+      if (s.dist <= TRANSIT_POCKET_DEPTH) stalls.pocketN++
+      else stalls.routeN++
+      const launchDist = lastLaunch.get(s.bot)
+      if (launchDist === undefined) {
+        stalls.unpairedN++
+      } else {
+        const gained = launchDist - s.dist
+        stalls.pairs.n++
+        stalls.pairs.gainedSum += gained
+        if (stalls.pairs.gainedMin === null || gained < stalls.pairs.gainedMin) stalls.pairs.gainedMin = gained
+        if (stalls.pairs.gainedMax === null || gained > stalls.pairs.gainedMax) stalls.pairs.gainedMax = gained
+        if (gained >= launchDist / 2) stalls.pairs.toTheLipN++
+        else stalls.pairs.earlyN++
+      }
       continue
     }
     // the escape hatch: a transit-lane-shaped line every parser refused

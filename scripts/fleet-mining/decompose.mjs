@@ -19,7 +19,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
-import { transitCensus } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read)
+import { transitCensus, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -1073,6 +1073,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (tc.stalls.n > 0) {
       const sb = Object.entries(tc.stalls.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
       console.log(`  stalls (the walls verdict): ${tc.stalls.n}${sb ? `, top bots: ${sb}` : ''}, d-at-stall max ${tc.stalls.distMax}, passes-to-stall max ${tc.stalls.passesMax}`)
+      // (v0.435.0) THE STALL DEPTH SPLIT - where it died vs how far it swam.
+      console.log(`  stall split: pocket(d<=${TRANSIT_POCKET_DEPTH}) ${tc.stalls.pocketN} vs route ${tc.stalls.routeN}${tc.stalls.unpairedN > 0 ? `, unpaired ${tc.stalls.unpairedN}` : ''}`)
+      const pr = tc.stalls.pairs
+      if (pr.n > 0) {
+        console.log(`  ground gained (launch d - stall d): ${pr.n} paired, ${pr.gainedMin}..${pr.gainedMax} (avg ${(pr.gainedSum / pr.n).toFixed(1)}) - toTheLip ${pr.toTheLipN} vs early ${pr.earlyN}`)
+      }
     }
     if (tc.unparsed > 0) console.log(`  unparsed: ${tc.unparsed} transit-lane line(s) the grammar refused - the escape hatch`)
   }
