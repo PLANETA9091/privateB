@@ -686,6 +686,19 @@ if (openDeaf.openDeaf.length > 0) {
   } else {
     console.log('  open retry voice: 0 lines (a pre-v0.439.0 face or clean opens - the two are not distinguishable by design)')
   }
+  // (v0.444.0) THE OPEN LOST AUTOPSY row - the lost opens' block identity.
+  // The ALL-LOST field verdict (face 30) left the cure direction open: a
+  // block still reading chest prices occlusion/lag (the arrival/admission
+  // front), a replaced/unloaded block prices stale coords (the map's rot).
+  // The row reads the share and the lost-match consistency; a pre-v0.444.0
+  // face or a face with no lost opens stays silent-honest.
+  const au = openDeaf.autopsies
+  if (au.n > 0) {
+    const bb = Object.entries(au.byBlock).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
+    console.log(`  open lost autopsy: n=${au.n} blocks: ${bb} (matches the ${r.byKind.lost} lost: ${au.matchedLost}) - chest reads price occlusion/lag, the rest prices stale coords`)
+  } else if (r.byKind.lost > 0) {
+    console.log(`  open lost autopsy: 0 lines against ${r.byKind.lost} lost (a pre-v0.444.0 face - the dead chests' identity is not distinguishable by design)`)
+  }
 } else if (openDeaf.anchors.length > 0 || openDeaf.valve.closes > 0) {
   console.log(`  open-timeout zeros: 0 (the face's distress clock: ${openDeaf.anchors.length} anchor(s), ${openDeaf.valve.closes} valve close(s) - the honest zero)`)
 } else {

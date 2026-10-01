@@ -162,3 +162,63 @@ test('a face without retries reads the honest retry zero', () => {
   const c = openDeafCensus([ZERO, ANCHOR_TRUNC])
   assert.deepEqual(c.retries, { n: 0, byKind: { cause: 0, won: 0, lost: 0 }, byBot: {}, chests: [], matched: null })
 })
+
+// (v0.444.0) THE OPEN LOST AUTOPSY - the lost open's block identity. The
+// emitter (deposit.mjs) speaks exactly once per lost open, right after the
+// lost verdict, so the round-trip pins the verbatim field form, the junk
+// battery, the byBlock math, and the matchedLost tri-state (the drift
+// detector: a lost with no autopsy = the emitter regressed; an autopsy
+// with no lost = impossible by construction; both zero = null, never a
+// fake consistency verdict).
+import { parseOpenAutopsy } from '../../src/lib/opendeaf.mjs'
+
+const AUTOPSY_VERBATIM = 'F6 [F6] deposit: open lost autopsy: block at [-123,72,395] reads chest (a chest reads chest) - the attempts spent, the zero follows'
+const AUTOPSY_AIR = 'F18 [F18] deposit: open lost autopsy: block at [-128,72,397] reads air (a chest reads chest) - the attempts spent, the zero follows'
+const AUTOPSY_UNLOADED = 'F1 [F1] deposit: open lost autopsy: block at [-133,72,405] reads unloaded (a chest reads chest) - the attempts spent, the zero follows'
+
+test('autopsy parse: the verbatim lost-open identity line (the emitter\'s own form), chest coord grammar, the honest chest/unloaded blocks', () => {
+  const a = parseOpenAutopsy(AUTOPSY_VERBATIM)
+  assert.deepEqual(a, { bot: 'F6', chest: '-123,72,395', block: 'chest' })
+  assert.deepEqual(parseOpenAutopsy(AUTOPSY_AIR), { bot: 'F18', chest: '-128,72,397', block: 'air' })
+  assert.deepEqual(parseOpenAutopsy(AUTOPSY_UNLOADED), { bot: 'F1', chest: '-133,72,405', block: 'unloaded' })
+  // the '?' chest (the position threw in the emitter) rides null - never a fake coord
+  const q = parseOpenAutopsy('F6 [F6] deposit: open lost autopsy: block at ? reads chest (a chest reads chest) - the attempts spent, the zero follows')
+  assert.deepEqual(q, { bot: 'F6', chest: null, block: 'chest' })
+})
+
+test('autopsy junk battery: the lost verdict, the cause line, prose, non-strings - all null, the lane never borrows', () => {
+  assert.equal(parseOpenAutopsy('F6 [F6] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-123,72,395] - the zero follows'), null)
+  assert.equal(parseOpenAutopsy('F6 [F6] deposit: open attempt 1 timed out (open chest: timeout after 10000ms) at [-123,72,395] - the v0.25.0 retry follows'), null)
+  assert.equal(parseOpenAutopsy('   plan top: iron_ingot 157926/0 (0.0%)'), null)
+  assert.equal(parseOpenAutopsy('F6 [F6] deposit: open lost autopsy: block at [-123,72,395] reads chest (A CHEST READS CHEST)'), null, 'the parenthetical is the grammar\'s own pin, not prose to flex')
+  assert.equal(parseOpenAutopsy(null), null)
+  assert.equal(parseOpenAutopsy(42), null)
+  assert.equal(parseOpenAutopsy('F6 [F6] deposit: open lost autopsy: block at [-123,72,395] reads chest (a chest reads chest) - tampered tail'), null)
+})
+
+test('autopsy census: byBlock math, the chest list, and the matchedLost tri-state against the retry ledger', () => {
+  const lost1 = 'F6 [F6] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-123,72,395] - the zero follows'
+  const lost2 = 'F18 [F18] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-128,72,397] - the zero follows'
+  const lost3 = 'F1 [F1] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-133,72,405] - the zero follows'
+  const c = openDeafCensus([lost1, AUTOPSY_VERBATIM, lost2, AUTOPSY_AIR, lost3, AUTOPSY_UNLOADED, ANCHOR_TRUNC])
+  assert.equal(c.autopsies.n, 3)
+  assert.deepEqual(c.autopsies.byBlock, { chest: 1, air: 1, unloaded: 1 })
+  assert.deepEqual(c.autopsies.chests, ['-123,72,395', '-128,72,397', '-133,72,405'])
+  assert.equal(c.autopsies.matchedLost, true, '3 lost, 3 autopsies - the emitter held its once-per-lost law')
+  assert.equal(c.retries.byKind.lost, 3)
+})
+
+test('autopsy matchedLost: the drift legs read honestly - a lost with no autopsy, an autopsy with no lost, and the both-zero null', () => {
+  const lost1 = 'F6 [F6] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-123,72,395] - the zero follows'
+  // lost present, autopsy missing = the emitter regressed - matchedLost false, never assumed
+  const drift = openDeafCensus([lost1, ANCHOR_TRUNC])
+  assert.equal(drift.autopsies.matchedLost, false)
+  // autopsy present, lost absent = impossible by construction - matchedLost false
+  const ghost = openDeafCensus([AUTOPSY_VERBATIM, ANCHOR_TRUNC])
+  assert.equal(ghost.autopsies.matchedLost, false)
+  assert.equal(ghost.retries.byKind.lost, 0)
+  // both zero = nothing to match - null, never a fake consistency verdict
+  const clean = openDeafCensus([ZERO, ANCHOR_TRUNC])
+  assert.equal(clean.autopsies.matchedLost, null)
+  assert.equal(clean.autopsies.n, 0)
+})

@@ -97,6 +97,23 @@ export function parseOpenRetry (s) {
   return { bot: m[1], kind, chest: coord(m[4]), err: kind === 'won' ? null : (m[3] || null) }
 }
 
+// (v0.444.0) THE OPEN LOST AUTOPSY - the lost open's block identity. The
+// retry voice's first field read (face 30) came back ALL-LOST (5 cause /
+// 0 won / 5 lost): the cure direction needs to know WHAT the dead chest is
+// NOW - a block that still reads chest prices occlusion/lag, a replaced or
+// unloaded block prices stale coords. The emitter speaks exactly once per
+// lost open (deposit.mjs, right after the lost verdict), so the autopsy
+// ledger must MATCH the retry ledger's lost count - any drift is the
+// emitter's regression, never assumed away.
+export function parseOpenAutopsy (s) {
+  const m = typeof s === 'string'
+    ? s.match(/^(F\d+) \[F\d+\] deposit: open lost autopsy: block at (\S+) reads (\S+) \(a chest reads chest\) - the attempts spent, the zero follows$/)
+    : null
+  if (!m) return null
+  const coord = (v) => /^\[-?\d+,-?\d+,-?\d+\]$/.test(v) ? v.slice(1, -1) : null
+  return { bot: m[1], chest: coord(m[2]), block: m[3] }
+}
+
 // The census: feed the full fleet19.log lines.
 //   anchors   - the pulse reads in log order {i, n, ts, mainLate}
 //   valve     - { closes, opens, unclosed, spans } - spans pair each CLOSED
@@ -110,6 +127,12 @@ export function parseOpenRetry (s) {
 //               won+lost == cause consistency read (a cause with no
 //               outcome = the loop died between the attempts, never
 //               assumed otherwise)
+//   autopsies - the v0.444.0 lost-open identity ledger: {n, byBlock,
+//               chests, matchedLost} - the emitter speaks once per lost
+//               open, so matchedLost reads n == retries lost (a lost with
+//               no autopsy = the emitter regressed; an autopsy with no
+//               lost = impossible by construction; both zero = null, there
+//               is nothing to match - never a fake consistency verdict)
 //   paired    - { inValveCloseN, lateN } over the open-timeout zeros
 //   lateMs    - the spike threshold used for `late` (default 400ms, the
 //               face-28 spike band's floor)
@@ -136,6 +159,7 @@ export function openDeafCensus (lines, { lateMs = 400 } = {}) {
   }
   const unclosed = spans.filter((s) => s.open === null).length
   const retries = { n: 0, byKind: { cause: 0, won: 0, lost: 0 }, byBot: {}, chests: [], matched: null }
+  const autopsies = { n: 0, byBlock: {}, chests: [], matchedLost: null }
   const openDeaf = []
   for (let i = 0; i < rows.length; i++) {
     const r = parseOpenRetry(rows[i])
@@ -144,6 +168,12 @@ export function openDeafCensus (lines, { lateMs = 400 } = {}) {
       retries.byKind[r.kind]++
       retries.byBot[r.bot] = (retries.byBot[r.bot] || 0) + 1
       if (r.chest && !retries.chests.includes(r.chest)) retries.chests.push(r.chest)
+    }
+    const au = parseOpenAutopsy(rows[i])
+    if (au) {
+      autopsies.n++
+      autopsies.byBlock[au.block] = (autopsies.byBlock[au.block] || 0) + 1
+      if (au.chest && !autopsies.chests.includes(au.chest)) autopsies.chests.push(au.chest)
     }
     const e = parseHopZero(rows[i])
     if (!e || e.klass.why !== 'open-timeout') continue
@@ -163,11 +193,15 @@ export function openDeafCensus (lines, { lateMs = 400 } = {}) {
   }
   const mss = openDeaf.map((e) => e.ms).filter((m) => m !== null)
   retries.matched = retries.byKind.cause > 0 ? retries.byKind.won + retries.byKind.lost === retries.byKind.cause : null
+  autopsies.matchedLost = retries.byKind.lost > 0
+    ? autopsies.n === retries.byKind.lost
+    : (autopsies.n === 0 ? null : false)
   return {
     anchors,
     valve: { closes: closes.length, opens: opens.length, unclosed, spans },
     openDeaf,
     retries,
+    autopsies,
     paired: {
       inValveCloseN: openDeaf.filter((e) => e.inValveClose).length,
       lateN: openDeaf.filter((e) => e.late).length,

@@ -1699,6 +1699,24 @@ export async function depositToChest (bot, {
   if (!window) {
     const em = openErr && openErr.message ? openErr.message : 'unknown'
     log(`${tag} deposit: open retry lost on attempt 2 (${em}) at ${openAt} - the zero follows`)
+    // (v0.444.0) THE OPEN LOST AUTOPSY: the retry voice's first field read
+    // (face 30, 36926711080) came back ALL-LOST - 5 cause, 0 won, 5 lost,
+    // five DIFFERENT chests in the y=72 band, each burning two 10s attempts
+    // against a chest that never opened. The cure direction needs the dead
+    // chest's IDENTITY: a block that still reads chest prices occlusion or
+    // lag (the arrival/admission front), a replaced or unloaded block
+    // prices stale coords (the fleet's own map rotting under the plan).
+    // The line rides the existing 'deposit' filter key; it speaks only on
+    // the lost path (once per lost open - no success-path spam); the zero
+    // line's reason stays byte-identical (the hopcensus pins read it); the
+    // attempts are already spent - this voice costs nothing.
+    const autopsyName = (() => {
+      try {
+        const b = typeof bot.blockAt === 'function' ? bot.blockAt(chest.position) : null
+        return b && b.name ? b.name : 'unloaded'
+      } catch { return 'unreadable' }
+    })()
+    log(`${tag} deposit: open lost autopsy: block at ${openAt} reads ${autopsyName} (a chest reads chest) - the attempts spent, the zero follows`)
     return { deposited: 0, reason: `cannot open chest (${em})` }
   }
   // (v0.65.0) THE FULL-CHEST VERDICT, read BEFORE the click loop: the window's
