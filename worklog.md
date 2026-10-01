@@ -11809,3 +11809,12 @@ Work Log:
 
 Stage Summary:
 - Master = 6b811d2 (pkg 0.448.0). NEXT FIRE: (1) fleet dispatch for face 34 (none active at close) - the receipt's window calibration read (F15's +0u window vs the t-240s yield: widen to 3-4 samples? or read the face-level first-nonzero as primary) + the ledger's repeat watch (is a stale coord EVER re-burned?) + the cadence lens's row 2; (2) the preflight cure pricing: 2 faces of autopsies (face 32: dirt 1/3; face 33: chest 1/1) - the stale leg is rare so far, the occlusion leg leads 3:1; the preflight check would have saved 0s this face (chest reads pass the check) - the cure's price is NOT justified by the current rate; READ row 3 before any wire; (3) gate 6b811d2 verdict; (4) version next 0.449.0. Identity: PLANETA9091.
+Task ID: cron-20261002-0638 addendum 3 (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: the flake arbiter's verdict.
+
+Work Log:
+- Gate 36940560844 (3c3cd51, pkg 0.447.0) completed SUCCESS - its Integration job ran the SAME fleet code that failed on bfef00b and went GREEN. The bfef00b red CLOSES as the flooded-shaft flake: three independent gates on the identical fleet code (8378804 green, bfef00b red, 3c3cd51 green) + the drown/freeze/socketClosed chain in the red log = the terrain/physics dice, not a regression. No cure wire spent on a phantom; the smelting test's flooded-alcove robustness stays a priced candidate for a future fire (the placeMachine scan widening beyond the two rings, or the test's own tolerance) - read-first.
+
+Stage Summary:
+- Fire closed green: master = 3c3cd51, CI green, face 33 in flight. NEXT FIRE as the addendum-2 list says (gate verdicts done; face 33 reads; version next 0.448.0). Identity: PLANETA9091.
