@@ -6,6 +6,7 @@ import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
+import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 
@@ -41,6 +42,19 @@ for (const l of sweep.deaths) console.log(' ', l.slice(0, 160))
 if (sweep.keywordOnly.length) {
   console.log(`  (the anatomy sweep filtered ${sweep.keywordOnly.length} keyword-carrier line(s) - prose, not deaths):`)
   for (const l of sweep.keywordOnly.slice(0, 6)) console.log('   ~', l.slice(0, 140))
+}
+// (v0.403.0) THE SEAL DEATH LEDGER - the seal economy's third leg: what
+// DEATH erased. The reserve keeps at bank time, death bypasses the pocket
+// entirely (face 23's F14: arrived 0/8 six times, then dropped ~172u with
+// cobble 83 + dirt 26 inside). sealLost is the NAMED floor (the '+N more'
+// tail is the fleet's own truncation - never invented).
+{
+  const sealDeath = sealDeathCensus(lines)
+  if (sealDeath.drops > 0 || sealDeath.emptyReads > 0) {
+    const perBot = Object.entries(sealDeath.byBot).map(([b, s]) => `${b} ~${s.lost}u (seal ${s.sealLost}u)`).join(' ')
+    const emptyNote = sealDeath.emptyReads > 0 ? `, ${sealDeath.emptyReads} empty-pocket read(s)` : ''
+    console.log(`  seal death ledger: ${sealDeath.drops} drops lost ~${sealDeath.lostTotal}u (seal-class ${sealDeath.sealLostTotal}u named${emptyNote}) - ${perBot}`)
+  }
 }
 
 console.log('=== RESCUE STARTS by class ===')
