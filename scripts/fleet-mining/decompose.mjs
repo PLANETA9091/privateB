@@ -10,7 +10,7 @@ import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the 
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
-import { hotspotCensus } from '../../src/lib/hotspot.mjs' // (v0.419.0) the failure geometry's cross-lane read
+import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
@@ -876,6 +876,23 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  spot [${sp.key}]${sp.y !== null ? ` y=${sp.y}` : ''} x${sp.total} (${lanes}) (${whys}) bots ${bots}`)
     }
     if (hs.spots.length > 5) console.log(`  ... ${hs.spots.length - 5} more spot(s) - the tail stays in the lib's row`)
+    // (v0.421.0) THE HOT-SPOT BAND - the neighbors merge: spots within
+    // HOT_SPOT_BAND_RADIUS (manhattan, 4) collapse into strips. A cross-lane
+    // BAND is the geometry problem's own shape: the same ground starving
+    // multiple walkers across ADJACENT chests (face 27 read [-121,389]
+    // hop-only beside cross-lane [-122,389] - the point rows split what the
+    // strip unites).
+    const bd = hotspotBands(hs.spots)
+    if (bd.bands.length > 0) {
+      console.log(`  bands (radius ${bd.radius} manhattan): ${bd.bands.length} band(s) holding ${bd.bandTotal} failure(s) across ${bd.bandSpots} spot(s), ${bd.singleSpots} single spot(s)`)
+      for (const b of bd.bands.slice(0, 3)) {
+        const lanes = Object.entries(b.byLane).map(([k, n]) => `${k}:${n}`).join(' ')
+        const whys = Object.entries(b.byWhy).map(([k, n]) => `${k}:${n}`).join(' ')
+        const bots = Object.keys(b.bots).join('+')
+        console.log(`  band [${b.spots.join(' + ')}] x${b.total} (${lanes}) (${whys}) bots ${bots}${b.crossLane ? " - THE BAND SIGNATURE: the strip starves multiple walkers" : ""}`)
+      }
+      if (bd.bands.length > 3) console.log(`  ... ${bd.bands.length - 3} more band(s) - the tail stays in the lib's row`)
+    }
     const un = hs.unpositioned
     if (un.hop > 0 || un.walkFails > 0) console.log(`  unpositioned: hop ${un.hop} ('?' placeholders), chest-walks ${un.walkFails} (the why carried no @coord)`)
     if (hs.totals.bankWalkBacks > 0) console.log(`  bank walk-backs (RELATIVE dists, never spots): n ${hs.bankDists.n}, max ${hs.bankDists.max}, avg ${Math.round(hs.bankDists.sum / hs.bankDists.n)} blocks from yard`)
