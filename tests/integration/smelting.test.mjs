@@ -31,7 +31,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
 // (v0.363.0) the placement rings + the flooded-alcove trigger live in a unit-pinned
 // lib - the integration helper imports the same shapes the unit tests pin
-const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
+const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
 const HOST = process.env.MC_HOST || '127.0.0.1'
 const PORT = Number(process.env.MC_PORT || 25565)
 
@@ -108,7 +108,7 @@ async function craftItem (bot, itemName, times, table, { tries = 3 } = {}) {
 // the FLOODED-ALCOVE SITE PICKER: when ring 1 produced zero attempts (everything
 // skipped - the all-wet signature), the scan widens to ring 2 under the same
 // dry-cell law instead of giving up one block short of dry ground.
-async function placeMachine (bot, itemName) {
+async function placeMachine (bot, itemName, preferredCell = null) {
   const { Vec3 } = await import('vec3')
   const stack = bot.inventory.items().find(i => i.name === itemName)
   if (!stack) {
@@ -170,6 +170,23 @@ async function placeMachine (bot, itemName) {
     }
     return attemptCell(cell, floorB)
   }
+  // (v0.406.0) THE CARVE-ANCHOR HONOR: the caller carved a specific cell -
+  // scan it FIRST, anchored to the CELL, not the bot's drifting feet (CI
+  // 36854765641: the drowning rescue lifted the bot 4 blocks between the
+  // carve and the scan, and the next attempt's bot FELL back - the fresh
+  // alcove escaped both rings both times, 24 all-skip lines buried a
+  // placeable cell, the assert fired on an anchoring bug shaped like a
+  // terrain flake). The dry-cell law still guards the honored cell; the
+  // bot's own cell stays refused (vanilla rejects hitbox-intersecting
+  // placements) so a bot that fell INTO its alcove falls through to the
+  // rings, byte-identical to the pre-0.406.0 behavior.
+  if (preferredCell) {
+    const feetB = bot.blockAt(feet)
+    if (!feetB || !preferredCell.equals(feetB.position)) {
+      const placed = await scanCell(preferredCell)
+      if (placed) return placed
+    }
+  }
   for (const [dx, dz] of RING1_OFFSETS) {
     const cell = feet.offset(dx, 0, dz)
     // never place into the cell the bot itself occupies (vanilla refuses placements
@@ -194,7 +211,7 @@ async function placeMachine (bot, itemName) {
       if (placed) return placed
     }
   }
-  log(`placeMachine ${itemName}: all ${widened ? `${RING1_OFFSETS.length + RING2_OFFSETS.length} cells across both rings` : '8 cells'} tried (skipped=${skipped} rejected=${rejected})`)
+  log(`placeMachine ${itemName}: all ${widened ? `${RING1_OFFSETS.length + RING2_OFFSETS.length + (preferredCell ? 1 : 0)} cells (the carved cell first, then both rings)` : `${RING1_OFFSETS.length + (preferredCell ? 1 : 0)} cells`} tried (skipped=${skipped} rejected=${rejected})`)
   return null
 }
 
@@ -241,7 +258,18 @@ async function carveAlcove (bot, miner) {
       await withTimeout(bot.fastDig(wall), 15000, `alcove dig ${cell}`)
       await bot.waitForTicks(3)
       const now = bot.blockAt(cell)
-      if (now && now.boundingBox === 'empty') { log(`alcove carved at ${cell}`); return { cell, wet: false } }
+      // (v0.406.0) THE DRY-CARVE LAW: the box-only verify could not tell air
+      // from water (both read boundingBox 'empty' - the dry-cell law's own
+      // premise). CI 36854765641: the carve opened the pond's wall, the flood
+      // read as "carved", the bot drowned in it, and the rescue's y-drift
+      // carried every later scan away from the alcove. A flooded carve is
+      // named and OWNED as the wet column it is - the caller relocates
+      // instead of scanning 24 doomed cells around a drowning bot.
+      if (carvedCellIsDry(now)) { log(`alcove carved at ${cell}`); return { cell, wet: false } }
+      if (now && now.boundingBox === 'empty') {
+        log(`alcove flooded at ${cell} (${now.name} reads empty - the dry-carve law names the wet column)`)
+        return { cell: null, wet: true }
+      }
     } catch (e) { log(`alcove dig failed at ${cell}: ${e.message}`) }
   }
   log(`alcove: no diggable wall at ${feet} (air ${refusals.air}, fluid ${refusals.fluid}, floor-gap ${refusals.floor})`)
@@ -527,7 +555,9 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
         // it) - the gravity column above the fresh alcove is the refill race
         // that eats the cell (measured live 2026-09-19)
         await digAbove(bot, miner, carve.cell)
-        table = await placeMachine(bot, 'crafting_table')
+        // (v0.406.0) the carved cell rides as the preferred candidate - the
+        // one cell we KNOW is fresh air, honored even if the feet drift
+        table = await placeMachine(bot, 'crafting_table', carve.cell)
         log(`table attempt ${attempt}: carved, placed=${table?.position?.floored() ?? 'FAILED'}`)
       } else if (carve.wet) {
         // (v0.352.0) the wet column is not a pipeline failure - walk out of
@@ -582,7 +612,9 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     const carve = await carveAlcove(bot, miner)
     if (carve.cell) {
       await digAbove(bot, miner, carve.cell)
-      furnaceBlock = await placeMachine(bot, 'furnace')
+      // (v0.406.0) the carved cell rides as the preferred candidate (the
+      // table flow's carve-anchor honor, the same drift class)
+      furnaceBlock = await placeMachine(bot, 'furnace', carve.cell)
       log(`furnace attempt ${attempt}: carved, placed=${furnaceBlock?.position?.floored() ?? 'FAILED'}`)
     } else if (carve.wet) {
       log(`furnace attempt ${attempt}: the column is wet - relocating to solid ground`)

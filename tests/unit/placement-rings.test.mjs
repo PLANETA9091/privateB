@@ -4,7 +4,7 @@
 // integers - every assertion is exact, no mocks, no timing.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove } from '../../src/lib/placement-rings.mjs'
+import { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry } from '../../src/lib/placement-rings.mjs'
 
 test('RING1_OFFSETS is the historic literal, byte-identical order (the sync law)', () => {
   // placeMachine's original inline literal: cardinals first, diagonals after -
@@ -75,4 +75,35 @@ test('the widening composition: an all-wet ring 1 widens, a refused attempt does
   // the gravity-refill class (CI 36174497274): the cell was ATTEMPTED and the
   // place was refused -> rejected 1 -> no widening, the carve ladder owns it
   assert.equal(floodedAlcove(1), false)
+})
+
+test('carvedCellIsDry: the flooded-carve read (CI 36854765641) - water reads empty like air, the NAME splits them', () => {
+  // the carve classes: air in its three vanilla flavors certifies the carve
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'air' }), true)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'cave_air' }), true)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'void_air' }), true)
+  // THE FLOOD CLASS (the law's own reason): the same empty box, a fluid name -
+  // the carve opened the pond's wall, the box-only verify read the flood as a
+  // carved alcove, the bot drowned in it and the rescue's y-drift carried every
+  // later scan away (CI 36854765641). Each refusal classifier shape rides:
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'water' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'flowing_water' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'lava' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'kelp' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'seagrass' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'tall_seagrass' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'bubble_column' }), false)
+  // the gravity refill (CI 36174497274's class): solid again - not a carve,
+  // the ladder re-digs it
+  assert.equal(carvedCellIsDry({ boundingBox: 'block', name: 'gravel' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'block', name: 'sand' }), false)
+  assert.equal(carvedCellIsDry({ boundingBox: 'block', name: 'air' }), false, 'a solid box is solid whatever the name says')
+  // the floor check stays the caller's (carveAlcove refuses floor-gap walls
+  // before the dig) - the verdict certifies the CELL only
+})
+
+test('carvedCellIsDry junk battery - a broken read never certifies a carve (the body-guard law)', () => {
+  for (const j of [null, undefined, NaN, 'air', 42, {}, [], ['air'], { boundingBox: 'empty' }, { name: 'air' }, { boundingBox: 'empty', name: '' }, { boundingBox: 'empty', name: 7 }, { boundingBox: 'block' }, { boundingBox: null, name: 'air' }]) {
+    assert.equal(carvedCellIsDry(j), false, `junk ${JSON.stringify(j) ?? String(j)} must not read as carved`)
+  }
 })

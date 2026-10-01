@@ -61,3 +61,34 @@ export const RING2_OFFSETS = [
 export function floodedAlcove (rejected) {
   return Number.isInteger(rejected) && rejected === 0
 }
+
+/**
+ * THE DRY-CARVE LAW (v0.406.0): did the freshly dug cell come up AIR?
+ *
+ * Water reads boundingBox 'empty' exactly like air - the dry-cell law's own
+ * premise (v0.362.0). carveAlcove's verify rode the box check alone, so a
+ * carve that opened a pond's wall read as "carved": the caller scanned 24
+ * doomed cells around a bot that was DROWNING in the water the carve itself
+ * had let in, the drowning rescue lifted the bot 4 blocks off its feet, and
+ * every later scan (anchored to the drifting feet) hunted rings the fresh
+ * alcove had already escaped (CI 36854765641 - the flooded signature's
+ * fourth sighting, the first one the carve arm itself caused).
+ *
+ * The verdict is pure: an 'empty' box AND a real, non-fluid name. The fluid
+ * list mirrors carveAlcove's own refusal classifier (water/lava/kelp/
+ * seagrass/bubble - one wet column, one list). A solid refill (gravity's
+ * class) reads false too - the caller's ladder re-digs it; a null or
+ * malformed read reads false - the caller probes the next wall, byte-
+ * identical to the pre-0.406.0 fall-through. Junk never certifies a carve
+ * (the body-guard law): even an empty-boxed block without a usable name is
+ * a broken read, not air.
+ *
+ * @param {{boundingBox?: string, name?: string}|null|undefined} block  the block read at the carved cell
+ * @returns {boolean} true only when the cell is a placeable dry emptiness
+ */
+export function carvedCellIsDry (block) {
+  if (!block || block.boundingBox !== 'empty') return false
+  const name = block.name
+  if (typeof name !== 'string' || name === '') return false
+  return !/water|lava|kelp|seagrass|bubble/.test(name)
+}
