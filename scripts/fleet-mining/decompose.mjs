@@ -138,6 +138,40 @@ for (const l of lines) {
 console.log('  flee bearings repeated >=2:', Object.entries(fleeBearing).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}x${n}`).join(' ') || 'none (every flee chose a fresh bearing)')
 console.log('  flee bearing diversity:', Object.keys(fleeBearing).length, 'distinct bearings over', Object.values(fleeBearing).reduce((a, b) => a + b, 0), 'flee events')
 console.log('  drowned-kill per-bot:', fmt(perBot(/death: drowned-kill context/)))
+// (v0.379.0) THE O2-RESET DEATH CENSUS - the sensor-class ledger gains its
+// third entry: the oxygen read RESET (reset(-1), the lost read rendered) and
+// the death context names the two forms it kills in - face 17 paid the
+// rescue-active blind form (F12 drowned head-AIR while the rescue lane flew
+// blind on the reset sensor) and face 18 paid the deadlier rescue-never form
+// TWICE (F16, F11: head water, the trigger itself blind, the rescue never
+// armed) - 3 deaths in 2 faces, zero in face 16. The common shape is the
+// breath-mirror controls-blind page: the sentry's sight died 30-36s before
+// death, the o2 burned unwatched while the owner failed. The cure (arm the
+// rescue on the mirror's last-known o2, or on sight-loss + head water alone)
+// prices off this census: the form split says WHICH blind lane to fix first.
+// Mining-surface only: zero fleet wiring, zero new log lines.
+const o2ResetDeathRe = /death: drown context \(o2 reset\(-1\), feet water, head (water|air), rescue ([^,]+), leg .*, wet ([^)]+)\)/
+const o2Bots = {}; let o2Never = 0; let o2Active = 0; let o2HeadWater = 0; let o2HeadAir = 0
+for (const l of lines) {
+  const m = typeof l === 'string' ? l.match(o2ResetDeathRe) : null
+  if (!m) continue
+  const bot = (l.match(/^(F\d+)\b/) || [])[1]
+  if (bot) o2Bots[bot] = (o2Bots[bot] || 0) + 1
+  if (m[2] === 'never') o2Never++; else o2Active++
+  if (m[1] === 'water') o2HeadWater++; else o2HeadAir++
+}
+console.log('--- O2-RESET DEATH CENSUS (v0.379.0) ---')
+console.log(`  o2 reset(-1) drown deaths (the sensor died and the water kept it): ${o2Never + o2Active}`, 'per-bot:', fmt(o2Bots))
+console.log(`  rescue never (the trigger itself blind): ${o2Never} | rescue active (the lane flew blind): ${o2Active}`)
+console.log(`  head water at death: ${o2HeadWater} | head air at death (the bob class): ${o2HeadAir}`)
+console.log('  breath-mirror blindness pages (the sentry died first):', count(/breath mirror \[controls-blind\]/), 'per-bot:', fmt(perBot(/breath mirror \[controls-blind\]/)))
+const sightSecs = []
+for (const l of lines) {
+  const m = typeof l === 'string' ? l.match(/sight died (\d+)s before death/) : null
+  if (m) sightSecs.push(Number(m[1]))
+}
+console.log('  sight-loss windows (s before death):', sightSecs.length ? sightSecs.join(', ') : 'none')
+console.log('  o2=reset(-1) pass lines (the blind reads between starts):', count(/o2=reset\(-1\)/))
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
 // its classes: the frozen-relog loop (#N consecutive + the bypass echoes),
