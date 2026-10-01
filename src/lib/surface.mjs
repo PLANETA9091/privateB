@@ -5,7 +5,7 @@
 // lava family - the tunnel first-cut refuses BOTH (water drowns the gallery,
 // lava ends it). drowning.mjs imports nothing from this file, so the edge is
 // acyclic.
-import { isWaterName, SHAFT_FLUID_NAMES } from './drowning.mjs'
+import { isWaterName, SHAFT_FLUID_NAMES, oxygenInDomain } from './drowning.mjs'
 
 /** The tunnel's fluid-family predicate: the water family (kelp/seagrass/bubble
  * column included - the dig list cannot chew them and the step-in drowns) plus
@@ -225,6 +225,45 @@ export const TRAVERSE_ROTATE_LIMIT = 4
 // line) beats blind digging. The escape returns 'low-o2' and the climb hands
 // the bot back: the sentry re-owns it on the next tick and pages the rescue.
 export const CLIMB_ESCAPE_O2_FLOOR = 6
+
+/**
+ * (v0.379.0) THE WET-SENTINEL WATCH - the climb's o2 watch as ONE pure gate.
+ * Two yield arms, the escape's own air doctrine:
+ *   - 'low-o2'       (v0.85.0, byte-identical) an in-domain bar at or under
+ *                    CLIMB_ESCAPE_O2_FLOOR - the escape stops being the way
+ *                    out, the rescue lane's surface-hold beats blind digging.
+ *   - 'wet-sentinel' (v0.379.0, new) an OUT-OF-DOMAIN bar (the -1 reset
+ *                    sentinel, NaN, junk) at a WITNESSED wet head. Face
+ *                    36799188224's F16 drowned inside a running escape: the
+ *                    sentinel disarmed the in-domain watch (oxygenInDomain(-1)
+ *                    is false), the sentry's climb gate froze the wet clock
+ *                    ('rescue never', 'wet 0s@last' at a feet-water head-water
+ *                    death), and the lungs burned unwatched - the o2-RESET
+ *                    death class the 0900 fire named, the climb-lane variant.
+ *                    A broken sensor over a witnessed flood is not air: the
+ *                    head's block read is the ground truth, the escape yields.
+ * The v0.64.0 burst grace survives untouched: a sentinel burst on DRY land
+ * (the post-respawn/post-rescue class, 395 reads measured) never yields -
+ * only the head's water witness condemns, junk o2 alone never does.
+ *
+ * @param {object} [p]
+ * @param {number|null} [p.oxygen] the live bar read (bot.oxygenLevel; junk
+ *   reads out-of-domain and is condemned only by the witness arm)
+ * @param {boolean} [p.headWet] the head cell's water witness (isWaterName of
+ *   the blockAt read; STRICT true - junk witness never condemns)
+ * @param {number} [p.floor] the yield floor (junk -> CLIMB_ESCAPE_O2_FLOOR)
+ * @returns {{yield: boolean, reason: 'low-o2'|'wet-sentinel'|null, o2: number|null}}
+ *   yield=false carries the in-domain o2 (null when junk) for the caller's log
+ */
+export function climbO2Watch ({ oxygen = null, headWet = false, floor = CLIMB_ESCAPE_O2_FLOOR } = {}) {
+  const f = Number.isFinite(floor) && floor >= 0 ? floor : CLIMB_ESCAPE_O2_FLOOR
+  if (oxygenInDomain(oxygen)) {
+    if (oxygen <= f) return { yield: true, reason: 'low-o2', o2: oxygen }
+    return { yield: false, reason: null, o2: oxygen }
+  }
+  if (headWet === true) return { yield: true, reason: 'wet-sentinel', o2: null }
+  return { yield: false, reason: null, o2: null }
+}
 
 // ---------------------------------------------------------------------------
 // (v0.98.0) THE VEIN FALL FENCE. run87 (35813478393) fell/env x8 (a record),

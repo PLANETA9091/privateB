@@ -25,7 +25,8 @@ import {
   wetColumnMemoCondemn, wetColumnMemoBlocked, // (v0.319.0) the wet-column doom memo
   PILLAR_FAIL_LIMIT, PILLAR_MAX_MS, PILLAR_LEVEL_CAP, PILLAR_PLACE_TIMEOUT_MS,
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
-  TRAVERSE_ROTATE_LIMIT, CLIMB_ESCAPE_O2_FLOOR, veinDigRefusal,
+  TRAVERSE_ROTATE_LIMIT, veinDigRefusal,
+  climbO2Watch, // (v0.379.0) the wet-sentinel watch - the escape's o2 arms as one gate
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
@@ -4727,9 +4728,18 @@ export function createMiner ({
           // watching (run77 F7 'drowned@0.8' AT SURFACE level inside an escape).
           // Below the floor the escape stops being the way out: return honestly,
           // the finally clears _climbEscape, and the sentry re-owns the bot.
-          const o2Top = bot.oxygenLevel
-          if (oxygenInDomain(o2Top) && o2Top <= CLIMB_ESCAPE_O2_FLOOR) {
-            return { walked, resumed: false, reason: 'low-o2', o2: o2Top }
+          // (v0.379.0) THE WET-SENTINEL WATCH: the watch rides the pure gate -
+          // the in-domain floor arm byte-identical, the sentinel arm new. F16
+          // (36799188224) drowned inside a running escape on a -1 bar: the
+          // sentinel disarmed the in-domain check, the sentry's climb gate froze
+          // the wet clock ('rescue never', 'wet 0s@last'), the lungs burned
+          // unwatched. An out-of-domain bar at a WITNESSED wet head is not air -
+          // the escape yields 'wet-sentinel', the sentry re-owns, its headWetMs
+          // clock pages the rescue within HEAD_SUBMERGED_RESCUE_MS. A DRY burst
+          // (the v0.64.0 post-respawn class) keeps riding: no witness, no yield.
+          const wTop = climbO2Watch({ oxygen: bot.oxygenLevel, headWet: (() => { try { return isWaterName(waterRead().head) } catch { return false } })() })
+          if (wTop.yield) {
+            return { walked, resumed: false, reason: wTop.reason, o2: wTop.o2 }
           }
           const feet = bot.entity.position.floored()
           const plan = traverseStep({ feet, d, read: cell => { try { return bot.blockAt(cell) } catch { return null } } })
@@ -4754,9 +4764,11 @@ export function createMiner ({
           for (const b of plan.digs) {
             // (v0.85.0) a submerged dig can burn ~200 ticks (~10s) - the bar
             // must be checked BETWEEN digs too, not only at the loop top
-            const o2Mid = bot.oxygenLevel
-            if (oxygenInDomain(o2Mid) && o2Mid <= CLIMB_ESCAPE_O2_FLOOR) {
-              return { walked, resumed: false, reason: 'low-o2', o2: o2Mid }
+            // (v0.379.0) the same gate between digs - a sentinel burst over a
+            // witnessed flood ends the dig blind window exactly as the loop top
+            const wMid = climbO2Watch({ oxygen: bot.oxygenLevel, headWet: (() => { try { return isWaterName(waterRead().head) } catch { return false } })() })
+            if (wMid.yield) {
+              return { walked, resumed: false, reason: wMid.reason, o2: wMid.o2 }
             }
             let broke = false
             // maxTicks 200: a submerged dig needs ~115+ server ticks (5x
@@ -4947,6 +4959,16 @@ export function createMiner ({
             if (esc.reason === 'low-o2') {
               log(`${tag} climb wet escape: oxygen ${esc.o2} at the floor - the escape yields, the rescue lane owns the air`)
               return { ok: false, reason: 'low-o2', gained: 0, dug, steps, traversed }
+            }
+            // (v0.379.0) THE WET-SENTINEL HANDOFF: the escape yielded on an
+            // unreadable bar over a witnessed flood - the same honest end as
+            // 'low-o2' (no retry: climbRetryPlan's default refuses unknown
+            // reasons), the finally has cleared _climbEscape, and the sentry
+            // re-owns the bot with its wet clock RUNNING (the climb gate no
+            // longer freezes it) - the headWetMs ladder pages the rescue.
+            if (esc.reason === 'wet-sentinel') {
+              log(`${tag} climb wet escape: oxygen unreadable (reset sentinel) at a wet head - the escape flies blind, the rescue lane owns the air`)
+              return { ok: false, reason: 'wet-sentinel', gained: 0, dug, steps, traversed }
             }
             if (esc.resumed) continue // fresh position - let the main loop re-judge
           }
