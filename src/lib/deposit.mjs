@@ -1677,18 +1677,29 @@ export async function depositToChest (bot, {
   // deposit costs the whole pocket.
   let window = null
   let openErr = null
+  // (v0.439.0) THE RETRY'S OWN VOICE: the v0.25.0 two-attempt loop flew SILENT
+  // for 200 versions - face 28 (36901025087) read 5 open-timeout zeros with NO
+  // way to see that each had already burned TWO 10s attempts (100s of open-deaf
+  // the log priced as 50s). The line rides the existing 'deposit' filter key;
+  // the outcome space is three shapes (cause/won/lost - the loop has no defer).
+  // The zero line's reason stays byte-identical (the hopcensus pins read it).
+  const openAt = (() => { try { const p = chest.position; return `[${p.x},${p.y},${p.z}]` } catch { return '?' } })()
   for (let attempt = 1; attempt <= 2 && !window; attempt++) {
     try {
       window = await withTimeout(bot.openChest(chest), 10000, 'open chest')
+      if (attempt === 2) log(`${tag} deposit: open retry won on attempt 2 at ${openAt} (the window opened after the retry)`)
     } catch (e) {
       openErr = e
       if (attempt === 1) {
+        log(`${tag} deposit: open attempt 1 timed out (${e && e.message ? e.message : 'unknown'}) at ${openAt} - the v0.25.0 retry follows`)
         try { await bot.lookAt(chest.position.offset(0.5, 0.5, 0.5), true) } catch { /* retry anyway */ }
       }
     }
   }
   if (!window) {
-    return { deposited: 0, reason: `cannot open chest (${openErr && openErr.message ? openErr.message : 'unknown'})` }
+    const em = openErr && openErr.message ? openErr.message : 'unknown'
+    log(`${tag} deposit: open retry lost on attempt 2 (${em}) at ${openAt} - the zero follows`)
+    return { deposited: 0, reason: `cannot open chest (${em})` }
   }
   // (v0.65.0) THE FULL-CHEST VERDICT, read BEFORE the click loop: the window's
   // item list (one entry per occupied slot) at capacity means every click below

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parsePulseAnchor, parseValveClose, parseValveOpen, openDeafCensus,
+  parsePulseAnchor, parseValveClose, parseValveOpen, parseOpenRetry, openDeafCensus,
 } from '../../src/lib/opendeaf.mjs'
 
 // THE ROUND-TRIP LAW (the walkoutcensus precedent): the test lines are the
@@ -115,4 +115,50 @@ test('honest zeros: a clean face reads zero and a non-array never throws', () =>
 test('determinism: the same lines census to the same bytes', () => {
   const lines = [ANCHOR_TRUNC, VALVE_CLOSE, ZERO, VALVE_OPEN, ANCHOR_FULL]
   assert.equal(JSON.stringify(openDeafCensus(lines)), JSON.stringify(openDeafCensus(lines)))
+})
+
+// (v0.439.0) THE RETRY VOICE - the three emitter forms are the code's own
+// template literals read verbatim out of deposit.mjs's v0.25.0 loop.
+const RETRY_CAUSE = 'F6 [F6] deposit: open attempt 1 timed out (open chest: timeout after 10000ms) at [-136,72,407] - the v0.25.0 retry follows'
+const RETRY_WON = 'F6 [F6] deposit: open retry won on attempt 2 at [-136,72,407] (the window opened after the retry)'
+const RETRY_LOST = 'F6 [F6] deposit: open retry lost on attempt 2 (open chest: timeout after 10000ms) at [-136,72,407] - the zero follows'
+
+test('open retry rides ALL THREE emitter forms verbatim', () => {
+  assert.deepEqual(parseOpenRetry(RETRY_CAUSE), { bot: 'F6', kind: 'cause', chest: '-136,72,407', err: 'open chest: timeout after 10000ms' })
+  assert.deepEqual(parseOpenRetry(RETRY_WON), { bot: 'F6', kind: 'won', chest: '-136,72,407', err: null })
+  assert.deepEqual(parseOpenRetry(RETRY_LOST), { bot: 'F6', kind: 'lost', chest: '-136,72,407', err: 'open chest: timeout after 10000ms' })
+})
+
+test('open retry junk battery: other lanes, no coords, non-string', () => {
+  assert.equal(parseOpenRetry('F6 [F6] hop: chest at [-136,72,407] d=13 zero: cannot open chest (open chest: timeout after 10000ms)'), null)
+  assert.equal(parseOpenRetry('F6 [F6] deposit: open attempt 1 timed out (err) at ? - the retry follows').chest, null)
+  assert.equal(parseOpenRetry('[F6] deposit: open attempt 1 timed out (err) at [-136,72,407] - the retry follows'), null) // no console prefix
+  assert.equal(parseOpenRetry(null), null)
+})
+
+test('census counts the retry anatomy: cause -> won/lost matched, chests deduped', () => {
+  const lines = [
+    RETRY_CAUSE,
+    RETRY_LOST,
+    ZERO, // the lost retry's own zero (same chest)
+    RETRY_CAUSE.replace('F6', 'F14').replace('[-136,72,407]', '[-141,72,397]'),
+    RETRY_WON.replace('F6', 'F14').replace('[-136,72,407]', '[-141,72,397]'),
+  ]
+  const c = openDeafCensus(lines)
+  assert.deepEqual(c.retries.byKind, { cause: 2, won: 1, lost: 1 })
+  assert.deepEqual(c.retries.byBot, { F6: 2, F14: 2 })
+  assert.deepEqual(c.retries.chests, ['-136,72,407', '-141,72,397'])
+  assert.equal(c.retries.matched, true) // won(1) + lost(1) == cause(2)
+  assert.equal(c.openDeaf.length, 1) // only the lost retry's zero is an open-timeout zero
+})
+
+test('a cause with no outcome reads matched:false - never assumed', () => {
+  const c = openDeafCensus([RETRY_CAUSE])
+  assert.deepEqual(c.retries.byKind, { cause: 1, won: 0, lost: 0 })
+  assert.equal(c.retries.matched, false)
+})
+
+test('a face without retries reads the honest retry zero', () => {
+  const c = openDeafCensus([ZERO, ANCHOR_TRUNC])
+  assert.deepEqual(c.retries, { n: 0, byKind: { cause: 0, won: 0, lost: 0 }, byBot: {}, chests: [], matched: null })
 })

@@ -649,6 +649,16 @@ if (openDeaf.openDeaf.length > 0) {
   const brackets = openDeaf.openDeaf.map((e) => `[${e.lo === null ? '?' : e.lo}..${e.hi === null ? '?' : e.hi}]@${e.chest || '?'}(${e.bot})`).join(' ')
   console.log(`  open-timeout zeros: n=${openDeaf.openDeaf.length}, ms ${openDeaf.ms.min}..${openDeaf.ms.max}, brackets: ${brackets}`)
   console.log(`  bracket-in-window (possible): ${openDeaf.paired.inValveCloseN}, late-bracket (possible): ${openDeaf.paired.lateN} - 0 overlaps = the lag hypothesis DIES for those zeros`)
+  // (v0.439.0) the retry voice's own ledger - the TRUE open-deaf burn is
+  // 2x the zeros' price (each zero burned TWO 10s attempts), and a 'won'
+  // row is a delivery the old log priced as a coin-flip.
+  const r = openDeaf.retries
+  if (r.n > 0) {
+    const rb = Object.entries(r.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  open retry voice: n=${r.n} (cause ${r.byKind.cause} / won ${r.byKind.won} / lost ${r.byKind.lost}), per bot: ${rb}, matched: ${r.matched} - the true open-deaf burn is 2x the zeros' ms (two 10s attempts each)`)
+  } else {
+    console.log('  open retry voice: 0 lines (a pre-v0.439.0 face or clean opens - the two are not distinguishable by design)')
+  }
 } else if (openDeaf.anchors.length > 0 || openDeaf.valve.closes > 0) {
   console.log(`  open-timeout zeros: 0 (the face's distress clock: ${openDeaf.anchors.length} anchor(s), ${openDeaf.valve.closes} valve close(s) - the honest zero)`)
 } else {
