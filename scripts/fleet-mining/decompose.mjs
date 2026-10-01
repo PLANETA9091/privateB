@@ -9,6 +9,7 @@ import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the hone
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
+import { openDeafCensus } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -629,6 +630,29 @@ if (hopZero.total > 0) {
   if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
 } else {
   console.log('  zero-hops: 0 (a clean delivery face - the honest zero)')
+}
+
+// (v0.438.0) THE OPEN-DEAF WINDOW - the open-timeout hop zeros against the
+// face's distress clock. The bot REACHED the chest and could not OPEN it for
+// 10s; the mechanism (server-tick starvation vs chest contention) was
+// unpriced. The read: each zero bracketed by its pulse anchors (lo..hi), the
+// bracket tested against the allocvalve's closed spans and the mainLate
+// spikes. SEMANTICS: no overlap is the HYPOTHESIS KILL (the zero definitely
+// sat outside the window); an overlap is only a POSSIBLE hit (the bracket is
+// a window, not a moment) - the asymmetry is the read's honesty.
+console.log('--- OPEN-DEAF WINDOW (v0.438.0: the open-timeout zeros vs the valve + the main-late spikes) ---')
+const openDeaf = openDeafCensus(lines)
+if (openDeaf.openDeaf.length > 0) {
+  console.log(`  anchors: ${openDeaf.anchors.length} pulse read(s), late>=${openDeaf.lateMs}ms: ${openDeaf.anchors.filter((a) => a.mainLate !== null && a.mainLate >= openDeaf.lateMs).length}`)
+  const spans = openDeaf.valve.spans.map((s) => s.open !== null ? `[${s.close}..${s.open}]` : `[${s.close}..unclosed]`).join(' ')
+  console.log(`  valve: closes ${openDeaf.valve.closes}, opens ${openDeaf.valve.opens}, unclosed ${openDeaf.valve.unclosed}${spans ? `, spans: ${spans}` : ''}`)
+  const brackets = openDeaf.openDeaf.map((e) => `[${e.lo === null ? '?' : e.lo}..${e.hi === null ? '?' : e.hi}]@${e.chest || '?'}(${e.bot})`).join(' ')
+  console.log(`  open-timeout zeros: n=${openDeaf.openDeaf.length}, ms ${openDeaf.ms.min}..${openDeaf.ms.max}, brackets: ${brackets}`)
+  console.log(`  bracket-in-window (possible): ${openDeaf.paired.inValveCloseN}, late-bracket (possible): ${openDeaf.paired.lateN} - 0 overlaps = the lag hypothesis DIES for those zeros`)
+} else if (openDeaf.anchors.length > 0 || openDeaf.valve.closes > 0) {
+  console.log(`  open-timeout zeros: 0 (the face's distress clock: ${openDeaf.anchors.length} anchor(s), ${openDeaf.valve.closes} valve close(s) - the honest zero)`)
+} else {
+  console.log('  open-timeout zeros: 0, no anchors, no valve lines (the face never printed the clock - nothing claimed)')
 }
 
 // (v0.410.0) THE WALK-FAIL LENS - the A* starvation census's fleet-wide leg.
