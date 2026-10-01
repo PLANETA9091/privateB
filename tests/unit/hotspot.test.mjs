@@ -1,4 +1,4 @@
-// THE HOT-SPOT LENS's unit pin (v0.418.0) - the failure geometry's
+// THE HOT-SPOT LENS's unit pin (v0.419.0) - the failure geometry's
 // cross-lane read. The verbatims are the field's own shapes: the tool
 // lane's @x,z walk stamps (face 26, run 36864564525) and the hop lane's
 // absolute chest coords (the hop-census v0.399.0 family). The lens's

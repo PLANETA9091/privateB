@@ -86,7 +86,7 @@ export function classifyWalkWhy (why) {
 // repeatable (the doubled-tag variant is the field's own shape); the lane
 // is the LAST prefix segment. A bare emitter line (no prefix at all) reads
 // lane 'bare' - the honest read of toolupgrade's own unlabeled log call.
-// (v0.418.0) the why captures to the LAST ')' - the nested wrappers are the
+// (v0.419.0) the why captures to the LAST ')' - the nested wrappers are the
 // field's own shape ('fuel commons walk @-148,412 (nudge retry): timeout
 // after 2784ms' - the nudge-retry nest; face 26 carried 1 such line, face
 // 22 and run36840196789 carried more, ALL dropped by the v0.410.0 [^)]*
@@ -102,7 +102,7 @@ export function parseWalkFail (line) {
   const lane = prefixes ? prefixes.replace(/:$/, '').split(':').map(s => s.trim()).pop() : 'bare'
   const nudge = Boolean(m[3])
   const cls = classifyWalkWhy(m[4])
-  // (v0.418.0) the raw why rides along - the walk's own @x,z position stamp
+  // (v0.419.0) the raw why rides along - the walk's own @x,z position stamp
   // lives in this text and the hot-spot lens (hotspot.mjs) reads it; the
   // classification stays untouched.
   return { bot, lane, nudge, raw: m[4], ...cls }

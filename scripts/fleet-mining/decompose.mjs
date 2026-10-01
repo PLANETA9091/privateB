@@ -10,7 +10,7 @@ import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the 
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
-import { hotspotCensus } from '../../src/lib/hotspot.mjs' // (v0.418.0) the failure geometry's cross-lane read
+import { hotspotCensus } from '../../src/lib/hotspot.mjs' // (v0.419.0) the failure geometry's cross-lane read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
@@ -794,7 +794,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   }
 }
 
-// (v0.418.0) THE HOT-SPOT LENS - the failure geometry's cross-lane read
+// (v0.419.0) THE HOT-SPOT LENS - the failure geometry's cross-lane read
 // (the cure pricing's spatial alternative: the decide clock prices WHEN,
 // this row prices WHERE). The planar spots join the hop lane's absolute
 // chest coords with the tool lanes' own @x,z walk stamps - a spot hit by
@@ -805,7 +805,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
 {
   const hs = hotspotCensus(lines)
   if (hs.spotTotal > 0 || hs.unpositioned.hop > 0 || hs.unpositioned.walkFails > 0 || hs.totals.bankWalkBacks > 0) {
-    console.log('--- HOT-SPOT CENSUS (v0.418.0: the failure geometry, hop+tool @coords joined) ---')
+    console.log('--- HOT-SPOT CENSUS (v0.419.0: the failure geometry, hop+tool @coords joined) ---')
     console.log(`  spots: ${hs.spots.length} planar position(s) holding ${hs.spotTotal} failure(s), cross-lane spots ${hs.crossLaneSpots}${hs.crossLaneSpots > 0 ? ' - THE GEOMETRY SIGNATURE: the same ground starves multiple walkers' : ''}`)
     for (const sp of hs.spots.slice(0, 5)) {
       const lanes = Object.entries(sp.byLane).map(([k, n]) => `${k}:${n}`).join(' ')

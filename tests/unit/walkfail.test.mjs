@@ -40,7 +40,7 @@ test('walk-fail: the lane walk timeout captures ms; the bare emitter form reads 
   assert.equal(bare.why, 'no-path')
 })
 
-test('walk-fail: the NESTED-paren why captures to the LAST paren (v0.418.0 - the face-26 nudge-retry nest the v0.410.0 read dropped)', () => {
+test('walk-fail: the NESTED-paren why captures to the LAST paren (v0.419.0 - the face-26 nudge-retry nest the v0.410.0 read dropped)', () => {
   const a = parseWalkFail('F9 fuel commons: chest walk failed after the nudge (fuel commons walk @-148,412 (nudge retry): timeout after 2784ms)')
   assert.ok(a, 'the nested shape MUST parse - face 26 carried it and the [^)]* read dropped it whole')
   assert.equal(a.bot, 'F9')

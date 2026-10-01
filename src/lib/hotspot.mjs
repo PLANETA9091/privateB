@@ -1,4 +1,4 @@
-// (v0.418.0) THE HOT-SPOT LENS - the failure geometry's cross-lane read.
+// (v0.419.0) THE HOT-SPOT LENS - the failure geometry's cross-lane read.
 // The cure-pricing brief (the 2230 fire) named the spatial read the
 // concurrency-aware decide budget's alternative: the decide clock (v0.413.0)
 // prices WHEN the cohort lives, this lens prices WHERE it lives. The field
@@ -15,7 +15,7 @@
 //       [x,y,z]; the planar key is x,z (the y rides as the spot's first-seen
 //       altitude); the '?' placeholder positions carry no bucket (the
 //       no-position-no-bucket law, hopcensus's own).
-//   (2) THE TOOL-LANE CHEST WALKS (walkfail.mjs parseWalkFail, v0.418.0:
+//   (2) THE TOOL-LANE CHEST WALKS (walkfail.mjs parseWalkFail, v0.419.0:
 //       the parser now returns the raw why so the @coord survives) - the
 //       walk's own label '@x,z' inside the why text; absent coord = the
 //       unpositioned bucket (never invented).
