@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
+import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -22,7 +23,22 @@ const perBot = (re) => {
 const fmt = (m) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'
 
 console.log('=== DEATHS ===')
-for (const l of lines) if (/died|death|slain|drowned|suffocat|fell from|hit the ground|blew up|magic/i.test(l) && !/drowning rescue|water:/.test(l)) console.log(' ', l.slice(0, 160))
+// (v0.389.0) THE HONEST DEATH SWEEP - the old keyword bucket
+// (/died|death|slain|.../ minus /drowning rescue|water:/) printed prose as
+// deaths: face 19 (ZERO deaths) carried the steer hazard defer's 'a death
+// is a cost the deficit cannot repay' onto the death row - the
+// substring-pollution class the 1030 fire named ('hound census polluted by
+// the fleet-wide substring'). The sweep now keys on the fleet's death
+// ANATOMY ('F16 [F16] died - respawning' / 'F16 [F16] death: ...', the
+// double tag, verified across faces 15 and 18); the old bucket survives as
+// the AUDIT list - the prose carriers it would have printed print below
+// the deaths, visible and counted instead of lying.
+const sweep = deathSweep(lines)
+for (const l of sweep.deaths) console.log(' ', l.slice(0, 160))
+if (sweep.keywordOnly.length) {
+  console.log(`  (the anatomy sweep filtered ${sweep.keywordOnly.length} keyword-carrier line(s) - prose, not deaths):`)
+  for (const l of sweep.keywordOnly.slice(0, 6)) console.log('   ~', l.slice(0, 140))
+}
 
 console.log('=== RESCUE STARTS by class ===')
 console.log('  start(drowning):', count(/drowning rescue start \(drowning/))
