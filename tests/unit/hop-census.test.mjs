@@ -24,6 +24,7 @@ const QUESTION_POS = 'F4 [F4] hop: chest at [?,?,?] d=9 zero: chest unreachable 
 const PATH_STOPPED = 'F6 [F6] hop: chest at [-133,68,411] d=13 zero: chest unreachable (Path was stopped before it could be completed!)'
 const WATER_RESCUE = 'F11 [F11] hop: chest at [-133,68,411] d=13 zero: chest unreachable (water rescue in progress (walk to chest refused))'
 const UNREACHABLE_OTHER = 'F13 [F13] hop: chest at [-133,68,411] d=13 zero: chest unreachable (some future wording)'
+const BUDGET_FLOOR = 'F8 [F8] hop: chest at [-124,73,412] d=30 zero: chest unreachable (budget exhausted (walk floor))'
 
 test('face-22 verbatims: each why class lands in its own bucket', () => {
   const c = hopCensus([GOAL_CHURN, WALK_TIMEOUT, DECIDE_TIMEOUT, NO_PATH, OPEN_TIMEOUT, BRAKE, NOTHING])
@@ -78,9 +79,13 @@ test('the ?-position variant: parses, dist priced, chest NOT bucketed', () => {
   assert.equal(c.dists.n, 1)
 })
 
-test('path-stopped / water-rescue / unreachable-other: the named unknowns stay visible', () => {
+test('path-stopped / water-rescue / budget-floor / unreachable-other: the named unknowns stay visible', () => {
   assert.equal(classifyHopZero('chest unreachable (Path was stopped before it could be completed!)').why, 'path-stopped')
   assert.equal(classifyHopZero('chest unreachable (water rescue in progress (walk to chest refused))').why, 'water-rescue')
+  // face 23's own class: the walk FLOOR's budget dies before the chest
+  const bf = classifyHopZero('chest unreachable (budget exhausted (walk floor))')
+  assert.equal(bf.why, 'budget-floor')
+  assert.equal(parseHopZero(BUDGET_FLOOR).dist, 30)
   assert.equal(classifyHopZero('chest unreachable (some future wording)').why, 'unreachable-other')
   // a non-unreachable stranger is 'other', never dropped
   assert.equal(classifyHopZero('some future reason entirely').why, 'other')
@@ -113,6 +118,24 @@ test('the face-22 baseline shape: 24 zeros, the full distribution', () => {
   })
   assert.deepEqual(c.timeouts.walk, [28090, 28090, 28090, 28090, 28090])
   assert.deepEqual(c.timeouts.open, [10000, 10000])
+})
+
+test('the face-23 baseline shape: 33 zeros, budget-floor rides its own class', () => {
+  const c = hopCensus([
+    WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT, WALK_TIMEOUT,
+    BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR, BUDGET_FLOOR,
+    DECIDE_TIMEOUT, DECIDE_TIMEOUT, DECIDE_TIMEOUT,
+    GOAL_CHURN, GOAL_CHURN, GOAL_CHURN,
+    NO_PATH, NO_PATH,
+    OPEN_TIMEOUT, OPEN_TIMEOUT,
+    BEYOND_RADIUS,
+  ])
+  assert.equal(c.total, 33)
+  assert.deepEqual(c.byWhy, {
+    'walk-timeout': 13, 'budget-floor': 9, 'decide-timeout': 3,
+    'goal-churn': 3, 'no-path': 2, 'open-timeout': 2, 'beyond-radius': 1,
+  })
+  assert.deepEqual(c.byChest['-124,73,412'], 9) // the hot chest rides the floor class
 })
 
 test('the honest zero: no zero-hops reads zeros (a clean delivery face)', () => {

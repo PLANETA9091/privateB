@@ -20,11 +20,14 @@
 //
 // THE WHY CLASSES (face 22's own distribution: goal-churn 8, walk-timeout
 // 5, decide-timeout 4, no-path 3, open-timeout 2, brake-refusal 1,
-// nothing-to-deposit 1) - ordered most-specific-first so the timeout ms
-// captures never cross (the open-timeout's own timeout must not read as a
-// walk timeout); unknown lands in unreachable-other (a chest-unreachable
-// wrapper no rule named) or other (any other zero reason), never dropped
-// (the honest-sweep law).
+// nothing-to-deposit 1; face 23 added the budget-floor class - 'chest
+// unreachable (budget exhausted (walk floor))', 9 zeros, the walk FLOOR's
+// own budget dying before the chest - distinct from the timeout family:
+// the budget arithmetic refused/ran out, no timer fired) - ordered
+// most-specific-first so the timeout ms captures never cross (the
+// open-timeout's own timeout must not read as a walk timeout); unknown
+// lands in unreachable-other (a chest-unreachable wrapper no rule named)
+// or other (any other zero reason), never dropped (the honest-sweep law).
 //
 // Pure parser, unit-pinned (the seal-census v0.397.0 shape); decompose is
 // its field read. Mining-surface only: zero fleet wiring, zero new log
@@ -44,6 +47,7 @@ export function classifyHopZero (why) {
   if ((m = why.match(/^chest full/))) return { why: 'chest-full' }
   if ((m = why.match(/^cannot open chest \(open chest: timeout after (\d+)ms\)/))) return { why: 'open-timeout', ms: num(m[1]) }
   if ((m = why.match(/^chest beyond the hop search radius (\d+)/))) return { why: 'beyond-radius', radius: num(m[1]) }
+  if (/chest unreachable \(budget exhausted \(walk floor\)\)/.test(why)) return { why: 'budget-floor' }
   if (/chest unreachable \(Took to long to decide/.test(why)) return { why: 'decide-timeout' }
   if ((m = why.match(/chest unreachable \(walk to chest.*timeout after (\d+)ms\)/))) return { why: 'walk-timeout', ms: num(m[1]) }
   if (/chest unreachable \(goal brake:/.test(why)) return { why: 'brake-refusal' }
