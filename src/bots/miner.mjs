@@ -11,7 +11,8 @@ const { pathfinder, Movements, goals } = pathfinderPkg
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
 import { installRageFastBreak } from '../lib/fastdig.mjs'
-import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES, ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS } from '../lib/jobqueue.mjs'
+import { MiningJobQueue, withTimeout, gotoSafe, standGoalNear, inBox, unreachableBatchVerdict, UNREACHABLE_FENCE_BATCHES, ASSIST_BURST_SEARCH_RADIUS, ASSIST_BURST_THINK_TIMEOUT_MS, resetWalkGovernorFor, releaseWalkGoal } from '../lib/jobqueue.mjs'
+import { walkoutWindowMs, walkoutDisplacement, walkoutVerdict, walkoutEscalation, walkoutStallLine } from '../lib/relogwalkout.mjs' // (v0.425.0) the frozen-after-relog witness - the walk-out promise gets enforced
 import { collectGain, depositToChests, inventoryLoad } from '../lib/deposit.mjs'
 import { stalledButCraftable, TRIP_WALK_MS } from '../lib/woodplan.mjs'
 import { isPlantableSapling, plantableCell, pickSapling } from '../lib/sapling.mjs'
@@ -90,6 +91,17 @@ export const HAND_DIGGABLE = ['dirt', 'grass_block', 'coarse_dirt', 'podzol', 's
 // sentry's non-critical pages for frozenReturnGate(streak) after each relog.
 const frozenRelogStreaks = new Map()
 const frozenReturnGates = new Map()
+// (v0.425.0) THE RELOG WALK-OUT STATE - the gate's promise gets a witness.
+// Face 36864564525's F10 relogged THREE times into the same water column
+// (o2=20 every time) and nobody ever checked the walk-out the relog line
+// promises ('the fresh client walks the hazard-ledgered column out'). The
+// state rides the module scope like the streak/gate maps - it survives the
+// miner rebuild the reconnect lane performs: the relog position, the window
+// the gate armed (walkoutWindowMs = the gate's own ladder), and the stalled
+// window stage the escalation ladder ratchets on (reset -> goal release ->
+// the named shift exit). Deleted on the honest completion and on a proven
+// walk-out - forgiveness rides evidence, never the clock.
+const frozenRelogWalkouts = new Map()
 
 // (v0.343.0) THE LID SCAN'S MECHANICAL READ - the column above the head,
 // the legacy probe (floor(y)+2) first, then ASCEND_LID_SCAN lid cells up.
@@ -2299,6 +2311,26 @@ export function createMiner ({
           frozenRelogStreaks.set(username, relogStreak)
           const hold = frozenReturnGate({ consecutiveRelogs: relogStreak })
           frozenReturnGates.set(username, Date.now() + hold)
+          // (v0.425.0) THE WALK-OUT STATE ARMS with the gate - the promise now
+          // has a witness. The frozen client's position IS the relog position
+          // (the server respawns the fresh client into the same column - the
+          // F10 lane's own shape), the window is the gate's own ladder, and
+          // the stage inherits so the escalation rungs ratchet across relogs
+          // (window 1 stalled -> gates; window 2 -> + goal release; window 3
+          // -> the named shift exit). A junk position arms nothing measurable
+          // - the verdict reads 'unmeasured' and no rung spends (the
+          // gates-decide convention).
+          const prevWalkout = frozenRelogWalkouts.get(username)
+          try {
+            const ep = bot.entity?.position
+            frozenRelogWalkouts.set(username, {
+              x: ep?.x, y: ep?.y, z: ep?.z,
+              until: Date.now() + hold,
+              windowMs: hold,
+              stage: prevWalkout?.stage ?? 0,
+              done: false
+            })
+          } catch { /* a junk witness arms nothing - the sentry owns what follows */ }
           // (v0.265.0) THE BYPASS ECHO rides the line's tail (the identity-extends
           // precedent): the verdict's full read - the labeled bar, the health, the
           // condemning window - and, when the bar is critical, the named void: the
@@ -2325,6 +2357,7 @@ export function createMiner ({
         if ((frozenRelogStreaks.get(username) || 0) > 0) {
           frozenRelogStreaks.set(username, 0)
           frozenReturnGates.delete(username)
+          frozenRelogWalkouts.delete(username) // (v0.425.0) the walk-out witness forgives with the ladder - the next freeze starts from rung one
           log(`${tag} water: frozen-return gate clears - the rescue completed with living physics`)
         }
       }
@@ -2460,6 +2493,39 @@ export function createMiner ({
       if (!bot.entity || swimming || defending || bot._climbEscape) return
       if (Date.now() - lastRescueAt < RESCUE_COOLDOWN_MS) return // a bot treading a flooded shaft re-fires otherwise every 5 s
       const now = Date.now()
+      // (v0.425.0) THE RELOG WALK-OUT ENFORCEMENT - the frozen-after-relog
+      // detector. The gate hold promises a walk-out ('the fresh client walks
+      // the hazard-ledgered column out') and expires silently; face
+      // 36864564525's F10 rode that silence through THREE consecutive frozen
+      // relogs (o2=20 every time - not a drowning, a wedged fresh client on
+      // the same column). When the armed window expires (the gate ladder's
+      // own budget, never a new constant) the displacement from the relog
+      // position is judged against the walk layer's progress bar
+      // (RELOG_WALKOUT_MIN_PROGRESS = STALL_MIN_PROGRESS): below it the
+      // walk-out stalled and the ladder runs - rung 1 resets the bot's walk
+      // gates/stalls, rung 2 releases the wedged goal slot so the plan
+      // re-decides, rung 3 names the honest shift exit (the escape hatch
+      // stays visible; the session loop owns the call). One verdict per
+      // window (done latches); a proven walk-out deletes the witness, the
+      // honest completion already does. Unmeasured positions escalate
+      // nothing - a lost read never spends a rung.
+      try {
+        const wo = frozenRelogWalkouts.get(username)
+        if (wo && !wo.done && now >= wo.until) {
+          wo.done = true
+          const displacement = walkoutDisplacement(wo, bot.entity?.position)
+          const verdict = walkoutVerdict({ displacement })
+          if (verdict === 'stalled') {
+            wo.stage = (Number.isFinite(wo.stage) ? wo.stage : 0) + 1
+            const esc = walkoutEscalation({ stage: wo.stage })
+            if (esc.resetGates) { try { resetWalkGovernorFor(bot) } catch { /* the reset never kills the sentry */ } }
+            if (esc.releaseGoal) { try { releaseWalkGoal(bot) } catch { /* the release never kills the sentry */ } }
+            log(walkoutStallLine({ tag, displacement, windowMs: wo.windowMs, why: esc.why }))
+          } else if (verdict === 'walked-out') {
+            frozenRelogWalkouts.delete(username) // the promise held - the witness stands down
+          }
+        }
+      } catch { /* a witness must never kill the sentry */ }
       const read = waterRead()
       const headWet = isWaterName(read.head)
       // (v0.279.0) the completed-episode capture: a dry sample ends the wet

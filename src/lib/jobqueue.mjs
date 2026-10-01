@@ -917,6 +917,44 @@ export function resetWalkGovernors () {
   valveStats.nearPasses = 0
   valveStats.duckRefusals = 0
 }
+
+// (v0.425.0) THE PER-BOT GATE RESET - the relog walk-out enforcer's rung (i).
+// The relog lane's walk-out promise ('the fresh client walks the
+// hazard-ledgered column out') needs a way to un-wedge ONE bot's walk gates
+// without dropping the whole fleet's churn books (resetWalkGovernors is the
+// test hook - fleet-wide by design). The stale-stop flag clear rides too:
+// the standing-bot flag is unconsumable by ticks (the v0.20.0 trace), and a
+// bot that just failed its walk-out window is exactly the standing bot whose
+// NEXT goto would die at birth on the leftover flag. Junk-safe: a bare mock
+// or a missing pathfinder clears nothing but never throws.
+export function resetWalkGovernorFor (bot) {
+  let dropped = 0
+  if (!bot) return { dropped }
+  if (walkGovernors.delete(bot)) dropped++
+  if (goalBrakes.delete(bot)) dropped++
+  try { clearStaleStop(bot) } catch { /* the flag clear never blocks the reset */ }
+  return { dropped }
+}
+
+// (v0.425.0) THE GOAL SLOT RELEASE - the relog walk-out enforcer's rung (ii).
+// The v0.65.0 zombie-goal kill's mechanics, keyed to the walk-out window
+// instead of a main-thread freeze: a goal still held across a stalled
+// walk-out window IS the wedged slot (nothing legitimate moves zero blocks
+// for the whole window), so the slot releases and the plan re-decides on the
+// next pass - one re-planned walk is the cheapest thing in a bot that just
+// burned its whole relog budget standing still. stop() first (the flag
+// bounds the recompute loop), setGoal(null) second (the slot itself). The
+// cleared count is honest: a release on an empty slot is a no-op, not work.
+export function releaseWalkGoal (bot) {
+  if (!bot) return { held: false }
+  const pf = bot.pathfinder
+  if (!pf || typeof pf.setGoal !== 'function') return { held: false }
+  const held = pf.goal != null
+  try { if (typeof pf.stop === 'function') pf.stop() } catch { /* the slot clear below still runs */ }
+  try { pf.setGoal(null) } catch { /* a throwing release never kills its caller */ }
+  return { held }
+}
+
 // (v0.20.0) THE 'Path was stopped' ROOT CAUSE, closed at the single choke point.
 //
 // MEASURED: fleet #128 (77 bank attempts, banked=0), the v0.19.0 yard-walk retries

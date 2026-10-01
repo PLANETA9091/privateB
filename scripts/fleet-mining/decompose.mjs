@@ -425,6 +425,22 @@ console.log('  gate holds the page:', count(/frozen-return gate holds the page/)
 console.log('  frozen physics standdowns:', count(/rescue standing down \(frozen physics/))
 console.log('  ticking-flat freeze names:', count(/freeze named ticking-flat/))
 console.log('  hazard memorized:', count(/hazard memorized/))
+// (v0.425.0) THE RELOG WALK-OUT CENSUS - the frozen-after-relog detector's
+// field leg. Face 36864564525's F10 rode the walk-out promise's silence
+// ("the fresh client walks the hazard-ledgered column out") through THREE
+// consecutive frozen relogs; these rows read the enforcement's own lines:
+// the stalled windows (the walk-out failed its gate-ladder budget), the
+// rung split (reset / + goal release / the named shift exit). A face whose
+// relogs cured reads ZERO here - the honest zero (a held walk-out prints
+// no stall line, so the rung rows ARE the account).
+{
+  const rws = count(/relog walk-out stalled/)
+  if (rws > 0) {
+    console.log("--- RELOG WALK-OUT CENSUS (v0.425.0: the frozen-after-relog detector) ---")
+    console.log(`  stalled windows: ${rws} per-bot: ${fmt(perBot(/relog walk-out stalled/))}`)
+    console.log(`  rung 1 (gates reset): ${count(/rung 1: the walk gates/)}  rung 2 (+ goal release): ${count(/rung 2: the gates reset/)}  rung 3 (shift exit named): ${count(/rung 3: the gates reset/)}`)
+  }
+}
 console.log('--- NUDGE FAMILY FIELD LEGS ---')
 console.log('  nudge approach verdicts:', count(/path nudge approach:/), 'per-bot:', fmt(perBot(/path nudge approach:/)))
 console.log('  nudge inside envelope:', count(/inside the direct envelope\)/), ' still outside:', count(/still outside/))
