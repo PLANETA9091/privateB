@@ -11327,3 +11327,18 @@ Work Log:
 
 Stage Summary:
 - Master = 07478dd (pkg 0.413.0). NEXT FIRE: read the two gates; the fleet slot is FREE at close (FACE 27 completed) - poll and dispatch FACE 28 on the then-tip; the cure pricing: a CONCURRENCY-AWARE decide budget (path peak 6a/13q mid-face vs the starved walkers) vs the hot-spot spatial lens - price both on face 28's clock row; the underground=21 read (the doom gate honest vs over-firing - the climb-out lines beside the zeros answer). Version next: 0.414.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261001-2138 addendum A (same fire, post-worklog developments)
+Agent: PLANETA9091
+Task: FACE 27 poll + mine; the version-slot race resolution observed.
+
+Work Log:
+- FACE 27 (36870593766, the v0.411.0 tree) completed SUCCESS 14:15:54Z; artifact -> /home/z/face27/ (2897 lines); mined with the LOCAL decompose (carries the drop-walk lens).
+- THE DROP-WALK LENS'S THIRD SAMPLE: face 27 = 9 fails (timeout 6 / doomed 2 / no-path 1) - the BUDGET-EDGE INVARIANT REPRODUCES (6/6 at exactly 8000ms, sum 48s); the dy families FLIP (below 5 / above 2 vs face 26's above 10 / below 6 and run68's above 39 / below 14) - the bleeding family is face-shaped, the budget-edge block is not; F17 (the anomaly bot) led with 3.
+- THE FIFTH SHAPE discovered live: the bare 'No path to the goal!' verdict (the walk layer's shared vocabulary) - classifyDropFailWhy promoted it from 'other' to 'no-path'. v0.414.0 (507026b) shipped it with the classifier battery gaining the verbatim. Version 0.413.0 -> 0.414.0 (origin checked - 1c7e769 free).
+- THE RACE RESOLUTION: the 2200 lane's renumber commit resolved the two-0.412.0 collision - their DECIDE CLOCK is now 0.413.0 (1c7e769), my DROP-WALK LENS stays the sole 0.412.0 (ae2cff7). The slot ledger is clean: next slot 0.415.0.
+
+Stage Summary:
+- Master = 507026b (pkg 0.414.0). Gate 36875157486 (1c7e769) pending at close (validates my drop-walk tree); v0.414.0's own gate follows the push.
+- NEXT FIRE: poll gates FIRST; FACE 28 dispatch when the slot frees (run_fleet=true on the tip); the drop-lane cure brief stands (the budget-edge invariant 12/12+40/40+6/6 says no budget fixes the lane - read the walk layer's verdict source for the drop lane instead); the dy-family flip (above->below) wants a third face-scale read. Identity: PLANETA9091.
