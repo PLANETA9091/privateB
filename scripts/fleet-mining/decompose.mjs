@@ -203,6 +203,16 @@ if (bankCensus.budgetAgg) console.log(`  flow-priced budgets: ${bankCensus.budge
 if (bankCensus.attribution) console.log(`  stranded pockets (the walk never delivered): ${bankCensus.attribution.stranded.map((s) => `${s.bot} ${s.deliveredU}u/${s.pocketU}u`).join(', ') || 'none'} - zero-delivered: ${bankCensus.attribution.strandedZeroDelivered}`)
 if (bankCensus.writeOff.length) console.log(`  final write-off: ${bankCensus.writeOff.map((w) => `${w.bot} ${w.units}u/${w.seconds}s`).join(', ')}`)
 if (bankCensus.doom?.why) console.log(`  bank doom why: ${bankCensus.doom.why.whyClass} owns ${bankCensus.doom.why.carried} of ${bankCensus.doom.why.total} failed climb cycles (${bankCensus.doom.why.pct}%)`)
+// (v0.387.0) THE DELIVERABLE CENSUS - the v0.385.0 arm's cause line (the
+// priced numbers ride it). Cure criteria (face 21+): the arm fires exactly
+// when the final bank would say uncovered (never on a drip - the leanness
+// law), clamp vs clock names the structural vs temporal split, and the
+// worst priced deficit is the whale's mid-run face. A pre-arm tree (face
+// 19 and older) speaks nothing here - the null IS the baseline.
+if (bankCensus.deliverable) {
+  console.log(`  deliverability arm (v0.385.0): ${bankCensus.deliverable.fires} firings (clamp ${bankCensus.deliverable.clampFires} / clock ${bankCensus.deliverable.clockFires}), bots ${bankCensus.deliverable.bots.join(',') || 'none'} - worst priced deficit ${bankCensus.deliverable.worstDeficitS}s (max need ${bankCensus.deliverable.maxNeedS}s vs min granted/left ${bankCensus.deliverable.minLimitS ?? 'n/a'}s)`)
+  for (const e of bankCensus.deliverable.events) console.log(`    ${e.bot} ${e.term}: pocket ${e.pocketU}u at ${e.rateUPerS ?? '?'}u/s needs ${e.needS ?? '?'}s vs ${e.limitS ?? '?'}s`)
+}
 if (!bankCensus.loot && !bankCensus.budgetAgg) console.log('  (no end-phase bank block - a FATAL face truncates it)')
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of

@@ -76,6 +76,32 @@ const BANK_FLOW_RE = /^bank flow: ([\d.]+)u\/s \(banked \+(\d+)u over (\d+)s\) -
 const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet pocket (\d+)u at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows(?: - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not a rate - priced at the ex-burst ([\d.]+)u\/s)?(?: - clamped to (\d+)s \(the kill margin\))?$/
 const ATTRIBUTION_RE = /^bank attribution: top (.+?); stranded: (.+)$/
 
+// (v0.387.0) THE DELIVERABLE CENSUS - the v0.385.0 arm's cause line carries
+// the priced numbers (fleet pocket Nu at Ru/s needs Ns vs Ns granted/left);
+// the blind-tool lesson applied to my own arm BEFORE the field needs it
+// (face 21 rides the arm - mining it without this read would repeat the
+// v0.371.0 mistake on my own line). Two terms: clamp (the structural one -
+// the final bank can never grant) and clock (the run cannot drain in the
+// time left). The '?' parts are the gate's own '?' prints (a null input);
+// the $ anchor is the anatomy law - the template ends at 'the trip fires
+// early', an imagined suffix never parses as an event.
+const DELIVERABLE_RE = /^(F\d+) bank trip: deliverable \((clamp|clock)\) - fleet pocket (\d+)u at ([\d.]+|\?)u\/s needs (\d+|\?)s vs (\d+|\?)s (the final bank can never grant - the surplus must ride now|the run cannot drain in the time left) - the trip fires early$/
+
+// 'F3 bank trip: deliverable (clamp) - fleet pocket 495u at 0.3u/s needs
+// 1654s vs 300s the final bank can never grant - the surplus must ride now
+// - the trip fires early' -> { bot, term, pocketU, rateUPerS, needS,
+// limitS, tail } or null (the '?' parts read null).
+export function parseDeliverable(s) {
+  const m = typeof s === 'string' ? s.match(DELIVERABLE_RE) : null
+  return m ? {
+    bot: m[1], term: m[2], pocketU: num(m[3]),
+    rateUPerS: m[4] === '?' ? null : num(m[4]),
+    needS: m[5] === '?' ? null : num(m[5]),
+    limitS: m[6] === '?' ? null : num(m[6]),
+    tail: m[7],
+  } : null
+}
+
 // The census: feed the full fleet19.log lines. Every field is null/[] when
 // the face never printed it (a FATAL face truncates the end phase - the
 // v0.358.0 lesson: the reader must survive the missing block).
@@ -163,6 +189,27 @@ export function bankFlowCensus(lines) {
   const woM = last(/^final write-off: (.+)$/)
   const writeOff = woM ? parseWriteOff(woM[1]) : []
 
+  // (v0.387.0) The deliverability arm's firings: each cause line is an
+  // event (the refractory cadence keeps them sparse - the count IS the
+  // arm's field activity, no dedupe). The aggregate names the whale's
+  // mid-run face: clamp vs clock, and the worst priced deficit (a firing
+  // means need > limit, so the difference is non-negative at the print).
+  const deliverableEvents = []
+  for (const l of rows) {
+    const d = parseDeliverable(l)
+    if (d) deliverableEvents.push(d)
+  }
+  const deliverable = deliverableEvents.length ? {
+    fires: deliverableEvents.length,
+    clampFires: deliverableEvents.filter((e) => e.term === 'clamp').length,
+    clockFires: deliverableEvents.filter((e) => e.term === 'clock').length,
+    bots: [...new Set(deliverableEvents.map((e) => e.bot))],
+    maxNeedS: deliverableEvents.reduce((a, e) => (e.needS != null ? Math.max(a, e.needS) : a), 0),
+    minLimitS: deliverableEvents.reduce((a, e) => (e.limitS != null && (a == null || e.limitS < a) ? e.limitS : a), null),
+    worstDeficitS: deliverableEvents.reduce((a, e) => (e.needS != null && e.limitS != null ? Math.max(a, e.needS - e.limitS) : a), 0),
+    events: deliverableEvents,
+  } : null
+
   // The doom attribution: the failed climb cycles' owner class.
   const dcM = last(/^final bank doom census: (.+)$/)
   const dwM = last(/^final bank doom why: (.+)$/)
@@ -172,5 +219,5 @@ export function bankFlowCensus(lines) {
     why: parseDoomWhy(dwM ? dwM[1] : null),
   } : null
 
-  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, doom }
+  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, doom, deliverable }
 }
