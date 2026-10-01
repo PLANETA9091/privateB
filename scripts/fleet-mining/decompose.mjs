@@ -601,6 +601,16 @@ if (hopZero.total > 0) {
     if (dw.ceiling.n > 0) console.log(`  ceiling: n=${dw.ceiling.n} maxGoals=${dw.ceiling.maxGoals} maxRefused=${dw.ceiling.maxRefusedS}s`)
     const rng = Object.entries(dw.range).sort((a, b) => a[0] - b[0]).map(([k, v]) => `r${k}=${v}`).join(' ')
     console.log(`  dy families: below=${dw.dy.below} plane=${dw.dy.plane} above=${dw.dy.above} (min ${dw.dy.min} max ${dw.dy.max}) - range: ${rng || 'none'}`)
+    // (v0.415.0) THE DROP CLOCK - the fail cohort's WHEN (the walkfail/
+    // bankfail v0.413.0 clock's shape): a dense burst names the mid-face
+    // concurrent phase, a spread names per-target geometry; the decide
+    // GRAND TOTAL untouched - this clock reads fails, not refusals.
+    const dwc = dw.clock
+    if (dwc.timed > 0) {
+      const span = dwc.firstTs === dwc.lastTs ? `at ts=${dwc.firstTs}s` : `span ts=${dwc.firstTs}..${dwc.lastTs}s`
+      const untimed = dwc.untimed > 0 ? `, ${dwc.untimed} untimed` : ''
+      console.log(`  drop clock: ${dwc.timed} timed ${span} of clock end ${dwc.clockEnd}s, max burst ${dwc.maxBurst} in ${dwc.burstWindowS}s${untimed}`)
+    }
   }
 }
 

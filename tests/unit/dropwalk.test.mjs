@@ -146,3 +146,63 @@ test('census: the honest zeros and the honest empty anatomy', () => {
   assert.equal(e.fails, 0)
   assert.deepEqual(e.range, {})
 })
+
+// (v0.415.0) THE DROP CLOCK - the fail cohort's WHEN (the walkfail/bankfail
+// v0.413.0 pattern): every parsed fail stamps its line's hb moment; a fail
+// before the first heartbeat stays untimed - the stamp never invents.
+test('drop clock: interleaved heartbeats stamp every fail - burst over the 30s window', () => {
+  const c = dropWalkCensus([
+    '[workerguard] b] n=1 ts=100s rss=300M late=0ms mainLate=0ms',
+    'F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)',
+    '[workerguard] b] n=2 ts=110s rss=310M late=0ms mainLate=0ms',
+    'F9 [F9] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago at [-143,56,419]) - sweep drops refused (dy -2.0, range 2)',
+    '[workerguard] b] n=3 ts=120s rss=320M late=0ms mainLate=0ms',
+    'F17 [F17] vein sweep: the drop walk to [-122,55,408] failed - No path to the goal! (dy -0.4, range 1)',
+    '[workerguard] b] n=4 ts=150s rss=330M late=0ms mainLate=0ms',
+    'F10 [F10] vein sweep: the drop walk to [-125,45,412] failed - sweep drops: timeout after 8000ms (dy 2.0, range 2)',
+    '[workerguard] b] n=5 ts=160s rss=340M late=0ms mainLate=0ms'
+  ])
+  // by hand: stamps 100,110,120,150 - clockEnd 160. Window 30s exclusive:
+  // [100]=1, [100,110]=2, [100,110,120]=3, at 150 both 100 (50>30) and 110
+  // (40>30) fall out, 150-120=30 is NOT >30 -> [120,150]=2. Max burst 3.
+  assert.equal(c.fails, 4)
+  assert.deepEqual(c.clock, {
+    timed: 4,
+    untimed: 0,
+    clockEnd: 160,
+    firstTs: 100,
+    lastTs: 150,
+    maxBurst: 3,
+    burstWindowS: 30
+  })
+})
+
+test('drop clock: a fail before the first heartbeat stays untimed - never invented', () => {
+  const c = dropWalkCensus([
+    'F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)',
+    '[workerguard] b] n=1 ts=50s rss=300M late=0ms mainLate=0ms',
+    'F9 [F9] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago) - sweep drops refused (dy -2.0, range 2)',
+    '[workerguard] b] n=2 ts=60s rss=310M late=0ms mainLate=0ms'
+  ])
+  assert.equal(c.fails, 2)
+  assert.equal(c.clock.timed, 1)
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.firstTs, 50)
+  assert.equal(c.clock.lastTs, 50)
+  assert.equal(c.clock.clockEnd, 60)
+  assert.equal(c.clock.maxBurst, 1)
+})
+
+test('drop clock: no heartbeats - every fail untimed, clockEnd null; non-array input honest', () => {
+  const c = dropWalkCensus([
+    'F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)',
+    'F2 [F2] vein sweep: the drop walk to [-129,42,408] failed - sweep drops: timeout after 4000ms (dy -0.4, range 1)'
+  ])
+  assert.equal(c.fails, 2)
+  assert.deepEqual([c.clock.timed, c.clock.untimed], [0, 2])
+  assert.equal(c.clock.clockEnd, null)
+  assert.equal(c.clock.firstTs, null)
+  assert.equal(c.clock.maxBurst, 0)
+  const e = dropWalkCensus('not an array')
+  assert.deepEqual([e.clock.timed, e.clock.clockEnd], [0, null])
+})

@@ -25,6 +25,21 @@
 // ledger row belongs to drops.mjs's own counter, the smelt sweep verdicts to
 // walkfail.mjs - this lens owns the per-fail line only. Junk-safe, honest
 // zeros, the field's own shape pinned by the face-26 + run68 verbatims.
+//
+// (v0.415.0) THE DROP CLOCK - the WHEN leg. The other A* starvation families
+// (hop, the tool lanes, the sweep, the bank) got their decide clocks in
+// v0.413.0; this lens shipped before the clock existed (ae2cff7) and its
+// fails stayed untimed. The drop lane's own currency is the FAIL (the
+// budget-edge invariant: every timeout at exactly the budget's edge), so
+// EVERY parsed fail stamps its line's hb moment - doomed/ceiling included
+// (a ledger refusal is still an event at a moment; the byWhy split lets a
+// reader correlate). The clock reads the lane's bleeding regime: a dense
+// burst names the mid-face concurrent phase (the decide cohort's home), a
+// spread names per-target geometry. The decide GRAND TOTAL stays untouched
+// - this clock reads fails, the ledger's decide rows read refusals.
+
+import { parseHeartbeat } from './stormcensus.mjs'
+import { decideClock } from './walkfail.mjs'
 
 // The per-fail line: bot tag required (the fleet always tags), the tail
 // (dy, range) required - the emitter always carries it in the field.
@@ -115,13 +130,23 @@ export function dropWalkCensus (lines) {
     range: {},
     unparsed: 0
   }
-  for (const line of (Array.isArray(lines) ? lines : [])) {
+  // (v0.415.0) the drop clock: every parsed fail rides the last hb ts (the
+  // walkfail/bankfail v0.413.0 pattern); a fail before the first heartbeat
+  // stays untimed - the stamp never invents.
+  const stamps = []
+  let lastT = null
+  let clockEnd = null
+  if (!Array.isArray(lines)) return { ...c, clock: decideClock(stamps, null) }
+  for (const line of lines) {
+    const hb = parseHeartbeat(line)
+    if (hb) { lastT = hb.tsS; clockEnd = hb.tsS }
     const p = parseDropWalkFail(line)
     if (!p) {
       if (typeof line === 'string' && /vein sweep: the drop walk to .* failed/.test(line)) c.unparsed++
       continue
     }
     c.fails++
+    stamps.push(lastT)
     c.byBot[p.bot] = (c.byBot[p.bot] || 0) + 1
     c.byWhy[p.why] = (c.byWhy[p.why] || 0) + 1
     if (p.why === 'timeout') {
@@ -153,5 +178,5 @@ export function dropWalkCensus (lines) {
   c.ceiling.n = fl(c.ceiling.n)
   c.ceiling.maxGoals = fl(c.ceiling.maxGoals)
   c.ceiling.maxRefusedS = fl(c.ceiling.maxRefusedS)
-  return c
+  return { ...c, clock: decideClock(stamps, clockEnd) }
 }
