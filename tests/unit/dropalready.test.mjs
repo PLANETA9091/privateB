@@ -98,7 +98,16 @@ test('v0.260.0 wiring: the failure instrument and the lip dig-down survive the r
 })
 
 test('v0.260.0 wiring: the import carries the new verdict', () => {
-  assert.match(minerSrc, /import \{ dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted/, 'the miner imports the fast path from the pure lib')
+  // (v0.434.0) the regex read the import PREFIX - the 0.432.0 lane's
+  // dropGoalAdmission/DROP_ADMISSION_WHY additions sat between dropWalkSkipped
+  // and aboveBandOf and the pin broke on a healthy import. The intent is the
+  // SYMBOLS' presence in the drops.mjs import line, never their adjacency.
+  // No $ anchor: the line rides the lane's trailing version-stamp comment.
+  const dropsImport = minerSrc.match(/^import \{[^}]*\} from '\.\.\/lib\/drops\.mjs'/m)
+  assert.ok(dropsImport, 'the miner imports the drop helpers from the pure lib')
+  for (const sym of ['dropTargets', 'dropGoalRange', 'dropWalkSkipped', 'aboveBandOf', 'lipDigWanted']) {
+    assert.ok(new RegExp(`[,{ ]${sym}[,} ]`).test(dropsImport[0]), `the import carries ${sym}`)
+  }
 })
 
 test('v0.260.0 the goal fences are UNTOUCHED - the cure adds a skip, not a geometry', () => {
