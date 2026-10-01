@@ -10,6 +10,7 @@ import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the 
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { openDeafCensus } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes
+import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -631,6 +632,30 @@ if (hopZero.total > 0) {
   if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
 } else {
   console.log('  zero-hops: 0 (a clean delivery face - the honest zero)')
+}
+
+// (v0.441.0) THE ZERO CLOCK - every hop zero class bracketed into the
+// face's thirds by its pulse anchors (the midpoint read; unplaced counted,
+// never assumed). The question the lens exists for: the budget-floor class
+// (the chain budget's own exhaustion) - LATE dominance means the floor's
+// EOF design bounded the spend and the pocket's drain is the lever; MID
+// dominance means the budgets themselves are the lever.
+console.log('--- ZERO CLOCK (v0.441.0: the hop zeros\' face-phase anatomy, thirds of the observed clock) ---')
+const zeroClock = zeroClockCensus(lines)
+if (zeroClock.zeros.length > 0) {
+  console.log(`  clock: end ${zeroClock.clockEnd}s over ${zeroClock.anchors.length} anchor(s), thirds ${zeroClock.thirdS !== null ? Math.round(zeroClock.thirdS) : '?'}s, wide brackets ${zeroClock.wide} (the sparse-anchor faces judge the midpoints loosely)`)
+  const classes = Object.entries(zeroClock.byClass).sort((a, b) => b[1].n - a[1].n)
+  for (const [why, row] of classes) {
+    const bots = Object.entries(row.byBot).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  ${why}: n=${row.n} early ${row.byPhase.early} / mid ${row.byPhase.mid} / late ${row.byPhase.late} / unplaced ${row.byPhase.unplaced}${bots ? ` per bot: ${bots}` : ''}`)
+  }
+  const bf = budgetFloorVerdict(zeroClock)
+  if (bf.verdict === 'late') console.log(`  THE BUDGET-FLOOR VERDICT: LATE-dominant (${bf.n}) - the floor's EOF design bounded the spend; the pocket's drain is the lever, the budget is not`)
+  else if (bf.verdict === 'mid') console.log(`  THE BUDGET-FLOOR VERDICT: MID-dominant (${bf.n}) - the chain budgets bite mid-run; the budget sizing is the lever`)
+  else if (bf.verdict === 'early') console.log(`  THE BUDGET-FLOOR VERDICT: EARLY-dominant (${bf.n}) - the floor bites from the start; the chain's opening budget is the lever`)
+  else if (bf.verdict === 'mixed') console.log(`  THE BUDGET-FLOOR VERDICT: mixed (${bf.n}) - no dominance, no verdict claimed`)
+} else {
+  console.log(`  hop zeros: 0 (clock ${zeroClock.clockEnd === null ? 'unread' : zeroClock.clockEnd + 's'} - the honest zero)`)
 }
 
 // (v0.438.0) THE OPEN-DEAF WINDOW - the open-timeout hop zeros against the
