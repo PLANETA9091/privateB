@@ -224,7 +224,7 @@ export function shooterCensus (lines) {
     const raw = raws[i]
     const botKey = e.bot ?? 'unknown'
     byBot[botKey] = (byBot[botKey] || 0) + 1
-    // (v0.392.0) THE COMBAT-WHALE LENS - byBot and byVerb alone cannot see
+    // (v0.393.0) THE COMBAT-WHALE LENS - byBot and byVerb alone cannot see
     // the whale's SHAPE (face 15: F2=287 lines is 43% of the face, but of
     // WHICH verbs?). The bot x verb cross is the decode tool.
     const vMap = (byBotVerb[botKey] = byBotVerb[botKey] || {})

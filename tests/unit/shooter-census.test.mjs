@@ -193,7 +193,7 @@ test('skip whys v2: the four drift forms the unknown bucket named (face-15 verba
   assert.deepEqual(SKIP_REASON_RES.map(([k]) => k).slice(5), ['ring-incomplete', 'arrow-wall-incomplete', 'night-context', 'step-in-incomplete', 'cells-not-free'])
 })
 
-// (v0.392.0) THE COMBAT-WHALE LENS - the bot x verb cross
+// (v0.393.0) THE COMBAT-WHALE LENS - the bot x verb cross
 test('byBotVerb: the whale cross pins each bot\'s verb split', () => {
   const c = shooterCensus([
     RING_RANGED, SHELTERING, COOLDOWN, VERDICT_FLIP, SHELTER_TRY,

@@ -273,7 +273,7 @@ if (shooter.total > 0) {
   console.log(`  combat lines: ${shooter.total} (attackers: ${atkRow || 'none priced'})`)
   const botRow = Object.entries(shooter.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
   if (botRow) console.log(`  per-bot: ${botRow}`)
-  // (v0.392.0) THE COMBAT-WHALE LENS - the top bots' verb splits (byBot says
+  // (v0.393.0) THE COMBAT-WHALE LENS - the top bots' verb splits (byBot says
   // WHO carries the lines, byVerb says WHAT the face did; only the cross
   // says what the WHALE was doing)
   for (const [b, n] of Object.entries(shooter.byBot).sort((a, b2) => b2[1] - a[1]).slice(0, 2)) {
