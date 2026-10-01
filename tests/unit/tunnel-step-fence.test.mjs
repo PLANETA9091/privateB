@@ -76,5 +76,5 @@ test('WIRING: the fence break names itself - log, stats ledger, zeroWhy (the v0.
 
 test('WIRING: the import rides the surface.mjs block (the tunnel helpers block)', () => {
   const src = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
-  assert.match(src, /  tunnelStepRefusal, \/\/ \(v0\.420\.0\) THE TUNNEL STEP FENCE/, 'the import is named beside its siblings')
+  assert.match(src, /  tunnelStepRefusal, \/\/ \(v0\.429\.0\) THE TUNNEL STEP FENCE/, 'the import is named beside its siblings')
 })

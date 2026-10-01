@@ -289,7 +289,7 @@ export function veinDigRefusal ({ airBelow = 0, blind = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// (v0.425.0) THE TUNNEL STEP FENCE - the walking lane's own vertical truth.
+// (v0.429.0) THE TUNNEL STEP FENCE - the walking lane's own vertical truth.
 // MEASURED (face 27, 36870593766): F14 'fell from a high place' [kind=fall]
 // at [-132,45,405] - the ONLY fall death across faces 26+27 - while the
 // tunnel's raw one-block step (v0.10.4 lesson 2) was the fleet's LAST motion

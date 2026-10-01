@@ -28,7 +28,7 @@ import {
   TRAVERSE_MAX_BLOCKS, TRAVERSE_MAX_MS, TRAVERSE_MAX_ATTEMPTS, TRAVERSE_STALL_LIMIT,
   TRAVERSE_ROTATE_LIMIT, veinDigRefusal,
   climbO2Watch, // (v0.379.0) the wet-sentinel watch - the escape's o2 arms as one gate
-  tunnelStepRefusal, // (v0.425.0) THE TUNNEL STEP FENCE - the raw step's vertical truth
+  tunnelStepRefusal, // (v0.429.0) THE TUNNEL STEP FENCE - the raw step's vertical truth
   tunnelStopReason, TUNNEL_MAX_MS, climbTargetY,
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
@@ -3270,7 +3270,7 @@ export function createMiner ({
           zeroWhy = tunnelZeroWhy({ feetBox: feetB?.boundingBox ?? null, headBox: headB?.boundingBox ?? null, feetName: feetB?.name ?? null, headName: headB?.name ?? null }) // (v0.240.0) the water-table band's verdict
           break
         }
-        // (v0.425.0) THE TUNNEL STEP FENCE - the walking lane's own vertical
+        // (v0.429.0) THE TUNNEL STEP FENCE - the walking lane's own vertical
         // truth, probed BEFORE any dig of the step cell. The fleet fences
         // every other motion primitive against the 4+ drop (the shaft digger
         // sidesteps it, the vein sweep fences its cells, the support/lip dig
