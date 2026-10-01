@@ -187,7 +187,7 @@ export class MiningJobQueue {
 // free), and callers already treat goto as best-effort so a bounded wait is safe.
 import { createPathThrottle } from './pathsemaphore.mjs'
 import { recordNoPath, nearNoPath, isDeadChestVerdict, NOPATH_TIMEOUT_TTL_MS } from './nopath.mjs'
-import { RESCUE_MAX_MS } from './drowning.mjs'
+import { RESCUE_MAX_MS, routeHazardVerdict } from './drowning.mjs' // (v0.385.0) the route gate reads the SAME ledger truth the goal gates read
 import { createWalkGovernor, STALL_MIN_PROGRESS, FLEET_WINDOW_MS, FLEET_CHURN_LIMIT, FLEET_COOLDOWN_MS } from './walkgovernor.mjs'
 import { createGoalBrake, GOAL_WINDOW_MS, GOAL_BURST_LIMIT, GOAL_COOLDOWN_MS, FLEET_GOAL_WINDOW_MS, FLEET_GOAL_BURST_LIMIT, FLEET_GOAL_COOLDOWN_MS, FLEET_GOAL_ESCALATED_MS, FLEET_GOAL_RECLOSE_WINDOW_MS } from './goalbrake.mjs' // (v0.143.0) the re-issue cadence brake - the storm's rate knob
 import { createAllocValve, valveAdmits, startAllocValve, stormCellApply, funnelStormVerdict, funnelSlowVerdict, FUNNEL_SLOW_WINDOW_MS_DEFAULT, valveFunnelCloseLine, ALLOC_VALVE_NEAR_BLOCKS_DEFAULT } from './allocvalve.mjs' // (v0.102.0) the A* allocation storm valve; (v0.121.0) the funnel probe rides the same module; (v0.145.0) the slow envelope
@@ -522,7 +522,7 @@ export function resetSpinBreaker () {
 // reopens after 12s (30s escalated). Short walks (rescues <=12, climbs, next-
 // column steps) still flow - a drowning bot never waits on a memory valve.
 const fleetValve = createAllocValve({ onState: () => { try { if (typeof fleetGoalSweeper === 'function') fleetGoalSweeper() } catch { /* a sweep never kills the valve's own verdict */ } } }) // (v0.143.0) the sweep-on-close rides the valve's own close transitions (the storm brake union)
-const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0 }
+const valveStats = { refusals: 0, nearPasses: 0, hazardRefusals: 0, duckRefusals: 0, routeGateRefusals: 0 } // (v0.385.0) routeGateRefusals: the route gate's own count (the repeat-re-entry cure's pacing read)
 // (v0.104.0) THE AQUIFER BOARD - fleet19 sets this at boot (the shared
 // HazardLedger's near()); the closed valve's near exemption consults it so a
 // near walk into live hazard water is refused too (near is not cheap in a
@@ -822,7 +822,7 @@ export function allocValveStatsFor () {
   const snap = fleetValve.consult()
   const fs = funnelProbeControl().stats()
   const ds = stormDuckStats()
-  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, duckRefusals: st.duckRefusals, duckArms: ds.arms, duckActive: ds.active, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses, funnelSlowCloses: fs.slowCloses }
+  return { refusals: st.refusals, nearPasses: st.nearPasses, hazardRefusals: st.hazardRefusals, duckRefusals: st.duckRefusals, routeGateRefusals: st.routeGateRefusals, duckArms: ds.arms, duckActive: ds.active, closes: snap.closes, strikes: snap.strikes, closedNow: snap.closed, workerCloses: fleetValve.stats().workerCloses, queueCloses: fleetValve.stats().queueCloses, funnelCloses: fleetValve.stats().funnelCloses, funnelCellCloses: fs.cellCloses, funnelSlowCloses: fs.slowCloses }
 }
 
 /** Straight-line 3D distance bot -> goal cell, or null when unmeasurable
@@ -1219,9 +1219,55 @@ export function gotoSafe (bot, goal, { timeoutMs = 25000, label = 'walk', priori
       try { if (prevRadius !== undefined) pf.searchRadius = prevRadius } catch { /* mocks */ }
       try { if (prevThink !== undefined) pf.thinkTimeout = prevThink } catch { /* mocks */ }
     }
-    return withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+    // (v0.385.0) THE ROUTE GATE - the repeat-re-entry cure (face 36802577873:
+    // F19 paid FIVE rescues on ONE pocket's rim, every release re-arming the
+    // walk that crossed the water again - the goal gates all read the ledger
+    // at the GOAL, the ROUTE never did). Armed only when both the pathfinder
+    // speaks events (pf.on - bare mocks stay byte-identical legacy) and the
+    // fleet reader is installed (setFleetHazardNear - solo/testbed bots keep
+    // the pre-gate shape). The listener scans every path_update (dynamic
+    // re-plans included) with routeHazardVerdict over the SAME fleetHazardNear
+    // closure the closed-valve aquifer read uses - one ledger, one law. On a
+    // dive (a waypoint deeper into live hazard water than the bot already
+    // stands) the gate stops the pathfinder, kills the goal slot and rejects
+    // with the honest named reason; the walk is refused mid-plan, ONE A*
+    // cheaper than the rescue the first wet step would have paged, and the
+    // caller's own ladder (walkRetryPlan gives 'route gate' no retry - the
+    // route will still be wet on the far side of an immediate re-issue)
+    // rotates the leg. Every guard fails open: no events, no reader, a
+    // throwing scan, a late update after settle - the walk proceeds untouched.
+    let routeReject = null
+    let onRouteUpdate = null
+    const routeGateOn = pf && typeof pf.on === 'function' && typeof pf.removeListener === 'function' && typeof fleetHazardNear === 'function'
+    if (routeGateOn) {
+      onRouteUpdate = upd => {
+        if (!routeReject) return // the walk already settled: a late path_update is noise
+        try {
+          // mineflayer-pathfinder 2.4.x emits (pathObject) with .path the Move
+          // array; a bare array emit shape is tolerated the same way.
+          const moves = Array.isArray(upd) ? upd : (upd && Array.isArray(upd.path) ? upd.path : null)
+          if (!moves) return
+          const hit = routeHazardVerdict({ points: moves, start: startPos, hazardNear: fleetHazardNear })
+          if (!hit) return
+          valveStats.routeGateRefusals++
+          const rejectNow = routeReject
+          try { pf.stop() } catch { /* the flag still bounds the damage */ }
+          try { if (typeof pf.setGoal === 'function') pf.setGoal(null) } catch { /* the zombie kill below repeats it */ }
+          rejectNow(new Error(`route gate: ${label}'s route crosses live hazard water at [${hit.point.x},${hit.point.y},${hit.point.z}] (${hit.d != null ? `${hit.d.toFixed(1)}b` : 'd?'}${hit.zone ? ', zone envelope' : ', point record'}; start depth ${hit.startDepth != null ? `${hit.startDepth.toFixed(1)}b` : 'clean'}) - the walk refused mid-plan, the caller rotates (no deeper than the bot already stands)`))
+        } catch { /* the gate never kills the walk it misjudges */ }
+      }
+      try { pf.on('path_update', onRouteUpdate) } catch { onRouteUpdate = null }
+    }
+    if (onRouteUpdate) routeReject = () => {}
+    const routeGatePromise = onRouteUpdate
+      ? new Promise((_, rej) => { routeReject = rej })
+      : null
+    const walked = withTimeout(bot.pathfinder.goto(goal), timeoutMs, label)
+    return (routeGatePromise ? Promise.race([walked, routeGatePromise]) : walked)
       .then(r => { walkOk = true; return r })
       .finally(() => {
+        routeReject = null // late path_update handlers read this and return
+        if (onRouteUpdate) { try { pf.removeListener('path_update', onRouteUpdate) } catch { /* mocks */ } }
         restore()
         noteGlobal(`pf:done ${label}`)
         if (walkOk) {

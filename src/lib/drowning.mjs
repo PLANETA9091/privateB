@@ -1354,6 +1354,101 @@ export function hazardZones (hazards, now = Date.now(), {
   return zones
 }
 
+// (v0.385.0) THE ROUTE GATE - the repeat-re-entry cure (face 36802577873, F19
+// and F14): the walk pathing reads the ledger at the GOAL (mapTargetFor's
+// wetTrip, digShaft's in-place guard, gotoSafe's closed-valve aquifer read)
+// but never along the ROUTE - so every release re-arms the walk, the resumed
+// path grazes the flooded pocket rim again, and a NEW cell pages a NEW rescue
+// (F19's five rescues were five distinct rim cells of ONE pocket [-125..-109,
+// 376-381]; each rescue re-recorded and re-refreshed the very records a
+// route-aware walk would have honored). The cure reads the SAME near() truth
+// the goal gates read - one ledger, one law - but over the pathfinder's
+// PLANNED route, and it vetoes APPROACH, not presence: a bot standing at a
+// live rim (the released bot always does) may walk OUT or ALONG at its own
+// depth, but a route that dives DEEPER into live hazard water than the bot
+// already stands is refused before the first wet step. The clean-start case
+// (the bot outside every record/zone) treats any route hit as an entry - the
+// walk toward a column the dig would refuse anyway dies at plan time, one
+// A* sooner. The gate is pure and reader-based: the caller hands it the same
+// hazardNear closure the goal gate reads, so cells AND zone envelopes weigh
+// every waypoint and no second truth is born.
+
+/** Scan bound (waypoints) per route verdict. The v0.144.0 far-goal cap keeps
+ * planned paths in the tens of points; 256 is a junk ceiling, not a tuning
+ * knob - the scan is O(points) distance math against <= 24 live records. */
+export const ROUTE_SCAN_MAX_POINTS = 256
+
+/** Grace (blocks) under the start's own hazard depth before a route point
+ * condemns. The released rim bot stands 1-2 blocks from its own fresh record;
+ * pathfinder jitter and diagonal steps bob the planned depth by ~1 block.
+ * Grace 1 refuses only a REAL dive (a point meaningfully deeper than where
+ * the bot already stands) and never a lateral rim transit. */
+export const ROUTE_APPROACH_GRACE_BLOCKS = 1
+
+/**
+ * The route-level hazard verdict (pure, junk-safe, fail-open). Scans the
+ * pathfinder's planned waypoints against the SAME hazardNear reader the goal
+ * gates read (cells + zone envelopes, the fleet's shared truth) and returns
+ * the first point that sits DEEPER in live hazard water than the walk's own
+ * start, or null when the route is clean, junk, or the reader abstains.
+ *
+ * Depth law: d0 = hazardNear(start)?.d (null when the start is clean -> the
+ * start's depth reads as Infinity - any route hit is an entry). A point
+ * refuses when its own hit distance is < d0 - grace: the route moves the bot
+ * CLOSER to hazard water than it already is. Points at or above the start's
+ * depth are the escape leg and the lateral rim transit - free, because the
+ * sentry still owns a real touch and the ledger re-arms every walk.
+ *
+ * Junk-safe end to end: a non-array/empty points list, a non-function reader,
+ * a throwing reader, and non-finite waypoint coords all judge NOTHING (the
+ * gate abstains - the walk proceeds byte-identical to the pre-gate fleet);
+ * the first waypoint (where the bot stands) is never a route sin even when
+ * the start read is junk. Bounds: at most maxPoints waypoints scan.
+ *
+ * @param {object} [p]
+ * @param {Array<{x:number,y:number,z:number}>|null} [p.points] the planned route (Move points or plain cells)
+ * @param {{x:number,y:number,z:number}|null} [p.start] the bot's position when the walk was issued
+ * @param {Function|null} [p.hazardNear] (pos) -> { hazard, d, zone? }|null - the ledger's near
+ * @param {number} [p.graceBlocks] depth grace (see ROUTE_APPROACH_GRACE_BLOCKS)
+ * @param {number} [p.maxPoints] scan bound (see ROUTE_SCAN_MAX_POINTS)
+ * @returns {{ index: number, point: {x:number,y:number,z:number}, d: number|null, startDepth: number|null, zone: boolean }|null}
+ */
+export function routeHazardVerdict ({ points = null, start = null, hazardNear = null, graceBlocks = ROUTE_APPROACH_GRACE_BLOCKS, maxPoints = ROUTE_SCAN_MAX_POINTS } = {}) {
+  if (typeof hazardNear !== 'function') return null
+  if (!Array.isArray(points) || points.length === 0) return null
+  const grace = Number.isFinite(graceBlocks) && graceBlocks >= 0 ? graceBlocks : ROUTE_APPROACH_GRACE_BLOCKS
+  const cap = Number.isFinite(maxPoints) && maxPoints > 0 ? Math.floor(maxPoints) : ROUTE_SCAN_MAX_POINTS
+  // the start's own depth: a hit means the bot ALREADY stands in hazard
+  // adjacency (the released rim bot) - the law becomes 'no deeper than here';
+  // a clean start (null) reads as Infinity - any route hit is an entry.
+  let startDepth = null
+  if (start && Number.isFinite(start.x) && Number.isFinite(start.y) && Number.isFinite(start.z)) {
+    try {
+      const sh = hazardNear(start)
+      if (sh != null && Number.isFinite(sh.d)) startDepth = sh.d
+    } catch { startDepth = null } // a throwing reader judges the start clean? no - it judges NOTHING: null depth means the entry law, but the per-point throw below still abstains whole
+  }
+  const n = Math.min(points.length, cap)
+  for (let i = 0; i < n; i++) {
+    const p = points[i]
+    if (!p) continue
+    const x = Number(p.x)
+    const y = Number(p.y)
+    const z = Number(p.z)
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue // junk waypoint judges nothing
+    if (i === 0) continue // the bot's own standing cell is never a route sin
+    let hit = null
+    try { hit = hazardNear({ x, y, z }) } catch { return null } // a throwing reader abstains the WHOLE verdict (fail-open, the goal-gate law)
+    if (hit == null) continue
+    const d = Number.isFinite(hit.d) ? hit.d : null
+    const limit = startDepth != null ? startDepth - grace : Infinity
+    if (d != null && d < limit) {
+      return { index: i, point: { x, y, z }, d, startDepth, zone: hit.zone === true }
+    }
+  }
+  return null
+}
+
 /**
  * Re-verify a shore cell against the LIVE world right before a flee hop
  * commits to it (pure). shoreDirection scans once; by the time the pathfinder
