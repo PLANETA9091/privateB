@@ -41,6 +41,19 @@
 // (shelter.wallMiss); the SKIP_REASON_RES 'no-diggable-wall' key stays for
 // the HISTORICAL faces (they parse byte-identical). The terrain cure's
 // pricing now reads the wall-miss row, not a skip why.
+//
+// (v0.395.0) THE WHALE-FEED LENS - the line count said the whale carries
+// the face (face 15: F2 = 287 of 668), the cross said its SHAPE (the
+// shelter/flee economy); only the TEMPO was unread. The [hb] heartbeat's
+// ts= rides in the same log - the census timestamps every combat line
+// with it (elapsed seconds, ~20s cadence) and splits each bot's stream
+// into SESSIONS: an explicit end verb ('fight ended' / 'open-field
+// yield') or a silence > 45s starts the next session. THE FIELD READ
+// (live before commit): F2's 287 lines are THREE sessions - one of 278.
+// THE WHALE IS A SIEGE - one continuous open-field engagement for
+// essentially the whole run, not churned micro-bouts; the shelter cure
+// must break siege PERSISTENCE (density/mobility), not just single
+// attempts. F12 the same shape an octave down (79 lines / 3, max 53).
 
 const num = (s) => Number(s)
 
@@ -127,6 +140,14 @@ export function parseSkipWhys (body) {
   return whys
 }
 
+// (v0.395.0) the whale-feed split rules - pinned and exported so the
+// decompose row prints its own rule and the tests pin the behavior.
+export const SESSION_END_VERBS = ['fight-ended', 'open-field-yield']
+export const SESSION_GAP_S = 45
+
+// The heartbeat line: '[hb] n=1 ts=21s rss=251M late=5ms mainLate=0ms'
+const HB_RE = /\[hb\] n=\d+ ts=(\d+)s/
+
 // The verb vocabulary, pinned to the layer's emitted forms - MOST SPECIFIC
 // FIRST (prefix collisions are real: 'shelter ring ...' before 'shelter
 // ...', 'flee ladder|kite|toward shore|bearing' before 'fleeing').
@@ -208,7 +229,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, sessions: {gapS: number, endVerbs: string[], byBot: Object<string,{sessions: number, maxLen: number}>}, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -216,9 +237,16 @@ export function shooterCensus (lines) {
     : (typeof lines === 'string' ? lines.split('\n') : [])
   const entries = []
   const raws = []
+  const ts = []
+  let lastT = null
   for (const l of rows) {
+    // (v0.395.0) the [hb] heartbeat's ts= is the log's own clock (elapsed
+    // seconds) - every combat line rides the last one seen. Junk-safe: a
+    // non-string row judges nothing (parseCombatLine guards its own side).
+    const hm = typeof l === 'string' ? l.match(HB_RE) : null
+    if (hm) lastT = Number(hm[1])
     const e = parseCombatLine(l)
-    if (e) { entries.push(e); raws.push(l) }
+    if (e) { entries.push(e); raws.push(l); ts.push(lastT) }
   }
   const byBot = {}
   const byBotVerb = {}
@@ -280,6 +308,35 @@ export function shooterCensus (lines) {
       if (maxDist === null || e.dist > maxDist) maxDist = e.dist
     }
   })
+  // (v0.395.0) THE WHALE-FEED LENS - the session walk (in-log order): a
+  // bot's stream splits on an explicit end verb or a > 45s silence (two+
+  // missed heartbeats - a continuous fighter's lines never stray that far
+  // apart). The split answers WHAT FEEDS the whale: churn (many short
+  // sessions) vs SIEGE (one long one - face 15's F2: 287 lines, one of 278).
+  const byBotSessions = {}
+  {
+    const st = {}
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i]
+      const t = ts[i]
+      const b = e.bot ?? 'unknown'
+      const s = (st[b] = st[b] || { sessions: 1, cur: 0, maxLen: 0, lastT: null, prevVerb: null })
+      const endSplit = s.prevVerb !== null && SESSION_END_VERBS.includes(s.prevVerb)
+      const gapSplit = s.lastT !== null && t !== null && t - s.lastT > SESSION_GAP_S
+      if (endSplit || gapSplit) {
+        if (s.cur > s.maxLen) s.maxLen = s.cur
+        s.sessions++
+        s.cur = 0
+      }
+      s.cur++
+      s.lastT = t
+      s.prevVerb = e.verb
+    }
+    for (const b of Object.keys(st)) {
+      if (st[b].cur > st[b].maxLen) st[b].maxLen = st[b].cur
+      byBotSessions[b] = { sessions: st[b].sessions, maxLen: st[b].maxLen }
+    }
+  }
   const rangedEvents = entries.filter((e) => e.ranged).length
   return {
     total: entries.length,
@@ -299,6 +356,7 @@ export function shooterCensus (lines) {
     verdictFlips,
     shelter: { tries, skips, ringTries, wallMiss },
     skipWhys,
+    sessions: { gapS: SESSION_GAP_S, endVerbs: SESSION_END_VERBS, byBot: byBotSessions },
     withDist,
     maxDist
   }

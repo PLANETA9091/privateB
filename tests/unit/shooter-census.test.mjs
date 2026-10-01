@@ -272,3 +272,64 @@ test('the HISTORICAL skip form still parses byte-identical (faces 15/18/19)', ()
   assert.equal(c.shelter.wallMiss, 0)
   assert.deepEqual(c.skipWhys, { 'no-diggable-wall': 1 })
 })
+
+// (v0.395.0) THE WHALE-FEED LENS - the session walk pins. The [hb] ts=
+// heartbeat is the log's own clock; a continuous fighter's lines ride one
+// session across ticks, an explicit end verb or a > 45s silence splits.
+const hb = (n, ts) => `[hb] n=${n} ts=${ts}s rss=251M late=5ms mainLate=0ms`
+
+test('whale-feed: continuous engagement across hb ticks is ONE session', () => {
+  const c = shooterCensus([
+    hb(1, 40),
+    'F2 [F2] combat: fighting skeleton',
+    hb(2, 55),
+    'F2 [F2] combat: flee kite hop vs skeleton@4.0',
+    hb(3, 70),
+    'F2 [F2] combat: fight ended vs skeleton (hp 18.0)'
+  ])
+  assert.equal(c.sessions.byBot.F2.sessions, 1)
+  assert.equal(c.sessions.byBot.F2.maxLen, 3)
+  assert.equal(c.sessions.gapS, 45)
+  assert.deepEqual(c.sessions.endVerbs, ['fight-ended', 'open-field-yield'])
+})
+
+test('whale-feed: a >45s silence splits the siege (maxLen remembers the bigger half)', () => {
+  const c = shooterCensus([
+    hb(1, 40),
+    'F2 [F2] combat: fighting skeleton',
+    'F2 [F2] combat: flee kite hop vs skeleton@4.0',
+    'F2 [F2] combat: shelter try vs skeleton (dist 2.8)',
+    hb(2, 120),
+    'F2 [F2] combat: fighting drowned'
+  ])
+  assert.equal(c.sessions.byBot.F2.sessions, 2)
+  assert.equal(c.sessions.byBot.F2.maxLen, 3)
+})
+
+test('whale-feed: explicit ends split sessions even with zero time gap', () => {
+  const c = shooterCensus([
+    'F2 [F2] combat: fighting skeleton',
+    'F2 [F2] combat: fight ended vs skeleton (hp 18.0)',
+    'F2 [F2] combat: fighting skeleton',
+    'F2 [F2] combat: open-field yield vs spider (hp 10.5 < 14 in the dark)',
+    'F2 [F2] combat: fighting zombie'
+  ])
+  assert.equal(c.sessions.byBot.F2.sessions, 3)
+  assert.equal(c.sessions.byBot.F2.maxLen, 2)
+})
+
+test('whale-feed: per-bot isolation + the honest zero + junk safety', () => {
+  const c = shooterCensus([
+    hb(1, 30),
+    'F2 [F2] combat: fighting skeleton',
+    'F9 [F9] combat: fight ended vs skeleton (hp 20.0)',
+    'F9 [F9] combat: fighting zombie',
+    null,
+    42,
+    'not a combat line'
+  ])
+  assert.equal(c.sessions.byBot.F2.sessions, 1)
+  assert.equal(c.sessions.byBot.F9.sessions, 2)
+  const zero = shooterCensus(['launching 19 bots for 600s', hb(1, 20)])
+  assert.deepEqual(zero.sessions.byBot, {})
+})

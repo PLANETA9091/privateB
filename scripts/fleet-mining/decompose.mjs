@@ -280,6 +280,16 @@ if (shooter.total > 0) {
     const vr = Object.entries(shooter.byBotVerb[b] || {}).sort((a, b2) => b2[1] - a[1]).map(([v, c]) => `${v}=${c}`).join(' ')
     console.log(`  combat-whale lens ${b} (${n} lines): ${vr || '-'}`)
   }
+  // (v0.395.0) THE WHALE-FEED LENS - the sessions behind the top bots'
+  // line counts: churn (many short sessions) vs SIEGE (one long one -
+  // face 15's F2 reads 287 lines / 3 sessions, max 278: THE SIEGE READ).
+  const feedRow = Object.entries(shooter.byBot).sort((a, b2) => b2[1] - a[1]).slice(0, 2)
+    .map(([b, n]) => {
+      const s = shooter.sessions.byBot[b]
+      return s ? `${b} ${n} lines / ${s.sessions} sessions (max ${s.maxLen})` : `${b} ${n} lines`
+    })
+    .join(' | ')
+  if (feedRow) console.log(`  whale feed (split on fight-end/yield or > ${shooter.sessions.gapS}s silence): ${feedRow}`)
   console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
   // (v0.394.0) the wall-miss row - the wall-scan verdict line (formerly
   // 'shelter skip (open field: no diggable wall ...)') is a ROUTE MARKER,
