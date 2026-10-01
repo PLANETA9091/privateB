@@ -10,8 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parseSealBanked, parseSealRider, sealCensus,
-  SEAL_BANKED_RE, SEAL_RIDER_RE,
+  parseSealBanked, parseSealRider, parseSealKept, parseSealKeepRider, sealCensus,
+  SEAL_BANKED_RE, SEAL_RIDER_RE, SEAL_KEPT_RE, SEAL_KEEP_RIDER_RE,
 } from '../../src/lib/sealcensus.mjs'
 
 // verbatims (the deposit.mjs templates in the field's DOUBLE-TAG anatomy,
@@ -25,6 +25,11 @@ const COBBLE_BANKED = 'F5 [F5] cobble tithe: banked 8 x cobblestone (pocket keep
 const COBBLE_RIDER = 'F5 [F5] cobble tithe: more firings ride the banked total'
 const SMELT_BANKED = 'F9 [F9] smelt tithe: banked 5 x raw_iron (pocket keeps 3)'
 const SMELT_RIDER = 'F9 [F9] smelt tithe: more firings ride the banked total'
+// (v0.405.0) the keep arm's verbatims (deposit.mjs's keep branch, the
+// tithe's bounded shape byte-adjacent)
+const SEAL_KEPT = 'F14 [F14] seal reserve: kept 6 x cobblestone (the family floor holds)'
+const SEAL_KEPT_DIRT = 'F18 [F18] seal reserve: kept 4 x dirt (the family floor holds)'
+const SEAL_KEEP_RIDER = 'F3 [F3] seal reserve: more keeps ride the family floor'
 
 test('seal-reserve banked verbatim: bot, family, units, item, kept floor', () => {
   assert.deepEqual(parseSealBanked(SEAL_BANKED), {
@@ -126,6 +131,11 @@ test('the honest zero: absent families read zeros (the run84a/run108 baseline)',
     assert.deepEqual(c[fam].byItem, {})
     assert.deepEqual(c[fam].kept, {})
     assert.deepEqual(c[fam].events, [])
+    // (v0.405.0) the keep arm reads the same honest zero
+    assert.equal(c[fam].keeps, 0)
+    assert.equal(c[fam].keepUnits, 0)
+    assert.equal(c[fam].keepRiders, 0)
+    assert.deepEqual(c[fam].keepByItem, {})
   }
 })
 
@@ -159,4 +169,73 @@ test('regex exports stay anchored (the fleet19.log has no timestamp prefix)', ()
   // the anatomy is F-tag + bracket (the death-sweep precedent - no
   // cross-agreement backreference; the emitter guarantees the pair)
   assert.equal(parseSealBanked('F7 [F9] seal reserve: banked 6 x dirt (pocket keeps 8 seal units)').bot, 'F7')
+})
+
+// (v0.405.0) THE KEEP ARM: the reserve's silent branch self-names under
+// the tithe's bounded shape; the census reads both forms. The field
+// question it answers: faces 23/24 read 'seal-reserve: 0 firings' while
+// the roster showed bots HOLDING 2/8 and 6/8 seals - was the keep arm
+// alive? (the per-visit summary line proved intermittent on face 24 -
+// 0 of 10 deposits printed it - so the keep evidence needed its own line)
+test('keep verbatim: bot, family, units held, item', () => {
+  assert.deepEqual(parseSealKept(SEAL_KEPT), {
+    bot: 'F14', family: 'seal-reserve', held: 6, name: 'cobblestone',
+  })
+  assert.deepEqual(parseSealKept(SEAL_KEPT_DIRT), {
+    bot: 'F18', family: 'seal-reserve', held: 4, name: 'dirt',
+  })
+})
+
+test('keep rider verbatim + the banking rider never cross-parses', () => {
+  assert.deepEqual(parseSealKeepRider(SEAL_KEEP_RIDER), { bot: 'F3', family: 'seal-reserve' })
+  // the two bounded vocabularies stay separate: a keep line is not a
+  // banked firing and vice versa (the anchored shapes)
+  assert.equal(parseSealKept(SEAL_BANKED), null)
+  assert.equal(parseSealBanked(SEAL_KEPT), null)
+  assert.equal(parseSealKeepRider(SEAL_RIDER), null)
+  assert.equal(parseSealRider(SEAL_KEEP_RIDER), null)
+})
+
+test('keep census: units held accumulate per item, riders count, bots dedup', () => {
+  const c = sealCensus([
+    SEAL_KEPT,                                       // F14 holds 6 cobblestone
+    SEAL_KEPT_DIRT,                                  // F18 holds 4 dirt
+    'F14 [F14] seal reserve: kept 2 x dirt (the family floor holds)', // F14 again
+    SEAL_KEEP_RIDER,                                 // F3's 3rd keep printed the rider
+    'F7 [F7] seal reserve: banked 6 x dirt (pocket keeps 8 seal units)', // the banking arm rides beside it
+    'b] n=48 ts=961s rss=426M late=233ms mainLate=492ms',
+  ])
+  const f = c['seal-reserve']
+  assert.equal(f.keeps, 3)
+  assert.equal(f.keepUnits, 12)
+  assert.deepEqual(f.keepByItem, { cobblestone: 6, dirt: 6 })
+  assert.equal(f.keepRiders, 1)
+  assert.equal(f.banked, 1)
+  assert.deepEqual(f.bots, ['F14', 'F18', 'F3', 'F7'])
+})
+
+test('keep junk battery: near-miss wordings rejected, non-strings skipped', () => {
+  const c = sealCensus([
+    SEAL_KEPT,
+    null, 42, undefined, { line: SEAL_KEPT },
+    // the banking arm's 'kept' clause (pocket keeps N) must not parse as a keep
+    'F7 [F7] seal reserve: banked 6 x dirt (pocket keeps 8 seal units)',
+    // the tithe families never emit keep lines - a tithe-named keep is junk
+    'F2 [F2] fuel tithe: kept 3 x coal (the family floor holds)',
+    // a truncated / different-suffix keep is junk (the honest sweep: the
+    // census reads only what the fleet actually prints)
+    'F14 [F14] seal reserve: kept 6 x cobblestone',
+    'F14 [F14] seal reserve: kept 6 x cobblestone (pocket keeps 8 seal units)',
+  ])
+  assert.equal(c['seal-reserve'].keeps, 1)
+  assert.equal(c['seal-reserve'].keepUnits, 6)
+  assert.equal(c['fuel-tithe'].keeps, 0)
+  assert.equal(c['fuel-tithe'].keepUnits, 0)
+})
+
+test('keep regexes stay anchored (the fleet19.log has no timestamp prefix)', () => {
+  assert.ok(SEAL_KEPT_RE.test(SEAL_KEPT))
+  assert.ok(SEAL_KEEP_RIDER_RE.test(SEAL_KEEP_RIDER))
+  assert.ok(!SEAL_KEPT_RE.test('2026-10-01T08:35:25.183Z [F14] seal reserve: kept 6 x cobblestone (the family floor holds)'))
+  assert.equal(parseSealKept('F14 [F9] seal reserve: kept 6 x cobblestone (the family floor holds)').bot, 'F14')
 })

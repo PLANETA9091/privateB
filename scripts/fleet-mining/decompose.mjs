@@ -437,6 +437,13 @@ for (const fam of SEAL_FAMILIES) {
   const items = Object.entries(f.byItem).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'
   const kept = Object.entries(f.kept).sort((a, b) => b[1] - a[1]).map(([k, v]) => `keep${k}x${v}`).join(' ') || '-'
   console.log(`  ${fam}: named firings ${f.banked}, units ${f.units}, riders ${f.riders} (each = a 3rd+ silent firing), bots ${f.bots.join(',') || 'none'}`)
+  // (v0.405.0) THE KEEP ARM's row: the reserve's silent branch now
+  // self-names (deposit.mjs) and the census reads it - a family that
+  // never kept prints the honest zero (faces 23/24's read would have
+  // been this row, not '0 firings').
+  const keepItems = Object.entries(f.keepByItem).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'
+  console.log(`    keep arm: named keeps ${f.keeps}, units held ${f.keepUnits}, keep riders ${f.keepRiders}`)
+  if (f.keeps) console.log(`    held by item: ${keepItems}`)
   if (f.banked || f.riders) {
     console.log(`    by item: ${items}`)
     console.log(`    kept floors: ${kept}`)

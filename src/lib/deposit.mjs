@@ -1722,6 +1722,7 @@ export async function depositToChest (bot, {
   let directFalls = 0
   let titheLogs = 0 // (v0.101.0) the tithe's bounded self-naming (first 2 + a count line)
   let sealLogs = 0 // (v0.396.0) the seal reserve's bounded self-naming (first 2 + a count line)
+  let sealKeeps = 0 // (v0.405.0) the reserve's KEEP arm self-names under the same bound
   // (v0.72.0) THE SLOT-DIRECT CURE: the probe (run e0fbe24/32131a4, job
   // 106670204727) finally named the banked=0 wall of ~130 fleets. Transport
   // (the raw window_items packet) MATCHED the server truth exactly, the
@@ -1818,7 +1819,23 @@ export async function depositToChest (bot, {
         const sealCount = countOf(item.name)
         if (sealOver < sealCount) {
           const units = Math.min(sealOver, item.count)
-          if (units <= 0) { skipped.push(item.name); continue }
+          if (units <= 0) {
+            // (v0.405.0) THE KEEP LEDGER: the reserve's silent arm self-names.
+            // The banking arm has logged since v0.396.0, but a pocket at or
+            // under the bound keeps WHOLE STACKS home with no line at all -
+            // face 24 read 'seal-reserve: 0 firings' while the roster showed
+            // bots holding 2/8 and 6/8 seals at their fights: the keep arm's
+            // evidence was unmineable (the kept list truncates at 4 names and
+            // the per-visit summary line proved intermittent there - 0 of 10
+            // deposits printed it, while the in-loop tithe lines all landed).
+            // The first 2 keeps per visit name themselves, the 3rd prints the
+            // rider, the rest ride silent - the tithe's own bounded shape
+            // (v0.101.0), byte-adjacent to the banking arm's block.
+            if (sealKeeps < 2) log(`${tag} seal reserve: kept ${sealCount} x ${item.name} (the family floor holds)`)
+            else if (sealKeeps === 2) log(`${tag} seal reserve: more keeps ride the family floor`)
+            sealKeeps++
+            skipped.push(item.name); continue
+          }
           const sealBefore = sealCount
           try {
             await withTimeout(window.deposit(item.type, null, units), depositClickTimeoutMs, `seal reserve ${item.name}`)
