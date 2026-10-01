@@ -20,6 +20,7 @@ import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowni
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split
+import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -503,6 +504,15 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     console.log("--- RELOG WALK-OUT CENSUS (v0.425.0: the frozen-after-relog detector) ---")
     console.log(`  stalled windows: ${rws} per-bot: ${fmt(perBot(/relog walk-out stalled/))}`)
     console.log(`  rung 1 (gates reset): ${count(/rung 1: the walk gates/)}  rung 2 (+ goal release): ${count(/rung 2: the gates reset/)}  rung 3 (shift exit named): ${count(/rung 3: the gates reset/)}`)
+    // (v0.437.0) THE WALK-OUT WITNESS LENS - the window's own numbers (the
+    // rung verdicts above stay the 0.425.0 lane's raw counts).
+    const wwc = walkoutWitnessCensus(lines)
+    const ws = wwc.windows.windowS
+    const dp = wwc.windows.displacement
+    const wwn = wwc.windows.n
+    const dpRow = dp.n > 0 ? `, displacement ${dp.min}..${dp.max} blocks (avg ${(dp.sum / dp.n).toFixed(2)}) vs the bar max ${wwc.windows.barMax}` : ''
+    console.log(`  witness numbers: window ${ws.min}..${ws.max}s (avg ${(ws.sum / ws.n).toFixed(1)})${dpRow}, unmeasured ${dp.unmeasured}/${wwn}`)
+    if (wwc.unparsed > 0) console.log(`  unparsed: ${wwc.unparsed} walk-out line(s) the grammar refused - the escape hatch`)
   }
 }
 console.log('--- NUDGE FAMILY FIELD LEGS ---')
