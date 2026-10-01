@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -186,4 +186,75 @@ test('mapTripGap: the face-31 composition hand-counted, the honest nulls when a 
   const g3 = mapTripGap(mt, null, 'sand')
   assert.equal(g3.mapKnown, false)
   assert.equal(g3.mapPositions, null, 'no map tail = the knowledge side unknown, never a zero that lies')
+})
+
+// (v0.446.0) THE TRIP RECEIPT - the delivery leg's yield. The counter tail
+// parser rides the tiling law (the pairs must TILE the tail or the whole
+// sample reads null); the composer rides the trip census's own parser
+// (parseMapTrip - no re-parse drift). The verbatim t-lines are face 32's
+// (fleet 36935489850) - the round-trip law holds.
+
+test('res sample: the verbatim face-32 t-lines parse, the tiling law holds, the junk reads null', () => {
+  const s = parseResSample('t-537s alive=19/19 mined=77 map=358p/10ch banked=0 smelted=0 pocket=63u/20s | sand=0 gravel=0 dirt=0 stone=0')
+  assert.deepEqual(s, { t: 537, res: { sand: 0, gravel: 0, dirt: 0, stone: 0 } })
+  assert.deepEqual(parseResSample('t-400s alive=19/19 mined=446 map=626p/13ch banked=0 smelted=0 pocket=619u/205s | sand=3 gravel=2 dirt=64 stone=0'), { t: 400, res: { sand: 3, gravel: 2, dirt: 64, stone: 0 } })
+  // one pair is legal; a garbage gap breaks the tile - null, never a half-read counter
+  assert.deepEqual(parseResSample('t-100s alive=1/1 | sand=7'), { t: 100, res: { sand: 7 } })
+  assert.equal(parseResSample('t-100s alive=1/1 | sand=7 junk here'), null)
+  assert.equal(parseResSample('t-100s alive=1/1 | sand=x'), null)
+  assert.equal(parseResSample('t-100s alive=1/1 | '), null, 'an empty tail is not a counter')
+  assert.equal(parseResSample('some prose line'), null)
+  assert.equal(parseResSample(null), null)
+})
+
+test('tripReceipt: the hand-counted yield - the windows, the incidental verdict, the honest nulls', () => {
+  const lines = [
+    't-537s alive=19/19 | sand=0 gravel=0',
+    'F16 map trip: sand',
+    'F18 map trip skipped: sand,gravel unreachable',
+    't-522s alive=19/19 | sand=0 gravel=1',
+    't-507s alive=19/19 | sand=3 gravel=2',
+    't-492s alive=19/19 | sand=4 gravel=2',
+    'F5 map trip: sand',
+    't-476s alive=19/19 | sand=9 gravel=2',
+    't-461s alive=19/19 | sand=9 gravel=2'
+  ]
+  const r = tripReceipt(lines, 'sand')
+  assert.equal(r.res, 'sand')
+  assert.equal(r.samples, 6)
+  assert.equal(r.launches, 2, 'the skip line is not a launch - the census parser\'s own verdict')
+  assert.equal(r.resLaunches, 2)
+  assert.equal(r.start, 0)
+  assert.equal(r.end, 9)
+  assert.equal(r.peak, 9)
+  assert.deepEqual(r.firstNonzero, { t: 507 })
+  assert.equal(r.firstNonzeroVsLaunch, 'after')
+  assert.equal(r.windows.length, 2)
+  assert.deepEqual(r.windows[0], { bot: 'F16', before: 0, after: 3, delta: 3 })
+  assert.deepEqual(r.windows[1], { bot: 'F5', before: 4, after: 9, delta: 5 })
+  // the incidental leg: the pocket moved BEFORE any launch of the resource
+  const lines2 = ['t-600s alive=1/1 | sand=2', 'F5 map trip: sand', 't-585s alive=1/1 | sand=2']
+  const r2 = tripReceipt(lines2, 'sand')
+  assert.equal(r2.firstNonzeroVsLaunch, 'before')
+  // a launch of another resource: the pocket's own motion reads incidental
+  const lines3 = ['t-600s alive=1/1 | sand=0', 'F5 map trip: gravel', 't-585s alive=1/1 | sand=5']
+  const r3 = tripReceipt(lines3, 'sand')
+  assert.equal(r3.resLaunches, 0)
+  assert.equal(r3.firstNonzeroVsLaunch, 'before', 'the pocket moved with no sand launch - incidental by definition')
+  assert.deepEqual(r3.windows, [])
+  // a late-face launch with no following sample: the yield unknown, never fabricated
+  const lines4 = ['t-600s alive=1/1 | sand=0', 'F5 map trip: sand']
+  const r4 = tripReceipt(lines4, 'sand')
+  assert.deepEqual(r4.windows, [{ bot: 'F5', before: 0, after: null, delta: null }])
+  // a pocket that never moved: the verdict says so, not a fake consistency
+  const lines5 = ['t-600s alive=1/1 | sand=0', 'F5 map trip: sand', 't-585s alive=1/1 | sand=0']
+  const r5 = tripReceipt(lines5, 'sand')
+  assert.equal(r5.firstNonzeroVsLaunch, null)
+  assert.equal(r5.firstNonzero, null)
+  assert.equal(r5.windows[0].delta, 0, 'a zero delta is an honest delta')
+  // the honest nulls: no samples (a pre-pulse face), no launches (the gap row's subject), junk
+  assert.equal(tripReceipt(['F5 map trip: sand'], 'sand'), null)
+  assert.equal(tripReceipt(['t-600s alive=1/1 | sand=0'], 'sand'), null)
+  assert.equal(tripReceipt('not an array', 'sand'), null)
+  assert.equal(tripReceipt(lines, ''), null)
 })

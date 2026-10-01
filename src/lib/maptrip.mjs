@@ -155,3 +155,112 @@ export function mapTripGap (mt, map, stuck) {
     stuckLaunches: mt.byTarget?.[stuck] || 0
   }
 }
+
+// (v0.446.0) THE TRIP RECEIPT - the delivery leg's YIELD arrives. The
+// v0.415.0 lens priced the launch economics, the v0.445.0 gap priced the
+// knowledge side - but neither read whether the launches that DID leave
+// ever moved the pocket. The periodic pulse line carries the fleet-wide
+// resource counter in its tail:
+//
+//   `t-537s alive=19/19 mined=77 map=358p/10ch banked=0 smelted=0 pocket=63u/20s | sand=0 gravel=0 dirt=0 stone=0`
+//
+// Face 32 (fleet 36935489850) made the yield question unignorable: SIX
+// launches (4 sand + 2 gravel - face 31 had ONE, interrupted) yet the
+// plan's worst seat never left sand - the counter shows the fleet's sand
+// POCKET moving 0 -> 14u while have stayed 0..93, and the first nonzero
+// landed BEFORE the first sand launch (F17's shore digging): the
+// incidental leg feeds the pocket too, the trips' yield is the delta in
+// their windows, unattributable by construction (the counter is
+// fleet-wide). The tiling law inherited from the worldmap tail: the
+// counter pairs must TILE the tail or the whole sample reads null.
+
+const RES_SAMPLE_RE = /^t-(\d+)s .*\| (.+)$/
+
+/**
+ * Parse one periodic pulse line's resource counter tail. Returns null on
+ * every non-match (no `| ` tail, a broken tile, junk, prose) - never a
+ * half-read counter.
+ */
+export function parseResSample (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(RES_SAMPLE_RE)
+  if (!m) return null
+  const tail = m[2]
+  const res = {}
+  let last = 0
+  for (const e of tail.matchAll(/([a-z_][a-z_0-9]*)=(\d+)/g)) {
+    if (e.index !== last && e.index !== last + 1) return null
+    res[e[1]] = Number(e[2])
+    last = e.index + e[0].length
+  }
+  if (last !== tail.length || Object.keys(res).length === 0) return null
+  return { t: Number(m[1]), res }
+}
+
+/**
+ * The receipt composer: one pass over the face's lines (samples + the
+ * trip lane's launches), then the yield read for ONE resource (default
+ * sand - the plan's stuck name). Per-res-launch: the pocket's delta
+ * across the next `window` samples (2 samples ~ 30s, fleet-wide,
+ * unattributed by construction). The incidental verdict:
+ * - 'before' - the first nonzero predates the first launch of the
+ *   resource (or no launch of it at all): the incidental leg feeds first
+ * - 'after' - the first nonzero rides at-or-after the first launch
+ * - null - the pocket never moved all face
+ * Honest nulls: no samples (a pre-pulse face) or no launches (the gap
+ * row's own subject) -> null, never a fabricated yield. A missing
+ * resource key in a sample reads 0 (the tail's tile is self-consistent);
+ * a launch without a following sample reads delta null (late-face, the
+ * yield unknown).
+ */
+export function tripReceipt (lines, res = 'sand', window = 2) {
+  if (!Array.isArray(lines) || typeof res !== 'string' || !res) return null
+  const samples = []
+  const launches = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (typeof line !== 'string') continue
+    const s = parseResSample(line)
+    if (s) { samples.push({ i, t: s.t, res: s.res }); continue }
+    const p = parseMapTrip(line)
+    if (p && p.kind === 'launch') launches.push({ i, bot: p.bot, targets: p.targets })
+  }
+  if (!samples.length || !launches.length) return null
+  const v = s => s.res[res] ?? 0
+  let peak = null
+  let firstNonzero = null
+  for (const s of samples) {
+    const val = v(s)
+    if (peak === null || val > peak) peak = val
+    if (!firstNonzero && val > 0) firstNonzero = s
+  }
+  const resLaunches = launches.filter(l => l.targets.includes(res))
+  const windows = resLaunches.map(l => {
+    let before = null
+    for (const s of samples) { if (s.i <= l.i) before = s; else break }
+    const afterList = samples.filter(s => s.i > l.i).slice(0, window)
+    const after = afterList[afterList.length - 1] || null
+    return {
+      bot: l.bot,
+      before: before ? v(before) : null,
+      after: after ? v(after) : null,
+      delta: (before && after) ? v(after) - v(before) : null
+    }
+  })
+  const firstResLaunch = resLaunches[0] || null
+  const firstNonzeroVsLaunch = !firstNonzero
+    ? null
+    : (!firstResLaunch || firstNonzero.i < firstResLaunch.i) ? 'before' : 'after'
+  return {
+    res,
+    samples: samples.length,
+    launches: launches.length,
+    resLaunches: resLaunches.length,
+    start: v(samples[0]),
+    end: v(samples[samples.length - 1]),
+    peak,
+    firstNonzero: firstNonzero ? { t: firstNonzero.t } : null,
+    firstNonzeroVsLaunch,
+    windows
+  }
+}

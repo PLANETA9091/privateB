@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.446.0) the delivery leg's yield
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1071,6 +1071,30 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       : 'the map\'s knowledge is unreadable by design (no worldmap tail this face)'
     console.log('--- MAP TRIP GAP (v0.445.0: the stuck resource\'s knowledge-delivery read) ---')
     console.log(`  ${stuck}: demanded by the trip lane ${g.demanded}x (launches ${g.stuckLaunches}, unreachable skips ${g.unreachable}, shaft-locked ${g.shaftLocked}); ${know} - the delivery leg, not the knowledge leg, is the lever`)
+  }
+}
+
+// (v0.446.0) THE TRIP RECEIPT - the delivery leg's YIELD: did the launches
+// that DID leave ever move the pocket? The periodic pulse line's counter
+// tail is the fleet-wide read (unattributed by construction); each
+// res-launch gets the delta across its 2-sample window (~30s), and the
+// incidental verdict prices the counter's own motion against the first
+// launch. Face 32's shape: six launches (4 sand) yet the first nonzero
+// landed BEFORE the first sand launch - the shore leg feeds the pocket
+// too. Honest skips: no samples (a pre-pulse face), no launches (the gap
+// row's own subject), a pocket that never moved (the verdict says so).
+{
+  const rc = tripReceipt(lines, 'sand')
+  if (rc) {
+    console.log('--- TRIP RECEIPT (v0.446.0: the delivery leg\'s yield - did the launches move the pocket) ---')
+    const verdict = rc.firstNonzeroVsLaunch === 'before'
+      ? `the first nonzero landed BEFORE the first ${rc.res} launch - the incidental leg (shore/underground) feeds the pocket too`
+      : rc.firstNonzeroVsLaunch === 'after'
+        ? `the first nonzero landed AFTER the first ${rc.res} launch - the launch window delivered`
+        : 'the pocket never moved all face'
+    console.log(`  ${rc.res} pocket: start ${rc.start} -> end ${rc.end} (peak ${rc.peak}); first nonzero ${rc.firstNonzero ? `at t-${rc.firstNonzero.t}s` : 'none'} - ${verdict}`)
+    const w = rc.windows.map(x => x.delta === null ? `${x.bot}(no sample in window)` : `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u`).join(' ')
+    console.log(`  launch windows (${rc.windows.length}, 2-sample fleet-wide, unattributed): ${w || 'none'}`)
   }
 }
 
