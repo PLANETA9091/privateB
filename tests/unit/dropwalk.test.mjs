@@ -60,6 +60,8 @@ test('drop-walk: the classifier battery - the unknown verdict stays honest as ot
   // the water-rescue form is the field's fourth shape (face 26 line 1874) -
   // the bot's own rescue holds the controls, the drop walks ride it out
   assert.equal(classifyDropFailWhy('water rescue in progress (sweep drops refused)').why, 'water-rescue')
+  // the bare no-path verdict is the field's fifth shape (face 27, F17 r1)
+  assert.equal(classifyDropFailWhy('No path to the goal!').why, 'no-path')
   const o = classifyDropFailWhy('some future verdict the walk layer invented')
   assert.equal(o.why, 'other')
   assert.equal(classifyDropFailWhy(null).why, 'other')

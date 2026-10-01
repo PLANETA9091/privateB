@@ -34,6 +34,7 @@ const TIMEOUT_RE = /^sweep drops: timeout after (\d+)ms$/
 const DOOMED_RE = /^doomed goal \(ledgered (\d+)s ago(?: at \[(-?\d+),(-?\d+),(-?\d+)\])?\) - sweep drops refused$/
 const CEILING_RE = /^fleet goal ceiling: (\d+) goals fleet-wide in (\d+)s - sweep drops refused for (\d+)s$/
 const WATER_RESCUE_RE = /^water rescue in progress \(sweep drops refused\)$/
+const NO_PATH_RE = /^No path to the goal!$/
 
 /**
  * Classify the walk layer's own verdict text into the lens's buckets.
@@ -61,6 +62,9 @@ export function classifyDropFailWhy (reason) {
     }
   }
   if (typeof reason === 'string' && WATER_RESCUE_RE.test(reason)) return { why: 'water-rescue' }
+  // the bare no-path verdict is the walk layer's own vocabulary (the fleet's
+  // shared classifyWalkWhy bucket) - the fifth field shape (face 27, F17 r1)
+  if (typeof reason === 'string' && NO_PATH_RE.test(reason)) return { why: 'no-path' }
   return { why: 'other' }
 }
 
