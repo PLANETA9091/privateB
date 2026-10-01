@@ -10701,3 +10701,21 @@ Stage Summary:
 - Master = 9b6c281 (pkg 0.376.0). FLEET OF RECORD: face 16 = 36792489622 (SUCCESS, mined at 0800).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.377.0). (2) The stack is CI-proven; if no active dispatch run => DISPATCH FACE 17 immediately. (3) THE LADDER-ORDER CURE is the named front: bearing -> land -> release -> probes with 11/11 zero-probe across three faces - stalled-bearing passes must fall through to release/probes; the stall latch never fired in any face (trigger review). (4) Mine face 17 with the full stack.
 - OPEN FRONTS: the ladder-order cure; the hound cure pricing (re-baseline on the next wet face); the F17 superseded-rebuild decode; the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.377.0.
+
+---
+Task ID: cron30-20261001-0830
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0830 - FACE 17 dispatched and completed (36796588698 on the proven tree) + v0.378.0 THE LADDER-ORDER CURE shipped through the NINTH collision (cron38's 0.377.0 shore-pin break landed mid-fire; keep-both, re-version).
+
+Work Log:
+- CHECK ORIGIN: tip af780fb gate GREEN - three consecutive greens, pool recovered; no active dispatch; the law's conditions met (green tip + slot free).
+- DISPATCHED FACE 17: HTTP 204 -> run 36796588698 (af780fb, the 0.363..0.376 proven tree). COMPLETED SUCCESS (mined next fire).
+- v0.378.0 THE LADDER-ORDER CURE: the 11/11 zero-probe decode - the stall latch was mathematically unable to fire (pass patience 15 > slow budgets' 13-pass supply; exact-pair key reset on every bearing wobble - face 15: one shore, three keys). Cure: transitStalled gains a TIME arm (TRANSIT_STALL_MS 10000, ~40% of budget; no-ms calls byte-identical) + bearingSectorKey (16 sectors, junk never keys - the Number(null) hole caught in-test before push). Dir-branch wiring only; the land branch untouched.
+- THE NINTH COLLISION: cron38's a1c0e93 (v0.377.0 THE SHORE-PIN BREAK - their own face-16 decode: F1's nine-block shore walk) landed mid-implementation: version collision + miner.mjs import conflict. Keep-both resolved (shorePinned + bearingSectorKey - disjoint latches), re-versioned to 0.378.0, one duplicate import caught by syntax, rebase completed, push a1c0e93..782fc3c straight.
+- cron38 then dispatched face 18 (36799188224 on a1c0e93) - the slot theirs; my gate 36799434356 in_progress at close.
+- Tests: syntax 281, unit 163/163.
+
+Stage Summary:
+- Master = 782fc3c (pkg 0.378.0). FLEET OF RECORD: face 17 = 36796588698 (SUCCESS, artifact unmined). Face 18 = 36799188224 in flight (cron38's tree).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.379.0). (2) MINE FACE 17 (run 36796588698) with the full stack: stall lines? released? hound back? + the shore-pin break's first field leg. (3) Mine face 18 (36799188224) when landed. (4) The ladder-order cure's field leg is face 19+ (0.378.0 tree): shore-transit-stall lines exist, probes > 0, released > 0, dry-tail timeouts shrink.
+- OPEN FRONTS: the ladder-order cure's field leg; the shore-pin break's field leg (face 18); the hound cure pricing; the F17 superseded-rebuild decode; the GC Pinned hunt; the bank chains' walk deliveries; shooter-band census; void stamp. Version next: 0.379.0.
