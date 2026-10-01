@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseTransitLaunch, parseTransitStall, transitCensus, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs'
+import { parseTransitLaunch, parseTransitStall, transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs'
 
 test('transit-census: the face verbatim launch (F1, the walls class seat)', () => {
   const line = 'F1 [F1] water: transit toward known land (oak_log) at [-134,413] d=3'
@@ -160,4 +160,73 @@ test('stall depth split: the unpaired stall - a stall with no launch before it i
   assert.equal(c.stalls.pocketN, 1, 'the WHERE cut reads the stall alone')
   assert.equal(c.stalls.unpairedN, 1)
   assert.equal(c.stalls.pairs.n, 0)
+})
+
+// (v0.446.0) THE LAUNCH CADENCE - the repeats alone say nothing; the
+// d-progression is the truth. Face 32's field lesson: the decompose's
+// 'THE PINNED SEAT (the walls class)' label rode the single-bot repeat
+// alone and mislabeled F19's honest 32-launch approach (d 46..16) - while
+// face 30's F8 (26 launches, every d=11) was the real walls. The seqs ride
+// every target; targetCadence() cuts the verdict; thin evidence reads null.
+
+test('launch cadence: the face-32 approach fixture - F19\'s launches descend, the repeats earned their keep', () => {
+  const lines = [
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=46',
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=45',
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=44',
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=20',
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=17',
+    'F19 [F19] water: transit toward known land (oak_log) at [-78,375] d=16'
+  ]
+  const c = transitCensus(lines)
+  assert.equal(c.targets.length, 1)
+  assert.deepEqual(c.targets[0].seqs, { F19: { n: 6, min: 16, max: 46 } })
+  assert.deepEqual(targetCadence(c.targets[0]), { verdict: 'approach', closed: 65, min: 16, max: 46 }, '30 of 46 closed = 65%')
+})
+
+test('launch cadence: the face-30 walls fixture - F8\'s flat d=11 x26 re-arms keep the walls label', () => {
+  const lines = []
+  for (let i = 0; i < 26; i++) lines.push('F8 [F8] water: transit toward known land (oak_log) at [-143,430] d=11')
+  const c = transitCensus(lines)
+  assert.deepEqual(c.targets[0].seqs, { F8: { n: 26, min: 11, max: 11 } })
+  assert.deepEqual(targetCadence(c.targets[0]), { verdict: 'walls', closed: 0, min: 11, max: 11 }, 'zero spread = zero progress = the walls')
+})
+
+test('launch cadence: the 50% cut - closed exactly half reads approach, just under reads walls', () => {
+  const mk = (ds) => ds.map(d => `F1 [F1] water: transit toward known land (oak_log) at [-134,413] d=${d}`)
+  const half = transitCensus(mk([10, 10, 5, 5, 5])) // spread 5 of max 10 = exactly 0.5
+  assert.equal(targetCadence(half.targets[0]).verdict, 'approach', 'the boundary rides the approach side')
+  const under = transitCensus(mk([10, 10, 6, 6, 6])) // spread 4 of 10 = 0.4
+  assert.equal(targetCadence(under.targets[0]).verdict, 'walls')
+})
+
+test('launch cadence: thin evidence reads null - multi-bot, short runs, junk, and the d=0 anomaly', () => {
+  const mkBot = (bot, d) => `${bot} [${bot}] water: transit toward known land (oak_log) at [-134,413] d=${d}`
+  // multi-bot: the d's mix two swimmers - no verdict
+  const mixed = transitCensus([mkBot('F1', 10), mkBot('F1', 20), mkBot('F17', 8), mkBot('F17', 9), mkBot('F1', 12)])
+  assert.equal(targetCadence(mixed.targets[0]), null)
+  // short run: 4 launches is under the label's own bar
+  const short = transitCensus([mkBot('F1', 10), mkBot('F1', 9), mkBot('F1', 8), mkBot('F1', 7)])
+  assert.equal(targetCadence(short.targets[0]), null)
+  // junk target rows (hand-built, no seqs / non-object / inconsistent)
+  assert.equal(targetCadence(null), null)
+  assert.equal(targetCadence('junk'), null)
+  assert.equal(targetCadence({ total: 9, bots: { F1: 9 } }), null, 'no seqs leg')
+  assert.equal(targetCadence({ total: 9, bots: { F1: 9 }, seqs: { F1: { n: 9, min: 'junk', max: 3 } } }), null, 'junk min')
+  assert.equal(targetCadence({ total: 9, bots: { F1: 9 }, seqs: { F1: { n: 9, min: 5, max: 3 } } }), null, 'max < min is impossible evidence')
+  // d=0: launching AT the land - no distance left to close, the anomaly reads walls
+  const atLand = transitCensus([mkBot('F2', 0), mkBot('F2', 0), mkBot('F2', 0), mkBot('F2', 0), mkBot('F2', 0)])
+  assert.deepEqual(targetCadence(atLand.targets[0]), { verdict: 'walls', closed: 0, min: 0, max: 0 })
+})
+
+test('launch cadence: the seqs are per-bot at a shared target - never mixed', () => {
+  const mkBot = (bot, d) => `${bot} [${bot}] water: transit toward known land (oak_log) at [-101,399] d=${d}`
+  const c = transitCensus([
+    mkBot('F1', 40), mkBot('F1', 35), mkBot('F1', 30), mkBot('F1', 25), mkBot('F1', 20), // F1 descends
+    mkBot('F2', 7), mkBot('F2', 7), mkBot('F2', 7), mkBot('F2', 7), mkBot('F2', 7) // F2 flat
+  ])
+  assert.equal(c.targets[0].total, 10)
+  assert.deepEqual(c.targets[0].seqs, { F1: { n: 5, min: 20, max: 40 }, F2: { n: 5, min: 7, max: 7 } })
+  // the target is multi-bot: no verdict at target level (the mixing law)
+  assert.equal(targetCadence(c.targets[0]), null)
 })

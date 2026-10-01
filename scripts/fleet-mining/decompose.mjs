@@ -22,7 +22,7 @@ import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
-import { transitCensus, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split
+import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -1218,8 +1218,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  launches: ${tc.launches.n}${ll ? `, land: ${ll}` : ''}${d.n > 0 ? `, d ${d.min}..${d.max} (avg ${(d.sum / d.n).toFixed(1)})` : ''}${lb ? `, top bots: ${lb}` : ''}`)
     for (const t of tc.targets.slice(0, 5)) {
       const botsRow = Object.entries(t.bots).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join('+')
-      const pinned = Object.keys(t.bots).length === 1 && t.total >= 5 ? ' - THE PINNED SEAT (the walls class)' : ''
-      console.log(`  target [${t.x},${t.z}] (${t.land}) x${t.total} bots ${botsRow}${pinned}`)
+      // (v0.446.0) THE LAUNCH CADENCE VERDICT - the repeats alone say nothing:
+      // face 32's F19 x32 at [-78,375] read d 46..16 (the honest APPROACH,
+      // 65% closed) while face 30's F8 x26 at [-143,430] sat ALL at d=11
+      // (the true WALLS). The label now carries the d-progression truth:
+      // flat (closed < 50%) stays the pinned seat, a descending sequence is
+      // named the approach it is. Thin evidence (multi-bot, short runs,
+      // junk) reads no label - the legacy silence, never a fake verdict.
+      const cad = targetCadence(t)
+      const cadence = !cad
+        ? ''
+        : cad.verdict === 'approach'
+          ? ` - THE APPROACH (d ${cad.max}..${cad.min}, closed ${cad.closed}% - the repeats earned their keep)`
+          : ` - THE PINNED SEAT (the walls class - d flat ${cad.max}..${cad.min})`
+      console.log(`  target [${t.x},${t.z}] (${t.land}) x${t.total} bots ${botsRow}${cadence}`)
     }
     if (tc.targets.length > 5) console.log(`  ... ${tc.targets.length - 5} more target(s) - the tail stays in the lib's row`)
     if (tc.stalls.n > 0) {

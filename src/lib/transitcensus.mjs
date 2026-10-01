@@ -88,8 +88,15 @@ export function parseTransitStall (line) {
  * (v0.435.0) The stalls carry the DEPTH SPLIT: pocket vs route (where it
  * died) and pairs (ground gained vs the bot's most recent launch: toTheLip
  * vs early) + unpairedN (no launch to pair - evidence, never assumed).
+ * (v0.446.0) THE LAUNCH CADENCE - each target carries per-bot seqs (the
+ * bot's own launch-d sequence stats {n,min,max}): face 32 proved the
+ * pinned-seat claim over-broad - F19 launched 32 times at [-78,375] with
+ * d descending 46..16 (the honest APPROACH, 65% closed), while face 30's
+ * F8 launched 26 times at [-143,430] ALL at d=11 (the true WALLS - zero
+ * progress). The repeats alone say nothing; the d-progression is the
+ * truth-check, targetCadence() is its verdict.
  * @param {string[]|string} [lines] the face log
- * @returns {{launches: {n: number, byBot: {}, byLand: {}, dist: {n: number, min: number|null, max: number|null, sum: number}}, stalls: {n: number, byBot: {}, distMax: number|null, passesMax: number|null, pocketN: number, routeN: number, pairs: {n: number, gainedMin: number|null, gainedMax: number|null, gainedSum: number, toTheLipN: number, earlyN: number}, unpairedN: number}, targets: Array<{key: string, x: number, z: number, total: number, bots: {}, land: string}>, unparsed: number}}
+ * @returns {{launches: {n: number, byBot: {}, byLand: {}, dist: {n: number, min: number|null, max: number|null, sum: number}}, stalls: {n: number, byBot: {}, distMax: number|null, passesMax: number|null, pocketN: number, routeN: number, pairs: {n: number, gainedMin: number|null, gainedMax: number|null, gainedSum: number, toTheLipN: number, earlyN: number}, unpairedN: number}, targets: Array<{key: string, x: number, z: number, total: number, bots: {}, land: string, seqs: {[bot]: {n: number, min: number, max: number}}}> , unparsed: number}}
  */
 export function transitCensus (lines) {
   const rows = Array.isArray(lines)
@@ -118,11 +125,16 @@ export function transitCensus (lines) {
       const key = `${p.x},${p.z}`
       let t = targets.get(key)
       if (!t) {
-        t = { key, x: p.x, z: p.z, total: 0, bots: {}, land: p.land }
+        t = { key, x: p.x, z: p.z, total: 0, bots: {}, land: p.land, seqs: {} } // (v0.446.0) seqs rides the target
         targets.set(key, t)
       }
       t.total++
       t.bots[p.bot] = (t.bots[p.bot] || 0) + 1
+      // (v0.446.0) the bot's own launch-d sequence (the cadence lens's fuel)
+      const seq = t.seqs[p.bot] || (t.seqs[p.bot] = { n: 0, min: p.dist, max: p.dist })
+      seq.n++
+      if (p.dist < seq.min) seq.min = p.dist
+      if (p.dist > seq.max) seq.max = p.dist
       lastLaunch.set(p.bot, p.dist)
       continue
     }
@@ -154,4 +166,31 @@ export function transitCensus (lines) {
   }
   const sorted = [...targets.values()].sort((a, b) => b.total - a.total)
   return { launches, stalls, targets: sorted, unparsed }
+}
+
+// (v0.446.0) THE LAUNCH CADENCE VERDICT - the pinned-seat label's truth
+// check, pure and testable. The walls keep the bot at the SAME range across
+// its re-arms (face 30's F8: 26 launches, every d=11); the approach reads
+// the d's DESCEND (face 32's F19: 32 launches, 46..16 - 65% of the distance
+// closed). The cut: closed = (max-min)/max; closed >= 0.5 is the approach,
+// below is the walls candidate. Thin evidence reads NULL, never a fake
+// verdict: multi-bot targets (whose d's mix two swimmers), short runs
+// (< 5 launches - the label's own bar), missing/junk seqs, max < 0. A max
+// of 0 (launching AT the land) reads walls - there is no distance left to
+// close, the repeats are the anomaly to name.
+/**
+ * @param {{total?: number, bots?: {}, seqs?: {[bot]: {n: number, min: number, max: number}}}} [t] a census target row
+ * @returns {null|{verdict: 'approach'|'walls', closed: number, min: number, max: number}}
+ */
+export function targetCadence (t) {
+  if (!t || typeof t !== 'object') return null
+  const bots = Object.keys(t.bots || {})
+  if (bots.length !== 1 || (t.total || 0) < 5) return null
+  const seq = t.seqs && t.seqs[bots[0]]
+  if (!seq || typeof seq !== 'object') return null
+  if (!Number.isFinite(seq.min) || !Number.isFinite(seq.max) || seq.min < 0 || seq.max < 0 || seq.max < seq.min) return null
+  const spread = seq.max - seq.min
+  const closed = seq.max > 0 ? spread / seq.max : 0
+  const verdict = closed >= 0.5 ? 'approach' : 'walls'
+  return { verdict, closed: Math.round(closed * 100), min: seq.min, max: seq.max }
 }
