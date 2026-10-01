@@ -11281,3 +11281,18 @@ Work Log:
 
 Stage Summary:
 - Master = 8b58122 (pkg 0.410.0). NEXT FIRE: read gate 36868453621; poll FACE 26 (36864564525) and MINE when completed - the walk-fail row rides free on the tip's decompose (does the 120-decide resting rate reproduce? does the sweep epicenter?); the next cure candidate prices the sweep lane's walk ladder (the sweep re-pays the A* per machine per pass). Version next: 0.411.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261001-2130
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2130 - v0.411.0 THE BANK-FAIL LENS shipped (the bank lane's own decide/no-path ledger - the A* starvation's fourth leg: hop + walk-fail + sweep + bank in one GRAND TOTAL row); FACE 26 (36864564525) MINED - the decide storm DID NOT REPRODUCE (133 -> ~0) while the eviction debt hit its deepest read (2007): the cohort is NOT the eviction debt; FACE 27 = 36870593766 dispatched on the v0.411.0 tip.
+
+Work Log:
+- CHECK ORIGIN FIRST: b8f3c56 still tip, pkg 0.411.0 taken (origin checked). FACE 26 = completed SUCCESS -> artifact -> /home/z/my-project/run36864564525.
+- THE LENS: face 25's 13 bank decide refusals rode a THIRD family: the walk-backs ('bank: chest unreachable (Took...) (7 blocks from yard) - walking back') and the three zero arms (mid/pre/final). src/lib/bankfail.mjs (pure): classifyBankReason (the chest-unreachable wrapper unwraps into the SHARED classifyWalkWhy - the v0.410.0 vocabulary reused; the trip's own buckets no-chest/nothing/budget/underground/water-rescue), parseBankWalkBack (dist-from-yard prices the abort), parseBankZero (arms mid/pre/final, the reason to the LAST paren), bankFailCensus. Decompose: the BANK-FAIL CENSUS block + the A* starvation GRAND TOTAL row. The doom emitter and the DELIVERED side ('final bank: +N', bankcensus's) out of scope - one parser per emitter. Mining-surface only: zero fleet wiring, zero new log lines.
+- FIRST FIELD READ (face 25, live before commit): walk-backs 10 - ALL decide-timeout (the bank lane dies at the DECIDE phase, the trips never start moving), avg 14.5 blocks (max 30); zeros 14 (final 9/pre 5): nothing 3/decide 3/underground 3/budget 2/no-chest 1/no-path 1/budget-floor 1. GRAND TOTAL face 25 = 133 decides/face.
+- FACE 26 READ (600s, the v0.408.0 tree): the decide storm DID NOT REPRODUCE - 2 'Took to long' lines total (vs 79); zero-hops 6 (decide 0), walk-fail lanes 3, sweep 4 attempts (all walk-timeout 426..5336ms - the decide phase clear), bank decides 0. THE CROSS-READ: evicted max 2007 (the DEEPEST yet) with ZERO decides - the A* cohort does NOT correlate with the eviction depth; the storm-class law extends (face-conditional cohorts, not resting rates). Deaths 2 (F14 ~118u seal 100u, F4 25u); keep arm named keeps 0 (second face); rss max 390M, mainLate 1308ms, oom locks 0.
+- Tests: tests/unit/bankfail.test.mjs (6). One mid-fire TEST-math fix (the v0.395.0 lesson's third occurrence). Syntax 311, unit 181/181; integration skipped - no JDK/server jar. Push b8f3c56..18bba42 CLEAN. Gate 36868453621 (8b58122, v0.410.0) = SUCCESS; my v0.411.0 gate 36870116516 QUEUED at close. FACE 27 = 36870593766 dispatched HTTP 204 on 18bba42, materialized QUEUED (the slot freed with FACE 26's completion).
+
+Stage Summary:
+- Master = 18bba42 (pkg 0.411.0). NEXT FIRE: poll gate 36870116516; poll FACE 27 (36870593766) and MINE - the GRAND TOTAL's second read (does the calm hold?), the sweep's small walk-timeouts' second read, the mem row (does the 2007-class debt reproduce WITHOUT the storm?). Cure pricing: the decide cohort = the obstructed mid-distance geometry - a cohort-aware think-budget escalation is the candidate (the bank walk-backs' ALL-decide shape: the trips die BEFORE moving). Version next: 0.412.0. Identity: PLANETA9091.
