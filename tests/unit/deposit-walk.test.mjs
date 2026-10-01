@@ -61,22 +61,26 @@ function makeMockBot ({ items = [], chest = null, gotoScript = [] } = {}) {
 // so every test here starts from an empty ledger.
 beforeEach(() => resetDoomedGoalLedger())
 
-test('chestWalkBudgetMs: short-hop pin 15s (d<=16), floor knee, 500 ms/block, cap at 60s', () => {
-  // (v0.56.0) THE SHORT-HOP PIN: F2 (run51/35639593200) stood d=10..11 from the
-  // chest rows and 2 crowd-crushed walks ate 30s each, then the walk floor
-  // refused the 3rd chest. d<=16 walks now cap at 15s: one stuck walk cannot
-  // starve the hop loop, and 3 short hops still fit the chain clock.
-  assert.equal(chestWalkBudgetMs(0), CHEST_WALK_SHORT_MS, 'a near chest walks in seconds - the 30s floor only fed stalls')
-  assert.equal(chestWalkBudgetMs(-5), CHEST_WALK_SHORT_MS, 'nonsense distance -> the short class')
-  assert.equal(chestWalkBudgetMs(10), CHEST_WALK_SHORT_MS, 'the F2 case: 35s of stall budget becomes 15s')
-  assert.equal(chestWalkBudgetMs(16), CHEST_WALK_SHORT_MS, 'the pin covers the whole short class')
-  assert.equal(chestWalkBudgetMs(17), CHEST_WALK_BASE_MS, 'past the pin the historical 30s floor resumes (the curve floors at 30s until d~50)')
+test('chestWalkBudgetMs: the short-hop re-price - ONE dist-scaled curve, the 15s clamp retired', () => {
+  // (v0.404.0) THE SHORT-HOP RE-PRICE: the v0.56.0 pin (d<=16 -> 15s) was
+  // priced on ONE bot's 2 crowd-crushed walks (run51 F2) - the field has
+  // re-priced it: faces 22+23 captured 13 walk-timeouts, 9+4 the
+  // EXACTLY-15000ms pin fingerprint at d=8..16, walks the 30s base floor
+  // would have finished (face 22's retry needed ~28s; the pin granted 15s).
+  // The starvation fences post-date the pin (chain clamp, 2-attempt ladder,
+  // chest failover, the 15s doom ttl) - ONE arithmetic for every hop now.
+  assert.equal(chestWalkBudgetMs(0), CHEST_WALK_BASE_MS, 'a near chest rides the same 30s base floor as every hop')
+  assert.equal(chestWalkBudgetMs(-5), CHEST_WALK_BASE_MS, 'nonsense distance -> the base floor (the curve floors, never clamps short)')
+  assert.equal(chestWalkBudgetMs(10), CHEST_WALK_BASE_MS, 'the F2 geometry re-priced: 30s, the field says the walk needs ~28s')
+  assert.equal(chestWalkBudgetMs(16), CHEST_WALK_BASE_MS, 'the whole former short class rides the base floor')
+  assert.equal(chestWalkBudgetMs(17), CHEST_WALK_BASE_MS, 'past the old pin boundary the same floor continues (floors at 30s until d~50)')
   assert.equal(chestWalkBudgetMs(64), 64 * 500 + 5000, '64 blocks = detour-allowed 37s, NOT the old flat 30s')
   assert.equal(chestWalkBudgetMs(200), CHEST_WALK_CAP_MS, 'an absurd distance hits the cap - the walk stays bounded')
   const a = chestWalkBudgetMs(50) // the knee: 50*500+5000 = the 30s floor exactly
   const b = chestWalkBudgetMs(64) // past the knee the budget scales again
   assert.ok(a < b, 'monotonic in distance (above the floor knee)')
   assert.ok(chestWalkBudgetMs(64) > 30000, 'the fleet #128 case (far chest) must get MORE than the old flat budget')
+  assert.equal(CHEST_WALK_SHORT_MS, 15000, 'the constant survives as the YARD GRACE pardon budget - never again a delivery clamp')
 })
 
 test('the walk budget scales with the real straight-line distance (auto mode)', async () => {

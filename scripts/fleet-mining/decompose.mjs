@@ -460,7 +460,18 @@ if (hopZero.total > 0) {
   console.log(`  per bot: ${bots || 'none'}`)
   const hot = Object.entries(hopZero.byChest).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `[${k}]x${v}`).join(' ')
   if (hot) console.log(`  hot chests (repeat zero positions): ${hot}`)
-  if (hopZero.timeouts.walk.length) console.log(`  walk timeouts ms: ${hopZero.timeouts.walk.join(',')}`)
+  if (hopZero.timeouts.walk.length) {
+    console.log(`  walk timeouts ms: ${hopZero.timeouts.walk.join(',')}`)
+    // (v0.404.0) THE RE-PRICE SPLIT: the v0.56.0 short-hop pin (d<=16 -> 15s)
+    // retired - a walk-timeout at EXACTLY 15000ms is the pin's fingerprint,
+    // so the split prices the cure's field leg (post-cure, the <=15s class
+    // should shrink to the chain-clamped stragglers only).
+    const w = hopZero.timeouts.walk
+    const pinned = w.filter((m) => m === 15000).length
+    const under = w.filter((m) => m < 15000).length
+    const base = w.filter((m) => m > 15000).length
+    console.log(`  walk budget split (the v0.404.0 re-price verdict): pinned(=15s)=${pinned} chain-clamped(<15s)=${under} base(>15s)=${base}`)
+  }
   if (hopZero.timeouts.open.length) console.log(`  open timeouts ms: ${hopZero.timeouts.open.join(',')}`)
   if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
 } else {

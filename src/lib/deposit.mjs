@@ -1290,25 +1290,25 @@ export function yardGraceGate ({ dist = null, graceUsed = false, shortDist = CHE
 export const CHEST_DOOM_TTL_MS = 15000
 
 export function chestWalkBudgetMs (dist) {
-  // (v0.56.0) THE SHORT-HOP PIN (the run51 F2 class): F2 stood d=10..11 from the
-  // chest rows and its 2 walks ate 30s each ('walk to chest (retry): timeout
-  // after 30000ms' - a crowd-crushed stall, not a distance problem), then the
-  // walk floor refused the 3rd chest. A d<=16 walk physically needs ~8s; a
-  // 30s+ budget per attempt lets ONE stuck walk starve the whole hop loop.
-  // Pin the short class to 15s: 3 short hops still fit the chain clock, and a
-  // genuinely blocked short walk fails fast enough to try the NEXT chest.
+  // (v0.404.0) THE SHORT-HOP RE-PRICE - the flat 15s pin retires. THE PIN'S
+  // LEDGER (v0.56.0, priced on run51 F2): 2 crowd-crushed walks ate 30s each,
+  // so d<=16 hops were clamped to 15s - 'one stuck walk cannot starve the
+  // hop loop'. THE FIELD RE-PRICE (faces 22 + 23, the hop-zero census's
+  // captured ms): 13 walk-timeouts, 9+4 of them the EXACTLY-15000ms pin
+  // fingerprint, at d=8..16 - walks the 30s base floor would have finished
+  // (face 22's own retry read 28090ms against a clamped budget: the walk
+  // needed ~28s, the pin granted 15s, the delivery died). The pin's benefit
+  // is now owned by fences that post-date it: the chain clock clamps every
+  // walk (effectiveWalkBudget), the 2-attempt ladder bounds the retry, the
+  // chest failover rescans past a dead candidate, and the 15s CHEST_DOOM_TTL
+  // poisons a proven-dead chest for the whole fleet. ONE arithmetic for every
+  // hop: the dist-scaled curve (30s base floor, 500 ms/block, 5s overhead,
+  // 60s cap) - CHEST_WALK_SHORT_MS stays exported as the YARD GRACE's pardon
+  // budget (the one-shot floor-refusal top-up, a bounded grace by design),
+  // never again a delivery clamp.
   const d = Number.isFinite(dist) && dist > 0 ? dist : 0
-  if (d <= CHEST_WALK_SHORT_DIST) {
-    return Math.min(CHEST_WALK_SHORT_MS, walkBudgetMs({
-      dist,
-      base: CHEST_WALK_BASE_MS,
-      perBlock: CHEST_WALK_PER_BLOCK_MS,
-      cap: CHEST_WALK_CAP_MS,
-      overhead: 5000
-    }))
-  }
   return walkBudgetMs({
-    dist,
+    dist: d,
     base: CHEST_WALK_BASE_MS,
     perBlock: CHEST_WALK_PER_BLOCK_MS,
     cap: CHEST_WALK_CAP_MS,
