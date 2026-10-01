@@ -6,6 +6,7 @@ import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
+import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -380,6 +381,26 @@ console.log('  bank visits:', count(/bank(ed)?[: ]/i) > 0 ? count(/\bbank\b/) : 
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))
 console.log('  deposit probe:', count(/deposit/i))
+
+// (v0.397.0) THE SEAL-RESERVE CENSUS - the deposit-side keep families
+// (fuel/cobble/smelt tithes + the v0.396.0 seal reserve) were never read
+// by the tool; their bounded self-naming (first 2 firings named, a 3rd
+// rides the rider line, the rest silent) is the log's ONLY account of
+// how often the keeps fired. The seal family's field leg is new with
+// the reserve itself - its first fleet contact rides the NEXT face
+// (face 22 runs c387008, pre-reserve).
+console.log('--- SEAL-RESERVE CENSUS (v0.397.0: the four bounded keep families) ---')
+const seal = sealCensus(lines)
+for (const fam of SEAL_FAMILIES) {
+  const f = seal[fam]
+  const items = Object.entries(f.byItem).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'
+  const kept = Object.entries(f.kept).sort((a, b) => b[1] - a[1]).map(([k, v]) => `keep${k}x${v}`).join(' ') || '-'
+  console.log(`  ${fam}: named firings ${f.banked}, units ${f.units}, riders ${f.riders} (each = a 3rd+ silent firing), bots ${f.bots.join(',') || 'none'}`)
+  if (f.banked || f.riders) {
+    console.log(`    by item: ${items}`)
+    console.log(`    kept floors: ${kept}`)
+  }
+}
 
 console.log('=== COMBAT (v0.135.0 instrument) ===')
 console.log('  fight ended:', count(/combat: fight ended/), 'per-bot:', fmt(perBot(/combat: fight ended/)))
