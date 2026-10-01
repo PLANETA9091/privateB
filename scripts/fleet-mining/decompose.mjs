@@ -10,6 +10,7 @@ import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the 
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
+import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -529,6 +530,38 @@ if (hopZero.total > 0) {
   if ((hasWalk || hasSweep) && wf.decideTotal > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0
     console.log(`  A* starvation (decide) fleet-wide: walk-fail lanes + sweep = ${wf.decideTotal}, the hop lane's own = ${hopDecide}, total ${wf.decideTotal + hopDecide}`)
+  }
+}
+
+// (v0.411.0) THE BANK-FAIL LENS - the bank lane's own decide/no-path ledger.
+// The walk-fail lens above read the tool lanes and the sweep; the BANK lane
+// - the delivery machinery's heaviest walker - stayed unread. Face 25
+// attempt 2 carried 13 bank decide refusals (10 walk-backs - the bot
+// ABANDONS the chest and pays the walk home, a whole trip's opportunity
+// cost). The block completes the fleet-wide A* starvation read: hop +
+// walk-fail lanes + sweep + bank in one row.
+{
+  const bf = bankFailCensus(lines)
+  const hasWb = bf.walkBack.total > 0
+  const hasZ = bf.zeros.total > 0
+  if (hasWb || hasZ) {
+    console.log("--- BANK-FAIL CENSUS (v0.411.0: the bank lane's decide/no-path ledger) ---")
+  }
+  if (hasWb) {
+    const bw = Object.entries(bf.walkBack.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const bb = Object.entries(bf.walkBack.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  walk-backs: ${bf.walkBack.total} by why: ${bw || 'none'}`)
+    console.log(`  per bot: ${bb || 'none'} - dist from yard: n=${bf.walkBack.dists.n} max=${bf.walkBack.dists.max} avg=${(bf.walkBack.dists.sum / bf.walkBack.dists.n).toFixed(1)}`)
+  }
+  if (hasZ) {
+    const za = Object.entries(bf.zeros.byArm).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const zw = Object.entries(bf.zeros.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  zero deliveries: ${bf.zeros.total} by arm: ${za || 'none'} - by why: ${zw || 'none'}`)
+  }
+  if ((hasWb || hasZ) && bf.decideTotal > 0) {
+    const hopDecide = hopZero.byWhy['decide-timeout'] || 0
+    const wfDecide = walkFailCensus(lines).decideTotal
+    console.log(`  A* starvation GRAND TOTAL (hop + walk-fail + sweep + bank): ${hopDecide + wfDecide + bf.decideTotal} (bank's own = ${bf.decideTotal})`)
   }
 }
 
