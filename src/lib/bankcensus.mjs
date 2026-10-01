@@ -73,7 +73,13 @@ const BANK_FLOW_RE = /^bank flow: ([\d.]+)u\/s \(banked \+(\d+)u over (\d+)s\) -
 // structural deficit the kill margin owns by construction. The $ anchor is
 // the anatomy law: the print template ends at one of the three forms - an
 // imagined suffix must never parse as a budget line again.
-const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet pocket (\d+)u at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows(?: - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not a rate - priced at the ex-burst ([\d.]+)u\/s)?(?: - clamped to (\d+)s \(the kill margin\))?$/
+// (v0.390.0) the pocket class named on the line splits: the bankable form
+// ('fleet bankable pocket Nu (raw Mu)') rides beside the legacy form ('fleet
+// pocket Nu') - ONE optional-prefix alternation, the capture grid unchanged,
+// both faces readable forever. The number that priced the need lands in the
+// same group either way (the honest-line law: the meaning changed, the name
+// changed with it; the census reads the priced pocket).
+const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet (?:bankable )?pocket (\d+)u(?: \(raw \d+u\))? at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows(?: - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not a rate - priced at the ex-burst ([\d.]+)u\/s)?(?: - clamped to (\d+)s \(the kill margin\))?$/
 const ATTRIBUTION_RE = /^bank attribution: top (.+?); stranded: (.+)$/
 
 // (v0.387.0) THE DELIVERABLE CENSUS - the v0.385.0 arm's cause line carries
@@ -85,7 +91,11 @@ const ATTRIBUTION_RE = /^bank attribution: top (.+?); stranded: (.+)$/
 // time left). The '?' parts are the gate's own '?' prints (a null input);
 // the $ anchor is the anatomy law - the template ends at 'the trip fires
 // early', an imagined suffix never parses as an event.
-const DELIVERABLE_RE = /^(F\d+) bank trip: deliverable \((clamp|clock)\) - fleet pocket (\d+)u at ([\d.]+|\?)u\/s needs (\d+|\?)s vs (\d+|\?)s (the final bank can never grant - the surplus must ride now|the run cannot drain in the time left) - the trip fires early$/
+// (v0.390.0) the bankable form rides beside the legacy form (the same
+// optional-prefix alternation BUDGET_RE rides, the capture grid unchanged:
+// 'fleet bankable pocket Nu (raw Mu)' and 'fleet pocket Nu' both land the
+// priced pocket in m[3]).
+const DELIVERABLE_RE = /^(F\d+) bank trip: deliverable \((clamp|clock)\) - fleet (?:bankable )?pocket (\d+)u(?: \(raw \d+u\))? at ([\d.]+|\?)u\/s needs (\d+|\?)s vs (\d+|\?)s (the final bank can never grant - the surplus must ride now|the run cannot drain in the time left) - the trip fires early$/
 
 // 'F3 bank trip: deliverable (clamp) - fleet pocket 495u at 0.3u/s needs
 // 1654s vs 300s the final bank can never grant - the surplus must ride now

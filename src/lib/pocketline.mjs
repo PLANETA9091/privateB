@@ -21,14 +21,33 @@
 //
 // Pure arithmetic over plain shapes so CI tests every branch without a server.
 
+// (v0.390.0) THE BANKABLE POCKET - the crafted-class surplus cure's pricing
+// half. Face 19 (36802577873) priced the whale: the end pocket 495u held
+// crafted-class 191u (38.6%) - stick 96u, oak_planks 70u, torch 12u - and the
+// deposit's own KEEP list (deposit.mjs) can NEVER bank those units, while the
+// bank-flow rate counts only BANKED units (a bankable-only pace). The flow
+// pricing joined the two dishonestly: units-that-never-bank divided by a
+// rate-that-only-banks (the v0.349.0 KEEP nuance, the scope law's named
+// price). pocketTotals now splits the sum with the deposit's own predicate -
+// the KEEP list passed in (the runner hands DEPOSIT_KEEP; ONE list, both
+// sides), the substring classes byte for byte (name.includes(k)). Default
+// keep=[] reads bankable===units (byte-identical legacy for every existing
+// caller); junk keep lists read legacy too; a nameless item can match no
+// KEEP class, so it counts bankable (un-KEEP-able by construction). The
+// slot/kit truth stays raw: the reporter tick and the loot ledger keep
+// units - the pricing joins (the flow clock, the deliverability arm, the
+// gap row) read bankable.
 /**
  * Fleet-wide pocket snapshot.
  * @param {Array<{bot?: {inventory?: {items?: Function}}}>} miners
- * @returns {{units: number, slots: number}}
+ * @param {{keep?: string[]}} [opts] KEEP substring classes (deposit.mjs's own list; default [] = everything bankable)
+ * @returns {{units: number, slots: number, bankable: number, kept: number}}
  */
-export function pocketTotals (miners) {
+export function pocketTotals (miners, { keep = [] } = {}) {
+  const keepList = Array.isArray(keep) ? keep : []
   let units = 0
   let slots = 0
+  let bankable = 0
   for (const m of (Array.isArray(miners) ? miners : [])) {
     try {
       const items = m?.bot?.inventory?.items?.()
@@ -37,12 +56,18 @@ export function pocketTotals (miners) {
         // a torn view must not corrupt the sum: NaN/Infinity AND negative
         // counts are impossible data (a pocket cannot hold -5 units) - zeroed
         const c = it?.count
-        units += (Number.isFinite(c) && c > 0) ? c : 0
+        const n = (Number.isFinite(c) && c > 0) ? c : 0
+        units += n
+        // the deposit's own predicate: a KEEP class rides IN the name
+        // ('pickaxe' keeps wooden_pickaxe, 'cooked_' keeps cooked_beef)
+        const name = typeof it?.name === 'string' ? it.name : ''
+        const kept = keepList.some(k => typeof k === 'string' && k !== '' && name.includes(k))
+        if (!kept) bankable += n
       }
       slots += items.length
     } catch { /* a torn window view on a dying bot counts as zero this tick */ }
   }
-  return { units, slots }
+  return { units, slots, bankable, kept: units - bankable }
 }
 
 // (v0.302.0) THE WRITE-OFF'S FIRST LINE. Fleet 36517770723 (the v0.299.0

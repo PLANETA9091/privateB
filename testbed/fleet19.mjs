@@ -2218,13 +2218,19 @@ async function runBot (name, target, index) {
         // (midBankBudgetMs) - the arm names the TRIGGER, never the spend.
         const deliverableArm = (() => {
           const eligible = bankRefusalOpen && !tripPlanned && !bankDusk && !duskPlan.go && !!load && load.units > 0
-          if (!eligible) return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null }
+          if (!eligible) return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null, fleetRaw: null }
           try {
-            const fleetUnits = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean)).units
-            const midFlow = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetUnits, baseMs: END_BANK_BUDGET })
+            // (v0.390.0) THE BANKABLE POCKET - the pricing denominator splits:
+            // the flow rate counts BANKED units (a bankable-only pace), so the
+            // pocket priced against it must be the BANKABLE sum - the KEEP kit
+            // (sticks/planks/torches/logs, face 19's crafted-class 191u of
+            // 495u) can never ride and never priced an honest need before (the
+            // v0.349.0 KEEP nuance closed). ONE list both sides: DEPOSIT_KEEP.
+            const fleetPk = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean), { keep: DEPOSIT_KEEP })
+            const midFlow = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetPk.bankable, baseMs: END_BANK_BUDGET })
             const grantedS = finalBankBudgetMs({ yardDist: bankYardDist, marginLeftMs: Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now()), floorMs: midFlow.floorMs, capMs: END_BANK_BUDGET_CAP_MS }) / 1000
-            return { ...deliverableNow({ needS: midFlow.needS, grantedS, timeLeftS: bankRemainingMs / 1000 }), rate: midFlow.rate, fleetUnits }
-          } catch { return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null } }
+            return { ...deliverableNow({ needS: midFlow.needS, grantedS, timeLeftS: bankRemainingMs / 1000 }), rate: midFlow.rate, fleetUnits: fleetPk.bankable, fleetRaw: fleetPk.units }
+          } catch { return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null, fleetRaw: null } }
         })()
         const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go || deliverableArm.go)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
@@ -2297,8 +2303,11 @@ async function runBot (name, target, index) {
             // (v0.385.0) the cause form: the priced numbers ride the line, the
             // class sizes itself in the 'bank ' filter key (the census reads
             // need-vs-limit straight off it, the v0.382.0 shape)
+            // (v0.390.0) the line names the BANKABLE pocket and carries the raw
+            // beside it - a number that changed meaning must change name (the
+            // honest-line law); the census reads both forms (the alternation)
             const dl = deliverableArm
-            console.log(`${name} bank trip: deliverable (${dl.term}) - fleet pocket ${dl.fleetUnits}u at ${dl.rate != null ? dl.rate.toFixed(1) : '?'}u/s needs ${dl.needS != null ? Math.round(dl.needS) : '?'}s vs ${dl.limitS != null ? Math.round(dl.limitS) : '?'}s ${dl.term === 'clamp' ? 'the final bank can never grant - the surplus must ride now' : 'the run cannot drain in the time left'} - the trip fires early`)
+            console.log(`${name} bank trip: deliverable (${dl.term}) - fleet bankable pocket ${dl.fleetUnits}u (raw ${dl.fleetRaw}u) at ${dl.rate != null ? dl.rate.toFixed(1) : '?'}u/s needs ${dl.needS != null ? Math.round(dl.needS) : '?'}s vs ${dl.limitS != null ? Math.round(dl.limitS) : '?'}s ${dl.term === 'clamp' ? 'the final bank can never grant - the surplus must ride now' : 'the run cannot drain in the time left'} - the trip fires early`)
           }
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
@@ -2602,8 +2611,18 @@ async function runBot (name, target, index) {
         // pocket 846u on the ex-burst 1.1u/s reads 768s and the clock finally
         // speaks where both cures ride alone it stays silent - 216s at the
         // wave's 4.0u/s fleet-pocketed, 99s at the ex-burst per-bot.)
-        const fleetPocketUnits = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean)).units
-        const flowClock = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetPocketUnits, baseMs: END_BANK_BUDGET })
+        // (v0.390.0) THE BANKABLE POCKET - the denominator now reads the
+        // BANKABLE fleet sum (the same DEPOSIT_KEEP list the deposit filters
+        // with, one list both sides): the flow rate counts BANKED units, so
+        // units that can never ride (the KEEP kit - face 19's crafted-class
+        // 191u of 495u) must not price the need. The v0.349.0 KEEP nuance -
+        // the scope law's named price - closes here. The gap row below reads
+        // the same class of sum (the sibling-shape law: one number, both
+        // sides). (Composed with the v0.348.0 tail-burst guard: the guard
+        // owns the RATE - a deposit wave is not a pace - this cure owns the
+        // DENOMINATOR.)
+        const fleetPocketUnits = pocketTotals([...bots.values()].map(e => e.miner).filter(Boolean), { keep: DEPOSIT_KEEP })
+        const flowClock = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: fleetPocketUnits.bankable, baseMs: END_BANK_BUDGET })
         const chainBudgetMs = finalBankBudgetMs({
           yardDist,
           marginLeftMs: entryMarginMs,
@@ -2623,7 +2642,7 @@ async function runBot (name, target, index) {
           const burstNote = flowClock.burst
             ? ` - the tail burst (${flowClock.burst.spanS}s, ${flowClock.burst.delta}u, ${Math.round(flowClock.burst.share * 100)}% of the window's delta) is not a rate - priced at the ex-burst ${flowClock.rate.toFixed(1)}u/s`
             : ''
-          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (fleet pocket ${fleetPocketUnits}u at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${burstNote}${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
+          console.log(`${name} final bank budget: flow-priced ${(flowClock.floorMs / 1000).toFixed(0)}s (fleet bankable pocket ${fleetPocketUnits.bankable}u (raw ${fleetPocketUnits.units}u) at ${flowClock.rate.toFixed(1)}u/s needs ${flowClock.needS}s) - the static ${(END_BANK_BUDGET / 1000).toFixed(0)}s covered only the fast flows${burstNote}${clamped ? ` - clamped to ${(chainBudgetMs / 1000).toFixed(0)}s (the kill margin)` : ''}`)
         }
         // (v0.21.1) FINAL-BANK STAGGER: all 19 bots used to enter climbOut + the
         // yard walk in the same second (fleet #131: 14x 'final bank: 0' at t-0,
@@ -3670,7 +3689,12 @@ if (bankFlow) console.log(bankFlow)
 // the fleet's entries paid) - the sibling-shape law's completion: the clock
 // that pays and the row that judges read the same number. No chain ever
 // entered -> the static constant keeps the row's voice (nothing was granted).
-const bankGap = bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPk.units, budgetMs: grantedChainBudgetMs > 0 ? grantedChainBudgetMs : END_BANK_BUDGET })
+// (v0.390.0) the row prices the BANKABLE end pocket - the same class of sum
+// the flow clock prices (the sibling-shape law kept through the cure): the
+// raw endPk stays the ledger's slot truth, the bankable split prices the
+// shortage the bank can actually drain.
+const endPkBankable = pocketTotals(list, { keep: DEPOSIT_KEEP }).bankable
+const bankGap = bankBudgetGapRow(bankFlowSamples.slice(-BANK_FLOW_WINDOW), { pocketUnits: endPkBankable, budgetMs: grantedChainBudgetMs > 0 ? grantedChainBudgetMs : END_BANK_BUDGET })
 if (bankGap) console.log(bankGap)
 // (v0.203.0) the sweep drop ledger: the run-level read of the sweep's drop-walk
 // economics - the below-plane residue gets its day-scale trend row and the

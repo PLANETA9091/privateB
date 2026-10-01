@@ -6,34 +6,37 @@ import fs from 'node:fs'
 const inv = (items) => ({ bot: { inventory: { items: () => items } } })
 
 test('pocketTotals: empty and broken inputs are zeros, not throws', () => {
-  assert.deepStrictEqual(pocketTotals([]), { units: 0, slots: 0 })
-  assert.deepStrictEqual(pocketTotals(undefined), { units: 0, slots: 0 })
-  assert.deepStrictEqual(pocketTotals(null), { units: 0, slots: 0 })
-  assert.deepStrictEqual(pocketTotals('nope'), { units: 0, slots: 0 })
+  // (v0.390.0) the bankable split rides the shape additively (default keep=[]
+  // reads bankable===units, kept 0 - byte-identical legacy sums)
+  const zeros = { units: 0, slots: 0, bankable: 0, kept: 0 }
+  assert.deepStrictEqual(pocketTotals([]), zeros)
+  assert.deepStrictEqual(pocketTotals(undefined), zeros)
+  assert.deepStrictEqual(pocketTotals(null), zeros)
+  assert.deepStrictEqual(pocketTotals('nope'), zeros)
 })
 
 test('pocketTotals: miners without a live inventory contribute zero', () => {
   // a not-yet-spawned miner (no bot) and a dead one (bot without window)
   const miners = [{}, { bot: {} }, { bot: { inventory: {} } }]
-  assert.deepStrictEqual(pocketTotals(miners), { units: 0, slots: 0 })
+  assert.deepStrictEqual(pocketTotals(miners), { units: 0, slots: 0, bankable: 0, kept: 0 })
 })
 
 test('pocketTotals: sums units across stacks and miners, counts occupied slots', () => {
   const a = inv([{ name: 'cobblestone', count: 64 }, { name: 'dirt', count: 1 }])
   const b = inv([{ name: 'cobblestone', count: 33 }])
   // units 98 over 3 slots - the shape the t- line prints as pocket=98u/3s
-  assert.deepStrictEqual(pocketTotals([a, b]), { units: 98, slots: 3 })
+  assert.deepStrictEqual(pocketTotals([a, b]), { units: 98, slots: 3, bankable: 98, kept: 0 })
 })
 
 test('pocketTotals: a torn window view (throwing items()) counts as zero, others still counted', () => {
   const torn = { bot: { inventory: { items: () => { throw new Error('window closed') } } } }
   const healthy = inv([{ name: 'stone', count: 12 }])
-  assert.deepStrictEqual(pocketTotals([torn, healthy]), { units: 12, slots: 1 })
+  assert.deepStrictEqual(pocketTotals([torn, healthy]), { units: 12, slots: 1, bankable: 12, kept: 0 })
 })
 
 test('pocketTotals: non-finite and negative counts do not corrupt the sum', () => {
   const weird = inv([{ name: 'x', count: NaN }, { name: 'y', count: -5 }, { name: 'z', count: 7 }])
-  assert.deepStrictEqual(pocketTotals([weird]), { units: 7, slots: 3 })
+  assert.deepStrictEqual(pocketTotals([weird]), { units: 7, slots: 3, bankable: 7, kept: 0 })
 })
 
 test('lootLedger: the measured fleet-35566494961 class reproduces as ~7% conversion', () => {
@@ -649,7 +652,11 @@ test('bankBudgetGapRow: THE WIRING PIN - the gap row prices the granted clock', 
   // budget is the GRANTED truth (the max chainBudgetMs the fleet's chain
   // entries paid), the static constant only when no chain ever entered -
   // the v0.348.0 wiring's own shape, byte for byte
-  assert.match(src, /const bankGap = bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPk\.units, budgetMs: grantedChainBudgetMs > 0 \? grantedChainBudgetMs : END_BANK_BUDGET \}\)/)
+  // (v0.390.0) the row prices the BANKABLE end pocket - the same class of sum
+  // the flow clock prices (the sibling-shape law through the cure); the raw
+  // endPk stays the ledger's slot truth
+  assert.match(src, /const endPkBankable = pocketTotals\(list, \{ keep: DEPOSIT_KEEP \}\)\.bankable/)
+  assert.match(src, /const bankGap = bankBudgetGapRow\(bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), \{ pocketUnits: endPkBankable, budgetMs: grantedChainBudgetMs > 0 \? grantedChainBudgetMs : END_BANK_BUDGET \}\)/)
   assert.match(src, /if \(bankGap\) console\.log\(bankGap\)/, 'the silence law: a covered pocket prints nothing, never the word null')
   const flowIdx = src.indexOf('const bankFlow = bankFlowRow(bankFlowSamples')
   const gapIdx = src.indexOf('const bankGap = bankBudgetGapRow(bankFlowSamples')

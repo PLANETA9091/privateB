@@ -124,13 +124,19 @@ test('the wiring: fleet19 prices the clock at the final-bank entry from the live
   // the import rides the endphase family
   assert.match(src, /FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock \} from '\.\.\/src\/lib\/endphase\.mjs'/)
   // the pricing reads the LIVE flow window (the same slice the rows read)
-  assert.match(src, /flowPriceClock\(\{ samples: bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), pocketUnits: fleetPocketUnits, baseMs: END_BANK_BUDGET \}\)/)
+  // (v0.390.0) and the BANKABLE pocket - the flow rate counts BANKED units,
+  // the pocket priced against it must be the bankable sum
+  assert.match(src, /flowPriceClock\(\{ samples: bankFlowSamples\.slice\(-BANK_FLOW_WINDOW\), pocketUnits: fleetPocketUnits\.bankable, baseMs: END_BANK_BUDGET \}\)/)
   // (v0.349.0) the denominator is the FLEET sum - the same number the gap row
   // prices (pocketTotals over every live miner): the sibling-shape law
-  // restored by scope. The KEEP nuance is the scope law's price: the row
-  // prices pocketTotals.units, so the clock prices it too - the two must
-  // never disagree.
-  assert.match(src, /const fleetPocketUnits = pocketTotals\(\[\.\.\.bots\.values\(\)\]\.map\(e => e\.miner\)\.filter\(Boolean\)\)\.units/)
+  // restored by scope. (v0.390.0) The KEEP nuance - the scope law's named
+  // price - CLOSED: the sum splits with the deposit's own KEEP list (one
+  // list both sides), the clock prices the bankable part, the gap row reads
+  // the same class of sum - the two still must never disagree.
+  assert.match(src, /const fleetPocketUnits = pocketTotals\(\[\.\.\.bots\.values\(\)\]\.map\(e => e\.miner\)\.filter\(Boolean\), \{ keep: DEPOSIT_KEEP \}\)/)
+  // (v0.390.0) the raw sum stays beside the priced one (the honest-line law:
+  // the budget line names the bankable pocket and carries the raw)
+  assert.match(src, /fleet bankable pocket \$\{fleetPocketUnits\.bankable\}u \(raw \$\{fleetPocketUnits\.units\}u\)/)
   // the per-bot denominator is GONE (the scope bug's exact shape must not return)
   assert.doesNotMatch(src, /pocketUnits: endPocketUnits/)
   // the floor feeds finalBankBudgetMs - the kill-margin construction untouched
@@ -142,9 +148,11 @@ test('the wiring: the extension speaks (rides the final bank filter-key) and a c
   // the speak guard is the extension itself (a covered pocket prints nothing)
   assert.match(src, /if \(flowClock\.extended\) \{/)
   // the line rides the 'final bank' filter-key and names the pricing - and
-  // (v0.349.0) the FLEET scope of the denominator (the cure is legible in the log)
+  // (v0.349.0) the FLEET scope of the denominator (the cure is legible in the
+  // log); (v0.390.0) the line names the BANKABLE pocket and carries the raw
+  // beside it (a number that changed meaning changed name with it)
   assert.match(src, /final bank budget: flow-priced/)
-  assert.match(src, /fleet pocket \$\{fleetPocketUnits\}u at \$\{flowClock\.rate\.toFixed\(1\)\}u\/s needs \$\{flowClock\.needS\}s\)/)
+  assert.match(src, /fleet bankable pocket \$\{fleetPocketUnits\.bankable\}u \(raw \$\{fleetPocketUnits\.units\}u\) at \$\{flowClock\.rate\.toFixed\(1\)\}u\/s needs \$\{flowClock\.needS\}s\)/)
   assert.match(src, /the static \$\{\(END_BANK_BUDGET \/ 1000\)\.toFixed\(0\)\}s covered only the fast flows/)
   // a clamped extension names the kill margin (the law's own words)
   assert.match(src, /clamped to \$\{\(chainBudgetMs \/ 1000\)\.toFixed\(0\)\}s \(the kill margin\)/)

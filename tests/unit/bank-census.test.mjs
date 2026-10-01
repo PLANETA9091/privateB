@@ -185,6 +185,39 @@ test('deliverable aggregate: the events count, the term split, the worst priced 
   assert.equal(c.deliverable.events.length, 3)
 })
 
+// (v0.390.0) THE BANKABLE FORMS - the wiring's new verbatim templates ride
+// beside the legacy forms (the optional-prefix alternation, the capture grid
+// unchanged): 'fleet bankable pocket Nu (raw Mu)' lands the priced pocket in
+// the same group, the raw rides the line visibly.
+const BANKABLE_BUDGET_LINE = 'F8 final bank budget: flow-priced 1834s (fleet bankable pocket 550u (raw 933u) at 0.3u/s needs 1834s) - the static 248s covered only the fast flows - the tail burst (78s, 118u, 67% of the window\'s delta) is not a rate - priced at the ex-burst 0.3u/s - clamped to 300s (the kill margin)'
+const BANKABLE_DELIVERABLE_LINE = 'F3 bank trip: deliverable (clamp) - fleet bankable pocket 304u (raw 495u) at 0.3u/s needs 1014s vs 300s the final bank can never grant - the surplus must ride now - the trip fires early'
+
+test('the bankable budget form parses with the capture grid unchanged (the priced pocket lands in m[3])', () => {
+  const c = bankFlowCensus([BANKABLE_BUDGET_LINE])
+  assert.equal(c.budgets.length, 1)
+  assert.equal(c.budgets[0].bot, 'F8')
+  assert.equal(c.budgets[0].flowPricedS, 1834)
+  assert.equal(c.budgets[0].pocketUnits, 550)
+  assert.equal(c.budgets[0].rateUPerS, 0.3)
+  assert.equal(c.budgets[0].needsS, 1834)
+  assert.equal(c.budgets[0].staticS, 248)
+  assert.deepEqual(c.budgets[0].burst, { spanS: 78, deltaU: 118, pct: 67, exBurstRate: 0.3 })
+  assert.equal(c.budgets[0].grantedS, 300)
+  assert.equal(c.budgets[0].clamped, true)
+})
+
+test('the bankable deliverable form parses - the raw rides the line, the priced pocket parses', () => {
+  assert.deepEqual(parseDeliverable(BANKABLE_DELIVERABLE_LINE), { bot: 'F3', term: 'clamp', pocketU: 304, rateUPerS: 0.3, needS: 1014, limitS: 300, tail: 'the final bank can never grant - the surplus must ride now' })
+})
+
+test('the legacy face-19 verbatim forms still parse after the alternation (both faces readable forever)', () => {
+  const c = bankFlowCensus(F19)
+  assert.equal(c.budgets.length, 4)
+  assert.equal(c.budgets[0].pocketUnits, 933)
+  assert.equal(c.budgets[3].pocketUnits, 819)
+  assert.deepEqual(parseDeliverable(CLAMP_LINE), { bot: 'F3', term: 'clamp', pocketU: 495, rateUPerS: 0.3, needS: 1654, limitS: 300, tail: 'the final bank can never grant - the surplus must ride now' })
+})
+
 test('the 6th label form never parses as an event (the $ anchor: the cause line ends at the trip fires early)', () => {
   assert.equal(parseDeliverable('F3 bank trip: deliverable budget 300s'), null)
   assert.equal(parseDeliverable(CLAMP_LINE + ' now'), null)
