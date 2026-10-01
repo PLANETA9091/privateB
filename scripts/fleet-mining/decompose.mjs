@@ -13,6 +13,7 @@ import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A*
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
+import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -759,6 +760,27 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const total = mt.launches + mt.skips.n
       console.log(`  launch rate: ${mt.launches}/${total} = ${(100 * mt.launches / total).toFixed(0)}% of the plan's walk asks`)
     }
+  }
+}
+
+// (v0.417.0) THE DEFICITS CLOCK - the plan's HARVEST side (the map-trip
+// lens's complement): the per-tick deficits row (fleet19's topDeficits, the
+// anonymous required/have (pct%) five-slot board) stayed unread. The slot-0
+// arc prices the worst slot's movement - a drift near zero is the launch
+// starvation's harvest-side read; an arc of ONE pct value is the STUCK
+// signature; the distinct boards count the ranking's churn (a flat arc with
+// high churn reads 'many stuck resources', with low churn 'one stuck all
+// face'). The index caveat is the census's own honest read: the row is
+// anonymous, the seat's NAME may change hands between rows.
+{
+  const dc = deficitsCensus(lines)
+  if (dc.rows > 0 || dc.unparsed > 0) {
+    console.log('--- DEFICITS CLOCK (v0.417.0: the plan\'s harvest side) ---')
+    console.log(`  boards: ${dc.rows} rows, slots/row ${dc.slotsPerRow.min}..${dc.slotsPerRow.max}, distinct boards ${dc.distinctBoards} (the ranking churned ${Math.max(0, dc.distinctBoards - 1)} time(s))`)
+    const b = dc.board
+    const stuckNote = b.distinctPct0 === 1 ? ' - THE STUCK SIGNATURE: the worst slot never moved all face' : ''
+    console.log(`  worst slot (index 0, the name churns): pct ${b.firstPct}% -> ${b.lastPct}% (drift ${b.driftPct}%), have ${b.firstHave} -> ${b.lastHave}, distinct pct ${b.distinctPct0}, deepest ${b.minPct0}%${stuckNote}`)
+    if (dc.unparsed > 0) console.log(`  unparsed rows: ${dc.unparsed} (the row shape escaped - counted, never dropped)`)
   }
 }
 
