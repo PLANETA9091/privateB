@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1113,15 +1113,24 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
 {
   const rc = tripReceipt(lines, 'sand')
   if (rc) {
-    console.log('--- TRIP RECEIPT (v0.447.0: the delivery leg\'s yield - did the launches move the pocket) ---')
+    console.log(`--- TRIP RECEIPT (v0.449.0: the delivery leg's yield - the window calibrated to the trip's round trip: ${RECEIPT_WINDOW_SAMPLES} samples) ---`)
     const verdict = rc.firstNonzeroVsLaunch === 'before'
       ? `the first nonzero landed BEFORE the first ${rc.res} launch - the incidental leg (shore/underground) feeds the pocket too`
       : rc.firstNonzeroVsLaunch === 'after'
         ? `the first nonzero landed AFTER the first ${rc.res} launch - the launch window delivered`
         : 'the pocket never moved all face'
     console.log(`  ${rc.res} pocket: start ${rc.start} -> end ${rc.end} (peak ${rc.peak}); first nonzero ${rc.firstNonzero ? `at t-${rc.firstNonzero.t}s` : 'none'} - ${verdict}`)
-    const w = rc.windows.map(x => x.delta === null ? `${x.bot}(no sample in window)` : `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u`).join(' ')
-    console.log(`  launch windows (${rc.windows.length}, 2-sample fleet-wide, unattributed): ${w || 'none'}`)
+    // (v0.449.0) each window carries its span (the delta's accrual time)
+    // and holeMax (the largest sampling gap inside); a holeMax above the
+    // trip walk budget (45s) means a SAMPLING HOLE sat inside - the delta
+    // is a BOUND, never a timing read (face 33's hole was 82s).
+    const w = rc.windows.map(x => {
+      if (x.delta === null) return `${x.bot}(no sample in window)`
+      const hole = x.holeMax > 45 ? `, hole ${x.holeMax}s - a bound, not a timing read` : ''
+      const sp = x.span !== null ? ` (span ${x.span}s${hole})` : ''
+      return `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u${sp}`
+    }).join(' ')
+    console.log(`  launch windows (${rc.windows.length}, ${RECEIPT_WINDOW_SAMPLES}-sample fleet-wide, unattributed): ${w || 'none'}`)
   }
 }
 

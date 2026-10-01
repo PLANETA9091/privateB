@@ -230,8 +230,15 @@ test('tripReceipt: the hand-counted yield - the windows, the incidental verdict,
   assert.deepEqual(r.firstNonzero, { t: 507 })
   assert.equal(r.firstNonzeroVsLaunch, 'after')
   assert.equal(r.windows.length, 2)
-  assert.deepEqual(r.windows[0], { bot: 'F16', before: 0, after: 3, delta: 3 })
-  assert.deepEqual(r.windows[1], { bot: 'F5', before: 4, after: 9, delta: 5 })
+  // (v0.449.0) the default window is 6 now - the calibrated read: F16's
+  // window swallows every sample after its launch (5 of them), the delta
+  // accrues across 76s; F5's rides a 2-sample span of 31s.
+  assert.deepEqual(r.windows[0], { bot: 'F16', before: 0, after: 9, delta: 9, span: 76, holeMax: 16 })
+  assert.deepEqual(r.windows[1], { bot: 'F5', before: 4, after: 9, delta: 5, span: 31, holeMax: 16 })
+  // the v0.447.0 legacy read stays available via the param: 2-sample windows
+  const rLegacy = tripReceipt(lines, 'sand', 2)
+  assert.deepEqual(rLegacy.windows[0], { bot: 'F16', before: 0, after: 3, delta: 3, span: 30, holeMax: 15 })
+  assert.deepEqual(rLegacy.windows[1], { bot: 'F5', before: 4, after: 9, delta: 5, span: 31, holeMax: 16 })
   // the incidental leg: the pocket moved BEFORE any launch of the resource
   const lines2 = ['t-600s alive=1/1 | sand=2', 'F5 map trip: sand', 't-585s alive=1/1 | sand=2']
   const r2 = tripReceipt(lines2, 'sand')
@@ -245,7 +252,7 @@ test('tripReceipt: the hand-counted yield - the windows, the incidental verdict,
   // a late-face launch with no following sample: the yield unknown, never fabricated
   const lines4 = ['t-600s alive=1/1 | sand=0', 'F5 map trip: sand']
   const r4 = tripReceipt(lines4, 'sand')
-  assert.deepEqual(r4.windows, [{ bot: 'F5', before: 0, after: null, delta: null }])
+  assert.deepEqual(r4.windows, [{ bot: 'F5', before: 0, after: null, delta: null, span: null, holeMax: null }])
   // a pocket that never moved: the verdict says so, not a fake consistency
   const lines5 = ['t-600s alive=1/1 | sand=0', 'F5 map trip: sand', 't-585s alive=1/1 | sand=0']
   const r5 = tripReceipt(lines5, 'sand')
@@ -257,4 +264,39 @@ test('tripReceipt: the hand-counted yield - the windows, the incidental verdict,
   assert.equal(tripReceipt(['t-600s alive=1/1 | sand=0'], 'sand'), null)
   assert.equal(tripReceipt('not an array', 'sand'), null)
   assert.equal(tripReceipt(lines, ''), null)
+})
+
+// (v0.449.0) THE WINDOW CALIBRATION - face 33's field fixture. F15's sand
+// launch sat between the t-367s and t-352s samples; the pocket moved 0 -> 7
+// by t-240s (a ~127s yield lag the 2-sample window read as +0u) - and the
+// face's pulse series carried an 82s sampling hole (t-322s -> t-240s), so
+// the widened delta is a BOUND, never a timing read.
+test('tripReceipt window calibration: the face-33 fixture - the widened window catches the yield the 2-sample read lost', () => {
+  const lines = [
+    't-367s alive=19/19 | sand=0 gravel=13',
+    'F15 map trip: sand',
+    't-352s alive=19/19 | sand=0 gravel=14',
+    't-337s alive=19/19 | sand=0 gravel=14',
+    't-322s alive=19/19 | sand=0 gravel=14',
+    't-240s alive=19/19 | sand=7 gravel=14',
+    't-225s alive=19/19 | sand=7 gravel=14',
+    't-210s alive=19/19 | sand=7 gravel=14'
+  ]
+  const r = tripReceipt(lines, 'sand') // the calibrated default (6)
+  assert.equal(r.firstNonzeroVsLaunch, 'after')
+  assert.deepEqual(r.firstNonzero, { t: 240 })
+  assert.deepEqual(r.windows[0], { bot: 'F15', before: 0, after: 7, delta: 7, span: 157, holeMax: 82 }, 'the yield the v0.447.0 window lost; the 82s hole rides honesty hardware')
+  assert.equal(r.windows[0].holeMax > 45, true, 'the sampling hole crosses the trip walk budget - the bound note\'s fuel')
+  // the legacy 2-sample read: the same face honestly read +0u before the calibration
+  const r2 = tripReceipt(lines, 'sand', 2)
+  assert.deepEqual(r2.windows[0], { bot: 'F15', before: 0, after: 0, delta: 0, span: 30, holeMax: 15 })
+  // the EOF t-0 cluster: time never runs backwards, the span clamps at 0
+  const lines3 = [
+    't-30s alive=19/19 | sand=0',
+    'F5 map trip: sand',
+    't-0s alive=19/19 | sand=5',
+    't-0s alive=19/19 | sand=5'
+  ]
+  const r3 = tripReceipt(lines3, 'sand')
+  assert.deepEqual(r3.windows[0], { bot: 'F5', before: 0, after: 5, delta: 5, span: 30, holeMax: 30 })
 })

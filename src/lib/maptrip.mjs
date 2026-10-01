@@ -176,6 +176,14 @@ export function mapTripGap (mt, map, stuck) {
 
 const RES_SAMPLE_RE = /^t-(\d+)s .*\| (.+)$/
 
+// (v0.449.0) THE WINDOW CALIBRATION - the field's own number. The v0.447.0
+// default (2 samples ~ 30s) priced the trip's yield against a walk that
+// costs 45s EACH WAY: face 33's real yield lag was ~127s (launch between
+// t-367s/t-352s, the pocket moved by t-240s). Six samples (~90-120s at the
+// ~15s pulse cadence) covers the round trip plus the dig; the span/holeMax
+// fields keep the widened read honest about what it cannot time.
+export const RECEIPT_WINDOW_SAMPLES = 6
+
 /**
  * Parse one periodic pulse line's resource counter tail. Returns null on
  * every non-match (no `| ` tail, a broken tile, junk, prose) - never a
@@ -201,8 +209,25 @@ export function parseResSample (line) {
  * The receipt composer: one pass over the face's lines (samples + the
  * trip lane's launches), then the yield read for ONE resource (default
  * sand - the plan's stuck name). Per-res-launch: the pocket's delta
- * across the next `window` samples (2 samples ~ 30s, fleet-wide,
- * unattributed by construction). The incidental verdict:
+ * across the next `window` samples (fleet-wide, unattributed by
+ * construction).
+ * (v0.449.0) THE WINDOW CALIBRATION - the field widened the lens. Face 33
+ * (fleet 36938459619) priced the v0.447.0 default against reality: F15's
+ * sand launch (line between the t-367s and t-352s samples) read +0u on the
+ * 2-sample ~30s window, but the pocket moved 0 -> 7 by t-240s - a yield
+ * lag of ~127s, the trip's own round-trip (the walk budget is 45s each
+ * way) plus the dig. The default window is now RECEIPT_WINDOW_SAMPLES = 6
+ * (~90-120s at the ~15s pulse cadence); window=2 stays available for the
+ * legacy read. Each window carries its own honesty hardware:
+ *   span    - the window's t-span in run seconds (before.t - after.t; the
+ *             delta accrued across AT LEAST this long - the fleet-wide
+ *             counter cannot time the yield inside the span);
+ *   holeMax - the largest gap between consecutive samples inside the
+ *             window; the pulse cadence is ~15s, so a holeMax above the
+ *             trip walk budget (45s) means a SAMPLING HOLE sat inside -
+ *             the delta is then a BOUND (the pocket moved within the
+ *             span), never a timing read (the face-33 hole was 82s).
+ * The incidental verdict:
  * - 'before' - the first nonzero predates the first launch of the
  *   resource (or no launch of it at all): the incidental leg feeds first
  * - 'after' - the first nonzero rides at-or-after the first launch
@@ -210,10 +235,10 @@ export function parseResSample (line) {
  * Honest nulls: no samples (a pre-pulse face) or no launches (the gap
  * row's own subject) -> null, never a fabricated yield. A missing
  * resource key in a sample reads 0 (the tail's tile is self-consistent);
- * a launch without a following sample reads delta null (late-face, the
- * yield unknown).
+ * a launch without a following sample reads delta/span/holeMax null
+ * (late-face, the yield unknown).
  */
-export function tripReceipt (lines, res = 'sand', window = 2) {
+export function tripReceipt (lines, res = 'sand', window = RECEIPT_WINDOW_SAMPLES) {
   if (!Array.isArray(lines) || typeof res !== 'string' || !res) return null
   const samples = []
   const launches = []
@@ -240,11 +265,26 @@ export function tripReceipt (lines, res = 'sand', window = 2) {
     for (const s of samples) { if (s.i <= l.i) before = s; else break }
     const afterList = samples.filter(s => s.i > l.i).slice(0, window)
     const after = afterList[afterList.length - 1] || null
+    // (v0.449.0) the window's own honesty hardware: the span (how long the
+    // delta took to accrue) and the hole (the largest sampling gap inside).
+    let span = null
+    let holeMax = null
+    if (before && after) {
+      span = before.t - after.t
+      if (span < 0) span = 0 // the t-0 EOF cluster repeats; time never runs backwards
+      const seq = [before, ...afterList]
+      for (let k = 1; k < seq.length; k++) {
+        const gap = seq[k - 1].t - seq[k].t
+        if (gap > (holeMax ?? -1)) holeMax = gap
+      }
+    }
     return {
       bot: l.bot,
       before: before ? v(before) : null,
       after: after ? v(after) : null,
-      delta: (before && after) ? v(after) - v(before) : null
+      delta: (before && after) ? v(after) - v(before) : null,
+      span,
+      holeMax
     }
   })
   const firstResLaunch = resLaunches[0] || null
