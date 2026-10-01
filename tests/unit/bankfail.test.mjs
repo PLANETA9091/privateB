@@ -119,3 +119,31 @@ test('census: the honest zero and the honest empty anatomy', () => {
   assert.equal(e.decideTotal, 0)
   assert.deepEqual(e.zeros.byArm, {})
 })
+
+test('bank decide clock: the hb rail stamps the bank decides; the untimed honest', () => {
+  const c = bankFailCensus([
+    'b] n=1 ts=200s rss=300M late=20ms mainLate=100ms',
+    'F9 bank: chest unreachable (Took to long to decide path to goal!) (7 blocks from yard) - walking back',
+    'F6 pre-position bank: 0 (chest unreachable (Took to long to decide path to goal!))',
+    'b] n=2 ts=280s rss=310M late=20ms mainLate=100ms',
+    'F6 final bank: 0 (chest unreachable (No path to the goal!))'
+  ])
+  assert.equal(c.decideTotal, 2) // no-path is NOT a decide
+  assert.equal(c.clock.timed, 2)
+  assert.equal(c.clock.untimed, 0)
+  assert.equal(c.clock.clockEnd, 280)
+  assert.equal(c.clock.firstTs, 200)
+  assert.equal(c.clock.maxBurst, 2)
+})
+
+test('bank decide clock: a decide before the first hb reads untimed (the stamp never invents)', () => {
+  const c = bankFailCensus([
+    'F9 bank: chest unreachable (Took to long to decide path to goal!) (7 blocks from yard) - walking back',
+    'b] n=1 ts=90s rss=300M late=20ms mainLate=100ms'
+  ])
+  assert.equal(c.decideTotal, 1)
+  assert.equal(c.clock.timed, 0)
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.clockEnd, 90)
+  assert.equal(c.clock.maxBurst, 0)
+})

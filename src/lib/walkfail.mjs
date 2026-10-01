@@ -33,7 +33,37 @@
 // wiring, zero new log lines - the v0.379.0 precedent. Junk-safe end to
 // end: non-string rows skipped, absent classes read the honest zero.
 
+import { parseHeartbeat } from './stormcensus.mjs'
+
 const num = (s) => Number(s)
+
+// (v0.412.0) THE DECIDE CLOCK's window - the death clock's own 30s law
+// (the v0.407.0 burst window): the hb cadence is the fleet's shared rail,
+// the densest sliding window reads the cohort's clustering against it.
+export const DECIDE_BURST_WINDOW_S = 30
+
+// The decide stamps' clock arithmetic (the death clock's shape, the
+// v0.407.0 precedent): the densest sliding window over the timed stamps;
+// an untimed stamp (a refusal before the first hb) stays honestly out of
+// every window - the stamp never invents.
+export function decideClock (stamps, clockEnd) {
+  const timedTs = stamps.filter(t => t !== null).sort((a, b) => a - b)
+  let maxBurst = 0
+  for (let i = 0, j = 0; i < timedTs.length; i++) {
+    while (timedTs[i] - timedTs[j] > DECIDE_BURST_WINDOW_S) j++
+    const w = i - j + 1
+    if (w > maxBurst) maxBurst = w
+  }
+  return {
+    timed: timedTs.length,
+    untimed: stamps.length - timedTs.length,
+    clockEnd: clockEnd ?? null,
+    firstTs: timedTs.length ? timedTs[0] : null,
+    lastTs: timedTs.length ? timedTs[timedTs.length - 1] : null,
+    maxBurst,
+    burstWindowS: DECIDE_BURST_WINDOW_S
+  }
+}
 
 // The inner why vocabulary - ORDER IS SEMANTIC (the ms capture must not
 // swallow the decide/no-path verbatims, and the governor's prose refusal
@@ -126,8 +156,17 @@ export function walkFailCensus (lines) {
   const walk = { total: 0, nudge: 0, byLane: {}, byWhy: {}, byBot: {}, timeouts: [] }
   const sweep = { lines: 0, machinesUnreachable: 0, byWhy: {}, byBot: {}, busy: 0, deferred: 0, unparsed: 0, timeouts: [] }
   let decide = 0
-  if (!Array.isArray(lines)) return { walk, sweep, decideTotal: 0 }
+  // (v0.412.0) the decide clock: every decide refusal rides the last hb ts
+  // (a sweep pair's n attempts ALL stamp at their line's moment - the
+  // emitter emitted them between two heartbeats; the burst reads attempt
+  // density, the cohort's clustering question's own currency).
+  const stamps = []
+  let lastT = null
+  let clockEnd = null
+  if (!Array.isArray(lines)) return { walk, sweep, decideTotal: 0, clock: decideClock(stamps, null) }
   for (const l of lines) {
+    const hb = parseHeartbeat(l)
+    if (hb) { lastT = hb.tsS; clockEnd = hb.tsS }
     const wf = parseWalkFail(l)
     if (wf) {
       walk.total++
@@ -136,7 +175,7 @@ export function walkFailCensus (lines) {
       bump(walk.byWhy, wf.why)
       if (wf.bot) bump(walk.byBot, wf.bot)
       if (wf.why === 'walk-timeout' && Number.isFinite(wf.ms)) walk.timeouts.push(wf.ms)
-      if (wf.why === 'decide-timeout') decide++
+      if (wf.why === 'decide-timeout') { decide++; stamps.push(lastT) }
       continue
     }
     const sv = parseSweepVerdict(l)
@@ -150,7 +189,10 @@ export function walkFailCensus (lines) {
         if (cls.why === 'unknown' || cls.why === 'other') { sweep.unparsed += p.n; continue }
         bump(sweep.byWhy, cls.why, p.n)
         if (cls.why.startsWith('machine-unreachable-')) sweep.machinesUnreachable += p.n
-        if (cls.why === 'machine-unreachable-decide-timeout') decide += p.n
+        if (cls.why === 'machine-unreachable-decide-timeout') {
+          decide += p.n
+          for (let i = 0; i < p.n; i++) stamps.push(lastT)
+        }
         if (cls.why === 'machine-unreachable-walk-timeout' && Number.isFinite(cls.ms)) {
           for (let i = 0; i < p.n; i++) sweep.timeouts.push(cls.ms)
         }
@@ -158,5 +200,5 @@ export function walkFailCensus (lines) {
       sweep.unparsed += sv.junk.length
     }
   }
-  return { walk, sweep, decideTotal: decide }
+  return { walk, sweep, decideTotal: decide, clock: decideClock(stamps, clockEnd) }
 }

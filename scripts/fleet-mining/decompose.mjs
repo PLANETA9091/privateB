@@ -531,6 +531,15 @@ if (hopZero.total > 0) {
   if ((hasWalk || hasSweep) && wf.decideTotal > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0
     console.log(`  A* starvation (decide) fleet-wide: walk-fail lanes + sweep = ${wf.decideTotal}, the hop lane's own = ${hopDecide}, total ${wf.decideTotal + hopDecide}`)
+    // (v0.412.0) THE DECIDE CLOCK - the cohort's clustering read (the death
+    // clock's v0.407.0 shape): a dense burst names a CPU/pressure window;
+    // a spread read names geometry.
+    const dc = wf.clock
+    if (dc.timed > 0) {
+      const span = dc.firstTs === dc.lastTs ? `at ts=${dc.firstTs}s` : `span ts=${dc.firstTs}..${dc.lastTs}s`
+      const untimed = dc.untimed > 0 ? `, ${dc.untimed} untimed` : ''
+      console.log(`  decide clock: ${dc.timed} timed ${span} of clock end ${dc.clockEnd}s, max burst ${dc.maxBurst} in ${dc.burstWindowS}s${untimed}`)
+    }
   }
 }
 
@@ -563,6 +572,12 @@ if (hopZero.total > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0
     const wfDecide = walkFailCensus(lines).decideTotal
     console.log(`  A* starvation GRAND TOTAL (hop + walk-fail + sweep + bank): ${hopDecide + wfDecide + bf.decideTotal} (bank's own = ${bf.decideTotal})`)
+    const bc = bf.clock
+    if (bc.timed > 0) {
+      const span = bc.firstTs === bc.lastTs ? `at ts=${bc.firstTs}s` : `span ts=${bc.firstTs}..${bc.lastTs}s`
+      const untimed = bc.untimed > 0 ? `, ${bc.untimed} untimed` : ''
+      console.log(`  bank decide clock: ${bc.timed} timed ${span} of clock end ${bc.clockEnd}s, max burst ${bc.maxBurst} in ${bc.burstWindowS}s${untimed}`)
+    }
   }
 }
 

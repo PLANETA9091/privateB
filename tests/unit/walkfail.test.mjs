@@ -150,3 +150,45 @@ test('census: the honest zero and the honest empty anatomy', () => {
   assert.equal(e.decideTotal, 0)
   assert.deepEqual(e.walk.byWhy, {})
 })
+
+test('decide clock: the hb rail stamps the decides; the sweep pair stamps n copies', () => {
+  const c = walkFailCensus([
+    'b] n=1 ts=100s rss=300M late=20ms mainLate=100ms',
+    'F7 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F13 iron commune: chest walk failed (Took to long to decide path to goal!)',
+    'F13 sweep: 0 collected - machine unreachable (Took to long to decide path to goal!) x3, machine unreachable (No path to the goal!) x1',
+    'b] n=2 ts=160s rss=310M late=20ms mainLate=100ms',
+    'F9 sweep: 0 collected - machine unreachable (Took to long to decide path to goal!) x2'
+  ])
+  assert.equal(c.decideTotal, 7) // 2 lanes + 3 pair + 2 pair
+  assert.equal(c.clock.timed, 7)
+  assert.equal(c.clock.untimed, 0)
+  assert.equal(c.clock.clockEnd, 160)
+  assert.equal(c.clock.firstTs, 100)
+  assert.equal(c.clock.lastTs, 160)
+  // the densest 30s window: 5 stamps at ts=100 (2 lanes + 3 pair copies)
+  assert.equal(c.clock.maxBurst, 5)
+  assert.equal(c.clock.burstWindowS, 30)
+})
+
+test('decide clock: a decide before the first hb stays untimed and out of the windows', () => {
+  const c = walkFailCensus([
+    'F4 chest walk failed (Took to long to decide path to goal!)',
+    'b] n=1 ts=50s rss=300M late=20ms mainLate=100ms',
+    'F7 iron commune: chest walk failed (Took to long to decide path to goal!)'
+  ])
+  assert.equal(c.decideTotal, 2)
+  assert.equal(c.clock.timed, 1)
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.firstTs, 50)
+  assert.equal(c.clock.maxBurst, 1)
+})
+
+test('decide clock: the honest zero keeps the clock shape', () => {
+  const c = walkFailCensus(['b] n=1 ts=10s rss=300M late=20ms mainLate=100ms', 'no decides here'])
+  assert.equal(c.decideTotal, 0)
+  assert.equal(c.clock.timed, 0)
+  assert.equal(c.clock.untimed, 0)
+  assert.equal(c.clock.clockEnd, 10)
+  assert.equal(c.clock.maxBurst, 0)
+})

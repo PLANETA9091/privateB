@@ -27,7 +27,8 @@
 // lines - the v0.379.0 precedent. Junk-safe end to end: non-string rows
 // skipped, absent classes read the honest zero.
 
-import { classifyWalkWhy } from './walkfail.mjs'
+import { classifyWalkWhy, decideClock } from './walkfail.mjs'
+import { parseHeartbeat } from './stormcensus.mjs'
 
 // The bank reason vocabulary - the wrapper first (the inner why is the
 // fleet's shared walk vocabulary), then the trip's own named buckets.
@@ -82,8 +83,15 @@ export function bankFailCensus (lines) {
   const walkBack = { total: 0, byWhy: {}, byBot: {}, dists: { n: 0, max: 0, sum: 0 } }
   const zeros = { total: 0, byArm: {}, byWhy: {}, byBot: {} }
   let decide = 0
-  if (!Array.isArray(lines)) return { walkBack, zeros, decideTotal: 0 }
+  // (v0.412.0) the decide clock - the walk-fail lens's own rail (the last
+  // hb ts stamps every bank decide refusal; the death clock's shape).
+  const stamps = []
+  let lastT = null
+  let clockEnd = null
+  if (!Array.isArray(lines)) return { walkBack, zeros, decideTotal: 0, clock: decideClock(stamps, null) }
   for (const l of lines) {
+    const hb = parseHeartbeat(l)
+    if (hb) { lastT = hb.tsS; clockEnd = hb.tsS }
     const wb = parseBankWalkBack(l)
     if (wb) {
       walkBack.total++
@@ -92,7 +100,7 @@ export function bankFailCensus (lines) {
       walkBack.dists.n++
       walkBack.dists.sum += wb.dist
       if (wb.dist > walkBack.dists.max) walkBack.dists.max = wb.dist
-      if (wb.why === 'chest-unreachable-decide-timeout') decide++
+      if (wb.why === 'chest-unreachable-decide-timeout') { decide++; stamps.push(lastT) }
       continue
     }
     const bz = parseBankZero(l)
@@ -101,8 +109,8 @@ export function bankFailCensus (lines) {
       bump(zeros.byArm, bz.arm)
       bump(zeros.byWhy, bz.why)
       bump(zeros.byBot, bz.bot)
-      if (bz.why === 'chest-unreachable-decide-timeout') decide++
+      if (bz.why === 'chest-unreachable-decide-timeout') { decide++; stamps.push(lastT) }
     }
   }
-  return { walkBack, zeros, decideTotal: decide }
+  return { walkBack, zeros, decideTotal: decide, clock: decideClock(stamps, clockEnd) }
 }
