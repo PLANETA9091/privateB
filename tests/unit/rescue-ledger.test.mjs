@@ -145,7 +145,7 @@ test('a start without a bot tag names nobody (junk stays junk)', () => {
 test('the ladder and the start regex hold their shapes (the sync law)', () => {
   assert.equal(RESCUE_END_CLASSES.length, 8)
   assert.equal(RESCUE_END_CLASSES[RESCUE_END_CLASSES.length - 1].key, 'abortedError') // the catch path ranks last - the named aborts outrank it
-  assert.equal(RESCUE_MID_EVENTS.length, 5)
+  assert.equal(RESCUE_MID_EVENTS.length, 6)
   assert.ok(RESCUE_START_RE.test(start('F1')))
   assert.ok(!RESCUE_START_RE.test(end('complete', 'F1')))
 })

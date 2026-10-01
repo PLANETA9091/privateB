@@ -2104,6 +2104,59 @@ export function transitStalled ({ d0 = null, d = null, passes = 0, maxPasses = T
   return p >= mp && b > a - m
 }
 
+export const SHORE_PIN_PASSES = 8
+export const SHORE_PIN_RADIUS = 2
+
+/**
+ * (v0.377.0) IS THE SWIM PINNED AT THE SHORELINE? (pure, the shore-pin
+ * break). Face 36792489622's F1 walked NINE blocks along a shore wall
+ * (x -133 -> -142) with r pinned at 1-2 the whole way: the shore bearing
+ * points ALONG the wall, the patrol rotates the bearing every pass, and
+ * the v0.367.0 dirPlan's per-bearing key resets on every rotation - the
+ * 15-pass patience never fills, the release starves below (0 probes,
+ * 'rescue timeout (still wet, 18 passes, 0 probes, tail dry/dry/dry)',
+ * F14 25.2s and F17 26.2s paid it too). The pin reads the RESCUE, not
+ * the bearing: the first sight's radius, a pass counter that never
+ * resets. Two arms, one verdict:
+ *   - the pinned arm: r <= SHORE_PIN_RADIUS - the bot is AT the shore and
+ *     the land never confirms; no further swim closes r below 1 (the
+ *     F1/F14/F17 bob). Needs no d0 - being at the shore for the patience
+ *     condemns regardless of where the swim started.
+ *   - the no-arm arm: the plan closed less than TRANSIT_STALL_MARGIN since
+ *     the first sight - the walls own the swim (the transitStalled
+ *     verdict, seven passes earlier).
+ * A healthy deep swim (closing >= the margin, still outside the radius)
+ * never arms - the pin layers UNDER the v0.367.0 latch, never instead of
+ * it. Junk discipline mirrors transitStalled: a junk radius or counter
+ * never condemns (a wiring sickness must not own a verdict).
+ *
+ * @param {object} [p]
+ * @param {number|null} [p.d0] the ring radius at the first dir sight (null
+ *                             only blinds the no-arm arm)
+ * @param {number|null} [p.d] the ring radius now (null -> false)
+ * @param {number} [p.passes] dry dir passes this rescue (junk -> false)
+ * @param {number} [p.maxPasses] patience (default SHORE_PIN_PASSES)
+ * @param {number} [p.radius] the at-the-shore radius (default SHORE_PIN_RADIUS)
+ * @param {number} [p.margin] progress required (default TRANSIT_STALL_MARGIN)
+ * @returns {boolean} true -> the swim is pinned, yield to the release
+ */
+export function shorePinned ({ d0 = null, d = null, passes = 0, maxPasses = SHORE_PIN_PASSES, radius = SHORE_PIN_RADIUS, margin = TRANSIT_STALL_MARGIN } = {}) {
+  if (d == null) return false
+  const b = Number(d)
+  if (!Number.isFinite(b)) return false
+  const p = Number(passes)
+  if (!Number.isFinite(p)) return false
+  const mp = Number.isFinite(maxPasses) ? Math.floor(maxPasses) : SHORE_PIN_PASSES
+  if (p < mp) return false
+  const rr = Number.isFinite(radius) ? radius : SHORE_PIN_RADIUS
+  if (b <= rr) return true
+  if (d0 == null) return false
+  const a = Number(d0)
+  if (!Number.isFinite(a)) return false
+  const m = Number.isFinite(margin) ? margin : TRANSIT_STALL_MARGIN
+  return (a - b) < m
+}
+
 /**
  * WHY did the rescue lane not save this drowning death (pure, the v0.248.0
  * BREATH MIRROR)? The geometry face's Drowned return (4/6 deaths) drowned

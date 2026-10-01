@@ -49,6 +49,7 @@ export const RESCUE_END_CLASSES = [
 /** Mid-episode events worth counting that do NOT close an episode. */
 export const RESCUE_MID_EVENTS = [
   { key: 'shoreStall', re: /water: shore transit stalled/ },
+  { key: 'shorePin', re: /water: shore pinned/ },
   { key: 'transitStall', re: /water: transit stalled \(d=/ },
   { key: 'blindLive', re: /water: rescue blind live/ },
   { key: 'noGroundTruth', re: /no ground truth ever gathered/ },

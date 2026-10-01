@@ -51,7 +51,7 @@ import {
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
-  openWaterRelease, physicsFrozen, transitStalled, frozenRelogDecision, freezeClass,
+  openWaterRelease, physicsFrozen, transitStalled, shorePinned, frozenRelogDecision, freezeClass,
   frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel, rescueEndVerdict,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
   STANDING_PROBE_BUDGET, RESCUE_READS_CAP, PASS_LOG_INTERVAL_MS, PASS_LOG_MAX_PER_RESCUE,
@@ -1801,6 +1801,7 @@ export function createMiner ({
     // budget because this branch had no stall test and the release sat one
     // branch below, unreachable while a bearing existed.
     let dirPlan = null // { key, d0, atPass, logged }
+    let shorePin = null // (v0.377.0) the shoreline pin: { d0, passes, logged } - reads the RESCUE, never resets on the bearing's rotation
     let frozenDown = false // (v0.82.0) the physics flatlined - the reconnect lane owns the bot
     let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
     let frozenDownO2 = null // (v0.265.0) the bar at the verdict - the bypass echo's read (the loop fuel)
@@ -2006,6 +2007,31 @@ export function createMiner ({
           }
         }
         if (!headWet) {
+          // (v0.377.0) THE SHORE-PIN BREAK: the shoreline patrol rotates the
+          // bearing every pass - face 36792489622's F1 walked NINE blocks
+          // along the wall (x -133 -> -142) with r pinned at 1-2 the whole
+          // way, every rotation resetting dirPlan's per-bearing key, the
+          // 15-pass patience never filling, the release starving below (0
+          // probes, 'still wet ... tail dry/dry/dry'). The pin reads the
+          // RESCUE, not the bearing: the first sight's radius and a dry-pass
+          // counter that never resets. At the shore (r <= SHORE_PIN_RADIUS)
+          // or making no margin progress for SHORE_PIN_PASSES, the swim is
+          // condemned for the rest of the rescue - one flag, one policy:
+          // this branch skips, the release and the probes take over, and
+          // the F1 class pays ~8 passes instead of the whole budget. A
+          // closing deep swim (>= the margin, outside the radius) never
+          // arms - the healthy path keeps the settle(8) swim byte for byte.
+          if (dir && !transitStalledFlag) {
+            if (!shorePin) shorePin = { d0: dir.dist, passes: 0, logged: false }
+            shorePin.passes++
+            if (shorePinned({ d0: shorePin.d0, d: dir.dist, passes: shorePin.passes })) {
+              if (!shorePin.logged) {
+                shorePin.logged = true
+                log(`${tag} water: shore pinned (r=${dir.dist.toFixed(0)} after ${shorePin.passes} passes - the shoreline owns this swim; the release takes over)`)
+              }
+              transitStalledFlag = true
+            }
+          }
           if (dir && !transitStalledFlag) {
             // (v0.367.0) THE SHORE-STALL YIELD: the land branch has owned the
             // progress latch since v0.82.0 (run76's F9 steered at d=7 that
