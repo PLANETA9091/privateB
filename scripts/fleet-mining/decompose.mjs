@@ -12,6 +12,7 @@ import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-d
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
+import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
@@ -735,6 +736,31 @@ console.log('  legacy dusk arms (the v0.193.0 forecast lane, untouched):', count
 console.log('=== PLAN / WORLDMAP ===')
 console.log('  map trips:', count(/map trip/i), ' worldmap scans:', count(/worldmap|scan/i))
 console.log('  plan lines:', count(/materials plan|plan progress/i))
+
+// (v0.415.0) THE MAP-TRIP LENS - the materials plan's own launch economics.
+// The plan progress row prices the HAVE side; this block prices the WALK
+// side: how many map trips the plan's deficit order even LAUNCHED, what the
+// skips refused (the unreachable form embeds its own target list - the
+// starved resources priced per name) and where the fleet's feet were (the
+// shaft-locked share is the underground economy's tax on the plan).
+{
+  const mt = mapTripCensus(lines)
+  if (mt.launches > 0 || mt.skips.n > 0 || mt.unparsed > 0) {
+    console.log('--- MAP-TRIP CENSUS (v0.415.0: the plan\'s launch economics) ---')
+    const tgts = Object.entries(mt.byTarget).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const tb = Object.entries(mt.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  launches: ${mt.launches} by target: ${tgts || 'none'} - per bot: ${tb || 'none'}`)
+    const sw = Object.entries(mt.skips.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const st = Object.entries(mt.skips.unreachableTargets).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const sb = Object.entries(mt.skips.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  skips: ${mt.skips.n} by why: ${sw || 'none'}${st ? ` - starved targets: ${st}` : ''}`)
+    console.log(`  skip per bot: ${sb || 'none'}`)
+    if (mt.launches + mt.skips.n > 0) {
+      const total = mt.launches + mt.skips.n
+      console.log(`  launch rate: ${mt.launches}/${total} = ${(100 * mt.launches / total).toFixed(0)}% of the plan's walk asks`)
+    }
+  }
+}
 
 // (v0.408.0) THE MEM-HB LENS - the OOM precursors mechanical. FACE 25
 // attempt 1 (36857777922) died the run53 OOM class at launch and the
