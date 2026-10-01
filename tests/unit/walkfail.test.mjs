@@ -40,6 +40,20 @@ test('walk-fail: the lane walk timeout captures ms; the bare emitter form reads 
   assert.equal(bare.why, 'no-path')
 })
 
+test('walk-fail: the NESTED-paren why captures to the LAST paren (v0.418.0 - the face-26 nudge-retry nest the v0.410.0 read dropped)', () => {
+  const a = parseWalkFail('F9 fuel commons: chest walk failed after the nudge (fuel commons walk @-148,412 (nudge retry): timeout after 2784ms)')
+  assert.ok(a, 'the nested shape MUST parse - face 26 carried it and the [^)]* read dropped it whole')
+  assert.equal(a.bot, 'F9')
+  assert.equal(a.lane, 'fuel commons')
+  assert.equal(a.nudge, true)
+  assert.equal(a.why, 'walk-timeout')
+  assert.equal(a.ms, 2784)
+  assert.equal(a.raw, 'fuel commons walk @-148,412 (nudge retry): timeout after 2784ms')
+  // the plain shape's raw rides too (the hot-spot lens's @coord currency)
+  const b = parseWalkFail('F7 iron commune: chest walk failed (iron commune walk @-118,404: timeout after 528ms)')
+  assert.equal(b.raw, 'iron commune walk @-118,404: timeout after 528ms')
+})
+
 test('walk-fail: classifyWalkWhy orders most-specific-first and junk reads other', () => {
   assert.equal(classifyWalkWhy('Took to long to decide path to goal!').why, 'decide-timeout')
   assert.equal(classifyWalkWhy('No path to the goal!').why, 'no-path')
