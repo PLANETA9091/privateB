@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
+import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -214,6 +215,30 @@ if (bankCensus.deliverable) {
   for (const e of bankCensus.deliverable.events) console.log(`    ${e.bot} ${e.term}: pocket ${e.pocketU}u at ${e.rateUPerS ?? '?'}u/s needs ${e.needS ?? '?'}s vs ${e.limitS ?? '?'}s`)
 }
 if (!bankCensus.loot && !bankCensus.budgetAgg) console.log('  (no end-phase bank block - a FATAL face truncates it)')
+
+// (v0.388.0) THE ROUTE-GATE CENSUS - the v0.386.0 route gate's field read
+// (the blind-tool lesson applied to my own arm before the field needs it,
+// the v0.382.0/v0.387.0 census siblings). The gate's planned-route vetoes
+// already print their whole anatomy; this block reads it: the refusal
+// count, the tier split (point records vs zone envelopes), the depth-law
+// mix (entry vs dive), the per-bot/per-label rows, the condemned cells and
+// the rim-trap suspects (a COUNT proxy - the fleet log carries no per-line
+// clock; a sustained burst on one bot is the every-route-out-refused shape
+// the grace/cap knobs would tune).
+console.log('--- ROUTE-GATE CENSUS (v0.388.0) ---')
+const routeCensus = routeGateCensus(lines)
+if (routeCensus.refusals > 0) {
+  console.log(`  route gate: ${routeCensus.refusals} refusals (point ${routeCensus.byTier.point} / zone ${routeCensus.byTier.zone}; entry-law ${routeCensus.lawMix.entry} / dive-law ${routeCensus.lawMix.dive})`)
+  const botRow = Object.entries(routeCensus.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+  if (botRow) console.log(`  per-bot: ${botRow}`)
+  const labelRow = Object.entries(routeCensus.byLabel).map(([lb, n]) => `${lb}=${n}`).join(' ')
+  if (labelRow) console.log(`  per-label: ${labelRow}`)
+  const cellRow = routeCensus.cells.map((c) => `[${c.cell.x},${c.cell.y},${c.cell.z}]x${c.count}`).join(' ')
+  if (cellRow) console.log(`  condemned cells: ${cellRow}`)
+  if (routeCensus.rimTrapSuspects.length) console.log(`  RIM-TRAP SUSPECTS (>= ${ROUTE_GATE_RIM_TRAP_REFUSALS} refusals on one bot - a transient rim heals inside the 120s ledger TTL, a sustained burst is the tuning signal): ${routeCensus.rimTrapSuspects.join(', ')}`)
+} else {
+  console.log('  route gate: 0 refusals (no planned-route veto fired this face)')
+}
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
 // its classes: the frozen-relog loop (#N consecutive + the bypass echoes),
