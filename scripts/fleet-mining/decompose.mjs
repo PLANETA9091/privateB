@@ -7,6 +7,7 @@ import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/rou
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
+import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -408,6 +409,30 @@ for (const fam of SEAL_FAMILIES) {
     console.log(`    by item: ${items}`)
     console.log(`    kept floors: ${kept}`)
   }
+}
+
+// (v0.399.0) THE HOP-ZERO CENSUS - the walk-deliveries class's field read.
+// The hop is the deposit chain's cheapest delivery; a zero-hop is the
+// machinery bleeding where it costs least (face 22: 24 zeros - goal-churn
+// 8, walk-timeout 5, decide-timeout 4, no-path 3, open-timeout 2,
+// brake-refusal 1, nothing-to-deposit 1). The goal-churn class is the
+// storm's own signature (goals replaced mid-walk); the timeouts price the
+// budget's honesty (a 28s walk timeout against a 15s budget is the
+// budget's own lie).
+console.log('--- HOP-ZERO CENSUS (v0.399.0: the walk-deliveries class) ---')
+const hopZero = hopCensus(lines)
+if (hopZero.total > 0) {
+  const whys = Object.entries(hopZero.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+  const bots = Object.entries(hopZero.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+  console.log(`  zero-hops: ${hopZero.total} by why: ${whys || 'none'}`)
+  console.log(`  per bot: ${bots || 'none'}`)
+  const hot = Object.entries(hopZero.byChest).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `[${k}]x${v}`).join(' ')
+  if (hot) console.log(`  hot chests (repeat zero positions): ${hot}`)
+  if (hopZero.timeouts.walk.length) console.log(`  walk timeouts ms: ${hopZero.timeouts.walk.join(',')}`)
+  if (hopZero.timeouts.open.length) console.log(`  open timeouts ms: ${hopZero.timeouts.open.join(',')}`)
+  if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
+} else {
+  console.log('  zero-hops: 0 (a clean delivery face - the honest zero)')
 }
 
 console.log('=== COMBAT (v0.135.0 instrument) ===')
