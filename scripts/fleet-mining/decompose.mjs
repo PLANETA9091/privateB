@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
+import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 
 const file = process.argv[2]
@@ -254,6 +255,33 @@ if (routeCensus.refusals > 0) {
   if (routeCensus.rimTrapSuspects.length) console.log(`  RIM-TRAP SUSPECTS (>= ${ROUTE_GATE_RIM_TRAP_REFUSALS} refusals on one bot - a transient rim heals inside the 120s ledger TTL, a sustained burst is the tuning signal): ${routeCensus.rimTrapSuspects.join(', ')}`)
 } else {
   console.log('  route gate: 0 refusals (no planned-route veto fired this face)')
+}
+// (v0.390.0) THE SHOOTER-BAND CENSUS - the combat layer's field read (the
+// v0.388.0 route-gate census sibling). The layer already prints its whole
+// anatomy on every engagement - the verb, the attacker, the priced
+// distance - face 15 carried 668 combat lines and the mining tool read
+// three substrings of them. This block reads the band: the total, the
+// attacker rows, the RANGED class (the arrow wall / ranged ring / cooldown
+// the mobs kill from), the verdict flips, the shelter split, the priced
+// engagement distance and any UNKNOWN verbs (the honest-sweep law - a
+// wording drift prints its own name instead of vanishing). Zero-engagement
+// faces (the wet 18/19) read an honest zero.
+console.log('--- SHOOTER-BAND CENSUS (v0.390.0) ---')
+const shooter = shooterCensus(lines)
+if (shooter.total > 0) {
+  const atkRow = Object.entries(shooter.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ')
+  console.log(`  combat lines: ${shooter.total} (attackers: ${atkRow || 'none priced'})`)
+  const botRow = Object.entries(shooter.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+  if (botRow) console.log(`  per-bot: ${botRow}`)
+  console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
+  console.log(`  verdict flips: ${shooter.verdictFlips} - shelter: tries ${shooter.shelter.tries} / skips ${shooter.shelter.skips} / ring-tries ${shooter.shelter.ringTries}`)
+  if (shooter.maxDist !== null) console.log(`  engagement dist: max @${shooter.maxDist}u priced across ${shooter.withDist} dists`)
+  const verbRow = Object.entries(shooter.byVerb).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([v, n]) => `${v}=${n}`).join(' ')
+  if (verbRow) console.log(`  top verbs: ${verbRow}`)
+  const otherRow = Object.entries(shooter.otherVerbs).map(([v, n]) => `${v}=${n}`).join(' ')
+  if (otherRow) console.log(`  UNKNOWN verbs (the vocabulary drifted - name them): ${otherRow}`)
+} else {
+  console.log('  combat: 0 lines (no mob engagement this face - the honest zero)')
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
