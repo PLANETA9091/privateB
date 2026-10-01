@@ -11296,3 +11296,19 @@ Work Log:
 
 Stage Summary:
 - Master = 18bba42 (pkg 0.411.0). NEXT FIRE: poll gate 36870116516; poll FACE 27 (36870593766) and MINE - the GRAND TOTAL's second read (does the calm hold?), the sweep's small walk-timeouts' second read, the mem row (does the 2007-class debt reproduce WITHOUT the storm?). Cure pricing: the decide cohort = the obstructed mid-distance geometry - a cohort-aware think-budget escalation is the candidate (the bank walk-backs' ALL-decide shape: the trips die BEFORE moving). Version next: 0.412.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261001-2138 (Job ID 415967)
+Agent: PLANETA9091 (cron fire 2138)
+Task: Continue privateB to 100%. Sandbox rebuild + FACE 26 mining per worklog NEXT FIRE.
+
+Work Log:
+- SANDBOX HAD DIED: fresh clone, identity PLANETA9091 set local+global. Origin had advanced to 18bba42 (v0.411.0 BANK-FAIL) -> 7f08fb1 (their worklog); v0.411.0 gate read queued then SUCCESS.
+- INDEPENDENTLY MINED FACE 26 (36864564525, SUCCESS 13:34:43Z, 2672 lines): calm face (0 probes/0 fatals/0 valve closes, mainLate max 1308ms, rss 390M), 19/19 alive, banked 1169u smelted 8, conversion 114.4% unaccounted 0; evicted max 2007 = a new depth record on a HEALTHY face (depth alone never convicts); deaths 2 (F14 drown sentry-blind 28s, F4 skeleton); F10 ran THREE consecutive frozen-while-head-wet relogs (o2=20 - the reconnect lane never cured the class, the F17 anomaly's shape on a new bot); hound absent (8th face); A* decide storm COLLAPSED (2 decide-timeouts vs face 25's 133 - face-conditional, agreed independently by the 2130 lane's mining).
+- v0.412.0 THE DROP-WALK LENS (ae2cff7): the vein sweep's per-fail drop-walk line read (src/lib/dropwalk.mjs + the decompose's DROP-WALK CENSUS block; classifyDropFailWhy's FOUR field shapes incl. the water-rescue shape discovered live; the dy families' v0.205.0 law; the unparsed escape hatch). Tests: tests/unit/dropwalk.test.mjs (10; the dy-family math re-counted twice by hand). Local: npm test unit 2745/2745, syntax 313; integration skipped (CI runs it). Push 7f08fb1..ae2cff7 clean.
+- THE FIELD INVARIANT (the lens's first reads): EVERY drop-walk timeout rides the BUDGET EDGE - face 26: 12/12 at exactly 8000ms (sum 96s of walk time dying); run68's in-repo log: 40/40 at exactly 4000ms. The invariant reproduces across the budget eras: a 1-2 block drop walk that burns its whole budget can never complete - the walk layer's block owns the drop lane the way it owned hop/tool/bank on face 25; the ABOVE family bleeds most (10/18 face 26, 39/60 run68).
+- THE VERSION-SLOT RACE (recorded for the next bumber): the 2148-ish parallel lane shipped 441d396 "v0.412.0 THE DECIDE CLOCK" (walkfail/bankfail gain the hb-ts decide clock - DIFFERENT files, no conflict) on top of my ae2cff7, so the history carries TWO 0.412.0 bumps (both valid features; my gate 36873888212 was cancelled as the superseded sibling and my code rides their tree's queued run 36874054886 for CI validation). NEXT SLOT IS 0.413.0.
+
+Stage Summary:
+- Master = 441d396 (pkg 0.412.0, the second of the two). Delivered this fire: v0.412.0 THE DROP-WALK LENS (ae2cff7) + FACE 26 independently mined (calm face, eviction depth record, the F10 frozen-relog triple).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.413.0). (2) Poll FACE 27 (36870593766, the v0.411.0 tree) and mine with the LOCAL decompose (it carries the drop-walk lens): the drop-walk budget-edge invariant on a fresh face; the decide storm's third read; the seal rows; the death clock. (3) The drop-lane cure brief: read the walk layer's verdict source (decide vs walk phase) for the drop lane before re-pricing any budget - the budget-edge invariant says no budget fixes this lane. (4) Open: F10's frozen-while-head-wet class (relog never cures), the hound cure (8 faces), F17 anomaly, GC Pinned, void stamp, the summary-line mystery, the vertical doom, the seal death cure. Identity: PLANETA9091.
