@@ -18,6 +18,7 @@ import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the mate
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
+import { transitCensus } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -964,6 +965,33 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  duplicate-login kicks (the relog churn): ${fc.dupKicks.n}${kb ? `, top bots: ${kb}` : ''}`)
     }
     if (fc.unparsed > 0) console.log(`  unparsed: ${fc.unparsed} freeze-lane line(s) the grammar refused - the escape hatch`)
+  }
+}
+
+// (v0.427.0) THE TRANSIT CENSUS - the rescue swim's launch lane (the water
+// family's next unread block). The launch names the map's shore, the
+// planar target and the distance; the stall names the walls verdict. The
+// pinned-seat read: a target hit by ONE bot many times is the walls class
+// (the release lane's geometry), by MANY bots the map's concentration.
+{
+  const tc = transitCensus(lines)
+  if (tc.launches.n > 0 || tc.stalls.n > 0 || tc.unparsed > 0) {
+    console.log('--- TRANSIT CENSUS (v0.427.0: the rescue swim\'s launch lane) ---')
+    const lb = Object.entries(tc.launches.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+    const ll = Object.entries(tc.launches.byLand).map(([k, n]) => `${k}:${n}`).join(' ')
+    const d = tc.launches.dist
+    console.log(`  launches: ${tc.launches.n}${ll ? `, land: ${ll}` : ''}${d.n > 0 ? `, d ${d.min}..${d.max} (avg ${(d.sum / d.n).toFixed(1)})` : ''}${lb ? `, top bots: ${lb}` : ''}`)
+    for (const t of tc.targets.slice(0, 5)) {
+      const botsRow = Object.entries(t.bots).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join('+')
+      const pinned = Object.keys(t.bots).length === 1 && t.total >= 5 ? ' - THE PINNED SEAT (the walls class)' : ''
+      console.log(`  target [${t.x},${t.z}] (${t.land}) x${t.total} bots ${botsRow}${pinned}`)
+    }
+    if (tc.targets.length > 5) console.log(`  ... ${tc.targets.length - 5} more target(s) - the tail stays in the lib's row`)
+    if (tc.stalls.n > 0) {
+      const sb = Object.entries(tc.stalls.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+      console.log(`  stalls (the walls verdict): ${tc.stalls.n}${sb ? `, top bots: ${sb}` : ''}, d-at-stall max ${tc.stalls.distMax}, passes-to-stall max ${tc.stalls.passesMax}`)
+    }
+    if (tc.unparsed > 0) console.log(`  unparsed: ${tc.unparsed} transit-lane line(s) the grammar refused - the escape hatch`)
   }
 }
 
