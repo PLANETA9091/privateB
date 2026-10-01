@@ -16,6 +16,7 @@ import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the ba
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
+import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -845,6 +846,31 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (whys) console.log(`  fail whys: ${whys}${c.stages.n > 0 ? ` - stage ladder depth ${c.stages.n} (max [stage ${c.stages.max}])` : ''}`)
     if (c.ok + c.retryOk > 0) console.log(`  the payable price: gains n${c.gains.n} sum ${c.gains.sum} max ${c.gains.max} levels, dug max ${c.dug.max}, secs n${c.secs.n} (max ${c.secs.max}s${c.secs.n > 0 ? `, avg ${Math.round(c.secs.sum / c.secs.n)}s` : ''})`)
     console.log(`  the ladder's own books: retry plans ${c.retries.plans}, no-retry ${c.retries.noRetry}, doom retargets ${c.doomRetargets.n}${c.unparsed > 0 ? `, unparsed ${c.unparsed} (the shape escaped - counted, never dropped)` : ''}`)
+  }
+}
+
+// (v0.422.0) THE SENTRY LENS - the drowning sentry's per-pass read: the
+// water family was the largest unread block in the field (331 pass lines
+// across face 26/27) while every walk/hop/bank/drop lane got its lens. The
+// pass line carries the sentry's own sight: head, the shore scan, the map's
+// land bearing, the air bar, the planar spot.
+{
+  const sc = sentryCensus(lines)
+  if (sc.passes > 0 || sc.unparsed > 0) {
+    console.log('--- SENTRY CENSUS (v0.422.0: the drowning sentry\'s per-pass read) ---')
+    const bots = Object.entries(sc.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+    console.log(`  passes: ${sc.passes} (episodes ${sc.episodes}, passMax ${sc.passMax})${bots ? `, top bots: ${bots}` : ''}`)
+    console.log(`  head: dry ${sc.byHead.dry} / wet ${sc.byHead.wet} - shore: hit ${sc.shore.hit}${sc.shore.r.n > 0 ? ` (r max ${sc.shore.r.max}, avg ${(sc.shore.r.sum / sc.shore.r.n).toFixed(1)})` : ''} / none ${sc.shore.none}`)
+    const led = Object.entries(sc.land.byLand).map(([k, n]) => `${k}:${n}`).join(' ')
+    console.log(`  sight: hit ${sc.sight.hit}, ledgered ${sc.sight.ledgered}${led ? ` (${led})` : ''}, blind ${sc.sight.blind}${sc.sight.blind > 0 ? ' - THE GROUND-TRUTH CLASS: the pass never saw shore or land' : ''}`)
+    const o2avg = sc.o2.n > 0 ? (sc.o2.sum / sc.o2.n).toFixed(1) : 'n/a'
+    console.log(`  o2: min ${sc.o2.min}, avg ${o2avg}, at20 ${sc.o2.at20}, at0 ${sc.o2.at0}, critical(<=4) ${sc.o2.critical}, rescueBand(<=10) ${sc.o2.rescueBand}${sc.o2.reset > 0 || sc.o2.unknown > 0 ? `, reset ${sc.o2.reset}, unknown ${sc.o2.unknown}` : ''}`)
+    for (const sp of sc.spots.slice(0, 5)) {
+      const botsRow = Object.keys(sp.bots).join('+')
+      console.log(`  spot [${sp.key}]${sp.y !== null ? ` y=${sp.y}` : ''} x${sp.total} bots ${botsRow}`)
+    }
+    if (sc.spots.length > 5) console.log(`  ... ${sc.spots.length - 5} more spot(s) - the tail stays in the lib's row`)
+    if (sc.unparsed > 0) console.log(`  unparsed: ${sc.unparsed} pass-shaped line(s) the grammar refused - the escape hatch`)
   }
 }
 
