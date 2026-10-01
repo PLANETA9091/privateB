@@ -19,8 +19,34 @@
 // reserve spend (shelter.mjs) - one list, all three arithmetics, the
 // v0.396.0 co-derivation law. Mining-surface only: zero fleet wiring,
 // zero new log lines - the v0.379.0 precedent.
+//
+// (v0.407.0) THE DEATH CLOCK LENS - the death leg gains WHEN. Face 24's
+// field decode (the 1838 fire) read ALL 10 deaths inside the last ~64s of
+// a 600s face - 'a deadline-pressure class?' was the open question, priced
+// only by hand. The lens makes the read mechanical: every ledger death
+// (drops AND the empty-pocket re-deaths - F14/F18's second deaths were
+// among face 24's ten) rides the b] heartbeat's ts= clock, the same clock
+// the v0.395.0 whale-feed lens reads. The clock prices the SPIRAL: the
+// end-phase share (deaths in the face's final window) and the max burst
+// (the densest sliding window). The clock stamps, it never invents: a
+// death before the first heartbeat reads untimed and stays honestly
+// unpriced - the null stays null.
 
 import { SEAL_PRIORITY } from './shelter.mjs'
+
+// (v0.407.0) THE DEATH CLOCK bounds - both named, both derived from the
+// field read they price. The end-phase window: face 24's spiral ran ~64s,
+// the run's final minute is the deadline-pressure candidate; 60 is the
+// conservative read INSIDE that evidence. The burst window: half the
+// end-phase window, the same octave the face's own double-deaths (F14
+// back-to-back re-deaths) live in.
+export const DEATH_END_PHASE_WINDOW_S = 60
+export const DEATH_BURST_WINDOW_S = 30
+
+// The heartbeat line: 'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms'
+// (heartbeat.mjs's own emitted form) - the same clock the v0.395.0
+// whale-feed lens reads in shootercensus.mjs; the regex shape rides it.
+const HB_RE = /\b\] n=\d+ ts=(\d+)s/
 
 // The loss ledger form (verbatim face 23):
 //   F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64,
@@ -77,7 +103,7 @@ export function parseSealDeathDrop (line) {
  * The seal death ledger over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>}}
+ * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>, clock: {timed: number, untimed: number, clockEnd: number|null, firstTs: number|null, lastTs: number|null, endPhase: number, endPhaseWindowS: number, maxBurst: number, burstWindowS: number}}}
  */
 export function sealDeathCensus (lines) {
   const rows = Array.isArray(lines)
@@ -88,9 +114,19 @@ export function sealDeathCensus (lines) {
   let emptyReads = 0
   let lostTotal = 0
   let sealLostTotal = 0
+  // (v0.407.0) THE DEATH CLOCK - every ledger death (drops AND the empty
+  // reads; both are deaths) rides the last hb ts seen. Junk-safe: a
+  // non-string row judges nothing, and a death before the first hb stays
+  // untimed (null) - the stamp never invents.
+  const stamps = []
+  let lastT = null
+  let clockEnd = null
   for (const l of rows) {
+    const hm = typeof l === 'string' ? l.match(HB_RE) : null
+    if (hm) { lastT = Number(hm[1]); clockEnd = lastT }
     const p = parseSealDeathDrop(l)
     if (!p) continue
+    stamps.push(lastT)
     const b = (byBot[p.bot] = byBot[p.bot] || { drops: 0, emptyReads: 0, lost: 0, sealLost: 0, items: {} })
     if (p.empty) {
       emptyReads++
@@ -107,5 +143,35 @@ export function sealDeathCensus (lines) {
       b.items[name] = (b.items[name] || 0) + units
     }
   }
-  return { drops, emptyReads, lostTotal, sealLostTotal, byBot }
+  // (v0.407.0) the spiral arithmetic: the end-phase share prices against
+  // the clock's OWN end read (the last hb in the whole log, not the last
+  // death - deaths land inside the face's final minute, not at its last
+  // line), the burst is the densest sliding window over the timed stamps.
+  const timedTs = stamps.filter(t => t !== null).sort((a, b) => a - b)
+  let maxBurst = 0
+  for (let i = 0, j = 0; i < timedTs.length; i++) {
+    while (timedTs[i] - timedTs[j] > DEATH_BURST_WINDOW_S) j++
+    if (i - j + 1 > maxBurst) maxBurst = i - j + 1
+  }
+  const endPhase = clockEnd === null
+    ? 0
+    : timedTs.filter(t => t >= clockEnd - DEATH_END_PHASE_WINDOW_S).length
+  return {
+    drops,
+    emptyReads,
+    lostTotal,
+    sealLostTotal,
+    byBot,
+    clock: {
+      timed: timedTs.length,
+      untimed: stamps.length - timedTs.length,
+      clockEnd,
+      firstTs: timedTs.length ? timedTs[0] : null,
+      lastTs: timedTs.length ? timedTs[timedTs.length - 1] : null,
+      endPhase,
+      endPhaseWindowS: DEATH_END_PHASE_WINDOW_S,
+      maxBurst,
+      burstWindowS: DEATH_BURST_WINDOW_S
+    }
+  }
 }

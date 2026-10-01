@@ -5,11 +5,18 @@
 // with cobble 83 + dirt 26 inside). The verbatims are the fleet's own
 // words; the '+N more' tail is the fleet's honest truncation - counted,
 // never invented.
+//
+// (v0.407.0) THE DEATH CLOCK LENS - the WHEN leg: every ledger death
+// (drops AND the empty reads) rides the b] heartbeat's ts= clock; the
+// census prices the end-phase share and the max burst. The clock stamps,
+// it never invents - a death before the first hb stays untimed.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseSealDeathDrop, sealDeathCensus, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
+
+const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30 }
 
 test('seal-death: the F14 verbatim loss parses - stacks SUMMED per name, seal-class priced', () => {
   const line = 'F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64, diorite 28, dirt 26, cobblestone 19, andesite 7, +12 more)'
@@ -79,15 +86,112 @@ test('seal-death: the junk battery - prose, anatomy strangers, non-strings', () 
   ]
   for (const l of junk) assert.equal(parseSealDeathDrop(l), null)
   const c = sealDeathCensus(junk)
-  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {} })
+  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, clock: CLOCK_ZERO })
 })
 
 test('seal-death: the honest zero on a deathless face + the pinned anatomy', () => {
   const c = sealDeathCensus(['launching 19 bots for 600s', 'F2 [F2] combat: fighting skeleton'])
-  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {} })
+  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, clock: CLOCK_ZERO })
   // the anatomy pins: the RES list lives in the module, the seal class rides
   // shelter.mjs's ONE list (the co-derivation law)
   assert.match('F1 [F1] death drop: ~1u lost at [0,0,0] (dirt 1)', SEAL_DEATH_LOSS_RE)
   assert.match('F1 [F1] death drop: pocket read empty at death (0u)', SEAL_DEATH_EMPTY_RE)
   assert.ok(SEAL_PRIORITY.includes('dirt') && SEAL_PRIORITY.includes('oak_planks'))
+  // the clock bounds are the named constants (the v0.400.0 bound law)
+  assert.equal(DEATH_END_PHASE_WINDOW_S, 60)
+  assert.equal(DEATH_BURST_WINDOW_S, 30)
+})
+
+test('seal-death clock: every death rides the last hb ts - drops AND the empty reads', () => {
+  const c = sealDeathCensus([
+    'launching 19 bots for 600s',
+    'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms',
+    'F14 [F14] death drop: ~10u lost at [0,64,0] (cobblestone 10)',
+    'b] n=2 ts=100s rss=252M late=6ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'F2 [F2] combat: fighting skeleton',
+    'b] n=3 ts=590s rss=260M late=4ms mainLate=0ms'
+  ])
+  assert.equal(c.clock.timed, 2)
+  assert.equal(c.clock.untimed, 0)
+  assert.equal(c.clock.clockEnd, 590)
+  assert.equal(c.clock.firstTs, 21)
+  assert.equal(c.clock.lastTs, 100)
+  assert.equal(c.clock.endPhase, 0) // both deaths ride mid-face (21, 100 << 530)
+  assert.equal(c.clock.maxBurst, 1)
+})
+
+test('seal-death clock: the face-24 spiral shape - end-phase share + the sliding burst', () => {
+  // the 1838 fire's field decode: ALL 10 deaths inside the last ~64s
+  // (8 drops + 2 empty-pocket re-deaths); the clock must read it alone
+  const deaths = [
+    ['F12 [F12] death drop: ~40u lost at [0,64,0] (cobblestone 40)', 530],
+    ['F14 [F14] death drop: pocket read empty at death (0u)', 536],
+    ['F18 [F18] death drop: ~60u lost at [1,64,1] (dirt 60)', 540],
+    ['F3 [F3] death drop: ~20u lost at [2,64,2] (cobblestone 20)', 545],
+    ['F5 [F5] death drop: ~15u lost at [3,64,3] (dirt 15)', 550],
+    ['F7 [F7] death drop: ~25u lost at [4,64,4] (cobblestone 25)', 560],
+    ['F9 [F9] death drop: ~30u lost at [5,64,5] (dirt 30)', 570],
+    ['F11 [F11] death drop: ~35u lost at [6,64,6] (cobblestone 35)', 580],
+    ['F14 [F14] death drop: pocket read empty at death (0u)', 585],
+    ['F18 [F18] death drop: ~45u lost at [7,64,7] (dirt 45)', 590]
+  ]
+  const log = ['b] n=1 ts=10s rss=250M late=5ms mainLate=0ms']
+  let n = 2
+  for (const [line, ts] of deaths) {
+    log.push(`b] n=${n} ts=${ts}s rss=255M late=5ms mainLate=0ms`, line)
+    n++
+  }
+  log.push('b] n=30 ts=596s rss=261M late=4ms mainLate=0ms')
+  const c = sealDeathCensus(log)
+  assert.equal(c.drops, 8)
+  assert.equal(c.emptyReads, 2)
+  assert.equal(c.clock.timed, 10)
+  assert.equal(c.clock.clockEnd, 596)
+  assert.equal(c.clock.firstTs, 530)
+  assert.equal(c.clock.lastTs, 590)
+  // the end-phase window prices against the CLOCK's end (596), not the
+  // last death: ts >= 536 -> 9 of the 10 land inside the final 60s
+  assert.equal(c.clock.endPhase, 9)
+  // the densest 30s slide: 530..560 (6 deaths) and 560..590 (6 deaths)
+  assert.equal(c.clock.maxBurst, 6)
+})
+
+test('seal-death clock: the burst window boundary - 30s rides, 31s splits', () => {
+  const c = sealDeathCensus([
+    'b] n=1 ts=100s rss=251M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: ~1u lost at [0,64,0] (dirt 1)',
+    'b] n=2 ts=130s rss=251M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~1u lost at [1,64,1] (dirt 1)',
+    'b] n=3 ts=161s rss=251M late=5ms mainLate=0ms',
+    'F3 [F3] death drop: ~1u lost at [2,64,2] (dirt 1)'
+  ])
+  // 130-100 = 30 -> one burst of 2; 161-130 = 31 -> the pair splits
+  assert.equal(c.clock.maxBurst, 2)
+})
+
+test('seal-death clock: a death before the first hb stays untimed - the stamp never invents', () => {
+  const c = sealDeathCensus([
+    'F1 [F1] death drop: ~5u lost at [0,64,0] (cobblestone 5)',
+    'b] n=1 ts=50s rss=251M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~5u lost at [1,64,1] (dirt 5)'
+  ])
+  assert.equal(c.clock.timed, 1)
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.lastTs, 50)
+  // the untimed death cannot enter a window it has no place in
+  assert.equal(c.clock.endPhase, 1) // the TIMED one (50 >= 50-60)
+  assert.equal(c.clock.maxBurst, 1)
+})
+
+test('seal-death clock: no heartbeats at all - the honest zero clock', () => {
+  const c = sealDeathCensus([
+    'F1 [F1] death drop: ~5u lost at [0,64,0] (cobblestone 5)',
+    'F2 [F2] death drop: pocket read empty at death (0u)'
+  ])
+  assert.equal(c.clock.timed, 0)
+  assert.equal(c.clock.untimed, 2)
+  assert.equal(c.clock.clockEnd, null)
+  assert.equal(c.clock.endPhase, 0)
+  assert.equal(c.clock.maxBurst, 0)
 })

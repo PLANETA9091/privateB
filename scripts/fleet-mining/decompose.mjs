@@ -54,6 +54,15 @@ if (sweep.keywordOnly.length) {
     const perBot = Object.entries(sealDeath.byBot).map(([b, s]) => `${b} ~${s.lost}u (seal ${s.sealLost}u)`).join(' ')
     const emptyNote = sealDeath.emptyReads > 0 ? `, ${sealDeath.emptyReads} empty-pocket read(s)` : ''
     console.log(`  seal death ledger: ${sealDeath.drops} drops lost ~${sealDeath.lostTotal}u (seal-class ${sealDeath.sealLostTotal}u named${emptyNote}) - ${perBot}`)
+    // (v0.407.0) THE DEATH CLOCK - the spiral read mechanical. The end-phase
+    // share prices against the log's own clock end; a death before the first
+    // heartbeat stays untimed and honestly out of every window.
+    const c = sealDeath.clock
+    if (c.timed > 0) {
+      const untimedNote = c.untimed > 0 ? `, ${c.untimed} untimed (pre-first-hb)` : ''
+      const spanNote = c.firstTs === c.lastTs ? `at ts=${c.firstTs}s` : `span ts=${c.firstTs}..${c.lastTs}s`
+      console.log(`  death clock: ${c.timed} timed ${spanNote}, clock end ts=${c.clockEnd}s, end-phase(${c.endPhaseWindowS}s) ${c.endPhase}, max burst ${c.maxBurst} in ${c.burstWindowS}s${untimedNote}`)
+    }
   }
 }
 
