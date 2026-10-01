@@ -131,8 +131,13 @@ test('THE FLEET CURE: a misrouting Chest.deposit cannot starve the bank anymore'
   // (the first PLAYER slot) - from the pocket's perspective a NO-OP, so the
   // verified diff read moved=0 across ~130 fleets. The direct pathway runs
   // first and delivers; the legacy never gets the stack.
+  // (v0.396.0) the pocket carries dirt 8 alongside: the seal reserve's floor
+  // is fed by the higher-priority dirt, so the cobblestone stack carries NO
+  // kept slice and rides the DIRECT pathway whole - the reserve composes
+  // with the cure instead of rerouting the stack through the legacy window
   const cobble = item('cobblestone', 40)
-  const w = makeWindow({ chest: [], pocket: [cobble] })
+  const dirt = item('dirt', 8)
+  const w = makeWindow({ chest: [], pocket: [cobble, dirt] })
   w.deposit = async (type) => {
     const misroute = w.slots.find((s, i) => i >= CHEST_SLOTS && s && s.type === type)
     if (misroute) { misroute.count += 0 } // the put went into the player range: a no-op

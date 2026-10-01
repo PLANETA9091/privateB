@@ -40,8 +40,14 @@ function makeMockBot ({ items = [], chest = null, gotoScript = [] } = {}) {
     openChest: async () => ({
       deposit: async (type, meta, count) => {
         const it = bot._items.find(i => i.type === type)
-        bot.depositCalls.push({ name: it?.name, count })
-        bot._items = bot._items.filter(i => i.type !== type)
+        // (v0.396.0) count-faithful like the real window.deposit(type, meta,
+        // count): the seal reserve banks PARTIAL stacks (the overage above the
+        // 8-unit floor) - a whole-stack removal here would lie to the verified
+        // diff read
+        const take = Number.isFinite(count) && count > 0 ? Math.min(count, it.count) : it.count
+        bot.depositCalls.push({ name: it?.name, count: take })
+        it.count -= take
+        if (it.count <= 0) bot._items = bot._items.filter(i => i.type !== type)
       },
       close: () => { bot.closed = true }
     })
@@ -76,7 +82,7 @@ test('chestWalkBudgetMs: short-hop pin 15s (d<=16), floor knee, 500 ms/block, ca
 test('the walk budget scales with the real straight-line distance (auto mode)', async () => {
   // chest 64 blocks away: the goto must receive the dist-scaled budget, not 30s
   const chest = { position: new Vec3(0.5, 64, 64.5) } // ~64 blocks from the spawn point
-  const bot = makeMockBot({ chest, gotoScript: ['ok'], items: [item('cobblestone', 3)] })
+  const bot = makeMockBot({ chest, gotoScript: ['ok'], items: [item('cobblestone', 11)] })
   const res = await depositToChest(bot)
   assert.equal(res.deposited, 3)
   assert.equal(bot.gotoCalls.length, 1)
@@ -88,7 +94,7 @@ test('an explicit timeoutMs still works (backwards compatible pinning)', async (
   // the pinned path must behave exactly like the old flat-budget code: the mock walk
   // succeeds, the deposit lands - a caller who pins a budget keeps today's semantics
   const chest = { position: new Vec3(0.5, 64, 64.5) }
-  const bot = makeMockBot({ chest, gotoScript: ['ok'], items: [item('cobblestone', 3)] })
+  const bot = makeMockBot({ chest, gotoScript: ['ok'], items: [item('cobblestone', 11)] })
   const res = await depositToChest(bot, { timeoutMs: 30000 })
   assert.equal(res.deposited, 3)
   assert.equal(bot.gotoCalls.length, 1)
@@ -98,7 +104,7 @@ test('a water-rescue refusal waits out the window and retries ONCE', async () =>
   const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const bot = makeMockBot({
     chest,
-    items: [item('cobblestone', 5)],
+    items: [item('cobblestone', 13)],
     gotoScript: [new Error('water rescue in progress (walk to chest refused)'), 'ok']
   })
   bot._waterRescue = false // the rescue is over by the time the retry polls
@@ -116,7 +122,7 @@ test('a water-rescue refusal waits out the window and retries ONCE', async () =>
 // honest re-issue from THIS bot's start.
 test('a doomed-goal refusal on the bank walk gets ONE honest re-issue that banks (the run91 cure)', async () => {
   const chest = { name: 'chest', position: new Vec3(30, 64, 30) }
-  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)], gotoScript: ['ok'] })
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 13)], gotoScript: ['ok'] })
   recordDoomedGoal({ x: 30, y: 64, z: 30 }, Date.now()) // the storm's verdict on the yard cell
   const res = await depositToChest(bot)
   assert.equal(res.deposited, 5, 'the honest re-issue banks the loot')
@@ -181,7 +187,7 @@ test('a Path-was-stopped walk gets exactly ONE immediate retry and banks', async
   const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const bot = makeMockBot({
     chest,
-    items: [item('cobblestone', 7)],
+    items: [item('cobblestone', 15)],
     gotoScript: [new Error('Path was stopped before it could be completed! Thus, the desired goal was not reached.'), 'ok']
   })
   const res = await depositToChest(bot)
@@ -195,7 +201,7 @@ test('Path-was-stopped on BOTH attempts gives up (never loops the walk open-ende
   const stopped = new Error('Path was stopped before it could be completed! Thus, the desired goal was not reached.')
   const bot = makeMockBot({
     chest,
-    items: [item('cobblestone', 5)],
+    items: [item('cobblestone', 13)],
     gotoScript: [stopped, stopped]
   })
   const res = await depositToChest(bot)
@@ -208,7 +214,7 @@ test('Path-was-stopped on BOTH attempts gives up (never loops the walk open-ende
 test('a walk timeout retries once (the first budget may burn on a poisoned walk), then gives up', async () => {
   const chest = { position: new Vec3(6, 64, 6) } // beyond PROXIMATE_OPEN_DIST: the walk branch must actually run
   const timeout = new Error('walk to chest: timeout after 30000ms')
-  const recovered = makeMockBot({ chest, items: [item('cobblestone', 4)], gotoScript: [timeout, 'ok'] })
+  const recovered = makeMockBot({ chest, items: [item('cobblestone', 12)], gotoScript: [timeout, 'ok'] })
   const ok = await depositToChest(recovered, { timeoutMs: 30000 })
   assert.equal(ok.deposited, 4, 'timeout then success -> the loot banks')
   assert.equal(recovered.gotoCalls.length, 2)
@@ -227,7 +233,7 @@ test('a walk timeout retries once (the first budget may burn on a poisoned walk)
 test('a No-path nearest chest hops to the NEXT nearest chest and banks there', async () => {
   const chestA = { name: 'chest', position: new Vec3(4, 64, 4) } // nearest, but its walk dead-ends
   const chestB = { name: 'chest', position: new Vec3(10, 64, 10) } // next nearest, reachable
-  const bot = makeMockBot({ items: [item('cobblestone', 6)] })
+  const bot = makeMockBot({ items: [item('cobblestone', 14)] })
   // emulate mineflayer's findBlock: the NEAREST chest passing the caller's predicate
   bot.findBlock = ({ matching, maxDistance }) => {
     let best = null

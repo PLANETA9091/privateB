@@ -11,6 +11,7 @@ import { recordNoPath, nearNoPath, isDeadChestVerdict } from './nopath.mjs' // (
 import { chestVerticalDoom } from './surface.mjs' // (v0.188.0) the hop vertical doom gate - the strict arithmetic the bank climbs (v0.158.0), the yard chest walks (v0.159.0) and the machine walks (v0.170.0) already ride
 import { NIGHT_WALK_START, TICKS_PER_SEC, forecastForbidden } from './nightsafety.mjs' // (v0.193.0) the dusk-forecast bank escalation reads the vanilla clock the night hold enforces
 import { finalBankDelayMs } from './endphase.mjs' // (v0.193.0) the forecast prices the bot's OWN end-phase stagger slot
+import { SEAL_PRIORITY } from './shelter.mjs' // (v0.396.0) the seal reserve fills in the shelter policy's own spend order - one list both sides (the ring re-picks per placement through pickSealItem, the deposit keeps in the same order)
 
 // ---------------------------------------------------------------------------
 // (v0.45.0) THE HOP SEARCH BUDGET - the wall behind 304 unreachable chests.
@@ -420,6 +421,106 @@ export function smeltTitheOverage (p = {}) {
   const total = Number(p && typeof p === 'object' ? p.pocketCount : 0)
   if (!Number.isFinite(total) || total <= 0) return 0
   return Math.max(0, Math.floor(total) - Math.floor(bound))
+}
+
+// (v0.396.0) THE SEAL RESERVE - the deposit-side count-bounded keep for the
+// shelter family (the tithe pattern's third ride: fuel v0.100.0, cobble
+// v0.254.0, smelt v0.258.0). MEASURED (face 36760275928, mined by the 1438
+// fire under the v0.394.0 honest wall-miss lens): 40 of 43 ring-stock skips
+// read stock ZERO ('ring stock 0/2, ground earns nothing' x26, 0/8 x6, 0/1
+// x4, 0/7 x2, 0/6 x1, 0/7-after-digging-1 x1) - the bots ARRIVE at fights
+// seal-empty. The mechanism: the final bank's keep() (withFuel=false) hands
+// an EMPTY smelt-input keep, so cobblestone banks fully, dirt was NEVER
+// keep-matched anywhere, and every chain's last deposit left a seal-ZERO
+// pocket walking to the next site. The pre-smelt deposit's cobble tithe
+// (keeps 14) covers only the keep-matched stacks - dirt and the final bank's
+// cobble had no floor at all.
+// THE BOUND is the ring's own constant: SEAL_RESERVE_BOUND = 8 =
+// RING_BLOCKS_NEEDED (shelter.mjs) - one full ring, the insurance premium a
+// deposit pays so the next fight never prices phantom stock (a dead bot
+// loses EVERYTHING - the module's own founding rule; 8 blocks in the pocket
+// is the cheaper loss by the same arithmetic the cobble tithe priced).
+// THE PRIORITY fill follows SEAL_PRIORITY (dirt-family first): the ring
+// re-picks its seal item per placement through pickSealItem - the SAME list
+// - so a dirt-first reserve is what the ring spends FIRST, preserving the
+// smelt leg's cobble tithe untouched. The two keeps compose: the pre-smelt
+// deposit keeps 14 cobble via its tithe (keep-matched, never reaches the
+// reserve gate), the reserve fills the rest of the family floor with dirt.
+// Planks/logs never reserve: they are DEPOSIT_KEEP-matched (kept absolutely,
+// never banked, never gated) - the bootstrap pocket keeps its craft stock.
+// THE SHAPE (family law, not per-name): the pocket keeps min(8, family
+// total) seal units, allocated in SEAL_PRIORITY order; the overage banks.
+// The allocation is computed over the caller's NON-KEEP pocket slice
+// (keep-matched seals are the tithe's domain - the reserve never
+// double-keeps them). The loop recomputes per stack on the live mirror:
+// order-independent by construction (pinned both ways in tests).
+// Junk-safe end to end: a non-seal name reads NULL (no reserve opinion -
+// the caller's full-bank path stays byte for byte), a junk items read is
+// NULL (never blocks a real stack on an unreadable pocket), junk ENTRIES
+// inside a valid array just do not count (an undercount banks MORE - the
+// safe direction: toward today's behavior, never toward hoarding).
+
+/** The reserve bound: one full ring (shelter.mjs's RING_BLOCKS_NEEDED,
+ * co-derived and named as one - the two arithmetics must not drift). */
+export const SEAL_RESERVE_BOUND = 8
+
+const SEAL_RESERVE_NAMES = new Set(SEAL_PRIORITY)
+
+/** Internal: the family allocation over one pocket slice. Returns
+ * { total: Map<name, units>, kept: Map<name, units> } - kept holds only
+ * names with a nonzero allocation, filled in SEAL_PRIORITY order until the
+ * bound is spent. Junk-safe (a non-array slice allocates nothing). */
+function sealAllocation (items) {
+  const total = new Map()
+  if (Array.isArray(items)) {
+    for (const it of items) {
+      if (!it || typeof it.name !== 'string' || !SEAL_RESERVE_NAMES.has(it.name)) continue
+      const n = Number.isFinite(it.count) && it.count > 0 ? Math.floor(it.count) : 0
+      if (n > 0) total.set(it.name, (total.get(it.name) ?? 0) + n)
+    }
+  }
+  let reserve = SEAL_RESERVE_BOUND
+  const kept = new Map()
+  for (const name of SEAL_PRIORITY) {
+    if (reserve <= 0) break
+    const h = total.get(name) ?? 0
+    if (h <= 0) continue
+    const k = Math.min(h, reserve)
+    kept.set(name, k)
+    reserve -= k
+  }
+  return { total, kept }
+}
+
+/** How many seal units the reserve KEEPS from this pocket slice - the
+ * bankable pre-check's complement (a pocket whose bankable units are all
+ * reserve slice must not buy a chest walk it can never deliver). Junk-safe.
+ * @param {Array<{name?:string, count?:number}>|null|undefined} [items] the
+ *   NON-KEEP pocket slice (the caller filters keep-matched names out) */
+export function sealReserveKept (items) {
+  const { kept } = sealAllocation(items)
+  let n = 0
+  for (const k of kept.values()) n += k
+  return n
+}
+
+/** How many units of `name` may LEAVE the pocket at this deposit (the
+ * pocket slice's total minus the reserve's kept allocation). A non-seal
+ * name or a junk items read returns NULL - no opinion, the caller's
+ * full-bank path owns the stack byte for byte. Junk-safe.
+ * @param {object} [p]
+ * @param {string} [p.name] the stack's item name (junk/non-seal -> null)
+ * @param {Array<{name?:string, count?:number}>|null|undefined} [p.items]
+ *   the NON-KEEP pocket slice (junk -> null) */
+export function sealReserveOverage (p = {}) {
+  const name = p && typeof p === 'object' ? p.name : null
+  if (typeof name !== 'string' || !SEAL_RESERVE_NAMES.has(name)) return null
+  const items = p ? p.items : null
+  if (!Array.isArray(items)) return null
+  const { total, kept } = sealAllocation(items)
+  const held = total.get(name) ?? 0
+  const k = kept.get(name) ?? 0
+  return Math.max(0, held - k)
 }
 
 // (v0.110.0) THE COLLECT GAIN FLOOR - the collectArea/gatherWood job queue reads
@@ -1620,6 +1721,7 @@ export async function depositToChest (bot, {
   let directMoves = 0
   let directFalls = 0
   let titheLogs = 0 // (v0.101.0) the tithe's bounded self-naming (first 2 + a count line)
+  let sealLogs = 0 // (v0.396.0) the seal reserve's bounded self-naming (first 2 + a count line)
   // (v0.72.0) THE SLOT-DIRECT CURE: the probe (run e0fbe24/32131a4, job
   // 106670204727) finally named the banked=0 wall of ~130 fleets. Transport
   // (the raw window_items packet) MATCHED the server truth exactly, the
@@ -1702,6 +1804,42 @@ export async function depositToChest (bot, {
       // VERIFIED TRANSFER (the 26.2 stack silently drops some window clicks): the only
       // truth is the inventory afterwards, so count before/after instead of trusting
       // the deposit call's resolution.
+      // (v0.396.0) THE SEAL RESERVE GATE: a non-keep SEAL stack banks only its
+      // overage above the family reserve (8, SEAL_PRIORITY-filled) - the final
+      // bank's withFuel=false keep empties the smelt-input keep, so the chain's
+      // last deposit used to leave a seal-ZERO pocket (face 15: 40 of 43
+      // ring-stock skips read stock 0). A null opinion = a non-seal name (or an
+      // unreadable pocket): the full-bank path below stays byte for byte. The
+      // slice passed in is the NON-KEEP pocket (keep-matched seals are the
+      // tithe's domain - the reserve never double-keeps them).
+      const sealSlice = pocketItems().filter(i => i && !keep.some(k => i.name.includes(k)))
+      const sealOver = sealReserveOverage({ name: item.name, items: sealSlice })
+      if (sealOver !== null) {
+        const sealCount = countOf(item.name)
+        if (sealOver < sealCount) {
+          const units = Math.min(sealOver, item.count)
+          if (units <= 0) { skipped.push(item.name); continue }
+          const sealBefore = sealCount
+          try {
+            await withTimeout(window.deposit(item.type, null, units), depositClickTimeoutMs, `seal reserve ${item.name}`)
+          } catch {
+            timeoutSkips++
+            skipped.push(`${item.name}(seal reserve timeout)`)
+            continue
+          }
+          const sealMoved = sealBefore - countOf(item.name)
+          if (sealMoved > 0) {
+            deposited += sealMoved
+            // (v0.101.0 shape) the reserve's bounded self-naming: the first 2
+            // firings name themselves + the kept floor, the rest ride the
+            // banked total
+            if (sealLogs < 2) log(`${tag} seal reserve: banked ${sealMoved} x ${item.name} (pocket keeps ${sealReserveKept(pocketItems().filter(i => i && !keep.some(k => i.name.includes(k))))} seal units)`)
+            else if (sealLogs === 2) log(`${tag} seal reserve: more firings ride the banked total`)
+            sealLogs++
+          } else moved0Skips++
+          continue
+        }
+      }
       const before = countOf(item.name)
       let done = false
       if (chestSlots > 0 && typeof bot.clickWindow === 'function') {
@@ -1758,7 +1896,15 @@ export async function depositToChests (bot, { maxChests = 8, findRadius = 64, ke
   const yardGrace = { used: false }
   const bankableItems = () => {
     try {
-      return bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k))).reduce((a, i) => a + i.count, 0)
+      // (v0.396.0) the reserve's slice never banks - a pocket whose non-keep
+      // units are all reserve floor must not buy a chest walk it can never
+      // deliver (the v0.38.0 honest-reasons law: bankable=0 speaks BEFORE the
+      // walk). The kept slice is computed over the NON-KEEP pocket (the same
+      // slice the deposit gate allocates over - keep-matched seals are the
+      // tithe's domain and stay in the count untouched).
+      const nonKeep = bot.inventory.items().filter(i => !keep.some(k => i.name.includes(k)))
+      const units = nonKeep.reduce((a, i) => a + i.count, 0)
+      return Math.max(0, units - sealReserveKept(nonKeep))
     } catch { return 0 }
   }
   // (v0.38.0) HONEST REASONS: bankable=0 and scan-miss are different zeros and

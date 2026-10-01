@@ -141,10 +141,16 @@ test('deposit banks loot and keeps the tool kit', async () => {
     ]
   })
   const res = await depositToChest(bot)
-  assert.equal(res.deposited, 96, 'cobblestone + dirt must be banked')
+  // (v0.396.0) THE SEAL RESERVE: cobblestone banks whole (the family floor is
+  // spent on the higher-priority dirt), dirt banks its 24-unit overage - the
+  // pocket walks out holding 8 dirt = one full ring (face 15 measured 40 of
+  // 43 ring-stock skips at stock ZERO off the old floor-less deposit)
+  assert.equal(res.deposited, 88, 'cobblestone whole + the dirt overage above the 8-unit seal floor')
   assert.deepEqual(bot.depositCalls.map(c => c.name).sort(), ['cobblestone', 'dirt'])
   const left = bot._items.map(i => i.name).sort()
-  assert.deepEqual(left, ['oak_log', 'wooden_pickaxe', 'wooden_shovel'])
+  assert.deepEqual(left, ['dirt', 'oak_log', 'wooden_pickaxe', 'wooden_shovel'], 'the seal reserve\'s 8 dirt ride in the pocket')
+  const dirtLeft = bot._items.find(i => i.name === 'dirt')
+  assert.equal(dirtLeft.count, 8, 'exactly one full ring of seal stays (RING_BLOCKS_NEEDED)')
   assert.ok(bot.closed, 'the chest window must be closed afterwards')
 })
 
@@ -267,7 +273,8 @@ test('collectGain floors at zero - a concurrent pocket loss is not a negative mi
 
 test('a slow window open retries once and still banks', async () => {
   const chest = { name: 'chest', position: new Vec3(3, 64, 3) }
-  const bot = makeMockBot({ chest, items: [item('cobblestone', 5)] })
+  // (v0.396.0) 13 cobble: the seal reserve keeps its 8, the retry delivers the 5-unit overage
+  const bot = makeMockBot({ chest, items: [item('cobblestone', 13)] })
   let attempts = 0
   const realOpen = bot.openChest
   bot.openChest = async (...args) => {
@@ -297,7 +304,7 @@ test('a FULL chest is skipped for the next one (nothing-to-deposit hops too)', a
     { name: 'chest', position: new Vec3(3, 64, 3) },
     { name: 'chest', position: new Vec3(6, 64, 6) }
   ]
-  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  const bot = makeMockBot({ items: [item('cobblestone', 28)] })
   bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
   bot.openChest = async chest => {
     const idx = chests.indexOf(chest)
@@ -305,19 +312,24 @@ test('a FULL chest is skipped for the next one (nothing-to-deposit hops too)', a
       // (fix) the real code calls window.deposit(type, null, count) - the mock
       // needs the same signature, a bare (type) left `count` undefined and the
       // ReferenceError swallowed every deposit (the hop was blameless)
+      // (v0.396.0) count-faithful: the seal reserve banks PARTIAL stacks (the
+      // overage above the 8-unit floor) - a whole-stack removal would lie to
+      // the verified diff read
       deposit: async (type, meta, count) => {
         const it = bot._items.find(i => i.type === type)
         if (idx === 0) throw new Error('chest full') // chest A rejects EVERYTHING
-        bot.depositCalls.push({ name: it.name, count })
-        bot._items = bot._items.filter(i => i.type !== type)
+        const take = Number.isFinite(count) && count > 0 ? Math.min(count, it.count) : it.count
+        bot.depositCalls.push({ name: it.name, count: take })
+        it.count -= take
+        if (it.count <= 0) bot._items = bot._items.filter(i => i.type !== type)
       },
       close: () => { bot.closed = true }
     }
   }
   const res = await depositToChests(bot, { maxChests: 3 })
-  assert.equal(res.deposited, 20, 'chest B takes what chest A refused')
+  assert.equal(res.deposited, 20, 'chest B takes what chest A refused (the reserve\'s 8 stay)')
   assert.equal(res.chestsUsed, 1)
-  assert.deepEqual(bot._items.map(i => i.name), [])
+  assert.deepEqual(bot._items.map(i => i.name), ['cobblestone'], 'the seal reserve\'s floor rides home in the pocket')
 })
 
 test('an unopenable chest is skipped for the next one', async () => {
@@ -325,15 +337,18 @@ test('an unopenable chest is skipped for the next one', async () => {
     { name: 'chest', position: new Vec3(3, 64, 3) },
     { name: 'chest', position: new Vec3(6, 64, 6) }
   ]
-  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  const bot = makeMockBot({ items: [item('cobblestone', 28)] })
   bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
   bot.openChest = async chest => {
     if (chests.indexOf(chest) === 0) throw new Error('open chest: timeout after 10000ms')
     return {
       deposit: async (type, meta, count) => {
         const it = bot._items.find(i => i.type === type)
-        bot.depositCalls.push({ name: it.name, count })
-        bot._items = bot._items.filter(i => i.type !== type)
+        // (v0.396.0) count-faithful (the seal reserve banks partial stacks)
+        const take = Number.isFinite(count) && count > 0 ? Math.min(count, it.count) : it.count
+        bot.depositCalls.push({ name: it.name, count: take })
+        it.count -= take
+        if (it.count <= 0) bot._items = bot._items.filter(i => i.type !== type)
       },
       close: () => { bot.closed = true }
     }
@@ -352,7 +367,9 @@ test('a failed hop names its chest and reason before the exclusion retry', async
     { name: 'chest', position: new Vec3(6, 64, 3) }, // beyond PROXIMATE_OPEN_DIST: the walk branch runs
     { name: 'chest', position: new Vec3(6, 64, 6) }
   ]
-  const bot = makeMockBot({ items: [item('cobblestone', 20)] })
+  // (v0.396.0) 28 cobble: the reserve keeps its 8, chest B takes the 20-unit
+  // overage (the hop-naming intent is unchanged)
+  const bot = makeMockBot({ items: [item('cobblestone', 28)] })
   bot.findBlock = ({ matching }) => chests.find(c => { try { return matching(c) } catch { return false } })
   let gotoCalls = 0
   bot.pathfinder = { goto: async () => { if (++gotoCalls === 1) throw new Error('No path to the goal!') } }

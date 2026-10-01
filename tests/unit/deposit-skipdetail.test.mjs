@@ -70,7 +70,7 @@ test('a mixed zero (one timeout, one ghost) shows both counters', async () => {
     deposit: async () => { if (++calls === 1) return /* ghost */; await new Promise(() => {}) /* hang */ },
     close: () => {}
   }
-  const bot = makeAtChestBot({ items: [item('dirt', 8), item('gravel', 5)], window })
+  const bot = makeAtChestBot({ items: [item('dirt', 16), item('gravel', 5)], window })
   const r = await depositToChest(bot, { depositClickTimeoutMs: 40 })
   assert.equal(r.deposited, 0)
   assert.equal(r.reason, 'nothing to deposit (t=1,m0=1)')
