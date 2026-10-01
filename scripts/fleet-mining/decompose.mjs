@@ -714,6 +714,10 @@ if (hopZero.total > 0) {
     // dedup'd first-seen, cap 24 (nopath.mjs's own NOPATH_CAP parity).
     if (dw.nopath.n > 0) console.log(`  no-path: n=${dw.nopath.n} goals ${dw.nopath.goals.join(' ') || 'none'}`)
     if (dw.ceiling.n > 0) console.log(`  ceiling: n=${dw.ceiling.n} maxGoals=${dw.ceiling.maxGoals} maxRefused=${dw.ceiling.maxRefusedS}s`)
+    // (v0.431.0) THE GOAL ADMISSION - the standability gate's share (the
+    // refusal fired BEFORE the goto: no budget burned on those goals, the
+    // walked split's stuck share reads the residue the gate did not own).
+    if (dw.admission.n > 0) console.log(`  goal admission: n=${dw.admission.n} (unstandable goals refused before the goto - the burn they would have paid leaves the lane)`)
     const rng = Object.entries(dw.range).sort((a, b) => a[0] - b[0]).map(([k, v]) => `r${k}=${v}`).join(' ')
     console.log(`  dy families: below=${dw.dy.below} plane=${dw.dy.plane} above=${dw.dy.above} (min ${dw.dy.min} max ${dw.dy.max}) - range: ${rng || 'none'}`)
     // (v0.415.0) THE DROP CLOCK - the fail cohort's WHEN (the walkfail/

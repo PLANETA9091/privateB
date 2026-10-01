@@ -71,7 +71,7 @@ import { WET_CHURN_LOG_CAP } from '../lib/wetchurn.mjs' // (v0.223.0) the churn 
 import { DRAGON_DEATH_LOG_CAP } from '../lib/dragonzone.mjs' // (v0.225.0) the dragon death registry's memory cap (the zone's own constant)
 import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer ceiling memory
 import { craftTorches, countItem } from './tools.mjs'
-import { dropTargets, dropGoalRange, dropWalkSkipped, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, highLedgeStanceWanted, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split; (v0.296.0) the high ledge stance
+import { dropTargets, dropGoalRange, dropWalkSkipped, dropGoalAdmission, DROP_ADMISSION_WHY, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, highLedgeStanceWanted, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split; (v0.296.0) the high ledge stance; (v0.431.0) the goal admission
 import { chooseTarget } from '../fleet/claims.mjs'
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
@@ -3480,6 +3480,7 @@ export function createMiner ({
         let aboveHighFails = 0
         let skipDeep = 0
         let skipWalks = 0
+        let admitRefusals = 0 // (v0.431.0) the goal admission's own count - the goals refused BEFORE the goto
         let lipDigs = 0
         let lipRefusals = 0
         let supportDigs = 0
@@ -3555,6 +3556,31 @@ export function createMiner ({
               if (p && typeof p.clone === 'function') posBefore = p.clone()
             } catch { /* the tail stays two-field */ }
             try {
+              // (v0.431.0) THE GOAL ADMISSION - the standability gate every
+              // other funnel caller gets from standGoalNear and this lane
+              // never had: the goal above is the DROP's own position (the
+              // item entity's coords - no standing cell was ever consulted),
+              // so a drop sealed under the gallery floor or hovering over a
+              // shaft aims the A* at an isEnd ball with NO arrival node -
+              // the proven burn the budget-edge invariant kept measuring
+              // (every timeout at exactly the budget: 12/12 face 26, 40/40
+              // run68, 6/6 face 27). The gate enumerates the goal's own ball
+              // and refuses BEFORE the goto when no cell in it can hold the
+              // bot (a swim cell or a stand cell - the standGoalNear shape).
+              // The throw rides THIS catch, so the fail line, the dy
+              // instrument, the walked tail, the family counters and the
+              // above-family support dig keep their semantics - only the why
+              // is new ('admission' in the dropwalk census, additive).
+              // Junk reads, unloaded chunks and throwing readers never refuse
+              // a walk - the legacy issue byte for byte.
+              const admit = dropGoalAdmission({
+                x: goal.x,
+                y: goal.y,
+                z: goal.z,
+                range,
+                blockAt: (v) => bot.blockAt(new Vec3(v.x, v.y, v.z))
+              })
+              if (!admit.walk) throw new Error(admit.why)
               await gotoSafe(bot, goal, { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
               landed = true
             } catch (e) {
@@ -3577,6 +3603,9 @@ export function createMiner ({
               // measurement, not speculation (the v0.178.0 above-plane stance).
               if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range}${walkedTail})`)
               dropFails++
+              // (v0.431.0) the admission's own count - the refusal fired
+              // before the goto, so the walk never had a chance to move
+              if (e && e.message === DROP_ADMISSION_WHY) admitRefusals++
               // (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the
               // walk's own dy sign. run68 (fleet 36221189568, the row's day 2)
               // exposed the pollution: DROP_GOAL_ABOVE and DROP_GOAL_BELOW are
@@ -3942,6 +3971,10 @@ export function createMiner ({
         if (belowFails > 0) log(`${tag} vein sweep: ${belowFails} below-plane walk(s) still failed on the wide goal (range 2) - the drop rests deeper than the lip`)
         if (aboveFails > 0) log(`${tag} vein sweep: ${aboveFails} above-plane walk(s) timed out on the wide goal (range 2) - the ledge family (the v0.189.0 class, the triage names it)`)
         if (skipDeep > 0) log(`${tag} vein sweep: ${skipDeep} deep drop(s) skipped (dy < -2 - the lip sphere cannot reach, the walk was a guaranteed spiral)`)
+        // (v0.431.0) the goal admission's per-sweep read - the unstandable
+        // goals the lane never burned on (the per-fail lines carry the
+        // 'admission' why; this row is the sweep-scale view)
+        if (admitRefusals > 0) log(`${tag} vein sweep: ${admitRefusals} drop goal(s) refused before the goto (no standable cell in the arrival sphere - the walk was a proven burn)`)
         if (skipWalks > 0) log(`${tag} vein sweep: ${skipWalks} drop(s) already inside the goal - the zero-displacement walk spared (the instant done the spin book reads as churn)`)
         if (lipDigs > 0) log(`${tag} vein sweep: ${lipDigs} lip dig-down(s) - the range-2 arrival left the drop outside the magnet, the last mile dug`)
         if (supportDigs > 0) log(`${tag} vein sweep: ${supportDigs} support dig-down(s) - the failed ledge walk shook the drop loose, the fall carries it to the magnet`)
@@ -3974,6 +4007,10 @@ export function createMiner ({
           sd.sealCutGap += sealCutGap
           sd.stanceStep += stanceSteps
           sd.stanceCut += stanceCuts
+          // (v0.431.0) the admission's run-level read stays OUT of the ledger
+          // row on purpose - its shape is pinned byte for byte by the field's
+          // own tests (drops/sealdepth/supportdig/dropwalk); the per-sweep
+          // line above and the dropwalk census's 'admission' family carry it
         } catch { /* a torn stats view never kills the sweep */ }
       }
     } catch { /* a sweep is a bonus - never a failure */ }

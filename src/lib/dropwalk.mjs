@@ -63,6 +63,18 @@
 // dedup'd first-seen goal strings, capped at the no-path ledger's own cap
 // (the fleet's NOPATH_CAP law - a face never proves 24 distinct dead
 // spheres, the belt is for the absurd).
+// (v0.431.0) THE ADMISSION FAMILY - the sixth why. The walked leg's stuck
+// share was always going to be fed by the UNSTANDABLE-GOAL class (the goal
+// is the drop's own position - no standing cell was ever consulted), and
+// v0.431.0's goal admission (drops.mjs) now refuses that class BEFORE the
+// goto: a goal whose isEnd ball holds no swim cell and no stand cell (the
+// standGoalNear shape: solid footing, empty feet, empty head) is a PROVEN
+// burn - the A* has no arrival node to plan to. The refusal rides the
+// caller's own catch, so the line, the tail and the dy family are the
+// legacy shapes - only the why is new: 'goal admission: no standable cell
+// in the goal's arrival sphere - sweep drops refused' (paren-free - the
+// nested-paren lesson). The family counts the burns the lane never paid;
+// the timeouts' walked split reads the residue.
 
 import { parseHeartbeat } from './stormcensus.mjs'
 import { decideClock } from './walkfail.mjs'
@@ -74,6 +86,9 @@ import { decideClock } from './walkfail.mjs'
 export const DROP_WALK_FAIL_RE = /^(F\d+) \[F\d+\] vein sweep: the drop walk to \[(-?\d+),(-?\d+),(-?\d+)\] failed - (.+?) \(dy (-?(?:\d+\.?\d*|\.\d+)), range (\d+)(?:, walked (\d+(?:\.\d+)?))?\)$/
 
 const TIMEOUT_RE = /^sweep drops: timeout after (\d+)ms$/
+// (v0.431.0) the goal admission's own why - the standability gate's refusal
+// fired BEFORE the goto (no budget burned, no walk issued, the bot unmoved)
+const ADMISSION_RE = /^goal admission: no standable cell in the goal's arrival sphere - sweep drops refused$/
 const DOOMED_RE = /^doomed goal \(ledgered (\d+)s ago(?: at \[(-?\d+),(-?\d+),(-?\d+)\])?\) - sweep drops refused$/
 const CEILING_RE = /^fleet goal ceiling: (\d+) goals fleet-wide in (\d+)s - sweep drops refused for (\d+)s$/
 const WATER_RESCUE_RE = /^water rescue in progress \(sweep drops refused\)$/
@@ -112,6 +127,9 @@ export function classifyDropFailWhy (reason) {
   // the bare no-path verdict is the walk layer's own vocabulary (the fleet's
   // shared classifyWalkWhy bucket) - the fifth field shape (face 27, F17 r1)
   if (typeof reason === 'string' && NO_PATH_RE.test(reason)) return { why: 'no-path' }
+  // (v0.431.0) the admission refusal - the sixth shape (the standability
+  // gate's own verdict, thrown at the call site before the goto)
+  if (typeof reason === 'string' && ADMISSION_RE.test(reason)) return { why: 'admission' }
   return { why: 'other' }
 }
 
@@ -170,6 +188,7 @@ export function dropWalkCensus (lines) {
     // (v0.420.0) the no-path detail: the count + the dedup'd goal spheres
     // the A* proved dead (first-seen order, NOPATH_GOAL_CAP belt).
     nopath: { n: 0, goals: [] },
+    admission: { n: 0 }, // (v0.431.0) the standability gate's share - the burns the lane never paid
     dy: { min: null, max: null, below: 0, plane: 0, above: 0 },
     range: {},
     unparsed: 0
@@ -225,6 +244,10 @@ export function dropWalkCensus (lines) {
         c.nopath.goals.push(g)
         if (c.nopath.goals.length > NOPATH_GOAL_CAP) c.nopath.goals.shift()
       }
+    } else if (p.why === 'admission') {
+      // (v0.431.0) the gate's own count - the refusal fired before the goto,
+      // so the walked split above never sees it (the pollution law holds)
+      c.admission.n++
     }
     if (c.dy.min === null || p.dy < c.dy.min) c.dy.min = p.dy
     if (c.dy.max === null || p.dy > c.dy.max) c.dy.max = p.dy
@@ -248,5 +271,6 @@ export function dropWalkCensus (lines) {
   c.ceiling.maxGoals = fl(c.ceiling.maxGoals)
   c.ceiling.maxRefusedS = fl(c.ceiling.maxRefusedS)
   c.nopath.n = fl(c.nopath.n)
+  c.admission.n = fl(c.admission.n)
   return { ...c, clock: decideClock(stamps, clockEnd) }
 }

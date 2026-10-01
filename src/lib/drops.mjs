@@ -495,6 +495,111 @@ export function dropWalkSkipped (isEnd, pos) {
   try { return isEnd(pos) === true } catch { return false }
 }
 
+// (v0.431.0) THE GOAL ADMISSION - the drop walk's standability gate, the deep
+// skip's world-read generalization. THE DEFECT (read from the call site,
+// miner.mjs): the drop walk builds its goal DIRECTLY from the item entity's
+// position - `new goals.GoalNear(d.x, d.y, d.z, range)` with the range picked
+// by the dy-family fences - and NEVER consults the world for a standable
+// arrival cell. Every other funnel caller that targets a block walks
+// standGoalNear's snap (jobqueue.mjs: the wood trips, the relocates, the map
+// trips); the drop walk is the ONE caller whose goal can point where the bot
+// physically cannot stand. The project already hand-derived the consequence
+// per dy class: v0.189.0 ('the cell above it is CEILING - not standable') and
+// v0.191.0 ('its column is SEALED FROM ABOVE ... and NO standable cell') each
+// proved a class whose range ball held no standing cell, and each measured as
+// xN 'timeout after 8000ms' burns BEFORE its fence landed - the budget-edge
+// invariant's own anatomy (12/12 + 40/40 + 6/6 at exactly the budget across
+// eras: no budget cures the lane, so the cure must refuse the proven burn).
+// THE GATE: before the goto, enumerate the goal's isEnd ball (GoalNear FLOORS
+// the goal in its constructor and tests integer nodes against range^2 - the
+// arrival test runs in CELL space, not bot-center space) and demand ONE cell
+// the bot can occupy at arrival:
+//   - a SWIM cell: the cell itself is water/bubble_column (the pathfinder
+//     nodes liquids at liquidCost - the v0.13.0 model; a deep-water float is
+//     genuinely reachable without footing). Lava is NOT a swim arrival: an
+//     arrival inside lava is not a legal walk target.
+//   - a STAND cell: ground below reads non-empty boundingBox (solid footing -
+//     the pathfinder cannot place blocks, allow1by1towers is false, so a
+//     missing footing is unconvertible), the cell itself reads air by NAME
+//     (an empty bounding box alone would admit a feet-in-lava stand under an
+//     open head - the lava pocket's own law: the feet must be breath-legal),
+//     and the head cell reads empty (standGoalNear's own standable() shape;
+//     the v0.189.0 analysis already used the head law).
+// THE SCAN'S THREE LAWS (the blind-spot semantics the tests pin):
+//   1. the goal's OWN cell reads first - the drop IS there, and its admission
+//      is the cleanest arrival the evidence can name;
+//   2. a null read marks the scan BLIND and the scan CONTINUES - an edge-of-
+//      ball unloaded chunk never hides a lip the inner cells prove;
+//   3. a blind scan with no admission never refuses (walk:true, cell:null) -
+//      only a FULLY-READ ball with no swim and no stand cell is a PROVEN burn.
+// THE HONESTY LAWS (a missing read never refuses a walk - the dropWalkSkipped
+// law): junk goal, junk range, a missing reader, a null block read (unloaded
+// chunk) or a throwing reader all WALK - the legacy issue byte for byte, the
+// walk keeps its burn and its walked-instrument evidence instead of a false
+// refusal. The refusal itself rides the caller's own catch, so the fail
+// line, the dy instrument, the walked tail, the family counters and the
+// above-family support dig all keep their semantics - only the why is new
+// (the dropwalk census classifies it 'admission', additive; the why is
+// paren-free - the nested-paren lesson the walk-fail lens paid for).
+export const DROP_ADMISSION_WHY = "goal admission: no standable cell in the goal's arrival sphere - sweep drops refused"
+// the swim-arrival fluids (the pathfinder nodes them at liquidCost; lava and
+// flowing_lava are excluded - the bot must never path INTO lava)
+const DROP_SWIM_FLUIDS = new Set(['water', 'flowing_water', 'bubble_column'])
+
+export function dropGoalAdmission ({ x = NaN, y = NaN, z = NaN, range = 1, blockAt = null, swimFluids = DROP_SWIM_FLUIDS } = {}) {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return { walk: true, cell: null }
+  if (!Number.isFinite(range) || range <= 0) return { walk: true, cell: null }
+  if (typeof blockAt !== 'function') return { walk: true, cell: null }
+  const fluids = swimFluids && typeof swimFluids.has === 'function' ? swimFluids : DROP_SWIM_FLUIDS
+  try {
+    const gx = Math.floor(x)
+    const gy = Math.floor(y)
+    const gz = Math.floor(z)
+    const rr = range * range // GoalNear's own rangeSq - the RAW value, never floored
+    const span = Math.ceil(range)
+    const inBall = (cx, cy, cz) => {
+      const dx = cx - gx
+      const dy = cy - gy
+      const dz = cz - gz
+      return dx * dx + dy * dy + dz * dz <= rr
+    }
+    // one cell's three reads - the standGoalNear shape plus the air-name law;
+    // a null read is the cell's BLIND verdict (never a refusal by itself)
+    const readCell = (cx, cy, cz) => {
+      const feet = blockAt({ x: cx, y: cy, z: cz })
+      if (!feet) return { blind: true }
+      if (fluids.has(feet.name)) return { swim: true, cell: { x: cx, y: cy, z: cz } }
+      if (feet.boundingBox !== 'empty' || feet.name !== 'air') return { blind: false } // solid or lethal feet - no dig-in, no lava stand
+      const ground = blockAt({ x: cx, y: cy - 1, z: cz })
+      if (!ground) return { blind: true }
+      if (ground.boundingBox === 'empty') return { blind: false } // no footing - the bot cannot stand (no placement)
+      const head = blockAt({ x: cx, y: cy + 1, z: cz })
+      if (!head) return { blind: true }
+      if (head.boundingBox !== 'empty') return { blind: false } // the v0.189.0 law: the cell above reads CEILING - not standable
+      return { stand: true, cell: { x: cx, y: cy, z: cz } }
+    }
+    // law 1: the goal's own cell first (always d^2 0 - in the ball by definition)
+    const own = readCell(gx, gy, gz)
+    if (own.swim || own.stand) return { walk: true, cell: own.cell }
+    let blind = !!own.blind
+    // laws 2+3: the rest of the ball scans past its blind cells; only a
+    // fully-read ball with no arrival proves the burn
+    for (let cy = gy - span; cy <= gy + span; cy++) {
+      for (let cx = gx - span; cx <= gx + span; cx++) {
+        for (let cz = gz - span; cz <= gz + span; cz++) {
+          if (cx === gx && cy === gy && cz === gz) continue // the own cell already read
+          if (!inBall(cx, cy, cz)) continue // outside the isEnd ball - no arrival node there
+          const r = readCell(cx, cy, cz)
+          if (r.swim || r.stand) return { walk: true, cell: r.cell }
+          if (r.blind) blind = true
+        }
+      }
+    }
+    if (blind) return { walk: true, cell: null } // a missing read never refuses a walk
+  } catch { return { walk: true, cell: null } } // a throwing reader never refuses a walk
+  return { walk: false, why: DROP_ADMISSION_WHY, cell: null }
+}
+
 export function dropTargets (entities, from, { maxDistance = SWEEP_DROP_REACH, cap = SWEEP_DROP_CAP } = {}) {
   if (!entities || typeof entities !== 'object') return []
   if (!from || typeof from.x !== 'number' || typeof from.y !== 'number' || typeof from.z !== 'number') return []
