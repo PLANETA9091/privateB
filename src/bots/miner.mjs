@@ -3386,10 +3386,38 @@ export function createMiner ({
             landed = true
             skipWalks++
           } else {
+            // (v0.418.0) THE WALKED CAPTURE: the fail line's third field. The
+            // walk layer's own verdict never says WHERE the budget burned -
+            // the decide loop and the physically blocked walk die with the
+            // SAME message ('timeout after Nms'), and the budget-edge
+            // invariant (every timeout at exactly the budget) proves the
+            // class is systemic, so the cure must READ the anatomy first.
+            // The displacement can split it: walked ~0 = the bot never moved
+            // (the stuck class - an unstandable goal's decide loop or a
+            // starved physics tick), walked >= 1 = the bot moved but never
+            // arrived (the route class - a path exists, geometry blocks it
+            // mid-way). Measured HERE at the call site (the dy instrument's
+            // own v0.187.0 pattern, zero funnel wiring); a junk position
+            // leaves the tail two-field - the legacy shape byte for byte.
+            let posBefore = null
+            try {
+              const p = bot.entity && bot.entity.position
+              if (p && typeof p.clone === 'function') posBefore = p.clone()
+            } catch { /* the tail stays two-field */ }
             try {
               await gotoSafe(bot, goal, { timeoutMs: SWEEP_DROP_TIMEOUT_MS, label: 'sweep drops' })
               landed = true
             } catch (e) {
+              // the walked instrument: displacement over the try, honest '' on
+              // any junk (the v0.157.0 optional-chain law - never invent)
+              let walkedTail = ''
+              try {
+                const pAfter = bot.entity && bot.entity.position
+                if (posBefore && pAfter && typeof posBefore.distanceTo === 'function') {
+                  const w = posBefore.distanceTo(pAfter)
+                  if (Number.isFinite(w)) walkedTail = `, walked ${w.toFixed(1)}`
+                }
+              } catch { /* the tail stays two-field */ }
               // (v0.187.0) the DY INSTRUMENT: the failed line names its dy family -
               // the v0.178.0 below-plane cure's residue names only x6 of the run's
               // x28 timeouts (fleet 36181152847); the rest are plane-range walks
@@ -3397,7 +3425,7 @@ export function createMiner ({
               // ledges? sealed cells?). The next decode splits the class by the
               // (dy, range) pair it rides and the next cure derives from
               // measurement, not speculation (the v0.178.0 above-plane stance).
-              if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range})`)
+              if (dropFails < 2) log(`${tag} vein sweep: the drop walk to [${Math.round(d.x)},${Math.round(d.y)},${Math.round(d.z)}] failed - ${e.message} (dy ${dyWalk.toFixed(1)}, range ${range}${walkedTail})`)
               dropFails++
               // (v0.205.0) THE LEDGER TRIAGE - the wide-2 family splits by the
               // walk's own dy sign. run68 (fleet 36221189568, the row's day 2)

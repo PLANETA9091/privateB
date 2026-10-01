@@ -89,7 +89,11 @@ test('v0.263.0 wiring: the shake lives at the ABOVE-family FAILURE site - the la
   assert.ok(shakeIdx > triageIdx && shakeIdx - triageIdx < 2600, 'the support consult rides the catch AFTER the triage - the above family only')
   const catchEnd = minerSrc.indexOf('// (v0.187.0) THE LIP DIG-DOWN', shakeIdx)
   assert.ok(catchEnd > shakeIdx, 'the shake closes before the lip block - the converged path never consults it')
-  const landedIdx = minerSrc.indexOf('landed = true', shakeIdx - 4000)
+  // (v0.418.0) the walked capture (~35 lines: posBefore + the walkedTail
+  // build) joined the walk path BETWEEN the landed fast path and the shake -
+  // the proximity window grew 4000 -> 8000. The ORDER law is unchanged: the
+  // landed fast path precedes the catch, a skipped walk never shakes.
+  const landedIdx = minerSrc.indexOf('landed = true', shakeIdx - 8000)
   assert.ok(landedIdx > -1 && landedIdx < shakeIdx, 'the landed fast path precedes the catch - a skipped walk never shakes')
 })
 

@@ -600,6 +600,15 @@ if (hopZero.total > 0) {
     const dwy = Object.entries(dw.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  drop-walk fails: ${dw.fails}${dw.unparsed ? ` (unparsed ${dw.unparsed})` : ''} by why: ${dwy || 'none'} - per bot: ${db || 'none'}`)
     if (dw.timeouts.n > 0) console.log(`  timeouts: n=${dw.timeouts.n} max=${dw.timeouts.maxMs}ms sum=${dw.timeouts.sumMs}ms`)
+    // (v0.418.0) THE WALKED LEG - the timeout anatomy's first split (the row
+    // prints only when the field exists in the face): stuck = walked < 1.0
+    // (never really moved - the decide-loop / starved-physics class no budget
+    // can cure), moved = walked >= 1.0 (the route class - a path existed).
+    // maxWalked keeps the raw measurement; walkedNull = the legacy tail.
+    if (dw.timeouts.walkedNull < dw.timeouts.n) {
+      const mx = dw.timeouts.maxWalked === null ? '?' : dw.timeouts.maxWalked.toFixed(1)
+      console.log(`  walked split: stuck=${dw.timeouts.walked0} moved=${dw.timeouts.moved1} (max ${mx}b) legacy=${dw.timeouts.walkedNull}`)
+    }
     if (dw.doomed.n > 0) console.log(`  doomed: n=${dw.doomed.n} maxAge=${dw.doomed.maxAgeS}s withSpot=${dw.doomed.withSpot}`)
     if (dw.ceiling.n > 0) console.log(`  ceiling: n=${dw.ceiling.n} maxGoals=${dw.ceiling.maxGoals} maxRefused=${dw.ceiling.maxRefusedS}s`)
     const rng = Object.entries(dw.range).sort((a, b) => a[0] - b[0]).map(([k, v]) => `r${k}=${v}`).join(' ')

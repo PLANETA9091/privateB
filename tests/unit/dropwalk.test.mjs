@@ -100,7 +100,7 @@ test('census: the accumulation over a mixed stream sums bots, whys, timeouts, dy
   assert.equal(c.fails, 6)
   assert.deepEqual(c.byBot, { F7: 2, F10: 1, F9: 1, F5: 1, F2: 1 })
   assert.deepEqual(c.byWhy, { timeout: 4, doomed: 1, ceiling: 1 })
-  assert.deepEqual(c.timeouts, { n: 4, maxMs: 8000, sumMs: 28000 })
+  assert.deepEqual(c.timeouts, { n: 4, maxMs: 8000, sumMs: 28000, walked0: 0, moved1: 0, walkedNull: 4, maxWalked: null })
   assert.deepEqual([c.doomed.n, c.doomed.maxAgeS, c.doomed.withSpot], [1, 44, 1])
   assert.deepEqual([c.ceiling.n, c.ceiling.maxGoals, c.ceiling.maxRefusedS], [1, 30, 14])
   assert.equal(c.dy.min, -2.0)
@@ -134,7 +134,7 @@ test('census: the honest zeros and the honest empty anatomy', () => {
   assert.equal(c.fails, 0)
   assert.deepEqual(c.byBot, {})
   assert.deepEqual(c.byWhy, {})
-  assert.deepEqual(c.timeouts, { n: 0, maxMs: 0, sumMs: 0 })
+  assert.deepEqual(c.timeouts, { n: 0, maxMs: 0, sumMs: 0, walked0: 0, moved1: 0, walkedNull: 0, maxWalked: null })
   assert.deepEqual([c.doomed.n, c.doomed.withSpot], [0, 0])
   assert.deepEqual([c.ceiling.n, c.ceiling.maxGoals], [0, 0])
   assert.equal(c.dy.min, null)
@@ -191,6 +191,59 @@ test('drop clock: a fail before the first heartbeat stays untimed - never invent
   assert.equal(c.clock.lastTs, 50)
   assert.equal(c.clock.clockEnd, 60)
   assert.equal(c.clock.maxBurst, 1)
+})
+
+// (v0.418.0) THE WALKED LEG - the timeout anatomy's first split. The emit
+// site appends the displacement across the failed try (', walked X.X'); the
+// legacy two-field tail parses byte-identically with walked null - the
+// stamp never invents.
+test('walked: the three-field tail parses the displacement; the legacy tail reads null', () => {
+  // the verbatim shape the v0.418.0 emitter now prints (stuck class)
+  const a = parseDropWalkFail('F2 [F2] vein sweep: the drop walk to [-132,46,408] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2, walked 0.0)')
+  assert.equal(a.why, 'timeout')
+  assert.equal(a.timeoutMs, 8000)
+  assert.equal(a.walked, 0)
+  // the route class - the bot moved but never arrived (one-decimal form)
+  const b = parseDropWalkFail('F5 [F5] vein sweep: the drop walk to [-145,56,425] failed - sweep drops: timeout after 8000ms (dy 1.5, range 2, walked 2.5)')
+  assert.equal(b.walked, 2.5)
+  // the integer form (toFixed prints X.X, but the field is data - read it)
+  const c = parseDropWalkFail('F17 [F17] vein sweep: the drop walk to [-127,42,411] failed - sweep drops: timeout after 8000ms (dy -2.0, range 1, walked 3)')
+  assert.equal(c.walked, 3)
+  // a refusal can carry the field too (the caller measures unconditionally)
+  const d = parseDropWalkFail('F9 [F9] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago at [-143,56,419]) - sweep drops refused (dy -2.0, range 2, walked 0.0)')
+  assert.equal(d.why, 'doomed')
+  assert.equal(d.walked, 0)
+  // the legacy two-field tail - every pre-0.418.0 tree, walked null
+  const legacy = parseDropWalkFail('F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)')
+  assert.equal(legacy.walked, null)
+})
+
+test('walked: the census splits TIMEOUTS only - a refusal walked 0.0 stays out', () => {
+  const c = dropWalkCensus([
+    'F2 [F2] vein sweep: the drop walk to [-132,46,408] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2, walked 0.0)',
+    'F2 [F2] vein sweep: the drop walk to [-130,46,407] failed - sweep drops: timeout after 8000ms (dy 2.0, range 2, walked 0.4)',
+    'F1 [F1] vein sweep: the drop walk to [-158,53,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2, walked 2.5)',
+    'F9 [F9] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago at [-143,56,419]) - sweep drops refused (dy -2.0, range 2, walked 0.0)',
+    'F1 [F1] vein sweep: the drop walk to [-155,45,416] failed - sweep drops: timeout after 4000ms (dy 1.0, range 2)'
+  ])
+  assert.equal(c.fails, 5)
+  assert.equal(c.timeouts.n, 4)
+  // by hand: 0.0 and 0.4 are below the walkgovernor's own 1.0 progress law
+  // (stuck x2), 2.5 moved (x1), the last timeout rides the legacy tail
+  // (walkedNull x1). The doomed refusal's walked 0.0 MUST NOT feed the
+  // split - the bot never had a chance to move.
+  assert.deepEqual([c.timeouts.walked0, c.timeouts.moved1, c.timeouts.walkedNull], [2, 1, 1])
+  assert.equal(c.timeouts.maxWalked, 2.5)
+  assert.deepEqual(c.byWhy, { timeout: 4, doomed: 1 })
+})
+
+test('walked: a junk walked field rejects the whole line - the escape hatch owns it', () => {
+  const c = dropWalkCensus([
+    'F5 [F5] vein sweep: the drop walk to [-139,62,427] failed - sweep drops: timeout after 8000ms (dy 2.0, range 2, walked lots)',
+    'F5 [F5] vein sweep: the drop walk to [-145,55,426] failed - sweep drops: timeout after 8000ms (dy 2.0, range 2, walked 1.2.3)'
+  ])
+  assert.equal(c.fails, 0)
+  assert.equal(c.unparsed, 2)
 })
 
 test('drop clock: no heartbeats - every fail untimed, clockEnd null; non-array input honest', () => {

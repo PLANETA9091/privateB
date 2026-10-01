@@ -37,13 +37,28 @@
 // burst names the mid-face concurrent phase (the decide cohort's home), a
 // spread names per-target geometry. The decide GRAND TOTAL stays untouched
 // - this clock reads fails, the ledger's decide rows read refusals.
+//
+// (v0.418.0) THE WALKED LEG - the HOW leg. The budget-edge invariant proves
+// no budget cures the lane, and the walk layer's verdict ('timeout after
+// Nms') cannot say WHERE the budget burned: the decide loop and the blocked
+// walk die with the SAME text. The emit site now appends the displacement
+// (', walked X.X' - measured across the try at the call site, the dy
+// instrument's own pattern): walked ~0 = never moved (the stuck class - an
+// unstandable goal's decide loop or starved physics), walked >= 1 = moved
+// but never arrived (the route class). The field is OPTIONAL - the legacy
+// two-field tail parses byte-identically (walked null); the census keys the
+// walked split on the TIMEOUT verdicts only (a refusal throws inside the
+// 25ms pace with the bot unmoved - its walked 0.0 says nothing and would
+// pollute the stuck share).
 
 import { parseHeartbeat } from './stormcensus.mjs'
 import { decideClock } from './walkfail.mjs'
 
 // The per-fail line: bot tag required (the fleet always tags), the tail
 // (dy, range) required - the emitter always carries it in the field.
-export const DROP_WALK_FAIL_RE = /^(F\d+) \[F\d+\] vein sweep: the drop walk to \[(-?\d+),(-?\d+),(-?\d+)\] failed - (.+?) \(dy (-?(?:\d+\.?\d*|\.\d+)), range (\d+)\)$/
+// (v0.418.0) the walked field is optional (', walked X.X' - toFixed(1) text,
+// integer or one-decimal); its absence reads walked null (the legacy trees).
+export const DROP_WALK_FAIL_RE = /^(F\d+) \[F\d+\] vein sweep: the drop walk to \[(-?\d+),(-?\d+),(-?\d+)\] failed - (.+?) \(dy (-?(?:\d+\.?\d*|\.\d+)), range (\d+)(?:, walked (\d+(?:\.\d+)?))?\)$/
 
 const TIMEOUT_RE = /^sweep drops: timeout after (\d+)ms$/
 const DOOMED_RE = /^doomed goal \(ledgered (\d+)s ago(?: at \[(-?\d+),(-?\d+),(-?\d+)\])?\) - sweep drops refused$/
@@ -99,7 +114,10 @@ export function parseDropWalkFail (line) {
     z: Number(m[4]),
     ...whyFields,
     dy: Number(m[6]),
-    range: Number(m[7])
+    range: Number(m[7]),
+    // (v0.418.0) the displacement the emitter measured across the failed
+    // try - null on the legacy two-field tail (the stamp never invents).
+    walked: (m[8] !== undefined) ? Number(m[8]) : null
   }
 }
 
@@ -115,6 +133,12 @@ const fl = v => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
  * - dy: the v0.205.0 family split (below dy<0 / plane dy==0 / above dy>0)
  *   plus the min/max span.
  * - range: the 1/2 histogram.
+ * - timeouts.walked* (v0.418.0): the displacement split ON TIMEOUT VERDICTS
+ *   ONLY - walked0 (< 1.0 block, the walkgovernor's own STALL_MIN_PROGRESS
+ *   law) = the stuck class, moved1 (>= 1.0) = the route class, walkedNull =
+ *   the legacy tail without the field. A refusal's walked 0.0 would pollute
+ *   the stuck share (the bot never had a chance to move), so refusals stay
+ *   out of the split.
  * unparsed counts lines the lens was BUILT for but the shapes escaped
  * (an honest escape hatch - never silently dropped).
  */
@@ -123,7 +147,7 @@ export function dropWalkCensus (lines) {
     fails: 0,
     byBot: {},
     byWhy: {},
-    timeouts: { n: 0, maxMs: 0, sumMs: 0 },
+    timeouts: { n: 0, maxMs: 0, sumMs: 0, walked0: 0, moved1: 0, walkedNull: 0, maxWalked: null },
     doomed: { n: 0, maxAgeS: 0, withSpot: 0 },
     ceiling: { n: 0, maxGoals: 0, maxRefusedS: 0 },
     dy: { min: null, max: null, below: 0, plane: 0, above: 0 },
@@ -153,6 +177,16 @@ export function dropWalkCensus (lines) {
       c.timeouts.n++
       c.timeouts.maxMs = Math.max(c.timeouts.maxMs, p.timeoutMs)
       c.timeouts.sumMs += p.timeoutMs
+      // (v0.418.0) the walked split: < 1.0 = stuck (never really moved -
+      // the walkgovernor's own progress law), >= 1.0 = moved but not
+      // arrived; the legacy tail stays walkedNull. maxWalked keeps the
+      // raw measurement (a float, NOT floored - it is evidence, not a count).
+      if (p.walked === null) c.timeouts.walkedNull++
+      else {
+        if (p.walked < 1) c.timeouts.walked0++
+        else c.timeouts.moved1++
+        if (c.timeouts.maxWalked === null || p.walked > c.timeouts.maxWalked) c.timeouts.maxWalked = p.walked
+      }
     } else if (p.why === 'doomed') {
       c.doomed.n++
       c.doomed.maxAgeS = Math.max(c.doomed.maxAgeS, p.doomedAgeS)
@@ -172,6 +206,11 @@ export function dropWalkCensus (lines) {
   c.timeouts.n = fl(c.timeouts.n)
   c.timeouts.maxMs = fl(c.timeouts.maxMs)
   c.timeouts.sumMs = fl(c.timeouts.sumMs)
+  c.timeouts.walked0 = fl(c.timeouts.walked0)
+  c.timeouts.moved1 = fl(c.timeouts.moved1)
+  c.timeouts.walkedNull = fl(c.timeouts.walkedNull)
+  // maxWalked stays a raw float (null when no walked field arrived) - the
+  // measurement's own precision is the read's value
   c.doomed.n = fl(c.doomed.n)
   c.doomed.maxAgeS = fl(c.doomed.maxAgeS)
   c.doomed.withSpot = fl(c.doomed.withSpot)

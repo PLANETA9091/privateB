@@ -349,8 +349,12 @@ test("REGRESSION PIN: the miner's lip dig-down reads the verdict and names itsel
   assert.ok(src.includes('await bot.fastDig(cover); lipDigs++'), 'the dig-under digs the cover block and counts')
   assert.ok(src.includes('lip dig-down(s) - the range-2 arrival left the drop outside the magnet'),
     'the verdict names itself under the instrument prefix (rides the v0.176.0 filter)')
-  assert.ok(/failed - \$\{e\.message\} \(dy \$\{dyWalk\.toFixed\(1\)\}, range \$\{range\}\)/.test(src),
-    'the failed-walk line carries the (dy, range) instrument - the next decode splits the timeout class')
+  // (v0.418.0) the walked instrument joined the SAME line: the tail grew the
+  // displacement field ('${walkedTail}' - measured across the try at the call
+  // site) - the walk layer's verdict cannot say WHERE the budget burned, the
+  // walked split can (stuck ~0 vs route >= 1). The (dy, range) law rides.
+  assert.ok(/failed - \$\{e\.message\} \(dy \$\{dyWalk\.toFixed\(1\)\}, range \$\{range\}\$\{walkedTail\}\)/.test(src),
+    'the failed-walk line carries the (dy, range) instrument AND the walked field - the next decode splits the timeout class by anatomy')
 })
 
 // ---- v0.189.0 (renumber-free - the next free patch after the 05:00 lane's
