@@ -292,7 +292,7 @@ if (shooter.total > 0) {
     })
     .join(' | ')
   if (feedRow) console.log(`  whale feed (split on fight-end/yield or > ${shooter.sessions.gapS}s silence): ${feedRow}`)
-  // (v0.399.0) THE SIEGE VERDICT - the diffusion question answered per
+  // (v0.400.0) THE SIEGE VERDICT - the diffusion question answered per
   // face: a bot whose longest session reaches the bound carries THE SIEGE
   // (face 15's F2: max 278 >= 120); the churn octave (F12: max 53) never
   // does. An empty map reads 'none' - the honest zero (faces 17/18/19).

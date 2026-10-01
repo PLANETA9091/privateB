@@ -73,7 +73,7 @@
 // post-reserve faces must walk the zeroHave share DOWN; the row is the
 // field verdict's own metric.
 //
-// (v0.399.0) THE SIEGE VERDICT - the whale-feed sessions named the siege
+// (v0.400.0) THE SIEGE VERDICT - the whale-feed sessions named the siege
 // read but left the DIFFUSION question unanswerable by the tool: does
 // every mob face carry a siege bot, or was face 15's F2 a one-off? The
 // verdict is mechanical off the sessions the lens already builds: a bot
@@ -180,7 +180,7 @@ export function parseSkipWhys (body) {
 export const SESSION_END_VERBS = ['fight-ended', 'open-field-yield']
 export const SESSION_GAP_S = 45
 
-// (v0.399.0) THE SIEGE VERDICT bound - a bot's longest session reaching
+// (v0.400.0) THE SIEGE VERDICT bound - a bot's longest session reaching
 // this many lines names the SIEGE bot (the churn octave F12 maxes at 53,
 // the siege F2 runs 278; 120 is the conservative mid-gap read).
 export const SIEGE_MIN_SESSION_LEN = 120
@@ -393,7 +393,7 @@ export function shooterCensus (lines) {
       byBotSessions[b] = { sessions: st[b].sessions, maxLen: st[b].maxLen }
     }
   }
-  // (v0.399.0) THE SIEGE VERDICT - the diffusion read off the sessions the
+  // (v0.400.0) THE SIEGE VERDICT - the diffusion read off the sessions the
   // lens already built: every bot whose longest session reaches the bound
   // is a siege carrier; an EMPTY map is the honest zero (no siege bot on
   // the face - faces 17/18/19 read exactly this).

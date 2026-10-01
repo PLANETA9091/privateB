@@ -334,7 +334,7 @@ test('whale-feed: per-bot isolation + the honest zero + junk safety', () => {
   assert.deepEqual(zero.sessions.byBot, {})
 })
 
-// (v0.399.0) THE SIEGE VERDICT - the diffusion read: a bot whose longest
+// (v0.400.0) THE SIEGE VERDICT - the diffusion read: a bot whose longest
 // session reaches SIEGE_MIN_SESSION_LEN carries THE SIEGE. The separation
 // is the live face-15 gap: the churn octave F12 maxes at 53, the siege F2
 // runs 278. The stream builder rides the same cadence the real log shows
