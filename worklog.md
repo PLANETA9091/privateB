@@ -11342,3 +11342,18 @@ Work Log:
 Stage Summary:
 - Master = 507026b (pkg 0.414.0). Gate 36875157486 (1c7e769) pending at close (validates my drop-walk tree); v0.414.0's own gate follows the push.
 - NEXT FIRE: poll gates FIRST; FACE 28 dispatch when the slot frees (run_fleet=true on the tip); the drop-lane cure brief stands (the budget-edge invariant 12/12+40/40+6/6 says no budget fixes the lane - read the walk layer's verdict source for the drop lane instead); the dy-family flip (above->below) wants a third face-scale read. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261001-2230
+Agent: PLANETA9091 (cron fire 2230, Job 414125)
+Task: fire 2230 - v0.415.0 THE DROP CLOCK shipped (the drop-walk lens's WHEN leg - the A* starvation ledger's fifth leg now all carry WHEN); FACE 28 = 36877002398 dispatched on 5fe9e9d.
+
+Work Log:
+- CHECK ORIGIN FIRST: fast-forwarded to 5fe9e9d (the 2200 lane's v0.413.0 + the 2138 addendum's v0.414.0); 0.415.0 the free slot. Fleet slot free at open -> FACE 28 dispatched HTTP 204 on 5fe9e9d, materialized QUEUED (36877002398).
+- v0.415.0 THE DROP CLOCK (28c2546): dropWalkCensus stamps EVERY parsed fail with its line's hb moment (parseHeartbeat + walkfail.mjs's decideClock reused - one implementation, the shared 30s window); doomed/ceiling included (a ledger refusal is still an event; the byWhy split correlates); a pre-hb fail stays untimed - the stamp never invents; the decide GRAND TOTAL untouched (this clock reads FAILS, the ledger's decide rows read REFUSALS). The decompose's DROP-WALK CENSUS block gains the drop clock row. Mining-surface only: zero fleet wiring, zero new log lines.
+- Tests: dropwalk 13 (the clock battery, the interleaved burst hand-counted twice; the pre-hb untimed; the no-hb honest nulls + the non-array input's clock). Syntax 313/0, unit 182/182; integration skipped - no JDK/server jar (CI runs it).
+- Push 5fe9e9d..28c2546 CLEAN. Gate 36878245729 IN_PROGRESS at poll close (the pool busy with FACE 28) - left in flight per protocol.
+
+Stage Summary:
+- Master = 28c2546 (pkg 0.415.0). FACE 28 (36877002398, the 5fe9e9d pre-clock tree) + gate 36878245729 both in flight at close.
+- NEXT FIRE: poll gate 36878245729; FACE 28 completed => MINE with the local decompose (carries the drop clock) - the drop lane's WHEN first read (mid-face regime vs per-target scatter), the budget-edge invariant's fourth sample, the dy flip's third read, the decide storm's fourth read, the mem row, the keep arm's fourth read. Cure pricing: the concurrency-aware decide budget vs the hot-spot spatial lens - the clock rows price them. Open: the underground=21 read, the F10 frozen-while-head-wet class, the hound cure, the F17 anomaly, GC Pinned, void stamp, the summary-line mystery, the seal death cure. Version next: 0.416.0. Identity: PLANETA9091.
