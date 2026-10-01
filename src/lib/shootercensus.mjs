@@ -192,7 +192,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -205,6 +205,7 @@ export function shooterCensus (lines) {
     if (e) { entries.push(e); raws.push(l) }
   }
   const byBot = {}
+  const byBotVerb = {}
   const byAttacker = {}
   const byVerb = {}
   const otherVerbs = {}
@@ -223,6 +224,11 @@ export function shooterCensus (lines) {
     const raw = raws[i]
     const botKey = e.bot ?? 'unknown'
     byBot[botKey] = (byBot[botKey] || 0) + 1
+    // (v0.392.0) THE COMBAT-WHALE LENS - byBot and byVerb alone cannot see
+    // the whale's SHAPE (face 15: F2=287 lines is 43% of the face, but of
+    // WHICH verbs?). The bot x verb cross is the decode tool.
+    const vMap = (byBotVerb[botKey] = byBotVerb[botKey] || {})
+    vMap[e.verb] = (vMap[e.verb] || 0) + 1
     if (e.verb === 'other') {
       // the honest-sweep law: the unknown verb stays visible - key on the
       // raw first tokens so a drift prints its own name
@@ -259,6 +265,7 @@ export function shooterCensus (lines) {
     total: entries.length,
     entries,
     byBot,
+    byBotVerb,
     byAttacker,
     byVerb,
     otherVerbs,

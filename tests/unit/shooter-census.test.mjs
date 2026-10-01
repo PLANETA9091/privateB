@@ -192,3 +192,28 @@ test('skip whys v2: the four drift forms the unknown bucket named (face-15 verba
   assert.deepEqual(c.skipWhys, { 'night-context': 1 })
   assert.deepEqual(SKIP_REASON_RES.map(([k]) => k).slice(5), ['ring-incomplete', 'arrow-wall-incomplete', 'night-context', 'step-in-incomplete', 'cells-not-free'])
 })
+
+// (v0.392.0) THE COMBAT-WHALE LENS - the bot x verb cross
+test('byBotVerb: the whale cross pins each bot\'s verb split', () => {
+  const c = shooterCensus([
+    RING_RANGED, SHELTERING, COOLDOWN, VERDICT_FLIP, SHELTER_TRY,
+    SHELTER_SKIP_NO_WALL, PAIR_PREEMPT, YIELD, FIGHTING, FLEE_SHORE
+  ])
+  assert.deepEqual(c.byBotVerb.F9, {
+    'ring-ranged': 1, sheltering: 1, 'shelter-try': 1,
+    'pair-preempt': 1, fighting: 1, 'flee-shore': 1
+  })
+  assert.deepEqual(c.byBotVerb.F1, { 'ranged-cooldown': 1 })
+  assert.deepEqual(c.byBotVerb.F12, { 'verdict-flip': 1 })
+  // the cross row sums match the byBot row
+  for (const [b, n] of Object.entries(c.byBot)) {
+    assert.equal(Object.values(c.byBotVerb[b]).reduce((s, x) => s + x, 0), n)
+  }
+})
+
+test('byBotVerb: the untagged line lands in unknown; the zero face is empty', () => {
+  const c = shooterCensus(['someone combat: fighting drowned'])
+  assert.deepEqual(c.byBotVerb.unknown, { fighting: 1 })
+  const zero = shooterCensus(['F1 [F1] water: shore pinned (r=1 after 8 passes - the shoreline owns this swim; the release takes over)'])
+  assert.deepEqual(zero.byBotVerb, {})
+})

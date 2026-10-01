@@ -273,6 +273,13 @@ if (shooter.total > 0) {
   console.log(`  combat lines: ${shooter.total} (attackers: ${atkRow || 'none priced'})`)
   const botRow = Object.entries(shooter.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
   if (botRow) console.log(`  per-bot: ${botRow}`)
+  // (v0.392.0) THE COMBAT-WHALE LENS - the top bots' verb splits (byBot says
+  // WHO carries the lines, byVerb says WHAT the face did; only the cross
+  // says what the WHALE was doing)
+  for (const [b, n] of Object.entries(shooter.byBot).sort((a, b2) => b2[1] - a[1]).slice(0, 2)) {
+    const vr = Object.entries(shooter.byBotVerb[b] || {}).sort((a, b2) => b2[1] - a[1]).map(([v, c]) => `${v}=${c}`).join(' ')
+    console.log(`  combat-whale lens ${b} (${n} lines): ${vr || '-'}`)
+  }
   console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
   console.log(`  verdict flips: ${shooter.verdictFlips} - shelter: tries ${shooter.shelter.tries} / skips ${shooter.shelter.skips} / ring-tries ${shooter.shelter.ringTries}`)
   if (shooter.shelter.skips > 0) {
