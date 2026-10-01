@@ -11588,3 +11588,17 @@ Work Log:
 
 Stage Summary:
 - Master = 79a9378 (pkg 0.436.0). NEXT FIRE: attempt 4 >2h-0-jobs => the zombie law; version next 0.437.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0330 - v0.437.0 THE WALK-OUT WITNESS LENS (the enforcer's numbers ready before the field speaks); no dispatch - attempt 4 REVIVED (jobs 19:33, unit green, integration RUNNING), max-one holds.
+
+Work Log:
+- CHECK ORIGIN FIRST: ac9b80e the tip, 0.437.0 free. Attempt 4 crossed >2h-0-jobs mid-fire BUT jobs materialized 19:33:31Z - REVIVED to in_progress, the zombie law void, no cancel, no duplicate.
+- THE UNION'S FIRST CI GREEN: gate 36912431690 (ac9b80e) SUCCESS - the 0.431.0-0.436.0 union validated whole (unit + integration).
+- THE LENS: walkoutcensus.mjs - parseWalkoutStall (the enforcer's one line: window/displacement-or-unmeasured/bar/rung/why) + walkoutWitnessCensus (byRung, the windowS and displacement series, barMax = the printed bar, the unmeasured share, the escape hatch). Decompose: the witness-numbers row beside the 0.425.0 raw counts.
+- Tests: 9 (the ROUND-TRIP law - lines built by walkoutStallLine + walkoutEscalation; it caught the bar hand-typed 3.0 vs the printed 1.0). Syntax 346/0, unit 200/200. Push ac9b80e..d51fadf CLEAN. Gate 36915845093 in_progress at close; attempt 4's integration still RUNNING (unit shards GREEN).
+
+Stage Summary:
+- Master = d51fadf (pkg 0.437.0). NEXT FIRE: attempt 4 SUCCESS => MINE the first walk-out-wired face; version next 0.438.0. Identity: PLANETA9091.
