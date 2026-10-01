@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
+import { mapTripCensus, parseWorldmapTail, mapTripGap } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1047,6 +1047,30 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       }
     }
     if (pt.unparsed > 0) console.log(`  unparsed rows: ${pt.unparsed} (the named-row shape escaped - counted, never dropped)`)
+  }
+}
+
+// (v0.445.0) THE MAP TRIP GAP - the named stuck resource's own delivery
+// read: the knowledge side (the worldmap tail's position counts) beside
+// the launch economics (the v0.415.0 census) and the plan's stuck name
+// (the v0.440.0 named board). Face 31's shape: sand required 157926,
+// have 0..12 all face, the map HOLDS sand=226 - and the trips named it
+// 10x with 9 unreachable + 7 shaft-locked + 1 launched: the KNOWLEDGE leg
+// is fat, the DELIVERY leg starves. Honest skips: no stuck name (the
+// board churned), no map tail (a pre-worldmap face), no trip lines at all
+// - each reads its own silence, nothing composed from nothing.
+{
+  const pt = planTopCensus(lines)
+  const stuck = pt.rows > 0 && pt.seat.distinctNames.length === 1 ? pt.seat.lastName : null
+  const mt = mapTripCensus(lines)
+  const wm = parseWorldmapTail((() => { for (let i = lines.length - 1; i >= 0; i--) { const w = parseWorldmapTail(lines[i]); if (w) return lines[i] } return null })())
+  if (stuck && mt.launches + mt.skips.n > 0) {
+    const g = mapTripGap(mt, wm, stuck)
+    const know = g.mapKnown
+      ? `the map holds ${g.mapPositions} ${stuck} position(s)`
+      : 'the map\'s knowledge is unreadable by design (no worldmap tail this face)'
+    console.log('--- MAP TRIP GAP (v0.445.0: the stuck resource\'s knowledge-delivery read) ---')
+    console.log(`  ${stuck}: demanded by the trip lane ${g.demanded}x (launches ${g.stuckLaunches}, unreachable skips ${g.unreachable}, shaft-locked ${g.shaftLocked}); ${know} - the delivery leg, not the knowledge leg, is the lever`)
   }
 }
 

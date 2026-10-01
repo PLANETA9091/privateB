@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -145,4 +145,45 @@ test('census: the honest zeros and the honest empty anatomy', () => {
   const e = mapTripCensus('not an array')
   assert.equal(e.launches, 0)
   assert.deepEqual(e.byTarget, {})
+})
+
+// (v0.445.0) THE MAP TRIP GAP - the knowledge side arrives. The worldmap
+// tail parser rides the tiling law (the top-list's entries must TILE the
+// tail or the whole tail reads null), and the gap composer rides the
+// existing census's own numbers (no re-parse drift). The verbatim lines
+// are face 31's (run114) - the round-trip law holds.
+
+test('worldmap tail: the verbatim face-31 line parses, the tiling law holds, the junk reads null', () => {
+  const w = parseWorldmapTail('worldmap: 1130 positions, 17 chunks scanned, top: coal_ore=291 oak_log=244 sand=226 copper_ore=189 birch_log=78')
+  assert.deepEqual(w, { positions: 1130, chunks: 17, top: { coal_ore: 291, oak_log: 244, sand: 226, copper_ore: 189, birch_log: 78 } })
+  // one entry is legal; a garbage gap breaks the tile - null, never a half-read map
+  assert.deepEqual(parseWorldmapTail('worldmap: 5 positions, 2 chunks scanned, top: sand=7'), { positions: 5, chunks: 2, top: { sand: 7 } })
+  assert.equal(parseWorldmapTail('worldmap: 5 positions, 2 chunks scanned, top: sand=7 junk here'), null)
+  assert.equal(parseWorldmapTail('worldmap: 5 positions, 2 chunks scanned, top: sand=x'), null)
+  assert.equal(parseWorldmapTail('[worldmap] autosave: merged 12 from disk, 1130 positions on file'), null, 'the autosave emitter is another lane')
+  assert.equal(parseWorldmapTail(null), null)
+})
+
+test('mapTripGap: the face-31 composition hand-counted, the honest nulls when a leg is missing', () => {
+  const lines = [
+    'F3 map trip skipped: sand,gravel unreachable',
+    'F14 map trip: sand',
+    'F13 map trip skipped: cannot leave the shaft',
+    'worldmap: 1130 positions, 17 chunks scanned, top: coal_ore=291 sand=226'
+  ]
+  const mt = mapTripCensus(lines)
+  const map = parseWorldmapTail('worldmap: 1130 positions, 17 chunks scanned, top: coal_ore=291 sand=226')
+  const g = mapTripGap(mt, map, 'sand')
+  assert.deepEqual(g, { stuck: 'sand', mapPositions: 226, mapKnown: true, demanded: 2, unreachable: 1, shaftLocked: 1, launches: 1, stuckLaunches: 1 })
+  // gravel: demanded by the unreachable embed, never launched, known to the map
+  const g2 = mapTripGap(mt, map, 'gravel')
+  assert.equal(g2.demanded, 1)
+  assert.equal(g2.stuckLaunches, 0)
+  assert.equal(g2.mapPositions, 0, 'the map\'s top-list has no gravel line - 0 positions KNOWN, the honest read')
+  // the missing legs read null - the board churned (no stuck name) or no map tail
+  assert.equal(mapTripGap(mt, map, null), null)
+  assert.equal(mapTripGap(null, map, 'sand'), null)
+  const g3 = mapTripGap(mt, null, 'sand')
+  assert.equal(g3.mapKnown, false)
+  assert.equal(g3.mapPositions, null, 'no map tail = the knowledge side unknown, never a zero that lies')
 })

@@ -98,3 +98,60 @@ export function mapTripCensus (lines) {
   c.skips.n = fl(c.skips.n)
   return c
 }
+
+// (v0.445.0) THE MAP TRIP GAP - the KNOWLEDGE side arrives. The v0.415.0
+// lens priced the launch economics (what launched, what was refused, which
+// resources the skips starve) but never read what the map KNOWS: the
+// worldmap tail is the run's own knowledge snapshot -
+//
+//   `worldmap: 1130 positions, 17 chunks scanned, top: coal_ore=291 oak_log=244 sand=226 copper_ore=189 birch_log=78`
+//
+// Face 31 (run114) made the gap unignorable: the NAMED STUCK SIGNATURE
+// (the v0.440.0 named board's field proof) is SAND - required 157926,
+// have 0..12 all face - while the map HOLDS sand=226 (top-3 knowledge) and
+// the trip lane named sand or gravel 10 times with 9 unreachable + 7
+// shaft-locked and ONE launch (interrupted). The knowledge leg is fat; the
+// delivery leg starves. The tiling law (plantop's own): the top-list's
+// entries must tile the tail (one space between, no garbage) or the whole
+// tail reads null - never a half-read map.
+export function parseWorldmapTail (s) {
+  if (typeof s !== 'string') return null
+  const m = s.match(/^worldmap: (\d+) positions, (\d+) chunks scanned, top: (.+)$/)
+  if (!m) return null
+  const tail = m[3]
+  const top = {}
+  let last = 0
+  for (const e of tail.matchAll(/([a-z_][a-z_0-9]*)=(\d+)/g)) {
+    if (e.index !== last && e.index !== last + 1) return null
+    top[e[1]] = Number(e[2])
+    last = e.index + e[0].length
+  }
+  if (last !== tail.length) return null
+  return { positions: Number(m[1]), chunks: Number(m[2]), top }
+}
+
+/**
+ * The gap composer: the launch economics (mapTripCensus's own output), the
+ * map's knowledge (parseWorldmapTail's), and the plan's stuck resource name
+ * (the plantop census's seat.lastName) - composed into one honest read.
+ * Any missing leg reads null (never a fabricated number):
+ * - stuck null/missing -> the gap has no subject (the board churned)
+ * - map null (a pre-worldmap-tail face) -> the knowledge side unknown
+ * The counts ride the census's OWN numbers (no re-parse drift); demanded =
+ * the stuck resource's skip-embedded + launch mentions, the demand the
+ * lane itself voiced.
+ */
+export function mapTripGap (mt, map, stuck) {
+  if (!mt || !stuck) return null
+  const demanded = (mt.skips?.unreachableTargets?.[stuck] || 0) + (mt.byTarget?.[stuck] || 0)
+  return {
+    stuck,
+    mapPositions: map ? (map.top[stuck] ?? 0) : null,
+    mapKnown: !!map,
+    demanded,
+    unreachable: mt.skips?.byWhy?.unreachable || 0,
+    shaftLocked: mt.skips.byWhy?.['shaft-locked'] || 0,
+    launches: mt.launches || 0,
+    stuckLaunches: mt.byTarget?.[stuck] || 0
+  }
+}
