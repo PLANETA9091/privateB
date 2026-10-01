@@ -40,6 +40,7 @@ import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '..
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
+import { sealSnapshot, sealDeclareLine, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.421.0) the seal watch: the pre-risk declare + the respawn accounting, the same SEAL_PRIORITY list all four seal arithmetics spend
 import {
   waterVerdict, airBarTrust, shoreDirection, isWaterName, SHAFT_FLUID_NAMES,
   oxygenInDomain, RESCUE_MAX_MS, RESCUE_COOLDOWN_MS, OXYGEN_CRITICAL_LEVEL, AIR_GLITCH_LOG_MS,
@@ -261,6 +262,19 @@ export function createMiner ({
     Number.isFinite(seedLastDeath.spot.x) && Number.isFinite(seedLastDeath.spot.y) && Number.isFinite(seedLastDeath.spot.z)) {
     lastDeath = { spot: { x: seedLastDeath.spot.x, y: seedLastDeath.spot.y, z: seedLastDeath.spot.z }, at: seedLastDeath.at, attempted: !!seedLastDeath.attempted }
   }
+  // (v0.421.0) THE SEAL WATCH STATE - the death stake the last death erased
+  // and the flag that says a respawn read is owed. The seal death ledger
+  // priced the drain (face 26: F14 drowned carrying a 100u seal stake nobody
+  // had named; face 27: F14's empty-pocket re-death) and the respawn half
+  // stayed silent - the bot respawns into an empty vanilla pocket and
+  // NOTHING reads again. The death handler snapshots the stake while the
+  // inventory still lists (the v0.199.0 drop snapshot's own read), the
+  // 'spawn' listener below spends it once at the first post-death spawn.
+  // Per-instance like lastDeath: a reconnect rebuilds the miner, the flag
+  // dies with the old bot object - the death -> respawn (same bot object)
+  // path is the class this state serves.
+  let sealDeathStake = null // the sealSnapshot at death (null = the death pocket never read)
+  let sealRespawnOwed = false // set at death, spent at the first post-death spawn
   // (v0.117.0) THE AUTHORITATIVE DEATH CAUSE - run102 (35889087936) mined
   // 'fall/env' x3 while the server told the truth: 'F3 drowned', 'F13
   // drowned', 'F18 suffocated in a wall'. The lastHarm inferrer below cannot
@@ -395,10 +409,12 @@ export function createMiner ({
     // One read WHILE the inventory still lists, riding the 'death drop' filter
     // key. Guarded: the snapshot must never break the respawn path.
     let dropPocketU = null // (v0.280.0) the write-off's stake - read while the inventory still lists
+    sealRespawnOwed = true // (v0.421.0) a respawn read is now owed - the spawn listener pays it
     try {
       const dropItems = bot.inventory?.items?.() ?? null
       const drop = deathDropLine({ tag, pos: bot.entity?.position, items: dropItems })
       dropPocketU = deathDropTotal(dropItems)
+      sealDeathStake = sealSnapshot(dropItems) // (v0.421.0) the seal stake rides the SAME guarded read - null when the pocket never read, the honest unread
       if (drop) log(drop)
     } catch { /* the drop snapshot must never break a respawn */ }
     // (v0.249.0) THE DROWN-DEATH CONTEXT: run36325553310 measured the
@@ -538,6 +554,34 @@ export function createMiner ({
     lastHarm = null
     lastHp = 20
     setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)
+  })
+
+  // (v0.421.0) THE SEAL RESPAWN ACCOUNTING - the silent half of the seal
+  // death cure. The seal death ledger reads the drop lines (the death leg,
+  // the v0.403.0 surface); the respawn leg printed NOTHING - the bot respawned
+  // into an empty vanilla pocket and the 'respawn-empty reset' the ledger
+  // named (face 23's F14 arrived 0/8 six times) was invisible in the log.
+  // ONE line per death, at the first 'spawn' after the death flag: the death
+  // stake against the fresh pocket, the loss as the honest floor
+  // (sealwatch.mjs sealRespawnLine). The delayed read: the inventory syncs
+  // after the respawn packet - an early read would print a pocket the server
+  // had not filled yet. mineflayer fires 'spawn' on login and dimension
+  // changes too - the flag gates those out (no death, no accounting).
+  // Guarded like every death-path read: the accounting must never break a
+  // respawn.
+  bot.on('spawn', () => {
+    try {
+      if (!sealRespawnOwed) return
+      sealRespawnOwed = false
+      const stake = sealDeathStake
+      sealDeathStake = null
+      setTimeout(() => {
+        try {
+          const line = sealRespawnLine({ tag, death: stake, items: bot.inventory?.items?.() ?? null })
+          if (line) log(line)
+        } catch { /* a respawn read must never throw */ }
+      }, 3000)
+    } catch { /* the accounting must never break a respawn */ }
   })
 
   // ---- combat defense (v0.11.0, policy in src/lib/combat.mjs) ----
@@ -841,6 +885,19 @@ export function createMiner ({
       log(`${tag} combat: shelter skip (night=${night} armed=${armed} hp=${hpNow ?? '?'} attackers=${crowd} poison=${poisonLens ? 'on' : 'off'} threat=${threat ? `${threat.name}@${threat.dist.toFixed(1)}` : 'none'})`)
       return false
     }
+    // (v0.421.0) THE PRE-RISK SEAL DECLARE - the risk is confirmed (the gate
+    // above fired), the seal stake is named BEFORE the ring/wall spends it or
+    // the death buries it. Face 26's F14 drowned holding a 100u seal stake
+    // (cobblestone 89) that no line had ever named as a stake; the declare
+    // makes the pocket's seal mass visible at every confirmed risk, once per
+    // shelter episode (naturally bounded - one line per try). The same
+    // shelterDue semantics re-read inside (the co-derivation law) - the
+    // declare cannot fire where the shelter refused. Guarded: a declare must
+    // never break the shelter path.
+    try {
+      const dl = sealDeclareLine({ tag, items: inventoryItems(bot), hp: hpNow, threatDist: threat.dist, night, armed, attackers: crowd })
+      if (dl) log(dl)
+    } catch { /* the declare must never break the shelter */ }
     // no seal material: (v0.50.0) EARN one instead of skipping - the measured
     // 10x 'shelter skip (no seal material)' class (fleet 35619512737; F18 x7)
     // is the full-pocket miner that cannot pick up its own dig drops; F3 then
