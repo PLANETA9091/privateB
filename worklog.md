@@ -11667,3 +11667,20 @@ Stage Summary:
 - THE WET ECONOMY (the wet face's own price): conversion **46.9%** (mined 2055, banked 393, pocket 550u, surplus 0) vs face 28's dry 134.9% - the wet face mines 3.6x more and banks proportionally LESS; bank flow 1.4u/s, the pocket needs 404s past the deadline. zero-hops 45 (no-path 16, decide-timeout 11, open-timeout 8, budget-floor 7), walk-backs 7 (decide 3 / no-path 3), still-underground zeros 13 (attempts avg 1.7 - the vertical doom returns wet), the bands 7 holding 38 failures across 23 spots. THE DEFICITS STUCK SIGNATURE AGAIN (0% -> 0%, drift 0%): the last anonymous read - face 30's board carries the 0.440.0 names. Memory: rss max 445M, evicted max 1215, path peak 6a/8q, GC pinned share 72%, v8 headroom 29M, allocvalve quiet.
 
 - VERDICTS FOR THE NEXT FIRES: (1) **0.441.0 = THE SAME-TARGET RE-ARM BRAKE** (the brief's stage (b), the gate open - wire the pure gate at the transit re-arm, the zero-gain stall pairs already live in transitcensus). (2) The o2 reset(-1) cure (the mirror's last-known o2 arming the rescue) has BOTH forms' fresh fuel - price the two forms' shares. (3) The blind share 66% on the wet face - the shore scan's sight debt re-prices with the seats broken. (4) Face 30's named deficits board (0.440.0's row) closes the stuck-slot question.
+
+---
+Task ID: cron30-20261002-0500
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0500 - v0.441.0 THE ZERO CLOCK (the hop zeros' face-phase anatomy); face 29 (WET) mined - THE BUDGET-FLOOR VERDICT: MID-dominant, the floor's EOF-design assumption is wrong on the wet face; the parallel lane's 0.440.0 (plantop) respected.
+
+Work Log:
+- CHECK ORIGIN FIRST: the parallel lane shipped v0.440.0 (plantop.mjs, the deficits board's names) + their FACE 29 READ; my cancelled gate e6be8c3 = the supersession norm (4a0a667's gate covered the tree). Slot 0.441.0 free.
+- LEG 1 (mining): fleet 36920928626 SUCCESS => face 29 downloaded (2968 lines, run112); decompose exit 0. My rows: open-deaf 8 zeros ALL late-face (400..681s), late-bracket 8/8 (27/40 anchors late), the y=81 shelf (face 28's y=72 band confirmed WET-side at y=81), valve quiet.
+- THE BRAKE: the parallel lane read stage (a) REPRODUCED (the zero-gain loop's ROUTE face) and claimed 0.441.0 = THE SAME-TARGET RE-ARM BRAKE - respected, NOT coded here. My lane took the non-conflicting front.
+- THE LENS: zeroclock.mjs - zeroClockCensus brackets EVERY hop zero class into the clock's thirds (midpoint read, unplaced counted never assumed, wide brackets flagged); budgetFloorVerdict (late/mid/early/mixed dominance). Rides hopcensus's parseHopZero + opendeaf's parsePulseAnchor (zero re-parse drift).
+- THE FIELD VERDICT (live): BUDGET-FLOOR MID-DOMINANT - 6 of 7 bite MID-RUN, F12 owns 6 of 7: the chain budgets exhaust mid-face, the budget sizing (or F12's chain length) is the lever, NOT the pocket's drain. decide-timeout ALL 11 mid-face (the A* starvation is a mid-face wet condition). 
+- Tests: zeroclock 9/9 (two mid-fire fixes, both TEST-side line-order slips - the lens never moved). Syntax 352/0, unit 203/203. Push 1bcbbea..3e0c1fc CLEAN.
+- DISPATCH: fleet 36926711080 (3e0c1fc, 600s) in_progress at close - face 30 will carry the retry voice + plantop names + zero clock LIVE; gate 36926699317 pending at close.
+
+Stage Summary:
+- Master = 3e0c1fc (pkg 0.441.0). NEXT FIRE: (1) fleet 36926711080 verdict => face 30: the retry voice's FIRST field read (won/lost anatomy), the NAMED deficits board (0.440.0's plantop closes the stuck-slot question), the zero clock row 2; (2) the budget-floor MID verdict prices the chain-budget lever - the parallel lane's brake first (theirs), the budget sizing second; (3) version next 0.442.0. Identity: PLANETA9091.
