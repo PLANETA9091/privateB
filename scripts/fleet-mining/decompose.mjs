@@ -326,6 +326,12 @@ if (shooter.total > 0) {
     const pct = Math.round(100 * shooter.ringStock.zeroHave / shooter.ringStock.seen)
     const pairRow = Object.entries(shooter.ringStock.pairs).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${p}=${n}`).join(' ')
     console.log(`  seal-stock baseline: ${shooter.ringStock.seen} ring-stock skips, ${shooter.ringStock.zeroHave} zero-have (${pct}%) - pairs: ${pairRow}`)
+    // (v0.401.0) THE SEAL ROSTER - who arrives seal-empty: per-bot
+    // seen/zeroHave, the reserve's blind-spot detector (a bot still at
+    // zero AFTER the reserve names where the cure missed)
+    const roster = Object.entries(shooter.ringStock.byBot || {}).sort((a, b) => b[1].zeroHave - a[1].zeroHave)
+      .map(([b, s]) => `${b} ${s.zeroHave}/${s.seen}`).join(' ')
+    if (roster) console.log(`  seal roster (zero/seen per bot): ${roster}`)
   }
   if (shooter.maxDist !== null) console.log(`  engagement dist: max @${shooter.maxDist}u priced across ${shooter.withDist} dists`)
   const verbRow = Object.entries(shooter.byVerb).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([v, n]) => `${v}=${n}`).join(' ')

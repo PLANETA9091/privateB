@@ -158,6 +158,14 @@ export const SKIP_REASON_RES = [
 // (v0.398.0) the ring-stock pair - the skip prose's own 'ring stock N/M'
 // (have/need); the 'ring-stock' why key guarantees the shape matches.
 const RING_STOCK_RE = /ring stock (\d+)\/(\d+)/
+//
+// (v0.401.0) THE SEAL ROSTER - the per-bot dimension the verdict needs:
+// the reserve (v0.396.0) keeps 8 seal units home at BANK time; a bot that
+// still arrives seal-empty AFTER the reserve names where the cure missed
+// (a below-floor pocket, a family the reserve never saw, a bank that ran
+// before the reserve gate). ringStock.byBot carries each bot's own
+// seen/zeroHave pair - the roster of seal-empty arrivals, the face-23
+// read's first question ('did the reserve miss anyone?').
 
 /**
  * Parse one skip body (the text after 'combat: shelter skip ') into its
@@ -269,7 +277,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, ringStock: {seen: number, zeroHave: number, pairs: Object<string,number>}, sessions: {gapS: number, endVerbs: string[], siegeMinLen: number, byBot: Object<string,{sessions: number, maxLen: number}>, siegeByBot: Object<string,number>}, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byBotVerb: Object<string,Object<string,number>>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number, wallMiss: number}, skipWhys: Object<string,number>, ringStock: {seen: number, zeroHave: number, pairs: Object<string,number>, byBot: Object<string,{seen: number, zeroHave: number}>}, sessions: {gapS: number, endVerbs: string[], siegeMinLen: number, byBot: Object<string,{sessions: number, maxLen: number}>, siegeByBot: Object<string,number>}, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -299,6 +307,9 @@ export function shooterCensus (lines) {
   const ringStockPairs = {}
   let ringStockSeen = 0
   let ringStockZero = 0
+  // (v0.401.0) the seal roster - per-bot seen/zeroHave, the cure's blind
+  // spot detector
+  const ringStockByBot = {}
   const rangedByAttacker = {}
   let arrowWall = 0
   let ringRangedRefused = 0
@@ -352,7 +363,12 @@ export function shooterCensus (lines) {
         const sm = (body ? body[1] : '').match(RING_STOCK_RE)
         if (sm) {
           ringStockSeen++
-          if (num(sm[1]) === 0) ringStockZero++
+          const bb = (ringStockByBot[botKey] = ringStockByBot[botKey] || { seen: 0, zeroHave: 0 })
+          bb.seen++
+          if (num(sm[1]) === 0) {
+            ringStockZero++
+            bb.zeroHave++
+          }
           const pk = `${sm[1]}/${sm[2]}`
           ringStockPairs[pk] = (ringStockPairs[pk] || 0) + 1
         }
@@ -420,7 +436,7 @@ export function shooterCensus (lines) {
     verdictFlips,
     shelter: { tries, skips, ringTries, wallMiss },
     skipWhys,
-    ringStock: { seen: ringStockSeen, zeroHave: ringStockZero, pairs: ringStockPairs },
+    ringStock: { seen: ringStockSeen, zeroHave: ringStockZero, pairs: ringStockPairs, byBot: ringStockByBot },
     sessions: { gapS: SESSION_GAP_S, endVerbs: SESSION_END_VERBS, siegeMinLen: SIEGE_MIN_SESSION_LEN, byBot: byBotSessions, siegeByBot },
     withDist,
     maxDist

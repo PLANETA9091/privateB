@@ -418,5 +418,34 @@ test('seal-stock: nonzero have stays out of zeroHave; non-stock skips never coun
 
 test('seal-stock: the honest zero + junk safety', () => {
   const c = shooterCensus(['launching 19 bots', hb(1, 30), 'F9 [F9] combat: fighting skeleton', null, 7])
-  assert.deepEqual(c.ringStock, { seen: 0, zeroHave: 0, pairs: {} })
+  assert.deepEqual(c.ringStock, { seen: 0, zeroHave: 0, pairs: {}, byBot: {} })
+})
+
+// (v0.401.0) THE SEAL ROSTER - per-bot seen/zeroHave: who arrives
+// seal-empty. The reserve's blind-spot detector - a bot still at zero
+// AFTER the v0.396.0 reserve names where the cure missed (the face-23
+// read's first question: did the reserve miss anyone?).
+test('seal roster: per-bot accumulation splits seen and zeroHave by bot', () => {
+  const c = shooterCensus([
+    'F2 [F2] combat: shelter skip (open field: ring stock 0/2, ground earns nothing)',
+    'F2 [F2] combat: shelter skip (open field: ring stock 0/8, ground earns nothing)',
+    'F9 [F9] combat: shelter skip (open field: ring stock 7/8, ground earns nothing)',
+    'F9 [F9] combat: shelter skip (open field: ring stock 0/7, ground earns nothing)'
+  ])
+  assert.equal(c.ringStock.seen, 4)
+  assert.equal(c.ringStock.zeroHave, 3)
+  assert.deepEqual(c.ringStock.byBot, {
+    F2: { seen: 2, zeroHave: 2 },
+    F9: { seen: 2, zeroHave: 1 }
+  })
+})
+
+test('seal roster: unknown-bot skips land under the unknown key + the junk battery holds', () => {
+  const c = shooterCensus([
+    'combat: shelter skip (open field: ring stock 0/2, ground earns nothing)',
+    null,
+    42,
+    'not a combat line'
+  ])
+  assert.deepEqual(c.ringStock.byBot, { unknown: { seen: 1, zeroHave: 1 } })
 })
