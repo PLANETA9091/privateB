@@ -42,7 +42,19 @@ export function classifyBankReason (reason) {
   if (reason === 'no chest in range') return { why: 'no-chest' }
   if (reason === 'nothing to deposit') return { why: 'nothing' }
   if (/^budget exhausted/.test(reason)) return { why: 'budget' }
-  if (/^still underground/.test(reason)) return { why: 'underground' }
+  // (v0.436.0) THE UNDERGROUND ATTEMPTS READ - the still-underground class's
+  // own number: 'after N climb attempts' is the shaft-bottom chain's burn
+  // rate (how many climb attempts the write-off paid). The face-27
+  // underground=21 class rides this prose - the N was dropped since v0.411.0
+  // while the why alone cannot aim the shaft-bottom cure (a 1-attempt
+  // write-off is the chain REFUSING early, a 2-attempt one the ladder
+  // FAILING twice). Absent N (a prose variant the emitter changed) reads
+  // null - evidence, never invented.
+  {
+    const ug = reason.match(/^still underground after (\d+) climb attempts?/)
+    if (ug) return { why: 'underground', climbAttempts: Number(ug[1]) }
+    if (/^still underground/.test(reason)) return { why: 'underground', climbAttempts: null }
+  }
   if (/water rescue/.test(reason)) return { why: 'water-rescue' }
   return { why: 'other' }
 }
@@ -81,7 +93,14 @@ function bump (map, key, n = 1) {
 
 export function bankFailCensus (lines) {
   const walkBack = { total: 0, byWhy: {}, byBot: {}, dists: { n: 0, max: 0, sum: 0 } }
-  const zeros = { total: 0, byArm: {}, byWhy: {}, byBot: {} }
+  // (v0.436.0) the zeros carry the still-underground slice: the attempts
+  // series (the shaft-bottom chain's burn) + per-bot attribution (ONE bot
+  // owning the slice is the pinned underground doom - the same seat law the
+  // transit pocket and the hot-spot bands read).
+  const zeros = {
+    total: 0, byArm: {}, byWhy: {}, byBot: {},
+    underground: { n: 0, attempts: { n: 0, min: null, max: null, sum: 0 }, byBot: {} }
+  }
   let decide = 0
   // (v0.413.0) the decide clock - the walk-fail lens's own rail (the last
   // hb ts stamps every bank decide refusal; the death clock's shape).
@@ -109,6 +128,19 @@ export function bankFailCensus (lines) {
       bump(zeros.byArm, bz.arm)
       bump(zeros.byWhy, bz.why)
       bump(zeros.byBot, bz.bot)
+      // (v0.436.0) the underground slice - the attempts series rides the
+      // row's own number when the emitter printed it.
+      if (bz.why === 'underground') {
+        zeros.underground.n++
+        bump(zeros.underground.byBot, bz.bot)
+        const a = bz.climbAttempts
+        if (Number.isInteger(a)) {
+          zeros.underground.attempts.n++
+          zeros.underground.attempts.sum += a
+          if (zeros.underground.attempts.min === null || a < zeros.underground.attempts.min) zeros.underground.attempts.min = a
+          if (zeros.underground.attempts.max === null || a > zeros.underground.attempts.max) zeros.underground.attempts.max = a
+        }
+      }
       if (bz.why === 'chest-unreachable-decide-timeout') { decide++; stamps.push(lastT) }
     }
   }

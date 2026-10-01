@@ -689,6 +689,15 @@ if (hopZero.total > 0) {
     const za = Object.entries(bf.zeros.byArm).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     const zw = Object.entries(bf.zeros.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  zero deliveries: ${bf.zeros.total} by arm: ${za || 'none'} - by why: ${zw || 'none'}`)
+    // (v0.436.0) THE UNDERGROUND ATTEMPTS READ - the shaft-bottom chain's
+    // burn (the face-27 underground=21 class's own number).
+    const ug = bf.zeros.underground
+    if (ug.n > 0) {
+      const ub = Object.entries(ug.byBot).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')
+      const att = ug.attempts.n > 0 ? `, attempts ${ug.attempts.min}..${ug.attempts.max} (avg ${(ug.attempts.sum / ug.attempts.n).toFixed(1)})` : ''
+      const pinned = Object.keys(ug.byBot).length === 1 && ug.n >= 3 ? ' - THE SHAFT-BOTTOM SEAT (the per-bot doom)' : ''
+      console.log(`  still-underground zeros: ${ug.n}${att}${ub ? `, top bots: ${ub}` : ''}${pinned}`)
+    }
   }
   if ((hasWb || hasZ) && bf.decideTotal > 0) {
     const hopDecide = hopZero.byWhy['decide-timeout'] || 0

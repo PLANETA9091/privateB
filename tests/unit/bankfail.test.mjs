@@ -147,3 +147,68 @@ test('bank decide clock: a decide before the first hb reads untimed (the stamp n
   assert.equal(c.clock.clockEnd, 90)
   assert.equal(c.clock.maxBurst, 0)
 })
+
+// (v0.436.0) THE UNDERGROUND ATTEMPTS READ - the still-underground class's
+// own number ('after N climb attempts' = the shaft-bottom chain's burn).
+// The face-27 verbatims: 10 zeros, N rides as 1 (singular) and 2 (plural).
+
+test('underground attempts: the classifier reads both the singular and the plural emitter forms', () => {
+  assert.deepEqual(
+    classifyBankReason('still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks'),
+    { why: 'underground', climbAttempts: 1 }
+  )
+  assert.deepEqual(
+    classifyBankReason('still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks'),
+    { why: 'underground', climbAttempts: 2 }
+  )
+  assert.deepEqual(
+    classifyBankReason('still underground - a prose variant without the number'),
+    { why: 'underground', climbAttempts: null }
+  )
+})
+
+test('underground attempts: the face-27 zero verbatims parse bot, arm, why and the N', () => {
+  assert.deepEqual(
+    parseBankZero('F16 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)'),
+    { bot: 'F16', arm: 'final', why: 'underground', climbAttempts: 1 }
+  )
+  assert.deepEqual(
+    parseBankZero('F13 final bank: 0 (still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks)'),
+    { bot: 'F13', arm: 'final', why: 'underground', climbAttempts: 2 }
+  )
+})
+
+test('underground attempts: the census slice accumulates the series and the per-bot seats (face-27 shape)', () => {
+  const lines = [
+    'F16 final bank: 0 (still underground after 1 climb attempt - the chain from the shaft bottom is doomed walks)',
+    'F13 final bank: 0 (still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks)',
+    'F13 final bank: 0 (still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks)',
+    'F13 final bank: 0 (still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks)'
+  ]
+  const c = bankFailCensus(lines)
+  assert.equal(c.zeros.total, 4)
+  assert.equal(c.zeros.underground.n, 4)
+  assert.deepEqual(c.zeros.attempts ? null : null, null) // the series lives under underground
+  assert.deepEqual(c.zeros.underground.attempts, { n: 4, min: 1, max: 2, sum: 7 })
+  assert.deepEqual(c.zeros.underground.byBot, { F13: 3, F16: 1 })
+})
+
+test('underground attempts: the prose-variant row counts in the slice but not the series (null never sums)', () => {
+  const c = bankFailCensus([
+    'F6 final bank: 0 (still underground after 2 climb attempts - the chain from the shaft bottom is doomed walks)',
+    'F6 bank: 0 (still underground without the number)'
+  ])
+  assert.equal(c.zeros.underground.n, 2)
+  assert.deepEqual(c.zeros.underground.attempts, { n: 1, min: 2, max: 2, sum: 2 })
+  assert.deepEqual(c.zeros.underground.byBot, { F6: 2 })
+})
+
+test('underground attempts: the honest zeros and the non-array anatomy carry the series shape', () => {
+  const c = bankFailCensus(['F1 [F1] heartbeat alive', 'nothing of ours'])
+  assert.equal(c.zeros.underground.n, 0)
+  assert.deepEqual(c.zeros.underground.attempts, { n: 0, min: null, max: null, sum: 0 })
+  assert.deepEqual(c.zeros.underground.byBot, {})
+  const e = bankFailCensus('not an array')
+  assert.equal(e.zeros.underground.n, 0)
+  assert.deepEqual(e.zeros.underground.attempts, { n: 0, min: null, max: null, sum: 0 })
+})
