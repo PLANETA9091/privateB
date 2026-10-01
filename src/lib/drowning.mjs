@@ -1458,6 +1458,35 @@ export function frozenWindowFor ({ headWet = false, oxygen = null } = {}) {
   if (!Number.isFinite(oxygen) || oxygen < 0) return FROZEN_WINDOW
   return oxygen <= OXYGEN_CRITICAL_LEVEL ? WET_FROZEN_WINDOW : FROZEN_WINDOW
 }
+
+// (v0.381.0) THE APEX-REST EXEMPTION - face 36796588698's F12 paid the
+// misdiagnosis: a bobber that spent its lungs climbing reached the surface
+// (head DRY, y flat at the bob apex) and the frozen-physics window condemned
+// the REST as a wedged client ('freeze named ticking-flat - the simulate
+// runs and the world owns the bot') - the stand-down handed a bot parked at
+// the air line to the reconnect lane, the re-page cycle re-climbed (three
+// stacked rescues in 19s, zero end-to-end conversions), and the vanilla
+// drowning clock collected the bot in a wet dip (o2 0 then reset(-1) blind,
+// head air at death, rescue active - the rescue-active o2-reset form the
+// v0.379.0 census prices). The principle is the rescue's OWN entry gate,
+// held since v0.82.0: a bot at/below OXYGEN_RESCUE_LEVEL or on a junk bar
+// NEVER stands down - better a wasted swim than a silent drown. The frozen
+// verdict was violating that law for the dry-headed class: the wedged
+// clients that need the relog lane read head WET (the v0.132.0 fast window)
+// or healthy air above the rescue line (run76's F17 legacy window); a flat
+// DRY-headed bot at/below the rescue line or on a lost read mid-rescue is
+// the bob apex - the release's stability window fills during the rest and
+// the lungs own the clock. Junk never condemns: the reset sentinel at a dry
+// head is a lost read, not air (the gates-decide convention); the explicit
+// null check rides BEFORE any coercion (the Number(null) lesson, fifth
+// strike owed nothing).
+export function apexRestExempt ({ headWet = false, oxygen = null } = {}) {
+  if (headWet === true) return false
+  const raw = oxygen
+  if (raw == null || typeof raw !== 'number' || !Number.isFinite(raw)) return true
+  if (raw < 0) return true
+  return raw <= OXYGEN_RESCUE_LEVEL
+}
 /** A page within this window after a still-wet end at the same cell is a repeat. */
 export const REPEAT_PAGE_WINDOW_MS = 90000
 /** Full rescues allowed per repeat episode before the stand-down owns the page. */

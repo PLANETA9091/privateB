@@ -52,7 +52,7 @@ import {
   historyAdmissible, O2_HISTORY_CAP,
   surfaceRearmHolds, SURFACE_REARM_MS,
   transitBearing, TRANSIT_RESCAN_TICKS, LAND_PROXIES, TRANSIT_MAP_RANGE,
-  openWaterRelease, physicsFrozen, transitStalled, shorePinned, frozenRelogDecision, freezeClass,
+  openWaterRelease, physicsFrozen, transitStalled, shorePinned, frozenRelogDecision, freezeClass, apexRestExempt,
   bearingSectorKey,
   frozenReturnGate, frozenReturnBypass, frozenBypassEcho, breathMirror, o2SensorLabel, rescueEndVerdict,
   FROZEN_WINDOW, REPEAT_PAGE_WINDOW_MS, REPEAT_PAGE_ALLOW, STAND_DOWN_LOG_MS,
@@ -1808,6 +1808,7 @@ export function createMiner ({
     let frozenDownWet = false // (v0.96.0) the flatline verdict arrived while HEAD-WET - the drowning clock owns it, the relog fires on the FIRST verdict
     let frozenDownO2 = null // (v0.265.0) the bar at the verdict - the bypass echo's read (the loop fuel)
     let frozenDownWindow = null // (v0.265.0) which window condemned: the wet-critical fast one or the legacy ten-pass
+    let apexRestLogged = false // (v0.381.0) the apex-rest exemption's one-shot line - the rest re-verdicts every pass, the log must not
     // (v0.374.0) THE DEATH LATCH: the death EVENT fires at the death moment,
     // before any respawn - the finally's health read races the respawn (face
     // 36760275928's F11 died to a hound mid-rescue and closed 'rescue
@@ -1982,6 +1983,28 @@ export function createMiner ({
                 } catch { /* the dig lost the race: the break below owns it */ }
               }
             }
+            // (v0.381.0) THE APEX-REST EXEMPTION - the frozen verdict must
+            // respect the rescue's own entry-gate law (v0.82.0: a bot at or
+            // below the rescue line, or on a junk bar, NEVER stands down).
+            // Face 36796588698's F12: the bob apex rest (head DRY, y flat)
+            // at o2 0 -> reset(-1) was condemned 'frozen physics', the
+            // stand-down handed the air line to the reconnect lane, and the
+            // re-page cycle re-climbed three stacked rescues in 19s - the
+            // drowning clock collected the bot in a wet dip. A flat
+            // dry-headed bot at/below the rescue line or on a lost read is
+            // the release's own window - the exemption skips the stand-down
+            // (no frozenDown, no break), the pass falls through to the
+            // branch ladder below: the shore pin condemns the wall swim and
+            // the release takes over. The wedged classes it exists for keep
+            // their windows byte for byte: head WET (the v0.132.0 fast
+            // window) and healthy air above the rescue line (run76's F17
+            // legacy window) both read exempt=false.
+            if (apexRestExempt({ headWet, oxygen: read.oxygen })) {
+              if (!apexRestLogged) {
+                apexRestLogged = true
+                log(`${tag} water: apex rest held (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${o2SensorLabel(read.oxygen)}, head dry - the lungs own the clock, the release window owns the rest)`)
+              }
+            } else {
             if (Date.now() - standDownLogAt >= STAND_DOWN_LOG_MS) {
               standDownLogAt = Date.now()
               log(`${tag} water: frozen physics (${frozenWindow} flat passes at y=${pp.y.toFixed(1)}, o2=${o2SensorLabel(read.oxygen)}${headWet ? ', head WET' : ''}${frozenWindow !== FROZEN_WINDOW ? ' - the wet-critical fast window' : ''}) - standing down, the reconnect lane owns this`)
@@ -2006,6 +2029,7 @@ export function createMiner ({
             frozenDownO2 = read.oxygen
             frozenDownWindow = frozenWindow !== FROZEN_WINDOW ? 'wet-critical fast' : 'legacy'
             break
+            }
           }
         }
         if (!headWet) {
