@@ -10,6 +10,7 @@ import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the 
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
+import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
@@ -493,6 +494,35 @@ if (hopZero.total > 0) {
   if (hopZero.dists.n) console.log(`  dist: n=${hopZero.dists.n} max=${hopZero.dists.max} avg=${(hopZero.dists.sum / hopZero.dists.n).toFixed(1)}`)
 } else {
   console.log('  zero-hops: 0 (a clean delivery face - the honest zero)')
+}
+
+// (v0.409.0) THE STORM EVENT CENSUS - the stormguard verdicts', the
+// allocvalve transitions' and the heartbeat distress' field read. The
+// split of labor (the v0.408.0 collision lesson): the gauge precursors
+// and the euthanasia locks are the mem-hb lens' MEMORY/OOM PRECURSORS
+// block; this census reads the storm's own EVENT story - the rate
+// verdicts the gauge cadence can miss, the valve's closures by feeder
+// flavor (nobody read the valve's field behavior before), the hb
+// late/mainLate peaks.
+console.log('--- STORM EVENT CENSUS (v0.409.0: the stormguard verdicts + the allocvalve) ---')
+const stormMem = stormCensus(lines)
+if (stormMem.hb.count > 0) {
+  const hb = stormMem.hb
+  console.log(`  heartbeat distress: n=${hb.count} max late=${hb.maxLateMs}ms max mainLate=${hb.maxMainLateMs}ms (rss bookends ${stormMem.rss.firstM}M -> ${stormMem.rss.lastM}M, peak ${stormMem.rss.peakM}M)`)
+}
+const s = stormMem.storms
+if (s.probes + s.fatals > 0) {
+  console.log(`  stormguard verdicts: probes=${s.probes} fatals=${s.fatals} peak storm rss=${s.peakStormRssM === null ? '-' : s.peakStormRssM + 'M'} peak rate=${s.peakRateMBs === null ? '-' : s.peakRateMBs + 'MB/s'}`)
+}
+const v = stormMem.valve
+if (v.closures + v.opens > 0) {
+  const flavors = Object.entries(v.byFlavor).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}=${n}`).join(' ')
+  console.log(`  allocvalve: closures=${v.closures} (${flavors}) opens=${v.opens} max refused window=${v.maxRefusedS === null ? '-' : v.maxRefusedS + 's'} peak close rss=${v.peakCloseRssM === null ? '-' : v.peakCloseRssM + 'M'}`)
+}
+if (s.probes + s.fatals + v.closures > 0) {
+  console.log(`  storm verdict: the storm EVENT story FIRED this face (verdicts ${s.probes + s.fatals}, valve closures ${v.closures}) - the gauge debt read lives in the MEMORY/OOM PRECURSORS block`)
+} else if (stormMem.hb.count === 0) {
+  console.log('  reads: 0 (no hb/verdict/valve lines - the face predates them or the fleet leg never ran)')
 }
 
 console.log('=== COMBAT (v0.135.0 instrument) ===')
