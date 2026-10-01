@@ -17,6 +17,7 @@ import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the ba
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
+import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
@@ -972,6 +973,33 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const stuckNote = b.distinctPct0 === 1 ? ' - THE STUCK SIGNATURE: the worst slot never moved all face' : ''
     console.log(`  worst slot (index 0, the name churns): pct ${b.firstPct}% -> ${b.lastPct}% (drift ${b.driftPct}%), have ${b.firstHave} -> ${b.lastHave}, distinct pct ${b.distinctPct0}, deepest ${b.minPct0}%${stuckNote}`)
     if (dc.unparsed > 0) console.log(`  unparsed rows: ${dc.unparsed} (the row shape escaped - counted, never dropped)`)
+  }
+}
+
+// (v0.440.0) THE PLAN TOP NAMES - the deficits board's named seat (the
+// v0.417.0 index caveat CURED: face 28's stuck slot sat at 157926/0 (0.0%)
+// for the whole face and NO ONE could say which resource - the anonymous
+// row's own design debt). The named board rides the same tick emission
+// beside the deficits line (the deficits line stays byte-identical); this
+// census reads the seat's NAME arc: one distinct name all face = THE NAMED
+// STUCK SIGNATURE (aim the fleet there), hand changes = the board's stuck,
+// not one resource's. The per-resource arcs name the plan's permanent
+// residents (a resource on EVERY board row never left the top five).
+{
+  const pt = planTopCensus(lines)
+  if (pt.rows > 0 || pt.unparsed > 0) {
+    console.log('--- PLAN TOP NAMES (v0.440.0: the stuck slot has a name) ---')
+    console.log(`  named boards: ${pt.rows} rows, slots/row ${pt.slotsPerRow.min}..${pt.slotsPerRow.max}`)
+    const st = pt.seat
+    const seatNote = st.distinctNames.length === 1
+      ? ' - THE NAMED STUCK SIGNATURE: ONE resource held the worst seat all face'
+      : ` - the seat changed hands ${st.handChanges} time(s): the board is stuck, not one resource`
+    console.log(`  worst seat: ${st.firstName} -> ${st.lastName} (${st.distinctNames.length} distinct name(s)${st.distinctNames.length <= 3 ? `: ${st.distinctNames.join(' -> ')}` : ''})${seatNote}`)
+    const residents = Object.entries(pt.byRes).sort((a, b) => b[1].n - a[1].n).slice(0, 3)
+    for (const [res, a] of residents) {
+      console.log(`  ${res}: n=${a.n} pct ${a.firstPct}%..${a.lastPct}% (min ${a.minPct}%, max ${a.maxPct}%), have ${a.minHave}..${a.maxHave}`)
+    }
+    if (pt.unparsed > 0) console.log(`  unparsed rows: ${pt.unparsed} (the named-row shape escaped - counted, never dropped)`)
   }
 }
 

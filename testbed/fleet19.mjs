@@ -851,6 +851,20 @@ function topDeficits (n = 5) {
     .join(' ')
 }
 
+// (v0.440.0) THE PLAN TOP NAMES - the same five slots with the plan's own
+// resource key leading each entry. The anonymous deficits row left face 28's
+// stuck slot (157926/0, 0.0% for the WHOLE face) nameless - the fleet could
+// not say WHAT never moved. The name is the plan's key (what MINABLE_OF and
+// PLAN_ALIAS_OF speak), not the display rendering. The deficits line stays
+// byte-identical; this line rides the same tick guard beside it.
+function topDeficitNames (n = 5) {
+  return Object.values(materialsProgress())
+    .sort((a, b) => (b.required - b.have) - (a.required - a.have))
+    .slice(0, n)
+    .map(m => `${m.res} ${m.required}/${m.have} (${m.pct.toFixed(1)}%)`)
+    .join(' ')
+}
+
 async function runBot (name, target, index) {
   // Each bot gets its own compass direction and deployment distance: that is what stops all
   // 19 of them from mining the same spot and stealing each other's drops.
@@ -3440,6 +3454,8 @@ const reporter = setInterval(() => {
   // (v0.323.0) the cadence sample rides the tick (t in seconds, the row's window unit)
   bankFlowSamples.push({ t: Date.now() / 1000, banked })
   if (Object.keys(need).length) console.log(`   deficits: ${topDeficits()}`)
+  // (v0.440.0) the named board rides the same tick guard - the stuck slot's name, not just its numbers
+  if (Object.keys(need).length) console.log(`   plan top: ${topDeficitNames()}`)
   // per-bot line: what each bot actually has in its inventory right now
   const detail = list.map(m => {
     const inv = m.bot?.inventory ? m.bot.inventory.items().reduce((a, i) => { a[i.name] = (a[i.name] || 0) + i.count; return a }, {}) : {}
