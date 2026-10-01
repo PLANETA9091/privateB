@@ -17,6 +17,7 @@ import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the ve
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
+import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -923,6 +924,46 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     if (sc.spots.length > 5) console.log(`  ... ${sc.spots.length - 5} more spot(s) - the tail stays in the lib's row`)
     if (sc.unparsed > 0) console.log(`  unparsed: ${sc.unparsed} pass-shaped line(s) the grammar refused - the escape hatch`)
+  }
+}
+
+// (v0.426.0) THE FROZEN CENSUS - the freeze family's own read (the F10
+// frozen-while-head-wet class's measurement leg). The raw counters in the
+// FROZEN-RELOG LOOP block above stay (they count); this census SPLITS:
+// the wet/dry verdict split (the F10 class vs the bob/apex class), the o2
+// arc at the freeze, the relog why split (the head-wet saver vs the legacy
+// threshold), the holds vs the bypasses (the gate's promise met or voided),
+// the loop breaks (the grace working), the apex-rest exemption's share.
+{
+  const fc = frozenCensus(lines)
+  const any = fc.verdicts.n + fc.relogs.n + fc.loopBreaks.n + fc.freezeNamed.n + fc.gateHolds + fc.apexRests.n + fc.dupKicks.n + fc.unparsed
+  if (any > 0) {
+    console.log('--- FROZEN CENSUS (v0.426.0: the freeze family\'s field read) ---')
+    const vb = Object.entries(fc.verdicts.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+    const vo2 = fc.verdicts.o2
+    console.log(`  verdicts: ${fc.verdicts.n} (wet ${fc.verdicts.wet} / dry ${fc.verdicts.dry}${fc.verdicts.fastWindow > 0 ? `, fast-window ${fc.verdicts.fastWindow}` : ''})${vb ? `, top bots: ${vb}` : ''}`)
+    console.log(`  freeze o2: ${vo2.n > 0 ? `min ${vo2.min}, avg ${vo2.avg.toFixed(1)} over ${vo2.n}` : 'no domain value'}${vo2.reset > 0 ? `, reset ${vo2.reset}` : ''}${vo2.unknown > 0 ? `, unknown ${vo2.unknown}` : ''}; y span ${fc.verdicts.yMin}..${fc.verdicts.yMax}`)
+    const rl = fc.relogs
+    const rlBots = Object.entries(rl.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+    console.log(`  relogs: ${rl.n} (head-wet saver ${rl.why.headWet}, legacy threshold ${rl.why.legacy}; era current ${rl.era.current} / legacy ${rl.era.legacy})${rl.streakMax !== null ? `, streak max #${rl.streakMax}` : ''}${rlBots ? `, top bots: ${rlBots}` : ''}`)
+    if (rl.era.current > 0) {
+      console.log(`  gate: holds ${rl.holds.n}${rl.holds.n > 0 ? ` (${rl.holds.min}..${rl.holds.max}s armed)` : ''}, bypasses ${rl.bypass.critical + rl.bypass.wetCycler} (critical ${rl.bypass.critical}, wet-cycler ${rl.bypass.wetCycler})${rl.holds.n > 0 && rl.bypass.critical + rl.bypass.wetCycler === 0 ? ' - the promise LIVES: a hold armed and no echo voided it' : ''}${rl.bypass.critical + rl.bypass.wetCycler > 0 ? ' - THE LOOP FUEL: every void is a relog that fed the column' : ''}`)
+    }
+    if (fc.loopBreaks.n > 0) console.log(`  loop breaks (the grace): ${fc.loopBreaks.n} (critical-lungs ${fc.loopBreaks.why.criticalLungs}, loop-cap ${fc.loopBreaks.why.loopCap})`)
+    if (fc.freezeNamed.n > 0) {
+      const cls = Object.entries(fc.freezeNamed.byCls).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+      console.log(`  freeze named: ${fc.freezeNamed.n} (${cls})`)
+    }
+    if (fc.gateHolds > 0) console.log(`  gate holds the page: ${fc.gateHolds}`)
+    if (fc.apexRests.n > 0) {
+      const ab = Object.entries(fc.apexRests.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+      console.log(`  apex rests (the exemption): ${fc.apexRests.n}${ab ? `, top bots: ${ab}` : ''}`)
+    }
+    if (fc.dupKicks.n > 0) {
+      const kb = Object.entries(fc.dupKicks.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
+      console.log(`  duplicate-login kicks (the relog churn): ${fc.dupKicks.n}${kb ? `, top bots: ${kb}` : ''}`)
+    }
+    if (fc.unparsed > 0) console.log(`  unparsed: ${fc.unparsed} freeze-lane line(s) the grammar refused - the escape hatch`)
   }
 }
 
