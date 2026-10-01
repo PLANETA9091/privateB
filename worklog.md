@@ -10682,3 +10682,22 @@ Stage Summary:
 - Master = cd66d99 (pkg 0.376.0). FLEET OF RECORD: face 15 = 36760275928 (SUCCESS, mined at 0530).
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.377.0). (2) Poll the tip gate (cd66d99). (3) If green AND no active dispatch run => DISPATCH FACE 16 IMMEDIATELY. (4) Mine face 16 with the full readout stack (forensics + hound + arenas + flee-bearing histogram + release-starvation census).
 - OPEN FRONTS: face 16 dispatch; the hound cure pricing (the trapped-flee lever); the release-branch zero-conversion (the census now names its mechanism); the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.377.0.
+
+---
+Task ID: cron30-20261001-0800
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0800 - FACE 16 MINED (run 36792489622 SUCCESS, the sibling lane's dispatch; the full readout stack paid on the 0.363..0.376 tree); NO CODE fire - mining is the delivery, no bump, no dispatch (max-one law).
+
+Work Log:
+- CHECK ORIGIN FIRST: tip 9b6c281, pkg 0.376.0; push gates 719bea6 AND cd66d99 GREEN (cd66d99 proves 0.363..0.376 cumulatively); ACTIVE workflow_dispatch 36792489622 (on 719bea6) since 23:42:44Z - the sibling lane's dispatch. Law: no duplicate, poll and process.
+- Polled to SUCCESS; artifact 11133367795 -> /home/z/my-project/run36792489622/f16x/ (fleet19.log 145KB, 1618 lines).
+- MINED the full stack: ledger 9 starts / 6 complete / 2 timeouts (51.4s) / 0 dead / released 0 / 1 orphan + 1 unclosed (the F17 superseded-rebuild pair, decoded by the v0.370.0 verbatim lines: start(o2 6) superseded by start(o2 15), rebuild timed out surface-stable/0-probe, superseded episode's complete landed as the orphan end).
+- RELEASE STARVATION CENSUS on the new tree: 2/2 timeouts surface-stable (F14, F17), 2/2 zero-probe, stall latch STILL 0. Three-face proof: zero-probe 11/11 (15: 5/5, 12: 4/4, 16: 2/2), surface-stable 7 of 11 timeouts; the release branch has NEVER run (released 0/239).
+- Hound census ALL ZERO (the front was absent this face); verdict CALM, zero FATAL/freeze/GRACE/air-glitches - the cleanest face ever (9 starts vs 55).
+- Nudge family: 22 verdicts (20 inside), 14 re-segments, 6 side-steps, 29 singular-probe rescues.
+- NO bump, NO dispatch (the slot was the sibling's run; the law held).
+
+Stage Summary:
+- Master = 9b6c281 (pkg 0.376.0). FLEET OF RECORD: face 16 = 36792489622 (SUCCESS, mined at 0800).
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.377.0). (2) The stack is CI-proven; if no active dispatch run => DISPATCH FACE 17 immediately. (3) THE LADDER-ORDER CURE is the named front: bearing -> land -> release -> probes with 11/11 zero-probe across three faces - stalled-bearing passes must fall through to release/probes; the stall latch never fired in any face (trigger review). (4) Mine face 17 with the full stack.
+- OPEN FRONTS: the ladder-order cure; the hound cure pricing (re-baseline on the next wet face); the F17 superseded-rebuild decode; the GC Pinned hunt; the bank chains' walk deliveries (cron38's lane); shooter-band census; void stamp. Version next: 0.377.0.
