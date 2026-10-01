@@ -11,6 +11,7 @@ import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus } from '../../src/lib/hotspot.mjs' // (v0.419.0) the failure geometry's cross-lane read
+import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics
@@ -817,6 +818,27 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const un = hs.unpositioned
     if (un.hop > 0 || un.walkFails > 0) console.log(`  unpositioned: hop ${un.hop} ('?' placeholders), chest-walks ${un.walkFails} (the why carried no @coord)`)
     if (hs.totals.bankWalkBacks > 0) console.log(`  bank walk-backs (RELATIVE dists, never spots): n ${hs.bankDists.n}, max ${hs.bankDists.max}, avg ${Math.round(hs.bankDists.sum / hs.bankDists.n)} blocks from yard`)
+  }
+}
+
+// (v0.420.0) THE CLIMB LENS - the vertical doom's verdict read. The 2230
+// brief's open question: is the doom gate WORKING (honest refusals of
+// doomed shafts) or OVER-FIRING (climbable yards refused)? A
+// stalled-dominated histogram with a deep stage ladder and few OK reads
+// HONEST; the OK lines' secs/dug price the cost that WAS payable
+// (~4.2s/level, the v0.294.0 pricing); the doom retargets count the
+// gate's own re-pricing. The undefineds rows are the emitter's own secs
+// leak - the climbs count, their price reads unknown.
+{
+  const c = climbOutCensus(lines)
+  if (c.attempts > 0 || c.retries.plans > 0 || c.retries.noRetry > 0 || c.doomRetargets.n > 0) {
+    console.log('--- CLIMB CENSUS (v0.420.0: the vertical doom verdicts, climb out family) ---')
+    const okShare = c.attempts > 0 ? Math.round(((c.ok + c.retryOk) / c.attempts) * 100) : 0
+    console.log(`  attempts: ${c.attempts} (ok ${c.ok} + retry-ok ${c.retryOk} = ${okShare}% pay, failed ${c.failed} + retry-failed ${c.retryFailed})`)
+    const whys = Object.entries(c.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' ')
+    if (whys) console.log(`  fail whys: ${whys}${c.stages.n > 0 ? ` - stage ladder depth ${c.stages.n} (max [stage ${c.stages.max}])` : ''}`)
+    if (c.ok + c.retryOk > 0) console.log(`  the payable price: gains n${c.gains.n} sum ${c.gains.sum} max ${c.gains.max} levels, dug max ${c.dug.max}, secs n${c.secs.n} (max ${c.secs.max}s${c.secs.n > 0 ? `, avg ${Math.round(c.secs.sum / c.secs.n)}s` : ''})`)
+    console.log(`  the ladder's own books: retry plans ${c.retries.plans}, no-retry ${c.retries.noRetry}, doom retargets ${c.doomRetargets.n}${c.unparsed > 0 ? `, unparsed ${c.unparsed} (the shape escaped - counted, never dropped)` : ''}`)
   }
 }
 
