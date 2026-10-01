@@ -10968,3 +10968,21 @@ Stage Summary:
 - Master = 0e97e82 (pkg 0.390.0; fleet code unchanged since c4b3661 - mining-surface only). FACE 21 = 36814986778 STILL QUEUED (~95 min at close) - the slot is its.
 - NEXT FIRE: (1) CHECK ORIGIN FIRST (0.391.0). (2) Poll face 21 FIRST THING; at ~2h total the starved-slot law applies (cancel + re-dispatch on the then-tip, the 1138 precedent - the then-tip now carries FIVE census field reads). MINE IT on completion with the full stack. (3) Poll gate 36821678960; green + slot free => dispatch next fire's first thing. (4) The combat whale F2=287 and the skeleton-owned band are the shooter front's new field legs; the craft-ladder surplus cure (stick/planks 38.6% of face-19 pocket) stays the top fleet-wiring candidate once face 21 lands.
 - OPEN FRONTS: face 21 mining (the five-census stack rides it); the combat whale F2; the crafted-class surplus cure; the F17 anomaly decode (renamed); the GC Pinned hunt (needs a GC-bearing artifact); void stamp. Version next: 0.391.0.
+
+---
+Task ID: cron30-20261001-1400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1400 - v0.391.0 THE SHELTER-SKIP WHY TAXONOMY shipped (150 face-15 skips split into TEN reason classes - the shelter cure's design input); no dispatch - face 21 still queued (~108 min), the slot is its.
+
+Work Log:
+- CHECK ORIGIN FIRST: tip c32a5bb (pkg 0.390.0, no collision). Version 0.391.0 free, taken.
+- FACE 21 (36814986778) STILL QUEUED at fire start (~96 min) and close (~108 min) - below the ~2h starved-slot threshold, which fires ~06:25Z INSIDE the 1430 fire's window (that fire owns the cancel + re-dispatch decision). NO dispatch, NO cancel.
+- THE ATOMIC IMPROVEMENT - v0.391.0: parseSkipWhys + SKIP_REASON_RES (shootercensus.mjs extended): TEN reason classes keyed on the layer's own words (all verbatim face 15): ring stock N/M / ground earns nothing / no diggable wall / ring not buildable / no arrow wall / ring incomplete N/8 / arrow wall incomplete [empty/empty] / night=true telemetry / step-in incomplete / cells not free. Multi-reason skips count in EVERY class (the co-occurrence census, named as one); unknown stays visible.
+- THE HONEST-SWEEP LAW WORKED LIVE: first field read shipped unknown=16 (11%) - chased, four missing forms pulled verbatim, vocabulary 5 -> 10 keys, second read resolves ALL 150: no-diggable-wall=71 ring-stock=43 ground-earns-nothing=41 ring-not-buildable=20 night-context=9 no-arrow-wall=3 ring-incomplete=2 arrow-wall-incomplete=2 step-in-incomplete=2 cells-not-free=1, unknown GONE. The night line's threat=NAME@dist rides the bare-@ attacker form.
+- THE SHELTER CURE'S DESIGN INPUT: terrain/tool 71 (47%) prices highest; inventory (ring-stock+ground-earns) 84; pattern+cell 28.
+- Version 0.390.0 -> 0.391.0 (origin checked); syntax 295; unit 172/172 (shooter-census.test.mjs now 16). Integration skipped - no JDK/server jar (the 'if the server is alive' arm; CI runs it). Push c32a5bb..9b124c5 CLEAN; gate 36823551558 (9b124c5) PENDING at close (the account drain persists - no gate has COMPLETED since 04:17).
+
+Stage Summary:
+- Master = 9b124c5 (pkg 0.391.0; fleet code unchanged since c4b3661). FACE 21 = 36814986778 STILL QUEUED (~108 min) - the starved-slot law (~2h) fires inside the 1430 fire's window.
+- NEXT FIRE (1430): (1) CHECK ORIGIN FIRST (0.392.0). (2) Poll face 21 FIRST THING - past the ~2h threshold early in the fire: apply the starved-slot law honestly (cancel the queued run + re-dispatch on the then-tip, the 1138 precedent; the then-tip carries FIVE census reads + the why taxonomy, fleet-identical to c4b3661). If it STARTED - never cancel a running face; MINE IT with the full stack. (3) Poll gate 36823551558 or the then-latest head's gate. (4) The shelter cure is fully priced for its design session - top fleet-wiring candidate once face 21 lands.
+- OPEN FRONTS: face 21 mining; the shelter cure (priced: terrain 71 / inventory 84 / pattern+cell 28); the combat whale F2; the F17 anomaly decode; the GC Pinned hunt; void stamp. Version next: 0.392.0.
