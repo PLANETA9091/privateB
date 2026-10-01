@@ -66,6 +66,56 @@ const RANGED_KEYS = [
 ]
 const ARROW_WALL_RE = /(?<!no )arrow wall/
 
+// (v0.391.0) THE SHELTER-SKIP WHY TAXONOMY - the biggest verb class (face
+// 15: skips=150, 22% of the face's combat lines) never said WHY it skipped
+// to the mining tool - but the layer already prints the why in the parens
+// prose. The reason vocabulary is the layer's own words (verbatim face 15):
+//   shelter skip (open field: ring stock 0/2, ground earns nothing)
+//   shelter skip (open field: no diggable wall, drowned@5.1)
+//   shelter skip (open field: ring not buildable [oo xo oo oo] vs zombie@0.7)
+//   shelter skip (open field: ring not buildable [-o -o -o -o], no arrow
+//     wall either vs drowned@6.9)
+//   shelter skip (open field: ring incomplete 6/8)
+//   shelter skip (open field: arrow wall incomplete [empty/empty] vs
+//     skeleton@5.0)
+//   shelter skip (night=true armed=true hp=20 attackers=4 poison=off
+//     threat=skeleton@3.1) - the NIGHT-context form, full telemetry
+//   shelter skip (0,1: step-in incomplete) / (-1,0: cells not free) - the
+//     CELL-specific forms
+// A skip can carry MULTIPLE reasons - each fragment counts (the
+// co-occurrence census); a skip with no known fragment lands in 'unknown'
+// (the honest-sweep law - never judged, never dropped). The split is the
+// shelter cure's design input: ring-stock prices INVENTORY, no-diggable-wall
+// prices TERRAIN/TOOL, ring-not-buildable prices the PATTERN.
+export const SKIP_REASON_RES = [
+  ['ring-stock', /ring stock \d+\/\d+/],
+  ['ground-earns-nothing', /ground earns nothing/],
+  ['no-diggable-wall', /no diggable wall/],
+  ['ring-not-buildable', /ring not buildable/],
+  ['no-arrow-wall', /no arrow wall/],
+  ['ring-incomplete', /ring incomplete \d+\/\d+/],
+  ['arrow-wall-incomplete', /arrow wall incomplete/],
+  ['night-context', /night=true/],
+  ['step-in-incomplete', /step-in incomplete/],
+  ['cells-not-free', /cells not free/]
+]
+
+/**
+ * Parse one skip body (the text after 'combat: shelter skip ') into its
+ * reason keys - a skip with several fragments returns several keys.
+ * Junk-safe: non-string input judges NOTHING (empty array).
+ * @param {string} [body] the skip line's body prose
+ * @returns {string[]} the reason keys (possibly empty)
+ */
+export function parseSkipWhys (body) {
+  if (typeof body !== 'string') return []
+  const whys = []
+  for (const [key, re] of SKIP_REASON_RES) {
+    if (re.test(body)) whys.push(key)
+  }
+  return whys
+}
+
 // The verb vocabulary, pinned to the layer's emitted forms - MOST SPECIFIC
 // FIRST (prefix collisions are real: 'shelter ring ...' before 'shelter
 // ...', 'flee ladder|kite|toward shore|bearing' before 'fleeing').
@@ -142,7 +192,7 @@ export function parseCombatLine (line) {
  * The shooter-band census over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{total: number, entries: Array, byBot: Object<string,number>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number}, withDist: number, maxDist: number|null}}
+ * @returns {{total: number, entries: Array, byBot: Object<string,number>, byAttacker: Object<string,number>, byVerb: Object<string,number>, otherVerbs: Object<string,number>, ranged: {events: number, arrowWall: number, ringRangedRefused: number, cooldownArmed: number, byAttacker: Object<string,number>}, verdictFlips: number, shelter: {tries: number, skips: number, ringTries: number}, skipWhys: Object<string,number>, withDist: number, maxDist: number|null}}
  */
 export function shooterCensus (lines) {
   const rows = Array.isArray(lines)
@@ -158,6 +208,7 @@ export function shooterCensus (lines) {
   const byAttacker = {}
   const byVerb = {}
   const otherVerbs = {}
+  const skipWhys = {}
   const rangedByAttacker = {}
   let arrowWall = 0
   let ringRangedRefused = 0
@@ -189,7 +240,14 @@ export function shooterCensus (lines) {
     if (e.verb === 'ranged-cooldown') cooldownArmed++
     if (e.verb === 'verdict-flip') verdictFlips++
     if (e.verb === 'shelter-try') tries++
-    if (e.verb === 'shelter-skip') skips++
+    if (e.verb === 'shelter-skip') {
+      skips++
+      // (v0.391.0) the why split - the parens prose carries the reasons
+      const body = raw.match(MARKER_RE)
+      const whys = parseSkipWhys(body ? body[1] : '')
+      if (whys.length === 0) skipWhys.unknown = (skipWhys.unknown || 0) + 1
+      for (const w of whys) skipWhys[w] = (skipWhys[w] || 0) + 1
+    }
     if (e.verb === 'ring-try') ringTries++
     if (e.dist !== null) {
       withDist++
@@ -213,6 +271,7 @@ export function shooterCensus (lines) {
     },
     verdictFlips,
     shelter: { tries, skips, ringTries },
+    skipWhys,
     withDist,
     maxDist
   }

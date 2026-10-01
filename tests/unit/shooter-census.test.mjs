@@ -126,3 +126,69 @@ test('raw text blob input and empty input both hold', () => {
   assert.equal(empty.total, 0)
   assert.deepEqual(empty.shelter, { tries: 0, skips: 0, ringTries: 0 })
 })
+
+// (v0.391.0) THE SHELTER-SKIP WHY TAXONOMY - face-15 verbatims
+import { parseSkipWhys, SKIP_REASON_RES } from '../../src/lib/shootercensus.mjs'
+
+test('skip whys: the three canonical reasons parse from the verbatim prose', () => {
+  assert.deepEqual(
+    parseSkipWhys('shelter skip (open field: ring stock 0/2, ground earns nothing)'),
+    ['ring-stock', 'ground-earns-nothing']
+  )
+  assert.deepEqual(
+    parseSkipWhys('shelter skip (open field: no diggable wall, drowned@5.1)'),
+    ['no-diggable-wall']
+  )
+  assert.deepEqual(
+    parseSkipWhys('shelter skip (open field: ring not buildable [oo xo oo oo] vs zombie@0.7)'),
+    ['ring-not-buildable']
+  )
+})
+
+test('skip whys: the multi-reason co-occurrence and the junk safety', () => {
+  assert.deepEqual(
+    parseSkipWhys('shelter skip (open field: ring not buildable [-o -o -o -o], no arrow wall either vs drowned@6.9)'),
+    ['ring-not-buildable', 'no-arrow-wall']
+  )
+  assert.deepEqual(parseSkipWhys(null), [])
+  assert.deepEqual(parseSkipWhys(42), [])
+  assert.deepEqual(parseSkipWhys('shelter skip (open field: ???)'), [])
+})
+
+test('census skipWhys: counts, co-occurrence sum > skips, unknown visibility', () => {
+  const c = shooterCensus([
+    'F2 [F2] combat: shelter skip (open field: ring stock 0/2, ground earns nothing)',
+    'F2 [F2] combat: shelter skip (open field: no diggable wall, drowned@5.1)',
+    'F2 [F2] combat: shelter skip (open field: ring not buildable [-o -o -o -o], no arrow wall either vs drowned@6.9)',
+    'F2 [F2] combat: shelter skip (open field: something new entirely)'
+  ])
+  assert.equal(c.shelter.skips, 4)
+  assert.deepEqual(c.skipWhys, {
+    'ring-stock': 1,
+    'ground-earns-nothing': 1,
+    'no-diggable-wall': 1,
+    'ring-not-buildable': 1,
+    'no-arrow-wall': 1,
+    unknown: 1
+  })
+  assert.deepEqual(SKIP_REASON_RES.map(([k]) => k).slice(0, 5), ['ring-stock', 'ground-earns-nothing', 'no-diggable-wall', 'ring-not-buildable', 'no-arrow-wall'])
+})
+
+test('face-19 baseline: zero skips read an empty skipWhys', () => {
+  const c = shooterCensus(['F1 [F1] water: shore pinned (r=1 after 8 passes - the shoreline owns this swim; the release takes over)'])
+  assert.equal(c.shelter.skips, 0)
+  assert.deepEqual(c.skipWhys, {})
+})
+
+test('skip whys v2: the four drift forms the unknown bucket named (face-15 verbatims)', () => {
+  assert.deepEqual(parseSkipWhys('shelter skip (open field: ring incomplete 6/8)'), ['ring-incomplete'])
+  assert.deepEqual(parseSkipWhys('shelter skip (open field: arrow wall incomplete [empty/empty] vs skeleton@5.0)'), ['arrow-wall-incomplete'])
+  assert.deepEqual(parseSkipWhys('shelter skip (night=true armed=true hp=20 attackers=4 poison=off threat=skeleton@3.1)'), ['night-context'])
+  assert.deepEqual(parseSkipWhys('shelter skip (0,1: step-in incomplete)'), ['step-in-incomplete'])
+  assert.deepEqual(parseSkipWhys('shelter skip (-1,0: cells not free)'), ['cells-not-free'])
+  // the night line's threat= rides the bare-@ attacker form too
+  const c = shooterCensus(['F2 [F2] combat: shelter skip (night=true armed=true hp=20 attackers=4 poison=off threat=skeleton@3.1)'])
+  assert.equal(c.byAttacker.skeleton, 1)
+  assert.deepEqual(c.skipWhys, { 'night-context': 1 })
+  assert.deepEqual(SKIP_REASON_RES.map(([k]) => k).slice(5), ['ring-incomplete', 'arrow-wall-incomplete', 'night-context', 'step-in-incomplete', 'cells-not-free'])
+})

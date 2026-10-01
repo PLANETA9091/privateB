@@ -275,6 +275,14 @@ if (shooter.total > 0) {
   if (botRow) console.log(`  per-bot: ${botRow}`)
   console.log(`  RANGED band: ${shooter.ranged.events} events (arrow wall ${shooter.ranged.arrowWall} / ring-ranged refused ${shooter.ranged.ringRangedRefused} / cooldown armed ${shooter.ranged.cooldownArmed}; per-attacker: ${Object.entries(shooter.ranged.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ') || '-'})`)
   console.log(`  verdict flips: ${shooter.verdictFlips} - shelter: tries ${shooter.shelter.tries} / skips ${shooter.shelter.skips} / ring-tries ${shooter.shelter.ringTries}`)
+  if (shooter.shelter.skips > 0) {
+    // (v0.391.0) the why split - the shelter cure's design input (ring-stock
+    // prices inventory, no-diggable-wall prices terrain/tool,
+    // ring-not-buildable prices the pattern; a multi-reason skip counts in
+    // every reason class, so the sum may exceed the skip count)
+    const whyRow = Object.entries(shooter.skipWhys).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w}=${n}`).join(' ')
+    console.log(`  skip whys (co-occurrence census - the sum may exceed ${shooter.shelter.skips}): ${whyRow || '-'}`)
+  }
   if (shooter.maxDist !== null) console.log(`  engagement dist: max @${shooter.maxDist}u priced across ${shooter.withDist} dists`)
   const verbRow = Object.entries(shooter.byVerb).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([v, n]) => `${v}=${n}`).join(' ')
   if (verbRow) console.log(`  top verbs: ${verbRow}`)
