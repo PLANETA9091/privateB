@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { counterGap, TALLY_RE, PATHB_VERDICT_RE, PATHA_FAIL_RE } from '../../src/lib/countergap.mjs'
+import { counterGap, upgradeJoin, TALLY_RE, PATHB_VERDICT_RE, PATHA_FAIL_RE } from '../../src/lib/countergap.mjs'
+import { upgradeVerdicts } from '../../src/lib/upgradecensus.mjs'
 
 // The live shapes verbatim. The tally line is run36289053811's final
 // console line; the local-path verdicts and the rung's words carry the
@@ -107,4 +108,131 @@ test('the three REs anchor their emitter shapes (one parser per emitter)', () =>
   assert.ok(!PATHB_VERDICT_RE.test('F9 tool upgrade (commune): OK -> stone_pickaxe (x)'))
   assert.ok(PATHA_FAIL_RE.test(rungFailed))
   assert.ok(!PATHA_FAIL_RE.test(rungWords))
+})
+
+// ---- (v0.474.0) THE WORDS-VERDICT JOIN - the residual's name ----
+// Face 43's live anatomy verbatim (run 36970605824, the first live read):
+// 16 verdicts (13 ok, 3 failed) against 14 words. The storm class: F13's
+// rung printed 'upgraded: wooden_shovel,wooden_pickaxe' while its verdict
+// read 'failed -> none' (the stone crafts refused by the storm cooldown).
+// The silent class: F9's two 'failed -> none (no table material)' verdicts
+// printed no word at all. THE BOOK: gap = okSilent - wordedNotOk - unpaired.
+const fourKitWord = (bot) => `${bot} [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe`
+const fourKitVerdict = (bot) => `${bot} tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)`
+const f13StormWord = 'F13 [toolupgrade] [upgrade] upgraded: wooden_shovel,wooden_pickaxe'
+const f13StormVerdict = 'F13 tool upgrade: failed -> none (wooden_shovel,wooden_pickaxe)'
+const f13OkWord = 'F13 [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel,wooden_pickaxe'
+const f13OkVerdict = 'F13 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe)'
+const f9SilentVerdict = 'F9 tool upgrade: failed -> none (no table material)'
+const f13Refusal = 'F13 [toolupgrade] [upgrade] craft stone_pickaxe: storm cooldown 2166ms left (3 consecutive timeouts) - refusing'
+const f13Due = 'F13 tool upgrade due: cobble available -> stone_pickaxe'
+
+// the twelve paired bots verbatim, then the storm, the second rung, the silence
+const face43Fixture = [
+  ...['F8', 'F1', 'F6', 'F11', 'F15', 'F16', 'F3', 'F12', 'F14', 'F18', 'F17', 'F4'].flatMap((b) => [fourKitWord(b), fourKitVerdict(b)]),
+  f13Due, f13Refusal,
+  f13StormWord, f13StormVerdict,
+  f13OkWord, f13OkVerdict,
+  f9SilentVerdict, f9SilentVerdict,
+  'bots=19 spawned=19 reconnects=9 kicks=0 tools=19 recovered=0 reboots=0 upgraded=13'
+]
+
+test('upgradeJoin names the face-43 live anatomy (the storm and the silence)', () => {
+  const r = upgradeJoin(face43Fixture)
+  assert.equal(r.attempts, 16)
+  assert.equal(r.ok, 13)
+  assert.equal(r.failed, 3)
+  assert.equal(r.commune, 0)
+  assert.equal(r.words, 14)
+  assert.equal(r.okWorded, 13)
+  assert.equal(r.wordedNotOk, 1)
+  assert.equal(r.verdictNotWorded, 2)
+  assert.equal(r.unpairedWords, 0)
+  assert.deepEqual(r.wordedFailedBots, ['F13'])
+  assert.deepEqual(r.silentBots, ['F9'])
+})
+
+test('upgradeJoin closes the book: gap = okSilent - wordedNotOk - unpaired', () => {
+  const cg = counterGap(face43Fixture)
+  const uj = upgradeJoin(face43Fixture)
+  assert.equal(cg.gap, -1)
+  assert.equal(cg.residual, -1)
+  const okSilent = uj.ok - uj.okWorded
+  assert.equal(cg.gap, okSilent - uj.wordedNotOk - uj.unpairedWords)
+})
+
+test('upgradeJoin reconciles with the verdict census (the same classes)', () => {
+  const uv = upgradeVerdicts(face43Fixture)
+  const uj = upgradeJoin(face43Fixture)
+  assert.equal(uj.ok, uv.ok)
+  assert.equal(uj.failed, uv.failed)
+  assert.equal(uj.commune, uv.commune)
+  assert.equal(uj.attempts, uv.ok + uv.failed + uv.commune)
+})
+
+test('upgradeJoin pairs a word with the bot\u0027s NEXT verdict (the adjacency law)', () => {
+  const r = upgradeJoin([f13StormWord, f13StormVerdict, f13OkWord, f13OkVerdict])
+  assert.equal(r.wordedNotOk, 1)
+  assert.equal(r.okWorded, 1)
+  assert.equal(r.unpairedWords, 0)
+  assert.deepEqual(r.wordedFailedBots, ['F13'])
+})
+
+test('upgradeJoin supersedes a pending word when a second one lands (no verdict between)', () => {
+  const r = upgradeJoin([fourKitWord('F2'), fourKitWord('F2'), fourKitVerdict('F2')])
+  assert.equal(r.unpairedWords, 1)
+  assert.equal(r.okWorded, 1)
+  assert.equal(r.words, 2)
+})
+
+test('upgradeJoin reads the truncation window honestly (a word no verdict answered)', () => {
+  const r = upgradeJoin([f13OkWord])
+  assert.equal(r.unpairedWords, 1)
+  assert.equal(r.okWorded, 0)
+  assert.equal(r.attempts, 0)
+  assert.equal(r.words, 1)
+})
+
+test('upgradeJoin names the silent class (the bailed-pre-kit failures)', () => {
+  const r = upgradeJoin([f9SilentVerdict, f9SilentVerdict])
+  assert.equal(r.verdictNotWorded, 2)
+  assert.deepEqual(r.silentBots, ['F9'])
+  assert.equal(r.words, 0)
+  assert.equal(r.failed, 2)
+})
+
+test('upgradeJoin skips the refusal and due lines (neither shape claims them)', () => {
+  const r = upgradeJoin([f13Due, f13Refusal])
+  assert.equal(r.attempts, 0)
+  assert.equal(r.words, 0)
+  assert.deepEqual(r.silentBots, [])
+  assert.deepEqual(r.wordedFailedBots, [])
+})
+
+test('upgradeJoin tags the commune lane (the census\u0027s own separation)', () => {
+  const r = upgradeJoin([
+    'F5 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F5 tool upgrade (commune): OK -> stone_pickaxe (commune pool)',
+    'F7 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F7 tool upgrade (commune): failed -> none (commune pool)'
+  ])
+  assert.equal(r.commune, 2)
+  assert.equal(r.ok, 0)
+  assert.equal(r.failed, 0)
+  assert.equal(r.okWorded, 1)
+  assert.equal(r.wordedNotOk, 1)
+  assert.equal(r.attempts, 2)
+})
+
+test('upgradeJoin is junk-safe and nulls on non-array', () => {
+  assert.equal(upgradeJoin(null), null)
+  assert.equal(upgradeJoin('F9 tool upgrade: OK -> x'), null)
+  assert.equal(upgradeJoin({}), null)
+  const r = upgradeJoin([null, 42, f13OkWord, 'garbage'])
+  assert.equal(r.words, 1)
+  assert.equal(r.unpairedWords, 1)
+})
+
+test('upgradeJoin reads zero honestly (the zero law)', () => {
+  assert.deepEqual(upgradeJoin([]), { attempts: 0, ok: 0, failed: 0, commune: 0, words: 0, okWorded: 0, wordedNotOk: 0, verdictNotWorded: 0, unpairedWords: 0, wordedFailedBots: [], silentBots: [] })
 })

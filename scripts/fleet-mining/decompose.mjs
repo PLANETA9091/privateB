@@ -24,7 +24,7 @@ import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the fu
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
-import { counterGap } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire)
+import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1509,6 +1509,18 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   const cg = counterGap(lines)
   if (cg && (cg.tally !== null || cg.words > 0 || cg.pathBCrafted > 0 || cg.pathBFailed > 0 || cg.pathAFailed > 0)) {
     console.log(`  counter vs words (v0.469.0): tally ${cg.tally ?? 'none'}, words ${cg.words}, gap ${cg.gap ?? 'none'} (local crafted ${cg.pathBCrafted}, local failed ${cg.pathBFailed}, rung failed-words ${cg.pathAFailed}, residual ${cg.residual ?? 'none'})`)
+  }
+  // (v0.474.0) THE WORDS-VERDICT JOIN - the residual's name. The 7 in-repo
+  // logs read residual 0; the FIRST LIVE face (43) broke the law: tally 13,
+  // words 14, residual -1 - the raw log names the units: F13's rung printed
+  // the partial kit list on a storm-refused attempt (the word is an ATTEMPT
+  // line, the verdict is the truth), F9's two no-table-material failures
+  // printed no word at all (the silent class). The join pairs each bot's
+  // words with its verdicts in file order and names every unit; the book:
+  // gap = okSilent - wordedNotOk - unpairedWords.
+  const uj = upgradeJoin(lines)
+  if (uj && uj.attempts + uj.words > 0) {
+    console.log(`  words-verdict join (v0.474.0): attempts ${uj.attempts} (ok ${uj.ok}, failed ${uj.failed}, commune ${uj.commune}) vs words ${uj.words} -> okWorded ${uj.okWorded}, wordedNotOk ${uj.wordedNotOk} (${uj.wordedFailedBots.join(',') || 'none'}), verdictNotWorded ${uj.verdictNotWorded} (${uj.silentBots.join(',') || 'none'}), unpaired ${uj.unpairedWords} - THE BOOK: gap = okSilent ${uj.ok - uj.okWorded} - wordedNotOk ${uj.wordedNotOk} - unpaired ${uj.unpairedWords}`)
   }
   // (v0.470.0) THE VERDICT SPREAD - the verdict census's per-bot half: does
   // the worn class ride ONE bot (a local hazard or a dig-style signature)

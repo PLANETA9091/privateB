@@ -34,7 +34,7 @@
 // catch edge - the lines do not name it, the row does not guess).
 // Junk-safe: non-lines skipped, non-array -> null. Pure: reads, never
 // mutates.
-import { UPGRADE_RE } from './upgradecensus.mjs'
+import { UPGRADE_RE, VERDICT_RE } from './upgradecensus.mjs'
 
 export const TALLY_RE = /^bots=\d+ .*\bupgraded=(\d+)\b/
 
@@ -95,4 +95,98 @@ export function counterGap (lines) {
   const gap = tally === null ? null : tally - words
   const residual = tally === null ? null : gap - pathBCrafted + pathAFailed
   return { tally, tallyLines, words, gap, pathBCrafted, pathBFailed, pathAFailed, residual }
+}
+
+// (v0.474.0) THE WORDS-VERDICT JOIN - the residual's name. The counter-words
+// row's residual read 0 on all 7 in-repo logs; the FIRST LIVE face (43)
+// broke the law: tally 13, words 14, residual -1 - and the raw log names
+// the unit: F13's rung printed 'upgraded: wooden_shovel,wooden_pickaxe'
+// while its verdict read 'failed -> none' (the stone crafts were refused
+// by the storm cooldown - the word prints the partial kit list anyway),
+// and F9's two 'failed -> none (no table material)' verdicts printed NO
+// word at all. The words lane leaks BOTH ways: the word is an ATTEMPT
+// line, the verdict is the truth, the counter follows the verdict. The
+// lens pairs each bot's words with its verdicts in file order (a word
+// claims the bot's NEXT verdict; a second word while one pends supersedes
+// it - the adjacency law; a verdict no word claimed is the silent class;
+// a word no verdict answered is the truncation window). The book:
+//   gap = tally - words = okSilent - wordedNotOk - unpairedWords
+//   (okSilent = ok - okWorded: ok verdicts the counter counted but no
+//   word printed). counterGap's residual closes when the path windows
+//   are 0 - the book closes on the live face. VERDICT_RE imported - no
+//   new verdict shape claimed (the fire-1438 precedent: the census's own
+//   shapes, joined). The commune lane tags its verdicts (the census's
+//   own separation - the sums reconcile with upgradeVerdicts).
+// Junk-safe: non-lines skipped, non-array -> null. Pure: reads, never
+// mutates.
+// upgradeJoin(lines) -> { attempts, ok, failed, commune, words, okWorded,
+//                         wordedNotOk, verdictNotWorded, unpairedWords,
+//                         wordedFailedBots, silentBots } | null
+//   attempts         every verdict line seen (ok + failed + commune)
+//   ok/failed        the census's own classes (commune separated, the
+//                    commune-failed stays inside commune)
+//   words            the words side: okWorded + wordedNotOk + unpairedWords
+//   okWorded         paired ok verdicts (the words that told the truth)
+//   wordedNotOk      paired not-ok verdicts - THE STORM CLASS: the rung
+//                    printed the partial kit list on a refused attempt
+//   verdictNotWorded verdicts no word claimed - THE SILENT CLASS: the
+//                    bailed-pre-kit failures (no table material)
+//   unpairedWords    words no verdict answered (the truncation window)
+//   wordedFailedBots the bots holding a wordedNotOk unit (sorted)
+//   silentBots       the bots holding a verdictNotWorded unit (sorted)
+export function upgradeJoin (lines) {
+  if (!Array.isArray(lines)) return null
+  const eventsByBot = new Map()
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (typeof line !== 'string') continue
+    const w = UPGRADE_RE.exec(line)
+    if (w) {
+      if (!eventsByBot.has(w[1])) eventsByBot.set(w[1], [])
+      eventsByBot.get(w[1]).push({ idx: i, kind: 'word' })
+      continue
+    }
+    const v = VERDICT_RE.exec(line)
+    if (v) {
+      const isCommune = /tool upgrade \(commune\):/i.test(line)
+      const result = v[2].toLowerCase()
+      if (!eventsByBot.has(v[1])) eventsByBot.set(v[1], [])
+      eventsByBot.get(v[1]).push({ idx: i, kind: 'verdict', ok: result === 'ok', failed: result === 'failed', commune: isCommune })
+    }
+  }
+  let ok = 0
+  let failed = 0
+  let commune = 0
+  let okWorded = 0
+  let wordedNotOk = 0
+  let verdictNotWorded = 0
+  let unpairedWords = 0
+  const wordedFailedBots = new Set()
+  const silentBots = new Set()
+  for (const [bot, events] of eventsByBot) {
+    let pending = false
+    for (const ev of events) {
+      if (ev.kind === 'word') {
+        if (pending) unpairedWords++ // a second word while one pends: its verdict never came
+        pending = true
+        continue
+      }
+      if (ev.commune) commune++
+      else if (ev.failed) failed++
+      else ok++
+      if (pending) {
+        if (ev.ok) okWorded++
+        else {
+          wordedNotOk++
+          wordedFailedBots.add(bot)
+        }
+        pending = false
+      } else {
+        verdictNotWorded++
+        silentBots.add(bot)
+      }
+    }
+    if (pending) unpairedWords++ // the truncated tail: the verdict never landed
+  }
+  return { attempts: ok + failed + commune, ok, failed, commune, words: okWorded + wordedNotOk + unpairedWords, okWorded, wordedNotOk, verdictNotWorded, unpairedWords, wordedFailedBots: [...wordedFailedBots].sort(), silentBots: [...silentBots].sort() }
 }
