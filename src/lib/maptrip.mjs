@@ -429,3 +429,69 @@ export function pocketDrain (lines) {
     verdict
   }
 }
+
+// (v0.452.0) THE DRAIN ATTRIBUTION - the UNACCOUNTED residual learns its
+// legs. The drain ledger's honest 'unaccounted' named the open question
+// (placement/loss/crafting); the fleet log prices TWO of the three legs
+// itself, in its own emitters' own words:
+//
+//   F10 [F10] death drop: ~114u lost at [-121,54,371] (cobblestone 64, ...)
+//   F7  [F7] climb bridge: placed dirt at [-135,64,419] (support) - ...
+//
+// The loss leg (death drops, the log's own ~Nu pricing) and the placement
+// leg (climb-bridge support/pit blocks, 1u each - the only loot-block
+// placement emitter the faces carry; a dry placement never 'lands', the
+// torch is crafted fuel and never matches) are summed AFTER THE PEAK
+// SAMPLE's line only: line order is time order, and an event BEFORE the
+// peak cannot drain a peak->end drop - the peak already reflects it
+// (mining refilled past it). That makes the attribution a bound read:
+// events between the true peak and the peak sample's own line are unseen
+// (the pulse cadence's gap, the same honesty as holeMax). Crafting stays
+// unpriced BY DESIGN: the craft lines carry no quantities, and crafting
+// even INFLATES the unit count (one log -> four planks) - honest silence,
+// never a fabricated number. The five ledger verdicts stay byte-identical;
+// the attribution rides as its own field + its own decompose row.
+export const DEATH_DROP_RE = /^(\S+) \[\1\] death drop: ~(\d+)u lost at /
+export const CLIMB_PLACED_RE = /^(\S+) \[\1\] climb bridge: placed ([a-z_]+) at \[/
+
+export function pocketDrainAttr (lines) {
+  if (!Array.isArray(lines)) return null
+  let peakIdx = null
+  let peak = -1
+  for (let i = 0; i < lines.length; i++) {
+    const h = parsePulseHeader(lines[i])
+    if (h && h.pocket > peak) { peak = h.pocket; peakIdx = i }
+  }
+  if (peakIdx === null) return null
+  const pd = pocketDrain(lines)
+  const residual = pd.drop - pd.bankedDelta - pd.smeltedDelta
+  let lossDelta = 0
+  let lossCount = 0
+  let placedDelta = 0
+  const placedBlocks = {}
+  if (residual > 0) {
+    for (let i = peakIdx + 1; i < lines.length; i++) {
+      const dm = lines[i].match(DEATH_DROP_RE)
+      if (dm) { lossDelta += Number(dm[2]); lossCount++; continue }
+      const pm = lines[i].match(CLIMB_PLACED_RE)
+      if (pm) { placedDelta++; placedBlocks[pm[2]] = (placedBlocks[pm[2]] || 0) + 1 }
+    }
+  }
+  const legs = lossDelta + placedDelta
+  const attr = residual <= 0
+    ? 'none'      // the counters already cover the drop - nothing to attribute
+    : legs >= residual
+      ? 'covered' // the legs' totals cover the residual (a bound read)
+      : legs > 0
+        ? 'partial' // the legs price part of it - the rest stays open
+        : 'open'    // no priced legs after the peak - crafting/the unseen holds it
+  return {
+    residual,
+    lossDelta,
+    lossCount,
+    placedDelta,
+    placedBlocks,
+    legs,
+    attr
+  }
+}

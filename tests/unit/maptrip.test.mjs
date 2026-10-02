@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -432,4 +432,101 @@ test('pocket-drain: the verdicts hand-counted - banked, furnace, both, unaccount
   assert.equal(pocketDrain(['F5 map trip: sand', 'calm face']), null)
   assert.equal(pocketDrain([]), null)
   assert.equal(pocketDrain('not an array'), null)
+})
+
+// (v0.452.0) THE DRAIN ATTRIBUTION's tests - the UNACCOUNTED residual's
+// legs priced from the log's own emitters (death drop ~Nu lost, climb
+// bridge placed <block>), summed AFTER the peak sample's line only. The
+// verbatims are faces 29/30/34's own lines; the counts hand-counted, the
+// before-peak exclusion and the junk battery honest.
+const hdr = (t, pocket, banked = 0, smelted = 0) =>
+  `t-${t}s alive=19/19 mined=81 map=275p/7ch banked=${banked} smelted=${smelted} pocket=${pocket}u/18s | sand=0 gravel=0`
+
+test('drain-attr: covered - the loss + placement legs cover the residual, the before-peak death drop excluded', () => {
+  const lines = [
+    hdr(536, 10),
+    'F9 [F9] death drop: ~50u lost at [-129,52,387] (cobblestone 64, sand 8) - before the peak, the peak already reflects it',
+    hdr(300, 100),
+    'F10 [F10] death drop: ~114u lost at [-121,54,371] (cobblestone 64, diorite 12, cobblestone 10, andesite 6, sand 5, +8 more)',
+    'F7 [F7] climb bridge: placed dirt at [-135,64,419] (support) - the step re-judges',
+    'F6 [F6] climb bridge: placed cobblestone at [-117,64,383] (pit) - the step re-judges',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, 90) // drop 100-10, banked/smelted flat
+  assert.equal(a.lossDelta, 114) // the before-peak 50u NEVER counted
+  assert.equal(a.lossCount, 1)
+  assert.equal(a.placedDelta, 2)
+  assert.deepEqual(a.placedBlocks, { dirt: 1, cobblestone: 1 })
+  assert.equal(a.legs, 116)
+  assert.equal(a.attr, 'covered') // 116 >= 90 - a bound read, hand-counted
+})
+
+test('drain-attr: partial - the legs price part of the residual, the shortfall named', () => {
+  const lines = [
+    hdr(400, 100),
+    'F17 [F17] death drop: ~60u lost at [-138,49,409] (diorite 23, cobblestone 16, dirt 5)',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, 90)
+  assert.equal(a.legs, 60)
+  assert.equal(a.attr, 'partial') // 60 < 90 - crafting/the unseen holds 30u
+})
+
+test('drain-attr: open - no priced legs after the peak (the junk battery: craft, dry placement, unavailable)', () => {
+  const lines = [
+    hdr(400, 100),
+    'F3 [F3] craft torches: skip (no coal: sticks 5 coals 0)',
+    'F8 [F8] torch: the placement did not land (dry) x1 - the streak names itself once, a landing re-arms it',
+    'F2 [F2] climb bridge: unavailable (no placeable block in the pocket)',
+    'F10 [F10] sword: table crafted from planks (4 planks of one type)',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, 90)
+  assert.equal(a.lossDelta, 0)
+  assert.equal(a.lossCount, 0)
+  assert.equal(a.placedDelta, 0)
+  assert.deepEqual(a.placedBlocks, {})
+  assert.equal(a.attr, 'open')
+})
+
+test('drain-attr: none - the counters cover the drop, the legs never even scanned', () => {
+  const lines = [
+    hdr(536, 100, 0, 0),
+    'F10 [F10] death drop: ~114u lost at [-121,54,371] (cobblestone 64)',
+    hdr(300, 100, 0, 0),
+    hdr(0, 40, 80, 0) // drop 60, banked +80 - the bank absorbed it
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, -20) // 60 - 80 - 0
+  assert.equal(a.attr, 'none')
+  assert.equal(a.lossDelta, 0) // no scan when nothing to attribute
+  assert.equal(a.lossCount, 0)
+  assert.equal(a.legs, 0)
+})
+
+test('drain-attr: the deviated shapes read nothing - one parser per emitter', () => {
+  const lines = [
+    hdr(400, 100),
+    'F10 death drop: ~114u lost at [-121,54,371] (the bare-prefix form, no [F10])',
+    'F10 [F10] death drop: 114u lost (no ~, no at)',
+    'F10 [F10] death drop: ~114u lost (no coordinates)',
+    'F7 climb bridge: placed dirt at [-135,64,419] (the bare-prefix placement)',
+    'F7 [F7] climb bridge: placed Dirt at [-135,64,419] (uppercase deviates)',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, 90)
+  assert.equal(a.lossDelta, 0)
+  assert.equal(a.lossCount, 0)
+  assert.equal(a.placedDelta, 0)
+  assert.equal(a.attr, 'open')
+})
+
+test('drain-attr: honest nulls - no pulse lines, non-array', () => {
+  assert.equal(pocketDrainAttr(['F5 map trip: sand', 'calm face']), null)
+  assert.equal(pocketDrainAttr([]), null)
+  assert.equal(pocketDrainAttr('not an array'), null)
 })

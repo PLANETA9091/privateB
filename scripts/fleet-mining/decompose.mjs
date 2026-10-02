@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1153,6 +1153,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
             ? 'UNACCOUNTED - the counters cannot explain the drop (placement/loss/crafting - the next read\'s subject)'
             : 'no drain - the pocket never fell below its peak'
     console.log(`  pocket start ${pd.start}u -> end ${pd.end}u (peak ${pd.peak}u at t-${pd.peakT}s, drop ${pd.drop}u); banked +${pd.bankedDelta}, smelted +${pd.smeltedDelta} over ${pd.samples} samples - ${why}`)
+    // (v0.452.0) THE DRAIN ATTRIBUTION - the residual's legs, the log's
+    // own words. The ledger's 'unaccounted' named placement/loss/crafting;
+    // the death-drop and climb-bridge emitters price the first two. The
+    // 0.451.0 line above stays byte-identical - this row rides after it.
+    const da = pocketDrainAttr(lines)
+    const blocks = Object.entries(da.placedBlocks).map(([k, n]) => `${k} ${n}`).join(' ')
+    const attrWhy = da.attr === 'none'
+      ? 'the counters already cover the drop - nothing to attribute'
+      : da.attr === 'covered'
+        ? `the legs cover the residual (a bound read - line-order after the peak sample's line; the pulse cadence's own gap unseen)`
+        : da.attr === 'partial'
+          ? `the legs price ${da.legs}u of ${da.residual}u - the rest (crafting/the unseen) stays open`
+          : 'no priced legs after the peak - crafting/the unseen holds the residual'
+    console.log(`  drain attribution: deaths lost ${da.lossDelta}u (${da.lossCount} drop(s)), placements ${da.placedDelta}u (${da.placedDelta} line(s)${blocks ? `: ${blocks}` : ''}) - ${attrWhy}`)
   }
 }
 
