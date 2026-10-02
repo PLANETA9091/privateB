@@ -7,7 +7,7 @@ import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/rou
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
-import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
+import { sealDeathCensus, strandedPiles, BIG_PILE_U } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
@@ -106,6 +106,21 @@ if (sweep.keywordOnly.length) {
     const perBot = Object.entries(sealDeath.byBot).map(([b, s]) => `${b} ~${s.lost}u (seal ${s.sealLost}u)`).join(' ')
     const emptyNote = sealDeath.emptyReads > 0 ? `, ${sealDeath.emptyReads} empty-pocket read(s)` : ''
     console.log(`  seal death ledger: ${sealDeath.drops} drops lost ~${sealDeath.lostTotal}u (seal-class ${sealDeath.sealLostTotal}u named${emptyNote}) - ${perBot}`)
+    // (v0.476.0) THE STRANDED PILES - the sweep-reach wire's price: the
+    // piles the death ledger named, joined with the reloot lane's own
+    // verdicts. The lane walked ZERO piles across the stored faces (the
+    // single unarmed refusal, face 43 - 'the empty pocket bootstraps
+    // first'). The arrival lines carry no units - the reader never
+    // invents a recovered mass; the price stays the honest bound.
+    const sp = strandedPiles(lines)
+    if (sp.drops > 0 || sp.refusals > 0 || sp.arms > 0) {
+      const bigNote = sp.drops > 0 ? `, big(>=${BIG_PILE_U}u) ${sp.bigPiles} carrying ${sp.bigPileUnits}u` : ''
+      const biggestNote = sp.biggest ? ` - biggest ${sp.biggest.units}u (${sp.biggest.bot} @[${sp.biggest.pos ?? '-'}]) = ${(sp.topShare * 100).toFixed(0)}%` : ''
+      const whys = Object.entries(sp.refusalWhys).map(([w, n]) => `${w} ${n}`).join(', ')
+      const laneNote = ` - the reloot lane: arms ${sp.arms}, arrivals ${sp.arrivals}, refusals ${sp.refusals}${whys ? ` (${whys})` : ''}`
+      const priceNote = sp.arrivals > 0 ? `the lane walked ${sp.arrivals} pile(s) home (the units uncounted - the lines carry no mass)` : 'THE PRICE: the lane never walked - the dropped mass sits where it fell'
+      console.log(`  stranded piles (v0.476.0): ${sp.drops} pile(s) ~${sp.dropped}u${bigNote}${biggestNote}${laneNote} - ${priceNote}`)
+    }
     // (v0.407.0) THE DEATH CLOCK - the spiral read mechanical. The end-phase
     // share prices against the log's own clock end; a death before the first
     // heartbeat stays untimed and honestly out of every window.

@@ -13,7 +13,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseSealDeathDrop, sealDeathCensus, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
 const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30 }
@@ -194,4 +194,100 @@ test('seal-death clock: no heartbeats at all - the honest zero clock', () => {
   assert.equal(c.clock.clockEnd, null)
   assert.equal(c.clock.endPhase, 0)
   assert.equal(c.clock.maxBurst, 0)
+})
+
+// ---- (v0.476.0) THE STRANDED PILES - the sweep-reach wire's price ----
+// Face 43's death-drop lines verbatim (run 36970605824): 5 piles ~645u,
+// the biggest F16's 163u = 25% (the concentration's own read), the reloot
+// lane's single voice: 'no walk (unarmed) - the empty pocket bootstraps
+// first, the read re-arms (a delay, not a verdict)'.
+const f43Piles = [
+  'F13 [F13] death drop: ~141u lost at [-142,61,391] (cobblestone 58, diorite 15, cobblestone 13, oak_planks 12, sand 12, +11 more)',
+  'F1 [F1] death drop: ~161u lost at [-128,60,395] (cobblestone 64, cobblestone 34, dirt 19, andesite 17, diorite 8, +11 more)',
+  'F17 [F17] death drop: ~151u lost at [-127,64,431] (cobblestone 58, torch 22, cobblestone 10, granite 10, coal 9, +15 more)',
+  'F5 [F5] death drop: ~29u lost at [-152,65,407] (stick 7, oak_log 6, oak_planks 5, leaf_litter 4, oak_sapling 2, +5 more)',
+  'F16 [F16] death drop: ~163u lost at [-132,64,407] (cobblestone 61, gravel 29, dirt 17, diorite 15, leaf_litter 12, +13 more)'
+]
+const f43RelootRefusal = 'F13 reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'
+
+test('strandedPiles reads the face-43 stranded table (the wire\u0027s price)', () => {
+  const r = strandedPiles([...f43Piles, f43RelootRefusal])
+  assert.equal(r.drops, 5)
+  assert.equal(r.dropped, 645)
+  assert.deepEqual(r.biggest, { bot: 'F16', units: 163, pos: '-132,64,407' })
+  assert.equal(r.bigPiles, 4)
+  assert.equal(r.bigPileUnits, 616)
+  assert.ok(Math.abs(r.topShare - 163 / 645) < 1e-9)
+  assert.equal(r.arms, 0)
+  assert.equal(r.arrivals, 0)
+  assert.equal(r.refusals, 1)
+  assert.deepEqual(r.refusalWhys, { unarmed: 1 })
+  assert.equal(r.emptyReads, 0)
+})
+
+test('strandedPiles keeps the first pile on a tie (the line-order law)', () => {
+  const a = 'F2 [F2] death drop: ~100u lost at [-1,60,-1] (cobblestone 100)'
+  const b = 'F3 [F3] death drop: ~100u lost at [-2,60,-2] (dirt 100)'
+  const r = strandedPiles([a, b])
+  assert.equal(r.biggest.bot, 'F2')
+  assert.equal(r.topShare, 0.5)
+})
+
+test('strandedPiles prices the big-pile class at the threshold boundary', () => {
+  const small = 'F4 [F4] death drop: ~99u lost at [-3,60,-3] (cobblestone 99)'
+  const big = 'F4 [F4] death drop: ~100u lost at [-3,60,-3] (cobblestone 100)'
+  assert.equal(strandedPiles([small]).bigPiles, 0)
+  const r = strandedPiles([big])
+  assert.equal(r.bigPiles, 1)
+  assert.equal(r.bigPileUnits, 100)
+})
+
+test('strandedPiles passes the empty-pocket reads through (counted, unitless)', () => {
+  const r = strandedPiles([
+    ...f43Piles,
+    'F9 [F9] death drop: pocket read empty at death (0u)',
+    f43RelootRefusal
+  ])
+  assert.equal(r.emptyReads, 1)
+  assert.equal(r.drops, 5)
+  assert.equal(r.dropped, 645)
+})
+
+test('strandedPiles reflects the lane\u0027s walks without inventing a recovered mass', () => {
+  const r = strandedPiles([
+    ...f43Piles,
+    'F16 reloot: walking to the own death spot',
+    'F16 reloot: arrived in [-132,64,407]',
+    f43RelootRefusal
+  ])
+  assert.equal(r.arms, 1)
+  assert.equal(r.arrivals, 1)
+  assert.equal(r.dropped, 645)
+  assert.equal(r.refusals, 1)
+})
+
+test('strandedPiles splits the refusal whys on the first word (the census\u0027s own law)', () => {
+  const r = strandedPiles([
+    f43RelootRefusal,
+    'F5 reloot: no walk (budget 3 left) - the walk prices over the lane'
+  ])
+  assert.equal(r.refusals, 2)
+  assert.deepEqual(r.refusalWhys, { unarmed: 1, budget: 1 })
+})
+
+test('strandedPiles reads zero honestly and skips junk (the zero law)', () => {
+  const zero = { drops: 0, emptyReads: 0, dropped: 0, biggest: null, bigPiles: 0, bigPileUnits: 0, topShare: 0, arms: 0, arrivals: 0, refusals: 0, refusalWhys: {} }
+  assert.deepEqual(strandedPiles([]), zero)
+  assert.deepEqual(strandedPiles(null), zero)
+  assert.deepEqual(strandedPiles('not an array'), zero)
+  const r = strandedPiles([null, 42, 'garbage line', f43RelootRefusal])
+  assert.equal(r.drops, 0)
+  assert.equal(r.refusals, 1)
+})
+
+test('parseSealDeathDrop captures the pile\u0027s pos (the additive capture, the shape untouched)', () => {
+  const p = parseSealDeathDrop(f43Piles[0])
+  assert.equal(p.pos, '-142,61,391')
+  const e = parseSealDeathDrop('F9 [F9] death drop: pocket read empty at death (0u)')
+  assert.equal(e.pos, null)
 })

@@ -75,10 +75,13 @@ export function parseSealDeathDrop (line) {
   if (typeof line !== 'string') return null
   const em = line.match(SEAL_DEATH_EMPTY_RE)
   if (em) {
-    return { bot: em[1], lost: 0, named: 0, tail: 0, items: {}, sealLost: 0, empty: true }
+    return { bot: em[1], lost: 0, named: 0, tail: 0, items: {}, sealLost: 0, empty: true, pos: null }
   }
   const m = line.match(SEAL_DEATH_LOSS_RE)
   if (!m) return null
+  // (v0.476.0) the pile's WHERE, derived from the match itself - the shape
+  // (and its group indices) untouched, the capture additive.
+  const pm = m[0].match(/at \[([^\]]*)\]/)
   const tm = m[3].match(TAIL_RE)
   const tail = tm ? Number(tm[1]) : 0
   const body = tm ? m[3].slice(0, tm.index) : m[3]
@@ -96,7 +99,7 @@ export function parseSealDeathDrop (line) {
   for (const [name, units] of Object.entries(items)) {
     if (SEAL_PRIORITY.includes(name)) sealLost += units
   }
-  return { bot: m[1], lost: Number(m[2]), named, tail, items, sealLost, empty: false }
+  return { bot: m[1], lost: Number(m[2]), named, tail, items, sealLost, empty: false, pos: pm ? pm[1] : null }
 }
 
 /**
@@ -173,5 +176,78 @@ export function sealDeathCensus (lines) {
       maxBurst,
       burstWindowS: DEATH_BURST_WINDOW_S
     }
+  }
+}
+
+// (v0.476.0) THE STRANDED PILES - the sweep-reach wire's price. The
+// concentration held at n=3 (the shares 82%/11%/no-leak ride the biggest
+// pile's 25%/80%/25%): the death pile is the leak's shape - a pile bigger
+// than a pocket cannot walk home. The cure's two candidates are the
+// fleet's own lanes: the reloot (the death economy's walk) and the sweep.
+// THE FIELD (faces 41..43, the stored artifacts): the reloot lane spoke
+// ONCE in three faces (face 43's single 'no walk (unarmed)' - the empty
+// pocket bootstraps first, the read re-arms) and walked ZERO piles; the
+// sweep harvests 0. The reader joins the death ledger's own parser
+// (parseSealDeathDrop - no new shape) with the reloot lane's own verdicts
+// and prices the wire's target: the piles, their mass, the big-pile
+// class (>= BIG_PILE_U - the conservative floor INSIDE the
+// concentration's own evidence: the faces' biggest piles read
+// 163..507u - the v0.407.0 threshold precedent: derived from the read
+// it prices), and the lane's arms/arrivals/refusals. The reader never
+// invents a recovered mass: the arrival lines carry no units, so the
+// price stays 'the dropped mass + the lane's walks' - the honest bound.
+// Junk-safe: non-string rows judge nothing, non-array/string -> the zero
+// row (the census's own convention). Pure: reads, never mutates.
+export const RELOOT_REFUSAL_RE = /^(F\d+) reloot: no walk \(([^)]+)\)/i
+export const RELOOT_ARM_RE = /^(F\d+) reloot: walking to the own death spot/i
+export const RELOOT_ARRIVAL_RE = /^(F\d+) reloot: arrived in/i
+export const BIG_PILE_U = 100
+
+export function strandedPiles (lines) {
+  const rows = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : [])
+  const piles = []
+  let emptyReads = 0
+  let arms = 0
+  let arrivals = 0
+  let refusals = 0
+  const refusalWhys = {}
+  for (const l of rows) {
+    if (typeof l !== 'string') continue
+    if (RELOOT_ARM_RE.test(l)) { arms++; continue }
+    if (RELOOT_ARRIVAL_RE.test(l)) { arrivals++; continue }
+    const rm = l.match(RELOOT_REFUSAL_RE)
+    if (rm) {
+      refusals++
+      const why = rm[2].split(' ')[0] // the inline census's own split law
+      refusalWhys[why] = (refusalWhys[why] || 0) + 1
+      continue
+    }
+    const p = parseSealDeathDrop(l)
+    if (!p) continue
+    if (p.empty) { emptyReads++; continue }
+    piles.push(p)
+  }
+  let dropped = 0
+  let biggest = null
+  let bigPileUnits = 0
+  for (const p of piles) {
+    dropped += p.lost
+    if (p.lost >= BIG_PILE_U) bigPileUnits += p.lost
+    if (biggest === null || p.lost > biggest.units) biggest = { bot: p.bot, units: p.lost, pos: p.pos } // ties: the first (the line-order law)
+  }
+  return {
+    drops: piles.length,
+    emptyReads,
+    dropped,
+    biggest,
+    bigPiles: piles.filter(p => p.lost >= BIG_PILE_U).length,
+    bigPileUnits,
+    topShare: dropped > 0 && biggest ? biggest.units / dropped : 0,
+    arms,
+    arrivals,
+    refusals,
+    refusalWhys
   }
 }
