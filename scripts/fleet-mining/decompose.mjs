@@ -5,6 +5,7 @@ import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/li
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
+import { shelterLedger } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
@@ -479,6 +480,47 @@ if (shooter.total > 0) {
   if (otherRow) console.log(`  UNKNOWN verbs (the vocabulary drifted - name them): ${otherRow}`)
 } else {
   console.log('  combat: 0 lines (no mob engagement this face - the honest zero)')
+}
+// (v0.457.0) THE SHELTER OUTCOME LEDGER - the combat/night cure's PRICE.
+// The killers row named the lane (face 36: the mob family 82% of the
+// drain); the shooter census counts the machinery's verdicts; neither ever
+// joined a DEATH to the bot's last combat verdict. This block reads the
+// join: each combat death (the server kind token the authority) lands in
+// the outcome class it died in - sheltered (the wall itself failed) /
+// shelter-attempt (the machinery still negotiating: try, wall-miss, skip,
+// ring) / fight / flee / ranged / other / ambushed (no combat line at all)
+// - priced by the adjacent death drop's ~Nu (the last-before-drop law the
+// pocket killers pinned). THE CURE FORK the row reads: the biggest priced
+// class names the fix - sheltered -> the wall design, shelter-attempt ->
+// the machinery's speed/stock, ambushed -> the sentry, fight -> the trade,
+// flee -> the escape. Zero-combat-death faces read the honest zeros (the
+// wet faces' water lane is not this ledger's subject - the excluded count
+// says so).
+{
+  const sl = shelterLedger(lines)
+  console.log(`--- SHELTER OUTCOME LEDGER (v0.457.0: the combat verdict's price - the last verdict before each combat death) ---`)
+  const excluded = sl.otherDeaths + sl.unparsedDeaths
+  console.log(`  combat deaths: ${sl.combatDeaths} (excluded: ${excluded} non-combat${sl.unparsedDeaths ? ` [incl. ${sl.unparsedDeaths} no-kind-token]` : ''}) - priced ${Object.values(sl.outcomes).reduce((s, o) => s + o.u, 0)}u, unpriced ${sl.unpriced}, pairMisses ${sl.pairMisses}`)
+  const alive = Object.entries(sl.outcomes).filter(([, o]) => o.n > 0)
+  if (alive.length) {
+    const classRow = alive.map(([c, o]) => `${c}: ${o.n} (${o.u}u) [${o.bots.join(',')}]`).join(' | ')
+    console.log(`  ${classRow}`)
+    const top = alive.slice().sort((a, b) => b[1].u - a[1].u || b[1].n - a[1].n)[0]
+    const why = top[0] === 'sheltered'
+      ? 'the WALL itself failed - the shelter sealed and still lost'
+      : top[0] === 'shelter-attempt'
+        ? 'the MACHINERY was too slow - the try/skip/wall-miss was not sealed in time'
+        : top[0] === 'ambushed'
+          ? 'the SENTRY never spoke - no combat verdict before the death'
+          : top[0] === 'fight'
+            ? 'the TRADE loses - the fight itself is the leak'
+            : top[0] === 'flee'
+              ? 'the ESCAPE fails - the disengage is the leak'
+              : 'the class split stays open - read the rows'
+    console.log(`  the price's answer: ${top[0]} carries ${top[1].u}u/${top[1].n} death(s) - ${why}`)
+  } else {
+    console.log(`  ${sl.combatDeaths === 0 ? 'no combat deaths this face - the pricing waits (the water lane is not this ledger\'s subject)' : 'the rows read zero - the honest zero'}`)
+  }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of
