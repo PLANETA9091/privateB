@@ -12197,3 +12197,18 @@ Work Log:
 
 Stage Summary:
 - Master = 0b81ef7 (pkg 0.467.0; worklog commit follows). NEXT FIRE: (1) CI gate 36972017836 verdict + face 43 (36970605824) when it leaves the queue: the promise row's face-43 point (the F16-kept pattern - does a kept bot take the rung the NEXT face? the promise's persistence read), the counter-vs-words window (upgraded=14 vs 12 events), the share ledger's 8th point; (2) the 1338 handoff's blacklist cure waits its second fuel face; (3) version next 0.468.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1430
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1430 - v0.468.0 THE VERDICT CENSUS (the counter-vs-words window named from the emitter's own code: face 42's upgraded=14 vs 12 lines = the WORN class); face 43 still QUEUED - no dispatch.
+
+Work Log:
+- SANDBOX RESET: /home/z/privateB-repo was GONE at open (the fourth fire's sandbox died) - re-cloned per protocol 2 (npm install clean, tip a3b092e), my-project survived (worklog + scripts); the face42/faceNN log dirs DIED with the reset - face 42's artifact RE-DOWNLOADED from GitHub (11210753776, 2993 lines) for the live reads. Zero repo damage (both worklogs live on master).
+- FACE 43 (36970605824) QUEUED all fire again (queued since 13:58, ~35 min) - the concurrency queue congested; NOT mined. NO dispatch (a queued dispatch run exists - the one-active-run law). My v0.467.0 gate 36972017836 CANCELLED by the queue law (no CI verdict on any of my trees yet, honest).
+- THE WIRE (v0.468.0): THE VERDICT CENSUS - fire 1330's counter-vs-words window (upgraded=14 vs 12 lines) resolved from the emitter's own bodies: ONE policy flow (toolupgrade.mjs), TWO verdict paths - the healthy tier-raise delegates to tools.mjs (whose step prints the upgraded: line), the WORN path (worn (left=N/M) reason) crafts the replacement itself and prints NO upgraded: line; BOTH paths' ok tick the same counter (fleet sites 730/1924). upgradeVerdicts + VERDICT_RE read the result lines and class the details: tier (kit list), worn (left parsed, maxWear = the closest call), noop ('already stone+'), failed by reason, the commune variant separated; the anchor law keeps spare-pick/recovery/due out.
+- THE FIELD READ (face 42, live pre-push): ok 14 = tier 12 + worn 2 + noop 0, maxWear 5 (the closest call in the ledger) - THE WINDOW CLOSED: the counter's 14 = the verdicts' 14; the words' 12 = the tier class only.
+- Tests: upgradecensus 14 -> 20 (one test-side arithmetic fix during authoring - ok is main-path only, commune separated; the regex's greedy detail group fixed to lazy mid-authoring). Syntax 363/0, unit 208/208 files. Push a3b092e..aaacc1f CLEAN.
+
+Stage Summary:
+- Master = aaacc1f (pkg 0.468.0; worklog commit follows). NEXT FIRE: (1) CI gate verdict (aaacc1f's push run) + face 43 (36970605824) when it leaves the queue: the verdict row's face-43 point (the worn class's spread - does it scale with dig activity?), the promise row's face-43 read, the share ledger's 8th point; (2) the 1338 handoff's blacklist cure waits its second fuel face; (3) version next 0.469.0. Identity: PLANETA9091.
