@@ -301,6 +301,33 @@ export function slotMismatchReason ({ wantName = null, slotInputName = null, slo
   return `slot mismatch (input=${read}, fuel=${f}, want ${wantName})`
 }
 
+// (v0.513.0) THE IDLE FUEL VERDICT - pure, junk-safe. Classifies the machine's
+// own stock (the three window slots, read at open time) into the visit's move:
+//   'busy-live'        input present - a live or dead batch with real progress
+//                      potential; sacred either way (taking the input resets a
+//                      burn's progress or steals a batch mid-transfer)
+//   'rescue-finished'  output over an EMPTY input - the fleet-property shape
+//                      (the v0.137.0 finished-harvest); the leftover fuel rides
+//                      the same visit (takeFuel)
+//   'rearm-idle'       fuel over an empty input AND an empty output - vanilla
+//                      never burns fuel without input: no visit can start, no
+//                      batch is forming, the leftover only walls the machine
+//                      ('busy' to every later visitor). The pull re-arms it.
+//   'idle'             nothing inside - put and go
+// Junk reads EMPTY (the oresteer law - a junk read never strands a visit; the
+// slot read-back after the put is the lie's own gate). A fresh object per call -
+// no shared constants (the fresh-literal reference lesson, v0.512.0).
+export function machineStockMove ({ inputName = null, fuelName = null, outputName = null } = {}) {
+  const present = n => typeof n === 'string' && n.trim().length > 0
+  const input = present(inputName)
+  const fuel = present(fuelName)
+  const output = present(outputName)
+  if (input) return { move: 'busy-live', takeOutput: false, takeFuel: false }
+  if (output) return { move: 'rescue-finished', takeOutput: true, takeFuel: fuel }
+  if (fuel) return { move: 'rearm-idle', takeOutput: false, takeFuel: true }
+  return { move: 'idle', takeOutput: false, takeFuel: false }
+}
+
 // smelts per fuel unit (vanilla): coal 8, planks/logs 1.5, stick 0.5 ...
 export const FUEL_YIELD = {
   coal: 8,
@@ -806,6 +833,33 @@ export async function smeltBatch (bot, {
       // the leftover fuel on a finished batch: back to the pocket, the machine reads idle
       if (furnace.fuelItem()) {
         try { await withTimeout(furnace.takeFuel(), 5000, 'harvest leftover fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
+      }
+    }
+
+    // (v0.513.0) THE IDLE FUEL: the finished-harvest above reclaims the leftover
+    // fuel only when it can SEE the output. A fuel-only machine (input empty,
+    // output empty, fuel sitting) reads 'busy' to every later visit - the wall
+    // the harvest's own comment names - surviving in the shape the harvest never
+    // sees: the output was already claimed by an earlier visitor, the mismatch
+    // repair's fuel pull read 'lost', or the poll-timeout pull-back lost the
+    // fuel leg. The sweep cures it on its own cadence - but the batch visit is
+    // the hot path (every bank trip) and the sweep never scans smokers at all,
+    // so a fuel-only smoker walls forever. The v0.137.0 wall-off rule reaches
+    // its last naked visit site (the v0.160.0 close-shot shape): the pull is
+    // verified on the live rows (the fuel lands in the pocket at the close-sync),
+    // the machine reads idle, and the visit proceeds - the caller's next machine
+    // attempt is not spent on a re-armable idle. A LIVE input slot stays
+    // UNTOUCHED (the busy law byte for byte); a failed pull still reads 'busy'
+    // (the honest gate).
+    if (!out0 && !furnace.inputItem()) {
+      let idleFuelName = null
+      try { idleFuelName = furnace.fuelItem()?.name ?? null } catch { /* dead window */ }
+      if (machineStockMove({ fuelName: idleFuelName }).takeFuel) {
+        const rowsBefore = liveCount(idleFuelName)
+        try { await withTimeout(furnace.takeFuel(), 5000, 'harvest the idle fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
+        await sleep(200)
+        const pulled = liveCount(idleFuelName) - rowsBefore
+        if (pulled > 0) log(`${tag} idle fuel pulled: ${pulled} x ${idleFuelName} from ${machineBlock.name} (the machine reads idle again)`)
       }
     }
 
