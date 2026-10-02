@@ -12182,3 +12182,18 @@ Work Log:
 
 Stage Summary:
 - Master = 0ce1b17 (pkg 0.466.0), 100% PLANETA9091 authors on the recent window; the 1338 entry's findings unchanged. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1400
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1400 - v0.467.0 THE DEFER PROMISE JOIN (the tier-defer promise put to an order-aware test - defer -> did the rung follow? THE PROMISE PASSES 13/15 deferred bot-faces live); face 43 STILL QUEUED (36970605824) - no dispatch (the one-active-run law).
+
+Work Log:
+- CHECK ORIGIN FIRST: the lane's fire-1338 rewrote history (force-with-lease, 810c080 -> 1fe7235, the identity cure) and took v0.466.0 (THE FLEE GROUND CROSS-READ); my rebase clean onto the new tip, pkg 0.466.0, their commit notes my upgradecensus 7 green in their 208-file suite (cross-validated). No version collision this fire (0.467.0 free at bump time, origin checked pre-bump).
+- FACE 43 (36970605824, my fire-1330 dispatch on 810c080) QUEUED all fire - the concurrency queue congested (their push runs cancelled around it); NOT mined (no artifact yet). NO dispatch this fire (a queued workflow_dispatch run exists - the one-active-run law). My tree's CI 36970600309 (810c080) CANCELLED by the same queue law - no green CI verdict on any of my code trees yet this session, honest.
+- THE WIRE (v0.467.0): THE DEFER PROMISE JOIN - fire 1330's follow-through: the census rows sat side by side but the promise is per-bot and POSITIONAL. deferPromise in src/lib/upgradecensus.mjs (appended; the join reuses TIER_DEFER_RE + UPGRADE_RE - no new shape claimed, the flee-ground-cross-read convention): one walk, the bot's LAST defer index governs; upgrade after it = took-after, upgrades only before = took-before-only (the defer outlived the rung), none = kept (the option held); co-existence reported, causation never guessed. Decompose: the row after the tool upgrades; zero defers -> the row stays silent (no promise, no test).
+- THE FIELD READ (faces 41+39+42, live pre-push): THE PROMISE PASSES 13/15 deferred bot-faces - face 41: 5/5 took-after (every deferrer reached the rung same face); face 39: 8/9 (F19 kept); face 42: 0/1 (F16 kept all face); the eyeball join retired - the promise has its first standing row.
+- Tests: upgradecensus 7 -> 14 (took-after verbatim, the F16 kept case, took-before-only, last-defer-governs, mixed cast, junk, zero). Syntax 363/0, unit 208/208 files. Push 1fe7235..0b81ef7 CLEAN (no collision this fire).
+
+Stage Summary:
+- Master = 0b81ef7 (pkg 0.467.0; worklog commit follows). NEXT FIRE: (1) CI gate 36972017836 verdict + face 43 (36970605824) when it leaves the queue: the promise row's face-43 point (the F16-kept pattern - does a kept bot take the rung the NEXT face? the promise's persistence read), the counter-vs-words window (upgraded=14 vs 12 events), the share ledger's 8th point; (2) the 1338 handoff's blacklist cure waits its second fuel face; (3) version next 0.468.0. Identity: PLANETA9091.
