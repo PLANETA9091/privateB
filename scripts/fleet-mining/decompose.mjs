@@ -38,6 +38,7 @@ import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the 
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
+import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2166,5 +2167,26 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (mbits.length) console.log(`  mid-fails: ${tr.midFails} - ${mbits.join(' | ')}`)
     if (tr.chains) console.log(`  reboot chains: ${tr.chains} (recovered ${tr.chainsRecovered}) - loop legs ${tr.loops} (recovered ${tr.loopRecovered} / still-failed ${tr.loopStillFailed})`)
     if (tr.prose.surfaced || tr.prose.climbRefused) console.log(`  prose legs (never close): surfaced ${tr.prose.surfaced} / climb-refused ${tr.prose.climbRefused}`)
+  }
+}
+
+// (v0.494.0) THE ARMORY CENSUS - the weapon supply chain's own book.
+// The sword + spare-pick lanes' craft verdicts and their failure
+// anatomy (the table leg, the stick drought's third lane, the tier
+// share) - the fight cost ledger's weapon fields rode exactly this
+// supply.
+{
+  const ac = armoryCensus(lines)
+  if (ac && ac.total > 0) {
+    console.log(`--- ARMORY CENSUS (v0.494.0: the weapon supply chain's own book) ---`)
+    const s = ac.sword
+    const tbits = []
+    for (const [tier, n] of Object.entries(s.okTiers)) tbits.push(`${tier} ${n}`)
+    console.log(`  sword: armed ${s.ok} (${tbits.join(' / ')}) | failed ${s.failed} (craft-miss ${s.failedWhy['craft-miss']} / table ${s.failedWhy.table}) - stick-miss ${s.stickMisses}, table-refused ${s.tableRefusals}`)
+    const sp = ac.spare
+    const pbits = []
+    for (const [tier, n] of Object.entries(sp.okTiers)) pbits.push(`${tier} ${n}`)
+    console.log(`  spare pick: armed ${sp.ok} (${pbits.join(' / ')}) | craft-miss ${sp.craftMisses} - stick-miss ${sp.stickMisses}, table-refused ${sp.tableRefusals}, skips ${sp.skips} (stick-drought ${sp.skipClasses['stick-drought'] || 0} / materials ${sp.skipClasses.materials || 0} / other ${sp.skips - (sp.skipClasses['stick-drought'] || 0) - (sp.skipClasses.materials || 0)})`)
+    if (s.stormRefusals || s.ingredientsRefusals || s.prose) console.log(`  legs: storm ${s.stormRefusals} / ingredients ${s.ingredientsRefusals} / prose ${s.prose}`)
   }
 }
