@@ -92,3 +92,58 @@ export function deferPromise (lines) {
   }
   return { deferringBots: Object.keys(lastDefer).length, tookAfter, tookBeforeOnly, kept, perBot }
 }
+
+// (v0.468.0) THE VERDICT CENSUS - the upgrade lane's result lines counted,
+// the counter-vs-words window named from the emitter's own code. The
+// policy flow (toolupgrade.mjs) prints one verdict per run: '<bot> tool
+// upgrade: OK -> <tier> (<detail>)' / 'failed'; the commune path prints
+// its own '(commune)' variant. The detail NAMES the path: a kit list =
+// the tier-raise craft (the delegation's words own the 'upgraded:' line
+// for these), 'worn (left=N/M)' = the worn-replacement craft (the words
+// NEVER speak here - the upgraded: emitter belongs to the healthy path
+// only), 'already stone+' = the silent no-op the counter still counts.
+// THE WINDOW (face 42's field read): counter 14 = tier 12 + worn 2 + noop
+// 0 - the 2-extra mystery resolved as the worn class. One parser per
+// emitter: VERDICT_RE owns the verdict shape; junk-safe, non-array null.
+export const VERDICT_RE = /^(F\d+) tool upgrade(?: \(commune\))?: (OK|failed) -> (.+?) \((.+)\)$/i
+
+// upgradeVerdicts(lines) -> { ok, failed, commune, tier, worn, noop, maxWear } | null
+//   ok/failed  main-path verdict counts (the counter's own res.ok leg)
+//   commune    commune-path verdict count (its own result line)
+//   tier       ok verdicts whose detail is a kit list (the delegation path)
+//   worn       ok verdicts with a 'worn (left=N/M)' detail (the swap craft)
+//   noop       ok verdicts with 'already stone+' (the silent no-op)
+//   maxWear    the smallest left= seen on worn verdicts (the closest call)
+export function upgradeVerdicts (lines) {
+  if (!Array.isArray(lines)) return null
+  let ok = 0
+  let failed = 0
+  let commune = 0
+  let tier = 0
+  let worn = 0
+  let noop = 0
+  let maxWear = null
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = VERDICT_RE.exec(line)
+    if (!m) continue
+    const isCommune = /tool upgrade \(commune\):/i.test(line)
+    if (isCommune) {
+      commune++
+      if (m[2].toLowerCase() === 'failed') continue
+    } else if (m[2].toLowerCase() === 'failed') {
+      failed++
+      continue
+    } else ok++
+    const detail = m[4]
+    const wm = /worn \(left=(\d+)\/(\d+)\)/i.exec(detail)
+    if (wm) {
+      worn++
+      const left = Number(wm[1])
+      if (maxWear === null || left < maxWear) maxWear = left
+    } else if (/already stone\+/i.test(detail)) noop++
+    else if (isCommune) { /* commune tier-craft: no kit list in its detail */ }
+    else tier++
+  }
+  return { ok, failed, commune, tier, worn, noop, maxWear }
+}

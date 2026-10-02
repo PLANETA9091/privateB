@@ -133,3 +133,61 @@ test('deferPromise reads zero honestly (the zero law)', () => {
   const r = deferPromise(['F1 [toolupgrade] [upgrade] upgraded: stone_pickaxe'])
   assert.deepEqual(r, { deferringBots: 0, tookAfter: 0, tookBeforeOnly: 0, kept: 0, perBot: {} })
 })
+
+// (v0.468.0) THE VERDICT CENSUS tests
+import { upgradeVerdicts, VERDICT_RE } from '../../src/lib/upgradecensus.mjs'
+
+test('upgradeVerdicts reads the face-42 verdicts verbatim (the window: 14 = tier 12 + worn 2)', () => {
+  const lines = [
+    'F9 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+    'F1 tool upgrade: OK -> stone_pickaxe (worn (left=11/131))',
+    'F3 tool upgrade: OK -> stone_pickaxe (worn (left=5/131))'
+  ]
+  const r = upgradeVerdicts(lines)
+  assert.equal(r.ok, 3)
+  assert.equal(r.tier, 1)
+  assert.equal(r.worn, 2)
+  assert.equal(r.maxWear, 5)
+  assert.equal(r.noop, 0)
+})
+
+test('upgradeVerdicts counts the silent no-op (already stone+)', () => {
+  const r = upgradeVerdicts(['F7 tool upgrade: OK -> stone_pickaxe (already stone+)'])
+  assert.equal(r.ok, 1)
+  assert.equal(r.noop, 1)
+  assert.equal(r.tier, 0)
+})
+
+test('upgradeVerdicts separates the commune variant', () => {
+  const r = upgradeVerdicts([
+    'F2 tool upgrade (commune): OK -> stone_pickaxe (stone_pickaxe,wooden_shovel)',
+    'F2 tool upgrade (commune): failed -> none (no cobblestone)',
+    'F2 tool upgrade: OK -> stone_pickaxe (stone_pickaxe)'
+  ])
+  assert.equal(r.commune, 2)
+  assert.equal(r.failed, 0)
+  assert.equal(r.ok, 1)
+  assert.equal(r.tier, 1)
+})
+
+test('upgradeVerdicts counts failures by their reason (detail rides as data)', () => {
+  const r = upgradeVerdicts([
+    'F5 tool upgrade: failed -> none (cannot make sticks (no planks?))',
+    'F6 tool upgrade: failed -> none (no crafting table placeable)'
+  ])
+  assert.equal(r.failed, 2)
+  assert.equal(r.ok, 0)
+})
+
+test('upgradeVerdicts never matches the near-miss emitters (the anchor law)', () => {
+  assert.ok(!VERDICT_RE.test('F10 spare pick: OK (wooden_pickaxe, holds 2)'))
+  assert.ok(!VERDICT_RE.test('F12 tool recovery: OK (stone_pickaxe)'))
+  assert.ok(!VERDICT_RE.test('F9 tool upgrade due: worn (left=3/131) -> stone_pickaxe'))
+  assert.ok(!VERDICT_RE.test('F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe'))
+})
+
+test('upgradeVerdicts is junk-safe and nulls on non-array (the laws)', () => {
+  assert.equal(upgradeVerdicts(null), null)
+  assert.equal(upgradeVerdicts('x'), null)
+  assert.deepEqual(upgradeVerdicts([null, 5, 'garbage']), { ok: 0, failed: 0, commune: 0, tier: 0, worn: 0, noop: 0, maxWear: null })
+})
