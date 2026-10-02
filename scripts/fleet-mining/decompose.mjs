@@ -14,6 +14,7 @@ import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // 
 import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
 import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
+import { entryWindow } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -382,6 +383,17 @@ if (o2g && o2g.deaths > 0) {
     ? `${bot} [${v.cueKind}${v.cue.head.toLowerCase() === 'wet' ? '' : ` - head ${v.cue.head}`}, sight died ${v.cue.sightDiedSecs ?? '?'}s before, mirror o2=${v.cue.o2}, ${v.cue.why}]`
     : `${bot} [blind - no mirror joined]`).join(' ')
   console.log(`  re-entry price (v0.479.0): the sight-loss + head-water wiring catches ${o2g.cue.wired}/${o2g.deaths} - cue-only ${o2g.cue.cueOnly} (head dry/unknown at the mirror tick - the wider trigger's case), blind ${o2g.cue.blind} (the sensor gap) - mirrors ${o2g.mirrors}${cueBits ? ` (${cueBits})` : ''}`)
+}
+// (v0.480.0) THE EFFECTIVE WINDOW - the re-entry price's honest second leg:
+// a live trigger arms when the snapshot age CROSSES the stale floor (the
+// mirror's own constant, imported - one truth), so the REAL window is the
+// blindness lead MINUS the floor, not the raw lead. Priced against the
+// lane's own saves (rescue-ledger's classifier - never forked). Silent on
+// zero deaths.
+const ew = entryWindow(o2g, lines)
+if (ew) {
+  const ewBits = Object.entries(ew.perDeath).map(([bot, v]) => `${bot} [lead ${v.lead ?? '?'}s - floor ${ew.floorSec}s = ${v.effective !== null ? `${v.effective}s` : 'n/a'}, ${v.verdict}]`).join(' ')
+  console.log(`  effective window (v0.480.0): the live trigger's window = lead - ${ew.floorSec}s stale floor; the lane's saves cost min ${ew.laneCost.min}s / median ${ew.laneCost.median}s / max ${ew.laneCost.max}s (n=${ew.laneCost.saves}) - fits ${ew.verdicts.fits} / tight ${ew.verdicts.tight} / misses ${ew.verdicts.misses} / unpriced ${ew.verdicts.unpriced}${ewBits ? ` (${ewBits})` : ''}`)
 }
 // (v0.382.0) THE BANK-FLOW CENSUS - face 19 (36802577873) closed 19/19 ALIVE
 // with a 495u pocket still unbanked (38.6% of it crafted-class surplus the
