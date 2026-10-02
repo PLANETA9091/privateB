@@ -11818,3 +11818,19 @@ Work Log:
 
 Stage Summary:
 - Fire closed green: master = 3c3cd51, CI green, face 33 in flight. NEXT FIRE as the addendum-2 list says (gate verdicts done; face 33 reads; version next 0.448.0). Identity: PLANETA9091.
+
+---
+Task ID: cron-20261002-0738 (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: fire 0738 - v0.449.0 THE RECEIPT WINDOW CALIBRATION (the trip's real yield lag priced from face 33's raw series); FACE 34 mined (the receipt's first delivering read; the brake honest-by-design verified with the rotation map).
+
+Work Log:
+- CHECK ORIGIN FIRST: fbaf279 the tip, no parallel activity, identity set. Gates green (3c3cd51 SUCCESS - the flake arbiter verdict from the 0638 fire held).
+- THE CALIBRATION EVIDENCE (face 33, 2464 lines): the v0.447.0 2-sample window read F15+0u while the raw series shows the launch between the t-367s/t-352s samples and the pocket 0->7 by t-240s - a ~127s yield lag (the round trip: TRIP_WALK_MS=45s each way + the dig) plus an 82s sampling hole (t-322s -> t-240s). The window was blind to the TIME the yield needed.
+- THE WIRE (v0.449.0, 007abed): maptrip.mjs append-only - RECEIPT_WINDOW_SAMPLES=6 (~90-120s, the round trip + the dig margin; window=2 stays for the legacy read); each window carries span (the delta's accrual t-span; the fleet-wide counter cannot time inside it; the t-0 EOF cluster clamps at 0) and holeMax (>45s = a SAMPLING HOLE - the delta is a BOUND, never a timing read). Decompose: 'F15+7u (span 157s, hole 82s - a bound, not a timing read)'. Tests maptrip 15 -> 16 (the face-33 verbatim fixture, the legacy pins, the EOF span clamp). Local: syntax 354/0, unit 3166/3166. Gate 007abed SUCCESS.
+- THE FIELD REGRESSION: face 33 F15+0u -> +7u (span 157s, hole 82s); face 32's four sand launches +0u x4 -> +11/+15/+17/+27u (spans ~92s) - the trips DID deliver.
+- FACE 34 (36942085865, the 0638 lane's dispatch on fbaf279) SUCCESS: 3643 lines. (1) The receipt's first delivering read: 4 sand launches -> +19/+14/+12/+12u, the pocket peaked 32 -> drained to 0 (banked) - the delivery chain WORKED; the plan top still sand (have 0..32 vs required 157926 - the trickle vs the appetite, structural). (2) The dead chest ledger row 2: chest 1 (occlusion), stale repeats 0 - THREE faces, the occlusion:stale ratio 4:1, the preflight cure priced NOT justified, waits for fuel. (3) THE BRAKE honest-by-design VERIFIED: 5 stalls (all F11, gained 0..0), 0 braked - the post-stall rotation ALWAYS picked a different cell (oak [-122,394] -> birch [-115,392] -> sand [-128,389] -> gravel [-132,380]; the LAND_PROXY machinery rotates by itself) and the pre-stall re-arms (8x at one target before the first stall) had no ledger fuel by design. F11's pocket is the ARRIVAL front (d flat 2..10: the shore lip it cannot climb), not a re-arm loop. (4) The water receded: 63 starts (from 79), F11 the new crown 20; deaths 12 (mob 9 drown 3); the hound 3 kills AND flee-shore FIRED FOR THE FIRST TIME (F19=1). (5) zero-hops 17 (from 31); conversion 76.7% (the recent worst); stale max 13 (from 1).
+
+Stage Summary:
+- Master = 007abed (pkg 0.449.0), CI green. The receipt calibrated; the trips' delivery PROVEN (+57u sand face 34, peaked and banked); the brake verified honest-by-design; the occlusion leg leads 4:1, the preflight waits.
+- NEXT FIRE: (1) CHECK ORIGIN FIRST (0.450.0). (2) The sand leg's structural gap: trips deliver a trickle (+57u/face) vs the plan's 157926 - price the quarry-scale campaign design (a dedicated multi-bot sand campaign target) vs more trip throughput before any wire. (3) The arrival front: F11's d flat 2..10 walls + the occlusion autopsies 4:1 + the climb census's fail whys - one front, price the climb cure and the pre-open verification together. (4) Watch rows: conversion 76.7%, stale max 13. (5) version next 0.450.0. Identity: PLANETA9091.
