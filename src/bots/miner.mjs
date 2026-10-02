@@ -40,6 +40,7 @@ import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine, wetRescueWindowLive } from '../lib/statcarry.mjs' // (v0.357.0) the wet-rescue window classifier - the storm verdict's exclusion feed
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired, tierDebtOf } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break; (v0.503.0) the tier debt rides the verdict
 import { isNight } from '../lib/nightsafety.mjs'
+import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.511.0) THE FLESH RATION - the autoeat plugin's own policy, finally fed and finally enabled
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import { sealSnapshot, sealDeclareLine, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.421.0) the seal watch: the pre-risk declare + the respawn accounting, the same SEAL_PRIORITY list all four seal arithmetics spend
@@ -155,6 +156,39 @@ export function createMiner ({
   const stats = { mined: 0, failed: 0, skipped: 0, flyFails: 0, hookCalls: 0, hookFails: 0, mapTrips: 0, mapRecords: 0, banked: 0, planted: 0, torched: 0, fights: 0, kills: 0, climbs: 0, shaftEntryY: null, shelters: 0, rescues: 0, airGlitches: 0, wetRescueGlitches: 0, glitchAbandons: 0, airBarOverrides: 0, claims: 0, byName: {}, startedAt: 0 }
   const dugByHook = new Set()
   const tag = `[${username}]`
+
+  // ---- (v0.511.0) THE FLESH RATION - the recover() doctrine's heal leg becomes real ----
+  // recover() (below) waits on 'autoeat + natural regen' - but the autoeat plugin
+  // loaded here was inert three layers deep: enableAuto() never called (5.0.3's
+  // loader builds the util and stops - statusCheck stayed unbound, nothing ever
+  // ate), the default bannedFood opened with rotten_flesh (the ONLY food the fleet
+  // owns - zombie defense drops; no hunt lane exists), and the default minHunger
+  // 15 strict-< fed at hunger <= 14, under the vanilla regen floor 18. The wire:
+  // the ration policy (src/lib/ration.mjs) over the plugin's own config surface,
+  // the eater actually enabled, and the attempts made readable with the honest
+  // before/after read (the plugin's eatFinish fires in finally even for failed
+  // eats - the hunger/health delta decides the verdict, never the hope).
+  bot.autoEat.setOpts(RATION_OPTS)
+  bot.on('spawn', () => { try { bot.autoEat.enableAuto() } catch { /* gone */ } })
+  let rationAttempt = null
+  bot.autoEat.on('eatStart', opts => {
+    try {
+      rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
+      log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
+    } catch { rationAttempt = null }
+  })
+  bot.autoEat.on('eatFinish', async () => {
+    const a = rationAttempt
+    rationAttempt = null
+    if (!a) return
+    try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
+    try {
+      const f1 = Number.isFinite(bot.food) ? bot.food : null
+      const h1 = Number.isFinite(bot.health) ? bot.health : null
+      const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
+      log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
+    } catch { /* gone */ }
+  })
 
   // ---- scout -> miner integration (WorldMap) ----
   // Record what we can see right now into the shared map: every walking miner is a
