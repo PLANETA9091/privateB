@@ -40,6 +40,35 @@
 import { parseCombatLine } from './shootercensus.mjs'
 import { DIED_KIND_RE, DEATH_DROP_RE } from './maptrip.mjs'
 
+// (v0.459.0) THE KILL DIST - the death-time killer distance, read from the
+// died line's own inference tail ('inferred: skeleton@7.6 (0s before death
+// at ...)'). The hp-inferrer's DISTANCE is the flee fork's only ruler; the
+// inferred NAME stays unread - the server kind token is the authority and
+// the name can contradict it (face 38's F8-slew-F9 line). Blind kinds
+// (drown: 'the inference is blind to this kind') read null - honest, never
+// guessed.
+export const KILL_DIST_RE = /inferred: [a-z_]+@(\d+(?:\.\d+)?)/
+
+// (v0.459.0) THE DIST BANDS - the flee fork's vocabulary. The bands are
+// design input read from the field: close (<= 4 - melee reach, the flee
+// gained NOTHING), mid (4 < d <= 8 - inside the arrow arc but out of
+// melee), far (> 8 - the flee DID gain and died anyway: the arrows or the
+// blast won the trade). Face 36's own read was BIMODAL - six close, three
+// far, ZERO mid - the middle band exists because the mobs' two kill
+// families (melee chase, ranged/blast) predict a hole there; a filled mid
+// band on a future face is itself the datum.
+export const DIST_BANDS = [
+  { key: 'close', max: 4 },
+  { key: 'mid', max: 8 },
+  { key: 'far', max: Infinity }
+]
+
+export function distBand (d) {
+  if (typeof d !== 'number' || !Number.isFinite(d)) return null
+  for (const b of DIST_BANDS) { if (d <= b.max) return b.key }
+  return 'far'
+}
+
 // The verb -> outcome class map, pinned to the shootercensus verb
 // vocabulary (a wording drift there breaks BOTH modules loudly - the
 // sibling-shape law). Most verbs map 1:1; the shelter family collapses
@@ -119,12 +148,25 @@ export function shelterLedger (lines) {
         // the outcome is read NOW: the most recent combat line before the
         // died line is exactly st.lastCombat at this index
         const lc = st.lastCombat
+        // (v0.459.0) the flee fork's legs: the death-time killer distance
+        // and the chase/crossfire split (the kind token's killer vs the
+        // last verdict's attacker - the server token stays the authority,
+        // the comparison is a courtesy lowercase join)
+        const dm2 = line.match(KILL_DIST_RE)
+        const killDist = dm2 ? Number(dm2[1]) : null
+        const killer = kind.includes(' by ') ? kind.split(' by ')[1] : null
+        const chasedDown = (killer && lc && lc.attacker)
+          ? killer.toLowerCase() === String(lc.attacker).toLowerCase()
+          : null
         const death = {
           bot,
           kind,
           outcome: lc ? (OUTCOME_OF_VERB[lc.verb] || 'other') : 'ambushed',
           lastVerb: lc ? lc.verb : null,
           attacker: lc ? lc.attacker : null,
+          killDist,
+          distBand: distBand(killDist),
+          chasedDown,
           u: null,
           dropped: false
         }
@@ -176,6 +218,14 @@ export function shelterLedger (lines) {
     if (!d.dropped) unpriced++
   }
   for (const c of OUTCOME_CLASSES) oBots(outcomes[c])
+  // (v0.459.0) the face-level band tally - every combat death with a
+  // readable inference lands in exactly one band; the blind ones count in
+  // unpriced (the honest bucket, named after the price leg's own honesty)
+  const distBands = { close: 0, mid: 0, far: 0, unpriced: 0 }
+  for (const d of deaths) {
+    if (d.distBand) distBands[d.distBand]++
+    else distBands.unpriced++
+  }
   return {
     combatDeaths: deaths.length,
     otherDeaths,
@@ -183,6 +233,7 @@ export function shelterLedger (lines) {
     unpriced,
     pairMisses,
     outcomes,
+    distBands,
     rows: deaths
   }
 }

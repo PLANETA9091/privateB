@@ -521,6 +521,40 @@ if (shooter.total > 0) {
   } else {
     console.log(`  ${sl.combatDeaths === 0 ? 'no combat deaths this face - the pricing waits (the water lane is not this ledger\'s subject)' : 'the rows read zero - the honest zero'}`)
   }
+  // (v0.459.0) THE FLEE FORK - the disengage cure's own pricing. The
+  // price's answer named the flee class the leak (face 36: 812u/10); the
+  // fork reads HOW the flee fails, from the died line's own inference
+  // tail: the death-time killer distance (close <=4 - the flee gained
+  // NOTHING, the chase kept its melee reach; far >8 - the flee gained and
+  // the arrows/blast still took the trade) and the chase/crossfire split
+  // (the kind token's killer vs the last verdict's attacker - the server
+  // token stays the authority, the join is a courtesy). The bands are
+  // design input: the cure wire must fix the winning side, not the losing
+  // one. Blind inferences (drown's own blindness) count honest.
+  if (sl.combatDeaths > 0) {
+    const db = sl.distBands
+    console.log(`  kill dist bands (all combat deaths, the inference's own ruler): close ${db.close} / mid ${db.mid} / far ${db.far} / blind ${db.unpriced}`)
+    const fleeRows = sl.rows.filter(d => d.outcome === 'flee')
+    if (fleeRows.length) {
+      const nClose = fleeRows.filter(d => d.distBand === 'close').length
+      const nMid = fleeRows.filter(d => d.distBand === 'mid').length
+      const nFar = fleeRows.filter(d => d.distBand === 'far').length
+      const nBlind = fleeRows.filter(d => !d.distBand).length
+      const chase = fleeRows.filter(d => d.chasedDown === true).length
+      const crossfire = fleeRows.filter(d => d.chasedDown === false).length
+      const noAtt = fleeRows.filter(d => d.chasedDown === null).length
+      const verdict = (nClose + nMid + nFar) === 0
+        ? 'no readable distance - the fork stays open'
+        : nClose > nMid + nFar
+          ? 'THE CHASE WINS - the flee never opens distance; the cure is a disengage that GAINS ground, not a better wall'
+          : nFar > nClose + nMid
+            ? 'THE ARROWS WIN - the flee gains ground and the arc still takes the trade'
+            : 'the split is open - read the rows'
+      console.log(`  the flee fork: ${fleeRows.length} flee death(s) - chase ${chase} / crossfire ${crossfire} / no-verdict-attacker ${noAtt}; bands close ${nClose} / mid ${nMid} / far ${nFar} / blind ${nBlind} - ${verdict}`)
+    } else {
+      console.log(`  the flee fork: no flee deaths - the disengage pricing waits`)
+    }
+  }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
 // FATAL face, exit 143) was mined by hand because the tool counted none of

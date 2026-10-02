@@ -5,7 +5,7 @@
 // the verb vocabulary breaks these loudly (the sibling-shape law).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { shelterLedger, OUTCOME_OF_VERB, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs'
+import { shelterLedger, OUTCOME_OF_VERB, OUTCOME_CLASSES, distBand, KILL_DIST_RE } from '../../src/lib/shelterledger.mjs'
 
 test('shelterLedger: the hand-counted join - the last verdict before each combat death names the class, the adjacent drop prices it', () => {
   const lines = [
@@ -120,4 +120,66 @@ test('shelterLedger: the honest nulls - junk, empty, wrong types read zero, neve
   assert.equal(junk.pairMisses, 1, 'the junk drop still counts its miss - the honest sweep')
   assert.equal(shelterLedger(['F1 [F1] died - respawning (cause: server: drowned [kind=drown])']).otherDeaths, 1)
   assert.equal(shelterLedger(['F1 [F1] died - respawning (cause: unknown (0s before death at [0,0,0]))']).unparsedDeaths, 1)
+})
+
+// (v0.459.0) THE FLEE FORK's tests - the disengage cure's own pricing. The
+// death-time killer distance rides the died line's inference tail; the
+// inferred NAME stays unread (the server kind token is the authority - it
+// can contradict the hp-inferrer, face 38's F8-slew-F9 line). The bands:
+// close <=4 (the flee gained NOTHING), mid (4 < d <= 8), far (> 8 - the
+// flee gained and the arc/blast won anyway).
+test('shelterLedger: the kill dist, the bands, and the chase/crossfire split - hand-counted', () => {
+  const lines = [
+    // F5 flees a skeleton and the SKELETON makes the kill at melee range:
+    // chasedDown true, close - the chase won
+    'F5 [F5] combat: fleeing skeleton@3.1',
+    'F5 [F5] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@1.0 (0s before death at [-154,64,415]))',
+    'F5 [F5] death drop: ~78u lost at [-154,64,415]',
+    // F2 flees a zombie but a SKELETON takes the kill from far: crossfire,
+    // far - the arrows won
+    'F2 [F2] combat: fleeing zombie@2.0',
+    'F2 [F2] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@10.7 (0s before death at [-150,64,410]))',
+    'F2 [F2] death drop: ~15u lost at [-150,64,410]',
+    // F8 dies with no readable inference (blind): null, never guessed
+    'F8 [F8] combat: fleeing drowned@1.5',
+    'F8 [F8] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: fall/env (0s before death at [-118,45,389]))',
+    // F9 dies mid-band: 5.5 is inside the arc, out of melee
+    'F9 [F9] combat: fleeing zombie@2.2',
+    'F9 [F9] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@5.5 (0s before death at [-130,60,400]))',
+    'F9 [F9] death drop: ~9u lost at [-130,60,400]'
+  ]
+  const r = shelterLedger(lines)
+  assert.equal(r.combatDeaths, 4)
+  assert.deepEqual(r.rows[0].distBand, 'close')
+  assert.equal(r.rows[0].killDist, 1.0)
+  assert.equal(r.rows[0].chasedDown, true)
+  assert.deepEqual(r.rows[1].distBand, 'far')
+  assert.equal(r.rows[1].chasedDown, false, 'the kind token\'s killer differs from the fled attacker - crossfire')
+  assert.equal(r.rows[2].killDist, null)
+  assert.equal(r.rows[2].distBand, null)
+  assert.equal(r.rows[2].chasedDown, true, 'the blind inference still pairs the chase - the name join needs no ruler, only the DIST reads null')
+  assert.deepEqual(r.rows[3].distBand, 'mid')
+  assert.equal(r.rows[3].chasedDown, true)
+  // the face-level band tally counts every combat death exactly once
+  assert.deepEqual(r.distBands, { close: 1, mid: 1, far: 1, unpriced: 1 })
+  assert.equal(r.distBands.close + r.distBands.mid + r.distBands.far + r.distBands.unpriced, r.combatDeaths)
+  // the boundaries pin the vocabulary: 4 is close, 8 is mid, 8.1 is far
+  assert.equal(r.rows[0].killDist <= 4, true)
+})
+
+test('shelterLedger: the authority law - the inferred NAME is never read, the kind token names the chase', () => {
+  // the hp-inferrer guesses 'skeleton' but the server says the ZOMBIE made
+  // the kill: the chase split reads the token, not the guess
+  const lines = [
+    'F1 [F1] combat: fleeing zombie@2.4',
+    'F1 [F1] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: skeleton@3.0 (0s before death at [-140,60,410]))',
+    'F1 [F1] death drop: ~12u lost at [-140,60,410]'
+  ]
+  const r = shelterLedger(lines)
+  assert.equal(r.rows[0].chasedDown, true, 'the token says Zombie, the verdict attacker is zombie - the chase, whatever the guess said')
+  assert.equal(r.rows[0].killDist, 3.0, 'the distance rides the same inference - the ruler, not the name')
+  // the band vocabulary's own edges: 4 close / 8 mid / 8.01 far / junk null
+  assert.deepEqual([distBand(4), distBand(4.01), distBand(8), distBand(8.01), distBand(0), distBand(null), distBand(undefined), distBand(NaN)], ['close', 'mid', 'mid', 'far', 'close', null, null, null])
+  assert.equal(KILL_DIST_RE.exec('inferred: skeleton@7.6 (0s before death at [-154,64,415])')[1], '7.6')
+  assert.equal(KILL_DIST_RE.exec('inferred: fall/env (0s before death at [0,0,0])'), null, 'the blind shape carries no ruler')
 })
