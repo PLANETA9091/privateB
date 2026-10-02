@@ -19,6 +19,7 @@ import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the ba
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
+import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1311,6 +1312,26 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
         console.log(`  balance reconcile: leaks ${rc.leaks >= 0 ? '+' : ''}${rc.leaks}u vs the event lens's whole-face legs ${rc.legs}u (deaths ${rc.lossDelta}u/${rc.lossCount} drop(s) + placed ${rc.placedDelta}u) - ${rc.verdict}${slackSeg} - ${rcWhy}`)
       }
     }
+  }
+  // (v0.461.0) THE SMELT LEDGER - the furnace lane's own words counted
+  // (the standing furnace/smelt front's first read leg). The pulse
+  // counters price the smelt sink but never name WHAT burned or where
+  // the chain lost throughput; the log's smelt lines carry the
+  // quantities verbatim. The row joins the words' side to the counter's
+  // smelted delta - the gap named, not guessed (the re-smelt shadow is
+  // the clips' own candidate: 'the rest re-smelts on the next chain',
+  // and a next chain that never announces stays the counter's blind
+  // spot). Idle faces read honestly: refusals by why, zero batches.
+  const sl = smeltLedger(lines)
+  if (sl && (sl.batches > 0 || sl.refusals > 0)) {
+    const clipBits = []
+    if (sl.fuelClips) clipBits.push(`fuel clips ${sl.fuelClips} (${sl.fuelClipCompleted} of ${sl.fuelClipAsked} completed)`)
+    if (sl.clockClips) clipBits.push(`clock clips ${sl.clockClips} (${sl.clockClipCompleted} of ${sl.clockClipAsked})`)
+    const topWhys = Object.entries(sl.refusalWhys).sort((x, y) => y[1] - x[1]).slice(0, 2).map(([w, n]) => `${w} ${n}`).join(', ')
+    const refusalBit = sl.refusals ? `, refusals ${sl.refusals}${topWhys ? ` (${topWhys})` : ''}` : ''
+    const itemBits = Object.entries(sl.items).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' ')
+    const fuelBits = Object.entries(sl.fuelItems).sort((x, y) => y[1] - x[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(' ')
+    console.log(`  smelt ledger (v0.461.0): batches ${sl.batches} (announced ${sl.announced}u${itemBits ? `: ${itemBits}` : ''}, fuel ${sl.fuel}u${fuelBits ? `: ${fuelBits}` : ''})${clipBits.length ? ` - ${clipBits.join(', ')}` : ''}${refusalBit}`)
   }
 }
 
