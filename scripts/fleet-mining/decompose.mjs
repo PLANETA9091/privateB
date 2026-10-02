@@ -373,6 +373,16 @@ if (o2g && o2g.deaths > 0) {
   const o2Bits = Object.entries(o2g.perBot).map(([bot, v]) => `${bot} [last pass ${v.lastPass ? `${v.lastPass.head} o2=${v.lastPass.o2.kind === 'value' ? v.lastPass.o2.value : v.lastPass.o2.kind}` : 'none'}, rescue ${v.rescueKind === 'stale' ? `${v.rescueAgo}s ago` : v.rescueKind}, ${v.wetKind === 'unknown' ? 'wet unknown' : `wet ${v.wetS}s${v.wetKind === 'atLast' ? '@last' : ''}`}]`).join(' ')
   console.log(`  rescue relation split (v0.477.0): live ${o2g.rescue.live} (the lane was flying) / stale ${o2g.rescue.stale} (Ns ago - the lane completed, the bot re-drowned) / never ${o2g.rescue.never} - wet at-last ${o2g.wet.atLast}, live ${o2g.wet.live}, unknown ${o2g.wet.unknown} - last-pass join ${o2g.lastPass.seen}/${o2g.deaths}${o2Bits ? ` (${o2Bits})` : ''}`)
 }
+// (v0.479.0) THE RE-ENTRY PRICE - the sight-loss wiring's price read (the
+// fire-1838 handoff): the mirror cue joins each death at-or-before (the
+// leakClock law) - the sight-loss + head-water trigger's own evidence,
+// priced per death. Silent on zero deaths.
+if (o2g && o2g.deaths > 0) {
+  const cueBits = Object.entries(o2g.perBot).map(([bot, v]) => v.cue
+    ? `${bot} [${v.cueKind}${v.cue.head.toLowerCase() === 'wet' ? '' : ` - head ${v.cue.head}`}, sight died ${v.cue.sightDiedSecs ?? '?'}s before, mirror o2=${v.cue.o2}, ${v.cue.why}]`
+    : `${bot} [blind - no mirror joined]`).join(' ')
+  console.log(`  re-entry price (v0.479.0): the sight-loss + head-water wiring catches ${o2g.cue.wired}/${o2g.deaths} - cue-only ${o2g.cue.cueOnly} (head dry/unknown at the mirror tick - the wider trigger's case), blind ${o2g.cue.blind} (the sensor gap) - mirrors ${o2g.mirrors}${cueBits ? ` (${cueBits})` : ''}`)
+}
 // (v0.382.0) THE BANK-FLOW CENSUS - face 19 (36802577873) closed 19/19 ALIVE
 // with a 495u pocket still unbanked (38.6% of it crafted-class surplus the
 // mined counter never sees) and the flow-priced budgets naming the gap: the
