@@ -21,7 +21,7 @@ import {
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
   fuelCapacity, clockCapItems, fireBatchCapItems, JUNK_COAL_FLOOR, WALK_REFUSAL_WAIT_RE,
-  machineStockMove,
+  machineStockMove, idleFuelMove,
 } from '../../src/lib/smelting.mjs'
 import { FUEL_TITHE_BOUND } from '../../src/lib/deposit.mjs'
 
@@ -1770,60 +1770,93 @@ test('machineStockMove: junk reads empty, a fresh object per call', () => {
   assert.notEqual(a, b, 'no shared constants (the fresh-literal reference lesson, v0.512.0)')
 })
 
-test('THE IDLE FUEL: a fuel-only machine no longer walls the batch visit - the pull re-arms it', async () => {
-  // the bot carries its own fuel: BEFORE this change the visit returned 'busy'
-  // (the machine walled, the chain spent its next attempt); AFTER, the pull
-  // clears the fuel slot and the visit proceeds on the pocket's own coal.
+test('THE STOCK CREDIT: the machine\'s own stock funds the batch - the pocket keeps its coal', async () => {
+  // (v0.515.0) the 0630 pull re-armed the machine but still charged the pocket
+  // (the pulled coal is invisible to pickFuel while the window is open). The
+  // credit funds the batch IN PLACE: no pull, no pocket put - the fleet\'s coal
+  // commons is never spent by a machine that brought its own.
   const furnace = new MockFurnace({ startFuel: item('coal', 2) })
   const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 8)] })
   const lines = []
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
   assert.equal(res.reason, 'ok', 'the visit proceeds - not busy')
-  assert.ok(res.smelted >= 1, 'the batch smelted')
+  assert.equal(res.smelted, 4, 'the batch smelted on the machine\'s own stock')
   assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle after the visit')
   const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
-  // 8 held - 1 charged into OUR batch + 2 idle pulled + 1 unburned leftover pulled
-  // back at the completed-batch branch (the mock is coal-quantized, 8 units per coal)
-  assert.equal(counts('coal'), 10, 'the pocket re-funded: the idle fuel rode the close-sync home')
-  assert.ok(lines.some(l => /idle fuel pulled: 2 x coal from furnace \(the machine reads idle again\)/.test(l)),
-    'the pull names itself (rides the fuel filter key, no filter change)')
+  // 8 held, NEVER charged (no putFuel on the credited path) + the machine\'s
+  // stock returns home at the completed-batch pull (the mock is coal-quantized:
+  // 4 of 16 units burned, the slot still reads 2 whole coal)
+  assert.equal(counts('coal'), 10, 'the pocket keeps its own coal - the stock\'s remainder rides home')
+  assert.ok(lines.some(l => /the machine\'s own stock funds the batch: 2 x coal \(the pocket keeps its fuel\)/.test(l)),
+    'the credit names itself (rides the fuel filter key, no filter change)')
 })
 
-test('THE IDLE FUEL: a fuel-less pocket still un-walls the machine (the fuel rides home at close)', async () => {
-  // the pulled coal is INVISIBLE to pickFuel while the window is open (the live
-  // rows truth - bot.inventory is a frozen pre-open snapshot), so the batch may
-  // still read 'no fuel' - but the machine reads idle and the pocket gains the
-  // fuel at the close-sync: the next chain (or the next visitor) is un-walled.
+test('THE STOCK CREDIT: a fuel-less pocket smelts on the machine\'s own stock', async () => {
+  // THE 0630 GAP CLOSED: the pull re-armed the machine but the visit still read
+  // 'no fuel' (the frozen pocket read). The credit funds where the pull could
+  // not - the visit that would have walked away empty now smelts.
   const furnace = new MockFurnace({ startFuel: item('coal', 2) })
   const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST })
-  assert.equal(res.reason, 'no fuel', 'the frozen pocket read is honest - no phantom batch')
-  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle anyway')
+  assert.equal(res.reason, 'ok', 'the machine\'s own stock funds the batch')
+  assert.equal(res.smelted, 4, 'the whole batch smelted on the credited stock')
+  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle after the visit')
   const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
-  assert.equal(counts('coal'), 2, 'the idle fuel rode the close-sync home (the next chain funds)')
+  assert.equal(counts('coal'), 2, 'the stock\'s remainder rides home (the mock is coal-quantized)')
 })
 
-test('THE IDLE FUEL: a failed pull still reads busy (the honest gate)', async () => {
+test('THE STOCK CREDIT: a sub-one-item stock is not a fuel plan - the legacy pull stays', async () => {
+  // the ONE-ITEM FLOOR: 1 x stick completes 0.5 smelts - no credit. The pull
+  // un-walls the machine, the pocket\'s own coal funds the batch (the v0.514.0
+  // shape, alive under the credit).
+  const furnace = new MockFurnace({ startFuel: item('stick', 1) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 8)] })
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST })
+  assert.equal(res.reason, 'ok', 'the pocket funds (the stick cannot)')
+  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the stick was pulled - the machine reads idle')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.ok(counts('stick') >= 1, 'the pulled stick rides home')
+  assert.ok(res.smelted >= 1, 'the batch smelted on the pocket\'s own coal')
+})
+
+test('THE STOCK CREDIT: a failed pull still reads busy (the honest gate)', async () => {
   // the pull must never STRAND the visit on a desynced window - 'lost' falls
-  // through to the byte-for-byte busy gate (the machine keeps its fuel, the
-  // fleet keeps its honest verdict)
-  const furnace = new MockFurnace({ startFuel: item('coal', 3) })
+  // through to the byte-for-byte busy gate (a sub-floor stock keeps the pull
+  // path alive; the credit never calls takeFuel at all)
+  const furnace = new MockFurnace({ startFuel: item('stick', 1) })
   furnace.takeFuel = async () => { throw new Error('window desync') }
   const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 8)] })
   const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST })
   assert.equal(res.reason, 'busy', 'a lost pull reads busy - the gate stands')
-  assert.equal(furnace.slots[1]?.count, 3, 'the fuel stays in the machine')
+  assert.equal(furnace.slots[1]?.count, 1, 'the stick stays in the machine')
 })
 
 test('THE IDLE FUEL: a LIVE input slot stays untouched (the busy law byte for byte)', () => {
   // input-present is the busy-live class regardless of the fuel/output reads -
   // the wire's guard (!out0 && !inputItem) never even consults the classifier
   const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
-  assert.match(src, /if \(furnace\.inputItem\(\) \|\| furnace\.fuelItem\(\)\) \{/, 'the busy gate is byte for byte')
-  assert.match(src, /if \(!out0 && !furnace\.inputItem\(\)\) \{/, 'the idle-fuel pull is input-guarded and output-guarded')
-  assert.match(src, /machineStockMove\(\{ fuelName: idleFuelName \}\)\.takeFuel/, 'the classifier names the move (not an inline fork)')
+  assert.match(src, /if \(furnace\.inputItem\(\) \|\| \(!fuelCredited && furnace\.fuelItem\(\)\)\) \{/, 'the busy gate keeps the input law; the fuel read carries only the credited exception')
+  assert.match(src, /THE CREDITED EXCEPTION: the fuel-only stock/, 'the gate names its one lawful exception and its safety (the fuel-only shape)')
+  assert.match(src, /if \(!out0 && !furnace\.inputItem\(\)\) \{/, 'the idle-fuel read is input-guarded and output-guarded')
+  assert.match(src, /machineStockMove\(\{ fuelName: idleFuelItem\?\.name \?\? null \}\)\.takeFuel/, 'the classifier names the move (not an inline fork)')
   assert.match(src, /idle fuel pulled: \$\{pulled\} x \$\{idleFuelName\} from \$\{machineBlock\.name\}/, 'the result line names the pull')
   assert.match(src, /harvest the idle fuel/, 'the refusal-free pull keeps the withTimeout label')
+  assert.match(src, /const fuel = creditedFuel \?\? pickFuel\(bot/, 'the credited plan leads, the pocket plan falls back')
+  assert.match(src, /if \(!fuelCredited && !await putVerified\(furnace\.putFuel/, 'the credited stock needs no put (the read-back is its verification)')
   // the sweep's own fuel-only pull stays untouched (its pinned regex, one pull per site)
   assert.match(src, /if \(!furnace\.inputItem\(\) && furnace\.fuelItem\(\)\) \{/, 'the v0.139.0 sweep pull keeps its shape')
+})
+
+test('idleFuelMove: the credit needs a completing stock, junk reads pull', () => {
+  assert.deepEqual(idleFuelMove({ fuelName: 'coal', fuelCount: 2 }), { name: 'coal', count: 2 }, '2 x coal completes 16 - the credit')
+  assert.deepEqual(idleFuelMove({ fuelName: 'coal', fuelCount: 1 }), { name: 'coal', count: 1 }, '1 x coal completes 8 - the credit')
+  assert.equal(idleFuelMove({ fuelName: 'stick', fuelCount: 1 }), null, '1 x stick completes 0.5 - the ONE-ITEM FLOOR, the pull stays')
+  assert.equal(idleFuelMove({ fuelName: 'coal', fuelCount: 0 }), null, 'nothing in the slot - pull (nothing to credit)')
+  assert.equal(idleFuelMove({ fuelName: 'coal', fuelCount: NaN }), null, 'a non-finite count reads no stock')
+  assert.equal(idleFuelMove({ fuelName: 'coal', fuelCount: null }), null, 'an unread count reads no stock')
+  assert.equal(idleFuelMove({ fuelName: 42, fuelCount: 5 }), null, 'a non-string name reads no stock')
+  assert.equal(idleFuelMove({}), null, 'the empty read pulls')
+  const a = idleFuelMove({ fuelName: 'coal', fuelCount: 2 })
+  const b = idleFuelMove({ fuelName: 'coal', fuelCount: 2 })
+  assert.notEqual(a, b, 'a fresh object per call (the fresh-literal reference lesson, v0.512.0)')
 })

@@ -328,6 +328,21 @@ export function machineStockMove ({ inputName = null, fuelName = null, outputNam
   return { move: 'idle', takeOutput: false, takeFuel: false }
 }
 
+// (v0.515.0) THE STOCK CREDIT - pure, junk-safe. Decides the rearm-idle move
+// (the machineStockMove class whose input AND output slots read empty): a stock
+// that COMPLETES at least one item funds the batch in place - the credit (no
+// pull, no pocket put, the pocket keeps its own fuel, the batch clamps to what
+// the stock completes exactly like a pocket plan); a stock under the ONE-ITEM
+// FLOOR (1 x stick = 0.5 smelts - the fuelCapacity law) is not a fuel plan: the
+// legacy pull un-walls the machine and the pocket funds the next visit instead.
+// Returns the credited fuel plan { name, count } or null (the pull stays).
+// Junk reads null (a non-string name, a non-finite or sub-1 count - the pull is
+// the safe default, the machine un-walls either way).
+export function idleFuelMove ({ fuelName = null, fuelCount = null } = {}) {
+  if (fuelCapacity({ name: fuelName, count: fuelCount }) < 1) return null
+  return { name: fuelName, count: Math.floor(fuelCount) }
+}
+
 // smelts per fuel unit (vanilla): coal 8, planks/logs 1.5, stick 0.5 ...
 export const FUEL_YIELD = {
   coal: 8,
@@ -851,22 +866,43 @@ export async function smeltBatch (bot, {
     // attempt is not spent on a re-armable idle. A LIVE input slot stays
     // UNTOUCHED (the busy law byte for byte); a failed pull still reads 'busy'
     // (the honest gate).
+    let creditedFuel = null // (v0.515.0) THE STOCK CREDIT - set below, spent at the fuel-plan read
+    let fuelCredited = false // the gate's one lawful fuel-read exemption (declared BEFORE the gate that reads it)
     if (!out0 && !furnace.inputItem()) {
-      let idleFuelName = null
-      try { idleFuelName = furnace.fuelItem()?.name ?? null } catch { /* dead window */ }
-      if (machineStockMove({ fuelName: idleFuelName }).takeFuel) {
-        const rowsBefore = liveCount(idleFuelName)
-        try { await withTimeout(furnace.takeFuel(), 5000, 'harvest the idle fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
-        await sleep(200)
-        const pulled = liveCount(idleFuelName) - rowsBefore
-        if (pulled > 0) log(`${tag} idle fuel pulled: ${pulled} x ${idleFuelName} from ${machineBlock.name} (the machine reads idle again)`)
+      let idleFuelItem = null
+      try { idleFuelItem = furnace.fuelItem() ?? null } catch { /* dead window */ }
+      if (machineStockMove({ fuelName: idleFuelItem?.name ?? null }).takeFuel) {
+        // (v0.515.0) THE STOCK CREDIT: a stock that completes at least one item
+        // funds the batch IN PLACE - no pull, no pocket put, the pocket keeps
+        // its own fuel (the fleet's coal commons is never spent by a machine
+        // that brought its own). The ONE-ITEM FLOOR holds: a stock under it
+        // (1 x stick) is not a fuel plan - the legacy pull un-walls instead.
+        const credit = idleFuelMove({ fuelName: idleFuelItem?.name ?? null, fuelCount: idleFuelItem?.count ?? null })
+        if (credit) {
+          creditedFuel = credit
+          fuelCredited = true
+          log(`${tag} the machine's own stock funds the batch: ${credit.count} x ${credit.name} (the pocket keeps its fuel)`)
+        } else {
+          const idleFuelName = idleFuelItem?.name ?? null
+          const rowsBefore = liveCount(idleFuelName)
+          try { await withTimeout(furnace.takeFuel(), 5000, 'harvest the idle fuel') } catch { /* lost - the busy gate keeps the machine honest */ }
+          await sleep(200)
+          const pulled = liveCount(idleFuelName) - rowsBefore
+          if (pulled > 0) log(`${tag} idle fuel pulled: ${pulled} x ${idleFuelName} from ${machineBlock.name} (the machine reads idle again)`)
+        }
       }
     }
 
     // BUSY: another bot's batch is inside (input or fuel present). Vanilla happily
     // lets several players view one furnace and race its slots - walking away is the
     // only safe move; the caller tries the next machine.
-    if (furnace.inputItem() || furnace.fuelItem()) {
+    // (v0.515.0) THE CREDITED EXCEPTION: the fuel-only stock we just decided to
+    // fund the batch with stays in the slot BY DESIGN - the gate's fuel read
+    // exempts exactly that stock (fuelCredited requires the fuel-only shape:
+    // input AND output empty, so no other bot's batch can hide behind it). A
+    // LIVE input slot still reads busy; an uncredited fuel still reads busy
+    // (the failed pull's honest gate).
+    if (furnace.inputItem() || (!fuelCredited && furnace.fuelItem())) {
       return { smelted, rescued, fired: 0, reason: 'busy' }
     }
 
@@ -875,7 +911,11 @@ export async function smeltBatch (bot, {
     // run97 misallocation: junk windows ate the pocket coal below the tithe bound
     // before any chest contact, the metal windows got sticks)
     const batch0 = Math.min(count, invCount(inputName))
-    const fuel = pickFuel(bot, { itemsNeeded: batch0, metalWindow: METAL_INPUTS.has(inputName), ...(fuelReserve ?? {}) })
+    // (v0.515.0) THE CREDITED PLAN LEADS: the machine's own stock is the fuel
+    // plan when it credits - the pocket's pickFuel (the window class riding it
+    // exactly as before) is the fallback. The fuel-aware clamp prices the
+    // credited stock the same way: the honest partial re-smelts next chain.
+    const fuel = creditedFuel ?? pickFuel(bot, { itemsNeeded: batch0, metalWindow: METAL_INPUTS.has(inputName), ...(fuelReserve ?? {}) })
     if (!fuel) return { smelted, rescued, reason: 'no fuel' }
     // (v0.109.0) THE FUEL-AWARE BATCH: the batch never exceeds what the fuel
     // plan actually COMPLETES. pickFuel's ONE-ITEM FLOOR already refuses
@@ -943,7 +983,11 @@ export async function smeltBatch (bot, {
       } catch { /* diagnostics must never throw */ }
       return { smelted, rescued, fired: 0, reason: 'input transfer failed' }
     }
-    if (!await putVerified(furnace.putFuel.bind(furnace), fuel.name, fuel.count)) {
+    // (v0.515.0) the credited stock needs no put - it is already in the slot
+    // (the read-back below is its verification); a failed CREDITED visit still
+    // returns the machine's remaining stock with the input (the timeout
+    // pull-back's takeFuel - the loan returns whole, the machine reads idle)
+    if (!fuelCredited && !await putVerified(furnace.putFuel.bind(furnace), fuel.name, fuel.count)) {
       // input already went in - pull it back out, leave the machine clean
       try { await withTimeout(furnace.takeInput(), 5000, 'take input back') } catch { /* lost */ }
       return { smelted, rescued, fired: 0, reason: 'fuel transfer failed' }
