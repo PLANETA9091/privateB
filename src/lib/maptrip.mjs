@@ -700,3 +700,115 @@ export function balanceReconcile (lines) {
     inflation
   }
 }
+
+// (v0.472.0) THE LEAK CLOCK - the recollection spread's third split. The
+// share ledger reads 57/79/28/32/81/82/11 and BOTH prose splits are dead:
+// the wet/clean-vs-violent band died when the MOST violent face (41, 11
+// mob deaths) re-collected 82%, and the violence band died again on face
+// 42 (moderate, 11% the new low). The remaining driver candidates are
+// WHEN the legs died, not how many: a death at t-560s leaves ~9 minutes
+// for the drop to be re-gathered and re-banked; a death at t-40s leaves
+// none - the leak is the CLOCK's, not the violence's. THE JOIN: the pulse
+// header carries the face's real clock ('t-446s alive=19/19 mined=...'
+// - PULSE_HEADER_RE, seconds REMAINING, counting down); one walk pairs
+// each death-drop line and each climb-placed line with the LAST pulse
+// sample at or before its line index (the sample's t is the event's
+// clock, to the pulse cadence), then splits the priced units across the
+// face's window thirds: elapsed f = (tMax - t) / (tMax - tMin) with
+// early f < 1/3, mid < 2/3, late >= 2/3. tMax/tMin = the samples' own
+// max/min t (the window the pulses actually covered - the balance's own
+// window convention, first<->last sample). NOTE THE PLATEAU: faces run
+// PAST their deadline (the 'clock end Ns' wrap-up, zeroclock's own read)
+// and the pulse t pins at t-0s through the whole tail - the late third
+// absorbs the tail honestly (the endgame clustering is REAL on both live
+// faces: 100% of the drops read late, center 1.0). Deaths before the
+// first sample are unpositioned (counted, never guessed into a third).
+// The clockCenter is the u-weighted mean elapsed fraction of the DEATH
+// drops. THE CONCENTRATION rides the same walk - the biggest drop's
+// fraction of the dropped units (maxShare) - the fourth split candidate
+// the clock's death handed the baton to: the two live faces discriminate
+// (24% concentrated re-collected 82%; 80% concentrated leak-priced 11%)
+// while the clock split read all-late on BOTH. Fewer than 2 samples =>
+// thirds null (no window, no split - honest). Junk-safe: non-lines
+// skipped, non-array -> null. Pure: reads, never mutates.
+export function leakClock (lines) {
+  if (!Array.isArray(lines)) return null
+  const samples = []
+  const drops = []
+  const placed = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (typeof line !== 'string') continue
+    const h = parsePulseHeader(line)
+    if (h) { samples.push({ idx: i, t: h.t }); continue }
+    const dm = line.match(DEATH_DROP_RE)
+    if (dm) { drops.push({ idx: i, bot: dm[1], u: Number(dm[2]) }); continue }
+    const pm = line.match(CLIMB_PLACED_RE)
+    if (pm) placed.push({ idx: i, bot: pm[1] })
+  }
+  const positioned = samples.length >= 2
+  const tMax = positioned ? Math.max(...samples.map(s => s.t)) : null
+  const tMin = positioned ? Math.min(...samples.map(s => s.t)) : null
+  const span = positioned ? tMax - tMin : null
+  // the last sample's t at or before the line (the pulse cadence's own
+  // position); none => null (unpositioned)
+  const tOf = (idx) => {
+    let t = null
+    for (const s of samples) {
+      if (s.idx <= idx) t = s.t
+      else break
+    }
+    return t
+  }
+  const clsOf = (t) => {
+    if (t === null) return null
+    const f = (tMax - t) / span
+    return f < 1 / 3 ? 'early' : f < 2 / 3 ? 'mid' : 'late'
+  }
+  const legs = { early: { n: 0, u: 0 }, mid: { n: 0, u: 0 }, late: { n: 0, u: 0 } }
+  let unpositioned = { n: 0, u: 0 }
+  let centerU = 0
+  let centerF = 0
+  // the concentration read rides the same walk: the biggest drop's
+  // fraction of all dropped units - the sweep's reach candidate (a pile
+  // bigger than a pocket cannot walk home; n=2 live points discriminate:
+  // 24% concentrated face re-collected 82%, 80% concentrated face 11%)
+  let dropU = 0
+  let maxU = 0
+  let maxBot = null
+  for (const d of drops) {
+    dropU += d.u
+    if (d.u > maxU) { maxU = d.u; maxBot = d.bot }
+    const t = positioned ? tOf(d.idx) : null
+    const cls = clsOf(t)
+    if (cls === null) { unpositioned.n++; unpositioned.u += d.u; continue }
+    legs[cls].n++
+    legs[cls].u += d.u
+    centerU += d.u
+    centerF += d.u * ((tMax - t) / span)
+  }
+  const placedByThird = { early: 0, mid: 0, late: 0 }
+  let placedUnpositioned = 0
+  for (const p of placed) {
+    const cls = clsOf(positioned ? tOf(p.idx) : null)
+    if (cls === null) placedUnpositioned++
+    else placedByThird[cls]++
+  }
+  return {
+    samples: samples.length,
+    tMax,
+    tMin,
+    legs,
+    unpositioned,
+    drops: {
+      n: drops.length,
+      u: dropU,
+      maxU: drops.length ? maxU : null,
+      maxBot: drops.length ? maxBot : null,
+      maxShare: dropU > 0 ? Math.round((maxU / dropU) * 100) / 100 : null
+    },
+    placedByThird,
+    placedUnpositioned,
+    clockCenter: centerU > 0 ? Math.round((centerF / centerU) * 100) / 100 : null
+  }
+}

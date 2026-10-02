@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -872,4 +872,91 @@ test('balance-reconcile: the re-gather share - covered faces split by where the 
   // (v0.460.0) the no-leak branch's own number: the sinks' surplus
   assert.equal(rn.inflation, 1080) // -(-1080): the sinks outran mined by 1080u
   assert.equal(rs.inflation, null) // shortfall carries no surplus either
+})
+
+// (v0.472.0) THE LEAK CLOCK's tests - the share's third split. The pulse
+// header's t counts DOWN (t-599s start -> t-1s end), so the elapsed
+// fraction f = (tMax - t) / (tMax - tMin): a drop under an early sample
+// (t near tMax) reads f ~ 0 (early), under a late sample f ~ 1 (late).
+// The join law: the LAST sample at or before the drop's line governs.
+test('leak-clock: the last-sample-before law and the thirds arithmetic', () => {
+  const lines = [
+    'F9 [F9] death drop: ~60u lost at [-129,52,387] (sand 8)',        // before ANY sample -> unpositioned
+    't-600s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F9 [F9] death drop: ~60u lost at [-129,52,387] (sand 8)',        // under t-600 -> f=0 early
+    't-400s alive=19/19 mined=10 map=2p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F9 [F9] death drop: ~60u lost at [-129,52,387] (sand 8)',        // under t-400 -> f=(600-400)/600=0.333.. mid
+    't-200s alive=19/19 mined=20 map=3p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F9 [F9] death drop: ~60u lost at [-129,52,387] (sand 8)',        // under t-200 -> f=0.666.. late
+    'F7 [F7] climb bridge: placed dirt at [-135,64,419] (support)'    // still t-200 -> late
+  ]
+  const r = leakClock(lines)
+  assert.equal(r.samples, 3)
+  assert.equal(r.tMax, 600)
+  assert.equal(r.tMin, 200)
+  assert.equal(r.legs.early.n, 1)
+  assert.equal(r.legs.early.u, 60)
+  assert.equal(r.legs.mid.n, 1)
+  assert.equal(r.legs.mid.u, 60)
+  assert.equal(r.legs.late.n, 1)
+  assert.equal(r.legs.late.u, 60)
+  assert.equal(r.unpositioned.n, 1)
+  assert.equal(r.unpositioned.u, 60)
+  assert.equal(r.placedByThird.late, 1)
+  assert.equal(r.placedUnpositioned, 0)
+  // the concentration read rides the same walk: 4 drops of 60u - no
+  // single big pile
+  assert.deepEqual(r.drops, { n: 4, u: 240, maxU: 60, maxBot: 'F9', maxShare: 0.25 })
+  // the u-weighted center: the window t-600..t-200 (span 400) - the drops'
+  // f read 0, 0.5, 1.0 across equal 60u legs -> center 0.5 (unpositioned excluded)
+  assert.equal(r.clockCenter, 0.5)
+})
+
+test('leak-clock: the boundary samples govern (a drop sharing a line AFTER its sample rides that sample)', () => {
+  const lines = [
+    't-540s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F1 [F1] death drop: ~90u lost at [-109,68,408] (birch_planks 6)', // under t-540 -> f=0 early (the sample at or BEFORE)
+    't-60s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F2 [F2] death drop: ~10u lost at [-109,68,408] (oak_planks 2)'    // f=(540-60)/540=0.888 late
+  ]
+  const r = leakClock(lines)
+  assert.equal(r.legs.early.u, 90)
+  assert.equal(r.legs.late.u, 10)
+  // center: the window is t-540..t-60 (span 480) - drop2's f = (540-60)/480 = 1.0
+  // center = (90*0 + 10*1.0) / 100 = 0.1
+  assert.equal(r.clockCenter, 0.1)
+})
+
+test('leak-clock: fewer than 2 samples reads no split (the honest null window)', () => {
+  const one = [
+    't-300s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F9 [F9] death drop: ~60u lost at [-129,52,387] (sand 8)'
+  ]
+  const r = leakClock(one)
+  assert.equal(r.samples, 1)
+  assert.equal(r.tMax, null)
+  assert.equal(r.tMin, null)
+  assert.deepEqual(r.legs, { early: { n: 0, u: 0 }, mid: { n: 0, u: 0 }, late: { n: 0, u: 0 } })
+  assert.equal(r.unpositioned.u, 60) // the drop is counted, never guessed
+  assert.equal(r.clockCenter, null)
+})
+
+test("leak-clock: the concentration read names the big pile (the sweep's reach candidate)", () => {
+  // face 42's live shape: one bot carried most of the face's dropped value
+  const lines = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    'F4 [F4] death drop: ~507u lost at [-140,68,406] (cobblestone 300)',
+    'F8 [F8] death drop: ~24u lost at [-128,64,398] (dirt 10)',
+    'F11 [F11] death drop: ~15u lost at [-149,64,416] (stick 3)',
+    't-0s alive=19/19 mined=600 map=9p/1ch banked=40 smelted=6 pocket=8u/131s | sand=0'
+  ]
+  const r = leakClock(lines)
+  assert.deepEqual(r.drops, { n: 3, u: 546, maxU: 507, maxBot: 'F4', maxShare: 0.93 })
+})
+
+test('leak-clock: junk-safe and nulls on non-array (the zero law)', () => {
+  assert.equal(leakClock(null), null)
+  assert.equal(leakClock('t-500s alive=19/19'), null)
+  const r = leakClock([null, 42, 'garbage'])
+  assert.deepEqual(r, { samples: 0, tMax: null, tMin: null, legs: { early: { n: 0, u: 0 }, mid: { n: 0, u: 0 }, late: { n: 0, u: 0 } }, unpositioned: { n: 0, u: 0 }, drops: { n: 0, u: 0, maxU: null, maxBot: null, maxShare: null }, placedByThird: { early: 0, mid: 0, late: 0 }, placedUnpositioned: 0, clockCenter: null })
 })

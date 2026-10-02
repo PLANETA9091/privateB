@@ -17,7 +17,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
@@ -1372,6 +1372,23 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
             ? `the emitters' own words account for the whole-face leak - the slack is the ~Nu pricing's inflation margin; the re-gather share ${(rc.recollection * 100).toFixed(0)}% (${rc.recollectionVerdict === 're-collected' ? 'the drops largely came home' : 'the drops stayed lost - the leak is their fate'} - the pickup-less log's indirect pricing)`
             : `a NAMED share the log's emitters never priced (unemitted loss - the lens's own blind spot, quantified)`
         console.log(`  balance reconcile: leaks ${rc.leaks >= 0 ? '+' : ''}${rc.leaks}u vs the event lens's whole-face legs ${rc.legs}u (deaths ${rc.lossDelta}u/${rc.lossCount} drop(s) + placed ${rc.placedDelta}u) - ${rc.verdict}${slackSeg} - ${rcWhy}`)
+      }
+      // (v0.472.0) THE LEAK CLOCK - the share's third split, the clock
+      // candidate. Both prose splits are dead (the most violent face
+      // re-collected 82%; a moderate face read 11%): the remaining
+      // driver is WHEN the legs died - a drop at t-560s has ~9 minutes
+      // to come home, a drop at t-40s has none. The row splits the
+      // death drops' units across the face's real pulse window thirds
+      // (the last sample's t at or before the line governs) and prints
+      // the u-weighted clock center - the share's driver read rides
+      // BESIDE it, never guessed from one face.
+      const lc = leakClock(lines)
+      if (lc && lc.samples >= 2) {
+        const pb = `placed by third: early ${lc.placedByThird.early}, mid ${lc.placedByThird.mid}, late ${lc.placedByThird.late}${lc.placedUnpositioned ? ` (unpositioned ${lc.placedUnpositioned})` : ''}`
+        const conc = lc.drops.n > 0
+          ? ` - concentration: max ${lc.drops.maxU}u (${lc.drops.maxBot}) = ${(lc.drops.maxShare * 100).toFixed(0)}% of the dropped ${lc.drops.u}u (the sweep's reach candidate)`
+          : ''
+        console.log(`  the leak clock (v0.472.0): window t-${lc.tMax}s..t-${lc.tMin}s over ${lc.samples} sample(s) - death drops: early ${lc.legs.early.u}u/${lc.legs.early.n}, mid ${lc.legs.mid.u}u/${lc.legs.mid.n}, late ${lc.legs.late.u}u/${lc.legs.late.n}, unpositioned ${lc.unpositioned.u}u/${lc.unpositioned.n} - clock center ${lc.clockCenter} (0 = the face's start, 1 = its end); ${pb}${conc}`)
       }
     }
   }
