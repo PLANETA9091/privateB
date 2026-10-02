@@ -36,6 +36,7 @@ import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execut
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
+import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2113,5 +2114,31 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (sh.skipClasses['above-floor']) sbits.push(`ABOVE-FLOOR ${sh.skipClasses['above-floor']} (the anomaly bucket)`)
     if (sbits.length) console.log(`  skips: ${sh.skips} - ${sbits.join(' | ')}`)
     if (sh.endBankStandalone) console.log(`  end-bank deaths (no open hold): ${sh.endBankStandalone}`)
+  }
+}
+
+// (v0.492.0) THE RECOVERY BOOK - the pick-less bootstrap's own report
+// card. Each 'tool recovery: no pickaxe' open joins the bot's terminal
+// (SPARE-OK / OK with the kit anatomy / FAILED with the why / the
+// honest unresolved); the mid-fails ride between (the stick drought's
+// own census - the same sticks the smelt verdict priced at 19x coal);
+// the reboot chains price whether the bootstrap's re-asks ever
+// recovered.
+{
+  const tr = toolRecovery(lines)
+  if (tr && tr.episodes > 0) {
+    console.log(`--- RECOVERY BOOK (v0.492.0: the pick-less bootstrap's own report card) ---`)
+    const fbits = [`ok ${tr.fates.ok} (full kit ${tr.kitFull} / half kit ${tr.kitWoodenOnly})`, `failed ${tr.fates.failed} (none ${tr.failedWhy.none} / table ${tr.failedWhy.table})`]
+    if (tr.fates['spare-ok']) fbits.push(`spare-ok ${tr.fates['spare-ok']} (the cheap lane landed)`)
+    if (tr.fates.unresolved) fbits.push(`unresolved ${tr.fates.unresolved}`)
+    console.log(`  book: ${tr.episodes} episode(s) - ${fbits.join(' | ')}`)
+    const mbits = []
+    if (tr.midFailClasses['stick-drought']) mbits.push(`stick-drought ${tr.midFailClasses['stick-drought']}`)
+    if (tr.midFailClasses.table) mbits.push(`table ${tr.midFailClasses.table}`)
+    if (tr.midFailClasses.materials) mbits.push(`materials ${tr.midFailClasses.materials}`)
+    if (tr.midFailClasses.undefined) mbits.push(`UNDEFINED ${tr.midFailClasses.undefined} (the emitter's own honest gap)`)
+    if (mbits.length) console.log(`  mid-fails: ${tr.midFails} - ${mbits.join(' | ')}`)
+    if (tr.chains) console.log(`  reboot chains: ${tr.chains} (recovered ${tr.chainsRecovered}) - loop legs ${tr.loops} (recovered ${tr.loopRecovered} / still-failed ${tr.loopStillFailed})`)
+    if (tr.prose.surfaced || tr.prose.climbRefused) console.log(`  prose legs (never close): surfaced ${tr.prose.surfaced} / climb-refused ${tr.prose.climbRefused}`)
   }
 }
