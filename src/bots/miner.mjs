@@ -75,6 +75,7 @@ import { WaterTableBoard } from '../lib/watertable.mjs' // (v0.84.0) the aquifer
 import { craftTorches, countItem } from './tools.mjs'
 import { dropTargets, dropGoalRange, dropWalkSkipped, dropGoalAdmission, DROP_ADMISSION_WHY, aboveBandOf, lipDigWanted, lipDigRefusal, supportDigWanted, supportDigRefusal, highLedgeStanceWanted, sealedColumnDepth, sealReachBucket, sealCutClass, ledgeCutWanted, ledgeCutRefusal, stanceStepBlocks, stepWalkProgress, stanceStepRawWalk, stancePinRead, STANCE_STEP_WALK_MS, DROP_GOAL_BELOW, DROP_GOAL_BELOW_DY, DROP_GOAL_DEEP_DY, DROP_GOAL_ABOVE_DY, DROP_GOAL_SKIP, SWEEP_DROP_REACH, SWEEP_DROP_CAP, SWEEP_DROP_TIMEOUT_MS, SWEEP_DROP_TOTAL_MS } from '../lib/drops.mjs' // (v0.173.0) the sweep's drop walk; (v0.178.0) the below-plane goal range; (v0.182.0) the deep skip; (v0.187.0) the lip dig-down; (v0.189.0) the above-plane ledge goal + the dy-family dig gate; (v0.206.0) the lip refusal instrument; (v0.260.0) the already-there fast path; (v0.263.0) the support dig-down; (v0.267.0) the seal depth read; (v0.273.0) the seal reach split; (v0.275.0) the ledge cut; (v0.277.0) the cut target split; (v0.288.0) the step walk's measured budget; (v0.291.0) the raw stance step; (v0.292.0) the stance pin read; (v0.294.0) the above height split; (v0.296.0) the high ledge stance; (v0.431.0) the goal admission
 import { chooseTarget } from '../fleet/claims.mjs'
+import { firstUsableRecord } from '../fleet/worldmap.mjs' // (v0.512.0) the fallback's deeper-record law
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
 
@@ -254,10 +255,15 @@ export function createMiner ({
       })
     }
     let best = null
+    // (v0.512.0) THE DEEPER RECORD: the fallback reads k=4 per name and takes the
+    // first record the failedTrips/wetTrip blocker doesn't refuse - one failed
+    // cell no longer starves a name the map holds dozens of records for (the
+    // claims path's own per-candidate law, now on the board-less road too). The
+    // across-names nearest law is untouched: nearestK returns nearest-first, the
+    // first usable record IS the name's best.
     for (const name of names) {
-      const pos = map.nearest(name, bot.entity.position, { maxDistance, verifyWith })
-      if (pos && failedTrips.has(`${pos.x},${pos.y},${pos.z}`)) continue
-      if (pos && wetTrip(pos)) continue
+      const records = map.nearestK(name, bot.entity.position, { maxDistance, k: 4, verifyWith })
+      const pos = firstUsableRecord(records, { isBlocked: p => failedTrips.has(`${p.x},${p.y},${p.z}`) || wetTrip(p) })
       if (pos && (!best || pos.distanceTo(bot.entity.position) < best.pos.distanceTo(bot.entity.position))) best = { name, pos }
     }
     return best

@@ -78,6 +78,22 @@ export class WorldMap {
     return out.slice(0, k).map(e => e.pos)
   }
 
+  // (v0.512.0) THE DEEPER RECORD - the fallback gather's own law. The claims path
+  // (chooseTarget) reads k candidates per name and filters PER CANDIDATE; the
+  // board-less fallback read ONE record per name and skipped the whole NAME when
+  // that one cell sat in failedTrips/wetTrip - the map could hold dozens more
+  // records of the same ore and the fallback walked none of them (one failed walk
+  // starved the name until a scout re-found it). firstUsableRecord walks the
+  // nearest-first list (nearestK's own contract - feed it nearestK's output) and
+  // returns the first record the blocker doesn't refuse. Junk-safe: a non-array
+  // reads null, a junk record is skipped, a throwing blocker reads NO gate (the
+  // oresteer law - the read must never break the election). The distance law
+  // stays with the caller: the records arrive nearest-first, so the first usable
+  // record IS the name's best.
+  firstUsable (records, { isBlocked = null } = {}) {
+    return firstUsableRecord(records, { isBlocked })
+  }
+
   // Closest known position of a block type; drops entries that the world no longer has.
   nearest (name, from, { maxDistance = Infinity, verifyWith = null } = {}) {
     const bucket = this.found.get(name)
@@ -220,4 +236,27 @@ export class WorldMap {
       top: counts.slice(0, limit)
     }
   }
+}
+
+/**
+ * Standalone form of WorldMap.firstUsable - the same law for callers that hold a
+ * ready records array (nearestK's output) and no map instance. Junk-safe: a
+ * non-array reads null, a junk record is skipped, a throwing blocker reads NO gate
+ * (the read must never break the election).
+ */
+export function firstUsableRecord (records, opts = {}) {
+  // (the Number(null) lesson, the body guard not a destructuring default: an
+  // explicit null opts would throw on the destructure itself)
+  const isBlocked = opts && typeof opts === 'object' ? opts.isBlocked : null
+  if (!Array.isArray(records)) return null
+  for (const p of records) {
+    if (!p || typeof p.x !== 'number' || typeof p.y !== 'number' || typeof p.z !== 'number') continue
+    if (typeof isBlocked === 'function') {
+      let blocked = false
+      try { blocked = isBlocked(p) === true } catch { blocked = false }
+      if (blocked) continue
+    }
+    return p
+  }
+  return null
 }
