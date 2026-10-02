@@ -12246,3 +12246,18 @@ Work Log:
 
 Stage Summary:
 - Master = a7ddbf0 (pkg 0.470.0). NEXT FIRE: (1) CI gate 36978044008 verdict + face 43 (36970605824) when it leaves the queue - mine with the spread row: the worn spread's second point (does the class spread again or concentrate?), the promise row's F16-kept persistence read, the share ledger's 8th point, the harvest identity 3/3; (2) the integration suite owed locally (the JDK is back; boot the server, run it); (3) version next 0.471.0 (CHECK ORIGIN FIRST - the collision cadence continues). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1530
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1530 - v0.471.0 THE PROMISE PERSISTENCE (the promise's cross-face leg armed BEFORE face 43 lands: kept bots' fate next face - reached / reached-after-defer / still-held); face 43 STILL QUEUED (2h+) - no dispatch; the environment debt PAID (JDK + server.jar + integration 2/2 green).
+
+Work Log:
+- OPENED on 0765a41 (no parallel push this fire). face 43 (36970605824) queued 2h+, NOT mined; NO dispatch (the one-active-run law). Gate 36978363175 (0765a41) never resolved - superseded by this fire's pushes (the queue law).
+- THE WIRE (v0.471.0): THE PROMISE PERSISTENCE - promisePersistence(prevLines, nextLines) joins two faces through the existing emitters only: the prior face's kept bots are the roll call, the next face answers - an upgrade event = reached, reached after ANOTHER defer the rung answered = reached-after-defer (the strongest form), no upgrade events = still-held (the option survived two faces); only the kept class governs. Decompose: the optional second argument <priorFace.log>, the persistence row after the rung's promise row; absent or zero kept -> silent.
+- THE FIELD READ (face 42 self-joined, live pre-push, the degenerate read): F16 still-held - the honest zero until face 43 answers the real question (the lens is ARMED, not mined).
+- THE ENVIRONMENT DEBT PAID: the reset had taken the JDK AND the server jar - Temurin 25 already back (1500); the jar RESTORED from the /home/z/my-project cache (sha1 823e2250... verified against the protocol spec), server.sh start green, port 25565 open - integration 2/2 PASSED (the smelting pipeline's first green local run since the reset).
+- Tests: upgradecensus 26 -> 33 (the strongest form verbatim, the plain pass, the still-held law, only-kept-governs, the mixed cast in first-defer order, the zero law, the null law). Syntax 365/0, unit 209/209, integration 2/2. Push 0765a41..544143c CLEAN (attempt 1). CI gate 36979574980 (544143c) PENDING at close (the queue congested; no verdict held, honest).
+
+Stage Summary:
+- Master = 544143c (pkg 0.471.0). NEXT FIRE: (1) CI gate 36979574980 verdict + face 43 when it leaves the queue - mine with decompose <face43.log> <face42.log>: the persistence row answers the F16 question live, the spread row's second point (does the worn class spread again?), the share ledger's 8th point, the harvest identity 3/3, the smelt completion fraction 33 -> 15 -> ?; (2) version next 0.472.0 (CHECK ORIGIN FIRST - the collision cadence). Identity: PLANETA9091.
