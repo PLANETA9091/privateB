@@ -147,3 +147,61 @@ export function upgradeVerdicts (lines) {
   }
   return { ok, failed, commune, tier, worn, noop, maxWear }
 }
+
+// (v0.470.0) THE VERDICT SPREAD - the verdict census's per-bot half. The
+// face-level verdict row counts the classes, but the spread question is
+// per-bot: does the worn class ride ONE bot (a local hazard or a dig-style
+// signature) or spread across the lane? The lens keys the same VERDICT_RE
+// per bot (one parser per emitter - no new shape claimed): perBot rows
+// mirror the face-level classes (ok/tier/worn/noop/failed main-path,
+// commune separated - the sums reconcile with upgradeVerdicts), wornBots
+// in first-worn line order, and the closest call NAMES its bot
+// (maxWearBot/maxWear - first occurrence wins ties, the line-order law).
+// Co-existence reported, causation never guessed (the row does not know
+// WHY a pick wore - dig mix, ground hardness, the craft's own dice).
+// Junk-safe: non-lines skipped, non-array -> null. Pure: reads, never
+// mutates.
+
+// verdictSpread(lines) -> { bots, perBot, wornBots, maxWearBot, maxWear } | null
+//   bots        distinct verdict-bearing bots on the lane
+//   perBot      { F1: { ok, tier, worn, noop, failed, commune }, ... }
+//   wornBots    bots with >= 1 worn verdict (first-worn line order)
+//   maxWearBot  the bot holding the closest worn call (null when no worn)
+//   maxWear     the smallest left= seen (the closest call's own number)
+export function verdictSpread (lines) {
+  if (!Array.isArray(lines)) return null
+  const perBot = {}
+  const wornBots = []
+  let maxWear = null
+  let maxWearBot = null
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = VERDICT_RE.exec(line)
+    if (!m) continue
+    const bot = m[1]
+    const isCommune = /tool upgrade \(commune\):/i.test(line)
+    const isFailed = m[2].toLowerCase() === 'failed'
+    const row = perBot[bot] || (perBot[bot] = { ok: 0, tier: 0, worn: 0, noop: 0, failed: 0, commune: 0 })
+    if (isCommune) {
+      row.commune++
+      if (isFailed) continue
+    } else if (isFailed) {
+      row.failed++
+      continue
+    } else row.ok++
+    const detail = m[4]
+    const wm = /worn \(left=(\d+)\/(\d+)\)/i.exec(detail)
+    if (wm) {
+      row.worn++
+      if (!wornBots.includes(bot)) wornBots.push(bot)
+      const left = Number(wm[1])
+      if (maxWear === null || left < maxWear) {
+        maxWear = left
+        maxWearBot = bot
+      }
+    } else if (/already stone\+/i.test(detail)) row.noop++
+    else if (isCommune) { /* commune tier-craft: no kit list in its detail */ }
+    else row.tier++
+  }
+  return { bots: Object.keys(perBot).length, perBot, wornBots, maxWearBot, maxWear }
+}

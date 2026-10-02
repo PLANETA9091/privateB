@@ -191,3 +191,90 @@ test('upgradeVerdicts is junk-safe and nulls on non-array (the laws)', () => {
   assert.equal(upgradeVerdicts('x'), null)
   assert.deepEqual(upgradeVerdicts([null, 5, 'garbage']), { ok: 0, failed: 0, commune: 0, tier: 0, worn: 0, noop: 0, maxWear: null })
 })
+
+// (v0.470.0) THE VERDICT SPREAD - the verdict census's per-bot half.
+import { verdictSpread } from '../../src/lib/upgradecensus.mjs'
+
+// Face 42's verdict lines verbatim (the emitter's own words, line order).
+const face42Verdicts = [
+  'F9 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+  'F1 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_pickaxe,wooden_shovel,wooden_pickaxe)',
+  'F3 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+  'F15 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+  'F19 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+  'F10 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe)',
+  'F18 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_shovel,wooden_pickaxe)',
+  'F4 tool upgrade: OK -> stone_pickaxe (wooden_pickaxe,stone_pickaxe,wooden_shovel,wooden_pickaxe)',
+  'F17 tool upgrade: OK -> stone_pickaxe (wooden_pickaxe,stone_pickaxe,wooden_pickaxe,wooden_shovel)',
+  'F13 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_pickaxe,wooden_shovel)',
+  'F6 tool upgrade: OK -> stone_pickaxe (stone_pickaxe,wooden_pickaxe,wooden_shovel,wooden_pickaxe)',
+  'F1 tool upgrade: OK -> stone_pickaxe (worn (left=11/131))',
+  'F19 tool upgrade: OK -> stone_pickaxe (wooden_shovel,stone_pickaxe,wooden_pickaxe,wooden_pickaxe)',
+  'F3 tool upgrade: OK -> stone_pickaxe (worn (left=5/131))'
+]
+
+test('verdictSpread reads the live face-42 verdicts: the worn class spreads across TWO bots', () => {
+  const r = verdictSpread(face42Verdicts)
+  assert.equal(r.bots, 11)
+  assert.deepEqual(r.wornBots, ['F1', 'F3'])
+  assert.equal(r.maxWearBot, 'F3')
+  assert.equal(r.maxWear, 5)
+  assert.equal(r.perBot.F1.worn, 1)
+  assert.equal(r.perBot.F3.worn, 1)
+  assert.equal(r.perBot.F19.ok, 2)
+  assert.equal(r.perBot.F1.ok, 2)
+  assert.equal(r.perBot.F9.tier, 1)
+})
+
+test('verdictSpread reconciles with the face-level verdict census (the sums law)', () => {
+  const r = verdictSpread(face42Verdicts)
+  const uv = upgradeVerdicts(face42Verdicts)
+  const sum = key => Object.values(r.perBot).reduce((a, row) => a + row[key], 0)
+  assert.equal(sum('ok'), uv.ok)
+  assert.equal(sum('tier'), uv.tier)
+  assert.equal(sum('worn'), uv.worn)
+  assert.equal(sum('noop'), uv.noop)
+  assert.equal(sum('failed'), uv.failed)
+  assert.equal(sum('commune'), uv.commune)
+})
+
+test('verdictSpread names the closest call with its bot (the first-occurrence tie law)', () => {
+  const r = verdictSpread([
+    'F2 tool upgrade: OK -> stone_pickaxe (worn (left=7/131))',
+    'F5 tool upgrade: OK -> stone_pickaxe (worn (left=7/131))',
+    'F8 tool upgrade: OK -> stone_pickaxe (worn (left=3/131))'
+  ])
+  assert.equal(r.maxWearBot, 'F8')
+  assert.equal(r.maxWear, 3)
+  const tie = verdictSpread([
+    'F4 tool upgrade: OK -> stone_pickaxe (worn (left=6/131))',
+    'F9 tool upgrade: OK -> stone_pickaxe (worn (left=6/131))'
+  ])
+  assert.equal(tie.maxWearBot, 'F4')
+  assert.equal(tie.maxWear, 6)
+})
+
+test('verdictSpread separates the commune variant per bot (main ok untouched)', () => {
+  const r = verdictSpread([
+    'F2 tool upgrade (commune): OK -> stone_pickaxe (stone_pickaxe)',
+    'F2 tool upgrade (commune): failed -> none (no cobblestone)',
+    'F2 tool upgrade: OK -> stone_pickaxe (stone_pickaxe)',
+    'F2 tool upgrade: failed -> none (no crafting table placeable)'
+  ])
+  assert.equal(r.bots, 1)
+  assert.deepEqual(r.perBot.F2, { ok: 1, tier: 1, worn: 0, noop: 0, failed: 1, commune: 2 })
+  assert.deepEqual(r.wornBots, [])
+  assert.equal(r.maxWearBot, null)
+  assert.equal(r.maxWear, null)
+})
+
+test('verdictSpread is junk-safe and nulls on non-array (the laws)', () => {
+  assert.equal(verdictSpread(null), null)
+  assert.equal(verdictSpread(42), null)
+  assert.deepEqual(verdictSpread([null, 'F10 spare pick: OK (wooden_pickaxe, holds 2)', 'F9 tool upgrade due: cobble available -> stone_pickaxe', 'garbage']), { bots: 0, perBot: {}, wornBots: [], maxWearBot: null, maxWear: null })
+})
+
+test('verdictSpread reads zero verdicts honestly (the zero law)', () => {
+  const r = verdictSpread([])
+  assert.deepEqual(r, { bots: 0, perBot: {}, wornBots: [], maxWearBot: null, maxWear: null })
+})

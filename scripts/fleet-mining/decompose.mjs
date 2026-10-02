@@ -22,7 +22,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
-import { upgradeCensus, deferPromise, upgradeVerdicts } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named
+import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread
 import { counterGap } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1462,6 +1462,16 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   const cg = counterGap(lines)
   if (cg && (cg.tally !== null || cg.words > 0 || cg.pathBCrafted > 0 || cg.pathBFailed > 0 || cg.pathAFailed > 0)) {
     console.log(`  counter vs words (v0.469.0): tally ${cg.tally ?? 'none'}, words ${cg.words}, gap ${cg.gap ?? 'none'} (local crafted ${cg.pathBCrafted}, local failed ${cg.pathBFailed}, rung failed-words ${cg.pathAFailed}, residual ${cg.residual ?? 'none'})`)
+  }
+  // (v0.470.0) THE VERDICT SPREAD - the verdict census's per-bot half: does
+  // the worn class ride ONE bot (a local hazard or a dig-style signature)
+  // or spread across the lane? The closest call NAMES its bot (first
+  // occurrence wins ties, the line-order law). Zero verdicts read zero
+  // honestly (the row stays silent - no lane, no spread).
+  const vs = verdictSpread(lines)
+  if (vs && vs.bots > 0) {
+    const wornBits = vs.wornBots.join(' ')
+    console.log(`  verdict spread (v0.470.0): ${vs.bots} bot(s) on the lane, worn ${vs.wornBots.length}${wornBits ? ` (${wornBits})` : ''}${vs.maxWearBot ? `, the closest call ${vs.maxWearBot} at left=${vs.maxWear}` : ''}`)
   }
 }
 
