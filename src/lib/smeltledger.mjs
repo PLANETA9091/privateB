@@ -41,6 +41,19 @@ export const SMELT_CLOCK_CLIP_RE = /^\[(F\d+)\] the clock clips the batch: the (
 // (cobblestone@-: no fuel)' - the why rides in the parens, verbatim.
 export const SMELT_REFUSAL_RE = /^(F\d+) smelt: 0 \(([^)]+)\)$/
 
+// (v0.462.0) THE HARVEST LEG - the counter's own twin found. The smelted
+// counter ticks when the OUTPUT is collected, and the collection has its
+// own quantity-bearing line (smelting.mjs's harvest loop, byte-verbatim
+// across faces 36..40: 9/2/2/19/0 lines):
+//   [F2] took 1 x copper_ingot (1/3)
+// The (k/batch) tail anchors the shape (the inventory lane's takes carry
+// no progress tail). With the took side read, the join's BOTH halves sit
+// on one row: the words' collected vs the counter's smelted delta - face
+// 39's first live read: 19 lines of 1u = 19u collected vs the counter's
+// +19u (the identity held); the fired batches whose harvest rode a later
+// chain still land here (ANY bot's collect reads the machine).
+export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\)$/
+
 /**
  * Read the smelt lane's own words into a ledger.
  * @param {string[]} lines one fleet-log, all lines
@@ -63,10 +76,13 @@ export function smeltLedger (lines) {
     clockClipAsked: 0,
     refusals: 0,
     refusalWhys: {},
+    collected: 0,
+    tookItems: {},
+    tooks: 0,
     byBot: {}
   }
   const bot = (id) => {
-    if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0 }
+    if (!ledger.byBot[id]) ledger.byBot[id] = { batches: 0, announced: 0, fuel: 0, refusals: 0, clips: 0, collected: 0 }
     return ledger.byBot[id]
   }
   for (const line of lines) {
@@ -108,6 +124,17 @@ export function smeltLedger (lines) {
       ledger.refusals++
       ledger.refusalWhys[r[2]] = (ledger.refusalWhys[r[2]] || 0) + 1
       bot(r[1]).refusals++
+      continue
+    }
+    // (v0.462.0) the harvest leg - the machine's output collection, the
+    // smelted counter's own emitter twin
+    const t = line.match(SMELT_TOOK_RE)
+    if (t) {
+      const n = Number(t[2])
+      ledger.tooks++
+      ledger.collected += n
+      ledger.tookItems[t[3]] = (ledger.tookItems[t[3]] || 0) + n
+      bot(t[1]).collected += n
     }
   }
   return ledger

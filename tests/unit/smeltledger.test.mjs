@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -82,4 +82,36 @@ test('smelt-ledger: the regex anchors stay byte-verbatim - junk judges nothing, 
   assert.equal(l.batches, 0)
   assert.equal(smeltLedger('not an array'), null)
   assert.equal(smeltLedger(null), null)
+})
+
+// (v0.462.0) THE HARVEST LEG's tests - the smelted counter's own emitter
+// twin, read. The took shape is byte-verbatim face 39/40 (the (k/batch)
+// progress tail anchors it - the inventory lane's takes carry no tail);
+// the join's both halves: the words' collected vs the counter's smelted
+// delta (face 39 live: 19 lines of 1u = 19u vs +19u - the identity held,
+// verified in the decompose row's own numbers).
+test('smelt-ledger: the harvest leg - the took lines join the counter to the words', () => {
+  // face 39's F2 chain verbatim: 3 takes of 1 ingot each, then a 1/1
+  const lines = [
+    '[F2] took 1 x copper_ingot (1/3)',
+    '[F18] took 1 x stone (1/1)',
+    '[F2] took 1 x copper_ingot (2/3)',
+    '[F2] took 1 x copper_ingot (3/3)',
+    '[F13] took 1 x copper_ingot (1/5)'
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.tooks, 5)
+  assert.equal(l.collected, 5) // 5 lines of 1u each
+  assert.equal(l.tookItems.copper_ingot, 4)
+  assert.equal(l.tookItems.stone, 1)
+  assert.equal(l.byBot.F2.collected, 3)
+  assert.equal(l.byBot.F13.collected, 1)
+  assert.equal(l.batches, 0) // the harvest leg never inflates the batch count
+  // the multi-unit take (the shape allows N > 1) and the anchor law
+  assert.equal(SMELT_TOOK_RE.test('[F2] took 4 x stone (2/5)'), true)
+  assert.equal(SMELT_TOOK_RE.test('F2 took 1 x stone (1/1)'), false) // the bracket is part of the shape
+  assert.equal(SMELT_TOOK_RE.test('[F2] took 1 x stone'), false) // no progress tail - the inventory lane's take
+  const l2 = smeltLedger(['[F2] took 4 x stone (2/5)'])
+  assert.equal(l2.collected, 4)
+  assert.equal(l2.tookItems.stone, 4)
 })

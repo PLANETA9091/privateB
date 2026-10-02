@@ -1332,6 +1332,19 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const itemBits = Object.entries(sl.items).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' ')
     const fuelBits = Object.entries(sl.fuelItems).sort((x, y) => y[1] - x[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(' ')
     console.log(`  smelt ledger (v0.461.0): batches ${sl.batches} (announced ${sl.announced}u${itemBits ? `: ${itemBits}` : ''}, fuel ${sl.fuel}u${fuelBits ? `: ${fuelBits}` : ''})${clipBits.length ? ` - ${clipBits.join(', ')}` : ''}${refusalBit}`)
+    // (v0.462.0) THE HARVEST LEG - the join's both halves on one row: the
+    // took lines (the machine's own output collection, the smelted
+    // counter's emitter twin) beside the counter's smelted delta. NO gap
+    // formula is claimed - the fired batches complete off-screen and any
+    // bot's collect reads the machine, so the counter's window vs the
+    // words' window is the next read's subject; the row carries the two
+    // numbers, the eyeball join, nothing invented.
+    const mbJoin = materialBalance(lines)
+    const collectedBits = Object.entries(sl.tookItems).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' ')
+    if (sl.tooks > 0) {
+      const counterBit = mbJoin ? ` vs the counter's smelted +${mbJoin.smelted}u` : ''
+      console.log(`  smelt harvest (v0.462.0): took ${sl.collected}u/${sl.tooks} line(s)${collectedBits ? ` (${collectedBits})` : ''}${counterBit}`)
+    }
   }
 }
 
