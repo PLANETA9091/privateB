@@ -21,6 +21,7 @@ import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, p
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
+import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -556,6 +557,26 @@ if (shooter.total > 0) {
     } else {
       console.log(`  the flee fork: no flee deaths - the disengage pricing waits`)
     }
+  }
+}
+// (v0.464.0) THE DEATH GROUND CENSUS - the combat deaths' spatial join
+// (the mob-cure's WHERE leg: the shelter ledger read HOW, the flee fork
+// read WHEN-distance, nothing read WHERE the same ground killed several
+// bots - a nest harvests a radius, not a point). The died line's own
+// coord joins planar (+-12 manhattan - the radius priced across faces
+// 36/37/39/41: R4 never clusters, R24 merges nests); a ground holding
+// 2+ deaths is the multi-kill signature, 3+ the nest harvest. The killer
+// tally names each ground (mixed killers = one shared dangerous ground).
+{
+  const dg = deathGrounds(lines)
+  if (dg && dg.combatDeaths > 0) {
+    console.log(`--- DEATH GROUND CENSUS (v0.464.0: the combat deaths' spatial join - the mob-cure's WHERE input) ---`)
+    console.log(`  deaths ${dg.combatDeaths} on ${dg.grounds.length} ground(s) (+-${DEATH_GROUND_RADIUS} planar${dg.blind ? `, blind ${dg.blind}` : ''}) - multi-kill grounds ${dg.multiGrounds}, singles ${dg.singles}`)
+    for (const g of dg.grounds.slice(0, 5)) {
+      const killers = Object.entries(g.killers).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+      console.log(`  ground [${g.x},${g.z}] x${g.n} (${killers}) bots ${g.bots.slice().sort().join('+')}${g.n >= 3 ? ' - THE NEST HARVEST SIGNATURE: one ground took 3+ bots this face' : ''}`)
+    }
+    if (dg.grounds.length > 5) console.log(`  ... ${dg.grounds.length - 5} more ground(s) - the tail stays in the lib's row`)
   }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
