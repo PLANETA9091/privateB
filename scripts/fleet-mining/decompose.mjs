@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1167,6 +1167,22 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
           ? `the legs price ${da.legs}u of ${da.residual}u - the rest (crafting/the unseen) stays open`
           : 'no priced legs after the peak - crafting/the unseen holds the residual'
     console.log(`  drain attribution: deaths lost ${da.lossDelta}u (${da.lossCount} drop(s)), placements ${da.placedDelta}u (${da.placedDelta} line(s)${blocks ? `: ${blocks}` : ''}) - ${attrWhy}`)
+    // (v0.453.0) THE MATERIAL BALANCE - the counter identity's whole-face
+    // cross-check: does mined close the loop against the three sinks?
+    // Independent of the event lens above (no death-drop/placement lines
+    // read); the leaks share is the arithmetic bound the event split must
+    // reconcile with.
+    const mb = materialBalance(lines)
+    if (mb) {
+      const mbWhy = mb.verdict === 'no-flow'
+        ? 'nothing mined - the identity has no subject'
+        : mb.verdict === 'balanced'
+          ? 'the counters close the loop (within 5% of mined)'
+          : mb.verdict === 'leaky'
+            ? `a NAMED whole-face share sits outside the sinks (placement/loss/crafting - the event lens splits it)`
+            : `crafting's unit inflation outran the losses - the unit-count trap, seen from the counters' side`
+      console.log(`  material balance: mined +${mb.mined} = pocket ${mb.pocket >= 0 ? '+' : ''}${mb.pocket} + banked +${mb.banked} + smelted +${mb.smelted} + leaks ${mb.leaks >= 0 ? '+' : ''}${mb.leaks} (${(mb.share * 100).toFixed(1)}% of mined) - ${mbWhy}`)
+    }
   }
 }
 

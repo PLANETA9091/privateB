@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -529,4 +529,65 @@ test('drain-attr: honest nulls - no pulse lines, non-array', () => {
   assert.equal(pocketDrainAttr(['F5 map trip: sand', 'calm face']), null)
   assert.equal(pocketDrainAttr([]), null)
   assert.equal(pocketDrainAttr('not an array'), null)
+})
+
+// (v0.453.0) THE MATERIAL BALANCE's tests - does mined close the loop?
+// The identity mined = d(pocket) + d(banked) + d(smelted) + leaks over the
+// face's first and last pulse samples (the counters cumulative, the
+// pocket's delta a legitimate sink). The 'leaky' anchor is face 34's REAL
+// arc (the decompose row re-derived it live); the rest are hand-built
+// self-consistent fixtures, each branch named.
+test('material-balance: the real face-34 arc + the five verdicts hand-counted', () => {
+  // a hand-built face whose pocket ENDS high (crafted/unbanked pile):
+  // leaks go negative - the 'inflated' branch (crafting's unit inflation)
+  const f35 = [
+    't-531s alive=19/19 mined=90 map=280p/7ch banked=0 smelted=0 pocket=77u/19s | sand=0 gravel=0',
+    't-0s alive=19/19 mined=1721 map=1201p/19ch banked=1093 smelted=7 pocket=1180u/160s | sand=13 gravel=0'
+  ]
+  const mb = materialBalance(f35)
+  assert.equal(mb.samples, 2)
+  assert.equal(mb.mined, 1631)
+  assert.equal(mb.pocket, 1103)
+  assert.equal(mb.banked, 1093)
+  assert.equal(mb.smelted, 7)
+  assert.equal(mb.leaks, 1631 - 1103 - 1093 - 7) // -572: the pocket ENDED high
+  assert.equal(mb.verdict, 'inflated') // -35% of mined - crafting's inflation branch
+  // a leaky face: face 34's arc (mined 1583, sinks 1166 - leaks 417 ~26%)
+  const f34 = [
+    't-536s alive=19/19 mined=81 map=275p/7ch banked=0 smelted=0 pocket=64u/18s | sand=0 gravel=0',
+    't-0s alive=19/19 mined=1664 map=1173p/18ch banked=816 smelted=10 pocket=404u/131s | sand=0 gravel=0'
+  ]
+  const m34 = materialBalance(f34)
+  assert.equal(m34.mined, 1583)
+  assert.equal(m34.leaks, 417)
+  assert.equal(m34.verdict, 'leaky')
+  assert.equal(Math.round(m34.share * 1000) / 1000, Math.round(417 / 1583 * 1000) / 1000)
+  // balanced: leaks exactly at the 5% boundary (inclusive)
+  const b = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-50s alive=19/19 mined=205 map=1p/1ch banked=180 smelted=10 pocket=10u/1s | sand=0'
+  ]
+  const mbb = materialBalance(b)
+  assert.equal(mbb.mined, 200)
+  assert.equal(mbb.leaks, 10)
+  assert.equal(mbb.verdict, 'balanced') // 10/200 = 5.0% - the boundary holds
+  // leaky: clearly past it
+  const e6 = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-50s alive=19/19 mined=225 map=1p/1ch banked=180 smelted=10 pocket=10u/1s | sand=0'
+  ]
+  const mbl = materialBalance(e6)
+  assert.equal(mbl.leaks, 30)
+  assert.equal(mbl.verdict, 'leaky') // 30/220 ~ 13.6%
+  // no-flow: nothing mined (banking from the start pile reads honestly)
+  const nf = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-50s alive=19/19 mined=5 map=1p/1ch banked=10 smelted=0 pocket=0u/1s | sand=0'
+  ]
+  assert.equal(materialBalance(nf).verdict, 'no-flow')
+  // honest nulls
+  assert.equal(materialBalance(['F5 map trip: sand']), null)
+  assert.equal(materialBalance([]), null)
+  assert.equal(materialBalance('not an array'), null)
+  assert.equal(materialBalance(null), null)
 })

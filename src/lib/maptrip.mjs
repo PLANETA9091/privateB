@@ -495,3 +495,49 @@ export function pocketDrainAttr (lines) {
     attr
   }
 }
+
+// (v0.453.0) THE MATERIAL BALANCE - the counter identity's own cross-check.
+// The drain ledger (v0.451.0) reads the pocket's drop against the bank's
+// and furnace's rise; the attribution (v0.452.0) prices the residual's
+// legs from the EVENT lines. Both never asked the simplest question the
+// pulse header's own counters can answer: does MINED close the loop?
+//
+//   mined = d(pocket) + d(banked) + d(smelted) + LEAKS
+//
+// over the face's first and last samples (the counters are cumulative;
+// the pocket is the live pile - its delta is a legitimate sink, the
+// not-yet-banked share). LEAKS = placement + loss + crafting's unit
+// inflation, unsplit BY DESIGN (the event lens owns the split; this is
+// the whole-face arithmetic bound, the independent cross-check):
+// - 'no-flow'   dMined = 0 - the identity has no subject (banking from a
+//               start pile reads honestly here, not as a balance)
+// - 'balanced'  |leaks| <= 5% of mined - the counters close the loop
+// - 'leaky'     leaks > 5% of mined - a NAMED whole-face share sits
+//               outside the three sinks (the event lens splits it)
+// - 'inflated'  leaks < -5% - crafting's unit inflation (one log -> four
+//               planks) outran the losses; the unit-count trap the
+//               attribution lens named, seen from the counters' side
+// Rides parsePulseHeader (v0.451.0) - no re-parse drift, no new emitter
+// assumptions. Honest nulls: no samples, non-array input.
+export function materialBalance (lines) {
+  if (!Array.isArray(lines)) return null
+  const samples = []
+  for (const line of lines) {
+    const h = parsePulseHeader(line)
+    if (h) samples.push(h)
+  }
+  if (!samples.length) return null
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const dMined = last.mined - first.mined
+  const dPocket = last.pocket - first.pocket
+  const dBanked = last.banked - first.banked
+  const dSmelted = last.smelted - first.smelted
+  const leaks = dMined - (dPocket + dBanked + dSmelted)
+  const share = dMined > 0 ? leaks / dMined : 0
+  const verdict = dMined === 0 ? 'no-flow'
+    : share > 0.05 ? 'leaky'
+      : share < -0.05 ? 'inflated'
+        : 'balanced'
+  return { samples: samples.length, mined: dMined, pocket: dPocket, banked: dBanked, smelted: dSmelted, leaks, share, verdict }
+}
