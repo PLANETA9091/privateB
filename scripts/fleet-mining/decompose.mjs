@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1131,6 +1131,28 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       return `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u${sp}`
     }).join(' ')
     console.log(`  launch windows (${rc.windows.length}, ${RECEIPT_WINDOW_SAMPLES}-sample fleet-wide, unattributed): ${w || 'none'}`)
+  }
+}
+
+// (v0.451.0) THE POCKET DRAIN LEDGER - where the pocket's peak goes. The
+// receipt prices the rise; the faces kept ending with the pocket drained
+// (face 34: peak then 404u). The pulse header's own banked/smelted
+// counters settle it: the bank absorbed the drop (the delivery chain
+// closed end-to-end), the furnace did, both, or honestly UNACCOUNTED.
+{
+  const pd = pocketDrain(lines)
+  if (pd) {
+    console.log('--- POCKET DRAIN LEDGER (v0.451.0: the pulse header\'s banked/smelted counters vs the pocket\'s peak-to-end drop) ---')
+    const why = pd.verdict === 'banked'
+      ? `the bank absorbed the drain (the delivery chain closed end-to-end)`
+      : pd.verdict === 'smelted'
+        ? 'the furnace absorbed the drain'
+        : pd.verdict === 'banked+smelted'
+          ? 'the bank and the furnace absorbed the drain together'
+          : pd.verdict === 'unaccounted'
+            ? 'UNACCOUNTED - the counters cannot explain the drop (placement/loss/crafting - the next read\'s subject)'
+            : 'no drain - the pocket never fell below its peak'
+    console.log(`  pocket start ${pd.start}u -> end ${pd.end}u (peak ${pd.peak}u at t-${pd.peakT}s, drop ${pd.drop}u); banked +${pd.bankedDelta}, smelted +${pd.smeltedDelta} over ${pd.samples} samples - ${why}`)
   }
 }
 

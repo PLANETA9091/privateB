@@ -343,3 +343,89 @@ export function tripReceipt (lines, res = 'sand', window = RECEIPT_WINDOW_SAMPLE
     windows
   }
 }
+
+// (v0.451.0) THE POCKET DRAIN LEDGER - where the pocket's peak goes. The
+// receipt priced the trips' YIELD (the pocket's rise) but the faces kept
+// ending with the pocket DRAINED back to a fraction of its peak (face 34:
+// peak then end 404u, the parallel lane's read guessed 'banked' from the
+// bank row - a guess, never the counter). The pulse line's pre-pipe header
+// carries the fleet-wide cumulative counters the whole time:
+//
+//   t-536s alive=19/19 mined=81 map=275p/7ch banked=0 smelted=0 pocket=64u/18s | sand=0 gravel=0 dirt=0 stone=0
+//
+// banked = what reached the bank chest, smelted = what left the furnace.
+// The drain ledger composes the pocket's peak-to-end drop against the
+// counters' own rise over the SAME samples: the bank absorbed the drop
+// (the delivery chain closed end-to-end), the furnace did, both together,
+// or - honestly - UNACCOUNTED (placement/loss/crafting: the counters
+// cannot explain the drain, the next read's subject). The whole header is
+// one anchored shape (the one-parser-per-emitter law, the tiling law's
+// full-line form): any deviation reads null, never a half-read counter.
+// The EOF t-0 cluster's repeats are harmless here: start = the first
+// sample, end = the last line in the file, the counters are cumulative.
+export const PULSE_HEADER_RE = /^t-(\d+)s alive=(\d+)\/(\d+) mined=(\d+) map=(\d+)p\/(\d+)ch banked=(\d+) smelted=(\d+) pocket=(\d+)u\/(\d+)s \| /
+
+export function parsePulseHeader (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(PULSE_HEADER_RE)
+  if (!m) return null
+  return {
+    t: Number(m[1]),
+    alive: Number(m[2]),
+    fleet: Number(m[3]),
+    mined: Number(m[4]),
+    mapPositions: Number(m[5]),
+    mapChunks: Number(m[6]),
+    banked: Number(m[7]),
+    smelted: Number(m[8]),
+    pocket: Number(m[9])
+  }
+}
+
+/**
+ * The drain composer: one pass over the face's pulse lines (the pre-pipe
+ * header only - the resource tail is the receipt's own read). Honest
+ * nulls: no pulse samples at all -> null. The verdict:
+ * - 'no-drop'      the pocket never fell below its peak (drop 0)
+ * - 'banked'       banked's rise >= the drop (the bank absorbed it)
+ * - 'smelted'      smelted's rise >= the drop
+ * - 'banked+smelted' both together >= the drop, neither alone
+ * - 'unaccounted'  the counters cannot explain the drop - honest silence,
+ *                   never a fabricated explanation
+ */
+export function pocketDrain (lines) {
+  if (!Array.isArray(lines)) return null
+  const samples = []
+  for (const line of lines) {
+    const h = parsePulseHeader(line)
+    if (h) samples.push(h)
+  }
+  if (!samples.length) return null
+  let peak = -1
+  let peakT = null
+  for (const s of samples) {
+    if (s.pocket > peak) { peak = s.pocket; peakT = s.t }
+  }
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const drop = Math.max(0, peak - last.pocket)
+  const bankedDelta = last.banked - first.banked
+  const smeltedDelta = last.smelted - first.smelted
+  let verdict
+  if (drop <= 0) verdict = 'no-drop'
+  else if (bankedDelta >= drop) verdict = 'banked'
+  else if (smeltedDelta >= drop) verdict = 'smelted'
+  else if (bankedDelta + smeltedDelta >= drop) verdict = 'banked+smelted'
+  else verdict = 'unaccounted'
+  return {
+    samples: samples.length,
+    start: first.pocket,
+    end: last.pocket,
+    peak,
+    peakT,
+    drop,
+    bankedDelta,
+    smeltedDelta,
+    verdict
+  }
+}

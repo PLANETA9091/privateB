@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -354,4 +354,82 @@ test('trip-voice: the F-numeric sort, the mixed voice, and the honest nulls', ()
   assert.equal(tripVoice(null), null)
   assert.equal(tripVoice(undefined), null)
   assert.equal(tripVoice(mapTripCensus([])), null)
+})
+
+// (v0.451.0) THE POCKET DRAIN LEDGER's tests - the pulse header's own
+// banked/smelted counters vs the pocket's peak-to-end drop. The verbatims
+// are face 34's own first and last pulse lines (the shape stable across
+// faces 32 -> 34); the verdicts hand-counted, the junk battery honest.
+test('pocket-drain: the header verbatims parse - the full anchored shape, no half-reads', () => {
+  const a = parsePulseHeader('t-536s alive=19/19 mined=81 map=275p/7ch banked=0 smelted=0 pocket=64u/18s | sand=0 gravel=0 dirt=0 stone=0')
+  assert.deepEqual(a, { t: 536, alive: 19, fleet: 19, mined: 81, mapPositions: 275, mapChunks: 7, banked: 0, smelted: 0, pocket: 64 })
+  const b = parsePulseHeader('t-0s alive=19/19 mined=1664 map=1173p/18ch banked=816 smelted=10 pocket=404u/131s | sand=0 gravel=0 dirt=80 stone=2')
+  assert.equal(b.banked, 816)
+  assert.equal(b.smelted, 10)
+  assert.equal(b.pocket, 404)
+  // the junk battery: prose, the tail-only line (the receipt's own read),
+  // a token missing, a token renamed, non-strings
+  assert.equal(parsePulseHeader('t-100s alive=19/19 mined=5 | sand=0'), null)
+  assert.equal(parsePulseHeader('t-100s alive=19/19 banked=0 smelted=0 pocket=1u/1s | sand=0'), null)
+  assert.equal(parsePulseHeader('t-100s alive=19/19 mined=5 map=1p/1ch bank=0 smelted=0 pocket=1u/1s | sand=0'), null)
+  assert.equal(parsePulseHeader('F5 map trip: sand'), null)
+  assert.equal(parsePulseHeader(null), null)
+  assert.equal(parsePulseHeader(42), null)
+})
+
+test('pocket-drain: the verdicts hand-counted - banked, furnace, both, unaccounted, no-drop, honest nulls', () => {
+  // 'banked': the drop 340u, the bank's rise 816 - absorbed (face 34's arc)
+  const f34 = [
+    't-536s alive=19/19 mined=81 map=275p/7ch banked=0 smelted=0 pocket=64u/18s | sand=0 gravel=0',
+    't-300s alive=19/19 mined=900 map=900p/12ch banked=816 smelted=10 pocket=744u/150s | sand=13 gravel=0',
+    't-0s alive=19/19 mined=1664 map=1173p/18ch banked=816 smelted=10 pocket=404u/131s | sand=0 gravel=0'
+  ]
+  const pd = pocketDrain(f34)
+  assert.equal(pd.samples, 3)
+  assert.equal(pd.peak, 744)
+  assert.equal(pd.peakT, 300)
+  assert.equal(pd.drop, 340)
+  assert.equal(pd.bankedDelta, 816)
+  assert.equal(pd.smeltedDelta, 10)
+  assert.equal(pd.verdict, 'banked')
+  // 'smelted': the furnace alone covers the drop
+  const f = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-50s alive=19/19 mined=60 map=1p/1ch banked=0 smelted=50 pocket=5u/1s | sand=0'
+  ]
+  assert.equal(pocketDrain(f).verdict, 'smelted')
+  // 'banked+smelted': neither alone, both together (drop 90 = 50 + 40)
+  const b = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=100u/1s | sand=0',
+    't-50s alive=19/19 mined=110 map=1p/1ch banked=50 smelted=40 pocket=10u/1s | sand=0'
+  ]
+  assert.equal(pocketDrain(b).verdict, 'banked+smelted')
+  // 'unaccounted': the counters cannot explain the drop - honest silence
+  const u = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=100u/1s | sand=0',
+    't-50s alive=19/19 mined=110 map=1p/1ch banked=5 smelted=5 pocket=10u/1s | sand=0'
+  ]
+  assert.equal(pocketDrain(u).verdict, 'unaccounted')
+  // 'no-drop': the pocket never fell below its peak (a monotonically
+  // rising pocket - peak IS the end, drop 0)
+  const n = [
+    't-100s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-50s alive=19/19 mined=60 map=1p/1ch banked=0 smelted=0 pocket=50u/1s | sand=0'
+  ]
+  assert.equal(pocketDrain(n).verdict, 'no-drop')
+  // the EOF t-0 cluster's repeats are harmless: start = first, end = last
+  const e = [
+    't-30s alive=19/19 mined=5 map=1p/1ch banked=0 smelted=0 pocket=10u/1s | sand=0',
+    't-0s alive=19/19 mined=60 map=1p/1ch banked=45 smelted=0 pocket=50u/1s | sand=0',
+    't-0s alive=19/19 mined=60 map=1p/1ch banked=45 smelted=0 pocket=5u/1s | sand=0'
+  ]
+  const pe = pocketDrain(e)
+  assert.equal(pe.samples, 3)
+  assert.equal(pe.drop, 45)
+  assert.equal(pe.end, 5)
+  assert.equal(pe.verdict, 'banked')
+  // honest nulls: no pulse lines at all
+  assert.equal(pocketDrain(['F5 map trip: sand', 'calm face']), null)
+  assert.equal(pocketDrain([]), null)
+  assert.equal(pocketDrain('not an array'), null)
 })
