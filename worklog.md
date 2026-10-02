@@ -12117,3 +12117,16 @@ Work Log:
 Stage Summary:
 - Master = a9243da (pkg 0.464.0). The mob-cure's WHERE leg landed; the design input is three-legged (HOW the verdict / WHEN the distance / WHERE the ground).
 - NEXT FIRE: (1) FACE 42 (36967273918 SUCCESS, artifact via run) download + mine with the full lens - THE DEATH GROUND'S SECOND POINT (does the nest harvest repeat? are the avoid-grounds STABLE across faces - the keep-out wire's fuel test), the harvest identity row 2 (fire-1232's took/counter join on fresh fuel), the tier defer ledger point 3, the share row 5, the shelter ledger's 6th point, the roster watch (F9's streak). (2) The death-ground stability pricing BEFORE any keep-out wire: if face 42's top grounds sit within the face-41 grounds' +-12 neighborhoods, the grounds are a persisting geography (the map lane already holds coords - the avoid wire would be a map-table read, precedented); if they move, the geography is ephemeral and the wire waits. (3) The o2 trigger gap still open (silent on 41, not closed). (4) The disengage cure's design pricing still open (the flee-bearing rotations vs the ground now priced - the two lenses cross-read: do the flee deaths die ON the nest grounds?). (5) Version next 0.465.0 (origin checked pre-bump). Identity: PLANETA9091.
+
+---
+Task ID: cron-20261002-1238 addendum (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: the gate bookkeeping - the a9243da gate died QUEUED (the concurrency supersede), the LIVE gate for the 0.464.0 tree is e45efa6's run.
+
+Work Log:
+- The a9243da gate (36969621965) reads CANCELLED - NOT a red, NOT a zombie, do NOT POST a cancel and do NOT hunt a failure: it died QUEUED when my own worklog push (e45efa6, minutes later) arrived - the pending-supersede law (cancel-in-progress stays FALSE; a RUNNING run is never killed, a PENDING one is replaced by the newer arrival; the 36958258728 precedent from fire 1038).
+- THE LIVE GATE for the 0.464.0 tree (my death ground + fire-1232's harvest/tierdefer merged) is 36969705371 (e45efa6, pending at this addendum, queued behind f9cdf98's still-running gate) - its verdict is the next fire's first check.
+- FACE 42 (36967273918) stands SUCCESS - the handoff in the main 1238 entry governs (the death ground's second point leads).
+
+Stage Summary:
+- No red anywhere; the cancelled run is the queue law working. Master = e45efa6 (pkg 0.464.0 + this addendum). Identity: PLANETA9091.
