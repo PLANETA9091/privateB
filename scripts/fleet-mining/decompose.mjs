@@ -32,6 +32,7 @@ import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
 import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
 import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
+import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -735,6 +736,35 @@ if (shooter.total > 0) {
     const abandons = fl.rows.filter(r => r.outcome === 'abandoned')
     for (const r of abandons) {
       console.log(`   abandoned: ${r.bot} fought ${r.mob} @${r.hp === null ? '?' : r.hp.toFixed(1)} - flew vs ${r.closeMob || '?'} @${r.closeHp === null ? '?' : r.closeHp.toFixed(1)}${r.threatChanged ? ' (the threat changed mid-fight)' : ' (the same threat won the argument)'}`)
+    }
+  }
+}
+// (v0.487.0) THE EXECUTION DRIFT - the decision-to-flight gap priced on
+// the flip book's own rows (the fire-2100 read's own lens: the verdict
+// says flee, the world keeps moving - how far did it drift between the
+// flip and the flight the flip opened). The join rides verdictExecution
+// (one parser per shape, zero new RE): the fled rows' executedMob /
+// executedHp join back to the flip's mob / hp - mobChanged names the
+// threat drift, hpDelta the hp drift (negative = hp lost mid-prose),
+// driftWindow the machinery prose the world moved across.
+{
+  const fd = flipDrift(lines)
+  console.log(`--- EXECUTION DRIFT (v0.487.0: the decision-to-flight gap priced) ---`)
+  if (!fd || fd.flips === 0) {
+    console.log('  flips: 0 (no verdict contested the flight - the drift has no input)')
+  } else if (fd.fledJoins === 0) {
+    console.log(`  flips ${fd.flips}, fled ${fd.fled}, executions priced 0${fd.unpricedFled ? ` (unpriced fled ${fd.unpricedFled})` : ''} - no drift input (face 42's own shape)`)
+  } else {
+    const verdict = fd.mobChanged > fd.mobSame
+      ? "THE DRIFTED EXECUTION LEADS - the decision's world is stale by the flight"
+      : fd.mobSame > fd.mobChanged
+        ? 'the instant execution leads - the verdict became the flight untouched'
+        : 'the drift splits even at this n'
+    console.log(`  flips ${fd.flips} - fled ${fd.fled} = joins ${fd.fledJoins} + unpriced ${fd.unpricedFled}; mobSame ${fd.mobSame} / mobChanged ${fd.mobChanged} / hpLost ${fd.hpLost} - ${verdict}`)
+    if (fd.hpDelta) console.log(`  hp delta: min ${fd.hpDelta.min.toFixed(1)} / median ${fd.hpDelta.median.toFixed(1)} / max ${fd.hpDelta.max.toFixed(1)}`)
+    if (fd.window) console.log(`  prose window: min ${fd.window.min} / median ${fd.window.median} / max ${fd.window.max} lines`)
+    for (const j of fd.rows) {
+      console.log(`   ${j.bot}: ${j.flipMob}@${j.flipHp.toFixed(1)} -> ${j.execMob}@${j.execHp.toFixed(1)}${j.mobChanged ? ' (THE THREAT DRIFTED)' : ' (the instant execution)'} - window ${j.driftWindow} lines${j.hpDelta < 0 ? `, hp lost ${Math.abs(j.hpDelta).toFixed(1)}` : ''}`)
     }
   }
 }
