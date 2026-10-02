@@ -29,6 +29,7 @@ import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePer
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
+import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -670,6 +671,26 @@ if (shooter.total > 0) {
           ? 'THE CHASE LEADS - the flee never escapes its own threat; the disengage must GAIN ground'
           : 'the split is even - read the rows'
     console.log(`  the survival fork: ${died}/${fl.starts} flee episode(s) died mid-flee (chased ${fl.chased} / crossfire ${fl.crossfire}) - ${verdict}`)
+  }
+}
+// (v0.483.0) THE CRITICAL PRELUDE - the combat lane's own low-hp sensor
+// priced (the critical bar's join to the flight it announced: the join
+// cover, the prelude cover, the critical-zone cover + the sensor gap -
+// the o2 lane's blind-lane twin).
+{
+  const cp = criticalPrelude(lines)
+  console.log(`--- CRITICAL PRELUDE (v0.483.0: the critical bar's own flight announcement) ---`)
+  if (!cp || cp.bars === 0) {
+    console.log('  critical bars: 0 (the drain sensor silent - the calm face reads zero honestly)')
+  } else {
+    console.log(`  critical bars: ${cp.bars} - joined ${cp.joinedBars} / tail ${cp.unjoinedBars} (the bar announces the flight it precedes)`)
+    console.log(`  prelude cover: flee starts ${cp.fleeStarts} - with prelude ${cp.prelude.with} / without ${cp.prelude.without}`)
+    const crVerdict = cp.criticalFlees === 0
+      ? 'no critical-zone flight - the bar spoke without a low-hp flee (the honest tail)'
+      : cp.gap === 0
+        ? `every critical-zone flight (hp < ${8}) rode the prelude - the sensor covers the drain zone`
+        : `gap ${cp.gap} - the silent zone is not blind (the shelter-skip's own lane covers the gap - the two preludes hand off)`
+    console.log(`  critical zone (hp < ${8}): ${cp.criticalFlees} flight(s), covered ${cp.covered} - ${crVerdict}`)
   }
 }
 // (v0.464.0) THE DEATH GROUND CENSUS - the combat deaths' spatial join
