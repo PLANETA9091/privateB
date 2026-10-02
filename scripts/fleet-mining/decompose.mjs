@@ -40,6 +40,7 @@ import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt 
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
+import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2235,5 +2236,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (refused.length) {
       console.log(`  refused: ${refused.map(([b, v]) => `${b} (rungs ${v.rungs}, sticks ${v.sticks})`).join(' / ')} - the woodless read: zero rungs, the flow terminal's 'cannot make a spare table' whys (the recovery book's table echoes)`)
     }
+  }
+}
+
+// (v0.497.0) THE CAMP BUILD BOOK - where furnaces come from: the camp
+// furnace ladder's own field fate (the builds vs the reuse, the
+// resource floors, the plank-craft deaths). The smelt chain's yield
+// side is priced - the furnace SUPPLY was the unread half.
+{
+  const cb = campBuild(lines)
+  if (cb && cb.totals.total > 0) {
+    const t = cb.totals
+    console.log(`--- CAMP BUILD BOOK (v0.497.0: where furnaces come from - the camp ladder's field fate) ---`)
+    console.log(`  supply: built ${t.built} (${t.buildSecs}s${t.tableFirst ? `, table-first orders ${t.tableFirst}` : ''}) vs reused ${t.reuse} - the foundry is already built`)
+    console.log(`  refused: cobble-floor ${t.cobbleFloor} / plank-death ${t.plankDeath}${t.nothingToSmelt ? ` / nothing-to-smelt ${t.nothingToSmelt}` : ''}${t.otherRefusals ? ` / other ${t.otherRefusals}` : ''}${t.skipped ? ` / leg-clock-skipped ${t.skipped}` : ''}`)
+    if (t.planksDecisions) console.log(`  plank death anatomy: ${t.planksDecisions} craft-planks decisions (${t.planksLogs} logs, same-type floor short ${t.sameTypeShort}) - ${t.attempts} attempts ${(t.timeoutMs / 1000).toFixed(0)}s, all-failed ${t.allFails}, craft storms ${t.storms} (${t.stormCooldownMs}ms), stale windows ${t.grid}`)
   }
 }
