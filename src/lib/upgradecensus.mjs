@@ -205,3 +205,56 @@ export function verdictSpread (lines) {
   }
   return { bots: Object.keys(perBot).length, perBot, wornBots, maxWearBot, maxWear }
 }
+
+// (v0.471.0) THE PROMISE PERSISTENCE - the promise's cross-face leg. The
+// deferPromise row reads ONE face (13/15 took-after across faces 41/39/42);
+// the kept class left the standing question open: does a bot that held its
+// option (deferred, never reached the rung) get there the NEXT face? The
+// lens joins two faces' lines through the existing emitters only
+// (TIER_DEFER_RE + UPGRADE_RE - no new shape): the prior face's kept bots
+// are the roll call, the next face answers per bot - an upgrade event
+// there = reached (the promise's persistence pass), reached after ANOTHER
+// defer that the rung then answered = reached-after-defer (the strongest
+// form: the option traded for the rung again), no upgrade events =
+// still-held (the option survived two faces - the rung's cost, the honest
+// read). Only the kept class governs (took-after already passed; the read
+// is the kept bots' fate). Co-existence reported, causation never guessed.
+// Junk-safe: non-array prev or next -> null. Pure: reads, never mutates.
+
+// promisePersistence(prevLines, nextLines) ->
+//   { keptBots, reached, reachedAfterDefer, stillHeld, perBot } | null
+//   keptBots           the prior face's kept count (the roll call)
+//   reached            kept bots with >= 1 upgrade event in the next face
+//   reachedAfterDefer  the reached that deferred again AND took-after there
+//   stillHeld          kept bots with zero upgrade events next face
+//   perBot             { F16: 'reached-after-defer'|'reached'|'still-held' }
+export function promisePersistence (prevLines, nextLines) {
+  if (!Array.isArray(prevLines) || !Array.isArray(nextLines)) return null
+  const prev = deferPromise(prevLines)
+  if (!prev || prev.kept === 0) {
+    return { keptBots: 0, reached: [], reachedAfterDefer: [], stillHeld: [], perBot: {} }
+  }
+  const next = deferPromise(nextLines)
+  const nextUc = upgradeCensus(nextLines)
+  const upgraded = nextUc ? nextUc.perBot : {}
+  const perBot = {}
+  const reached = []
+  const reachedAfterDefer = []
+  const stillHeld = []
+  for (const bot of Object.keys(prev.perBot)) {
+    if (prev.perBot[bot] !== 'kept') continue
+    if (!((upgraded[bot] || 0) > 0)) {
+      perBot[bot] = 'still-held'
+      stillHeld.push(bot)
+      continue
+    }
+    if (next && next.perBot[bot] === 'took-after') {
+      perBot[bot] = 'reached-after-defer'
+      reachedAfterDefer.push(bot)
+    } else {
+      perBot[bot] = 'reached'
+      reached.push(bot)
+    }
+  }
+  return { keptBots: prev.kept, reached, reachedAfterDefer, stillHeld, perBot }
+}

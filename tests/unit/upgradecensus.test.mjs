@@ -278,3 +278,84 @@ test('verdictSpread reads zero verdicts honestly (the zero law)', () => {
   const r = verdictSpread([])
   assert.deepEqual(r, { bots: 0, perBot: {}, wornBots: [], maxWearBot: null, maxWear: null })
 })
+
+// (v0.471.0) THE PROMISE PERSISTENCE - the promise's cross-face leg.
+import { promisePersistence } from '../../src/lib/upgradecensus.mjs'
+
+// Face 42's promise lines verbatim (the prior face: 1 deferrer, F16 kept).
+const face42Promise = [
+  'F16 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+  'F16 steer hazard defer: coal_ore@-124,59,395 held behind the ledger (d 4.4) - the clean veins led (a death is a cost the deficit cannot repay, the tail keeps the option)'
+]
+
+test('promisePersistence reads the strongest form: the kept bot defers again AND the rung answers (reached-after-defer)', () => {
+  const next = [
+    'F16 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F16 [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel'
+  ]
+  const r = promisePersistence(face42Promise, next)
+  assert.equal(r.keptBots, 1)
+  assert.deepEqual(r.reachedAfterDefer, ['F16'])
+  assert.deepEqual(r.reached, [])
+  assert.deepEqual(r.stillHeld, [])
+  assert.deepEqual(r.perBot, { F16: 'reached-after-defer' })
+})
+
+test('promisePersistence reads the plain pass: the kept bot reaches the rung without deferring again', () => {
+  const next = ['F16 [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel,wooden_pickaxe']
+  const r = promisePersistence(face42Promise, next)
+  assert.equal(r.keptBots, 1)
+  assert.deepEqual(r.reached, ['F16'])
+  assert.deepEqual(r.reachedAfterDefer, [])
+  assert.deepEqual(r.perBot, { F16: 'reached' })
+})
+
+test('promisePersistence reads the option surviving two faces (still-held)', () => {
+  const next = ['F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe', 'F9 tool upgrade: OK -> stone_pickaxe (stone_pickaxe)']
+  const r = promisePersistence(face42Promise, next)
+  assert.equal(r.keptBots, 1)
+  assert.deepEqual(r.stillHeld, ['F16'])
+  assert.deepEqual(r.perBot, { F16: 'still-held' })
+})
+
+test('promisePersistence: only the kept class governs (took-after already passed, not the roll call)', () => {
+  const prev = [
+    'F16 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F9 steer tier defer: coal_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe'
+  ]
+  const next = ['F9 [toolupgrade] [upgrade] upgraded: iron_pickaxe']
+  const r = promisePersistence(prev, next)
+  assert.equal(r.keptBots, 1)
+  assert.deepEqual(r.perBot, { F16: 'still-held' })
+})
+
+test('promisePersistence joins a mixed cast in first-defer order', () => {
+  const prev = [
+    'F2 steer tier defer: sand deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F16 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+  ]
+  const next = [
+    'F16 steer tier defer: copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F16 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F2 [toolupgrade] [upgrade] upgraded: stone_shovel'
+  ]
+  const r = promisePersistence(prev, next)
+  assert.equal(r.keptBots, 2)
+  assert.deepEqual(r.reached, ['F2'])
+  assert.deepEqual(r.reachedAfterDefer, ['F16'])
+  assert.deepEqual(r.perBot, { F2: 'reached', F16: 'reached-after-defer' })
+})
+
+test('promisePersistence reads zero kept honestly (the zero law - the row stays silent)', () => {
+  const r = promisePersistence(['F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe'], face42Promise)
+  assert.deepEqual(r, { keptBots: 0, reached: [], reachedAfterDefer: [], stillHeld: [], perBot: {} })
+  const r2 = promisePersistence([], [])
+  assert.deepEqual(r2, { keptBots: 0, reached: [], reachedAfterDefer: [], stillHeld: [], perBot: {} })
+})
+
+test('promisePersistence is null on non-array input (the junk law)', () => {
+  assert.equal(promisePersistence(null, face42Promise), null)
+  assert.equal(promisePersistence(face42Promise, 'x'), null)
+  assert.equal(promisePersistence(5, [1, 2]), null)
+})

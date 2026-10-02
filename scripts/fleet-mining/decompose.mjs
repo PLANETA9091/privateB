@@ -22,7 +22,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
-import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread
+import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -39,8 +39,13 @@ import { deathKindCensus } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the
 import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
 
 const file = process.argv[2]
-if (!file) { console.error('usage: decompose.mjs <fleet19.log>'); process.exit(1) }
+if (!file) { console.error('usage: decompose.mjs <fleet19.log> [priorFace.log]'); process.exit(1) }
 const lines = readFileSync(file, 'utf8').split('\n')
+// (v0.471.0) the optional prior face's log - the promise persistence's
+// roll call (the kept bots of the face BEFORE this one). Absent -> the
+// persistence row stays silent (no prior face, no cross-face read).
+const prevFile = process.argv[3] || null
+const prevLines = prevFile ? readFileSync(prevFile, 'utf8').split('\n') : null
 
 const count = (re) => lines.filter(l => re.test(l)).length
 const perBot = (re) => {
@@ -1442,6 +1447,19 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   if (dp && dp.deferringBots > 0) {
     const dpBits = Object.entries(dp.perBot).sort((x, y) => x[0].localeCompare(y[0])).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  the rung's promise (v0.467.0): ${dp.deferringBots} deferred bot(s) - took-after ${dp.tookAfter}, took-before-only ${dp.tookBeforeOnly}, kept ${dp.kept} (${dpBits})`)
+  }
+  // (v0.471.0) THE PROMISE PERSISTENCE - the promise's cross-face leg: the
+  // kept bots of the PRIOR face (the optional second argument) are the roll
+  // call, this face answers - reached / reached-after-defer (the strongest
+  // form) / still-held. Zero kept in the prior face reads zero honestly
+  // (the row stays silent); no prior face given -> no read (the row stays
+  // silent too - one face cannot read persistence).
+  if (prevLines) {
+    const pp = promisePersistence(prevLines, lines)
+    if (pp && pp.keptBots > 0) {
+      const ppBits = Object.entries(pp.perBot).sort((x, y) => x[0].localeCompare(y[0])).map(([k, v]) => `${k}=${v}`).join(' ')
+      console.log(`  the promise's persistence (v0.471.0): ${pp.keptBots} kept bot(s) from the prior face - reached ${pp.reached.length} (after-defer ${pp.reachedAfterDefer.length}), still-held ${pp.stillHeld.length}${ppBits ? ` (${ppBits})` : ''}`)
+    }
   }
   const uv = upgradeVerdicts(lines)
   if (uv && (uv.ok + uv.failed + uv.commune) > 0) {
