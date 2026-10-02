@@ -16,7 +16,7 @@ import {
   freshEmptyCells, ANCHOR_FRESH_EMPTY_MS,
   chestCoverPlan,
   rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
-  rearmDryNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings
+  rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP // (v0.507.0) the gravity stash
 } from '../../src/lib/fuelbank.mjs'
 
@@ -1630,4 +1630,92 @@ test('the refill tidings wire: the tithe\'s delivered>0 completion carries the n
   assert.ok(deliveredIdx > 0 && rearmIdx > deliveredIdx && logIdx > rearmIdx, 'the tidings ride the delivered>0 completion, before the delivered line')
   assert.ok(src.includes('export const DRY_REARM_RADIUS = 24'), 'the radius is a named export (the pins read it)')
   assert.ok(!src.includes('fuel commons: the ask defers') === false || true, 'no filter-key lines touched')
+})
+
+// (v0.510.0) THE FUNDED FORGET - the tidings' sibling: a funded chest erases
+// the emptiness claims within reach, across every bot's bucket.
+test('forgetEmptyNear: the funded chest is forgotten by its own rememberer (the sweep can re-find it)', () => {
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 12, y: 44, z: 8 }, t))
+  assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 1, 'the emptiness claim lives before the deposit')
+  // the tithe funds the chest 8 blocks from the remembered cell
+  assert.equal(forgetEmptyNear(memory, { x: 16, y: 44, z: 10 }), 1, 'one claim erased')
+  assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 0, 'the sweep re-finds the funded chest')
+})
+
+test('forgetEmptyNear: the emptiness beyond the radius keeps its memory (the anti-churn law holds elsewhere)', () => {
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F5', { x: 200, y: 60, z: 200 }, t))
+  assert.equal(forgetEmptyNear(memory, { x: 0, y: 60, z: 0 }), 0)
+  assert.equal(liveEmptyCells(memory, 'F5', t + 1).length, 1, 'a genuinely-empty chest stays remembered')
+})
+
+test('forgetEmptyNear: the boundary is inclusive and shares the tidings radius (the two laws agree)', () => {
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 24, y: 0, z: 0 }, t))
+  assert.equal(forgetEmptyNear(memory, { x: 0, y: 0, z: 0 }, 24), 1, 'exactly at the radius is within reach')
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 25, y: 0, z: 0 }, t))
+  assert.equal(forgetEmptyNear(memory, { x: 0, y: 0, z: 0 }, 24), 0, 'one past stays')
+})
+
+test('forgetEmptyNear: the news is for everyone - every bot\'s bucket loses the claim, the bucket\'s other cells stay', () => {
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 5, y: 40, z: 5 }, t))
+  assert.ok(rememberEmptyChest(memory, 'F5', { x: 6, y: 41, z: 4 }, t))
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 300, y: 40, z: 300 }, t)) // F3's far lie stays
+  assert.equal(forgetEmptyNear(memory, { x: 5, y: 40, z: 5 }), 2, 'both bots\' claims on the funded chest erased')
+  assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 1, 'F3 keeps only its far cell')
+  assert.equal(liveEmptyCells(memory, 'F5', t + 1).length, 0, 'F5 forgets completely')
+})
+
+test('forgetEmptyNear: junk-safe end to end, the __ lanes are never read as buckets (the other laws own them)', () => {
+  assert.equal(forgetEmptyNear(null, { x: 0, y: 0, z: 0 }), 0)
+  assert.equal(forgetEmptyNear(newCommonsMemory(), null), 0)
+  assert.equal(forgetEmptyNear(newCommonsMemory(), { x: NaN, y: 0, z: 0 }), 0)
+  assert.equal(forgetEmptyNear(newCommonsMemory(), 42), 0)
+  // a junk radius falls back to the default (the house junk law)
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 10, y: 10, z: 10 }, t))
+  assert.equal(forgetEmptyNear(memory, { x: 0, y: 0, z: 0 }, 'junk'), 1, 'junk radius -> the default radius applies')
+  // a non-Map value at a name key is skipped without a crash
+  const junked = newCommonsMemory()
+  junked['F3'] = 'not a map'
+  junked['F5'] = 42
+  assert.equal(forgetEmptyNear(junked, { x: 0, y: 0, z: 0 }), 0)
+  // junk cell keys are skipped (the liveEmptyCells parse law)
+  const junkKeys = newCommonsMemory()
+  junkKeys['F3'] = new Map([['junk', 999], ['1,2', 999], ['a,b,c', 999]])
+  assert.equal(forgetEmptyNear(junkKeys, { x: 0, y: 0, z: 0 }), 0, 'junk keys name no cell')
+  assert.equal(junkKeys['F3'].size, 3, 'the junk keys stay (the lane prunes its own shapes)')
+  // the dry and low lanes at the SAME cell survive - the forget owns only the empty lane
+  const shared = newCommonsMemory()
+  assert.ok(rememberEmptyChest(shared, 'F3', { x: 1, y: 2, z: 3 }, t))
+  assert.ok(rememberDryStance(shared, 'F4', { x: 1, y: 2, z: 3 }, t))
+  assert.ok(rememberLowChest(shared, { x: 1, y: 2, z: 3 }, 72, t))
+  assert.equal(forgetEmptyNear(shared, { x: 1, y: 2, z: 3 }), 1, 'only the empty lane clears')
+  assert.ok(dryStanceDeferred(shared, 'F4', { x: 1, y: 2, z: 3 }, t + 1), 'the dry lane untouched (the tidings own it)')
+  assert.equal(liveLowCells(shared, t + 1).length, 1, 'the low lane untouched')
+})
+
+test('forgetEmptyNear: an expired claim counts too (the claim is false either way)', () => {
+  const memory = newCommonsMemory()
+  const t = 7000000
+  assert.ok(rememberEmptyChest(memory, 'F6', { x: 0, y: 40, z: 0 }, t, 1000)) // expired by t+2000
+  assert.equal(forgetEmptyNear(memory, { x: 0, y: 40, z: 0 }), 1, 'the physical erase is the honest count')
+})
+
+test('the funded forget wire: the tithe\'s delivered>0 completion erases the emptiness claims next to the tidings (source pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const rearmIdx = src.indexOf('rearmDryNear(memory, anchor)')
+  const forgetIdx = src.indexOf('forgetEmptyNear(memory, anchor)')
+  const deliveredIdx = src.indexOf('if (delivered > 0) {')
+  assert.ok(rearmIdx > 0 && forgetIdx > rearmIdx && deliveredIdx > 0 && rearmIdx > deliveredIdx, 'the forget rides the delivered>0 completion, after the tidings, before the delivered line')
+  assert.ok(src.includes('export function forgetEmptyNear (memory, pos, radius = DRY_REARM_RADIUS)'), 'the forget shares the tidings radius by default')
+  const sweep = src.indexOf('const remembered = liveEmptyCells(memory, bot?.username, started)')
+  assert.ok(sweep > 0, 'the sweep\'s pre-exclusion lane is the one the forget falsifies')
 })

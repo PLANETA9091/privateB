@@ -276,6 +276,52 @@ export function rearmDryNear (memory, pos, radius = DRY_REARM_RADIUS) {
   return cleared
 }
 
+// (v0.510.0) THE FUNDED FORGET - the tidings' sibling on the OTHER memory lane.
+// The sweep pre-excludes remembered-empty chests for the full COMMONS_EMPTY_TTL_MS
+// (90s) - the honest anti-churn law (run89: 'chest holds no fuel' x6, the same
+// chests every time). But when the tithe lands fuel in a chest, every bot's
+// emptiness claim on it becomes a LIE the sweep keeps believing: the 0.509.0
+// tidings re-armed the dry stances, the ask re-fired - and the sweep still
+// walked PAST the funded chest, excluded for a 90s clock nobody re-read. The
+// forget closes that seam: a funded chest erases the emptiness claims within
+// the SAME DRY_REARM_RADIUS reach (the two laws must agree - a re-armed ask
+// whose sweep still excludes the funded chest would buy the churn the backoff
+// just paid to stop). The news is for EVERYONE: the buckets are per-bot, but
+// the lie is the same lie, so every name's bucket is walked. The __dry: and
+// __low: lanes are never read as buckets (the keys starting with __ belong to
+// other laws - the tidings' rearm owns the dry lane). Churn-safe by scope: the
+// forget fires ONLY on a real deposit (delivered > 0), so the re-walk it
+// enables is the walk that pays; genuinely-empty chests outside the radius
+// keep their memory. The count is the number of emptiness claims physically
+// erased (expired claims count too - the claim is false either way). Silent
+// state hygiene (the clearDryStance law - no log line, no filter key).
+export function forgetEmptyNear (memory, pos, radius = DRY_REARM_RADIUS) {
+  if (!memory || typeof memory !== 'object') return 0
+  if (!pos || typeof pos !== 'object') return 0
+  const x = Number(pos.x)
+  const y = Number(pos.y)
+  const z = Number(pos.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return 0
+  const r = Number(radius)
+  const rad = Number.isFinite(r) && r >= 0 ? r : DRY_REARM_RADIUS
+  const rad2 = rad * rad
+  let cleared = 0
+  for (const key of Object.keys(memory)) {
+    if (typeof key === 'string' && key.startsWith('__')) continue
+    const bucket = memory[key]
+    if (!(bucket instanceof Map)) continue
+    for (const [cellKey, expiry] of bucket) {
+      const [cx, cy, cz] = String(cellKey).split(',').map(s => Number(s))
+      if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cz)) continue
+      const dx = cx - Math.floor(x)
+      const dy = cy - Math.floor(y)
+      const dz = cz - Math.floor(z)
+      if (dx * dx + dy * dy + dz * dz <= rad2) { bucket.delete(cellKey); cleared++ }
+    }
+  }
+  return cleared
+}
+
 // (v0.507.0) THE GRAVITY STASH CORE - the low-chest registry. The dead letter
 // box's REAL cure priced twice (the commons ledger v0.502.0, the climb fund
 // v0.504.0): the tithe banks the fleet's coal at a yard 20-37 levels ABOVE the
@@ -901,7 +947,11 @@ export async function deliverFuelTithe (bot, {
       // dry stances within DRY_REARM_RADIUS un-defer (the deposit side of the
       // ask backoff). The anchor IS the honest scope: a yard-high chest fails
       // the distance test against the diggers' deep stances on its own.
+      // (v0.510.0) THE FUNDED FORGET: the same news reaches the OTHER lane -
+      // the emptiness claims within reach are lies now, the sweeps stop
+      // excluding the funded chest for a 90s clock nobody re-read.
       rearmDryNear(memory, anchor)
+      forgetEmptyNear(memory, anchor)
       log(`fuel anchor: delivered ${delivered} units over the tithe bound (pocket keeps ${FUEL_TITHE_BOUND})`)
     } else log('fuel anchor: the clicks lied - nothing left the pocket (ghost clicks)')
     return { delivered, why: delivered > 0 ? 'ok' : 'ghost clicks' }
