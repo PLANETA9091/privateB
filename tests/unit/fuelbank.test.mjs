@@ -14,7 +14,8 @@ import {
   COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS,
   pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe,
   freshEmptyCells, ANCHOR_FRESH_EMPTY_MS,
-  chestCoverPlan
+  chestCoverPlan,
+  rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS // (v0.506.0) the ask backoff
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -1367,4 +1368,97 @@ test('the climb-fund wire: the refusal rides BEFORE the walk, one line per ask, 
   assert.ok(walkIdx > fundIdx, 'the fund reads BEFORE the walk attempt burns the slice')
   assert.ok(src.includes('let climbLogged = false'), 'ONE line per ask (the doom skip\'s shape)')
   assert.ok(src.includes('climbFundRefusal({') && src.includes('sliceMs: remainingMs()'), 'the wire prices the LIVE clock')
+})
+
+// (v0.506.0) THE ASK BACKOFF - the dry stance's throttle (the dead letter
+// box's repeat-ask churn closes: the climb fund stopped the walks, the backoff
+// stops the re-ASK from a stance the sweep already proved dry).
+
+test('rememberDryStance + dryStanceDeferred: the live shape defers at the SAME floored cell, names the age, re-arms on a moved stance and on TTL expiry', () => {
+  const memory = newCommonsMemory()
+  const t0 = 1000000
+  assert.ok(rememberDryStance(memory, 'F3', { x: 10.7, y: -35.2, z: 200.9 }, t0))
+  // the same cell (floored equivalence: 10.7 -> 10, -35.2 -> -36, 200.9 -> 200)
+  const live = dryStanceDeferred(memory, 'F3', { x: 10, y: -36, z: 200 }, t0 + 10000)
+  assert.ok(live, 'the same stance defers within the TTL')
+  assert.equal(live.ageMs, 10000)
+  // the bot MOVED (one level up) - the geometry changed, the ask re-arms
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 10, y: -35, z: 200 }, t0 + 10000), false)
+  // the TTL expires - a deposit may have landed, the ask re-arms (pruned in place)
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 10, y: -36, z: 200 }, t0 + ASK_BACKOFF_TTL_MS), false, 'the exact TTL boundary is expired (untilMs <= now)')
+  assert.equal(memory['__dry:F3'], undefined, 'the expired record is pruned')
+  // the newest observation owns the clock (overwrite)
+  rememberDryStance(memory, 'F3', { x: 1, y: 2, z: 3 }, t0)
+  rememberDryStance(memory, 'F3', { x: 9, y: 9, z: 9 }, t0 + 5000)
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 1, y: 2, z: 3 }, t0 + 6000), false, 'the older stance no longer defers')
+  assert.ok(dryStanceDeferred(memory, 'F3', { x: 9, y: 9, z: 9 }, t0 + 6000), 'the newest stance owns the clock')
+})
+
+test('clearDryStance: the delivery re-arms the ask (the commons paid)', () => {
+  const memory = newCommonsMemory()
+  rememberDryStance(memory, 'F9', { x: 4, y: 5, z: 6 }, 1000)
+  assert.ok(dryStanceDeferred(memory, 'F9', { x: 4, y: 5, z: 6 }, 2000))
+  assert.ok(clearDryStance(memory, 'F9'))
+  assert.equal(dryStanceDeferred(memory, 'F9', { x: 4, y: 5, z: 6 }, 2000), false)
+  assert.equal(clearDryStance(memory, 'F9'), false, 'a second clear is an honest no-op')
+})
+
+test('the ask backoff: junk-safe end to end (null memory, junk name/pos/now, junk records read false)', () => {
+  assert.equal(rememberDryStance(null, 'F3', { x: 1, y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberDryStance(newCommonsMemory(), '', { x: 1, y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberDryStance(newCommonsMemory(), 'F3', null, 1000), false)
+  assert.equal(rememberDryStance(newCommonsMemory(), 'F3', { x: NaN, y: 2, z: 3 }, 1000), false)
+  assert.equal(rememberDryStance(newCommonsMemory(), 'F3', { x: 1, y: 2, z: 3 }, NaN), false)
+  assert.equal(rememberDryStance(newCommonsMemory(), 'F3', { x: 1, y: 2, z: 3 }, 1000, -5), true, 'a junk ttl reads the default')
+  assert.equal(dryStanceDeferred(null, 'F3', { x: 1, y: 2, z: 3 }, 1000), false)
+  assert.equal(dryStanceDeferred(newCommonsMemory(), 'F3', { x: 1, y: 2, z: 3 }, 1000), false, 'no record = no defer')
+  const memory = newCommonsMemory()
+  memory['__dry:F3'] = 'junk'
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 1, y: 2, z: 3 }, 1000), false, 'a junk record is not a defer')
+  memory['__dry:F3'] = { x: 1, y: 2, z: 3, untilMs: 'junk', storedAt: 900 }
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 1, y: 2, z: 3 }, 1000), false, 'a junk clock prunes')
+  assert.equal(clearDryStance(null, 'F3'), false)
+  assert.equal(clearDryStance(newCommonsMemory(), ''), false)
+})
+
+test('the __dry: namespace co-exists with the empty-chest buckets on ONE memory object (the two lanes never touch)', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 7, y: 8, z: 9 }, t))
+  assert.ok(rememberDryStance(memory, 'F3', { x: 7, y: 8, z: 9 }, t))
+  assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 1, 'the chest bucket survives the dry record')
+  assert.ok(dryStanceDeferred(memory, 'F3', { x: 7, y: 8, z: 9 }, t + 1), 'the dry record survives the chest bucket')
+  assert.equal(memory['__dry:F3'].x, 7, 'the dry record lives under its own key')
+})
+
+test('the ask-backoff wire: the gate rides BEFORE the scan, the record at the single return, the line rides fuel commons (source pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const gateIdx = src.indexOf("dryStanceDeferred(memory, bot?.username")
+  const wantTotalIdx = src.indexOf('const wantTotal')
+  const rememberedIdx = src.indexOf('const remembered = liveEmptyCells(memory, bot?.username, started)')
+  assert.ok(gateIdx > 0, 'the gate exists in the commons sweep')
+  assert.ok(wantTotalIdx > gateIdx, 'the gate rides BEFORE the plan pricing')
+  assert.ok(rememberedIdx > gateIdx, 'the gate rides BEFORE the empty-chest scan (the churn the backoff saves)')
+  const recordIdx = src.indexOf("if (taken > 0) clearDryStance(memory, bot?.username)")
+  assert.ok(recordIdx > gateIdx, 'the record side sits after the sweep loop (the single return)')
+  assert.ok(src.includes("reason: 'ask deferred (dry stance)'"), 'the deferral returns an honest reason')
+  assert.ok(src.includes('the ask defers (this stance came up dry'), 'ONE named defer line')
+  assert.ok(src.includes("log(`fuel commons: the ask defers"), 'the line rides the existing fuel commons prefix (the fuel filter key)')
+})
+
+test('the ask-backoff wiring: a remembered dry stance defers the real sweep before any chest work (mock bot, no world needed)', async () => {
+  const memory = newCommonsMemory()
+  const now = Date.now()
+  rememberDryStance(memory, 'F7', { x: -101, y: 20, z: 300 }, now - 8000) // the bot's TRUE floored cell: floor(-100.4) = -101 (negatives floor DOWN)
+  const lines = []
+  const res = await withdrawFuelCommons({ username: 'F7', entity: { position: { x: -100.4, y: 20.2, z: 300.4 } } }, {
+    itemsNeeded: 4,
+    memory,
+    log: m => lines.push(m)
+  })
+  assert.equal(res.taken, 0)
+  assert.equal(res.chestsVisited, 0, 'no chest work burned - the whole point')
+  assert.equal(res.reason, 'ask deferred (dry stance)')
+  assert.equal(lines.length, 1)
+  assert.match(lines[0], /^fuel commons: the ask defers \(this stance came up dry 8s ago - the climb owns the depth/)
 })

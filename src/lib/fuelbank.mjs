@@ -164,6 +164,69 @@ export function liveEmptyCells (memory, name, now) {
   return out
 }
 
+// (v0.506.0) THE ASK BACKOFF CORE - the dry stance's throttle. The commons
+// ledger priced the repeat-ask churn (53 asks / 0 delivered / every ask's next
+// line the coal skip): the climb fund (v0.504.0) stops the WALKS, the backoff
+// stops the RE-ASK from a stance the sweep already proved dry - the scan+open
+// churn bought a second time per leg bought nothing (geometry does not move in
+// 45s). The state rides the same per-fleet commons memory object under a
+// `__dry:` namespace - the empty-chest buckets (memory[name] Maps) are never
+// touched, the two lanes co-exist on one object.
+export const ASK_BACKOFF_TTL_MS = 45000
+
+const dryKey = name => `__dry:${name}`
+
+/** Pure-ish, junk-safe: remember that `name`'s ask from floored cell `pos`
+ * came up dry at `now` - the stance defers re-asks until now + ttlMs. A newer
+ * observation of the same stance owns the clock (overwrite). */
+export function rememberDryStance (memory, name, pos, now, ttlMs = ASK_BACKOFF_TTL_MS) {
+  if (!memory || typeof memory !== 'object') return false
+  if (typeof name !== 'string' || name.length === 0) return false
+  if (!pos || typeof pos !== 'object') return false
+  const x = Number(pos.x)
+  const y = Number(pos.y)
+  const z = Number(pos.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+  const t = Number(now)
+  if (!Number.isFinite(t)) return false
+  const ttl = Number.isFinite(ttlMs) && ttlMs >= 0 ? ttlMs : ASK_BACKOFF_TTL_MS
+  memory[dryKey(name)] = { x: Math.floor(x), y: Math.floor(y), z: Math.floor(z), untilMs: t + ttl, storedAt: t }
+  return true
+}
+
+/** Pure-ish, junk-safe: is `name`'s ask from cell `pos` deferred at `now`?
+ * Returns { ageMs } for a LIVE dry stance at the SAME floored cell (the caller
+ * names the age), false for any junk/expired/MOVED shape - an expired record is
+ * pruned in place, a moved bot re-arms the ask (the vertical gate's own law:
+ * the next ask runs from wherever the bot then stands). */
+export function dryStanceDeferred (memory, name, pos, now) {
+  if (!memory || typeof memory !== 'object') return false
+  if (typeof name !== 'string' || name.length === 0) return false
+  if (!pos || typeof pos !== 'object') return false
+  const x = Number(pos.x)
+  const y = Number(pos.y)
+  const z = Number(pos.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+  const t = Number(now)
+  if (!Number.isFinite(t)) return false
+  const rec = memory[dryKey(name)]
+  if (!rec || typeof rec !== 'object') return false
+  if (rec.x !== Math.floor(x) || rec.y !== Math.floor(y) || rec.z !== Math.floor(z)) return false
+  if (!Number.isFinite(rec.untilMs) || rec.untilMs <= t) { delete memory[dryKey(name)]; return false }
+  const age = t - Number(rec.storedAt)
+  return { ageMs: Number.isFinite(age) && age >= 0 ? age : 0 }
+}
+
+/** Pure-ish, junk-safe: the stance DELIVERED - the backoff re-arms. Returns
+ * whether a record actually existed (a second clear is an honest no-op false). */
+export function clearDryStance (memory, name) {
+  if (!memory || typeof memory !== 'object') return false
+  if (typeof name !== 'string' || name.length === 0) return false
+  const had = Object.prototype.hasOwnProperty.call(memory, dryKey(name))
+  delete memory[dryKey(name)]
+  return had
+}
+
 // (v0.124.0) THE FUEL ANCHOR CORE - a fleet-wide deterministic fuel chest.
 // Pure, junk-safe, communication-free: every bot that scans the same yard
 // derives the SAME anchor (distance to the yard center is the primary key,
@@ -809,6 +872,23 @@ export async function withdrawFuelCommons (bot, {
   if (!Number.isFinite(ask) || ask <= 0) return { taken: 0, plan: null, chestsVisited: 0, reason: 'nothing to fuel' }
   const started = Date.now()
   const remainingMs = () => budgetMs - (Date.now() - started)
+  // (v0.506.0) THE ASK BACKOFF: a sweep that ended DRY from THIS STANCE defers
+  // the immediate re-ask - the climb fund's refusals are geometry, and geometry
+  // does not move in 45s (the commons ledger's dead letter box: 53 asks, 0
+  // delivered, every ask's next line the coal skip - the repeat ask bought the
+  // scan+open churn twice per leg for the same zero). The gate re-arms honestly
+  // on BOTH real changes: the bot stands ELSEWHERE (the vertical gate's own law
+  // - 'the next ask runs from wherever the bot then stands') or the TTL expires
+  // (a deposit may have landed - the tithe is the only inflow). ONE named line
+  // rides the existing 'fuel commons' prefix (the 'fuel' filter key) - zero
+  // filter changes. The record side sits at the sweep's single return.
+  {
+    const deferred = dryStanceDeferred(memory, bot?.username, (() => { try { return bot?.entity?.position ?? null } catch { return null } })(), started)
+    if (deferred) {
+      log(`fuel commons: the ask defers (this stance came up dry ${Math.max(1, Math.round(deferred.ageMs / 1000))}s ago - the climb owns the depth, the tithe owns the refill, the clock re-arms the ask)`)
+      return { taken: 0, plan: null, chestsVisited: 0, reason: 'ask deferred (dry stance)' }
+    }
+  }
   const wantTotal = Math.min(Number(cap) > 0 ? Math.floor(Number(cap)) : FUEL_WITHDRAW_CAP, fuelNeeded('coal', Math.ceil(ask)))
   const exclude = []
   // (v0.99.0) the sweep memory: known-empty chests are pre-excluded so a
@@ -1099,6 +1179,13 @@ export async function withdrawFuelCommons (bot, {
       try { window.close?.() } catch { /* already closed */ }
     }
   }
+  // (v0.506.0) THE BACKOFF's RECORD SIDE: a sweep that ended DRY from this
+  // stance remembers the stance (the next same-stance ask defers until the TTL
+  // or the bot stands elsewhere); a delivery CLEARS it (the commons paid - the
+  // next ask sweeps immediately). The early exits (junk ask, the deferral
+  // itself) never reach here - only a real sweep writes the clock.
+  if (taken > 0) clearDryStance(memory, bot?.username)
+  else rememberDryStance(memory, bot?.username, (() => { try { return bot?.entity?.position ?? null } catch { return null } })(), Date.now())
   const reason = taken > 0 ? 'ok' : (chestsVisited > 0 ? 'commons empty' : 'no chest reached')
   return { taken, plan: planAll.length > 0 ? planAll : null, chestsVisited, reason }
 }
