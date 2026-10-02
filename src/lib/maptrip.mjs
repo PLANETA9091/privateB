@@ -626,6 +626,23 @@ export function materialBalance (lines) {
 // slack, the same holeMax honesty). Crafting stays unpriced (no
 // quantities; its inflation shows up in the leaks side's sign). Honest
 // nulls: non-array input, no pulse samples.
+//
+// (v0.458.0) THE RE-GATHER SHARE - the slack's own anatomy, priced
+// indirectly. The 1030 fire closed the DIRECT re-collection read (the log
+// carries no pickup emitter - honest silence); the share needs no new
+// emitter: on covered faces slack = legs - leaks is exactly the priced
+// legs' value the counters never saw leak, so recollection = slack/legs
+// is the fraction of the death-drop pricing that came back home (or the
+// pricing's own inflation - the two readings live in the same number,
+// the row carries the number, not the certainty). Verdicts:
+// 're-collected' (>= 0.5 - the majority of the priced legs never leaked)
+// / 'leak-priced' (< 0.5 - the counters' leak explains most of the
+// legs) / null off-covered (no-leak's sign flips the fraction, shortfall
+// makes it negative - both honest silences). Live ledger (faces
+// 34..38): +57% / +79% / +28% / +32% / +81% - the wet/clean faces
+// re-collect (35/38), the mob-violent faces leak (36/37); the 0930
+// 'slack scales with violence' band dies here (face 38: calm by deaths,
+// slack +310 mid-band - the spread is leaks-driven, not legs-driven).
 export function balanceReconcile (lines) {
   if (!Array.isArray(lines)) return null
   const mb = materialBalance(lines)
@@ -640,18 +657,30 @@ export function balanceReconcile (lines) {
     if (pm) placedDelta++
   }
   const legs = lossDelta + placedDelta
-  const verdict = mb.leaks <= 0
+  const leaks = mb.leaks
+  const verdict = leaks <= 0
     ? 'no-leak'
-    : legs >= mb.leaks ? 'covered' : 'shortfall'
+    : legs >= leaks ? 'covered' : 'shortfall'
+  const slack = legs - leaks
+  // (v0.458.0) the re-gather share - covered-only (both sides positive,
+  // legs > 0); every other verdict keeps null (honest silence)
+  const recollection = verdict === 'covered' && legs > 0
+    ? Math.round((slack / legs) * 100) / 100
+    : null
+  const recollectionVerdict = recollection === null
+    ? null
+    : recollection >= 0.5 ? 're-collected' : 'leak-priced'
   return {
-    leaks: mb.leaks,
+    leaks,
     share: mb.share,
     balanceVerdict: mb.verdict,
     lossDelta,
     lossCount,
     placedDelta,
     legs,
-    slack: legs - mb.leaks,
-    verdict
+    slack,
+    verdict,
+    recollection,
+    recollectionVerdict
   }
 }

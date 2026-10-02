@@ -806,3 +806,61 @@ test('balance-reconcile: no-leak + the whole-face inclusion + honest nulls', () 
   assert.equal(balanceReconcile('not an array'), null)
   assert.equal(balanceReconcile(null), null)
 })
+// (v0.458.0) THE RE-GATHER SHARE's tests - the slack's own anatomy priced
+// indirectly (no new emitter: arithmetic on the row's own numbers). The
+// covered split: >= 0.5 un-leaked = 're-collected' (face 38's clean shape:
+// legs 382 vs leaks 72, 81% came home; face 35 79%), < 0.5 =
+// 'leak-priced' (face 36 28% / face 37 32% - the drops stayed lost).
+// Off-covered verdicts keep null (no-leak's sign flips the fraction,
+// shortfall makes it negative) - honest silences, never a forced number.
+test('balance-reconcile: the re-gather share - covered faces split by where the legs\' value went', () => {
+  // face-38's shape: a clean face - the leak a fraction of the priced
+  // legs (hand-counted: mined 200, sinks 170, leaks 30; legs 100 ->
+  // slack 70 -> 70/100 = 0.70 re-collected)
+  const clean = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=10u/18s | sand=0',
+    'F10 [F10] death drop: ~100u lost at [-121,54,371] (cobblestone 64)',
+    't-0s alive=19/19 mined=200 map=9p/1ch banked=160 smelted=0 pocket=20u/131s | sand=0'
+  ]
+  const rc = balanceReconcile(clean)
+  assert.equal(rc.leaks, 30) // 200 - (10 pocket delta + 160 banked)
+  assert.equal(rc.legs, 100)
+  assert.equal(rc.slack, 70)
+  assert.equal(rc.verdict, 'covered')
+  assert.equal(rc.recollection, 0.7) // the slack's own share, 2dp
+  assert.equal(rc.recollectionVerdict, 're-collected') // >= 0.5: the drops largely came home
+  // face-36/37's shape: the leak eats most of the legs - the exact
+  // boundary fixture from v0.455.0 (legs 304, slack 0 -> share 0)
+  const priced = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=10u/18s | sand=0',
+    'F10 [F10] death drop: ~100u lost at [-121,54,371] (cobblestone 64)',
+    'F9 [F9] death drop: ~200u lost at [-129,52,387] (sand 8)',
+    'F7 [F7] climb bridge: placed dirt at [-135,64,419] (support)',
+    'F7 [F7] climb bridge: placed dirt at [-136,64,419] (support)',
+    'F7 [F7] climb bridge: placed cobblestone at [-117,64,383] (pit)',
+    'F6 [F6] climb bridge: placed cobblestone at [-117,65,383] (pit)',
+    't-0s alive=19/19 mined=400 map=9p/1ch banked=40 smelted=6 pocket=60u/131s | sand=0'
+  ]
+  const rl = balanceReconcile(priced)
+  assert.equal(rl.slack, 0)
+  assert.equal(rl.recollection, 0) // the counters' leak covers ALL of the legs
+  assert.equal(rl.recollectionVerdict, 'leak-priced') // < 0.5: the drops stayed lost
+  // honest silences: off-covered verdicts never carry a share
+  const short = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    't-0s alive=19/19 mined=100 map=5p/1ch banked=40 smelted=0 pocket=10u/131s | sand=0'
+  ]
+  const rs = balanceReconcile(short)
+  assert.equal(rs.verdict, 'shortfall')
+  assert.equal(rs.recollection, null) // a negative fraction is no share
+  assert.equal(rs.recollectionVerdict, null)
+  const inf = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=10u/18s | sand=0',
+    'F10 [F10] death drop: ~100u lost at [-121,54,371] (cobblestone 64)',
+    't-0s alive=19/19 mined=90 map=9p/1ch banked=0 smelted=0 pocket=1180u/131s | sand=0'
+  ]
+  const rn = balanceReconcile(inf)
+  assert.equal(rn.verdict, 'no-leak')
+  assert.equal(rn.recollection, null) // leaks <= 0 flips the fraction's meaning
+  assert.equal(rn.recollectionVerdict, null)
+})
