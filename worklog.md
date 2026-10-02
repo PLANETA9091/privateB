@@ -11849,3 +11849,19 @@ Work Log:
 
 Stage Summary:
 - Master = 245c2e4 (pkg 0.450.0). NEXT FIRE: (1) gate 36944756069 (245c2e4) verdict; (2) dispatch face 35 (none active at close) - the roster's THREE-face watch: does the F9-F12 core hold? does F11 keep escalating? the surface-only assignment cure is now PARTIALLY priced (a core exists, a fringe rotates - wire only the core's bots if the lane ever wires); (3) the receipt's TRANSIENT pocket: +57u delivered but end 0 - where does the pocket drain (smelt? bank? spend)? the pulse tail's banked/smelted counters are the read; (4) the fringe rotation driver (depth churn?) - the cadence lens's seats may name it; (5) version next 0.451.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0830
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0830 - v0.451.0 THE POCKET DRAIN LEDGER (where the pocket's peak goes - the counters settle the receipt's 'transient'); DISPATCH face 35 (36946361549, in flight at close); the drain's first field read: face 34's drain UNACCOUNTED by 103u.
+
+Work Log:
+- CHECK ORIGIN FIRST: 733f69c the tip, pkg 0.450.0, no parallel push since my 0800 close. Gate 36944756069 (245c2e4 = my v0.450.0 content) SUCCESS - the 0800 fire's content green.
+- DISPATCH FIRST: fleet 36946361549 (733f69c, 600s, HTTP 204) - face 35; the roster's three-face watch + the drain row's first live face ride on it.
+- THE WIRE (v0.451.0): parsePulseHeader in maptrip.mjs - the pulse line's PRE-PIPE header ('t-536s alive=19/19 mined=81 map=275p/7ch banked=0 smelted=0 pocket=64u/18s | ...') as ONE anchored shape (any deviation null, never a half-read counter; shape verified identical faces 32 -> 34); pocketDrain - the pocket's peak-to-end drop vs banked's/smelted's own rise over the SAME samples, verdicts no-drop / banked / smelted / banked+smelted / UNACCOUNTED (honest silence, never fabricated). Decompose: the POCKET DRAIN LEDGER row after the receipt.
+- THE FIELD READ (face 34, verified live pre-push): pocket start 64u -> end 404u (peak 1333u at t-201s, drop 929u); banked +816, smelted +10 over 51 samples - VERDICT UNACCOUNTED by 103u. The parallel lane's fire-0738 'banked' guess was CLOSE (88% of the drain) but incomplete - the residual ~11% is now a NAMED open question (placement/loss/crafting) with a number on it.
+- Tests: maptrip 18 -> 20 (the header verbatim battery incl. token-missing/renamed junk; the five verdicts hand-counted - TWO of my own hand-counts corrected against the lib mid-test: the lib's arithmetic held, the fixtures learned). Syntax 354/0, unit 204/204. Push 733f69c..113a986 CLEAN (rebase took nothing).
+- Gates at close: 36946946953 (113a986 = v0.451.0) in_progress; fleet 36946361549 (face 35) in_progress (integration leg); gate 36945183693 (733f69c) SUCCESS - the 0800 tip resolved green.
+
+Stage Summary:
+- Master = 113a986 (pkg 0.451.0). NEXT FIRE: (1) gate 36946946953 verdict; (2) fleet 36946361549 (face 35) poll => mine: the roster's THREE-face watch (does the F9-F12 core hold? F11's escalation 1x -> 3x -> ?), the drain row's first live face (is the residual repeatable? does banked absorb on a calmer face?), the receipt's row 3; (3) the unaccounted residual: if it repeats, the pulse tail's per-resource counters may split placement vs loss (the mined-vs-pocket+banked identity over samples - the material balance lens); (4) version next 0.452.0. Identity: PLANETA9091.
