@@ -41,6 +41,7 @@ import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the 
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
+import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the pounce book - the well pounce's decline probe anatomy and the attempt verdicts
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2251,5 +2252,23 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  supply: built ${t.built} (${t.buildSecs}s${t.tableFirst ? `, table-first orders ${t.tableFirst}` : ''}) vs reused ${t.reuse} - the foundry is already built`)
     console.log(`  refused: cobble-floor ${t.cobbleFloor} / plank-death ${t.plankDeath}${t.nothingToSmelt ? ` / nothing-to-smelt ${t.nothingToSmelt}` : ''}${t.otherRefusals ? ` / other ${t.otherRefusals}` : ''}${t.skipped ? ` / leg-clock-skipped ${t.skipped}` : ''}`)
     if (t.planksDecisions) console.log(`  plank death anatomy: ${t.planksDecisions} craft-planks decisions (${t.planksLogs} logs, same-type floor short ${t.sameTypeShort}) - ${t.attempts} attempts ${(t.timeoutMs / 1000).toFixed(0)}s, all-failed ${t.allFails}, craft storms ${t.storms} (${t.stormCooldownMs}ms), stale windows ${t.grid}`)
+  }
+}
+
+// (v0.498.0) THE POUNCE BOOK - the well pounce's own field book: the
+// decline probe's signature anatomy (the floating all-air class, the
+// lawn, the canopy head-block) and the attempt verdicts (the guard's
+// wet feet, the stalls). fire-0038's open window, taken.
+{
+  const pb = pounceBook(lines)
+  if (pb && pb.totals.total > 0) {
+    const t = pb.totals
+    console.log(`--- POUNCE BOOK (v0.498.0: the well pounce's decline probe, the attempt verdicts) ---`)
+    console.log(`  probe: signature declines ${t.signature} (floating all-air ${t.floating} / support-air ${t.supportAir} / lawn ${t.lawn} / stone ${t.stone} / head-blocked ${t.headBlocked} / other ${t.sigOther})`)
+    const pairRows = Object.entries(t.pairs).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    if (pairRows.length) console.log(`  pairs: ${pairRows.map(([k, n]) => `${k} ${n}`).join(' / ')}`)
+    console.log(`  guard: wet feet ${t.guardWet} / cap spent ${t.guardCap} - attempts: stalled ${t.stalls}, landed ${t.landed}${t.stallOtherTicks || t.landedOtherTicks ? `, off-plan ticks ${t.stallOtherTicks + t.landedOtherTicks}` : ''}`)
+    const rows = Object.entries(pb.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
+    if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
   }
 }
