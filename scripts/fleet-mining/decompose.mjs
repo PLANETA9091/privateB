@@ -23,6 +23,7 @@ import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the fu
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { upgradeCensus, deferPromise, upgradeVerdicts } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named
+import { counterGap } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1442,18 +1443,25 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const dpBits = Object.entries(dp.perBot).sort((x, y) => x[0].localeCompare(y[0])).map(([k, v]) => `${k}=${v}`).join(' ')
     console.log(`  the rung's promise (v0.467.0): ${dp.deferringBots} deferred bot(s) - took-after ${dp.tookAfter}, took-before-only ${dp.tookBeforeOnly}, kept ${dp.kept} (${dpBits})`)
   }
-  // (v0.468.0) THE VERDICT CENSUS - the counter-vs-words window named from
-  // the emitter's own code. The policy flow's verdict lines carry the
-  // detail that tells the paths apart: a kit list = the tier-raise craft
-  // (the delegation's 'upgraded:' words cover THESE), 'worn (left=N/M)' =
-  // the worn-replacement craft (the upgraded: words NEVER speak here -
-  // face 42's 2-extra mystery resolved: the counter counted them, the
-  // words could not), 'already stone+' = the silent no-op. The window
-  // arithmetic is the reader's: the counter's upgraded= = verdict ok +
-  // commune ok; the words' upgraded: lines = the tier class only.
   const uv = upgradeVerdicts(lines)
   if (uv && (uv.ok + uv.failed + uv.commune) > 0) {
     console.log(`  upgrade verdicts (v0.468.0): ok ${uv.ok} (tier ${uv.tier}, worn ${uv.worn}${uv.maxWear !== null ? `, closest left=${uv.maxWear}` : ''}, noop ${uv.noop}), failed ${uv.failed}, commune ${uv.commune} - the counter-vs-words window: the words cover the tier class, the worn and noop crafts stay the counter's own`)
+  }
+  // (v0.469.0) THE COUNTER-WORDS GAP - the same window closed from the
+  // tally side (SLOT COLLISION #5: the 0.468.0 verdict census named the
+  // worn class live mid-fire; this lens was built from the same code-read
+  // in the same hour - THE CONVERGENCE, cross-validated). The counter
+  // counts up.ok at BOTH call sites; the words only land on the delegated
+  // rung - the local path (the iron tier raise, the worn replacement)
+  // returns ok and prints '<target>: crafted' but never the census words.
+  // The lens owns the tally line (unowned until now) and joins: gap =
+  // tally - words; the named windows subtract (the local verdicts'
+  // crafted = the counter-only surplus, the '[upgrade] failed:' words =
+  // the deficit); the residual is the honest unnamed remainder - read,
+  // never guessed. No tally line reads gap null honestly (truncated log).
+  const cg = counterGap(lines)
+  if (cg && (cg.tally !== null || cg.words > 0 || cg.pathBCrafted > 0 || cg.pathBFailed > 0 || cg.pathAFailed > 0)) {
+    console.log(`  counter vs words (v0.469.0): tally ${cg.tally ?? 'none'}, words ${cg.words}, gap ${cg.gap ?? 'none'} (local crafted ${cg.pathBCrafted}, local failed ${cg.pathBFailed}, rung failed-words ${cg.pathAFailed}, residual ${cg.residual ?? 'none'})`)
   }
 }
 
