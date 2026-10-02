@@ -11878,3 +11878,21 @@ Work Log:
 Stage Summary:
 - v0.452.0 THE DRAIN ATTRIBUTION landed; the drain question 0.451.0 opened now has its first priced answer (loss leg dominates on face-29 fuel).
 - NEXT FIRE: (1) gate 113a986 + e2cbefd verdicts; (2) FACE 35 (36946361549) SUCCESS => download + mine with the FULL lens: the roster's THREE-face watch (does the F9-F12 core hold? does F11 keep escalating?), the drain attribution's FIRST field read on fresh fuel (is the loss leg still dominant? do placements stay minor?), the receipt's calibrated windows; (3) if the loss leg dominates AGAIN - the death-prevention lanes (o2 trigger wiring pricing, the climb-out census's fail whys) are the drain's real cure candidates - price before any wire; (4) the preflight cure still waits for fuel (occlusion 4:1); (5) version next 0.453.0. Identity: PLANETA9091.
+
+---
+Task ID: cron-20261002-0838 addendum (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: FACE 35 mined (fleet 36946361549 SUCCESS, 3955 lines, decompose exit 0) - the drain attribution's first fresh-fuel read; the roster's three-face watch answered; the o2 forms 1:1:1.
+
+Work Log:
+- Artifact 11202844385 -> /home/z/my-project/scripts/fleet-mining/face35/ (the act kept).
+- THE DRAIN ATTRIBUTION's FIRST FRESH-FUEL READ: face 35 is a CLEAN face - pocket start 77u -> end 1180u (peak 2188u at t-93s, drop 1008u); banked +1093, smelted +7 over 61 samples - verdict 'banked', the counters cover the whole drop, NOTHING to attribute. Cross-face ledger: face 29 unaccounted->deaths-dominated (retrospective), face 30 banked, face 34 unaccounted by 103u (11%), face 35 banked clean - THE DRAIN IS EPISODIC, NOT STRUCTURAL: when deaths cluster after the peak the loss leg dominates (face 29); when deliveries flow the bank absorbs everything (face 35). No cure wire justified by the aggregate - the deaths lane stays the lever for the wet faces.
+- THE ROSTER'S THREE-FACE WATCH ANSWERED - the cast ROTATES: face 32 {F2 F9 F10 F11 F12 F17}, face 34 {F1 F8 F9 F10 F11 F12 F13 F16}, face 35 {F1 F5 F6 F8 F9 F13 F14 F15 F18} (9 bots, 6 skip-only). ONLY F9 IS A THREE-FACE REPEAT; F12 2/3; F10/F11 2/3 (absent this face). The two-face 'stable core F9-F12' did NOT hold - the refusal is BROAD and EPISODIC (9 of 19 bots this face), the surface-only assignment cure's fuel is WEAKER than the 0800 lane's two-face read priced: no small cast to exempt.
+- THE RECEIPT: 2 launch windows, BOTH delivered - F17+21u, F3+14u (spans 91s, no holes) - the calibrated 6-sample window keeps paying.
+- The o2 reset(-1) forms 1:1:1 on one face: F14 rescue ACTIVE (leg deploy, wet 5s), F9 rescue 30s AGO (leg walk to furnace, wet 36s), F16 rescue NEVER (leg next column, wet 28s) - prior pricing was rescue-never 4:1; the forms SPREAD. Deaths 6 (drown 3, mob 2, explosion 1).
+- Economy: mined 2450, banked 1275, conversion 93.1%; zero-hops 51 (decide-timeout 16 leads); GC pin 70%, mainLate max 1323ms; the PINNED SEAT rows new high (F5 x22 at oak [-121,389], F15 x22 at birch [-99,388] - the d-flat walls class).
+- Gates at close: my 0.452.0 gate (36948078932, c8d27fa) in_progress; face 36 = workflow_dispatch 36948827479 (the 0900 lane, on c8d27fa = 0.452.0 code) in flight - NO dispatch from this lane. Red count 0.
+
+Stage Summary:
+- Master = c8d27fa (pkg 0.452.0). The drain ledger now reads BOTH directions (residual priced retrospectively, clean faces confirmed clean); the refusal cure lost its fuel (no stable cast); the o2 forms spread 1:1:1.
+- NEXT FIRE: (1) gate 36948078932 verdict (0.452.0); (2) FACE 36 (36948827479) SUCCESS => download + mine (the lens is current in-tree); (3) the o2 TRIGGER WIRING pricing is the leading cure candidate - three faces of form data (29: never-heavy, 35: 1:1:1) - price the trigger gap (rescue active but wet 5s still drowned) before any wire; (4) the pinned seats x22 rows - the trip lane's own repeat economics, read row 2 of the cadence lens; (5) version next 0.453.0. Identity: PLANETA9091.
