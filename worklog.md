@@ -11947,3 +11947,19 @@ Work Log:
 
 Stage Summary:
 - Master = c481b4f (pkg 0.455.0). NEXT FIRE: (1) gate 36953994434 verdict; (2) fleet 36954023145 (face 37) poll => mine: the reconcile row's fresh fuel (the slack band +300..+550? does a shortfall ever land?), the roster five-face (F9 5/5?), the pocket killers row 2; (3) price the slack (the ~Nu margin's re-collection hypothesis) from the log's gather/pickup lines near the drop coords BEFORE any cure wire; (4) version next 0.456.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1030
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1030 - v0.456.0 THE WINDOW'S SIGN (the receipt's window names its delta's verdict: delivered/drained/flat/null); FACE 37 mined (the sign row's first live face; the reconcile row 2 covered slack +134); the 0930 worklog misread CORRECTED; DISPATCH face 38 (36956785186).
+
+Work Log:
+- CHECK ORIGIN FIRST: 9a99a3a the tip (pkg 0.455.0); gate 36954115651 SUCCESS - v0.455.0 green. Face 37 (36954023145) in flight at open -> polled SUCCESS this box, NO dispatch at open.
+- THE RE-COLLECTION FRONT CLOSED: the 0930 NEXT-FIRE item (price the reconcile slack from re-gather lines) has NO emitter - the log's 'gather' hits are water-rescue prose + one wood-trip summary; no pickup lines exist. Honest silence - the lens would be fabricated. Took the 0938 lane's own open proposal instead (the receipt's negative-window verdict).
+- THE WIRE (v0.456.0): tripReceipt's window grows sign - delivered / drained (the stock FELL across the launch window - the plan-side alarm: a withdrawal/death/placement inside the span outran the trip; the launch's own yield is a net read, never attributed) / flat (the face-33 lag class) / null (no after sample). Decompose: the token carries the word + the DRAINED summary line.
+- THE CORRECTION (live pre-push): face 36's BOTH sand windows read -20u DRAINED - the 0930 worklog's '+40u delivered' misread the sign; face 36 is the first live drained-window face. The sign field makes the row name it so no hand-read flips it again.
+- FACE 37 (3211 lines): the sign row's first live face - F6+2u delivered, F12+0u flat; the reconcile row 2 - leaks +284 vs legs 418 = covered, slack +134 (the CALM face's margin is narrower than the violent faces' +327..+548 - the slack scales with violence, the next read's datum); the balance row 3 (leaks 18.5%); the drain row 4 (drop 213u, banked +185, covered); the killers row 2 (Spider 23u + Skeleton 18u - the mob family 2/2, tiny on calm faces); the roster FIVE-face - F9 present 5/5 (voice churns to skip-only), the cast 13 bots / 11 skip-only, launchers F6+F12 only.
+- Tests: maptrip 34 -> 35. Syntax 354/0, unit 204/204 files. Push 9a99a3a..3be845f CLEAN. DISPATCH face 38: 36956785186 (3be845f = 0.456.0, HTTP 204) after the push. CI gate 36956729100 in_progress at close - no verdict held, honest.
+
+Stage Summary:
+- Master = 3be845f (pkg 0.456.0). NEXT FIRE: (1) gate 36956729100 verdict; (2) face 38 (36956785186) mine: the sign row 2 (drained on violence? flat on calm?), the reconcile row 3 (the slack-vs-violence curve - a third point: +134 calm, +327/+545/+548 violent), the roster six-face (F9 6/6?); (3) the combat/night cure pricing still open; (4) version next 0.457.0. Identity: PLANETA9091.
