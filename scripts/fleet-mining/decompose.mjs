@@ -13,6 +13,7 @@ import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-d
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
+import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -359,6 +360,18 @@ for (const l of lines) {
 }
 console.log('  sight-loss windows (s before death):', sightSecs.length ? sightSecs.join(', ') : 'none')
 console.log('  o2=reset(-1) pass lines (the blind reads between starts):', count(/o2=reset\(-1\)/))
+// (v0.477.0) THE RESCUE-RELATION SPLIT - the o2 census's (v0.379.0) missing
+// half: 'rescue Ns ago' is a COMPLETED rescue (the re-entry class - the lane
+// saved the bot once, the leg walked it back), not the live lane - the
+// census's 'active' bucket took both. The sentry's last-known read joins
+// beside it (the leakClock law at-or-before the death; sentry.mjs's own
+// parser - one parser per emitter). o2Gap in src/lib/o2gap.mjs owns the
+// death-context grammar (the reader side had none); silent on zero deaths.
+const o2g = o2Gap(lines)
+if (o2g && o2g.deaths > 0) {
+  const o2Bits = Object.entries(o2g.perBot).map(([bot, v]) => `${bot} [last pass ${v.lastPass ? `${v.lastPass.head} o2=${v.lastPass.o2.kind === 'value' ? v.lastPass.o2.value : v.lastPass.o2.kind}` : 'none'}, rescue ${v.rescueKind === 'stale' ? `${v.rescueAgo}s ago` : v.rescueKind}, ${v.wetKind === 'unknown' ? 'wet unknown' : `wet ${v.wetS}s${v.wetKind === 'atLast' ? '@last' : ''}`}]`).join(' ')
+  console.log(`  rescue relation split (v0.477.0): live ${o2g.rescue.live} (the lane was flying) / stale ${o2g.rescue.stale} (Ns ago - the lane completed, the bot re-drowned) / never ${o2g.rescue.never} - wet at-last ${o2g.wet.atLast}, live ${o2g.wet.live}, unknown ${o2g.wet.unknown} - last-pass join ${o2g.lastPass.seen}/${o2g.deaths}${o2Bits ? ` (${o2Bits})` : ''}`)
+}
 // (v0.382.0) THE BANK-FLOW CENSUS - face 19 (36802577873) closed 19/19 ALIVE
 // with a 495u pocket still unbanked (38.6% of it crafted-class surplus the
 // mined counter never sees) and the flow-priced budgets naming the gap: the
