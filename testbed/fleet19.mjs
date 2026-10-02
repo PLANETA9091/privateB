@@ -40,7 +40,7 @@ import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOver
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
@@ -1543,6 +1543,11 @@ async function runBot (name, target, index) {
         // fresh spot.
         const relootDeath = miner.lastDeath?.() ?? null
         if (relootDeath && !relootDeath.attempted) {
+          // (v0.484.0) THE PILE ARM - the unarmed grace's own bypass, read
+          // once per pass (pure, stateless): a death pile carrying the
+          // big-pile floor turns the unarmed delay into the walk (the walk
+          // IS the bootstrap - it fills the pocket the delay waits for).
+          const relootPileArm = relootPileVerdict({ pileU: relootDeath.pocketU }).bypass
           let rp = null
           try {
             rp = relootPlan({
@@ -1557,7 +1562,7 @@ async function runBot (name, target, index) {
           if (!rp.go) {
             relootDeath.attempted = true
             console.log(`${name} reloot: no walk (${rp.why})`)
-          } else if (!hasPickNow() && relootUnarmedVerdict({ deathAt: relootDeath.at, now: Date.now() }).defer) {
+          } else if (!hasPickNow() && relootUnarmedVerdict({ deathAt: relootDeath.at, now: Date.now() }).defer && !relootPileArm) {
             // (v0.203.0) THE DELAY CLASS - a delay, not a verdict: the read
             // re-arms for the next loop pass (the retry-storm law is
             // untouched - the WALK still fires at most once, attempted flips
@@ -1571,6 +1576,12 @@ async function runBot (name, target, index) {
             // window; past it this branch falls through to the walk lane
             // (the night fence still owns the surface) and the salvage walk
             // re-arms from the death drops themselves.
+            // (v0.484.0) THE PILE ARM skips this delay from the FIRST pass
+            // when the death pile carries the big-pile floor (face 43's F13:
+            // the 141u pile rode the single unarmed delay and the re-arm
+            // never landed inside the face window) - the walk fills the
+            // pocket the delay waits for; the night fence below still owns
+            // the surface.
             console.log(`${name} reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)`)
           } else if (walkForbidden(miner.bot.time?.timeOfDay)) {
             relootDeath.attempted = true
@@ -1581,7 +1592,7 @@ async function runBot (name, target, index) {
             // expired with the pocket still empty, the walk re-arms from the
             // death drops (the marker rides the walking line for the census).
             const relootUnarmedEscalation = !hasPickNow()
-            console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s${relootUnarmedEscalation ? ', the unarmed escalation' : ''})`)
+            console.log(`${name} reloot: walking to the own death spot [${rp.goal.x},${rp.goal.y},${rp.goal.z}] (${Math.round(rp.dist)}b, budget ${(rp.budgetMs / 1000).toFixed(0)}s, window ${(rp.windowMs / 1000).toFixed(0)}s${relootUnarmedEscalation ? ', the unarmed escalation' : ''}${relootPileArm && relootUnarmedEscalation ? ', the pile arm' : ''})`)
             const relootT0 = Date.now()
             try {
               await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, rp.goal.x, rp.goal.y, rp.goal.z, { range: rp.range }), { timeoutMs: rp.budgetMs, label: 'reloot' })

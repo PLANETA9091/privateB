@@ -261,9 +261,27 @@ test('strandedPiles reflects the lane\u0027s walks without inventing a recovered
     f43RelootRefusal
   ])
   assert.equal(r.arms, 1)
+  assert.equal(r.pileArms, 0, 'a legacy arm carries no pile marker (the v0.484.0 counter names only the bypass class)')
   assert.equal(r.arrivals, 1)
   assert.equal(r.dropped, 645)
   assert.equal(r.refusals, 1)
+})
+
+test('strandedPiles counts the pile arms (the v0.484.0 bypass\u0027s own voice)', () => {
+  const r = strandedPiles([
+    ...f43Piles,
+    // the bypass walk's line shape: the markers ride the walking line's tail
+    'F13 reloot: walking to the own death spot [-142,61,391] (20b, budget 5s, window 280s, the unarmed escalation, the pile arm)',
+    'F13 reloot: arrived in [-142,61,391]',
+    f43RelootRefusal
+  ])
+  assert.equal(r.arms, 1)
+  assert.equal(r.pileArms, 1, 'the pile arm is a SUBCLASS of the arms (never double-counted)')
+  assert.equal(r.arrivals, 1)
+  // the plain arm stays plain
+  const plain = strandedPiles(['F1 reloot: walking to the own death spot [-128,60,395] (25b, budget 6s, window 290s)'])
+  assert.equal(plain.arms, 1)
+  assert.equal(plain.pileArms, 0)
 })
 
 test('strandedPiles splits the refusal whys on the first word (the census\u0027s own law)', () => {
@@ -276,7 +294,7 @@ test('strandedPiles splits the refusal whys on the first word (the census\u0027s
 })
 
 test('strandedPiles reads zero honestly and skips junk (the zero law)', () => {
-  const zero = { drops: 0, emptyReads: 0, dropped: 0, biggest: null, bigPiles: 0, bigPileUnits: 0, topShare: 0, arms: 0, arrivals: 0, refusals: 0, refusalWhys: {} }
+  const zero = { drops: 0, emptyReads: 0, dropped: 0, biggest: null, bigPiles: 0, bigPileUnits: 0, topShare: 0, arms: 0, pileArms: 0, arrivals: 0, refusals: 0, refusalWhys: {} }
   assert.deepEqual(strandedPiles([]), zero)
   assert.deepEqual(strandedPiles(null), zero)
   assert.deepEqual(strandedPiles('not an array'), zero)

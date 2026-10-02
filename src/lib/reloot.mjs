@@ -45,6 +45,7 @@
 // the hazards that killed the bot in the first place.
 
 import { walkBudgetMs } from './tripplan.mjs'
+import { BIG_PILE_U } from './sealdeath.mjs' // (v0.484.0) the pile arm's floor - the stranded read's own threshold, one truth never forked
 
 /** Vanilla item despawn: drops vanish 300s after they land. */
 export const RELOOT_DESPAWN_MS = 300000
@@ -242,6 +243,47 @@ export function relootUnarmedVerdict ({
   if (!Number.isFinite(grace) || grace <= 0) return { defer: true, why: 'junk-grace' }
   if (el < grace) return { defer: true, why: 'grace' }
   return { defer: false, elapsedMs: el }
+}
+
+/**
+ * (v0.484.0) THE PILE ARM - the unarmed grace's own bypass, priced by the
+ * stranded read. MEASURED (v0.476.0, faces 41..43): 20 piles ~2086u dropped
+ * across n=3 and the reloot lane walked ZERO (arms 0/0/0, arrivals 0/0/0)
+ * - the gate reads the bot's POCKET while the pile sits on the GROUND: the
+ * dead bot's pocket is empty BECAUSE it died carrying everything. Face 43's
+ * anatomy is the verbatim proof: F13's single 'no walk (unarmed)' delay (the
+ * v0.261.0 grace line, log line 1773 of the face) rode a death pile of
+ * ~141u (cobblestone 58+13, oak_planks 12, diorite 15, sand 12 - the very
+ * re-arm materials the spare craft cannot fund), and the re-arm never
+ * landed inside the face window. THE CURE: when the death's own drop pile
+ * carries the big-pile floor (BIG_PILE_U 100 - the stranded read's own
+ * threshold, one truth imported from sealdeath.mjs), the delay is the WRONG
+ * gate: the walk IS the bootstrap - it fills the pocket the delay waits
+ * for, from the drops that would otherwise strand. The bypass skips ONLY
+ * the unarmed delay: the plan's fences (expired/no-time/...), the night
+ * fence and the one-walk-per-death law all keep their verdicts (the bypass
+ * leads INTO the night check, never around it), and an armed walker (the
+ * bootstrap landed a pick inside the grace) walks the normal path where the
+ * bypass does no work.
+ *
+ * Junk discipline: a junk mass reads 0 (never arms on junk - the
+ * gates-decide convention; the v0.203.0 seed record carries no pocketU and
+ * keeps the legacy delay law byte for byte), a junk floor reads the
+ * one-truth default. Pure, stateless: the pass re-evaluates exactly like
+ * the delay read it bypasses.
+ *
+ * @param {object} [p]
+ * @param {number|null} [p.pileU] the death record's own pocket stake (the
+ *        death-drop total stored AT the death event - the pile's mass)
+ * @param {number} [p.floorU] the big-pile floor (default BIG_PILE_U)
+ * @returns {{bypass:boolean, why?:string}} bypass true = the walk arms now
+ *   (the caller appends 'the pile arm' marker for the census)
+ */
+export function relootPileVerdict ({ pileU = 0, floorU = BIG_PILE_U } = {}) {
+  const u = Number.isFinite(pileU) && pileU > 0 ? pileU : 0
+  const floor = Number.isFinite(floorU) && floorU > 0 ? floorU : BIG_PILE_U
+  if (u >= floor) return { bypass: true, why: 'pile' }
+  return { bypass: false }
 }
 
 /**

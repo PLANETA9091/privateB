@@ -210,12 +210,13 @@ export function strandedPiles (lines) {
   const piles = []
   let emptyReads = 0
   let arms = 0
+  let pileArms = 0 // (v0.484.0) the arms that rode 'the pile arm' marker - the bypass's own voice
   let arrivals = 0
   let refusals = 0
   const refusalWhys = {}
   for (const l of rows) {
     if (typeof l !== 'string') continue
-    if (RELOOT_ARM_RE.test(l)) { arms++; continue }
+    if (RELOOT_ARM_RE.test(l)) { arms++; if (l.includes('the pile arm')) pileArms++; continue }
     if (RELOOT_ARRIVAL_RE.test(l)) { arrivals++; continue }
     const rm = l.match(RELOOT_REFUSAL_RE)
     if (rm) {
@@ -246,6 +247,7 @@ export function strandedPiles (lines) {
     bigPileUnits,
     topShare: dropped > 0 && biggest ? biggest.units / dropped : 0,
     arms,
+    pileArms, // (v0.484.0) the pile-arm class of the arms - the bypass's field debut counter
     arrivals,
     refusals,
     refusalWhys

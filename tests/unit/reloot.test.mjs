@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, relootUnarmedVerdict, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, relootUnarmedVerdict, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
   RELOOT_SURFACE_RISE_MAX,
   RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS, RELOOT_UNARMED_GRACE_MS
 } from '../../src/lib/reloot.mjs'
@@ -591,4 +591,41 @@ test('v0.261.0: the escalation never arms on junk (the gates-decide convention)'
   assert.equal(relootUnarmedVerdict({ deathAt: NOW, now: NOW + 200000, graceMs: -5 }).defer, true)
   assert.equal(relootUnarmedVerdict({ deathAt: NOW, now: NOW + 200000, graceMs: NaN }).defer, true)
   assert.equal(relootUnarmedVerdict({}).defer, true, 'no deathAt at all defers (default null)')
+})
+
+// ---- (v0.484.0) THE PILE ARM - the unarmed grace's own bypass ----
+// Face 43's verbatim anatomy (run 36970605824, log line 1773): F13's single
+// 'no walk (unarmed)' delay rode a death pile of ~141u (line 1585) - the
+// pocket was empty BECAUSE the pile lay on the ground. The bypass arms the
+// walk when the pile carries BIG_PILE_U (the stranded read's own floor).
+test('v0.484.0: the pile arm - the unarmed grace bypasses when the pile carries the floor', () => {
+  // the floor law: BIG_PILE_U's own number arms (the boundary at 100)
+  assert.equal(relootPileVerdict({ pileU: 100 }).bypass, true)
+  assert.equal(relootPileVerdict({ pileU: 507 }).bypass, true, 'the faces\u0027 biggest stranded read arms')
+  assert.equal(relootPileVerdict({ pileU: 141 }).bypass, true, 'the face-43 F13 stake arms (the verbatim proof)')
+  assert.equal(relootPileVerdict({ pileU: 161 }).bypass, true, 'the face-43 F1 shape arms')
+  // the boundary: one below the floor keeps the legacy delay law
+  assert.equal(relootPileVerdict({ pileU: 99 }).bypass, false)
+  assert.equal(relootPileVerdict({ pileU: 29 }).bypass, false, 'the face-43 F5 shape keeps the grace')
+  // junk never arms (the gates-decide convention; the v0.203.0 seed record carries no pocketU)
+  assert.equal(relootPileVerdict({ pileU: null }).bypass, false)
+  assert.equal(relootPileVerdict({ pileU: undefined }).bypass, false)
+  assert.equal(relootPileVerdict({ pileU: NaN }).bypass, false)
+  assert.equal(relootPileVerdict({ pileU: -5 }).bypass, false)
+  assert.equal(relootPileVerdict({ pileU: 0 }).bypass, false)
+  assert.equal(relootPileVerdict({}).bypass, false)
+  // a junk floor reads the one-truth default (BIG_PILE_U), never a free arm
+  assert.equal(relootPileVerdict({ pileU: 141, floorU: NaN }).bypass, true)
+  assert.equal(relootPileVerdict({ pileU: 141, floorU: 0 }).bypass, true)
+  assert.equal(relootPileVerdict({ pileU: 141, floorU: -3 }).bypass, true)
+  assert.equal(relootPileVerdict({ pileU: 99, floorU: NaN }).bypass, false)
+  // the verdict names its why (the refusal-CARRIES-its-why convention, mirrored on the arm)
+  assert.equal(relootPileVerdict({ pileU: 141 }).why, 'pile')
+  assert.equal(relootPileVerdict({ pileU: 29 }).why, undefined)
+})
+
+test('v0.484.0: the pile arm raises the floor monotonically (a custom floor never undercuts the default)', () => {
+  assert.equal(relootPileVerdict({ pileU: 100, floorU: 200 }).bypass, false, 'a higher floor holds')
+  assert.equal(relootPileVerdict({ pileU: 200, floorU: 200 }).bypass, true)
+  assert.equal(relootPileVerdict({ pileU: 1, floorU: 1 }).bypass, true, 'a lower floor is the caller\u0027s own priced read - the default stays BIG_PILE_U')
 })

@@ -122,7 +122,7 @@ if (sweep.keywordOnly.length) {
       const bigNote = sp.drops > 0 ? `, big(>=${BIG_PILE_U}u) ${sp.bigPiles} carrying ${sp.bigPileUnits}u` : ''
       const biggestNote = sp.biggest ? ` - biggest ${sp.biggest.units}u (${sp.biggest.bot} @[${sp.biggest.pos ?? '-'}]) = ${(sp.topShare * 100).toFixed(0)}%` : ''
       const whys = Object.entries(sp.refusalWhys).map(([w, n]) => `${w} ${n}`).join(', ')
-      const laneNote = ` - the reloot lane: arms ${sp.arms}, arrivals ${sp.arrivals}, refusals ${sp.refusals}${whys ? ` (${whys})` : ''}`
+      const laneNote = ` - the reloot lane: arms ${sp.arms}${sp.pileArms ? ` (pile arms ${sp.pileArms})` : ''}, arrivals ${sp.arrivals}, refusals ${sp.refusals}${whys ? ` (${whys})` : ''}`
       const priceNote = sp.arrivals > 0 ? `the lane walked ${sp.arrivals} pile(s) home (the units uncounted - the lines carry no mass)` : 'THE PRICE: the lane never walked - the dropped mass sits where it fell'
       console.log(`  stranded piles (v0.476.0): ${sp.drops} pile(s) ~${sp.dropped}u${bigNote}${biggestNote}${laneNote} - ${priceNote}`)
     }

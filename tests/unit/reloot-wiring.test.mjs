@@ -25,8 +25,8 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
-    'the census rides the import (the runner reads the plan, the classifier, the scanner, the census, the surface ladder, the rim dig AND the v0.261.0 unarmed verdict from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+  assert.match(fleetSrc, /import \{ relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the v0.484.0 pile verdict, the classifier, the scanner, the census, the surface ladder, the rim dig AND the v0.261.0 unarmed verdict from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -89,8 +89,8 @@ test("REGRESSION PIN: the fleet filter carries the 'reloot' key", () => {
 test('v0.203.0: the unarmed refusal is a delay, not a verdict (the run71 starvation)', () => {
   const lane = fleetSrc.match(/const relootDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?reloot: walk failed/)
   assert.ok(lane, 'the lane exists')
-  const unarmed = lane[0].match(/else if \(!hasPickNow\(\) && relootUnarmedVerdict\(\{ deathAt: relootDeath\.at, now: Date\.now\(\) \}\)\.defer\) \{[\s\S]*?\n          \} else if/)
-  assert.ok(unarmed, 'the unarmed arm exists (v0.261.0: the grace-bounded condition)')
+  const unarmed = lane[0].match(/else if \(!hasPickNow\(\) && relootUnarmedVerdict\(\{ deathAt: relootDeath\.at, now: Date\.now\(\) \}\)\.defer && !relootPileArm\) \{[\s\S]*?\n          \} else if/)
+  assert.ok(unarmed, 'the unarmed arm exists (v0.261.0: the grace-bounded condition; v0.484.0: the pile-arm bypass rides the condition)')
   assert.ok(!unarmed[0].includes('attempted = true'),
     'the unarmed arm flips NOTHING - the plan read re-arms next pass (the bootstrap owns ~30-60s, the despawn window 300s)')
   const planArm = lane[0].match(/if \(!rp\.go\) \{[\s\S]*?\n          \} else if/)
@@ -359,4 +359,33 @@ test('v0.261.0: the unarmed grace escalates the deadlock class into the walk lan
   assert.ok(fleetSrc.includes('relootUnarmedVerdict'), 'the fleet imports the pure verdict')
   assert.ok(fleetSrc.includes('the unarmed escalation'), 'the walking line carries the escalation marker for the census')
   assert.ok(fleetSrc.includes('reloot: no walk (unarmed)'), 'the defer shape survives byte for byte')
+})
+
+// ---- (v0.484.0) THE PILE ARM - the bypass wiring ----
+// The stranded read (v0.476.0, faces 41..43) priced the unarmed deadlock:
+// 20 piles ~2086u, the lane walked ZERO - the gate reads the bot's POCKET
+// while the pile sits on the GROUND. The bypass arms the walk off the PILE
+// (the death record's own pocketU stake) when it carries BIG_PILE_U; the
+// delay law survives byte for byte for every pocket below the floor.
+test('v0.484.0: the pile arm rides the delay condition and the walking line (the dead-wire class)', () => {
+  // the verdict read sits at the block top (once per pass, before the plan)
+  const block = fleetSrc.match(/const relootDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?let rp = null/)
+  assert.ok(block, 'the arm block exists')
+  assert.match(block[0], /const relootPileArm = relootPileVerdict\(\{ pileU: relootDeath\.pocketU \}\)\.bypass/,
+    'the bypass reads the death record\u0027s OWN pocket stake (the pile\u0027s mass stored AT the death event)')
+  // the delay condition carries the bypass (the pile arm skips the delay, never the night fence)
+  const delayCondition = fleetSrc.match(/else if \(!hasPickNow\(\) && relootUnarmedVerdict\(\{ deathAt: relootDeath\.at, now: Date\.now\(\) \}\)\.defer && !relootPileArm\) \{/)
+  assert.ok(delayCondition, 'the delay condition gains the pile bypass (the night check below keeps its own branch)')
+  // the walking line names the bypass for the census (only when it DID the work: unarmed)
+  const walkLine = fleetSrc.match(/reloot: walking to the own death spot \[\$\{rp\.goal\.x\}[^\n]+\)/)
+  assert.ok(walkLine, 'the walking line exists')
+  assert.match(walkLine[0], /relootPileArm && relootUnarmedEscalation \? ', the pile arm' : ''/,
+    'the pile-arm marker rides the walking line ONLY for the unarmed walk (an armed walker\u0027s bypass did no work - no marker)')
+  // the delay line survives byte for byte (the sub-floor pockets keep the legacy law)
+  assert.ok(fleetSrc.includes('reloot: no walk (unarmed) - the empty pocket bootstraps first, the read re-arms (a delay, not a verdict)'),
+    'the defer shape survives byte for byte')
+  // the night fence keeps its branch and its flip (the bypass leads INTO the night check, never around it)
+  const nightArm = fleetSrc.match(/else if \(walkForbidden[\s\S]*?\n          \} else \{/)
+  assert.ok(nightArm && nightArm[0].includes('relootDeath.attempted = true'),
+    'the night fence still owns the surface (the bypass never skips the night gate)')
 })
