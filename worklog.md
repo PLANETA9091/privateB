@@ -12565,3 +12565,20 @@ Work Log:
 Stage Summary:
 - Master = 83c1d15 (pkg 0.489.0). THE SHIELD'S OWN BOOK IS PRICED: the wall leg is dead weight in the open field (0/18), the ring leg works when the stock exists (5/7), the re-scan re-asks answered questions (9 pairs) - the gate's design input is priced, not wired.
 - NEXT FIRE: (1) the 0.489.0 gate verdict + face 44 when landed - mine with decompose: the shield ladder's second point (does the wall door EVER open? does the re-scan tax repeat?), the standing questions (the goal split n=3, the concentration n=4, the drift's second point, the tail's second point, the storm/flee second points); (2) THE PILE ARM's field debut + the re-verdict/gate wires become dispatchable IF face 44 lands AND gates settle; (3) version next 0.490.0 (CHECK ORIGIN FIRST - 14 collisions, the cadence strains). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-2230
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2230 - v0.490.0 THE SMELT VERDICT (the furnace's own report card - the yield line nobody read); SLOT COLLISION #15 (re-versioned); face 44 still QUEUED ~6h - one-active-run law held.
+
+Work Log:
+- OPENED on the surviving tree: e203615. CI: the stall holds (69a87ff/e203615 cancelled pre-start); face 44 QUEUED. NO dispatch, NO cancel.
+- THE GAP: the smelt ledger (v0.461.0) prices the chain's INTENT side (batches, clips, refusals) and the took lens the collection - but the per-bot VERDICT line ('F17 smelted 2 (stone:2) rescued=0' / 'F4 smelted 0 () rescued=0 fired=2', 8 verbatim across faces 42+43) had ZERO readers.
+- THE WIRE (v0.490.0): smeltverdict.mjs - the smelt ledger's own REs imported (one parser per shape) + SMELT_VERDICT_RE; each verdict closes ALL of the bot's open batches (F9's two sand batches land in one 'smelted 8 (glass:8)'); the clips price the FORECAST, the verdict grades it. THE PRELUDE DISCOVERY: the clip lines are the batch's forecast printed BEFORE the start line (F17's clips at 1783-1784, the start at 1786) - the first walk attached them backward and orphaned 8/10; rewritten FIFO (each start consumes its bot's pending clips). THE MIN LAW: the start's batch IS the emitter's own min(fuel, clock) - 9/9 byte-verbatim.
+- THE FIELD READ (live-verified): 9 batches, 8 verdicts, 7 exact. Face 42: 15 forecast -> 13 actual, MISS F4 = THE IN-FLIGHT CLASS (clip-silent - a clip prints only when something completed; only the fired tail catches it). Face 43: 16 -> 16 perfect. Binding fuel 5 / clock 4 / none 1. THE FUEL CENSUS: coal 8.00/u vs stick 0.42/u - THE STICK TAX (19x). The verdicts' sum equals the pulse counters byte for byte (13+16).
+- SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER (83c1d15) mid-fire - decompose import conflict resolved keep-both (their wire untouched, cross-validated), re-versioned 0.489.0 -> 0.490.0. Commit b293f51's title froze pre-collision; the content carries 0.490.0 (verified on origin).
+- Tests: smeltverdict 7 (three expectation slips caught pre-commit: the bracketed verdict lines, the live clip order). Syntax 387/0, unit 220/220 (shieldledger 11 + smeltverdict 7 cross-validated). Push 4f001ce..b293f51 CLEAN attempt 1 (post-rebase). Gate 37023927744 PENDING at close - the stall holds.
+
+Stage Summary:
+- Master = b293f51 (pkg 0.490.0). THE SMELT VERDICT IS PRICED: the forecast exact 7/8, the one miss clip-silent (the fired tail's own class), the stick tax 19x - the furnace lane's book closed on both ends (intent v0.461.0, yield v0.490.0).
+- NEXT FIRE: (1) gate verdict + face 44 when landed (the standing questions + the smelt verdict's second point: does the in-flight class repeat? does the stick tax persist on a coal-pocket face?); (2) THE PILE ARM live verification + the mob-cure wire when gates settle; (3) version next 0.491.0 (CHECK ORIGIN FIRST - 15 collisions). Identity: PLANETA9091.
