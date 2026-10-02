@@ -12012,3 +12012,26 @@ Work Log:
 
 Stage Summary:
 - Master = 508c634 (pkg 0.458.0). NEXT FIRE: (1) gates 36959573149 (push) + 36959588636 (fleet face 39) verdicts; (2) face 39 mine: the re-gather share row 2 (does a violent face stay leak-priced? does a wet face stay re-collected? - the share as the face-shape classifier), the sign row 3, the roster seven-face (F9 7/7?), the PVP question (does F8-slew-F9 repeat or stay a one-face curiosity?); (3) the shelter-outcome lane (fire-1038's): their flee-812u price + my re-collected share on the SAME violent face would cross-price the disengage cure; (4) version next 0.459.0. Identity: PLANETA9091.
+
+---
+Task ID: cron-20261002-1138 (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: fire 1138 - v0.459.0 THE FLEE FORK (the disengage cure's own pricing: the death-time killer distance); FACE 39 mined (the flee leak 3/3, the chase wins 2/2, the first live no-leak face, the first live drained window); DISPATCH face 40 (36962023642).
+
+Work Log:
+- Fresh clone (sandbox died), identity set local+global. Origin 6c18a2f (0.458.0 the re-gather share, the 1100 lane). CI at open: no red - my 0.457.0 gate 36958438824 SUCCESS (the 1038 handoff item 1 resolved), 0.458.0 gate 36959573149 SUCCESS, FACE 39 (36959588636) in flight - no dispatch at open.
+- v0.459.0 (2fdfbbc): THE FLEE FORK - the standing cross-price item (the 1038 shelter ledger named flee the leak; the fork reads HOW the flee fails). KILL_DIST_RE rides the died line's own inference tail ('inferred: killer@dist') - the hp-inferrer's DISTANCE is the ruler, the inferred NAME stays unread (the server kind token is the authority, face 38's F8-slew-F9 contradiction). Each combat death row grows killDist + distBand (close <=4 / mid 4<d<=8 / far >8) + chasedDown (the kind token's killer vs the last verdict's attacker, lowercase courtesy join - the name join needs no ruler: a blind dist still pairs its chase). The face tally distBands {close,mid,far,unpriced} counts every combat death exactly once. Decompose: the kill dist bands row + the flee fork row (chase/crossfire/bands/verdict).
+- THE FIELD READ (faces 36+37, live pre-push): THE CHASE WINS - face 36: chase 6 / crossfire 4, bands close 6 / mid 0 / far 3 (the far three: two skeleton arcs + one creeper blast) - BIMODAL, the mid hole is the mobs' two kill families predicted; the cure is a disengage that GAINS ground (the transit census's own ground-gained avg 0.0 corroborates), not a better wall. Face 37: both flee deaths chase, bands 1 close / 1 mid - honestly open at n=2.
+- FACE 39 MINED (36959588636 SUCCESS, 3095 lines, artifact 11208695755, act at face39/):
+  - THE FLEE LEAK 3/3: flee top price again (151u/5 of 319u priced; fight 7u, other 139u pair-preempt, ambushed 22u) - the disengage leak is a LAW, not a face shape.
+  - THE CHASE WINS 2/2 (readable): chase 3 / crossfire 2, close 3 / mid 0 / far 2 - the mid hole holds a third face.
+  - THE FIRST LIVE NO-LEAK FACE: material balance leaks -39u (-1.8% of mined - the ~Nu inflation's own negative side); reconcile verdict no-leak, slack +613 - the re-gather share honestly NULL off-covered (the 0.458.0 design's first live exercise); conversion 101% (the bank took 1624u of 2269 mined).
+  - THE FIRST LIVE DRAINED WINDOW: the sign row 3 - F19+66u delivered, F15+59u delivered, F16-24u DRAINED (the first drained print since the lens landed; face 36's were retrospective).
+  - The PVP question: no bot-slew-bot repeat (mob 7 / drown 2 / explosion 1) - F8-slew-F9 stays a one-face curiosity.
+  - The drain row: the counters already cover the drop (post-peak attribution 0/0); deaths 530u/10; the wet lane hot (flow budgets 17 printed, 17 clamped, max need 3037s vs granted 300s = 10%).
+- Tests: shelterledger 6 -> 8 (the hand-counted dist/band/chase join with the blind-chase correction; the authority law - the inferred name never read; the band edges 4/8/8.01 pinned; the junk ruler nulls). Syntax 86/0, unit 3194/3194. Version 0.458.0 -> 0.459.0 (origin checked pre-bump: 0.458.0 taken). Push 6c18a2f..2fdfbbc CLEAN.
+- DISPATCH face 40: 36962023642 (2fdfbbc = 0.459.0, HTTP 204) after the push. CI at close: my gate 36961726184 (2fdfbbc) in_progress - no verdict held, honest.
+
+Stage Summary:
+- Master = 2fdfbbc (pkg 0.459.0). The disengage cure is PRICED: the chase wins, the flee never opens distance - the cure wire (when it comes) is a ground-gaining disengage, not a wall.
+- NEXT FIRE: (1) gate 36961726184 verdict; (2) FACE 40 (36962023642) mine: the flee fork row 2 on fresh fuel (does the chase verdict hold 3/3? does the mid hole stay a hole?), the sign row 4 (does the drained window repeat?), the share row (covered or no-leak again?), the roster eight-face (F9 8/8?); (3) the o2 trigger gap still open (2+ faces of rescue-active drown deaths); (4) the disengage cure DESIGN pricing (what the ground-gaining flee reads against: the flee-bearing rotations, the transit lane's own stall split pocket-vs-route 1:9) BEFORE any wire; (5) version next 0.460.0. Identity: PLANETA9091.
