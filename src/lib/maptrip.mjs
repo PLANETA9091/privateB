@@ -643,6 +643,18 @@ export function materialBalance (lines) {
 // re-collect (35/38), the mob-violent faces leak (36/37); the 0930
 // 'slack scales with violence' band dies here (face 38: calm by deaths,
 // slack +310 mid-band - the spread is leaks-driven, not legs-driven).
+//
+// (v0.460.0) THE NO-LEAK'S OWN NAME - face 39 fired the no-leak branch
+// LIVE for the first time (leaks -39u of mined 2196: the sinks outran
+// mined - crafting's unit inflation), and the row exposed a naming debt:
+// slack = legs - leaks CONFLATES two quantities off-covered (there it
+// reads legs + the inflation surplus, 574 + 39 = 613 - not a re-gather
+// margin, nothing leaked). The no-leak branch grows its own number:
+// inflation = -leaks (the sinks' surplus over mined, >= 0, the
+// unit-count trap's own measure); null on every other verdict (covered /
+// shortfall carry no surplus - the field stays honest-silent). The
+// decompose row drops the slack print on no-leak and names the regime:
+// the legs absorbed whole + the sinks' surplus, two numbers, no conflation.
 export function balanceReconcile (lines) {
   if (!Array.isArray(lines)) return null
   const mb = materialBalance(lines)
@@ -670,6 +682,9 @@ export function balanceReconcile (lines) {
   const recollectionVerdict = recollection === null
     ? null
     : recollection >= 0.5 ? 're-collected' : 'leak-priced'
+  // (v0.460.0) the no-leak branch's own number - the sinks' surplus over
+  // mined (>= 0); every other verdict keeps null (honest silence)
+  const inflation = verdict === 'no-leak' ? -leaks : null
   return {
     leaks,
     share: mb.share,
@@ -681,6 +696,7 @@ export function balanceReconcile (lines) {
     slack,
     verdict,
     recollection,
-    recollectionVerdict
+    recollectionVerdict,
+    inflation
   }
 }

@@ -813,6 +813,11 @@ test('balance-reconcile: no-leak + the whole-face inclusion + honest nulls', () 
 // 'leak-priced' (face 36 28% / face 37 32% - the drops stayed lost).
 // Off-covered verdicts keep null (no-leak's sign flips the fraction,
 // shortfall makes it negative) - honest silences, never a forced number.
+// (v0.460.0) THE NO-LEAK'S OWN NAME - face 39 fired the no-leak branch
+// LIVE (leaks -39u of mined 2196): the branch grows its own number,
+// inflation = -leaks (the sinks' surplus over mined, the unit-count
+// trap's own measure); null on covered/shortfall - the slack's conflation
+// (legs + surplus) never rides a row again.
 test('balance-reconcile: the re-gather share - covered faces split by where the legs\' value went', () => {
   // face-38's shape: a clean face - the leak a fraction of the priced
   // legs (hand-counted: mined 200, sinks 170, leaks 30; legs 100 ->
@@ -845,6 +850,7 @@ test('balance-reconcile: the re-gather share - covered faces split by where the 
   assert.equal(rl.slack, 0)
   assert.equal(rl.recollection, 0) // the counters' leak covers ALL of the legs
   assert.equal(rl.recollectionVerdict, 'leak-priced') // < 0.5: the drops stayed lost
+  assert.equal(rl.inflation, null) // covered carries no surplus - honest silence
   // honest silences: off-covered verdicts never carry a share
   const short = [
     't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
@@ -863,4 +869,7 @@ test('balance-reconcile: the re-gather share - covered faces split by where the 
   assert.equal(rn.verdict, 'no-leak')
   assert.equal(rn.recollection, null) // leaks <= 0 flips the fraction's meaning
   assert.equal(rn.recollectionVerdict, null)
+  // (v0.460.0) the no-leak branch's own number: the sinks' surplus
+  assert.equal(rn.inflation, 1080) // -(-1080): the sinks outran mined by 1080u
+  assert.equal(rs.inflation, null) // shortfall carries no surplus either
 })
