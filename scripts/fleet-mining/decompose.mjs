@@ -30,6 +30,7 @@ import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.46
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
+import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book (fled / stood / sheltered / died / open)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -691,6 +692,25 @@ if (shooter.total > 0) {
         ? `every critical-zone flight (hp < ${8}) rode the prelude - the sensor covers the drain zone`
         : `gap ${cp.gap} - the silent zone is not blind (the shelter-skip's own lane covers the gap - the two preludes hand off)`
     console.log(`  critical zone (hp < ${8}): ${cp.criticalFlees} flight(s), covered ${cp.covered} - ${crVerdict}`)
+  }
+}
+// (v0.484.0) THE VERDICT EXECUTION - the flip's own fate book (the
+// decision line priced: the verdict says flee - who actually closed it:
+// a new escape episode, the fight lane, the shelter lane, the death, or
+// the face's tail).
+{
+  const vx = verdictExecution(lines)
+  console.log(`--- VERDICT EXECUTION (v0.484.0: the flip's own fate) ---`)
+  if (!vx || vx.flips === 0) {
+    console.log('  verdict flips: 0 (the flee verdict never contested - the calm face reads zero honestly)')
+  } else {
+    const book = vx.fled + vx.stood + vx.sheltered + vx.died + vx.open
+    console.log(`  verdict flips: ${vx.flips} - fled ${vx.fled} / stood ${vx.stood} / sheltered ${vx.sheltered} (THE SHIELD TAKEOVER) / died ${vx.died} / open ${vx.open} - book ${book}/${vx.flips}`)
+    if (vx.hp) console.log(`  hp at flip: min ${vx.hp.min.toFixed(1)} / median ${vx.hp.median.toFixed(1)} / max ${vx.hp.max.toFixed(1)}`)
+    for (const r of vx.rows.filter(x => x.verdict === 'fled')) {
+      const gap = r.executedHp === null ? 'the execution hp unpriced' : `${r.flipHp.toFixed(1)} -> ${r.executedHp.toFixed(1)}${r.executedMob && r.executedMob !== r.mob ? ` (the threat changed: ${r.mob} -> ${r.executedMob})` : ''}`
+      console.log(`   fled: ${r.bot} flipped vs ${r.mob} - executed ${gap}`)
+    }
   }
 }
 // (v0.464.0) THE DEATH GROUND CENSUS - the combat deaths' spatial join
