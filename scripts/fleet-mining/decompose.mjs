@@ -45,6 +45,7 @@ import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the poun
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
+import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2326,5 +2327,23 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  tier guard: ${t.tierGuards} rows refusing ${t.tierGuardOres} ore units (${tg})`)
     const rows = Object.entries(vl.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
+  }
+}
+
+// (v0.502.0) THE COMMONS LEDGER - the fuel commons sweep's own book:
+// what the torch-coal resupply ask's machinery then ANSWERED - the
+// ask's aftermath the v0.500.0 ledger's credit lent a delivery
+// nobody had counted. The dead letter box law lives here.
+{
+  const cl = commonsLedger(lines)
+  if (cl && cl.totals.sweeps > 0) {
+    const t = cl.totals
+    console.log(`--- COMMONS LEDGER (v0.502.0: the ask's answer - the sweeps, the walk, the deliveries) ---`)
+    console.log(`  sweeps ${t.sweeps} (torch lane ${t.laneTorch} / smelt lane ${t.laneSmelt}): delivered ${t.delivered} (${t.units} units) / budget-spent ${t.budgetSpent} / silent-exhaust ${t.silentExhaust} / ghost ${t.ghost} / no-chest ${t.noChest}`)
+    console.log(`  walk anatomy: nudges ${t.nudges} / re-segments ${t.resegments} / spent slices ${t.spentSlice} / walk fails ${t.walkFail} (${Object.entries(t.walkFailWhys).map(([w, n]) => `${w} ${n}`).join(', ')})`)
+    console.log(`  chest anatomy: empty ${t.emptyChest} / open-fail ${t.openFail} / vertical doom ${t.verticalDoom} (${t.doomShapes.join(', ')}) / vanished ${t.blockVanished} / cover stand-downs ${t.coverStandDown}`)
+    console.log(`  asks ${t.asks} (${t.askCoal} coal asked): re-plans ${t.rePlan} / still-dry ${t.stillDry} / cap ${t.cap} / reserve ${t.reserve} / error ${t.error} / open ${t.askOpen} - deaths on the walk ${t.deaths}`)
+    const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
+    if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)
   }
 }
