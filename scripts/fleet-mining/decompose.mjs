@@ -43,6 +43,7 @@ import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table 
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
 import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the pounce book - the well pounce's decline probe anatomy and the attempt verdicts
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
+import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2287,5 +2288,22 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  the claim: ROSE ${t.rose} (${t.roseLevels} levels${t.rose ? `, avg ${(t.roseLevels / t.rose).toFixed(1)}` : ''}) vs DIED ${t.died} (${Object.entries(t.diedWhys).map(([w, n]) => `${w} ${n}`).join(', ') || '-'})${t.open ? `, open ${t.open}` : ''}${t.died > t.rose ? ' - THE OWNERSHIP DIED MORE THAN IT DELIVERED' : ' - the delivery holds'}`)
     const rows = al.rows.map(r => `${r.bot}/${r.kind === 'guard' ? 'g' : 's'}->${r.cls === 'rose' ? `rose+${r.levels}` : r.cls === 'died' ? r.why : r.cls}`)
     console.log(`  rows: ${rows.join(' | ')}`)
+  }
+}
+
+// (v0.500.0) THE TORCH LEDGER - the light supply chain's own book:
+// the coal floor, the stick floors, the two stick-drought rescue
+// rungs, the resupply asks and the yield. The fire-0130 gap survey's
+// biggest unowned lane (441 craft rows + 24 streak lines), taken.
+{
+  const tb = torchBook(lines)
+  if (tb && tb.totals.total > 0) {
+    const t = tb.totals
+    console.log(`--- TORCH LEDGER (v0.500.0: the light supply's floors, rungs, asks and yield) ---`)
+    console.log(`  floors: coal ${t.coalSkips} (sticks ${t.coalSkipSticks} coals ${t.coalSkipCoals}) / stick ${t.stickSkips} (sticks ${t.stickSkipSticks} coals ${t.stickSkipCoals}) / cap ${t.capDeclines} / metal-reserve ${t.reserveDeclines} (${t.reserveCoal} coal held)`)
+    console.log(`  rescues: plank rungs ${t.plankRungs} (${t.plankRungPlanks} planks held) / logs rungs ${t.logsRungs} / resupply asks ${t.resupplyAsks} (${t.resupplyAskCoal} coal asked)`)
+    console.log(`  yield: ${t.terminals} terminals, ${t.terminalBatches} batches -> ${t.terminalTorches} torches (the metal reserve kept ${t.terminalMetalKept}) - no-lands ${t.noLands}, errors ${t.errors}, streak lines ${t.streaks} (x${t.streakX})`)
+    const rows = Object.entries(tb.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
+    if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
   }
 }
