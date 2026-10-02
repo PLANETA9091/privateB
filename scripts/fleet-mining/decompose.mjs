@@ -42,6 +42,7 @@ import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the 
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
 import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the pounce book - the well pounce's decline probe anatomy and the attempt verdicts
+import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2270,5 +2271,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  guard: wet feet ${t.guardWet} / cap spent ${t.guardCap} - attempts: stalled ${t.stalls}, landed ${t.landed}${t.stallOtherTicks || t.landedOtherTicks ? `, off-plan ticks ${t.stallOtherTicks + t.landedOtherTicks}` : ''}`)
     const rows = Object.entries(pb.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
+  }
+}
+
+// (v0.499.0) THE ASSIST LEDGER - the pounce handoff's aftermath: the
+// v0.498.0 book's 'the assist ladder owns it' claim, joined forward
+// to the bot's next climb-lane boundary and priced (the ringafter
+// twin).
+{
+  const al = assistLedger(lines)
+  if (al && al.totals.handoffs > 0) {
+    const t = al.totals
+    console.log(`--- ASSIST LEDGER (v0.499.0: the pounce handoff's aftermath - the ladder's ownership priced) ---`)
+    console.log(`  handoffs: ${t.handoffs} (wet guards ${t.guardWet}${t.guardCap ? ` + cap-spent ${t.guardCap}` : ''}, stalls ${t.stalls}) - book ${t.handoffs}=${t.rose}+${t.attemptOk}+${t.died}+${t.open}`)
+    console.log(`  the claim: ROSE ${t.rose} (${t.roseLevels} levels${t.rose ? `, avg ${(t.roseLevels / t.rose).toFixed(1)}` : ''}) vs DIED ${t.died} (${Object.entries(t.diedWhys).map(([w, n]) => `${w} ${n}`).join(', ') || '-'})${t.open ? `, open ${t.open}` : ''}${t.died > t.rose ? ' - THE OWNERSHIP DIED MORE THAN IT DELIVERED' : ' - the delivery holds'}`)
+    const rows = al.rows.map(r => `${r.bot}/${r.kind === 'guard' ? 'g' : 's'}->${r.cls === 'rose' ? `rose+${r.levels}` : r.cls === 'died' ? r.why : r.cls}`)
+    console.log(`  rows: ${rows.join(' | ')}`)
   }
 }
