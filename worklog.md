@@ -12278,3 +12278,17 @@ Work Log:
 Stage Summary:
 - Master = 469545c (pkg 0.472.0). The spread driver: violence DEAD, wet/clean DEAD, clock DEAD - concentration ALIVE at n=2 (25% vs 80% maxShare -> 82% vs 11% share). The next face's read decides the wire.
 - NEXT FIRE: (1) my gate (469545c) verdict + the CI capacity re-check (did any job start? if the stall persists, note it - the fleet loop stalls with it); (2) face 43 when its Big fleet job lands: the concentration's THIRD point (does the 25/80 -> 82/11 pattern hold? the wire gate), the promise persistence's real first read (the prior-face join), the leak-clock row's third point; (3) if the concentration discriminates at n=3, THE SWEEP-REACH WIRE pricing (the big-pile cure: split-carry? the sweep's capacity?); (4) version next 0.473.0 (origin checked pre-bump). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1600
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1600 - v0.473.0 THE BUDGET SPREAD (the sizing lever's per-bot half: face 42's zero-delivery budgets SPREAD FLEET-WIDE - 37 zeros across 19 of 19 bots, delivered 0 of 69u); face 43 STILL QUEUED (3h+, the runner stall holds) - no dispatch.
+
+Work Log:
+- OPENED on 79c6f41 (fire-1538's v0.472.0 THE LEAK CLOCK + the CI capacity diagnosis - the runner starves since ~07:14Z, minutes-exhaustion hypothesis). face 43 (36970605824) queued 3h+, NOT mined; NO dispatch (the one-active-run law - and a new dispatch would starve with the same runner). My v0.471.0 gate (544143c) CANCELLED pre-verdict by the churn; the lane's trees ride fire-1538's pending gates (the same source).
+- THE WIRE (v0.473.0): THE BUDGET SPREAD - the fire-1338 handoff's sizing question advanced from the verdict to the spread: budgetSpread in src/lib/budgetspread.mjs owns BUDGET_SPENT_RE (the trip flows' '<bot> fuel commons: budget spent (0/1 units)' + the iron-commune variant - the trip kind rides the line, the VERDICT_RE precedent); the end-bank variant and the bank-trip grants can never masquerade (the anchor law); delivered/goal read, never assumed. Decompose: the row after the budget-floor verdict.
+- THE FIELD READ (face 42, live pre-push): 37 zero-delivery budget(s), delivered 0 of 69u goal, across 19 bot(s) - fuel 27, commune 10, top F19 5 (F19=5 F11=4 F10=3 F12=2) - THE SPREAD IS FLEET-WIDE: every bot burned at least one; the sizing lever is the chain's OWN sizing, not a local defect (the fuel-commons 1u goal spent to zero 24 times is the sharpest edge - the goal itself may be the miscalibration; the n=2 face check rides face 43).
+- Tests: budgetspread 6 (verbatim spread, line-order tie, delivered-sum law, anchor battery, junk/null, zero). Syntax 367/0, unit 210/210 files, integration 2/2 (the server stayed alive this fire). Push 79c6f41..187d4af CLEAN (attempt 1). CI gate 36982565914 (187d4af) PENDING at close (the stall holds; no verdict, honest).
+
+Stage Summary:
+- Master = 187d4af (pkg 0.473.0). NEXT FIRE: (1) the CI stall re-check FIRST (did any job start? no verdicts can land while the runner starves) + face 43 when its Big job lands - mine with decompose <face43.log> <face42.log>: the persistence row's real F16 answer, the concentration's third point (the wire gate), the budget spread's n=2 (fleet-wide twice = the sizing wire's fuel), the share ledger's 8th, the harvest identity 3/3; (2) if the stall persists: the stored-artifact re-mine path (fire-1538's workaround) keeps the mining loop alive without the runner; (3) version next 0.474.0 (CHECK ORIGIN FIRST). Identity: PLANETA9091.
