@@ -34,6 +34,7 @@ import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) t
 import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
+import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2051,5 +2052,36 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  gauges: ${gp.reads} reads, unknown pool fields ${gp.unknowns} (the -1 sentinel)`)
     console.log(`  old (retained js): max ${p.old.max}M last ${p.old.last}M, peak climb ${gp.jump.old}M/gauge; ext (external): max ${p.ext.max}M last ${p.ext.last}M, peak climb ${gp.jump.ext}M/gauge; ab (arraybuffer): max ${p.ab.max}M last ${p.ab.last}M, peak climb ${gp.jump.ab}M/gauge`)
     console.log(`  pinned share (ext+ab)/rss max ${gp.pinnedShareMax}%; v8 headroom min ${gp.headroomMin}M (heapTotal-heapUsed)`)
+  }
+}
+
+// (v0.490.0) THE SMELT VERDICT - the furnace's own report card. The
+// smelt ledger (v0.461.0) counts the intent side (batches, clips,
+// refusals); the verdict line - 'F17 smelted 2 (stone:2) rescued=0' /
+// 'F4 smelted 0 () rescued=0 fired=2' - is the yield side nobody read.
+// The verdict closes all of the bot's open batches; the batches' own
+// clip lines price the FORECAST (the emitter fuels exactly min(fuel,
+// clock) - its own arithmetic, verbatim in the start line) and the
+// verdict grades it. The one miss class is the IN-FLIGHT batch: no
+// clip lines (a clip prints only when something completed), the clock
+// killed it after fueling, the fired tail is the only trace.
+{
+  const sv = smeltVerdict(lines)
+  if (sv && (sv.verdicts > 0 || sv.batches > 0)) {
+    console.log(`--- SMELT VERDICT (v0.490.0: the furnace's own report card) ---`)
+    console.log(`  book: ${sv.verdicts} verdict(s) closing ${sv.batches} batch(es), open ${sv.openBatches}${sv.orphanClips ? `, orphan clips ${sv.orphanClips}` : ''}`)
+    if (sv.verdicts > 0) {
+      const forecastNote = sv.unforecast > 0 ? ` (+${sv.unforecast} unforecast - no seen start)` : ''
+      console.log(`  forecast vs yield: forecast ${sv.forecastTotal} -> actual ${sv.actualTotal}${forecastNote}, exact ${sv.exact}/${sv.verdicts - sv.unforecast}`)
+      console.log(`  binding (per batch): fuel ${sv.binding.fuel} / clock ${sv.binding.clock}${sv.binding.tie ? ` / tie ${sv.binding.tie}` : ''} / none ${sv.binding.none} - the min law held ${sv.minLaw.held}/${sv.minLaw.checked}`)
+      for (const m of sv.misses) {
+        const tail = m.fired != null ? ` - the IN-FLIGHT batch: the furnace fired ${m.fired} and the window ended first (its own fired tail)` : ''
+        console.log(`    MISS ${m.bot}: forecast ${m.forecast} -> actual ${m.actual} (short ${m.miss})${tail}`)
+      }
+      const fuels = Object.entries(sv.fuelTable).map(([k, t]) => `${k} ${t.n}u -> ${t.completes} (${(t.completes / t.n).toFixed(2)}/u)`)
+      if (fuels.length) console.log(`  fuel census (clips only): ${fuels.join(', ')}`)
+      const outs = Object.entries(sv.outputs).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')
+      if (outs) console.log(`  yield ledger: ${outs}, rescued ${sv.rescuedTotal}, fired tails ${sv.firedTails}`)
+    }
   }
 }
