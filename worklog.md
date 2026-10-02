@@ -12582,3 +12582,18 @@ Work Log:
 Stage Summary:
 - Master = b293f51 (pkg 0.490.0). THE SMELT VERDICT IS PRICED: the forecast exact 7/8, the one miss clip-silent (the fired tail's own class), the stick tax 19x - the furnace lane's book closed on both ends (intent v0.461.0, yield v0.490.0).
 - NEXT FIRE: (1) gate verdict + face 44 when landed (the standing questions + the smelt verdict's second point: does the in-flight class repeat? does the stick tax persist on a coal-pocket face?); (2) THE PILE ARM live verification + the mob-cure wire when gates settle; (3) version next 0.491.0 (CHECK ORIGIN FIRST - 15 collisions). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-2300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2300 - v0.491.0 THE SMELT HOLD LEDGER (the reserve decision's own fate); face 44 still QUEUED ~7h - one-active-run law held.
+
+Work Log:
+- OPENED on d70e891. CI: the stall holds (b293f51 cancelled, d70e891's gate queued); face 44 QUEUED. NO dispatch, NO cancel.
+- THE GAP: the smelt lane's intent (v0.461.0) and yield (v0.490.0) sides priced - the RESERVE DECISION's fate unread. THE WIRE (v0.491.0): smelthold.mjs - the hold joined to the bot's smelt lane with the imported parsers: fired (START marks, the VERDICT closes with the yield) / refused (an unfired hold) / budget-died (the end-bank line) / unresolved; the fallback is prose, never closes; the skips read against JUNK_COAL_FLOOR imported (one truth). THE WIDE REFUSAL READ: the multi-segment machine refusals nest their parens - smeltledger's narrow capture dies at the first inner ')'; this lens owns the greedy capture, the parse never forks.
+- THE FIELD READ (live-verified): 17 holds, 972s held - fired+yield 7 (29u = the fleet's WHOLE smelted yield; the hold is the smelt lane's only door) / fired-ZERO 1 / refused 7 (machine 6) / budget-died 2. THE HOLD TAX: 7/17 died at the furnace door (face 43: 5/8). THE FLOOR SIGNATURE: F6's coal-6 skip - the strict inequality (6 > 6 false) caught byte-verbatim.
+- Tests: smelthold 6 (three slips caught pre-commit: the tally key, the nested-paren blindness, one miscounted expectation). Syntax 389/0, unit 221/221. Commit 54835a6, push CLEAN attempt 1. Gate 37025658669 PENDING at close.
+
+Stage Summary:
+- Master = 54835a6 (pkg 0.491.0). THE SMELT HOLD LEDGER IS PRICED: 100% of the smelted yield rode a reserved hold, but 41% of the holds died at the furnace door after the budget was reserved - the design input prices the reserve's downstream gate.
+- NEXT FIRE: (1) gate verdict + face 44 (the hold ledger's second point: does the hold tax repeat? any above-floor skip?); (2) THE PILE ARM live verification + the mob-cure wire when gates settle; (3) version next 0.492.0 (CHECK ORIGIN FIRST - 16 collisions). Identity: PLANETA9091.
