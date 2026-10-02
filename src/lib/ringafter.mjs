@@ -1,5 +1,5 @@
 //
-// ringafter.mjs - THE RING AFTERMATH (v0.492.0)
+// ringafter.mjs - THE RING AFTERMATH (v0.493.0)
 //
 // What the ring landing bought. The shield ladder's own book (v0.489.0)
 // stops at the ringed close - the 'sheltering from <mob>' line closes
