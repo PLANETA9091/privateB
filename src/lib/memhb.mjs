@@ -34,7 +34,19 @@ export const MEM_HB_RE = /^ *mem: heap=(\d+)M\/(\d+)M old=(\d+)M ext=(\d+)M ab=(
 // The tools.mjs storm cooldown (the craft storm's own refusal, the
 // emitter's verbatim shape): 'F12 [F12] craft wooden_pickaxe: storm
 // cooldown 45000ms left (3 consecutive timeouts) - refusing'
-export const STORM_COOLDOWN_RE = /^F\d+ \[F\d+\] craft ([a-z_][a-z0-9_]*): storm cooldown (\d+)ms left \((\d+) consecutive timeouts\) - refusing$/
+// (v0.478.0) THE THREE SKINS, ONE EMITTER: the refusal line is printed by
+// tools.mjs craft() through the CALLER's own log function - three skins on
+// live data (face 43, run 36970605824):
+//   'F13 [F13] craft oak_planks: ...'            (the fleet-tagged caller)
+//   'F13 [toolupgrade] [upgrade] craft stone_pickaxe: ...' (the upgrade lane)
+//   'F13 craft stone_pickaxe: ...'               (the plain craft callers)
+// The old RE owned only the tagged skin - face 43 read 1 of its 5 refusals
+// (THE UNDERCOUNT: the mem census's stormCooldowns row was honest for the
+// tagged skin only). The tail anchors the shape (the 'storm cooldown Nms
+// left (N consecutive timeouts) - refusing' tail is unique to this one
+// emitter); the middle tags are the caller's log skin, so the RE accepts
+// zero-or-more bracket tags and the parser names the skin per read.
+export const STORM_COOLDOWN_RE = /^F\d+(?: \[[^\]]+\])* craft ([a-z_][a-z0-9_]*): storm cooldown (\d+)ms left \((\d+) consecutive timeouts\) - refusing$/
 
 // The stormguard's two euthanasia forms (heartbeat.mjs, both exit-143):
 //   '[stormguard] the MAIN thread is locked while allocating (run53/... OOM
@@ -68,15 +80,23 @@ export function parseMemLine (line) {
  * Parse one storm-cooldown refusal into its read, or null.
  * Junk-safe: non-string input and every non-craft storm shape judge
  * NOTHING (the anchor is the emitter's own 'craft <item>:' prefix).
+ * (v0.478.0) The bot token is the line's FIRST token (the three-skin law:
+ * the plain and upgrade skins carry no [F#] self-tag after the bot - the
+ * old extraction saw only the tagged skin); the skin names which caller's
+ * log the refusal rode ('tagged' / 'upgrade' / 'plain' / 'other').
  * @param {string} [line] one fleet-log line
- * @returns {null|{bot: string, item: string, waitMs: number, consecutive: number}}
+ * @returns {null|{bot: string, item: string, waitMs: number, consecutive: number, skin: string}}
  */
 export function parseStormCooldown (line) {
   if (typeof line !== 'string') return null
-  const botM = line.match(/^F\d+ \[F\d+\]/)
+  const botM = line.match(/^F\d+/)
   const m = line.match(STORM_COOLDOWN_RE)
   if (!m || !botM) return null
-  return { bot: botM[0].slice(0, botM[0].indexOf(' ')), item: m[1], waitMs: Number(m[2]), consecutive: Number(m[3]) }
+  let skin = 'other'
+  if (/^F\d+ \[F\d+\] craft/.test(line)) skin = 'tagged'
+  else if (/^F\d+ \[toolupgrade\] \[upgrade\] craft/.test(line)) skin = 'upgrade'
+  else if (/^F\d+ craft/.test(line)) skin = 'plain'
+  return { bot: botM[0], item: m[1], waitMs: Number(m[2]), consecutive: Number(m[3]), skin }
 }
 
 /**

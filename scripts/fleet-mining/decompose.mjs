@@ -26,6 +26,7 @@ import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the 
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
+import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1568,6 +1569,17 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   if (vs && vs.bots > 0) {
     const wornBits = vs.wornBots.join(' ')
     console.log(`  verdict spread (v0.470.0): ${vs.bots} bot(s) on the lane, worn ${vs.wornBots.length}${wornBits ? ` (${wornBits})` : ''}${vs.maxWearBot ? `, the closest call ${vs.maxWearBot} at left=${vs.maxWear}` : ''}`)
+  }
+  // (v0.478.0) THE STORM LEDGER - the craft storm's transient/terminal
+  // split: each refusal episode resolves by the bot's next verdict -
+  // recovered (a craft landed later - the brake released), terminal (the
+  // verdict read failed), commune, unanswered (the face ended inside the
+  // window). The skins census rides it (the three caller skins, one
+  // emitter - the v0.478.0 undercount fix's proof on live data).
+  const stormLed = stormRefusalLedger(lines)
+  if (stormLed && stormLed.refusals > 0) {
+    const rows = stormLed.rows.map((r) => `${r.bot} ${r.items.join('+')} x${r.refusals} (max ${r.maxWaitMs}ms, c${r.maxConsecutive}) -> ${r.class}`).join('; ')
+    console.log(`  storm ledger (v0.478.0): refusals ${stormLed.refusals} on ${stormLed.refusalBots.length} bot(s) (${stormLed.refusalBots.join(',')}), episodes ${stormLed.episodes} - recovered ${stormLed.byClass.recovered}, terminal ${stormLed.byClass.terminal}, commune ${stormLed.byClass.commune}, unanswered ${stormLed.byClass.unanswered}, max cooldown-left ${stormLed.maxWaitMs}ms at c${stormLed.maxConsecutive}, skins u${stormLed.skins.upgrade}/t${stormLed.skins.tagged}/p${stormLed.skins.plain}/o${stormLed.skins.other} - ${rows}`)
   }
 }
 

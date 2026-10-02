@@ -74,7 +74,7 @@ test('mem-hb: the partial-sum semantics - a guard reset is counted, never a nega
 
 test('mem-hb: the storm cooldown parses - the craft storm refusal, per-bot', () => {
   const p = parseStormCooldown('F12 [F12] craft wooden_pickaxe: storm cooldown 45000ms left (3 consecutive timeouts) - refusing')
-  assert.deepEqual(p, { bot: 'F12', item: 'wooden_pickaxe', waitMs: 45000, consecutive: 3 })
+  assert.deepEqual(p, { bot: 'F12', item: 'wooden_pickaxe', waitMs: 45000, consecutive: 3, skin: 'tagged' })
   const c = memHbCensus([
     'F12 [F12] craft wooden_pickaxe: storm cooldown 45000ms left (3 consecutive timeouts) - refusing',
     'F8 [F8] craft stone_shovel: storm cooldown 30000ms left (2 consecutive timeouts) - refusing',
@@ -135,4 +135,35 @@ test('mem-hb: the honest zero on a gaugeless face + the pinned anatomy', () => {
   // the anatomy pins: the regexes are the emitters' own words
   assert.match('   mem: heap=1M/2M old=1M ext=1M ab=1M rss=1M cols=1 ents=1 evicted=1 path=1a/1q (max 1) stale=1', MEM_HB_RE)
   assert.match('F1 [F1] craft dirt: storm cooldown 1ms left (1 consecutive timeouts) - refusing', STORM_COOLDOWN_RE)
+})
+
+test('mem-hb: the three skins, one emitter (v0.478.0) - the face-43 undercount fixed', () => {
+  // The live five (run 36970605824, F13's storm): three caller skins, ONE
+  // emitter. The old RE owned only the tagged skin - the census read 1 of 5.
+  const live5 = [
+    'F13 [toolupgrade] [upgrade] craft stone_pickaxe: storm cooldown 2166ms left (3 consecutive timeouts) - refusing',
+    'F13 [toolupgrade] [upgrade] craft stone_shovel: storm cooldown 2166ms left (3 consecutive timeouts) - refusing',
+    'F13 craft stone_pickaxe: storm cooldown 2158ms left (3 consecutive timeouts) - refusing',
+    'F13 craft stone_sword: storm cooldown 2151ms left (3 consecutive timeouts) - refusing',
+    'F13 [F13] craft oak_planks: storm cooldown 3986ms left (3 consecutive timeouts) - refusing'
+  ]
+  const c = memHbCensus(live5)
+  assert.equal(c.stormCooldowns, 5) // was 1 before the three-skin fix
+  assert.deepEqual(c.stormByBot.F13, { count: 5, maxConsecutive: 3 })
+  // The skins name their callers; the fields ride every read.
+  const tagged = parseStormCooldown(live5[4])
+  assert.deepEqual(tagged, { bot: 'F13', item: 'oak_planks', waitMs: 3986, consecutive: 3, skin: 'tagged' })
+  const upgrade = parseStormCooldown(live5[0])
+  assert.deepEqual(upgrade, { bot: 'F13', item: 'stone_pickaxe', waitMs: 2166, consecutive: 3, skin: 'upgrade' })
+  const plain = parseStormCooldown(live5[2])
+  assert.deepEqual(plain, { bot: 'F13', item: 'stone_pickaxe', waitMs: 2158, consecutive: 3, skin: 'plain' })
+  // The bot token is the line's FIRST token on every skin.
+  assert.equal(tagged.bot, 'F13')
+  assert.equal(upgrade.bot, 'F13')
+  assert.equal(plain.bot, 'F13')
+  // An unknown tag combo still parses (the tail anchors the emitter) and
+  // names itself honestly.
+  const other = parseStormCooldown('F2 [somelane] craft stick: storm cooldown 100ms left (3 consecutive timeouts) - refusing')
+  assert.equal(other.skin, 'other')
+  assert.equal(other.bot, 'F2')
 })
