@@ -12,10 +12,14 @@ import assert from 'node:assert/strict'
 import { fightLedger, FIGHTING_RE, FIGHT_END_RE } from '../../src/lib/fightledger.mjs'
 
 // the face-43 anatomy, hand-traced line by line from the stored
-// artifact (the mini covers every close class the lane emits)
+// artifact (the mini covers every close class the lane emits, plus the
+// flagship victor's tail: the win at 9.0, the critical bar, the flight
+// at 5.0 - the F19 shape byte-verbatim)
 const face43Mini = [
   'F3 [F3] combat: fighting zombie (dist 4.6, hp 17.0, 1 nearby, proximity)',
   'F3 [F3] combat: fight ended vs zombie (mob down, hp 17.0 -> 9.0, swings 7, weapon wooden_sword, 7 rounds)',
+  'F3 [F3] combat: critical bar (seen < 8) - the shelter scan is refused, the drain outruns it',
+  'F3 [F3] combat: fleeing skeleton (dist 11.5, hp 5.0, 1 nearby, sentry)',
   'F6 [F6] combat: fighting zombie_villager (dist 3.8, hp 20.0, 1 nearby, proximity)',
   'F6 [F6] combat: fight ended vs zombie_villager (verdict ignore, hp 20.0 -> 20.0, swings 1, weapon wooden_sword, 1 rounds)',
   'F5 [F5] combat: fighting spider (dist 5.0, hp 11.0, 2 nearby, proximity)',
@@ -32,8 +36,7 @@ const face43Mini = [
 test('fightLedger - the face-43 anatomy: every close class, the book law, the win cost', () => {
   const r = fightLedger(face43Mini)
   assert.ok(r, 'the mini reads')
-  assert.equal(r.starts, 6)
-  // the book closes exactly once: 1 + 1 + 0 + 1 + 1 + 1 + 1 + 0 = 6
+  assert.equal(r.starts, 6, 'six fighting lines - the bar and the flee never start a fight')
   assert.equal(r.mobDown, 1)
   assert.equal(r.deadline, 0)
   assert.equal(r.chaseCeiling, 0)
@@ -80,6 +83,21 @@ test('fightLedger - the face-43 anatomy: every close class, the book law, the wi
   // the truncation leg: no terminus inside the window, honest open
   assert.equal(byBot.F9.outcome, 'open')
   assert.equal(byBot.F9.closerIdx, null)
+  // THE VICTOR'S TAIL (the flagship shape): the win at 9.0 drew the
+  // critical bar one boundary later, and the drain's own flight came
+  // at 5.0 - the victory drain prices what the win cost AFTER it
+  assert.equal(byBot.F3.tailClass, 'drained')
+  assert.equal(byBot.F3.tailGap, 1)
+  assert.equal(byBot.F3.tailFleeHp, 5)
+  assert.equal(byBot.F3.tailDrain, 4)
+  // the tail's machinery prose (the verdict flip, the yield) never
+  // closed the fight and never closes the tail - one law
+  assert.equal(byBot.F5.tailClass, null, 'only mob-down wins carry a tail')
+  // the exit zones: the win ended at 9.0 - above the flee line 8 (the
+  // fight lane never ENDS a fight below the policy's own line here)
+  assert.deepEqual(r.exitZones, { belowFlee: 0, atOrAbove: 1, fleeLine: 8 })
+  assert.deepEqual(r.tails, { drained: 1, fled: 0, 're-engaged': 0, sheltered: 0, 'died-after': 0, chained: 0, quiet: 0 })
+  assert.equal(r.drainFlights, 1)
 })
 
 test('fightLedger - the face-42 leg: the regen slog and the free win', () => {
@@ -89,18 +107,31 @@ test('fightLedger - the face-42 leg: the regen slog and the free win', () => {
   const face42Mini = [
     'F7 [F7] combat: fighting zombie (dist 3.5, hp 17.0, 1 nearby, proximity)',
     'F7 [F7] combat: fight ended vs zombie (mob down, hp 17.0 -> 20.0, swings 42, weapon wooden_pickaxe, 42 rounds)',
+    'F7 [F7] combat: fighting zombie (dist 3.5, hp 20.0, 1 nearby, proximity)',
     'F8 [F8] combat: fighting zombie (dist 4.0, hp 20.0, 1 nearby, proximity)',
     'F8 [F8] combat: fight ended vs zombie (mob down, hp 20.0 -> 20.0, swings 1, weapon wooden_sword, 1 rounds)'
   ]
   const r = fightLedger(face42Mini)
-  assert.equal(r.starts, 2)
+  assert.equal(r.starts, 3, 'the slog winner\'s re-engage opens a new fight - a start, honestly')
   assert.equal(r.mobDown, 2)
+  assert.equal(r.open, 1, 'the re-engaged fight never terminated inside the window')
   // the cost book reads the regen honestly: min is NEGATIVE
   assert.deepEqual(r.costs, { min: -3, median: -1.5, max: 0 })
   assert.equal(r.freeWins, 1)
   // the pickaxe tax's own ruler: 42 rounds on a pickaxe
   assert.deepEqual(r.slog, { maxRounds: 42, bot: 'F7', mob: 'zombie', weapon: 'wooden_pickaxe' })
   assert.deepEqual(r.weapons, { wooden_pickaxe: 1, wooden_sword: 1 })
+  // the tails: the slog winner re-engaged (the win row - the bot's
+  // second row is the re-engage's own open fight), the free winner
+  // went quiet
+  const win42 = Object.fromEntries(r.rows.filter(x => x.outcome === 'mob-down').map(x => [x.bot, x]))
+  assert.equal(win42.F7.tailClass, 're-engaged')
+  assert.equal(win42.F7.tailGap, 1)
+  assert.equal(win42.F8.tailClass, 'quiet')
+  assert.equal(win42.F8.tailGap, null)
+  assert.equal(win42.F8.tailFleeHp, null)
+  assert.deepEqual(r.tails, { drained: 0, fled: 0, 're-engaged': 1, sheltered: 0, 'died-after': 0, chained: 0, quiet: 1 })
+  assert.deepEqual(r.exitZones, { belowFlee: 0, atOrAbove: 2, fleeLine: 8 })
 })
 
 test('fightLedger - the second-fight law: the fresh fight wins, the stale one opens honestly', () => {
@@ -162,6 +193,44 @@ test('fightLedger - the machinery prose never closes, never opens', () => {
   assert.equal(prose.rows[0].closeHp, 8.3, 'the drain priced: 11.0 at the fight, 8.3 at the flight')
 })
 
+test('fightLedger - the tail laws: the machinery never closes the tail, the drain never bleeds, the died-after', () => {
+  // the flagship chain byte-verbatim (the F19 skins): win -> machinery
+  // prose -> critical bar -> flight; a second bot's fight interleaves
+  // and must not blind the drain scan
+  const laws = [
+    'F9 [F9] combat: fighting zombie (dist 4.6, hp 17.0, 1 nearby, proximity)',
+    'F9 [F9] combat: fight ended vs zombie (mob down, hp 17.0 -> 9.0, swings 7, weapon wooden_sword, 7 rounds)',
+    'F9 [F9] combat: shelter skip (night=true armed=true hp=9 attackers=1 poison=off threat=spider@4.0)',
+    'F2 [F2] combat: fighting drowned (dist 4.4, hp 16.0, 1 nearby, proximity)',
+    'F9 [F9] combat: critical bar (seen < 8) - the shelter scan is refused, the drain outruns it',
+    'F9 [F9] combat: fleeing skeleton (dist 11.5, hp 5.0, 1 nearby, sentry)',
+    'F2 [F2] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-1,61,7]))',
+    'F4 [F4] combat: fighting spider (dist 3.0, hp 15.0, 1 nearby, proximity)',
+    'F4 [F4] combat: fight ended vs spider (mob down, hp 15.0 -> 7.0, swings 8, weapon wooden_sword, 8 rounds)',
+    'F4 [F4] combat: sheltering from creeper (ring 8/8, proximity)',
+    'F6 [F6] combat: fighting zombie (dist 3.0, hp 12.0, 1 nearby, proximity)',
+    'F6 [F6] combat: fight ended vs zombie (mob down, hp 12.0 -> 11.0, swings 1, weapon wooden_sword, 1 rounds)',
+    'F6 [F6] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: skeleton@12.5 (0s before death at [-127,64,401]))'
+  ]
+  const r = fightLedger(laws)
+  const byBot = Object.fromEntries(r.rows.map(x => [x.bot, x]))
+  // the drain scan skipped the other bot's interleave and the own
+  // machinery prose: the bar at +3, the flight at +4, the drain priced
+  assert.equal(byBot.F9.tailClass, 'drained')
+  assert.equal(byBot.F9.tailGap, 3)
+  assert.equal(byBot.F9.tailFleeHp, 5)
+  assert.equal(byBot.F9.tailDrain, 4)
+  // the winner that ended BELOW the flee line: the policy's own zone
+  // split sees it (the synthetic leg - the stored faces read 0/16)
+  assert.equal(byBot.F4.tailClass, 'sheltered')
+  assert.equal(byBot.F4.tailGap, 1)
+  // won the fight, died anyway: the tail's own class, the gap priced
+  assert.equal(byBot.F6.tailClass, 'died-after')
+  assert.equal(byBot.F6.tailGap, 1)
+  assert.deepEqual(r.tails, { drained: 1, fled: 0, 're-engaged': 0, sheltered: 1, 'died-after': 1, chained: 0, quiet: 0 })
+  assert.deepEqual(r.exitZones, { belowFlee: 1, atOrAbove: 2, fleeLine: 8 })
+})
+
 test('fightLedger - the junk battery and the honest zero shape', () => {
   assert.equal(fightLedger(null), null, 'non-array non-blob judges nothing')
   assert.equal(fightLedger(42), null)
@@ -179,6 +248,10 @@ test('fightLedger - the junk battery and the honest zero shape', () => {
     abandoned: 0, sheltered: 0, died: 0, open: 0,
     costs: null, freeWins: 0,
     slog: { maxRounds: null, bot: null, mob: null, weapon: null },
-    weapons: {}, perBot: {}, rows: []
+    weapons: {}, perBot: {},
+    tails: { drained: 0, fled: 0, 're-engaged': 0, sheltered: 0, 'died-after': 0, chained: 0, quiet: 0 },
+    drainFlights: 0,
+    exitZones: { belowFlee: 0, atOrAbove: 0, fleeLine: 8 },
+    rows: []
   })
 })

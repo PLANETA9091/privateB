@@ -1,5 +1,20 @@
 //
 // fightledger.mjs - THE FIGHT COST LEDGER (v0.486.0)
+// v0.488.0 - THE VICTOR'S TAIL: the win's own aftermath. The cost
+// anatomy prices the fight; the tail prices what the WIN bought - each
+// mob-down row joins the bot's next boundary line (the same close
+// vocabulary, one boundary law): the critical bar first = DRAINED (the
+// winner crossed into the drain zone right after winning - the
+// critical bar IS the emitter's own sensor, no threshold re-derived
+// here), and the drain's own flight (the bot's next fleeing line)
+// prices the victory drain (exit hp -> flight hp); fleeing first =
+// FLED, fighting first = RE-ENGAGED, sheltering first = SHELTERED,
+// died first = DIED-AFTER (won the fight, died anyway), a terminus
+// without a seen start = CHAINED (the truncation edge), nothing before
+// the window ends = QUIET (the honest tail). The exit zones split the
+// wins against the policy's own FLEE line (imported - one truth never
+// forked): the fight lane never ENDS a fight below it on the stored
+// faces (0/16) - the drain arrives in the tail prose instead.
 //
 // The stand-and-fight lane's own episode book. The combat lane's lenses
 // each read a different window of the same story: the shelter ledger
@@ -46,6 +61,7 @@
 //
 import { DIED_KIND_RE } from './maptrip.mjs'
 import { parseCombatLine } from './shootercensus.mjs'
+import { FLEE_HP } from './combat.mjs'
 
 // the fight start's full data shape (the emitter's own body, byte-
 // verified live on faces 42/43: the reason is free text to the paren)
@@ -80,7 +96,10 @@ const round1 = n => Math.round(n * 10) / 10
  *   max}|null, freeWins: number, slog: {maxRounds: number|null,
  *   bot: string|null, mob: string|null, weapon: string|null},
  *   weapons: Object<string, number>, perBot: Object<string, number>,
- *   rows: object[]}}
+ *   tails: {drained: number, fled: number, 're-engaged': number,
+ *   sheltered: number, 'died-after': number, chained: number, quiet: number},
+ *   drainFlights: number, exitZones: {belowFlee: number, atOrAbove:
+ *   number, fleeLine: number}, rows: object[]}}
  */
 export function fightLedger (lines) {
   const src = Array.isArray(lines)
@@ -95,7 +114,9 @@ export function fightLedger (lines) {
       nearby: ep.nearby, reason: ep.reason, idx: ep.idx,
       outcome, closerIdx: closerIdx ?? null,
       endMob: null, cost: null, swings: null, weapon: null, rounds: null,
-      closeHp: null, threatChanged: null, deathKind: null
+      endHp: null,
+      closeHp: null, threatChanged: null, deathKind: null,
+      tailClass: null, tailGap: null, tailFleeHp: null, tailDrain: null
     }
     if (extra) Object.assign(row, extra)
     rows.push(row)
@@ -149,7 +170,7 @@ export function fightLedger (lines) {
               : exit === 'verdict ignore' ? 'verdict-ignore'
                 : exit
           close(st.open, outcome, i, {
-            endMob: em[1], cost: round1(before - after),
+            endMob: em[1], cost: round1(before - after), endHp: after,
             swings: Number(em[5]), weapon: em[6], rounds: Number(em[7])
           })
         } else {
@@ -220,6 +241,72 @@ export function fightLedger (lines) {
     if (r.weapon) weapons[r.weapon] = (weapons[r.weapon] || 0) + 1
     perBot[r.bot] = (perBot[r.bot] || 0) + 1
   }
+  // (v0.488.0) THE VICTOR'S TAIL - each mob-down row joins the bot's
+  // next boundary line (the same close vocabulary, one boundary law);
+  // the drained tail keeps scanning for the drain's own flight (the
+  // bot's next fleeing line prices the victory drain: exit -> flight)
+  const tails = { drained: 0, fled: 0, 're-engaged': 0, sheltered: 0, 'died-after': 0, chained: 0, quiet: 0 }
+  let drainFlights = 0
+  for (const r of rows) {
+    if (r.outcome !== 'mob-down') continue
+    let tailClass = 'quiet'
+    let tailGap = null
+    let tailFleeHp = null
+    if (r.closerIdx !== null) {
+      for (let j = r.closerIdx + 1; j < src.length; j++) {
+        const tl = src[j]
+        if (typeof tl !== 'string') continue
+        const km = tl.match(DIED_KIND_RE)
+        if (km && km[1] === r.bot) { tailClass = 'died-after'; tailGap = j - r.closerIdx; break }
+        const cm = parseCombatLine(tl)
+        if (!cm || cm.bot !== r.bot) continue
+        if (cm.verb === 'critical-bar') { tailClass = 'drained'; tailGap = j - r.closerIdx; break }
+        if (cm.verb === 'fleeing') {
+          const fh = tl.match(FLEE_HP_RE)
+          tailClass = 'fled'
+          tailGap = j - r.closerIdx
+          tailFleeHp = fh ? Number(fh[2]) : null
+          break
+        }
+        if (cm.verb === 'fighting') { tailClass = 're-engaged'; tailGap = j - r.closerIdx; break }
+        if (cm.verb === 'sheltering') { tailClass = 'sheltered'; tailGap = j - r.closerIdx; break }
+        if (cm.verb === 'fight-ended') { tailClass = 'chained'; tailGap = j - r.closerIdx; break }
+        // every other combat verb: the tail's own machinery prose
+      }
+      // the drained tail keeps scanning for the drain's own flight
+      if (tailClass === 'drained') {
+        for (let j = r.closerIdx + 1 + (tailGap ?? 0); j < src.length; j++) {
+          const tl = src[j]
+          if (typeof tl !== 'string') continue
+          const cm = parseCombatLine(tl)
+          if (!cm || cm.bot !== r.bot) continue
+          if (cm.verb === 'fleeing') {
+            const fh = tl.match(FLEE_HP_RE)
+            tailFleeHp = fh ? Number(fh[2]) : null
+            break
+          }
+          // the next boundary of any kind stops the drain scan - the
+          // tail never bleeds across a new episode
+          if (cm.verb === 'fighting' || cm.verb === 'fight-ended' || cm.verb === 'sheltering') break
+        }
+      }
+    }
+    r.tailClass = tailClass
+    r.tailGap = tailGap
+    r.tailFleeHp = tailFleeHp
+    r.tailDrain = tailFleeHp !== null && r.endHp !== null ? round1(r.endHp - tailFleeHp) : null
+    tails[tailClass]++
+    if (tailFleeHp !== null) drainFlights++
+  }
+  // the exit zones - the wins split against the policy's own flee line
+  // (imported, one truth; the regen slog's NEGATIVE cost still prices
+  // the exit honestly: exit = start - cost)
+  const exitZones = { belowFlee: 0, atOrAbove: 0, fleeLine: FLEE_HP }
+  for (const r of rows) {
+    if (r.outcome !== 'mob-down' || r.endHp === null) continue
+    if (r.endHp < FLEE_HP) exitZones.belowFlee++
+    else exitZones.atOrAbove++
+  }
   return {
     starts: tally.starts,
     mobDown: tally['mob-down'],
@@ -230,6 +317,10 @@ export function fightLedger (lines) {
     sheltered: tally.sheltered,
     died: tally.died,
     open: tally.open,
-    costs, freeWins, slog, weapons, perBot, rows
+    costs, freeWins, slog, weapons, perBot,
+    tails,
+    drainFlights,
+    exitZones,
+    rows
   }
 }

@@ -737,6 +737,25 @@ if (shooter.total > 0) {
     for (const r of abandons) {
       console.log(`   abandoned: ${r.bot} fought ${r.mob} @${r.hp === null ? '?' : r.hp.toFixed(1)} - flew vs ${r.closeMob || '?'} @${r.closeHp === null ? '?' : r.closeHp.toFixed(1)}${r.threatChanged ? ' (the threat changed mid-fight)' : ' (the same threat won the argument)'}`)
     }
+    // (v0.488.0) THE VICTOR'S TAIL - what the WIN bought: the bot's next
+    // boundary line after each mob-down win (the same close vocabulary),
+    // the drained tail's own flight pricing the victory drain, the exit
+    // zones split against the policy's own flee line (one truth)
+    const tbits = [
+      fl.tails['re-engaged'] ? `re-engaged ${fl.tails['re-engaged']}` : null,
+      fl.tails.drained ? `drained ${fl.tails.drained} (THE VICTORY DRAIN: the critical bar answered the win)` : null,
+      fl.tails.fled ? `fled ${fl.tails.fled}` : null,
+      fl.tails.sheltered ? `sheltered ${fl.tails.sheltered}` : null,
+      fl.tails['died-after'] ? `died-after ${fl.tails['died-after']}` : null,
+      fl.tails.chained ? `chained ${fl.tails.chained}` : null,
+      fl.tails.quiet ? `quiet ${fl.tails.quiet}` : null
+    ].filter(Boolean).join(' / ')
+    console.log(`  the victor's tail (v0.488.0): ${tbits || 'no mob-down wins - no tails'}`)
+    console.log(`  the winners' exit zones vs the flee line ${fl.exitZones.fleeLine}: below ${fl.exitZones.belowFlee} / at-or-above ${fl.exitZones.atOrAbove}${fl.exitZones.belowFlee === 0 && fl.exitZones.atOrAbove > 0 ? ' - the fight lane never ENDS a fight below the policy line' : ''}`)
+    for (const r of fl.rows.filter(x => x.tailClass === 'drained' || x.tailClass === 'died-after' || x.tailClass === 'fled')) {
+      const drain = r.tailDrain === null ? 'the flight hp unpriced' : `the victory drain ${r.tailDrain.toFixed(1)}`
+      console.log(`   ${r.tailClass}: ${r.bot} won vs ${r.mob} at ${r.endHp === null ? '?' : r.endHp.toFixed(1)} - the tail ${r.tailGap === null ? '?' : `+${r.tailGap}`} lines${r.tailFleeHp === null ? '' : `, the flight at ${r.tailFleeHp.toFixed(1)} (${drain})`}`)
+    }
   }
 }
 // (v0.487.0) THE EXECUTION DRIFT - the decision-to-flight gap priced on
