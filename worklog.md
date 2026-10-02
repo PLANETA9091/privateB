@@ -12501,3 +12501,19 @@ Work Log:
 Stage Summary:
 - Master = 5befdc6 (pkg 0.485.0). THE VERDICT EXECUTION IS PRICED: the flee verdict's own fate - only 2/8 flips opened an escape episode, the shelter lane took over 3/8, one ran the ladder and died anyway; the decision-to-flight gap is real (F5: threat changed, hp 11.0 -> 2.0).
 - NEXT FIRE: (1) gate verdict + face 44 when landed (the standing questions + the flip book's second point: does the shield takeover repeat? does the execution gap widen?); (2) fire-2038's THE PILE ARM is the FIRST priced fleet wire - its face-43 counterfactual (4/5 deaths would walk 616u) needs a live face to verify; (3) version next 0.486.0 (CHECK ORIGIN FIRST - 13 collisions, the cadence strains). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-2130
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2130 - v0.486.0 THE FIGHT COST LEDGER (the stand-and-fight lane's own episode book); face 44 (36987824149) still QUEUED ~5h - one-active-run law held.
+
+Work Log:
+- OPENED on the surviving tree: 9fdf861. CI: the runner stall holds - every push gate CANCELLED pre-start; face 44 QUEUED. NO dispatch, NO cancel.
+- THE GAP: 'combat: fight ended vs <mob> (EXIT, hp A -> B, swings N, weapon W, R rounds)' - 20 verbatim across faces 42+43, one skin, FULL cost anatomy, zero readers (houndcensus reads the drowned fights only; fleeledger/verdictflip use fight lines as boundaries).
+- THE WIRE (v0.486.0): fightLedger in src/lib/fightledger.mjs - the closes ride THE FLEELEDGER'S OWN CLOSE VOCABULARY: fight-ended closes by the emitter's own exit token (the hp pair prices the COST, a NEGATIVE cost is the regen slog signature), fleeing closes ABANDONED (the flee's own hp prices the drain, the mob mismatch names the threat change), sheltering closes SHELTERED (the wall answers first), died closes DIED; a second fighting line overwrites honestly; the machinery prose never closes. Close mobs read the FULL token vocab (the census parser's 5-name list reads zombie_villager-class as null).
+- THE FIELD READ (faces 42+43, hand-traced then verified live): 28 fights, book 28/28. Face 42: 17 fights, 10 mob-down, 4 free wins, costs min -3.0 (THE REGEN SLOG: 42 rounds wooden_pickaxe, hp 17.0 -> 20.0) / max 8.0, weapons sword:8 pickaxe:5 - THE PICKAXE TAX. Face 43: 11 fights, 6 mob-down, ZERO free wins (every win paid: min 1.0 / median 3.1 / max 8.0), all swords, both abandons THREAT-CHANGED (F17 skeleton -> flew vs spider @8.3; F5 spider -> flew vs zombie_villager @2.0).
+- Tests: fightledger 6. Syntax 381/0, unit 217/217. Commit 76e942d (origin checked pre-bump: 9fdf861 = 0.485.0, no collision). Push CLEAN attempt 1. Gate 37014768005 PENDING at close.
+
+Stage Summary:
+- Master = 76e942d (pkg 0.486.0). THE FIGHT COST LEDGER IS PRICED: the wins' cost spread 0.0 to 8.0, the pickaxe tax a one-face signature (face 42 ran 5 pickaxe fights + the 42-round slog; face 43 all swords, zero free wins), both abandons changed threat mid-fight - the fight lane and the flee lane hand off mid-episode.
+- NEXT FIRE: (1) gate verdict + face 44 when landed (the standing questions + the fight ledger's second point: does the pickaxe tax repeat? do free wins exist on a sword-only face?); (2) fire-2038's THE PILE ARM needs a live face; (3) the mob-cure wire when gates settle; (4) version next 0.487.0 (CHECK ORIGIN FIRST). Identity: PLANETA9091.
