@@ -40,6 +40,7 @@ import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt 
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
+import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1913,6 +1914,32 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (whys) console.log(`  fail whys: ${whys}${c.stages.n > 0 ? ` - stage ladder depth ${c.stages.n} (max [stage ${c.stages.max}])` : ''}`)
     if (c.ok + c.retryOk > 0) console.log(`  the payable price: gains n${c.gains.n} sum ${c.gains.sum} max ${c.gains.max} levels, dug max ${c.dug.max}, secs n${c.secs.n} (max ${c.secs.max}s${c.secs.n > 0 ? `, avg ${Math.round(c.secs.sum / c.secs.n)}s` : ''})`)
     console.log(`  the ladder's own books: retry plans ${c.retries.plans}, no-retry ${c.retries.noRetry}, doom retargets ${c.doomRetargets.n}${c.unparsed > 0 ? `, unparsed ${c.unparsed} (the shape escaped - counted, never dropped)` : ''}`)
+  }
+}
+// (v0.496.0) THE BRIDGE BOOK - the vertical walk's fill lane (the climb
+// census read the climb-out verdicts; the bridge's own three skins rode
+// unread: the plan's refusals - pocket vs floor, the WHY-FLIP between
+// faces - the fills that landed, and the server's own veto with its
+// stale world-read and the post-veto blind leg). The cobble signature:
+// the fleet bridges on cobblestone - the surplus lane's biggest vertical
+// consumer. Honest cap: the emitter speaks below diagLevels<3 only.
+{
+  const bb = bridgeBook(lines)
+  if (bb && bb.events > 0) {
+    console.log(`--- BRIDGE BOOK (v0.496.0: the vertical walk's fill lane) ---`)
+    console.log(`  events: ${bb.events} - unavailable ${bb.unavailable} / placed ${bb.placed} / server-refused ${bb.serverRefused} - book ${bb.events}/${bb.events}`)
+    const whys = Object.entries(bb.whyClasses).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+    if (whys) console.log(`  the refusals' why: ${whys}${bb.whyClasses.pocket && bb.whyClasses.floor ? ' - the why must be read on BOTH faces (the flip is real)' : ''}`)
+    const mats = Object.entries(bb.placedBlocks).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+    if (mats) console.log(`  the material read: ${mats}${bb.placedBlocks.cobblestone && Math.round((bb.placedBlocks.cobblestone / bb.placed) * 100) >= 90 ? ' - THE COBBLE SIGNATURE: the surplus lane owns the vertical walk' : ''}`)
+    if (bb.serverRefused > 0) {
+      const kinds = Object.entries(bb.refusedKinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+      const refs = Object.entries(bb.refusedRefs).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${k}:${n}`).join(' ')
+      console.log(`  the server's own veto: ${bb.serverRefused} (kinds ${kinds}) - the stale world-read: ${refs}${bb.refusedRefs.crafting_table ? ' - THE TABLE VETO: the plan filled into its own table\'s cell' : ''}`)
+      console.log(`  the blind leg: post-veto re-read failed ${bb.postReadFailed}/${bb.serverRefused}${bb.postReadFailed === bb.serverRefused ? ' - what the cell became is NEVER known at this n' : ''}`)
+    }
+    const top = bb.rows.slice(0, 3).map(r => `${r.bot} ${r.unavailable + r.placed + r.serverRefused} (un ${r.unavailable}/pl ${r.placed}/veto ${r.serverRefused})`).join(', ')
+    if (top) console.log(`  the burners: ${top}`)
   }
 }
 
