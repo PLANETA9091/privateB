@@ -786,6 +786,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     if (anchorBudgetMs >= 5000) {
       const anchorRes = await deliverFuelTithe(miner.bot, {
         yardCenter: yardGoal,
+        memory: fuelCommonsMemory, // (v0.507.0) the low-chest registry: the scan feeds it, the pick reads it (the gravity stash)
         budgetMs: anchorBudgetMs,
         log: m => console.log(`${miner.username} ${m}`)
       })

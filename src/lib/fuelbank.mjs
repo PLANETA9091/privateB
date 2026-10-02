@@ -227,6 +227,74 @@ export function clearDryStance (memory, name) {
   return had
 }
 
+// (v0.507.0) THE GRAVITY STASH CORE - the low-chest registry. The dead letter
+// box's REAL cure priced twice (the commons ledger v0.502.0, the climb fund
+// v0.504.0): the tithe banks the fleet's coal at a yard 20-37 levels ABOVE the
+// asking diggers - no inflow ever reaches depth. The registry remembers the
+// chests SEEN at digger depth (the doom band's own floor below the yard) so
+// the tithe's delivery can PREFER them - the fuel moves to where the asks come
+// from. The band reuses VERTICAL_DOOM_MIN_DY (the surface.mjs export, no
+// duplicated constant): a chest at the floor or deeper BELOW the yard is
+// descent-class (the climb fund's own law - gravity assists, the gates never
+// refuse it). Lives under a __low: key on the same per-fleet commons memory
+// object - the empty-chest buckets and the __dry: backoff lane are never
+// touched. DISCOVERY-CONFIRMED ONLY: a cell enters from a chest actually
+// OPENED (the sweep's opened-chest path) or SCANNED (the tithe's own scan) -
+// the preference re-ranks scan-confirmed chests, it never injects a cell the
+// walk cannot honestly target.
+export const LOW_CHEST_TTL_MS = 600000
+export const LOW_CHEST_CAP = 16
+
+const lowKey = '__low:cells'
+
+/** Pure-ish, junk-safe: remember a chest cell in the diggers' band (yardY - y
+ * >= VERTICAL_DOOM_MIN_DY). A yard-level or above chest reads false (the
+ * anchor's own business); junk reads false; re-remembering refreshes the
+ * clock (the newest observation owns both the expiry and the insertion
+ * order); the bucket caps at LOW_CHEST_CAP (the oldest cell falls off). */
+export function rememberLowChest (memory, cell, yardY, now, ttlMs = LOW_CHEST_TTL_MS) {
+  if (!memory || typeof memory !== 'object') return false
+  if (!cell || typeof cell !== 'object') return false
+  const x = Math.floor(Number(cell.x))
+  const y = Math.floor(Number(cell.y))
+  const z = Math.floor(Number(cell.z))
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false
+  const yy = Number(yardY)
+  if (!Number.isFinite(yy)) return false
+  if (yy - y < VERTICAL_DOOM_MIN_DY) return false // the diggers' band only
+  const t = Number(now)
+  if (!Number.isFinite(t)) return false
+  const ttl = Number.isFinite(ttlMs) && ttlMs >= 0 ? ttlMs : LOW_CHEST_TTL_MS
+  let bucket = memory[lowKey]
+  if (!(bucket instanceof Map)) { bucket = new Map(); memory[lowKey] = bucket }
+  const key = `${x},${y},${z}`
+  bucket.delete(key)
+  bucket.set(key, t + ttl)
+  while (bucket.size > LOW_CHEST_CAP) {
+    const oldest = bucket.keys().next().value
+    bucket.delete(oldest)
+  }
+  return true
+}
+
+/** Pure-ish, junk-safe: the LIVE low cells at `now` - expired entries are
+ * pruned in place, the returned cells are fresh plain {x,y,z} objects safe
+ * to hand pickFuelAnchor. Junk reads an empty array. */
+export function liveLowCells (memory, now) {
+  if (!memory || typeof memory !== 'object') return []
+  const bucket = memory[lowKey]
+  if (!(bucket instanceof Map)) return []
+  const t = Number(now)
+  if (!Number.isFinite(t)) return []
+  const out = []
+  for (const [key, expiry] of bucket) {
+    if (!Number.isFinite(expiry) || expiry <= t) { bucket.delete(key); continue }
+    const [x, y, z] = key.split(',').map(s => Number(s))
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) out.push({ x, y, z })
+  }
+  return out
+}
+
 // (v0.124.0) THE FUEL ANCHOR CORE - a fleet-wide deterministic fuel chest.
 // Pure, junk-safe, communication-free: every bot that scans the same yard
 // derives the SAME anchor (distance to the yard center is the primary key,
@@ -234,7 +302,7 @@ export function clearDryStance (memory, name) {
 // commons' first read meet at one chest without a single chat packet.
 const isChestName = name => (Array.isArray(CHEST_NAMES) && CHEST_NAMES.includes(name)) || (typeof name === 'string' && /_chest$/.test(name))
 
-export function pickFuelAnchor (chests, yardCenter) {
+export function pickFuelAnchor (chests, yardCenter, lowCells = null) {
   if (!Array.isArray(chests)) return null
   let cx = null; let cy = null; let cz = null
   if (yardCenter && typeof yardCenter === 'object') {
@@ -242,7 +310,17 @@ export function pickFuelAnchor (chests, yardCenter) {
     if (Number.isFinite(nx) && Number.isFinite(ny) && Number.isFinite(nz)) { cx = nx; cy = ny; cz = nz }
   }
   const hasCenter = cx !== null
+  // (v0.507.0) THE GRAVITY PREFERENCE: a scan-confirmed chest at digger depth
+  // (a live low cell) owns the delivery BEFORE the yard's nearest - the tithe
+  // moves to where the asks come from. Among the low candidates the SAME
+  // nearest-center arithmetic picks (the determinism law rides inside the
+  // preference); an empty registry or no scan match keeps the legacy pick
+  // byte for byte (lowCells stays null - every existing caller and test).
+  const lowSet = Array.isArray(lowCells) && lowCells.length > 0
+    ? new Set(lowCells.filter(c => c && typeof c === 'object').map(c => `${Math.floor(Number(c.x))},${Math.floor(Number(c.y))},${Math.floor(Number(c.z))}`))
+    : null
   let best = null
+  let bestLow = null
   for (const p of chests) {
     if (!p || typeof p !== 'object') continue
     const x = Math.floor(Number(p.x))
@@ -252,13 +330,20 @@ export function pickFuelAnchor (chests, yardCenter) {
     const d = hasCenter
       ? (x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz)
       : 0
+    if (lowSet) {
+      const closerL = bestLow == null || d < bestLow.d
+      const tieL = bestLow != null && d === bestLow.d &&
+        (x < bestLow.x || (x === bestLow.x && (y < bestLow.y || (y === bestLow.y && z < bestLow.z))))
+      if (lowSet.has(`${x},${y},${z}`) && (closerL || tieL)) bestLow = { x, y, z, d }
+    }
     const closer = best == null || d < best.d
     const tie = best != null && d === best.d &&
       (x < best.x || (x === best.x && (y < best.y || (y === best.y && z < best.z))))
     if (closer || tie) best = { x, y, z, d }
   }
-  if (!best) return null
-  return { x: best.x, y: best.y, z: best.z }
+  const chosen = bestLow ?? best
+  if (!chosen) return null
+  return { x: chosen.x, y: chosen.y, z: chosen.z }
 }
 
 /** (v0.124.0) Scan the yard for chest positions - the anchor's candidate list.
@@ -597,6 +682,7 @@ export async function deliverFuelTithe (bot, {
   maxDistance = 64,
   budgetMs = 15000,
   clickTimeoutMs = 5000,
+  memory = null, // (v0.507.0) the shared commons memory - the low-chest registry's feed and read
   deps = {},
   log = () => {}
 } = {}) {
@@ -608,9 +694,19 @@ export async function deliverFuelTithe (bot, {
   let anchor = null
   try {
     const cells = scanYardChests(bot, { yardCenter, radius, maxDistance, log })
-    anchor = pickFuelAnchor(cells, yardCenter)
+    // (v0.507.0) THE GRAVITY SCAN: the scan's low-band cells feed the
+    // registry (band-checked inside rememberLowChest), and the live registry
+    // re-ranks the pick - a scan-confirmed low chest owns the delivery before
+    // the yard's nearest. The walk, the gates and the deposit ride byte for
+    // byte: a descent is gravity-assisted, the vertical and sub-doom gates
+    // never refuse a chest below the bot.
+    for (const p of (Array.isArray(cells) ? cells : [])) rememberLowChest(memory, p, yardCenter?.y, started)
+    anchor = pickFuelAnchor(cells, yardCenter, liveLowCells(memory, started))
   } catch { anchor = null }
   if (!anchor) return { delivered: 0, why: 'no anchor chest' }
+  if (yardCenter && Number.isFinite(yardCenter.y) && yardCenter.y - anchor.y >= VERTICAL_DOOM_MIN_DY) {
+    log(`fuel anchor: the gravity stash owns the delivery - chest at [${anchor.x},${anchor.y},${anchor.z}] stands ${Math.round(yardCenter.y - anchor.y)} levels below the yard (the diggers reach it by descent)`)
+  }
   // (v0.159.0) THE VERTICAL GATE (the tithe): a chest mostly ABOVE the bot is
   // doomed by arithmetic (the run15 anatomy: the yard hill y=82 over bots at
   // y=43-64). The tithe's OWN evidence is the honest split: F18/F3 banked 4+8
@@ -1121,6 +1217,12 @@ export async function withdrawFuelCommons (bot, {
       }
     }
     chestsVisited++
+    // (v0.507.0) THE GRAVITY DISCOVERY: an opened chest feeds the low-chest
+    // registry (band-checked inside rememberLowChest) - empty and funded
+    // chests alike are SUPPLY SITES the tithe's future delivery can prefer;
+    // the registry only re-ranks scan-confirmed chests, it never injects a
+    // cell. The yardCenter read is junk-guarded inside the remember call.
+    rememberLowChest(memory, chest.position, yardCenter?.y, Date.now())
     try {
       const chestSlots = chestSlotCount(window)
       const slots = Array.isArray(window?.slots) ? window.slots : (typeof window?.slots === 'function' ? window.slots() : null)

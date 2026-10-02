@@ -15,7 +15,8 @@ import {
   pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe,
   freshEmptyCells, ANCHOR_FRESH_EMPTY_MS,
   chestCoverPlan,
-  rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS // (v0.506.0) the ask backoff
+  rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
+  rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP // (v0.507.0) the gravity stash
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -982,7 +983,7 @@ test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy d
   const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage \} from '\.\.\/src\/lib\/fuelbank\.mjs'/)
   assert.match(fleetSrc, /await deliverFuelTithe\(miner\.bot, \{/)
-  assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*budgetMs: anchorBudgetMs,/)
+  assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*memory: fuelCommonsMemory,\s*\/\/ \(v0\.507\.0\)[^\n]*\n\s*budgetMs: anchorBudgetMs,/) // (v0.507.0) the low-chest registry wire joins the tithe call (the gravity stash))
   assert.match(fleetSrc, /remaining\(\) > 8000 \? Math\.min\(15000, Math\.floor\(remaining\(\) \/ 4\)\) : 0/, 'the budget guard: a dead chain never pays the delivery')
   assert.match(bankSrc, /const anchorBlock = \(anchorScan && yardCenter\)/)
   assert.match(bankSrc, /\? anchorBlock\s*\n\s*: findChest\(bot, \{ maxDistance, exclude, yardCenter, yardRadius, log \}\)/)
@@ -1461,4 +1462,81 @@ test('the ask-backoff wiring: a remembered dry stance defers the real sweep befo
   assert.equal(res.reason, 'ask deferred (dry stance)')
   assert.equal(lines.length, 1)
   assert.match(lines[0], /^fuel commons: the ask defers \(this stance came up dry 8s ago - the climb owns the depth/)
+})
+
+// (v0.507.0) THE GRAVITY STASH - the low-chest registry + the anchor pick's
+// gravity preference (the tithe's inflow finally moves to where the asks come
+// from: the fuel banks at digger depth, the descent-class reach).
+
+test('rememberLowChest + liveLowCells: the band floor is VERTICAL_DOOM_MIN_DY below the yard, the clock refreshes, the cap holds', () => {
+  const memory = newCommonsMemory()
+  const t0 = 7000000
+  assert.equal(rememberLowChest(memory, { x: 5, y: 70, z: 9 }, 72, t0), false, 'a yard-level chest is the anchor\'s own business (dy 2)')
+  assert.equal(rememberLowChest(memory, { x: 5, y: 53, z: 9 }, 72, t0), false, 'above the band floor (dy 19) reads false')
+  assert.ok(rememberLowChest(memory, { x: 5.9, y: 52.2, z: 9.9 }, 72, t0), 'the exact band floor (dy 20) remembers (floored: 5,52,9)')
+  assert.ok(rememberLowChest(memory, { x: 6, y: 40, z: 10 }, 72, t0 + 1000, 9000), 'a deeper chest remembers (own short clock: until t0+10000)')
+  const cells = liveLowCells(memory, t0 + 2000)
+  assert.equal(cells.length, 2)
+  assert.ok(cells.some(c => c.x === 5 && c.y === 52 && c.z === 9), 'the floored cell reads back')
+  // refresh: the newest observation owns the clock (both chests on a SHORT ttl so the arithmetic is tight)
+  assert.ok(rememberLowChest(memory, { x: 5, y: 52, z: 9 }, 72, t0 + 5000, 10000))
+  assert.equal(liveLowCells(memory, t0 + 10999).length, 1, 'the refreshed clock lives while the sibling expired (its own 9s clock ran out at t0+10000)')
+  assert.equal(liveLowCells(memory, t0 + 15001).length, 0, 'the refresh itself expires (the newest clock owns the cell)')
+  // the cap: the oldest cell falls off
+  for (let i = 0; i < LOW_CHEST_CAP + 2; i++) rememberLowChest(memory, { x: 100 + i, y: 50, z: 100 }, 72, t0 + 20000)
+  assert.equal(liveLowCells(memory, t0 + 21000).length, LOW_CHEST_CAP, 'the bucket caps at LOW_CHEST_CAP')
+})
+
+test('the low-chest registry: junk-safe end to end (null memory, junk cell/yard/now, junk bucket)', () => {
+  assert.equal(rememberLowChest(null, { x: 1, y: 2, z: 3 }, 72, 1000), false)
+  assert.equal(rememberLowChest(newCommonsMemory(), null, 72, 1000), false)
+  assert.equal(rememberLowChest(newCommonsMemory(), { x: NaN, y: 2, z: 3 }, 72, 1000), false)
+  assert.equal(rememberLowChest(newCommonsMemory(), { x: 1, y: 2, z: 3 }, 'junk', 1000), false)
+  assert.equal(rememberLowChest(newCommonsMemory(), { x: 1, y: 2, z: 3 }, 72, NaN), false)
+  assert.equal(liveLowCells(null, 1000).length, 0)
+  const memory = newCommonsMemory()
+  memory['__low:cells'] = 'junk'
+  assert.equal(liveLowCells(memory, 1000).length, 0, 'a junk bucket reads empty')
+  memory['__low:cells'] = new Map([['1,2,3', 'junk']])
+  assert.equal(liveLowCells(memory, 1000).length, 0, 'a junk expiry prunes')
+})
+
+test('pickFuelAnchor: the gravity preference owns the pick among low candidates, the legacy pick stays byte for byte without them', () => {
+  const yard = { x: 0, y: 72, z: 0 }
+  const yardNear = { x: 2, y: 71, z: 2 } // the legacy pick: nearest the center
+  const deep = { x: 30, y: 45, z: 30 } // far laterally, but in the diggers' band
+  // the legacy law holds: no lowCells -> the yard-near chest
+  assert.deepEqual(pickFuelAnchor([yardNear, deep], yard), yardNear)
+  assert.deepEqual(pickFuelAnchor([yardNear, deep], yard, []), yardNear, 'an empty registry keeps the legacy pick')
+  assert.deepEqual(pickFuelAnchor([yardNear, deep], yard, [{ x: 999, y: 1, z: 999 }]), yardNear, 'registry cells absent from the scan never inject')
+  // the gravity law: the scan-confirmed low chest owns the delivery
+  assert.deepEqual(pickFuelAnchor([yardNear, deep], yard, [{ x: 30, y: 45, z: 30 }]), deep)
+  // among MULTIPLE low candidates the nearest-center arithmetic picks (the determinism law rides inside)
+  const deepNear = { x: 3, y: 45, z: 3 }
+  assert.deepEqual(pickFuelAnchor([deep, deepNear], yard, [{ x: 30, y: 45, z: 30 }, { x: 3, y: 45, z: 3 }]), deepNear)
+})
+
+test('the gravity stash wire: the scan feeds the registry, the pick reads it, the discovery rides the opened-chest path, the line rides fuel anchor (source pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const scanIdx = src.indexOf('THE GRAVITY SCAN: the scan')
+  const pickIdx = src.indexOf('pickFuelAnchor(cells, yardCenter, liveLowCells(memory, started))')
+  const discoveryIdx = src.indexOf('THE GRAVITY DISCOVERY: an opened chest')
+  assert.ok(scanIdx > 0 && pickIdx > scanIdx, 'the tithe\'s scan block feeds the registry then re-ranks the pick')
+  assert.ok(discoveryIdx > 0 && src.includes('rememberLowChest(memory, chest.position, yardCenter?.y, Date.now())'), 'the sweep\'s opened-chest path feeds the registry')
+  assert.ok(src.includes('the gravity stash owns the delivery'), 'the low delivery names itself')
+  assert.ok(src.includes("log(`fuel anchor: the gravity stash owns the delivery"), 'the line rides the existing fuel anchor prefix (the fuel filter key)')
+  assert.ok(src.includes('VERTICAL_DOOM_MIN_DY) return false // the diggers\' band only'), 'the band reuses the surface.mjs floor (no duplicated constant)')
+  const fleet = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(fleet.includes('memory: fuelCommonsMemory, // (v0.507.0) the low-chest registry'), 'the tithe\'s fleet wire passes the shared memory')
+})
+
+test('the three memory lanes co-exist on ONE object (chest buckets, the dry stance, the low registry)', () => {
+  const memory = newCommonsMemory()
+  const t = 9000000
+  assert.ok(rememberEmptyChest(memory, 'F3', { x: 7, y: 8, z: 9 }, t))
+  assert.ok(rememberDryStance(memory, 'F3', { x: 7, y: 8, z: 9 }, t))
+  assert.ok(rememberLowChest(memory, { x: 7, y: 40, z: 9 }, 72, t))
+  assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 1, 'the chest bucket survives both lanes')
+  assert.ok(dryStanceDeferred(memory, 'F3', { x: 7, y: 8, z: 9 }, t + 1), 'the dry lane survives')
+  assert.equal(liveLowCells(memory, t + 1).length, 1, 'the low lane survives')
 })
