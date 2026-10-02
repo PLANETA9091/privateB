@@ -44,6 +44,7 @@ import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp b
 import { pounceBook } from '../../src/lib/pouncebook.mjs' // (v0.498.0) the pounce book - the well pounce's decline probe anatomy and the attempt verdicts
 import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the assist ledger - the pounce handoff's aftermath (the ownership claim priced: rose vs died at the climb boundary)
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
+import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -2304,6 +2305,26 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  rescues: plank rungs ${t.plankRungs} (${t.plankRungPlanks} planks held) / logs rungs ${t.logsRungs} / resupply asks ${t.resupplyAsks} (${t.resupplyAskCoal} coal asked)`)
     console.log(`  yield: ${t.terminals} terminals, ${t.terminalBatches} batches -> ${t.terminalTorches} torches (the metal reserve kept ${t.terminalMetalKept}) - no-lands ${t.noLands}, errors ${t.errors}, streak lines ${t.streaks} (x${t.streakX})`)
     const rows = Object.entries(tb.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
+    if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
+  }
+}
+
+// (v0.501.0) THE VEIN LEDGER - the vein sweep's own book: the
+// terminals, the walk yield, the gallery digs, the dig refusals,
+// the spares and the tier guard. The fleet's core mining engine,
+// priced at last (the drop-walk fail rows stay dropwalk's - one
+// parser per shape, the boundary pinned both ways).
+{
+  const vl = veinLedger(lines)
+  if (vl && vl.totals.total > 0) {
+    const t = vl.totals
+    console.log(`--- VEIN LEDGER (v0.501.0: the sweep's own book - terminals, walk yield, gallery, refusals, tier guard) ---`)
+    console.log(`  harvest: ${t.terminals} terminals (${t.terminalDrops} drops in reach, ${t.terminalDug} dug), ${t.yields} walk yields (+${t.yieldU}u), gallery ${t.galleryOres} ores (floor lock ${t.galleryFloorLock} / ore detour ${t.galleryOreDetour})`)
+    console.log(`  refusals: lip ${t.lipRefusals} / support ${t.supportRefusals} (seals kept ${t.supportSeal}) / ledge cut ${t.ledgeRefusals}; spares: deep ${t.deepSkips} (${t.deepSkippedDrops} drops), zero-disp ${t.spared} (${t.sparedDrops}), pre-goto ${t.goalRefusals} (${t.goalRefusedDrops})`)
+    console.log(`  walk triage: above-plane ${t.aboveTimeouts} (${t.aboveWalks} walks) / below-plane ${t.belowFails} (${t.belowWalks}); picked-nothing ${t.pickedNothings} (delta ${t.pickedDelta}); dig-downs ${t.digDowns}; stance ${t.stanceArmed} armed / ${t.stanceLanded} landed (+${t.stanceWalked}u)`)
+    const tg = Object.entries(t.tierGuardNames).map(([o, n]) => `${o} ${n}`).join(' + ') || 'none'
+    console.log(`  tier guard: ${t.tierGuards} rows refusing ${t.tierGuardOres} ore units (${tg})`)
+    const rows = Object.entries(vl.bots).sort((a, b) => b[1].total - a[1].total).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.total}`).join(' ')}`)
   }
 }
