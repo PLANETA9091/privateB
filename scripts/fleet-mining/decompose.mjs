@@ -12,7 +12,7 @@ import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy
-import { budgetSpread } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line)
+import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -805,6 +805,15 @@ if (zeroClock.zeros.length > 0) {
   if (bs && bs.zeros > 0) {
     const bsBits = Object.entries(bs.perBot).sort((x, y) => y[1].zeros - x[1].zeros || x[0].localeCompare(y[0])).slice(0, 4).map(([k, v]) => `${k}=${v.zeros}`).join(' ')
     console.log(`  budget zeros (v0.473.0): ${bs.zeros} zero-delivery budget(s) (delivered ${bs.delivered} of ${bs.goal}u goal) across ${bs.spreadBots} bot(s) - fuel ${bs.byKind.fuel}, commune ${bs.byKind.commune}${bs.topBot ? `, top ${bs.topBot} ${bs.topN}` : ''}${bsBits ? ` (${bsBits})` : ''}`)
+    // (v0.475.0) THE GOAL SPLIT - the sizing lever's goal-size half: do the
+    // zero-delivery budgets ride TINY goals (the goal itself is the
+    // miscalibration - raise the floor) or spread across goal sizes (the
+    // chain is the lever)? The zero-delivery class only; silent on zero.
+    const bgs = budgetGoalSplit(lines)
+    if (bgs && bgs.zeros > 0) {
+      const pct = Math.round(bgs.oneShare * 100)
+      console.log(`  budget goal split (v0.475.0): one-unit ${bgs.one.zeros}/${bgs.zeros} (${pct}%, ${bgs.one.goal}u) - 2-3u ${bgs.small.zeros} (${bgs.small.goal}u), 4+u ${bgs.wide.zeros} (${bgs.wide.goal}u) - ${pct >= 50 ? 'the 1u goal itself is the miscalibration candidate' : 'the sizing lever rides the chain, not the goal'}`)
+    }
   }
 } else {
   console.log(`  hop zeros: 0 (clock ${zeroClock.clockEnd === null ? 'unread' : zeroClock.clockEnd + 's'} - the honest zero)`)

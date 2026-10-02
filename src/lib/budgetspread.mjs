@@ -65,3 +65,45 @@ export function budgetSpread (lines) {
   }
   return { zeros, byKind, delivered, goal, spreadBots: Object.keys(perBot).length, topBot, topN, perBot }
 }
+
+//
+// (v0.475.0) THE GOAL SPLIT - the sizing lever's goal-size half. Face 42's
+// sharpest edge: 'the fuel-commons 1u goal spent to zero 24 times - the
+// goal itself may be the miscalibration'. Face 43 repeats it (25 of 34).
+// The question the lens exists for: do the zero-delivery budgets ride TINY
+// goals (the goal itself is the miscalibration - raise the floor) or do
+// they spread across goal sizes (the chain, not the goal, is the lever)?
+//
+// One parser per shape: reuses BUDGET_SPENT_RE - no new emitter, no new
+// shape claimed. Only the ZERO-DELIVERY class feeds the buckets (d === 0,
+// the class's own name); a budget-spent line that delivered units is the
+// family's other story, not this lens's. Bucket law: goal 1 -> one,
+// goal 2..3 -> small, goal >= 4 -> wide (a hypothetical 0-goal line still
+// counts in zeros but bucket into none - read, never assumed).
+//
+// budgetGoalSplit(lines) ->
+//   { zeros, one: { zeros, goal }, small: { zeros, goal },
+//     wide: { zeros, goal }, oneShare } | null
+//   zeros    total zero-delivery budget lines (the family's mass)
+//   one      the 1u-goal bucket (the miscalibration candidate)
+//   small    the 2-3u bucket
+//   wide     the 4+u bucket
+//   oneShare one.zeros / zeros (0 when zeros 0 - the honest zero)
+export function budgetGoalSplit (lines) {
+  if (!Array.isArray(lines)) return null
+  const one = { zeros: 0, goal: 0 }
+  const small = { zeros: 0, goal: 0 }
+  const wide = { zeros: 0, goal: 0 }
+  let zeros = 0
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = BUDGET_SPENT_RE.exec(line)
+    if (!m) continue
+    const d = Number(m[3])
+    const g = Number(m[4])
+    if (d !== 0) continue // the zero-delivery class only - the class's own name
+    zeros++
+    if (g === 1) { one.zeros++; one.goal += g } else if (g >= 2 && g <= 3) { small.zeros++; small.goal += g } else if (g >= 4) { wide.zeros++; wide.goal += g }
+  }
+  return { zeros, one, small, wide, oneShare: zeros > 0 ? one.zeros / zeros : 0 }
+}

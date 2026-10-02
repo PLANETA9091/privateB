@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { budgetSpread, BUDGET_SPENT_RE } from '../../src/lib/budgetspread.mjs'
+import { budgetSpread, budgetGoalSplit, BUDGET_SPENT_RE } from '../../src/lib/budgetspread.mjs'
 
 // Face 42's budget-zero lines verbatim (the two trip emitters' own words).
 const face42Budgets = [
@@ -59,4 +59,61 @@ test('budgetSpread is junk-safe and nulls on non-array (the laws)', () => {
 test('budgetSpread reads zero budgets honestly (the zero law)', () => {
   const r = budgetSpread([])
   assert.deepEqual(r, { zeros: 0, byKind: { fuel: 0, commune: 0 }, delivered: 0, goal: 0, spreadBots: 0, topBot: null, topN: 0, perBot: {} })
+})
+
+// (v0.475.0) THE GOAL SPLIT - face 43's live budget-zero lines verbatim
+// (the miscalibration edge repeats: 25 of 34 ride 1u goals).
+const face43Budgets = [
+  ...Array(25).fill('F1 fuel commons: budget spent (0/1 units)'),
+  ...Array(7).fill('F8 iron commune: budget spent (0/3 units)'),
+  'F11 fuel commons: budget spent (0/6 units)',
+  'F6 fuel commons: budget spent (0/2 units)'
+]
+
+test('budgetGoalSplit reads the live face-43 shapes: 25 of 34 zeros ride 1u goals', () => {
+  const r = budgetGoalSplit(face43Budgets)
+  assert.equal(r.zeros, 34)
+  assert.deepEqual(r.one, { zeros: 25, goal: 25 })
+  assert.deepEqual(r.small, { zeros: 8, goal: 23 })
+  assert.deepEqual(r.wide, { zeros: 1, goal: 6 })
+  assert.equal(r.oneShare, 25 / 34)
+})
+
+test('budgetGoalSplit buckets by the goal law (1 -> one, 2..3 -> small, 4+ -> wide)', () => {
+  const r = budgetGoalSplit([
+    'F2 fuel commons: budget spent (0/1 units)',
+    'F3 fuel commons: budget spent (0/2 units)',
+    'F4 fuel commons: budget spent (0/3 units)',
+    'F5 fuel commons: budget spent (0/4 units)'
+  ])
+  assert.equal(r.one.zeros, 1)
+  assert.equal(r.small.zeros, 2)
+  assert.equal(r.wide.zeros, 1)
+  assert.equal(r.small.goal, 5)
+})
+
+test('budgetGoalSplit counts the zero-delivery class only (a delivering budget is the other story)', () => {
+  const r = budgetGoalSplit([
+    'F7 iron commune: budget spent (2/4 units)',
+    'F9 fuel commons: budget spent (0/1 units)'
+  ])
+  assert.equal(r.zeros, 1)
+  assert.deepEqual(r.one, { zeros: 1, goal: 1 })
+  assert.deepEqual(r.wide, { zeros: 0, goal: 0 })
+})
+
+test('budgetGoalSplit never matches the near-miss emitters (the anchor law holds for the split)', () => {
+  const r = budgetGoalSplit([
+    'F9 end-bank budget spent - smelt skipped',
+    'F4 bank trip: planned budget 243s',
+    'F9 fuel commons: open failed (open fuel chest: timeout after 10000ms)'
+  ])
+  assert.equal(r.zeros, 0)
+  assert.equal(r.oneShare, 0)
+})
+
+test('budgetGoalSplit is junk-safe and nulls on non-array (the laws)', () => {
+  assert.equal(budgetGoalSplit(null), null)
+  assert.equal(budgetGoalSplit(42), null)
+  assert.deepEqual(budgetGoalSplit([null, 'garbage', 'F9 end-bank budget spent - smelt skipped']), { zeros: 0, one: { zeros: 0, goal: 0 }, small: { zeros: 0, goal: 0 }, wide: { zeros: 0, goal: 0 }, oneShare: 0 })
 })
