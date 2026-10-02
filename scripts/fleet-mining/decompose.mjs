@@ -33,6 +33,7 @@ import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0
 import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
 import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
+import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -784,6 +785,33 @@ if (shooter.total > 0) {
     if (fd.window) console.log(`  prose window: min ${fd.window.min} / median ${fd.window.median} / max ${fd.window.max} lines`)
     for (const j of fd.rows) {
       console.log(`   ${j.bot}: ${j.flipMob}@${j.flipHp.toFixed(1)} -> ${j.execMob}@${j.execHp.toFixed(1)}${j.mobChanged ? ' (THE THREAT DRIFTED)' : ' (the instant execution)'} - window ${j.driftWindow} lines${j.hpDelta < 0 ? `, hp lost ${Math.abs(j.hpDelta).toFixed(1)}` : ''}`)
+    }
+  }
+}
+// (v0.489.0) THE SHIELD LADDER - the shelter attempt's own book (the
+// takeover class's engine priced: every 'shelter try' opens a ladder
+// episode, the machinery walks inside it, the bot's next boundary closes
+// it - ringed / laneLost / died / open; the pregate names the skips that
+// refused before any try). The doors: the wall door (wall misses - the
+// open-field signature says it never opens) and the ring door (ring
+// tries x the ringed close). The re-scan tax: the bot's consecutive
+// same-threat episode pairs - the scan re-asking a question the world
+// already answered.
+{
+  const sl = shelterLadder(lines)
+  console.log(`--- SHIELD LADDER (v0.489.0: the shelter attempt's own book) ---`)
+  if (!sl || sl.tries === 0) {
+    console.log(`  shelter tries: 0 (the ladder never walked${sl && sl.pregate ? ` - pregate refusals ${sl.pregate}` : ' - the calm face reads zero honestly'})`)
+  } else {
+    const book = sl.ringed + sl.laneLost + sl.died + sl.open
+    console.log(`  shelter tries: ${sl.tries} - ringed ${sl.ringed} / laneLost ${sl.laneLost} / died ${sl.died} / open ${sl.open} - book ${book}/${sl.tries}; pregate refusals ${sl.pregate}`)
+    console.log(`  the doors: wall ${sl.wallMisses}/${sl.tries} missed (the open-field signature - the wall never landed at this n) | ring ${sl.ringLanded} landed / ${sl.ringRefused} refused of ${sl.ringTries} tried`)
+    console.log(`  the re-scan tax: ${sl.sameThreatRescans} same-threat pairs / ${sl.threatChangedRescans} threat-changed (the scan re-asking what the world answered)`)
+    const cls = Object.entries(sl.skipClasses).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
+    if (cls) console.log(`  the refusals: ${cls}`)
+    if (sl.prose) console.log(`  the ladder prose: min ${sl.prose.min} / median ${sl.prose.median} / max ${sl.prose.max} lines per episode`)
+    for (const r of sl.rows.filter(x => x.outcome === 'ringed')) {
+      console.log(`   ringed: ${r.bot} vs ${r.mob} (ring tries ${r.ringTries}) - the ring door opened`)
     }
   }
 }
