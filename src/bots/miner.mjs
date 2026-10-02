@@ -40,7 +40,7 @@ import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine, wetRescueWindowLive } from '../lib/statcarry.mjs' // (v0.357.0) the wet-rescue window classifier - the storm verdict's exclusion feed
 import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired, tierDebtOf } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break; (v0.503.0) the tier debt rides the verdict
 import { isNight } from '../lib/nightsafety.mjs'
-import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.511.0) THE FLESH RATION - the autoeat plugin's own policy, finally fed and finally enabled
+import { RATION_OPTS, rationVerdict, createRationGate } from '../lib/ration.mjs' // (v0.511.0) THE FLESH RATION - the autoeat plugin's own policy, finally fed and finally enabled; (v0.513.0) the fight table rides the same import
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
 import { sealSnapshot, sealDeclareLine, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.421.0) the seal watch: the pre-risk declare + the respawn accounting, the same SEAL_PRIORITY list all four seal arithmetics spend
@@ -171,6 +171,12 @@ export function createMiner ({
   // eats - the hunger/health delta decides the verdict, never the hope).
   bot.autoEat.setOpts(RATION_OPTS)
   bot.on('spawn', () => { try { bot.autoEat.enableAuto() } catch { /* gone */ } })
+  // (v0.513.0) THE FIGHT TABLE's sync: the gate counts, the plugin follows. One
+  // reader - every hold/release site calls rationSync and the eater's enabled
+  // state is always the gate's truth (the 5.0.3 enable/disable are idempotent:
+  // the _enabled guard makes a double enable and a double disable both no-ops).
+  const rationGate = createRationGate()
+  const rationSync = () => { try { if (rationGate.armed) bot.autoEat.enableAuto(); else bot.autoEat.disableAuto() } catch { /* gone */ } }
   let rationAttempt = null
   bot.autoEat.on('eatStart', opts => {
     try {
@@ -824,6 +830,12 @@ export function createMiner ({
   // seconds. Without this the bot went straight back to mining at 3 hp (measured)
   // and the very next hit re-triggered the whole cycle.
   async function recover () {
+    // (v0.513.0) THE FIGHT TABLE's re-arm: the regen window IS the eat window -
+    // recover() waits on 'autoeat + natural regen', so the bite must be able to
+    // fire HERE, not after the finally. A flee's recover reads release-at-zero
+    // (no hold was taken - the clamp makes it a no-op) and re-syncs armed.
+    rationGate.release()
+    rationSync()
     const deadline = Date.now() + 8000
     while (bot.entity && (bot.health ?? 20) < 14 && Date.now() < deadline) {
       await bot.waitForTicks(10)
@@ -1460,6 +1472,15 @@ export function createMiner ({
         if (!after || after.dist > 20) fleeStartDists.length = 0
         return { action: 'flee', threat: threat.name }
       }
+      // (v0.513.0) THE FIGHT TABLE: the melee section AND the pre-fight shelter
+      // below share the one hand - a bite opened here lands the next swings with
+      // food in it (fist damage), wrestles the re-equip flow, and interrupts a
+      // ring build's block equips. The ration leaves the table: hold from before
+      // the shelter to the section's exit (the flee branch never holds - the run
+      // and the recover window are the eat's own lanes, movement needs no weapon
+      // hand; recover() itself is the re-arm point).
+      rationGate.hold()
+      rationSync()
       // (v0.68.0) THE PRE-FIGHT SHELTER: the FIGHT verdict never consulted
       // the shelter - run64 measured the melee-naked bot burning its 17-20 hp
       // window on the losing fist fight (v0.47.0: 17 hp -> 4.3 hp, zombie
@@ -1677,7 +1698,14 @@ export function createMiner ({
       log(`${tag} combat: fight ended vs ${threat.name} (${exit}, hp ${startHp.toFixed(1)} -> ${(bot.health ?? 0).toFixed(1)}, swings ${swings}, weapon ${weapon?.name ?? 'fists'}, ${rounds} rounds)`)
       await recover()
       return { action: 'fight', threat: threat.name }
-    } finally { defending = false }
+    } finally {
+      defending = false
+      // (v0.513.0) THE FIGHT TABLE's insurance: an exit that skipped recover
+      // (a throw, a death guard) must never leave the ration off - the count
+      // clamp makes the double release a no-op and the sync re-arms armed.
+      rationGate.release()
+      rationSync()
+    }
   }
 
   // ---- (v0.303.0) THE PER-BOT DEATH STAMP ----

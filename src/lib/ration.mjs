@@ -92,3 +92,36 @@ export function rationVerdict ({ food = null, health = null } = {}) {
   if (hurt) return { due: true, reason: 'health-guard' }
   return { due: false, reason: 'fed' }
 }
+
+// ---- (v0.513.0) THE FIGHT TABLE - the ration never holds the weapon hand ----
+//
+// The 0.511.0 wire armed the plugin's statusCheck on EVERY physicsTick - and
+// the plugin's eat switches the held item to food for the 1.61s the bite
+// takes (returnToLastItem switches back only after). A bite that opens
+// mid-melee makes the next swings land with food in hand (fist damage), and
+// the defendSelf re-equip fight makes the two lanes wrestle one hand. The
+// doctrine prices it: the flee's run and the post-fight recover() window are
+// the ration's own lanes (movement, no swings - a bite there feeds exactly
+// the regen recover() waits on); the melee section and the pre-fight shelter
+// (a ring build shares the same hand) are NOT.
+//
+// The gate is a COUNT, not a flag: the fight section holds once, recover()
+// releases once (it is the re-arm point - the regen window IS the eat
+// window), and the defendSelf finally releases again as the stuck-disable
+// insurance (an exit that skips recover must never leave the ration off).
+// The count survives the double release honestly: a release at zero is a
+// no-op (clamp, no false arm - the gate never ARMS what it did not disarm,
+// and an already-armed gate stays armed), a re-entrant hold (a second
+// defendSelf cannot run while `defending`, but the shape is priced anyway)
+// needs its own release before the eater comes back.
+
+/** A count-based gate: the fight section holds, recover() releases, the finally insures. armed === true means the plugin's auto-eater may run. */
+export function createRationGate () {
+  let holds = 0
+  return {
+    hold () { holds++ },
+    release () { if (holds > 0) holds-- },
+    get armed () { return holds === 0 },
+    get depth () { return holds }
+  }
+}

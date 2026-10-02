@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { RATION_OPTS, RATION_BANNED, ROTTEN_FLESH, RATION_MIN_HUNGER, RATION_MIN_HEALTH, REGEN_HUNGER_FLOOR, rationVerdict } from '../../src/lib/ration.mjs'
+import { RATION_OPTS, RATION_BANNED, ROTTEN_FLESH, RATION_MIN_HUNGER, RATION_MIN_HEALTH, REGEN_HUNGER_FLOOR, rationVerdict, createRationGate } from '../../src/lib/ration.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -91,7 +91,7 @@ test('ration: the wire is pinned in miner.mjs (setOpts + enableAuto + the honest
   assert.ok(src.includes("bot.autoEat.on('eatStart'"), 'the attempt must be readable')
   assert.ok(src.includes("bot.autoEat.on('eatFinish'"), 'the outcome must be readable')
   assert.ok(src.includes("ration: ${ok ? 'ate' : 'failed'}"), 'the honest verdict line (failed eats log as failed)')
-  assert.ok(src.includes("import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs'"), 'the policy import is pinned')
+  assert.ok(src.includes("import { RATION_OPTS, rationVerdict, createRationGate } from '../lib/ration.mjs'"), 'the policy import is pinned (the fight table rides the same import)')
 })
 
 test('ration: the fleet tail filter carries the ration lines', () => {
@@ -100,4 +100,57 @@ test('ration: the fleet tail filter carries the ration lines', () => {
   assert.ok(/\|ration\/\.test\(m\)/.test(src), "the tail filter must include 'ration' at the tail")
   // the policy lib is where the wire's numbers live - the miner must not fork its own
   assert.ok(!/bot\.autoEat\.setOpts\(\{/.test(src), 'the wire must hand over RATION_OPTS, not an inline fork')
+})
+
+test('ration: the gate counts honestly (the fight table)', () => {
+  const g = createRationGate()
+  // fresh: armed, empty
+  assert.equal(g.armed, true)
+  assert.equal(g.depth, 0)
+  // the un-held release is a no-op - the gate never ARMS what it did not disarm
+  g.release()
+  assert.equal(g.armed, true)
+  assert.equal(g.depth, 0)
+  // one hold disarms; one release re-arms
+  g.hold()
+  assert.equal(g.armed, false)
+  assert.equal(g.depth, 1)
+  g.release()
+  assert.equal(g.armed, true)
+  assert.equal(g.depth, 0)
+  // the re-entrant shape: two holds need two releases
+  g.hold(); g.hold()
+  assert.equal(g.depth, 2)
+  g.release()
+  assert.equal(g.armed, false, 'the first release must not re-arm a held gate')
+  g.release()
+  assert.equal(g.armed, true)
+  // the insurance shape: hold once, recover releases, the finally releases again
+  g.hold()
+  g.release(); g.release()
+  assert.equal(g.armed, true, 'the clamp absorbs the insurance double release')
+  assert.equal(g.depth, 0)
+})
+
+test('ration: the fight table wire is pinned (hold before the shelter, re-arm in recover, the finally insurance)', () => {
+  const src = fs.readFileSync(path.join(root, 'src', 'bots', 'miner.mjs'), 'utf8')
+  // the hold sits BEFORE the pre-fight shelter - the ring build shares the hand
+  const iHold = src.indexOf('rationGate.hold()')
+  const iShelter = src.indexOf("tryShelter(`${reason} pre-fight`)")
+  assert.ok(iHold > 0, 'the fight section must hold the gate')
+  assert.ok(iShelter > iHold, 'the hold must precede the pre-fight shelter (the ring build shares the hand)')
+  // exactly ONE hold site: the flee branch never holds (the run is the eat lane)
+  assert.equal(src.indexOf('rationGate.hold()', iHold + 1), -1, 'only the fight section holds')
+  // recover() re-arms at ENTRY - the regen window IS the eat window
+  const iRecover = src.indexOf('async function recover ()')
+  assert.ok(src.slice(iRecover, iRecover + 400).includes('rationGate.release()'), 'recover must release (the re-arm point)')
+  assert.ok(src.slice(iRecover, iRecover + 400).includes('rationSync()'), 'recover must sync the plugin to the gate')
+  // the finally insurance: an exit that skipped recover never leaves the ration off
+  const iFinally = src.indexOf('finally {\n      defending = false')
+  assert.ok(iFinally > 0, 'the defendSelf finally shape is pinned')
+  assert.ok(src.slice(iFinally, iFinally + 500).includes('rationGate.release()'), 'the finally releases (the insurance)')
+  assert.ok(src.slice(iFinally, iFinally + 500).includes('rationSync()'), 'the finally syncs (the insurance)')
+  // the sync reader is the single writer of the plugin's enabled state
+  const iSync = src.indexOf('const rationSync = () =>')
+  assert.ok(iSync > 0 && src.includes('if (rationGate.armed) bot.autoEat.enableAuto(); else bot.autoEat.disableAuto()'), 'the sync follows the gate, both directions')
 })
