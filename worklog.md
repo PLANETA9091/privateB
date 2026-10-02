@@ -11930,3 +11930,20 @@ Work Log:
 Stage Summary:
 - Master = 8342daf (pkg 0.454.0). The drain's cure lane now has a NAME: on mob-violence faces it is the combat/night lane (skeletons 50%); on wet faces the water lane (faces 29/30/35). The deaths lane owns the drain either way - the conversion collapse (36.2%) and the banked collapse (95) are the SAME economy.
 - NEXT FIRE: (1) gate 8342daf verdict; (2) dispatch face 37 if the slot is free - the killers row's second read: does the mob family repeat as the top killer, or does the face shape flip back (the alternate-economy pattern: face 35 clean/wet-lean, face 36 mob-brutal)? (3) the combat/night cure pricing: the fight rows (fights=18, kills=4 face 35 vs the mob 11 deaths face 36) - the shelter/wall mechanics the census already reads; price the arrow-evasion/night-camp cure BEFORE any wire; (4) F9 4/4 - the bot-specific structural read (its hop/cadence/seat rows) is still open fuel; (5) the receipt's negative-window verdict (delivered/drained/flat) as the small honest extension; (6) version next 0.455.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-0930
+Agent: cron30 (main lane, Job 414125)
+Task: fire 0930 - v0.455.0 THE LENSES CONVERGE (the balance's leak meets the event lens's whole-face legs, all lines not post-peak); FACE 36 mined (all three faces' reconcile rows COVERED); SLOT COLLISION resolved (0.454.0 taken by fire-0938 -> 0.455.0); DISPATCH face 37 (36954023145).
+
+Work Log:
+- CHECK ORIGIN FIRST: eeb108c the tip at open (pkg 0.453.0); gate 36949524570 (v0.453.0) SUCCESS. Fleet 36948827479 (face 36) in flight at open -> polled to SUCCESS this box, mined (2967 lines): the drain row 3 (peak 1440u at t-60s, drop 1026u, banked +95 -> UNACCOUNTED; the attribution covered it - deaths 1089u/13 + placed 15), the balance live (leaks +862 = 64.6% LEAKY), F9 4/4 in the roster, the receipt 2/2 delivered (+40u).
+- THE WIRE (v0.455.0): balanceReconcile in maptrip.mjs - the whole-face identity's leak read against the SAME emitters' lines over ALL lines (the same regexes verbatim - one parser per emitter, no drift); verdicts no-leak / covered (the slack = the ~Nu pricing's inflation margin, a NUMBER) / shortfall (a NAMED unpriced share - no live anchor yet, hand-built only). Decompose: the row after the material balance.
+- THE FIELD READ (faces 34/35/36, verified live pre-push): ALL THREE COVERED - 34: legs 962u vs leak 417 (slack +545); 35: legs 697 (deaths 635u/6 + placed 62) vs leak 149 (slack +548 - the 0838 lane's post-peak 'deaths 0' was scope, not absence); 36: legs 1189 vs leak 862 (slack +327). The pricing runs a 2-5x wide margin - the slack is the next read's subject (re-collection: a death's drop partially re-gathered would price it).
+- THE SLOT COLLISION: mid-fire the parallel lane pushed v0.454.0 THE POCKET KILLERS (8342daf + the fire-0938 worklog); both took 0.454.0. Per protocol: rebase + next free slot 0.455.0; the maptrip test file keep-both (their 4 kind-split tests + my 3 reconcile tests - 34/34); my comment chain synced; the commit amended pre-push (no published history touched).
+- Tests: maptrip 34/34. Syntax 354/0, unit 204/204 files (NOTE: the sandbox slowed - the suite needs >240s now; 240s outer timeouts fake toolupgrade failures, 560s green). Push 4cee5fc..c481b4f CLEAN.
+- DISPATCH face 37: 36954023145 (c481b4f = 0.455.0, HTTP 204, queued) after the push.
+- Gates at close: 36953994434 (c481b4f) pending; face 37 queued - no verdicts held, honest.
+
+Stage Summary:
+- Master = c481b4f (pkg 0.455.0). NEXT FIRE: (1) gate 36953994434 verdict; (2) fleet 36954023145 (face 37) poll => mine: the reconcile row's fresh fuel (the slack band +300..+550? does a shortfall ever land?), the roster five-face (F9 5/5?), the pocket killers row 2; (3) price the slack (the ~Nu margin's re-collection hypothesis) from the log's gather/pickup lines near the drop coords BEFORE any cure wire; (4) version next 0.456.0. Identity: PLANETA9091.
