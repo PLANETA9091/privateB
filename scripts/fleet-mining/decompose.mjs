@@ -35,6 +35,7 @@ import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fi
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
+import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.492.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
@@ -815,6 +816,31 @@ if (shooter.total > 0) {
     if (sl.prose) console.log(`  the ladder prose: min ${sl.prose.min} / median ${sl.prose.median} / max ${sl.prose.max} lines per episode`)
     for (const r of sl.rows.filter(x => x.outcome === 'ringed')) {
       console.log(`   ringed: ${r.bot} vs ${r.mob} (ring tries ${r.ringTries}) - the ring door opened`)
+    }
+  }
+}
+// (v0.492.0) THE RING AFTERMATH - what the ring landing bought (the
+// shield ladder's book stops at the ringed close; the aftermath walks
+// forward from it: died-in-shelter / re-shelter same / re-shelter moved
+// / lane return / held tail). The completeness law: the one ringed-then-
+// died rode the INCOMPLETE wall (cells 2/8 - the mob walked the gap);
+// the siege read: consecutive same-mob rings are the ring's pause-not-
+// end signature (the re-scan tax's ringed-side twin).
+{
+  const ra = ringAfter(lines)
+  console.log(`--- RING AFTERMATH (v0.492.0: what the ring landing bought) ---`)
+  if (!ra || ra.ringed === 0) {
+    console.log(`  ringed episodes: 0 (the ring door never opened this face${ra ? '' : ' - junk reads null'})`)
+  } else {
+    const book = ra.diedInShelter + ra.reShelter + ra.laneReturn + ra.heldTail
+    console.log(`  ringed ${ra.ringed} - died-in-shelter ${ra.diedInShelter} / re-shelter ${ra.reShelter} (same ${ra.reShelterSame} / moved ${ra.reShelterMoved}) / lane-return ${ra.laneReturn} / held-tail ${ra.heldTail} - book ${book}/${ra.ringed}`)
+    console.log(`  the completeness law: full rings ${ra.complete.full} / incomplete ${ra.complete.incomplete} - deaths full ${ra.deathsByWall.full} / incomplete ${ra.deathsByWall.incomplete}${ra.deathsByWall.incomplete ? ' - THE SIEVE: the gap is the door' : ''}`)
+    if (ra.sieges.chains) console.log(`  the sieges: ${ra.sieges.chains} chain(s), longest ${ra.sieges.max} consecutive same-mob rings (the ring is a pause, not an end)`)
+    for (const r of ra.rows) {
+      const wallTxt = r.wall && r.wall.cells ? `${r.wall.kind} ${r.wall.cells[0]}/${r.wall.cells[1]}${r.wall.complete ? ' full' : ' INCOMPLETE'}` : 'wall unread'
+      const aft = r.aftermath === 'reShelter' ? `re-shelter vs ${r.reMob}${r.reDist !== null ? `@${r.reDist}` : ''}` : r.aftermath
+      const gap = r.gapLines === null ? 'window tail' : `${r.gapLines} lines`
+      console.log(`   ringed: ${r.bot} vs ${r.mob} (${wallTxt}) -> ${aft} after ${gap}`)
     }
   }
 }
