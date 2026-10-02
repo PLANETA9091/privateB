@@ -22,7 +22,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
-import { upgradeCensus } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted
+import { upgradeCensus, deferPromise } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1429,6 +1429,18 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const toolBits = Object.entries(uc.byTool).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(', ')
     const ubBits = Object.entries(uc.perBot).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).map(([k, n]) => `${k}=${n}`).join(' ')
     console.log(`  tool upgrades (v0.465.0): ${uc.upgrades} event(s), ${uc.tools} tool(s)${toolBits ? ` (${toolBits})` : ''}${ubBits ? ` per-bot: ${ubBits}` : ''}`)
+  }
+  // (v0.467.0) THE DEFER PROMISE JOIN - the steer's tail promise put to an
+  // order-aware test. The defer's own words: 'the tail keeps the option,
+  // the upgrade rung restores the lead' - the bot's LAST defer line
+  // governs; an upgrade event after it = took-after (the promise's live
+  // pass), upgrades only before it = took-before-only (the defer outlived
+  // the rung), none = kept (the option held). Co-existence reported,
+  // causation never guessed (the row does not know WHY the rung ran).
+  const dp = deferPromise(lines)
+  if (dp && dp.deferringBots > 0) {
+    const dpBits = Object.entries(dp.perBot).sort((x, y) => x[0].localeCompare(y[0])).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`  the rung's promise (v0.467.0): ${dp.deferringBots} deferred bot(s) - took-after ${dp.tookAfter}, took-before-only ${dp.tookBeforeOnly}, kept ${dp.kept} (${dpBits})`)
   }
 }
 

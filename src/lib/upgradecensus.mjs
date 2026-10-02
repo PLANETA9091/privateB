@@ -37,3 +37,58 @@ export function upgradeCensus (lines) {
   }
   return { upgrades, perBot, byTool, tools }
 }
+
+// (v0.467.0) THE DEFER PROMISE JOIN - the tier-defer steer's own promise
+// put to an order-aware test. The defer line's tail promises 'the tail
+// keeps the option, the upgrade rung restores the lead'; the census rows
+// read the work list and the delivery side by side, but the PROMISE is
+// per-bot and positional: did a bot that deferred reach the rung AFTER
+// its defer? One walk over the lines (the join reuses the two emitters'
+// own REs - TIER_DEFER_RE and UPGRADE_RE - no new shape claimed): the
+// bot's LAST defer index governs; an upgrade event after it = tookAfter,
+// upgrades only before it = tookBeforeOnly (the defer outlived the rung),
+// no upgrade events at all = kept (the option still held). Co-existence
+// is reported, causation never guessed (the row does not know WHY the
+// rung ran - the tail is the steer's own words). Junk-safe: non-lines
+// skipped, non-array -> null. Pure: reads, never mutates.
+import { TIER_DEFER_RE } from './tierdefer.mjs'
+
+// deferPromise(lines) -> { deferringBots, tookAfter, tookBeforeOnly, kept,
+//                           perBot } | null
+//   deferringBots  bots with >= 1 defer line this face
+//   tookAfter      deferred, then upgraded (the promise's live pass)
+//   tookBeforeOnly upgraded before the last defer (the defer outlived it)
+//   kept           no upgrade event this face (the option held)
+//   perBot         { F16: 'kept' | 'took-after' | 'took-before-only', ... }
+export function deferPromise (lines) {
+  if (!Array.isArray(lines)) return null
+  const lastDefer = {}
+  const upgradeIdx = {}
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (typeof line !== 'string') continue
+    const d = TIER_DEFER_RE.exec(line)
+    if (d) {
+      lastDefer[d[1]] = i
+      continue
+    }
+    const u = UPGRADE_RE.exec(line)
+    if (u) {
+      (upgradeIdx[u[1]] = upgradeIdx[u[1]] || []).push(i)
+    }
+  }
+  const perBot = {}
+  let tookAfter = 0
+  let tookBeforeOnly = 0
+  let kept = 0
+  for (const bot of Object.keys(lastDefer)) {
+    const ups = upgradeIdx[bot] || []
+    const after = ups.some(idx => idx > lastDefer[bot])
+    const cls = after ? 'took-after' : (ups.length ? 'took-before-only' : 'kept')
+    perBot[bot] = cls
+    if (cls === 'took-after') tookAfter++
+    else if (cls === 'took-before-only') tookBeforeOnly++
+    else kept++
+  }
+  return { deferringBots: Object.keys(lastDefer).length, tookAfter, tookBeforeOnly, kept, perBot }
+}

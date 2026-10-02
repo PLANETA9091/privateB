@@ -60,3 +60,76 @@ test('UPGRADE_RE anchors the emitter shape (one parser per emitter)', () => {
   assert.ok(!UPGRADE_RE.test('F9 tool upgrade: OK -> stone_pickaxe (x)'))
   assert.ok(!UPGRADE_RE.test('F9 [toolupgrade] [upgrade] due: stone'))
 })
+
+// (v0.467.0) THE DEFER PROMISE JOIN tests
+import { deferPromise } from '../../src/lib/upgradecensus.mjs'
+
+test('deferPromise reads took-after (the promise live: defer, then the rung)', () => {
+  const lines = [
+    'F9 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F9 [toolupgrade] [upgrade] due: stone',
+    'F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel'
+  ]
+  const r = deferPromise(lines)
+  assert.equal(r.deferringBots, 1)
+  assert.equal(r.tookAfter, 1)
+  assert.deepEqual(r.perBot, { F9: 'took-after' })
+})
+
+test('deferPromise reads kept (the F16 face-42 case verbatim: no upgrade event)', () => {
+  const lines = [
+    'F16 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F19 [toolupgrade] [upgrade] upgraded: stone_pickaxe,wooden_shovel,wooden_pickaxe,wooden_pickaxe'
+  ]
+  const r = deferPromise(lines)
+  assert.equal(r.deferringBots, 1)
+  assert.equal(r.kept, 1)
+  assert.equal(r.tookAfter, 0)
+  assert.deepEqual(r.perBot, { F16: 'kept' })
+})
+
+test('deferPromise reads took-before-only (the defer outlived the rung)', () => {
+  const lines = [
+    'F3 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F3 steer tier defer: coal_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+  ]
+  const r = deferPromise(lines)
+  assert.deepEqual(r.perBot, { F3: 'took-before-only' })
+  assert.equal(r.tookBeforeOnly, 1)
+})
+
+test('deferPromise lets the LAST defer govern (mid upgrade then defer again waits)', () => {
+  const lines = [
+    'F5 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F5 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F5 steer tier defer: copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+  ]
+  const r = deferPromise(lines)
+  assert.deepEqual(r.perBot, { F5: 'took-before-only' })
+})
+
+test('deferPromise splits a mixed cast honestly', () => {
+  const lines = [
+    'F16 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe',
+    'F9 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+    'F9 [toolupgrade] [upgrade] upgraded: stone_pickaxe,iron_pickaxe'
+  ]
+  const r = deferPromise(lines)
+  assert.equal(r.deferringBots, 2)
+  assert.deepEqual(r.perBot, { F16: 'kept', F9: 'took-after' })
+  assert.equal(r.tookAfter, 1)
+  assert.equal(r.kept, 1)
+})
+
+test('deferPromise is junk-safe and nulls on non-array', () => {
+  assert.equal(deferPromise(null), null)
+  assert.equal(deferPromise('nope'), null)
+  const r = deferPromise([null, 7, 'F2 [toolupgrade] [upgrade] upgraded: x', 'garbage'])
+  assert.deepEqual(r, { deferringBots: 0, tookAfter: 0, tookBeforeOnly: 0, kept: 0, perBot: {} })
+})
+
+test('deferPromise reads zero honestly (the zero law)', () => {
+  const r = deferPromise(['F1 [toolupgrade] [upgrade] upgraded: stone_pickaxe'])
+  assert.deepEqual(r, { deferringBots: 0, tookAfter: 0, tookBeforeOnly: 0, kept: 0, perBot: {} })
+})
