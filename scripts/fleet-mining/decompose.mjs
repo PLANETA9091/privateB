@@ -635,6 +635,21 @@ if (shooter.total > 0) {
     if (fl.hp) console.log(`  hp at flee start: min ${fl.hp.min.toFixed(1)} / median ${fl.hp.median.toFixed(1)} / max ${fl.hp.max.toFixed(1)}; kite starts ${fl.kiteStarts}`)
     const bb = fl.bands
     console.log(`  start bands: close ${bb.close.starts} (died ${bb.close.died}) / mid ${bb.mid.starts} (died ${bb.mid.died}) / far ${bb.far.starts} (died ${bb.far.died})${bb.unpriced.starts ? ` / unpriced ${bb.unpriced.starts}` : ''}`)
+    const cr = fl.crowd
+    const crVerdict = cr.crowd.starts === 0
+      ? 'no crowd starts - the solo lane owns this face'
+      : cr.solo.starts === 0
+        ? 'every start flew crowded - the crowd is the face\'s own weather'
+        : (() => {
+            const cs = cr.crowd.died / cr.crowd.starts
+            const ss = cr.solo.died / cr.solo.starts
+            return cs > ss
+              ? `the CROWDED flights die more (crowd ${(cs * 100).toFixed(0)}% vs solo ${(ss * 100).toFixed(0)}%) - the second hostile is already counted at the flight decision`
+              : cs < ss
+                ? `the solo flights die more (solo ${(ss * 100).toFixed(0)}% vs crowd ${(cs * 100).toFixed(0)}%) - the crowd census is not this face's doom axis`
+                : 'the shares are even - the crowd does not split this face\'s doom'
+          })()
+    console.log(`  crowd price (v0.482.0): solo (nearby 0-1) ${cr.solo.starts} (died ${cr.solo.died}) / crowd (nearby 2+) ${cr.crowd.starts} (died ${cr.crowd.died})${cr.unpriced.starts ? ` / unpriced ${cr.unpriced.starts}` : ''} - ${crVerdict}`)
     for (const r of fl.rows.filter(x => x.outcome === 'chased')) {
       console.log(`   chased: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - killed @${r.killDist ?? '-'} (delta ${r.killDelta === null ? 'unpriced' : `${r.killDelta > 0 ? '+' : ''}${r.killDelta.toFixed(1)}`})${r.killDelta !== null && r.killDelta < 0 ? ' - THE MOB CLOSED IN' : r.killDelta !== null ? ' - the flee gained, the trade lost' : ''}`)
     }

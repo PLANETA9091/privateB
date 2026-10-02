@@ -58,6 +58,20 @@
 // reflee + stood + sheltered + chased + crossfire + diedOther + open,
 // every start closes exactly once.
 //
+// v0.482.0 THE CROWD PRICE - the crowd dimension's own died share. The
+// bands read the DISTANCE at flee start; the start line also carries its
+// own crowd census ('N nearby' - the hostiles around at the moment of
+// the flight decision), and the crossfire class's sensor is exactly that
+// count: face 43's both crossfire deaths (F17 fled a spider @2 nearby,
+// F16 fled a creeper @2 nearby) flew with a SECOND hostile already
+// counted, while the chased deaths flew solo - the crowd read the
+// survival fork's verdict line asks for ('the disengage must read the
+// crowd, not just the chase') is priced by splitting the starts into
+// solo (nearby <= 1) vs crowd (nearby >= 2) and reading each side's
+// died share. Same died law as the bands (chased + crossfire - the
+// mob-family kills); the truncation window's data-blind starts (nearby
+// null) read the honest unpriced bucket.
+//
 // Junk-safe: non-array / non-string-blob reads null (the smeltledger
 // convention); zero starts read the honest zero shape (the row prints
 // the calm face - face 40's own shape). Pure: reads, never mutates.
@@ -111,6 +125,8 @@ const round1 = n => Math.round(n * 10) / 10
  *   sheltered: number, chased: number, crossfire: number, diedOther:
  *   number, open: number, stuckReflees: number, kiteStarts: number,
  *   hp: {min, median, max}|null, bands: Object<string, {starts, died}>,
+ *   crowd: {solo: {starts, died}, crowd: {starts, died}, unpriced:
+ *   {starts, died}},
  *   perBot: Object<string, number>, rows: object[]}}
  */
 export function fleeLedger (lines) {
@@ -224,6 +240,15 @@ export function fleeLedger (lines) {
     b.starts++
     if (r.outcome === 'chased' || r.outcome === 'crossfire') b.died++
   }
+  // the crowd x died share (v0.482.0): the start line's own census -
+  // solo (nearby <= 1) vs crowd (nearby >= 2); the crossfire class's
+  // sensor is the second hostile already counted at the flight decision
+  const crowd = { solo: { starts: 0, died: 0 }, crowd: { starts: 0, died: 0 }, unpriced: { starts: 0, died: 0 } }
+  for (const r of rows) {
+    const key = r.nearby === null ? 'unpriced' : (r.nearby >= 2 ? 'crowd' : 'solo')
+    crowd[key].starts++
+    if (r.outcome === 'chased' || r.outcome === 'crossfire') crowd[key].died++
+  }
   const hps = rows.filter(r => r.hp !== null).map(r => r.hp)
   const perBot = {}
   for (const r of rows) perBot[r.bot] = (perBot[r.bot] || 0) + 1
@@ -242,6 +267,7 @@ export function fleeLedger (lines) {
       ? { min: Math.min(...hps), median: median(hps), max: Math.max(...hps) }
       : null,
     bands,
+    crowd,
     perBot,
     rows
   }

@@ -94,6 +94,31 @@ test('the start-side bands price the doom share: face 43 close 1/1, mid 2/10, fa
   assert.equal(distBand(11.5), 'far')
 })
 
+test('the crowd price (v0.482.0): face 43 solo 1/7 died, crowd 2/5 died - the crossfire sensor is the start line\'s own census', () => {
+  const r = fleeLedger(face43Mini)
+  // nearby 0-1: F18 x2 (1), F2 x2 (1), F5 (1), F15 (1), F19 (1) - the
+  // chased death (F5) is the solo lane's only doom; nearby 2+: F2 (3),
+  // F18 (3), F17 (2), F15 (2), F16 (2) - BOTH crossfire deaths flew
+  // crowded (the second hostile already counted at the flight decision)
+  assert.deepEqual(
+    { solo: r.crowd.solo, crowd: r.crowd.crowd, unpriced: r.crowd.unpriced },
+    { solo: { starts: 7, died: 1 }, crowd: { starts: 5, died: 2 }, unpriced: { starts: 0, died: 0 } }
+  )
+  // the crossfire class never flew solo on this face
+  const cross = r.rows.filter(x => x.outcome === 'crossfire')
+  assert.deepEqual(cross.map(x => x.nearby), [2, 2])
+  // the book law holds on the crowd split too
+  assert.equal(r.crowd.solo.starts + r.crowd.crowd.starts + r.crowd.unpriced.starts, r.starts)
+})
+
+test('the crowd price on face 42: every start flew solo - the chased doom is solo\'s own', () => {
+  const r = fleeLedger(face42Mini)
+  assert.deepEqual(
+    { solo: r.crowd.solo, crowd: r.crowd.crowd, unpriced: r.crowd.unpriced },
+    { solo: { starts: 3, died: 1 }, crowd: { starts: 0, died: 0 }, unpriced: { starts: 0, died: 0 } }
+  )
+})
+
 test('the chase progress: reflee deltas priced, the stuck signature counted', () => {
   const r = fleeLedger(face43Mini)
   const deltas = r.rows.filter(x => x.outcome === 'reflee').map(x => x.refleeDelta)
@@ -195,6 +220,8 @@ test('the truncation window: a flee verb with a cut body opens data-blind', () =
   assert.equal(r.rows[0].outcome, 'stood')
   // the unpriced band carries it
   assert.deepEqual(r.bands.unpriced, { starts: 1, died: 0 })
+  // the crowd census is data-blind too - the honest unpriced bucket
+  assert.deepEqual(r.crowd.unpriced, { starts: 1, died: 0 })
   assert.equal(r.hp, null)
 })
 
@@ -235,6 +262,7 @@ test('the zero law: a face with no flees reads the honest zero shape', () => {
   assert.equal(r.chased, 0)
   assert.equal(r.open, 0)
   assert.equal(r.hp, null)
+  assert.deepEqual(r.crowd, { solo: { starts: 0, died: 0 }, crowd: { starts: 0, died: 0 }, unpriced: { starts: 0, died: 0 } })
   assert.deepEqual(r.perBot, {})
   assert.deepEqual(r.rows, [])
 })
