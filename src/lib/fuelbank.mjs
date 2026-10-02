@@ -227,6 +227,55 @@ export function clearDryStance (memory, name) {
   return had
 }
 
+// (v0.509.0) THE REFILL TIDINGS - the deposit side of the backoff. The ask
+// backoff (v0.506.0) defers a re-ask from a proven-dry stance for
+// ASK_BACKOFF_TTL_MS - the honest cure for the repeat-ask churn. But the clock
+// is the ONLY re-arm that doesn't need the asker itself to move or deliver:
+// when the tithe lands fuel in a chest, the diggers whose stances stand within
+// reach keep deferring for the FULL ttl even though the refill just arrived at
+// their depth - the sweep's own clear (taken > 0) can only free the SWEEPING
+// bot. The tidings close the loop: a funded chest un-defers every dry stance
+// within DRY_REARM_RADIUS (the near-window scale the sub-doom gate already
+// uses - anchorSubDoom's lateral bound). The radius IS the scope law: a yard
+// deposit 20-37 levels above the diggers' stances fails the distance test on
+// its own, no band check needed - and an over-generous re-arm costs nothing
+// dishonest, the re-armed ask re-fires into the EXISTING gates (the vertical
+// gate, the climb fund) which refuse a doomed walk and a fresh zero re-arms a
+// fresh dry stance. Silent state hygiene (the clearDryStance law - no log
+// line, no filter key). Junk-safe end to end: a null memory, a junk position
+// or a junk radius touch nothing; a junk-shaped record is skipped; the chest
+// buckets and the __low: lane are never read as stances. The count is the
+// number of records physically cleared (an expired record counts too - it is
+// state the lane no longer needs).
+export const DRY_REARM_RADIUS = 24
+
+export function rearmDryNear (memory, pos, radius = DRY_REARM_RADIUS) {
+  if (!memory || typeof memory !== 'object') return 0
+  if (!pos || typeof pos !== 'object') return 0
+  const x = Number(pos.x)
+  const y = Number(pos.y)
+  const z = Number(pos.z)
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return 0
+  const r = Number(radius)
+  const rad = Number.isFinite(r) && r >= 0 ? r : DRY_REARM_RADIUS
+  const rad2 = rad * rad
+  let cleared = 0
+  for (const key of Object.keys(memory)) {
+    if (typeof key !== 'string' || !key.startsWith('__dry:')) continue
+    const rec = memory[key]
+    if (!rec || typeof rec !== 'object') continue
+    const rx = Number(rec.x)
+    const ry = Number(rec.y)
+    const rz = Number(rec.z)
+    if (!Number.isFinite(rx) || !Number.isFinite(ry) || !Number.isFinite(rz)) continue
+    const dx = rx - Math.floor(x)
+    const dy = ry - Math.floor(y)
+    const dz = rz - Math.floor(z)
+    if (dx * dx + dy * dy + dz * dz <= rad2) { delete memory[key]; cleared++ }
+  }
+  return cleared
+}
+
 // (v0.507.0) THE GRAVITY STASH CORE - the low-chest registry. The dead letter
 // box's REAL cure priced twice (the commons ledger v0.502.0, the climb fund
 // v0.504.0): the tithe banks the fleet's coal at a yard 20-37 levels ABOVE the
@@ -847,8 +896,14 @@ export async function deliverFuelTithe (bot, {
       const moved = before - mirrorCount(fuelName)
       if (moved > 0) delivered += moved
     }
-    if (delivered > 0) log(`fuel anchor: delivered ${delivered} units over the tithe bound (pocket keeps ${FUEL_TITHE_BOUND})`)
-    else log('fuel anchor: the clicks lied - nothing left the pocket (ghost clicks)')
+    if (delivered > 0) {
+      // (v0.509.0) THE REFILL TIDINGS: the funded chest carries the news - the
+      // dry stances within DRY_REARM_RADIUS un-defer (the deposit side of the
+      // ask backoff). The anchor IS the honest scope: a yard-high chest fails
+      // the distance test against the diggers' deep stances on its own.
+      rearmDryNear(memory, anchor)
+      log(`fuel anchor: delivered ${delivered} units over the tithe bound (pocket keeps ${FUEL_TITHE_BOUND})`)
+    } else log('fuel anchor: the clicks lied - nothing left the pocket (ghost clicks)')
     return { delivered, why: delivered > 0 ? 'ok' : 'ghost clicks' }
   } finally {
     try { window.close?.() } catch { /* already closed */ }

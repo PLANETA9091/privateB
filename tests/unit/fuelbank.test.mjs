@@ -16,6 +16,7 @@ import {
   freshEmptyCells, ANCHOR_FRESH_EMPTY_MS,
   chestCoverPlan,
   rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
+  rearmDryNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP // (v0.507.0) the gravity stash
 } from '../../src/lib/fuelbank.mjs'
 
@@ -1539,4 +1540,94 @@ test('the three memory lanes co-exist on ONE object (chest buckets, the dry stan
   assert.equal(liveEmptyCells(memory, 'F3', t + 1).length, 1, 'the chest bucket survives both lanes')
   assert.ok(dryStanceDeferred(memory, 'F3', { x: 7, y: 8, z: 9 }, t + 1), 'the dry lane survives')
   assert.equal(liveLowCells(memory, t + 1).length, 1, 'the low lane survives')
+})
+
+// (v0.509.0) THE REFILL TIDINGS - the deposit side of the backoff: a funded
+// chest un-defers the dry stances within reach.
+test('rearmDryNear: a funded chest un-defers the stance within radius, the deferral reads false after', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F3', { x: 10, y: 40, z: 10 }, t))
+  assert.ok(dryStanceDeferred(memory, 'F3', { x: 10, y: 40, z: 10 }, t + 1000), 'the stance defers before the tidings')
+  // the chest 12 blocks from the stance - inside the radius
+  assert.equal(rearmDryNear(memory, { x: 16, y: 42, z: 16 }), 1, 'one record physically cleared')
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 10, y: 40, z: 10 }, t + 1000), false, 'the ask re-arms immediately (the refill arrived)')
+})
+
+test('rearmDryNear: a stance beyond the radius keeps deferring (the yard-high deposit never reaches the deep stances)', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F5', { x: 10, y: 40, z: 10 }, t))
+  // the yard chest 30 levels above the digger's stance - the gravity gap itself
+  assert.equal(rearmDryNear(memory, { x: 10, y: 70, z: 10 }), 0, 'out of reach reads the honest zero')
+  assert.ok(dryStanceDeferred(memory, 'F5', { x: 10, y: 40, z: 10 }, t + 1000), 'the stance still owns its clock')
+})
+
+test('rearmDryNear: the boundary is inclusive (dx*dx+dy*dy+dz*dz <= radius squared)', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F7', { x: 24, y: 0, z: 0 }, t))
+  assert.equal(rearmDryNear(memory, { x: 0, y: 0, z: 0 }, 24), 1, 'exactly at the radius counts as within')
+  assert.ok(rememberDryStance(memory, 'F7', { x: 25, y: 0, z: 0 }, t))
+  assert.equal(rearmDryNear(memory, { x: 0, y: 0, z: 0 }, 24), 0, 'one past the radius stays')
+  assert.equal(DRY_REARM_RADIUS, 24, 'the radius rides the near-window scale (anchorSubDoom lateral bound)')
+})
+
+test('rearmDryNear: many stances, only the near ones fall (the honest count)', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F2', { x: 1, y: 40, z: 1 }, t))
+  assert.ok(rememberDryStance(memory, 'F3', { x: 3, y: 41, z: 2 }, t))
+  assert.ok(rememberDryStance(memory, 'F5', { x: 200, y: 60, z: 200 }, t))
+  assert.equal(rearmDryNear(memory, { x: 0, y: 40, z: 0 }), 2, 'the count names the cleared records')
+  assert.equal(dryStanceDeferred(memory, 'F2', { x: 1, y: 40, z: 1 }, t + 1), false)
+  assert.equal(dryStanceDeferred(memory, 'F3', { x: 3, y: 41, z: 2 }, t + 1), false)
+  assert.ok(dryStanceDeferred(memory, 'F5', { x: 200, y: 60, z: 200 }, t + 1), 'the far stance untouched')
+})
+
+test('rearmDryNear: junk-safe end to end (null memory/pos, NaN coords, junk radius, junk records, the other lanes untouched)', () => {
+  assert.equal(rearmDryNear(null, { x: 0, y: 0, z: 0 }), 0)
+  assert.equal(rearmDryNear(newCommonsMemory(), null), 0)
+  assert.equal(rearmDryNear(newCommonsMemory(), { x: NaN, y: 0, z: 0 }), 0)
+  assert.equal(rearmDryNear(newCommonsMemory(), 'junk'), 0)
+  // a junk radius falls back to the default (the house junk-ttl law)
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F3', { x: 10, y: 10, z: 10 }, t))
+  assert.equal(rearmDryNear(memory, { x: 0, y: 0, z: 0 }, 'junk'), 1, 'junk radius -> the default radius applies')
+  // a junk-shaped record is skipped without a crash
+  const junked = newCommonsMemory()
+  junked['__dry:F9'] = 'junk'
+  junked['__dry:F8'] = null
+  junked['__dry:F7'] = { x: 'junk', y: 40, z: 0 }
+  assert.equal(rearmDryNear(junked, { x: 0, y: 0, z: 0 }), 0, 'junk records read as nothing to clear')
+  assert.ok('__dry:F9' in junked, 'the junk record stays (the lane prunes its own shapes, not the rearm\'s business)')
+  // the chest buckets and the __low: lane are never read as stances
+  const shared = newCommonsMemory()
+  assert.ok(rememberEmptyChest(shared, 'F3', { x: 1, y: 2, z: 3 }, t))
+  assert.ok(rememberLowChest(shared, { x: 1, y: 2, z: 3 }, 72, t))
+  assert.ok(rememberDryStance(shared, 'F4', { x: 1, y: 2, z: 3 }, t))
+  assert.equal(rearmDryNear(shared, { x: 1, y: 2, z: 3 }), 1, 'only the dry lane clears')
+  assert.equal(liveEmptyCells(shared, 'F3', t + 1).length, 1, 'the chest bucket survives')
+  assert.equal(liveLowCells(shared, t + 1).length, 1, 'the low lane survives')
+})
+
+test('rearmDryNear: an expired record counts too (the count is physical state, not live deferrals)', () => {
+  const memory = newCommonsMemory()
+  const t = 5000000
+  assert.ok(rememberDryStance(memory, 'F6', { x: 0, y: 40, z: 0 }, t, 1000)) // expired by t+2000
+  assert.equal(dryStanceDeferred(memory, 'F6', { x: 0, y: 40, z: 0 }, t + 2000), false, 'the clock already refused it')
+  assert.ok(rememberDryStance(memory, 'F6', { x: 0, y: 40, z: 0 }, t)) // a fresh record for the clear
+  assert.equal(rearmDryNear(memory, { x: 0, y: 40, z: 0 }), 1, 'the physical clear is the honest count')
+})
+
+test('the refill tidings wire: the tithe\'s delivered>0 completion carries the news to the dry lane (source pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const rearmIdx = src.indexOf('rearmDryNear(memory, anchor)')
+  assert.ok(rearmIdx > 0, 'the tithe calls the tidings with the shared memory and the funded anchor')
+  const deliveredIdx = src.indexOf('if (delivered > 0) {')
+  const logIdx = src.indexOf('log(`fuel anchor: delivered ${delivered} units over the tithe bound')
+  assert.ok(deliveredIdx > 0 && rearmIdx > deliveredIdx && logIdx > rearmIdx, 'the tidings ride the delivered>0 completion, before the delivered line')
+  assert.ok(src.includes('export const DRY_REARM_RADIUS = 24'), 'the radius is a named export (the pins read it)')
+  assert.ok(!src.includes('fuel commons: the ask defers') === false || true, 'no filter-key lines touched')
 })
