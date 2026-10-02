@@ -1730,7 +1730,7 @@ test('the census wiring: sweepFinishedSmelts counts the machines, the caller pri
   assert.ok(!src.includes("swept.collected} (${Object.entries"), 'NO collected-only sweep template may survive the wiring')
 })
 
-// ---------------------------------------------------- (v0.513.0) THE IDLE FUEL
+// ---------------------------------------------------- (v0.514.0) THE IDLE FUEL
 // The finished-harvest reclaims the leftover fuel only when it can SEE output.
 // A fuel-only machine (input empty, output empty, fuel sitting) reads 'busy' to
 // every batch visit - the wall the v0.137.0 harvest comment names - surviving

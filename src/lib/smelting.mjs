@@ -301,7 +301,7 @@ export function slotMismatchReason ({ wantName = null, slotInputName = null, slo
   return `slot mismatch (input=${read}, fuel=${f}, want ${wantName})`
 }
 
-// (v0.513.0) THE IDLE FUEL VERDICT - pure, junk-safe. Classifies the machine's
+// (v0.514.0) THE IDLE FUEL VERDICT - pure, junk-safe. Classifies the machine's
 // own stock (the three window slots, read at open time) into the visit's move:
 //   'busy-live'        input present - a live or dead batch with real progress
 //                      potential; sacred either way (taking the input resets a
@@ -836,7 +836,7 @@ export async function smeltBatch (bot, {
       }
     }
 
-    // (v0.513.0) THE IDLE FUEL: the finished-harvest above reclaims the leftover
+    // (v0.514.0) THE IDLE FUEL: the finished-harvest above reclaims the leftover
     // fuel only when it can SEE the output. A fuel-only machine (input empty,
     // output empty, fuel sitting) reads 'busy' to every later visit - the wall
     // the harvest's own comment names - surviving in the shape the harvest never
