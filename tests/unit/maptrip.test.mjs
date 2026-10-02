@@ -591,3 +591,100 @@ test('material-balance: the real face-34 arc + the five verdicts hand-counted', 
   assert.equal(materialBalance('not an array'), null)
   assert.equal(materialBalance(null), null)
 })
+
+// (v0.454.0) THE POCKET KILLERS' tests - the loss leg's kind split. The
+// verbatims are face 36's own died/drop pairs (mob by Drowned, mob by
+// Zombie, explosion by Creeper); the pairing rule: the bot's most recent
+// died line BEFORE the drop (the emitter prints them adjacent, died ->
+// drop); the post-peak window only; honest unknown + pairMisses.
+const died = (bot, kind) => `${bot} [${bot}] died - respawning (cause: server: was slain by ${kind.split(' by ')[1] || kind} [kind=${kind}] | inferred: noise@1.0 (the inference is blind - the server kind stays the authority))`
+
+test('pocket-killers: the verbatim pairs split by kind - interleaved bots, last-before-drop wins', () => {
+  const lines = [
+    hdr(400, 100),
+    died('F11', 'mob by Drowned'),
+    'F11 [F11] death drop: ~45u lost at [-198,62,420] (sand 20, oak_log 8)',
+    died('F2', 'mob by Zombie'),
+    'F2 [F2] death drop: ~78u lost at [-83,68,405] (cobblestone 51, dirt 13)',
+    died('F3', 'explosion by Creeper'),
+    'F3 [F3] death drop: ~29u lost at [-113,64,455] (dirt 8, torch 4)',
+    'F6 [F6] climb bridge: placed cobblestone at [-113,64,455] (pit) - the step re-judges',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.residual, 90)
+  assert.equal(a.lossDelta, 152) // 45 + 78 + 29, hand-counted
+  assert.equal(a.lossCount, 3)
+  assert.deepEqual(a.lossKinds, {
+    'mob by Drowned': { u: 45, n: 1 },
+    'mob by Zombie': { u: 78, n: 1 },
+    'explosion by Creeper': { u: 29, n: 1 }
+  })
+  assert.equal(a.pairMisses, 0)
+  assert.equal(a.placedDelta, 1) // the placement leg untouched
+  assert.equal(a.legs, 153)
+  assert.equal(a.attr, 'covered') // 153 >= 90
+})
+
+test('pocket-killers: the same bot dies twice - the second drop takes the SECOND kind', () => {
+  const lines = [
+    hdr(400, 100),
+    died('F10', 'mob by Drowned'),
+    'F10 [F10] death drop: ~66u lost at [-145,62,397] (dirt 19)',
+    // F10 mines back up past nothing - the pocket stays below the peak
+    died('F10', 'drown'),
+    'F10 [F10] death drop: ~30u lost at [-121,54,371] (cobblestone 20)',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.lossDelta, 96)
+  assert.deepEqual(a.lossKinds, {
+    'mob by Drowned': { u: 66, n: 1 },
+    drown: { u: 30, n: 1 }
+  })
+  assert.equal(a.pairMisses, 0)
+})
+
+test('pocket-killers: a drop with no prior died line reads unknown + pairMisses; before-peak pairs never scanned', () => {
+  const lines = [
+    hdr(536, 10),
+    died('F9', 'mob by Skeleton'),
+    'F9 [F9] death drop: ~50u lost at [-129,52,387] (cobblestone 40) - before the peak, the peak already reflects it',
+    hdr(300, 100),
+    'F7 [F7] death drop: ~25u lost at [-89,68,411] (oak_planks 5) - no died line for F7 anywhere',
+    hdr(0, 10)
+  ]
+  const a = pocketDrainAttr(lines)
+  assert.equal(a.lossDelta, 25) // the before-peak 50u excluded by the window
+  assert.equal(a.lossCount, 1)
+  assert.deepEqual(a.lossKinds, { unknown: { u: 25, n: 1 } })
+  assert.equal(a.pairMisses, 1)
+})
+
+test('pocket-killers: the v0.452.0 fields stay byte-identical on the killers fixtures; the counters-cover case skips the scan', () => {
+  const lines = [
+    hdr(400, 100),
+    died('F4', 'mob by Skeleton'),
+    'F4 [F4] death drop: ~25u lost at [-89,68,411] (oak_planks 5)',
+    hdr(0, 40)
+  ]
+  const a = pocketDrainAttr(lines)
+  // drop 60, banked 0, smelted 0 -> residual 60; legs 25 < 60
+  assert.equal(a.lossDelta, 25)
+  assert.equal(a.lossCount, 1)
+  assert.equal(a.placedDelta, 0)
+  assert.equal(a.legs, 25)
+  assert.equal(a.attr, 'partial')
+  // the counters cover the drop: residual <= 0 -> no scan, empty kinds
+  const clean = [
+    hdr(536, 100, 0, 0),
+    died('F1', 'explosion by Creeper'),
+    'F1 [F1] death drop: ~16u lost at [-109,68,408] (birch_planks 6)',
+    hdr(0, 40, 80, 0)
+  ]
+  const c = pocketDrainAttr(clean)
+  assert.equal(c.attr, 'none')
+  assert.deepEqual(c.lossKinds, {})
+  assert.equal(c.pairMisses, 0)
+  assert.equal(c.lossDelta, 0)
+})

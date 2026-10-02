@@ -1167,6 +1167,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
           ? `the legs price ${da.legs}u of ${da.residual}u - the rest (crafting/the unseen) stays open`
           : 'no priced legs after the peak - crafting/the unseen holds the residual'
     console.log(`  drain attribution: deaths lost ${da.lossDelta}u (${da.lossCount} drop(s)), placements ${da.placedDelta}u (${da.placedDelta} line(s)${blocks ? `: ${blocks}` : ''}) - ${attrWhy}`)
+    // (v0.454.0) THE POCKET KILLERS - the loss leg's kind split, the same
+    // post-peak window. Each death drop pairs with the bot's most recent
+    // died line's own [kind=X] token (the server kind stays the authority);
+    // the top token names the cure lane (mob* -> the combat/night lane,
+    // drown -> the water lane). Honest pairMisses when the died line never
+    // showed for a drop's bot.
+    const ranked = Object.entries(da.lossKinds).sort((x, y) => y[1].u - x[1].u)
+    if (ranked.length) {
+      const kinds = ranked.map(([k, v]) => `${k} ~${v.u}u/${v.n}`).join(', ')
+      const miss = da.pairMisses > 0 ? `, ${da.pairMisses} unpaired` : ''
+      console.log(`  pocket killers (v0.454.0): ${kinds}${miss} - the top killer names the drain's cure lane`)
+    } else if (da.attr !== 'none') {
+      console.log('  pocket killers (v0.454.0): none after the peak - the loss leg had no drops to name')
+    }
     // (v0.453.0) THE MATERIAL BALANCE - the counter identity's whole-face
     // cross-check: does mined close the loop against the three sinks?
     // Independent of the event lens above (no death-drop/placement lines

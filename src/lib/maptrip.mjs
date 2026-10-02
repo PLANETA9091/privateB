@@ -453,7 +453,26 @@ export function pocketDrain (lines) {
 // the attribution rides as its own field + its own decompose row.
 export const DEATH_DROP_RE = /^(\S+) \[\1\] death drop: ~(\d+)u lost at /
 export const CLIMB_PLACED_RE = /^(\S+) \[\1\] climb bridge: placed ([a-z_]+) at \[/
+// (v0.454.0) the death line's own kind token - the server kind stays the
+// authority (the established inference law): '... died - respawning (cause:
+// server: was slain by Drowned [kind=mob by Drowned] | inferred: ...)'.
+// The bracketed [kind=X] is the token; the prose before it never holds '['.
+export const DIED_KIND_RE = /^(\S+) \[\1\] died - respawning \(cause: [^[]*\[kind=([^\]]+)\]/
 
+// (v0.454.0) THE POCKET KILLERS - the loss leg learns WHICH death kinds
+// spent it. The attribution's first two field reads agree: when the drain
+// goes unaccounted, the loss leg dominates (face 29 retrospective 1115u,
+// face 36 fresh 1089u in 13 drops) - and the death line carries its own
+// server kind ('[kind=mob by Drowned]', '[kind=drown]'). Every death drop
+// pairs with the bot's most recent died line BEFORE it (the emitter prints
+// them adjacent, died -> drop; the last-before-drop rule survives any
+// interleaving); a drop with no prior died line for that bot reads kind
+// 'unknown' and stays counted in pairMisses - honest, never guessed. The
+// kind split rides INSIDE the same post-peak window (the killers of the
+// peak->end drop, not the face-wide deaths - deathkinds owns that read).
+// The cure pointer is mechanical: the top token names the lane (mob* ->
+// the combat/night lane, drown -> the water lane). The v0.452.0 fields
+// stay byte-identical; lossKinds/pairMisses ride as new fields.
 export function pocketDrainAttr (lines) {
   if (!Array.isArray(lines)) return null
   let peakIdx = null
@@ -468,11 +487,28 @@ export function pocketDrainAttr (lines) {
   let lossDelta = 0
   let lossCount = 0
   let placedDelta = 0
+  let pairMisses = 0
   const placedBlocks = {}
+  const lossKinds = {}
+  const lastDiedKind = new Map()
   if (residual > 0) {
     for (let i = peakIdx + 1; i < lines.length; i++) {
+      const km = lines[i].match(DIED_KIND_RE)
+      if (km) { lastDiedKind.set(km[1], km[2]); continue }
       const dm = lines[i].match(DEATH_DROP_RE)
-      if (dm) { lossDelta += Number(dm[2]); lossCount++; continue }
+      if (dm) {
+        const u = Number(dm[2])
+        lossDelta += u
+        lossCount++
+        const bot = dm[1]
+        const kind = lastDiedKind.get(bot)
+        if (kind === undefined) pairMisses++
+        const key = kind === undefined ? 'unknown' : kind
+        if (!lossKinds[key]) lossKinds[key] = { u: 0, n: 0 }
+        lossKinds[key].u += u
+        lossKinds[key].n++
+        continue
+      }
       const pm = lines[i].match(CLIMB_PLACED_RE)
       if (pm) { placedDelta++; placedBlocks[pm[2]] = (placedBlocks[pm[2]] || 0) + 1 }
     }
@@ -489,6 +525,8 @@ export function pocketDrainAttr (lines) {
     residual,
     lossDelta,
     lossCount,
+    lossKinds,
+    pairMisses,
     placedDelta,
     placedBlocks,
     legs,
