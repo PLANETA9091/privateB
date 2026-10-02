@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -140,7 +140,7 @@ test('census: the honest zeros and the honest empty anatomy', () => {
   assert.equal(c.launches, 0)
   assert.deepEqual(c.byTarget, {})
   assert.deepEqual(c.byBot, {})
-  assert.deepEqual(c.skips, { n: 0, byWhy: {}, byBot: {}, unreachableTargets: {} })
+  assert.deepEqual(c.skips, { n: 0, byWhy: {}, byBot: {}, byBotWhy: {}, unreachableTargets: {} }) // (v0.450.0) byBotWhy rides
   assert.equal(c.unparsed, 0)
   const e = mapTripCensus('not an array')
   assert.equal(e.launches, 0)
@@ -299,4 +299,59 @@ test('tripReceipt window calibration: the face-33 fixture - the widened window c
   ]
   const r3 = tripReceipt(lines3, 'sand')
   assert.deepEqual(r3.windows[0], { bot: 'F5', before: 0, after: 5, delta: 5, span: 30, holeMax: 30 })
+})
+
+// (v0.450.0) THE TRIP VOICE ROSTER's tests - the refusal side learns to
+// name WHO. The verbatim shapes are the field's own (face 32's F16 sand
+// launch beside F7's shaft skip and F1's unreachable list); the split is
+// hand-counted, the roster sorted F-numeric (F2 before F10 - the lexical
+// sort would hide it), the shaft-lock cast is the plan-side cure's fuel.
+test('trip-voice: the per-bot split hand-counted - voice classes and the shaft-lock cast', () => {
+  const lines = [
+    'F7 map trip skipped: cannot leave the shaft',
+    'F1 map trip skipped: sand,gravel unreachable',
+    'F5 map trip: sand',
+    'F7 map trip skipped: cannot leave the shaft',
+    'F16 map trip: sand',
+    'F1 map trip skipped: sand unreachable',
+    'F9 map trip skipped: cannot leave the shaft'
+  ]
+  const mt = mapTripCensus(lines)
+  // the substrate: the per-bot-per-why split the census now keeps
+  assert.deepEqual(mt.skips.byBotWhy, {
+    F7: { 'shaft-locked': 2 },
+    F1: { unreachable: 2 },
+    F9: { 'shaft-locked': 1 }
+  })
+  const v = tripVoice(mt)
+  assert.equal(v.roster.length, 5) // F1 F5 F7 F9 F16 - five distinct voices
+  const byBot = Object.fromEntries(v.roster.map(r => [r.bot, r]))
+  assert.equal(byBot.F1.launches, 0)
+  assert.equal(byBot.F1.skips, 2)
+  assert.equal(byBot.F1.voice, 'skip-only')
+  assert.equal(byBot.F5.voice, 'launcher')
+  assert.equal(byBot.F5.skips, 0)
+  assert.equal(byBot.F7.voice, 'skip-only')
+  assert.equal(byBot.F7.byWhy['shaft-locked'], 2)
+  assert.equal(byBot.F16.voice, 'launcher')
+  // the shaft-lock cast: F7 and F9, sorted F-numeric
+  assert.deepEqual(v.shaftRoster, ['F7', 'F9'])
+})
+
+test('trip-voice: the F-numeric sort, the mixed voice, and the honest nulls', () => {
+  // the lexical sort would read F10 before F2; the roster must not
+  const lines = [
+    'F10 map trip: gravel',
+    'F2 map trip skipped: cannot leave the shaft',
+    'F2 map trip: sand'
+  ]
+  const v = tripVoice(mapTripCensus(lines))
+  assert.deepEqual(v.roster.map(r => r.bot), ['F2', 'F10'])
+  assert.equal(v.roster[0].voice, 'mixed') // refused once, left once
+  assert.deepEqual(v.shaftRoster, ['F2'])
+  // honest nulls: no trip voices at all, and non-object input
+  assert.equal(tripVoice(mapTripCensus(['F8 decide stall: 3.2s'])), null)
+  assert.equal(tripVoice(null), null)
+  assert.equal(tripVoice(undefined), null)
+  assert.equal(tripVoice(mapTripCensus([])), null)
 })

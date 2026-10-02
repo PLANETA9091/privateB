@@ -72,7 +72,7 @@ export function mapTripCensus (lines) {
     launches: 0,
     byTarget: {},
     byBot: {},
-    skips: { n: 0, byWhy: {}, byBot: {}, unreachableTargets: {} },
+    skips: { n: 0, byWhy: {}, byBot: {}, byBotWhy: {}, unreachableTargets: {} },
     unparsed: 0
   }
   for (const line of (Array.isArray(lines) ? lines : [])) {
@@ -89,6 +89,10 @@ export function mapTripCensus (lines) {
       c.skips.n++
       c.skips.byWhy[p.why] = (c.skips.byWhy[p.why] || 0) + 1
       c.skips.byBot[p.bot] = (c.skips.byBot[p.bot] || 0) + 1
+      // (v0.450.0) the per-bot-per-why split - the shaft-lock roster's own
+      // substrate (the aggregate byWhy cannot name WHO the shaft gate held)
+      if (!c.skips.byBotWhy[p.bot]) c.skips.byBotWhy[p.bot] = {}
+      c.skips.byBotWhy[p.bot][p.why] = (c.skips.byBotWhy[p.bot][p.why] || 0) + 1
       if (p.why === 'unreachable') {
         for (const t of (p.targets || [])) c.skips.unreachableTargets[t] = (c.skips.unreachableTargets[t] || 0) + 1
       }
@@ -154,6 +158,41 @@ export function mapTripGap (mt, map, stuck) {
     launches: mt.launches || 0,
     stuckLaunches: mt.byTarget?.[stuck] || 0
   }
+}
+
+// (v0.450.0) THE TRIP VOICE ROSTER - the refusal side learns to name WHO.
+// The v0.415.0 census priced the launch economics as aggregates (launches,
+// skips byWhy, skips byBot) but the stable anomaly across faces 31 -> 33 -
+// the shaft-locked 8, the SAME count every face - never said whether it is
+// the SAME BOTS every face (a structural underground economy: the trip lane
+// should assign to surface bots only - the plan-side cure prices WELL) or a
+// rotating cast (transient depth, no cure's fuel). The composer rides the
+// census's OWN numbers (the byBotWhy field above; no re-parse drift) and
+// sorts F-numeric, not lexical (F2 before F10). Voice classes per bot:
+// 'launcher' (left, never refused), 'mixed' (both), 'skip-only' (refused,
+// never left). The shaftRoster lists every bot the shaft gate held at
+// least once - THE CURE'S FUEL. Honest nulls: no census / no trip voices
+// -> null (nothing composed from nothing).
+const botNum = s => { const m = /^F(\d+)$/.exec(s); return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER }
+
+export function tripVoice (mt) {
+  if (!mt || typeof mt !== 'object') return null
+  const names = new Set([
+    ...Object.keys(mt.byBot || {}),
+    ...Object.keys(mt.skips?.byBot || {})
+  ])
+  if (!names.size) return null
+  const roster = [...names].sort((a, b) => botNum(a) - botNum(b) || (a < b ? -1 : 1)).map(b => {
+    const launches = mt.byBot[b] || 0
+    const byWhy = mt.skips?.byBotWhy?.[b] || {}
+    const skips = Object.values(byWhy).reduce((acc, x) => acc + x, 0)
+    const voice = launches > 0 && skips === 0 ? 'launcher'
+      : launches > 0 && skips > 0 ? 'mixed'
+        : 'skip-only'
+    return { bot: b, launches, skips, byWhy, voice }
+  })
+  const shaftRoster = roster.filter(r => (r.byWhy['shaft-locked'] || 0) > 0).map(r => r.bot)
+  return { roster, shaftRoster }
 }
 
 // (v0.447.0) THE TRIP RECEIPT - the delivery leg's YIELD arrives. The

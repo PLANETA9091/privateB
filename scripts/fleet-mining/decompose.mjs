@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1131,6 +1131,25 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       return `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u${sp}`
     }).join(' ')
     console.log(`  launch windows (${rc.windows.length}, ${RECEIPT_WINDOW_SAMPLES}-sample fleet-wide, unattributed): ${w || 'none'}`)
+  }
+}
+
+// (v0.450.0) THE TRIP VOICE ROSTER - who launches, who refuses. The
+// shaft-locked 8 stayed the SAME NUMBER across faces 31 -> 33 while the
+// aggregate never named WHO the shaft gate held. The roster per bot (the
+// census's own byBotWhy split): the voice class (launcher / mixed /
+// skip-only), the skip reasons inline; the shaftRoster is the plan-side
+// cure's fuel - a small stable cast prices the surface-only assignment,
+// a rotating cast prices nothing.
+{
+  const v = tripVoice(mapTripCensus(lines))
+  if (v) {
+    console.log('--- TRIP VOICE ROSTER (v0.450.0: who launches, who refuses - the shaft-lock cast) ---')
+    for (const r of v.roster) {
+      const whys = r.skips ? Object.entries(r.byWhy).map(([k, n]) => `${k} ${n}`).join(', ') : ''
+      console.log(`  ${r.bot}: launches ${r.launches}, skips ${r.skips}${whys ? ` (${whys})` : ''} - ${r.voice}`)
+    }
+    console.log(`  shaft-lock cast: ${v.shaftRoster.length ? `${v.shaftRoster.join(' ')} (${v.shaftRoster.length} bot(s) the shaft gate held)` : 'none - the underground economy took no trip tax this face'}`)
   }
 }
 
