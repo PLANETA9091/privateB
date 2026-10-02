@@ -579,3 +579,67 @@ export function materialBalance (lines) {
         : 'balanced'
   return { samples: samples.length, mined: dMined, pocket: dPocket, banked: dBanked, smelted: dSmelted, leaks, share, verdict }
 }
+
+// (v0.455.0) THE LENSES CONVERGE - the balance's leak meets the event
+// lens's whole-face legs. The material balance (v0.453.0) prices the
+// whole-face leak from the COUNTERS alone (leaky 64.6% on face 36, 26.3%
+// on face 34); the drain attribution (v0.452.0) prices the loss/placement
+// legs from the EVENT lines - but only post-peak (a peak->end drop read).
+// The two lenses never met. Here they do, whole-face to whole-face: the
+// same identity's leaks side read against the SAME emitters' lines summed
+// over ALL lines (not post-peak) - the death drop's own ~Nu pricing and
+// the climb bridge's 1u placements, the same DEATH_DROP_RE/CLIMB_PLACED_RE
+// shapes (one parser per emitter - no new parse assumptions, no drift).
+//
+//   verdicts:
+//   - 'no-leak'    the balance's leaks <= 0 - the counters saw no leak
+//                  (the inflated side lands here honestly: crafting's
+//                  inflation made the sinks outrun mined, nothing to
+//                  reconcile)
+//   - 'covered'    legs >= leaks - the emitters' own words account for the
+//                  whole-face leak; slack = legs - leaks is the ~Nu
+//                  pricing's inflation margin, a NUMBER (face 36: legs
+//                  1189u vs leak 862u, slack +327u; faces 34/35 covered
+//                  too, slacks +545/+548 - the pricing runs a wide
+//                  margin, itself the next read's subject)
+//   - 'shortfall'  legs < leaks - a NAMED share the log's emitters never
+//                  priced (unemitted losses, the lens's own blind spot),
+//                  quantified by -slack (no live anchor yet - all three
+//                  faces covered; the branch stays hand-built, the
+//                  honesty that would name an unpriced loss class)
+//
+// Boundary notes kept honest: the balance's window is first<->last pulse
+// sample while the leg sum is all lines - an event before the first sample
+// or after the last lands in the legs side only (part of the bound's
+// slack, the same holeMax honesty). Crafting stays unpriced (no
+// quantities; its inflation shows up in the leaks side's sign). Honest
+// nulls: non-array input, no pulse samples.
+export function balanceReconcile (lines) {
+  if (!Array.isArray(lines)) return null
+  const mb = materialBalance(lines)
+  if (!mb) return null
+  let lossDelta = 0
+  let lossCount = 0
+  let placedDelta = 0
+  for (const line of lines) {
+    const dm = line.match(DEATH_DROP_RE)
+    if (dm) { lossDelta += Number(dm[2]); lossCount++; continue }
+    const pm = line.match(CLIMB_PLACED_RE)
+    if (pm) placedDelta++
+  }
+  const legs = lossDelta + placedDelta
+  const verdict = mb.leaks <= 0
+    ? 'no-leak'
+    : legs >= mb.leaks ? 'covered' : 'shortfall'
+  return {
+    leaks: mb.leaks,
+    share: mb.share,
+    balanceVerdict: mb.verdict,
+    lossDelta,
+    lossCount,
+    placedDelta,
+    legs,
+    slack: legs - mb.leaks,
+    verdict
+  }
+}

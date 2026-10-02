@@ -16,7 +16,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
-import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance
+import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
@@ -1196,6 +1196,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
             ? `a NAMED whole-face share sits outside the sinks (placement/loss/crafting - the event lens splits it)`
             : `crafting's unit inflation outran the losses - the unit-count trap, seen from the counters' side`
       console.log(`  material balance: mined +${mb.mined} = pocket ${mb.pocket >= 0 ? '+' : ''}${mb.pocket} + banked +${mb.banked} + smelted +${mb.smelted} + leaks ${mb.leaks >= 0 ? '+' : ''}${mb.leaks} (${(mb.share * 100).toFixed(1)}% of mined) - ${mbWhy}`)
+      // (v0.455.0) THE LENSES CONVERGE - the balance's leak meets the
+      // event lens's whole-face legs (the same emitters' shapes, ALL
+      // lines, not post-peak). covered = the emitters' words account for
+      // the leak (the slack is the ~Nu pricing's inflation margin);
+      // shortfall = a NAMED share they never priced - the honesty, not a
+      // guess.
+      const rc = balanceReconcile(lines)
+      if (rc) {
+        const rcWhy = rc.verdict === 'no-leak'
+          ? 'the counters saw no leak - nothing to reconcile (the inflated side lands here honestly)'
+          : rc.verdict === 'covered'
+            ? `the emitters' own words account for the whole-face leak - the slack is the ~Nu pricing's inflation margin`
+            : `a NAMED share the log's emitters never priced (unemitted loss - the lens's own blind spot, quantified)`
+        console.log(`  balance reconcile: leaks ${rc.leaks >= 0 ? '+' : ''}${rc.leaks}u vs the event lens's whole-face legs ${rc.legs}u (deaths ${rc.lossDelta}u/${rc.lossCount} drop(s) + placed ${rc.placedDelta}u) - ${rc.verdict}, slack ${rc.slack >= 0 ? '+' : ''}${rc.slack}u - ${rcWhy}`)
+      }
     }
   }
 }

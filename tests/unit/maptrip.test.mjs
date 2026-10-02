@@ -7,7 +7,7 @@
 // one parser per emitter, the v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance } from '../../src/lib/maptrip.mjs'
+import { MAP_TRIP_RE, MAP_TRIP_SKIP_RE, classifyTripSkip, parseMapTrip, mapTripCensus, parseWorldmapTail, mapTripGap, parseResSample, tripReceipt, tripVoice, parsePulseHeader, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile } from '../../src/lib/maptrip.mjs'
 
 test('map-trip: the launch verbatims parse bot and target list', () => {
   const a = parseMapTrip('F8 map trip: gravel')
@@ -687,4 +687,82 @@ test('pocket-killers: the v0.452.0 fields stay byte-identical on the killers fix
   assert.deepEqual(c.lossKinds, {})
   assert.equal(c.pairMisses, 0)
   assert.equal(c.lossDelta, 0)
+})
+// (v0.455.0) THE LENSES CONVERGE's tests - the balance's leak meets the
+// event lens's whole-face legs (the same emitters' regexes, ALL lines, not
+// post-peak). The covered anchor is face 36's real shape (legs 1189u vs
+// leak 862u live, slack +327u - the ~Nu pricing's inflation margin; faces
+// 34/35 covered too, +545/+548). The shortfall branch has NO live anchor
+// yet - hand-built only, the honesty that would name an unpriced loss
+// class. Every fixture hand-counted, each branch named.
+test('balance-reconcile: covered - the legs meet the leak at the exact >= boundary (slack 0)', () => {
+  const lines = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=10u/18s | sand=0',
+    'F10 [F10] death drop: ~100u lost at [-121,54,371] (cobblestone 64)',
+    'F9 [F9] death drop: ~200u lost at [-129,52,387] (sand 8)',
+    'F7 [F7] climb bridge: placed dirt at [-135,64,419] (support)',
+    'F7 [F7] climb bridge: placed dirt at [-136,64,419] (support)',
+    'F7 [F7] climb bridge: placed cobblestone at [-117,64,383] (pit)',
+    'F6 [F6] climb bridge: placed cobblestone at [-117,65,383] (pit)',
+    't-0s alive=19/19 mined=400 map=9p/1ch banked=40 smelted=6 pocket=60u/131s | sand=0'
+  ]
+  const r = balanceReconcile(lines)
+  assert.equal(r.leaks, 304) // 400 mined - (50 pocket + 40 banked + 6 smelted)
+  assert.equal(r.lossDelta, 300)
+  assert.equal(r.lossCount, 2)
+  assert.equal(r.placedDelta, 4)
+  assert.equal(r.legs, 304) // 300u of deaths + 4x 1u placements
+  assert.equal(r.slack, 0) // 304 - 304: the >= boundary is inclusive
+  assert.equal(r.verdict, 'covered')
+  assert.equal(r.balanceVerdict, 'leaky') // 304/400 = 76% - the balance saw it too
+})
+
+test('balance-reconcile: shortfall - the leak nothing priced is named, not guessed', () => {
+  // hand-built (no live anchor yet - faces 34/35/36 all covered): a face
+  // whose leak nothing priced - no death drops, no climb placements
+  // anywhere in the log, the leak survives
+  const lines = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=0u/18s | sand=0',
+    't-0s alive=19/19 mined=100 map=5p/1ch banked=40 smelted=0 pocket=10u/131s | sand=0'
+  ]
+  const r = balanceReconcile(lines)
+  assert.equal(r.leaks, 50) // 100 mined - 50 sinks
+  assert.equal(r.legs, 0)
+  assert.equal(r.lossCount, 0)
+  assert.equal(r.slack, -50)
+  assert.equal(r.verdict, 'shortfall')
+})
+
+test('balance-reconcile: no-leak + the whole-face inclusion + honest nulls', () => {
+  // inflated: the pocket ended high (crafting's unit inflation) - the
+  // counters saw no leak; the legs' numbers still read (not discarded)
+  const inf = [
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=10u/18s | sand=0',
+    'F10 [F10] death drop: ~100u lost at [-121,54,371] (cobblestone 64)',
+    't-0s alive=19/19 mined=90 map=9p/1ch banked=0 smelted=0 pocket=1180u/131s | sand=0'
+  ]
+  const ri = balanceReconcile(inf)
+  assert.equal(ri.leaks, -1080) // 90 - 1170 - the sinks outran mined
+  assert.equal(ri.legs, 100) // the event side still reads, honestly
+  assert.equal(ri.lossCount, 1)
+  assert.equal(ri.verdict, 'no-leak')
+  // the whole-face inclusion: a death drop BEFORE the first pulse sample
+  // (and before the peak) rides in the legs side while the drop lens's
+  // post-peak scan excludes it - the two lenses' difference made explicit
+  const pre = [
+    'F10 [F10] death drop: ~114u lost at [-121,54,371] (cobblestone 64)',
+    't-500s alive=19/19 mined=0 map=1p/1ch banked=0 smelted=0 pocket=200u/18s | sand=0',
+    't-250s alive=19/19 mined=50 map=3p/1ch banked=0 smelted=0 pocket=400u/18s | sand=0',
+    't-0s alive=19/19 mined=50 map=9p/1ch banked=390 smelted=0 pocket=10u/131s | sand=0'
+  ]
+  const a = pocketDrainAttr(pre)
+  assert.equal(a.legs, 0) // the drop lens: post-peak only (the drop went to the bank)
+  const rp = balanceReconcile(pre)
+  assert.equal(rp.legs, 114) // the reconcile: ALL lines - the pre-sample death counts
+  assert.equal(rp.lossCount, 1)
+  // honest nulls
+  assert.equal(balanceReconcile(['calm face']), null)
+  assert.equal(balanceReconcile([]), null)
+  assert.equal(balanceReconcile('not an array'), null)
+  assert.equal(balanceReconcile(null), null)
 })
