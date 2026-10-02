@@ -12068,3 +12068,20 @@ Work Log:
 
 Stage Summary:
 - Master = 6af69fe (pkg 0.461.0). NEXT FIRE: (1) gate 36964856176 verdict + face 41 (36964871040) mine: the smelt ledger row 2 (does the clip storm repeat? is the fuel side's third a chain constant or a face accident?), the no-leak regime's third read (the inflation surplus 39 -> 74 -> ? on a third quiet face would start a real ledger), the share row on a leak-regime face if violence returns; (2) the re-smelt shadow: does a 'next chain' announce line exist in the fleet code (the emitter's other half) - a read-only check before any wire; (3) version next 0.462.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1232
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1232 - v0.462.0 THE HARVEST LEG (the smelted counter's own emitter twin found in smelting.mjs's harvest loop - the join's both halves on one row, THE IDENTITY HELD live on face 39); FACE 41 mined NEXT fire (SUCCESS at close, not read this box); DISPATCH face 42 (36967273918).
+
+Work Log:
+- CHECK ORIGIN FIRST: 2ce1568 the tip (pkg 0.461.0); gates at open - face 41 (36964871040) in flight, my v0.461.0 gate 36964856176 in_progress; BOTH finished SUCCESS this box (v0.461.0 green).
+- THE RE-SMELT SHADOW READ (the 1200 NEXT-FIRE item, read-only, zero code): the emitter's body found in smelting.mjs - the START line prints putCount (what the furnace slots accepted, <= the planned batch0), the clip lines report the batch0 ASK ('completes 7 of 14'), the FIRED batches complete OFF-SCREEN (the bot walks away, the machine's own clock) and ANY bot's collect reads the machine - the shadow has a body: later chains' own announce/harvest lines. The 0.461.0 clip-storm read reframed: the clips' completed 81 was the ASKS' projection, not the yield.
+- THE HARVEST EMITTER FOUND: '[F2] took 1 x copper_ingot (1/3)' - smelting.mjs's harvest loop's own line, quantity-bearing, the (k/batch) progress tail anchors it (the inventory lane's takes carry no tail). Line counts across faces 36..40: 9/2/2/19/0.
+- THE WIRE (v0.462.0): smeltLedger grows tooks/collected/tookItems + byBot.collected (SMELT_TOOK_RE); the decompose row grows the harvest line - 'took Nu/N line(s) (items) vs the counter's smelted +Nu' - NO gap formula claimed (the words' window vs the counter's window is the next read's subject; two numbers, the eyeball join, nothing invented).
+- THE FIELD READ (face 39, live pre-push): took 19u/19 line(s) (copper_ingot 13, glass 4, stone 2) vs the counter's smelted +19u - THE IDENTITY HELD (the fired batches' yield landed in later chains' tooks; the counter obeys the harvest, not the asks). Face 40: no harvest row (0 tooks, the counter +0 agrees - honest silence both sides).
+- Tests: smeltledger 4 -> 5 (the took shapes verbatim + the anchor law). Syntax 358/0, unit 206/206 files. Push 2ce1568..8b95421 CLEAN (no collision).
+- DISPATCH face 42: 36967273918 (8b95421 = 0.462.0, HTTP 204, in_progress) after the push. FACE 41 (36964871040) SUCCESS at close - NOT read this box (the time-box went to the shadow read + the wire), the next fire's opener; its gate 36964856176 SUCCESS pre-mining. CI gate 36967257298 (8b95421) queued at close - no verdicts held, honest.
+
+Stage Summary:
+- Master = 8b95421 (pkg 0.462.0). NEXT FIRE: (1) FACE 41 (36964871040 SUCCESS) mine FIRST: the smelt ledger row 2 (the clip storm repeat? the harvest row live on a fresh face - does the took-vs-counter identity hold again?), the no-leak regime's third read, the share row if violence returns; (2) the took-vs-counter join's window read: if a face's counter exceeds the took sum, the fired-but-never-harvested class has a live anchor (the furnace's leftovers as the counter's blind spot - the tithe lens's territory, cross-read first); (3) version next 0.463.0. Identity: PLANETA9091.
