@@ -30,7 +30,7 @@ import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.46
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
-import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book (fled / stood / sheltered / died / open)
+import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -694,13 +694,13 @@ if (shooter.total > 0) {
     console.log(`  critical zone (hp < ${8}): ${cp.criticalFlees} flight(s), covered ${cp.covered} - ${crVerdict}`)
   }
 }
-// (v0.484.0) THE VERDICT EXECUTION - the flip's own fate book (the
+// (v0.485.0) THE VERDICT EXECUTION - the flip's own fate book (the
 // decision line priced: the verdict says flee - who actually closed it:
 // a new escape episode, the fight lane, the shelter lane, the death, or
 // the face's tail).
 {
   const vx = verdictExecution(lines)
-  console.log(`--- VERDICT EXECUTION (v0.484.0: the flip's own fate) ---`)
+  console.log(`--- VERDICT EXECUTION (v0.485.0: the flip's own fate) ---`)
   if (!vx || vx.flips === 0) {
     console.log('  verdict flips: 0 (the flee verdict never contested - the calm face reads zero honestly)')
   } else {

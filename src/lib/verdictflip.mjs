@@ -1,5 +1,5 @@
 //
-// verdictflip.mjs - THE VERDICT EXECUTION (v0.484.0)
+// verdictflip.mjs - THE VERDICT EXECUTION (v0.485.0)
 //
 // The combat lane's own decision line, priced. The emitter speaks when
 // the verdict engine FLIPS a bot to the flee side:
