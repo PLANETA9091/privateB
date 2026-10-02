@@ -276,6 +276,13 @@ export function parseResSample (line) {
  * resource key in a sample reads 0 (the tail's tile is self-consistent);
  * a launch without a following sample reads delta/span/holeMax null
  * (late-face, the yield unknown).
+ * (v0.456.0) THE WINDOW'S SIGN - each window names its delta's own
+ * verdict: 'delivered' (the stock rose), 'drained' (it FELL across the
+ * launch window - the demand outran the trip: a withdrawal/death/placement
+ * inside the span; the launch's own yield is a net read, never
+ * attributed), 'flat' (it held - the face-33 lag class: the yield may sit
+ * past the window), null (no after sample - the yield unknown). Face 36's
+ * both sand windows read -20u drained - the first live anchors.
  */
 export function tripReceipt (lines, res = 'sand', window = RECEIPT_WINDOW_SAMPLES) {
   if (!Array.isArray(lines) || typeof res !== 'string' || !res) return null
@@ -317,11 +324,16 @@ export function tripReceipt (lines, res = 'sand', window = RECEIPT_WINDOW_SAMPLE
         if (gap > (holeMax ?? -1)) holeMax = gap
       }
     }
+    const delta = (before && after) ? v(after) - v(before) : null
     return {
       bot: l.bot,
       before: before ? v(before) : null,
       after: after ? v(after) : null,
-      delta: (before && after) ? v(after) - v(before) : null,
+      delta,
+      // (v0.456.0) THE WINDOW'S SIGN - the delta's own verdict, named:
+      // delivered / drained / flat; null when the yield is unknown (a
+      // late-face launch with no following sample).
+      sign: delta === null ? null : delta > 0 ? 'delivered' : delta < 0 ? 'drained' : 'flat',
       span,
       holeMax
     }

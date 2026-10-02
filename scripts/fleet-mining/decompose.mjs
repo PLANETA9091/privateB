@@ -1128,9 +1128,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       if (x.delta === null) return `${x.bot}(no sample in window)`
       const hole = x.holeMax > 45 ? `, hole ${x.holeMax}s - a bound, not a timing read` : ''
       const sp = x.span !== null ? ` (span ${x.span}s${hole})` : ''
-      return `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u${sp}`
+      // (v0.456.0) the window's sign named: delivered / drained / flat
+      return `${x.bot}${x.delta >= 0 ? '+' : ''}${x.delta}u${sp} ${x.sign}`
     }).join(' ')
     console.log(`  launch windows (${rc.windows.length}, ${RECEIPT_WINDOW_SAMPLES}-sample fleet-wide, unattributed): ${w || 'none'}`)
+    // (v0.456.0) THE WINDOW'S SIGN - the summary. A DRAINED window is the
+    // plan-side alarm: the resource's stock FELL while a trip ran (the
+    // demand outran the delivery); flat rides the face-33 lag class.
+    const signs = { delivered: 0, drained: 0, flat: 0 }
+    for (const x of rc.windows) if (x.sign) signs[x.sign]++
+    if (signs.drained > 0) {
+      console.log(`  DRAINED WINDOW(S): ${signs.drained} - the stock FELL across the launch window (a withdrawal/death/placement inside the span outran the trip; the launch's own yield is a net read, never attributed)`)
+    } else if (signs.flat > 0) {
+      console.log(`  flat window(s): ${signs.flat} - the stock held (the face-33 lag class: the yield may sit past the window)`)
+    }
   }
 }
 
