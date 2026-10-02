@@ -39,6 +39,7 @@ import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring a
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
+import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2188,5 +2189,24 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     for (const [tier, n] of Object.entries(sp.okTiers)) pbits.push(`${tier} ${n}`)
     console.log(`  spare pick: armed ${sp.ok} (${pbits.join(' / ')}) | craft-miss ${sp.craftMisses} - stick-miss ${sp.stickMisses}, table-refused ${sp.tableRefusals}, skips ${sp.skips} (stick-drought ${sp.skipClasses['stick-drought'] || 0} / materials ${sp.skipClasses.materials || 0} / other ${sp.skips - (sp.skipClasses['stick-drought'] || 0) - (sp.skipClasses.materials || 0)})`)
     if (s.stormRefusals || s.ingredientsRefusals || s.prose) console.log(`  legs: storm ${s.stormRefusals} / ingredients ${s.ingredientsRefusals} / prose ${s.prose}`)
+  }
+}
+
+// (v0.495.0) THE TABLE GATE - the tool chain's zero-point: the
+// spare-table bootstrap's own book (the droughts, the plank rung's
+// rescues, the [upgrade] machinery's timeout tax). The recovery book's
+// table whys and the armory's table refusals are this gate's downstream
+// echoes - here is the cause side.
+{
+  const tg = tableGate(lines)
+  if (tg && tg.totals.total > 0) {
+    const t = tg.totals
+    console.log(`--- TABLE GATE (v0.495.0: the tool chain's zero-point - the spare-table bootstrap's own book) ---`)
+    console.log(`  gates: opened ${t.ok} / refused ${t.failed} | droughts ${t.droughts} - rescued by the plank rung ${t.rungs} (${t.rungPlanks} planks), sticks ${t.sticks} (holds ${t.stickHolds})`)
+    console.log(`  timeout tax: ${t.attempts} attempts ${(t.timeoutMs / 1000).toFixed(0)}s (all-failed verdicts ${t.allFails}${t.otherAttempts ? `, other whys ${t.otherAttempts}` : ''})`)
+    const refused = Object.entries(tg.bots).filter(([, b]) => b.failed > 0)
+    if (refused.length) {
+      console.log(`  refused: ${refused.map(([b, v]) => `${b} (rungs ${v.rungs}, sticks ${v.sticks})`).join(' / ')} - the woodless read: zero rungs, the flow terminal's 'cannot make a spare table' whys (the recovery book's table echoes)`)
+    }
   }
 }
