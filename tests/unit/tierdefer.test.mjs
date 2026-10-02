@@ -1,55 +1,72 @@
-// (v0.252.0) THE TIER-DEFER STEER pins - the guard's steer-side twin.
-// The v0.251.0 guard stops a wooden pick from BREAKING a stone-tier ore, but
-// the steer election still walks the wooden bot to the vein first (iron's
-// deficit leads every election) - the guard refuses, the walk burns, the pass
-// repeats. tierDeferOrder sends ores the pick cannot HARVEST to the TAIL of
-// the election (stable, not excluded): coal leads for wooden picks, the tail
-// keeps the option, the upgrade rung restores the lead.
-import { test } from 'node:test'
+// Tests for the tier defer census (v0.463.0): the tool ladder's own
+// voice counted. The live shapes are byte-verbatim from faces 38/41
+// (the emitters' real lines); the junk law: non-lines skipped,
+// non-array -> null.
+import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { tierDeferOrder } from '../../src/fleet/materialplan.mjs'
-import { ORE_TIER_TABLE } from '../../src/lib/toolupgrade.mjs'
+import { tierDeferCensus, TIER_DEFER_RE } from '../../src/lib/tierdefer.mjs'
 
-test('tierDeferOrder: the wooden-pick shape - iron/copper defer, coal leads', () => {
-  const r = tierDeferOrder(['iron_ore', 'coal_ore', 'copper_ore'], 0, ORE_TIER_TABLE)
-  assert.deepEqual(r.deferred, ['iron_ore', 'copper_ore'])
-  assert.deepEqual(r.order, ['coal_ore', 'iron_ore', 'copper_ore'])
-})
+describe('tierdefer', () => {
+  it('reads the live face-41 shape (iron_ore, copper_ore)', () => {
+    const lines = [
+      'F9 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+      'F14 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+      'F5 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+      'F10 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)',
+      'F2 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+    ]
+    const c = tierDeferCensus(lines)
+    assert.equal(c.defers, 5)
+    assert.deepEqual(c.perBot, { F9: 1, F14: 1, F5: 1, F10: 1, F2: 1 })
+    assert.deepEqual(c.byResource, { iron_ore: 5, copper_ore: 5 })
+  })
 
-test('tierDeferOrder: the stone pick harvests the iron band - no defer', () => {
-  const r = tierDeferOrder(['iron_ore', 'coal_ore', 'copper_ore'], 1, ORE_TIER_TABLE)
-  assert.deepEqual(r.deferred, [])
-  assert.deepEqual(r.order, ['iron_ore', 'coal_ore', 'copper_ore'])
-})
+  it('counts per-bot repeats (the same bot defers across trips)', () => {
+    const line = 'F9 steer tier defer: iron_ore, copper_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+    const c = tierDeferCensus([line, line, line])
+    assert.equal(c.defers, 3)
+    assert.deepEqual(c.perBot, { F9: 3 })
+    assert.deepEqual(c.byResource, { iron_ore: 3, copper_ore: 3 })
+  })
 
-test('tierDeferOrder: the stone pick still defers the iron-tier band', () => {
-  const r = tierDeferOrder(['coal_ore', 'diamond_ore'], 1, ORE_TIER_TABLE)
-  assert.deepEqual(r.deferred, ['diamond_ore'])
-  assert.deepEqual(r.order, ['coal_ore', 'diamond_ore'])
-})
+  it('splits the fresh-name join generically (any resource names)', () => {
+    const c = tierDeferCensus([
+      'F3 steer tier defer: coal_ore, gold_ore, diamond_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+    ])
+    assert.equal(c.defers, 1)
+    assert.deepEqual(c.byResource, { coal_ore: 1, gold_ore: 1, diamond_ore: 1 })
+    assert.deepEqual(c.perBot, { F3: 1 })
+  })
 
-test('tierDeferOrder: bare hands defer everything the table owns', () => {
-  const r = tierDeferOrder(['coal_ore', 'iron_ore'], -1, ORE_TIER_TABLE)
-  assert.deepEqual(r.deferred, ['coal_ore', 'iron_ore'])
-  assert.deepEqual(r.order, ['coal_ore', 'iron_ore']) // stable: the tail keeps the input order
-})
+  it('skips junk lines and non-strings', () => {
+    const c = tierDeferCensus([
+      42,
+      null,
+      'F9 steer hazard defer: coal_ore@-123,60,389 held behind the ledger (d 2.5) - the clean veins led',
+      'F2 took 1 x copper_ingot (1/3)',
+      'F9 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail keeps the option, the upgrade rung restores the lead)'
+    ])
+    assert.equal(c.defers, 1)
+    assert.deepEqual(c.perBot, { F9: 1 })
+    assert.deepEqual(c.byResource, { iron_ore: 1 })
+  })
 
-test('tierDeferOrder: unknown names carry no gate (the box speaks first)', () => {
-  const r = tierDeferOrder(['stone', 'mud_of_the_swamp'], -1, ORE_TIER_TABLE)
-  assert.deepEqual(r.deferred, [])
-  assert.deepEqual(r.order, ['stone', 'mud_of_the_swamp'])
-})
+  it('returns null on non-array input (honest silence)', () => {
+    assert.equal(tierDeferCensus(null), null)
+    assert.equal(tierDeferCensus('face41.log'), null)
+    assert.equal(tierDeferCensus(undefined), null)
+  })
 
-test('tierDeferOrder: stable order inside both parts (the deficit order is not scrambled)', () => {
-  const r = tierDeferOrder(['copper_ore', 'coal_ore', 'iron_ore', 'lapis_ore'], 0, ORE_TIER_TABLE)
-  assert.deepEqual(r.order, ['coal_ore', 'copper_ore', 'iron_ore', 'lapis_ore'])
-  assert.deepEqual(r.deferred, ['copper_ore', 'iron_ore', 'lapis_ore'])
-})
+  it('empty input reads zero defers (the picks harvested what they steered to)', () => {
+    const c = tierDeferCensus([])
+    assert.equal(c.defers, 0)
+    assert.deepEqual(c.perBot, {})
+    assert.deepEqual(c.byResource, {})
+  })
 
-test('tierDeferOrder: junk reads refuse safely (no throw, honest empties)', () => {
-  assert.deepEqual(tierDeferOrder(null, 1, ORE_TIER_TABLE), { order: [], deferred: [] })
-  assert.deepEqual(tierDeferOrder(undefined, 0, ORE_TIER_TABLE), { order: [], deferred: [] })
-  assert.deepEqual(tierDeferOrder(['iron_ore'], 1, null), { order: ['iron_ore'], deferred: [] }) // no gate = no defer
-  assert.deepEqual(tierDeferOrder(['iron_ore'], null, ORE_TIER_TABLE).deferred, ['iron_ore']) // junk tier reads bare hands
-  assert.deepEqual(tierDeferOrder('junk', 1, ORE_TIER_TABLE), { order: [], deferred: [] })
+  it('the regex anchors on the bot tag and the deferred tail', () => {
+    assert.ok(TIER_DEFER_RE.test('F14 steer tier defer: iron_ore deferred - the pick cannot harvest the drops (the tail)'))
+    assert.ok(!TIER_DEFER_RE.test('F14 steer tier defer: iron_ore deferred - partial'))
+    assert.ok(!TIER_DEFER_RE.test('X9 steer tier defer: iron_ore deferred - the pick cannot harvest the drops'))
+  })
 })

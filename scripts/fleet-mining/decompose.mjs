@@ -20,6 +20,7 @@ import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the ve
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
+import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1345,6 +1346,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const counterBit = mbJoin ? ` vs the counter's smelted +${mbJoin.smelted}u` : ''
       console.log(`  smelt harvest (v0.462.0): took ${sl.collected}u/${sl.tooks} line(s)${collectedBits ? ` (${collectedBits})` : ''}${counterBit}`)
     }
+  }
+  // (v0.463.0) THE TIER DEFER CENSUS - the tool ladder's own voice
+  // counted. The v0.252.0 steer prints one verdict line per NEW deferred
+  // name per trip ('the pick cannot harvest the drops') - quantity-
+  // bearing, unowned until now. The row names WHICH resources the
+  // fleet's picks could not harvest (the upgrade rung's own work list)
+  // and who deferred - the ladder's blind spot priced per face. Zero
+  // lines read zero honestly (the picks harvested what they steered to,
+  // or the steer never ran - the row does not guess which).
+  const td = tierDeferCensus(lines)
+  if (td) {
+    const resBits = Object.entries(td.byResource).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(', ')
+    const botBits = Object.entries(td.perBot).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).map(([k, n]) => `${k}=${n}`).join(' ')
+    console.log(`  tier defers (v0.463.0): ${td.defers}${resBits ? ` (${resBits})` : ''}${botBits ? ` per-bot: ${botBits}` : ''}`)
   }
 }
 
