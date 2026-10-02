@@ -12449,3 +12449,20 @@ Work Log:
 Stage Summary:
 - Master = df28816 (pkg 0.482.0). THE CROWD PRICE IS PRICED: the crowded flights die 2.8x more on face 43 (40% vs 14%), both crossfire deaths flew with the second hostile already in the start line's own census - the mob-cure's crowd read has its data source NAMED (the emitter already prints it; the reader just never counted it).
 - NEXT FIRE: (1) gate 37004896497 verdict + face 44 when landed (the standing questions + the crowd price's second point: does the crossfire-never-flew-solo law repeat?); (2) the reloot wire + the mob-cure wire (the disengage gains ground AND reads the crowd - BOTH legs now priced in data) dispatchable IF face 44 lands AND gates settle; (3) version next 0.483.0 (CHECK ORIGIN FIRST - 11 collisions). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-2030
+Agent: cron30 (main lane, Job 414125)
+Task: fire 2030 - v0.483.0 THE CRITICAL PRELUDE (the combat lane's own low-hp sensor priced - the critical bar's join to the flight it announced); face 44 (36987824149) still QUEUED ~3.5h - one-active-run law held.
+
+Work Log:
+- OPENED on the surviving tree: f9d885d. CI: my 0.482.0 gate 37004896497 CANCELLED pre-start (the runner stall holds - every push gate since ~08:05Z); face 44 QUEUED. NO dispatch, NO cancel.
+- THE GAP SURVEY: every face-44-gated item blocked; the flee-side front owned by 0.481/0.482. The open window: the emitter's 'combat: critical bar (seen < 8)' line (6 verbatim across faces 42+43, one skin) had NO lens - the bar's prose itself names the sensor's verdict ('the shelter scan is refused, the drain outruns it').
+- THE WIRE (v0.483.0): criticalPrelude in src/lib/criticalprelude.mjs - CRITICAL_BAR_RE (full skin, the bot token mirrors, the breath mirror's law; wrong seen value / non-mirroring token refused); each bar joins its bot's NEXT flee start (first follower only; the flee's prelude = its bot's last bar sits AFTER the bot's previous flee start - THIS flight, not the story before); parseCombatLine + FLEE_START_RE imported (one parser); truncation-blind flights skipped; critical-zone cover = flees at hp < CRITICAL_HP 8 (the emitter's own threshold mirrored), the gap = the o2 lane's blind-lane twin.
+- THE FIELD READ (faces 42+43 stored artifacts, zero runner minutes, hand-traced then verified live): 6 bars, 5 joined (face 42's F17 tail the honest unjoined); critical-zone flees 6, covered 5 - the ONE gap (face 43's F5, fleeing at hp 2.0, bar silent) rode the OTHER prelude ('combat: shelter skip (open field: ring incomplete 7/8)') - the two low-hp preludes HAND OFF; the bar is not the doom's discriminator (face 42's chased F4 rode it at 5.8, face 43's chased F5 did not at 2.0) - it is the drain zone's own flight announcement.
+- Tests: criticalprelude 6 (the face-43 anatomy + join rows hp/gapLines, the face-42 tail leg, the no-leak-across-flights law, the RE anchors, junk/blob/zero). Syntax 377/0, unit 215/215 (one expectation slip caught pre-commit: 6 flee starts in the mini, not 5 - fixed, re-run green). Commit 6be0d0a (origin checked pre-bump: f9d885d = 0.482.0, no collision). Push f9d885d..6be0d0a CLEAN attempt 1.
+- CI AT CLOSE: gate 37008439392 (6be0d0a) PENDING - the stall holds (honest, no verdict).
+
+Stage Summary:
+- Master = 6be0d0a (pkg 0.483.0). THE CRITICAL PRELUDE IS PRICED: the low-hp sensor covers 5/6 critical-zone flights across n=2 faces, its one gap handed off to the shelter-skip prelude - the drain zone has TWO sensors that cover each other, not one blind lane.
+- NEXT FIRE: (1) gate 37008439392 verdict + face 44 when landed (the standing questions + the prelude's second point: does the handoff repeat? does a critical-zone flight ever ride NEITHER prelude?); (2) the reloot wire + the mob-cure wire dispatchable IF face 44 lands AND gates settle; (3) version next 0.484.0 (CHECK ORIGIN FIRST - 12 collisions). Identity: PLANETA9091.
