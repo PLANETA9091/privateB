@@ -35,6 +35,7 @@ import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fi
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
+import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2083,5 +2084,34 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const outs = Object.entries(sv.outputs).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')
       if (outs) console.log(`  yield ledger: ${outs}, rescued ${sv.rescuedTotal}, fired tails ${sv.firedTails}`)
     }
+  }
+}
+
+// (v0.491.0) THE SMELT HOLD LEDGER - the reserve decision's own fate.
+// The hold line reserves a slice of the chain budget for the smelt
+// leg; this row joins each hold to what the leg then did (fired with
+// yield / fired-zero / refused at the furnace door / budget-died /
+// unresolved) and reads the skips against the pocket coal (the floor
+// doctrine's own field signature - JUNK_COAL_FLOOR imported, one
+// truth).
+{
+  const sh = smeltHold(lines)
+  if (sh && (sh.holds > 0 || sh.skips > 0 || sh.endBankStandalone > 0)) {
+    console.log(`--- SMELT HOLD LEDGER (v0.491.0: the reserve decision's fate) ---`)
+    console.log(`  book: ${sh.holds} hold(s) holding ${sh.holdSecs}s of ${sh.budgetSecs}s chain budget`)
+    const fbits = []
+    fbits.push(`fired+yield ${sh.fates.fired} (${sh.firedActualTotal}u)`)
+    if (sh.fates.firedZero) fbits.push(`fired-ZERO ${sh.fates.firedZero} (the in-flight batch)`)
+    fbits.push(`refused ${sh.fates.refused} (nothing ${sh.refusedWhy.nothing} / machine ${sh.refusedWhy.machine})`)
+    if (sh.fates.budgetDied) fbits.push(`budget-died ${sh.fates.budgetDied}`)
+    if (sh.fates.unresolved) fbits.push(`unresolved ${sh.fates.unresolved}`)
+    if (sh.fallbacks) fbits.push(`fallback-noted ${sh.fallbacks} (prose never closes)`)
+    console.log(`  fates: ${fbits.join(' | ')}`)
+    const sbits = []
+    if (sh.skipClasses['coal-0']) sbits.push(`coal-0 ${sh.skipClasses['coal-0']} (honest empty)`)
+    if (sh.skipClasses['below-floor']) sbits.push(`below-floor ${sh.skipClasses['below-floor']} (the floor doctrine's signature, floor 6)`)
+    if (sh.skipClasses['above-floor']) sbits.push(`ABOVE-FLOOR ${sh.skipClasses['above-floor']} (the anomaly bucket)`)
+    if (sbits.length) console.log(`  skips: ${sh.skips} - ${sbits.join(' | ')}`)
+    if (sh.endBankStandalone) console.log(`  end-bank deaths (no open hold): ${sh.endBankStandalone}`)
   }
 }
