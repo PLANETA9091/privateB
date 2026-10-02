@@ -12085,3 +12085,17 @@ Work Log:
 
 Stage Summary:
 - Master = 8b95421 (pkg 0.462.0). NEXT FIRE: (1) FACE 41 (36964871040 SUCCESS) mine FIRST: the smelt ledger row 2 (the clip storm repeat? the harvest row live on a fresh face - does the took-vs-counter identity hold again?), the no-leak regime's third read, the share row if violence returns; (2) the took-vs-counter join's window read: if a face's counter exceeds the took sum, the fired-but-never-harvested class has a live anchor (the furnace's leftovers as the counter's blind spot - the tithe lens's territory, cross-read first); (3) version next 0.463.0. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261002-1300
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1300 - v0.463.0 THE TIER DEFER CENSUS (the tool ladder's own voice counted - the steer's deferred names, unowned since v0.252.0, now read); FACE 41 mined (violence hard-returned, the share classifier's split DEAD at 82%); NO dispatch (face 42 theirs, still in flight).
+
+Work Log:
+- CHECK ORIGIN FIRST: de09672 the tip (pkg 0.462.0; fires 1200 + 1232 landed v0.461.0/v0.462.0 meanwhile); gates - v0.461.0/0.462.0 trees green; face 42 (36967273918, fire-1232's dispatch) in flight ALL box - NO dispatch (the one-active-run law).
+- FACE 41 MINED (36964871040 SUCCESS, 2220 lines, artifact 11210311303): violence RETURNED hard - 11 mob deaths (Drowned 4: F11 in-water + F12/F10/F16 dry-shore, Skeleton 4, Spider 2, Zombie 1; 808u lost, max burst 4 in 30s), the bank absorbed (banked +666, peak 1721u); material balance leaks +150u of mined 1586 (9.5%) - covered back, the no-leak ledger stays n=2 (39: -39u, 40: -74u); the re-gather share 82% re-collected - THE CLASSIFIER'S SPLIT DEAD (the most violent face re-collects; share ledger 57/79/28/32/81/82, the spread driver open); the smelt lane IDLE second face running (batches 0, refusals 7; 0 tooks, counter +0 agrees); the hound census already owned the drowned-kill classes - that wire skipped (no-double-code).
+- THE WIRE (v0.463.0): tierDeferCensus in src/lib/tierdefer.mjs reads the v0.252.0 steer's unowned verdict lines (TIER_DEFER_RE; the fresh-name join splits generically; defers + perBot + byResource = the upgrade rung's own work list; junk-safe, non-array null); decompose row 'tier defers (v0.463.0): 5 (iron_ore 5, copper_ore 5) per-bot: ...' - live on face 41 first try; zero reads zero honestly. THE DEFER LEDGER (36/38/39/40/41): 7/14/9/3/5 - the tier deficit and the re-gather are independent lanes (face 38: 14 defers + 81% share).
+- Tests: tierdefer 7. Syntax 359/0, unit 206/206 files. Push de09672..b404775 CLEAN first attempt. CI gate 36968006075 in_progress at close - no verdict held, honest.
+
+Stage Summary:
+- Master = b404775 (pkg 0.463.0). NEXT FIRE: (1) gate 36968006075 verdict + face 42 (36967273918) mine: the tier defer row's second live point, the smelt lane's third read (idle 3-running = a starved chain), the share ledger's 7th point; (2) the tier-defer follow-through: does toolupgrade's 'upgraded' line restore the lead on the deferred names (cross-read only, toolupgrade.mjs owns it); (3) the spread driver question open (leaks-driven died at 38, wet-vs-violent died at 41); (4) version next 0.464.0. Identity: PLANETA9091.
