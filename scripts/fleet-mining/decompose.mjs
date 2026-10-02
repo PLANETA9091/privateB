@@ -22,6 +22,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
+import { upgradeCensus } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -1381,6 +1382,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const resBits = Object.entries(td.byResource).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(', ')
     const botBits = Object.entries(td.perBot).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).map(([k, n]) => `${k}=${n}`).join(' ')
     console.log(`  tier defers (v0.463.0): ${td.defers}${resBits ? ` (${resBits})` : ''}${botBits ? ` per-bot: ${botBits}` : ''}`)
+  }
+  // (v0.465.0) THE UPGRADE CENSUS - the rung's other half. The tier-defer
+  // row above names the ladder's work list; this row names its DELIVERY
+  // ('[F9] [toolupgrade] [upgrade] upgraded: stone_pickaxe,...' - one line
+  // = one bot's rung pass). The promise's test is the eyeball join: a bot
+  // that deferred iron_ore and later reads 'upgraded: stone_pickaxe' took
+  // the rung; a defer with no upgrade event kept its option (face 42's
+  // F16). Zero events read zero honestly (the rung never ran - or nothing
+  // was due; the row does not guess which).
+  const uc = upgradeCensus(lines)
+  if (uc) {
+    const toolBits = Object.entries(uc.byTool).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(', ')
+    const ubBits = Object.entries(uc.perBot).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).map(([k, n]) => `${k}=${n}`).join(' ')
+    console.log(`  tool upgrades (v0.465.0): ${uc.upgrades} event(s), ${uc.tools} tool(s)${toolBits ? ` (${toolBits})` : ''}${ubBits ? ` per-bot: ${ubBits}` : ''}`)
   }
 }
 
