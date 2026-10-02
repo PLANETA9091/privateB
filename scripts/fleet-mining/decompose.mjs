@@ -31,6 +31,7 @@ import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
 import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
+import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -710,6 +711,30 @@ if (shooter.total > 0) {
     for (const r of vx.rows.filter(x => x.verdict === 'fled')) {
       const gap = r.executedHp === null ? 'the execution hp unpriced' : `${r.flipHp.toFixed(1)} -> ${r.executedHp.toFixed(1)}${r.executedMob && r.executedMob !== r.mob ? ` (the threat changed: ${r.mob} -> ${r.executedMob})` : ''}`
       console.log(`   fled: ${r.bot} flipped vs ${r.mob} - executed ${gap}`)
+    }
+  }
+}
+// (v0.486.0) THE FIGHT COST LEDGER - the stand-and-fight lane's own
+// episode book (the emitter prints the win's full cost anatomy byte for
+// byte and no reader ever counted it: the exit class, the hp pair - the
+// COST, a negative cost is the regen outpacing the grind - the swings,
+// the weapon, the rounds). The abandon names the threat-change class,
+// the shelter takeover the wall's answer, the rounds field prices the
+// TIME the hp cost hides (the pickaxe tax's own ruler).
+{
+  const fl = fightLedger(lines)
+  console.log(`--- FIGHT COST LEDGER (v0.486.0: the fight's own price) ---`)
+  if (!fl || fl.starts === 0) {
+    console.log('  fights: 0 (the face never stood its ground - the calm face reads zero honestly)')
+  } else {
+    const book = fl.mobDown + fl.deadline + fl.chaseCeiling + fl.verdictIgnore + fl.abandoned + fl.sheltered + fl.died + fl.open
+    console.log(`  fights: ${fl.starts} - mob down ${fl.mobDown} / deadline ${fl.deadline} / chase ceiling ${fl.chaseCeiling} / verdict ignore ${fl.verdictIgnore} / abandoned ${fl.abandoned} / sheltered ${fl.sheltered} / died ${fl.died} / open ${fl.open} - book ${book}/${fl.starts}`)
+    if (fl.costs) console.log(`  the wins' cost (hp): min ${fl.costs.min.toFixed(1)} / median ${fl.costs.median.toFixed(1)} / max ${fl.costs.max.toFixed(1)} - free wins ${fl.freeWins}${fl.costs.min < 0 ? ' (the NEGATIVE tail is the regen slog: the fight outlasted the drain)' : ''}`)
+    const wbits = Object.entries(fl.weapons).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w}:${n}`).join(' ')
+    if (wbits) console.log(`  the weapons: ${wbits} - the longest fight ${fl.slog.maxRounds} rounds (${fl.slog.bot} vs ${fl.slog.mob}, ${fl.slog.weapon})${fl.slog.weapon && fl.slog.weapon.includes('pickaxe') ? ' - THE PICKAXE TAX: the tool ground where the sword would have swung' : ''}`)
+    const abandons = fl.rows.filter(r => r.outcome === 'abandoned')
+    for (const r of abandons) {
+      console.log(`   abandoned: ${r.bot} fought ${r.mob} @${r.hp === null ? '?' : r.hp.toFixed(1)} - flew vs ${r.closeMob || '?'} @${r.closeHp === null ? '?' : r.closeHp.toFixed(1)}${r.threatChanged ? ' (the threat changed mid-fight)' : ' (the same threat won the argument)'}`)
     }
   }
 }
