@@ -5,7 +5,7 @@ import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/li
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
-import { shelterLedger } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join
+import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
@@ -578,6 +578,39 @@ if (shooter.total > 0) {
       console.log(`  ground [${g.x},${g.z}] x${g.n} (${killers}) bots ${g.bots.slice().sort().join('+')}${g.n >= 3 ? ' - THE NEST HARVEST SIGNATURE: one ground took 3+ bots this face' : ''}`)
     }
     if (dg.grounds.length > 5) console.log(`  ... ${dg.grounds.length - 5} more ground(s) - the tail stays in the lib's row`)
+    // (v0.466.0) THE FLEE GROUND CROSS-READ - the two lenses join on the
+    // same died lines: the shelter ledger read the OUTCOME (the verdict
+    // before each combat death), the death ground read the PLACE (the
+    // ground's shared size). The join answers the standing disengage
+    // question: does the escape die ON the killing field it fled from?
+    // The rows zip positionally (both walk the combat deaths in line
+    // order - the same anchor, the same combat-kind law); the bot match
+    // is the sanity gate, a mismatch skips the row honest.
+    const slx = shelterLedger(lines)
+    if (slx.rows.length === dg.rows.length && dg.rows.every((r, i) => r.bot === slx.rows[i].bot)) {
+      const perClass = {}
+      let shared = 0
+      for (let i = 0; i < dg.rows.length; i++) {
+        const cls = slx.rows[i].outcome
+        const g = perClass[cls] || (perClass[cls] = { n: 0, onMulti: 0, onSingle: 0, blind: 0 })
+        g.n++
+        if (dg.rows[i].groundN === null) g.blind++
+        else {
+          if (dg.rows[i].groundN >= 2) { g.onMulti++; shared++ }
+          else g.onSingle++
+        }
+      }
+      const fmtClass = c => perClass[c] ? `${c} ${perClass[c].onMulti}/${perClass[c].n}` : null
+      const classBits = OUTCOME_CLASSES.map(fmtClass).filter(Boolean).join(', ')
+      const flee = perClass.flee
+      console.log(`  the flee ground cross-read (v0.466.0): deaths on shared grounds ${shared} of ${dg.combatDeaths}${classBits ? ` (${classBits})` : ''}`)
+      if (flee && flee.n > 0) {
+        const verdict = flee.onMulti * 2 >= flee.n
+          ? 'THE FLEE DIES ON THE SHARED GROUND - the escape never leaves the killing field (the disengage must EXIT the ground, not just gain distance)'
+          : 'the escapes die off the shared grounds - the chase\'s reach, not the ground, takes them'
+        console.log(`  the cross-read's answer: ${verdict}`)
+      }
+    }
   }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first

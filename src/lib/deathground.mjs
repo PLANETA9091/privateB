@@ -44,15 +44,15 @@ export const DEATH_GROUND_RADIUS = 12
  * read). Accepts an array of lines or a raw text blob (split on newline);
  * anything else reads null (the junk convention - junk judges nothing).
  * @param {string[]|string} [lines] the face log
- * @returns {null|{combatDeaths: number, blind: number, grounds: Array<{x: number, z: number, n: number, bots: string[], killers: Object<string, number>, deaths: Array<object>}>, multiGrounds: number, singles: number}}
+ * @returns {null|{combatDeaths: number, blind: number, grounds: Array<{x: number, z: number, n: number, bots: string[], killers: Object<string, number>, deaths: Array<object>}>, rows: Array<{bot: string, kind: string, killer: string|null, x: number|null, y: number|null, z: number|null, groundN: number|null}>, multiGrounds: number, singles: number}}
  */
 export function deathGrounds (lines) {
-  const rows = Array.isArray(lines)
+  const src = Array.isArray(lines)
     ? lines
     : (typeof lines === 'string' ? lines.split('\n') : null)
-  if (!rows) return null
+  if (!src) return null
   const deaths = []
-  for (const line of rows) {
+  for (const line of src) {
     if (typeof line !== 'string') continue
     const km = line.match(DIED_KIND_RE)
     if (!km) continue
@@ -85,12 +85,24 @@ export function deathGrounds (lines) {
     } else {
       grounds.push({ x: d.x, z: d.z, n: 1, bots: [d.bot], killers: d.killer ? { [d.killer]: 1 } : {}, deaths: [d] })
     }
+    d._ground = joined || grounds[grounds.length - 1]
   }
   grounds.sort((a, b) => b.n - a.n || a.x - b.x || a.z - b.z)
+  // (v0.466.0) THE CROSS-READ ROWS - each combat death with the size of the
+  // ground it landed on (the ground's FINAL n - the join's own answer to
+  // 'did this death share its ground?'); the blind deaths read null. The
+  // rows walk the deaths in LINE order - the exact sequence the shelter
+  // ledger's rows walk (the same DIED_KIND_RE anchor, the same combat-kind
+  // law), so the decompose's positional join is deterministic.
+  const rows = deaths.map(d => ({
+    bot: d.bot, kind: d.kind, killer: d.killer, x: d.x, y: d.y, z: d.z,
+    groundN: d._ground ? d._ground.n : null
+  }))
   return {
     combatDeaths: deaths.length,
     blind,
     grounds,
+    rows,
     multiGrounds: grounds.filter(g => g.n >= 2).length,
     singles: grounds.filter(g => g.n === 1).length
   }

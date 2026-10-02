@@ -60,6 +60,34 @@ test('the second [-120,422] took 3 (spider + skeleton + drowned) and the third [
   assert.deepEqual(third.killers, { Drowned: 1, Zombie: 1 })
 })
 
+test('the cross-read rows (v0.466.0): line-order groundN per combat death, the shared-ground answer', () => {
+  const dg = deathGrounds(FACE41)
+  assert.equal(dg.rows.length, 11)
+  // the rows walk the deaths in LINE order (the shelter ledger's own sequence)
+  assert.equal(dg.rows[0].bot, 'F18'); assert.equal(dg.rows[0].groundN, 3, 'F18 seeded [-120,422], the ground grew to 3')
+  assert.equal(dg.rows[1].bot, 'F7'); assert.equal(dg.rows[1].groundN, 4, 'F7 seeded [-127,397], the nest grew to 4')
+  assert.equal(dg.rows[2].bot, 'F1'); assert.equal(dg.rows[2].groundN, 1, 'F1 died alone at [-84,400]')
+  assert.equal(dg.rows[3].bot, 'F11'); assert.equal(dg.rows[3].groundN, 4, 'F11 joined the [-127,397] nest')
+  // the final-size law: groundN reads the ground's FINAL n (post-join), not the moment's
+  const f4 = dg.rows.find(r => r.bot === 'F4')
+  assert.equal(f4.groundN, 4, 'F4 joined [-127,397] third - the row reads the final 4')
+  // the killer tally rides the row
+  assert.equal(dg.rows[1].killer, 'Skeleton')
+  assert.equal(dg.rows[3].killer, 'Drowned')
+})
+
+test('the blind row reads groundN null honest (the cross-read never guesses a blind death\'s ground)', () => {
+  const lines = [
+    'FA [FA] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie])',
+    'FB [FB] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1 (0s before death at [100,64,200]))'
+  ]
+  const dg = deathGrounds(lines)
+  assert.equal(dg.rows.length, 2)
+  assert.equal(dg.rows[0].bot, 'FA')
+  assert.equal(dg.rows[0].groundN, null)
+  assert.equal(dg.rows[1].groundN, 1)
+})
+
 test(`the radius is ${DEATH_GROUND_RADIUS} and inclusive at the edge: exactly 12 joins, 13 seeds`, () => {
   const at = [
     'FA [FA] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@1 (0s before death at [100,64,200]))'
