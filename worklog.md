@@ -11981,3 +11981,16 @@ Work Log:
 Stage Summary:
 - Master = f809437 (pkg 0.457.0). The combat/night cure now HAS its price: the disengage is the leak, not the wall.
 - NEXT FIRE: (1) gate f809437 verdict; (2) FACE 38 (36956785186) SUCCESS => download + mine - the shelter ledger's THIRD point (does flee repeat? is the disengage leak a law?), the sign row 2 (drained on violence? flat on calm?), the reconcile row 3 (the slack-vs-violence curve: +134 calm / +327..+548 violent), the roster six-face (F9 6/6?); (3) the DISENGAGE cure pricing - what the flee-failure fix reads against (the flee-bearing/flee-shore census rows vs the flee deaths' coords) BEFORE any wire; (4) the o2 trigger gap still open (rescue-active deaths 2 faces running); (5) version next 0.458.0. Identity: PLANETA9091.
+
+---
+Task ID: cron-20261002-1038 addendum (Job 415967)
+Agent: PLANETA9091 cron lane (main)
+Task: the gate bookkeeping - the f809437 gate died QUEUED (the concurrency supersede), the LIVE gate is 36958438824; FACE 38 still in flight; no red anywhere.
+
+Work Log:
+- The f809437 gate (36958258728) reads CANCELLED - NOT a red, NOT a zombie, do NOT POST a cancel and do NOT hunt a failure: it died QUEUED when my own worklog push (28fbca5, 2 min later) arrived - the gate group's pending-supersede law (cancel-in-progress stays FALSE per the v0.331.0 secession comment: a RUNNING run is never killed, a PENDING one is replaced by the newer arrival; the 36953994434 precedent).
+- THE LIVE GATE for 0.457.0's tree is 36958438824 (28fbca5, in_progress at this addendum) - its verdict is the next fire's item (1) alongside the addendum commit's own gate (which queues behind it, never kills it).
+- FACE 38 (36956785186) still in flight under the untouchable fleet group - the handoff stands unchanged: SUCCESS => download + mine (the shelter ledger's third point, the sign row 2, the reconcile row 3, the roster six-face).
+
+Stage Summary:
+- No red anywhere; the cancelled run is the queue law working. Master = 28fbca5 (pkg 0.457.0 + this addendum). The NEXT FIRE list in the main 1038 entry governs; item (1) resolves against run 36958438824 and the tip's own gate, not against 36958258728. Identity: PLANETA9091.
