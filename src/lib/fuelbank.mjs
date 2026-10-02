@@ -57,7 +57,7 @@ import { gotoSafe, withTimeout } from './jobqueue.mjs'
 import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_CHEST_RADIUS, CHEST_NAMES, chestNearYard, fuelTitheOverage, FUEL_TITHE_BOUND, walkRawToward } from './deposit.mjs'
 import { fuelNeeded, countItem } from './smelting.mjs'
 import { approachWalk, PATH_GEOMETRY_RE, nudgeReSegmentPlan, NUDGE_RESEGMENT_FLOOR_MS } from './approach.mjs'
-import { chestVerticalDoom } from './surface.mjs'
+import { chestVerticalDoom, VERTICAL_DOOM_MIN_DY } from './surface.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -489,6 +489,35 @@ export function anchorSubDoom ({ botPos = null, chestPos = null } = {}) {
   }
 }
 
+// (v0.504.0) THE CLIMB FUND (the commons' withdraw side) - the clock-honest
+// sibling of the anchor's sub-doom. The commons ledger (v0.502.0) priced the
+// dead letter box: 60 ask sweeps, ZERO delivered, 49 spent 12s slices - the
+// yard's chests stand 20-37 levels ABOVE the asking digger, and the strict
+// doom gate (mostly-up, lateral < dy) only catches the near-vertical shapes;
+// the lateral-routed band (lateral >= dy, 'the ladder may route it') walked
+// anyway and the ask's thin slice never funded the climb (the arrival rate
+// priced at zero). The read: a chest in the DOOM BAND (dy >= the same
+// VERTICAL_DOOM_MIN_DY the geometry law owns) whose honest dist-scaled walk
+// budget exceeds the ask's remaining slice is refused BEFORE the walk burns
+// the clock - one named line per ask (the doom skip's shape), the chest
+// excluded, the slice returned to the leg that paid for it. The strict doom
+// gate stays byte for byte; this read never refuses a slice that CAN fund the
+// walk (a rich clock keeps the legacy ladder) and never touches the descent
+// class (a chest below reads no climb). Junk-safe: any unreadable clock or
+// position read returns null - the legacy walk attempt runs byte for byte.
+export function climbFundRefusal ({ dy = null, lateral = null, walkBudgetMs = null, sliceMs = null, minDy = VERTICAL_DOOM_MIN_DY } = {}) {
+  const up = Number.isFinite(dy) ? dy : null
+  if (up == null || up < minDy) return null // below the band: the geometry law's floor, the legacy walk rides
+  const lat = Number.isFinite(lateral) && lateral >= 0 ? lateral : null
+  if (lat == null) return null // no lateral read: never guess
+  if (lat < up) return null // the strict doom shape - the geometry gate owns it, never a second voice
+  const budget = Number.isFinite(walkBudgetMs) && walkBudgetMs > 0 ? walkBudgetMs : null
+  const slice = Number.isFinite(sliceMs) && sliceMs > 0 ? sliceMs : null
+  if (budget == null || slice == null) return null // no honest read of either clock: no refusal
+  if (slice >= budget) return null // the slice funds the climb - the walk proceeds
+  return `the yard stands ${Math.round(up)} levels up over ${Math.round(lat)}b lateral - the ladder may route it but the slice cannot fund the climb (the walk asks ${Math.round(budget / 1000)}s, the slice holds ${Math.round(slice / 1000)}s)`
+}
+
 /**
  * (v0.124.0) THE ANCHOR DELIVERY - the tithe's dedicated inflow. The pocket
  * fuel over FUEL_TITHE_BOUND rides to the fleet's ONE fuel chest BEFORE the
@@ -793,6 +822,7 @@ export async function withdrawFuelCommons (bot, {
   let nudgeShots = 0 // (v0.355.0) the shot ledger - the re-segment plan counts the ladder
   let nudgedInside = false // (v0.355.0) STRICT - only a nudge that DECLARED the envelope can falsify it
   let doomLogged = false // (v0.159.0) ONE vertical-gate line per ask
+  let climbLogged = false // (v0.504.0) ONE climb-fund line per ask (the doom skip's shape, the clock-honest band)
   const planAll = []
   // (v0.124.0) THE ANCHOR FIRST READ: the tithe's delivery target is the
   // fleet's one deterministic fuel chest - when a yardCenter is known, the
@@ -836,6 +866,32 @@ export async function withdrawFuelCommons (bot, {
           log(`fuel commons: chest at [${chest.position.x ?? '?'},${chest.position.y ?? '?'},${chest.position.z ?? '?'}] ${doom.why} - the walk ladder cannot climb, the ask rides (the tithe owns the deep resupply)`)
         }
         exclude.push(chest.position.floored ? chest.position.floored() : chest.position)
+        continue
+      }
+    }
+    // (v0.504.0) THE CLIMB FUND: the doom gate's lateral-routed band (lateral >= dy,
+    // 'the ladder may route it') still dies on the CLOCK - the ask's thin slice never
+    // funded a 20+ level climb (the commons ledger's dead letter box: 60 sweeps, 0
+    // delivered, 49 spent slices). The read refuses the climb-class walk BEFORE the
+    // walk burns the slice, one named line per ask, the same exclude + continue the
+    // doom skip uses. The strict geometry gate above stays byte for byte.
+    {
+      const botPos = bot?.entity?.position
+      const chestPos = chest.position
+      const climb = climbFundRefusal({
+        dy: (Number.isFinite(botPos?.y) && Number.isFinite(chestPos?.y)) ? chestPos.y - botPos.y : null,
+        lateral: (Number.isFinite(botPos?.x) && Number.isFinite(chestPos?.x) && Number.isFinite(botPos?.z) && Number.isFinite(chestPos?.z))
+          ? Math.hypot(chestPos.x - botPos.x, chestPos.z - botPos.z)
+          : null,
+        walkBudgetMs: chestWalkBudgetMs(dist ?? 8),
+        sliceMs: remainingMs()
+      })
+      if (climb) {
+        if (!climbLogged) {
+          climbLogged = true
+          log(`fuel commons: chest at [${chestPos.x ?? '?'},${chestPos.y ?? '?'},${chestPos.z ?? '?'}] ${climb} - the ask rides (the tithe owns the deep resupply)`)
+        }
+        exclude.push(chestPos.floored ? chestPos.floored() : chestPos)
         continue
       }
     }

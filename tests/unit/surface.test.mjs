@@ -511,7 +511,7 @@ test('chestVerticalDoom: the junk family reads as no doom - the legacy walk atte
 test('wiring: the vertical gate rides the four yard walk sources (the fuelbank + toolupgrade pins)', () => {
   const bankSrc = fs.readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
   const toolSrc = fs.readFileSync(new URL('../../src/lib/toolupgrade.mjs', import.meta.url), 'utf8')
-  assert.match(bankSrc, /import \{ chestVerticalDoom \} from '\.\/surface\.mjs'/)
+  assert.match(bankSrc, /import \{ chestVerticalDoom(, VERTICAL_DOOM_MIN_DY)? \} from '\.\/surface\.mjs'/, 'the doom band stays the surface law\'s own export (the v0.504.0 climb fund reuses it, no duplicated constant)')
   assert.match(bankSrc, /chestVerticalDoom\(\{ botPos: bot\?\.entity\?\.position \?\? null, chestPos: chest\.position \}\)/, 'the commons gate reads the live positions')
   assert.match(bankSrc, /the walk ladder cannot climb, the ask rides \(the tithe owns the deep resupply\)/, 'the commons skip names the ride')
   assert.match(bankSrc, /the vertical gate: \$\{doom\.why\} - the walk ladder cannot climb/, 'the tithe skip names its why')

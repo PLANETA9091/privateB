@@ -1242,7 +1242,7 @@ test('REGRESSION PIN: the fuel commons walk labels carry the chest identity (the
 // ('Took to long to decide path to goal!' x2, the nudge segment stalled,
 // the 15s tithe budget died). The gate skips BEFORE the walk; the near
 // windows own the delivery (the same bot's earlier window: d=13, dy 5).
-import { anchorSubDoom, ANCHOR_SUBDOOM_MIN_DY, ANCHOR_SUBDOOM_MIN_LATERAL } from '../../src/lib/fuelbank.mjs'
+import { anchorSubDoom, ANCHOR_SUBDOOM_MIN_DY, ANCHOR_SUBDOOM_MIN_LATERAL, climbFundRefusal } from '../../src/lib/fuelbank.mjs'
 
 test('ANCHOR SUB-DOOM: the face 36507990221 F4 datum dooms (dy 16 over ~36b lateral)', () => {
   const r = anchorSubDoom({ botPos: { x: -118, y: 54, z: 443 }, chestPos: { x: -117, y: 70, z: 407 } })
@@ -1297,4 +1297,74 @@ test('SUB-DOOM WIRING PIN: the gate rides deliverFuelTithe after the strict gate
     'the gate reads the live bot and the picked anchor')
   assert.ok(src.includes("- the near window owns the delivery` }"),
     'the why names the honest split (the near window owns it)')
+})
+
+// --- (v0.504.0) THE CLIMB FUND: the commons withdraw side's clock-honest band ---
+// The commons ledger (v0.502.0) priced the dead letter box: 60 sweeps, 0 delivered,
+// 49 spent 12s slices, the yard standing 20-37 levels above the asking digger. The
+// strict doom gate owns the mostly-up shapes; the lateral-routed band (lateral >= dy)
+// walked anyway and never arrived inside the ask's slice. climbFundRefusal refuses
+// exactly that band when the CLOCK cannot fund the honest walk budget.
+
+test('climbFundRefusal: the lateral-routed band with a thin slice reads the refusal (the priced dead letter shape)', () => {
+  // the ledger's field: dy 25, lateral 40 - the strict gate routes it, the 12s slice dies
+  const why = climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 30000, sliceMs: 12000 })
+  assert.ok(why)
+  assert.match(why, /25 levels up over 40b lateral/)
+  assert.match(why, /the ladder may route it/)
+  assert.match(why, /the slice cannot fund the climb/)
+  assert.match(why, /the walk asks 30s, the slice holds 12s/)
+})
+
+test('climbFundRefusal: a rich slice funds the climb - the walk proceeds (the read prices the clock, never the geometry)', () => {
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 30000, sliceMs: 60000 }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 30000, sliceMs: 30000 }), null) // >= funds
+})
+
+test('climbFundRefusal: below the doom band reads null (the geometry law owns the floor - no new band invented)', () => {
+  assert.equal(climbFundRefusal({ dy: 19, lateral: 40, walkBudgetMs: 30000, sliceMs: 1000 }), null)
+})
+
+test('climbFundRefusal: the exact band floor fires (dy 20 = VERTICAL_DOOM_MIN_DY, one band, one law)', () => {
+  const why = climbFundRefusal({ dy: 20, lateral: 20, walkBudgetMs: 30000, sliceMs: 12000 })
+  assert.ok(why)
+  assert.match(why, /20 levels up over 20b lateral/)
+})
+
+test('climbFundRefusal: the strict doom shape reads null (the geometry gate owns it - never a second voice)', () => {
+  // lateral < dy is chestVerticalDoom's verdict upstream - the fund never re-fires it
+  assert.equal(climbFundRefusal({ dy: 30, lateral: 4, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 24, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+  // the boundary law rides the strict gate's own arithmetic: lat == dy is NOT mostly-up
+  // (the gate routes lat >= dy) - the fund owns the routed band from equality upward
+  assert.ok(climbFundRefusal({ dy: 25, lateral: 25, walkBudgetMs: 30000, sliceMs: 12000 }))
+})
+
+test('climbFundRefusal: the descent class reads null (a chest below is gravity-assisted, not a climb)', () => {
+  assert.equal(climbFundRefusal({ dy: -25, lateral: 40, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+})
+
+test('climbFundRefusal: junk-safe end to end (any unreadable clock or position = the legacy walk runs)', () => {
+  assert.equal(climbFundRefusal({}), null)
+  assert.equal(climbFundRefusal({ dy: null, lateral: 40, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+  assert.equal(climbFundRefusal({ dy: NaN, lateral: 40, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: null, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: -4, walkBudgetMs: 30000, sliceMs: 12000 }), null) // negative lateral: no honest read
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: null, sliceMs: 12000 }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 30000, sliceMs: null }), null)
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 0, sliceMs: 12000 }), null) // zero budget: no honest read
+  assert.equal(climbFundRefusal({ dy: 25, lateral: 40, walkBudgetMs: 30000, sliceMs: 0 }), null) // zero slice: the budget-spent verdict owns it upstream
+  assert.equal(climbFundRefusal({ dy: '25', lateral: 40, walkBudgetMs: 30000, sliceMs: 12000 }), null)
+})
+
+test('the climb-fund wire: the refusal rides BEFORE the walk, one line per ask, the strict gate untouched (source pins)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const fundIdx = src.indexOf('THE CLIMB FUND: the doom gate')
+  const walkIdx = src.indexOf('await gotoSafe(bot, new goals.GoalNear(chest.position.x, chest.position.y, chest.position.z, 2)')
+  const doomIdx = src.indexOf('chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: chest.position })')
+  assert.ok(fundIdx > 0, 'the climb-fund block exists in the commons sweep')
+  assert.ok(doomIdx > 0 && fundIdx > doomIdx, 'the fund rides AFTER the strict doom gate (the geometry law stays first)')
+  assert.ok(walkIdx > fundIdx, 'the fund reads BEFORE the walk attempt burns the slice')
+  assert.ok(src.includes('let climbLogged = false'), 'ONE line per ask (the doom skip\'s shape)')
+  assert.ok(src.includes('climbFundRefusal({') && src.includes('sliceMs: remainingMs()'), 'the wire prices the LIVE clock')
 })
