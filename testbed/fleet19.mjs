@@ -1231,7 +1231,10 @@ async function runBot (name, target, index) {
       const UPGRADE_RETRY_MS = 60000
       const upgradeDueNow = () => {
         if (Date.now() - lastUpgradeAttempt < UPGRADE_RETRY_MS) return null
-        const c = upgradeCheck(miner.bot)
+        // (v0.503.0) THE TIER DEBT: the vein sweep's guard stash (miner.mjs) rides the
+        // check - at TIER_DEBT_THRESHOLD+ units held above the pick tier the cobble
+        // reserve yields (the vein pays for the pick; the v0.501.0 read: 99 units held).
+        const c = upgradeCheck(miner.bot, { tierDebt: miner.bot._tierDebt ?? 0 })
         return c.due ? c : null
       }
       let lastTrip = Date.now() // (v0.8.3) time-based map-trip cadence
@@ -1930,10 +1933,11 @@ async function runBot (name, target, index) {
         if (up) {
           lastUpgradeAttempt = Date.now()
           console.log(`${name} tool upgrade due: ${up.reason} -> ${up.target}`)
-          const res = await upgradeTools(miner.bot, { log: m => console.log(`${name} ${m}`) })
+          const res = await upgradeTools(miner.bot, { log: m => console.log(`${name} ${m}`), tierDebt: miner.bot._tierDebt ?? 0 })
           if (res.ok) {
             toolsUpgraded++
             lastBootstrap = Date.now() // fresh tool: reset the recovery cooldown clock too
+            miner.bot._tierDebt = 0 // (v0.503.0) the tier is paid - the debt clears (the next sweep prices fresh)
           }
           console.log(`${name} tool upgrade: ${res.ok ? 'OK' : 'failed'} -> ${res.tier || 'none'} (${res.detail})`)
         }

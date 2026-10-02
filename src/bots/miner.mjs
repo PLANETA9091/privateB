@@ -38,7 +38,7 @@ import {
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP, LENS_FOE_RANGE } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
 import { deathDropLine, deathDropTotal, drownContextLine, drownedKillContextLine, suffocateContextLine, voidContextLine, wetRescueWindowLive } from '../lib/statcarry.mjs' // (v0.357.0) the wet-rescue window classifier - the storm verdict's exclusion feed
-import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break
+import { bestPickaxe, bestPickTier, oreTierGuardLine, oreTierRequired, tierDebtOf } from '../lib/toolupgrade.mjs' // (v0.251.0) the ore-tier guard: the pocket's best pick decides which ores may break; (v0.503.0) the tier debt rides the verdict
 import { isNight } from '../lib/nightsafety.mjs'
 import { GRAVITY_ROOF_BLOCKS, GRAVITY_MAX_PASSES, gravityColumnOrder } from '../lib/gravityroof.mjs'
 import { shelterDue, earnSealDue, pickSealItem, pickJunkToDrop, SHELTER_WALL_OK, SHELTER_ROUND_MS, SHELTER_MAX_MS, SHELTER_SAFE_DIST, EARN_SEAL_MAX_THREAT_DIST, RING_SIDE_NORMALS, RING_BLOCKS_NEEDED, ringFeasible, ringBlocksNeeded, ringSideOrder, ringSideBuildable, ringThreatSideIndex, ringRangedNeeded, ringRangedEnough, countSealBlocks, emptySlotCount, RING_PLACE_ROUNDS, RING_RETRY_TICKS, ringDigEarnSupply, RING_DIG_EARN_OK } from '../lib/shelter.mjs'
@@ -3477,6 +3477,11 @@ export function createMiner ({
         const guardLine = oreTierGuardLine({ tag, blocked: tierBlocked, pickTier: guardTier, pickName: guardPickName })
         if (guardLine) log(guardLine)
       }
+      // (v0.503.0) THE TIER DEBT STASH: the sweep's blocked volume above the pick tier
+      // rides the bot (the _stash channel, the route-latch's shape) - the upgrade ladder
+      // reads it as the debt that yields the cobble reserve. Unconditional write: a
+      // clean sweep zeroes the debt (the verdict is always the LATEST sweep's truth).
+      bot._tierDebt = tierDebtOf(tierBlocked, guardTier)
       // (v0.173.0) THE SWEEP DROP HARVEST: run74's F13 logged '9 ores dug beside
       // the gallery' and its pocket read ZERO coal at every snapshot - the sweep
       // digs in place (reach 4.5) but the drop lands INSIDE the freed cell, 2-4

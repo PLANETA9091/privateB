@@ -9,6 +9,7 @@ import Vec3 from 'vec3'
 import { resetWalkGovernors } from '../../src/lib/jobqueue.mjs'
 import {
   PICK_TIERS, PICK_MAX_DURABILITY, PICK_STICKS, IRON_PICK_INGOTS, RAW_ORE_TAKE,
+  TIER_DEBT_THRESHOLD, tierDebtOf,
   pickTierOf, bestPickaxe, pickWear, upgradeCheck, upgradeTools, keepForIron,
   ironCommunePlan, withdrawIronCommune, ironPoolSeedPlan, seedIronPool
 } from '../../src/lib/toolupgrade.mjs'
@@ -192,6 +193,66 @@ test('upgradeCheck: cobble RESERVE - healthy wooden pick with only 3 cobble wait
   const r = upgradeCheck(bot)
   assert.equal(r.due, false)
   assert.match(r.reason, /cobble/)
+})
+
+// --- (v0.503.0) THE TIER DEBT: the guard's verdict pays the reserve gate ---
+
+test("tierDebtOf: the blocked volume above the pick tier is the debt (the vein ledger's 99-unit read, priced per sweep)", () => {
+  // the live guard skins: '9 iron_ore, 3 copper_ore left for a stone pick (have wooden_pickaxe)'
+  assert.equal(tierDebtOf({ iron_ore: 9, copper_ore: 3 }, 0), 12)
+  // a stone pick already covers the iron/copper band - the debt reads zero
+  assert.equal(tierDebtOf({ iron_ore: 9, copper_ore: 3 }, 1), 0)
+  // the gold band waits for iron even from a stone pick
+  assert.equal(tierDebtOf({ gold_ore: 2, iron_ore: 5 }, 1), 2)
+  // a wooden pick blocked by coal reads zero (coal rides wooden - no gate broken)
+  assert.equal(tierDebtOf({ coal_ore: 20 }, 0), 0)
+})
+
+test("tierDebtOf: junk-safe end to end (the guard's map is never trusted)", () => {
+  assert.equal(tierDebtOf(null, 0), 0)
+  assert.equal(tierDebtOf(undefined, 0), 0)
+  assert.equal(tierDebtOf('iron_ore', 0), 0)
+  assert.equal(tierDebtOf({ iron_ore: 0, copper_ore: -2 }, 0), 0) // zero and negative never count
+  assert.equal(tierDebtOf({ iron_ore: '9', mystery_ore: 7 }, 0), 0) // non-numeric counts and gate-less names skip
+  assert.equal(tierDebtOf({}, 0), 0)
+})
+
+test(`upgradeCheck: TIER DEBT - healthy wooden pick + 3 cobble + debt ${8} -> the reserve yields (the vein pays for the pick)`, () => {
+  const bot = fakeBot([it('wooden_pickaxe', 1, { max: 59, used: 5 }), it('cobblestone', 3), it('stick', 4)])
+  const r = upgradeCheck(bot, { tierDebt: TIER_DEBT_THRESHOLD })
+  assert.equal(r.due, true)
+  assert.equal(r.target, 'stone_pickaxe')
+  assert.equal(r.worn, false)
+  assert.match(r.reason, /tier debt/) // the reason names the debt - never the 'cobble available' lie
+})
+
+test('upgradeCheck: TIER DEBT boundary - debt below the threshold still waits (the drip does not pay for the table trip)', () => {
+  const bot = fakeBot([it('wooden_pickaxe', 1, { max: 59, used: 5 }), it('cobblestone', 3), it('stick', 4)])
+  const r = upgradeCheck(bot, { tierDebt: TIER_DEBT_THRESHOLD - 1 })
+  assert.equal(r.due, false)
+  assert.match(r.reason, /cobble/)
+})
+
+test('upgradeCheck: TIER DEBT with cobble-rich pocket -> the plain cobble-available reason (the debt is not needed, the reason stays honest)', () => {
+  const bot = fakeBot([it('wooden_pickaxe', 1, { max: 59, used: 5 }), it('cobblestone', 12), it('stick', 4)])
+  const r = upgradeCheck(bot, { tierDebt: 50 })
+  assert.equal(r.due, true)
+  assert.equal(r.target, 'stone_pickaxe')
+  assert.match(r.reason, /cobble available/)
+})
+
+test('upgradeCheck: TIER DEBT never outranks the missing-materials truth (no sticks/planks -> nothing craftable -> not due regardless of the debt)', () => {
+  const bot = fakeBot([it('wooden_pickaxe', 1, { max: 59, used: 5 }), it('cobblestone', 3)])
+  const r = upgradeCheck(bot, { tierDebt: 99 })
+  assert.equal(r.due, false)
+  assert.match(r.reason, /healthy/) // the craftable gate (sticks/planks) fired first - the debt has no target to name
+})
+
+test('upgradeCheck: TIER DEBT is the stone-gate key only (iron opportunity keeps its own reason; the debt cannot fake a tier)', () => {
+  // stone pick + debt in the gold band + NO ingots -> craftable is stone-tier (not > best) -> not due
+  const bot = fakeBot([it('stone_pickaxe', 1, { max: 131, used: 20 }), it('cobblestone', 3), it('stick', 4), it('gold_ore', 5)])
+  const r = upgradeCheck(bot, { tierDebt: 99 })
+  assert.equal(r.due, false)
 })
 
 test('upgradeCheck: sticks missing but planks present -> still due (sticks are craftable mid-flow)', () => {

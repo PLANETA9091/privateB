@@ -86,6 +86,31 @@ export const ORE_TIER_TABLE = {
   deepslate_emerald_ore: 2
 }
 
+// (v0.503.0) THE TIER DEBT: the vein sweep's own read (v0.501.0) priced the
+// guard's verdict - 10 tier guards refused 99 iron+copper units across faces
+// 42+43, every one from a wooden pick, while upgradeCheck's cobbleReserve gate
+// held the stone rung shut (a healthy pick + < 6 cobble waits forever, and the
+// sweep keeps refusing the ore). The debt closes that loop: the blocked volume
+// the guard leaves in the ground IS evidence that the reserve is costing more
+// than it protects. 8 units = one honest vein's read (the live guard lines ran
+// 9-11 per sweep) - below that the drip does not pay for the table trip.
+export const TIER_DEBT_THRESHOLD = 8
+
+// The tier debt of a sweep's blocked map: the units whose required tier EXCEEDS
+// the current pick tier. Junk-safe end to end: null/non-object maps read 0, the
+// gate-less names (null from the table) and the non-positive counts never count.
+export function tierDebtOf (blocked, pickTier = -1) {
+  if (!blocked || typeof blocked !== 'object') return 0
+  let debt = 0
+  for (const [name, n] of Object.entries(blocked)) {
+    if (typeof n !== 'number' || !(n > 0)) continue
+    const need = oreTierRequired(name)
+    if (need === null || need <= pickTier) continue
+    debt += n
+  }
+  return debt
+}
+
 // The gate read: the ore's minimum tier, or null when the name carries no gate.
 // Junk-safe: null/undefined/non-string names read null (no gate, no throw).
 export function oreTierRequired (name) {
@@ -184,11 +209,14 @@ function countMaxPlankType (bot) {
  *
  * opts: wearThreshold (uses left before proactive replacement; stone digs ~0.55s/block
  * so 12 uses ~= one short shaft of margin), cobbleReserve (do not convert the cobble a
- * future furnace/stone needs into a pickaxe while a healthy pickaxe exists).
+ * future furnace/stone needs into a pickaxe while a healthy pickaxe exists), tierDebt
+ * (v0.503.0: the sweep's blocked units above the pick tier - at TIER_DEBT_THRESHOLD+
+ * the cobble reserve yields, the vein pays for the pick).
  */
 export function upgradeCheck (bot, {
   wearThreshold = 12,
-  cobbleReserve = 6
+  cobbleReserve = 6,
+  tierDebt = 0
 } = {}) {
   const best = bestPickaxe(bot)
   if (!best) return { due: false, reason: 'no pickaxe - recovery/bootstrap path owns this' }
@@ -207,11 +235,22 @@ export function upgradeCheck (bot, {
 
   // Upgrade opportunity: a strictly better tier is craftable from current materials.
   // cobbleReserve keeps the furnace/stone budget safe when the pickaxe is still healthy.
+  // (v0.503.0) THE TIER DEBT YIELD: when the sweep's guard is holding TIER_DEBT_THRESHOLD+
+  // units above the pick's tier, the reserve yields - the vein in the ground pays for the
+  // pick better than the furnace budget it would steal. The reason stays honest: the debt
+  // is named, never smuggled behind a 'cobble available' lie.
   if (craft.tier > best.tier) {
-    if (craft.tier === 1 && countItem(bot, 'cobblestone') < cobbleReserve) {
-      return { due: false, reason: `stone upgrade wants ${cobbleReserve}+ cobble (have ${countItem(bot, 'cobblestone')})` }
+    const cobble = countItem(bot, 'cobblestone')
+    const debtGate = craft.tier === 1 && cobble < cobbleReserve && tierDebt >= TIER_DEBT_THRESHOLD
+    if (craft.tier === 1 && cobble < cobbleReserve && !debtGate) {
+      return { due: false, reason: `stone upgrade wants ${cobbleReserve}+ cobble (have ${cobble})` }
     }
-    return { due: true, reason: craft.reason, target: craft.name, worn: false }
+    return {
+      due: true,
+      reason: debtGate ? `tier debt ${tierDebt}u held in the ground (the vein pays for the pick)` : craft.reason,
+      target: craft.name,
+      worn: false
+    }
   }
   return { due: false, reason: 'pickaxe healthy and best tier available' }
 }
@@ -231,6 +270,7 @@ export function upgradeCheck (bot, {
 export async function upgradeTools (bot, {
   log = () => {},
   maxSeconds = 45,
+  tierDebt = 0, // (v0.503.0) forwarded to the internal check - the debt that opened the fleet's gate must not close it again here
   deps = {}
 } = {}) {
   const craft = deps.craftUntil ?? craftUntil
@@ -240,7 +280,7 @@ export async function upgradeTools (bot, {
   const started = Date.now()
   const step = msg => log(`[toolupgrade] ${msg}`)
   try {
-    const check = upgradeCheck(bot)
+    const check = upgradeCheck(bot, { tierDebt })
     if (!check.due) return { ok: false, tier: null, detail: `not due: ${check.reason}` }
 
     // healthy wooden -> stone: the tools.mjs flow does it all (sticks, spare table,
