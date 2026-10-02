@@ -1,0 +1,250 @@
+//
+// fleeledger.mjs - THE FLEE SURVIVAL LEDGER (v0.481.0)
+//
+// The escape lane's own episode anatomy - the flee START side's outcome
+// book. The three existing combat lenses each read a different window of
+// the same story: the shelter ledger (v0.457.0) reads HOW a death happened
+// (the death joined to the bot's last combat verdict), the flee fork
+// (v0.459.0) reads the death-time killer distance (the chase-vs-arrows
+// fork on the DIED line's inference), the death ground (v0.464.0) reads
+// WHERE (the deaths joined to each other). Nobody ever joined a flee
+// START to its own terminus - the escape lane's own success rate, the
+// start-side geometry, the chase's progress between consecutive flee
+// lines: all unpriced. This ledger walks the lines once and pairs every
+// 'combat: fleeing <mob> (dist D, hp H, N nearby, <reason>[, kite])'
+// start with its bot's next episode-boundary line:
+//
+//   chased      - the bot DIED mid-flee and the death's own witness names
+//                 the flee's threat (the inference tail's 'inferred:
+//                 <mob>@dist' when it corroborates, else the server kind
+//                 token's 'by <Killer>' - the authority law, the
+//                 shelterledger's chasedDown convention). The chased case
+//                 carries killDist/killDelta when (and only when) the
+//                 inference itself joins - the inference is the chase's
+//                 geometry witness; the server token carries no distance.
+//   crossfire   - the bot DIED mid-flee to a DIFFERENT hostile (the
+//                 second-hostile class: face 43's F16 fled a creeper and
+//                 took a skeleton's arrow at 8.9 - the fire-1638 ARROWS
+//                 read's start-side shape)
+//   died-other  - the bot died mid-flee to a non-combat kind (the water's
+//                 own kills are the o2 lane's subject - the deathground
+//                 authority law; the episode still closes, honestly)
+//   reflee      - the bot's NEXT flee start closed this episode (the
+//                 chase continued). refleeDelta = closer dist - start
+//                 dist (positive = the bot gained, negative = the mob
+//                 closed in); |delta| <= STUCK_REFLEE_U names a STUCK
+//                 chase (the run73 F6/F18 x65/x54 stuck-at-4.0 signature
+//                 the kite switch exists for - priced here as data)
+//   stood       - the bot's next fighting / fight-ended line closed the
+//                 episode (the lane switched to the fight lane; the
+//                 fight-ended exit word rides as data)
+//   sheltered   - the bot's next 'sheltering from' line closed it (the
+//                 escape landed in shelter)
+//   open        - the face's tail took it (EOF with no boundary line -
+//                 the honest unnamed)
+//
+// The episode-internal lines (flee ladder/kite/shore/bearing, shelter
+// skip/wall-miss/earn/ring, critical-bar, verdict-flip, open-field-yield,
+// pair-preempt, drift-wait, ranged-cooldown) never close and never open -
+// they are the episodes' own machinery prose, and the shootercensus verb
+// vocabulary (parseCombatLine, imported - one parser per shape) routes
+// them out by verb.
+//
+// The start side's own price: bands (distBand imported from
+// shelterledger.mjs - the flee fork's own ruler, never forked) x died
+// share (chased + crossfire - the mob-family kills), hp at start
+// (min/median/max - the flee-too-late read), the crowd (nearby max),
+// kite starts (the stalemate switch's own flag). The book law: starts =
+// reflee + stood + sheltered + chased + crossfire + diedOther + open,
+// every start closes exactly once.
+//
+// Junk-safe: non-array / non-string-blob reads null (the smeltledger
+// convention); zero starts read the honest zero shape (the row prints
+// the calm face - face 40's own shape). Pure: reads, never mutates.
+//
+import { DIED_KIND_RE } from './maptrip.mjs'
+import { parseCombatLine } from './shootercensus.mjs'
+import { distBand } from './shelterledger.mjs'
+
+// the combat-side authority (the deathground + shelterledger family's
+// own law, verbatim): the server kind token's family words; everything
+// else is died-other for this lens.
+const COMBAT_KIND_RE = /^(mob|explosion)\b/
+
+// the flee start's full data shape (the emitter's own body, miner.mjs's
+// flee line - byte-verified live on faces 42/43: the reason is free text
+// to the paren, the kite flag rides the tail ', kite)')
+export const FLEE_START_RE = /combat: fleeing ([a-z_]+) \(dist (\d+(?:\.\d+)?), hp (\d+(?:\.\d+)?), (\d+) nearby, ([^)]*)\)/
+
+// the inference tail's NAME + distance (KILL_DIST_RE's shape in
+// shelterledger.mjs with the name captured - the name is this lens's
+// chase-join key, the death-side lens deliberately leaves it unread; the
+// same emitter, a different slice - the rescueclock precedent)
+export const FLEE_KILL_RE = /inferred: ([a-z_]+)@(\d+(?:\.\d+)?)/
+
+// the server kind token's killer tail ('mob by Zombie' -> 'Zombie')
+export const FLEE_KILLER_RE = /\[kind=(?:mob|explosion) by ([^\]]+)\]/
+
+// the stuck-chase ruler (the run73 signature: the flee distances STUCK -
+// the mob kept pace; one decimal, absolute)
+export const STUCK_REFLEE_U = 1.0
+
+// the fight-ended exit word (the first token after the paren)
+const FIGHT_EXIT_RE = /fight ended vs [a-z_]+ \(([^,)]+)/
+
+const OUTCOMES = ['reflee', 'stood', 'sheltered', 'chased', 'crossfire', 'died-other', 'open']
+
+function median (arr) {
+  if (!arr.length) return null
+  const s = [...arr].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+const round1 = n => Math.round(n * 10) / 10
+
+/**
+ * fleeLedger(lines) - the escape lane's own episode book.
+ *
+ * @param {string[]|string} [lines] the face log (array or raw blob)
+ * @returns {null|{starts: number, reflee: number, stood: number,
+ *   sheltered: number, chased: number, crossfire: number, diedOther:
+ *   number, open: number, stuckReflees: number, kiteStarts: number,
+ *   hp: {min, median, max}|null, bands: Object<string, {starts, died}>,
+ *   perBot: Object<string, number>, rows: object[]}}
+ */
+export function fleeLedger (lines) {
+  const src = Array.isArray(lines)
+    ? lines
+    : (typeof lines === 'string' ? lines.split('\n') : null)
+  if (!src) return null
+  const lanes = new Map()
+  const rows = []
+  const close = (ep, outcome, closerIdx, extra) => {
+    const row = {
+      bot: ep.bot, mob: ep.mob, dist: ep.dist, band: ep.band, hp: ep.hp,
+      nearby: ep.nearby, reason: ep.reason, kite: ep.kite, idx: ep.idx,
+      outcome, closerIdx: closerIdx ?? null,
+      refleeDelta: null, killDist: null, killDelta: null,
+      killer: null, deathKind: null, exit: null
+    }
+    if (extra) Object.assign(row, extra)
+    rows.push(row)
+    ep.closed = true
+  }
+  for (let i = 0; i < src.length; i++) {
+    const line = src[i]
+    if (typeof line !== 'string') continue
+    // the died line - it closes the bot's open episode (any kind; the
+    // class reads the server kind token, the authority)
+    const km = line.match(DIED_KIND_RE)
+    if (km) {
+      const st = lanes.get(km[1])
+      if (st && st.open && !st.open.closed) {
+        const ep = st.open
+        const kind = km[2]
+        const combat = COMBAT_KIND_RE.test(kind)
+        const killerM = line.match(FLEE_KILLER_RE)
+        const killer = killerM ? killerM[1] : null
+        const infM = line.match(FLEE_KILL_RE)
+        // the chase's witness: the inference's own name when it joins the
+        // flee's threat, else the server killer token (the authority -
+        // the explosion kind's inference is blind by construction)
+        const infJoins = !!(infM && ep.mob && infM[1] === ep.mob)
+        const killerJoins = !!(killer && ep.mob && killer.toLowerCase() === ep.mob)
+        const chased = infJoins || killerJoins
+        const extra = { killer, deathKind: kind }
+        if (chased && infJoins) {
+          extra.killDist = Number(infM[2])
+          extra.killDelta = round1(Number(infM[2]) - ep.dist)
+        }
+        close(ep, combat ? (chased ? 'chased' : 'crossfire') : 'died-other', i, extra)
+      }
+      continue
+    }
+    const cm = parseCombatLine(line)
+    if (!cm || !cm.bot) continue
+    let st = lanes.get(cm.bot)
+    if (!st) { st = { open: null }; lanes.set(cm.bot, st) }
+    if (cm.verb === 'fleeing') {
+      if (st.open && !st.open.closed) {
+        // the chase's progress: the closer IS this new fleeing line -
+        // its own dist prices the delta (positive = the bot gained)
+        const nm = line.match(FLEE_START_RE)
+        const closerDist = nm ? Number(nm[2]) : null
+        close(st.open, 'reflee', i, {
+          refleeDelta: (closerDist !== null && st.open.dist !== null)
+            ? round1(closerDist - st.open.dist)
+            : null
+        })
+      }
+      const fm = line.match(FLEE_START_RE)
+      if (fm) {
+        const reasonRaw = fm[5]
+        st.open = {
+          bot: cm.bot, mob: fm[1], dist: Number(fm[2]), band: distBand(Number(fm[2])),
+          hp: Number(fm[3]), nearby: Number(fm[4]),
+          reason: reasonRaw.replace(/, kite$/, ''),
+          kite: /, kite$/.test(reasonRaw), idx: i, closed: false
+        }
+      } else {
+        // the truncation window - the verb spoke, the body did not
+        // survive (the FATAL face truncation's own shape): the episode
+        // opens data-blind, the band reads unpriced
+        st.open = {
+          bot: cm.bot, mob: null, dist: null, band: null, hp: null,
+          nearby: null, reason: null, kite: false, idx: i, closed: false
+        }
+      }
+    } else if ((cm.verb === 'fighting' || cm.verb === 'fight-ended') && st.open && !st.open.closed) {
+      const exM = line.match(FIGHT_EXIT_RE)
+      close(st.open, 'stood', i, { exit: cm.verb === 'fight-ended' && exM ? exM[1] : null })
+    } else if (cm.verb === 'sheltering' && st.open && !st.open.closed) {
+      close(st.open, 'sheltered', i)
+    }
+    // every other combat verb: the episodes' own machinery prose -
+    // never closes, never opens
+  }
+  for (const st of lanes.values()) {
+    if (st.open && !st.open.closed) close(st.open, 'open', null)
+  }
+  // the book
+  const tally = { starts: rows.length, reflee: 0, stood: 0, sheltered: 0, chased: 0, crossfire: 0, 'died-other': 0, open: 0 }
+  for (const r of rows) tally[r.outcome]++
+  let stuckReflees = 0
+  let kiteStarts = 0
+  for (const r of rows) {
+    if (r.outcome === 'reflee' && r.refleeDelta !== null && Math.abs(r.refleeDelta) <= STUCK_REFLEE_U) stuckReflees++
+    if (r.kite) kiteStarts++
+  }
+  // the bands x died share (chased + crossfire - the mob-family kills)
+  const bands = { close: { starts: 0, died: 0 }, mid: { starts: 0, died: 0 }, far: { starts: 0, died: 0 }, unpriced: { starts: 0, died: 0 } }
+  for (const r of rows) {
+    const b = bands[r.band || 'unpriced']
+    b.starts++
+    if (r.outcome === 'chased' || r.outcome === 'crossfire') b.died++
+  }
+  const hps = rows.filter(r => r.hp !== null).map(r => r.hp)
+  const perBot = {}
+  for (const r of rows) perBot[r.bot] = (perBot[r.bot] || 0) + 1
+  return {
+    starts: tally.starts,
+    reflee: tally.reflee,
+    stood: tally.stood,
+    sheltered: tally.sheltered,
+    chased: tally.chased,
+    crossfire: tally.crossfire,
+    diedOther: tally['died-other'],
+    open: tally.open,
+    stuckReflees,
+    kiteStarts,
+    hp: hps.length
+      ? { min: Math.min(...hps), median: median(hps), max: Math.max(...hps) }
+      : null,
+    bands,
+    perBot,
+    rows
+  }
+}
+
+export { OUTCOMES as FLEE_OUTCOMES }

@@ -28,6 +28,7 @@ import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
+import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -616,6 +617,44 @@ if (shooter.total > 0) {
     } else {
       console.log(`  the flee fork: no flee deaths - the disengage pricing waits`)
     }
+  }
+}
+// (v0.481.0) THE FLEE SURVIVAL LEDGER - the escape lane's own episode
+// book (the start side's outcome: nobody ever joined a flee START to its
+// own terminus - the death-side lenses read HOW/WHEN/WHERE of the deaths,
+// this reads what the ESCAPES did: the success book, the chase's progress
+// between consecutive flee lines, the start-side bands x died share).
+{
+  const fl = fleeLedger(lines)
+  console.log(`--- FLEE SURVIVAL LEDGER (v0.481.0: the flee start's own outcome - the escape lane's success book) ---`)
+  if (!fl || fl.starts === 0) {
+    console.log('  flee episodes: 0 (the escape lane silent - the calm face reads zero honestly)')
+  } else {
+    const book = fl.reflee + fl.stood + fl.sheltered + fl.chased + fl.crossfire + fl.diedOther + fl.open
+    console.log(`  flee episodes: ${fl.starts} - reflee ${fl.reflee} (stuck ${fl.stuckReflees}) / stood ${fl.stood} / sheltered ${fl.sheltered} / chased ${fl.chased} / crossfire ${fl.crossfire} / died-other ${fl.diedOther} / open ${fl.open} - book ${book}/${fl.starts}`)
+    if (fl.hp) console.log(`  hp at flee start: min ${fl.hp.min.toFixed(1)} / median ${fl.hp.median.toFixed(1)} / max ${fl.hp.max.toFixed(1)}; kite starts ${fl.kiteStarts}`)
+    const bb = fl.bands
+    console.log(`  start bands: close ${bb.close.starts} (died ${bb.close.died}) / mid ${bb.mid.starts} (died ${bb.mid.died}) / far ${bb.far.starts} (died ${bb.far.died})${bb.unpriced.starts ? ` / unpriced ${bb.unpriced.starts}` : ''}`)
+    for (const r of fl.rows.filter(x => x.outcome === 'chased')) {
+      console.log(`   chased: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - killed @${r.killDist ?? '-'} (delta ${r.killDelta === null ? 'unpriced' : `${r.killDelta > 0 ? '+' : ''}${r.killDelta.toFixed(1)}`})${r.killDelta !== null && r.killDelta < 0 ? ' - THE MOB CLOSED IN' : r.killDelta !== null ? ' - the flee gained, the trade lost' : ''}`)
+    }
+    for (const r of fl.rows.filter(x => x.outcome === 'crossfire')) {
+      console.log(`   crossfire: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - died to ${r.killer || 'the ' + r.deathKind + ' kind'} (the second hostile's kill)`)
+    }
+    const refl = fl.rows.filter(x => x.outcome === 'reflee' && x.refleeDelta !== null)
+    if (refl.length) {
+      const stuckRows = refl.filter(x => Math.abs(x.refleeDelta) <= STUCK_REFLEE_U)
+      console.log(`  chase progress (reflee deltas): ${refl.map(x => `${x.bot} ${x.mob} ${x.dist}->${(x.dist + x.refleeDelta).toFixed(1)} (${x.refleeDelta > 0 ? '+' : ''}${x.refleeDelta.toFixed(1)})`).join('; ')}${stuckRows.length ? ` - STUCK ${stuckRows.length}/${refl.length}` : ''}`)
+    }
+    const died = fl.chased + fl.crossfire
+    const verdict = died === 0
+      ? 'no flee died - the escape lane held'
+      : fl.crossfire > fl.chased
+        ? 'THE CROSSFIRE LEADS - the second hostile owns the doom; the disengage must read the crowd, not just the chase'
+        : fl.chased > fl.crossfire
+          ? 'THE CHASE LEADS - the flee never escapes its own threat; the disengage must GAIN ground'
+          : 'the split is even - read the rows'
+    console.log(`  the survival fork: ${died}/${fl.starts} flee episode(s) died mid-flee (chased ${fl.chased} / crossfire ${fl.crossfire}) - ${verdict}`)
   }
 }
 // (v0.464.0) THE DEATH GROUND CENSUS - the combat deaths' spatial join
