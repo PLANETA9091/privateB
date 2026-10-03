@@ -691,3 +691,44 @@ export function doomWhyRow (entries) {
   const list = classes.map(c => `${c.cls} ${c.cycles}`).join(', ')
   return `final bank doom why: spread - ${list} of ${total} failed climb cycles - the tax splits ${classes.length} ways`
 }
+
+// (v0.563.0) THE DOOM-OWNER ROW - the crater census map. The census names the
+// top WALKER overall, the why row names the dominant CLASS overall, and the
+// face never read who owns THAT class (fleet 37130962121: 'stalled carries 14
+// of 27 failed climb cycles (51.9%) - one class owns the tax' while the split
+// inside the stalled 14 rode silent). The cure differs by shape - a top owner
+// at half the class points at one walker's own path, a spread points at the
+// fleet-wide grind - the pocket-anatomy lesson, one grain deeper. Fed from the
+// CLASS|WALKER composite ledger (one seat, one increment - the same failed
+// cycles the two sibling rows read, so the dominant class agrees with the why
+// row by construction). The siblings' own laws hold: the grain floor
+// (DOOM_CENSUS_MIN_CYCLES), the half boundary (DOOM_CENSUS_LOCAL_SHARE), the
+// byte-stable ties (cycles desc, name asc inside the class), the leanness law
+// (a healthy run prints nothing).
+export function doomOwnerRow (entries) {
+  const pairs = []
+  let total = 0
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const raw = e?.cycles
+    const cycles = (Number.isFinite(raw) && raw > 0) ? Math.floor(raw) : 0
+    if (cycles <= 0) continue
+    pairs.push({ cls: String(e?.cls || '').trim() || '?', name: String(e?.name || '').trim() || '?', cycles })
+    total += cycles
+  }
+  if (total < DOOM_CENSUS_MIN_CYCLES) return null
+  const byClass = new Map()
+  for (const p of pairs) byClass.set(p.cls, (byClass.get(p.cls) || 0) + p.cycles)
+  // the why row's own reduction and tie law - the dominant class never
+  // splits between the siblings
+  const classes = [...byClass].map(([cls, cycles]) => ({ cls, cycles }))
+    .sort((a, b) => (b.cycles - a.cycles) || (a.cls < b.cls ? -1 : 1))
+  const topClass = classes[0]
+  const walkers = pairs.filter(p => p.cls === topClass.cls)
+    .sort((a, b) => (b.cycles - a.cycles) || (a.name < b.name ? -1 : 1))
+  const top = walkers[0]
+  const pct = ((top.cycles / topClass.cycles) * 100).toFixed(1)
+  const shape = top.cycles / topClass.cycles >= DOOM_CENSUS_LOCAL_SHARE
+    ? "one walker owns the class - the cure is that walker's own path"
+    : 'the class spreads across the walkers - the cure stays fleet-wide'
+  return `final bank doom owner: ${topClass.cls}'s top walker ${top.name} ${top.cycles} of ${topClass.cycles} (${pct}% of the class) - ${shape}`
+}

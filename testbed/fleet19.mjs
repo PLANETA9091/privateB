@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, whyBookToken } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -187,6 +187,12 @@ const finalBankDoomByBot = new Map()
 // CLASS (the census's WHY side - the walk-level WHO already lives above).
 // Fed at the census's own increment site, printed by the doom-why row.
 const finalBankDoomWhy = new Map()
+// (v0.563.0) THE DOOM-OWNER LEDGER: the same failed cycles keyed by
+// CLASS|WALKER - the join grain the two ledgers above lack (the census
+// names the top walker overall, the why row names the dominant class
+// overall, the map names who owns THAT class). Fed at the same seat, one
+// increment - the dominant class can never split between the siblings.
+const finalBankDoomOwner = new Map()
 // (v0.561.0) the smelt chain's refusal census ledger - the honest zero's
 // attempt reasons sum here per stable head, the final face reads the sum
 const finalSmeltRefusals = new Map()
@@ -3240,6 +3246,10 @@ async function runBot (name, target, index) {
             // names the walker, the why row names the failure class.
             const whyCls = climbWhyClass(cr.reason)
             finalBankDoomWhy.set(whyCls, (finalBankDoomWhy.get(whyCls) || 0) + 1)
+            // (v0.563.0) the same cycle feeds the owner map - CLASS|WALKER,
+            // the join grain (one seat, one increment, the why ledger's twin)
+            const ownerKey = whyCls + '|' + name
+            finalBankDoomOwner.set(ownerKey, (finalBankDoomOwner.get(ownerKey) || 0) + 1)
             // (v0.556.0) the climb-doomed strand names its class too - the same
             // class the census just computed rides the why book (the strand's
             // write-off/attribution faces read it; 'other' never rides)
@@ -3932,6 +3942,18 @@ if (doomCensus) console.log(doomCensus)
 // boundary apply; silent under the same leanness law).
 const doomWhy = doomWhyRow([...finalBankDoomWhy].map(([cls, cycles]) => ({ cls, cycles })))
 if (doomWhy) console.log(doomWhy)
+// (v0.563.0) THE DOOM-OWNER ROW - the crater census map: the census names
+// the top WALKER overall, the why row names the dominant CLASS overall,
+// neither says who owns THAT class (fleet 37130962121: stalled carried 14
+// of 27 failed climb cycles (51.9%) and the split inside the class rode
+// silent). A top owner at half the class is one walker's own path, a
+// spread is the fleet-wide grind - the cure differs by shape. Silent on
+// healthy runs (the leanness law).
+const doomOwner = doomOwnerRow([...finalBankDoomOwner].map(([k, cycles]) => {
+  const i = k.indexOf('|')
+  return { cls: k.slice(0, i), name: k.slice(i + 1), cycles }
+}))
+if (doomOwner) console.log(doomOwner)
 // (v0.561.0) THE SMELT-REFUSAL CENSUS - smelted was a fleet number with no
 // refusals map: three straight fleets read smelted=24/13/8 of ~1700 mined
 // and no line summed why the chain starved. The honest zero's own attempt

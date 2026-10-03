@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, whyBookToken } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -184,8 +184,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, whyBookToken } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it, v0.556.0 adds whyBookToken - the third refuse class feeds the book)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it, v0.556.0 adds whyBookToken - the third refuse class feeds the book, v0.563.0 adds doomOwnerRow - the crater census map)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))') // (v0.553.0) the why ledger rides the row
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -1123,4 +1123,78 @@ test('writeOffRow: THE WIRING PIN - the chain-refusal feed rides the chain-failu
     'the feed sits between the chain call and its zero-deposit line (the class known AT the refusal)')
   assert.ok(src.includes('whyBookToken(climbWhyClass(res.reason))'),
     'the composition rides: the chain reason classifies, the token law reshapes, other never rides')
+})
+
+// ---- (v0.563.0) THE DOOM-OWNER ROW - the crater census map ----
+// fleet 37130962121's live face: 'final bank doom why: local - stalled
+// carries 14 of 27 failed climb cycles (51.9%) - one class owns the tax'
+// beside 'final bank doom census: spread - top F12 carries 3 of 27 (11.1%)'.
+// The face named the top walker OVERALL and the dominant CLASS overall - and
+// never read who owns the stalled 14. The cure differs by shape: a top owner
+// at half the class is that walker's own path, a spread is the fleet-wide
+// grind (the pocket-anatomy lesson, one grain deeper).
+
+test('doomOwnerRow: the live shape - the why row\u0027s dominant class names its top walker', () => {
+  const owners = [
+    { cls: 'stalled', name: 'F5', cycles: 4 },
+    { cls: 'stalled', name: 'F12', cycles: 3 },
+    { cls: 'stalled', name: 'F8', cycles: 3 },
+    { cls: 'stalled', name: 'F2', cycles: 2 },
+    { cls: 'stalled', name: 'F9', cycles: 2 },
+    { cls: 'wet wall', name: 'F1', cycles: 6 },
+    { cls: 'low-o2', name: 'F17', cycles: 4 },
+    { cls: 'timeout', name: 'F8', cycles: 3 }
+  ]
+  assert.strictEqual(doomOwnerRow(owners),
+    "final bank doom owner: stalled's top walker F5 4 of 14 (28.6% of the class) - the class spreads across the walkers - the cure stays fleet-wide",
+    'the join grain: the why row\u0027s dominant class read at the census\u0027s walker grain')
+})
+
+test('doomOwnerRow: one walker at the half boundary owns the class', () => {
+  const owners = [
+    { cls: 'stalled', name: 'F3', cycles: 6 },
+    { cls: 'stalled', name: 'F7', cycles: 3 },
+    { cls: 'stalled', name: 'F9', cycles: 3 },
+    { cls: 'wet wall', name: 'F1', cycles: 5 },
+    { cls: 'low-o2', name: 'F17', cycles: 3 }
+  ]
+  assert.strictEqual(doomOwnerRow(owners),
+    "final bank doom owner: stalled's top walker F3 6 of 12 (50.0% of the class) - one walker owns the class - the cure is that walker's own path",
+    'the half boundary mirrors the census law (at DOOM_CENSUS_LOCAL_SHARE the shape turns local)')
+})
+
+test('doomOwnerRow: THE SIBLING PIN - the dominant class agrees with the why row', () => {
+  const whyEntries = [{ cls: 'stalled', cycles: 14 }, { cls: 'wet wall', cycles: 6 }, { cls: 'low-o2', cycles: 4 }, { cls: 'timeout', cycles: 3 }]
+  const split = { stalled: [['F5', 4], ['F12', 3], ['F8', 3], ['F2', 2], ['F9', 2]], 'wet wall': [['F1', 6]], 'low-o2': [['F17', 4]], timeout: [['F8', 3]] }
+  const owners = []
+  for (const [cls, ws] of Object.entries(split)) for (const [name, cycles] of ws) owners.push({ cls, name, cycles })
+  const ownerCls = doomOwnerRow(owners).match(/^final bank doom owner: ([a-z0-9 -]+)'s top walker/)
+  const whyCls = doomWhyRow(whyEntries).match(/^final bank doom why: local - ([a-z0-9 -]+) carries/)
+  assert.ok(ownerCls && whyCls, 'both siblings read their class out loud')
+  assert.equal(ownerCls[1], whyCls[1], 'one taxonomy, two grains - the class never splits between the siblings')
+  const tie = [{ cls: 'wet wall', name: 'F1', cycles: 3 }, { cls: 'stalled', name: 'F5', cycles: 3 }]
+  assert.ok(doomOwnerRow(tie).startsWith("final bank doom owner: stalled's top walker"),
+    'byte-stable ties: the class tie breaks alphabetically (the why row\u0027s own law)')
+})
+
+test('doomOwnerRow: the leanness and junk law', () => {
+  assert.equal(doomOwnerRow([]), null, 'no cycles - no row (the leanness law)')
+  assert.equal(doomOwnerRow([{ cls: 'stalled', name: 'F5', cycles: 2 }]), null, 'under the grain floor - silent (DOOM_CENSUS_MIN_CYCLES)')
+  assert.equal(doomOwnerRow([{ cls: 'stalled', name: 'F5', cycles: 0 }, { cls: 'wet wall', name: 'F1', cycles: -3 }, { cls: 'low-o2', name: 'F17', cycles: NaN }]), null, 'junk cycles never enter the map (the body-guard law)')
+  assert.equal(doomOwnerRow(null), null, 'not an array - null')
+  assert.ok(doomOwnerRow([{ cls: '  ', name: 'F5', cycles: 3 }, { cls: 'stalled', name: '   ', cycles: 3 }]).startsWith("final bank doom owner: ?'s top walker F5 3 of 3"),
+    'junk names and classes read ? - the count is the truth')
+})
+
+test('fleet19: THE WIRING PIN - the owner map feeds at the why ledger\u0027s own seat', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const whyFeed = src.indexOf('finalBankDoomWhy.set(whyCls, (finalBankDoomWhy.get(whyCls) || 0) + 1)')
+  const ownerFeed = src.indexOf("finalBankDoomOwner.set(ownerKey, (finalBankDoomOwner.get(ownerKey) || 0) + 1)")
+  const ownerDecl = src.indexOf('const finalBankDoomOwner = new Map()')
+  const ownerPrint = src.indexOf('if (doomOwner) console.log(doomOwner)')
+  assert.ok(ownerDecl > 0, 'the composite ledger exists')
+  assert.ok(whyFeed > 0 && ownerFeed > whyFeed, 'the owner feed sits with the why feed (one seat, one increment)')
+  assert.ok(src.includes("const ownerKey = whyCls + '|' + name"), 'the join grain is CLASS|WALKER - the class known AT the failure')
+  assert.ok(ownerPrint > ownerFeed, 'the map feeds at the climb seat, the row prints in the report block')
+  assert.ok(src.includes('doomOwnerRow([...finalBankDoomOwner]'), 'the report reads the composite ledger, never a second source')
 })
