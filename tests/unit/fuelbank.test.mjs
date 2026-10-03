@@ -1543,6 +1543,44 @@ test('the gravity stash wire: the scan feeds the registry, the pick reads it, th
   assert.ok(fleet.includes('memory: fuelCommonsMemory, // (v0.507.0) the low-chest registry'), 'the tithe\'s fleet wire passes the shared memory')
 })
 
+// (v0.569.0) THE ANCHOR'S ARRIVAL SEAT - fleet 37144334720 measured the
+// final-leg seat starved (77 'fuel anchor' lines, ZERO deliveries - F10's
+// 'the final leg clock (12.0s) cannot afford the walk'), the anchor chest
+// stayed dry, the commons read 'chest holds no fuel' x12 and the machines
+// starved 4 no-fuel refusals (the owner map's first ride: furnace 3 of 4).
+// The cure is the SEAT, not the function: the same deliverFuelTithe fires
+// at the chain's arrival, where the bot stands at the yard and the clock
+// is fat - the final-leg seat stays as the fallback (byte for byte), and
+// the one-overage-two-seats read decides (no double delivery possible).
+test("THE ANCHOR'S ARRIVAL SEAT: the tithe delivers at the fat clock, the final-leg seat is the fallback (fleet source pins)", () => {
+  const fleet = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // exactly TWO seats on ONE function: the arrival + the final-leg fallback
+  const sites = fleet.match(/await deliverFuelTithe\(miner\.bot, \{/g) || []
+  assert.equal(sites.length, 2, 'two seats, one function - the arrival seat + the final-leg fallback')
+  const arrivalIdx = fleet.indexOf("THE ANCHOR'S ARRIVAL SEAT")
+  const smeltIdx = fleet.indexOf('const smeltSecs = smeltClampSeconds(')
+  const endIdx = fleet.indexOf("THE FUEL ANCHOR DELIVERY - the tithe's dedicated inflow")
+  assert.ok(arrivalIdx > 0, 'the arrival seat exists')
+  assert.ok(smeltIdx > arrivalIdx, 'the arrival fires BEFORE the smelt leg (the clock is fat at the seat)')
+  assert.ok(endIdx > smeltIdx, 'the final-leg seat stays BELOW the smelt leg (the fallback, byte for byte)')
+  const arrivalBlock = fleet.slice(arrivalIdx, smeltIdx)
+  // the inputs ride the same wiring contract as the fallback seat
+  assert.ok(arrivalBlock.includes('yardCenter: yardGoal'), 'the arrival delivers to the same anchor pick')
+  assert.ok(arrivalBlock.includes('memory: fuelCommonsMemory'), 'the arrival feeds the shared low-chest registry')
+  assert.ok(arrivalBlock.includes("fuelPocketOverage(miner.bot)"), 'the overage read gates the seat (the lean pocket costs zero - the call itself is skipped)')
+  // the budget law: the same quarter slice (min 5s, cap 15s), the thin clock skips
+  assert.ok(arrivalBlock.includes('remaining() > 8000 ? Math.min(15000, Math.floor(remaining() / 4)) : 0'), 'the arrival slice rides the same clock shape the fallback seat makes')
+  assert.ok(arrivalBlock.includes('arrivalBudgetMs >= 5000'), 'the thin clock skips the walk honestly')
+  // the named seats: a delivery names its seat, a failure names its fallback
+  assert.ok(arrivalBlock.includes('(arrival seat: '), 'the delivery line names its seat (the face can tell the seats apart)')
+  assert.ok(arrivalBlock.includes('the final-leg seat retries'), 'a failed arrival names its fallback (the v0.128.0 named-exit law)')
+  assert.ok(arrivalBlock.includes("arrivalRes.why !== 'no overage'"), "the healthy lean pocket stays silent (the 'no overage' law rides both seats)")
+  // the fallback keeps its own named-exit law untouched
+  const endBlock = fleet.slice(endIdx)
+  assert.ok(endBlock.includes("anchorRes.why !== 'no overage'"), 'the final-leg seat keeps its named-exit law byte for byte')
+  assert.ok(endBlock.includes("anchorRes.delivered > 0"), 'the final-leg seat keeps its delivery line')
+})
+
 test('the three memory lanes co-exist on ONE object (chest buckets, the dry stance, the low registry)', () => {
   const memory = newCommonsMemory()
   const t = 9000000

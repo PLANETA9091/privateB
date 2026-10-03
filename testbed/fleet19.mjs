@@ -578,6 +578,38 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       console.log(`${miner.username} bank fallback: none (${decision.why || 'unknown'})`)
     }
   }
+  // (v0.569.0) THE ANCHOR'S ARRIVAL SEAT - the tithe's delivery moves to the
+  // clock's fat end. Fleet 37144334720 measured the final-leg seat starved:
+  // 77 'fuel anchor' lines, ZERO deliveries (F10's own line: 'the final leg
+  // clock (12.0s) cannot afford the walk while the pocket holds 4 over the
+  // bound'), the yard anchor chest stayed dry, the commons read 'chest holds
+  // no fuel' x12 and the machines starved 4 no-fuel refusals - the owner
+  // map's first ride named the cure ('furnace carries 3 of 4 - its fuel load
+  // is the cure'). At the chain's arrival the bot STANDS at the yard and the
+  // whole smelt+deposit clock is ahead: the SAME deliverFuelTithe (one
+  // function - the same named exits, the same low-chest registry, the same
+  // shared memory, the same refill tidings) delivers the overage BEFORE the
+  // smelt leg spends. The lean pocket costs zero (the overage read skips the
+  // call - no walk, no line, the healthy lean is silent); the final-leg seat
+  // below stays byte for byte as the FALLBACK - a failed arrival leaves the
+  // overage pocketed for it, a landed arrival reads 'no overage' there
+  // (one overage, two seats, the read decides - no double delivery is
+  // possible), and the tidings re-arm the funded chest's neighborhood early
+  // in the run instead of at the clock's dregs.
+  try {
+    const arrivalOverage = fuelPocketOverage(miner.bot)
+    const arrivalBudgetMs = remaining() > 8000 ? Math.min(15000, Math.floor(remaining() / 4)) : 0
+    if (arrivalBudgetMs >= 5000 && arrivalOverage > 0) {
+      const arrivalRes = await deliverFuelTithe(miner.bot, {
+        yardCenter: yardGoal,
+        memory: fuelCommonsMemory, // (v0.507.0) the shared low-chest registry - the arrival feeds what the commons reads
+        budgetMs: arrivalBudgetMs,
+        log: m => console.log(`${miner.username} ${m}`)
+      })
+      if (arrivalRes.delivered > 0) console.log(`${miner.username} fuel anchor: delivered ${arrivalRes.delivered} fuel overage (arrival seat: ${arrivalRes.why}) - the yard chest eats before the leg spends`)
+      else if (arrivalRes.why !== 'no overage') console.log(`${miner.username} fuel anchor: 0 delivered at arrival (${arrivalRes.why}) - the final-leg seat retries`)
+    }
+  } catch { /* the final-leg seat is the fallback */ }
   if (SMELT) {
     // (v0.27.0) smelting is the chain's middle step: when the budget is already
     // gone the bot skips straight to the final deposit attempt (which the
