@@ -1472,10 +1472,45 @@ export async function sweepFinishedSmelts (bot, {
           const finished = furnace.fuelItem() ? 'a finished fired batch' : 'an idle'
           log(`${tag} swept ${moved} x ${out.name} from ${finished} ${machineBlock.name}`)
         }
-      } else if (hasInput) {
+      } else if (hasInput && furnace.fuelItem()) {
         // a LIVE burning batch is sacred (the honest attempts name the verdict -
         // the sweep's census records it like every other machine shape)
         attempts.push({ machine: machineBlock.name, reason: 'busy' })
+      } else if (hasInput) {
+        // (v0.519.0) THE STALLED INPUT RESCUE: input over an EMPTY fuel slot is
+        // a machine that can NEVER START (vanilla never burns without fuel) -
+        // and every visit's busy gate reads input-present as busy, so the
+        // stranded batch walls the machine off FOREVER. The shapes that land
+        // here: the owner bot died between the putInput and the putFuel, the
+        // poll-timeout pull-back lost the fuel leg. The input is fleet
+        // property by the same doctrine as the fired batch's output - a
+        // VERIFIED take on the rows (the rows only grow by what WE took), the
+        // pocket re-plans it on the next chain WITH fuel. If a partial output
+        // sits beside it (the batch went cold mid-burn), the same visit
+        // collects the done part; a LIVE batch (input + fuel) stays sacred
+        // above.
+        const inItem = furnace.inputItem()
+        if (inItem) {
+          const rowsBefore = liveCount(inItem.name)
+          try { await withTimeout(furnace.takeInput(), 5000, 'sweep stalled input') } catch { /* keep going - the next pass retries */ }
+          await sleep(200)
+          const movedIn = liveCount(inItem.name) - rowsBefore
+          if (movedIn > 0) {
+            log(`${tag} swept a stalled input: ${movedIn} x ${inItem.name} from ${machineBlock.name} (a cold machine never starts - the pocket re-plans it)`)
+          }
+          const out2 = furnace.outputItem()
+          if (out2 && out2.count > 0) {
+            const rowsOut = liveCount(out2.name)
+            try { await withTimeout(furnace.takeOutput(), 5000, 'sweep partial output') } catch { /* keep going */ }
+            await sleep(200)
+            const movedOut = liveCount(out2.name) - rowsOut
+            if (movedOut > 0) {
+              collected += movedOut
+              outputs[out2.name] = (outputs[out2.name] ?? 0) + movedOut
+              log(`${tag} swept ${movedOut} x ${out2.name} from a cold ${machineBlock.name} (the partial batch's done part)`)
+            }
+          }
+        }
       }
       // the leftover fuel on an input-free machine: back to the pocket, the
       // machine reads idle (the v0.137.0 wall-off rule, now on the sweep too)

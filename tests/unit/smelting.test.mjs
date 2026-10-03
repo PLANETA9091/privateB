@@ -1617,6 +1617,44 @@ test('sweepFinishedSmelts: the scan list carries all three machine kinds (the so
   assert.match(src, /findMachineBlocks\(bot, \['furnace', 'blast_furnace', 'smoker'\], \{ maxDistance \}\)/, 'the sweep\'s scan list names the smoker (the v0.139.0 furnace-only list retired)')
 })
 
+// (v0.519.0) THE STALLED INPUT RESCUE - the third shape the sweep never read.
+test('sweepFinishedSmelts: a stalled cold input is rescued - a machine that can never start walls no more', async () => {
+  // input over an EMPTY fuel slot: vanilla never burns without fuel, and every
+  // visit's busy gate reads input-present as busy - the stranded batch walled
+  // the machine off forever (the owner died between the puts, the pull-back
+  // lost the fuel leg).
+  const furnace = new MockFurnace({ startInput: item('sand', 6) })
+  const bot = makeMockBot({ machines: [furnace] })
+  const lines = []
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5, log: m => lines.push(m) })
+  assert.equal(res.collected, 0, 'nothing to collect - the rescue is the input pull')
+  assert.ok(!furnace.inputItem(), 'the stalled input is out of the machine')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('sand'), 6, 'the input rode the close-sync home - the pocket re-plans it WITH fuel')
+  assert.ok(lines.some(l => /swept a stalled input: 6 x sand from furnace \(a cold machine never starts/.test(l)), 'the rescue names itself and its law')
+})
+
+test('sweepFinishedSmelts: a cold partial batch loses nothing - the done part collected, the rest rescued', async () => {
+  // input + output over an empty fuel slot: the batch went cold mid-burn. The
+  // output is fleet property (the done part), the input is the stalled batch.
+  const furnace = new MockFurnace({ startInput: item('sand', 4), startOutput: item('glass', 2) })
+  const bot = makeMockBot({ machines: [furnace] })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5 })
+  assert.equal(res.collected, 2, 'the done part lands in the pocket')
+  assert.deepEqual(res.outputs, { glass: 2 })
+  assert.ok(!furnace.inputItem() && !furnace.outputItem(), 'the machine reads fully idle after one visit')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('sand'), 4, 'the stalled input rides home')
+  assert.equal(counts('glass'), 2, 'the partial batch\'s done part rides home')
+})
+
+test('sweepFinishedSmelts: the busy law survives the rescue split (the source pin)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /else if \(hasInput && furnace\.fuelItem\(\)\) \{/, 'the LIVE law reads input AND fuel - the burning batch stays sacred')
+  assert.match(src, /a cold machine never starts - the pocket re-plans it/, 'the rescue names its vanilla law (a fuel-less machine can never start)')
+  assert.match(src, /else if \(hasInput\) \{\n        \/\/ \(v0\.519\.0\) THE STALLED INPUT RESCUE/, 'the rescue is the sweep\'s third shape, versioned')
+})
+
 test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /sweepFinishedSmelts\(miner\.bot/, 'the sweep rides the smelt leg\'s leftover slice')
