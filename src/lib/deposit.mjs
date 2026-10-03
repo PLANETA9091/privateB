@@ -348,8 +348,39 @@ export const KEEP = [
 // run carries (48 smeltables -> 6 coal). So a keep-matched FUEL stack is kept
 // only up to this bound; the overage banks into the yard chests and the
 // commons' loop (already multi-chest) can finally feed it back. The tithe is
-// a DEPOSIT-side exception: tools/food/wood keeps stay absolute.
+// a DEPOSIT-side exception: tools/wood keeps stay absolute (the FOOD TITHE
+// (v0.521.0) later bounded the STAPLE's own keep the same way - the
+// absolute-food rule survives for the names no lane supplies).
 export const FUEL_TITHE_BOUND = 6
+
+// (v0.521.0) THE FOOD TITHE - the ration's commons' inflow. The 0.516.0
+// FLESH KEEP made the staple never-banked (what the defense drops, the
+// defense's survivor eats) - which also made the yard hold ZERO food: the
+// economy had one shoulder, and a bot whose plate ran dry (a respawn's
+// empty pocket, a fled night's burns) had no lane back. The keep's food
+// block goes count-bounded the way the FUEL TITHE bounded the fuel keep:
+// the pocket keeps FOOD_TITHE_BOUND (6 flesh = 24 hunger points - the
+// ration eats at hunger <= 17, a full bar refill costs 5 flesh, one bite
+// of margin), the overage banks into the yard chests, and the FOOD COMMONS'
+// withdraw (foodbank.mjs) feeds the empty plate back. The other food keeps
+// (bread/apple/cooked_* - the names with no supplier lane) stay absolute;
+// the tithe is the STAPLE's own law.
+export const FOOD_TITHE_BOUND = 6
+
+/** Pure, junk-safe: how many units of the staple may leave the pocket at
+ * this deposit (the pocket total above the food bound). Exact-name matching
+ * ('rotten_flesh' only - the mirror of the fuel tithe's 'coal must not
+ * tithe coal_ore'); every other name and junk read 0 - the legacy
+ * absolute-keep shape byte for byte. */
+export function foodTitheOverage ({ name = null, pocketCount = 0 } = {}) {
+  const n = typeof name === 'string' ? name : null
+  if (!n) return 0
+  const total = Number(pocketCount)
+  if (!Number.isFinite(total) || total <= 0) return 0
+  if (n !== 'rotten_flesh') return 0
+  const bound = Number.isFinite(FOOD_TITHE_BOUND) && FOOD_TITHE_BOUND > 0 ? Math.floor(FOOD_TITHE_BOUND) : 6
+  return Math.max(0, Math.floor(total) - bound)
+}
 
 /** Pure, junk-safe: how many units of this fuel name may leave the pocket at
  * this deposit (the pocket total above the tithe bound). Exact-name matching
@@ -1824,9 +1855,14 @@ export async function depositToChest (bot, {
         // (sand/clay_ball) cap at the one-coal batch - the same deposit-side
         // exception, the same legacy pathway, the smelt leg already read.
         const smeltTithe = item.name === 'sand' || item.name === 'clay_ball'
+        // (v0.521.0) THE FOOD TITHE: the staple's keep goes count-bounded -
+        // the overage banks (the 0.516.0 absolute keep had left the yard
+        // food-less and the commons' demand shoulder nothing to withdraw).
+        const foodTithe = item.name === 'rotten_flesh'
         const over = fuelTitheOverage({ name: item.name, pocketCount: countOf(item.name) })
           || (cobbleTithe ? cobbleTitheOverage({ name: item.name, pocketCount: countOf(item.name) }) : 0)
           || (smeltTithe ? smeltTitheOverage({ name: item.name, pocketCount: countOf(item.name) }) : 0)
+          || (foodTithe ? foodTitheOverage({ name: item.name, pocketCount: countOf(item.name) }) : 0)
         if (over <= 0) { skipped.push(item.name); continue }
         const units = Math.min(over, item.count)
         const titheBefore = countOf(item.name)
@@ -1844,8 +1880,8 @@ export async function depositToChest (bot, {
           // reached a deposit, and the tithe had no line of its own - a cure
           // nobody can mine. The first 2 firings name themselves; the rest ride
           // the banked total.
-          if (titheLogs < 2) log(`${tag} ${cobbleTithe ? `cobble tithe: banked ${titheMoved} x cobblestone (pocket keeps ${COBBLE_TITHE_BOUND})` : smeltTithe ? `smelt tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${SMELT_TITHE_BOUNDS[item.name]})` : `fuel tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FUEL_TITHE_BOUND})`}`)
-          else if (titheLogs === 2) log(`${tag} ${cobbleTithe ? 'cobble tithe: more firings ride the banked total' : smeltTithe ? 'smelt tithe: more firings ride the banked total' : 'fuel tithe: more firings ride the banked total'}`)
+          if (titheLogs < 2) log(`${tag} ${cobbleTithe ? `cobble tithe: banked ${titheMoved} x cobblestone (pocket keeps ${COBBLE_TITHE_BOUND})` : smeltTithe ? `smelt tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${SMELT_TITHE_BOUNDS[item.name]})` : foodTithe ? `food tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FOOD_TITHE_BOUND})` : `fuel tithe: banked ${titheMoved} x ${item.name} (pocket keeps ${FUEL_TITHE_BOUND})`}`)
+          else if (titheLogs === 2) log(`${tag} ${cobbleTithe ? 'cobble tithe: more firings ride the banked total' : smeltTithe ? 'smelt tithe: more firings ride the banked total' : foodTithe ? 'food tithe: more firings ride the banked total' : 'fuel tithe: more firings ride the banked total'}`)
           titheLogs++
         } else moved0Skips++
         continue

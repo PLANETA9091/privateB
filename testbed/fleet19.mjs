@@ -37,6 +37,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
+import { withdrawFoodCommons, pocketFood } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
@@ -157,6 +158,11 @@ let toolsReboot = 0 // successful tool re-bootstraps after deaths
 // ask (90s TTL - the commons refills continuously, the memory must not outlive
 // the world it describes)
 const fuelCommonsMemory = newCommonsMemory()
+// (v0.521.0) the FOOD COMMONS' own memory - the same commons laws (the
+// empty-chest book, 90s TTL), a SEPARATE book: the fuel sweep's empty facts
+// must not stand in the food walk's way or vice versa (the chest that held
+// no coal may hold the fleet's flesh).
+const foodCommonsMemory = newCommonsMemory()
 let toolsRecovered = 0 // successful in-loop tool recoveries (the v0.6.9 "bare-handed forever" fix)
 let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (v0.8.0/v0.7.5)
 let swordsCrafted = 0 // (v0.67.0) swords landed by the arms chain - the fleet stopped fist-fighting
@@ -810,6 +816,24 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     }
   } catch { /* the legacy scatter is the fallback */ }
   const res = await miner.depositLoot({ keep: keep(), budgetMs: remaining(), yardCenter: yardGoal, yardRadius: YARD_CHEST_RADIUS, onVerticalDoom: chestAscentHook(remaining), preAscent: chestAscentUpfront(remaining) })
+  // (v0.521.0) THE FOOD COMMONS' refill: the deposit trip stands the bot AT
+  // the yard (the walk is sunk) - an EMPTY plate (pocketFood === 0, the
+  // armed-ration starvation shape the 0.516.0 comment named: the eater is
+  // on, the pocket reads nothing) tops up from the commons chests before
+  // the next leg. The slice mirrors the fuel anchor's own clock shape
+  // (a quarter of what the chain still holds, min 5s, capped 15s, skipped
+  // when the chain is nearly dead); the walk's own vertical gate and budget
+  // bound the rest. Below-bound plates and mid-field hunger asks are NOT
+  // this slice (the field prices them on a face); any failure leaves the
+  // plate to the next trip - the pre-0.521.0 shape, never a regression.
+  try {
+    const foodSliceMs = remaining() > 8000 ? Math.min(15000, Math.floor(remaining() / 4)) : 0
+    if (foodSliceMs >= 5000 && pocketFood(miner.bot) === 0) {
+      const food = await withdrawFoodCommons(miner.bot, { yardCenter: yardGoal, memory: foodCommonsMemory, budgetMs: foodSliceMs, log: m => console.log(`${miner.username} ${m}`) })
+      if (food.taken > 0) console.log(`${miner.username} food commons: the plate refills (${food.taken} units) - the ration's next window eats`)
+      else console.log(`${miner.username} food commons: the plate stays empty (${food.reason}) - the next trip retries`)
+    }
+  } catch { /* the plate ride is best-effort - the deposit verdict above stays whole */ }
   const deposited = pre.deposited + res.deposited
   if (deposited > 0) return { deposited, reason: 'ok' }
   return { deposited: 0, reason: res.reason || pre.reason }
