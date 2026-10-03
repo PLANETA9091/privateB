@@ -208,6 +208,19 @@ export function bankedCraterDecode (opts = {}) {
 // discipline as the crater decode).
 export const UNACCOUNTED_FLOOR_SHARE = 0.5
 
+// (v0.569.0) THE WATCH SHELF - the verdict floor refused to judge the leak's
+// own growth band: the arc reads 0 -> 0 -> 606u (24.0%) -> 726u (36.0%) across
+// the last four fleets and the 24-36% band sat UNJUDGED - the ledger line
+// displayed the number and no row named it (the phantom-display family the
+// v0.559.0 display floor killed for the bank flow: a number the face shows
+// while no row owns it). The shelf speaks BELOW the verdict floor with its
+// own honest form: it names the floor it sits under - never a verdict the
+// data cannot carry (the verdict's 0.5 floor keeps its own law: the ledger
+// grain is ~5-10%, half the mass is still the full-throat class). One
+// constant routes the shelf - it can never split from the verdict by
+// construction.
+export const UNACCOUNTED_WATCH_SHARE = 0.25
+
 /**
  * The unaccounted-mass verdict: how much of the mined mass left the books?
  * Pure, junk-tolerant - null means 'quiet' or 'cannot tell'.
@@ -225,7 +238,10 @@ export function unaccountedMassDecode (opts = {}) {
   const accounted = [banked, smelted, pocket].reduce((a, x) => a + Math.floor(x), 0)
   const unaccounted = Math.max(0, m - accounted)
   const share = unaccounted / m
-  if (share < UNACCOUNTED_FLOOR_SHARE) return null
+  if (share < UNACCOUNTED_WATCH_SHARE) return null
+  if (share < UNACCOUNTED_FLOOR_SHARE) {
+    return `unaccounted watch: ${(share * 100).toFixed(1)}% of the mined mass never reached the books (${unaccounted}u of ${m}) - under the ${(UNACCOUNTED_FLOOR_SHARE * 100).toFixed(1)}% verdict floor, the ledger line carries the number`
+  }
   return `unaccounted: ${(share * 100).toFixed(1)}% of the mined mass never reached the books (${unaccounted}u of ${m}) - the shaft drops, the tool spend and the consolidation own the leak`
 }
 

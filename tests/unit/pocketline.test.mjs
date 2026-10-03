@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow, RECONNECT_CENSUS_MIN, RECONNECT_CENSUS_LOCAL_SHARE } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, UNACCOUNTED_WATCH_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow, RECONNECT_CENSUS_MIN, RECONNECT_CENSUS_LOCAL_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -206,14 +206,32 @@ test('unaccountedMassDecode: THE MEASURED MASS (fleet 36592026195: 1948u of 2713
   assert.match(v, /the shaft drops, the tool spend and the consolidation own the leak/)
 })
 
-test('unaccountedMassDecode: THE FLOOR - at the floor the leak speaks, below it stays quiet', () => {
+test('unaccountedMassDecode: THE FLOOR - at the floor the leak speaks, below it the watch owns the band', () => {
   assert.equal(UNACCOUNTED_FLOOR_SHARE, 0.5)
   // exactly at the floor: half the mass gone is no grain - it speaks
   assert.ok(unaccountedMassDecode({ mined: 100, banked: 50, smelted: 0, pocket: 0 }).startsWith('unaccounted: 50.0%'))
-  // one unit of accounting more: quiet
-  assert.equal(unaccountedMassDecode({ mined: 100, banked: 51, smelted: 0, pocket: 0 }), null)
+  // one unit of accounting more: the watch shelf speaks (the v0.569.0 shelf)
+  assert.ok(unaccountedMassDecode({ mined: 100, banked: 51, smelted: 0, pocket: 0 }).startsWith('unaccounted watch: 49.0%'))
   // a healthy conversion (the run class that read 76.3%): quiet
   assert.equal(unaccountedMassDecode({ mined: 1000, banked: 763, smelted: 0, pocket: 0 }), null)
+})
+
+test('unaccountedMassDecode: THE WATCH SHELF (v0.569.0) - the growth band reads its own honest form', () => {
+  assert.equal(UNACCOUNTED_WATCH_SHARE, 0.25)
+  // THE LIVE DATUM - fleet 37142026993 read unaccounted=726 of 2018 (36.0%):
+  // the ledger line displayed the number, no row judged it (the floor sat at
+  // 50.0%); the shelf names the band and the floor it sits under
+  const v = unaccountedMassDecode({ mined: 2018, banked: 221, smelted: 1, pocket: 1070 })
+  assert.equal(v, 'unaccounted watch: 36.0% of the mined mass never reached the books (726u of 2018) - under the 50.0% verdict floor, the ledger line carries the number')
+  // exactly at the shelf: the watch speaks
+  const at = unaccountedMassDecode({ mined: 100, banked: 75, smelted: 0, pocket: 0 })
+  assert.ok(at && at.startsWith('unaccounted watch: 25.0%'), at)
+  // under the shelf: the old quiet (a 20.0% leak stays below the grain's own verdict)
+  assert.equal(unaccountedMassDecode({ mined: 100, banked: 80, smelted: 0, pocket: 0 }), null)
+  // the shelf never invents a verdict: the watch form names the floor, never the leak's owners
+  const w = unaccountedMassDecode({ mined: 100, banked: 60, smelted: 0, pocket: 0 })
+  assert.ok(w && w.includes('under the 50.0% verdict floor'), w)
+  assert.ok(!w.includes('the shaft drops'), 'the verdict tail stays the floor form\'s own')
 })
 
 test('unaccountedMassDecode: THE SURPLUS CLAMP and the dead run', () => {
