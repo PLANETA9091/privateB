@@ -2,8 +2,9 @@
 // "gone" detection that keeps fastDig from looping forever on unbreakable blocks.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
-import { installRageFastBreak, digFaceFor, FACE_TOP, FACE_BOTTOM } from '../../src/lib/fastdig.mjs'
+import { installRageFastBreak, digFaceFor, FACE_TOP, FACE_BOTTOM, DIG_TICK_GUARD_MS, DIG_FROZEN_GUARDS } from '../../src/lib/fastdig.mjs'
 
 function mockBot (options = {}) {
   const packets = []
@@ -164,4 +165,56 @@ test('fastDig junk tickGuardMs keeps the legacy unbounded wait (byte for byte)',
   installRageFastBreak(bot, { log: () => {} })
   const ok = await bot.fastDig({ type: 1, name: 'stone', position: new Vec3(0, 4, 0) }, { tickGuardMs: 0 })
   assert.equal(ok, true, 'a zero guard disables the race - the legacy shape for fast mocks')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.542.0) THE WINNABLE RACE - the pricing pass's own landing. The v0.97.0
+// note claimed "waitForTicks has NO wall-clock bound of its own" - STALE: the
+// library rejects at ticks * 50 + 5000ms when physics never tick (verified in
+// node_modules/mineflayer/lib/plugins/physics.js; pathsemaphore.mjs cites the
+// field message). The guard's two jobs rest on the race being WINNABLE: the
+// 2000ms guard must fire before the library's ~5050ms reject, or the throw
+// escapes the tick-wait, the frozen streak never counts, and the verdict goes
+// silent (the F14 class returns heavier - every dig pays a ~5s reject).
+
+test('the tick guard fires below the library per-wait floor (the winnable race invariant)', () => {
+  // the library's own bound: waitForTicks(n) rejects after n * 50 + 5000ms
+  // (mineflayer/lib/plugins/physics.js, verified byte) - waitForTicks(1) = 5050ms
+  const libraryFloorMs = 1 * 50 + 5000
+  assert.equal(DIG_TICK_GUARD_MS, 2000, 'the production guard is the 2000ms the doctrine pins')
+  assert.equal(DIG_FROZEN_GUARDS, 3, 'three consecutive fires = the frozen verdict')
+  assert.ok(
+    DIG_TICK_GUARD_MS < libraryFloorMs,
+    `the guard (${DIG_TICK_GUARD_MS}ms) must stay below the library floor (${libraryFloorMs}ms) - past it the reject wins the race and the frozen streak never counts`
+  )
+})
+
+test('the library-shaped reject loses the race quietly (a loser rejection never escapes the guard)', async () => {
+  // the real library on a frozen client: waitForTicks REJECTS at its own floor
+  // with the field message pathsemaphore cites. The guard must still own the
+  // verdict: fastDig returns gone() (false), never throws, and the loser's
+  // late rejection is consumed by the race (no unhandledRejection crash).
+  let strays = 0
+  const onStray = () => { strays++ }
+  process.on('unhandledRejection', onStray)
+  try {
+    const { bot } = mockBot() // block never disappears, no tick ever fires
+    bot.waitForTicks = () => new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout waiting for 1 ticks after 5050ms')), 60)
+    })
+    installRageFastBreak(bot, { log: () => {} })
+    const ok = await bot.fastDig({ type: 1, name: 'stone', position: new Vec3(0, 4, 0) }, { tickGuardMs: 20 })
+    assert.equal(ok, false, 'the frozen verdict stands even when the wait rejects at the library floor')
+    await new Promise(r => setTimeout(r, 120)) // every fake reject (60ms) has landed past the guards (3 x 20ms)
+    assert.equal(strays, 0, 'the race consumes the losing rejection - the process must never see it')
+  } finally {
+    process.removeListener('unhandledRejection', onStray)
+  }
+})
+
+test('the corrected doctrine rides the source (the re-priced claim, the winnable race)', () => {
+  const src = readFileSync(new URL('../../src/lib/fastdig.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('THE CLAIM RE-PRICED'), 'the stale v0.97.0 claim is re-priced in place')
+  assert.ok(src.includes('ticks * 50 + 5000ms'), 'the library per-wait floor arithmetic is documented')
+  assert.ok(src.includes('THE WINNABLE RACE'), 'the guard-vs-floor ordering invariant is on the source')
 })

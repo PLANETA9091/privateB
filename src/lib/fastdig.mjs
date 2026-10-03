@@ -52,15 +52,29 @@ export function digFaceFor ({ eyeY = null, blockCenterY = null } = {}) {
 
 // (v0.97.0) THE DIG TICK GUARD - the frozen-client wedge, killed at the dig
 // primitive. run86 (35809634630) F14: `tunnel: 0 blocks` printed, then SILENCE -
-// the next dig's `await bot.waitForTicks(1)` never resolved (the client physics
-// froze mid-veinSweep; mineflayer's tick clock stopped) and the bot hung PAST
-// the 600s deadline with no final bank, holding 17 banked bots in the hard kill
-// behind it (F7's smelt wedge was the second hostage). waitForTicks has NO
-// wall-clock bound of its own: a frozen client = an infinite await. The guard
-// races every tick-wait (and the aim) against a wall clock; DIG_FROZEN_GUARDS
+// the dig's tick-wait churned past the 600s deadline inside the veinSweep loop
+// (frozen client physics) with no final bank, holding 17 banked bots in the hard
+// kill behind it (F7's smelt wedge was the second hostage).
+// (v0.542.0) THE CLAIM RE-PRICED: the v0.97.0 note said "waitForTicks has NO
+// wall-clock bound of its own: a frozen client = an infinite await" - STALE
+// for the current stack. The library DOES reject:
+// mineflayer's waitForTicks races its own setTimeout(ticks * 50 + 5000ms) and
+// rejects 'Timeout waiting for N ticks after Xms' when physics never tick
+// (verified in node_modules/mineflayer/lib/plugins/physics.js; the same message
+// is the physics-stopped symptom pathsemaphore.mjs cites from the field). The
+// per-wait bound bounds ONE wait at ~5-6.5s - but it does NOT bound the DIG:
+// a frozen fastDig loops maxTicks (100) waits, each rejecting into the loop,
+// ~= 8.4 minutes of churn per dig with no verdict. THE GUARD'S TWO JOBS:
+// (1) the LOOP-TOTAL bound - every tick-wait races a 2000ms clock instead of
+// the library's ~5.05s reject, and (2) THE FROZEN VERDICT - DIG_FROZEN_GUARDS
 // consecutive fires = the client is frozen, fastDig returns gone() honestly
 // (best-effort: the STOP spam may still have broken it) instead of spinning
 // maxTicks x guard forever. Healthy ticks reset the streak byte for byte.
+// THE WINNABLE RACE (the guard's semantics ride it): DIG_TICK_GUARD_MS must
+// stay BELOW the library's per-wait floor (5050ms for waitForTicks(1)) - past
+// it the library reject wins the race, the throw escapes the tick-wait, the
+// frozen streak never counts, and the verdict goes silent (the F14 class
+// returns heavier: every dig pays a ~5s reject instead of the one-shot gone()).
 export const DIG_TICK_GUARD_MS = 2000
 export const DIG_FROZEN_GUARDS = 3
 
