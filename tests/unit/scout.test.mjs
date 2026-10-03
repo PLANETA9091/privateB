@@ -339,3 +339,55 @@ test('night hold: the wire is pinned in the source (the verdict, the two gates, 
   assert.equal(gates.length, 2, 'the hold gates BOTH the step loop and the lane shift - a crossing is new ground too')
   assert.ok(src.includes('createPatrol({ bot, map, scan: scanWithBerry, stats, log: m => log(`${tag} ${m}`) })'), 'the tagged log reaches the patrol (the raw [scout] channel)')
 })
+
+// ---- (v0.533.0) THE SEAL WATCH'S SECOND SEAT: the respawn accounting reaches
+// the scout - the stake rides the SAME guarded read as the drop line, the spawn
+// listener pays ONCE with the miner's exact 3000ms delayed read; the declare leg
+// stays the miner's (no combat sentry here - the honest pricing pinned).
+test('seal respawn accounting: a seal stake dying on the scout is priced once at the respawn', async () => {
+  const bot = makeDeathBot({ items: [{ name: 'cobblestone', count: 64 }, { name: 'sweet_berries', count: 5 }] })
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death')
+  bot.inventory = { items: () => [{ name: 'sweet_berries', count: 5 }] } // the respawn pocket: the seal stake is gone
+  bot.emit('spawn') // mineflayer fires spawn on login/dimension changes too - the flag gates those; this one follows a death
+  await sleep(3100) // the miner's exact 3000ms delayed read (the inventory syncs after the respawn packet)
+  const seal = lines.filter(l => l.includes('seal after respawn'))
+  assert.equal(seal.length, 1, `ONE accounting per death, got ${seal.length}`)
+  assert.match(seal[0], /pocket 0u seal, 64u of the 64u stake is gone - the floor must re-earn/, 'the honest floor arithmetic')
+})
+
+test('seal respawn accounting: no death, no accounting (the flag gates the login/dimension spawns)', async () => {
+  const bot = makeDeathBot({ items: [{ name: 'cobblestone', count: 64 }] })
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('spawn') // the initial login spawn - no death ever happened
+  await sleep(3100)
+  assert.equal(lines.filter(l => l.includes('seal after respawn')).length, 0, 'no death, no line')
+})
+
+test('seal respawn accounting: an empty seal stake says so (the honest zero, never invented)', async () => {
+  const bot = makeDeathBot({ items: [{ name: 'sweet_berries', count: 5 }] })
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death')
+  bot.emit('spawn')
+  await sleep(3100)
+  const seal = lines.filter(l => l.includes('seal after respawn'))
+  assert.equal(seal.length, 1, 'the accounting never vanishes silently')
+  assert.match(seal[0], /pocket 0u seal - the death stake was empty, the floor starts from zero/)
+})
+
+test('seal respawn accounting: the wire is pinned in the source (the same-read law, the miner\u0027s byte, the declare leg stays out)', () => {
+  const root = new URL('../../', import.meta.url).pathname
+  const src = readFileSync(path.join(root, 'src', 'bots', 'scout.mjs'), 'utf8')
+  assert.ok(src.includes("import { sealSnapshot, sealRespawnLine } from '../lib/sealwatch.mjs'"), 'the accounting leg\u0027s import')
+  assert.ok(!src.includes('sealDeclareLine'), 'the declare leg stays the miner\u0027s - the scout has no combat sentry, no risk semantics to arm it honestly')
+  assert.ok(src.includes('const dropItems = bot.inventory?.items?.() ?? null'), 'ONE guarded pocket read at death')
+  assert.ok(src.includes('sealDeathStake = sealSnapshot(dropItems)'), 'the seal stake rides the SAME guarded read (the miner\u0027s exact law)')
+  assert.ok(src.includes('if (!sealRespawnOwed) return'), 'the flag gates the login/dimension spawns out')
+  assert.ok(/}, 3000\)/.test(src), 'the miner\u0027s exact 3000ms delayed read')
+})

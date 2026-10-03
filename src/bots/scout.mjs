@@ -14,6 +14,7 @@ import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.528.0) THE
 import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, berryHarvestDue, pocketBerries, pickBush } from '../lib/berry.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - the SHARED death-drop format (the fleet's death ledger reads one shape)
 import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
+import { sealSnapshot, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.533.0) the seal watch's respawn accounting reaches the second bot - the declare leg stays the miner's (no combat sentry here)
 import { walkForbidden } from '../lib/nightsafety.mjs' // (v0.532.0) THE NIGHT HOLD-AND-SCAN - the patrol's walk legs ride the fleet's own walk-forbidden window
 
 const { pathfinder, Movements, goals } = pathfinderPkg
@@ -118,6 +119,24 @@ export function createBerryStop ({ bot, log = () => {} } = {}) {
 // createScan/createBerryStop contract.
 export function createDeathWatch ({ bot, tag = '[scout]', stats = { deaths: 0 }, log = () => {} } = {}) {
   let serverDeath = null
+  // (v0.533.0) THE SEAL WATCH'S SECOND SEAT - the respawn accounting. The GET-UP
+  // taught this handler to account the WHOLE pocket (the shared drop line), but
+  // the seal economy never read its share: the scout walks surface lanes, picks
+  // up spillage by proximity (a crossing of a mining site's dropped stacks rides
+  // the pocket home), and its death scattered the seal-class stake with no line
+  // ever pricing it - the miner's ledger reads 'seal after respawn' lines, the
+  // scout's deaths were silent in that book. The stake rides the SAME guarded
+  // read the drop line spends (one inventory touch at death - the miner's exact
+  // law); the spawn listener pays the accounting once, at the first spawn after
+  // the death flag, with the miner's exact 3000ms delayed read (the inventory
+  // syncs after the respawn packet - an early read would print a pocket the
+  // server had not filled yet). The DECLARE leg stays the miner's: the scout has
+  // no combat sentry (the GET-UP's own honest pricing) - no risk semantics to
+  // read, the declare's gate would never arm honestly here. Junk-safe end to
+  // end: the snapshot reads a null pocket as the honest unread, the accounting
+  // is guarded like every death-path read - it must never break a respawn.
+  let sealDeathStake = null
+  let sealRespawnOwed = false
   bot.on('message', (msg) => {
     try {
       const text = typeof msg === 'string' ? msg : (msg?.toString?.() ?? null)
@@ -133,10 +152,30 @@ export function createDeathWatch ({ bot, tag = '[scout]', stats = { deaths: 0 },
         ? `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}]`
         : 'no readable server line (the scout has no inference sentry)'
       log(`${tag} died - respawning (cause: ${cause})`)
-      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
+      const dropItems = bot.inventory?.items?.() ?? null
+      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: dropItems })
       if (drop) log(drop)
+      sealDeathStake = sealSnapshot(dropItems) // (v0.533.0) the seal stake rides the SAME guarded read - null when the pocket never read, the honest unread
+      sealRespawnOwed = true // (v0.533.0) a respawn read is now owed - the spawn listener pays it
     } catch { /* a death handler must never throw */ }
     setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)
+  })
+  // (v0.533.0) the accounting: ONE line per death, at the first 'spawn' after the
+  // death flag (mineflayer fires 'spawn' on login and dimension changes too - the
+  // flag gates those out; no death, no accounting). The miner's exact byte.
+  bot.on('spawn', () => {
+    try {
+      if (!sealRespawnOwed) return
+      sealRespawnOwed = false
+      const stake = sealDeathStake
+      sealDeathStake = null
+      setTimeout(() => {
+        try {
+          const line = sealRespawnLine({ tag, death: stake, items: bot.inventory?.items?.() ?? null })
+          if (line) log(line)
+        } catch { /* a respawn read must never throw */ }
+      }, 3000)
+    } catch { /* the accounting must never break a respawn */ }
   })
 }
 
