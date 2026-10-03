@@ -375,6 +375,17 @@ export function surplusFaceRow (miners, { surplus = null } = {}) {
 // ledger-skip lesson). ALWAYS printed.
 export const BANK_FLOW_MIN_SAMPLES = 2
 
+// (v0.559.0) THE DISPLAY FLOOR - the rate under which the face reads '0.0'.
+// A rate below this never prices a pocket tail: the seconds would claim a
+// precision the face itself denies (fleet 37128927104: '+4u over 285s'
+// displayed '0.0u/s' while the tail priced 'needs 62914s past the deadline'
+// and the gap row echoed '42379s short at 0.0u/s' - both numbers computed at
+// a hidden 0.014u/s the face never showed, a phantom pricing). The trickle
+// joins the stood-still class - the sibling rows share this one constant so
+// the two faces can never disagree about the arithmetic they price (the
+// sibling-shape law, kept by construction).
+export const BANK_FLOW_DISPLAY_FLOOR = 0.05
+
 /**
  * The endgame bank-flow verdict: at what rate did the chains move mass?
  * @param {Array<{t?: number, banked?: number}>} samples the cadence series
@@ -397,14 +408,18 @@ export function bankFlowRow (samples, { pocketUnits = null } = {}) {
   const delta = last.b - first.b
   if (span <= 0) return 'bank flow: none (no cadence series this read)'
   const rate = delta / span
+  // (v0.559.0) THE DISPLAY FLOOR LAW - a trickle is a still chain at face
+  // value: the delta is printed right here ('+4u'), the verdict names the
+  // flow's practical truth, and the phantom tail ('needs 62914s' priced at a
+  // rate the face displays as 0.0) never prints again.
+  if (delta <= 0 || (rate > 0 && rate < BANK_FLOW_DISPLAY_FLOOR)) {
+    return `bank flow: 0.0u/s (banked +${delta}u over ${span}s) - the chains stood still`
+  }
   // the pocket tail needs a living flow - a still chain owes Infinity seconds,
   // which is the verdict's own shape (no tail on the stood-still form)
-  const pNote = (rate > 0 && Number.isFinite(pocketUnits) && Math.floor(pocketUnits) > 0)
+  const pNote = (Number.isFinite(pocketUnits) && Math.floor(pocketUnits) > 0)
     ? ` - the ${Math.floor(pocketUnits)}u pocket needs ${Math.ceil(Math.floor(pocketUnits) / rate)}s past the deadline`
     : ''
-  if (delta <= 0) {
-    return `bank flow: 0.0u/s (banked +${delta}u over ${span}s) - the chains stood still${pNote}`
-  }
   return `bank flow: ${rate.toFixed(1)}u/s (banked +${delta}u over ${span}s)${pNote}`
 }
 
@@ -445,6 +460,13 @@ export function bankBudgetGapRow (samples, { pocketUnits = null, budgetMs = null
   const delta = good[good.length - 1].b - good[0].b
   if (span <= 0 || delta <= 0) return null // none / stood-still is the flow row's story
   const rate = delta / span
+  // (v0.559.0) THE DISPLAY FLOOR LAW - the trickle joins the stood-still
+  // class (the same BANK_FLOW_DISPLAY_FLOOR the flow row routes by): a
+  // shortage priced at a hidden 0.014u/s while the face reads '0.0u/s' is
+  // the phantom pricing the sibling rows must never split on (fleet
+  // 37128927104: '42379s short at 0.0u/s' - the number is gone, the still
+  // verdict is the flow row's story again).
+  if (rate < BANK_FLOW_DISPLAY_FLOOR) return null
   const need = Math.ceil(Math.floor(pocketUnits) / rate)
   const budget = Math.floor(budgetMs / 1000)
   if (need <= budget) return null // the <= law: at the budget the chains fit

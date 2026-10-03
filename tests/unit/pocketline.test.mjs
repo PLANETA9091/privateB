@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, whyBookToken } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, whyBookToken } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -481,6 +481,30 @@ test('bankFlowRow: THE STOOD-STILL FORM - a dead chain owes no seconds (the Infi
   assert.equal(v2, 'bank flow: 0.0u/s (banked +-10u over 30s) - the chains stood still')
 })
 
+// ---------------------------------------------------------------------------
+// (v0.559.0) THE DISPLAY FLOOR LAW - the trickle joins the stood-still class.
+// Fleet 37128927104's face read 'bank flow: 0.0u/s (banked +4u over 285s) -
+// the 883u pocket needs 62914s past the deadline': the tail priced at a
+// hidden 0.014u/s the face itself displayed as 0.0 - a number claiming a
+// precision the row denies (the phantom pricing). A rate the face reads as
+// '0.0' never prices a tail again; the gap row routes by the SAME floor
+// constant, so the siblings can never split on the class (the sibling-shape
+// law, kept by construction).
+// ---------------------------------------------------------------------------
+
+test('bankFlowRow: THE TRICKLE CLASS (fleet 37128927104: +4u over 285s) - a phantom rate never prices a tail', () => {
+  assert.equal(BANK_FLOW_DISPLAY_FLOOR, 0.05)
+  // the live datum: the window moved +4u in 285s (0.014u/s) - the old tail
+  // priced 'needs 62914s past the deadline' at the rate the face hides
+  const v = bankFlowRow([{ t: 0, banked: 933 }, { t: 285, banked: 937 }], { pocketUnits: 883 })
+  assert.equal(v, 'bank flow: 0.0u/s (banked +4u over 285s) - the chains stood still')
+  assert.ok(!v.includes('needs'), 'the phantom pricing is dead - the face never prices a rate it displays as 0.0')
+  // the boundary: a rate AT the floor displays 0.1 and prices honestly
+  const b = bankFlowRow([{ t: 0, banked: 0 }, { t: 100, banked: 5 }], { pocketUnits: 100 })
+  assert.ok(b.startsWith('bank flow: 0.1u/s (banked +5u over 100s)'), b)
+  assert.match(b, /needs 2000s past the deadline$/, 'the floor rate prices - only the trickle is still')
+})
+
 test('bankFlowRow: THE NONE-FORM and the junk discipline', () => {
   // fewer than two valid samples is a verdict too (the 05:00 ledger-skip lesson)
   assert.equal(bankFlowRow([]), 'bank flow: none (no cadence series this read)')
@@ -608,6 +632,18 @@ test('bankBudgetGapRow: THE SIBLING ARITHMETIC - the gap row agrees with the flo
   assert.equal(gap, 'bank budget gap: 322s needed, 300s budgeted - 22s short at 2.2u/s - the end bank chains outran the clock')
   // a huge budget converts ms to seconds honestly - and covers the pocket (the <= law, silence)
   assert.equal(bankBudgetGapRow(samples, { pocketUnits: 702, budgetMs: 9990000 }), null)
+})
+
+test('bankBudgetGapRow: THE TRICKLE IS THE FLOW ROW\'S STORY (fleet 37128927104) - the same floor routes both siblings', () => {
+  // the live datum: 0.014u/s priced '42379s short at 0.0u/s' - the phantom
+  // echo of a rate the face never showed. The trickle returns null (the
+  // still verdict is the flow row's story - its own doc's law).
+  const trickle = [{ t: 0, banked: 933 }, { t: 285, banked: 937 }]
+  assert.equal(bankBudgetGapRow(trickle, { pocketUnits: 883, budgetMs: 300000 }), null)
+  // the sibling law holds at the floor: at 0.05u/s the gap speaks
+  const live = [{ t: 0, banked: 0 }, { t: 100, banked: 5 }]
+  const v = bankBudgetGapRow(live, { pocketUnits: 100, budgetMs: 1000000 })
+  assert.equal(v, 'bank budget gap: 2000s needed, 1000s budgeted - 1000s short at 0.1u/s - the end bank chains outran the clock')
 })
 
 test('bankBudgetGapRow: THE COVERED SILENCE and the <= boundary', () => {
