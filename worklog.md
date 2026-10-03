@@ -14120,3 +14120,18 @@ Work Log:
 Stage Summary:
 - Master = d4ad722 (pkg 0.576.0). The shaft-drop sink is measured from this face on.
 - NEXT FIRE: (1) read CI on d4ad722 (37154796605 / the dispatch 37154867210, same sha). (2) read fleet 37154867210: 'drop census: ...' (the none-form IS a verdict on a balanced face; the trip form prices the sink), the owner map's SECOND face (a blast_furnace repeat indicts the cell, a spread indicts the lattice), the pantry's second split, the bank arm census's first face. (3) THE UNREACHABLE CURE queues: blast_furnace's own cell (doom latch / blocks / wet approach around its carve alcove). (4) Version next 0.577.0 (origin x3; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0530
+Agent: Super Z (main)
+Task: fire 0530 (cron 414125) - v0.577.0 THE UNREACHABLE WHY SPLIT
+
+Work Log:
+- Reads: CI push 37154796605 (d4ad722) SUCCESS - the drop census's first CI flight green. Fleet 37154867210 (d4ad722): Integration+Unit SUCCESS, the Big fleet job still in_progress at poll end - its face (the census's first read, the owner map's second face, the pantry's second split, the bank arm census's first face) rides the next fire (the suspension law).
+- THE UNREACHABLE WHY SPLIT (the owner family's third seat): the why grain rides the SAME census feed seat inside the 'machine unreachable' guard - the attempt's FULL reason unwraps through classifySweepReason, the walk-fail lens's OWN classifier (ONE vocabulary, the classes cannot split from the lens's by construction); the print follows the owner row sibling. smeltUnreachableWhyRow on the SAME grain laws (MIN=3, SHARE=0.5 - one grain law for the whole owner family); the verdict names the leader's own lever (decide-timeout -> the decision ceiling; walk-timeout -> the walk budget vs the approach's cost; no-path -> the lattice's reach; governor-refusal -> the governor's gates; unnamed -> the class's own detail); a spread reads 'no lever'. Junk keys -> the honest 'other' bucket; under the floor prints nothing; byte-stable ties (count desc, key asc).
+- Tests: tests/unit/smelting-unreachable-why.test.mjs (10 tests incl. the lens-vocabulary feed pin at the face-25 shapes, the live anchor at the 6-of-7 diag shape, the 0.5 boundary with the key-asc tie, the junk battery, the wiring pin). One authored-expectation bug caught pre-push (the 'other' bucket leads by count-desc - the test now pins the honest read). Battery: syntax 439/0; unit 248/248 PASSED. Server DOWN -> integration skip honest. Version 0.577.0 (origin pre-add read 0.576.0, NO collision). Commit 1bf38e0, push CLEAN attempt 1.
+- DISPATCH: not dispatched - fleet 37154867210 was still ACTIVE (the max-one-active law); v0.577.0's first face rides the next lawful window.
+
+Stage Summary:
+- Master = 1bf38e0 (pkg 0.577.0). The walk tax's anatomy is complete on the feed side: machine x why, one vocabulary, one grain law.
+- NEXT FIRE: (1) read fleet 37154867210: mine the face ('drop census: ...', the owner map's SECOND face, the pantry's second split, the bank arm census's first face). (2) read CI 37156121052 (1bf38e0). (3) when the active run clears, dispatch v0.577.0 (the why split's first face + the census's second read). (4) THE WHY CURE queues: the row's first verdict aims at a mechanism (the decide ceiling is the house suspect - face 25 priced decide-timeout=42 of 65 hop zeros). (5) Version next 0.578.0 (origin x3; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
