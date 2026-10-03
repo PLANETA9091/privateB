@@ -1074,6 +1074,15 @@ export async function smeltBatch (bot, {
       // (v0.92.0) the batch completed - pull OUR leftover fuel back: a fuel item
       // without input never burns (vanilla), so it would read 'busy' to every
       // later visitor and wall the machine off for the rest of the run
+      // (v0.518.0) THE LOAN ROUNDS - the pull is also the ANCHOR QUESTION'S answer:
+      // a machine that funded a batch (the 0.516.0 gamble's winner included) ends
+      // its visit EMPTY - the credited stock's remainder rides home with the
+      // batch's own leftover - so no funded machine is ever a known fuel holder
+      // for the next dry leg's gamble to start at. The next leg's own probe reads
+      // the RETURNED loan in the pocket instead (the metal window's reserve-0
+      // solidPick) - the rounds fund themselves with no second gamble and no
+      // cross-visit memory; the junk window's sub-floor refusal is the v0.110.0
+      // coal protection, the one honest second-gamble payer.
       try { if (furnace.fuelItem()) await withTimeout(furnace.takeFuel(), 5000, 'take leftover fuel') } catch { /* lost */ }
     }
   } catch (e) {

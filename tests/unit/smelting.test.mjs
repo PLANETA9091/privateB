@@ -1952,3 +1952,57 @@ test('idleFuelMove: the credit needs a completing stock, junk reads pull', () =>
   const b = idleFuelMove({ fuelName: 'coal', fuelCount: 2 })
   assert.notEqual(a, b, 'a fresh object per call (the fresh-literal reference lesson, v0.512.0)')
 })
+
+// ---------------------------------------------------- (v0.518.0) THE LOAN ROUNDS
+// The 0800 hand-away asked THE ANCHOR QUESTION: a gambled machine that funded a
+// batch is a known fuel holder - should the next dry leg's gamble start there?
+// THE WIRE ANSWERS NO, twice over:
+//   (1) the completed-batch leftover pull (v0.92.0) EMPTIES the winner - the
+//       credited stock's remainder rides home with the batch's own leftover, so
+//       no funded machine is ever a holder after its visit;
+//   (2) the RETURNED loan lands in the pocket, and the next leg's own probe
+//       reads it there (the metal window's reserve-0 solidPick) - the second
+//       leg never goes dry, never asks the commons twice, never gambles.
+// The junk window is the one honest exception: JUNK_COAL_FLOOR (v0.110.0)
+// refuses a sub-floor loan for junk windows - the coal protection IS the
+// design - and that leg pays its own gamble, the live rows deciding, the loan
+// never charged. These tests lock both rounds: a future lane that builds the
+// anchor (or drops the leftover pull) bets against the wire - the battery
+// names the bet.
+
+test('THE LOAN ROUNDS: the credited leg\'s loan funds the next metal leg - one ask, one gamble, two visits', async () => {
+  const furnace = new MockFurnace({ startFuel: item('coal', 1) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 3), item('raw_copper', 2)] })
+  let asks = 0
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => { asks++ } })
+  assert.equal(res.smelted, 5, 'both legs smelted - the loan carried the second')
+  assert.equal(res.outputs.iron_ingot, 3, 'the credited leg\'s batch')
+  assert.equal(res.outputs.copper_ingot, 2, 'the second leg\'s batch rode the returned loan')
+  assert.equal(asks, 1, 'exactly one commons ask - the second leg never went dry')
+  assert.equal(furnace.opened, 2, 'two visits, one machine - no second gamble walk')
+  assert.ok(!res.attempts.some(a => a.reason === 'no fuel'), 'no dry verdict anywhere in the visit')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 1, 'the loan rides home again after the second round')
+  assert.ok(!furnace.fuelItem() && !furnace.inputItem(), 'the machine reads idle - the rounds end where they began')
+})
+
+test('THE LOAN ROUNDS: the junk floor refuses a sub-floor loan - the second gamble pays, the coal never moves', async () => {
+  const furnace = new MockFurnace({ startFuel: item('coal', 1) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 3), item('sand', 4)] })
+  let asks = 0
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => { asks++ } })
+  assert.equal(res.smelted, 3, 'the metal leg smelted on the credit; the sand leg found no lawful fuel')
+  assert.equal(asks, 2, 'the sand leg asked the commons (the floor refused the loan) and gambled')
+  const hit = res.attempts.find(a => a.name === 'sand' && a.reason === 'no fuel')
+  assert.ok(hit, 'the sand leg\'s gamble lost honestly')
+  assert.equal(hit.machine, 'furnace', 'the loss names the machine (the 0.516.0 shape)')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 1, 'the loan stays pocketed - the junk window never charges fleet coal')
+})
+
+test('THE LOAN ROUNDS: the source pins (the winner empties, the loan returns, the refutation lives in the wire)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /THE LOAN ROUNDS - the pull is also the ANCHOR QUESTION'S answer/, 'the refutation lives where the law lives (a future lane reads the wire, not the hand-away)')
+  assert.match(src, /takeFuel\(\), 5000, 'take leftover fuel'/, 'the completed visit empties the winner machine (the v0.92.0 law - no anchor target ever exists)')
+  assert.match(src, /takeFuel\(\), 5000, 'take fuel back'/, 'the timeout visit returns the loan whole (the v0.515.0 law)')
+})
