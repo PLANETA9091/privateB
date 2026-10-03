@@ -181,3 +181,84 @@ export function shedPlan ({
     gapS: needS - budgetS
   }
 }
+
+// (v0.564.0) THE SHED GATE - the plan and the pricer join the trip-decision
+// family (bankTripDue's shape, deposit.mjs). THE SEAM: the legacy trigger
+// arms on cadence + loot floor + a FLAT 240s fence (BANK_TRIP_MIN_REMAINING_MS
+// - the v0.176.0 worst-case arithmetic: trip cap 300s + the 90s return must
+// fit), so a WHALE pocket whose end-need outruns the end-bank budget gets the
+// same 1-2 checks a light pocket gets, and a yard-near bot's fitting trip is
+// refused by a fence priced for the worst case - the crater's own shape
+// (fleet 37134090209: F6's 277u whale rode a timeout strand while 12 chests
+// sat 10-20 blocks away; the decode read 11.7%, the fourth collapse). THE
+// WIRE: shedTripDue is the GAP-DRIVEN sibling - it arms ONLY when the
+// pocket's projected end need outruns the budget (shedPlan's light gate,
+// the <= law), the PRICED trip (shedTripMs: out+back walk, the climb, the
+// chain) fits the run clock with the safety and slack margins, and the
+// cadence refractory holds (BANK_TRIP_EVERY_MS parity - the v0.306.0 churn
+// law: a doomed pocket retries on the same clock as any trip, the log
+// cannot storm). The legacy gate keeps its byte for byte: healthy pockets
+// (light) never shed, the flat fence stays the mining loop's first read;
+// the shed's only wins are the widened LATE window (priced fit replaces the
+// worst case) and the gap condition (only a stranded pocket pays it). The
+// wiring feeds remainingMs as the time left BEFORE the endphase's
+// pre-position window owns the goal (the fence's own contract) and reuses
+// lastBankAt (the refusal branch advances it - one clock, both families).
+
+/** The shed retry cadence (ms): parity with BANK_TRIP_EVERY_MS - the churn
+ *  law (v0.306.0) is a family law; a shed refusal speaks on the same clock
+ *  as a legacy refusal. */
+export const SHED_RETRY_MS = 150000
+
+/**
+ * (v0.564.0) Should this bot START a shed bank trip now - the gap-driven
+ * sibling of bankTripDue, pure. A shed is the END-BUDGET ESCAPE: the
+ * pocket would strand at the deadline (need > budget), the priced trip
+ * still fits, the refractory holds. The gates, each named:
+ *   unknown/holding/light/late - shedPlan's own (the junk law, the active
+ *     trip, the leanness law, the priced fit); a refusal rides its why.
+ *   refractory - the cadence clock (msSinceBank < SHED_RETRY_MS): the
+ *     same silencer the legacy refusal branch feeds (lastBankAt).
+ *   due - the trip arms: tripMs/needS/gapS/untilMs ride the read (the
+ *     wiring logs the gap it is curing).
+ * @param {object} [p]
+ * @param {number} [p.pocketUnits] the pocket's units (non-KEEP)
+ * @param {number} [p.rate] the measured bank flow (u/s) - the wiring
+ *        measures (the bank-flow row's own arithmetic)
+ * @param {number} [p.dist] straight-line distance to the bank yard (blocks)
+ * @param {number} [p.climbLevels] depth below the yard level (levels)
+ * @param {number} [p.remainingMs] run clock left BEFORE the endphase's
+ *        pre-position owns the goal
+ * @param {number} [p.budgetMs] the end-bank budget (endBankBudgetMs's read)
+ * @param {number} [p.now] the caller's clock
+ * @param {number} [p.tripUntil] the active shed trip's end (0 when none)
+ * @param {number} [p.msSinceBank] since the last bank attempt/refusal
+ *        (the wiring's lastBankAt read - one clock, both families)
+ * @param {number} [p.everyMs] the refractory (default SHED_RETRY_MS)
+ * @returns {{due:boolean, why:string, tripMs?:number, needS?:number,
+ *            gapS?:number, untilMs?:number}} never throws, never lies
+ */
+export function shedTripDue ({
+  pocketUnits = NaN,
+  rate = NaN,
+  dist = 0,
+  climbLevels = 0,
+  remainingMs = NaN,
+  budgetMs = NaN,
+  now = Date.now(),
+  tripUntil = 0,
+  msSinceBank = 0,
+  everyMs = SHED_RETRY_MS
+} = {}) {
+  const tripMs = shedTripMs({ dist, climbLevels })
+  const plan = shedPlan({ pocketUnits, rate, tripMs, remainingMs, budgetMs, now, tripUntil })
+  if (!plan.go) {
+    return { due: false, why: plan.why, needS: plan.needS, gapS: plan.gapS, remainingMs: plan.remainingMs }
+  }
+  const every = Number.isFinite(everyMs) && everyMs > 0 ? everyMs : SHED_RETRY_MS
+  const since = Number.isFinite(msSinceBank) && msSinceBank > 0 ? msSinceBank : 0
+  if (since < every) {
+    return { due: false, why: 'refractory', tripMs, needS: plan.needS, gapS: plan.gapS }
+  }
+  return { due: true, why: 'shed', tripMs, needS: plan.needS, gapS: plan.gapS, untilMs: plan.untilMs }
+}

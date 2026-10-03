@@ -144,3 +144,69 @@ test('THE COMPOSITION PIN - shedPlan fed by shedTripMs arms the whale at the fie
   const late = shedPlan({ pocketUnits: 748, rate: 1.1, tripMs: trip, remainingMs: trip + SHED_SAFETY_MS + SHED_SLACK_MS - 1, budgetMs: 248000, now: NOW })
   assert.equal(late.why, 'late')
 })
+
+// (v0.564.0) THE SHED GATE - the gap-driven sibling of bankTripDue. The
+// legacy trigger's flat 240s fence refused fitting trips and gave a doomed
+// whale the same 1-2 checks a light pocket gets (fleet 37134090209: F6's
+// 277u whale rode a timeout strand, the decode read 11.7%).
+import { shedTripDue, SHED_RETRY_MS } from '../../src/lib/bankshed.mjs'
+import { BANK_TRIP_EVERY_MS } from '../../src/lib/deposit.mjs'
+
+const FIELD = { pocketUnits: 748, rate: 1.1, dist: 30, climbLevels: 20, budgetMs: 248000, now: NOW }
+// the field-shape trip prices 172s; the fit needs 172+15+30 = 217s
+
+test('shedTripDue: junk reads not-due (never decides on garbage)', () => {
+  assert.equal(shedTripDue({}).due, false)
+  assert.equal(shedTripDue({ ...FIELD, remainingMs: NaN }).why, 'unknown')
+  assert.equal(shedTripDue({ ...FIELD, rate: 0 }).why, 'unknown')
+  assert.equal(shedTripDue({ ...FIELD, budgetMs: 0 }).why, 'unknown')
+})
+
+test('shedTripDue: a covered pocket never sheds (the leanness law rides)', () => {
+  // 200u at 1.1 = 182s need < the 248s budget - the end bank covers it
+  const r = shedTripDue({ ...FIELD, pocketUnits: 200, remainingMs: 400000 })
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'light')
+  assert.equal(r.needS, 182)
+})
+
+test('shedTripDue: THE WIDENED WINDOW - the field-shape whale sheds at 220s remaining', () => {
+  // the legacy fence (240s flat) refuses here; the priced fit (217s) arms
+  const r = shedTripDue({ ...FIELD, remainingMs: 220000, msSinceBank: 150000 })
+  assert.equal(r.due, true)
+  assert.equal(r.why, 'shed')
+  assert.equal(r.tripMs, 172000)
+  assert.equal(r.needS, 680)
+  assert.equal(r.gapS, 680 - 248)
+  assert.equal(r.untilMs, NOW + 172000 + SHED_SAFETY_MS)
+})
+
+test('shedTripDue: the priced fit holds at the boundary (one ms short reads late)', () => {
+  assert.equal(shedTripDue({ ...FIELD, remainingMs: 217000, msSinceBank: 150000 }).due, true)
+  const r = shedTripDue({ ...FIELD, remainingMs: 216999, msSinceBank: 150000 })
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'late')
+})
+
+test('shedTripDue: the refractory - the churn law is a family law', () => {
+  // 149999ms since the last attempt: silent (the legacy silencer's clock)
+  const r = shedTripDue({ ...FIELD, remainingMs: 300000, msSinceBank: SHED_RETRY_MS - 1 })
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'refractory')
+  assert.equal(r.tripMs, 172000) // the pricing rides even a refusal (the wiring logs it)
+  // at the cadence the shed speaks
+  assert.equal(shedTripDue({ ...FIELD, remainingMs: 300000, msSinceBank: SHED_RETRY_MS }).due, true)
+  // junk since reads 0 - never arms (the family junk law)
+  assert.equal(shedTripDue({ ...FIELD, remainingMs: 300000, msSinceBank: NaN }).why, 'refractory')
+})
+
+test('shedTripDue: an active trip re-reads holding (never double-booked)', () => {
+  const r = shedTripDue({ ...FIELD, remainingMs: 300000, msSinceBank: 150000, tripUntil: NOW + 30000 })
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'holding')
+})
+
+test('shedTripDue: constants - the cadence parity', () => {
+  assert.equal(SHED_RETRY_MS, BANK_TRIP_EVERY_MS)
+  assert.equal(SHED_RETRY_MS, 150000)
+})
