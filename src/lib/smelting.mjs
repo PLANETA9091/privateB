@@ -305,6 +305,53 @@ export function smeltUnreachableWhyRow (entries) {
   return `smelt unreachable why: no lever (top ${top.why} ${top.count} of ${total}, ${pct}%) - the walk failures read mixed, the cures point different ways`
 }
 
+// (v0.580.0) THE UNREACHABLE CROSS - the owner family's fourth seat. The
+// owner map named WHICH machine the walk tax sits on (fleet 37156942229:
+// furnace 8 of 12 - its own cell is the cure, the second consecutive
+// furnace indictment) and the why split named WHAT KIND of failure died
+// (the same face: no lever - no-path 5 of 12, 41.7% under the half
+// boundary). Two marginal rows cannot answer the cure's actual question:
+// do the FURNACE's own failures share ONE mechanism? The cross reads the
+// PAIR per attempt (machine x why) on the SAME grain laws as the whole
+// family (SMELT_NO_FUEL_OWNER_MIN, SMELT_NO_FUEL_OWNER_LOCAL_SHARE - one
+// grain law, the drift impossible by construction) and names the pair's
+// own lever (UNREACHABLE_WHY_LEVERS - the why split's own table, the
+// mechanisms can never split from the why row's by construction) - when
+// the pair holds the half boundary, the next cure aims at ONE machine's
+// ONE mechanism (the furnace cell's lattice reach, its walk budget, its
+// decide ceiling - the cell AND the lever in one read). Byte-stable: the
+// census's own tie law extended (count desc, machine asc, why asc). Junk
+// law: an unnamed machine reads '-' (the owner row's law), a reason the
+// lens cannot unwrap reads 'other' (the why row's law), junk counts never
+// enter. Leanness: a run under the floor prints nothing (the family's own
+// law).
+export function smeltUnreachableCrossRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const m = (typeof e?.machine === 'string' && e.machine.trim() !== '') ? e.machine.trim() : '-'
+    const w = (typeof e?.why === 'string' && e.why.trim() !== '') ? e.why.trim() : 'other'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(`${m}|${w}`, (acc.get(`${m}|${w}`) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < SMELT_NO_FUEL_OWNER_MIN) return null
+  const good = [...acc].map(([k, count]) => {
+    const i = k.indexOf('|')
+    return { machine: k.slice(0, i), why: k.slice(i + 1), count }
+  })
+  good.sort((a, b) => (b.count - a.count) ||
+    (a.machine < b.machine ? -1 : a.machine > b.machine ? 1 : 0) ||
+    (a.why < b.why ? -1 : 1))
+  const top = good[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  if (top.count / total >= SMELT_NO_FUEL_OWNER_LOCAL_SHARE) {
+    const lever = UNREACHABLE_WHY_LEVERS[top.why] || 'the class\'s own detail is the lever'
+    return `smelt unreachable cross: ${top.machine} x ${top.why} carries ${top.count} of ${total} unreachable refusals (${pct}%) - one cell-mechanism owns the walks: ${lever}`
+  }
+  return `smelt unreachable cross: no pair (top ${top.machine} x ${top.why} ${top.count} of ${total}, ${pct}%) - the cell-mechanism cells read mixed, the cures point different ways`
+}
+
 // (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper. The
 // anatomy's first verdict landed (fleet 37144334720: dry 3 of 4 - the fuel
 // supply is the front) but 'dry' reads blind depth: pickFuel's own diet

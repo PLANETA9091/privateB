@@ -36,7 +36,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
@@ -231,6 +231,9 @@ const finalSmeltUnreachable = new Map()
 // (v0.577.0) the why grain - the walk failures' own kind, through the lens's
 // classifier (the owner family's third seat on the same feed)
 const finalSmeltUnreachableWhy = new Map()
+// (v0.580.0) the cross grain - the PAIR per attempt (machine x why), the
+// owner family's fourth seat on the same feed - the grains can never split
+const finalSmeltUnreachableCross = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -828,6 +831,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             // unwrap reads its honest bucket, never dropped
             const whyKey = classifySweepReason(typeof sa?.reason === 'string' ? sa.reason : null).why
             finalSmeltUnreachableWhy.set(whyKey, (finalSmeltUnreachableWhy.get(whyKey) || 0) + 1)
+            // (v0.580.0) the cross grain rides the same seat - the PAIR per
+            // attempt (machine x why) keys the fourth seat's ledger
+            const crossKey = `${reachKey}|${whyKey}`
+            finalSmeltUnreachableCross.set(crossKey, (finalSmeltUnreachableCross.get(crossKey) || 0) + 1)
           }
         }
       }
@@ -4199,6 +4206,16 @@ if (smeltUnreachableOwner) console.log(smeltUnreachableOwner)
 // speak when they spoke.
 const smeltUnreachableWhy = smeltUnreachableWhyRow([...finalSmeltUnreachableWhy].map(([why, count]) => ({ why, count })))
 if (smeltUnreachableWhy) console.log(smeltUnreachableWhy)
+// (v0.580.0) THE UNREACHABLE CROSS - the family's fourth seat: the PAIR
+// (machine x why) answers the cell cure's actual question - do the
+// furnace's own failures share ONE mechanism? The same refusals' own
+// grain - it can only speak when they spoke. The print follows the why
+// row sibling.
+const smeltUnreachableCross = smeltUnreachableCrossRow([...finalSmeltUnreachableCross].map(([k, count]) => {
+  const i = k.indexOf('|')
+  return { machine: k.slice(0, i), why: k.slice(i + 1), count }
+}))
+if (smeltUnreachableCross) console.log(smeltUnreachableCross)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is
