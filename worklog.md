@@ -13755,3 +13755,19 @@ Work Log:
 Stage Summary:
 - Master = 359e1cb (pkg 0.553.0). The dispatch era opens: green face + two successful fleet runs in a day; the write-off row now names its why (night/doom-latched) - the face reads the cause without the log dive.
 - NEXT FIRE: (1) read fleet run 37125612065's verdict: SUCCESS = mine the face - the write-off row should read 'F15 205u/12s night' class forms; verify the why row and the seals again; FAILURE = job logs first. (2) my gate run 37125591301 (359e1cb) verdict rides alongside. (3) fronts: fastdig churn bound question, seed/ libs audit, integration harness bounds, bank-flow pacing (the 752u pocket needs 194s past the deadline - a pre-deadline bank cadence question for the WHALE class only, priced against the v0.140.1 doctrine). (4) version 0.554.0 (origin x3; expect #47). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261003-2130
+Agent: Super Z (main)
+Task: fire 2130 (cron 414125) - v0.554.0 THE ATTRIBUTION'S HONEST TAIL
+
+Work Log:
+- VERDICT CHASE: gate 37125591301 (359e1cb, my v0.553.0) = SUCCESS - the tree PROVEN. Fleet 37125612065: unit 22/24 + integration success, Big fleet run job admitted the queue at 13:29:13Z and flew through the fire (600s -> verdict ~13:50Z; bounded poll 4 rounds held it in_progress; the chase hands to the next fire).
+- Front from the 2030 face: the attribution row's tail 'the walk never delivered' LIED for the night class - F15/F10/F12's walks were REFUSED outright (night hold, zero walks armed), and the 2030 report quoted the lie before the log dive corrected it. THE WIRE (report-side, zero live-loop change): bankAttributionRow takes the same finalBankWhys book writeOffRow reads; the strand prints its why suffix ('F15 0u/205u pocket night'); the tail turns conditional: none explained -> legacy byte form; ALL explained -> '- the strand rode night' (distinct classes, alphabetical, +joined, byte-stable); MIXED -> legacy tail + '(the held strands name their why)'. The stranded-only branch keeps its legacy shape, why suffix only.
+- Tests: 6 pins. Two strikes caught: the tail compared DISTINCT classes vs strand count (1 class, 3 strands -> mixed branch fired wrongly) - counts EXPLAINED strands now; the stranded-only branch's legacy byte form (F12 220u, not 0u/220u pocket) restored. The v0.324.0 wiring pin re-aimed to the why-riding call form.
+- Version 0.553.0 -> 0.554.0 (origin checked pre-add: free, no collision). Commit 6d57d5a, push CLEAN attempt 1 (f4b10d5..6d57d5a). Battery: syntax 434/0; unit 245/245. Server DOWN -> integration skip honest (36th fire).
+- NO dispatch: fleet run 37125612065 active (protocol 6 - no duplicates).
+
+Stage Summary:
+- Master = 6d57d5a (pkg 0.554.0). Both report rows (write-off + attribution) read one why ledger - a strand's cause rides the face, no log dive; the walk verdict only claims walks that were armed.
+- NEXT FIRE: (1) read fleet 37125612065's Big fleet run verdict FIRST: SUCCESS = mine the face - the write-off row's FIRST live WHY-tagged output (expect 'F15 ... night' forms if the night holds again); FAILURE = job logs. (2) gate run for 6d57d5a rides alongside. (3) fronts: fastdig churn bound, seed/ libs audit, integration harness bounds, whale-class pre-deadline bank cadence (v0.140.1-priced). (4) version 0.555.0 (origin x3; expect #47). Identity: PLANETA9091.
