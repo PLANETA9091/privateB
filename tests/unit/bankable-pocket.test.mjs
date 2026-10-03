@@ -116,3 +116,18 @@ test('the wiring: the two pricing joins and the gap row read the bankable sum wi
   // the old raw-denominator shapes must not return
   assert.doesNotMatch(src, /pocketTotals\(\[\.\.\.bots\.values\(\)\]\.map\(e => e\.miner\)\.filter\(Boolean\)\)\.units/)
 })
+
+// (v0.530.0) THE SIBLING'S BYTE AT THE FINAL BANK: the end-phase's own bankable
+// gate rides the v0.36.0 helper's junk-safe byte - the bare duplicate died. A
+// dead pocket read at end-of-run landed in the attempt's reconnect catch (the
+// silent end-phase death: no final bank, no verdict lines, 'unknown' in lastWhy).
+test('the end-phase bankable rides the junk-safe sibling byte (the final bank keeps no bare pocket read)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the end-phase gate composes the entity guard with the sibling helper (ONE shape)
+  assert.match(src, /const bankable = miner\.bot\.entity && bankableNow\(\)/)
+  // the DEPOSIT_KEEP predicate now lives ONLY inside the junk-safe helper:
+  // exactly one occurrence, wrapped in try/catch (the sibling-shape law, one byte both sides)
+  const hits = src.match(/miner\.bot\.inventory\.items\(\)\.some\(i => !DEPOSIT_KEEP\.some\(k => i\.name\.includes\(k\)\)\)/g) || []
+  assert.equal(hits.length, 1)
+  assert.match(src, /try \{ return miner\.bot\.inventory\.items\(\)\.some\(i => !DEPOSIT_KEEP\.some\(k => i\.name\.includes\(k\)\)\) \} catch \{ return false \}/)
+})

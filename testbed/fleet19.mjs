@@ -2690,8 +2690,15 @@ async function runBot (name, target, index) {
       // end-of-run banking: after the deadline the pockets still hold loot that would
       // otherwise be lost when the bot quits - one final walk to the chests. Skipped
       // when only KEEP-list items remain (a pointless walk to the yard costs minutes).
-      const bankable = miner.bot.entity &&
-        miner.bot.inventory.items().some(i => !DEPOSIT_KEEP.some(k => i.name.includes(k)))
+      // (v0.530.0) THE SIBLING'S BYTE AT THE FINAL BANK: the v0.36.0 bankableNow
+      // helper IS this check's junk-safe mirror (its docblock says so) - the bare
+      // duplicate stayed live here, and a dead pocket read at end-of-run landed in
+      // the attempt's reconnect catch: no final bank, no doom-latch/night-hold
+      // verdict lines, the error classified 'unknown' (the silent end-phase death),
+      // a fresh login burned on a deadline already spent. The unreadable pocket
+      // reads nothing-to-bank - the shape the empty pocket already runs - never a
+      // reconnect. One byte, both sides (the sibling-shape law restored by scope).
+      const bankable = miner.bot.entity && bankableNow()
       // (v0.140.1) THE NIGHT HOLD - the final-bank wave is the surface kill site.
       // MEASURED (run554, 35974993311, the v0.139.0 fleet): FIVE bots were shot
       // by skeletons in the end-phase wave in rapid succession (F2 [-96,66,396],
