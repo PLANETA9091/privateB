@@ -13892,3 +13892,19 @@ Work Log:
 Stage Summary:
 - Master = c1729fb (pkg 0.562.0). The shed tree PROVEN; plan + pricer sit together (the whale cure's two pure legs); the lane's fleet flies the census tree.
 - NEXT FIRE: (1) the lane's fleet 37134090209 verdict: GREEN = mine the artifact (the display floor's first flight, the smelt census's first field row, the rate's fourth point, the crater's fourth decode). (2) My gate (c1729fb). (3) The consult seat (dusk first, shed with the priced trip) - the whale cure's third leg. (4) Version next 0.563.0 (origin x3; explicit paths; commit-before-rebase; the lane is HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0030
+Agent: Super Z (main)
+Task: fire 0030 (cron 414125) - v0.563.0 THE DOOM-OWNER MAP (the 0000 fire's interrupted work landed)
+
+Work Log:
+- SESSION RESUME: fire 0000 died mid-fire (tool gateway 403) AFTER the green battery and BEFORE the commit; the tree survived (4 files, 142 insertions). Re-verified: syntax 436/0; unit 246/246 PASSED. Server DOWN -> integration skip honest. Origin = 8e88b3f (pkg 0.562.0), slot 0.563.0 free, NO collision #50; the lane's c1729fb (bankshed only) never overlapped my seat.
+- Front (the recorded 'crater census map'): THE DOOM-OWNER ROW - the census names the top WALKER overall, the why row names the dominant CLASS overall (fleet 37130962121: stalled 14/27 = 51.9%), and the face never read who owns THAT class. doomOwnerRow (pocketline.mjs) reduces the CLASS|WALKER composite with the why row's own tie law and names the dominant class's top walker; the census's own grain floor + half boundary + byte-stable walker ties; junk never enters; silent on healthy runs; print after the doom-why row. THE WIRE: finalBankDoomOwner Map fed AT the why ledger's own increment seat (one seat, one extra set - the dominant class cannot split between the siblings, by construction).
+- Tests: 5 pins (live shape; half boundary; THE SIBLING PIN - dominant class agrees with the why row; leanness + junk; THE WIRING PIN). The exact-import regression pin re-aimed. Commit 36660be, push CLEAN attempt 1.
+- VERDICTS: fleet 37134090209 (8fa26ba, v0.561.0) COMPLETED SUCCESS - the smelt refusal census's FIRST LIVE RIDE ('machine unreachable 31, cannot open 1 of 32 refused attempts' - the predicted class dominant, EXACT); the doom why row's SECOND stalled sighting (11/21 = 52.4% - the class is chronic); the why book complete again (11 holders, 7 classes, ZERO silent strands); unaccounted=0; bank flow 0.4u/s honest. Gate 37134457493 (8e88b3f, worklog-only) FAILED in Integration - 'productivity.test.mjs hung, killed at 420s' at TAP START (zero subtests, the bot never spawned): the v0.562.0 diff is a pure unwired lib, the v0.561.0 integration passed 18 min earlier -> runner flake, not a tree regression; my gate arbitrates.
+- DISPATCH: lawful (37134090209 completed, none active) -> POST 204 -> fleet 37137513524 in_progress on 36660be (the FIRST fleet carrying THE DOOM-OWNER MAP).
+
+Stage Summary:
+- Master = 36660be (pkg 0.563.0). The smelt census named its tax live; the doom owner row flies next.
+- NEXT FIRE: (1) read gate 37137438974 + fleet 37137513524 (36660be): SUCCESS = mine the face - expect the doom owner row's FIRST RIDE (the owner map reads WHO owns the stalled ~52% class; top owner >= half the class = one walker's own path, spread = the fleet-wide grind), smelt census's second ride, zero silent strands. (2) If my gate's integration hangs like the lane's: re-run via API and read two hangs as a tree-level flake worth its own atom. (3) The chronic stalled class is the crater's owner - the stall cure is the next BIG front (the owner map's verdict first). (4) Version 0.564.0 (origin x3; lane HOT). Identity: PLANETA9091.
