@@ -2554,14 +2554,21 @@ async function runBot (name, target, index) {
         // clock stays the recovery lane's (the wood famine's own gate). The
         // lines are direct fleet-level prints (the commons' own lane - the
         // ration's eat lines keep riding the 'ration' filter key).
+        // (v0.527.0) THE PICK JOINS THE JUNK-SAFE READ: hasPickNow() was the
+        // wire's one BARE inventory read - a dead read in the death/respawn
+        // window threw THROUGH the mining-loop iteration, the exact class the
+        // read below refuses ("a dead read returns null and never arms" - the
+        // plate+hunger read was wrapped, the pick was not). The wood trip's
+        // own byte: the pick rides the pocket snapshot, a dead read anywhere
+        // skips the whole ask (the conservative shape).
         const foodPocket = (() => {
-          try { return { plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN } } catch { return null }
+          try { return { plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN, pick: hasPickNow() } } catch { return null }
         })()
         if (foodPocket) {
           const foodVerdict = foodFamineDue({
             plateCount: foodPocket.plate,
             hunger: foodPocket.hunger,
-            hasPick: hasPickNow(),
+            hasPick: foodPocket.pick,
             msSinceLast: Date.now() - lastFoodAt,
             remainingMs: deadline - Date.now(),
             timeOfDay: miner.bot.time?.timeOfDay

@@ -369,7 +369,8 @@ test('the famine band IS the ration band - the two libs never drift', () => {
 
 test('fleet19 famine wire: the loop trip rides the wood famine\'s shape and returns to the column', () => {
   assert.ok(fleetSrc.includes('foodFamineDue({'), 'the pure verdict drives the wire')
-  assert.ok(fleetSrc.includes('plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN'), 'the plate + hunger read is junk-safe at the wire')
+  assert.ok(fleetSrc.includes('plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN, pick: hasPickNow()'), 'the plate + hunger + pick read is junk-safe at the wire (the v0.527.0 pick joins the snapshot)')
+  assert.ok(fleetSrc.includes('hasPick: foodPocket.pick'), 'the verdict reads the pick through the same junk-safe snapshot - the food trip keeps no bare inventory read (a dead read skips, never throws through the loop)')
   assert.ok(fleetSrc.includes("ensureSurface('food trip')"), 'the climb is the wood trip\'s own mechanic')
   assert.ok(fleetSrc.includes('food trip: famine (hunger '), 'the due line names the shape (the field\'s first read)')
   assert.ok(fleetSrc.includes('food trip: deferred night'), 'the night hold names itself once per night')
