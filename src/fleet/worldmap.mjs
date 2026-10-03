@@ -3,6 +3,7 @@
 // where to dig - they discover it themselves.
 import fs from 'node:fs'
 import { Vec3 } from 'vec3'
+import { writeFileAtomic } from '../lib/atomicsave.mjs'
 
 export class WorldMap {
   constructor ({ file = null, worldKey = null } = {}) {
@@ -159,7 +160,12 @@ export class WorldMap {
       payload.found[name] = [...bucket.values()].map(e => [e.pos.x, e.pos.y, e.pos.z])
       written += payload.found[name].length
     }
-    fs.writeFileSync(this.file, JSON.stringify(payload))
+    // (v0.549.0) THE WORLDMAP SEAL: tmp sibling + rename - a mid-write death can no
+    // longer truncate the fleet's persisted knowledge under its own name (the
+    // reader was already junk-safe, but a truncated file still reads as null and
+    // the whole map is silently forgotten on the next boot - now the final path
+    // carries the old whole map or the new whole map, never a hybrid)
+    writeFileAtomic(this.file, JSON.stringify(payload))
     return { merged, written }
   }
 

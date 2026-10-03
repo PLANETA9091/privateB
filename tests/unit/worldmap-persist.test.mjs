@@ -205,3 +205,58 @@ test('startAutosave is idempotent and refuses a map without a file', async () =>
   assert.equal(noFile.startAutosave(), false, 'nothing to save without a file')
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+// (v0.549.0) THE WORLDMAP SEAL - the fleet's persisted knowledge never lands
+// half-written. THE SEAM: save() wrote the map with a naked writeFileSync -
+// NOT atomic, so the OOM killer / hard kill / any crash landing MID-WRITE left
+// a TRUNCATED map under its own name; the reader (#readDiskPayload) was
+// already junk-safe, but a truncated file still reads as null and the WHOLE
+// map is silently forgotten on the next boot - the knowledge side of the
+// frozen book. THE WIRE: the 0.547.0 report seal composes - writeFileAtomic
+// (tmp sibling + POSIX rename) carries the map onto its final name
+// whole-or-nothing; a death mid-write leaves only the honestly-named .tmp junk.
+import { readFileSync } from 'node:fs'
+const worldmapSrc = readFileSync(new URL('../../src/fleet/worldmap.mjs', import.meta.url), 'utf8')
+
+test('THE SEAL: save() rides writeFileAtomic - the naked map write is gone, the wiring is one site', () => {
+  assert.ok(
+    worldmapSrc.includes("import { writeFileAtomic } from '../lib/atomicsave.mjs'"),
+    'the seal import present (the src/fleet -> src/lib edge materialplan already rides)'
+  )
+  assert.equal(
+    (worldmapSrc.match(/fs\.writeFileSync\(this\.file/g) || []).length,
+    0,
+    'ZERO naked writeFileSync to the map path - the truncated-knowledge class is dead'
+  )
+  assert.equal(
+    (worldmapSrc.match(/writeFileAtomic\(this\.file, JSON\.stringify\(payload\)\)/g) || []).length,
+    1,
+    'exactly one sealed write site - the autosave rides the same save()'
+  )
+})
+
+test('THE SEAL: a save leaves no .tmp sibling - the rename consumed it, the map reads back whole', () => {
+  const dir = tmpDir()
+  const file = path.join(dir, 'map.json')
+  const m = new WorldMap({ file, worldKey: 'seed-9' })
+  m.add('coal_ore', { x: 3, y: 20, z: 4 })
+  const r = m.save()
+  assert.equal(r.written, 1)
+  assert.equal(fs.existsSync(file + '.tmp'), false, 'the tmp sibling is gone after the rename')
+  const back = new WorldMap({ file, worldKey: 'seed-9' })
+  assert.equal(back.size('coal_ore'), 1, 'the map reads back whole through the normal loader')
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('THE SEAL: the stale tmp of a dead run is consumed by the next save', () => {
+  const dir = tmpDir()
+  const file = path.join(dir, 'map.json')
+  fs.writeFileSync(file + '.tmp', '{"version":2,"found":{"sand":[[9') // the truncation a mid-write death leaves
+  const m = new WorldMap({ file })
+  m.add('iron_ore', { x: 7, y: 12, z: 8 })
+  m.save()
+  assert.equal(fs.existsSync(file + '.tmp'), false, 'the dead run leftover consumed by the rename')
+  const back = new WorldMap({ file })
+  assert.equal(back.size('iron_ore'), 1, 'the new map landed whole over the junk')
+  fs.rmSync(dir, { recursive: true, force: true })
+})
