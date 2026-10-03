@@ -155,6 +155,39 @@ export function smeltRefusalCensusRow (entries) {
   return `smelt refusal census: ${top} of ${total} refused attempt${total === 1 ? '' : 's'} - the smelt chain names its tax`
 }
 
+// (v0.566.0) THE NO-FUEL ANATOMY - the census names the classes but the
+// dominant one reads blind: 'no fuel' topped two straight fleets (4 of 9,
+// then 6 of 7) and the face never said WHERE the fuel sat. A pocket that
+// carried fuel at the refusal means the fuel never reached the machine (the
+// delivery is the front); a dry pocket means the fleet itself is dry (the
+// fuel supply is the front) - the cures point OPPOSITE ways, so the anatomy
+// books the refusing bot's own pocket state AT the refusal moment (the
+// pickFuel read - the same planner the smelt reserve gates with) beside the
+// census's own feed. Byte-stable by construction: the split prints in fixed
+// carried-then-dry order (the split IS the data - a count sort would flip it
+// run to run) and the verdict reads the majority (a tie reads both fronts).
+// Junk law: a junk state or count never enters (the feed cannot produce
+// junk - the seat computes the boolean itself). Leanness: a run with zero
+// no-fuel refusals prints nothing.
+export function smeltNoFuelAnatomyRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if ((e?.state !== 'carried' && e?.state !== 'dry') || c === 0) continue
+    acc.set(e.state, (acc.get(e.state) || 0) + c)
+  }
+  const carried = acc.get('carried') || 0
+  const dry = acc.get('dry') || 0
+  const total = carried + dry
+  if (total === 0) return null
+  const verdict = carried > dry
+    ? 'the fuel rides the pockets and never reaches the machines - the delivery is the front'
+    : (dry > carried
+        ? 'the pockets are as dry as the machines - the fuel supply is the front'
+        : 'the split reads both fronts')
+  return `smelt no-fuel anatomy: carried ${carried}, dry ${dry} of ${total} no-fuel refusal${total === 1 ? '' : 's'} - ${verdict}`
+}
+
 // (v0.92.0) THE MACHINE DOOM TTL - a machine cell's doomed verdict lives 15s,
 // not the chest ledger's 45/90s. Run81 measured the cost of the long verdicts
 // on machines: F4 tried FIFTEEN bay machines, every walk refused 'doomed goal

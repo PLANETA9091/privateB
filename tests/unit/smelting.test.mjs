@@ -18,6 +18,7 @@ import {
   sweepCensusLine,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltRefusalCensusRow, SMELT_CENSUS_TOP,
+  smeltNoFuelAnatomyRow,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
@@ -2163,4 +2164,67 @@ test('smeltRefusalCensusRow: THE WIRING PIN - the honest zero feeds the census, 
   const printIdx = src.indexOf('const smeltCensus = smeltRefusalCensusRow')
   const doomWhyIdx = src.indexOf("const doomWhy = doomWhyRow")
   assert.ok(printIdx > doomWhyIdx, 'the census prints after the doom-why row')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.566.0) THE NO-FUEL ANATOMY - the census's dominant class read blind:
+// 'no fuel' topped two straight fleets (4 of 9, then 6 of 7) and the face
+// never said WHERE the fuel sat. A carried pocket indicts the delivery (the
+// fuel never reached the machine); a dry pocket indicts the supply (the
+// fleet itself is dry) - the cures point OPPOSITE ways. The row books the
+// refusing bot's own pickFuel state AT the refusal moment, beside the
+// census's own feed.
+// ---------------------------------------------------------------------------
+test('smeltNoFuelAnatomyRow: THE LIVE DATUM - the fleet 37139721807 face rides the anatomy', () => {
+  // the third census read 'no fuel 6, cannot open 1 of 7' - the anatomy books
+  // the 6 no-fuel refusals; this face's verdict reads the supply front
+  const v = smeltNoFuelAnatomyRow([{ state: 'dry', count: 6 }])
+  assert.equal(v, 'smelt no-fuel anatomy: carried 0, dry 6 of 6 no-fuel refusals - the pockets are as dry as the machines - the fuel supply is the front')
+})
+
+test('smeltNoFuelAnatomyRow: the delivery shape and the tie - the verdict reads the majority', () => {
+  // a carried pocket at the refusal means the fuel never reached the machine
+  const v = smeltNoFuelAnatomyRow([{ state: 'carried', count: 4 }])
+  assert.equal(v, 'smelt no-fuel anatomy: carried 4, dry 0 of 4 no-fuel refusals - the fuel rides the pockets and never reaches the machines - the delivery is the front')
+  // the split IS the data - fixed carried-then-dry order even on a tie
+  const t = smeltNoFuelAnatomyRow([{ state: 'carried', count: 2 }, { state: 'dry', count: 2 }])
+  assert.equal(t, 'smelt no-fuel anatomy: carried 2, dry 2 of 4 no-fuel refusals - the split reads both fronts')
+  // the singular form keeps the census's own law
+  const one = smeltNoFuelAnatomyRow([{ state: 'carried', count: 1 }])
+  assert.equal(one, 'smelt no-fuel anatomy: carried 1, dry 0 of 1 no-fuel refusal - the fuel rides the pockets and never reaches the machines - the delivery is the front')
+  // duplicate same-state entries merge - the face never prints a bucket twice
+  const m = smeltNoFuelAnatomyRow([{ state: 'dry', count: 1 }, { state: 'dry', count: 2 }])
+  assert.equal(m, 'smelt no-fuel anatomy: carried 0, dry 3 of 3 no-fuel refusals - the pockets are as dry as the machines - the fuel supply is the front')
+})
+
+test('smeltNoFuelAnatomyRow: THE LEANNESS LAW and the junk battery', () => {
+  // empty / junk entries read silence - a run with zero no-fuel refusals never prints
+  assert.equal(smeltNoFuelAnatomyRow([]), null)
+  assert.equal(smeltNoFuelAnatomyRow('junk'), null)
+  assert.equal(smeltNoFuelAnatomyRow(), null)
+  assert.equal(smeltNoFuelAnatomyRow([{ state: 'dry', count: 0 }]), null)
+  assert.equal(smeltNoFuelAnatomyRow([{ state: 'dry', count: -3 }]), null)
+  assert.equal(smeltNoFuelAnatomyRow([{ state: 'dry', count: NaN }]), null)
+  // a junk state never enters - the feed computes the boolean itself, a direct
+  // caller's junk is not the face's data (never a phantom refusal)
+  assert.equal(smeltNoFuelAnatomyRow([{ state: 'soaked', count: 2 }]), null)
+  assert.equal(smeltNoFuelAnatomyRow([{ state: null, count: 2 }, { state: 42, count: 1 }]), null)
+})
+
+test('smeltNoFuelAnatomyRow: THE WIRING PIN - the pickFuel read rides the census feed, the face reads the split', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the import carries the anatomy
+  assert.match(src, /smeltNoFuelAnatomyRow[\s\S]*?from '\.\.\/src\/lib\/smelting\.mjs'/)
+  assert.match(src, /const finalSmeltNoFuel = new Map\(\)/)
+  // the feed sits INSIDE the census's own loop, guarded on the stable head -
+  // the pocket state is read AT the refusal moment, never reconstructed
+  const censusFeedIdx = src.indexOf('finalSmeltRefusals.set(sr, (finalSmeltRefusals.get(sr) || 0) + 1)')
+  const feedIdx = src.indexOf("finalSmeltNoFuel.set(fuelState, (finalSmeltNoFuel.get(fuelState) || 0) + 1)")
+  assert.ok(feedIdx > censusFeedIdx, 'the anatomy feed rides the census feed')
+  assert.match(src, /if \(sr === 'no fuel'\) \{[\s\S]*?pickFuel\(miner\.bot, \{ itemsNeeded: 1 \}\)/)
+  // the print rides the report block right after the census row
+  const censusIdx = src.indexOf('if (smeltCensus) console.log(smeltCensus)')
+  const printIdx = src.indexOf('if (smeltNoFuel) console.log(smeltNoFuel)')
+  assert.ok(printIdx > censusIdx, 'the anatomy prints after its census - the sibling law')
+  assert.ok(src.includes('THE NO-FUEL ANATOMY'), 'the wiring carries its own doctrine comment')
 })
