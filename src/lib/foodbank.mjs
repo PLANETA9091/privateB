@@ -17,11 +17,14 @@
 // tail - the bot STANDS at the yard (the walk is sunk cost), the plate read
 // is `pocketFood(bot) === 0` (the armed-ration starvation shape the 0.516.0
 // comment named: the eater is on, the pocket reads nothing). The mid-field
-// hungry ask (a recover() window walking the yard from a shaft) is NOT this
-// slice: the fuel commons' own ledger priced that walk (60 sweeps, 0
-// deliveries, one body - the yard stands 20-37 levels over the asking
-// digger), and an 8s recovery window cannot fund a yard round trip. The
-// bank trip is where the yard is already paid for.
+// hungry ask (a recover() window walking the yard from a shaft) stays priced
+// OUT of the recovery lane: an 8s window cannot fund a yard round trip (the
+// fuel commons' own ledger: 60 sweeps, 0 deliveries, one body - the yard
+// stands 20-37 levels over the asking digger). The bank trip is where the
+// yard is already paid for. The ask found its FUNDED clock in the v0.524.0
+// FOOD FAMINE TRIP below: the mining loop's own trip clock (the wood
+// famine's shape - climb, sweep, return, one attempt per segment), which
+// already pays the same envelope for sticks.
 //
 // THE MACHINERY (the fuel commons' own, reused byte for byte where the law
 // is item-agnostic): the sweep memory (rememberEmptyChest/liveEmptyCells -
@@ -55,7 +58,8 @@ import { findChest, chestSlotCount, chestWalkBudgetMs, CHEST_DOOM_TTL_MS, YARD_C
 import { countItem } from './smelting.mjs'
 import { chestVerticalDoom } from './surface.mjs'
 import { pickWithdrawSlots, withdrawStackMove, newCommonsMemory, rememberEmptyChest, liveEmptyCells } from './fuelbank.mjs'
-import { ROTTEN_FLESH } from './ration.mjs'
+import { ROTTEN_FLESH, REGEN_HUNGER_FLOOR } from './ration.mjs'
+import { walkForbidden } from './nightsafety.mjs'
 
 const { goals } = pathfinderPkg
 
@@ -67,6 +71,58 @@ export const FOOD_SWEEP_CHESTS = 3
 
 /** The commons' own food order. One name: the only food a lane supplies. The ration's bans never enter (pinned cross-lane in tests). */
 export const FOOD_COMMON_ORDER = [ROTTEN_FLESH]
+
+// ---- (v0.524.0) THE FOOD FAMINE TRIP - the mid-field ask, on the loop's clock ----
+//
+// The 0.521.0 refill rides the bank trip (the yard already paid for); a bot
+// BETWEEN trips whose plate ran dry had no lane back until its pocket
+// filled. The famine trip answers with the wood famine's own shape: the
+// MINING LOOP funds the walk (it already pays climb + gather + return for
+// sticks), the verdict is pure, and the armed ration does the eating - the
+// wire only lands the food, the plugin eats on the first tick the pocket
+// holds it.
+
+/** One food trip per segment max - a failed commons sweep must not storm the loop (the cadence discipline, the wood famine's own byte). */
+export const FOOD_TRIP_EVERY_MS = 240000
+
+/** Climb out (~45s) + the commons sweep (<=20s) + the return walk (~45s) must fit. */
+export const FOOD_TRIP_MIN_REMAINING_MS = 150000
+
+/** The trip's own justification: hunger below the regen floor the bot cannot heal (the ration's band and the famine's band are ONE band - pinned cross-lib in tests). */
+export const FOOD_FAMINE_HUNGER = REGEN_HUNGER_FLOOR
+
+/**
+ * The food-famine verdict for one mining-loop iteration - the wood
+ * famine's gate ladder with the plate and the hunger as the supply read.
+ * @param {object} p
+ * @param {number} p.plateCount commons food in the pocket (pocketFood) - the
+ *   EMPTY plate is the trip's shape; a below-bound-but-biting plate rides
+ *   (the ration eats, the bank trip refills, a trip here would churn)
+ * @param {number} p.hunger the vanilla food stat (0-20) - at or above the
+ *   regen floor the bot heals itself and the ask waits
+ * @param {boolean} p.hasPick does the bot hold a pickaxe (the tool-less bot's
+ *   clock stays the recovery lane's - the wood famine's own gate)
+ * @param {number} p.msSinceLast ms since the last famine attempt (Date.now() - 0
+ *   on a fresh bot = the whole run counts as elapsed)
+ * @param {number} p.remainingMs ms left until the run's deadline
+ * @param {number} p.timeOfDay bot.time.timeOfDay (the night hold reads it)
+ * @returns {'due'|'deferred-night'|false} 'deferred-night' ONLY when the
+ *   plate is starving but the surface walk is night-gated (the loop logs it
+ *   once and keeps mining - the v0.140.1 hold shape); false = not starving
+ *   or gated.
+ */
+export function foodFamineDue ({ plateCount, hunger, hasPick, msSinceLast, remainingMs, timeOfDay, cooldownMs = FOOD_TRIP_EVERY_MS, minRemainingMs = FOOD_TRIP_MIN_REMAINING_MS } = {}) {
+  if (!hasPick) return false
+  if (!Number.isFinite(msSinceLast) || msSinceLast <= cooldownMs) return false
+  if (!Number.isFinite(remainingMs) || remainingMs <= minRemainingMs) return false
+  if (!Number.isFinite(plateCount) || plateCount !== 0) return false
+  if (!Number.isFinite(hunger) || hunger >= FOOD_FAMINE_HUNGER) return false
+  // the starving plate's surface walk is night-gated LAST (the verdict must
+  // still name the famine on the next daylight iteration - the night line is
+  // the loop's deferral log, not a silent swallow)
+  if (walkForbidden(timeOfDay)) return 'deferred-night'
+  return 'due'
+}
 
 /**
  * Pure, junk-safe: what to withdraw from ONE chest view to fill the plate.

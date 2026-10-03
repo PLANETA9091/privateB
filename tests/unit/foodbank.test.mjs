@@ -11,14 +11,16 @@ import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
 import { resetWalkGovernors } from '../../src/lib/jobqueue.mjs' // (v0.143.0) the resets drop the module-level fleet goal ceiling the wall-clock tests would otherwise burst
 import {
-  foodWithdrawPlan, pocketFood, withdrawFoodCommons,
+  foodWithdrawPlan, pocketFood, withdrawFoodCommons, foodFamineDue,
   FOOD_WITHDRAW_CAP, FOOD_SWEEP_CHESTS, FOOD_COMMON_ORDER,
+  FOOD_TRIP_EVERY_MS, FOOD_TRIP_MIN_REMAINING_MS, FOOD_FAMINE_HUNGER,
   newCommonsMemory, riderFoodAsk,
   MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, RIDER_FOOD_MIN_MS
 } from '../../src/lib/foodbank.mjs'
 import { rememberEmptyChest, liveEmptyCells } from '../../src/lib/fuelbank.mjs' // the commons' own memory laws - item-agnostic, the food book rides them
 import { foodTitheOverage, FOOD_TITHE_BOUND, KEEP } from '../../src/lib/deposit.mjs'
-import { ROTTEN_FLESH, RATION_BANNED } from '../../src/lib/ration.mjs'
+import { ROTTEN_FLESH, RATION_BANNED, RATION_MIN_HUNGER, REGEN_HUNGER_FLOOR } from '../../src/lib/ration.mjs'
+import { WOOD_TRIP_EVERY_MS, WOOD_TRIP_MIN_REMAINING_MS } from '../../src/lib/woodplan.mjs' // the famine trip rides the wood famine's own envelope - the cross-lib pins hold the byte
 
 // Unique stable numeric type per item name - window transfers match by type, and
 // a mock where two items share a type moves the WRONG stack (the deposit.test
@@ -253,7 +255,7 @@ const depositSrc = readFileSync(new URL('../../src/lib/deposit.mjs', import.meta
 const foodbankSrc = readFileSync(new URL('../../src/lib/foodbank.mjs', import.meta.url), 'utf8')
 
 test('fleet19 wire: the refill rides the bank trip\'s tail, gated on the empty plate and the slice', () => {
-  assert.ok(fleetSrc.includes("import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS } from '../src/lib/foodbank.mjs'"), 'the food commons import rides')
+  assert.ok(fleetSrc.includes("import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'"), 'the food commons import rides')
   assert.ok(fleetSrc.includes('const foodCommonsMemory = newCommonsMemory()'), 'the food book is its own book')
   assert.ok(fleetSrc.includes('pocketFood(miner.bot) === 0'), 'the ask fires on the EMPTY plate - below-bound plates never churn')
   assert.ok(fleetSrc.includes('Math.min(15000, Math.floor(remaining() / 4))'), 'the slice mirrors the fuel anchor\'s clock shape')
@@ -271,7 +273,7 @@ test('deposit wire: the tithe chain names the food arm and the log names the fam
 })
 
 test('foodbank walk: the commons grammar, the gate and the modesty stay pinned in the lib itself', () => {
-  assert.ok(foodbankSrc.includes("import { ROTTEN_FLESH } from './ration.mjs'"), 'the order reads the ration\'s own staple name - never a typo-shaped second constant')
+  assert.ok(foodbankSrc.includes("import { ROTTEN_FLESH, REGEN_HUNGER_FLOOR } from './ration.mjs'"), 'the order reads the ration\'s own staple name - never a typo-shaped second constant')
   assert.ok(foodbankSrc.includes("log('food commons: no yard chest in range')"), 'the exhausted scan names itself')
   assert.ok(foodbankSrc.includes('the walk ladder cannot climb, the plate rides (the tithe owns the refill)'), 'the vertical gate speaks the food dialect of the commons law')
   assert.ok(foodbankSrc.includes("'food commons: chest holds no food'"), 'the empty read names itself')
@@ -325,4 +327,48 @@ test('rider wire: the fleet19 resupply chain rides the paid walk, refusals stay 
   assert.ok(libSrc.includes('export function riderFoodAsk'), 'the gate lives in the food lib beside the commons it serves')
   assert.ok(libSrc.includes('a dry fuel ask pays for nothing') || libSrc.includes('A dry fuel ask pays for nothing'), 'the no-walk law is written where the gate lives')
   assert.ok(libSrc.includes('the healthy lean is silent') || libSrc.includes('the healthy lean is silent, the fuel\n// anchor\'s own law'), 'the quiet-refusal law is written in the lib')
+})
+
+// ------------------------------------------------------- foodFamineDue (v0.524.0)
+
+test('foodFamineDue: the due verdict - empty plate, no-regen hunger, daylight, a funded clock', () => {
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), 'due', 'the ration armed + the plate empty + hunger 17 = the no-regen slide - the trip is due')
+})
+
+test('foodFamineDue: the band gates - a biting plate rides, an above-floor hunger heals itself', () => {
+  assert.equal(foodFamineDue({ plateCount: 1, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'below-bound-but-biting: the ration eats, the bank trip refills - a trip here would churn')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 18, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'at the regen floor the bot heals itself - the ask waits')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 20, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'a full bar never arms the walk')
+})
+
+test('foodFamineDue: the wood famine\'s own gates - tool-less, cadence, budget', () => {
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: false, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'the tool-less bot\'s clock stays the recovery lane\'s (the wood famine\'s own gate byte)')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'one attempt per segment: msSinceLast must EXCEED the cooldown')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS, timeOfDay: 1000 }), false, 'the trip must fit: climb + sweep + return (the wood trip\'s own envelope)')
+})
+
+test('foodFamineDue: the night hold defers and junk reads never arm the trip', () => {
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 13000 }), 'deferred-night', 'the night walk is the wood trip\'s own hold (12400..23600)')
+  assert.equal(foodFamineDue({ plateCount: NaN, hunger: 17, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'a dead plate read never arms a trip')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: null, hasPick: true, msSinceLast: FOOD_TRIP_EVERY_MS + 1, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'a dead hunger read never arms a trip')
+  assert.equal(foodFamineDue({ plateCount: 0, hunger: 17, hasPick: true, msSinceLast: NaN, remainingMs: FOOD_TRIP_MIN_REMAINING_MS + 1, timeOfDay: 1000 }), false, 'a dead clock never arms a trip')
+})
+
+test('the famine band IS the ration band - the two libs never drift', () => {
+  assert.equal(FOOD_FAMINE_HUNGER, RATION_MIN_HUNGER, 'the famine fires where the ration would eat: ONE band')
+  assert.equal(FOOD_FAMINE_HUNGER, REGEN_HUNGER_FLOOR, 'the band is the vanilla regen floor (18)')
+  assert.equal(FOOD_TRIP_EVERY_MS, WOOD_TRIP_EVERY_MS, 'the cadence discipline is the wood famine\'s own byte')
+  assert.equal(FOOD_TRIP_MIN_REMAINING_MS, WOOD_TRIP_MIN_REMAINING_MS, 'the trip envelope is the wood famine\'s own byte')
+})
+
+test('fleet19 famine wire: the loop trip rides the wood famine\'s shape and returns to the column', () => {
+  assert.ok(fleetSrc.includes('foodFamineDue({'), 'the pure verdict drives the wire')
+  assert.ok(fleetSrc.includes('plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN'), 'the plate + hunger read is junk-safe at the wire')
+  assert.ok(fleetSrc.includes("ensureSurface('food trip')"), 'the climb is the wood trip\'s own mechanic')
+  assert.ok(fleetSrc.includes('food trip: famine (hunger '), 'the due line names the shape (the field\'s first read)')
+  assert.ok(fleetSrc.includes('food trip: deferred night'), 'the night hold names itself once per night')
+  assert.ok(fleetSrc.includes('lastFoodAt = Date.now()'), 'the cadence clock resets on EVERY attempt - a failed sweep must not retry-storm the loop')
+  assert.ok(fleetSrc.includes('withdrawFoodCommons(miner.bot, { yardCenter: yardGoal, memory: foodCommonsMemory, budgetMs: 20000'), 'the walk rides the food book (the commons\' own memory)')
+  assert.ok(fleetSrc.includes('food trip: 0 (climb refused)'), 'a refused climb names itself - the silent-exit class stays dead')
+  assert.ok((fleetSrc.match(/return to column/g) || []).length >= 2, 'BOTH famine legs return to the dig column (wood + food)')
 })

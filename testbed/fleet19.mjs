@@ -37,7 +37,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
-import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS } from '../src/lib/foodbank.mjs'
+import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
@@ -1318,6 +1318,8 @@ async function runBot (name, target, index) {
       }
       let dragonEvacAnnounced = false // (v0.225.0) the zone-entry story: one line per entry, the flag resets when the bot reads out
       let lastWoodAt = 0 // (v0.179.0) stick-famine cadence: 0 = the whole run counts as elapsed (a starving pocket trips on the first daylight check)
+      let lastFoodAt = 0 // (v0.524.0) food-famine cadence: 0 = the whole run counts as elapsed (an empty plate in the no-regen band trips on the first daylight check)
+      let lastFoodNightLog = 0 // (v0.524.0) one deferral line per night per bot (the lastNightLog discipline)
       const veerSkipped = new Set() // (v0.18.8) ore positions this bot already steered at and did not reach
       const tierDeferSeen = new Set() // (v0.252.0) the tier-defer steer's memory: one verdict line per ore name per trip (the lastNightLog shape)
       const hazardDeferSeen = new Set() // (v0.253.0) the hazard-defer steer's memory: one verdict line per held/tail pos per trip
@@ -2529,6 +2531,55 @@ async function runBot (name, target, index) {
               } catch { /* dig from wherever the return walk reached */ }
             } else {
               console.log(`${name} wood trip: 0 (climb refused)`)
+            }
+          }
+        }
+        // (v0.524.0) THE FOOD FAMINE TRIP - the mid-field hungry ask, priced
+        // the only way the ledger funds: the LOOP's own trip clock (the wood
+        // famine's shape above), never the 8s recovery window (the
+        // foodbank.mjs header priced that out by arithmetic). The shape: the
+        // ration armed + the plate EMPTY + hunger below the regen floor (18)
+        // = a bot that cannot heal AND cannot eat - the no-regen slide the
+        // 0.516.0 keep named. The trip climbs once, withdraws from the
+        // commons chests (the 0.521.0 walk, the food memory), and returns to
+        // the column; the armed ration eats on the first tick the pocket
+        // holds food. One attempt per segment (the cadence discipline), the
+        // night hold defers (the wood trip's own byte), the tool-less bot's
+        // clock stays the recovery lane's (the wood famine's own gate). The
+        // lines are direct fleet-level prints (the commons' own lane - the
+        // ration's eat lines keep riding the 'ration' filter key).
+        const foodPocket = (() => {
+          try { return { plate: pocketFood(miner.bot), hunger: miner.bot.food ?? NaN } } catch { return null }
+        })()
+        if (foodPocket) {
+          const foodVerdict = foodFamineDue({
+            plateCount: foodPocket.plate,
+            hunger: foodPocket.hunger,
+            hasPick: hasPickNow(),
+            msSinceLast: Date.now() - lastFoodAt,
+            remainingMs: deadline - Date.now(),
+            timeOfDay: miner.bot.time?.timeOfDay
+          })
+          if (foodVerdict === 'deferred-night') {
+            if (Date.now() - lastFoodNightLog > 60000) {
+              lastFoodNightLog = Date.now()
+              console.log(`${name} food trip: deferred night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}, hunger ${foodPocket.hunger}, plate 0) - the commons walk at dawn`)
+            }
+          } else if (foodVerdict === 'due') {
+            lastFoodAt = Date.now() // resets on EVERY attempt - a failed sweep must not retry-storm the loop
+            console.log(`${name} food trip: famine (hunger ${foodPocket.hunger}, plate 0) - the commons walk`)
+            const preFood = miner.bot.entity.position.clone()
+            if (await ensureSurface('food trip')) {
+              try {
+                const food = await withdrawFoodCommons(miner.bot, { yardCenter: yardGoal, memory: foodCommonsMemory, budgetMs: 20000, log: m => console.log(`${name} ${m}`) })
+                if (food.taken > 0) console.log(`${name} food trip: the plate holds ${pocketFood(miner.bot)} - the ration eats`)
+                else console.log(`${name} food trip: 0 (${food.reason}) - the plate rides to the next bank trip`)
+              } catch (e) { console.log(`${name} food trip failed: ${e?.message || e}`) }
+              try {
+                await gotoSafe(miner.bot, standGoalNear(miner.bot, goals, preFood.x, preFood.y, preFood.z, { range: 4 }), { timeoutMs: 60000, label: 'return to column' })
+              } catch { /* dig from wherever the return walk reached */ }
+            } else {
+              console.log(`${name} food trip: 0 (climb refused)`)
             }
           }
         }
