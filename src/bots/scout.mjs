@@ -12,6 +12,8 @@ import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
 import { attachChatSync } from '../fleet/chatsync.mjs'
 import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.528.0) THE HEDGE PANTRY's eating leg - the SAME policy object the miner's ration wires (one doctrine)
 import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, berryHarvestDue, pocketBerries, pickBush } from '../lib/berry.mjs'
+import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - the SHARED death-drop format (the fleet's death ledger reads one shape)
+import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -88,6 +90,55 @@ export function createBerryStop ({ bot, log = () => {} } = {}) {
   }
 }
 
+// ---- (v0.531.0) THE GET-UP - the scout's death leg ----
+// The miner's death economy never reached the scout: mineflayer does NOT
+// auto-respawn, and the scout wires no 'death' handler at all - a dead scout
+// stays on the death screen for the run's remainder (the fleet19 while keeps
+// re-checking scout.bot.entity, which stays truthy on the death screen, so
+// the patrol burns every remaining second walking a corpse - each leg eats
+// its full goto timeout on a bot that cannot move), zero cause line, zero
+// drop accounting - the map's only writer dies silently. THE WIRE is the
+// miner's death leg priced down to what this bot owns:
+// - the server's death line (the chat parse, deathcause.mjs) is the ONLY
+//   authority the scout has - no combat sentry, no lastHarm, no inference
+//   half; the v0.117.0 doctrine holds (the server kind outranks everything,
+//   a fresh line rides the same 6s window), and no line reads honestly as
+//   'no readable server line' - never a fake cause;
+// - the pocket snapshot rides the SHARED deathDropLine format (statcarry.mjs)
+//   - the fleet's death ledger reads one format, the scout's berry pocket
+//   dies accounted like the miner's ore;
+// - the respawn byte is the miner's exact shape (1s delayed bot.respawn,
+//   guarded - a client this dead never throws).
+// THE DOCTRINE holds: a death handler must never walk - record and respawn
+// only. The respawned scout re-enters the patrol (the fleet19 while
+// re-checks the deadline), the pantry re-gathers the lost berries (the
+// 0.528.0 band reads the empty pocket), the legs self-heal.
+// Exported so unit tests drive it with a mock bot, exactly the
+// createScan/createBerryStop contract.
+export function createDeathWatch ({ bot, tag = '[scout]', stats = { deaths: 0 }, log = () => {} } = {}) {
+  let serverDeath = null
+  bot.on('message', (msg) => {
+    try {
+      const text = typeof msg === 'string' ? msg : (msg?.toString?.() ?? null)
+      const p = parseDeathMessage(text, bot.username ?? null)
+      if (p) serverDeath = { ...p, at: Date.now() }
+    } catch { /* a chat listener must never throw */ }
+  })
+  bot.on('death', () => {
+    try {
+      stats.deaths = (stats.deaths ?? 0) + 1
+      const fresh = serverDeath && Date.now() - serverDeath.at < 6000
+      const cause = fresh
+        ? `server: ${serverDeath.verb} [kind=${serverDeath.kind}${serverDeath.attacker ? ` by ${serverDeath.attacker}` : ''}]`
+        : 'no readable server line (the scout has no inference sentry)'
+      log(`${tag} died - respawning (cause: ${cause})`)
+      const drop = deathDropLine({ tag, pos: bot.entity?.position, items: bot.inventory?.items?.() ?? null })
+      if (drop) log(drop)
+    } catch { /* a death handler must never throw */ }
+    setTimeout(() => { try { bot.respawn?.() } catch { /* server respawns us anyway */ } }, 1000)
+  })
+}
+
 export function createScout ({
   host = '127.0.0.1',
   port = 25565,
@@ -132,7 +183,13 @@ export function createScout ({
       log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
     } catch { /* gone */ }
   })
-  const stats = { scans: 0, found: 0, travelled: 0 }
+  const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  // (v0.531.0) THE GET-UP's wire - the death leg rides the same stats object
+  // (deaths joins scans/found/travelled in the run's report), the chat
+  // listener registers at build time (before any patrol - the v0.117.0
+  // window opens with the bot's own chat), the tag rides the SAME raw log
+  // the ration lines use (the line carries its own tag, never wrapped).
+  createDeathWatch({ bot, tag, stats, log })
   const sync = syncChat ? attachChatSync(bot, map, { flushEveryMs: 4000, maxPerFlush: 40, log: m => log(`${tag} ${m}`) }) : null
 
   bot.on('error', e => log(`${tag} error: ${e.message}`))

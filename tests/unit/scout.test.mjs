@@ -148,3 +148,130 @@ test('patrol respects the deadline even when the bot cannot move', async () => {
   assert.ok(secs < 5, `a stuck scout must give up at the deadline, took ${secs.toFixed(1)}s`)
   assert.ok(stats.scans >= 1, 'even a stuck scout scans where it stands')
 })
+
+// ---- (v0.531.0) THE GET-UP - the scout's death leg ----
+// A dead scout never got up: no 'death' handler, no respawn byte (mineflayer
+// does NOT auto-respawn), no cause line, no drop accounting - the map's only
+// writer died silently and the patrol burned the run's remainder on a corpse.
+// The watch is driven here with a mock bot, exactly the createScan contract.
+import { EventEmitter } from 'node:events'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { createDeathWatch } from '../../src/bots/scout.mjs'
+
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+function makeDeathBot ({ username = 'FleetScout', items = null, pos = new Vec3(-12.5, 64, 300.5), respawnThrows = false } = {}) {
+  const bot = new EventEmitter()
+  bot.username = username
+  bot.entity = pos ? { position: pos } : null
+  bot.inventory = items === null ? null : { items: () => items }
+  bot.respawnCalls = 0
+  bot.respawn = () => {
+    bot.respawnCalls++
+    if (respawnThrows) throw new Error('client this dead never throws back')
+  }
+  return bot
+}
+
+test('death watch: a dead scout gets up - the death line, the count, the respawn byte', async () => {
+  const bot = makeDeathBot()
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death')
+  assert.equal(stats.deaths, 1, 'the death must be counted')
+  assert.equal(lines.length, 1, 'no server line, an empty-null pocket - exactly one line')
+  assert.match(lines[0], /\[FleetScout\] died - respawning \(cause: no readable server line/)
+  await sleep(1100)
+  assert.equal(bot.respawnCalls, 1, 'the miner\u0027s exact byte: 1s delayed respawn')
+})
+
+test('death watch: the server line is the authority (the v0.117.0 doctrine, priced to this bot)', async () => {
+  const bot = makeDeathBot()
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('message', 'FleetScout was slain by Zombie')
+  bot.emit('death')
+  assert.match(lines[0], /cause: server: was slain by Zombie \[kind=mob by Zombie\]/, 'the server kind rides the miner\u0027s shape')
+})
+
+test('death watch: a join line and another bot\u0027s death never claim this bot', async () => {
+  const bot = makeDeathBot()
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('message', 'FleetScout joined the game') // the NOT_DEATH guard: not a death
+  bot.emit('message', 'F2 was slain by Zombie') // the fleet shares one chat: another bot's line
+  bot.emit('death')
+  assert.match(lines[0], /cause: no readable server line/, 'junk claims degrade to the honest no-line verdict, never a fake cause')
+})
+
+test('death watch: the pocket dies accounted in the SHARED format', async () => {
+  const bot = makeDeathBot({ items: [{ name: 'sweet_berries', count: 6 }, { name: 'dirt', count: 2 }] })
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death')
+  assert.equal(lines.length, 2)
+  assert.match(lines[1], /death drop: ~8u lost at \[-13,64,300\] \(sweet_berries 6, dirt 2\)/, 'the fleet\u0027s death ledger reads one format - the berry pocket like the miner\u0027s ore')
+})
+
+test('death watch: an empty pocket prints the shared zero line, a dead inventory prints none', async () => {
+  const bot = makeDeathBot({ items: [] })
+  const lines = []
+  createDeathWatch({ bot, tag: '[FleetScout]', stats: { deaths: 0 }, log: m => lines.push(m) })
+  bot.emit('death')
+  assert.match(lines[1], /death drop: pocket read empty at death \(0u\)/, 'the zero is a readable zero')
+  const bot2 = makeDeathBot() // inventory null - the read itself is gone
+  const lines2 = []
+  createDeathWatch({ bot: bot2, tag: '[FleetScout]', stats: { deaths: 0 }, log: m => lines2.push(m) })
+  bot2.emit('death')
+  assert.equal(lines2.length, 1, 'no readable pocket, no fake drop line')
+})
+
+test('death watch: the handler never throws - a junk world and a throwing respawn still get up', async () => {
+  const bot = makeDeathBot({ pos: null, respawnThrows: true })
+  bot.inventory = { items: () => { throw new Error('the read is gone') } }
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death') // must not throw
+  assert.equal(stats.deaths, 1, 'the count rides the guarded read\u0027s head')
+  await sleep(1100)
+  assert.equal(bot.respawnCalls, 1, 'the respawn byte sits OUTSIDE the guard\u0027s try - a client this dead never blocks it')
+  // the same byte for a chat listener whose renderer throws
+  const bot3 = makeDeathBot()
+  const lines3 = []
+  createDeathWatch({ bot: bot3, tag: '[FleetScout]', stats: { deaths: 0 }, log: m => lines3.push(m) })
+  bot3.emit('message', { toString: () => { throw new Error('the renderer is gone') } })
+  bot3.emit('death')
+  assert.match(lines3[0], /cause: no readable server line/, 'a dead chat renderer reads as no line, never as a crash')
+  await sleep(1100)
+})
+
+test('death watch: two deaths count two - the respawned scout can die again', async () => {
+  const bot = makeDeathBot()
+  const lines = []
+  const stats = { deaths: 0 }
+  createDeathWatch({ bot, tag: '[FleetScout]', stats, log: m => lines.push(m) })
+  bot.emit('death')
+  await sleep(1100)
+  bot.emit('death')
+  await sleep(1100)
+  assert.equal(stats.deaths, 2)
+  assert.equal(bot.respawnCalls, 2, 'every death gets its own byte')
+})
+
+test('death watch: the wire and the doctrine are pinned in the source', () => {
+  const root = new URL('../../', import.meta.url).pathname
+  const src = readFileSync(path.join(root, 'src', 'bots', 'scout.mjs'), 'utf8')
+  assert.ok(src.includes("import { deathDropLine } from '../lib/statcarry.mjs'"), 'the SHARED drop format import')
+  assert.ok(src.includes("import { parseDeathMessage } from '../lib/deathcause.mjs'"), 'the server-line parser import')
+  assert.ok(src.includes('a death handler must never walk'), 'the doctrine line lives in the source')
+  assert.ok(src.includes('Date.now() - serverDeath.at < 6000'), 'the same 6s freshness window the miner\u0027s authority rides')
+  assert.ok(/setTimeout\(\(\) => \{ try \{ bot\.respawn\?\.\(\) \} catch \{ \/\* server respawns us anyway \*\/ \} \}, 1000\)/.test(src), 'the miner\u0027s exact respawn byte')
+  assert.ok(src.includes('createDeathWatch({ bot, tag, stats, log })'), 'the wire in createScout (the raw log - the line carries its own tag)')
+  assert.ok(src.includes('const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }'), 'deaths joins the report stats')
+})
