@@ -19,6 +19,7 @@ import {
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
   smeltRefusalCensusRow, SMELT_CENSUS_TOP,
   smeltNoFuelAnatomyRow,
+  smeltNoFuelOwnerRow, SMELT_NO_FUEL_OWNER_MIN, SMELT_NO_FUEL_OWNER_LOCAL_SHARE,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
@@ -2227,4 +2228,62 @@ test('smeltNoFuelAnatomyRow: THE WIRING PIN - the pickFuel read rides the census
   const printIdx = src.indexOf('if (smeltNoFuel) console.log(smeltNoFuel)')
   assert.ok(printIdx > censusIdx, 'the anatomy prints after its census - the sibling law')
   assert.ok(src.includes('THE NO-FUEL ANATOMY'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.568.0) THE NO-FUEL OWNER MAP - the anatomy's machine-side twin: which
+// machine the no-fuel tax sits on. One machine's fuel load = a targeted cure
+// (a top-up); a spread = the yard supply. The census family's own ladder one
+// rung deeper (the doom census -> the why -> the owner; the smelt census ->
+// the anatomy -> the owner).
+// ---------------------------------------------------------------------------
+test('smeltNoFuelOwnerRow: the one-machine shape - the fuel load is the cure', () => {
+  const v = smeltNoFuelOwnerRow([{ machine: 'blast_furnace', count: 4 }, { machine: 'furnace', count: 2 }])
+  assert.equal(v, 'smelt no-fuel owner: blast_furnace carries 4 of 6 no-fuel refusals (66.7%) - one machine owns the tax - its fuel load is the cure')
+  // the half boundary reads local (the doom family's own >= 0.5 semantics)
+  const half = smeltNoFuelOwnerRow([{ machine: 'blast_furnace', count: 3 }, { machine: 'furnace', count: 3 }])
+  assert.equal(half, 'smelt no-fuel owner: blast_furnace carries 3 of 6 no-fuel refusals (50.0%) - one machine owns the tax - its fuel load is the cure')
+})
+
+test('smeltNoFuelOwnerRow: the spread shape and the byte-stable ties', () => {
+  const v = smeltNoFuelOwnerRow([{ machine: 'blast_furnace', count: 2 }, { machine: 'furnace', count: 2 }, { machine: 'smoker', count: 2 }])
+  assert.equal(v, 'smelt no-fuel owner: blast_furnace carries 2 of 6 no-fuel refusals (33.3%) - the tax spreads across the machines - the yard supply is the front')
+  // the census's own tie law: count desc, machine asc on ties
+  const t = smeltNoFuelOwnerRow([{ machine: 'smoker', count: 3 }, { machine: 'blast_furnace', count: 3 }])
+  assert.equal(t, 'smelt no-fuel owner: blast_furnace carries 3 of 6 no-fuel refusals (50.0%) - one machine owns the tax - its fuel load is the cure')
+  // duplicate same-machine entries merge
+  const m = smeltNoFuelOwnerRow([{ machine: 'furnace', count: 2 }, { machine: 'furnace', count: 2 }])
+  assert.equal(m, 'smelt no-fuel owner: furnace carries 4 of 4 no-fuel refusals (100.0%) - one machine owns the tax - its fuel load is the cure')
+})
+
+test('smeltNoFuelOwnerRow: THE LEANNESS LAW and the junk battery', () => {
+  // under the floor a single stray refusal never names an owner
+  assert.equal(smeltNoFuelOwnerRow([{ machine: 'furnace', count: 2 }]), null)
+  assert.equal(smeltNoFuelOwnerRow([]), null)
+  assert.equal(smeltNoFuelOwnerRow('junk'), null)
+  assert.equal(smeltNoFuelOwnerRow(), null)
+  assert.equal(smeltNoFuelOwnerRow([{ machine: 'furnace', count: 0 }]), null)
+  assert.equal(smeltNoFuelOwnerRow([{ machine: 'furnace', count: -3 }]), null)
+  assert.equal(smeltNoFuelOwnerRow([{ machine: 'furnace', count: NaN }]), null)
+  // an unnamed machine reads '-' (the legacy machine:null path - still a refusal)
+  const dash = smeltNoFuelOwnerRow([{ machine: null, count: 2 }, { machine: 42, count: 1 }])
+  assert.equal(dash, 'smelt no-fuel owner: - carries 3 of 3 no-fuel refusals (100.0%) - one machine owns the tax - its fuel load is the cure')
+  // the constants hold the family parity
+  assert.equal(SMELT_NO_FUEL_OWNER_MIN, 3)
+  assert.equal(SMELT_NO_FUEL_OWNER_LOCAL_SHARE, 0.5)
+})
+
+test('smeltNoFuelOwnerRow: THE WIRING PIN - the machine grain rides the no-fuel seat, the face reads the owner', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /smeltNoFuelOwnerRow[\s\S]*?from '\.\.\/src\/lib\/smelting\.mjs'/)
+  assert.match(src, /const finalSmeltNoFuelMachine = new Map\(\)/)
+  // the feed sits INSIDE the no-fuel guard, beside the anatomy's own set
+  const anatomyIdx = src.indexOf('finalSmeltNoFuel.set(fuelState, (finalSmeltNoFuel.get(fuelState) || 0) + 1)')
+  const feedIdx = src.indexOf('finalSmeltNoFuelMachine.set(ownerKey, (finalSmeltNoFuelMachine.get(ownerKey) || 0) + 1)')
+  assert.ok(feedIdx > anatomyIdx, 'the machine grain rides the same no-fuel seat')
+  // the print rides the report block right after the anatomy row
+  const anatomyPrintIdx = src.indexOf('if (smeltNoFuel) console.log(smeltNoFuel)')
+  const printIdx = src.indexOf('if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)')
+  assert.ok(printIdx > anatomyPrintIdx, 'the owner map prints after its anatomy - the sibling law')
+  assert.ok(src.includes('THE NO-FUEL OWNER MAP'), 'the wiring carries its own doctrine comment')
 })

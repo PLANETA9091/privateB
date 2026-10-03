@@ -35,7 +35,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
@@ -209,6 +209,10 @@ const finalSmeltRefusals = new Map()
 // pickFuel read lands beside the census's own feed, one boolean per no-fuel
 // refusal - the anatomy can never split from its census.
 const finalSmeltNoFuel = new Map()
+// (v0.568.0) THE NO-FUEL OWNER LEDGER: the anatomy reads the POCKET side,
+// the owner map reads the MACHINE side - which machine the no-fuel tax sits
+// on. Fed at the same seat, one extra set - the two grains can never split.
+const finalSmeltNoFuelMachine = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -748,6 +752,11 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           if (sr === 'no fuel') {
             const fuelState = pickFuel(miner.bot, { itemsNeeded: 1 }) != null ? 'carried' : 'dry'
             finalSmeltNoFuel.set(fuelState, (finalSmeltNoFuel.get(fuelState) || 0) + 1)
+            // (v0.568.0) the machine grain rides the same seat - the attempt
+            // entry carries the machine kind (the legacy no-callback path
+            // pushes machine:null, an unnamed machine is still a refusal)
+            const ownerKey = (typeof sa.machine === 'string' && sa.machine.trim() !== '') ? sa.machine.trim() : '-'
+            finalSmeltNoFuelMachine.set(ownerKey, (finalSmeltNoFuelMachine.get(ownerKey) || 0) + 1)
           }
         }
       }
@@ -4059,6 +4068,12 @@ if (smeltCensus) console.log(smeltCensus)
 // own refusals by construction - it can only speak when the census spoke.
 const smeltNoFuel = smeltNoFuelAnatomyRow([...finalSmeltNoFuel].map(([state, count]) => ({ state, count })))
 if (smeltNoFuel) console.log(smeltNoFuel)
+// (v0.568.0) THE NO-FUEL OWNER MAP - the anatomy's machine-side twin: the
+// split read WHERE the fuel sat, the owner map reads WHICH machine the tax
+// sits on (one machine's fuel load = a targeted cure; a spread = the yard
+// supply). The same refusals' own grain - it can only speak when they spoke.
+const smeltNoFuelOwner = smeltNoFuelOwnerRow([...finalSmeltNoFuelMachine].map(([machine, count]) => ({ machine, count })))
+if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is

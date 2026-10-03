@@ -188,6 +188,42 @@ export function smeltNoFuelAnatomyRow (entries) {
   return `smelt no-fuel anatomy: carried ${carried}, dry ${dry} of ${total} no-fuel refusal${total === 1 ? '' : 's'} - ${verdict}`
 }
 
+// (v0.568.0) THE NO-FUEL OWNER MAP - the anatomy reads the POCKET side, the
+// owner map reads the MACHINE side: which machine the no-fuel tax actually
+// sits on. The census family's own ladder (the doom census -> the doom why ->
+// the doom owner) applied one rung deeper - three straight fleets read the
+// no-fuel class dominant and the face never said whether ONE machine's fuel
+// load is the cure (a targeted top-up) or the whole yard runs dry (the
+// supply front). Byte-stable: the census's own tie law (count desc, machine
+// asc), the half boundary (>= 0.5 reads local, the doom family's own
+// semantics), the grain floor (SMELT_NO_FUEL_OWNER_MIN = 3, the reconnect
+// census's own trip point - a single stray refusal never names an owner).
+// Junk law: an unnamed machine reads '-' (the legacy no-callback path pushes
+// machine:null - an unnamed machine is still a refusal), an impossible count
+// never enters. Leanness: a run under the floor prints nothing.
+export const SMELT_NO_FUEL_OWNER_MIN = 3
+export const SMELT_NO_FUEL_OWNER_LOCAL_SHARE = 0.5
+
+export function smeltNoFuelOwnerRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const m = (typeof e?.machine === 'string' && e.machine.trim() !== '') ? e.machine.trim() : '-'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(m, (acc.get(m) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < SMELT_NO_FUEL_OWNER_MIN) return null
+  const good = [...acc].map(([machine, count]) => ({ machine, count }))
+  good.sort((a, b) => (b.count - a.count) || (a.machine < b.machine ? -1 : 1))
+  const top = good[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  const shape = top.count / total >= SMELT_NO_FUEL_OWNER_LOCAL_SHARE
+    ? 'one machine owns the tax - its fuel load is the cure'
+    : 'the tax spreads across the machines - the yard supply is the front'
+  return `smelt no-fuel owner: ${top.machine} carries ${top.count} of ${total} no-fuel refusals (${pct}%) - ${shape}`
+}
+
 // (v0.92.0) THE MACHINE DOOM TTL - a machine cell's doomed verdict lives 15s,
 // not the chest ledger's 45/90s. Run81 measured the cost of the long verdicts
 // on machines: F4 tried FIFTEEN bay machines, every walk refused 'doomed goal
