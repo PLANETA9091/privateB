@@ -13806,3 +13806,19 @@ Work Log:
 Stage Summary:
 - Master = d3e17e8 (pkg 0.557.0). The why book composes: door feeds (night/doom-latched) + the chain-refusal classifier (unreachable/exhausted/stalled/wet-wall/low-o2/timeout/stopped) - one book, both report rows, three measured strand classes on one face.
 - NEXT FIRE: (1) read fleet 37128927104's verdict: SUCCESS = mine the face - verify ZERO silent strands (every write-off holder carries a why token) and the attribution's conditional tail; FAILURE = job logs. (2) fronts: fastdig churn bound (the lane's 0.555.0 drip budget may have closed it - read their work before re-opening), seed/ libs audit, integration harness bounds, whale-class bank cadence. (3) version 0.558.0 (origin x3; the lane is HOT - 2 versions in one fire). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261003-2230
+Agent: Super Z (main)
+Task: fire 2230 (cron 414125) - v0.558.0 THE SENTINEL CLASS
+
+Work Log:
+- VERDICT FIRST: fleet 37128927104 (d3e17e8, v0.557.0) COMPLETED SUCCESS - ALL-GREEN (unit 22+24 + integration + Big fleet run 19 bots). Face mined (scripts/fleet-run-37128927104.log, sandbox copy): the FIRST live honest-tail face - 'final write-off: F2 195u/16s exhausted, F6 164u/21s night, F5 144u/17s doom-latched, F12 83u/14s night' (ZERO silent strands - three measured classes on one face) and the attribution's '- the strand rode doom-latched+exhausted+night' (the v0.554.0 conditional tail LIVED: distinct, alphabetical, byte-stable). Ledger: mined=2084 banked=937 pocket=883u unaccounted=251 conversion=88.0%.
+- Front (evidence-driven from the saved 37121182189 face): 'final bank doom why: other carries 2 of 4 failed climb cycles (50.0%) - one class owns the tax' while BOTH cycles were F15's 'wet-sentinel' refusals - the o2-watch guard the mover's own classifier names since v0.379.0 (climbout.mjs:58) - climbWhyClass sat blind to the family and fell it to 'other'. CURE: the taxonomy grows 'wet-sentinel' (family adjacency beside 'wet wall', the root-cause-first law kept); the class is born token-law-clean - class string and strand token are the same bytes, the why-book feed rides it to the strand faces untouched. Verified untouched: the 'climb skipped (slice < min)' defers never fed the census (the climbAttempts>0 guard held - face datum: 4 cycles = stalled 1 + low-o2 1 + wet-sentinel 2, all six skips absent).
+- Tests: 5 pins in pocketline.test.mjs (bare/decorated/case forms; no shadowing of 'wet wall'; the token bridge). Battery: syntax 434/0; unit 245/245. Server DOWN -> integration skip honest (38th/39th fire).
+- Version 0.558.0 (origin free pre-add, NO collision #48). Commit 1a39cff, push CLEAN attempt 1 (beccb7c..1a39cff). Gate 37130910302 running alongside.
+- DISPATCH: 37128927104 completed -> no active dispatch -> lawful -> POST 204 -> fleet run 37130962121 in_progress on 1a39cff - the first fleet carrying THE SENTINEL CLASS.
+
+Stage Summary:
+- Master = 1a39cff (pkg 0.558.0). The v0.554.0 tail + v0.557.0 composition PROVEN on a live face (zero silent strands); the wet family whole in the taxonomy.
+- NEXT FIRE: (1) read gate 37130910302 + fleet 37130962121 (1a39cff): SUCCESS = mine the face - expect no 'other' tax when wet-sentinel recurs; watch unaccounted=251 (the mass decode's verdict may re-price the whale cadence). (2) fronts: seed/ libs audit, integration harness bounds, whale-class bank cadence, setup-yard in-bot wire. (3) version 0.559.0 (origin x3; the lane is HOT). Identity: PLANETA9091.
