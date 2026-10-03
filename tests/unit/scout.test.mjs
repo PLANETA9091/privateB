@@ -408,12 +408,77 @@ test('night hold: the fly scout skips the hold (altitude-110 lanes own no ground
 test('night hold: the wire is pinned in the source (the verdict, the two gates, the tagged log)', () => {
   const root = new URL('../../', import.meta.url).pathname
   const src = readFileSync(path.join(root, 'src', 'bots', 'scout.mjs'), 'utf8')
-  assert.ok(src.includes("import { walkForbidden } from '../lib/nightsafety.mjs'"), 'the fleet\u0027s own walk-forbidden verdict (one doctrine)')
+  assert.ok(src.includes("import { walkForbidden, stormWalkForbidden } from '../lib/nightsafety.mjs'"), 'the fleet\u0027s own walk-forbidden verdict (one doctrine)')
   assert.ok(src.includes("if (!walkForbidden(bot.time?.timeOfDay)) return false"), 'junk-safe: an unreadable clock reads go')
   assert.ok(src.includes('log(`patrol held: night (tod=${Math.floor(bot.time?.timeOfDay ?? 0)}) - standing and scanning until dawn`)'), 'the defer line, one form')
-  const gates = src.match(/if \(nightHold\(\)\) \{/g) || []
+  const gates = src.match(/if \(nightHold\(\) \|\| stormHold\(\)\) \{/g) || []
   assert.equal(gates.length, 2, 'the hold gates BOTH the step loop and the lane shift - a crossing is new ground too')
   assert.ok(src.includes('createPatrol({ bot, map, scan: scanWithBerry, stats, log: m => log(`${tag} ${m}`) })'), 'the tagged log reaches the patrol (the raw [scout] channel)')
+})
+
+// ---- (v0.540.0) THE STORM HOLD: the second sky gate. The night hold reads the
+// clock, the storm reads the SKY - a vanilla thunderstorm owns surface spawn
+// pressure regardless of the hour (a noon patrol was the scout's last ungated
+// kill window). The same held shape, the same once-per-call voice, the same
+// fly-skip and junk laws; only a READ storm may hold, a plain rain walks.
+test('storm hold: the ground patrol stands and scans instead of walking the noon kill window', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot.thunderState = 1 // a full vanilla storm - the sky owns the spawn threshold
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  let scans = 0
+  const scan = async () => { scans++ }
+  const lines = []
+  const patrol = createPatrol({ bot, map, scan, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 48, lanes: 2, laneGap: 16, seconds: 2, holdBeatMs: 50 })
+  assert.equal(bot.gotoCalls, 0, 'a storm-held patrol must not drive the pathfinder at all')
+  assert.equal(stats.travelled, 0, 'a storm-held patrol must not bank walked distance')
+  assert.ok(scans >= 1, 'a storm-held patrol keeps its lane knowledge current - it scans')
+  const holds = lines.filter(l => l.includes('patrol held: storm'))
+  assert.equal(holds.length, 1, `the hold names itself ONCE per patrol call, got ${holds.length}`)
+  assert.ok(holds[0].includes('thunder=1.00'), 'the hold line carries the sky face')
+})
+
+test('storm hold: a junk sky reads go (junk never widens a refusal), a plain rain reads go', async () => {
+  const map = new WorldMap()
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const lines = []
+  const bot = makeMockBot({ blocks: [] })
+  // no thunderState at all - the scout cannot read the sky, the verdict is 'go'
+  const patrol = createPatrol({ bot, map, scan: async () => {}, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 24, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(stats.travelled > 0, 'a bot that cannot read the sky walks (junk never widens a refusal)')
+  assert.equal(lines.filter(l => l.includes('patrol held')).length, 0, 'a walking patrol names no hold')
+
+  const bot2 = makeMockBot({ blocks: [] })
+  bot2.isRaining = true // a plain rain: thunderState stays 0 - daylight spawn pressure stays off
+  bot2.thunderState = 0
+  const stats2 = { scans: 0, found: 0, travelled: 0 }
+  const patrol2 = createPatrol({ bot: bot2, map, scan: async () => {}, stats: stats2, log: m => lines.push(m) })
+  await patrol2({ heading: 'east', distance: 24, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(stats2.travelled > 0, 'a plain rain walks (only a READ storm may hold)')
+})
+
+test('storm hold: the fly scout skips the hold (the pantry\u0027s own skip law, one sky wide)', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot.thunderState = 1
+  bot.flyTravel = async step => { bot.flyTravelCalls++; bot.entity.position = new Vec3(step.x, step.y, step.z) }
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const lines = []
+  const patrol = createPatrol({ bot, map, scan: async () => {}, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 64, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(bot.flyTravelCalls >= 1, 'the fly scout keeps flying through the storm')
+  assert.equal(lines.filter(l => l.includes('patrol held')).length, 0, 'the fly scout names no hold')
+})
+
+test('storm hold: the wire is pinned in the source (the verdict, the gates, the voice reset, the tagged line)', () => {
+  const root = new URL('../../', import.meta.url).pathname
+  const src = readFileSync(path.join(root, 'src', 'bots', 'scout.mjs'), 'utf8')
+  assert.ok(src.includes("if (!stormWalkForbidden(bot.thunderState)) return false"), 'junk-safe: an unreadable sky reads go (the night gate\u0027s own law)')
+  assert.ok(src.includes('log(`patrol held: storm (thunder=${bot.thunderState.toFixed(2)}) - standing and scanning until it clears`)'), 'the defer line, one form')
+  const resets = src.match(/nightHeld = false\n\s*stormHeld = false/g) || []
+  assert.equal(resets.length, 2, 'a walk after the hold resets the voice - a second storm names itself again (both gates, beside the night flag)')
 })
 
 // ---- (v0.533.0) THE SEAL WATCH'S SECOND SEAT: the respawn accounting reaches

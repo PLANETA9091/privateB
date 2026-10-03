@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES, TICKS_PER_SEC, forecastForbidden } from '../../src/lib/nightsafety.mjs'
+import { NIGHT_WALK_START, NIGHT_WALK_END, TORCH_EVERY, walkForbidden, stormWalkForbidden, isNight, torchesFrom, torchDue, surfaceHoldVerdict, SURFACE_HOLD_PURPOSES, TICKS_PER_SEC, forecastForbidden } from '../../src/lib/nightsafety.mjs'
 
 test('walkForbidden: vanilla clock boundaries (dusk margin 12400, dawn margin 23600)', () => {
   assert.equal(walkForbidden(0), false, 'sunrise is a walk time')
@@ -20,6 +20,19 @@ test('walkForbidden: vanilla clock boundaries (dusk margin 12400, dawn margin 23
 test('walkForbidden: junk clock never traps the bot underground', () => {
   for (const t of [undefined, null, NaN, '13000', {}, -5]) {
     assert.equal(walkForbidden(t), false, String(t))
+  }
+})
+
+test('stormWalkForbidden: a readable thunder above zero IS the storm (v0.540.0)', () => {
+  assert.equal(stormWalkForbidden(1), true, 'a full vanilla storm gates the patrol')
+  assert.equal(stormWalkForbidden(0.3), true, 'a partial storm level still darkens the sky')
+  assert.equal(stormWalkForbidden(0.0001), true, 'any readable thunder owns the surface spawn threshold')
+  assert.equal(stormWalkForbidden(0), false, 'a clear sky walks')
+})
+
+test('stormWalkForbidden: junk sky never widens a refusal, a plain rain never gates', () => {
+  for (const t of [undefined, null, NaN, '1', {}, -0.5]) {
+    assert.equal(stormWalkForbidden(t), false, String(t))
   }
 })
 

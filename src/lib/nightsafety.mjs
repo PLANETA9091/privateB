@@ -32,6 +32,24 @@ export function walkForbidden (timeOfDay) {
   return timeOfDay >= NIGHT_WALK_START && timeOfDay < NIGHT_WALK_END
 }
 
+// ---- (v0.540.0) THE STORM GATE - the vanilla thunder, the second sky killer ----
+//
+// The night window above reads the CLOCK; a vanilla thunderstorm is the other
+// sky state that owns surface spawn pressure: the storm darkens the sky below
+// the mob-spawn threshold REGARDLESS of the hour, so a noon patrol walks the
+// same kill window the doctrine defers after dusk (the v0.532.0 hold's exact
+// class, one sky-state wide). mineflayer carries the level on bot.thunderState
+// (0..1, the 'thunder_level_change' packet - a plain rain reads 0, thunder
+// never rides without rain): a readable thunder > 0 IS the storm. Junk-safe by
+// the night gate's own law: a bot that cannot read the sky WALKS (junk never
+// widens a refusal), and a plain rain without a readable thunder never gates
+// (daylight spawn pressure stays off - a false hold is spent idle, a false go
+// is spent dead, but only a READ verdict may hold the patrol).
+export function stormWalkForbidden (thunder) {
+  if (!Number.isFinite(thunder)) return false
+  return thunder > 0
+}
+
 /**
  * Strictly night (mobs spawn outdoors). Tighter than walkForbidden: the walk gate
  * includes the dusk/dawn margins, this one does not.

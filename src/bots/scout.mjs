@@ -15,7 +15,7 @@ import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REAC
 import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - the SHARED death-drop format (the fleet's death ledger reads one shape)
 import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
 import { sealSnapshot, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.533.0) the seal watch's respawn accounting reaches the second bot - the declare leg stays the miner's (no combat sentry here)
-import { walkForbidden } from '../lib/nightsafety.mjs' // (v0.532.0) THE NIGHT HOLD-AND-SCAN - the patrol's walk legs ride the fleet's own walk-forbidden window
+import { walkForbidden, stormWalkForbidden } from '../lib/nightsafety.mjs' // (v0.532.0) the night hold rides the fleet's own walk-forbidden window; (v0.540.0) the storm hold rides the same lib's thunder verdict
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -417,6 +417,26 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 }, log = 
       }
       return true
     }
+    // (v0.540.0) THE STORM HOLD - the second sky gate. The night hold reads the
+    // clock; the storm reads the SKY: a vanilla thunderstorm drops the surface
+    // light below the spawn threshold no matter the hour, so the noon patrol was
+    // the scout's last ungated kill window (the v0.532.0 night hold's exact
+    // class, one sky-state wide). The same held shape (stand-and-scan, the beat
+    // costs a scan, never a walk), the same once-per-call voice (a hold that
+    // lasts the whole storm must not spam the log), the same fly-skip law, the
+    // same junk law (a sky that cannot be read walks; a plain rain reads
+    // thunderState 0 and never gates). A walk after the hold resets the voice -
+    // a second storm names itself again.
+    let stormHeld = false
+    const stormHold = () => {
+      if (flying) return false
+      if (!stormWalkForbidden(bot.thunderState)) return false
+      if (!stormHeld) {
+        stormHeld = true
+        log(`patrol held: storm (thunder=${bot.thunderState.toFixed(2)}) - standing and scanning until it clears`)
+      }
+      return true
+    }
     let lane = 0
     for (; lane < lanes; lane++) {
       if (Date.now() > deadline) break
@@ -463,12 +483,13 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 }, log = 
           // without widening its exposure, the deadline still governs, dawn
           // resumes the walk mid-leg. Junk-safe: a junk clock reads 'go' (the
           // lib's own legacy byte) - a bot that cannot read the clock walks.
-          if (nightHold()) {
+          if (nightHold() || stormHold()) {
             await scan()
             await new Promise(r => setTimeout(r, holdBeatMs))
             continue
           }
           nightHeld = false
+          stormHeld = false
           const stepLen = Math.min(flying ? 64 : 24, remaining)
           const step = new Vec3(
             here.x + (leg.x - here.x) / remaining * stepLen,
@@ -493,12 +514,13 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 }, log = 
       // (v0.532.0) the shift rides the same hold - a lane crossing is new ground
       // too, and the deadline does not make the dark safe (the held shift costs a
       // scan beat, never a 24-block walk through the kill window).
-      if (nightHold()) {
+      if (nightHold() || stormHold()) {
         await scan()
         await new Promise(r => setTimeout(r, holdBeatMs))
         continue
       }
       nightHeld = false
+      stormHeld = false
       try {
         if (flying) await bot.flyTravel(shift, { speed: 2.0, cruiseAbove: 20, timeoutMs: 20000 })
         else await gotoSafe(bot, new goals.GoalNear(shift.x, shift.y, shift.z, 2), { timeoutMs: 15000, label: 'scout lane shift' })
