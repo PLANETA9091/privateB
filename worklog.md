@@ -13992,3 +13992,19 @@ Work Log:
 Stage Summary:
 - Master = c07103a (pkg 0.568.0). The owner map joins the census family's face; the lane's whale cure is fully wired (all four legs).
 - NEXT FIRE: (1) read gate 37144297392 + fleet 37144334720 (c07103a): SUCCESS = mine the face - expect the NO-FUEL OWNER MAP'S FIRST RIDE when 'no fuel' recurs (it skipped this past run), the anatomy's first VERDICT (delivery vs supply - both rows read together), the reconnect census's third ride, zero silent strands. (2) UNACCOUNTED=726 (36%) IS THE LEAK LEADER ON RECORD - the mass-decode's verdict opens the decode front (the biggest single seam left). (3) The stalled class returned in the write-off (F14 232u + F11 133u) - the stall cure stays queued behind the decode. (4) The lane's consult seat is WIRED - their fourth leg's first fleet is THIS dispatch; do not touch their reads. (5) Version 0.569.0 (origin x3; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0230
+Agent: Super Z (main)
+Task: fire 0230 (cron 414125) - v0.569.0 THE UNACCOUNTED WATCH SHELF
+
+Work Log:
+- VERDICTS: gate 37144297392 (c07103a, v0.568.0) = SUCCESS - THE NO-FUEL OWNER MAP PROVEN green. Fleet 37144334720 (c07103a, dispatched) still in_progress at close (units green, the integration leg ran long) - the verdict hands over per the suspension law, NO cull, NO duplicate dispatch (protocol 6).
+- Front (the standing seam from the 37142026993 face): THE UNACCOUNTED WATCH SHELF - the unaccounted arc across the last four fleets reads 0 -> 0 -> 606u (24.0%) -> 726u (36.0%) and the 24-36% band sat UNJUDGED: the ledger line displayed the number while the decode's verdict floor (0.5) refused to speak (the phantom-display family the v0.559.0 display floor killed for the bank flow). UNACCOUNTED_WATCH_SHARE = 0.25 - one constant routes the shelf, it can never split from the verdict by construction; the watch form names the floor it sits under ('under the 50.0% verdict floor, the ledger line carries the number'), never a verdict the data cannot carry (the shaft-drops tail stays the floor form's own). NO fleet19 edits - the row is already wired, the call site prints whatever the decode speaks (zero collision surface).
+- Tests: the live datum at the 37142026993 face's own 726 of 2018 (36.0%); the 0.25 boundary; the under-shelf quiet; the shelf-never-invents-a-verdict pin; the floor pin re-aimed (49.0% now rides the watch). Battery: syntax 436/0; unit 246/246 PASSED, 0 fail. Server DOWN -> integration skip honest. One test-authoring slip caught pre-push (the watch export was authored in the comment before the constant - the file-level import failure named it instantly).
+- Version 0.569.0 (origin pre-add = 0.568.0, NO collision #54). Commit 2fe01ba, push CLEAN attempt 1 (d5a9a0b..2fe01ba). Gate 37146140820 queued.
+- NO dispatch this fire: fleet 37144334720 active all fire (the poll's own law).
+
+Stage Summary:
+- Master = 2fe01ba (pkg 0.569.0). The leak's growth band reads; the decode front's instrument is live.
+- NEXT FIRE: (1) read fleet 37144334720 (c07103a, v0.568.0) verdict: SUCCESS = mine the face - expect the NO-FUEL OWNER MAP'S FIRST RIDE when 'no fuel' recurs, the anatomy's first verdict (delivery vs supply), the reconnect census's third ride, zero silent strands. (2) read gate 37146140820 (2fe01ba, v0.569.0). (3) Dispatch v0.569.0 when lawful (poll-before-duplicate) - the watch shelf's first face should read the 24-36% band if the leak persists. (4) The decode front is now INSTRUMENTED end to end (crater decode + mass decode + watch shelf) - the next rung is the leak's OWN data: the drop-census (drops landing out of pickup range) would need a live counter seat - a BIG front, worth its own fire's evidence read. (5) Version 0.570.0 (origin x3; lane HOT). Identity: PLANETA9091.
