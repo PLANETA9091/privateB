@@ -850,3 +850,50 @@ export function sensorLiarRow (miners, { minIgnored = SENSOR_LIAR_MIN_IGNORED } 
   if (!top || top.ig < floor) return null
   return `sensor liar census: ${top.name} disproved ${top.ig} reads - the bar lies, the net held (the honest hole row reads clean)`
 }
+
+// (v0.535.0) THE SCOUT'S REPORT ROW - the run-end report's otchetnost lane.
+// THE SEAM: printFinalReport reads bots.values() - the miners only - and the
+// scout's own counters (scans/finds/travelled/deaths) never surfaced in the
+// FLEET RESULT block: a SCOUT=1 run whose scout failed all six join attempts
+// printed the same report shape as one whose scout walked the whole run, and
+// the ground knowledge those attempts bought was attributable to nothing (the
+// 0.195.0 sentry lesson's exact shape, one bot wide). The row prints ALWAYS
+// (the 05:00 ledger-skip lesson - an absent line class is indistinguishable
+// from a filter blind spot), three faces named: off / requested, never
+// spawned / the numbers. Junk-safe: junk counters read zeros honestly (the
+// body-guard law), the numbers face is pure arithmetic - it never invents.
+export function scoutReportRow (opts = {}) {
+  // (the Number(null) lesson, the body guard not a destructuring default: an
+  // explicit null opts would throw on the destructure itself)
+  const o = opts && typeof opts === 'object' ? opts : {}
+  if (!o.requested) return 'scout report: off'
+  const stats = o.stats
+  if (!stats || typeof stats !== 'object') return 'scout report: requested, never spawned'
+  const num = v => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
+  return `scout report: scans=${num(stats.scans)} finds=${num(stats.found)} travelled=${num(stats.travelled)} deaths=${num(stats.deaths)}`
+}
+
+// (v0.535.0) THE MAP'S COVERAGE ROW - the second otchetnost face the
+// hand-away named: the shared map's own coverage (chunks scanned, positions,
+// finds by type) had NO report line at all - the patrol's map.report() return
+// was discarded by its only caller, and years later a run's map shape is
+// unreadable from the mined surface. Prints ALWAYS: the map fills on every
+// run (the miners record too - mapRecords rides the v0.18.9 carry), so the
+// row is fleet knowledge, never a scout-only vanity. Junk report reads the
+// honest 'unavailable' face (diagnostics never invent numbers); junk top
+// entries are skipped, the string tails never throw.
+export function mapCoverageRow (report) {
+  if (!report || typeof report !== 'object') return 'map coverage: unavailable'
+  const num = v => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
+  const chunks = num(report.chunksScanned)
+  const positions = num(report.positions)
+  const top = Array.isArray(report.top)
+    // (the filter rides BEFORE the cap: a junk entry must not spend an honest
+    // slot - junk never crowds the truth out of the line)
+    ? report.top.filter(e => Array.isArray(e) && e.length >= 2 && typeof e[0] === 'string')
+      .slice(0, 5)
+      .map(([t, c]) => `${t}:${num(c)}`)
+      .join(',')
+    : ''
+  return `map coverage: chunks=${chunks} positions=${positions}${top ? ` top=${top}` : ''}`
+}

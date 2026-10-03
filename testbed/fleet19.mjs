@@ -46,7 +46,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3527,6 +3527,11 @@ setTimeout(() => {
 
 // The dedicated ground scout (optional): one of the bot slots patrols and fills the
 // shared map instead of digging. It walks, it never flies, it never digs.
+// (v0.535.0) scoutRef - the report's hand on the scout: printFinalReport reads
+// bots.values() (the miners only), so the scout's own counters need a holder the
+// report can reach. Set once the scout is ready; a null ref on a SCOUT=1 run is
+// itself a verdict (all six join attempts failed) and the row names it.
+let scoutRef = null
 if (SCOUT) {
   runners.push((async () => {
     for (let attempt = 0; attempt < 6 && Date.now() < deadline; attempt++) {
@@ -3541,6 +3546,7 @@ if (SCOUT) {
           log: m => console.log(`[scout] ${m}`)
         })
         await scout.ready
+        scoutRef = scout // (v0.535.0) the report row reads these stats at the final report
         let heading = HEADINGS[attempt % HEADINGS.length]
         console.log(`[scout] patrolling ${heading} for ${Math.max(10, (deadline - Date.now()) / 1000 | 0)}s`)
         while (Date.now() < deadline && scout.bot.entity) {
@@ -3692,6 +3698,17 @@ function printFinalReport (reason) {
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} kills=${list.reduce((a, m) => a + (m.stats.kills ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} pounces=${list.reduce((a, m) => a + (m.stats.pounces ?? 0), 0)} pounceLanded=${list.reduce((a, m) => a + (m.stats.pounceLanded ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size} wt=${waterTableBoard.size}`)
+// (v0.535.0) THE SCOUT'S ROW + THE MAP'S COVERAGE ROW - the report's otchetnost
+// lane: printFinalReport read the miners only, so the scout's own counters
+// (scans/finds/travelled/deaths) never surfaced - a SCOUT=1 run whose scout
+// failed every attempt was indistinguishable from one whose scout walked the
+// whole run (the 05:00 lesson: ALWAYS printed - an absent line class is
+// indistinguishable from a filter blind spot). The map's own coverage (chunks,
+// finds by type) had no face at all: the patrol's map.report() return was
+// discarded by its only caller. Junk-safe rows, try-guarded wires - the
+// report's newest lines must never hold the teardown (the diagnostics law).
+try { console.log(scoutReportRow({ requested: SCOUT, stats: scoutRef ? scoutRef.stats : null })) } catch { /* the scout row never holds the teardown */ }
+try { console.log(mapCoverageRow(map ? map.report() : null)) } catch { /* the map row never holds the teardown */ }
 // (v0.195.0) THE SENTRY ATTRIBUTION ROW - run190's blind spot #2 closes: the
 // airGlitches counter read fleet-wide while the rate-limited log was
 // per-instance, so 383 glitches surfaced as 16 lines from ONE bot and ~40

@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS, sensorLiarRow, SENSOR_LIAR_MIN_IGNORED } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS, sensorLiarRow, SENSOR_LIAR_MIN_IGNORED, scoutReportRow, mapCoverageRow } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -623,4 +623,85 @@ test('stormDietRow: THE DRY DIET - the dark all-wet whale stays dark and silent'
 test('stormDietRow: THE DRY DIET - the wiring pin (the fleet feed carries the stats object)', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /stormDietRow\(list\.map\(m => \(\{ name: m\.username, stats: m\.stats \}\)\)\)/, 'the diet row reads the per-bot stats (wetRescueGlitches rides inside)')
+})
+
+// (v0.535.0) THE SCOUT'S REPORT ROW + THE MAP'S COVERAGE ROW - the report's
+// otchetnost lane: printFinalReport read the miners only, the scout's own
+// counters never surfaced, and the map's coverage had no face at all (the
+// patrol's map.report() return was discarded by its only caller).
+test('scoutReportRow: THE OFF FACE - no scout requested names itself (the 05:00 lesson: the line class is always present)', () => {
+  assert.equal(scoutReportRow({}), 'scout report: off')
+  assert.equal(scoutReportRow({ requested: false, stats: { scans: 5 } }), 'scout report: off')
+  assert.equal(scoutReportRow(null), 'scout report: off')
+})
+
+test('scoutReportRow: THE NEVER-SPAWNED FACE - SCOUT=1 with no ready scout is itself a verdict', () => {
+  assert.equal(scoutReportRow({ requested: true, stats: null }), 'scout report: requested, never spawned')
+  assert.equal(scoutReportRow({ requested: true }), 'scout report: requested, never spawned')
+  // junk stats read the same honest face - the row never invents numbers
+  assert.equal(scoutReportRow({ requested: true, stats: 'junk' }), 'scout report: requested, never spawned')
+})
+
+test('scoutReportRow: THE NUMBERS FACE - the four counters, exact bytes', () => {
+  assert.equal(
+    scoutReportRow({ requested: true, stats: { scans: 120, found: 34, travelled: 4880, deaths: 1 } }),
+    'scout report: scans=120 finds=34 travelled=4880 deaths=1'
+  )
+  // the all-zero face stays (a lived run with zero luck is a readable zero)
+  assert.equal(
+    scoutReportRow({ requested: true, stats: { scans: 0, found: 0, travelled: 0, deaths: 0 } }),
+    'scout report: scans=0 finds=0 travelled=0 deaths=0'
+  )
+})
+
+test('scoutReportRow: JUNK COUNTERS READ ZEROS HONESTLY (the body-guard law)', () => {
+  for (const junk of [NaN, -5, '7', null, undefined]) {
+    const row = scoutReportRow({ requested: true, stats: { scans: junk, found: junk, travelled: junk, deaths: junk } })
+    assert.equal(row, 'scout report: scans=0 finds=0 travelled=0 deaths=0')
+  }
+  // partial junk: the honest fields keep their truth, the junk ones zero out
+  assert.equal(
+    scoutReportRow({ requested: true, stats: { scans: 12, found: NaN, travelled: 240 } }),
+    'scout report: scans=12 finds=0 travelled=240 deaths=0'
+  )
+})
+
+test('mapCoverageRow: THE COVERAGE FACE - chunks, positions, top finds, exact bytes', () => {
+  assert.equal(
+    mapCoverageRow({ chunksScanned: 812, positions: 451, top: [['iron_ore', 120], ['coal_ore', 88], ['oak_log', 61]] }),
+    'map coverage: chunks=812 positions=451 top=iron_ore:120,coal_ore:88,oak_log:61'
+  )
+  // the five-entry cap (the report()'s own limit=12 trimmed to the line's grain)
+  const big = { chunksScanned: 10, positions: 30, top: [['a', 1], ['b', 2], ['c', 3], ['d', 4], ['e', 5], ['f', 6], ['g', 7]] }
+  assert.equal(mapCoverageRow(big), 'map coverage: chunks=10 positions=30 top=a:1,b:2,c:3,d:4,e:5')
+})
+
+test('mapCoverageRow: THE UNAVAILABLE FACE + JUNK TOP ENTRIES (diagnostics never invent numbers)', () => {
+  assert.equal(mapCoverageRow(null), 'map coverage: unavailable')
+  assert.equal(mapCoverageRow('junk'), 'map coverage: unavailable')
+  // junk top entries skipped, honest ones keep the line
+  assert.equal(
+    mapCoverageRow({ chunksScanned: 4, positions: 9, top: ['x', null, ['coal_ore', 3], ['onlyone'], [42, 5], ['iron_ore', 7]] }),
+    'map coverage: chunks=4 positions=9 top=coal_ore:3,iron_ore:7'
+  )
+  // empty top reads the bare coverage (no tail, no invention)
+  assert.equal(mapCoverageRow({ chunksScanned: 4, positions: 9, top: [] }), 'map coverage: chunks=4 positions=9')
+  assert.equal(mapCoverageRow({ chunksScanned: 4, positions: 9 }), 'map coverage: chunks=4 positions=9')
+  // junk numbers zero out (the body-guard law)
+  assert.equal(mapCoverageRow({ chunksScanned: NaN, positions: -3, top: 'junk' }), 'map coverage: chunks=0 positions=0')
+})
+
+test('THE WIRING PIN - the report reads the scout ref and the live map (the otchetnost lane rides fleet19)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the holder: the report's hand on the scout (one declaration, one assignment)
+  assert.match(fleetSrc, /let scoutRef = null/, 'the scout ref holder exists')
+  assert.match(fleetSrc, /scoutRef = scout \/\/ \(v0\.535\.0\)/, 'the ref is set when the scout is ready')
+  // the rows: exactly one call site each, both inside printFinalReport's report block
+  assert.equal((fleetSrc.match(/scoutReportRow\(/g) || []).length, 1, 'the scout row has ONE call site')
+  assert.equal((fleetSrc.match(/mapCoverageRow\(/g) || []).length, 1, 'the map row has ONE call site')
+  assert.match(fleetSrc, /scoutReportRow\(\{ requested: SCOUT, stats: scoutRef \? scoutRef\.stats : null \}\)/, 'the scout row reads the flag and the ref')
+  assert.match(fleetSrc, /mapCoverageRow\(map \? map\.report\(\) : null\)/, 'the map row reads the live report')
+  // the teardown law: both wires try-guarded
+  assert.match(fleetSrc, /try \{ console\.log\(scoutReportRow/, 'the scout row never holds the teardown')
+  assert.match(fleetSrc, /try \{ console\.log\(mapCoverageRow/, 'the map row never holds the teardown')
 })
