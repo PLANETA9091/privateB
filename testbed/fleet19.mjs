@@ -46,6 +46,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs, LOGIN_SPAWN_TIMEOUT_MS } from '../src/lib/backoff.mjs'
+import { writeFileAtomic } from '../src/lib/atomicsave.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
@@ -4004,7 +4005,10 @@ const fleetReport = {
 }
 try {
   noteGlobal('report:write') // (v0.62.0) the stringify+writeFileSync is a classic sync block - mark the site BEFORE it
-  fs.writeFileSync('data/fleet-report.json', JSON.stringify(fleetReport, null, 2))
+  // (v0.547.0) THE REPORT SEAL: tmp sibling + rename - a mid-write death (the OOM
+  // killer, the hard-kill exit 14 class) can no longer truncate the report under
+  // its own name; the final path carries the old whole file or the new whole file
+  writeFileAtomic('data/fleet-report.json', JSON.stringify(fleetReport, null, 2))
   console.log('report: data/fleet-report.json written')
 } catch (e) {
   console.log(`report: could not write fleet-report.json (${e.message})`)
