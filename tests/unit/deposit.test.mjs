@@ -120,6 +120,31 @@ test('an all-KEEP pocket is nothing to deposit, not a chest miss (v0.38.0)', asy
   assert.equal(scans, 0, 'no scan ran - the pocket truth precedes the world')
 })
 
+test('THE FLESH KEEP: the ration staple never banks (v0.516.0)', async () => {
+  // the 0.511.0 ration armed the mouth but the deposit still BANKED the plate:
+  // rotten_flesh (the fleet's only food - zombie-defense drops) rode every bank
+  // trip to a chest NO lane withdraws food from, and the armed ration read an
+  // empty pocket. The staple joins KEEP: what the defense drops, the eater keeps.
+  const chest = { position: new Vec3(3, 64, 3) }
+  const bot = makeMockBot({ chest, items: [item('rotten_flesh', 5), item('cobblestone', 10)] })
+  const res = await depositToChest(bot)
+  // the cobble banks its overage above the 8-unit seal floor (the v0.396.0
+  // family law: no dirt in this pocket, so the ring's floor rides the cobble)
+  assert.equal(res.deposited, 2, 'the cobble banks 10 - the seal reserve\'s 8 (the loot law)')
+  const flesh = bot._items.find(i => i.name === 'rotten_flesh')
+  assert.ok(flesh && flesh.count === 5, 'the flesh stays in the pocket - the eater keeps its plate')
+  assert.equal(bot._items.find(i => i.name === 'cobblestone')?.count, 8, 'the seal reserve holds (a different law, untouched)')
+  // and an all-flesh pocket is the v0.38.0 shape: nothing to deposit, no chest miss
+  const bot2 = makeMockBot({ chest, items: [item('rotten_flesh', 9)] })
+  let scans = 0
+  const realScan2 = bot2.findBlock
+  bot2.findBlock = (...a) => { scans++; return realScan2(...a) }
+  const res2 = await depositToChests(bot2)
+  assert.equal(res2.deposited, 0)
+  assert.deepEqual(res2.chestReport, ['nothing to deposit'])
+  assert.equal(scans, 0, 'no scan ran - the pocket truth precedes the world')
+})
+
 test('deposit without a chest in range is a soft no-op', async () => {
   const bot = makeMockBot({ items: [item('cobblestone', 10)] })
   const res = await depositToChest(bot)

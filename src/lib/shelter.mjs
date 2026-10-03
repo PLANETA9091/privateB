@@ -49,10 +49,15 @@ export const EARN_SEAL_MAX_THREAT_DIST = 8
  * (logs, planks, sticks), and the high-value plan items (diamond, emerald).
  * (v0.58.0) leaf_litter leads: run57's pockets held it on F2/F4/F5 while those
  * same bots skipped or died - pure ground clutter in this fleet's plan (nothing
- * plants, crafts or smelts it), the cheapest slot-freer there is. */
+ * plants, crafts or smelts it), the cheapest slot-freer there is.
+ * (v0.516.0) rotten_flesh LEFT the list: the 0.511.0 ration made the fleet EAT
+ * it (the fleet's only food - zombie-defense drops, no hunt lane), so the
+ * second-position drop was discarding the ration's own plate at the first slot
+ * pinch - the comment's own never-drop food law, honored at last. A hungry
+ * bot that drops its food to pocket more loot starves holding the loot. */
 export const JUNK_DROP_PRIORITY = [
   'leaf_litter',
-  'rotten_flesh', 'spider_eye', 'bone', 'wheat_seeds', 'seeds',
+  'spider_eye', 'bone', 'wheat_seeds', 'seeds',
   'gravel', 'sand', 'flint',
   'redstone', 'coal', 'lapis_lazuli',
   'raw_copper', 'raw_iron', 'raw_gold'

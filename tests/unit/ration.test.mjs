@@ -154,3 +154,17 @@ test('ration: the fight table wire is pinned (hold before the shelter, re-arm in
   const iSync = src.indexOf('const rationSync = () =>')
   assert.ok(iSync > 0 && src.includes('if (rationGate.armed) bot.autoEat.enableAuto(); else bot.autoEat.disableAuto()'), 'the sync follows the gate, both directions')
 })
+
+test('ration: the supply law lives where the plate lives (v0.516.0 THE FLESH KEEP cross-pins)', () => {
+  // the ration eats rotten_flesh (the fleet's ONLY food), so the lane's supply
+  // chain must keep it: the deposit never banks the staple, and the shelter's
+  // slot-freer never drops it. Both laws live in OTHER files - these source
+  // pins are the lane's own lock on them (a future cleanup that reverts either
+  // half disarms the ration's plate while the mouth stays armed).
+  const depositSrc = fs.readFileSync(path.join(root, 'src', 'lib', 'deposit.mjs'), 'utf8')
+  assert.ok(depositSrc.includes("'sapling', 'rotten_flesh'"), 'rotten_flesh sits in the KEEP block (the never-banked food law) - the eater keeps its plate')
+  const shelterSrc = fs.readFileSync(path.join(root, 'src', 'lib', 'shelter.mjs'), 'utf8')
+  const dropList = shelterSrc.slice(shelterSrc.indexOf('JUNK_DROP_PRIORITY = ['), shelterSrc.indexOf(']', shelterSrc.indexOf('JUNK_DROP_PRIORITY = [')))
+  assert.ok(!dropList.includes('rotten_flesh'), 'the slot-freer never drops the staple (the v0.58.0 second position is gone)')
+  assert.ok(dropList.includes('leaf_litter'), 'the rest of the drop list stays (the clutter law is untouched)')
+})

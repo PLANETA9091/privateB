@@ -322,10 +322,18 @@ export const CHEST_NAMES = ['chest', 'trapped_chest', 'barrel', 'ender_chest']
 // (v0.9.0) sapling is replant stock: banking it made every bot chop its next tree
 // into a bare stump with nothing to plant back - the regrow loop needs the sapling
 // to stay in the pocket until it is planted at a stump.
+// (v0.516.0) THE FLESH KEEP - the ration's own supply law. The 0.511.0 ration
+// armed the plugin to EAT rotten_flesh (the fleet's ONLY food: zombie-defense
+// drops; no hunt lane, no crops) but the deposit still BANKED it: the keep's
+// food block predates the ration and named only the cooked/village foods - so
+// every bank trip took the eater's plate away to a chest NO lane withdraws
+// food from (the fuel commons' walk is fuel-only), and the armed ration read
+// an empty pocket. The staple joins the never-banked block: what the defense
+// drops, the defense's survivor eats.
 export const KEEP = [
   'pickaxe', 'shovel', 'axe', 'sword', 'hoe', 'crafting_table', 'furnace',
   'stick', 'planks', 'log', 'torch', 'bread', 'apple', 'porkchop', 'beef',
-  'carrot', 'potato', 'cooked_', 'sapling'
+  'carrot', 'potato', 'cooked_', 'sapling', 'rotten_flesh'
 ]
 
 // (v0.100.0) THE FUEL TITHE - the count-bounded fuel keep. Run89 (35820546630,

@@ -155,9 +155,19 @@ test('pickSealItem: dirt family first, craft-critical items never spent', () => 
 })
 
 test('pickJunkToDrop: leaf_litter leads (v0.58.0), craft stock never drops', () => {
-  assert.equal(pickJunkToDrop([{ name: 'leaf_litter', count: 5 }, { name: 'rotten_flesh', count: 2 }]).name, 'leaf_litter', 'pure clutter drops before mob loot')
+  assert.equal(pickJunkToDrop([{ name: 'leaf_litter', count: 5 }, { name: 'gravel', count: 2 }]).name, 'leaf_litter', 'pure clutter drops before everything')
   assert.equal(pickJunkToDrop([{ name: 'oak_planks', count: 8 }, { name: 'oak_sapling', count: 2 }]), null, 'saplings and planks are protected - the earn path stays honest')
   assert.equal(pickJunkToDrop([{ name: 'stick', count: 6 }]), null)
+})
+
+test('pickJunkToDrop: the ration staple is drop-proof (v0.516.0 THE FLESH KEEP)', () => {
+  // the 0.511.0 ration made the fleet EAT rotten_flesh (the fleet's only food);
+  // the v0.58.0 list still dropped it SECOND - the armed mouth's own plate,
+  // tossed at the first slot pinch. The comment's never-drop food law now
+  // holds the membership: the flesh survives every sacrifice, even against ore.
+  assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'rotten_flesh', count: 3 }]).name, 'raw_iron', 'the ore pays the toll - the food never does')
+  assert.equal(pickJunkToDrop([{ name: 'rotten_flesh', count: 7 }]), null, 'a flesh-only pocket stays whole - a hungry bot that drops its food starves holding the loot')
+  assert.equal(pickJunkToDrop([{ name: 'rotten_flesh', count: 7 }, { name: 'stone_pickaxe', count: 1 }]), null, 'the flesh rides the sacred block')
 })
 
 test('pickSealItem: junk inventories yield null (flee instead)', () => {
@@ -191,7 +201,6 @@ test('policy constants stay sane', () => {
 // The cure: drop ONE expendable item for a slot; the wall dug below respawns its
 // block as a drop inside pickup range and the seal finds it in the inventory.
 test('pickJunkToDrop: true junk is dropped before cheap stacked loot', () => {
-  assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'rotten_flesh', count: 3 }]).name, 'rotten_flesh', 'rotten flesh outranks ore')
   assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'bone', count: 2 }]).name, 'bone')
   assert.equal(pickJunkToDrop([{ name: 'raw_iron', count: 12 }, { name: 'gravel', count: 9 }]).name, 'gravel')
   assert.equal(pickJunkToDrop([{ name: 'raw_gold', count: 5 }, { name: 'coal', count: 30 }]).name, 'coal', 'coal outranks raw gold')
