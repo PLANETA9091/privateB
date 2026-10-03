@@ -5,10 +5,13 @@
 // Fly mode (fly: true): the original airborne lawnmower, kept for worlds where flying is allowed.
 import mineflayer from 'mineflayer'
 import pathfinderPkg from 'mineflayer-pathfinder'
+import { loader as autoeat } from 'mineflayer-auto-eat'
 import { Vec3 } from 'vec3'
 import { installFly } from '../lib/fly.mjs'
-import { gotoSafe } from '../lib/jobqueue.mjs'
+import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
 import { attachChatSync } from '../fleet/chatsync.mjs'
+import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.528.0) THE HEDGE PANTRY's eating leg - the SAME policy object the miner's ration wires (one doctrine)
+import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, berryHarvestDue, pocketBerries, pickBush } from '../lib/berry.mjs'
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -49,6 +52,42 @@ export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans:
   }
 }
 
+// (v0.528.0) THE HEDGE PANTRY's gather leg - the berry stop. Rides the scan
+// cadence (the wire composes it after every scan, zero patrol-loop changes):
+// the due gate (the band + the cap, junk-safe reads, refusals quiet), one
+// bush, one walk, one right-click activate (NOT a dig - the bush survives),
+// the drops' landing wait, the pocket delta names the harvest. The fly
+// scout skips the pantry (a mid-air activate is an unpriced interaction -
+// the production shape is ground). Exported so unit tests drive it with a
+// mock bot, exactly the createScan/createPatrol contract.
+export function createBerryStop ({ bot, log = () => {} } = {}) {
+  return async function berryStop () {
+    try {
+      if (bot?.flyTravel) return { due: false, why: 'the fly scout skips the pantry' }
+      const hunger = bot?.food ?? null
+      const pocket = pocketBerries(bot)
+      const due = berryHarvestDue({ hunger, pocket })
+      if (!due.due) return due // quiet: the healthy lean is silent, the cap holds, the dead reads wait
+      const found = bot.findBlocks({ matching: b => b?.name === BERRY_BUSH, maxDistance: BERRY_REACH, count: BERRY_COUNT }) ?? []
+      const bush = pickBush(found, bot.entity?.position)
+      if (!bush) return { due: false, why: 'no mature bush in reach' } // quiet: the lane keeps walking
+      await gotoSafe(bot, new goals.GoalNear(bush.position.x, bush.position.y, bush.position.z, 2), { timeoutMs: 10000, label: 'berry stop' })
+      const live = bot.blockAt(bush.position)
+      if (!live) return { due: false, why: 'the bush is gone' } // quiet: the world moved on
+      const f0 = pocketBerries(bot)
+      await withTimeout(bot.activateBlock(live), 5000, 'berry harvest')
+      await new Promise(resolve => setTimeout(resolve, BERRY_PICKUP_MS))
+      const f1 = pocketBerries(bot)
+      const picked = Math.max(0, (f1 ?? 0) - (f0 ?? 0))
+      log(`berry: picked ${picked} x ${BERRY_ITEM} (hunger ${hunger} -> ${bot?.food ?? '?'}, pocket ${f0 ?? '?'} -> ${f1 ?? '?'})`)
+      return { due: true, picked }
+    } catch (e) {
+      log(`berry: failed (${e.message})`) // a walk was spent - the field reads the failure class
+      return { due: false, why: `failed (${e.message})` }
+    }
+  }
+}
+
 export function createScout ({
   host = '127.0.0.1',
   port = 25565,
@@ -62,6 +101,37 @@ export function createScout ({
   const bot = mineflayer.createBot({ host, port, username, version: '26.2', auth: 'offline' })
   bot.loadPlugin(pathfinder)
   const tag = `[${username}]`
+  // ---- (v0.528.0) THE HEDGE PANTRY's eating leg - the 0.511.0 ration bytes on the second bot ----
+  // The scout starves legless: no combat lane (no zombie drops), no yard visits (the
+  // patrol walks away from the commons), an EMPTY spawn pocket. The eater arms byte
+  // for byte like the miner's: the SAME RATION_OPTS policy object (one doctrine -
+  // the regen-floor threshold 18, the four real bans, the honest flags; sweet_berries
+  // are NOT banned - they are the pantry's own crop), enableAuto on EVERY spawn
+  // (idempotent), and the attempts made readable with the honest before/after read
+  // (the plugin's eatFinish fires in finally even for failed eats - the hunger delta
+  // decides the verdict, never the hope).
+  bot.loadPlugin(autoeat)
+  bot.autoEat.setOpts(RATION_OPTS)
+  bot.on('spawn', () => { try { bot.autoEat.enableAuto() } catch { /* gone */ } })
+  let rationAttempt = null
+  bot.autoEat.on('eatStart', opts => {
+    try {
+      rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
+      log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
+    } catch { rationAttempt = null }
+  })
+  bot.autoEat.on('eatFinish', async () => {
+    const a = rationAttempt
+    rationAttempt = null
+    if (!a) return
+    try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
+    try {
+      const f1 = Number.isFinite(bot.food) ? bot.food : null
+      const h1 = Number.isFinite(bot.health) ? bot.health : null
+      const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
+      log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
+    } catch { /* gone */ }
+  })
   const stats = { scans: 0, found: 0, travelled: 0 }
   const sync = syncChat ? attachChatSync(bot, map, { flushEveryMs: 4000, maxPerFlush: 40, log: m => log(`${tag} ${m}`) }) : null
 
@@ -124,9 +194,19 @@ export function createScout ({
       return r
     }
     : scan
-  const patrol = createPatrol({ bot, map, scan: scanWithSync, stats })
+  // (v0.528.0) the pantry rides the scan cadence: every scan is followed by one
+  // berry stop (best-effort by law - the scan's verdict stays whole, the patrol's
+  // cadence is untouched; the refusals are quiet inside the stop itself). The
+  // patrol AND the external caller both drive the composed scan.
+  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`) })
+  const scanWithBerry = async () => {
+    const r = await scanWithSync()
+    try { await berryStop() } catch { /* the pantry is best-effort - the scan above stays whole */ }
+    return r
+  }
+  const patrol = createPatrol({ bot, map, scan: scanWithBerry, stats })
 
-  return { bot, ready, scan: scanWithSync, patrol, stats, username, sync: sync ?? null }
+  return { bot, ready, scan: scanWithBerry, patrol, stats, username, sync: sync ?? null }
 }
 
 // The lawnmower: fly mode rides altitude-110 lanes with flyTravel, ground mode walks
