@@ -260,6 +260,51 @@ export function smeltUnreachableOwnerRow (entries) {
   return `smelt unreachable owner: ${top.machine} carries ${top.count} of ${total} unreachable refusals (${pct}%) - ${shape}`
 }
 
+// (v0.577.0) THE UNREACHABLE WHY SPLIT - the owner family's third seat. The
+// owner map named WHICH machine the walk tax sits on (fleet 37152700148:
+// blast_furnace 4 of 7 - its own cell is the cure) but never said WHAT KIND
+// of failure the walk died of: the attempt's parenthesized detail was dropped
+// at the census seat while the walk-fail lens (v0.410.0) already carries the
+// vocabulary that names it. The feed unwraps the attempt's FULL reason through
+// classifySweepReason - the lens's OWN classifier, so this row's classes can
+// never split from the lens's by construction - and the row reads the split
+// on the SAME grain laws as the whole owner family (SMELT_NO_FUEL_OWNER_MIN,
+// SMELT_NO_FUEL_OWNER_LOCAL_SHARE - one grain law, the drift impossible). The
+// verdict names the leader's own lever (the decide ceiling, the walk budget,
+// the lattice, the governor's gates) so the next cure aims at a mechanism,
+// not a machine. Byte-stable: the census's own tie law (count desc, key asc).
+// Junk law: a reason the lens cannot unwrap reads its honest bucket ('other'
+// - never dropped); an impossible count never enters. Leanness: a run under
+// the floor prints nothing (the family's own law).
+
+const UNREACHABLE_WHY_LEVERS = {
+  'machine-unreachable-decide-timeout': 'the pathfinder\'s decision ceiling is the lever',
+  'machine-unreachable-walk-timeout': 'the walk budget against the approach\'s cost is the lever',
+  'machine-unreachable-no-path': 'the lattice\'s reach is the lever',
+  'machine-unreachable-governor-refusal': 'the governor\'s own gates are the lever'
+}
+
+export function smeltUnreachableWhyRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const w = (typeof e?.why === 'string' && e.why.trim() !== '') ? e.why.trim() : 'other'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(w, (acc.get(w) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < SMELT_NO_FUEL_OWNER_MIN) return null
+  const good = [...acc].map(([why, count]) => ({ why, count }))
+  good.sort((a, b) => (b.count - a.count) || (a.why < b.why ? -1 : 1))
+  const top = good[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  if (top.count / total >= SMELT_NO_FUEL_OWNER_LOCAL_SHARE) {
+    const lever = UNREACHABLE_WHY_LEVERS[top.why] || 'the class\'s own detail is the lever'
+    return `smelt unreachable why: ${top.why} carries ${top.count} of ${total} refusals (${pct}%) - one lever owns the walks: ${lever}`
+  }
+  return `smelt unreachable why: no lever (top ${top.why} ${top.count} of ${total}, ${pct}%) - the walk failures read mixed, the cures point different ways`
+}
+
 // (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper. The
 // anatomy's first verdict landed (fleet 37144334720: dry 3 of 4 - the fuel
 // supply is the front) but 'dry' reads blind depth: pickFuel's own diet

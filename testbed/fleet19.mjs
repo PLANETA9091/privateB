@@ -36,7 +36,8 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
@@ -227,6 +228,9 @@ const finalSmeltNoFuelPantry = new Map()
 // which MACHINE the 'machine unreachable' walks failed on. Fed at the same
 // seat, one extra set - the census grains can never split.
 const finalSmeltUnreachable = new Map()
+// (v0.577.0) the why grain - the walk failures' own kind, through the lens's
+// classifier (the owner family's third seat on the same feed)
+const finalSmeltUnreachableWhy = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -817,6 +821,13 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           if (sr === 'machine unreachable') {
             const reachKey = (typeof sa.machine === 'string' && sa.machine.trim() !== '') ? sa.machine.trim() : '-'
             finalSmeltUnreachable.set(reachKey, (finalSmeltUnreachable.get(reachKey) || 0) + 1)
+            // (v0.577.0) the why grain rides the same seat - the attempt's FULL
+            // reason unwraps through classifySweepReason (the lens's own
+            // classifier, ONE vocabulary - this row's classes can never split
+            // from the lens's by construction); a reason the lens cannot
+            // unwrap reads its honest bucket, never dropped
+            const whyKey = classifySweepReason(typeof sa?.reason === 'string' ? sa.reason : null).why
+            finalSmeltUnreachableWhy.set(whyKey, (finalSmeltUnreachableWhy.get(whyKey) || 0) + 1)
           }
         }
       }
@@ -4181,6 +4192,13 @@ if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)
 // refusals' own grain - it can only speak when they spoke.
 const smeltUnreachableOwner = smeltUnreachableOwnerRow([...finalSmeltUnreachable].map(([machine, count]) => ({ machine, count })))
 if (smeltUnreachableOwner) console.log(smeltUnreachableOwner)
+// (v0.577.0) THE UNREACHABLE WHY SPLIT - the owner map named WHICH machine;
+// this row reads WHAT KIND of failure the walk died of (the lens's own
+// vocabulary, the family's own grain laws) - the next cure aims at a
+// mechanism, not a machine. The same refusals' own grain - it can only
+// speak when they spoke.
+const smeltUnreachableWhy = smeltUnreachableWhyRow([...finalSmeltUnreachableWhy].map(([why, count]) => ({ why, count })))
+if (smeltUnreachableWhy) console.log(smeltUnreachableWhy)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is
