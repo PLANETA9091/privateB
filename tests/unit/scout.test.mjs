@@ -275,3 +275,67 @@ test('death watch: the wire and the doctrine are pinned in the source', () => {
   assert.ok(src.includes('createDeathWatch({ bot, tag, stats, log })'), 'the wire in createScout (the raw log - the line carries its own tag)')
   assert.ok(src.includes('const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }'), 'deaths joins the report stats')
 })
+
+// ---- (v0.532.0) THE NIGHT HOLD-AND-SCAN: the ground patrol's walk legs ride the
+// fleet's own walk-forbidden window - the held shape is stand-and-scan, the entry
+// line names the hold once per patrol call, the fly scout skips (the pantry's law).
+test('night hold: the ground patrol stands and scans instead of walking new ground', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot.time = { timeOfDay: 13000 } // deep inside the walk-forbidden window (12400..23600)
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  let scans = 0
+  const scan = async () => { scans++ }
+  const lines = []
+  const patrol = createPatrol({ bot, map, scan, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 48, lanes: 2, laneGap: 16, seconds: 2, holdBeatMs: 50 })
+  assert.equal(bot.gotoCalls, 0, 'a held patrol must not drive the pathfinder at all')
+  assert.equal(stats.travelled, 0, 'a held patrol must not bank walked distance')
+  assert.ok(scans >= 1, 'a held patrol keeps its lane knowledge current - it scans')
+  const holds = lines.filter(l => l.includes('patrol held: night'))
+  assert.equal(holds.length, 1, `the hold names itself ONCE per patrol call, got ${holds.length}`)
+  assert.ok(holds[0].includes('tod=13000'), 'the hold line carries the clock face')
+})
+
+test('night hold: a junk clock reads go (the lib\u0027s own legacy byte), dawn reads go', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  // no bot.time at all - the scout cannot read the clock, the verdict is 'go'
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  let lines = []
+  const patrol = createPatrol({ bot, map, scan: async () => {}, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 24, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(stats.travelled > 0, 'a bot that cannot read the clock walks (junk never widens a refusal)')
+  assert.equal(lines.filter(l => l.includes('patrol held')).length, 0, 'a walking patrol names no hold')
+
+  const bot2 = makeMockBot({ blocks: [] })
+  bot2.time = { timeOfDay: 1000 } // dawn: the window is far away
+  const stats2 = { scans: 0, found: 0, travelled: 0 }
+  const patrol2 = createPatrol({ bot: bot2, map, scan: async () => {}, stats: stats2, log: m => lines.push(m) })
+  await patrol2({ heading: 'east', distance: 24, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(stats2.travelled > 0, 'dawn walks')
+})
+
+test('night hold: the fly scout skips the hold (altitude-110 lanes own no ground spawn pressure)', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot.time = { timeOfDay: 13000 }
+  bot.flyTravel = async step => { bot.flyTravelCalls++; bot.entity.position = new Vec3(step.x, step.y, step.z) }
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const lines = []
+  const patrol = createPatrol({ bot, map, scan: async () => {}, stats, log: m => lines.push(m) })
+  await patrol({ heading: 'east', distance: 64, lanes: 1, laneGap: 8, seconds: 1, holdBeatMs: 20 })
+  assert.ok(bot.flyTravelCalls >= 1, 'the fly scout keeps flying through the night window')
+  assert.equal(lines.filter(l => l.includes('patrol held')).length, 0, 'the fly scout names no hold')
+})
+
+test('night hold: the wire is pinned in the source (the verdict, the two gates, the tagged log)', () => {
+  const root = new URL('../../', import.meta.url).pathname
+  const src = readFileSync(path.join(root, 'src', 'bots', 'scout.mjs'), 'utf8')
+  assert.ok(src.includes("import { walkForbidden } from '../lib/nightsafety.mjs'"), 'the fleet\u0027s own walk-forbidden verdict (one doctrine)')
+  assert.ok(src.includes("if (!walkForbidden(bot.time?.timeOfDay)) return false"), 'junk-safe: an unreadable clock reads go')
+  assert.ok(src.includes('log(`patrol held: night (tod=${Math.floor(bot.time?.timeOfDay ?? 0)}) - standing and scanning until dawn`)'), 'the defer line, one form')
+  const gates = src.match(/if \(nightHold\(\)\) \{/g) || []
+  assert.equal(gates.length, 2, 'the hold gates BOTH the step loop and the lane shift - a crossing is new ground too')
+  assert.ok(src.includes('createPatrol({ bot, map, scan: scanWithBerry, stats, log: m => log(`${tag} ${m}`) })'), 'the tagged log reaches the patrol (the raw [scout] channel)')
+})

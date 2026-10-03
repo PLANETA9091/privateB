@@ -14,6 +14,7 @@ import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.528.0) THE
 import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, berryHarvestDue, pocketBerries, pickBush } from '../lib/berry.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - the SHARED death-drop format (the fleet's death ledger reads one shape)
 import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
+import { walkForbidden } from '../lib/nightsafety.mjs' // (v0.532.0) THE NIGHT HOLD-AND-SCAN - the patrol's walk legs ride the fleet's own walk-forbidden window
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -261,7 +262,7 @@ export function createScout ({
     try { await berryStop() } catch { /* the pantry is best-effort - the scan above stays whole */ }
     return r
   }
-  const patrol = createPatrol({ bot, map, scan: scanWithBerry, stats })
+  const patrol = createPatrol({ bot, map, scan: scanWithBerry, stats, log: m => log(`${tag} ${m}`) })
 
   return { bot, ready, scan: scanWithBerry, patrol, stats, username, sync: sync ?? null }
 }
@@ -270,8 +271,14 @@ export function createScout ({
 // surface lanes with the pathfinder (short legs - a single goto over 96 blocks of forest
 // stalls on trees). Both scan at every leg and never overlap lane history.
 // Exported separately so unit tests can drive it with a mock bot.
-export function createPatrol ({ bot, map, scan, stats = { travelled: 0 } }) {
-  return async function patrol ({ origin = null, heading = 'east', distance = 96, lanes = 4, laneGap = 24, altitude = 110, seconds = 300 } = {}) {
+
+// (v0.532.0) the held patrol's scan beat: the night hold stands and re-scans on this
+// rhythm instead of walking - slow enough to not spin the finder, fast enough that the
+// lane knowledge stays current through the dark (dawn resumes the walk mid-leg).
+export const PATROL_HOLD_BEAT_MS = 2000
+
+export function createPatrol ({ bot, map, scan, stats = { travelled: 0 }, log = () => {} }) {
+  return async function patrol ({ origin = null, heading = 'east', distance = 96, lanes = 4, laneGap = 24, altitude = 110, seconds = 300, holdBeatMs = PATROL_HOLD_BEAT_MS } = {}) {
     const start = origin ? new Vec3(origin.x, origin.y, origin.z) : bot.entity.position.clone()
     const deadline = Date.now() + seconds * 1000
     const dirs = {
@@ -279,6 +286,21 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 } }) {
     }
     const [dx, dz] = dirs[heading] ?? dirs.east
     const flying = typeof bot.flyTravel === 'function'
+    // (v0.532.0) the hold's once-per-night voice: the entry line names the hold ONE
+    // time per patrol call (a hold that lasts the whole dark must not spam the log
+    // at the beat's cadence); a walk after a hold resets it - a second night names
+    // itself again. The fly scout holds nothing (altitude-110 lanes own no ground
+    // spawn pressure - the pantry's own skip law).
+    let nightHeld = false
+    const nightHold = () => {
+      if (flying) return false
+      if (!walkForbidden(bot.time?.timeOfDay)) return false
+      if (!nightHeld) {
+        nightHeld = true
+        log(`patrol held: night (tod=${Math.floor(bot.time?.timeOfDay ?? 0)}) - standing and scanning until dawn`)
+      }
+      return true
+    }
     let lane = 0
     for (; lane < lanes; lane++) {
       if (Date.now() > deadline) break
@@ -292,6 +314,23 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 } }) {
           const here = bot.entity.position
           const remaining = here.distanceTo(leg)
           if (remaining < (flying ? 24 : 6)) break
+          // (v0.532.0) THE NIGHT HOLD-AND-SCAN: the ground patrol's walk legs were
+          // the last ungated night surface lane. The fleet's own doctrine defers
+          // surface walks inside the walk-forbidden window (the lib header's
+          // measured kill sites: the dusk tail owned 11 of 17 deaths, x12 mob
+          // kills at y 64-66), the miner's four hold purposes all gate THEIR
+          // walks ('a deferred walk turns into more shaft'), and the scout kept
+          // crossing NEW ground in the dark. The scout owns no shaft - the held
+          // shape is stand-and-scan: the bot keeps its lane knowledge current
+          // without widening its exposure, the deadline still governs, dawn
+          // resumes the walk mid-leg. Junk-safe: a junk clock reads 'go' (the
+          // lib's own legacy byte) - a bot that cannot read the clock walks.
+          if (nightHold()) {
+            await scan()
+            await new Promise(r => setTimeout(r, holdBeatMs))
+            continue
+          }
+          nightHeld = false
           const stepLen = Math.min(flying ? 64 : 24, remaining)
           const step = new Vec3(
             here.x + (leg.x - here.x) / remaining * stepLen,
@@ -313,6 +352,15 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 } }) {
       }
       // move one lane across
       const shift = new Vec3(bot.entity.position.x + (dz === 0 ? 0 : laneGap), bot.entity.position.y, bot.entity.position.z + (dx === 0 ? 0 : laneGap))
+      // (v0.532.0) the shift rides the same hold - a lane crossing is new ground
+      // too, and the deadline does not make the dark safe (the held shift costs a
+      // scan beat, never a 24-block walk through the kill window).
+      if (nightHold()) {
+        await scan()
+        await new Promise(r => setTimeout(r, holdBeatMs))
+        continue
+      }
+      nightHeld = false
       try {
         if (flying) await bot.flyTravel(shift, { speed: 2.0, cruiseAbove: 20, timeoutMs: 20000 })
         else await gotoSafe(bot, new goals.GoalNear(shift.x, shift.y, shift.z, 2), { timeoutMs: 15000, label: 'scout lane shift' })

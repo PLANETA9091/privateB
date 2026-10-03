@@ -211,7 +211,7 @@ test('THE GATHER LEG: the stop rides the scan cadence, the harvest is a right-cl
   assert.match(src, /const scanWithBerry = async \(\) => \{/, 'the composed scan')
   assert.match(src, /await scanWithSync\(\)/, 'the scan\'s verdict comes FIRST')
   assert.match(src, /try \{ await berryStop\(\) \} catch \{ \/\* the pantry is best-effort - the scan above stays whole \*\/ \}/, 'best-effort by law')
-  assert.match(src, /createPatrol\(\{ bot, map, scan: scanWithBerry, stats \}\)/, 'the patrol drives the composed scan')
+  assert.match(src, /createPatrol\(\{ bot, map, scan: scanWithBerry, stats, log: m => log\(`\$\{tag\} \$\{m\}`\) \}\)/, 'the patrol drives the composed scan (v0.532.0: the tagged log joined - the night hold names itself)')
   assert.match(src, /scan: scanWithBerry, patrol/, 'the external caller drives it too')
   assert.match(src, /bot\.activateBlock\(live\)/, 'the vanilla right-click - the bush survives')
   assert.match(src, /label: 'berry stop'/, 'the detour walk names itself in the gotoSafe book')
