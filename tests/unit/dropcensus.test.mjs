@@ -24,6 +24,62 @@ test('itemCountOf reads the live metadata stack, junk-tolerant', () => {
   assert.equal(itemCountOf(null), null)
 })
 
+test("THE MASS LENS: the live slot shape reads - prismarine-item's own field (fleet 37154867210's none verdict honored)", () => {
+  // the LIVE shape: metadata is a raw values array, the item-stack entry is
+  // the parsed slot { present, itemId, itemCount } - the 1.20.5+ field name
+  // prismarine-item's fromNotch itself reads (itemsWithComponents)
+  assert.equal(itemCountOf({ metadata: [{ present: true, itemId: 42, itemCount: 7 }] }), 7)
+  assert.equal(itemCountOf({ metadata: [{ present: true, itemId: 42, itemCount: 12.9 }] }), 12) // floored
+  // the live entry FIRST in the array, junk entries around it (the real
+  // metadata carries bytes/varints beside the slot)
+  assert.equal(itemCountOf({ metadata: [0, 300, 'torn', { present: true, itemId: 9, itemCount: 4 }, null] }), 4)
+  // the legacy shape stays readable (one chain, both shapes)
+  assert.equal(itemCountOf({ metadata: [{ count: 5 }] }), 5)
+  // both fields on one entry: the live field wins the chain
+  assert.equal(itemCountOf({ metadata: [{ itemCount: 3, count: 9 }] }), 3)
+  // the junk law unchanged for the live field too
+  assert.equal(itemCountOf({ metadata: [{ itemCount: 0 }] }), null)
+  assert.equal(itemCountOf({ metadata: [{ itemCount: -2 }] }), null)
+  assert.equal(itemCountOf({ metadata: [{ present: true, itemId: 42 }] }), null) // the slot without a stack
+  assert.equal(itemCountOf({ metadata: [{ itemCount: NaN }] }), null)
+})
+
+test('THE DEAF-ARM INSURANCE: the arms count their own liveness, the none-form names them', () => {
+  const rec = dropCensusRecord()
+  observeItemSpawn(rec, item(51, 4), T0)
+  observeItemCollect(rec, item(51, 4), T0 + 100) // a real pickup
+  observeItemCollect(rec, item(52, 4), T0 + 200) // an unmatched id - the event fired, the pool never knew it
+  observeItemCollect(rec, null, T0 + 300) // a torn payload - the event STILL fired
+  assert.equal(rec.collectEvents, 3) // the EVENT count, not the booking count
+  assert.equal(rec.collectedUnits, 4)
+  observeItemGone(rec, null, T0 + 400)
+  assert.equal(rec.goneEvents, 1)
+  // the merge class is sized, not just silent
+  const rec2 = dropCensusRecord()
+  observeItemSpawn(rec2, item(53, 6), T0)
+  assert.equal(observeItemGone(rec2, item(53, 6), T0 + DROP_MERGE_WINDOW_MS), false) // the merge class
+  assert.equal(rec2.mergeVanishes, 1)
+  // the unreadable resolves are counted on both arms
+  const rec3 = dropCensusRecord()
+  observeItemSpawn(rec3, item(54, null), T0)
+  observeItemCollect(rec3, item(54, null), T0 + 100)
+  assert.equal(rec3.nullMassResolves, 1)
+  observeItemSpawn(rec3, item(55, null), T0 + 200)
+  assert.equal(observeItemGone(rec3, item(55, null), T0 + 300_000), true)
+  assert.equal(rec3.nullMassResolves, 2)
+  // the row's none-form names every arm - a still blind face reads its deaf arm in one line
+  const blind = dropCensusRecord()
+  blind.spawned = 27872
+  blind.collectEvents = 5104
+  blind.goneEvents = 24018
+  blind.mergeVanishes = 23971
+  blind.nullMassResolves = 5104
+  assert.equal(dropCensusRow([blind]),
+    'drop census: none (27872 drops seen, no mass resolved; collect events 5104, gone events 24018, merge-window vanishes 23971, unreadable mass 5104)')
+  // the counters sum across records (reconnects append)
+  assert.equal(dropCensusRow([blind, blind]).includes('collect events 10208'), true)
+})
+
 test('the live anchor: spawn -> collect books the mass once (the pool exits through a hand)', () => {
   const rec = dropCensusRecord()
   assert.equal(observeItemSpawn(rec, item(7, 3), T0), true)
@@ -74,11 +130,13 @@ test('unreadable count at resolve time: the lifecycle proceeds, the books stay c
   observeItemSpawn(rec, item(21, null), T0)
   assert.equal(observeItemCollect(rec, item(21, null), T0 + 100), true)
   assert.equal(rec.collectedUnits, 0)
+  assert.equal(rec.nullMassResolves, 1) // (v0.578.0) the blind read is NAMED
   const rec2 = dropCensusRecord()
   observeItemSpawn(rec2, item(22, 8), T0)
   assert.equal(observeItemGone(rec2, item(22, null), T0 + 300_000), true)
   assert.equal(rec2.lostUnits, 0) // the loss happened, the mass is unreadable - no invention
   assert.equal(rec2.lostDrops, 0)
+  assert.equal(rec2.nullMassResolves, 1)
 })
 
 test('the junk battery: torn entities and torn records never throw, never book', () => {
@@ -160,7 +218,7 @@ test('the row: the grain form and the none forms are verdicts too', () => {
   assert.equal(dropCensusRow([]), 'drop census: none (no item drops observed this run)')
   const seen = dropCensusRecord()
   seen.spawned = 12 // drops happened, all merged or unreadable - no mass resolved
-  assert.equal(dropCensusRow([seen]), 'drop census: none (12 drops seen, no mass resolved)')
+  assert.equal(dropCensusRow([seen]), 'drop census: none (12 drops seen, no mass resolved; collect events 0, gone events 0, merge-window vanishes 0, unreadable mass 0)')
 })
 
 test('the row sums every record (reconnects append, nothing is erased)', () => {

@@ -31,6 +31,26 @@
 //
 // Junk never enters: a torn entity, a NaN id, a negative or unreadable
 // count - the lifecycle proceeds, the books stay clean (the body-guard law).
+//
+// (v0.578.0) THE MASS LENS - the first flight's own verdict, honored. Fleet
+// 37154867210 (v0.576.0) read 'none (27872 drops seen, no mass resolved)'
+// on a face where the bots physically pocketed ~2400u - the census was
+// blind BY CONSTRUCTION, and the none-form said so. The ground truth:
+// prismarine-entity carries the metadata as a RAW values array and hands
+// the item-stack entry to Item.fromNotch, whose own read for 1.20.5+
+// (itemsWithComponents) is networkItem.itemCount - the census's 'count'
+// read matched a shape the live tree never produces (the unit tests had
+// synthesized it). The lens reads the LIVE slot field first (itemCount,
+// prismarine-item's own field name) with the legacy count kept - one
+// chain, both shapes, the junk law unchanged (finite, > 0, floored).
+// THE DEAF-ARM INSURANCE: the resolve arms now count their own liveness
+// (collectEvents / goneEvents = handler entries, torn payloads included -
+// the counter sizes the EVENT, not the payload), the merge-class
+// vanishes (mergeVanishes) and the resolves whose mass still reads
+// unreadable (nullMassResolves) - the none-form names them, so a still
+// blind face NAMES its deaf arm in one read (the event never fired vs
+// the id never matched vs the mass never read) instead of burning
+// another face on 'none'.
 
 // The sink's trip point - the family's own boundary shape (the unaccounted
 // watch speaks at 0.25 of mined; the drop pool speaks at 0.25 of resolved).
@@ -51,6 +71,10 @@ export const DROP_RESOLVE_MIN_UNITS = 64
 /**
  * The mass of an item entity, read from its live metadata (the merge
  * self-correction: the read happens at resolve time, never at spawn).
+ * (v0.578.0) THE MASS LENS: the live slot entry carries itemCount
+ * (prismarine-item's fromNotch read for 1.20.5+, the field the real
+ * protocol parser produces); the legacy count stays second - one chain,
+ * both shapes, first readable entry wins, the junk law unchanged.
  * @param {{metadata?: Array}|null} entity
  * @returns {number|null} the stack count, or null when unreadable
  */
@@ -58,7 +82,10 @@ export function itemCountOf (entity) {
   const md = entity?.metadata
   if (!Array.isArray(md)) return null
   for (const m of md) {
-    if (m && typeof m === 'object' && Number.isFinite(m.count) && m.count > 0) return Math.floor(m.count)
+    if (m && typeof m === 'object') {
+      const c = [m.itemCount, m.count].find(v => Number.isFinite(v) && v > 0)
+      if (c !== undefined) return Math.floor(c)
+    }
   }
   return null
 }
@@ -68,7 +95,12 @@ export function itemCountOf (entity) {
  * @returns {{live: Map<number, {ts: number, collected: boolean, entity: object}>, spawned: number, collectedUnits: number, collectedDrops: number, lostUnits: number, lostDrops: number}}
  */
 export function dropCensusRecord () {
-  return { live: new Map(), spawned: 0, collectedUnits: 0, collectedDrops: 0, lostUnits: 0, lostDrops: 0 }
+  return {
+    live: new Map(), spawned: 0, collectedUnits: 0, collectedDrops: 0, lostUnits: 0, lostDrops: 0,
+    // (v0.578.0) the deaf-arm insurance: the arms' own liveness counts (the
+    // row's none-form names them - a still blind face names its deaf arm)
+    collectEvents: 0, goneEvents: 0, mergeVanishes: 0, nullMassResolves: 0
+  }
 }
 
 /**
@@ -97,12 +129,13 @@ export function observeItemSpawn (rec, entity, now = Date.now()) {
  */
 export function observeItemCollect (rec, entity, now = Date.now()) {
   if (!rec || !(rec.live instanceof Map)) return false
+  rec.collectEvents++ // (v0.578.0) the arm's liveness: the EVENT fired, torn payload or not
   if (!entity || !Number.isFinite(entity.id)) return false
   const t = rec.live.get(entity.id)
   if (!t || t.collected) return false
   rec.live.delete(entity.id)
   const c = itemCountOf(entity)
-  if (c != null) { rec.collectedUnits += c; rec.collectedDrops++ }
+  if (c != null) { rec.collectedUnits += c; rec.collectedDrops++ } else rec.nullMassResolves++ // (v0.578.0) the lens still missed this one
   t.collected = true
   return true
 }
@@ -115,15 +148,16 @@ export function observeItemCollect (rec, entity, now = Date.now()) {
  */
 export function observeItemGone (rec, entity, now = Date.now()) {
   if (!rec || !(rec.live instanceof Map)) return false
+  rec.goneEvents++ // (v0.578.0) the arm's liveness: the EVENT fired, torn payload or not
   if (!entity || !Number.isFinite(entity.id)) return false
   const t = rec.live.get(entity.id)
   if (!t || t.collected) return false
   rec.live.delete(entity.id)
   const age = (Number.isFinite(now) && now >= 0 ? now : Date.now()) - t.ts
   if (!Number.isFinite(age) || age < 0) return false // an impossible clock is nobody's leak
-  if (age <= DROP_MERGE_WINDOW_MS) return false // the merge class: the mass moved to a twin
+  if (age <= DROP_MERGE_WINDOW_MS) { rec.mergeVanishes++; return false } // (v0.578.0) the merge class: the mass moved to a twin - now the class is SIZED, not just silent
   const c = itemCountOf(entity)
-  if (c != null) { rec.lostUnits += c; rec.lostDrops++ }
+  if (c != null) { rec.lostUnits += c; rec.lostDrops++ } else rec.nullMassResolves++ // (v0.578.0) the lens still missed this one
   return true
 }
 
@@ -159,16 +193,24 @@ export function dropCensusRow (records) {
   let collected = 0
   let lost = 0
   let open = 0
+  let collectEvents = 0
+  let goneEvents = 0
+  let mergeVanishes = 0
+  let nullMassResolves = 0
   for (const r of list) {
     if (!r || typeof r !== 'object') continue
     spawned += floorU(r.spawned)
     collected += floorU(r.collectedUnits)
     lost += floorU(r.lostUnits)
     open += openDropUnits(r).units
+    collectEvents += floorU(r.collectEvents)
+    goneEvents += floorU(r.goneEvents)
+    mergeVanishes += floorU(r.mergeVanishes)
+    nullMassResolves += floorU(r.nullMassResolves)
   }
   const resolved = collected + lost
   if (spawned === 0 && resolved === 0) return 'drop census: none (no item drops observed this run)'
-  if (resolved === 0) return `drop census: none (${spawned} drops seen, no mass resolved)`
+  if (resolved === 0) return `drop census: none (${spawned} drops seen, no mass resolved; collect events ${collectEvents}, gone events ${goneEvents}, merge-window vanishes ${mergeVanishes}, unreadable mass ${nullMassResolves})`
   const share = lost / resolved
   const pct = (share * 100).toFixed(1)
   const live = `${open}u still live`
