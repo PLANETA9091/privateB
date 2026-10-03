@@ -90,5 +90,38 @@ export function carvedCellIsDry (block) {
   if (!block || block.boundingBox !== 'empty') return false
   const name = block.name
   if (typeof name !== 'string' || name === '') return false
-  return !/water|lava|kelp|seagrass|bubble/.test(name)
+  return !FLUID_NAME_RE.test(name)
+}
+
+// (v0.573.0) ONE WET COLUMN, ONE LIST: the fluid classifier the dry-carve
+// law and the late-flood read share - the two laws can never disagree about
+// what a wet cell is, by construction.
+export const FLUID_NAME_RE = /water|lava|kelp|seagrass|bubble/
+
+/**
+ * THE LATE-FLOOD READ (v0.573.0): did the carved-dry cell turn FLUID after
+ * the carve's own 3-tick dry verify?
+ *
+ * The measured face (CI 37149135060, the smelting pipeline's first red on
+ * the v0.571.0 tree): the alcove carved at (-131, 47, 403) verified DRY at
+ * 19:59:49.3 and read WATER at 19:59:50.9 - 1.6s later, before placeMachine's
+ * scan. The dry-carve law's window is 3 ticks; the water took 1.6s to path
+ * in. The step-out law then refused the wet cell (its own law, holding), the
+ * rings read stone, and the caller burned all THREE carve attempts on the
+ * same wet wall - the wet branch's relocate handoff never fired because
+ * carveAlcove returned { cell }, not { wet: true }: the flood arrived after
+ * carveAlcove had already spoken.
+ *
+ * The verdict is pure: a fluid name reads true; air and solids read false
+ * (the gravity refill stays the ladder's own class); null and junk read
+ * false - the caller's existing branches own those classes byte-identically.
+ * The list is FLUID_NAME_RE itself - the two laws can never split.
+ *
+ * @param {{name?: unknown}|null|undefined} block  the block read at the carved cell
+ * @returns {boolean} true only when the cell reads the wet column
+ */
+export function carvedCellFlooded (block) {
+  const name = block?.name
+  if (typeof name !== 'string' || name === '') return false
+  return FLUID_NAME_RE.test(name)
 }

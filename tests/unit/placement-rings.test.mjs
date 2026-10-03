@@ -4,7 +4,8 @@
 // integers - every assertion is exact, no mocks, no timing.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry } from '../../src/lib/placement-rings.mjs'
+import { readFileSync } from 'node:fs'
+import { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry, carvedCellFlooded, FLUID_NAME_RE } from '../../src/lib/placement-rings.mjs'
 
 test('RING1_OFFSETS is the historic literal, byte-identical order (the sync law)', () => {
   // placeMachine's original inline literal: cardinals first, diagonals after -
@@ -106,4 +107,65 @@ test('carvedCellIsDry junk battery - a broken read never certifies a carve (the 
   for (const j of [null, undefined, NaN, 'air', 42, {}, [], ['air'], { boundingBox: 'empty' }, { name: 'air' }, { boundingBox: 'empty', name: '' }, { boundingBox: 'empty', name: 7 }, { boundingBox: 'block' }, { boundingBox: null, name: 'air' }]) {
     assert.equal(carvedCellIsDry(j), false, `junk ${JSON.stringify(j) ?? String(j)} must not read as carved`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// (v0.573.0) THE LATE-FLOOD READ - the carved-dry cell turned fluid after the
+// carve's own 3-tick verify. The measured face: CI 37149135060 carved the
+// alcove DRY at 19:59:49.3 and the scan read water at 19:59:50.9 - 1.6s
+// later, after carveAlcove had already spoken - the caller burned all three
+// carve attempts on the same wet wall.
+// ---------------------------------------------------------------------------
+test('carvedCellFlooded: THE LIVE ANCHOR - the 1.6s flood reads as flooded', () => {
+  // the same cell that verified dry 3 ticks earlier read water at the scan
+  assert.equal(carvedCellFlooded({ name: 'water' }), true)
+  // the full wet column rides the shared list
+  assert.equal(carvedCellFlooded({ name: 'flowing_water' }), true)
+  assert.equal(carvedCellFlooded({ name: 'lava' }), true)
+  assert.equal(carvedCellFlooded({ name: 'kelp' }), true)
+  assert.equal(carvedCellFlooded({ name: 'seagrass' }), true)
+  assert.equal(carvedCellFlooded({ name: 'bubble_column' }), true)
+})
+
+test('carvedCellFlooded: the non-flood classes stay the caller\'s own branches', () => {
+  // air: the carve held - no handoff (the pre-0.573.0 fall-through)
+  assert.equal(carvedCellFlooded({ name: 'air' }), false)
+  // the gravity refill (CI 36174497274's class) stays the ladder's own class
+  assert.equal(carvedCellFlooded({ name: 'gravel' }), false)
+  assert.equal(carvedCellFlooded({ name: 'stone' }), false)
+  assert.equal(carvedCellFlooded({ name: 'crafting_table' }), false)
+  // the name is the law: a solid-boxed water read still names the wet column
+  assert.equal(carvedCellFlooded({ boundingBox: 'block', name: 'water' }), true)
+})
+
+test('carvedCellFlooded junk battery - a broken read never fires the handoff (the body-guard law)', () => {
+  for (const j of [null, undefined, NaN, 'water', 42, {}, [], ['water'], { name: '' }, { name: 7 }, { boundingBox: 'empty' }]) {
+    assert.equal(carvedCellFlooded(j), false, `junk ${JSON.stringify(j) ?? String(j)} must not read as flooded`)
+  }
+})
+
+test('ONE WET COLUMN, ONE LIST: the two laws share FLUID_NAME_RE and can never split', () => {
+  // the dry-carve law and the late-flood read agree on every wet name
+  for (const name of ['water', 'flowing_water', 'lava', 'kelp', 'seagrass', 'bubble_column']) {
+    assert.equal(carvedCellIsDry({ boundingBox: 'empty', name }), false, `${name} must not read dry`)
+    assert.equal(carvedCellFlooded({ name }), true, `${name} must read flooded`)
+  }
+  // air: dry AND not flooded - the two laws' clean split
+  assert.equal(carvedCellIsDry({ boundingBox: 'empty', name: 'air' }), true)
+  assert.equal(carvedCellFlooded({ name: 'air' }), false)
+  // the export IS the regex both bodies test - the drift is impossible by construction
+  for (const name of ['water', 'lava', 'kelp', 'seagrass', 'bubble']) {
+    assert.ok(FLUID_NAME_RE.test(name), `${name} rides the shared list`)
+  }
+})
+
+test('carvedCellFlooded: THE WIRING PIN - the handoff rides both carve ladders', () => {
+  const src = readFileSync(new URL('../../tests/integration/smelting.test.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('carvedCellFlooded'), 'the integration test imports the late-flood read')
+  // both ladders name the late flood and take the SAME relocate handoff
+  const firstIdx = src.indexOf('the carved cell flooded late')
+  const secondIdx = src.indexOf('the carved cell flooded late', firstIdx + 1)
+  assert.ok(firstIdx > -1, 'the table flow names the late flood')
+  assert.ok(secondIdx > firstIdx, 'the furnace flow names it too (the mirror law)')
+  assert.equal(src.match(/carvedCellFlooded\(bot\.blockAt\(carve\.cell\)\)/g)?.length, 2, 'both handoffs read THE carved cell')
 })

@@ -31,7 +31,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const toolsMod = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
 // (v0.363.0) the placement rings + the flooded-alcove trigger live in a unit-pinned
 // lib - the integration helper imports the same shapes the unit tests pin
-const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
+const { RING1_OFFSETS, RING2_OFFSETS, floodedAlcove, carvedCellIsDry, carvedCellFlooded } = await import(path.join(root, 'src', 'lib', 'placement-rings.mjs'))
 const HOST = process.env.MC_HOST || '127.0.0.1'
 const PORT = Number(process.env.MC_PORT || 25565)
 
@@ -604,6 +604,17 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
         // one cell we KNOW is fresh air, honored even if the feet drift
         table = await placeMachine(bot, 'crafting_table', carve.cell)
         log(`table attempt ${attempt}: carved, placed=${table?.position?.floored() ?? 'FAILED'}`)
+        // (v0.573.0) THE LATE-FLOOD HANDOFF: the dry-carve verify's window is
+        // 3 ticks - the water took 1.6s to path in (CI 37149135060: carved
+        // DRY at 19:59:49.3, the scan read water at 19:59:50.9), so the flood
+        // arrives after carveAlcove has already spoken. A wet carved cell is
+        // the wet branch's own class: name it and take the SAME relocate
+        // handoff - the next attempt probes dry walls instead of re-carving
+        // the same pond's wall three times.
+        if (!table && carvedCellFlooded(bot.blockAt(carve.cell))) {
+          log(`table attempt ${attempt}: the carved cell flooded late (${bot.blockAt(carve.cell)?.name}) - relocating to dry ground`)
+          try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
+        }
       } else if (carve.wet) {
         // (v0.352.0) the wet column is not a pipeline failure - walk out of
         // the water (the fleet's relocate escalation, the tools phase's own
@@ -661,6 +672,12 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
       // table flow's carve-anchor honor, the same drift class)
       furnaceBlock = await placeMachine(bot, 'furnace', carve.cell)
       log(`furnace attempt ${attempt}: carved, placed=${furnaceBlock?.position?.floored() ?? 'FAILED'}`)
+      // (v0.573.0) THE LATE-FLOOD HANDOFF, the furnace ladder's mirror (the
+      // same 1.6s flood class, the same relocate handoff the table flow rides)
+      if (!furnaceBlock && carvedCellFlooded(bot.blockAt(carve.cell))) {
+        log(`furnace attempt ${attempt}: the carved cell flooded late (${bot.blockAt(carve.cell)?.name}) - relocating to dry ground`)
+        try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
+      }
     } else if (carve.wet) {
       log(`furnace attempt ${attempt}: the column is wet - relocating to solid ground`)
       try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
