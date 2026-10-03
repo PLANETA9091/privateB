@@ -23,7 +23,7 @@ import { HazardLedger } from '../src/lib/drowning.mjs'
 import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
-import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, MID_BANK_RETURN_MARGIN_MS, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward } from '../src/lib/deposit.mjs'
+import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, MID_BANK_RETURN_MARGIN_MS, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward, NEEDS_BANKING_MIN_REMAINING_MS } from '../src/lib/deposit.mjs'
 import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
 import { deliverableNow } from '../src/lib/deliverability.mjs' // (v0.385.0) THE DELIVERABILITY ARM - the gate compares, flowPriceClock prices (the sibling law)
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
@@ -2549,6 +2549,7 @@ async function runBot (name, target, index) {
         })
         bankRescueAnnounced = bankDefer.announced
         if (bankDefer.announce) console.log(`${name} bank trip: deferred (rescue owns the bot - the arm waits for the release, the budget never burns)`) // rides the same 'bank ' filter key, the class sizes itself
+        if (load && bankWanted) bankArmSpoke.add(name) // (v0.574.0) THE ARM SILENCE CENSUS: a wanted pass is a spoken pass - the end-phase row reads the complement (the never-wanted class, the silence between the arms)
         if (load && bankWanted && bankViable && !bankDefer.defer) {
           // (v0.321.0) THE ROUTE LATCH AT THE TRIP DOOR: a route the memo has
           // condemned is not armed, not consolidated, not climbed, not held -
@@ -2659,16 +2660,27 @@ async function runBot (name, target, index) {
           // (lastBankAt advances - the pockets-full state re-checks in 150s, not
           // every loop iteration) and the bot keeps MINING: the end-phase
           // pre-position + final bank own the deadline banking they already own.
-          // (v0.185.0) the branch now carries TWO refusals and names whichever
-          // fired: the night hold defers the yard walk ('bank trip: deferred
-          // night', the v0.140.1 shape's own line family - the wood trip's
-          // 'deferred night' line is the field-proven template), the doomed
-          // clock keeps the v0.181.0 line byte for byte.
+          // (v0.574.0) THE HONEST REFUSAL - the branch carries THREE refusals and
+          // names ONLY the one that fired. Face 37149142927 (the v0.571.0 tree):
+          // F12 held 292s of remaining clock - VIABLE by the gate's own arithmetic
+          // (292 >= 150) - yet this branch printed '292s left < 150s': the bot's
+          // real refusal was the rescue deferral (bankDefer.defer), which fell
+          // through to here and borrowed the viability line's hardcoded story.
+          // The defer's announce above already owns that story (once per window,
+          // the v0.306.0 cadence) - the defer case speaks NOTHING here; the night
+          // case keeps the v0.140.1 line byte for byte; and the viability case
+          // names its floor FROM THE CONSTANT, never a literal - a floor raised
+          // in deposit.mjs can never out-date the line's story. A no-defer,
+          // no-night pass here IS a below-floor clock by construction: every
+          // other arm's go feeds bankViable directly, so a false bankViable with
+          // all arms declined can only be the needsBankingTripViable term.
           lastBankAt = Date.now()
-          if (bankNightHold) {
+          if (bankDefer.defer) {
+            // the rescue announce above spoke - a second line would tell the pocket's story twice (and lie once)
+          } else if (bankNightHold) {
             console.log(`${name} bank trip: deferred night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the yard walk rides out the dark alive (the v0.140.1 night hold extends to the mid-run trips)`)
           } else {
-            console.log(`${name} bank trip: skipped (pockets full, ${Math.max(0, Math.round(bankRemainingMs / 1000))}s left < 150s - the end-phase owns the deadline banking)`)
+            console.log(`${name} bank trip: skipped (pockets full, ${Math.max(0, Math.round(bankRemainingMs / 1000))}s left < ${Math.round(NEEDS_BANKING_MIN_REMAINING_MS / 1000)}s - the end-phase owns the deadline banking)`)
           }
         }
         // (v0.179.0) THE STICK FAMINE TRIP - the wood re-supply lane for tooled bots.
@@ -3635,6 +3647,7 @@ setFleetDuckSweeper(stormSweepAllGoals)
 // reads; the report prints the count as the A*-storm evidence.
 const noPathLedger = []
 const fullChestLedger = [] // (v0.65.0) shared fleet-wide 'chest full' verdicts - one discovery spares the other 18 the walk
+const bankArmSpoke = new Set() // (v0.574.0) THE ARM SILENCE CENSUS - every bot whose bank arm family WANTED a pass (planned/dusk/dusk-plan/pockets-full/deliverable/shed all feed one bankWanted gate, and the wanted pass speaks); the end-phase row reads the complement - the never-wanted bots whose pockets rode the deadline in silence
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -4206,6 +4219,23 @@ console.log(`no-path ledger: ${noPathLedger.length} live verdict(s) at end phase
 console.log(`full-chest ledger: ${fullChestLedger.length} live verdict(s) at end phase`)
 const dgs = doomedGoalStats()
 console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-issues refused at the funnel, ${dgs.absorbed} re-dooms absorbed (the v0.96.0 backoff - the storm can no longer out-pace the ttl), ${dgs.live} live at end phase (v0.72.0 spiral breaker)`)
+// (v0.574.0) THE ARM SILENCE ROW - the cadence's own leanness law: the row reads
+// only the never-wanted class (a bot that armed once never rides it). Face
+// 37149142927: 5 bank lines from 19 bots while the pockets rode to 1.8ku - the
+// silence BETWEEN the arms was the face's loudest read and the log had no line
+// for it. The row names the never-wanted bots' mass so the next face can split
+// 'the arms never wanted' (this row) from 'wanted and refused' (the refusal
+// lines' own census) - the two fronts price different cures.
+{
+  const silentArms = list.filter(m => !bankArmSpoke.has(m.username))
+  if (silentArms.length > 0) {
+    const silentUnits = silentArms.map(m => { try { return inventoryLoad(m.bot)?.units ?? 0 } catch { return 0 } })
+    const silentTotal = silentUnits.reduce((a, b) => a + b, 0)
+    let top = null
+    silentArms.forEach((m, i) => { if (!top || silentUnits[i] > top[1]) top = [m.username, silentUnits[i]] })
+    console.log(`bank arm census: ${silentArms.length} bot(s) never armed a bank pass - their end pockets carried ${silentTotal}u${top && top[1] > 0 ? ` (top ${top[0]}=${top[1]}u)` : ''} - the arms' silence is the face's own read`)
+  }
+}
 const wgs = walkGovernorStatsFor()
 console.log(`walk governor: ${wgs.opens} stall(s) opened, ${wgs.refusals} churn re-issues refused (v0.74.0 churn breaker - goals queued+done with zero progress during the run68-class storms)`)
 console.log(`fleet churn ceiling: ${wgs.fleetOpens} open(s), ${wgs.fleetRefusals} aggregate re-issues refused (v0.77.0 - the per-bot limit leaves the fleet-wide burst unbounded)`)

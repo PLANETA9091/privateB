@@ -388,3 +388,60 @@ test('WIRING PIN: the refusal refractory gates the needsBanking term (v0.306.0)'
   const advanceIdx = fleetSrc.indexOf('lastBankAt = Date.now()', openIdx)
   assert.ok(advanceIdx > openIdx, 'the branch still advances lastBankAt downstream (the silencer)')
 })
+
+// (v0.574.0) THE HONEST REFUSAL - the bank refusal branch names ONLY the refusal
+// that fired. Face 37149142927 (the v0.571.0 tree): F12 held 292s of remaining
+// clock - VIABLE by the gate's own arithmetic (292 >= 150) - yet the branch
+// printed '292s left < 150s': the bot's real refusal was the rescue deferral
+// (bankDefer.defer), which fell through to the generic branch and borrowed the
+// viability line's hardcoded story. The wire: the defer case speaks NOTHING
+// (the announce above owns the story, once per window); the night case keeps
+// the v0.140.1 line byte for byte; the viability case names its floor FROM THE
+// CONSTANT the gate itself defaults to - the line and the gate can never split.
+// THE ARM SILENCE CENSUS rides the same face: 5 bank lines from 19 bots while
+// the pockets rode to 1.8ku - the silence BETWEEN the arms had no line. A
+// wanted pass is a spoke (fed on bankWanted, before the trip door - a refused
+// pass is still a spoke, the silence is the never-wanted class); the end-phase
+// row reads the complement and prints only when the class is non-empty (the
+// leanness law).
+test("THE HONEST REFUSAL: the refusal branch names only the refusal that fired, the floor reads from the constant (fleet source pins)", () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the branch's FIRST case is the silent defer - the announce above already spoke
+  assert.match(fleetSrc, /if \(bankDefer\.defer\) \{\n\s*\/\/ the rescue announce above spoke - a second line would tell the pocket's story twice \(and lie once\)/,
+    'the defer case is named first and speaks nothing (the announce owns the story)')
+  // the night case keeps the v0.140.1 line byte for byte
+  assert.match(fleetSrc, /bank trip: deferred night \(tod=/, 'the night case keeps its own line')
+  // the viability floor reads FROM THE CONSTANT, never a literal
+  assert.match(fleetSrc, /s left < \$\{Math\.round\(NEEDS_BANKING_MIN_REMAINING_MS \/ 1000\)\}s - the end-phase owns the deadline banking/,
+    'the viability line names its floor from the constant')
+  assert.ok(!fleetSrc.includes('< 150s - the end-phase'), 'the hardcoded floor literal is gone from the fleet source (the comment\'s evidence quote excepted)')
+  // one arithmetic: the constant rides the SAME import the gate's default reads
+  assert.match(fleetSrc, /walkRawToward, NEEDS_BANKING_MIN_REMAINING_MS \} from '\.\.\/src\/lib\/deposit\.mjs'/,
+    'the line\'s floor and the gate\'s default are one export (the constant can never split)')
+  // the decomposition is exhaustive: a no-defer, no-night pass here IS the below-floor clock
+  const branchSrc = fleetSrc.slice(fleetSrc.indexOf('if (bankDefer.defer) {'), fleetSrc.indexOf('THE STICK FAMINE TRIP'))
+  assert.ok(branchSrc.includes('bankNightHold') && branchSrc.includes('NEEDS_BANKING_MIN_REMAINING_MS'),
+    'the branch carries exactly the three refusals and nothing else')
+})
+
+test("THE ARM SILENCE CENSUS: a wanted pass is a spoke, the end-phase row reads the never-wanted class (fleet source pins)", () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the census set is declared at module scope beside the fleet's own ledgers
+  assert.match(fleetSrc, /const bankArmSpoke = new Set\(\)/, 'the census set exists')
+  // the feed rides the wanted gate, AFTER the bankWanted compute, BEFORE the trip door -
+  // a refused or deferred pass is still a spoke (the silence is the never-wanted class only)
+  const wantedIdx = fleetSrc.indexOf('const bankWanted =')
+  const feedIdx = fleetSrc.indexOf('if (load && bankWanted) bankArmSpoke.add(name)')
+  const doorIdx = fleetSrc.indexOf('if (load && bankWanted && bankViable && !bankDefer.defer) {')
+  assert.ok(wantedIdx > 0 && feedIdx > wantedIdx && doorIdx > feedIdx,
+    'the spoke is recorded on every wanted pass, before the trip door decides')
+  // the end-phase row: the complement read + the leanness law + the mass shape
+  assert.match(fleetSrc, /const silentArms = list\.filter\(m => !bankArmSpoke\.has\(m\.username\)\)/,
+    'the row reads the never-wanted complement')
+  const rowIdx = fleetSrc.indexOf('bank arm census: ')
+  assert.ok(rowIdx > 0, 'the row names the class')
+  const guardIdx = fleetSrc.lastIndexOf('if (silentArms.length > 0)', rowIdx)
+  assert.ok(guardIdx > 0, 'the row prints only when the class is non-empty (the leanness law)')
+  assert.match(fleetSrc, /their end pockets carried \$\{silentTotal\}u/, 'the row names the silent mass')
+  assert.match(fleetSrc, /top \$\{top\[0\]\}=\$\{top\[1\]\}u/, 'the row names the top silent holder')
+})
