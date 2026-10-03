@@ -77,7 +77,18 @@ export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans:
 // scout skips the pantry (a mid-air activate is an unpriced interaction -
 // the production shape is ground). Exported so unit tests drive it with a
 // mock bot, exactly the createScan/createPatrol contract.
-export function createBerryStop ({ bot, log = () => {}, bushMemory = null } = {}) {
+// (v0.537.0) THE PANTRY'S BOOK - the counters ride the scout's stats through an
+// injected `stats` (null stays the tests' junk-safe shape: no book, no counts, no
+// throw). Two monotone integers, the carry's own class: berryPicked (the pocket
+// delta the pantry bought, zeros included - a bare bush's zero is a readable
+// zero, the sum just doesn't move) and berryWalks (famine walks SPENT - a walk
+// is spent once attempted, before the goto, the failed and gone walks count
+// exactly like the paid ones: the spend is the walk, the pay is the delta).
+// Without the book the run's report could not say whether the pantry ever fired
+// - the v0.535.0 lesson's exact shape (the verdict discarded by its only
+// composer), and the fields ride SCOUT_CARRY_FIELDS so the attempt rebuild
+// cannot zero the pantry's half of the book (the v0.536.0 lie, two fields wide).
+export function createBerryStop ({ bot, log = () => {}, bushMemory = null, stats = null } = {}) {
   return async function berryStop () {
     try {
       if (bot?.flyTravel) return { due: false, why: 'the fly scout skips the pantry' }
@@ -96,6 +107,7 @@ export function createBerryStop ({ bot, log = () => {}, bushMemory = null } = {}
         const f1 = pocketBerries(bot)
         const picked = Math.max(0, (f1 ?? 0) - (f0 ?? 0))
         log(`berry: ${walked ? 'famine walk picked' : 'picked'} ${picked} x ${BERRY_ITEM} (hunger ${hunger} -> ${bot?.food ?? '?'}, pocket ${f0 ?? '?'} -> ${f1 ?? '?'})`)
+        if (stats) stats.berryPicked = (stats.berryPicked ?? 0) + picked // (v0.537.0) the pay lands even when it is zero - the readable zero
         return { due: true, picked, walked }
       }
       const found = bot.findBlocks({ matching: b => b?.name === BERRY_BUSH, maxDistance: BERRY_REACH, count: BERRY_COUNT }) ?? []
@@ -119,6 +131,7 @@ export function createBerryStop ({ bot, log = () => {}, bushMemory = null } = {}
         const plan = famineWalkPlan({ memory: bushMemory, here: bot.entity?.position })
         if (plan) {
           log(`berry: famine walk - the reach is bare, the memory knows a bush at [${plan.pos.x},${plan.pos.y},${plan.pos.z}] (${Math.round(plan.dist)} blocks)`)
+          if (stats) stats.berryWalks = (stats.berryWalks ?? 0) + 1 // (v0.537.0) a walk is spent once attempted - the goto's outcome prices the pay, never the spend
           const at = new Vec3(plan.pos.x, plan.pos.y, plan.pos.z)
           try {
             await gotoSafe(bot, new goals.GoalNear(at.x, at.y, at.z, 2), { timeoutMs: BERRY_WALK_TIMEOUT_MS, label: 'berry famine walk' })
@@ -273,7 +286,10 @@ export function createScout ({
       log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
     } catch { /* gone */ }
   })
-  const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  // (v0.537.0) the pantry's counters join the book - two monotone integers of
+  // the carry's own class (SCOUT_CARRY_FIELDS grew to six: the attempt rebuild
+  // must not zero the pantry's half of the walk).
+  const stats = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }
   // (v0.534.0) THE FAMINE WALK's book - the scan's eye writes, the pantry's
   // walk reads. Private to this scout (the shared map stays the miners').
   const bushMemory = new Map()
@@ -348,7 +364,9 @@ export function createScout ({
   // berry stop (best-effort by law - the scan's verdict stays whole, the patrol's
   // cadence is untouched; the refusals are quiet inside the stop itself). The
   // patrol AND the external caller both drive the composed scan.
-  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory })
+  // (v0.537.0) the composition hands the book to the pantry - the ONE production
+  // call site, the counters ride the same stats object the watch and patrol mutate.
+  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory, stats })
   const scanWithBerry = async () => {
     const r = await scanWithSync()
     try { await berryStop() } catch { /* the pantry is best-effort - the scan above stays whole */ }

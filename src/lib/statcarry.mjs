@@ -870,7 +870,10 @@ export function scoutReportRow (opts = {}) {
   const stats = o.stats
   if (!stats || typeof stats !== 'object') return 'scout report: requested, never spawned'
   const num = v => (Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
-  return `scout report: scans=${num(stats.scans)} finds=${num(stats.found)} travelled=${num(stats.travelled)} deaths=${num(stats.deaths)}`
+  // (v0.537.0) the pantry's face joins the numbers: berries= the pocket the
+  // pantry bought, walks= the famine walks spent. Missing fields read zeros -
+  // a pre-0.537.0 book or a junk read is the honest zero, never a lie.
+  return `scout report: scans=${num(stats.scans)} finds=${num(stats.found)} travelled=${num(stats.travelled)} deaths=${num(stats.deaths)} berries=${num(stats.berryPicked)} walks=${num(stats.berryWalks)}`
 }
 
 // (v0.535.0) THE MAP'S COVERAGE ROW - the second otchetnost face the
@@ -911,7 +914,11 @@ export function mapCoverageRow (report) {
 // integers - nothing coordinate or timestamp-shaped rides (the CARRY_FIELDS
 // law). Pure, junk-safe, mutates the fresh book in place and returns it (the
 // seedStats shape).
-export const SCOUT_CARRY_FIELDS = ['scans', 'found', 'travelled', 'deaths']
+// (v0.537.0) THE PANTRY'S BOOK rides the carry: berryPicked and berryWalks are
+// monotone integers of the same class - the attempt rebuild must not zero the
+// pantry's half of the book (the v0.536.0 lie was one field wide, the pantry
+// would have made it two). Six fields, nothing else rides.
+export const SCOUT_CARRY_FIELDS = ['scans', 'found', 'travelled', 'deaths', 'berryPicked', 'berryWalks']
 
 export function snapshotScoutStats (stats) {
   if (!stats || typeof stats !== 'object') return {}

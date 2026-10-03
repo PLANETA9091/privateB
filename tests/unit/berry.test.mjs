@@ -208,7 +208,7 @@ test('THE PANTRY CROP IS EDIBLE: sweet_berries are NOT in the ration\'s banned l
 
 test('THE GATHER LEG: the stop rides the scan cadence, the harvest is a right-click, NOT a dig', () => {
   const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
-  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory \}\)/, 'the stop rides the scan cadence (v0.534.0: the bush memory joined - the famine walk reads what the scan writes)')
+  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory, stats \}\)/, 'the stop rides the scan cadence (v0.534.0: the bush memory joined - the famine walk reads what the scan writes; v0.537.0: the pantry\'s book rides the scout\'s own stats)')
   assert.match(src, /const scanWithBerry = async \(\) => \{/, 'the composed scan')
   assert.match(src, /await scanWithSync\(\)/, 'the scan\'s verdict comes FIRST')
   assert.match(src, /try \{ await berryStop\(\) \} catch \{ \/\* the pantry is best-effort - the scan above stays whole \*\/ \}/, 'best-effort by law')
@@ -328,6 +328,80 @@ test('THE FAMINE WALK: a failed walk names itself (a walk was spent - the field 
   assert.equal(r.due, false)
   assert.match(r.why, /the famine walk failed/)
   assert.match(lines[1], /berry: famine walk failed \(wedged in a cliff\)/, 'the walk failure has its own key - the field splits it from the pick failures')
+})
+
+// ---- (v0.537.0) THE PANTRY'S BOOK - the counters ride the scout's stats ----
+// The stop's verdict was discarded by its only composer (the v0.535.0 lesson's
+// exact shape, one pantry wide): the run's report could not say whether the
+// pantry ever fired, what it bought, or what the famine walks cost. Two
+// monotone integers, the carry's own class (SCOUT_CARRY_FIELDS grew to six).
+
+test('THE PANTRY\'S BOOK: the reach pick pays berryPicked, spends no walk', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(6, 64, 0, 3)] })
+  bot.pendingPickup = 0
+  const stats = { berryPicked: 0, berryWalks: 0 }
+  const stop = createBerryStop({ bot, log: () => {}, stats })
+  const r = await stop()
+  assert.deepEqual(r, { due: true, picked: 2, walked: false })
+  assert.equal(stats.berryPicked, 2, 'the delta pays the book')
+  assert.equal(stats.berryWalks, 0, 'the reach pick spends no walk')
+})
+
+test('THE PANTRY\'S BOOK: the paid famine walk spends one walk and pays its delta', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(30, 64, 0, 3)] }) // beyond BERRY_REACH 24
+  bot.pendingPickup = 0
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const stats = { berryPicked: 0, berryWalks: 0 }
+  const stop = createBerryStop({ bot, log: () => {}, bushMemory, stats })
+  const r = await stop()
+  assert.deepEqual(r, { due: true, picked: 2, walked: true })
+  assert.equal(stats.berryWalks, 1, 'ONE walk spent')
+  assert.equal(stats.berryPicked, 2, 'the walked pick pays the same book')
+})
+
+test('THE PANTRY\'S BOOK: the failed walk spends the walk and pays nothing', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [] })
+  bot.pathfinder.goto = async () => { throw new Error('wedged in a cliff') }
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const stats = { berryPicked: 7, berryWalks: 0 }
+  const stop = createBerryStop({ bot, log: () => {}, bushMemory, stats })
+  const r = await stop()
+  assert.equal(r.due, false)
+  assert.equal(stats.berryWalks, 1, 'the spend is the walk - the goto\'s outcome never prices it')
+  assert.equal(stats.berryPicked, 7, 'the pay keeps its truth')
+})
+
+test('THE PANTRY\'S BOOK: the gone record spent its walk too (dead knowledge costs the goto)', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [] }) // the world moved on
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const stats = { berryPicked: 3, berryWalks: 0 }
+  const stop = createBerryStop({ bot, log: () => {}, bushMemory, stats })
+  const r = await stop()
+  assert.equal(r.why, 'the remembered bush is gone')
+  assert.equal(stats.berryWalks, 1, 'the walk was spent before the world said no')
+  assert.equal(stats.berryPicked, 3)
+  assert.equal(bushMemory.size, 0, 'the record is forgotten - the book\'s own law stands')
+})
+
+test('THE PANTRY\'S BOOK: the bare bush is a readable zero - the pay lands, the sum does not move', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(6, 64, 0, 3)] })
+  bot.activateBlock = async () => { /* the world gives nothing */ }
+  const stats = { berryPicked: 5, berryWalks: 0 }
+  const stop = createBerryStop({ bot, log: () => {}, stats })
+  const r = await stop()
+  assert.deepEqual(r, { due: true, picked: 0, walked: false })
+  assert.equal(stats.berryPicked, 5, 'the zero is readable - the sum keeps its truth')
+})
+
+test('THE PANTRY\'S BOOK: no stats injected stays junk-safe (the tests\' shape, no throw)', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(6, 64, 0, 3)] })
+  bot.pendingPickup = 0
+  const stop = createBerryStop({ bot, log: () => {} })
+  const r = await stop()
+  assert.deepEqual(r, { due: true, picked: 2, walked: false }, 'the verdict is unchanged without a book')
 })
 
 test('THE FAMINE WALK: no memory, no plan - the LEGACY quiet refusal stands byte for byte', async () => {

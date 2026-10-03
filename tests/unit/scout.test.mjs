@@ -273,7 +273,11 @@ test('death watch: the wire and the doctrine are pinned in the source', () => {
   assert.ok(src.includes('Date.now() - serverDeath.at < 6000'), 'the same 6s freshness window the miner\u0027s authority rides')
   assert.ok(/setTimeout\(\(\) => \{ try \{ bot\.respawn\?\.\(\) \} catch \{ \/\* server respawns us anyway \*\/ \} \}, 1000\)/.test(src), 'the miner\u0027s exact respawn byte')
   assert.ok(src.includes('createDeathWatch({ bot, tag, stats, log })'), 'the wire in createScout (the raw log - the line carries its own tag)')
-  assert.ok(src.includes('const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }'), 'deaths joins the report stats')
+  assert.ok(src.includes('const stats = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }'), 'deaths joins the report stats, the pantry\u0027s book joins the carry')
+  // (v0.537.0) THE PANTRY'S BOOK - the composition hands the stats to the pantry
+  assert.ok(src.includes('createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory, stats })'), 'the pantry rides the scout\u0027s own stats object (ONE production call site)')
+  assert.ok(src.includes('if (stats) stats.berryPicked = (stats.berryPicked ?? 0) + picked'), 'the pay lands even when it is zero')
+  assert.ok(src.includes('if (stats) stats.berryWalks = (stats.berryWalks ?? 0) + 1'), 'a walk is spent once attempted')
 })
 
 // ---- (v0.532.0) THE NIGHT HOLD-AND-SCAN: the ground patrol's walk legs ride the

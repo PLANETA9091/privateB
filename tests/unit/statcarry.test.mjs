@@ -642,27 +642,33 @@ test('scoutReportRow: THE NEVER-SPAWNED FACE - SCOUT=1 with no ready scout is it
   assert.equal(scoutReportRow({ requested: true, stats: 'junk' }), 'scout report: requested, never spawned')
 })
 
-test('scoutReportRow: THE NUMBERS FACE - the four counters, exact bytes', () => {
+test('scoutReportRow: THE NUMBERS FACE - the six counters, exact bytes', () => {
   assert.equal(
-    scoutReportRow({ requested: true, stats: { scans: 120, found: 34, travelled: 4880, deaths: 1 } }),
-    'scout report: scans=120 finds=34 travelled=4880 deaths=1'
+    scoutReportRow({ requested: true, stats: { scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 } }),
+    'scout report: scans=120 finds=34 travelled=4880 deaths=1 berries=14 walks=2'
   )
   // the all-zero face stays (a lived run with zero luck is a readable zero)
   assert.equal(
-    scoutReportRow({ requested: true, stats: { scans: 0, found: 0, travelled: 0, deaths: 0 } }),
-    'scout report: scans=0 finds=0 travelled=0 deaths=0'
+    scoutReportRow({ requested: true, stats: { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 } }),
+    'scout report: scans=0 finds=0 travelled=0 deaths=0 berries=0 walks=0'
+  )
+  // (v0.537.0) a pre-0.537.0 book (no berry fields) reads the honest zeros -
+  // the row never invents, the missing pantry never lies
+  assert.equal(
+    scoutReportRow({ requested: true, stats: { scans: 120, found: 34, travelled: 4880, deaths: 1 } }),
+    'scout report: scans=120 finds=34 travelled=4880 deaths=1 berries=0 walks=0'
   )
 })
 
 test('scoutReportRow: JUNK COUNTERS READ ZEROS HONESTLY (the body-guard law)', () => {
   for (const junk of [NaN, -5, '7', null, undefined]) {
-    const row = scoutReportRow({ requested: true, stats: { scans: junk, found: junk, travelled: junk, deaths: junk } })
-    assert.equal(row, 'scout report: scans=0 finds=0 travelled=0 deaths=0')
+    const row = scoutReportRow({ requested: true, stats: { scans: junk, found: junk, travelled: junk, deaths: junk, berryPicked: junk, berryWalks: junk } })
+    assert.equal(row, 'scout report: scans=0 finds=0 travelled=0 deaths=0 berries=0 walks=0')
   }
   // partial junk: the honest fields keep their truth, the junk ones zero out
   assert.equal(
-    scoutReportRow({ requested: true, stats: { scans: 12, found: NaN, travelled: 240 } }),
-    'scout report: scans=12 finds=0 travelled=240 deaths=0'
+    scoutReportRow({ requested: true, stats: { scans: 12, found: NaN, travelled: 240, berryPicked: 3 } }),
+    'scout report: scans=12 finds=0 travelled=240 deaths=0 berries=3 walks=0'
   )
 })
 
@@ -710,29 +716,29 @@ test('THE WIRING PIN - the report reads the scout ref and the live map (the otch
 // a mid-run attempt death rebuilt the scout with a ZERO book (the miners'
 // v0.18.9 mortality, one bot wide) and the v0.535.0 report row would print
 // the last attempt's totals as the run's truth.
-test('snapshotScoutStats: the four monotone counters, junk never rides (the CARRY_FIELDS law, the scout seat)', () => {
+test('snapshotScoutStats: the six monotone counters, junk never rides (the CARRY_FIELDS law, the scout seat)', () => {
   assert.deepEqual(
-    snapshotScoutStats({ scans: 120, found: 34, travelled: 4880, deaths: 1 }),
-    { scans: 120, found: 34, travelled: 4880, deaths: 1 }
+    snapshotScoutStats({ scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 }),
+    { scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 }
   )
   // zeros and junk stay out - the carry carries only the walk already bought
-  assert.deepEqual(snapshotScoutStats({ scans: 0, found: NaN, travelled: -5, deaths: '7' }), {})
+  assert.deepEqual(snapshotScoutStats({ scans: 0, found: NaN, travelled: -5, deaths: '7', berryPicked: 0, berryWalks: -1 }), {})
   assert.deepEqual(snapshotScoutStats(null), {})
   assert.deepEqual(snapshotScoutStats('junk'), {})
   // the miner's fields do NOT ride the scout's book (one seat, one book)
   assert.deepEqual(snapshotScoutStats({ scans: 3, mined: 500, rescues: 2 }), { scans: 3 })
-  // the fields list is exactly the four (a fifth counter must not silently ride)
-  assert.deepEqual(SCOUT_CARRY_FIELDS, ['scans', 'found', 'travelled', 'deaths'])
+  // the fields list is exactly the six (a seventh counter must not silently ride)
+  assert.deepEqual(SCOUT_CARRY_FIELDS, ['scans', 'found', 'travelled', 'deaths', 'berryPicked', 'berryWalks'])
 })
 
 test('seedScoutStats: the fresh book opens with the walk already bought (sum, never replace)', () => {
-  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0 }
-  seedScoutStats(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
-  assert.deepEqual(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
+  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }
+  seedScoutStats(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 })
+  assert.deepEqual(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 })
   // a partial book sums (the fresh attempt may have counted before the seed lands)
-  const partial = { scans: 5, found: 1, travelled: 100, deaths: 0 }
-  seedScoutStats(partial, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
-  assert.deepEqual(partial, { scans: 125, found: 35, travelled: 4980, deaths: 1 })
+  const partial = { scans: 5, found: 1, travelled: 100, deaths: 0, berryPicked: 4, berryWalks: 1 }
+  seedScoutStats(partial, { scans: 120, found: 34, travelled: 4880, deaths: 1, berryPicked: 14, berryWalks: 2 })
+  assert.deepEqual(partial, { scans: 125, found: 35, travelled: 4980, deaths: 1, berryPicked: 18, berryWalks: 3 })
 })
 
 test('seedScoutStats: junk-safe both ends, returns the stats it was given (the seedStats shape)', () => {
@@ -748,9 +754,9 @@ test('seedScoutStats: junk-safe both ends, returns the stats it was given (the s
 })
 
 test('the seed-then-snapshot round trip is the identity (never merge-into-merged twice)', () => {
-  const book = { scans: 9, found: 4, travelled: 240, deaths: 0 }
+  const book = { scans: 9, found: 4, travelled: 240, deaths: 0, berryPicked: 6, berryWalks: 1 }
   const carry = snapshotScoutStats(book)
-  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }
   seedScoutStats(fresh, carry)
   assert.deepEqual(snapshotScoutStats(fresh), carry)
 })
