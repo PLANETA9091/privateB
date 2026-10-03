@@ -352,6 +352,75 @@ export function smeltUnreachableCrossRow (entries) {
   return `smelt unreachable cross: no pair (top ${top.machine} x ${top.why} ${top.count} of ${total}, ${pct}%) - the cell-mechanism cells read mixed, the cures point different ways`
 }
 
+// (v0.582.0) THE REACH BANDS - the owner family's fifth seat, the cell cure's
+// own instrument. The cross's first verdict aimed the lever (fleet
+// 37159189785: blast_furnace x machine-unreachable-no-path 3 of 6, 50.0% -
+// the lattice's reach is the lever) but a lever is not a geometry: a walk
+// that died AT THE DOOR (the cell's mouth blocked - a local dig cures it)
+// and a walk that died DEEP (the lattice's reach/budget) read the same
+// 'no path'. The distance the failure happened at splits them. The bands are
+// the fleet's own numbers - SMELT_REACH_MOUTH = 6 = three stand-reaches
+// (smeltWalkReach(1) = 2: the bot stood at the door and the walk still
+// refused), SMELT_REACH_FAR = 24 = half the machine search radius (48): past
+// it the walk died in the lattice's deep field. One vocabulary with the push
+// sites by construction - smeltAttemptDist computes the field the band eats.
+// Family laws: SMELT_NO_FUEL_OWNER_MIN / SMELT_NO_FUEL_OWNER_LOCAL_SHARE (one
+// grain law for the whole family), the census's tie law (count desc, band
+// asc), junk: a legacy entry without a distance reads its honest '-' bucket
+// (an unnamed distance is still a refusal, never dropped) and can lead - the
+// row then names the blindness. Leanness: under the floor prints nothing.
+export const SMELT_REACH_MOUTH = 3 * smeltWalkReach(1)
+export const SMELT_REACH_FAR = 24
+
+/** Pure: integer blocks the walk failure happened at, or null (junk law -
+ * a missing entity/position/vector or an unreadable distance reads null,
+ * the band then names the blindness honestly). */
+export function smeltAttemptDist (bot, block) {
+  const bp = bot?.entity?.position
+  const mp = block?.position
+  if (!bp || !mp || typeof bp.distanceTo !== 'function') return null
+  const d = bp.distanceTo(mp)
+  if (!Number.isFinite(d) || d < 0) return null
+  return Math.round(d)
+}
+
+/** Pure: the distance's own band - 'mouth' (<= SMELT_REACH_MOUTH), 'mid'
+ * (<= SMELT_REACH_FAR), 'far' past it; junk reads '-' (the family's own
+ * bucket, never dropped). */
+export function smeltReachBand (dist) {
+  if (!Number.isFinite(dist) || dist < 0) return '-'
+  if (dist <= SMELT_REACH_MOUTH) return 'mouth'
+  if (dist <= SMELT_REACH_FAR) return 'mid'
+  return 'far'
+}
+
+export function smeltUnreachableBandRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const b = (typeof e?.band === 'string' && e.band.trim() !== '') ? e.band.trim() : '-'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(b, (acc.get(b) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < SMELT_NO_FUEL_OWNER_MIN) return null
+  const good = [...acc].map(([band, count]) => ({ band, count }))
+  good.sort((a, b) => (b.count - a.count) || (a.band < b.band ? -1 : 1))
+  const top = good[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  if (top.count / total >= SMELT_NO_FUEL_OWNER_LOCAL_SHARE) {
+    const verdict = top.band === 'mouth'
+      ? 'the walk died at the door: the cell\'s mouth is the wall - the dig is the cure'
+      : top.band === 'far'
+        ? 'the walk died deep: the lattice\'s reach is the wall - the budget is the front'
+        : top.band === 'mid'
+          ? 'the walk died in the near field: no band owns the wall - the reach reads mixed'
+          : 'an unnamed distance leads: the bands stay blind'
+    return `smelt unreachable bands: ${top.band} carries ${top.count} of ${total} unreachable refusals (${pct}%) - ${verdict}`
+  }
+  return `smelt unreachable bands: no band (top ${top.band} ${top.count} of ${total}, ${pct}%) - the reach reads mixed, the cures point different ways`
+}
+
 // (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper. The
 // anatomy's first verdict landed (fleet 37144334720: dry 3 of 4 - the fuel
 // supply is the front) but 'dry' reads blind depth: pickFuel's own diet
@@ -1707,7 +1776,7 @@ export async function sweepFinishedSmelts (bot, {
           // (v0.139.0 shape kept byte for byte) a geometry verdict - No path,
           // a decide timeout, the superseded goal, the doomed consult - is an
           // honest census entry and the sweep moves on.
-          attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+          attempts.push({ machine: machineBlock.name, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${e.message})` })
           continue
         }
         const clockLeft = maxSeconds * 1000 - (Date.now() - started)
@@ -1716,13 +1785,13 @@ export async function sweepFinishedSmelts (bot, {
           log(`${tag} sweep walk refused by a ${Math.round(cls.waitMs / 1000)}s cooldown - waiting it out once on this machine (a cooldown is a clock, not a verdict)`)
           await sleep(cls.waitMs + SWEEP_COOLDOWN_MARGIN_MS)
           if (!bot.entity || maxSeconds * 1000 - (Date.now() - started) <= 0) {
-            attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+            attempts.push({ machine: machineBlock.name, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${e.message})` })
             break // the sweep's own clock (or the bot) died inside the wait
           }
           try {
             await gotoSafe(bot, walkGoal(), walkOpts())
           } catch (e2) {
-            attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e2.message})` })
+            attempts.push({ machine: machineBlock.name, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${e2.message})` })
             if (sweepRefusalClass(e2.message).cls !== 'geometry') {
               log(`${tag} sweep deferred (the lanes hold) - the cooldown kept the walk after the wait-out (${machines.length - mi - 1} machine(s) untried, the next pass owns them)`)
               attempts.push({ machine: machineBlock.name, reason: SWEEP_DEFER_REASON })
@@ -1738,7 +1807,7 @@ export async function sweepFinishedSmelts (bot, {
               ? `the ${Math.round(cls.waitMs / 1000)}s cooldown outlives the census clock`
               : waitsLeft > 0 ? 'the sweep clock cannot afford the wait' : 'the wait-out budget is spent'
           log(`${tag} sweep deferred (the lanes hold) - ${why} (${untried} machine(s) untried, the next pass owns them)`)
-          attempts.push({ machine: machineBlock.name, reason: `machine unreachable (${e.message})` })
+          attempts.push({ machine: machineBlock.name, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${e.message})` })
           if (untried > 0) attempts.push({ machine: machineBlock.name, reason: SWEEP_DEFER_REASON })
           break
         }

@@ -36,7 +36,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltUnreachableBandRow, smeltReachBand, smeltAttemptDist, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
@@ -234,6 +234,10 @@ const finalSmeltUnreachableWhy = new Map()
 // (v0.580.0) the cross grain - the PAIR per attempt (machine x why), the
 // owner family's fourth seat on the same feed - the grains can never split
 const finalSmeltUnreachableCross = new Map()
+// (v0.582.0) the reach band grain - the distance the walk failure happened
+// at (the attempt's own dist field), the owner family's fifth seat on the
+// same feed - the cell cure's geometry, one more set, never split
+const finalSmeltUnreachableBand = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -835,6 +839,14 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             // attempt (machine x why) keys the fourth seat's ledger
             const crossKey = `${reachKey}|${whyKey}`
             finalSmeltUnreachableCross.set(crossKey, (finalSmeltUnreachableCross.get(crossKey) || 0) + 1)
+            // (v0.582.0) the reach band grain rides the same seat - the
+            // attempt's own dist field (smeltAttemptDist at the push sites)
+            // bands the failure's geometry: a walk that died at the door
+            // reads the dig cure, a walk that died deep reads the lattice.
+            // A legacy entry without a distance reads its honest '-' bucket -
+            // still a refusal, never dropped
+            const bandKey = smeltReachBand(sa.dist)
+            finalSmeltUnreachableBand.set(bandKey, (finalSmeltUnreachableBand.get(bandKey) || 0) + 1)
           }
         }
       }
@@ -4218,6 +4230,12 @@ const smeltUnreachableCross = smeltUnreachableCrossRow([...finalSmeltUnreachable
   return { machine: k.slice(0, i), why: k.slice(i + 1), count }
 }))
 if (smeltUnreachableCross) console.log(smeltUnreachableCross)
+// (v0.582.0) THE REACH BANDS ROW - the owner family's fifth seat: the
+// distance the walk failure happened at, banded (the cell cure's own
+// instrument - the cross aimed the lever, the bands aim the geometry). The
+// print follows the cross row sibling.
+const smeltUnreachableBand = smeltUnreachableBandRow([...finalSmeltUnreachableBand].map(([band, count]) => ({ band, count })))
+if (smeltUnreachableBand) console.log(smeltUnreachableBand)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is
