@@ -79,6 +79,7 @@ import { chooseTarget } from '../fleet/claims.mjs'
 import { firstUsableRecord } from '../fleet/worldmap.mjs' // (v0.512.0) the fallback's deeper-record law
 import { walkBudgetMs } from '../lib/tripplan.mjs'
 import { noteGlobal } from '../lib/blackbox.mjs' // (v0.62.0) freeze forensics at the rescue/climb sites
+import { createLoginReady } from '../lib/loginfence.mjs' // (v0.546.0) THE LOGIN FENCE - the rebuild's login leg settles on every branch
 
 // one entry per occupied inventory slot (same shape tools.mjs uses); the v0.9.x
 // sapling replant path calls this from gatherWood - a missing definition threw
@@ -2866,8 +2867,17 @@ export function createMiner ({
   }, 1200)
   bot.on('end', () => { try { clearInterval(proximityTimer) } catch { /* process teardown */ } })
 
-  const ready = new Promise((resolve, reject) => {
-    bot.once('spawn', async () => {
+  // (v0.546.0) THE LOGIN FENCE - the ready promise rides the shared machine
+  // (src/lib/loginfence.mjs): spawn+boot resolves (the bootstrap below, unchanged),
+  // a login-phase 'end' rejects (the clean-close class: endSocket emits 'end',
+  // never 'error', on socket close/timeout and kick-during-login - the old
+  // executor never heard it and await miner.ready hung the 12-attempt loop above
+  // its own deadline check), 'error' rejects as before, and the wall-clock fence
+  // bounds the silent login (TCP accepted, nothing ever fires). Settle-once: the
+  // first leg wins, the fence clears on every settle, a late 'end' after a
+  // resolved login is consumed quietly.
+  const ready = createLoginReady(bot, {
+    boot: async () => {
       // Bound the A* search space (v0.6.5 Big Fleet OOM fix). searchRadius=-1 (the
       // library default) prunes NOTHING: a goal sealed in stone then explores the whole
       // reachable graph, retaining millions of nodes - 19 concurrent searches did that
@@ -2920,9 +2930,8 @@ export function createMiner ({
       } catch (e) {
         log(`${tag} world never loaded: ${e.message}`)
       }
-      resolve(bot)
-    })
-    bot.once('error', reject)
+      return bot
+    }
   })
 
   async function waitForWorld (timeoutMs = 20000) {

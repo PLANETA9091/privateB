@@ -16,6 +16,7 @@ import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - 
 import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
 import { sealSnapshot, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.533.0) the seal watch's respawn accounting reaches the second bot - the declare leg stays the miner's (no combat sentry here)
 import { walkForbidden, stormWalkForbidden } from '../lib/nightsafety.mjs' // (v0.532.0) the night hold rides the fleet's own walk-forbidden window; (v0.540.0) the storm hold rides the same lib's thunder verdict
+import { createLoginReady } from '../lib/loginfence.mjs' // (v0.546.0) THE LOGIN FENCE - the rebuild's login leg settles on every branch
 
 const { pathfinder, Movements, goals } = pathfinderPkg
 
@@ -311,8 +312,16 @@ export function createScout ({
   bot.on('kicked', r => log(`${tag} KICKED: ${typeof r === 'string' ? r : JSON.stringify(r)}`))
   bot.on('end', r => log(`${tag} disconnected (${r})`))
 
-  const ready = new Promise((resolve, reject) => {
-    bot.once('spawn', async () => {
+  // (v0.546.0) THE LOGIN FENCE - the same shared machine the miner rides
+  // (src/lib/loginfence.mjs): the old executor settled on spawn/error only, so a
+  // clean close during login (the 'end' leg, never an 'error') or a silent login
+  // left await scout.ready pending forever - the 6-attempt loop froze above its
+  // deadline check. The boot below is the same spawn bootstrap; its waitForWorld
+  // throw now REJECTS ready (the fresh login owns the retry) instead of orphaning
+  // the promise inside the async listener (the fleet's unhandledRejection net
+  // kept the process alive with a scout that never patrolled).
+  const ready = createLoginReady(bot, {
+    boot: async () => {
       // same A* bound as the miner (v0.6.5 OOM fix): unlimited detour search on a
       // far patrol goal must not grow an unbounded node graph
       if (bot.pathfinder) {
@@ -335,9 +344,8 @@ export function createScout ({
         log(`${tag} ground scout - walking patrol (no fly, no digging)`)
       }
       await waitForWorld()
-      resolve(bot)
-    })
-    bot.once('error', reject)
+      return bot
+    }
   })
 
   async function waitForWorld (timeoutMs = 20000) {
