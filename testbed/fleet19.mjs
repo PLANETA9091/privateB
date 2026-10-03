@@ -15,6 +15,7 @@ import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
+import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
@@ -150,6 +151,10 @@ const RUN_KILL_AT = Date.now() + hardKillDelayMs({ runSeconds: SECONDS })
 const END_PHASE_SAFETY_MS = 30000
 const bots = new Map() // name -> { miner, target }
 const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs)
+// (v0.576.0) THE DROP CENSUS: one record per bot instance - reconnects append,
+// the deadline row sums the whole fleet's books (the reconnect must not erase
+// what the bot already saw, the seedStats law at the fleet scale).
+const dropCensusRecords = []
 let spawned = 0
 let reconnects = 0
 // (v0.565.0) THE RECONNECT CENSUS LEDGER: the same re-links keyed per BOT -
@@ -1190,6 +1195,23 @@ async function runBot (name, target, index) {
       // stats are printed by the reporter below.
       const guard = attachMemoryGuard(miner.bot, { log: () => {} })
       guards.set(name, guard)
+
+      // (v0.576.0) THE DROP CENSUS - the unaccounted leak's first measured sink:
+      // the item-entity lifecycle counted at the events themselves (spawn /
+      // collect / gone), try-guarded - the census never holds the spawn strip
+      // (the diagnostics law). No mass is read at spawn (the merge law: the
+      // metadata read happens at the resolve points, the twin carries the
+      // merged stack). Every instance appends its own record - the fleet row
+      // sums them all.
+      try {
+        if (miner?.bot) {
+          const dc = dropCensusRecord()
+          dropCensusRecords.push(dc)
+          miner.bot.on('entitySpawn', e => { try { observeItemSpawn(dc, e, Date.now()) } catch { /* a torn entity holds nothing */ } })
+          miner.bot.on('playerCollect', (collector, e) => { try { observeItemCollect(dc, e, Date.now()) } catch { /* a torn pickup holds nothing */ } })
+          miner.bot.on('entityGone', e => { try { observeItemGone(dc, e, Date.now()) } catch { /* a torn exit holds nothing */ } })
+        }
+      } catch { /* the census never holds the spawn strip */ }
 
       // FLEET_SYNC=1: hear the OTHER processes' broadcasts (a scout in a second terminal)
       // and merge them into this process's shared map; also broadcast our own finds.
@@ -4072,6 +4094,12 @@ if (crater) console.log(`banked crater decode: ${crater}`)
 // invents a mass).
 const mass = unaccountedMassDecode({ mined: s.mined, banked, smelted, pocket: endPk.units })
 if (mass) console.log(`unaccounted mass decode: ${mass}`)
+// (v0.576.0) THE DROP CENSUS - the decode above names the gap; the census
+// prices its first suspect: the item-entity lifecycle counted live across the
+// whole fleet (every bot instance, reconnects included). Sits right after the
+// decode it completes. ALWAYS printed - the none-form is a verdict too (the
+// 05:00 ledger-skip lesson).
+try { console.log(dropCensusRow(dropCensusRecords)) } catch { /* the census never holds the teardown */ }
 // (v0.302.0) THE WRITE-OFF'S FIRST LINE: fleet 36517770723 read pocket=1894u/265s
 // with no per-bot echo - F9's five refused windows + the budget-exhausted trip
 // stayed invisible behind the aggregate. The row names the holders desc by
