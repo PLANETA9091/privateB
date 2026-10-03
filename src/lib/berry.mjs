@@ -154,3 +154,89 @@ export function pickBush (blocks, from, { maxDistance = BERRY_REACH } = {}) {
   }
   return best
 }
+
+// ---- (v0.534.0) THE FAMINE WALK - the pantry's second answer ----
+//
+// The pantry's reach is the lane itself (BERRY_REACH 24): a scout below the
+// regen floor with NO mature bush in reach quietly refused and kept walking
+// - the taiga lanes feed the pantry, but a hedge-less stretch (plains,
+// desert, the scanned-out lane) starves the scout at the band's own
+// arithmetic: the ration needs food IN POCKET, the pocket only fills from
+// bushes, and the 0.528.0 hand-away named the class ('the no-bush share -
+// prices a wider lane / map berry knowledge'). THE WALK: the scan's own eye
+// already passes over every bush on the lane (the memory shoulder in
+// createScan records what it sees into a PRIVATE bush memory - the shared
+// map stays the MINERS' resource book, bushes are the pantry's knowledge,
+// never a mining target), and the stop's no-bush-in-reach refusal upgrades:
+// when the memory knows a bush inside the walk envelope, the scout spends
+// ONE bounded goto on it and the same honest delta names whatever the world
+// gives - a full harvest, a bare bush (picked clean earlier; the zero is a
+// readable zero), a young bush (age ripens - the activate gives what the
+// world has), or a gone record (the memory forgets it). The walk serves the
+// regen floor itself: below the band the bot cannot heal - starvation is
+// the other death - so the food walk stays armed even inside the night hold
+// (the reach hop's own law, one envelope longer).
+
+/** The famine walk's envelope (blocks): the scan's own knowledge radius -
+ *  the memory never knows a bush the eye could not have seen, so a walk
+ *  beyond this would serve hope, not knowledge. */
+export const BERRY_WALK_CAP = 48
+
+/** The famine walk's goto timeout: the scout leg's own shape (15000) - the
+ *  walk is one bounded goto, never a lane. */
+export const BERRY_WALK_TIMEOUT_MS = 15000
+
+/** The bush memory's bound: the nearest knowledge wins, the OLDEST record
+ *  is forgotten first (one bounded book, never an unbounded ledger). */
+export const BERRY_MEMORY_CAP = 32
+
+/**
+ * Record one bush sighting into the scout's private memory. Dedupe by
+ * FLOORED cell (the same bush re-seen updates the timestamp, never grows
+ * the book), junk positions are refused, the cap forgets the OLDEST record
+ * first. Mutates the passed Map (the wire owns the instance, the tests pass
+ * their own) and returns it. Junk memory reads as-is (the no-op).
+ */
+export function recordBush (memory, pos, { now = Date.now(), cap = BERRY_MEMORY_CAP } = {}) {
+  if (!(memory instanceof Map)) return memory
+  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return memory
+  const key = `${Math.floor(pos.x)},${Math.floor(pos.y)},${Math.floor(pos.z)}`
+  memory.set(key, { pos: { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) }, at: now })
+  if (memory.size > cap) {
+    let oldestKey = null
+    let oldestAt = Infinity
+    for (const [k, v] of memory) {
+      if ((v?.at ?? 0) < oldestAt) {
+        oldestAt = v.at
+        oldestKey = k
+      }
+    }
+    if (oldestKey) memory.delete(oldestKey)
+  }
+  return memory
+}
+
+/**
+ * The famine walk's target: the NEAREST remembered bush inside the walk
+ * envelope. Junk-safe end to end: no memory, an empty book, a junk `here`,
+ * junk entries - all read null (the walk never arms on junk). Ties keep the
+ * FIRST record (deterministic - the memory's own order). Returns
+ * { key, pos, dist } or null; pos is the FLOORED cell (the record's own
+ * shape - the wire re-wraps it in a Vec3).
+ */
+export function famineWalkPlan ({ memory = null, here = null, cap = BERRY_WALK_CAP } = {}) {
+  if (!(memory instanceof Map) || memory.size === 0) return null
+  if (!here || !Number.isFinite(here.x) || !Number.isFinite(here.y) || !Number.isFinite(here.z)) return null
+  const c = Number(cap)
+  let best = null
+  let bestDist = Infinity
+  for (const [key, r] of memory) {
+    const p = r?.pos
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) continue
+    const d = Math.hypot(p.x - here.x, p.y - here.y, p.z - here.z)
+    if (!Number.isFinite(d) || !Number.isFinite(c) || d > c || d >= bestDist) continue
+    best = { key, pos: p, dist: d }
+    bestDist = d
+  }
+  return best
+}

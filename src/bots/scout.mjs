@@ -11,7 +11,7 @@ import { installFly } from '../lib/fly.mjs'
 import { gotoSafe, withTimeout } from '../lib/jobqueue.mjs'
 import { attachChatSync } from '../fleet/chatsync.mjs'
 import { RATION_OPTS, rationVerdict } from '../lib/ration.mjs' // (v0.528.0) THE HEDGE PANTRY's eating leg - the SAME policy object the miner's ration wires (one doctrine)
-import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, berryHarvestDue, pocketBerries, pickBush } from '../lib/berry.mjs'
+import { BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS, BERRY_WALK_CAP, BERRY_WALK_TIMEOUT_MS, berryHarvestDue, pocketBerries, pickBush, recordBush, famineWalkPlan } from '../lib/berry.mjs'
 import { deathDropLine } from '../lib/statcarry.mjs' // (v0.531.0) THE GET-UP - the SHARED death-drop format (the fleet's death ledger reads one shape)
 import { parseDeathMessage } from '../lib/deathcause.mjs' // (v0.531.0) the server's death line - the only authority this bot has
 import { sealSnapshot, sealRespawnLine } from '../lib/sealwatch.mjs' // (v0.533.0) the seal watch's respawn accounting reaches the second bot - the declare leg stays the miner's (no combat sentry here)
@@ -31,7 +31,7 @@ export const SCAN_TARGETS = [
 // Kept small and yielding: a long synchronous scan starves the event loop, which got
 // flying scouts kicked for floating (ground scouts just stutter, but still - yield).
 // Exported separately so unit tests can drive it with a mock bot.
-export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans: 0, found: 0 }, log = () => {} } = {}) {
+export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans: 0, found: 0 }, log = () => {}, bushMemory = null } = {}) {
   return async function scan () {
     const found = bot.findBlocks({
       matching: block => targets.includes(block.name),
@@ -51,6 +51,19 @@ export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans:
       if (i % 32 === 31) await new Promise(resolve => setImmediate(resolve))
     }
     stats.found += added
+    // (v0.534.0) THE FAMINE WALK's memory shoulder: the scan ALSO reads the bushes
+    // it sees (one finder pass, the same 48-block eye, sparse - hedges are rare)
+    // into the scout's PRIVATE bush memory. The shared map stays the MINERS'
+    // resource book - bushes are the pantry's knowledge, never a mining target.
+    // The record is position-only (a young bush ripens - the knowledge is the
+    // cell, the maturity is priced at the pick by the live read). Guarded like
+    // the whole scan: the memory shoulder must never break the scan's verdict.
+    if (bushMemory) {
+      try {
+        const bushes = bot.findBlocks({ matching: b => b?.name === BERRY_BUSH, maxDistance: BERRY_WALK_CAP, count: 16 }) ?? []
+        for (const b of bushes) recordBush(bushMemory, b)
+      } catch { /* the memory shoulder must never break the scan */ }
+    }
     if (added > 0 && log) log(`scan: +${added} new positions (total ${map?.total() ?? 0})`)
     return found.length
   }
@@ -64,7 +77,7 @@ export function createScan ({ bot, map, targets = SCAN_TARGETS, stats = { scans:
 // scout skips the pantry (a mid-air activate is an unpriced interaction -
 // the production shape is ground). Exported so unit tests drive it with a
 // mock bot, exactly the createScan/createPatrol contract.
-export function createBerryStop ({ bot, log = () => {} } = {}) {
+export function createBerryStop ({ bot, log = () => {}, bushMemory = null } = {}) {
   return async function berryStop () {
     try {
       if (bot?.flyTravel) return { due: false, why: 'the fly scout skips the pantry' }
@@ -72,19 +85,56 @@ export function createBerryStop ({ bot, log = () => {} } = {}) {
       const pocket = pocketBerries(bot)
       const due = berryHarvestDue({ hunger, pocket })
       if (!due.due) return due // quiet: the healthy lean is silent, the cap holds, the dead reads wait
+      // (v0.534.0) the pick flow, shared by both shapes: one activate (NOT a dig
+      // - the bush survives), the drops' landing wait, the pocket delta names
+      // the harvest. The walked shape's line names the walk (the field splits
+      // the reach pick from the famine walk by the line's own key).
+      const harvestAt = async (live, { walked = false } = {}) => {
+        const f0 = pocketBerries(bot)
+        await withTimeout(bot.activateBlock(live), 5000, 'berry harvest')
+        await new Promise(resolve => setTimeout(resolve, BERRY_PICKUP_MS))
+        const f1 = pocketBerries(bot)
+        const picked = Math.max(0, (f1 ?? 0) - (f0 ?? 0))
+        log(`berry: ${walked ? 'famine walk picked' : 'picked'} ${picked} x ${BERRY_ITEM} (hunger ${hunger} -> ${bot?.food ?? '?'}, pocket ${f0 ?? '?'} -> ${f1 ?? '?'})`)
+        return { due: true, picked, walked }
+      }
       const found = bot.findBlocks({ matching: b => b?.name === BERRY_BUSH, maxDistance: BERRY_REACH, count: BERRY_COUNT }) ?? []
       const bush = pickBush(found, bot.entity?.position)
-      if (!bush) return { due: false, why: 'no mature bush in reach' } // quiet: the lane keeps walking
-      await gotoSafe(bot, new goals.GoalNear(bush.position.x, bush.position.y, bush.position.z, 2), { timeoutMs: 10000, label: 'berry stop' })
-      const live = bot.blockAt(bush.position)
-      if (!live) return { due: false, why: 'the bush is gone' } // quiet: the world moved on
-      const f0 = pocketBerries(bot)
-      await withTimeout(bot.activateBlock(live), 5000, 'berry harvest')
-      await new Promise(resolve => setTimeout(resolve, BERRY_PICKUP_MS))
-      const f1 = pocketBerries(bot)
-      const picked = Math.max(0, (f1 ?? 0) - (f0 ?? 0))
-      log(`berry: picked ${picked} x ${BERRY_ITEM} (hunger ${hunger} -> ${bot?.food ?? '?'}, pocket ${f0 ?? '?'} -> ${f1 ?? '?'})`)
-      return { due: true, picked }
+      if (bush) {
+        await gotoSafe(bot, new goals.GoalNear(bush.position.x, bush.position.y, bush.position.z, 2), { timeoutMs: 10000, label: 'berry stop' })
+        const live = bot.blockAt(bush.position)
+        if (!live) return { due: false, why: 'the bush is gone' } // quiet: the world moved on
+        return await harvestAt(live)
+      }
+      // (v0.534.0) THE FAMINE WALK: the reach is bare but the band is still below
+      // the regen floor - the memory's knowledge is spent before the scout keeps
+      // walking hungry. ONE bounded goto (BERRY_WALK_CAP, the scan's own eye),
+      // the same honest delta, the gone record forgotten (dead knowledge must
+      // not steer twice). The walk serves the regen floor itself: below the band
+      // the bot cannot heal, starvation is the other death - the food walk stays
+      // armed even inside the night hold (the reach hop's own law, one envelope
+      // longer). No memory, an empty book, or nothing inside the envelope reads
+      // the LEGACY byte - the quiet refusal the lane has always run.
+      if (bushMemory && bushMemory.size > 0) {
+        const plan = famineWalkPlan({ memory: bushMemory, here: bot.entity?.position })
+        if (plan) {
+          log(`berry: famine walk - the reach is bare, the memory knows a bush at [${plan.pos.x},${plan.pos.y},${plan.pos.z}] (${Math.round(plan.dist)} blocks)`)
+          const at = new Vec3(plan.pos.x, plan.pos.y, plan.pos.z)
+          try {
+            await gotoSafe(bot, new goals.GoalNear(at.x, at.y, at.z, 2), { timeoutMs: BERRY_WALK_TIMEOUT_MS, label: 'berry famine walk' })
+          } catch (e) {
+            log(`berry: famine walk failed (${e.message})`) // a walk was spent - the field reads it
+            return { due: false, why: `the famine walk failed (${e.message})` }
+          }
+          const live = bot.blockAt(at)
+          if (!live) {
+            bushMemory.delete(plan.key) // the world moved on - the record is dead knowledge, forget it
+            return { due: false, why: 'the remembered bush is gone' } // quiet: the walk names itself above
+          }
+          return await harvestAt(live, { walked: true })
+        }
+      }
+      return { due: false, why: 'no mature bush in reach' } // quiet: the lane keeps walking (the legacy byte)
     } catch (e) {
       log(`berry: failed (${e.message})`) // a walk was spent - the field reads the failure class
       return { due: false, why: `failed (${e.message})` }
@@ -224,6 +274,9 @@ export function createScout ({
     } catch { /* gone */ }
   })
   const stats = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  // (v0.534.0) THE FAMINE WALK's book - the scan's eye writes, the pantry's
+  // walk reads. Private to this scout (the shared map stays the miners').
+  const bushMemory = new Map()
   // (v0.531.0) THE GET-UP's wire - the death leg rides the same stats object
   // (deaths joins scans/found/travelled in the run's report), the chat
   // listener registers at build time (before any patrol - the v0.117.0
@@ -274,7 +327,7 @@ export function createScout ({
     throw new Error('world never loaded')
   }
 
-  const scan = createScan({ bot, map, targets, stats, log: m => log(`${tag} ${m}`) })
+  const scan = createScan({ bot, map, targets, stats, log: m => log(`${tag} ${m}`), bushMemory })
   // when chat sync is on, every NEW position goes on the air right after it is recorded
   const scanWithSync = sync
     ? async () => {
@@ -295,7 +348,7 @@ export function createScout ({
   // berry stop (best-effort by law - the scan's verdict stays whole, the patrol's
   // cadence is untouched; the refusals are quiet inside the stop itself). The
   // patrol AND the external caller both drive the composed scan.
-  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`) })
+  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory })
   const scanWithBerry = async () => {
     const r = await scanWithSync()
     try { await berryStop() } catch { /* the pantry is best-effort - the scan above stays whole */ }

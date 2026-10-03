@@ -9,9 +9,10 @@ import { Vec3 } from 'vec3'
 import { REGEN_HUNGER_FLOOR, RATION_OPTS } from '../../src/lib/ration.mjs'
 import {
   BERRY_BUSH, BERRY_ITEM, SCOUT_HUNGER_BAND, BERRY_POCKET_CAP, BERRY_REACH, BERRY_COUNT, BERRY_PICKUP_MS,
-  matureBush, pocketBerries, berryHarvestDue, pickBush
+  BERRY_WALK_CAP, BERRY_WALK_TIMEOUT_MS, BERRY_MEMORY_CAP,
+  matureBush, pocketBerries, berryHarvestDue, pickBush, recordBush, famineWalkPlan
 } from '../../src/lib/berry.mjs'
-import { createBerryStop } from '../../src/bots/scout.mjs'
+import { createBerryStop, createScan } from '../../src/bots/scout.mjs'
 
 const bush = (x, y, z, age = 3) => ({ name: BERRY_BUSH, position: new Vec3(x, y, z), properties: { age: String(age) } })
 
@@ -207,7 +208,7 @@ test('THE PANTRY CROP IS EDIBLE: sweet_berries are NOT in the ration\'s banned l
 
 test('THE GATHER LEG: the stop rides the scan cadence, the harvest is a right-click, NOT a dig', () => {
   const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
-  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\) \}\)/)
+  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory \}\)/, 'the stop rides the scan cadence (v0.534.0: the bush memory joined - the famine walk reads what the scan writes)')
   assert.match(src, /const scanWithBerry = async \(\) => \{/, 'the composed scan')
   assert.match(src, /await scanWithSync\(\)/, 'the scan\'s verdict comes FIRST')
   assert.match(src, /try \{ await berryStop\(\) \} catch \{ \/\* the pantry is best-effort - the scan above stays whole \*\/ \}/, 'best-effort by law')
@@ -225,4 +226,153 @@ test('THE GATHER LEG\'s constants: the reach is the leg\'s own step length, the 
   assert.equal(BERRY_PICKUP_MS, 1000, "the drops' landing wait - the honest delta's granularity")
   const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
   assert.match(src, /BERRY_REACH, count: BERRY_COUNT/, 'the reach and the count drive the findBlocks')
+})
+
+// ---- (v0.534.0) THE FAMINE WALK - the pantry's second answer ----
+// The reach is the lane itself: a scout below the regen floor with no mature
+// bush in reach quietly refused and kept walking hungry - the hedge-less
+// stretch starved it at the band's own arithmetic (the ration needs food IN
+// POCKET, the pocket only fills from bushes). The scan's own eye records the
+// bushes it passes into a PRIVATE memory; the stop's refusal upgrades to ONE
+// bounded walk to the nearest remembered bush; the same honest delta names
+// whatever the world gives.
+
+test('THE FAMINE WALK: the memory knows a bush beyond the reach, the stop spends one bounded walk on it', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(30, 64, 0, 3)] }) // 30 blocks - beyond BERRY_REACH 24
+  bot.pendingPickup = 0
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const lines = []
+  const stop = createBerryStop({ bot, log: m => lines.push(m), bushMemory })
+  const r = await stop()
+  assert.equal(r.due, true)
+  assert.equal(r.picked, 2)
+  assert.equal(r.walked, true, 'the walked shape names itself in the return')
+  assert.equal(bot.gotoCalls, 1, 'ONE bounded goto - the walk is never a lane')
+  assert.equal(bot.activateCalls.length, 1)
+  assert.equal(bushMemory.size, 1, 'the bush lived - the record stays')
+  assert.match(lines[0], /berry: famine walk - the reach is bare, the memory knows a bush at \[30,64,0\]/, 'the walk names itself BEFORE it is spent')
+  assert.match(lines[1], /berry: famine walk picked 2 x sweet_berries/, 'the walked pick rides the honest delta with its own key')
+})
+
+test('THE FAMINE WALK: the nearest remembered bush wins (the plan is pure)', () => {
+  const mem = new Map()
+  mem.set('a', { pos: { x: 10, y: 64, z: 0 }, at: 1 })
+  mem.set('b', { pos: { x: 30, y: 64, z: 0 }, at: 2 })
+  const plan = famineWalkPlan({ memory: mem, here: { x: 0, y: 64, z: 0 } })
+  assert.equal(plan.key, 'a')
+  assert.deepEqual(plan.pos, { x: 10, y: 64, z: 0 })
+  // the envelope: beyond BERRY_WALK_CAP the walk would serve hope, not knowledge
+  assert.equal(famineWalkPlan({ memory: mem, here: { x: 0, y: 64, z: 0 }, cap: 5 }), null, 'beyond the cap - refused')
+  // the ties keep the FIRST record (deterministic - the memory's own order)
+  const tie = new Map()
+  tie.set('first', { pos: { x: 12, y: 64, z: 0 }, at: 1 })
+  tie.set('second', { pos: { x: 0, y: 64, z: 12 }, at: 2 })
+  assert.equal(famineWalkPlan({ memory: tie, here: { x: 0, y: 64, z: 0 } }).key, 'first')
+})
+
+test('THE FAMINE WALK: the junk never arms the walk (the dead reads read null)', () => {
+  assert.equal(famineWalkPlan({ memory: null, here: { x: 0, y: 64, z: 0 } }), null)
+  assert.equal(famineWalkPlan({ memory: new Map(), here: { x: 0, y: 64, z: 0 } }), null, 'an empty book reads null')
+  const junk = new Map()
+  junk.set('x', { pos: null, at: 1 })
+  junk.set('y', { pos: { x: NaN, y: 64, z: 0 }, at: 2 })
+  assert.equal(famineWalkPlan({ memory: junk, here: { x: 0, y: 64, z: 0 } }), null, 'junk entries are skipped')
+  const good = new Map()
+  good.set('g', { pos: { x: 10, y: 64, z: 0 }, at: 1 })
+  assert.equal(famineWalkPlan({ memory: good, here: null }), null, 'a junk here reads null')
+  assert.equal(famineWalkPlan({ memory: good, here: { x: NaN, y: 64, z: 0 } }), null)
+})
+
+test('THE FAMINE WALK: the memory is a bounded book - dedupe by cell, the oldest record is forgotten', () => {
+  const mem = new Map()
+  recordBush(mem, { x: 1.2, y: 64.7, z: 3.9 }, { now: 100 })
+  assert.equal(mem.size, 1)
+  assert.deepEqual(mem.get('1,64,3').pos, { x: 1, y: 64, z: 3 }, 'the record is the FLOORED cell')
+  recordBush(mem, { x: 1.5, y: 64.1, z: 3.1 }, { now: 200 }) // the same cell re-seen
+  assert.equal(mem.size, 1, 'the dedupe: the same bush updates, never grows the book')
+  assert.equal(mem.get('1,64,3').at, 200, 'the timestamp is the freshest sighting')
+  recordBush(mem, { x: 5, y: 64, z: 5 }, { now: 300 })
+  recordBush(mem, { x: 9, y: 64, z: 9 }, { now: 400, cap: 2 })
+  assert.equal(mem.size, 2, 'the cap holds')
+  assert.equal(mem.has('1,64,3'), false, 'the OLDEST record is the one forgotten')
+  assert.equal(recordBush(null, { x: 1, y: 64, z: 1 }), null, 'junk memory is the no-op')
+  const mem2 = new Map()
+  recordBush(mem2, { x: NaN, y: 64, z: 0 })
+  assert.equal(mem2.size, 0, 'a junk position is refused')
+})
+
+test('THE FAMINE WALK: the remembered bush is gone - the dead record is forgotten, the refusal stays quiet', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [] }) // the world moved on
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const lines = []
+  const stop = createBerryStop({ bot, log: m => lines.push(m), bushMemory })
+  const r = await stop()
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'the remembered bush is gone')
+  assert.equal(bushMemory.size, 0, 'dead knowledge must not steer twice')
+  assert.equal(bot.activateCalls.length, 0, 'nothing was picked')
+  assert.equal(lines.length, 1, 'the walk announced itself - the gone record stays quiet (the walk named the cost)')
+  assert.match(lines[0], /berry: famine walk - the reach is bare/)
+})
+
+test('THE FAMINE WALK: a failed walk names itself (a walk was spent - the field reads the failure class)', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [] })
+  bot.pathfinder.goto = async () => { throw new Error('wedged in a cliff') }
+  const bushMemory = new Map()
+  recordBush(bushMemory, { x: 30, y: 64, z: 0 })
+  const lines = []
+  const stop = createBerryStop({ bot, log: m => lines.push(m), bushMemory })
+  const r = await stop()
+  assert.equal(r.due, false)
+  assert.match(r.why, /the famine walk failed/)
+  assert.match(lines[1], /berry: famine walk failed \(wedged in a cliff\)/, 'the walk failure has its own key - the field splits it from the pick failures')
+})
+
+test('THE FAMINE WALK: no memory, no plan - the LEGACY quiet refusal stands byte for byte', async () => {
+  const bot = makeBerryBot({ food: 12, blocks: [bush(6, 64, 0, 1)] }) // immature, and the book is empty
+  const lines = []
+  const stop = createBerryStop({ bot, log: m => lines.push(m), bushMemory: new Map() })
+  const r = await stop()
+  assert.deepEqual(r, { due: false, why: 'no mature bush in reach' }, 'the legacy byte the lane has always run')
+  assert.equal(lines.length, 0)
+})
+
+test('THE FAMINE WALK: the scan\'s memory shoulder - the eye writes what it sees, the map stays the miners\'', async () => {
+  // the mock honors the REAL findBlocks contract: it returns POSITIONS (Vec3),
+  // exactly what a live mineflayer hands the scan
+  const world = [{ name: 'sand', x: 2, y: 64, z: 2, position: new Vec3(2, 64, 2) }, { name: 'sweet_berry_bush', x: 30, y: 64, z: 0, position: new Vec3(30, 64, 0) }]
+  const bot = {
+    entity: { position: new Vec3(0, 64, 0) },
+    findBlocks: ({ matching, count }) => world.filter(b => matching({ name: b.name })).map(b => new Vec3(b.x, b.y, b.z)).slice(0, count ?? Infinity),
+    blockAt: p => world.find(b => b.position.x === p.x && b.position.y === p.y && b.position.z === p.z) ?? null
+  }
+  const stats = { scans: 0, found: 0 }
+  const bushMemory = new Map()
+  const scan = createScan({ bot, map: null, stats, bushMemory })
+  const seen = await scan()
+  assert.equal(seen, 1, 'the targets finder counts only the map\'s targets - the bush is not a mining resource')
+  assert.equal(stats.found, 0, 'the map\'s find counter is untouched by the bush pass')
+  assert.equal(bushMemory.size, 1, 'the memory shoulder wrote the bush it saw')
+  assert.ok(bushMemory.has('30,64,0'))
+})
+
+test('THE FAMINE WALK: the envelope is the scan\'s own eye, the walk is one bounded goto, the laws are pinned', async () => {
+  assert.equal(BERRY_WALK_CAP, 48, 'the scan\'s own knowledge radius - the memory never knows a bush the eye could not have seen')
+  assert.equal(BERRY_WALK_TIMEOUT_MS, 15000, 'the scout leg\'s own timeout shape - one bounded goto')
+  assert.equal(BERRY_MEMORY_CAP, 32, 'one bounded book, never an unbounded ledger')
+  const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
+  assert.match(src, /recordBush, famineWalkPlan \} from '\.\.\/lib\/berry\.mjs'/, 'the lib import is pinned')
+  assert.match(src, /const bushMemory = new Map\(\)/, 'the book is private to this scout')
+  assert.match(src, /createScan\(\{ bot, map, targets, stats, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory \}\)/, 'the scan\'s eye writes')
+  assert.match(src, /if \(bushMemory\) \{[\s\S]*?recordBush\(bushMemory, b\)/, 'the record pass rides the scan, guarded')
+  assert.match(src, /famineWalkPlan\(\{ memory: bushMemory, here: bot\.entity\?\.position \}\)/, 'the stop reads the book')
+  assert.match(src, /bushMemory\.delete\(plan\.key\)/, 'the gone record is forgotten')
+  assert.match(src, /label: 'berry famine walk'/, 'the walk names itself in the gotoSafe book')
+  const legacy = src.match(/return \{ due: false, why: 'no mature bush in reach' \}/g) ?? []
+  assert.equal(legacy.length, 1, 'the legacy byte stands exactly once - the famine walk sits AFTER it, never instead of it')
+  const lib = readFileSync(new URL('../../src/lib/berry.mjs', import.meta.url), 'utf8')
+  assert.match(lib, /the food walk stays armed even inside the night hold/, 'the food-walk law: starvation is the other death')
+  assert.match(lib, /bushes are the pantry's knowledge,\s*\n\*? ?\/\/\s*never a mining target/, 'the private book law: the shared map stays the miners\'')
 })
