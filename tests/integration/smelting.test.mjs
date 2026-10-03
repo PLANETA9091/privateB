@@ -179,12 +179,25 @@ async function placeMachine (bot, itemName, preferredCell = null) {
   // terrain flake). The dry-cell law still guards the honored cell; the
   // bot's own cell stays refused (vanilla rejects hitbox-intersecting
   // placements) so a bot that fell INTO its alcove falls through to the
-  // rings, byte-identical to the pre-0.406.0 behavior.
+  // rings - UNLESS the step-out frees it first (v0.552.0).
   if (preferredCell) {
     const feetB = bot.blockAt(feet)
     if (!feetB || !preferredCell.equals(feetB.position)) {
       const placed = await scanCell(preferredCell)
       if (placed) return placed
+    } else {
+      // (v0.552.0) THE ALCOVE STEP-OUT: the fall-in class used to abandon the
+      // ONE guaranteed-dry cell forever - the v0.406.0 honor fell through to
+      // the rings, and on aquifer terrain the rings are all-skip (CI
+      // 37122030094: two carved cells, both eaten by the feet, skipped=24
+      // rejected=0 twice, the assert fired on a placement the bot COULD have
+      // made by stepping out). A bounded jump vacates the hitbox for a few
+      // ticks (survival physics, no fly), attemptCell rides the same
+      // equip -> place -> settle-verify, and ANY failure falls through to the
+      // rings byte-identically (the legacy behavior stays the floor; the
+      // step-out only adds a floor on top).
+      const stepped = await stepOutPlace(bot, itemName, preferredCell, attemptCell)
+      if (stepped) return stepped
     }
   }
   for (const [dx, dz] of RING1_OFFSETS) {
@@ -213,6 +226,38 @@ async function placeMachine (bot, itemName, preferredCell = null) {
   }
   log(`placeMachine ${itemName}: all ${widened ? `${RING1_OFFSETS.length + RING2_OFFSETS.length + (preferredCell ? 1 : 0)} cells (the carved cell first, then both rings)` : `${RING1_OFFSETS.length + (preferredCell ? 1 : 0)} cells`} tried (skipped=${skipped} rejected=${rejected})`)
   return null
+}
+
+// (v0.552.0) THE ALCOVE STEP-OUT: the fall-in class's bounded recovery. The bot's
+// drift slides it into its own fresh carve (the v0.406.0 note's "often falls into
+// the freshly carved cell"), and the hitbox law then makes the ONE guaranteed-dry
+// cell unscannable - the anchor honor had to skip it, and on aquifer terrain the
+// rings are all-skip (CI 37122030094: skipped=24 rejected=0 twice, the assert
+// fired on a placement the bot COULD have made). The cure: a held jump vacates
+// the cell for a few ticks at each apex (survival physics - no fly, no op),
+// attemptCell rides the same equip -> place -> settle-verify, and any failure
+// returns null so the rings run byte-identically (the legacy floor holds). The
+// dry-cell law is honored BEFORE the jump: a cell that turned fluid while the
+// bot stood in it is named-and-refused, never fed to placeBlock.
+async function stepOutPlace (bot, itemName, cell, attemptCell) {
+  const cellB = bot.blockAt(cell)
+  if (!cellB || (cellB.name && /water|lava/.test(cellB.name))) {
+    log(`stepOutPlace ${itemName} at ${cell}: the cell reads ${cellB?.name ?? 'null'} (the dry-cell law - the step-out never rides water)`)
+    return null
+  }
+  const floorB = bot.blockAt(cell.offset(0, -1, 0))
+  if (!floorB || floorB.boundingBox !== 'block') return null
+  let placed = null
+  try {
+    await bot.setControlState('jump', true)
+    for (let round = 0; round < 2 && !placed; round++) {
+      placed = await attemptCell(cell, floorB)
+    }
+  } catch { /* the rings stay the floor */ } finally {
+    try { bot.setControlState('jump', false) } catch { /* gone */ }
+  }
+  if (!placed) log(`stepOutPlace ${itemName} at ${cell}: both jump rounds refused (the rings take over)`)
+  return placed
 }
 
 // GRAVITY-BLOCK GUARD (live failure 2026-09-19: a shaft bottom under a sand stratum -
