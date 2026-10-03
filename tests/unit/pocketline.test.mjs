@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, BANK_FLOW_DISPLAY_FLOOR, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow, RECONNECT_CENSUS_MIN, RECONNECT_CENSUS_LOCAL_SHARE } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -184,8 +184,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it, v0.556.0 adds whyBookToken - the third refuse class feeds the book, v0.563.0 adds doomOwnerRow - the crater census map)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it, v0.556.0 adds whyBookToken - the third refuse class feeds the book, v0.563.0 adds doomOwnerRow - the crater census map, v0.565.0 adds reconnectCensusRow - the stats line\'s owners)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))') // (v0.553.0) the why ledger rides the row
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -1197,4 +1197,62 @@ test('fleet19: THE WIRING PIN - the owner map feeds at the why ledger\u0027s own
   assert.ok(src.includes("const ownerKey = whyCls + '|' + name"), 'the join grain is CLASS|WALKER - the class known AT the failure')
   assert.ok(ownerPrint > ownerFeed, 'the map feeds at the climb seat, the row prints in the report block')
   assert.ok(src.includes('doomOwnerRow([...finalBankDoomOwner]'), 'the report reads the composite ledger, never a second source')
+})
+
+// ---- (v0.565.0) THE RECONNECT CENSUS - the stats line's owners ----
+// fleet 37134090209's stats line read 'reconnects=43' across 19 bots and no
+// line said WHO re-linked. Each reconnect is a mining stall plus a full bot
+// re-bootstrap; a bot that owns the churn (a lying sensor, a bad net path, a
+// poison spawn) is a targeted cure, a spread is the server's own storm (the
+// fleet #129 tick-storm class). The doom census's own laws hold: the grain
+// floor, the half boundary, the byte-stable ties, the leanness law.
+
+test('reconnectCensusRow: the spread shape - a fleet-wide churn names its top link', () => {
+  const owners = [
+    { name: 'F7', count: 9 }, { name: 'F2', count: 8 }, { name: 'F13', count: 6 },
+    { name: 'F5', count: 5 }, { name: 'F9', count: 4 }, { name: 'F11', count: 4 },
+    { name: 'F3', count: 3 }, { name: 'F18', count: 2 }, { name: 'F6', count: 2 }
+  ]
+  const total = owners.reduce((a, o) => a + o.count, 0)
+  assert.equal(total, 43, 'the live run\'s own total: 43 re-links across 19 bots')
+  assert.strictEqual(reconnectCensusRow(owners),
+    'reconnect census: spread - top F7 carries 9 of 43 reconnects (20.9%) - the churn is fleet-wide',
+    'the fleet number reads its owners: 9 of 43 is no whale - the server\'s storm, not one link')
+})
+
+test('reconnectCensusRow: one link at the half boundary owns the churn', () => {
+  const owners = [
+    { name: 'F7', count: 12 }, { name: 'F2', count: 6 }, { name: 'F13', count: 3 },
+    { name: 'F5', count: 3 }
+  ]
+  assert.strictEqual(reconnectCensusRow(owners),
+    'reconnect census: local - F7 carries 12 of 24 reconnects (50.0%) - one link owns the churn',
+    'the half boundary mirrors the census law (at RECONNECT_CENSUS_LOCAL_SHARE the shape turns local)')
+})
+
+test('reconnectCensusRow: the constants pin - the census laws stay pinned', () => {
+  assert.strictEqual(RECONNECT_CENSUS_MIN, 3, 'the grain floor: below this the churn is noise, not a stake (the doom census\'s own trip point)')
+  assert.strictEqual(RECONNECT_CENSUS_LOCAL_SHARE, 0.5, 'the half boundary: the census law\'s 0.5, parity with the doom family')
+})
+
+test('reconnectCensusRow: the leanness and junk law', () => {
+  assert.equal(reconnectCensusRow([]), null, 'no re-links - no row (the leanness law)')
+  assert.equal(reconnectCensusRow([{ name: 'F7', count: 1 }, { name: 'F2', count: 1 }]), null, 'under the grain floor - silent')
+  assert.equal(reconnectCensusRow([{ name: 'F7', count: 0 }, { name: 'F2', count: -2 }, { name: 'F13', count: NaN }]), null, 'junk counts never enter the map (the body-guard law)')
+  assert.equal(reconnectCensusRow(null), null, 'not an array - null')
+  assert.ok(reconnectCensusRow([{ name: '   ', count: 2 }, { name: 'F2', count: 1 }]).includes('? carries 2 of 3'), 'a junk name reads ? - the count is the truth')
+  assert.ok(reconnectCensusRow([{ name: '   ', count: 2 }, { name: 'F2', count: 1 }, { name: 'F5', count: 1 }]).includes('? carries 2 of 4'), 'a junk name reads ? - the count is the truth')
+})
+
+test('fleet19: THE WIRING PIN - the census feeds at the counter\'s own seat and prints beside the stats line', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const counterSeat = src.indexOf('    reconnects++')
+  const censusFeed = src.indexOf('reconnectCensus.set(name, (reconnectCensus.get(name) || 0) + 1)')
+  const censusDecl = src.indexOf('const reconnectCensus = new Map()')
+  const statsLine = src.indexOf('reconnects=${reconnects}')
+  const censusPrint = src.indexOf('if (reconnectOwners) console.log(reconnectOwners)')
+  assert.ok(censusDecl > 0, 'the census ledger exists')
+  assert.ok(counterSeat > 0 && censusFeed > counterSeat, 'the feed sits at the counter\'s own increment seat (one seat, one increment)')
+  assert.ok(statsLine > 0 && censusPrint > statsLine, 'the row prints right after the stats line - the number reads its owners one line later')
+  assert.ok(src.includes("reconnectCensusRow([...reconnectCensus].map(([name, count]) => ({ name, count })))"), 'the report reads the census ledger, never a second source')
 })

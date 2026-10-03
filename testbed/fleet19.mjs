@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -151,6 +151,12 @@ const bots = new Map() // name -> { miner, target }
 const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs)
 let spawned = 0
 let reconnects = 0
+// (v0.565.0) THE RECONNECT CENSUS LEDGER: the same re-links keyed per BOT -
+// the stats line's reconnects= is a fleet number with no owners (fleet
+// 37134090209: reconnects=43 across 19 bots, no line read WHO re-linked).
+// Fed at the counter's own increment site, printed by the reconnect census
+// row after the stats line.
+const reconnectCensus = new Map()
 let kicks = 0 // (v0.16.3) server-side kicks/ECONNRESETs, counted ONCE (the old loop double-counted every kick: once in catch, once as a retry)
 let toolsOk = 0
 let toolsReboot = 0 // successful tool re-bootstraps after deaths
@@ -3306,6 +3312,9 @@ async function runBot (name, target, index) {
     if (Date.now() >= deadline) break
     failStreak++
     reconnects++
+    // (v0.565.0) the same re-link feeds the census - the counter's twin (one
+    // seat, one increment; the bot is known AT the re-link)
+    reconnectCensus.set(name, (reconnectCensus.get(name) || 0) + 1)
     // (v0.16.3) jittered exponential backoff with a per-bot phase: see src/lib/backoff.mjs
     const delay = reconnectDelayMs({ attempt: failStreak, index, rand: Math.random })
     console.log(`${name} retry #${failStreak} in ${(delay / 1000).toFixed(1)}s (${lastWhy})`)
@@ -3792,6 +3801,13 @@ function printFinalReport (reason) {
   const secs = SECONDS
   console.log(`================ FLEET RESULT (${reason}) ================`)
 console.log(`bots=${COUNT} spawned=${spawned} reconnects=${reconnects} kicks=${kicks} tools=${toolsOk} recovered=${toolsRecovered} reboots=${toolsReboot} upgraded=${toolsUpgraded} swords=${swordsCrafted} alive=${aliveCount()} climbs=${list.reduce((a, m) => a + (m.stats.climbs ?? 0), 0)} banked=${banked} smelted=${smelted} planted=${list.reduce((a, m) => a + (m.stats.planted ?? 0), 0)} torched=${list.reduce((a, m) => a + (m.stats.torched ?? 0), 0)} fights=${list.reduce((a, m) => a + (m.stats.fights ?? 0), 0)} kills=${list.reduce((a, m) => a + (m.stats.kills ?? 0), 0)} shelters=${list.reduce((a, m) => a + (m.stats.shelters ?? 0), 0)} rescues=${list.reduce((a, m) => a + (m.stats.rescues ?? 0), 0)} pounces=${list.reduce((a, m) => a + (m.stats.pounces ?? 0), 0)} pounceLanded=${list.reduce((a, m) => a + (m.stats.pounceLanded ?? 0), 0)} airGlitches=${list.reduce((a, m) => a + (m.stats.airGlitches ?? 0), 0)} claims=${list.reduce((a, m) => a + (m.stats.claims ?? 0), 0)} claimedHolds=${board.size()} wet=${hazardLedger.size} wt=${waterTableBoard.size}`)
+// (v0.565.0) THE RECONNECT CENSUS - the stats line's reconnects= read its
+// owners: a bot that owns the churn is a targeted cure (a lying sensor, a
+// bad net path), a spread is the server's own storm - the stats number
+// alone cannot tell the two apart. Silent under the grain floor (the
+// leanness law).
+const reconnectOwners = reconnectCensusRow([...reconnectCensus].map(([name, count]) => ({ name, count })))
+if (reconnectOwners) console.log(reconnectOwners)
 // (v0.535.0) THE SCOUT'S ROW + THE MAP'S COVERAGE ROW - the report's otchetnost
 // lane: printFinalReport read the miners only, so the scout's own counters
 // (scans/finds/travelled/deaths) never surfaced - a SCOUT=1 run whose scout

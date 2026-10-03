@@ -732,3 +732,37 @@ export function doomOwnerRow (entries) {
     : 'the class spreads across the walkers - the cure stays fleet-wide'
   return `final bank doom owner: ${topClass.cls}'s top walker ${top.name} ${top.cycles} of ${topClass.cycles} (${pct}% of the class) - ${shape}`
 }
+
+// (v0.565.0) THE RECONNECT CENSUS - the stats line's reconnects= is a fleet
+// number with no owners (fleet 37134090209: reconnects=43 across 19 bots and
+// no line read WHO re-linked). Each reconnect is a mining stall plus a full
+// bot re-bootstrap; a bot that owns the churn (a lying sensor, a bad net
+// path, a poison spawn) is a targeted cure, a fleet-wide churn is the
+// server's own storm (fleet #129's tick storms - the stats line alone cannot
+// tell the two apart). The doom census's own laws hold: the grain floor
+// (RECONNECT_CENSUS_MIN - below this the churn is noise, not a stake), the
+// half boundary (RECONNECT_CENSUS_LOCAL_SHARE - the census law's 0.5), the
+// byte-stable ties (count desc, name asc), the leanness law (a healthy run
+// prints nothing).
+export const RECONNECT_CENSUS_MIN = 3
+export const RECONNECT_CENSUS_LOCAL_SHARE = 0.5
+
+export function reconnectCensusRow (entries) {
+  const holders = []
+  let total = 0
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const raw = e?.count
+    const count = (Number.isFinite(raw) && raw > 0) ? Math.floor(raw) : 0
+    if (count <= 0) continue
+    holders.push({ name: String(e?.name || '').trim() || '?', count })
+    total += count
+  }
+  if (total < RECONNECT_CENSUS_MIN) return null
+  holders.sort((a, b) => (b.count - a.count) || (a.name < b.name ? -1 : 1))
+  const top = holders[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  if (top.count / total >= RECONNECT_CENSUS_LOCAL_SHARE) {
+    return `reconnect census: local - ${top.name} carries ${top.count} of ${total} reconnects (${pct}%) - one link owns the churn`
+  }
+  return `reconnect census: spread - top ${top.name} carries ${top.count} of ${total} reconnects (${pct}%) - the churn is fleet-wide`
+}
