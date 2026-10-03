@@ -92,3 +92,8 @@ test('v0.261.0 scope: the famine trip and the recovery lanes compose - the pick-
   assert.match(woodplanSrc, /export function famineDue[\s\S]*?if \(!hasPick\) return false/, 'famineDue refuses pick-less bots byte for byte')
   assert.match(woodplanSrc, /export function recoveryDue[\s\S]*?if \(hasPick\) return false/, 'recoveryDue refuses tooled bots byte for byte')
 })
+
+test('v0.529.0 THE UNREADABLE KIT: the pick read is junk-safe - a dead inventory reads tool-less, never reconnects the loop', () => {
+  assert.ok(fleetSrc.includes("const hasPickNow = () => { try { return miner.bot.inventory.items().some(i => i.name.includes('pickaxe')) } catch { return false } }"), 'the helper carries the bankableNow byte - a dead read is the kit-gone shape the death economy already runs on, never a throw into the reconnect catch')
+  assert.ok(fleetSrc.includes('const bankableNow = () => {'), 'the sibling helper stays the named pattern')
+})

@@ -1178,7 +1178,16 @@ async function runBot (name, target, index) {
       // recovery. Now the SAME predicate also stops digShaft from the inside
       // (interrupted -> continue), so a due recovery preempts the current shaft within
       // seconds. Deaths are covered too: a bot that drops its kit keeps hasPick=false.
-      const hasPickNow = () => miner.bot.inventory.items().some(i => i.name.includes('pickaxe'))
+      // (v0.529.0) THE UNREADABLE KIT: the bare inventory read threw through EVERY
+      // gate it feeds - one dead read in the death/respawn window landed in the
+      // reconnect catch and cost a FULL bot reconnect mid-run (the mining loop has
+      // no per-iteration catch; the loop's closure clocks reset with it). A dead
+      // read now reads hasPick=false - the kit-unreadable shape IS the kit-gone
+      // shape the death economy already runs on (the line above), the tool-less
+      // paths are field-proven, and bankableNow (below) has carried this exact
+      // byte since v0.36.0. The v0.527.0 food-trip snapshot keeps its own wrap
+      // (belt and suspenders); every other call site inherits the safety free.
+      const hasPickNow = () => { try { return miner.bot.inventory.items().some(i => i.name.includes('pickaxe')) } catch { return false } }
       // (v0.36.0) PRE-POSITION helpers. bankableNow mirrors the end-phase's
       // bankable check; prePositionNow fires only when the run is inside the
       // window AND the pockets hold non-KEEP loot AND the bot is far enough
