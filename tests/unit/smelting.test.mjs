@@ -20,7 +20,7 @@ import {
   smeltRefusalCensusRow, SMELT_CENSUS_TOP,
   smeltNoFuelAnatomyRow,
   smeltNoFuelOwnerRow, SMELT_NO_FUEL_OWNER_MIN, SMELT_NO_FUEL_OWNER_LOCAL_SHARE,
-  pocketFuelBare, smeltNoFuelPantryRow,
+  pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
@@ -2362,4 +2362,70 @@ test('smeltNoFuelPantryRow: THE WIRING PIN - the pantry grain rides the no-fuel 
   const printIdx = src.indexOf('if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)')
   assert.ok(printIdx > ownerPrintIdx, 'the pantry prints after its owner map - the sibling law')
   assert.ok(src.includes('THE FUEL PANTRY'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.574.0) THE UNREACHABLE OWNER MAP - the owner family's second seat. The
+// fleet 37149142927 face flipped the census's leader: 'machine unreachable'
+// 9 of 12 refused attempts - and the leader reads blind the way 'no fuel'
+// read blind before v0.566.0: the face never said WHICH machine the walks
+// failed on.
+// ---------------------------------------------------------------------------
+test('smeltUnreachableOwnerRow: THE LIVE ANCHOR - the fleet 37149142927 face books 9 of 12', () => {
+  // the face's own total (9 unreachable refusals); the split is the shape
+  // class the face never printed - exactly the blind read this row cures
+  const v = smeltUnreachableOwnerRow([{ machine: 'furnace', count: 4 }, { machine: 'blast_furnace', count: 3 }, { machine: 'furnace', count: 2 }])
+  assert.equal(v, 'smelt unreachable owner: furnace carries 6 of 9 unreachable refusals (66.7%) - one machine owns the tax - its own cell is the cure')
+})
+
+test('smeltUnreachableOwnerRow: the spread form reads the walk lattice', () => {
+  // a split no machine dominates - the yard's reach is fleet-wide sick
+  const v = smeltUnreachableOwnerRow([{ machine: 'furnace', count: 4 }, { machine: 'blast_furnace', count: 3 }, { machine: '-', count: 2 }])
+  assert.equal(v, 'smelt unreachable owner: furnace carries 4 of 9 unreachable refusals (44.4%) - the tax spreads across the machines - the walk lattice is the front')
+  // the boundary rides the half law (>= 0.5 reads local, the doom family's own semantics)
+  const half = smeltUnreachableOwnerRow([{ machine: 'furnace', count: 2 }, { machine: 'blast_furnace', count: 2 }])
+  assert.equal(half, 'smelt unreachable owner: blast_furnace carries 2 of 4 unreachable refusals (50.0%) - one machine owns the tax - its own cell is the cure')
+  // byte-stable ties: count desc, machine asc
+  const tie = smeltUnreachableOwnerRow([{ machine: 'smoker', count: 2 }, { machine: 'furnace', count: 2 }])
+  assert.equal(tie, 'smelt unreachable owner: furnace carries 2 of 4 unreachable refusals (50.0%) - one machine owns the tax - its own cell is the cure')
+})
+
+test('smeltUnreachableOwnerRow: THE GRAIN FLOOR is the owner family\'s own trip point', () => {
+  // total 2 sits under SMELT_NO_FUEL_OWNER_MIN = 3 - the shared constant,
+  // one grain law for the whole owner family (a stray refusal never names an owner)
+  assert.equal(smeltUnreachableOwnerRow([{ machine: 'furnace', count: 1 }, { machine: 'smoker', count: 1 }]), null)
+  // total 3 exactly trips the floor
+  const trip = smeltUnreachableOwnerRow([{ machine: 'furnace', count: 2 }, { machine: 'smoker', count: 1 }])
+  assert.equal(trip, 'smelt unreachable owner: furnace carries 2 of 3 unreachable refusals (66.7%) - one machine owns the tax - its own cell is the cure')
+})
+
+test('smeltUnreachableOwnerRow: THE LEANNESS LAW and the junk battery', () => {
+  assert.equal(smeltUnreachableOwnerRow([]), null)
+  assert.equal(smeltUnreachableOwnerRow('junk'), null)
+  assert.equal(smeltUnreachableOwnerRow(), null)
+  assert.equal(smeltUnreachableOwnerRow([{ machine: 'furnace', count: 0 }]), null)
+  assert.equal(smeltUnreachableOwnerRow([{ machine: 'furnace', count: -2 }]), null)
+  assert.equal(smeltUnreachableOwnerRow([{ machine: 'furnace', count: NaN }]), null)
+  // an unnamed machine is still a refusal ('-' - the legacy no-callback path)
+  const dash = smeltUnreachableOwnerRow([{ machine: null, count: 2 }, { count: 1 }])
+  assert.equal(dash, 'smelt unreachable owner: - carries 3 of 3 unreachable refusals (100.0%) - one machine owns the tax - its own cell is the cure')
+  // duplicate same-machine entries merge - the face never prints a bucket twice
+  const m = smeltUnreachableOwnerRow([{ machine: 'furnace', count: 2 }, { machine: 'furnace', count: 1 }])
+  assert.equal(m, 'smelt unreachable owner: furnace carries 3 of 3 unreachable refusals (100.0%) - one machine owns the tax - its own cell is the cure')
+})
+
+test('smeltUnreachableOwnerRow: THE WIRING PIN - the grain rides the census seat, the face reads the split', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /smeltUnreachableOwnerRow[\s\S]*?from '\.\.\/src\/lib\/smelting\.mjs'/)
+  assert.match(src, /const finalSmeltUnreachable = new Map\(\)/)
+  // the feed sits INSIDE the machine-unreachable guard, beside the no-fuel family
+  const feedIdx = src.indexOf("if (sr === 'machine unreachable') {")
+  const pantryIdx = src.indexOf("finalSmeltNoFuelPantry.set(pantryState")
+  assert.ok(feedIdx > pantryIdx, 'the unreachable grain rides the same census seat')
+  assert.match(src, /finalSmeltUnreachable\.set\(reachKey/)
+  // the print rides the report block right after the pantry row
+  const pantryPrintIdx = src.indexOf('if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)')
+  const printIdx = src.indexOf('if (smeltUnreachableOwner) console.log(smeltUnreachableOwner)')
+  assert.ok(printIdx > pantryPrintIdx, 'the unreachable owner prints after its pantry sibling')
+  assert.ok(src.includes('THE UNREACHABLE OWNER MAP'), 'the wiring carries its own doctrine comment')
 })

@@ -35,7 +35,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
@@ -218,6 +218,10 @@ const finalSmeltNoFuelMachine = new Map()
 // ('protected') or nothing that burns at all ('bare'). Fed at the same seat,
 // one extra set - the grains can never split.
 const finalSmeltNoFuelPantry = new Map()
+// (v0.574.0) THE UNREACHABLE OWNER LEDGER: the owner family's second seat -
+// which MACHINE the 'machine unreachable' walks failed on. Fed at the same
+// seat, one extra set - the census grains can never split.
+const finalSmeltUnreachable = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -800,6 +804,14 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             // nothing that burns = 'bare'
             const pantryState = pocketFuelBare(miner.bot) ? 'bare' : 'protected'
             finalSmeltNoFuelPantry.set(pantryState, (finalSmeltNoFuelPantry.get(pantryState) || 0) + 1)
+          }
+          // (v0.574.0) the unreachable owner grain rides the same seat - the
+          // walk's failure names the MACHINE kind it could not reach (the
+          // legacy no-callback path pushes machine:null, an unnamed machine
+          // is still a refusal)
+          if (sr === 'machine unreachable') {
+            const reachKey = (typeof sa.machine === 'string' && sa.machine.trim() !== '') ? sa.machine.trim() : '-'
+            finalSmeltUnreachable.set(reachKey, (finalSmeltUnreachable.get(reachKey) || 0) + 1)
           }
         }
       }
@@ -4122,6 +4134,12 @@ if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)
 // - it can only speak when they spoke.
 const smeltNoFuelPantry = smeltNoFuelPantryRow([...finalSmeltNoFuelPantry].map(([state, count]) => ({ state, count })))
 if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)
+// (v0.574.0) THE UNREACHABLE OWNER MAP - the census's leader class ('machine
+// unreachable', 9 of 12 on the fleet 37149142927 face) reads its own machine
+// split: one machine = the cell's cure, a spread = the walk lattice. The same
+// refusals' own grain - it can only speak when they spoke.
+const smeltUnreachableOwner = smeltUnreachableOwnerRow([...finalSmeltUnreachable].map(([machine, count]) => ({ machine, count })))
+if (smeltUnreachableOwner) console.log(smeltUnreachableOwner)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is

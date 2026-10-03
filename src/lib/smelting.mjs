@@ -224,6 +224,42 @@ export function smeltNoFuelOwnerRow (entries) {
   return `smelt no-fuel owner: ${top.machine} carries ${top.count} of ${total} no-fuel refusals (${pct}%) - ${shape}`
 }
 
+// (v0.574.0) THE UNREACHABLE OWNER MAP - the owner family's second seat. The
+// fleet 37149142927 face flipped the census's leader: 'machine unreachable'
+// carried 9 of 12 refused attempts (the fuel census's own cure pushed 'no
+// fuel' down to 2) and the leader reads blind exactly the way 'no fuel' read
+// blind in v0.566.0 - the face never said WHICH machine the walks failed on.
+// One machine owning the tax indicts its own cell (a doom latch, a blocked
+// or wet approach - the cure is local); a spread indicts the walk lattice
+// itself (the yard's reach is fleet-wide sick). The SAME grain laws as the
+// no-fuel owner map - SMELT_NO_FUEL_OWNER_MIN (the trip point) and
+// SMELT_NO_FUEL_OWNER_LOCAL_SHARE (the half boundary) - one grain law for
+// the whole owner family, the drift impossible by construction. The verdict
+// forms name the unreachable class's own cures (the cell, not the fuel
+// load). Byte-stable: the census's own tie law (count desc, machine asc);
+// junk law: an unnamed machine reads '-' (the legacy no-callback path pushes
+// machine:null - an unnamed machine is still a refusal); leanness: a run
+// under the floor prints nothing.
+export function smeltUnreachableOwnerRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const m = (typeof e?.machine === 'string' && e.machine.trim() !== '') ? e.machine.trim() : '-'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(m, (acc.get(m) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < SMELT_NO_FUEL_OWNER_MIN) return null
+  const good = [...acc].map(([machine, count]) => ({ machine, count }))
+  good.sort((a, b) => (b.count - a.count) || (a.machine < b.machine ? -1 : 1))
+  const top = good[0]
+  const pct = ((top.count / total) * 100).toFixed(1)
+  const shape = top.count / total >= SMELT_NO_FUEL_OWNER_LOCAL_SHARE
+    ? 'one machine owns the tax - its own cell is the cure'
+    : 'the tax spreads across the machines - the walk lattice is the front'
+  return `smelt unreachable owner: ${top.machine} carries ${top.count} of ${total} unreachable refusals (${pct}%) - ${shape}`
+}
+
 // (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper. The
 // anatomy's first verdict landed (fleet 37144334720: dry 3 of 4 - the fuel
 // supply is the front) but 'dry' reads blind depth: pickFuel's own diet
