@@ -1,4 +1,4 @@
-import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow } from '../../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, WRITE_OFF_MIN_UNITS, bankedCraterDecode, BANK_CRATER_FLOOR_SHARE, unaccountedMassDecode, UNACCOUNTED_FLOOR_SHARE, pocketAnatomyRow, POCKET_WHALE_SHARE, surplusFaceRow, isCraftedClassName, SURPLUS_FACE_TOP, bankFlowRow, BANK_FLOW_MIN_SAMPLES, bankAttributionRow, BANK_ATTRIBUTION_TOP, bankBudgetGapRow, BANK_GAP_MIN_BUDGET_MS, doomCensusRow, DOOM_CENSUS_MIN_CYCLES, DOOM_CENSUS_LOCAL_SHARE, climbWhyClass, doomWhyRow, whyBookToken } from '../../src/lib/pocketline.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert'
 import fs from 'node:fs'
@@ -184,8 +184,8 @@ test('writeOffRow: the constants pin', () => {
 test('REGRESSION PIN: the write-off row rides the report block beside the loot ledger (v0.302.0)', async () => {
   const fs = await import('node:fs')
   const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow } from '../src/lib/pocketline.mjs'"),
-    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it)')
+  assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, whyBookToken } from '../src/lib/pocketline.mjs'"),
+    'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it, v0.556.0 adds whyBookToken - the third refuse class feeds the book)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
   const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))') // (v0.553.0) the why ledger rides the row
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
@@ -768,7 +768,58 @@ test('climbWhyClass: the face\'s own taxonomy - the decorated reasons classify b
   assert.strictEqual(climbWhyClass(null), 'other')
   assert.strictEqual(climbWhyClass(''), 'other')
   assert.strictEqual(climbWhyClass(42), 'other')
-  assert.strictEqual(climbWhyClass('chest unreachable (No path to the goal!)'), 'other')
+  // (v0.556.0) RE-AIMED: the unreachable/no-path reasons were 'other' - the
+  // chain-refuse faces (fleet 37125612065) named them as the third refuse
+  // class, so the taxonomy grew. Root cause first: the decorated form
+  // carries BOTH 'unreachable' and 'exhausted' - the chest was unreachable,
+  // the burned budget is the messenger (fleet 37125612065's F14 reason).
+  assert.strictEqual(climbWhyClass('chest unreachable (No path to the goal!)'), 'unreachable')
+  assert.strictEqual(climbWhyClass('chest unreachable (budget exhausted (walk floor))'), 'unreachable')
+  assert.strictEqual(climbWhyClass('No path to the goal! (51 blocks from yard)'), 'unreachable')
+  // the bare exhaustion (F11's live reason) keeps its own class
+  assert.strictEqual(climbWhyClass('budget exhausted'), 'exhausted')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.556.0) THE WHY-BOOK TOKEN - the third refuse class's bridge. The
+// strand faces (write-off + attribution) read the book through a token law
+// (/^[a-z0-9-]+$/); the taxonomy's spaced classes ('wet wall') and the
+// named-nothing ('other') must never ride a strand by token accident or
+// drop off it by omission. Fleet 37125612065: F14 68u and F11 rode their
+// write-off line unnamed because only the latch and the night hold fed the
+// book - the chain's own refusals (budget exhausted, chest unreachable)
+// were the third class.
+// ---------------------------------------------------------------------------
+
+test('whyBookToken: the taxonomy reshapes to the token law (spaced classes hyphenate)', () => {
+  assert.strictEqual(whyBookToken('exhausted'), 'exhausted')
+  assert.strictEqual(whyBookToken('unreachable'), 'unreachable')
+  assert.strictEqual(whyBookToken('wet wall'), 'wet-wall', 'a KNOWN class never drops off the strand by token accident')
+  assert.strictEqual(whyBookToken('low-o2'), 'low-o2')
+})
+
+test('whyBookToken: the named-nothing and junk never ride', () => {
+  assert.strictEqual(whyBookToken('other'), null, 'a named-nothing is the legacy silence by another name')
+  assert.strictEqual(whyBookToken(''), null)
+  assert.strictEqual(whyBookToken(null), null)
+  assert.strictEqual(whyBookToken(undefined), null)
+  assert.strictEqual(whyBookToken(42), null)
+  assert.strictEqual(whyBookToken('Wet Wall'), null, 'uppercase fails the law (climbWhyClass lowercases first - the helper never trusts it)')
+})
+
+test('THE THIRD REFUSE CLASS rides its own refuse sites (the wiring)', () => {
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // site B: the chain's own refusal - the feed rides BEFORE the print in the
+  // same else branch (window-searched: the nearest print is the same block)
+  const printIdx = fleetSrc.indexOf('console.log(`${name} final bank: 0 (${res.reason})`)')
+  const chainFeedIdx = fleetSrc.indexOf('const chainTok = whyBookToken(climbWhyClass(res.reason))')
+  assert.ok(chainFeedIdx > -1, 'the chain-refuse feed exists')
+  assert.ok(printIdx > chainFeedIdx, 'the feed rides BEFORE the verdict print - the class is known AT the refusal')
+  assert.ok(fleetSrc.slice(chainFeedIdx - 1200, chainFeedIdx).includes('THE THIRD REFUSE CLASS'), 'the feed carries its own doctrine comment')
+  // site A: the still-underground branch - the climb class joins the book
+  const climbFeedIdx = fleetSrc.indexOf('const climbTok = whyBookToken(whyCls)')
+  assert.ok(climbFeedIdx > -1, 'the climb-doomed feed exists')
+  assert.ok(climbFeedIdx > fleetSrc.indexOf('finalBankDoomWhy.set(whyCls'), 'the climb feed rides beside the doom-why census feed (the same class, one computation)')
 })
 
 test('doomWhyRow: the face datum - the tax splits two ways, neither head a whale (spread form)', () => {

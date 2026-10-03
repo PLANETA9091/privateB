@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, whyBookToken } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
@@ -3228,12 +3228,28 @@ async function runBot (name, target, index) {
             // names the walker, the why row names the failure class.
             const whyCls = climbWhyClass(cr.reason)
             finalBankDoomWhy.set(whyCls, (finalBankDoomWhy.get(whyCls) || 0) + 1)
+            // (v0.556.0) the climb-doomed strand names its class too - the same
+            // class the census just computed rides the why book (the strand's
+            // write-off/attribution faces read it; 'other' never rides)
+            const climbTok = whyBookToken(whyCls)
+            if (climbTok) finalBankWhys.set(name, climbTok)
           } else {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
             if (res.deposited > 0) {
               banked += res.deposited
               console.log(`${name} final bank: +${res.deposited}`)
             } else {
+              // (v0.556.0) THE THIRD REFUSE CLASS - the chain's own refusal
+              // feeds the book (fleet 37125612065: F14 68u rode 'chest
+              // unreachable (budget exhausted (walk floor))' and F11 rode
+              // 'budget exhausted' - both unnamed on the write-off face
+              // because only the latch and the night hold fed the book).
+              // Same laws as the door feeds: the class is known AT the
+              // refusal, the token law holds, the last refusal wins (the
+              // terminal truth - a latched bot that re-armed and then burned
+              // its budget names the burn).
+              const chainTok = whyBookToken(climbWhyClass(res.reason))
+              if (chainTok) finalBankWhys.set(name, chainTok)
               console.log(`${name} final bank: 0 (${res.reason})`)
             }
           }

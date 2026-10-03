@@ -605,9 +605,31 @@ export function climbWhyClass (reason) {
   if (s.includes('wet wall')) return 'wet wall'
   if (s.includes('low-o2')) return 'low-o2'
   if (s.includes('timeout')) return 'timeout'
+  // (v0.556.0) THE UNREACHABLE CLASS - the chain-refuse reasons joined the
+  // taxonomy (fleet 37125612065: F14 rode 'chest unreachable (budget
+  // exhausted (walk floor))'). ROOT CAUSE FIRST: a reason carrying BOTH
+  // 'unreachable' and 'exhausted' is an unreachable chest that burned its
+  // budget trying - the exhaustion is the messenger, not the cause.
+  if (s.includes('unreachable') || s.includes('no path')) return 'unreachable'
   if (s.includes('exhausted')) return 'exhausted'
   if (s.includes('stopped')) return 'stopped'
   return 'other'
+}
+
+// (v0.556.0) THE WHY-BOOK TOKEN - the taxonomy class reshaped to the why
+// book's token law (/^[a-z0-9-]+$/, the same law the write-off and
+// attribution rows enforce at read time). 'other' never rides: a named-
+// nothing is the legacy silence by another name. Spaced classes hyphenate
+// ('wet wall' -> 'wet-wall') so a KNOWN class never drops off the strand
+// by token accident - the v0.554.0 lesson (a silent strand is the lie of
+// omission). Uppercase/junk fails the law and stays null (defense in
+// depth: climbWhyClass lowercases first, but the helper never trusts it).
+export function whyBookToken (cls) {
+  if (typeof cls !== 'string') return null // a bare number rides 'low-o2''s law - junk, never a class
+  const s = cls.trim()
+  if (!s || s === 'other') return null
+  const tok = s.replace(/\s+/g, '-')
+  return /^[a-z0-9-]+$/.test(tok) ? tok : null
 }
 
 // (v0.336.0) THE DOOM-WHY ROW - the census's WHY side: the same failed climb
