@@ -5,7 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS, sensorLiarRow, SENSOR_LIAR_MIN_IGNORED, scoutReportRow, mapCoverageRow } from '../../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, CARRY_FIELDS, SWEEP_DROP_FIELDS, drownedKillContextLine, rescueEconomyDecode, RESCUE_ECONOMY_FLOOR_SHARE, RESCUE_ECONOMY_MIN_GLITCHES, rescueHoleRow, RESCUE_HOLE_MIN_UNRESCUED, RESCUE_HOLE_HOLD_SHARE, stormDietRow, STORM_DIET_MIN_GLITCHES, STORM_DIET_BEACH_BLOCKS, sensorLiarRow, SENSOR_LIAR_MIN_IGNORED, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats, SCOUT_CARRY_FIELDS } from '../../src/lib/statcarry.mjs'
 
 test('stat carry: seed + work + snapshot preserves totals (the storm contract)', () => {
   // attempt 1: bot mines 300, then dies
@@ -704,4 +704,64 @@ test('THE WIRING PIN - the report reads the scout ref and the live map (the otch
   // the teardown law: both wires try-guarded
   assert.match(fleetSrc, /try \{ console\.log\(scoutReportRow/, 'the scout row never holds the teardown')
   assert.match(fleetSrc, /try \{ console\.log\(mapCoverageRow/, 'the map row never holds the teardown')
+})
+
+// (v0.536.0) THE SCOUT'S CARRY - the scout's book rides the attempt boundary:
+// a mid-run attempt death rebuilt the scout with a ZERO book (the miners'
+// v0.18.9 mortality, one bot wide) and the v0.535.0 report row would print
+// the last attempt's totals as the run's truth.
+test('snapshotScoutStats: the four monotone counters, junk never rides (the CARRY_FIELDS law, the scout seat)', () => {
+  assert.deepEqual(
+    snapshotScoutStats({ scans: 120, found: 34, travelled: 4880, deaths: 1 }),
+    { scans: 120, found: 34, travelled: 4880, deaths: 1 }
+  )
+  // zeros and junk stay out - the carry carries only the walk already bought
+  assert.deepEqual(snapshotScoutStats({ scans: 0, found: NaN, travelled: -5, deaths: '7' }), {})
+  assert.deepEqual(snapshotScoutStats(null), {})
+  assert.deepEqual(snapshotScoutStats('junk'), {})
+  // the miner's fields do NOT ride the scout's book (one seat, one book)
+  assert.deepEqual(snapshotScoutStats({ scans: 3, mined: 500, rescues: 2 }), { scans: 3 })
+  // the fields list is exactly the four (a fifth counter must not silently ride)
+  assert.deepEqual(SCOUT_CARRY_FIELDS, ['scans', 'found', 'travelled', 'deaths'])
+})
+
+test('seedScoutStats: the fresh book opens with the walk already bought (sum, never replace)', () => {
+  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  seedScoutStats(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
+  assert.deepEqual(fresh, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
+  // a partial book sums (the fresh attempt may have counted before the seed lands)
+  const partial = { scans: 5, found: 1, travelled: 100, deaths: 0 }
+  seedScoutStats(partial, { scans: 120, found: 34, travelled: 4880, deaths: 1 })
+  assert.deepEqual(partial, { scans: 125, found: 35, travelled: 4980, deaths: 1 })
+})
+
+test('seedScoutStats: junk-safe both ends, returns the stats it was given (the seedStats shape)', () => {
+  const fresh = { scans: 0, found: 0 }
+  assert.equal(seedScoutStats(fresh, null), fresh)
+  assert.deepEqual(fresh, { scans: 0, found: 0 })
+  assert.equal(seedScoutStats(null, { scans: 5 }), null)
+  assert.equal(seedScoutStats('junk', 'junk'), 'junk')
+  // junk carry entries skip - the honest fields keep their truth
+  const half = { scans: 2, deaths: 0 }
+  seedScoutStats(half, { scans: NaN, deaths: 3 })
+  assert.deepEqual(half, { scans: 2, deaths: 3 })
+})
+
+test('the seed-then-snapshot round trip is the identity (never merge-into-merged twice)', () => {
+  const book = { scans: 9, found: 4, travelled: 240, deaths: 0 }
+  const carry = snapshotScoutStats(book)
+  const fresh = { scans: 0, found: 0, travelled: 0, deaths: 0 }
+  seedScoutStats(fresh, carry)
+  assert.deepEqual(snapshotScoutStats(fresh), carry)
+})
+
+test('THE WIRING PIN - the carry rides the scout runner (one seed site, before the ref swap)', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.equal((fleetSrc.match(/seedScoutStats\(/g) || []).length, 1, 'ONE seed site')
+  assert.equal((fleetSrc.match(/snapshotScoutStats\(/g) || []).length, 1, 'ONE snapshot site')
+  // the seed reads the PREVIOUS attempt's book and lands BEFORE the ref swap (the fresh book, not its own)
+  assert.match(fleetSrc, /if \(scoutRef\) seedScoutStats\(scout\.stats, snapshotScoutStats\(scoutRef\.stats\)\)/, 'the carry line rides the attempt boundary')
+  const seedIdx = fleetSrc.indexOf('seedScoutStats(scout.stats')
+  const swapIdx = fleetSrc.indexOf('scoutRef = scout')
+  assert.ok(seedIdx > -1 && swapIdx > seedIdx, 'the seed must land BEFORE the ref swap')
 })

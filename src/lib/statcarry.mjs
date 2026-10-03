@@ -897,3 +897,38 @@ export function mapCoverageRow (report) {
     : ''
   return `map coverage: chunks=${chunks} positions=${positions}${top ? ` top=${top}` : ''}`
 }
+
+// (v0.536.0) THE SCOUT'S CARRY - the scout's book rides the attempt boundary.
+// THE SEAM: fleet19's scout runner rebuilds the scout on every failed attempt
+// (a disconnect ends the bot object; the catch prints 'attempt failed' and the
+// next attempt logs in fresh) - and the fresh createScout starts with a ZERO
+// book (scans/found/travelled/deaths). The miners' v0.18.9 mortality, one bot
+// wide: a run whose scout died mid-way rewrote history to the LAST attempt's
+// totals, and the v0.535.0 report row made that lie PRINT (the row reads
+// scoutRef.stats - the newest attempt's book - as the run's truth). The cure
+// is the seed-then-snapshot law at the scout's own seat: the fresh attempt
+// opens with the walk already bought. All four scout counters are monotone
+// integers - nothing coordinate or timestamp-shaped rides (the CARRY_FIELDS
+// law). Pure, junk-safe, mutates the fresh book in place and returns it (the
+// seedStats shape).
+export const SCOUT_CARRY_FIELDS = ['scans', 'found', 'travelled', 'deaths']
+
+export function snapshotScoutStats (stats) {
+  if (!stats || typeof stats !== 'object') return {}
+  const out = {}
+  for (const f of SCOUT_CARRY_FIELDS) {
+    const v = stats[f]
+    if (Number.isFinite(v) && v > 0) out[f] = v
+  }
+  return out
+}
+
+export function seedScoutStats (stats, carry) {
+  if (!stats || typeof stats !== 'object') return stats
+  if (!carry || typeof carry !== 'object') return stats
+  for (const f of SCOUT_CARRY_FIELDS) {
+    const v = carry[f]
+    if (Number.isFinite(v) && v > 0) stats[f] = (stats[f] ?? 0) + v
+  }
+  return stats
+}

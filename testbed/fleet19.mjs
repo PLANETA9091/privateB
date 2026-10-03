@@ -46,7 +46,7 @@ import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } f
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
 import { reconnectDelayMs } from '../src/lib/backoff.mjs'
-import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow } from '../src/lib/statcarry.mjs'
+import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
 import { startHeartbeat, stopHeartbeat, gapNote } from '../src/lib/heartbeat.mjs'
@@ -3546,6 +3546,12 @@ if (SCOUT) {
           log: m => console.log(`[scout] ${m}`)
         })
         await scout.ready
+        // (v0.536.0) THE SCOUT'S CARRY - the fresh attempt's book opens with the
+        // walk already bought: a mid-run attempt death rebuilt the scout with a
+        // ZERO book (the miners' v0.18.9 mortality, one bot wide), and the
+        // v0.535.0 report row would print the last attempt's totals as the run's
+        // truth - the seed-then-snapshot law, the scout's own seat.
+        if (scoutRef) seedScoutStats(scout.stats, snapshotScoutStats(scoutRef.stats))
         scoutRef = scout // (v0.535.0) the report row reads these stats at the final report
         let heading = HEADINGS[attempt % HEADINGS.length]
         console.log(`[scout] patrolling ${heading} for ${Math.max(10, (deadline - Date.now()) / 1000 | 0)}s`)

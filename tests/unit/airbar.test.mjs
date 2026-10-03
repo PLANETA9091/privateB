@@ -91,7 +91,7 @@ test('the wiring: the seed carries the counter, the override site counts it, the
   // the import rides the statcarry family (the v0.356.0 census joins the line
   // after the ledger it completes - the pin keeps the order strict; v0.535.0:
   // the otchetnost rows joined the family tail - the ledger's own order untouched)
-  assert.match(fleet, /stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow \} from '\.\.\/src\/lib\/statcarry\.mjs'/)
+  assert.match(fleet, /stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats \} from '\.\.\/src\/lib\/statcarry\.mjs'/)
   // the row prints right after the storm row it prices, OUTSIDE the economy gate
   const ledgerIdx = fleet.indexOf('airBarLedgerRow(list)')
   const stormIdx = fleet.indexOf('stormVerdictRow({')
