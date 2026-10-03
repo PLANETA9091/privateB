@@ -475,11 +475,26 @@ export const BANK_ATTRIBUTION_TOP = 3
 /**
  * Who banked, and who is stranded with a live pocket?
  * @param {Array<{username?: string, stats?: {banked?: number}, bot?: {inventory?: {items?: Function}}}>} miners
- * @param {{minUnits?: number}} [opts] the stranded-pocket floor (default one stack, 64)
+ * @param {{minUnits?: number, whys?: Map<string, string>|Object<string, string>|null}} [opts]
+ *   the stranded-pocket floor (default one stack, 64); `whys` (v0.554.0) is the
+ *   same book writeOffRow reads (fleet19's finalBankWhys) - a strand the end-phase
+ *   REFUSED (night hold, doom latch) never walked, so the legacy tail 'the walk
+ *   never delivered' lied for it (fleet 37121182189: F15/F10/F12 rode the night
+ *   hold, zero walks armed). When the why book explains EVERY stranded holder the
+ *   tail names the classes ('- the strand rode night'); otherwise the legacy tail
+ *   stands and the per-holder why tokens carry the held ones. Same token law as
+ *   writeOffRow: only /^[a-z0-9-]+$/ rides, junk never lands on the face.
  * @returns {string} the attribution verdict, always speaks
  */
-export function bankAttributionRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } = {}) {
+export function bankAttributionRow (miners, { minUnits = WRITE_OFF_MIN_UNITS, whys = null } = {}) {
   const min = (Number.isFinite(minUnits) && minUnits > 0) ? Math.floor(minUnits) : WRITE_OFF_MIN_UNITS
+  const whyBook = (whys instanceof Map) ? whys : (whys && typeof whys === 'object' ? new Map(Object.entries(whys)) : null)
+  const whyFor = name => {
+    if (!whyBook) return null
+    let w = null
+    try { w = whyBook.get(name) } catch { return null }
+    return (typeof w === 'string' && /^[a-z0-9-]+$/.test(w)) ? w : null
+  }
   const depositors = []
   const stranded = []
   for (const m of (Array.isArray(miners) ? miners : [])) {
@@ -507,13 +522,34 @@ export function bankAttributionRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } =
   if (depositors.length === 0 && stranded.length === 0) {
     return 'bank attribution: none (no banked units this run)'
   }
+  const strandForm = s => {
+    const why = whyFor(s.name)
+    return why ? `${s.name} 0u/${s.pocket}u pocket ${why}` : `${s.name} 0u/${s.pocket}u pocket`
+  }
+  const strandTail = () => {
+    // the honest tail: a strand the end-phase refused never walked - the legacy
+    // verdict may only claim 'the walk never delivered' when NO why explains
+    // the stranding; a fully-explained strand names its classes (byte-stable:
+    // distinct tokens, alphabetical, '+'-joined)
+    const explained = stranded.filter(s => whyFor(s.name)).length
+    if (explained === 0) return '- the walk never delivered'
+    if (explained === stranded.length) {
+      return `- the strand rode ${[...new Set(stranded.map(s => whyFor(s.name)))].sort().join('+')}`
+    }
+    return '- the walk never delivered (the held strands name their why)'
+  }
   const top = depositors.slice(0, BANK_ATTRIBUTION_TOP).map(d => `${d.name} ${d.banked}u`).join(', ')
   if (depositors.length === 0) {
-    return `bank attribution: none deposited - stranded with pockets: ${stranded.map(s => `${s.name} ${s.pocket}u`).join(', ')}`
+    // the stranded-only form keeps its legacy byte shape; the why rides as a
+    // suffix when the book knows the strand (v0.554.0)
+    return `bank attribution: none deposited - stranded with pockets: ${stranded.map(s => {
+      const why = whyFor(s.name)
+      return why ? `${s.name} ${s.pocket}u ${why}` : `${s.name} ${s.pocket}u`
+    }).join(', ')}`
   }
   let v = `bank attribution: top ${top}`
   if (stranded.length > 0) {
-    v += `; stranded: ${stranded.map(s => `${s.name} 0u/${s.pocket}u pocket`).join(', ')} - the walk never delivered`
+    v += `; stranded: ${stranded.map(strandForm).join(', ')} ${strandTail()}`
   }
   return v
 }

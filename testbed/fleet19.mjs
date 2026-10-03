@@ -3882,7 +3882,12 @@ console.log(writeOffRow(list, { whys: finalBankWhys }))
 // names the top depositors and the STRANDED holders (banked 0u with a live
 // pocket at the deadline) - the whale-walk cure's exact target. Same
 // report-block class (ALWAYS printed - the 05:00 ledger-skip lesson).
-console.log(bankAttributionRow(list))
+// (v0.554.0) THE ATTRIBUTION'S HONEST TAIL: the same why ledger rides the
+// attribution row - a strand the end-phase REFUSED never walked, so the legacy
+// 'the walk never delivered' tail lied for it (fleet 37121182189: F15/F10/F12
+// rode the night hold with zero walks armed); a fully-explained strand names
+// its classes ('the strand rode night'), the legacy tail stands otherwise.
+console.log(bankAttributionRow(list, { whys: finalBankWhys }))
 // (v0.330.0) THE FINAL-BANK DOOM CENSUS - the attribution row names the
 // stranded, the census reads their WHY: the failed shaft-bottom climb cycles
 // the doom latch counted, summed per walker. A strand without climb failures

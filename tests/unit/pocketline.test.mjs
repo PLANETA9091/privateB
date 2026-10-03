@@ -574,9 +574,9 @@ test('bankAttributionRow: THE JUNK DISCIPLINE - torn views and impossible counte
 test('bankAttributionRow: THE WIRING PIN - the report block names the walkers', () => {
   const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /bankAttributionRow[\s\S]*?from '\.\.\/src\/lib\/pocketline\.mjs'/)
-  assert.match(src, /console\.log\(bankAttributionRow\(list\)\)/)
-  const rowIdx = src.indexOf('console.log(writeOffRow(list))')
-  const attrIdx = src.indexOf('console.log(bankAttributionRow(list))')
+  assert.match(src, /console\.log\(bankAttributionRow\(list, \{ whys: finalBankWhys \}\)\)/) // (v0.554.0) the why ledger rides the attribution row
+  const rowIdx = src.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))')
+  const attrIdx = src.indexOf('console.log(bankAttributionRow(list, { whys: finalBankWhys }))')
   const anatomyIdx = src.indexOf('pocketAnatomyRow(list')
   assert.ok(attrIdx > rowIdx, 'the attribution row prints AFTER the write-off row')
   assert.ok(anatomyIdx > attrIdx, 'the anatomy row still prints AFTER the attribution row')
@@ -908,4 +908,77 @@ test('writeOffRow: THE WIRING PIN - the why ledger feeds the defer sites and rid
     'the doom feed rides its own latch site')
   assert.ok(src.includes("writeOffRow(list, { whys: finalBankWhys })"),
     'the report row reads the ledger (the single write-off site)')
+})
+
+// ---- (v0.554.0) THE ATTRIBUTION'S HONEST TAIL ----
+// fleet 37121182189: the attribution row read 'stranded: F15 0u/205u pocket,
+// F10 0u/128u pocket, F12 0u/72u pocket - the walk never delivered' while the
+// night hold REFUSED the walks outright - the tail lied for the held class.
+// The same why book writeOffRow reads now rides the attribution row too.
+
+test('bankAttributionRow: opt-in law - no whys keeps the legacy byte form', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const miners = [mk('F7', 277, [{ name: 'dirt', count: 5 }]), mk('F15', 0, [{ name: 'iron_ore', count: 205 }])]
+  const legacy = 'bank attribution: top F7 277u; stranded: F15 0u/205u pocket - the walk never delivered'
+  assert.equal(bankAttributionRow(miners), legacy, 'no whys -> the 0.324.0 byte form')
+  assert.equal(bankAttributionRow(miners, {}), legacy, 'empty opts -> the same bytes')
+  assert.equal(bankAttributionRow(miners, { whys: null }), legacy, 'null whys -> the same bytes')
+})
+
+test('bankAttributionRow: the strand rode the hold - a fully-explained strand names its classes', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const miners = [
+    mk('F7', 277, [{ name: 'dirt', count: 5 }]),
+    mk('F15', 0, [{ name: 'iron_ore', count: 205 }]),
+    mk('F10', 0, [{ name: 'coal', count: 128 }]),
+    mk('F12', 0, [{ name: 'sand', count: 72 }])
+  ]
+  const whys = new Map([['F15', 'night'], ['F10', 'night'], ['F12', 'night']])
+  assert.equal(bankAttributionRow(miners, { whys }),
+    'bank attribution: top F7 277u; stranded: F15 0u/205u pocket night, F10 0u/128u pocket night, F12 0u/72u pocket night - the strand rode night',
+    'the doctrine names itself on the face: the walks were never armed')
+})
+
+test('bankAttributionRow: mixed classes and multi-class tails stay byte-stable', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const miners = [
+    mk('F7', 277, [{ name: 'dirt', count: 5 }]),
+    mk('F15', 0, [{ name: 'iron_ore', count: 205 }]),
+    mk('F4', 0, [{ name: 'dirt', count: 80 }]),
+    mk('F9', 0, [{ name: 'cobblestone', count: 70 }])
+  ]
+  const whys = new Map([['F15', 'night'], ['F4', 'night'], ['F9', 'doom-latched']])
+  assert.equal(bankAttributionRow(miners, { whys }),
+    'bank attribution: top F7 277u; stranded: F15 0u/205u pocket night, F4 0u/80u pocket night, F9 0u/70u pocket doom-latched - the strand rode doom-latched+night',
+    'distinct classes alphabetical, +joined (byte-stable regardless of holder order)')
+})
+
+test('bankAttributionRow: a partial why book keeps the legacy tail, the held holder names itself', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const miners = [mk('F7', 277, [{ name: 'dirt', count: 5 }]), mk('F15', 0, [{ name: 'iron_ore', count: 205 }]), mk('F9', 0, [{ name: 'cobblestone', count: 70 }])]
+  assert.equal(bankAttributionRow(miners, { whys: new Map([['F15', 'night']]) }),
+    'bank attribution: top F7 277u; stranded: F15 0u/205u pocket night, F9 0u/70u pocket - the walk never delivered (the held strands name their why)',
+    'the unexplained strand keeps the walk verdict; the held one rides its token')
+})
+
+test('bankAttributionRow: junk whys never land and the stranded-only form keeps its shape', () => {
+  const mk = (name, banked, items) => ({ username: name, stats: { banked }, bot: { inventory: { items: () => items } } })
+  const miners = [mk('F7', 277, [{ name: 'dirt', count: 5 }]), mk('F15', 0, [{ name: 'iron_ore', count: 205 }])]
+  assert.equal(bankAttributionRow(miners, { whys: new Map([['F15', 'has space'], ['F15', '']]) }),
+    'bank attribution: top F7 277u; stranded: F15 0u/205u pocket - the walk never delivered',
+    'junk tokens degrade to the legacy form (the token law)')
+  assert.equal(bankAttributionRow([mk('F12', 0, [{ name: 'dirt', count: 220 }])], { whys: { F12: 'night' } }),
+    'bank attribution: none deposited - stranded with pockets: F12 220u night',
+    'the stranded-only form keeps its legacy shape, the why rides as a suffix')
+  assert.equal(bankAttributionRow([mk('F12', 0, [{ name: 'dirt', count: 220 }])]),
+    'bank attribution: none deposited - stranded with pockets: F12 220u',
+    'without whys the stranded-only form is byte-identical to 0.324.0')
+})
+
+test('bankAttributionRow: THE WIRING PIN - the report row reads the same why ledger (v0.554.0)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const woIdx = src.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))')
+  const baIdx = src.indexOf('console.log(bankAttributionRow(list, { whys: finalBankWhys }))')
+  assert.ok(woIdx > 0 && baIdx > woIdx, 'the attribution row rides the report block AFTER the write-off row, both read finalBankWhys')
+  assert.ok(src.includes("THE ATTRIBUTION'S HONEST TAIL"), 'the wiring carries its own doctrine comment')
 })
