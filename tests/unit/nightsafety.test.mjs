@@ -134,7 +134,7 @@ test('REGRESSION PIN: the v0.185.0 night lane gate rides the fleet source', () =
   // names itself riding the 'bank ' key (the wood trip's 'deferred night'
   // line is the field-proven template)
   assert.match(fleetSrc, /surfaceHoldVerdict\(\{ timeOfDay: miner\.bot\.time\?\.timeOfDay, purpose: 'mid-bank' \}\) === 'hold'/, 'the bank gate consults the hold on the mid-bank purpose')
-  assert.match(fleetSrc, /const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| needsBankingTripViable/, 'the night hold gates BOTH the planned and the pockets-full paths (v0.193.0 re-pin: the dusk lane joins the same guard) (v0.229.0 re-pin: the dusk-plan arm joins behind the same hold)')
+  assert.match(fleetSrc, /const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| shedArm\.due \|\| needsBankingTripViable/, 'the night hold gates BOTH the planned and the pockets-full paths (v0.193.0 re-pin: the dusk lane joins the same guard) (v0.229.0 re-pin: the dusk-plan arm joins behind the same hold) (v0.566.0 re-pin: the shed arm joins behind the same hold - the sky stays the owner)')
   assert.match(fleetSrc, /bank trip: deferred night \(tod=/, 'the hold names itself in the bank lane')
   assert.match(fleetSrc, /the yard walk rides out the dark alive/, 'the deferral names the doctrine')
   // the pre-position gate: the walk-forbidden read sits INSIDE the try, ahead

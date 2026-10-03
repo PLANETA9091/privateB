@@ -167,8 +167,8 @@ test('needsBankingTripViable: junk minRemainingMs falls back to the constant (no
 test("REGRESSION PIN: the fleet gate refuses the pockets-full trip, advances the cadence, and keeps mining", async () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.ok(src.includes('needsBankingTripViable'), 'the fleet imports and consults the viability gate')
-  assert.ok(src.includes('const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || needsBankingTripViable({ remainingMs: bankRemainingMs }))'),
-    'the viability gate rides, and the v0.185.0 night hold gates BOTH paths (a planned dusk trip is still a night yard walk) (v0.193.0 re-pin: the dusk lane joins the same guard) (v0.229.0 re-pin: the dusk-plan arm joins behind the same hold)')
+  assert.ok(src.includes('const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || shedArm.due || needsBankingTripViable({ remainingMs: bankRemainingMs }))'),
+    'the viability gate rides, and the v0.185.0 night hold gates BOTH paths (a planned dusk trip is still a night yard walk) (v0.193.0 re-pin: the dusk lane joins the same guard) (v0.229.0 re-pin: the dusk-plan arm joins behind the same hold) (v0.566.0 re-pin: the shed arm joins behind the same hold - its own priced fit IS its viability, the sky stays the owner)')
   assert.ok(src.includes("bank trip: skipped (pockets full, "), 'the refusal names itself (rides the \'bank \' filter key)')
   assert.ok(src.includes('the end-phase owns the deadline banking'), 'the refusal names the owner (the pre-position + final bank)')
   const filterMatch = src.match(/if \(\/([^/]+)\/\.test\(m\)\) console\.log\(`\$\{name\} \$\{m\}`\)/)
@@ -378,8 +378,8 @@ test('WIRING PIN: the refusal refractory gates the needsBanking term (v0.306.0)'
   // (v0.385.0 re-pin: the deliverability arm joins the SAME family as the
   // LAST trigger - the legacy terms keep priority, the arm only spends a
   // pass they declined; one family, never a second chain)
-  const wire = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| deliverableArm\.go\)/)
-  assert.ok(wire, 'bankWanted reads the refractory on the needsBanking term; the planned/dusk arms keep their own fences; the v0.385.0 deliverability arm joins as the last trigger on the same cadence clock')
+  const wire = fleetSrc.match(/const bankWanted = !!\(\(needsBanking\(miner\.bot\) && bankRefusalOpen\) \|\| tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| deliverableArm\.go \|\| shedArm\.due\)/)
+  assert.ok(wire, 'bankWanted reads the refractory on the needsBanking term; the planned/dusk arms keep their own fences; the v0.385.0 deliverability arm joins as the last trigger on the same cadence clock (v0.566.0 re-pin: the shed joins BESIDE it - the ladder\'s last rung, the gap-driven sibling)')
   const armOpen = fleetSrc.match(/const deliverableArm = \(\(\) => \{\n\s*const eligible = bankRefusalOpen && !tripPlanned && !bankDusk && !duskPlan\.go && !!load && load\.units > 0/)
   assert.ok(armOpen, 'the deliverability arm prices on the refractory cadence only (the v0.306.0 shape: the term joins the clock, no loop spin)')
   // the refusal branch still advances the clock - the v0.181.0 silencer for

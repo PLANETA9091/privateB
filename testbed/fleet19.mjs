@@ -45,6 +45,7 @@ import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfa
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
+import { shedTripDue } from '../src/lib/bankshed.mjs' // (v0.566.0) THE SHED CONSULT SEAT - the whale cure's fourth leg joins the arming ladder's last rung: the plan (v0.558.0), the pricer (v0.561.0), the gate (v0.564.0), the wiring (this lane)
 import { reconnectDelayMs, LOGIN_SPAWN_TIMEOUT_MS } from '../src/lib/backoff.mjs'
 import { writeFileAtomic } from '../src/lib/atomicsave.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats } from '../src/lib/statcarry.mjs'
@@ -1365,6 +1366,7 @@ async function runBot (name, target, index) {
       let wetEvacUntil = 0 // (v0.223.0) the churn evacuation's exit clock - the plan owns it, the wiring only carries it (it survives relogs: the stance rides the runner, the cadence rides the client)
       let duskTripUntil = 0 // (v0.229.0) the dusk-bank plan's exit clock - the plan owns it, the wiring only carries it (the churn clock's shape)
       let lastBankTripMs = NaN // (v0.229.0) the wiring's MEASURED bank trip (the last DELIVERED chain's wall time) - the dusk plan prices with it; NaN = unmeasured, the plan reads no-time (it never prices a guess)
+      let shedTripUntil = 0 // (v0.566.0) the shed plan's exit clock - the plan owns it, the wiring only carries it (duskTripUntil's twin: a failed arm waits it out, no re-arm storm)
       let bankRescueAnnounced = false // (v0.295.0) the rescue-clock gate's announce edge - one deferral line per rescue window, the hold passes stay silent (the churn hold's shape)
       let churnHoldAnnounced = false // (v0.223.0) the arm/release story: one line each, the hold passes stay silent
       // (v0.293.0) THE CHURN INTRA-GOAL READ - the boundary consult's blind
@@ -2406,7 +2408,55 @@ async function runBot (name, target, index) {
             return { ...deliverableNow({ needS: midFlow.needS, grantedS, timeLeftS: bankRemainingMs / 1000 }), rate: midFlow.rate, fleetUnits: fleetPk.bankable, fleetRaw: fleetPk.units }
           } catch { return { go: false, term: null, needS: null, limitS: null, rate: null, fleetUnits: null, fleetRaw: null } }
         })()
-        const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go || deliverableArm.go)
+        // (v0.566.0) THE SHED CONSULT SEAT - the arming ladder's LAST rung. The
+        // legacy family above owns the pass byte for byte (planned/dusk/
+        // dusk-plan/deliverable), the shed only spends a pass they ALL declined
+        // - and it arms on the GAP, not the cadence loot floor: a pocket whose
+        // projected end need (the bank-flow row's own arithmetic, the ceil
+        // pocket/rate) outruns the end bank's granted budget would strand at
+        // the deadline (the crater's own whale, fleet 37134090209: F6's 277u
+        // rode a timeout strand while 12 chests sat 10-20 blocks away) - the
+        // PRICED trip (shedTripMs: out+back walk, the climb, the chain) still
+        // fitting the run clock is the one MORE legal trip the legacy flat
+        // fence refuses. THE INPUTS, each named: pocketUnits = the bot's own
+        // BANKABLE sum (the v0.390.0 lesson - the KEEP kit can never ride, the
+        // flow counts banked units); rate = flowPriceClock's measured flow (the
+        // bank-flow row's own pace - one arithmetic, the sibling law; an
+        // unmeasured flow refuses, the dead-flow law); dist/climbLevels =
+        // bankYardDist/bankYardDy (the seat's own reads, junk goals read 0);
+        // remainingMs = bankRemainingMs (the fence's own contract - the clock
+        // left BEFORE the endphase's pre-position owns the goal); budgetMs =
+        // the SAME finalBankBudgetMs call the deliverable arm's granted read
+        // makes (the arm's limits and the final bank's budget are one
+        // arithmetic, the v0.348.0 lesson's shape); tripUntil = shedTripUntil
+        // (the wiring's carry-clock, duskTripUntil's twin); msSinceBank =
+        // lastBankAt (one clock, both families - the refusal branch already
+        // advances it). THE LAWS: the night hold owns the sky first (a held
+        // shed lands in the deferred-night refusal below, the v0.140.1
+        // doctrine); the refractory (SHED_RETRY_MS = BANK_TRIP_EVERY_MS
+        // parity) keeps the log silent between windows; the arm names the
+        // TRIGGER - the trip below prices its own budget (midBankBudgetMs),
+        // the shed never conjures a spend.
+        const shedArm = (() => {
+          const eligible = !tripPlanned && !bankDusk && !duskPlan.go && !deliverableArm.go && !!load
+          if (!eligible) return { due: false, why: null }
+          try {
+            const ownPk = pocketTotals([miner], { keep: DEPOSIT_KEEP })
+            const flow = flowPriceClock({ samples: bankFlowSamples.slice(-BANK_FLOW_WINDOW), pocketUnits: ownPk.bankable, baseMs: END_BANK_BUDGET })
+            return shedTripDue({
+              pocketUnits: ownPk.bankable,
+              rate: flow.rate,
+              dist: bankYardDist,
+              climbLevels: bankYardDy,
+              remainingMs: bankRemainingMs,
+              budgetMs: finalBankBudgetMs({ yardDist: bankYardDist, marginLeftMs: Math.max(0, RUN_KILL_AT - END_PHASE_SAFETY_MS - Date.now()), floorMs: flow.floorMs, capMs: END_BANK_BUDGET_CAP_MS }),
+              now: Date.now(),
+              tripUntil: shedTripUntil,
+              msSinceBank: Date.now() - lastBankAt
+            })
+          } catch { return { due: false, why: 'unknown' } }
+        })()
+        const bankWanted = !!((needsBanking(miner.bot) && bankRefusalOpen) || tripPlanned || bankDusk || duskPlan.go || deliverableArm.go || shedArm.due)
         // (v0.185.0) THE NIGHT LANE GATE: the mid-run bank trip joins the
         // v0.140.1 night hold. run182 (36167325733) measured 11 of 17 deaths in
         // the dusk tail (tod 12400+), x12 mob kills - the planned/pockets-full
@@ -2419,7 +2469,7 @@ async function runBot (name, target, index) {
         // legacy shape byte for byte). Rides the 'bank ' filter key so the
         // next fleet sizes the held class.
         const bankNightHold = surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'mid-bank' }) === 'hold'
-        const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || needsBankingTripViable({ remainingMs: bankRemainingMs })) // (v0.229.0) the plan arm rides beside the legacy reasons - the hold still owns the sky first
+        const bankViable = !bankNightHold && (tripPlanned || bankDusk || duskPlan.go || shedArm.due || needsBankingTripViable({ remainingMs: bankRemainingMs })) // (v0.229.0) the plan arm rides beside the legacy reasons - the hold still owns the sky first; (v0.566.0) the shed's own pricing IS its viability (the priced fit), the hold gates it like every arm
         // (v0.295.0) THE RESCUE-CLOCK BANK GATE: the arm respects the live
         // rescue ownership (bot._waterRescue - the same flag climbOwnerGate
         // refuses on). Face 36493264551: 3 of 4 armed trips died 'rescue owns
@@ -2450,6 +2500,9 @@ async function runBot (name, target, index) {
           if (duskPlan.go) {
             duskTripUntil = duskPlan.untilMs // (v0.229.0) the plan owns the exit clock - the wiring only carries it (the failed arm waits it out, no re-arm storm)
           }
+          if (shedArm.due) {
+            shedTripUntil = shedArm.untilMs // (v0.566.0) the plan owns the exit clock - the wiring only carries it (duskTripUntil's twin: the failed arm waits it out, no re-arm storm)
+          }
           // (v0.17.3) remember WHERE we work: after banking at the yard the bot
           // must return here, or it digs its next shaft next to spawn and
           // re-mines the already-hollowed yard area (emptyShafts spiral).
@@ -2472,7 +2525,7 @@ async function runBot (name, target, index) {
           })
           // (v0.193.0) the dusk trip names itself ('dusk') - a third label on
           // the same 'bank ' filter key, so the next fleet sizes the class.
-          console.log(`${name} bank trip: ${tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned') : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : deliverableArm.go ? 'deliverable' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key; (v0.297.0) the 5th label: the fuel-tithe trip names itself (the trigger's own conversion census); (v0.385.0) the 6th label: the deliverability arm names itself
+          console.log(`${name} bank trip: ${tripPlanned ? (fuelTrip ? 'fuel-tithe' : 'planned') : bankDusk ? 'dusk' : needsBanking(miner.bot) ? 'pockets full' : deliverableArm.go ? 'deliverable' : shedArm.due ? 'shed' : 'dusk-plan'} budget ${(bankBudgetMs / 1000).toFixed(0)}s`) // (v0.566.0) the 7th label: the shed's arm names itself - the class sizes in the same 'bank ' filter key // (v0.229.0) the 4th label: the plan's arm names itself, the class sizes in the same 'bank ' filter key; (v0.297.0) the 5th label: the fuel-tithe trip names itself (the trigger's own conversion census); (v0.385.0) the 6th label: the deliverability arm names itself
           if (!tripPlanned && !bankDusk && deliverableArm.go && !needsBanking(miner.bot)) {
             // (v0.385.0) the cause form: the priced numbers ride the line, the
             // class sizes itself in the 'bank ' filter key (the census reads
@@ -2482,6 +2535,14 @@ async function runBot (name, target, index) {
             // honest-line law); the census reads both forms (the alternation)
             const dl = deliverableArm
             console.log(`${name} bank trip: deliverable (${dl.term}) - fleet bankable pocket ${dl.fleetUnits}u (raw ${dl.fleetRaw}u) at ${dl.rate != null ? dl.rate.toFixed(1) : '?'}u/s needs ${dl.needS != null ? Math.round(dl.needS) : '?'}s vs ${dl.limitS != null ? Math.round(dl.limitS) : '?'}s ${dl.term === 'clamp' ? 'the final bank can never grant - the surplus must ride now' : 'the run cannot drain in the time left'} - the trip fires early`)
+          }
+          if (!tripPlanned && !bankDusk && !deliverableArm.go && shedArm.due && !needsBanking(miner.bot)) {
+            // (v0.566.0) the shed's cause form: the priced numbers ride the
+            // line, the class sizes itself in the 'bank ' filter key (the
+            // deliverable cause's own shape) - the wiring logs the GAP it is
+            // curing (the gate's own contract)
+            const sa = shedArm
+            console.log(`${name} bank trip: shed - the pocket needs ${sa.needS != null ? Math.round(sa.needS) : '?'}s at the end bank, the budget holds ${sa.needS != null && sa.gapS != null ? Math.round(sa.needS - sa.gapS) : '?'}s (${sa.gapS != null ? Math.round(sa.gapS) : '?'}s short) - the priced trip ${sa.tripMs != null ? Math.round(sa.tripMs / 1000) : '?'}s still fits - the delivery fires early`)
           }
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's

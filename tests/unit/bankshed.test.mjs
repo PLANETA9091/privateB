@@ -210,3 +210,54 @@ test('shedTripDue: constants - the cadence parity', () => {
   assert.equal(SHED_RETRY_MS, BANK_TRIP_EVERY_MS)
   assert.equal(SHED_RETRY_MS, 150000)
 })
+
+// (v0.566.0) THE SHED CONSULT SEAT - the whale cure's fourth leg, wired. The
+// plan (v0.558.0), the pricer (v0.561.0) and the gate (v0.564.0) were pure;
+// the seat (testbed/fleet19.mjs) consults shedTripDue as the arming ladder's
+// LAST rung - the legacy family keeps its pass byte for byte, the shed only
+// spends a pass they all declined.
+import { readFileSync } from 'node:fs'
+
+const FLEET_SRC = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+
+test('THE CONSULT SEAT PIN - the shed joins the arming ladder as the last rung', () => {
+  assert.match(FLEET_SRC, /import \{ shedTripDue \} from '\.\.\/src\/lib\/bankshed\.mjs'/,
+    'the fleet imports the gate from bankshed.mjs (no re-export, no wrapper)')
+  // the carry-clock twin: the plan owns the exit clock, the wiring carries it
+  assert.match(FLEET_SRC, /let shedTripUntil = 0/,
+    "the carry-clock is declared (duskTripUntil's twin)")
+  assert.match(FLEET_SRC, /if \(shedArm\.due\) \{\s*shedTripUntil = shedArm\.untilMs/,
+    "the arm's untilMs rides the carry (the failed arm waits it out, no re-arm storm)")
+  // the seat: ONE consult, the ladder's last rung (the legacy family keeps priority)
+  const consults = FLEET_SRC.match(/shedTripDue\(\{/g) || []
+  assert.equal(consults.length, 1, 'exactly one consult - the seat, not a storm')
+  const seat = FLEET_SRC.match(/const shedArm = \(\(\) => \{[\s\S]*?\}\)\(\)/)
+  assert.ok(seat, 'the seat IIFE exists')
+  assert.match(seat[0], /!tripPlanned && !bankDusk && !duskPlan\.go && !deliverableArm\.go && !!load/,
+    'the shed only spends a pass the legacy family ALL declined (the ladder keeps its order)')
+  // the inputs, each named (the wiring contract's own list)
+  assert.match(seat[0], /pocketUnits: ownPk\.bankable/,
+    'the BANKABLE sum prices the need (the KEEP kit can never ride, the v0.390.0 law)')
+  assert.match(seat[0], /rate: flow\.rate/,
+    'the MEASURED flow prices the pace (never a guess, the dead-flow law)')
+  assert.match(seat[0], /dist: bankYardDist/, "the seat's own dist rides")
+  assert.match(seat[0], /climbLevels: bankYardDy/, "the seat's own climb rides (the priced vertical)")
+  assert.match(seat[0], /remainingMs: bankRemainingMs/,
+    "the fence's own contract: the clock left BEFORE the pre-position owns the goal")
+  assert.match(seat[0], /budgetMs: finalBankBudgetMs\(/,
+    'the granted read is the SAME arithmetic the deliverable arm makes (one arithmetic)')
+  assert.match(seat[0], /tripUntil: shedTripUntil/, "the wiring's carry-clock feeds the holding gate")
+  assert.match(seat[0], /msSinceBank: Date\.now\(\) - lastBankAt/,
+    'one clock, both families (the refusal branch already advances lastBankAt)')
+})
+
+test('THE CONSULT SEAT PIN - the ladder, the viability and the label read the shed', () => {
+  assert.match(FLEET_SRC, /\|\| deliverableArm\.go \|\| shedArm\.due\)/,
+    'bankWanted reads the shed (the last trigger)')
+  assert.match(FLEET_SRC, /const bankViable = !bankNightHold && \(tripPlanned \|\| bankDusk \|\| duskPlan\.go \|\| shedArm\.due \|\| needsBankingTripViable/,
+    'bankViable reads the shed BESIDE the night hold - the hold owns the sky first (the v0.140.1 doctrine stands)')
+  assert.match(FLEET_SRC, /: deliverableArm\.go \? 'deliverable' : shedArm\.due \? 'shed' : 'dusk-plan'/,
+    "the arm names itself ('shed' - the 7th label on the 'bank ' filter key)")
+  assert.match(FLEET_SRC, /bank trip: shed - the pocket needs /,
+    "the cause line names the gap it is curing (the gate's own contract)")
+})
