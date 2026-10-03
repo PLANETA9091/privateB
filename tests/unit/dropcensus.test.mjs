@@ -6,8 +6,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   DESPAWN_FLOOR_SHARE, DROP_MERGE_WINDOW_MS, DROP_RESOLVE_MIN_UNITS,
+  OPEN_FRESH_MS, OPEN_OVERDUE_MS, OPEN_OVERDUE_SHARE,
   itemCountOf, dropCensusRecord, observeItemSpawn, observeItemCollect,
-  observeItemGone, openDropUnits, dropCensusRow
+  observeItemGone, openDropUnits, dropCensusRow, dropOpenAnatomyRow
 } from '../../src/lib/dropcensus.mjs'
 
 const item = (id, count, name = 'item') => ({ id, name, metadata: count == null ? [] : [{ count }] })
@@ -246,11 +247,86 @@ test('the constants route the row (one constant per judgment, no split by constr
 
 test('the wiring pin: the fleet counts the lifecycle live and prints the row', () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes("import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow } from '../src/lib/dropcensus.mjs'"), 'the import line rides')
+  assert.ok(src.includes("import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow } from '../src/lib/dropcensus.mjs'"), 'the import line rides')
   assert.equal((src.match(/observeItemSpawn\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the spawn seat, exactly once')
   assert.equal((src.match(/observeItemCollect\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the collect seat, exactly once')
   assert.equal((src.match(/observeItemGone\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the gone seat, exactly once')
   assert.equal((src.match(/dropCensusRow\(dropCensusRecords\)/g) || []).length, 1, 'the deadline row, exactly once')
+  assert.equal((src.match(/dropOpenAnatomyRow\(dropCensusRecords\)/g) || []).length, 1, 'the anatomy row, exactly once (v0.581.0)')
   assert.ok(src.includes('const dropCensusRecords = []'), 'the fleet-wide book exists')
+  assert.ok(src.includes('dc.name = miner.username'), 'the record rides its bot name (the top holder reads by name)')
   assert.ok(/entitySpawn.*try \{ observeItemSpawn/.test(src.replace(/\n/g, ' ')), 'the spawn listener is try-guarded')
+})
+
+test('THE OPEN POOL ANATOMY: the buckets, the boundaries and the verdicts (the live tail read one rung deeper)', () => {
+  const TD = 1_000_000 + 500_000 // the deadline clock
+  const rec = (name) => { const r = dropCensusRecord(); if (name !== undefined) r.name = name; return r }
+  const a = rec('F7')
+  observeItemSpawn(a, item(61, 300), 1_000_000 + 10) // age 499_990 -> overdue
+  observeItemSpawn(a, item(62, 200), 1_000_000 + 450_000) // age 50_000 -> fresh (the boundary: < 60s is fresh)
+  observeItemSpawn(a, item(63, 100), 1_000_000 + 100_000) // age 400_000 -> overdue
+  const row = dropOpenAnatomyRow([a], TD)
+  assert.equal(row,
+    'drop open pool: 600u live at the deadline (200u fresh, 0u aging, 400u overdue, top F7=600u) - the old ground mass rode the deadline - the sweep\'s reach is the front')
+  // the bucket boundaries: inside 60s reads fresh, exactly 60s reads aging,
+  // exactly 300s reads overdue (>= the despawn clock is the class)
+  const b = rec()
+  observeItemSpawn(b, item(64, 40), TD - OPEN_FRESH_MS + 1) // inside the fresh edge -> fresh
+  observeItemSpawn(b, item(65, 40), TD - OPEN_FRESH_MS) // exactly the fresh edge -> aging
+  observeItemSpawn(b, item(85, 40), TD - OPEN_OVERDUE_MS) // exactly the overdue edge -> overdue
+  assert.ok(dropOpenAnatomyRow([b], TD).includes('120u live'))
+  assert.ok(dropOpenAnatomyRow([b], TD).includes('40u fresh, 40u aging, 40u overdue'))
+  // the half boundary: exactly 0.5 trips (the family law)
+  const c = rec('F2')
+  observeItemSpawn(c, item(66, 50), TD - OPEN_OVERDUE_MS)
+  observeItemSpawn(c, item(67, 50), TD - 10)
+  const mixedRow = dropOpenAnatomyRow([c], TD)
+  assert.ok(mixedRow.includes('the sweep\'s reach is the front')) // 50/100 = the boundary trips
+  // under the boundary: mixed
+  const d = rec('F2')
+  observeItemSpawn(d, item(68, 30), TD - OPEN_OVERDUE_MS)
+  observeItemSpawn(d, item(69, 70), TD - 10)
+  assert.ok(dropOpenAnatomyRow([d], TD).includes('the pool reads mixed, the tail and the residue both ride'))
+  // no overdue: the deadline's own tail, no cure named
+  const e = rec('F9')
+  observeItemSpawn(e, item(70, 80), TD - 30_000)
+  assert.ok(dropOpenAnatomyRow([e], TD).includes("the deadline's own tail, no cure named"))
+  // the top holder: units desc, name asc on the tie (the census family's law)
+  const f1 = rec('F9')
+  observeItemSpawn(f1, item(71, 30), TD - 30_000)
+  const f2 = rec('F4')
+  observeItemSpawn(f2, item(72, 50), TD - 30_000)
+  const f3 = rec('F4') // the tie at 30u: F4 sorts before F9
+  observeItemSpawn(f3, item(73, 30), TD - 30_000)
+  const tieRow = dropOpenAnatomyRow([f1, f2, f3], TD)
+  assert.ok(tieRow.includes('top F4=50u'))
+  // the sum law: the buckets can never split from openDropUnits
+  const open = [a, b, c, d, e].reduce((x, r) => x + openDropUnits(r).units, 0)
+  const summed = dropOpenAnatomyRow([a, b, c, d, e], TD)
+  assert.ok(summed.includes(`${open}u live at the deadline`))
+})
+
+test('the open pool: the none forms are verdicts too (the always-print law)', () => {
+  assert.equal(dropOpenAnatomyRow([]), 'drop open pool: none (the pool ended clean)')
+  assert.equal(dropOpenAnatomyRow(null), 'drop open pool: none (the pool ended clean)')
+  const rec = dropCensusRecord()
+  assert.equal(dropOpenAnatomyRow([rec]), 'drop open pool: none (the pool ended clean)') // nothing spawned
+  // a resolved pool ends clean
+  const r2 = dropCensusRecord()
+  observeItemSpawn(r2, item(81, 5), 1_000_000)
+  observeItemCollect(r2, item(81, 5), 1_000_000 + 100)
+  assert.equal(dropOpenAnatomyRow([r2], 1_000_000 + 500), 'drop open pool: none (the pool ended clean)')
+  // unreadable mass: the entry is a live drop, the units stay honest
+  const r3 = dropCensusRecord()
+  observeItemSpawn(r3, item(82, null), 1_000_000)
+  observeItemSpawn(r3, item(83, null), 1_000_000 + 1)
+  assert.equal(dropOpenAnatomyRow([r3], 1_000_000 + 500), 'drop open pool: none (2 drops live, no readable mass)')
+  // the grain form (under 64u, the write-off family's own number)
+  const r4 = dropCensusRecord()
+  observeItemSpawn(r4, item(84, 21), 1_000_000)
+  assert.equal(dropOpenAnatomyRow([r4], 1_000_000 + 500), 'drop open pool: 21u of live mass under the 64u grain, the sample stays too small to judge')
+  // junk records never throw, never speak a bucket
+  const torn = dropCensusRecord()
+  torn.live = 'torn'
+  assert.ok(dropOpenAnatomyRow([torn, null, 'junk'], 1_000_000 + 500).includes('the pool ended clean'))
 })

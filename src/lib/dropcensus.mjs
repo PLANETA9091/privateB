@@ -51,6 +51,28 @@
 // blind face NAMES its deaf arm in one read (the event never fired vs
 // the id never matched vs the mass never read) instead of burning
 // another face on 'none'.
+//
+// (v0.581.0) THE OPEN POOL ANATOMY - the census's own open class, read one
+// rung deeper. The lens's first flight read the mass AND left the row's
+// tail speaking blind: '12412u still live' - but WHO holds it and HOW OLD
+// it is never surfaced. The age is the lever's aim: vanilla despawns item
+// entities at 6000 ticks (300s), so mass still live at deadline splits
+// three ways - the FRESH tail (dropped inside the last minute: the
+// deadline's own edge, no cure exists), the AGING middle (a run's normal
+// churn), and the OVERDUE class (>= 300s old: it survived its own despawn
+// clock uncollected - the sweep's grid walked past it; the mass nobody
+// banked, the collection reach's own evidence). THE VERDICT: overdue >=
+// the family's half boundary reads 'the sweep's reach is the front';
+// overdue > 0 under it reads mixed; overdue == 0 reads the tail, no cure
+// named. THE LAWS: the census's always-print law (the none-forms are
+// verdicts too), the write-off family's grain (64u - one number, the
+// drift impossible by construction), the mass lens's read at resolve time
+// (the deadline read IS a resolve read - the lens's own chain), unreadable
+// mass never enters the units (the openDropUnits convention), the tie law
+// count desc / name asc (the census family's own law), the sum law (the
+// buckets can never split from openDropUnits - one arithmetic, the sibling
+// law). The name rides the record (the wiring adds it at the push seat) -
+// an unnamed record reads '-', an unnamed holder is still a holder.
 
 // The sink's trip point - the family's own boundary shape (the unaccounted
 // watch speaks at 0.25 of mined; the drop pool speaks at 0.25 of resolved).
@@ -67,6 +89,15 @@ export const DROP_MERGE_WINDOW_MS = 10000
 // The grain floor (one stack - the write-off family's own floor): under it
 // the sample is too small to judge.
 export const DROP_RESOLVE_MIN_UNITS = 64
+
+// (v0.581.0) the open pool's age buckets. The overdue edge is the vanilla
+// item despawn age (6000 ticks = 300s): mass older than this at the
+// deadline survived its own despawn clock uncollected. The fresh edge is
+// one think-window wide (the deadline's own tail, no cure exists there).
+export const OPEN_FRESH_MS = 60000
+export const OPEN_OVERDUE_MS = 300000
+// the family's half boundary (the owner maps' own shape, one number)
+export const OPEN_OVERDUE_SHARE = 0.5
 
 /**
  * The mass of an item entity, read from its live metadata (the merge
@@ -221,4 +252,57 @@ export function dropCensusRow (records) {
     return `drop census: ${lost}u of ${resolved}u resolved lost uncollected, ${live} (${pct}% - ${spawned} drops seen) - the shaft-drop sink is measured, the leak's first suspect priced`
   }
   return `drop census: ${lost}u of ${resolved}u resolved lost uncollected, ${live} (${pct}% - under the ${(DESPAWN_FLOOR_SHARE * 100).toFixed(1)}% floor) - the shaft drops stay minor, the leak's other suspects keep the cover`
+}
+
+/**
+ * (v0.581.0) THE OPEN POOL ANATOMY: the census's live-at-deadline class,
+ * split by age and held by name. The overdue class (>= OPEN_OVERDUE_MS)
+ * is the mass that survived its own despawn clock uncollected - the
+ * sweep's reach evidence; the fresh class is the deadline's own tail.
+ * ALWAYS printed (the census's own law); the buckets never split from
+ * openDropUnits (the sum law - one arithmetic).
+ * @param {Array<ReturnType<typeof dropCensusRecord>>|null} records
+ * @param {number} nowMs the deadline clock (a parameter - the tests hold it)
+ * @returns {string}
+ */
+export function dropOpenAnatomyRow (records, nowMs = Date.now()) {
+  const list = Array.isArray(records) ? records : []
+  let fresh = 0
+  let aging = 0
+  let overdue = 0
+  let entries = 0
+  const holders = []
+  for (const r of list) {
+    if (!r || typeof r !== 'object' || !(r.live instanceof Map)) continue
+    let own = 0
+    for (const t of r.live.values()) {
+      if (!t || t.collected) continue
+      entries++ // every live entry is a live drop, readable mass or not
+      const c = itemCountOf(t?.entity)
+      if (c == null) continue // unreadable mass never enters the units (the lens's convention)
+      own += c
+      const age = (Number.isFinite(nowMs) && nowMs >= 0 ? nowMs : Date.now()) - t.ts
+      if (!Number.isFinite(age) || age < 0) { aging += c; continue } // an impossible clock reads the honest middle
+      if (age < OPEN_FRESH_MS) fresh += c
+      else if (age < OPEN_OVERDUE_MS) aging += c
+      else overdue += c
+    }
+    if (own > 0) holders.push({ name: (typeof r.name === 'string' && r.name.trim() !== '') ? r.name.trim() : '-', units: own })
+  }
+  const units = fresh + aging + overdue
+  if (entries === 0) return 'drop open pool: none (the pool ended clean)'
+  if (units === 0) return `drop open pool: none (${entries} drops live, no readable mass)`
+  if (units < DROP_RESOLVE_MIN_UNITS) {
+    return `drop open pool: ${units}u of live mass under the ${DROP_RESOLVE_MIN_UNITS}u grain, the sample stays too small to judge`
+  }
+  holders.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
+  const top = holders[0]
+  const shape = `(${fresh}u fresh, ${aging}u aging, ${overdue}u overdue, top ${top.name}=${top.units}u)`
+  if (overdue / units >= OPEN_OVERDUE_SHARE) {
+    return `drop open pool: ${units}u live at the deadline ${shape} - the old ground mass rode the deadline - the sweep's reach is the front`
+  }
+  if (overdue > 0) {
+    return `drop open pool: ${units}u live at the deadline ${shape} - the pool reads mixed, the tail and the residue both ride`
+  }
+  return `drop open pool: ${units}u live at the deadline ${shape} - the deadline's own tail, no cure named`
 }

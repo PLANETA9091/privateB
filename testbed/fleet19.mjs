@@ -15,7 +15,7 @@ import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
-import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink
+import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink; (v0.581.0) the open pool's age anatomy
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
@@ -1224,6 +1224,7 @@ async function runBot (name, target, index) {
       try {
         if (miner?.bot) {
           const dc = dropCensusRecord()
+          dc.name = miner.username // (v0.581.0) the open pool's top holder reads by name
           dropCensusRecords.push(dc)
           miner.bot.on('entitySpawn', e => { try { observeItemSpawn(dc, e, Date.now()) } catch { /* a torn entity holds nothing */ } })
           miner.bot.on('playerCollect', (collector, e) => { try { observeItemCollect(dc, e, Date.now()) } catch { /* a torn pickup holds nothing */ } })
@@ -4118,6 +4119,7 @@ if (mass) console.log(`unaccounted mass decode: ${mass}`)
 // decode it completes. ALWAYS printed - the none-form is a verdict too (the
 // 05:00 ledger-skip lesson).
 try { console.log(dropCensusRow(dropCensusRecords)) } catch { /* the census never holds the teardown */ }
+try { console.log(dropOpenAnatomyRow(dropCensusRecords)) } catch { /* (v0.581.0) the anatomy never holds the teardown either */ }
 // (v0.302.0) THE WRITE-OFF'S FIRST LINE: fleet 36517770723 read pocket=1894u/265s
 // with no per-bot echo - F9's five refused windows + the budget-exhausted trip
 // stayed invisible behind the aggregate. The row names the holders desc by
