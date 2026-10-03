@@ -608,6 +608,63 @@ test('smeltInventory: a resupply that lands nothing still reads no fuel', async 
   assert.ok(res.attempts.some(a => a.reason === 'no fuel'))
 })
 
+// (v0.516.0) THE DRY GAMBLE - the STOCK CREDIT's own promise closed at the chain
+// level: the probe gated the whole machine loop on POCKET fuel, so a dry pocket
+// + a dry commons never walked to a machine holding its own idle stock.
+test('THE DRY GAMBLE: a dry pocket and a dry commons still smelt on a credited machine', async () => {
+  const furnace = new MockFurnace({ startFuel: item('coal', 2) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4)] })
+  let asks = 0
+  const lines = []
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => { asks++ }, log: m => lines.push(m) })
+  assert.equal(asks, 1, 'exactly one commons ask (the 0.98.0 law stands)')
+  assert.equal(res.smelted, 4, 'the machine\'s own stock funded the batch the probe would have skipped')
+  assert.equal(furnace.opened, 1, 'the gamble walked to the machine - the live rows decided')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 2, 'the stock\'s remainder rides home (the mock is coal-quantized)')
+  assert.ok(lines.some(l => /one machine gamble/.test(l)), 'the gamble names itself (rides the existing smelt filter key, no filter change)')
+})
+
+test('THE DRY GAMBLE: a lost gamble names the machine in the attempts (no more machine:null)', async () => {
+  const furnace = new MockFurnace({})
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8)] })
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => {} })
+  assert.equal(res.smelted, 0)
+  assert.equal(furnace.opened, 1, 'the window opened - the live rows decided, honestly')
+  const hit = res.attempts.find(a => a.reason === 'no fuel')
+  assert.ok(hit, 'the honest verdict stands')
+  assert.equal(hit.machine, 'furnace', 'the gamble lost to a NAMED machine - the zero verdict shows which')
+})
+
+test('THE DRY GAMBLE: exactly one machine visit - the second machine waits for a funded pocket', async () => {
+  const near = new MockFurnace({ position: new Vec3(2, 64, 2) }) // idle - the gamble loses here
+  const far = new MockFurnace({ position: new Vec3(30, 64, 30), startFuel: item('coal', 2) }) // credited, NOT visited
+  const bot = makeMockBot({ machines: [near, far], items: [item('sand', 8)] })
+  const res = await smeltInventory(bot, { ...FAST, fuelResupply: () => {} })
+  assert.equal(res.smelted, 0)
+  assert.equal(near.opened, 1, 'the nearest machine took the gamble')
+  assert.equal(far.opened, 0, 'the gamble is ONE machine - no yard sweep on a dry pocket')
+})
+
+test('THE DRY GAMBLE: the no-callback runs keep the byte-for-byte skip (a credited machine does not tempt a walk)', async () => {
+  const furnace = new MockFurnace({ startFuel: item('coal', 2) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8)] })
+  const res = await smeltInventory(bot, { ...FAST }) // no fuelResupply callback
+  assert.equal(res.smelted, 0)
+  assert.equal(furnace.opened, 0, 'no commons callback - no gamble - the legacy skip stands')
+  const hit = res.attempts.find(a => a.reason === 'no fuel')
+  assert.ok(hit && hit.machine === null, 'the machine:null skip shape, byte for byte')
+})
+
+test('THE DRY GAMBLE: the source pins (the legacy branch intact, the bound in the loop)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /if \(typeof fuelResupply !== 'function'\) \{ attempts\.push\(\{ name, machine: null, reason: 'no fuel' \}\); continue \}/, 'the no-callback skip keeps its exact shape')
+  assert.match(src, /dryGamble = true/, 'the gamble is a flag the loop reads, not a fork of the loop')
+  assert.match(src, /if \(gambleSpent\) break \/\/ \(v0\.516\.0\) the dry gamble took its one visit/, 'the kind loop respects the spent gamble')
+  assert.match(src, /if \(dryGamble\) \{ gambleSpent = true; break \}/, 'the gamble is ONE machine visit')
+  assert.match(src, /one machine gamble \(the live rows decide\)/, 'the decision line rides the existing smelt filter key')
+})
+
 test('smeltInventory stops instantly with a negative time budget', async () => {
   const furnace = new MockFurnace({})
   const bot = makeMockBot({ machines: [furnace], items: [item('sand', 8), item('coal', 7)] })

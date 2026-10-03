@@ -1119,6 +1119,7 @@ export async function smeltInventory (bot, {
     // (v0.110.0, merged) the probe is honest by construction: pickFuel's
     // ONE-ITEM FLOOR (the usable() wrapper) already refuses capacity-0 plans
     // (1 x stick against any batch reads as no fuel) - the walk is not spent
+    let dryGamble = false // (v0.516.0) the commons-wired dry leg's ONE bounded machine visit
     if (!pickFuel(bot, { itemsNeeded: left(), metalWindow: METAL_INPUTS.has(name), ...(fuelReserve ?? {}) })) {
       // (v0.98.0) THE FUEL COMMONS: run86's zeros named the class 3x - bots stood
       // AT the machines with smeltables and an empty fuel pocket while OTHER bots'
@@ -1132,7 +1133,26 @@ export async function smeltInventory (bot, {
         try { await fuelResupply({ itemsNeeded: left() }) } catch { /* a dead commons never kills the chain */ }
         resupplied = !!pickFuel(bot, { itemsNeeded: left(), metalWindow: METAL_INPUTS.has(name), ...(fuelReserve ?? {}) })
       }
-      if (!resupplied) { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
+      if (!resupplied) {
+        // (v0.516.0) THE DRY GAMBLE - the STOCK CREDIT's own promise closed at
+        // the chain level: 'the fuel-less pocket smelts' (v0.515.0) died one
+        // level above the machine - this probe gated the WHOLE machine loop on
+        // POCKET fuel, so a dry pocket + a dry commons never walked to a
+        // machine holding its own idle stock (the machines that ever caught a
+        // mismatch pull or a leftover fuel leg sit fundable, and the fleet
+        // verdict read 'no fuel' right over them). The walk-cost law stays:
+        // the no-callback runs keep the byte-for-byte skip (a dry pocket was
+        // ALWAYS a doomed walk there - no credit existed), and the
+        // commons-wired run gambles ONE machine visit (the nearest of the
+        // input's chain): the live rows decide - a credited machine funds the
+        // batch (the 0700 wire, untouched), an idle one reads the honest
+        // 'no fuel' with the machine NAMED in the attempts (richer than the
+        // machine:null skip - the zero verdict shows WHICH machine the gamble
+        // lost to).
+        if (typeof fuelResupply !== 'function') { attempts.push({ name, machine: null, reason: 'no fuel' }); continue }
+        dryGamble = true
+        log(`${tag} smelt: pocket and commons dry on ${name} - one machine gamble (the live rows decide)`)
+      }
     }
     // (v0.89.0) THE SILENT ZERO: seven runs (run74..run80) ended smelted=0 with no
     // line saying why - the machine loop below just fell through when
@@ -1151,6 +1171,7 @@ export async function smeltInventory (bot, {
     // goto pays). Close the scan on the first spent refusal; the entry is recorded
     // (the honest attempts), the clock and the log stay clean.
     let sliceSpent = false
+    let gambleSpent = false // (v0.516.0) the dry gamble is ONE machine visit - spent once, the input waits for a funded pocket
     // (v0.147.0) the kind loop is a closure so THE YARD-SEEK can re-run it:
     // run85 (dispatch 36016062585, the v0.146.0 commune's first field test)
     // measured the empty-scan class live - F4's first smelt visit read
@@ -1164,6 +1185,7 @@ export async function smeltInventory (bot, {
       for (const machineKind of machineChainFor(name)) {
         if (Date.now() - started > maxSeconds * 1000) break
         if (sliceSpent) break
+        if (gambleSpent) break // (v0.516.0) the dry gamble took its one visit
         if (left() <= 0) break
         kindsTried++
         const blocks = findMachineBlocks(bot, [machineKind], { maxDistance })
@@ -1211,9 +1233,15 @@ export async function smeltInventory (bot, {
         // (v0.137.0) a fired visit put the plan's batch - one visit, done; the
         // pocket keeps the slot-clip remainder for the next chain
         if (fire && (res.fired ?? 0) > 0) break
+        // (v0.516.0) the dry gamble is ONE machine: the live rows decided, the
+        // walk spend is bounded - a lost gamble names its machine in the
+        // attempts, the rest of the chain waits for a funded pocket (the next
+        // bank trip re-plans)
+        if (dryGamble) { gambleSpent = true; break }
         // busy / unreachable / broken machine: try the next one of this kind
       }
       if (sliceSpent) break
+      if (gambleSpent) break // (v0.516.0) the gamble never reads a second kind
       if (left() <= 0) break
       }
       return { kindsTried, kindsWithBlocks }
