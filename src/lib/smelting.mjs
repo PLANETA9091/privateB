@@ -858,8 +858,9 @@ export async function smeltBatch (bot, {
     // sees: the output was already claimed by an earlier visitor, the mismatch
     // repair's fuel pull read 'lost', or the poll-timeout pull-back lost the
     // fuel leg. The sweep cures it on its own cadence - but the batch visit is
-    // the hot path (every bank trip) and the sweep never scans smokers at all,
-    // so a fuel-only smoker walls forever. The v0.137.0 wall-off rule reaches
+    // the hot path (every bank trip) and the sweep never scanned smokers at
+    // all, so a fuel-only smoker walls forever (the sweep caught up in
+    // v0.517.0 - the scan list carries smokers now). The v0.137.0 wall-off rule reaches
     // its last naked visit site (the v0.160.0 close-shot shape): the pull is
     // verified on the live rows (the fuel lands in the pocket at the close-sync),
     // the machine reads idle, and the visit proceeds - the caller's next machine
@@ -1351,7 +1352,21 @@ export async function sweepFinishedSmelts (bot, {
   const outputs = {}
   let collected = 0
   let waitsLeft = SWEEP_COOLDOWN_WAITS // (v0.228.0) the census's single wait-out budget
-  const machines = findMachineBlocks(bot, ['furnace', 'blast_furnace'], { maxDistance })
+  // (v0.517.0) THE SWEEP'S THIRD MACHINE: the scan list gains 'smoker'. The
+  // v0.139.0 sweep was built when the yard's census read furnaces only - but
+  // the yard holds smokers too (the yard shape: furnaces, blast furnaces, 4
+  // smokers) and the ration lane (v0.511.0) made cooked food FLEET PROPERTY
+  // worth harvesting. Two shapes the old list left naked: a finished fired
+  // batch in a smoker (output over an empty input - the owner bot gone, the
+  // batch completes on nobody's ledger) and a fuel-only smoker (the v0.514.0
+  // wall - the batch-path cure only reaches it when some visit happens; the
+  // sweep is the cadence that visits without a plan). The visit path is
+  // machine-generic (openFurnace + the slot pulls), the shapes are already
+  // named by the existing lines ('swept N x ... from a finished fired batch
+  // smoker'), a LIVE batch reads 'busy' (one attempt entry), and the sweep's
+  // hard clock + the defer law price the longer walk list exactly like the
+  // old one.
+  const machines = findMachineBlocks(bot, ['furnace', 'blast_furnace', 'smoker'], { maxDistance })
   for (const [mi, machineBlock] of machines.entries()) {
     if (maxSeconds * 1000 - (Date.now() - started) <= 0) break // the sweep's own clock is hard
     if (!bot.entity) break // died mid-sweep - the pocket rides the respawn rules

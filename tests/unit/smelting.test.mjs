@@ -1582,6 +1582,41 @@ test('sweepFinishedSmelts: a spent deadline sweeps nothing and never throws; dea
   assert.match(dead.attempts[0].reason, /cannot open/, 'a dead window is a named attempt, not a crash')
 })
 
+// (v0.517.0) THE SWEEP'S THIRD MACHINE - the scan list gains 'smoker'.
+test('sweepFinishedSmelts: a smoker\'s finished batch is fleet property - collected like any machine\'s', async () => {
+  // the ration lane (v0.511.0) made cooked food matter; the v0.139.0 list left
+  // a fired batch in a smoker naked (the owner bot gone, the batch completes
+  // on nobody's ledger).
+  const smoker = new MockFurnace({ name: 'smoker', startOutput: item('cooked_beef', 4), startFuel: item('coal', 1) })
+  const bot = makeMockBot({ machines: [smoker] })
+  const lines = []
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5, log: m => lines.push(m) })
+  assert.equal(res.collected, 4, 'the smoker\'s fired batch lands in the pocket')
+  assert.deepEqual(res.outputs, { cooked_beef: 4 })
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('cooked_beef'), 4, 'the harvest rode the close-sync home')
+  assert.equal(counts('coal'), 1, 'the leftover fuel comes back')
+  assert.ok(!smoker.fuelItem() && !smoker.inputItem(), 'the smoker reads idle after the sweep')
+  assert.ok(lines.some(l => /swept 4 x cooked_beef from a finished fired batch smoker/.test(l)), 'the existing line shape names the smoker (no new log vocabulary)')
+})
+
+test('sweepFinishedSmelts: a fuel-only smoker un-walls on the sweep cadence (the v0.514.0 wall\'s last blind spot)', async () => {
+  // the 0630 batch-path cure only reaches a fuel-only smoker when some visit
+  // happens - the sweep is the cadence that visits without a plan.
+  const smoker = new MockFurnace({ name: 'smoker', startFuel: item('coal', 2) })
+  const bot = makeMockBot({ machines: [smoker] })
+  const res = await sweepFinishedSmelts(bot, { maxSeconds: 5 })
+  assert.equal(res.collected, 0, 'nothing to collect - only the fuel pull')
+  assert.ok(!smoker.fuelItem() && !smoker.inputItem(), 'the smoker reads idle - no later visitor walls on it')
+  const counts = n => bot.inventory.items().filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+  assert.equal(counts('coal'), 2, 'the fuel rode back to the pocket')
+})
+
+test('sweepFinishedSmelts: the scan list carries all three machine kinds (the source pin)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /findMachineBlocks\(bot, \['furnace', 'blast_furnace', 'smoker'\], \{ maxDistance \}\)/, 'the sweep\'s scan list names the smoker (the v0.139.0 furnace-only list retired)')
+})
+
 test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(fleetSrc, /sweepFinishedSmelts\(miner\.bot/, 'the sweep rides the smelt leg\'s leftover slice')
