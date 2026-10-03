@@ -860,7 +860,7 @@ export async function smeltBatch (bot, {
     // fuel leg. The sweep cures it on its own cadence - but the batch visit is
     // the hot path (every bank trip) and the sweep never scanned smokers at
     // all, so a fuel-only smoker walls forever (the sweep caught up in
-    // v0.517.0 - the scan list carries smokers now). The v0.137.0 wall-off rule reaches
+    // v0.518.0 - the scan list carries smokers now). The v0.137.0 wall-off rule reaches
     // its last naked visit site (the v0.160.0 close-shot shape): the pull is
     // verified on the live rows (the fuel lands in the pocket at the close-sync),
     // the machine reads idle, and the visit proceeds - the caller's next machine
@@ -1352,7 +1352,7 @@ export async function sweepFinishedSmelts (bot, {
   const outputs = {}
   let collected = 0
   let waitsLeft = SWEEP_COOLDOWN_WAITS // (v0.228.0) the census's single wait-out budget
-  // (v0.517.0) THE SWEEP'S THIRD MACHINE: the scan list gains 'smoker'. The
+  // (v0.518.0) THE SWEEP'S THIRD MACHINE: the scan list gains 'smoker'. The
   // v0.139.0 sweep was built when the yard's census read furnaces only - but
   // the yard holds smokers too (the yard shape: furnaces, blast furnaces, 4
   // smokers) and the ration lane (v0.511.0) made cooked food FLEET PROPERTY

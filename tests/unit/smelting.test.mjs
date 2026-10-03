@@ -1582,7 +1582,7 @@ test('sweepFinishedSmelts: a spent deadline sweeps nothing and never throws; dea
   assert.match(dead.attempts[0].reason, /cannot open/, 'a dead window is a named attempt, not a crash')
 })
 
-// (v0.517.0) THE SWEEP'S THIRD MACHINE - the scan list gains 'smoker'.
+// (v0.518.0) THE SWEEP'S THIRD MACHINE - the scan list gains 'smoker'.
 test('sweepFinishedSmelts: a smoker\'s finished batch is fleet property - collected like any machine\'s', async () => {
   // the ration lane (v0.511.0) made cooked food matter; the v0.139.0 list left
   // a fired batch in a smoker naked (the owner bot gone, the batch completes
