@@ -778,6 +778,19 @@ test('climbWhyClass: the face\'s own taxonomy - the decorated reasons classify b
   assert.strictEqual(climbWhyClass('No path to the goal! (51 blocks from yard)'), 'unreachable')
   // the bare exhaustion (F11's live reason) keeps its own class
   assert.strictEqual(climbWhyClass('budget exhausted'), 'exhausted')
+  // (v0.558.0) THE SENTINEL CLASS - the wet family's second member. Fleet
+  // 37121182189's face read 'other carries 2 of 4 (50.0%)' while both cycles
+  // were F15's 'wet-sentinel' refusals - the o2-watch guard the mover's own
+  // classifier names since v0.379.0 (climbout.mjs). A known family never
+  // rides 'other': the tax names its owner or the row lies by omission.
+  assert.strictEqual(climbWhyClass('wet-sentinel'), 'wet-sentinel')
+  // the decorated form (surface.mjs's yield reason may reach the doom site
+  // wrapped in a fence note) rides the same include
+  assert.strictEqual(climbWhyClass('wet-sentinel (o2 watch armed at depth)'), 'wet-sentinel')
+  // case-wrapped: the classifier lowercases first
+  assert.strictEqual(climbWhyClass('Wet-Sentinel'), 'wet-sentinel')
+  // family adjacency: the older wet member keeps its class (no shadowing)
+  assert.strictEqual(climbWhyClass('wet wall (shift refused)'), 'wet wall')
 })
 
 // ---------------------------------------------------------------------------
@@ -796,6 +809,9 @@ test('whyBookToken: the taxonomy reshapes to the token law (spaced classes hyphe
   assert.strictEqual(whyBookToken('unreachable'), 'unreachable')
   assert.strictEqual(whyBookToken('wet wall'), 'wet-wall', 'a KNOWN class never drops off the strand by token accident')
   assert.strictEqual(whyBookToken('low-o2'), 'low-o2')
+  // (v0.558.0) the sentinel class is born token-law-clean (dashes allowed):
+  // the class string and the strand token are the same bytes
+  assert.strictEqual(whyBookToken('wet-sentinel'), 'wet-sentinel')
 })
 
 test('whyBookToken: the named-nothing and junk never ride', () => {

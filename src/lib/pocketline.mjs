@@ -603,6 +603,14 @@ export function climbWhyClass (reason) {
   const s = String(reason ?? '').toLowerCase()
   if (s.includes('stalled')) return 'stalled'
   if (s.includes('wet wall')) return 'wet wall'
+  // (v0.558.0) THE SENTINEL CLASS - the wet family's second member joins the
+  // row's taxonomy. Fleet 37121182189's face read 'other carries 2 of 4 failed
+  // climb cycles (50.0%) - one class owns the tax' while both cycles were F15's
+  // 'wet-sentinel' refusals - the o2-watch guard the mover's own classifier has
+  // named since v0.379.0 (climbout.mjs), a family the row sat blind to. A known
+  // family must never ride 'other': the tax names its owner or the census lies
+  // by omission (the v0.554.0 lesson, the silent strand's shape, one row up).
+  if (s.includes('wet-sentinel')) return 'wet-sentinel'
   if (s.includes('low-o2')) return 'low-o2'
   if (s.includes('timeout')) return 'timeout'
   // (v0.556.0) THE UNREACHABLE CLASS - the chain-refuse reasons joined the
