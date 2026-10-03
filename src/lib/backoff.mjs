@@ -75,3 +75,22 @@ export function fleetSpread ({ attempt = 0, count = 19, ...rest } = {}) {
   }
   return out
 }
+
+// (v0.545.0) THE STALLED-LOGIN FENCE - the reconnect machinery's own bound.
+// The bots' ready promise (miner.mjs, scout.mjs) settles ONLY on 'spawn' or
+// 'error': a server that accepts the TCP connection but stalls the login (the
+// v0.14.2 join-storm class - the vanilla network thread stalls >30s under a
+// 19-login chunk-send burst; and mineflayer can stay silent for minutes on a
+// half-dead socket - fleet19 measured ~450s of silent sockets with zero
+// 'disconnected (' lines) leaves the promise unsettled FOREVER: the session's
+// `await ready` never returns, the 12-attempt backoff budget never walks, and
+// the loop-top deadline check is unreachable - the frozen book, one leg ABOVE
+// the shift loop the 0.541.0 loop-top probe bounds (the probes cannot reach
+// into the login leg). THE LAW: a login that has not spawned in 30000ms has
+// earned a retry, not an infinite hold - the fence's catch ends the abandoned
+// client (the zombie's socket and its timers die with bot.end()), re-throws
+// into the session's own catch (the kick counter, the stat snapshot, the
+// backoff delay), and the next attempt walks. 30000 = the measured stall
+// boundary (v0.14.2's evidence names >30s network-thread stalls; a healthy
+// login spawns in seconds, even under the join spread).
+export const LOGIN_SPAWN_TIMEOUT_MS = 30000

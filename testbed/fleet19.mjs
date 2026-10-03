@@ -45,7 +45,7 @@ import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfa
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
-import { reconnectDelayMs } from '../src/lib/backoff.mjs'
+import { reconnectDelayMs, LOGIN_SPAWN_TIMEOUT_MS } from '../src/lib/backoff.mjs'
 import { snapshotStats, seedStats, sentryAttributionRow, rescueEconomyDecode, rescueHoleRow, stormDietRow, stormVerdictRow, airBarLedgerRow, sensorLiarRow, scoutReportRow, mapCoverageRow, snapshotScoutStats, seedScoutStats } from '../src/lib/statcarry.mjs'
 import { createServerGuard, isSocketLossLine, isTimeoutKickLine, probeServerPort, PROBE_INTERVAL_MS } from '../src/lib/serverguard.mjs'
 import { resurrectPlan, RESURRECT_FLOOR_MS } from '../src/lib/resurrect.mjs'
@@ -1059,7 +1059,14 @@ async function runBot (name, target, index) {
       })
       bots.set(name, { miner, target })
       seedStats(miner.stats, carry) // (v0.18.9) the reconnect must not erase what the bot already mined
-      await miner.ready
+      // (v0.545.0) THE STALLED-LOGIN FENCE: a naked ready never settles on a half-open
+      // login (see backoff.mjs) - the 12-attempt budget and the deadline never walk again
+      try {
+        await withTimeout(miner.ready, LOGIN_SPAWN_TIMEOUT_MS, 'login spawn')
+      } catch (e) {
+        try { miner.bot?.end() } catch { /* the socket is already gone */ }
+        throw e // the session's own catch counts the failure, the backoff re-enters
+      }
       serverGuard.recordRelogin() // (v0.52.0) a fresh spawn is the server proving it lives - clears SUSPECT
       failStreak = 0 // logged in and alive: the next kick starts the streak from scratch
       if (!yardGoal) yardGoal = miner.bot.entity.position.floored() // a fresh bot logs in at world spawn - the yard
@@ -3570,7 +3577,13 @@ if (SCOUT) {
           fly: false, // ground patrol: allow-flight=false would kick a flying scout
           log: m => console.log(`[scout] ${m}`)
         })
-        await scout.ready
+        // (v0.545.0) THE STALLED-LOGIN FENCE - the scout's own seat of the miner's fence
+        try {
+          await withTimeout(scout.ready, LOGIN_SPAWN_TIMEOUT_MS, 'login spawn')
+        } catch (e) {
+          try { scout.bot?.end() } catch { /* the socket is already gone */ }
+          throw e // the scout's attempt catch prints the why, the 3s wait re-enters
+        }
         // (v0.536.0) THE SCOUT'S CARRY - the fresh attempt's book opens with the
         // walk already bought: a mid-run attempt death rebuilt the scout with a
         // ZERO book (the miners' v0.18.9 mortality, one bot wide), and the
