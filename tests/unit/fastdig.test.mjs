@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Vec3 } from 'vec3'
-import { installRageFastBreak, digFaceFor, FACE_TOP, FACE_BOTTOM, DIG_TICK_GUARD_MS, DIG_FROZEN_GUARDS } from '../../src/lib/fastdig.mjs'
+import { installRageFastBreak, digFaceFor, FACE_TOP, FACE_BOTTOM, DIG_TICK_GUARD_MS, DIG_FROZEN_GUARDS, DIG_STALL_BUDGET } from '../../src/lib/fastdig.mjs'
 
 function mockBot (options = {}) {
   const packets = []
@@ -217,4 +217,45 @@ test('the corrected doctrine rides the source (the re-priced claim, the winnable
   assert.ok(src.includes('THE CLAIM RE-PRICED'), 'the stale v0.97.0 claim is re-priced in place')
   assert.ok(src.includes('ticks * 50 + 5000ms'), 'the library per-wait floor arithmetic is documented')
   assert.ok(src.includes('THE WINNABLE RACE'), 'the guard-vs-floor ordering invariant is on the source')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.555.0) THE STALL BUDGET - the drip class priced. The frozen verdict
+// counts CONSECUTIVE fires; a hitching client that drips one real tick just
+// inside the guard window resets the streak on every recovery and could ride
+// maxTicks x DIG_TICK_GUARD_MS of stall wall clock per dig with no verdict
+// (~200s default, ~400s at the 200-tick wet dig - the miner's bare fastDig
+// calls carry no withTimeout fence). The budget caps the TOTAL fires.
+
+test('fastDig prices the drip class (stalls that never stack 3 high still hit the total budget)', async () => {
+  // the hitching-runner class: fire, real tick, fire, real tick - the
+  // consecutive streak never reaches DIG_FROZEN_GUARDS, so the legacy loop
+  // would churn all 100 waits (50 stalls x the guard window). The budget
+  // ends it at ~2x DIG_STALL_BUDGET waits with the same honest verdict.
+  let waits = 0
+  const { bot } = mockBot() // block never disappears
+  bot.waitForTicks = async () => {
+    waits++
+    if (waits % 2 === 1) await new Promise(r => setTimeout(r, 60)) // the stall: the 20ms guard fires first
+    return undefined // the recovery tick, instant - the streak resets
+  }
+  installRageFastBreak(bot, { log: () => {} })
+  const t0 = Date.now()
+  const ok = await bot.fastDig({ type: 1, name: 'stone', position: new Vec3(0, 4, 0) }, { tickGuardMs: 20 })
+  assert.equal(ok, false, 'the block never went - the budget verdict is the honest gone()')
+  assert.ok(waits <= 25, `the budget ends the drip at ~2x DIG_STALL_BUDGET waits; waited ${waits} times (the legacy loop = 100)`)
+  const elapsed = Date.now() - t0
+  assert.ok(elapsed < 2500, `6 stalls x 60ms must resolve in well under the legacy churn, took ${elapsed}ms`)
+})
+
+test('the stall budget sits above the frozen verdict and never touches a healthy dig (the arithmetic)', () => {
+  assert.equal(DIG_STALL_BUDGET, 6, 'the production budget is the 6 the doctrine pins')
+  assert.ok(DIG_STALL_BUDGET >= DIG_FROZEN_GUARDS, 'a solid freeze must die at the frozen verdict (3), never first at the budget')
+})
+
+test('the stall budget rides the guard branch (the wiring)', () => {
+  const src = readFileSync(new URL('../../src/lib/fastdig.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('THE STALL BUDGET'), 'the drip pricing is documented at the constant')
+  assert.ok(src.includes('stalls >= DIG_STALL_BUDGET'), 'the total-fire check rides inside the loop')
+  assert.ok(src.includes('let stalls = 0'), 'the budget counter is fresh per dig (never shared across attempts)')
 })

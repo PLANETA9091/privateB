@@ -78,6 +78,21 @@ export function digFaceFor ({ eyeY = null, blockCenterY = null } = {}) {
 export const DIG_TICK_GUARD_MS = 2000
 export const DIG_FROZEN_GUARDS = 3
 
+// (v0.555.0) THE STALL BUDGET - the drip class priced. The frozen verdict above
+// counts CONSECUTIVE guard fires; a client that drips one tick just inside the
+// guard window (a hitching CI runner - 19 bots share one box, F5's 447 air
+// glitches are the hitch class in the field) resets the streak on every
+// recovery and could ride maxTicks x DIG_TICK_GUARD_MS of stall wall clock per
+// dig with no verdict (~200s at the default 100-tick window, ~400s at the
+// 200-tick wet dig, and the miner's bare fastDig calls carry no withTimeout
+// fence). DIG_STALL_BUDGET caps the TOTAL fires per dig: past it the dig
+// returns gone() honestly - the same best-effort shape (the STOP spam may
+// still have broken it). Healthy digs never fire the guard, so the budget is
+// never consumed and the legacy window runs byte-identically; the budget sits
+// ABOVE the frozen verdict so a solid freeze still dies at 3 fires, and a
+// two-spike lag stutter (the recovery class) rides well under it.
+export const DIG_STALL_BUDGET = 6
+
 // Race p against a wall clock; the loser's timer is always cleared so a guard
 // never holds the process open. A junk/zero guard disables the race (legacy).
 function racedWithGuard (p, ms) {
@@ -134,13 +149,17 @@ export function installRageFastBreak (bot, { stopSpamPerTick = 1, log = () => {}
     }
 
     let frozenGuards = 0
+    let stalls = 0
     for (let tick = 0; tick < maxTicks; tick++) {
       for (let s = 0; s < stopSpamPerTick; s++) send(2, pos, face) // STOP_DESTROY_BLOCK spam
       if (gone()) return true
       const tickRes = await racedWithGuard(bot.waitForTicks(1), tickGuardMs)
       if (tickRes === 'dig-tick-guard-fire') {
-        // no tick arrived inside the wall clock: the client physics may be frozen
+        // no tick arrived inside the wall clock: the client physics may be
+        // frozen (the consecutive verdict) or merely dripping (the budget)
+        stalls++
         if (++frozenGuards >= DIG_FROZEN_GUARDS) return gone()
+        if (stalls >= DIG_STALL_BUDGET) return gone()
         continue
       }
       frozenGuards = 0
