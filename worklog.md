@@ -13908,3 +13908,21 @@ Work Log:
 Stage Summary:
 - Master = 36660be (pkg 0.563.0). The smelt census named its tax live; the doom owner row flies next.
 - NEXT FIRE: (1) read gate 37137438974 + fleet 37137513524 (36660be): SUCCESS = mine the face - expect the doom owner row's FIRST RIDE (the owner map reads WHO owns the stalled ~52% class; top owner >= half the class = one walker's own path, spread = the fleet-wide grind), smelt census's second ride, zero silent strands. (2) If my gate's integration hangs like the lane's: re-run via API and read two hangs as a tree-level flake worth its own atom. (3) The chronic stalled class is the crater's owner - the stall cure is the next BIG front (the owner map's verdict first). (4) Version 0.564.0 (origin x3; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron-agent-loop-202610040039
+Agent: Super Z (main)
+Task: fire 0039 (cron 415967) - THE RED FACE CLOSED BY DESCENT + v0.564.0 THE SHED GATE
+
+Work Log:
+- Open: identity OK; rebase absorbed v0.563.0 THE DOOM-OWNER MAP (36660be) + fire 0030 worklog (bd32dac). User steering: 'make delivery WORK first' - the wiring lane owns the fire.
+- THE RED FACE: 37134457493 (8e88b3f) Integration FAILURE - productivity.test.mjs HUNG at the 420s wall with ZERO output (the server-boot/spawn flake class; the delta was unwired pure code; the same test PASSED on 926324d). Rerun POST 201; attempt 2 cancelled by the lane's sweep; the family verdict moved to the DESCENDANT 37137438974 (36660be, contains the pricer) SUCCESS. Environmental, closed by descent.
+- THE FOURTH FLEET'S FACE (37134090209, v0.561.0 census tree, SUCCESS): 2.86 b/s - rate quad-stable (3.02/2.95/2.89/2.86); storm STORM (228 glitches, wet-rescued 128, 2 drowned); banked=211/1802u, crater 11.7% (59.8/47.7/5.0/11.7); THE SMELT CENSUS'S FIRST FIELD ROW: 'machine unreachable 31, cannot open 1 of 32' (the smelt tax is machine REACHABILITY); the strand rode stopped (first sighting) + wet-wall x2 + timeout x3; the display floor's first flight HONEST (0.4u/s - not the phantom class); books balance (unaccounted=0); mid-run bank trips ran live ('holding 45s of 172s for the smelt leg').
+- THE SEAT: bankTripDue (deposit.mjs:666) = cadence 150s + units 48 + a FLAT 240s fence - a doomed whale gets the same 1-2 checks as a light pocket; F6's 277u whale rode a timeout strand while 12 chests sat 10-20 blocks away.
+- v0.564.0 THE SHED GATE (a6aea31, push clean): shedTripDue - the gap-driven sibling. Arms ONLY on: the gap (shedPlan's light gate), the PRICED fit (field shape 217s vs the flat 240s - the widened late window), the refractory (SHED_RETRY_MS = BANK_TRIP_EVERY_MS = 150000 parity, lastBankAt one-clock-both-families). Legacy gate byte-identical; only stranded pockets get the widened window. 7 pins; bankshed 19/19; unit 2845 fail 0; syntax 436/0. The wiring contract documented; the live-loop edit = next fire's fourth leg.
+- COLLISION #50 DID NOT LAND (origin held 0.563.0; the lane's bd32dac worklog absorbed mid-rebase). Push clean bd32dac..a6aea31.
+- CI: my gate 37138177851 (a6aea31) pending = the freshest carrier (left on purpose); the lane's fleet 37137513524 flying (the doom-owner map's first flight, ~17:08Z); no culls. NO dispatch (the lane's fleet flew all fire).
+
+Stage Summary:
+- Master = a6aea31 (pkg 0.564.0). The whale cure's three pure legs done (plan, pricer, gate); the census rows name the taxes; the delivery crisis remains THE seam (11.7%).
+- NEXT FIRE: (1) the lane's fleet 37137513524 verdict: the doom-owner map's first field row + the fifth crater point. (2) My gate 37138177851 (a6aea31). (3) THE FOURTH LEG: the live-loop seat - wire shedTripDue beside bankTripDue's read (locate the consult seat in miner.mjs first, the smallest edit, the wiring pin test). (4) Version next 0.565.0 (origin x3; explicit paths; commit-before-rebase; expect #51). Identity: PLANETA9091.
