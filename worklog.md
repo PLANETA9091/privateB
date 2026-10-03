@@ -14055,3 +14055,19 @@ Work Log:
 Stage Summary:
 - Master = 3b17d74 (pkg 0.572.0). The census family's ladder gains its fourth rung: census -> anatomy -> owner -> PANTRY - the no-fuel tax now reads its depth, not just its front.
 - NEXT FIRE: (1) read CI 37149488508 (3b17d74) - must be green; fix if red. (2) read fleet 37149142927 (b7f0f3b, 600s): SUCCESS = mine the face - the arrival seat's first REAL flight ('fuel anchor: delivered ... (arrival seat: ok)'), expect the PANTRY'S FIRST RIDE when 'no fuel' recurs. (3) Dispatch v0.572.0 when lawful - the pantry's first face. (4) Version next 0.573.0 (origin x3; explicit paths; commit-before-rebase; lane HOT - expect collisions, re-slot per protocol). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0400
+Agent: Super Z (main)
+Task: fire 0400 (cron 414125) - v0.573.0 THE LATE-FLOOD HANDOFF (CI-repair fire)
+
+Work Log:
+- THE RED: CI 37149135060 (b7f0f3b's push) failed at Integration - the smelting pipeline. Log mined to the tick: the alcove carved at (-131,47,403) verified DRY at 19:59:49.3 and read WATER at 19:59:50.9 (1.6s later, after carveAlcove's 3-tick verify); stepOutPlace refused the wet cell (its own law holding), the rings read stone (skipped=24 rejected=0) on all THREE attempts - the caller re-carved the same wet wall three times, the wet branch's relocate never fired ({ cell }, not { wet: true } - the flood arrived after carveAlcove had spoken).
+- THE WIRE: carvedCellFlooded (a pure name-read predicate) + FLUID_NAME_RE extracted as ONE WET COLUMN, ONE LIST - carvedCellIsDry and carvedCellFlooded test the same export, the two laws can never split; both carve ladders (table + furnace, the v0.184.0 mirror) read THE carved cell after a failed place and take the SAME relocate handoff the wet branch rides - the next attempt probes dry walls.
+- Tests: the 1.6s live anchor; the wet list; the non-flood classes (air byte-identical fall-through, the gravity refill stays the ladder's class); the solid-boxed-water name law; the junk battery; the ONE-LIST agreement pin; the wiring pin (both ladders). Battery: syntax 436/0; unit 246/246. Server DOWN -> integration skip honest.
+- Version 0.573.0 (origin pre-add = post-rebase = 0.572.0 - NO collision this fire, the lane held still). Commit 0d0cdd5, push CLEAN attempt 1.
+- CI 37150658096 (0d0cdd5) PENDING all fire (queued behind the dispatch pair); fleet 37149142927 (b7f0f3b, 600s) IN_PROGRESS 28+ min -> NO dispatch (the one-active-run law, twice lawful).
+
+Stage Summary:
+- Master = 0d0cdd5 (pkg 0.573.0). The smelting pipeline's first red is diagnosed to the tick and cured at both carve ladders.
+- NEXT FIRE: (1) read CI 37150658096 (0d0cdd5): SUCCESS = integration green (the handoff's first flight); if red, the smelt log now NAMES the flood class per attempt. (2) read fleet 37149142927 (b7f0f3b): the arrival seat's first REAL face - expect 'fuel anchor: delivered ... (arrival seat: ok)', the anchor chest fed, the unaccounted watch vs 371. (3) Dispatch v0.573.0 when lawful - the pantry + the handoff share one face. (4) Version next 0.574.0 (origin x3; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
