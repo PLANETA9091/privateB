@@ -13822,3 +13822,20 @@ Work Log:
 Stage Summary:
 - Master = 1a39cff (pkg 0.558.0). The v0.554.0 tail + v0.557.0 composition PROVEN on a live face (zero silent strands); the wet family whole in the taxonomy.
 - NEXT FIRE: (1) read gate 37130910302 + fleet 37130962121 (1a39cff): SUCCESS = mine the face - expect no 'other' tax when wet-sentinel recurs; watch unaccounted=251 (the mass decode's verdict may re-price the whale cadence). (2) fronts: seed/ libs audit, integration harness bounds, whale-class bank cadence, setup-yard in-bot wire. (3) version 0.559.0 (origin x3; the lane is HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261003-2300
+Agent: Super Z (main)
+Task: fire 2300 (cron 414125) - v0.559.0 THE DISPLAY FLOOR
+
+Work Log:
+- VERDICT FIRST: gate 37130910302 (1a39cff, v0.558.0) = SUCCESS - THE SENTINEL CLASS PROVEN green. Fleet 37130962121 (1a39cff): unit 22+24 + integration all success; Big fleet run (19 bots) still in_progress after 200s of polling - the verdict hands over (the suspension law, no culls).
+- Face re-read (37128927104, sandbox copy): the seams sat in the PRICING rows - 'bank flow: 0.0u/s (banked +4u over 285s) - the 883u pocket needs 62914s past the deadline' + 'bank budget gap: 42679s needed, 300s budgeted - 42379s short at 0.0u/s'. Both numbers priced at a hidden 0.014u/s the face itself displayed as 0.0 - a phantom pricing (the honest-line law: the displayed rate and the priced rate never met). Also confirmed on the face: pocket anatomy spread (15 holders, top F2 195u = 22.1% - no whale this run), the doom-why row reads low-o2 (no 'other' tax), unaccounted=251 (12%) under the mass-decode floor - silent by design.
+- Front: THE DISPLAY FLOOR LAW - BANK_FLOW_DISPLAY_FLOOR = 0.05 (exactly the toFixed(1) display floor: the trickle class iff the face reads 0.0). bankFlowRow routes the trickle to the stood-still form (no phantom tail; the +4u delta prints right there, the verdict names the flow's practical truth); bankBudgetGapRow returns null for the same class (its own doctrine already claimed the stood-still story is the flow row's); ONE constant routes BOTH siblings - they can never split on the class (the sibling-shape law kept by construction). The boundary prices honestly: a rate AT the floor displays 0.1 and its seconds are real. No live-loop seat touched (the mid-run flowPriceClock prices budgets, not faces).
+- Tests: 2 new test blocks in pocketline.test.mjs (the live datum +4u/285s reads still with no 'needs' tail; the gap's phantom echo null; the 0.05 boundary prices - both siblings agree on both sides of the floor). Battery: syntax 434/0; unit 245/245. Server DOWN -> integration skip honest (39th/40th fire).
+- Version 0.559.0 (origin free pre-add, NO collision). Commit e8dd460, push CLEAN attempt 1 (2e6d251..e8dd460). Gate flying via push.
+- NO dispatch: fleet 37130962121 active (protocol 6).
+
+Stage Summary:
+- Master = e8dd460 (pkg 0.559.0). The pricing rows can no longer claim a precision their own face denies.
+- NEXT FIRE: (1) read fleet 37130962121 (1a39cff, v0.558.0) Big fleet run verdict: SUCCESS = mine the face (expect zero silent strands again; wet-sentinel named if it recurs; no 'other' tax). (2) read the gate for e8dd460 (v0.559.0). (3) dispatch v0.559.0 when lawful (poll-before-duplicate). (4) fronts: seed/ libs audit, integration harness bounds, whale-class bank cadence (the spread-pocket datum: 15 holders - the chains own the crater), setup-yard in-bot wire. (5) version 0.560.0 (origin x3; the lane is HOT). Identity: PLANETA9091.
