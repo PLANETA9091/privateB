@@ -85,12 +85,26 @@ export const WRITE_OFF_MIN_UNITS = 64
 /**
  * The end-of-run per-bot write-off row.
  * @param {Array<{username?: string, bot?: {inventory?: {items?: Function}}}>} miners
- * @param {{minUnits?: number}} [opts] the stake floor (default one stack, 64)
+ * @param {{minUnits?: number, whys?: Map<string, string>|Object<string, string>|null}} [opts]
+ *   the stake floor (default one stack, 64); `whys` (v0.553.0) carries the class
+ *   the end-phase already knew when it refused the chain (fleet19's finalBankWhys:
+ *   'night' - the v0.140.1 hold, 'doom-latched') - the face reads the why instead
+ *   of diving the log (fleet 37121182189's strand sat 3400 lines upstream of the
+ *   truth). Only clean tokens ride (`/^[a-z0-9-]+$/` - the row never carries junk);
+ *   absent/junk whys print the legacy byte form.
  * @returns {string} 'final write-off: F9 412u/6s, F6 308u/4s (the deadline pocket rode unbanked)'
+ *   with the why riding the holder when known: 'F15 205u/12s night'
  *   or the none-verdict when every pocket sits under the floor
  */
-export function writeOffRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } = {}) {
+export function writeOffRow (miners, { minUnits = WRITE_OFF_MIN_UNITS, whys = null } = {}) {
   const min = (Number.isFinite(minUnits) && minUnits > 0) ? Math.floor(minUnits) : WRITE_OFF_MIN_UNITS
+  const whyBook = (whys instanceof Map) ? whys : (whys && typeof whys === 'object' ? new Map(Object.entries(whys)) : null)
+  const whyFor = name => {
+    if (!whyBook) return null
+    let w = null
+    try { w = whyBook.get(name) } catch { return null }
+    return (typeof w === 'string' && /^[a-z0-9-]+$/.test(w)) ? w : null
+  }
   const holders = []
   for (const m of (Array.isArray(miners) ? miners : [])) {
     try {
@@ -109,7 +123,10 @@ export function writeOffRow (miners, { minUnits = WRITE_OFF_MIN_UNITS } = {}) {
   if (holders.length === 0) return `final write-off: none (every pocket under ${min} units)`
   // desc by units; the tie-break is the name so the row is byte-stable
   holders.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
-  return `final write-off: ${holders.map(h => `${h.name} ${h.units}u/${h.slots}s`).join(', ')} (the deadline pocket rode unbanked)`
+  return `final write-off: ${holders.map(h => {
+    const why = whyFor(h.name)
+    return why ? `${h.name} ${h.units}u/${h.slots}s ${why}` : `${h.name} ${h.units}u/${h.slots}s`
+  }).join(', ')} (the deadline pocket rode unbanked)`
 }
 
 /**

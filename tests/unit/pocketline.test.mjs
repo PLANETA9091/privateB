@@ -187,7 +187,7 @@ test('REGRESSION PIN: the write-off row rides the report block beside the loot l
   assert.ok(fleetSrc.includes("import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow } from '../src/lib/pocketline.mjs'"),
     'the fleet imports the write-off row + the decodes from the pocket instrument (v0.328.0 rode the same import, v0.330.0 joins it)')
   const ledgerIdx = fleetSrc.indexOf('loot ledger: mined=')
-  const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list))')
+  const rowIdx = fleetSrc.indexOf('console.log(writeOffRow(list, { whys: finalBankWhys }))') // (v0.553.0) the why ledger rides the row
   assert.ok(rowIdx > ledgerIdx, 'the row prints AFTER the loot ledger line - the same report-block class')
   assert.ok(fleetSrc.includes('THE WRITE-OFF\'S FIRST LINE'), 'the wiring carries its own doctrine comment')
 })
@@ -833,4 +833,79 @@ test('doomWhyRow: THE WIRING PIN - the why row rides the census block (v0.336.0)
   assert.match(src, /if \(doomWhy\) console\.log\(doomWhy\)/, 'the why row obeys the same leanness law')
   assert.match(src, /if \(bankFlow\) console\.log\(bankFlow\)/, 'the silence law rides the flow row')
   assert.ok(src.includes('THE DOOM-WHY ROW'), 'the wiring carries its own doctrine comment')
+})
+
+// ---- (v0.553.0) THE WRITE-OFF'S WHY ----
+// fleet 37121182189: 'final write-off: F15 205u/12s, F10 128u/10s, F12 72u/16s
+// (the deadline pocket rode unbanked)' while the REAL why ('final bank
+// deferred: night', the v0.140.1 hold) sat 3400 lines upstream - the
+// face-reader dived the log to learn the doctrine owned the strand. The row
+// reads the class now: the why rides the verdict (the honest-line law).
+
+test('writeOffRow: opt-in law - the legacy call stays byte-identical with no whys', () => {
+  const f9 = inv([{ name: 'iron_ore', count: 200 }, { name: 'cobblestone', count: 212 }]) // 412u/2s
+  const legacy = writeOffRow([{ username: 'F9', ...f9 }])
+  assert.strictEqual(legacy,
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'no whys -> the 0.302.0 byte form')
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }], {}),
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'empty opts -> the same byte form')
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }], { whys: null }),
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'null whys -> the same byte form')
+})
+
+test('writeOffRow: the why rides the holder - night strand reads its class on the face', () => {
+  const f15 = inv([{ name: 'iron_ore', count: 205 }]) // the 37121182189 whale
+  const f10 = inv([{ name: 'coal', count: 128 }])
+  const whys = new Map([['F15', 'night'], ['F10', 'night']])
+  assert.strictEqual(writeOffRow([{ username: 'F15', ...f15 }, { username: 'F10', ...f10 }], { whys }),
+    'final write-off: F15 205u/1s night, F10 128u/1s night (the deadline pocket rode unbanked)',
+    'the doctrine names itself on the face - no log dive')
+})
+
+test('writeOffRow: mixed classes - the doom-latched strand names itself beside the unexplained one', () => {
+  const f7 = inv([{ name: 'iron_ore', count: 100 }])
+  const f4 = inv([{ name: 'dirt', count: 80 }])
+  const whys = { F4: 'doom-latched' } // plain-object book shape
+  assert.strictEqual(writeOffRow([{ username: 'F7', ...f7 }, { username: 'F4', ...f4 }], { whys }),
+    'final write-off: F7 100u/1s, F4 80u/1s doom-latched (the deadline pocket rode unbanked)',
+    'a holder with no why keeps the legacy form; the object book works like the Map')
+})
+
+test('writeOffRow: whys for non-holders never phantom, junk whys never ride', () => {
+  const f2 = inv([{ name: 'dirt', count: 30 }]) // under the floor
+  const f9 = inv([{ name: 'iron_ore', count: 200 }, { name: 'cobblestone', count: 212 }])
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }, { username: 'F2', ...f2 }],
+    { whys: new Map([['F2', 'night']]) }),
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'a why for a holder under the 64u floor stays unnamed')
+  const junk = new Map([['F9', ''], ['x', 'has space'], ['y', 42], ['z', null]])
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }], { whys: junk }),
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'empty/junk token values degrade to the legacy form (the junk law)')
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }], { whys: 'night' }),
+    'final write-off: F9 412u/2s (the deadline pocket rode unbanked)',
+    'a string book is not a book - ignored, legacy form')
+  assert.strictEqual(writeOffRow([{ username: 'F9', ...f9 }], { whys: new Map([['F9', 'doom-latched']]) }),
+    'final write-off: F9 412u/2s doom-latched (the deadline pocket rode unbanked)',
+    'the clean token form rides (dash allowed, lowercase enforced by the token law)')
+})
+
+test('writeOffRow: THE WIRING PIN - the why ledger feeds the defer sites and rides the report row (v0.553.0)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const finalBankWhys = new Map()'), 'the why ledger lives beside the fleet ledgers')
+  const nightFeed = src.indexOf("finalBankWhys.set(name, 'night')")
+  const doomFeed = src.indexOf("finalBankWhys.set(name, 'doom-latched')")
+  assert.ok(nightFeed > 0 && doomFeed > 0, 'both refuse classes feed the ledger')
+  // the log line rides WITHIN the same block as the feed (the class is known at
+  // the refusal, not reconstructed) - window search, not indexOf: the string
+  // also appears in earlier doctrine comments
+  assert.ok(src.slice(nightFeed, nightFeed + 400).includes('final bank deferred: night'),
+    'the night feed rides its own defer site')
+  assert.ok(src.slice(doomFeed, doomFeed + 400).includes('dooms-latched after'),
+    'the doom feed rides its own latch site')
+  assert.ok(src.includes("writeOffRow(list, { whys: finalBankWhys })"),
+    'the report row reads the ledger (the single write-off site)')
 })

@@ -169,6 +169,15 @@ let toolsUpgraded = 0 // successful tool upgrades: worn replaced + tier raises (
 let swordsCrafted = 0 // (v0.67.0) swords landed by the arms chain - the fleet stopped fist-fighting
 let banked = 0 // items deposited into the yard's chests
 let smelted = 0 // items smelted fleet-wide (sand->glass, ore->ingot, food->cooked)
+// (v0.553.0) THE WRITE-OFF'S WHY LEDGER: keyed by bot name, the class the
+// end-phase already knew when it refused the final-bank chain ('night' - the
+// v0.140.1 hold; 'doom-latched' - the v0.316.0 latch). Fleet 37121182189 read
+// 'final write-off: F15 205u/12s, F10 128u/10s, F12 72u/16s (the deadline
+// pocket rode unbanked)' while the REAL why sat 3400 lines upstream ('final
+// bank deferred: night') - the face-reader dived the log to learn the doctrine
+// owned the strand. The row reads the class now (the honest-line law: a
+// verdict's why rides the verdict; same report-block shape as the doom census).
+const finalBankWhys = new Map()
 // (v0.330.0) THE DOOM CENSUS LEDGER: per-bot failed final-bank climb cycles,
 // keyed by walker. The closure counter (v0.316.0) drives the latch in the
 // moment but dies unread - this ledger lets the report read the strand's
@@ -2756,8 +2765,10 @@ async function runBot (name, target, index) {
         console.log(`${name} final bank: the doom latch re-arms once (${doomLatch.failed} failed shaft-bottom climb cycles, the ${Math.round(FINAL_BANK_DOOM_REARM_MS / 1000)}s cooldown paid) - one more cycle rides, the next failure re-latches`)
       }
       if (bankable && doomLatch.latched) {
+        finalBankWhys.set(name, 'doom-latched') // (v0.553.0) the write-off's why rides the verdict
         console.log(`${name} final bank: 0 (dooms-latched after ${doomLatch.failed} failed shaft-bottom climb cycles - the chain is refused, the clock mines on)`)
       } else if (bankable && !doomLatch.rearmGranted && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
+        finalBankWhys.set(name, 'night') // (v0.553.0) the write-off's why rides the verdict (fleet 37121182189's strand)
         console.log(`${name} final bank deferred: night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the pocket rides out the dark alive (the v0.140.1 night hold)`)
       } else if (bankable) {
         // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the
@@ -3860,7 +3871,11 @@ if (mass) console.log(`unaccounted mass decode: ${mass}`)
 // stayed invisible behind the aggregate. The row names the holders desc by
 // units, ALWAYS printed (the 05:00 ledger-skip lesson). Same report-block
 // class as the loot ledger line above.
-console.log(writeOffRow(list))
+// (v0.553.0) THE WRITE-OFF'S WHY: the why ledger rides the row - a strand the
+// end-phase refused names its class ('night'/'doom-latched') on the face, no
+// log dive (fleet 37121182189's 405u strand read 'unbanked' with the doctrine
+// sitting 3400 lines upstream).
+console.log(writeOffRow(list, { whys: finalBankWhys }))
 // (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
 // NAMES: fleet 36631612575 healed the crater but the anatomy row flipped to
 // WHALE F12 (220u = 31.1%) - the same bot the no-chest front names. The row
