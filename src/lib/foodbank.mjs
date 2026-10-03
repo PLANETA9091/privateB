@@ -314,12 +314,27 @@ export { newCommonsMemory }
 // is ALREADY paid when it succeeds - the bot stands at a commons chest with
 // the walk sunk. THE SLICE: when that paid moment arrives, a rider read
 // checks the plate for free - the only walk the rider ever spends is the
-// one the fuel ask already spent. A dry fuel ask pays for nothing: the
-// rider never fires (the walk is not there to ride). The gate is pure -
-// the wire feeds it the pocket read, the hunger read, the fuel verdict and
-// the rider's own slice clock; every refusal names its why and stays QUIET
-// in the field (the plate-holds and hunger-above-band cases fire at every
-// fuel resupply - the healthy lean is silent, the fuel anchor's own law).
+// one the fuel ask already spent. An ask that never REACHED a chest pays for
+// nothing: the rider never fires (the walk is not there to ride). The gate
+// is pure - the wire feeds it the pocket read, the hunger read, the fuel
+// verdict and the rider's own slice clock; every refusal names its why and
+// stays QUIET in the field (the plate-holds and hunger-above-band cases fire
+// at every fuel resupply - the healthy lean is silent, the fuel anchor's own
+// law).
+//
+// (v0.526.0) THE VISITED-DRY RIDE - the rider's second point, priced by the
+// gate's own law before any face: the v0.524.0 first law rode only a
+// DELIVERED fuel ask, but the delivery was never what pays the walk - the
+// REACH is. The fuel commons' own verdict shape already names it ('commons
+// empty' vs 'no chest reached'): an ask that walked to a chest and OPENED it
+// (chestsVisited > 0, the increment sits right after the successful open)
+// has the walk AND the open sunk, whatever the take says - the bot stands at
+// that chest, and the food read there is scan-and-open only. The widening
+// stays modest: the critical-hunger + empty-plate band still gates the fire
+// (a rare shape times a rare shape), the deferred/backoff and no-range and
+// zero-budget asks still refuse (chestsVisited 0 - nothing was reached),
+// and the refusal's why now tells the two drys apart: the ask that never
+// reached a chest versus the laws below.
 
 /** The critical hunger band: the ration eats at hunger <= 17 (its own law),
  *  so an EMPTY plate below 17 means the eater is armed with nothing to
@@ -339,8 +354,10 @@ export const RIDER_FOOD_BUDGET_MS = 8000
  * paid walk? Returns { fire: true } when every law holds, else
  * { fire: false, why } - the wire prints only the fired exits, the refusals
  * stay quiet (the healthy lean is silent). The laws, in order:
- * (1) the fuel ask DELIVERED (fuelTaken > 0) - the walk is paid; a dry or
- *     deferred fuel ask leaves the rider nothing to ride;
+ * (1) the fuel ask REACHED a chest (fuelTaken > 0 OR chestsVisited > 0) -
+ *     the walk and the open are sunk (the v0.526.0 visited-dry ride); an ask
+ *     deferred, out of range or spent before any open leaves the rider
+ *     nothing to ride;
  * (2) the plate is EMPTY (plate === 0) - the armed-ration starvation shape
  *     the 0.516.0 comment named; below-bound plates stay the bank trip's
  *     own tail slice (the field prices them on a face);
@@ -348,9 +365,11 @@ export const RIDER_FOOD_BUDGET_MS = 8000
  *     a null/dead read refuses (the mock's honesty is the wire's);
  * (4) the slice funds the read (sliceMs >= RIDER_FOOD_MIN_MS).
  */
-export function riderFoodAsk ({ plate = null, hunger = null, fuelTaken = 0, sliceMs = 0 } = {}) {
+export function riderFoodAsk ({ plate = null, hunger = null, fuelTaken = 0, chestsVisited = 0, sliceMs = 0 } = {}) {
   const taken = Number(fuelTaken)
-  if (!Number.isFinite(taken) || taken <= 0) return { fire: false, why: 'the fuel ask came up dry - the walk is not paid' }
+  const visited = Number(chestsVisited)
+  const reached = (Number.isFinite(taken) && taken > 0) || (Number.isFinite(visited) && visited > 0)
+  if (!reached) return { fire: false, why: 'the ask never reached a chest - the walk is not there to ride' }
   // the Number(null) strikes (the v0.516.0 lesson: a truthy default is not a
   // read) - a null/undefined read is DEAD, never zero, on both body laws.
   if (plate == null) return { fire: false, why: 'the plate read is dead' }

@@ -660,8 +660,14 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           // commons' own sweep machinery bounds the rest (the memory, the
           // vertical gate, the ghost-click doctrine); any failure leaves the
           // fuel verdict above whole - the rider is best-effort by law.
+          // (v0.526.0) THE VISITED-DRY RIDE: the REACH pays the walk, not the
+          // delivery - an ask that opened a chest and took no fuel left the
+          // bot standing at that chest with the walk AND the open sunk
+          // (chestsVisited counts opens, the increment sits after the
+          // successful open); the deferred/no-range/zero-budget asks still
+          // refuse (nothing reached).
           try {
-            const rider = riderFoodAsk({ plate: pocketFood(miner.bot), hunger: miner.bot?.food ?? null, fuelTaken: fuel?.taken ?? 0, sliceMs: RIDER_FOOD_BUDGET_MS })
+            const rider = riderFoodAsk({ plate: pocketFood(miner.bot), hunger: miner.bot?.food ?? null, fuelTaken: fuel?.taken ?? 0, chestsVisited: fuel?.chestsVisited ?? 0, sliceMs: RIDER_FOOD_BUDGET_MS })
             if (rider.fire) {
               console.log(`${miner.username} food commons: the mid-field rider fires (the fuel ask paid the walk; the plate empty, the hunger ${miner.bot?.food ?? '?'}/20 inside the band ${MIDFIELD_HUNGRY_BAND})`)
               const food = await withdrawFoodCommons(miner.bot, { yardCenter: yardGoal, memory: foodCommonsMemory, budgetMs: RIDER_FOOD_BUDGET_MS, log: m => console.log(`${miner.username} ${m}`) })

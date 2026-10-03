@@ -291,9 +291,13 @@ test('rider gate: the whole law fires, every refusal names its why', () => {
   // the fired face: fuel delivered, plate empty, hunger inside the band, slice funded
   assert.deepEqual(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 3, sliceMs: RIDER_FOOD_BUDGET_MS }), { fire: true })
   assert.deepEqual(riderFoodAsk({ plate: 0, hunger: MIDFIELD_HUNGRY_BAND, fuelTaken: 1, sliceMs: RIDER_FOOD_MIN_MS }), { fire: true }, 'the band edge is inside (<=)')
-  // the dry fuel ask pays for nothing - the walk is not there to ride
-  assert.deepEqual(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 0, sliceMs: RIDER_FOOD_BUDGET_MS }), { fire: false, why: 'the fuel ask came up dry - the walk is not paid' })
-  assert.equal(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: -2, sliceMs: RIDER_FOOD_BUDGET_MS }).why, 'the fuel ask came up dry - the walk is not paid', 'a junk verdict reads dry')
+  // (v0.526.0) THE VISITED-DRY RIDE: the REACH pays the walk, not the delivery
+  assert.deepEqual(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 0, chestsVisited: 2, sliceMs: RIDER_FOOD_BUDGET_MS }), { fire: true }, 'an ask that opened chests and took no fuel still rides - the walk AND the open are sunk')
+  assert.deepEqual(riderFoodAsk({ plate: 0, hunger: 7, fuelTaken: 0, chestsVisited: 1, sliceMs: RIDER_FOOD_MIN_MS }), { fire: true }, 'the visited-dry face obeys the same band and slice laws')
+  // the never-reached ask pays for nothing - deferred/no-range/zero-budget
+  assert.deepEqual(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 0, sliceMs: RIDER_FOOD_BUDGET_MS }), { fire: false, why: 'the ask never reached a chest - the walk is not there to ride' })
+  assert.equal(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: -2, sliceMs: RIDER_FOOD_BUDGET_MS }).why, 'the ask never reached a chest - the walk is not there to ride', 'a junk verdict reads never-reached')
+  assert.equal(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 0, chestsVisited: null, sliceMs: RIDER_FOOD_BUDGET_MS }).why, 'the ask never reached a chest - the walk is not there to ride', 'a dead visited read is zero, never reached')
   // the plate holds - the bank trip tail owns below-bound, the rider stays quiet
   assert.deepEqual(riderFoodAsk({ plate: 2, hunger: 9, fuelTaken: 3, sliceMs: RIDER_FOOD_BUDGET_MS }), { fire: false, why: 'the plate holds' })
   // the hunger band: above 10 refuses, a dead read refuses
@@ -303,8 +307,8 @@ test('rider gate: the whole law fires, every refusal names its why', () => {
   // the slice floor: thinner than the read and the open starves mid-click
   assert.equal(riderFoodAsk({ plate: 0, hunger: 9, fuelTaken: 3, sliceMs: RIDER_FOOD_MIN_MS - 1 }).why, 'the slice cannot fund the read')
   // junk arguments are honest refusals, never throws
-  assert.deepEqual(riderFoodAsk({}), { fire: false, why: 'the fuel ask came up dry - the walk is not paid' })
-  assert.deepEqual(riderFoodAsk(), { fire: false, why: 'the fuel ask came up dry - the walk is not paid' })
+  assert.deepEqual(riderFoodAsk({}), { fire: false, why: 'the ask never reached a chest - the walk is not there to ride' })
+  assert.deepEqual(riderFoodAsk(), { fire: false, why: 'the ask never reached a chest - the walk is not there to ride' })
 })
 
 test('rider constants: the one-number laws stay named in the lib', () => {
@@ -317,7 +321,8 @@ test('rider constants: the one-number laws stay named in the lib', () => {
 
 test('rider wire: the fleet19 resupply chain rides the paid walk, refusals stay quiet', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(fleetSrc.includes('riderFoodAsk({ plate: pocketFood(miner.bot), hunger: miner.bot?.food ?? null, fuelTaken: fuel?.taken ?? 0, sliceMs: RIDER_FOOD_BUDGET_MS })'), 'the gate reads the live pocket, the live hunger and the fuel verdict')
+  assert.ok(fleetSrc.includes('riderFoodAsk({ plate: pocketFood(miner.bot), hunger: miner.bot?.food ?? null, fuelTaken: fuel?.taken ?? 0, chestsVisited: fuel?.chestsVisited ?? 0, sliceMs: RIDER_FOOD_BUDGET_MS })'), 'the gate reads the live pocket, the live hunger, the fuel verdict and the visit count')
+  assert.ok(fleetSrc.includes('THE VISITED-DRY RIDE: the REACH pays the walk, not the'), 'the visited-dry law is written at the wire')
   assert.ok(fleetSrc.includes('the mid-field rider fires (the fuel ask paid the walk; the plate empty, the hunger'), 'the fired face names itself on the food commons lane')
   assert.ok(fleetSrc.includes('the rider read refills the plate ('), 'the result line rides')
   assert.ok(fleetSrc.includes('the rider read stays empty ('), 'the refusal line rides')
@@ -325,7 +330,8 @@ test('rider wire: the fleet19 resupply chain rides the paid walk, refusals stay 
   assert.equal(fleetSrc.split('const rider = riderFoodAsk(').length - 1, 1, 'the gate fires once per resupply')
   const libSrc = readFileSync(new URL('../../src/lib/foodbank.mjs', import.meta.url), 'utf8')
   assert.ok(libSrc.includes('export function riderFoodAsk'), 'the gate lives in the food lib beside the commons it serves')
-  assert.ok(libSrc.includes('a dry fuel ask pays for nothing') || libSrc.includes('A dry fuel ask pays for nothing'), 'the no-walk law is written where the gate lives')
+  assert.ok(libSrc.includes('never REACHED a chest pays for'), 'the no-walk law is written where the gate lives')
+  assert.ok(libSrc.includes('REACH is. The fuel commons'), 'the v0.526.0 widening names its law in the lib')
   assert.ok(libSrc.includes('the healthy lean is silent') || libSrc.includes('the healthy lean is silent, the fuel\n// anchor\'s own law'), 'the quiet-refusal law is written in the lib')
 })
 
