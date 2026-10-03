@@ -34,7 +34,12 @@ rm -f "$ROOT/data/worldmap.json"
 
 if [ "$BUILD_YARD" = "yes" ]; then
   echo "[fleet-run] building the workshop at spawn"
-  node "$ROOT/scripts/setup-yard.mjs" >/dev/null 2>&1 || true
+  # (v0.550.0) THE SHELL FENCE: the yard builder is its own little bot program -
+  # the same frozen-book class the fleet wires fenced (a silent login hangs the
+  # builder forever). The seat bounds it at the CALLER: whatever hangs inside,
+  # the yard build ends at 120s and the fleet still launches (the yard is
+  # optional - || true keeps the flow).
+  timeout 120 node "$ROOT/scripts/setup-yard.mjs" >/dev/null 2>&1 || true
 fi
 
 echo "[fleet-run] launching $BOTS bots for ${SECONDS_TO_RUN}s -> $LOG"

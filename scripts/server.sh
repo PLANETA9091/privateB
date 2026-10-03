@@ -95,7 +95,13 @@ case "${1:-status}" in
     echo "$JAVA_BIN"
     ;;
   cmd)
-    printf '%s\n' "$2" > "$DIR/cmd.fifo"
+    # (v0.550.0) THE SHELL FENCE: a fifo write with NO reader on the other end
+    # blocks forever (a dead JVM or a dead tail wrapper = nobody drains the
+    # fifo = the operator's console hangs eternally). The open happens INSIDE
+    # the timeout child - the parent's own redirection would block BEFORE
+    # timeout could ever arm. Args ride positionally (server commands carry
+    # spaces); no reader in 10s is an honest failure, not a hang.
+    timeout 10 bash -c 'printf "%s\n" "$1" > "$2"' _ "$2" "$DIR/cmd.fifo" || { echo "cmd: the fifo had no reader in 10s (server dead?)" >&2; exit 1; }
     ;;
   *)
     echo "usage: $0 start|stop|status|cmd \"<command>\""
