@@ -20,6 +20,7 @@ import {
   smeltRefusalCensusRow, SMELT_CENSUS_TOP,
   smeltNoFuelAnatomyRow,
   smeltNoFuelOwnerRow, SMELT_NO_FUEL_OWNER_MIN, SMELT_NO_FUEL_OWNER_LOCAL_SHARE,
+  pocketFuelBare, smeltNoFuelPantryRow,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
@@ -2286,4 +2287,79 @@ test('smeltNoFuelOwnerRow: THE WIRING PIN - the machine grain rides the no-fuel 
   const printIdx = src.indexOf('if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)')
   assert.ok(printIdx > anatomyPrintIdx, 'the owner map prints after its anatomy - the sibling law')
   assert.ok(src.includes('THE NO-FUEL OWNER MAP'), 'the wiring carries its own doctrine comment')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper: the
+// dry pocket's own depth. Wood the reserve floors protect vs nothing that
+// burns at all - the census family's ladder (census -> anatomy -> owner ->
+// pantry) reads the fuel front's thinness.
+// ---------------------------------------------------------------------------
+test('smeltNoFuelPantryRow: THE LIVE ANCHOR - the fleet 37144334720 face books the first split', () => {
+  // the anatomy's first verdict read dry 3 of 4 (the supply front); the
+  // pantry books that same 4's depth from this fire's next fleet - the shape
+  // pin rides the face's own total
+  const v = smeltNoFuelPantryRow([{ state: 'protected', count: 1 }, { state: 'bare', count: 3 }])
+  assert.equal(v, 'smelt no-fuel pantry: protected 1, bare 3 of 4 no-fuel refusals - the pockets hold nothing that burns - the commons\' source is the front')
+})
+
+test('smeltNoFuelPantryRow: the protected shape and the tie - the verdict reads the majority', () => {
+  // wood under the floors = the doctrine holds its line, the supply stays the front
+  const v = smeltNoFuelPantryRow([{ state: 'protected', count: 3 }, { state: 'bare', count: 1 }])
+  assert.equal(v, 'smelt no-fuel pantry: protected 3, bare 1 of 4 no-fuel refusals - the pockets hold wood the reserve floors protect - the floors hold their line, the supply stays the front')
+  // the split IS the data - fixed protected-then-bare order even on a tie
+  const t = smeltNoFuelPantryRow([{ state: 'protected', count: 2 }, { state: 'bare', count: 2 }])
+  assert.equal(t, 'smelt no-fuel pantry: protected 2, bare 2 of 4 no-fuel refusals - the split reads both fronts')
+  // the singular form keeps the census's own law
+  const one = smeltNoFuelPantryRow([{ state: 'bare', count: 1 }])
+  assert.equal(one, 'smelt no-fuel pantry: protected 0, bare 1 of 1 no-fuel refusal - the pockets hold nothing that burns - the commons\' source is the front')
+  // duplicate same-state entries merge - the face never prints a bucket twice
+  const m = smeltNoFuelPantryRow([{ state: 'protected', count: 2 }, { state: 'protected', count: 1 }])
+  assert.equal(m, 'smelt no-fuel pantry: protected 3, bare 0 of 3 no-fuel refusals - the pockets hold wood the reserve floors protect - the floors hold their line, the supply stays the front')
+})
+
+test('smeltNoFuelPantryRow: THE LEANNESS LAW and the junk battery', () => {
+  // empty / junk entries read silence - a run with zero no-fuel refusals never prints
+  assert.equal(smeltNoFuelPantryRow([]), null)
+  assert.equal(smeltNoFuelPantryRow('junk'), null)
+  assert.equal(smeltNoFuelPantryRow(), null)
+  assert.equal(smeltNoFuelPantryRow([{ state: 'bare', count: 0 }]), null)
+  assert.equal(smeltNoFuelPantryRow([{ state: 'bare', count: -3 }]), null)
+  assert.equal(smeltNoFuelPantryRow([{ state: 'bare', count: NaN }]), null)
+  // a junk state never enters - the feed computes the boolean itself
+  assert.equal(smeltNoFuelPantryRow([{ state: 'soaked', count: 2 }]), null)
+  assert.equal(smeltNoFuelPantryRow([{ state: null, count: 2 }, { state: 42, count: 1 }]), null)
+})
+
+test('pocketFuelBare: the grain reads the holdings, never the diet\'s verdict', () => {
+  // an empty pocket is bare
+  assert.equal(pocketFuelBare({ inventory: { items: () => [] } }), true)
+  // fuel-class wood below the reserve floors is NOT bare - the floors protect it
+  const woodBot = { inventory: { items: () => [{ name: 'oak_log', count: 3 }, { name: 'cobblestone', count: 40 }] } }
+  assert.equal(pocketFuelBare(woodBot), false)
+  // planks under the 8-floor read the same
+  const plankBot = { inventory: { items: () => [{ name: 'oak_planks', count: 5 }] } }
+  assert.equal(pocketFuelBare(plankBot), false)
+  // the solid fuel classes ride the same read
+  const solidBot = { inventory: { items: () => [{ name: 'coal', count: 1 }] } }
+  assert.equal(pocketFuelBare(solidBot), false)
+  // junk items alone never feed the pantry
+  const junkBot = { inventory: { items: () => [{ name: 'cobblestone', count: 64 }, { name: 'raw_iron', count: 7 }] } }
+  assert.equal(pocketFuelBare(junkBot), true)
+})
+
+test('smeltNoFuelPantryRow: THE WIRING PIN - the pantry grain rides the no-fuel seat, the face reads the depth', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /smeltNoFuelPantryRow[\s\S]*?from '\.\.\/src\/lib\/smelting\.mjs'/)
+  assert.match(src, /const finalSmeltNoFuelPantry = new Map\(\)/)
+  // the feed sits INSIDE the no-fuel guard, beside the machine grain's set
+  const machineIdx = src.indexOf('finalSmeltNoFuelMachine.set(ownerKey, (finalSmeltNoFuelMachine.get(ownerKey) || 0) + 1)')
+  const feedIdx = src.indexOf('finalSmeltNoFuelPantry.set(pantryState, (finalSmeltNoFuelPantry.get(pantryState) || 0) + 1)')
+  assert.ok(feedIdx > machineIdx, 'the pantry grain rides the same no-fuel seat')
+  assert.match(src, /pocketFuelBare\(miner\.bot\) \? 'bare' : 'protected'/)
+  // the print rides the report block right after the owner row
+  const ownerPrintIdx = src.indexOf('if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)')
+  const printIdx = src.indexOf('if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)')
+  assert.ok(printIdx > ownerPrintIdx, 'the pantry prints after its owner map - the sibling law')
+  assert.ok(src.includes('THE FUEL PANTRY'), 'the wiring carries its own doctrine comment')
 })

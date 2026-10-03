@@ -224,6 +224,51 @@ export function smeltNoFuelOwnerRow (entries) {
   return `smelt no-fuel owner: ${top.machine} carries ${top.count} of ${total} no-fuel refusals (${pct}%) - ${shape}`
 }
 
+// (v0.572.0) THE FUEL PANTRY - the anatomy's dry read one rung deeper. The
+// anatomy's first verdict landed (fleet 37144334720: dry 3 of 4 - the fuel
+// supply is the front) but 'dry' reads blind depth: pickFuel's own diet
+// (planks above 8, logs above 6, sticks above 2, solids above the junk coal
+// floor) can refuse a pocket that still HOLDS fuel-class wood - the reserve
+// doctrine protects the tool-bootstrap stock. A pocket holding wood the
+// floors protect ('protected') and a pocket holding nothing that burns at
+// all ('bare') read different thinness: the first says the wood pipeline ran
+// thin enough for the floors to bind (the floors hold their line - the
+// run46 doctrine is measured, the cure stays the supply), the second says
+// the commons' sources are drained. The grain is pocketFuelBare's own read -
+// the same fuel-class names pickFuel's diet eats (woodPick's three +
+// solidPick's five), so the pantry can never drift from the diet by
+// construction. Byte-stable: the anatomy's own fixed protected-then-bare
+// order and the majority verdict (a tie reads both fronts). Junk law: the
+// feed computes the boolean itself. Leanness: zero no-fuel refusals print
+// nothing (a subset of the census's own refusals by construction).
+export function pocketFuelBare (bot) {
+  const wood = countMatching(bot, /_planks$/) + countMatching(bot, LOG_RE) + countItem(bot, 'stick')
+  if (wood > 0) return false
+  for (const name of ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']) {
+    if (countItem(bot, name) > 0) return false
+  }
+  return true
+}
+
+export function smeltNoFuelPantryRow (entries) {
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if ((e?.state !== 'protected' && e?.state !== 'bare') || c === 0) continue
+    acc.set(e.state, (acc.get(e.state) || 0) + c)
+  }
+  const protectedCount = acc.get('protected') || 0
+  const bare = acc.get('bare') || 0
+  const total = protectedCount + bare
+  if (total === 0) return null
+  const verdict = protectedCount > bare
+    ? 'the pockets hold wood the reserve floors protect - the floors hold their line, the supply stays the front'
+    : (bare > protectedCount
+        ? 'the pockets hold nothing that burns - the commons\' source is the front'
+        : 'the split reads both fronts')
+  return `smelt no-fuel pantry: protected ${protectedCount}, bare ${bare} of ${total} no-fuel refusal${total === 1 ? '' : 's'} - ${verdict}`
+}
+
 // (v0.92.0) THE MACHINE DOOM TTL - a machine cell's doomed verdict lives 15s,
 // not the chest ledger's 45/90s. Run81 measured the cost of the long verdicts
 // on machines: F4 tried FIFTEEN bay machines, every walk refused 'doomed goal
