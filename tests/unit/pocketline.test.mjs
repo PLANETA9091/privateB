@@ -1033,3 +1033,42 @@ test('bankAttributionRow: THE WIRING PIN - the report row reads the same why led
   assert.ok(woIdx > 0 && baIdx > woIdx, 'the attribution row rides the report block AFTER the write-off row, both read finalBankWhys')
   assert.ok(src.includes("THE ATTRIBUTION'S HONEST TAIL"), 'the wiring carries its own doctrine comment')
 })
+
+// ---- (v0.557.0) THE THIRD WHY CLASS - the collision composition ----
+// fleet 37125612065's live face (the first WHY-tagged run) left F14 68u/11s
+// unexplained while the log held 'F14 final bank: 0 (chest unreachable (budget
+// exhausted (walk floor)))'. BOTH lanes fed the chain-refusal why at the same
+// seat (collision #47): the lane's 0.556.0 classifier won - root cause first,
+// F14's reason reads 'unreachable' (the exhaustion is the messenger, not the
+// cause). These pins hold the COMPOSITION: reason -> climbWhyClass ->
+// whyBookToken -> the face rows.
+
+test('writeOffRow: the F14 datum reads explained - the chain-refusal composition rides the strand', () => {
+  const f14 = inv([{ name: 'iron_ore', count: 68 }])
+  const reason = 'chest unreachable (budget exhausted (walk floor))'
+  const tok = whyBookToken(climbWhyClass(reason))
+  assert.equal(tok, 'unreachable', 'root cause first: the burned budget is the messenger, the unreachable chest is the class')
+  assert.strictEqual(writeOffRow([{ username: 'F14', ...f14 }], { whys: new Map([['F14', tok]]) }),
+    'final write-off: F14 68u/1s unreachable (the deadline pocket rode unbanked)',
+    'the third class rides the holder through the token law (dash allowed)')
+  const f13 = inv([{ name: 'coal', count: 155 }])
+  const f2 = inv([{ name: 'dirt', count: 169 }])
+  const book = new Map([['F2', 'doom-latched'], ['F13', 'night'], ['F14', tok]])
+  assert.strictEqual(bankAttributionRow(
+    [{ username: 'F2', stats: { banked: 0 }, ...f2 }, { username: 'F13', stats: { banked: 0 }, ...f13 }, { username: 'F14', stats: { banked: 0 }, ...f14 }],
+    { whys: book }),
+    'bank attribution: none deposited - stranded with pockets: F2 169u doom-latched, F13 155u night, F14 68u unreachable',
+    'all three measured classes ride one face (the 37125612065 strand anatomy)')
+})
+
+test('writeOffRow: THE WIRING PIN - the chain-refusal feed rides the chain-failure site (v0.557.0 composition)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const feedIdx = src.indexOf("finalBankWhys.set(name, chainTok)")
+  assert.ok(feedIdx > 0, 'the chain refusal feeds the why ledger through the classifier')
+  const chainIdx = src.indexOf('const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })')
+  const verdictIdx = src.indexOf('final bank: 0 (${res.reason})')
+  assert.ok(chainIdx > 0 && feedIdx > chainIdx && feedIdx < verdictIdx,
+    'the feed sits between the chain call and its zero-deposit line (the class known AT the refusal)')
+  assert.ok(src.includes('whyBookToken(climbWhyClass(res.reason))'),
+    'the composition rides: the chain reason classifies, the token law reshapes, other never rides')
+})
