@@ -14039,3 +14039,19 @@ Work Log:
 Stage Summary:
 - Master = b7f0f3b (pkg 0.571.0). The dispatch protocol now defaults to the calibrated 600s regime; the arrival seat's real verdict rides the fleet in flight.
 - NEXT FIRE: (1) read gate 37149135060 + the 600s fleet on b7f0f3b: SUCCESS = mine the face - expect 'fuel anchor: delivered N fuel overage (arrival seat: ok)' lines (the seat's first REAL flight), the anchor chest fed, the commons' dry reads falling, the banked/conversion band vs 1432/83.9%, the unaccounted watch vs 371. (2) The rate's next point rides the 600s regime (3.02/2.95/2.89 + the 300s run's 2.07 is NOT comparable - half-regime, boot-weighted). (3) The F5-class doom-latched climb strand (this run + the last run's F13 exhausted) - the deadline-pocket cures queue behind the arrival verdict. (4) Version next 0.572.0 (origin x3 pre-add/pre-commit/post-rebase; explicit paths; commit-before-rebase). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0330
+Agent: Super Z (main)
+Task: fire 0330 (cron 414125) - v0.572.0 THE FUEL PANTRY
+
+Work Log:
+- ORPHAN ADOPTION: the dir held an uncommitted complete improvement from a dead fire - the anatomy's dry read one rung deeper (smelting +45 / fleet19 +18 / tests +76). Adopted as-is, stash -> rebase -> pop clean.
+- COLLISIONS: #55 - the lane took 0.570.0 (THE ANCHOR'S ARRIVAL SEAT) AND 0.571.0 (THE CALIBRATED DEFAULT) mid-flight; re-slotted 0.570.0 -> 0.572.0, markers synced (smelting 1, fleet19 3, tests 1). Foreign worklog commit 9f9c360 absorbed by the pre-push rebase - push CLEAN attempt 1.
+- THE WIRE: pocketFuelBare reads the pocket with the diet's OWN fuel-class names so the pantry can never drift from the diet by construction; the pantry grain rides the SAME no-fuel seat as anatomy+owner (one guarded set, the grains can never split), fixed protected-then-bare order (a tie reads both fronts), the print right after the owner row. 'protected' = wood under the reserve floors - the floors hold their line, the cure stays the supply; 'bare' = nothing that burns - the commons' source is the front.
+- Tests: the live anchor at the 37144334720 face's own dry-3 split; the protected shape; the tie; the singular form; duplicate-merge; the leanness/junk battery; pocketFuelBare's holdings-read (empty bare, wood-not-bare, planks-under-floor, solid classes, junk-alone-bare); the wiring pin (the grain rides the machine set's seat, the print follows the owner row). Battery on the merged tree: syntax 436/0; unit 246/246. Server DOWN -> integration skip honest.
+- CI 37149488508 (push, 3b17d74) PENDING all fire - queued behind the b7f0f3b pair; ci-poll 8 attempts timed out. Fleet dispatch 37149142927 (b7f0f3b, 600s, the arrival seat's REAL first flight) IN_PROGRESS all fire -> NO dispatch from this fire (the one-active-run law).
+
+Stage Summary:
+- Master = 3b17d74 (pkg 0.572.0). The census family's ladder gains its fourth rung: census -> anatomy -> owner -> PANTRY - the no-fuel tax now reads its depth, not just its front.
+- NEXT FIRE: (1) read CI 37149488508 (3b17d74) - must be green; fix if red. (2) read fleet 37149142927 (b7f0f3b, 600s): SUCCESS = mine the face - the arrival seat's first REAL flight ('fuel anchor: delivered ... (arrival seat: ok)'), expect the PANTRY'S FIRST RIDE when 'no fuel' recurs. (3) Dispatch v0.572.0 when lawful - the pantry's first face. (4) Version next 0.573.0 (origin x3; explicit paths; commit-before-rebase; lane HOT - expect collisions, re-slot per protocol). Identity: PLANETA9091.
