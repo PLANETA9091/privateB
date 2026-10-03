@@ -33,7 +33,8 @@ import {
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
-  bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail
+  bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail,
+  SEAL_PLACE_TIMEOUT_MS // (v0.544.0) THE SEAL PLACE FENCE - the PILLAR lesson reaches the miner's own seal legs
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP, LENS_FOE_RANGE } from '../lib/combat.mjs'
 import { parseDeathMessage, inferenceVerdict } from '../lib/deathcause.mjs'
@@ -894,7 +895,24 @@ export function createMiner ({
             try {
               await bot.equip(item, 'hand')
               await bot.waitForTicks(5)
-              await bot.placeBlock(ref, off.scaled(-1)) // the face of ref that touches sealCell
+              // (v0.544.0) THE SEAL PLACE FENCE - this was the miner's last naked
+              // placeBlock. THE SEAM: mineflayer's placeBlock waits for a
+              // block-update event that never comes (the PILLAR lesson, the
+              // SEAL_PLACE law in surface.mjs) - a dead socket OR a stalled
+              // server (the v0.43.0 craft-storm class) left this promise
+              // UNSETTLED inside the quiet per-face catch: the catch never
+              // fires (it only hears settled rejections), the for-of never
+              // advances, sealWaitUnseal never returns, the shift iteration
+              // never ends - the 0.541.0 loop-top probe cannot read again, the
+              // deadline exit never fires, the attempt rides to the run's end
+              // as a frozen book. THE WIRE: the seal's OWN 3s cap (the
+              // SEAL_PLACE constant - the same machine, the same law) turns the
+              // hang into a caught timeout: the next face walks, the loop
+              // returns, the probe reads, the rebuild owns the rest. The equip
+              // and the verify waits stay outside the fence (the tools.mjs
+              // shape - equip resolves or dies on its own, waitForTicks
+              // self-times-out at ticks*50+5000ms, measured in physics.js).
+              await withTimeout(bot.placeBlock(ref, off.scaled(-1)), SEAL_PLACE_TIMEOUT_MS, 'seal face place') // the face of ref that touches sealCell
               await bot.waitForTicks(10)
               const placedB = bot.blockAt(sealCell)
               if (placedB && placedB.boundingBox !== 'empty') { sealed = true; break }
@@ -1263,7 +1281,11 @@ export function createMiner ({
           if (!item) break // stock ran dry mid-build
           try {
             await bot.equip(item, 'hand')
-            await bot.placeBlock(ref, new Vec3(0, 1, 0))
+            // (v0.544.0) the ring leg fenced by the same SEAL_PLACE law (the
+            // naked pair's second seat) - a hung placement lands in the
+            // round's catch, the ring's own patience owns the retry, the
+            // verify reads only after a SETTLED leg
+            await withTimeout(bot.placeBlock(ref, new Vec3(0, 1, 0)), SEAL_PLACE_TIMEOUT_MS, 'seal ring place')
             await bot.waitForTicks(2)
             placed = readClass(s.fx, y, s.fz) === 'solid'
           } catch { /* next round: a grazing mob moves off */ }
