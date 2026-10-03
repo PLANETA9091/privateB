@@ -653,11 +653,30 @@ async function digChestCover (bot, chestPos, openError, log, label = 'fuel chest
   return true
 }
 
-function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude, log = () => {} }) {
+function anchorChestBlock (bot, { yardCenter, radius, maxDistance, exclude, memory = null, log = () => {} }) {
   try {
     const cells = scanYardChests(bot, { yardCenter, radius, maxDistance, log })
     const usable = cells.filter(p => !exclude.some(e => e && e.x === p.x && e.y === p.y && e.z === p.z))
-    const anchor = pickFuelAnchor(usable, yardCenter)
+    // (v0.523.0) THE ASK-SIDE GRAVITY READ: the withdraw side already FEEDS the
+    // low-chest registry (the gravity discovery stamps every opened chest) - but
+    // its own anchor pick never READ it: the tithe delivered deep (the
+    // registry's whole point - the fuel moves to where the asks come from)
+    // while the ask still walked to the yard's nearest chest, a 20-37-level
+    // climb above the diggers' band the asks come from (the credited machines'
+    // smelt chains run at depth - the asks come from the band). The read closes
+    // the seam: the SAME scan-confirmed preference the delivery pick uses (it
+    // never injects a cell the walk cannot honestly target; the determinism
+    // rides inside) re-ranks the ask's anchor, and when the preference actually
+    // moves the pick, the ask names it (the field data for the gravity
+    // doctrine's ask half - the delivery half already logs its own pick). A
+    // null memory or an empty registry reads [] - the legacy pick byte for
+    // byte (every existing caller and test holds).
+    const lowCells = liveLowCells(memory, Date.now())
+    const legacyPick = pickFuelAnchor(usable, yardCenter)
+    const anchor = pickFuelAnchor(usable, yardCenter, lowCells)
+    if (anchor && legacyPick && (anchor.x !== legacyPick.x || anchor.y !== legacyPick.y || anchor.z !== legacyPick.z)) {
+      log(`fuel commons: the low registry re-ranks the anchor - the diggers'-band chest [${anchor.x},${anchor.y},${anchor.z}] is read first (the tithe delivered deep; the ask meets it there)`)
+    }
     if (!anchor) {
       log(`fuel commons: the anchor scan saw ${cells.length} chest(s), ${usable.length} usable after the empty memory - no anchor`)
       return null
@@ -1120,7 +1139,7 @@ export async function withdrawFuelCommons (bot, {
   // findChest opened chest after chest - the anchor died in this exclude.
   const freshEmpty = freshEmptyCells(memory, bot?.username, started)
   const anchorBlock = (anchorScan && yardCenter)
-    ? anchorChestBlock(bot, { yardCenter, radius: yardRadius, maxDistance, exclude: freshEmpty, log })
+    ? anchorChestBlock(bot, { yardCenter, radius: yardRadius, maxDistance, exclude: freshEmpty, memory, log })
     : null
   if (anchorBlock) log('fuel commons: the anchor chest is read first')
   for (let c = 0; c < maxChests; c++) {

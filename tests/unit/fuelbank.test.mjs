@@ -182,14 +182,19 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // --------------------------------------------------------- withdrawFuelCommons
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
-function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes = 0, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0 } = {}) {
+function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes = 0, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0, chestPos = null, extraBlocks = null } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   let ghostClicks = 0 // (v0.159.0) the one-shot ghost: the first N clicks die, the retry lands
   const chestSlots = Array.from({ length: 27 }, () => null)
   if (chestItem) chestSlots[0] = chestItem
   const pocket = Array.from({ length: 36 }, () => null)
   const slots = [...chestSlots, ...pocket]
-  const chestBlock = { name: 'chest', position: new Vec3(3.5, 64, 3.5) }
+  const chestBlock = { name: 'chest', position: chestPos ?? new Vec3(3.5, 64, 3.5) }
+  // (v0.523.0) the anchor-scan knobs: extraBlocks arms bot.findBlocks + blockAt
+  // (the anchor read's own scan path - the single-chest mock never had them),
+  // and openChest stamps __opened on the block it opens so a test can read the
+  // PICK ORDER (which chest the anchor read first). The default path (no
+  // extraBlocks) is byte for byte the legacy mock - every existing test holds.
   let pathCalls = 0
   const bot = {
     username: 'FuelBot',
@@ -210,8 +215,15 @@ function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes
       }
     },
     findBlock: ({ matching }) => (chestItem || !openFails) && matching(chestBlock) ? chestBlock : null,
-    openChest: async () => {
+    findBlocks: extraBlocks
+      ? ({ matching }) => [chestBlock, ...extraBlocks].filter(b => matching(b))
+      : undefined,
+    blockAt: extraBlocks
+      ? p => [chestBlock, ...extraBlocks].find(b => Math.floor(b.position.x) === Math.floor(p.x) && Math.floor(b.position.y) === Math.floor(p.y) && Math.floor(b.position.z) === Math.floor(p.z)) ?? null
+      : undefined,
+    openChest: async block => {
       if (openFails) throw new Error('window dead')
+      if (block && block.position) block.__opened = (block.__opened || 0) + 1
       return {
         slots,
         close () { this.closed = true }
@@ -1718,4 +1730,67 @@ test('the funded forget wire: the tithe\'s delivered>0 completion erases the emp
   assert.ok(src.includes('export function forgetEmptyNear (memory, pos, radius = DRY_REARM_RADIUS)'), 'the forget shares the tidings radius by default')
   const sweep = src.indexOf('const remembered = liveEmptyCells(memory, bot?.username, started)')
   assert.ok(sweep > 0, 'the sweep\'s pre-exclusion lane is the one the forget falsifies')
+})
+
+// --------------------------------- (v0.523.0) THE ASK-SIDE GRAVITY READ
+test('THE ASK-SIDE GRAVITY READ: the ask meets the tithe at the deep chest (the low registry re-ranks the anchor)', async () => {
+  // the withdraw side always FED the low registry (the gravity discovery) but
+  // never READ it: the tithe delivered deep while the ask climbed 24 blocks to
+  // the yard's nearest chest. With the registry holding the diggers'-band
+  // cell, the ask's anchor re-ranks and the ask meets the delivery at depth.
+  const deepBlock = { name: 'chest', position: new Vec3(3.5, 40, 3.5) } // dy 24 below the yard - the diggers' band
+  const world = mockChestWorld({
+    chestItem: item('coal', 30),
+    botPos: new Vec3(0.5, 40, 0.5), // the asker stands at depth - the doctrine's own picture
+    extraBlocks: [deepBlock]
+  })
+  const memory = newCommonsMemory()
+  assert.ok(rememberLowChest(memory, { x: 3, y: 40, z: 3 }, 64, Date.now()), 'the band cell remembers (dy 24)')
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, {
+    itemsNeeded: 40,
+    budgetMs: 5000,
+    yardCenter: new Vec3(0, 64, 0),
+    memory,
+    log: m => lines.push(m)
+  })
+  assert.equal(res.reason, 'ok')
+  assert.equal(res.taken, 5, 'ceil(40/8) = 5 coal, the verified diff')
+  assert.ok(lines.some(l => /the low registry re-ranks the anchor - the diggers'-band chest \[3,40,3\] is read first/.test(l)), 'the re-rank names itself (the gravity doctrine\'s ask half)')
+  assert.ok(lines.some(l => /the anchor chest is read first/.test(l)), 'the anchor read proceeds')
+  assert.equal(deepBlock.__opened, 1, 'the deep chest is read first (the re-ranked anchor)')
+  assert.ok(!world.chestBlock.__opened, 'the yard chest is never opened - the ask met the delivery at depth')
+})
+
+test('THE ASK-SIDE GRAVITY READ: an empty registry keeps the legacy pick byte for byte (no re-rank line)', async () => {
+  // the yard-level asker with NO low cells: the anchor is the yard-nearest
+  // chest exactly as before - the seam read is a no-op on the healthy path.
+  const deepBlock = { name: 'chest', position: new Vec3(3.5, 40, 3.5) }
+  const world = mockChestWorld({
+    chestItem: item('coal', 30),
+    extraBlocks: [deepBlock]
+  })
+  const memory = newCommonsMemory() // empty - nothing delivered deep yet
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, {
+    itemsNeeded: 40,
+    budgetMs: 5000,
+    yardCenter: new Vec3(0, 64, 0),
+    memory,
+    log: m => lines.push(m)
+  })
+  assert.equal(res.reason, 'ok')
+  assert.equal(res.taken, 5)
+  assert.ok(!lines.some(l => /re-ranks the anchor/.test(l)), 'no re-rank line on the legacy pick')
+  assert.ok(lines.some(l => /the anchor chest is read first/.test(l)), 'the anchor read still proceeds')
+  assert.equal(world.chestBlock.__opened, 1, 'the legacy anchor opens the yard-nearest chest')
+  assert.ok(!deepBlock.__opened, 'the deep chest waits - the registry never injected it')
+})
+
+test('THE ASK-SIDE GRAVITY READ: the source pins (the wire reads the registry it feeds, the memory rides the call)', () => {
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(src, /THE ASK-SIDE GRAVITY READ: the withdraw side already FEEDS the/, 'the wire is versioned where the seam lives')
+  assert.match(src, /the low registry re-ranks the anchor - the diggers'-band chest/, 'the re-rank line names the deep chest and the doctrine')
+  assert.match(src, /exclude: freshEmpty, memory, log/, 'the ask\'s anchor call carries the commons memory')
+  assert.match(src, /pickFuelAnchor\(usable, yardCenter, lowCells\)/, 'the pick reads the live low cells (the delivery preference at the ask)')
 })
