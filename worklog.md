@@ -14071,3 +14071,19 @@ Work Log:
 Stage Summary:
 - Master = 0d0cdd5 (pkg 0.573.0). The smelting pipeline's first red is diagnosed to the tick and cured at both carve ladders.
 - NEXT FIRE: (1) read CI 37150658096 (0d0cdd5): SUCCESS = integration green (the handoff's first flight); if red, the smelt log now NAMES the flood class per attempt. (2) read fleet 37149142927 (b7f0f3b): the arrival seat's first REAL face - expect 'fuel anchor: delivered ... (arrival seat: ok)', the anchor chest fed, the unaccounted watch vs 371. (3) Dispatch v0.573.0 when lawful - the pantry + the handoff share one face. (4) Version next 0.574.0 (origin x3; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0430
+Agent: Super Z (main)
+Task: fire 0430 (cron 414125) - v0.574.0 THE UNREACHABLE OWNER MAP
+
+Work Log:
+- HANDOVER READS (all green): CI 37150897347 (8c7662c) SUCCESS - the late-flood handoff's first flight green. Fleet 37149142927 (b7f0f3b, 600s) SUCCESS - the face mined: mined=1825, banked=288, smelted=0, unaccounted=563 (30.8%, the watch shelf spoke), conversion=69.2%, kicks=14/reconnects=23 spread; the SMELT CENSUS LEADER FLIPPED - machine unreachable 9 of 12 (no fuel down to 2), the anchor chests read empty 38x, coal 0.
+- THE WIRE: smeltUnreachableOwnerRow - the owner family's second seat on the SAME grain laws (SMELT_NO_FUEL_OWNER_MIN=3 trip, SMELT_NO_FUEL_OWNER_LOCAL_SHARE=0.5 boundary - one grain law, the drift impossible), the grain rides the census's own feed seat ('machine unreachable' guard beside the no-fuel family), the print after the pantry (the sibling law); the verdict forms name the unreachable class's own cures - the cell, not the fuel load.
+- Tests: the live anchor at the face's own 9-of-12; the spread form; the 0.5 boundary; the floor trip; the junk/leanness battery; the merge law; the wiring pin. One authored-pin bug caught pre-push (blast_furnace sorts before furnace on the machine-asc tie). Battery: syntax 436/0; unit 246/246 (smelting 156/156). Server DOWN -> integration skip honest.
+- Version 0.574.0 (origin pre-add = 0.573.0 - NO collision). Commit 2a983e1, push CLEAN attempt 1.
+- DISPATCH: no dispatch-run active -> POST 204 -> fleet 37152700148 on 2a983e1 (600s) - the pantry's first face, the handoff's fleet flight, and the unreachable owner map's first ride share one face.
+
+Stage Summary:
+- Master = 2a983e1 (pkg 0.574.0). The owner family has two seats; the census's leader class is no longer blind.
+- NEXT FIRE: (1) read fleet 37152700148 (2a983e1, 600s): SUCCESS = mine the face - expect 'smelt unreachable owner: ...', the pantry's first split, the handoff lines on wet carves, the anchor chest fed. (2) read CI on 2a983e1. (3) The unaccounted leak grew 371 -> 563 - the write-off/pocket front queues. (4) airGlitches=505 waits for its census. (5) Version next 0.575.0 (origin x3; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
