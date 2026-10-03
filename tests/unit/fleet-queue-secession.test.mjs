@@ -50,3 +50,23 @@ test('the secession comment carries the evidence trail', () => {
   assert.match(yml, /THE FLEET-QUEUE SECESSION/,
     'the law and its reason must live beside the law');
 });
+
+// (v0.571.0) THE CALIBRATED DEFAULT - fleet 37147076203 (the v0.570.0 tree)
+// launched for 300s because a dispatcher passed run_fleet=true but no
+// fleet_seconds and BOTH defaults (the input's and the launch step's
+// fallback) said 300. A half-regime run: the cadence economy never armed
+// (zero bank trips, every smelt read 'nothing to smelt', the arrival seat
+// silent by the lean law), pockets rode unbanked into a doom-latched
+// write-off - and no row of the face vocabulary can read it. The rate
+// points, the crater decodes and every census row calibrate on the 600s
+// regime the 18-minute step cap is already sized for. The two sites must
+// agree, and both must say 600.
+test('the calibrated default: both fleet_seconds sites read 600 - a dispatcher omission cannot price a half-regime run', () => {
+  const inputDefault = yml.match(/fleet_seconds:\s*\n\s*description:\s*'([^']*)'\s*\n\s*required:\s*false\s*\n\s*default:\s*'(\d+)'/);
+  assert.ok(inputDefault, 'the fleet_seconds input block exists');
+  assert.equal(inputDefault[2], '600', "the input's default is the calibrated 600s regime");
+  const launch = yml.match(/fleet19\.mjs 19 \$\{\{ inputs\.fleet_seconds \|\| '(\d+)' \}\}/);
+  assert.ok(launch, 'the launch line reads the input with a fallback');
+  assert.equal(launch[1], '600', "the launch fallback equals the input's default (the two sites agree)");
+  assert.match(yml, /THE CALIBRATED DEFAULT/, 'the law and its reason live beside the law (the evidence-trail shape)');
+});

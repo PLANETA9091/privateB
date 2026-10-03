@@ -11,9 +11,9 @@ on:
         required: false
         default: 'false'
       fleet_seconds:
-        description: 'Big fleet duration in seconds (default 300)'
+        description: 'Big fleet duration in seconds (default 600 - the calibrated regime every face reads)'
         required: false
-        default: '300'
+        default: '600'
 
 concurrency:
   # (v0.331.0) THE FLEET-QUEUE SECESSION: one shared group let CI push-churn
@@ -201,7 +201,18 @@ jobs:
           # server console (infrastructure, not bot gifts - bots stay survival,
           # no op); setworldspawn pins respawns to the yard floor.
           node scripts/setup-yard.mjs
-          node --expose-gc testbed/fleet19.mjs 19 ${{ inputs.fleet_seconds || '300' }} sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
+          # (v0.571.0) THE CALIBRATED DEFAULT - the fallback here must equal the
+          # input's default: fleet 37147076203 (the v0.570.0 tree) launched for
+          # 300s because a dispatcher passed run_fleet=true but no fleet_seconds,
+          # and BOTH defaults said 300 - a half-regime run the whole face
+          # vocabulary cannot read (the cadence economy never armed: zero bank
+          # trips, every smelt read 'nothing to smelt', the arrival seat silent
+          # by the lean law, pockets rode unbanked into a doom-latched write-off).
+          # The rate points (3.02/2.95/2.89), the crater decodes and every
+          # census row calibrate on the 600s regime the 18-minute step cap
+          # (v0.246.0) is already sized for - a dispatcher's omission must
+          # never price a run outside the calibration.
+          node --expose-gc testbed/fleet19.mjs 19 ${{ inputs.fleet_seconds || '600' }} sand,gravel,dirt,stone 2>&1 | tee /tmp/fleet19.log
       - name: Upload fleet log
         if: always()
         uses: actions/upload-artifact@v4
