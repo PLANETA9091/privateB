@@ -87,3 +87,10 @@ test('REGRESSION PIN: the yard build creates NO active dimension portals (the se
   assert.ok(src.includes("fill(X(19), Y(2), Z(-2), X(20), Y(4), Z(-2), 'minecraft:air')"), 'the nether frame interior reads air (the landmark stays, the hazard dies)')
   assert.ok(src.includes("'minecraft:obsidian')\n  label(X(18), Y(6), Z(-2), 'NETHER (SEALED)')") || src.includes('NETHER (SEALED)'), 'the label names the seal (the field reads the truth)')
 })
+
+test('THE WIRING (v0.551.0): the yard survey login rides the 0.546.0 settle machine', () => {
+  const src = readFileSync(new URL('../../scripts/setup-yard.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes("import { createLoginReady } from '../src/lib/loginfence.mjs'"), 'the machine import present')
+  assert.equal((src.match(/bot\.once\('spawn', resolve\)/g) || []).length, 0, 'ZERO naked spawn-await legs - the frozen-book seat is dead')
+  assert.equal((src.match(/await createLoginReady\(bot\)/g) || []).length, 1, 'exactly one machine seat')
+})

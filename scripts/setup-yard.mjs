@@ -37,6 +37,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import mineflayer from 'mineflayer'
+import { createLoginReady } from '../src/lib/loginfence.mjs'
 import { tallyYardBlocks, yardVerdict } from '../src/lib/yardcheck.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -134,10 +135,13 @@ function buildYard (ox, oy, oz) {
 
 async function surfaceY () {
   const bot = mineflayer.createBot({ host: '127.0.0.1', port: 25565, username: 'YardSurvey', version: '26.2', auth: 'offline' })
-  await new Promise((resolve, reject) => {
-    bot.once('spawn', resolve)
-    bot.once('error', reject)
-  })
+  // (v0.551.0) THE YARD'S LOGIN SETTLES: the naked spawn-await carried the two
+  // holes the fleet's ready promise carried before 0.546.0 - a clean close during
+  // login emits 'end' (never wired: the promise hung forever) and the silence
+  // class (TCP accepted, nothing fires) had no bound. The 0.546.0 machine
+  // settles every branch (end/error named, the 60s fence, settle-once); the
+  // 0.550.0 caller fence (timeout 120) stays the outer net.
+  await createLoginReady(bot)
   const { Vec3 } = await import('vec3')
   // long flights can outrun chunk sending in a brand new world, so build the yard at the
   // spot the server spawned us on (that IS the spawn area) instead of flying to 0,0
