@@ -60,6 +60,7 @@ import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pin
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
 import { deathKindCensus } from '../../src/lib/deathkinds.mjs' // (v0.425.0) the vertical-death front's mechanical leg
 import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the hound presence's field read
+import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
 const file = process.argv[2]
 if (!file) { console.error('usage: decompose.mjs <fleet19.log> [priorFace.log]'); process.exit(1) }
@@ -81,6 +82,18 @@ const perBot = (re) => {
   return m
 }
 const fmt = (m) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'
+
+// (v0.546.0) THE FACE FATE - the reader's own account row, FIRST: which of
+// the three endings this log carries (result / partial / none - the frozen
+// book). The v0.358.0 lesson was a comment, not a row: a truncated
+// artifact read exactly like a complete one until the human scrolled.
+{
+  const ff = faceFate(lines)
+  console.log('=== FACE FATE ===')
+  if (ff.fate === 'result') console.log(`  fate: FLEET RESULT (reason: ${ff.reason}) - the complete account follows`)
+  else if (ff.fate === 'partial') console.log(`  fate: PARTIAL EVIDENCE - the report block absent, the kill's own line landed (${ff.line.slice(0, 110)}) - the counters exist, the full account does not`)
+  else console.log(`  fate: NO FINAL REPORT - ${ff.why}`)
+}
 
 console.log('=== DEATHS ===')
 // (v0.389.0) THE HONEST DEATH SWEEP - the old keyword bucket
