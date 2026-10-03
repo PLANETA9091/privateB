@@ -596,7 +596,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
  *   smelted - VERIFIED output items that landed in the bot inventory
  *   rescued - abandoned output claimed from an idle machine (leftovers of an earlier
  *             visit whose owner died / disconnected - fleet property, nobody is coming)
- *   reason  - 'ok' | 'busy' | 'no fuel' | 'input transfer failed' | 'timeout' | ...
+ *   reason  - 'ok' | 'busy' | 'busy cold' (the v0.521.0 visit-side census: a
+ *             stalled input over an empty fuel slot - the sweep re-plans it)
+ *             | 'no fuel' | 'input transfer failed' | 'timeout' | ...
  */
 export async function smeltBatch (bot, {
   machineBlock,
@@ -904,6 +906,25 @@ export async function smeltBatch (bot, {
     // LIVE input slot still reads busy; an uncredited fuel still reads busy
     // (the failed pull's honest gate).
     if (furnace.inputItem() || (!fuelCredited && furnace.fuelItem())) {
+      // (v0.521.0) THE VISIT-SIDE CENSUS: the busy verdict names its shape - the
+      // visit's honest read of the two laws the sweep already splits (v0.520.0).
+      // input + fuel is a LIVE batch (burning, sacred, byte for byte); input
+      // over an EMPTY fuel slot is the STALLED shape - vanilla never starts it,
+      // every later visit would wall on it, and only the sweep's rescue
+      // re-plans the input. The visit never takes: the owner's fuel leg may be
+      // mid-walk, and a visit-side take would race it - the sweep is the lawful
+      // rescuer (the no-plan cadence). The census is the field data: the
+      // attempts name 'busy cold', the zero-verdict line carries it, and the
+      // fleet faces can count the stalled class at the visit cadence for the
+      // first time (the sweep census already counts its own side).
+      let stalled = false
+      if (furnace.inputItem()) {
+        try { stalled = !furnace.fuelItem() } catch { stalled = false /* a dead window reads the conservative gate */ }
+      }
+      if (stalled) {
+        log(`${tag} smelt: ${machineBlock.name} reads busy cold - a stalled input over an empty fuel slot (vanilla never starts it; the sweep re-plans the input)`)
+        return { smelted, rescued, fired: 0, reason: 'busy cold' }
+      }
       return { smelted, rescued, fired: 0, reason: 'busy' }
     }
 

@@ -2044,3 +2044,52 @@ test('THE LOAN ROUNDS: the source pins (the winner empties, the loan returns, th
   assert.match(src, /takeFuel\(\), 5000, 'take leftover fuel'/, 'the completed visit empties the winner machine (the v0.92.0 law - no anchor target ever exists)')
   assert.match(src, /takeFuel\(\), 5000, 'take fuel back'/, 'the timeout visit returns the loan whole (the v0.515.0 law)')
 })
+
+// ---------------------------------------------------- (v0.521.0) THE VISIT-SIDE CENSUS
+test('smeltBatch: a stalled input over an empty fuel slot reads busy cold - named, never taken', async () => {
+  // the visit-side half of the v0.520.0 split: the sweep RESCUES the stalled
+  // shape on its cadence, the visit NAMES it (the census) and walks away - the
+  // owner's fuel leg may be mid-walk, the sweep is the lawful rescuer.
+  const furnace = new MockFurnace({ startInput: item('sand', 6) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 2)] })
+  const lines = []
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.smelted, 0, 'a cold machine never smelts')
+  assert.equal(res.reason, 'busy cold', 'the census names the stalled shape (not plain busy)')
+  assert.equal(furnace.slots[0]?.count, 6, 'the input STAYS - the visit never takes (no race with the fuel leg)')
+  assert.equal(furnace.slots[1], null, 'no fuel appeared - the shape is the honest cold one')
+  assert.ok(furnace.closed, 'the visit closed the window')
+  assert.ok(lines.some(l => /reads busy cold - a stalled input over an empty fuel slot/.test(l)), 'the census line rides the smelt lane')
+  assert.equal(smeltZeroWhy([{ name: 'sand', machine: 'furnace', reason: 'busy cold' }]), 'sand@furnace: busy cold', 'the zero-verdict line carries the census to the fleet face')
+})
+
+test('smeltBatch: a LIVE batch (input + fuel) reads busy plain - no census line', async () => {
+  const furnace = new MockFurnace({ startInput: item('gravel', 8), startFuel: item('coal', 2) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('sand', 4), item('coal', 2)] })
+  const lines = []
+  const res = await smeltBatch(bot, { machineBlock: furnace, inputName: 'sand', count: 4, ...FAST, log: m => lines.push(m) })
+  assert.equal(res.reason, 'busy', 'the LIVE law byte for byte')
+  assert.ok(!lines.some(l => /busy cold/.test(l)), 'a burning batch is never called cold')
+})
+
+test('THE VISIT-SIDE CENSUS: the attempts carry the stalled class end to end', async () => {
+  // a METAL leg (raw_iron): the junk window's coal floor would refuse a sand
+  // leg's fuel plan before any walk - the metal window's coal-first order
+  // reaches the machine and the census names the stall in the attempts.
+  const furnace = new MockFurnace({ startInput: item('raw_iron', 6) })
+  const bot = makeMockBot({ machines: [furnace], items: [item('raw_iron', 3), item('coal', 2)] })
+  const res = await smeltInventory(bot, { ...FAST })
+  assert.equal(res.smelted, 0)
+  const hit = res.attempts.find(a => a.reason === 'busy cold')
+  assert.ok(hit, 'the honest attempts name the stalled machine')
+  assert.equal(hit.machine, 'furnace', 'the census names the machine kind')
+  assert.equal(hit.name, 'raw_iron', 'the census names the input the stall holds')
+})
+
+test('THE VISIT-SIDE CENSUS: the source pins (the wire names its shape, the no-take law, the doc enum)', () => {
+  const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(src, /THE VISIT-SIDE CENSUS: the busy verdict names its shape/, 'the wire is versioned where the law lives')
+  assert.match(src, /reads busy cold - a stalled input over an empty fuel slot/, 'the census line names the vanilla law')
+  assert.match(src, /rescuer \(the no-plan cadence\)/, 'the visit never takes - the sweep owns the rescue cadence')
+  assert.match(src, /'busy cold' \(the v0\.521\.0 visit-side census/, 'the doc enum carries the new reason')
+})
