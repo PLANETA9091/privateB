@@ -116,6 +116,45 @@ export function smeltZeroWhy (attempts) {
   return parts.length ? parts.join('; ') : 'nothing to smelt'
 }
 
+// (v0.561.0) THE SMELT-REFUSAL CENSUS - smelted was a fleet number with no
+// refusals map: three straight fleets read smelted=24/13/8 of ~1700 mined and
+// no line said why the chain starved ('F17 smelt: 0 (raw_copper@blast_furnace:
+// machine unreachable (visit budget spent (walk slice)))' rode the run log,
+// the final face never summed it). The census sums the honest zero's OWN data
+// (the v0.89.0 attempt reasons) per class. THE GRAIN IS THE REASON'S STABLE
+// HEAD - everything before the parenthesized detail ('machine unreachable',
+// 'no fuel'): the details carry per-run clocks ('walk slice') whose bytes
+// never repeat, so an authored taxonomy from two sightings would be a guess -
+// the heads are the data's own classes. Junk law: a junk reason reads
+// 'unknown', an impossible count is skipped (never a phantom attempt). The
+// plan-empty case never feeds (an empty attempts array has no entries), so a
+// healthy run prints nothing - the leanness law holds by construction. Byte-
+// stable: count desc, reason asc on ties, the top classes only.
+export const SMELT_CENSUS_TOP = 3
+
+/**
+ * The run's smelt-refusal census: why did the chain starve?
+ * @param {Array<{reason?: string, count?: number}>} entries the summed refusals
+ * @returns {string|null} the census line, null when nothing refused
+ */
+export function smeltRefusalCensusRow (entries) {
+  // the accumulator MERGES same-head entries - duplicate keys are the
+  // caller's arithmetic accident and the face never prints a class twice
+  const acc = new Map()
+  for (const e of (Array.isArray(entries) ? entries : [])) {
+    const r = (typeof e?.reason === 'string' && e.reason.trim() !== '') ? e.reason.trim() : 'unknown'
+    const c = (Number.isFinite(e?.count) && Math.floor(e.count) > 0) ? Math.floor(e.count) : 0
+    if (c === 0) continue
+    acc.set(r, (acc.get(r) || 0) + c)
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total === 0) return null
+  const good = [...acc].map(([reason, count]) => ({ reason, count }))
+  good.sort((a, b) => (b.count - a.count) || (a.reason < b.reason ? -1 : 1))
+  const top = good.slice(0, SMELT_CENSUS_TOP).map(x => `${x.reason} ${x.count}`).join(', ')
+  return `smelt refusal census: ${top} of ${total} refused attempt${total === 1 ? '' : 's'} - the smelt chain names its tax`
+}
+
 // (v0.92.0) THE MACHINE DOOM TTL - a machine cell's doomed verdict lives 15s,
 // not the chest ledger's 45/90s. Run81 measured the cost of the long verdicts
 // on machines: F4 tried FIFTEEN bay machines, every walk refused 'doomed goal

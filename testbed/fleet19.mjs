@@ -35,7 +35,7 @@ import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
 import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
-import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
+import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
@@ -187,6 +187,9 @@ const finalBankDoomByBot = new Map()
 // CLASS (the census's WHY side - the walk-level WHO already lives above).
 // Fed at the census's own increment site, printed by the doom-why row.
 const finalBankDoomWhy = new Map()
+// (v0.561.0) the smelt chain's refusal census ledger - the honest zero's
+// attempt reasons sum here per stable head, the final face reads the sum
+const finalSmeltRefusals = new Map()
 
 // Bank what the bot carries, smelting on the way. (v0.17.2) ORDER MATTERS: the
 // furnaces AND the chest warehouse both live at the yard (spawn) - fleet #122's
@@ -711,6 +714,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
         // {name, reason} and mine {name, machine, reason} - and the empty
         // attempts array reads 'nothing to smelt', the plan-empty case.)
         console.log(`${miner.username} smelt: 0 (${smeltZeroWhy(res.attempts)})`)
+        // (v0.561.0) the same attempts feed the run's refusal census - the
+        // reason's stable head (before the parenthesized detail) is the grain,
+        // so the row's classes stay byte-stable across runs without an
+        // authored taxonomy; the plan-empty case never feeds (an empty
+        // attempts array has no entries - the leanness law by construction)
+        for (const sa of (Array.isArray(res.attempts) ? res.attempts : [])) {
+          const sr = (typeof sa?.reason === 'string' && sa.reason.trim() !== '') ? sa.reason.split(' (')[0].trim() : 'unknown'
+          finalSmeltRefusals.set(sr, (finalSmeltRefusals.get(sr) || 0) + 1)
+        }
       }
       // (v0.146.0) THE IRON COMMUNE - run49 (36008932449, the v0.145.0
       // composite) smelted the fleet's first iron ingots (F18 1 + F3 2) and
@@ -3920,6 +3932,14 @@ if (doomCensus) console.log(doomCensus)
 // boundary apply; silent under the same leanness law).
 const doomWhy = doomWhyRow([...finalBankDoomWhy].map(([cls, cycles]) => ({ cls, cycles })))
 if (doomWhy) console.log(doomWhy)
+// (v0.561.0) THE SMELT-REFUSAL CENSUS - smelted was a fleet number with no
+// refusals map: three straight fleets read smelted=24/13/8 of ~1700 mined
+// and no line summed why the chain starved. The honest zero's own attempt
+// reasons (the v0.89.0 data) ride the census; a run whose smelt legs never
+// refused prints nothing (the leanness law - the plan-empty 'nothing to
+// smelt' is a healthy empty, never a tax).
+const smeltCensus = smeltRefusalCensusRow([...finalSmeltRefusals].map(([reason, count]) => ({ reason, count })))
+if (smeltCensus) console.log(smeltCensus)
 // (v0.320.0) THE POCKET-ANATOMY ROW - the write-off row named the holders but
 // never judged their SHAPE: fleet 36606754498 read pocket=1349u across 8
 // stakes (top 182u = 13.5%) and the cure differs by shape - a whale pocket is

@@ -17,6 +17,7 @@ import {
   sweepFinishedSmelts,
   sweepCensusLine,
   smeltWalkReach, machineWithinReach, smeltZeroWhy, smeltBatchWaitMs, SMELT_REACH_OPEN_DISTANCE,
+  smeltRefusalCensusRow, SMELT_CENSUS_TOP,
   smeltFuelKeep, SMELT_FUEL_KEEP, MACHINE_DOOM_TTL_MS, SMELT_YARD_NEAR_DISTANCE,
   smeltInputKeep, SMELT_INPUT_KEEP,
   furnacePutCount, slotMismatchReason, FURNACE_SLOT_MAX,
@@ -2092,4 +2093,74 @@ test('THE VISIT-SIDE CENSUS: the source pins (the wire names its shape, the no-t
   assert.match(src, /reads busy cold - a stalled input over an empty fuel slot/, 'the census line names the vanilla law')
   assert.match(src, /rescuer \(the no-plan cadence\)/, 'the visit never takes - the sweep owns the rescue cadence')
   assert.match(src, /'busy cold' \(the v0\.521\.0 visit-side census/, 'the doc enum carries the new reason')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.561.0) THE SMELT-REFUSAL CENSUS - smelted was a fleet number with no
+// refusals map: three straight fleets read smelted=24/13/8 of ~1700 mined
+// and no line summed why the chain starved. The census sums the honest
+// zero's OWN attempt reasons (the v0.89.0 data) per STABLE HEAD - everything
+// before the parenthesized detail - because the details carry per-run clocks
+// whose bytes never repeat (an authored taxonomy from two sightings would be
+// a guess). Junk never feeds a phantom attempt; the plan-empty case never
+// feeds at all (the leanness law by construction); byte-stable ties.
+// ---------------------------------------------------------------------------
+
+test('smeltRefusalCensusRow: THE LIVE DATUM - the fleet 37130962121 refusal rides the census', () => {
+  assert.equal(SMELT_CENSUS_TOP, 3)
+  // the live line's class: 'raw_copper@blast_furnace: machine unreachable (visit budget spent (walk slice))'
+  const v = smeltRefusalCensusRow([
+    { reason: 'machine unreachable', count: 9 },
+    { reason: 'no fuel', count: 3 }
+  ])
+  assert.equal(v, 'smelt refusal census: machine unreachable 9, no fuel 3 of 12 refused attempts - the smelt chain names its tax')
+})
+
+test('smeltRefusalCensusRow: the byte-stable grain - ties sort by reason, the top cap holds', () => {
+  // count desc; equal counts sort reason asc (byte-stable across runs)
+  const v = smeltRefusalCensusRow([
+    { reason: 'no fuel', count: 2 },
+    { reason: 'machine unreachable', count: 2 },
+    { reason: 'doomed goal', count: 1 }
+  ])
+  assert.equal(v, 'smelt refusal census: machine unreachable 2, no fuel 2, doomed goal 1 of 5 refused attempts - the smelt chain names its tax')
+  // the top cap: only the top classes ride the face
+  const v2 = smeltRefusalCensusRow([
+    { reason: 'a', count: 5 }, { reason: 'b', count: 4 }, { reason: 'c', count: 3 }, { reason: 'd', count: 2 }
+  ])
+  assert.ok(v2.includes('a 5, b 4, c 3'), v2)
+  assert.ok(!v2.includes('d 2'), 'the cap holds')
+  // the singular form: one refused attempt reads the singular
+  const one = smeltRefusalCensusRow([{ reason: 'no fuel', count: 1 }])
+  assert.equal(one, 'smelt refusal census: no fuel 1 of 1 refused attempt - the smelt chain names its tax')
+})
+
+test('smeltRefusalCensusRow: THE LEANNESS LAW and the junk battery', () => {
+  // empty / junk / zero-count entries read silence - a healthy chain never prints
+  assert.equal(smeltRefusalCensusRow([]), null)
+  assert.equal(smeltRefusalCensusRow('junk'), null)
+  assert.equal(smeltRefusalCensusRow(), null)
+  assert.equal(smeltRefusalCensusRow([{ reason: 'machine unreachable', count: 0 }]), null)
+  assert.equal(smeltRefusalCensusRow([{ reason: 'machine unreachable', count: -3 }]), null)
+  assert.equal(smeltRefusalCensusRow([{ reason: 'machine unreachable', count: 'junk' }]), null)
+  assert.equal(smeltRefusalCensusRow([{ reason: 'machine unreachable', count: NaN }]), null)
+  // a junk reason never crashes the row - it reads 'unknown' (the honest count stands)
+  const j = smeltRefusalCensusRow([{ reason: null, count: 2 }, { reason: 42, count: 1 }, { reason: '   ', count: 1 }])
+  assert.equal(j, 'smelt refusal census: unknown 4 of 4 refused attempts - the smelt chain names its tax')
+})
+
+test('smeltRefusalCensusRow: THE WIRING PIN - the honest zero feeds the census, the face reads it', () => {
+  const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(src, /smeltRefusalCensusRow[\s\S]*?from '\.\.\/src\/lib\/smelting\.mjs'/)
+  assert.match(src, /const finalSmeltRefusals = new Map\(\)/)
+  // the feed sits BETWEEN the smelt-zero print and the iron-commune block -
+  // the reason is known AT the refusal, never reconstructed
+  const zeroIdx = src.indexOf("smelt: 0 (${smeltZeroWhy(res.attempts)})")
+  const feedIdx = src.indexOf('finalSmeltRefusals.set(sr, (finalSmeltRefusals.get(sr) || 0) + 1)')
+  const communeIdx = src.indexOf('THE IRON COMMUNE')
+  assert.ok(zeroIdx > -1 && feedIdx > zeroIdx && communeIdx > feedIdx, 'the feed rides the zero-verdict seat')
+  // the print rides the report block after the doom-why row
+  const printIdx = src.indexOf('const smeltCensus = smeltRefusalCensusRow')
+  const doomWhyIdx = src.indexOf("const doomWhy = doomWhyRow")
+  assert.ok(printIdx > doomWhyIdx, 'the census prints after the doom-why row')
 })
