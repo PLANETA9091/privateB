@@ -13341,3 +13341,20 @@ Work Log:
 Stage Summary:
 - Master = ec2739f (pkg 0.532.0). The scout's survival doctrine has four legs: eat -> gather -> get up -> hold the dark. The map's writer stops walking the kill window.
 - NEXT FIRE: (1) ci-stall FIRST (GITHUB_TOKEN needed) - the wall holds, dispatch unlawful without a green face; (2) the GET-UP's second point rides a face: the scout's death lines + the deaths count + the respawned patrol re-entry; the HOLD's second point rides a face too: the hold line vs the dawn resume (walked distance per patrol-hour, the held share); (3) fronts if verdict-less: the scout's seal-watch question (the 0.421.0 respawn accounting never reached the second bot), tool repair (face-gated), the below-bound tail (triply marked), the ledger's food shapes (face-gated); (4) version next 0.533.0 (CHECK ORIGIN FIRST - pre-add AND pre-commit AND post-rebase; explicit paths in git add; commit-before-rebase). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261003-1330
+Agent: cron30 (main lane, Job 414125)
+Task: fire 1330 - v0.533.0 THE SEAL WATCH'S SECOND SEAT landed (the respawn accounting reaches the scout; the wall holds, no dispatch).
+
+Work Log:
+- Open: fetch+rebase clean, origin 0.532.0 at 3f6ce59 (my own 1300 tip). ci-stall FIRST: STALLED, depth 2, oldest 610min, in-progress 0, zero pickups - the sixteenth confirmation. VERDICT READ: the 1300 code run 37099580907 (ec2739f) completed CANCELLED (the self-cancel law's prediction exact); the worklog run 37099631292 pending, the queue's newest. NO dispatch.
+- THE FRONT (the 1300 hand-away's lane): the seal-watch question priced honestly. The declare leg is NOT the scout's (no combat sentry - the GET-UP's own honest pricing; no risk semantics, the shelterDue gate would never arm honestly); the RESPAWN ACCOUNTING leg IS the scout's: the scout picks up seal-class spillage by proximity on the surface lanes, its death scattered the stake with no line pricing it - the miner's ledger read 'seal after respawn' lines, the scout's deaths were silent in that book.
+- THE WIRE (scout.mjs createDeathWatch): the seal stake rides the SAME guarded read the drop line spends (one inventory touch at death - the miner's exact law); the spawn listener pays ONCE at the first spawn after the death flag (login/dimension spawns gated out), the miner's exact 3000ms delayed read (the inventory syncs after the respawn packet). The declare leg's ABSENCE pinned in tests.
+- Tests: 4 new in scout (the floor arithmetic '64u of the 64u stake is gone'; no death no accounting; an empty stake says so; the source pins). Scout 23/23; syntax 423/0, unit 237/237. Server DOWN -> integration skipped (honest, nineteenth fire).
+- Version 0.532.0 -> 0.533.0 (pre-add AND pre-commit AND post-rebase: 0.532.0 all three, NO collision #35). The foreign untracked scripts/resolve-version.py untouched; explicit paths in git add. Commit ab31827, push CLEAN attempt 1 (3f6ce59..ab31827).
+- CI: run 37100469927 materialized for ab31827, pending at close - the self-cancel law kills it at this worklog push. NO dispatch.
+
+Stage Summary:
+- Master = ab31827 (pkg 0.533.0). The seal watch has two seats: the miner declares and accounts, the scout accounts its own deaths - the seal economy reads both bots' respawn books now.
+- NEXT FIRE: (1) ci-stall FIRST (GITHUB_TOKEN needed) - the wall holds, dispatch unlawful without a green face; (2) the seal-watch's face: the scout's 'seal after respawn' lines in the fleet log; the GET-UP/HOLD second points still face-gated; (3) fronts if verdict-less: the bare-read bootstrap pair (1125/1165, the honest leftover - price the spawn-window reachability), the ternary-guarded trio (892/3604/3870, named laws), tool repair (face-gated), the below-bound tail (triply marked), the ledger's food shapes (face-gated); (4) version next 0.534.0 (CHECK ORIGIN FIRST - pre-add AND pre-commit AND post-rebase; explicit paths in git add; commit-before-rebase). Identity: PLANETA9091.
