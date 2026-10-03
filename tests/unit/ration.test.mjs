@@ -94,6 +94,31 @@ test('ration: the wire is pinned in miner.mjs (setOpts + enableAuto + the honest
   assert.ok(src.includes("import { RATION_OPTS, rationVerdict, createRationGate } from '../lib/ration.mjs'"), 'the policy import is pinned (the fight table rides the same import)')
 })
 
+test('ration: the boot wire - the plugin touches ride inject_allowed (v0.548.0, the measured CI failure)', () => {
+  // THE MEASURED FAILURE: CI run 37109465432 (tree f448cb7) - both integration files
+  // died inside createMiner at the naked boot-level bot.autoEat.setOpts: mineflayer
+  // QUEUES every loadPlugin until 'inject_allowed' (plugin_loader.js loads the
+  // plugin only `if (loaded)`; loader.js:134 emits inject_allowed via setTimeout 0),
+  // so bot.autoEat does not exist in the createBot tick. The mocked unit battery
+  // could never catch the class (these pins read source bytes, not mineflayer) and
+  // the wall ate every integration run since the v0.503.0 green face - 44 versions
+  // of an instant boot crash. The lock: every bot.autoEat touch sits INSIDE the
+  // once('inject_allowed') wire - no naked boot-level statement survives.
+  for (const f of ['miner.mjs', 'scout.mjs']) {
+    const src = fs.readFileSync(path.join(root, 'src', 'bots', f), 'utf8')
+    // the wire form: the config surface rides inject_allowed, once per boot
+    assert.ok(src.includes("bot.once('inject_allowed', () => {"), `${f}: the boot wire rides inject_allowed (the plugins are real by then)`)
+    assert.ok(src.includes('bot.autoEat.setOpts(RATION_OPTS)'), `${f}: the policy still rides the plugin surface`)
+    // the old naked form is GONE: no two-space (boot-level) bot.autoEat statement
+    assert.ok(!/^ {2}bot\.autoEat\./m.test(src), `${f}: zero naked boot-level plugin touches (the createBot tick owns nothing)`)
+    // the eats' visibility moved WITH the wire (the subscriptions ride the same once)
+    assert.ok(src.includes("bot.autoEat.on('eatStart'"), `${f}: the attempt stays readable`)
+    assert.ok(src.includes("bot.autoEat.on('eatFinish'"), `${f}: the outcome stays readable`)
+    // the enable rides spawn AFTER the wire (spawn always follows inject_allowed)
+    assert.ok(/bot\.on\('spawn', \(\) => \{ try \{ bot\.autoEat\.enableAuto\(\) \} catch/.test(src), `${f}: the enable rides spawn, deferred and guarded`)
+  }
+})
+
 test('ration: the fleet tail filter carries the ration lines', () => {
   const src = fs.readFileSync(path.join(root, 'testbed', 'fleet19.mjs'), 'utf8')
   // the console filter gates what the run log prints - the ration lines must ride it

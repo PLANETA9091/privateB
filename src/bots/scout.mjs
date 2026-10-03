@@ -267,26 +267,34 @@ export function createScout ({
   // (the plugin's eatFinish fires in finally even for failed eats - the hunger delta
   // decides the verdict, never the hope).
   bot.loadPlugin(autoeat)
-  bot.autoEat.setOpts(RATION_OPTS)
   bot.on('spawn', () => { try { bot.autoEat.enableAuto() } catch { /* gone */ } })
   let rationAttempt = null
-  bot.autoEat.on('eatStart', opts => {
-    try {
-      rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
-      log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
-    } catch { rationAttempt = null }
-  })
-  bot.autoEat.on('eatFinish', async () => {
-    const a = rationAttempt
-    rationAttempt = null
-    if (!a) return
-    try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
-    try {
-      const f1 = Number.isFinite(bot.food) ? bot.food : null
-      const h1 = Number.isFinite(bot.health) ? bot.health : null
-      const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
-      log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
-    } catch { /* gone */ }
+  // (v0.548.0) THE BOOT WIRE - the miner's machine (the measured CI failure run
+  // 37109465432: mineflayer queues every loadPlugin until 'inject_allowed'
+  // (setTimeout 0), so the plugin's config surface does not exist in the createBot
+  // tick and the v0.511.0-era naked boot-level touches crash the boot). One
+  // doctrine, two bots: all three plugin touches ride the once, the spawn
+  // enableAuto stays event-deferred and try-guarded (spawn follows inject_allowed).
+  bot.once('inject_allowed', () => {
+    bot.autoEat.setOpts(RATION_OPTS)
+    bot.autoEat.on('eatStart', opts => {
+      try {
+        rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
+        log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
+      } catch { rationAttempt = null }
+    })
+    bot.autoEat.on('eatFinish', async () => {
+      const a = rationAttempt
+      rationAttempt = null
+      if (!a) return
+      try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
+      try {
+        const f1 = Number.isFinite(bot.food) ? bot.food : null
+        const h1 = Number.isFinite(bot.health) ? bot.health : null
+        const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
+        log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
+      } catch { /* gone */ }
+    })
   })
   // (v0.537.0) the pantry's counters join the book - two monotone integers of
   // the carry's own class (SCOUT_CARRY_FIELDS grew to six: the attempt rebuild

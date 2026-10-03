@@ -171,7 +171,6 @@ export function createMiner ({
   // the eater actually enabled, and the attempts made readable with the honest
   // before/after read (the plugin's eatFinish fires in finally even for failed
   // eats - the hunger/health delta decides the verdict, never the hope).
-  bot.autoEat.setOpts(RATION_OPTS)
   bot.on('spawn', () => { try { bot.autoEat.enableAuto() } catch { /* gone */ } })
   // (v0.513.0) THE FIGHT TABLE's sync: the gate counts, the plugin follows. One
   // reader - every hold/release site calls rationSync and the eater's enabled
@@ -180,23 +179,44 @@ export function createMiner ({
   const rationGate = createRationGate()
   const rationSync = () => { try { if (rationGate.armed) bot.autoEat.enableAuto(); else bot.autoEat.disableAuto() } catch { /* gone */ } }
   let rationAttempt = null
-  bot.autoEat.on('eatStart', opts => {
-    try {
-      rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
-      log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
-    } catch { rationAttempt = null }
-  })
-  bot.autoEat.on('eatFinish', async () => {
-    const a = rationAttempt
-    rationAttempt = null
-    if (!a) return
-    try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
-    try {
-      const f1 = Number.isFinite(bot.food) ? bot.food : null
-      const h1 = Number.isFinite(bot.health) ? bot.health : null
-      const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
-      log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
-    } catch { /* gone */ }
+  // ---- (v0.548.0) THE BOOT WIRE - the ration's plugin touches ride 'inject_allowed' ----
+  // THE MEASURED FAILURE (CI run 37109465432, job 111166246759, tree f448cb7, both
+  // integration files): createMiner died at the naked boot-level setOpts with
+  // "Cannot read properties of undefined (reading 'setOpts')" - mineflayer's
+  // plugin loader QUEUES every loadPlugin until 'inject_allowed' (plugin_loader.js:
+  // loadPlugin pushes to pluginList and invokes plugin(bot) only `if (loaded)`;
+  // loader.js:134 emits inject_allowed via setTimeout(0)), so in the createBot tick
+  // bot.autoEat does not exist yet. The v0.511.0 wire touched the config surface in
+  // that same tick - and since the v0.503.0 green face (the wall ate every
+  // integration run since) no suite ever executed a real boot again: the crash rode
+  // master invisible to the mocked unit battery (the wiring pins read source bytes,
+  // not mineflayer). The wire: all three plugin touches ride
+  // bot.once('inject_allowed') - mineflayer's own onInjectAllowed listener is
+  // registered inside createBot, so listener order guarantees the queued plugins
+  // were already invoked when ours fires: bot.autoEat exists, deterministically.
+  // The spawn enableAuto stays event-deferred and try-guarded (spawn always
+  // follows inject_allowed - the opts land first); the gate and rationSync keep
+  // their guarded reads (junk-safe).
+  bot.once('inject_allowed', () => {
+    bot.autoEat.setOpts(RATION_OPTS)
+    bot.autoEat.on('eatStart', opts => {
+      try {
+        rationAttempt = { item: opts?.food?.name ?? 'unknown', f0: Number.isFinite(bot.food) ? bot.food : null, h0: Number.isFinite(bot.health) ? bot.health : null }
+        log(`${tag} ration: eating ${rationAttempt.item} (hunger ${rationAttempt.f0 ?? '?'}, hp ${rationAttempt.h0 ?? '?'}, ${rationVerdict({ food: bot.food, health: bot.health }).reason})`)
+      } catch { rationAttempt = null }
+    })
+    bot.autoEat.on('eatFinish', async () => {
+      const a = rationAttempt
+      rationAttempt = null
+      if (!a) return
+      try { await bot.waitForTicks(3) } catch { return } // the client's own stats packet lands a tick or two late - the read waits for it
+      try {
+        const f1 = Number.isFinite(bot.food) ? bot.food : null
+        const h1 = Number.isFinite(bot.health) ? bot.health : null
+        const ok = (f1 !== null && a.f0 !== null && f1 > a.f0) || (h1 !== null && a.h0 !== null && h1 > a.h0)
+        log(`${tag} ration: ${ok ? 'ate' : 'failed'} ${a.item} (hunger ${a.f0 ?? '?'} -> ${f1 ?? '?'}, hp ${a.h0 ?? '?'} -> ${h1 ?? '?'})`)
+      } catch { /* gone */ }
+    })
   })
 
   // ---- scout -> miner integration (WorldMap) ----
