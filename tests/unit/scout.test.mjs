@@ -149,6 +149,78 @@ test('patrol respects the deadline even when the bot cannot move', async () => {
   assert.ok(stats.scans >= 1, 'even a stuck scout scans where it stands')
 })
 
+// ---- (v0.539.0) THE DEAD-CLIENT VERDICT - the disconnect joins the rebuild path ----
+// A kicked / ECONNRESET client never throws anywhere the scout can hear: writes
+// silently return on a dead socket, the physics ticker is cleaned up, and every
+// leg's goto timeout landed in the patrol's QUIET per-leg catch - a disconnected
+// scout burned the rest of the run in silent stuck-legs (zero 'attempt failed',
+// zero rebuilds). The probe is the protocol client's OWN ended flag.
+test('dead client: the patrol throws the rebuild error at the loop top (zero legs, zero travelled)', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot._client = { ended: true } // the protocol client's native verdict - the socket is dead
+  let scanCalls = 0
+  const scan = async () => { scanCalls++ }
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const patrol = createPatrol({ bot, map, scan, stats })
+  await assert.rejects(
+    patrol({ heading: 'east', distance: 48, lanes: 2, laneGap: 16, seconds: 5 }),
+    /the session ended mid-patrol/
+  )
+  assert.equal(bot.gotoCalls, 0, 'a dead client walks nothing - the throw precedes the first leg')
+  assert.equal(stats.travelled, 0, 'no travel is priced on a dead session')
+  assert.equal(scanCalls, 0, 'the throw precedes the first scan too')
+})
+
+test('dead client: a death mid-leg bounds the burn to ONE leg (the throw escapes the quiet catch)', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot._client = { ended: false }
+  bot.pathfinder.goto = async goal => {
+    bot.gotoCalls++
+    if (bot.gotoCalls === 1) bot._client.ended = true // the kick lands mid-leg
+    const pos = bot.entity.position
+    const dx = goal.x - pos.x
+    const dz = goal.z - pos.z
+    const dist = Math.hypot(dx, dz)
+    if (dist > 12) {
+      bot.entity.position = new Vec3(pos.x + dx / dist * 12, pos.y, pos.z + dz / dist * 12)
+    } else {
+      bot.entity.position = new Vec3(goal.x, pos.y, goal.z)
+    }
+  }
+  const scan = async () => {}
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const patrol = createPatrol({ bot, map, scan, stats })
+  const t0 = Date.now()
+  await assert.rejects(
+    patrol({ heading: 'east', distance: 48, lanes: 2, laneGap: 16, seconds: 30 }),
+    /the session ended mid-patrol/
+  )
+  const secs = (Date.now() - t0) / 1000
+  assert.ok(secs < 5, `a mid-leg death must surface at the next loop top, took ${secs.toFixed(1)}s`)
+  assert.equal(bot.gotoCalls, 1, 'the first leg walked, the second never queued')
+  assert.equal(stats.travelled, 24, 'the first leg\'s step is priced (stepLen 24), the dead ones are not')
+})
+
+test('dead client: the alive client\'s flag reads no throw (the probe only reads truth)', async () => {
+  const map = new WorldMap()
+  const bot = makeMockBot({ blocks: [] })
+  bot._client = { ended: false } // a live session
+  const scan = async () => {}
+  const stats = { scans: 0, found: 0, travelled: 0 }
+  const patrol = createPatrol({ bot, map, scan, stats })
+  await patrol({ heading: 'east', distance: 24, lanes: 1, laneGap: 8, seconds: 5 })
+  assert.ok(stats.travelled > 0, 'an alive client walks the leg')
+})
+
+test('dead client: the wire is ONE probe at the loop top, the client\'s own byte (source pins)', () => {
+  const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
+  assert.equal((src.match(/bot\._client\?\.ended/g) || []).length, 1, 'ONE probe site - the step loop\'s top')
+  assert.ok(src.includes("if (bot._client?.ended) throw new Error('the session ended mid-patrol (the client\\'s own ended flag - the attempt rebuilds)')"), 'the probe\'s exact byte')
+  assert.ok(src.includes("bot._client?.ended") && src.includes('the optional chain reads undefined'), 'the junk-safe form is pinned in the doctrine')
+})
+
 // ---- (v0.531.0) THE GET-UP - the scout's death leg ----
 // A dead scout never got up: no 'death' handler, no respawn byte (mineflayer
 // does NOT auto-respawn), no cause line, no drop accounting - the map's only

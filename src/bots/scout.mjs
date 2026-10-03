@@ -427,6 +427,28 @@ export function createPatrol ({ bot, map, scan, stats = { travelled: 0 }, log = 
       const b = new Vec3(start.x + offX + (back ? 0 : dx * distance), flying ? altitude : start.y, start.z + offZ + (back ? 0 : dz * distance))
       for (const leg of [a, b]) {
         while (Date.now() < deadline) {
+          // (v0.539.0) THE DEAD-CLIENT VERDICT - the disconnect joins the rebuild
+          // path. THE SEAM: a kicked / ECONNRESET client never throws anywhere the
+          // scout can hear - the protocol client's write() silently returns on a
+          // dead socket ('if (!this.serializer.writable) { return }'), the physics
+          // ticker is cleaned up on 'end' so the pathfinder's goal never advances,
+          // and every leg's gotoSafe timeout landed in the patrol's QUIET per-leg
+          // catch ('stuck (water, cliff)') - patrol returned normally, the runner's
+          // while re-entered (bot.entity stays truthy after 'end': mineflayer never
+          // nulls it), and a disconnected scout burned the rest of the run in
+          // silent stuck-legs: zero 'attempt failed', zero rebuilds, the map's
+          // only writer stopped writing, the report printed a frozen book. The
+          // GET-UP covered the death screen; the disconnect had NO wire. THE
+          // PROBE is the client's OWN verdict - bot._client.ended, the protocol
+          // client's native byte (endSocket sets it before 'end' is emitted), no
+          // custom marker. THE LAW: the disconnect IS an attempt failure - the
+          // runner's six-attempt loop's own class; the throw sits at the LOOP TOP
+          // (outside the per-leg try, the quiet catches never see it), so the
+          // burn is bounded by ONE leg's timeout (~15s) instead of the run's
+          // remainder, and the 3s backoff + the fresh login re-enter the patrol
+          // mid-leg. Junk-safe: a mock bot (and every unit test) has no _client -
+          // the optional chain reads undefined, the patrol walks.
+          if (bot._client?.ended) throw new Error('the session ended mid-patrol (the client\'s own ended flag - the attempt rebuilds)')
           const here = bot.entity.position
           const remaining = here.distanceTo(leg)
           if (remaining < (flying ? 24 : 6)) break
