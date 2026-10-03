@@ -1617,7 +1617,7 @@ test('sweepFinishedSmelts: the scan list carries all three machine kinds (the so
   assert.match(src, /findMachineBlocks\(bot, \['furnace', 'blast_furnace', 'smoker'\], \{ maxDistance \}\)/, 'the sweep\'s scan list names the smoker (the v0.139.0 furnace-only list retired)')
 })
 
-// (v0.519.0) THE STALLED INPUT RESCUE - the third shape the sweep never read.
+// (v0.520.0) THE STALLED INPUT RESCUE - the third shape the sweep never read.
 test('sweepFinishedSmelts: a stalled cold input is rescued - a machine that can never start walls no more', async () => {
   // input over an EMPTY fuel slot: vanilla never burns without fuel, and every
   // visit's busy gate reads input-present as busy - the stranded batch walled
@@ -1652,7 +1652,7 @@ test('sweepFinishedSmelts: the busy law survives the rescue split (the source pi
   const src = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
   assert.match(src, /else if \(hasInput && furnace\.fuelItem\(\)\) \{/, 'the LIVE law reads input AND fuel - the burning batch stays sacred')
   assert.match(src, /a cold machine never starts - the pocket re-plans it/, 'the rescue names its vanilla law (a fuel-less machine can never start)')
-  assert.match(src, /else if \(hasInput\) \{\n        \/\/ \(v0\.519\.0\) THE STALLED INPUT RESCUE/, 'the rescue is the sweep\'s third shape, versioned')
+  assert.match(src, /else if \(hasInput\) \{\n        \/\/ \(v0\.520\.0\) THE STALLED INPUT RESCUE/, 'the rescue is the sweep\'s third shape, versioned')
 })
 
 test('REGRESSION PIN: the v0.139.0 harvest sweep rides the fleet source', () => {

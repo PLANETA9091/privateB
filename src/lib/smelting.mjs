@@ -1477,7 +1477,7 @@ export async function sweepFinishedSmelts (bot, {
         // the sweep's census records it like every other machine shape)
         attempts.push({ machine: machineBlock.name, reason: 'busy' })
       } else if (hasInput) {
-        // (v0.519.0) THE STALLED INPUT RESCUE: input over an EMPTY fuel slot is
+        // (v0.520.0) THE STALLED INPUT RESCUE: input over an EMPTY fuel slot is
         // a machine that can NEVER START (vanilla never burns without fuel) -
         // and every visit's busy gate reads input-present as busy, so the
         // stranded batch walls the machine off FOREVER. The shapes that land
