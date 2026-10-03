@@ -249,3 +249,62 @@ export async function withdrawFoodCommons (bot, {
 // fuel memory (the same commons laws, a separate book - the fuel sweep's
 // empty-chest facts must not stand in the food walk's way or vice versa).
 export { newCommonsMemory }
+
+// (v0.524.0) THE MIDFIELD FOOD RIDER - the mid-field hungry ask's first
+// honest slice. THE LEDGER: the mid-field ask's own walk to the yard is
+// priced out (the fuel commons' dead letter box: 60 sweeps, 0 deliveries,
+// one body - the yard stands 20-37 levels over the asking digger, and an
+// 8s recovery window cannot fund the round trip). But the FUEL ask's walk
+// is ALREADY paid when it succeeds - the bot stands at a commons chest with
+// the walk sunk. THE SLICE: when that paid moment arrives, a rider read
+// checks the plate for free - the only walk the rider ever spends is the
+// one the fuel ask already spent. A dry fuel ask pays for nothing: the
+// rider never fires (the walk is not there to ride). The gate is pure -
+// the wire feeds it the pocket read, the hunger read, the fuel verdict and
+// the rider's own slice clock; every refusal names its why and stays QUIET
+// in the field (the plate-holds and hunger-above-band cases fire at every
+// fuel resupply - the healthy lean is silent, the fuel anchor's own law).
+
+/** The critical hunger band: the ration eats at hunger <= 17 (its own law),
+ *  so an EMPTY plate below 17 means the eater is armed with nothing to
+ *  serve. The rider fires only INSIDE band 10 (half bar: regen dead, the
+ *  flee clock at risk, sprint refused at 6) - the 0.98.0 modesty: the
+ *  first slice fires rarely, the field prices the widening. */
+export const MIDFIELD_HUNGRY_BAND = 10
+
+/** The rider's own slice: the read rides the paid walk, so its budget is
+ *  the scan+open cost, never a walk - 8s cap, 4s floor (thinner and the
+ *  chest open itself would starve mid-click). */
+export const RIDER_FOOD_MIN_MS = 4000
+export const RIDER_FOOD_BUDGET_MS = 8000
+
+/**
+ * Pure, junk-safe: should the mid-field food rider fire on THIS fuel ask's
+ * paid walk? Returns { fire: true } when every law holds, else
+ * { fire: false, why } - the wire prints only the fired exits, the refusals
+ * stay quiet (the healthy lean is silent). The laws, in order:
+ * (1) the fuel ask DELIVERED (fuelTaken > 0) - the walk is paid; a dry or
+ *     deferred fuel ask leaves the rider nothing to ride;
+ * (2) the plate is EMPTY (plate === 0) - the armed-ration starvation shape
+ *     the 0.516.0 comment named; below-bound plates stay the bank trip's
+ *     own tail slice (the field prices them on a face);
+ * (3) the hunger read is INSIDE the critical band (hunger <= 10, finite) -
+ *     a null/dead read refuses (the mock's honesty is the wire's);
+ * (4) the slice funds the read (sliceMs >= RIDER_FOOD_MIN_MS).
+ */
+export function riderFoodAsk ({ plate = null, hunger = null, fuelTaken = 0, sliceMs = 0 } = {}) {
+  const taken = Number(fuelTaken)
+  if (!Number.isFinite(taken) || taken <= 0) return { fire: false, why: 'the fuel ask came up dry - the walk is not paid' }
+  // the Number(null) strikes (the v0.516.0 lesson: a truthy default is not a
+  // read) - a null/undefined read is DEAD, never zero, on both body laws.
+  if (plate == null) return { fire: false, why: 'the plate read is dead' }
+  const plateN = Number(plate)
+  if (!Number.isFinite(plateN) || plateN !== 0) return { fire: false, why: 'the plate holds' }
+  if (hunger == null) return { fire: false, why: 'the hunger read is dead' }
+  const hungerN = Number(hunger)
+  if (!Number.isFinite(hungerN) || hungerN < 0) return { fire: false, why: 'the hunger read is dead' }
+  if (hungerN > MIDFIELD_HUNGRY_BAND) return { fire: false, why: `the hunger is not critical (band ${MIDFIELD_HUNGRY_BAND})` }
+  const slice = Number(sliceMs)
+  if (!Number.isFinite(slice) || slice < RIDER_FOOD_MIN_MS) return { fire: false, why: 'the slice cannot fund the read' }
+  return { fire: true }
+}

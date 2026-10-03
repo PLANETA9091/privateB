@@ -37,7 +37,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
-import { withdrawFoodCommons, pocketFood } from '../src/lib/foodbank.mjs'
+import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
@@ -642,13 +642,35 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             return !!n.walked
           } catch { return false }
         },
-        fuelResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
-          itemsNeeded,
-          yardCenter: yardGoal,
-          memory: fuelCommonsMemory,
-          budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
-          log: m => console.log(`${miner.username} ${m}`)
-        }),
+        fuelResupply: async ({ itemsNeeded }) => {
+          const fuel = await withdrawFuelCommons(miner.bot, {
+            itemsNeeded,
+            yardCenter: yardGoal,
+            memory: fuelCommonsMemory,
+            budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
+            log: m => console.log(`${miner.username} ${m}`)
+          })
+          // (v0.524.0) THE MIDFIELD FOOD RIDER - the mid-field hungry ask's
+          // first slice: the fuel ask's walk is ALREADY PAID when it delivers,
+          // so the rider reads the plate for free at the paid chest. The pure
+          // gate fires only on the whole law (fuel delivered + the plate EMPTY
+          // + the hunger inside the critical band + the slice funds the read);
+          // every refusal stays quiet (the healthy lean is silent, the fuel
+          // anchor's own law) and a dry fuel ask never funds a walk. The
+          // commons' own sweep machinery bounds the rest (the memory, the
+          // vertical gate, the ghost-click doctrine); any failure leaves the
+          // fuel verdict above whole - the rider is best-effort by law.
+          try {
+            const rider = riderFoodAsk({ plate: pocketFood(miner.bot), hunger: miner.bot?.food ?? null, fuelTaken: fuel?.taken ?? 0, sliceMs: RIDER_FOOD_BUDGET_MS })
+            if (rider.fire) {
+              console.log(`${miner.username} food commons: the mid-field rider fires (the fuel ask paid the walk; the plate empty, the hunger ${miner.bot?.food ?? '?'}/20 inside the band ${MIDFIELD_HUNGRY_BAND})`)
+              const food = await withdrawFoodCommons(miner.bot, { yardCenter: yardGoal, memory: foodCommonsMemory, budgetMs: RIDER_FOOD_BUDGET_MS, log: m => console.log(`${miner.username} ${m}`) })
+              if (food.taken > 0) console.log(`${miner.username} food commons: the rider read refills the plate (${food.taken} units) - the fuel ask paid the walk`)
+              else console.log(`${miner.username} food commons: the rider read stays empty (${food.reason}) - the next ask retries`)
+            }
+          } catch { /* the rider is best-effort - the fuel verdict above stays whole */ }
+          return fuel
+        },
         log: m => console.log(m)
       })
       if (res.smelted > 0 || res.rescued > 0 || (res.fired ?? 0) > 0) {
