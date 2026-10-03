@@ -208,7 +208,7 @@ test('THE PANTRY CROP IS EDIBLE: sweet_berries are NOT in the ration\'s banned l
 
 test('THE GATHER LEG: the stop rides the scan cadence, the harvest is a right-click, NOT a dig', () => {
   const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
-  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory, stats \}\)/, 'the stop rides the scan cadence (v0.534.0: the bush memory joined - the famine walk reads what the scan writes; v0.537.0: the pantry\'s book rides the scout\'s own stats)')
+  assert.match(src, /const berryStop = createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory: bushBook, stats \}\)/, 'the stop rides the scan cadence (v0.534.0: the bush memory joined - the famine walk reads what the scan writes; v0.537.0: the pantry\'s book rides the scout\'s own stats; v0.538.0: the book rides the rebuild seat - bushBook is the injected-or-closure book)')
   assert.match(src, /const scanWithBerry = async \(\) => \{/, 'the composed scan')
   assert.match(src, /await scanWithSync\(\)/, 'the scan\'s verdict comes FIRST')
   assert.match(src, /try \{ await berryStop\(\) \} catch \{ \/\* the pantry is best-effort - the scan above stays whole \*\/ \}/, 'best-effort by law')
@@ -438,8 +438,8 @@ test('THE FAMINE WALK: the envelope is the scan\'s own eye, the walk is one boun
   assert.equal(BERRY_MEMORY_CAP, 32, 'one bounded book, never an unbounded ledger')
   const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
   assert.match(src, /recordBush, famineWalkPlan \} from '\.\.\/lib\/berry\.mjs'/, 'the lib import is pinned')
-  assert.match(src, /const bushMemory = new Map\(\)/, 'the book is private to this scout')
-  assert.match(src, /createScan\(\{ bot, map, targets, stats, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory \}\)/, 'the scan\'s eye writes')
+  assert.match(src, /const bushBook = bushMemory \?\? new Map\(\)/, 'the book is private to this scout - or injected to survive the rebuild (v0.538.0)')
+  assert.match(src, /createScan\(\{ bot, map, targets, stats, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory: bushBook \}\)/, 'the scan\'s eye writes')
   assert.match(src, /if \(bushMemory\) \{[\s\S]*?recordBush\(bushMemory, b\)/, 'the record pass rides the scan, guarded')
   assert.match(src, /famineWalkPlan\(\{ memory: bushMemory, here: bot\.entity\?\.position \}\)/, 'the stop reads the book')
   assert.match(src, /bushMemory\.delete\(plan\.key\)/, 'the gone record is forgotten')

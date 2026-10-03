@@ -250,6 +250,7 @@ export function createScout ({
   map,
   fly = false, // ground patrol by default: allow-flight=false kicks hovering bots
   syncChat = false, // broadcast every NEW find over chat (PVB1) so bots in OTHER processes hear it
+  bushMemory = null, // (v0.538.0) an injected bush book survives the attempt rebuild; null keeps the closure book
   log = () => {}
 } = {}) {
   const bot = mineflayer.createBot({ host, port, username, version: '26.2', auth: 'offline' })
@@ -292,7 +293,12 @@ export function createScout ({
   const stats = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }
   // (v0.534.0) THE FAMINE WALK's book - the scan's eye writes, the pantry's
   // walk reads. Private to this scout (the shared map stays the miners').
-  const bushMemory = new Map()
+  // (v0.538.0) THE BUSH BOOK's rebuild seat: an injected memory rides the
+  // attempt boundary - the world's knowledge does not die with a login (the
+  // WorldMap's own law, one book private to the scout); a rebuilt attempt
+  // that opens a fresh Map goes famine-blind until the eye re-fills it, and
+  // the gone-record forget (delete) stays honest in a surviving book too.
+  const bushBook = bushMemory ?? new Map()
   // (v0.531.0) THE GET-UP's wire - the death leg rides the same stats object
   // (deaths joins scans/found/travelled in the run's report), the chat
   // listener registers at build time (before any patrol - the v0.117.0
@@ -343,7 +349,7 @@ export function createScout ({
     throw new Error('world never loaded')
   }
 
-  const scan = createScan({ bot, map, targets, stats, log: m => log(`${tag} ${m}`), bushMemory })
+  const scan = createScan({ bot, map, targets, stats, log: m => log(`${tag} ${m}`), bushMemory: bushBook })
   // when chat sync is on, every NEW position goes on the air right after it is recorded
   const scanWithSync = sync
     ? async () => {
@@ -366,7 +372,7 @@ export function createScout ({
   // patrol AND the external caller both drive the composed scan.
   // (v0.537.0) the composition hands the book to the pantry - the ONE production
   // call site, the counters ride the same stats object the watch and patrol mutate.
-  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory, stats })
+  const berryStop = createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory: bushBook, stats })
   const scanWithBerry = async () => {
     const r = await scanWithSync()
     try { await berryStop() } catch { /* the pantry is best-effort - the scan above stays whole */ }

@@ -3533,6 +3533,12 @@ setTimeout(() => {
 // itself a verdict (all six join attempts failed) and the row names it.
 let scoutRef = null
 if (SCOUT) {
+  // (v0.538.0) THE BUSH BOOK's rebuild seat - the scout's private bush memory
+  // is built ONCE per run (not per attempt): the world's knowledge does not
+  // die with a login (the WorldMap's own law, one book private to the scout).
+  // Every attempt's createScout opens the SAME book - a rebuilt scout walks
+  // famine-aware from its first step instead of re-filling the eye blind.
+  const scoutBushMemory = new Map()
   runners.push((async () => {
     for (let attempt = 0; attempt < 6 && Date.now() < deadline; attempt++) {
       let scout
@@ -3542,6 +3548,7 @@ if (SCOUT) {
           port: 25565,
           username: 'FleetScout',
           map,
+          bushMemory: scoutBushMemory, // (v0.538.0) the book rides the attempt boundary
           fly: false, // ground patrol: allow-flight=false would kick a flying scout
           log: m => console.log(`[scout] ${m}`)
         })

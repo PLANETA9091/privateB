@@ -275,7 +275,7 @@ test('death watch: the wire and the doctrine are pinned in the source', () => {
   assert.ok(src.includes('createDeathWatch({ bot, tag, stats, log })'), 'the wire in createScout (the raw log - the line carries its own tag)')
   assert.ok(src.includes('const stats = { scans: 0, found: 0, travelled: 0, deaths: 0, berryPicked: 0, berryWalks: 0 }'), 'deaths joins the report stats, the pantry\u0027s book joins the carry')
   // (v0.537.0) THE PANTRY'S BOOK - the composition hands the stats to the pantry
-  assert.ok(src.includes('createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory, stats })'), 'the pantry rides the scout\u0027s own stats object (ONE production call site)')
+  assert.ok(src.includes('createBerryStop({ bot, log: m => log(`${tag} ${m}`), bushMemory: bushBook, stats })'), 'the pantry rides the scout\u0027s own stats object (ONE production call site)')
   assert.ok(src.includes('if (stats) stats.berryPicked = (stats.berryPicked ?? 0) + picked'), 'the pay lands even when it is zero')
   assert.ok(src.includes('if (stats) stats.berryWalks = (stats.berryWalks ?? 0) + 1'), 'a walk is spent once attempted')
 })
@@ -394,4 +394,36 @@ test('seal respawn accounting: the wire is pinned in the source (the same-read l
   assert.ok(src.includes('sealDeathStake = sealSnapshot(dropItems)'), 'the seal stake rides the SAME guarded read (the miner\u0027s exact law)')
   assert.ok(src.includes('if (!sealRespawnOwed) return'), 'the flag gates the login/dimension spawns out')
   assert.ok(/}, 3000\)/.test(src), 'the miner\u0027s exact 3000ms delayed read')
+})
+
+// (v0.538.0) THE BUSH BOOK's rebuild seat - the scout's private bush memory
+// rides the attempt boundary: a rebuilt attempt used to open a FRESH Map
+// (famine-blind until the eye re-filled it); the world's knowledge does not
+// die with a login (the WorldMap's own law, one book private to the scout).
+test('THE BUSH BOOK REBUILD SEAT: createScout accepts an injected bushMemory (null keeps the legacy closure book)', () => {
+  const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
+  // the option joins the destructure with the honest null default - callers
+  // without the option keep the exact v0.534.0 shape
+  assert.match(src, /bushMemory = null, \/\/ \(v0\.538\.0\) an injected bush book survives the attempt rebuild/)
+  // the book line: injected ?? closure (the fallback IS the legacy byte)
+  assert.match(src, /const bushBook = bushMemory \?\? new Map\(\)/)
+})
+
+test('THE BUSH BOOK REBUILD SEAT: both readers open the same book (the eye writes, the walk reads, one seat)', () => {
+  const src = readFileSync(new URL('../../src/bots/scout.mjs', import.meta.url), 'utf8')
+  assert.equal((src.match(/bushBook/g) || []).length, 3, 'the book line + exactly two readers')
+  assert.match(src, /createScan\(\{ bot, map, targets, stats, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory: bushBook \}\)/)
+  assert.match(src, /createBerryStop\(\{ bot, log: m => log\(`\$\{tag\} \$\{m\}`\), bushMemory: bushBook, stats \}\)/)
+  // the old closure byte is gone - no reader reads a different Map
+  assert.doesNotMatch(src, /, bushMemory \}\)/, 'the legacy bare pass is rewired')
+})
+
+test('THE BUSH BOOK REBUILD SEAT: fleet19 builds the book ONCE per run, outside the attempt loop', () => {
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  assert.match(fleetSrc, /const scoutBushMemory = new Map\(\)/, 'the holder exists')
+  assert.equal((fleetSrc.match(/bushMemory: scoutBushMemory/g) || []).length, 1, 'ONE createScout call site passes the book')
+  // the holder must sit BEFORE the attempt loop (inside the runner, the loop rebuilds scout, not the book)
+  const holderIdx = fleetSrc.indexOf('const scoutBushMemory = new Map()')
+  const loopIdx = fleetSrc.indexOf('for (let attempt = 0; attempt < 6')
+  assert.ok(holderIdx > -1 && loopIdx > holderIdx, 'the book is built once, the loop rebuilds scouts')
 })
