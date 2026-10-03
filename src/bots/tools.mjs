@@ -174,6 +174,31 @@ export function preflightClearWindow (bot, log = null) {
 export async function craft (bot, itemName, times, table = null, log = null, opts = {}) {
   const { timeoutMs = CRAFT_TIMEOUT_MS, stormBaseMs = CRAFT_STORM_BASE_MS, stormCapMs = CRAFT_STORM_CAP_MS } = opts
   const step = log ?? (() => {})
+  // (v0.542.0) THE SILENT-CRAFT GATE - the pricing pass's own seam (the 0.541.0
+  // hand-away named the craft chain "price, do not wire blind"; the pricing wired).
+  // THE SEAM: on a dead socket the 2x2 dance never times out - mineflayer's
+  // craftOnce clicks via bot.clickWindow whose write ('window_click') silently
+  // returns on a dead socket (the protocol client's own byte, the 0.539.0
+  // discovery) and RESOLVES - no server confirmation is awaited on the 1.17.1+
+  // path. The whole click dance therefore resolves without the server ever
+  // hearing a click: craft() returned a FALSE SUCCESS while the pocket never
+  // changed, and the storm brake never saw a fence timeout to count (the storm
+  // counts timeouts; a silent resolve is not one). Only the table path
+  // honest-stormed (activateBlock waits once('windowOpen') that never comes -
+  // 3 fence timeouts of dead weather). THE WIRE: ONE probe at the entry, the
+  // client's OWN verdict byte (the 0.539.0 scout and the 0.541.0 miner
+  // precedent) - a dead client refuses the craft BEFORE any state touch (the
+  // probe sits before stormOf's lazy _craftStorm write: the refusal stays
+  // side-effect-free, the storm counter records craft weather, never socket
+  // weather). The false success dies (craftUntil's keep-crafting loop stops
+  // after ONE honest refusal instead of four silent dances) and the
+  // dead-socket storm burns die with it. Junk-safe: a mock bot has no _client
+  // - the optional chain reads undefined, the craft walks (the 0.539.0
+  // precedent byte).
+  if (bot._client?.ended) {
+    step(`craft ${itemName}: dead client (the ended flag) - refusing the silent write dance`)
+    return false
+  }
   const storm = stormOf(bot)
   const verdict = craftStormVerdict(bot)
   if (!verdict.allowed) {
