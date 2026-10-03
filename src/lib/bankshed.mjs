@@ -36,6 +36,53 @@
  * window's claim, the v0.193.0 stagger's neighbor).
  */
 
+// (v0.561.0) THE SHED PRICER - the wiring's tripMs, priced purely. The
+// v0.560.0 plan left bankTripMs as a WIRING-MEASURED input; nothing
+// prices it yet (the dusk plan's own wiring never landed - both plans
+// ride the same seat-less shelf), and a pricer the wiring can call
+// without a bot or a server is the second leg of the whale cure. THE
+// COMPOSITE (each leg field-grounded):
+//   out + back walk  - tripplan's walkBudgetMs (the OOM-capped walk
+//                      budget, v0.11.2 lesson) priced TWICE: the shed
+//                      delivers AND returns;
+//   the climb        - endphase's DEEP_CLIMB_MS_PER_LEVEL (4200ms per
+//                      level, the v0.307.0 deep-window vertical price
+//                      face 36539598929) - the mid-run climb is the same
+//                      vertical walk the deep window prices;
+//   the chain        - smelt + deposit + goal snap, one overhead
+//                      constant grounded by the measured delivered band
+//                      (fleet 36286821015: the chains price 156-184s at
+//                      the arm): the composite at the measured shape
+//                      (30 blocks out, 20 levels up) reads 172s - inside
+//                      the band, by construction.
+import { walkBudgetMs } from './tripplan.mjs'
+import { DEEP_CLIMB_MS_PER_LEVEL } from './endphase.mjs'
+
+/** The chain overhead (ms): smelt + deposit + goal snap - the part of a
+ *  delivered bank chain that is neither walk nor climb. Grounded by the
+ *  measured band (fleet 36286821015, 156-184s at the arm): the composite
+ *  at the measured shape lands mid-band with this constant. */
+export const SHED_CHAIN_OVERHEAD_MS = 60000
+
+/**
+ * (v0.561.0) Price one mid-run bank trip for the shed plan - pure, no
+ * bot, no server. The wiring measures the bot's distance to its bank
+ * yard and its depth below ground; this module prices the trip.
+ * @param {object} [p]
+ * @param {number} [p.dist] straight-line distance to the bank yard
+ *        (blocks) - junk floors to 0 (the walk's own floor holds)
+ * @param {number} [p.climbLevels] depth below the yard level (levels,
+ *        positive down) - junk floors to 0 (a surface bot has no climb)
+ * @returns {number} milliseconds - the priced trip for shedPlan's
+ *          bankTripMs, always at least the walk floor x2 + the chain
+ */
+export function shedTripMs ({ dist = 0, climbLevels = 0 } = {}) {
+  const d = Number.isFinite(dist) && dist > 0 ? dist : 0
+  const lv = Number.isFinite(climbLevels) && climbLevels > 0 ? climbLevels : 0
+  const walk = walkBudgetMs({ dist: d }) // the out leg; the return prices the same yard
+  return 2 * walk + Math.round(lv * DEEP_CLIMB_MS_PER_LEVEL) + SHED_CHAIN_OVERHEAD_MS
+}
+
 /** The return margin (ms): the shed trip's priced end carries this much
  *  walk variance - parity with DUSK_BANK_SAFETY_MS (the same physics:
  *  the walk's own variance eats the margin, not the payload). */

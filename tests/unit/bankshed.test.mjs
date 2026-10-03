@@ -96,3 +96,51 @@ test('shedPlan: constants - the safety parity and the slack floor', () => {
   assert.equal(SHED_SAFETY_MS, 15000)
   assert.equal(SHED_SLACK_MS, 30000)
 })
+
+// (v0.561.0) THE SHED PRICER - the wiring's tripMs, priced purely. The
+// composite at the measured shape (30 blocks out, 20 levels up) must land
+// inside the delivered band (fleet 36286821015: 156-184s at the arm).
+import { shedTripMs, SHED_CHAIN_OVERHEAD_MS } from '../../src/lib/bankshed.mjs'
+import { walkBudgetMs, WALK_BASE_MS } from '../../src/lib/tripplan.mjs'
+import { DEEP_CLIMB_MS_PER_LEVEL } from '../../src/lib/endphase.mjs'
+
+test('shedTripMs: the composite arithmetic - out+back walk, climb, chain', () => {
+  // 30 blocks: walkBudgetMs(30) = 30*250+5000 = 12500 -> the 14s base floor
+  const trip = shedTripMs({ dist: 30, climbLevels: 20 })
+  assert.equal(trip, 2 * WALK_BASE_MS + 20 * DEEP_CLIMB_MS_PER_LEVEL + SHED_CHAIN_OVERHEAD_MS)
+  assert.equal(trip, 28000 + 84000 + 60000)
+})
+
+test('shedTripMs: THE MEASURED BAND - the composite at the field shape lands mid-band', () => {
+  const trip = shedTripMs({ dist: 30, climbLevels: 20 })
+  const s = trip / 1000
+  assert.ok(s >= 156 && s <= 184, `the priced trip ${s}s must sit inside the measured 156-184s band`)
+  assert.equal(s, 172)
+})
+
+test('shedTripMs: junk floors - no distance, no climb, no lie', () => {
+  // a surface bot at the yard: the walk floor x2 + the chain
+  assert.equal(shedTripMs({}), 2 * walkBudgetMs({ dist: 0 }) + SHED_CHAIN_OVERHEAD_MS)
+  // junk inputs floor to 0 - the trip is never below the walk floor x2 + chain
+  assert.equal(shedTripMs({ dist: NaN, climbLevels: -5 }), 2 * walkBudgetMs({ dist: 0 }) + SHED_CHAIN_OVERHEAD_MS)
+  assert.equal(shedTripMs({ dist: Infinity }), 2 * walkBudgetMs({ dist: 0 }) + SHED_CHAIN_OVERHEAD_MS)
+})
+
+test('shedTripMs: a far yard rides the walk cap (the OOM lesson holds)', () => {
+  // 128 blocks: the walk leg caps at 32000 - the return prices the same yard
+  const trip = shedTripMs({ dist: 128, climbLevels: 0 })
+  assert.equal(trip, 2 * 32000 + SHED_CHAIN_OVERHEAD_MS)
+})
+
+test('THE COMPOSITION PIN - shedPlan fed by shedTripMs arms the whale at the field shape', () => {
+  const trip = shedTripMs({ dist: 30, climbLevels: 20 }) // 172s, the measured shape
+  const r = shedPlan({ pocketUnits: 748, rate: 1.1, tripMs: trip, remainingMs: 300000, budgetMs: 248000, now: NOW })
+  assert.equal(r.go, true)
+  assert.equal(r.why, 'shed')
+  assert.equal(r.needS, 680)
+  assert.equal(r.gapS, 680 - 248)
+  assert.equal(r.untilMs, NOW + trip + SHED_SAFETY_MS)
+  // the same whale with NO run clock to spare reads late (the fit holds)
+  const late = shedPlan({ pocketUnits: 748, rate: 1.1, tripMs: trip, remainingMs: trip + SHED_SAFETY_MS + SHED_SLACK_MS - 1, budgetMs: 248000, now: NOW })
+  assert.equal(late.why, 'late')
+})
