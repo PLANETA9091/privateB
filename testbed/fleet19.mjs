@@ -1579,6 +1579,24 @@ async function runBot (name, target, index) {
         // NOT run down here is the pathfinder (see the walk guard below)
       }
       while (!(Date.now() > deadline) && miner.bot.entity) {
+        // (v0.541.0) THE DEAD-SHIFT PROBE - the 0.539.0 discovery reaches the
+        // miner's own loop: a kicked / ECONNRESET client never throws anywhere
+        // the attempt catch (v0.16.3) hears - the physics ticker is cleaned up
+        // on 'end', the protocol's write() silently returns on a dead socket,
+        // and the tunnel legs' timeouts land in their QUIET per-leg catches
+        // ('tunnel failed: ...') - the loop burned its cooldowns to the
+        // deadline with zero 'attempt failed', zero rebuilds of the twelve
+        // the runner owns: the reconnect path never fired, the pocket rode
+        // dead hands. THE LAW: the disconnect IS an attempt failure - the
+        // probe sits at the LOOP TOP (outside every per-leg catch), so the
+        // burn is bounded by ONE iteration instead of the run's remainder,
+        // and the runner's own rebuild (the v0.18.9 carry, the v0.203.0 death
+        // carry) re-enters the shift with a fresh login. Junk-safe: a mock bot
+        // has no _client - the optional chain reads undefined, the loop walks
+        // (the 0.539.0 precedent byte). The deadline exit keeps its clean
+        // return (the check is inside the loop - a final bank on a dead
+        // client still reads its own guarded refusals).
+        if (miner.bot._client?.ended) throw new Error('the session ended mid-shift (the client\'s own ended flag - the attempt rebuilds)')
         // (v0.201.0) THE RE-LOOT WALK - the death economy's field debut.
         // run63-mined (fleet 36212235363) measured ~227u of NAMED death drops
         // (the v0.199.0 line) SURVIVING PAST THE RUN'S END: the deaths landed
