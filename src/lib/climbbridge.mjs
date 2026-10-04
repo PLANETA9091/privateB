@@ -203,12 +203,34 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + fillRateTail(c)
+  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c)
+}
+
+// (v0.618.0) THE RE-READ BLIND MASS - the fleet 37200930827 face (the
+// v0.616.0 tree's own flight) doubled the refused mass (15 -> 23: self 13,
+// support 10) and the blind leg stayed WHOLE: 23 of 23 refusals carry
+// 'post=? (re-read failed)' - 46 of 46 across the two faces now. The per-line
+// tails carry ONE line's story, but the ROW never names the systematic face:
+// when EVERY refusal's re-read failed, the re-read leg did not merely fail -
+// it NEVER SPOKE on this face (the chunk read returns nothing at the recheck
+// - the v0.172.0 blind leg, priced per face at last; the wiring cure - skip
+// the ask or force a fresh read - rides THIS name). THE LAW: the clause
+// speaks only when the face is WHOLLY blind (refused > 0 AND
+// refusedReReadFailed === refused) - a mixed face's story stays on the
+// per-line tails (a census without the field is the junk fallback: silent,
+// never a lie). The clause rides INSIDE the refused family's evidence -
+// after the count/cell grain, before the rate lever:
+//   ' - the re-read never spoke (the blind leg owns the mass)'
+function blindMassTail (c) {
+  const refused = c && Number.isFinite(c.refused) ? c.refused : 0
+  const rrf = c && Number.isFinite(c.refusedReReadFailed) ? c.refusedReReadFailed : 0
+  if (refused <= 0 || rrf !== refused) return ''
+  return ' - the re-read never spoke (the blind leg owns the mass)'
 }
 
 // The v0.615.0 tail clause - the server-refused fill mass (the refusal IS the
-// verdict: the re-read is dead weight after a refusal, 15 of 15 failed on the
-// self-fill's first flight)
+// verdict: the re-read cannot speak after a refusal, 15 of 15 failed on the
+// self-fill's first flight; v0.618.0 names the WHOLLY-blind face on the row)
 function refusedTail (c) {
   const refused = c && Number.isFinite(c.refused) && c.refused > 0 ? Math.floor(c.refused) : 0
   if (refused === 0) return ''

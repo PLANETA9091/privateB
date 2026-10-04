@@ -227,13 +227,13 @@ test('server-refused fill: the census counts the mined face whole', () => {
 test('server-refused fill: the tail rides every verdict byte-exact', () => {
   // the mined face's own mix: the unavailable book floor-owned AND the refused mass
   const mixed = bridgeRefusalCensus([FLOOR, FLOOR, REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF])
-  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed, 2 distinct cell(s), 1 repeat(s) (the refusal is the verdict)') // the REFUSED_SELF pair shares ONE cell - the repeat rides
+  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed, 2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)') // the REFUSED_SELF pair shares ONE cell - the repeat rides; the WHOLLY-blind face (3/3) names the blind leg
   // the scatter form carries the tail too
   const scatter = bridgeRefusalCensus([FLOOR, POCKET, REFUSED_SUPPORT, REFUSED_SUPPORT])
-  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed, 1 distinct cell(s), 1 repeat(s) (the refusal is the verdict)')) // the twin lines share the cell
+  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed, 1 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)')) // the twin lines share the cell; 2/2 blind
   // the none-none form carries the tail when only the server spoke
   const only = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF])
-  assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed, 2 distinct cell(s), 0 repeat(s) (the refusal is the verdict)')
+  assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed, 2 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)')
 })
 
 test('server-refused fill: old faces stay byte-stable (the tail only speaks when refused > 0)', () => {
@@ -295,33 +295,33 @@ test('underfoot rate: the mined face 37196201457 reads the lever WHOLE', () => {
   assert.equal(c.refusedCellRepeats, 0)
   assert.equal(
     bridgeRefusalRow(c),
-    'bridge refusal book: 16 refusal(s) across 2 bot(s), 67 fill(s) placed - pocket 13 (81%), floor 3 (19%) - the pocket owns the climb tax (the climb arrives empty-handed - the carried fill is the front) - the server refused 15 fill(s): self 9, support 6, 15 re-read(s) failed, 15 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 5 of 14 (36%) - the underfoot placement is the suspect (the support fill rides 46 of 52 (88%))'
+    'bridge refusal book: 16 refusal(s) across 2 bot(s), 67 fill(s) placed - pocket 13 (81%), floor 3 (19%) - the pocket owns the climb tax (the climb arrives empty-handed - the carried fill is the front) - the server refused 15 fill(s): self 9, support 6, 15 re-read(s) failed, 15 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass) - the self fill landed 5 of 14 (36%) - the underfoot placement is the suspect (the support fill rides 46 of 52 (88%))'
   )
 })
 
 test('underfoot rate: the verdict splits on the half boundary', () => {
   // at the half: 1 of 2 -> 'holds'
   const holds = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF]))
-  assert.ok(holds.endsWith('1 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), holds)
+  assert.ok(holds.endsWith('1 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass) - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), holds)
   // over the half: 3 of 4 -> 'holds'
   const over = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF, FILL_SELF.replace('[-138,63,405]', '[-138,63,406]'), FILL_SELF.replace('[-138,63,405]', '[-138,63,407]')]))
-  assert.ok(over.endsWith(' - the self fill landed 3 of 4 (75%) - the underfoot placement holds'), over)
+  assert.ok(over.endsWith(' - the re-read never spoke (the blind leg owns the mass) - the self fill landed 3 of 4 (75%) - the underfoot placement holds'), over)
   // under the half: 1 of 3 -> 'the suspect'
   const under = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF.replace('[-125,64,420]', '[-125,64,421]'), FILL_SELF]))
-  assert.ok(under.endsWith('2 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 1 of 3 (33%) - the underfoot placement is the suspect'), under)
+  assert.ok(under.endsWith('2 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass) - the self fill landed 1 of 3 (33%) - the underfoot placement is the suspect'), under)
 })
 
 test('underfoot rate: the comparison must EXIST - the silent faces', () => {
   // refusals without placements: the pocket front owns it, no rate noise
   const refusedOnly = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, REFUSED_SUPPORT]))
   assert.ok(!refusedOnly.includes('landed'), refusedOnly)
-  assert.ok(refusedOnly.endsWith('2 distinct cell(s), 1 repeat(s) (the refusal is the verdict)'), refusedOnly)
+  assert.ok(refusedOnly.endsWith('2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)'), refusedOnly)
   // placements without refusals: no lever to price
   const placedOnly = bridgeRefusalRow(bridgeRefusalCensus([FILL_SELF, FILL_SELF, 'F1 [F1] climb bridge: placed cobblestone at [1,64,425] (support) - the step re-judges']))
   assert.equal(placedOnly, 'bridge refusal book: none refused, 3 fill(s) placed (the climbs climbed clean)')
   // the support paren needs its own landed AND refused
   const noSupRefusal = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF, 'F1 [F1] climb bridge: placed cobblestone at [1,64,425] (support) - the step re-judges']))
-  assert.ok(noSupRefusal.endsWith(' - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), noSupRefusal)
+  assert.ok(noSupRefusal.endsWith(' - the re-read never spoke (the blind leg owns the mass) - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), noSupRefusal)
   assert.ok(!noSupRefusal.includes('the support fill rides'), noSupRefusal)
 })
 
@@ -330,4 +330,34 @@ test('underfoot rate: junk census fields stay silent, never crash', () => {
   assert.equal(bridgeRefusalRow({ n: 1, byClass: { floor: 1 }, botCount: 1, refused: 1, refusedKinds: null }), 'bridge refusal book: 1 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 1 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 1 fill(s): self 0, support 0, 0 re-read(s) failed, 1 distinct cell(s), 0 repeat(s) (the refusal is the verdict)')
   const junkFills = { n: 0, byClass: {}, botCount: 0, places: 1, fillKinds: { self: NaN }, refused: 2, refusedKinds: { self: 2 }, refusedReReadFailed: 2 }
   assert.ok(!bridgeRefusalRow(junkFills).includes('landed'), 'a NaN fill count is not a landed fill')
+})
+
+// (v0.618.0) THE RE-READ BLIND MASS - the fleet 37200930827 face doubled the
+// refused mass (15 -> 23) and the blind leg stayed WHOLE: 23 of 23 refusals
+// carry 'post=? (re-read failed)', 46 of 46 across the two faces. The ROW
+// gains its own name for the systematic face: when EVERY refusal's re-read
+// failed, the re-read leg never spoke at all (the chunk read returns nothing
+// at the recheck) - the wiring cure rides THIS name. The law: WHOLLY blind
+// only (refused > 0 AND refusedReReadFailed === refused); a mixed face keeps
+// its story on the per-line tails; the junk fallback (no field) is silent.
+test('re-read blind mass: the wholly-blind face names itself (v0.618.0)', () => {
+  // the whole-blind battery: every refusal's re-read failed -> the clause rides
+  const blind = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SUPPORT,
+    REFUSED_SELF.replace('[-125,64,420]', '[-125,65,420]')]))
+  assert.ok(blind.includes('3 re-read(s) failed, 3 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)'), blind)
+  // the clause rides INSIDE the refused family - BEFORE the rate lever
+  const lever = bridgeRefusalCensus([REFUSED_SELF, FILL_SELF])
+  const leverRow = bridgeRefusalRow(lever)
+  assert.ok(leverRow.indexOf('the re-read never spoke') < leverRow.indexOf('the self fill landed'), leverRow)
+  // a MIXED face stays silent - the story rides the per-line tails
+  const mixed = bridgeRefusalRow({ refused: 2, refusedKinds: { self: 1, support: 1 }, refusedReReadFailed: 1 })
+  assert.ok(!mixed.includes('the re-read never spoke'), mixed)
+  // the re-read CAN speak (post=ok) - the clause stays home
+  const spoke = parseServerRefusedFill('climb bridge: the server refused the self fill at [1,2,3] - the rotate ladder owns it (held=dirt, 0.9b, ref=grass_block, post=air STILL OPEN (refused twice))')
+  assert.equal(spoke.reReadFailed, false)
+  // the junk fallback (a hand-built census without the field) is silent, never a lie
+  assert.ok(!bridgeRefusalRow({ refused: 2, refusedKinds: { self: 2 } }).includes('the re-read never spoke'))
+  // the empty and refused-free books never carry it
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([])).includes('the re-read never spoke'))
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])).includes('the re-read never spoke'))
 })
