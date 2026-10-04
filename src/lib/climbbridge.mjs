@@ -86,6 +86,32 @@ export function parseBridgeGateWait (line) {
   return null
 }
 
+// (v0.623.0) THE PIT DONOR'S OWN PARSER - the pocket class's cure speaks two
+// forms (their v0.621.0, mined-surface only, lens-safe at birth - PLACE_RE /
+// REFUSED_RE / BOOK_RE / TORN match none, so both lines fell through every
+// parse and were DROPPED: the cure's live behavior was invisible to the book
+// exactly when the pocket class started converting - the gate book's own
+// crime, one fire later). The one-parser-per-emitter law gives them this file
+// (the 'climb bridge:' family's owner):
+//   'F1 [F1] climb bridge: the pocket is empty - the pit donates a dirt at
+//    [-91,59,398] - the fill refunds it'
+//   'F2 [F2] climb bridge: the pit donor refused at [-91,59,398] (granite)
+//    - the ladder owns it'
+// The refused form's name may be 'unknown' (the plan's nullish donorName).
+const DONOR_DIGS_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the pocket is empty - the pit donates a ([a-z_]+) at \\[-?\\d+,-?\\d+,-?\\d+\\] - the fill refunds it$')
+const DONOR_REFUSED_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the pit donor refused at \\[-?\\d+,-?\\d+,-?\\d+\\] \\(([a-z_]+|unknown)\\) - the ladder owns it$')
+
+export function parsePitDonor (line) {
+  const s = String(line ?? '')
+  const b = s.match(/^F(\d+) /)
+  const bot = b ? `F${b[1]}` : null
+  let m = s.match(DONOR_DIGS_RE)
+  if (m) return { kind: 'pit-donor', bot, result: 'donates', name: m[1] }
+  m = s.match(DONOR_REFUSED_RE)
+  if (m) return { kind: 'pit-donor', bot, result: 'refused', name: m[1] }
+  return null
+}
+
 // The refusal's own class (climbWhyClass's keyword-include law - the why may
 // nest its own parens, the class rides a keyword, never an equality). The
 // classes are the face's own taxonomy: floor 67, pocket 58, step 0, budget 0
@@ -142,7 +168,8 @@ export function bridgeRefusalClass (msg) {
 export function bridgeRefusalCensus (lines) {
   const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
     refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set(),
-    gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {} }
+    gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {},
+    pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {} }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -191,6 +218,19 @@ export function bridgeRefusalCensus (lines) {
         c.gateRefuseWhys[g.why] = (c.gateRefuseWhys[g.why] || 0) + 1
       } else {
         c.gateStillWaits++
+      }
+      continue
+    }
+    // (v0.623.0) the pit donor's own grain: the pocket cure's two forms join
+    // the census (they fell through every parse and were DROPPED before). The
+    // bots set stays the refusal book's own (the head keeps its byte).
+    const dn = parsePitDonor(line)
+    if (dn) {
+      if (dn.result === 'donates') {
+        c.pitDonated++
+        c.pitDonorNames[dn.name] = (c.pitDonorNames[dn.name] || 0) + 1
+      } else {
+        c.pitDonorRefused++
       }
       continue
     }
@@ -256,7 +296,22 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c)
+  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c)
+}
+
+// (v0.623.0) THE PIT DONOR'S OWN TAIL - the pocket cure's live behavior rides
+// the row's VERY END (after the gate tail - the family's newest evidence
+// last). THE LAW: the clause speaks only when the donor SPOKE (pitDonated > 0
+// || pitDonorRefused > 0); the junk fallback (a census without the fields)
+// reads zeros and stays silent, never a lie; the old faces (no donor lines)
+// stay byte-stable. The names ride the census (pitDonorNames - the granite
+// lesson priced per face in mining), the tail carries the counts:
+//   ' - the pit donated N fill(s), M dig(s) refused'
+function pitDonorTail (c) {
+  const d = c && Number.isFinite(c.pitDonated) ? c.pitDonated : 0
+  const r = c && Number.isFinite(c.pitDonorRefused) ? c.pitDonorRefused : 0
+  if (d <= 0 && r <= 0) return ''
+  return ` - the pit donated ${d} fill(s), ${r} dig(s) refused`
 }
 
 // (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face (the

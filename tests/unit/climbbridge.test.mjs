@@ -13,6 +13,7 @@ import {
   bridgeRefusalRow,
   parseServerRefusedFill,
   parseBridgeGateWait,
+  parsePitDonor,
   BRIDGE_SHARE,
   BRIDGE_BOOK_TORN_RE,
   BRIDGE_REFUSED_TORN_RE
@@ -440,4 +441,41 @@ test('gate wait: the census counts the family and the tail rides last (v0.621.0)
   assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the gate waited'))
   // the old faces (no gate lines) stay byte-stable
   assert.equal(bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])), 'bridge refusal book: 2 refusal(s) across 2 bot(s), 0 fill(s) placed - floor 1 (50%), pocket 1 (50%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)')
+})
+
+test('pit donor book: the pocket cure speaks (v0.623.0)', () => {
+  const donates = (s, name, cell) => `F${s} [F${s}] climb bridge: the pocket is empty - the pit donates a ${name} at [${cell}] - the fill refunds it`
+  const digRef = (s, name, cell) => `F${s} [F${s}] climb bridge: the pit donor refused at [${cell}] (${name}) - the ladder owns it`
+  // the byte-exact parses (both forms, the tag law rides)
+  assert.deepEqual(parsePitDonor(donates('6', 'dirt', '-91,59,398')), { kind: 'pit-donor', bot: 'F6', result: 'donates', name: 'dirt' })
+  assert.deepEqual(parsePitDonor(digRef('9', 'granite', '-91,60,398')), { kind: 'pit-donor', bot: 'F9', result: 'refused', name: 'granite' })
+  // the refused form's name may be 'unknown' (the plan's nullish donorName)
+  assert.equal(parsePitDonor(digRef('9', 'unknown', '-91,60,398')).name, 'unknown')
+  // junk and the family's near-misses stay null
+  assert.equal(parsePitDonor(''), null)
+  assert.equal(parsePitDonor(undefined), null)
+  assert.equal(parsePitDonor(donates('6', 'Dirt', '-91,59,398')), null) // names are lowercase block ids
+  assert.equal(parsePitDonor('F6 [F6] climb bridge: the pocket is empty - the pit donates a dirt at [-91,59,398] (torn'), null)
+  // the census counts the family; the names ride their own map
+  const lines = [donates('6', 'dirt', '-91,59,398'), donates('6', 'dirt', '-91,60,398'), donates('7', 'cobblestone', '-117,65,395'), digRef('9', 'granite', '-88,59,401')]
+  const c = bridgeRefusalCensus(lines)
+  assert.equal(c.pitDonated, 3)
+  assert.equal(c.pitDonorRefused, 1)
+  assert.deepEqual(c.pitDonorNames, { dirt: 2, cobblestone: 1 })
+  assert.equal(c.botCount, 0) // the bots set stays the refusal book's own
+  // the lens law: the donor lines match none of the family's other parsers
+  assert.equal(c.n, 0)
+  assert.equal(c.places, 0)
+  assert.equal(c.refused, 0)
+  assert.equal(c.gates, 0)
+  // the tail rides the row's VERY END (after the gate tail - newest last)
+  const withGate = bridgeRefusalCensus([...lines, 'F4 [F4] climb bridge: the self fill still waits for ground - the ladder owns it'])
+  const row = bridgeRefusalRow(withGate)
+  assert.ok(row.endsWith(' - the pit donated 3 fill(s), 1 dig(s) refused'), row)
+  assert.ok(row.indexOf('the gate waited') < row.indexOf('the pit donated'), row)
+  // a refused-only donor face still speaks (the cure's honest half)
+  assert.ok(bridgeRefusalRow(bridgeRefusalCensus([digRef('9', 'granite', '-88,59,401')])).endsWith(' - the pit donated 0 fill(s), 1 dig(s) refused'))
+  // the old faces (no donor lines) stay byte-stable; the junk fallback silent
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('the pit donated'))
+  assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the pit donated'))
 })
