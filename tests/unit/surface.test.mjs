@@ -1152,6 +1152,77 @@ test('bridgeRefusalDetail: a failed ref re-read confesses null-read, junk stays 
   assert.ok(!bridgeRefusalDetail({}).includes('ref-after'))
 })
 
+// (v0.637.0) THE SELF PLANT CLEAR - the underfoot plant digs first. The
+// v0.634.0 face named the hole: F1's self fill at [-87,68,407] refused twice
+// on post=leaf_litter (ref=oak_log) - the family cleared the support/pit
+// cells but the SELF kind never scanned its own target (the plant helpers
+// lived below the self section's unconditional return). The F1-shaped face,
+// the per-cell law, the scalar byte, the waitGround precedence, the family
+// boundary.
+test('bridgePlan: the self plant clear - the F1-shaped face digs the underfoot leaf_litter before the fill', () => {
+  const LEAF = blk('leaf_litter', 'empty') // no collision - the plan reads the cell clear
+  const read = cellWorld({
+    '10,63,20': LEAF, // ownFloor - the plant the fill died into twice (F1's shape)
+    '11,63,20': STONE // the wall the legacy fill would reference
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: new Set() })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'plant-clear')
+  assert.equal(p.fillKind, 'self')
+  assert.equal(p.plantName, 'leaf_litter')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 10, y: 63, z: 20 })
+  assert.equal(p.item, null)
+  assert.equal(p.placedNext, 0)
+})
+
+test('bridgePlan: the self plant clear rides the per-cell law - the attempted cell falls through to the legacy self fill', () => {
+  const LEAF = blk('leaf_litter', 'empty')
+  const read = cellWorld({
+    '10,63,20': LEAF,
+    '11,63,20': STONE
+  })
+  const attempted = new Set(['10,63,20'])
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: attempted })
+  assert.equal(p.kind, 'self', 'the attempted cell never re-rides - the wall loop and the honest refusal own the level')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 10, y: 63, z: 20 })
+})
+
+test('bridgePlan: the self plant clear keeps the legacy scalar byte - the no-set callers govern by the cap alone', () => {
+  const LEAF = blk('leaf_litter', 'empty')
+  const read = cellWorld({
+    '10,63,20': LEAF,
+    '11,63,20': STONE
+  })
+  const spent = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: null })
+  assert.equal(spent.kind, 'self', 'no set + the spent scalar - the legacy byte, no clear')
+  const open = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: null })
+  assert.equal(open.kind, 'plant-clear', 'no set + the scalar open - the legacy cap semantics')
+  assert.equal(open.fillKind, 'self')
+})
+
+test('bridgePlan: the waitGround gate precedes the self plant clear - a falling bot digs nothing', () => {
+  const LEAF = blk('leaf_litter', 'empty')
+  const read = cellWorld({
+    '10,63,20': LEAF,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, grounded: false, plantClears: 0, plantClearCells: new Set() })
+  assert.deepEqual(p, {
+    ok: false, waitGround: true,
+    why: 'the self fill waits for ground (the falling AABB dips into the target cell)'
+  })
+})
+
+test('bridgePlan: the self plant clear speaks only the family - a non-family plant keeps the legacy self fill', () => {
+  const POPPY = blk('poppy', 'empty')
+  const read = cellWorld({
+    '10,63,20': POPPY,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: new Set() })
+  assert.equal(p.kind, 'self', 'poppy is not the family - no clear, the legacy plan stands')
+})
+
 // (v0.300.0) THE WET-CEILING ASCEND - the climb's answer to the sealed water
 // column. Face 36517770723: 17 climb deaths 'failed - stalled', every sampled
 // diag 'blocked toward X (dug=0, wet) water (stop)' at EVERY bearing - the

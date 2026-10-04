@@ -1745,6 +1745,21 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
     return { ok: false, why: 'no placeable block in the pocket' }
   }
   const rd = cell => { try { return read(cell) } catch { return null } }
+  // (v0.637.0) THE PLANT HELPERS HOIST above the self section - the F1 hole:
+  // the helpers were defined BELOW the self section's unconditional return,
+  // so the underfoot plant was invisible to the family (the self kind never
+  // scanned its own target while support/pit cleared theirs). Same closures,
+  // same bytes - the lateral section reads them unchanged.
+  const plantSetReal = !!plantClearCells && (Array.isArray(plantClearCells) || typeof plantClearCells.has === 'function')
+  const plantAttempted = cell => {
+    if (!cell || !plantSetReal) return false
+    try {
+      const key = `${cell.x},${cell.y},${cell.z}`
+      return typeof plantClearCells.has === 'function' ? !!plantClearCells.has(key) : plantClearCells.includes(key)
+    } catch { return false }
+  }
+  const plantCapOpen = cell => plantSetReal ? !plantAttempted(cell) : (Number.isFinite(plantClears) && plantClears < PLANT_CLEAR_MAX)
+  const plantOf = b => b && b.name && PLANT_CLEAR_FAMILY.includes(b.name) ? b.name : null
   const ownFloor = rd(feet.offset(0, -1, 0))
   if (!ownFloor || ownFloor.boundingBox !== 'block') {
     // (v0.610.0) THE SUPPORT-UNDER-SELF FILL - the v0.608.0 book's priced cure,
@@ -1783,6 +1798,22 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
           why: 'the self fill waits for ground (the falling AABB dips into the target cell)'
         }
       }
+      // (v0.637.0) THE SELF PLANT CLEAR - the underfoot plant digs first. The
+      // v0.634.0 face named the hole: F1's self fill at [-87,68,407] refused
+      // twice on post=leaf_litter (ref=oak_log) - the family cleared the
+      // support and pit cells but the SELF kind never scanned its own target
+      // (the helpers lived below this section's return). One dig resolves
+      // the cell (the plant drops, the fill lands next pass - the same law
+      // the support/pit kinds ride); the per-cell set bounds the churn (one
+      // attempt per cell per climb, the v0.633.0 law); the waitGround gate
+      // stays first (a falling bot digs nothing - it lands and re-plans from
+      // the grounded feet); a spent cap or an attempted cell keeps the
+      // legacy byte (the wall loop and the honest refusal own the rest).
+      const selfCell = feet.offset(0, -1, 0)
+      const selfPlant = plantCapOpen(selfCell) ? plantOf(ownFloor) : null
+      if (selfPlant) {
+        return { ok: true, kind: 'plant-clear', fillKind: 'self', cell: selfCell, plantName: selfPlant, item: null, placedNext: done }
+      }
       for (const w of BRIDGE_SELF_WALL_DIRS) {
         const wall = rd(feet.offset(w[0], -1, w[1]))
         if (wall && wall.boundingBox === 'block') {
@@ -1812,17 +1843,8 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   // (v0.633.0) the per-cell clear law rides here: a real attempt set governs
   // (one attempt per cell, no scalar ceiling - see PLANT_CLEAR_MAX's comment
   // block); a null or junk set (every legacy caller) keeps the scalar byte
-  // for byte.
-  const plantSetReal = !!plantClearCells && (Array.isArray(plantClearCells) || typeof plantClearCells.has === 'function')
-  const plantAttempted = cell => {
-    if (!cell || !plantSetReal) return false
-    try {
-      const key = `${cell.x},${cell.y},${cell.z}`
-      return typeof plantClearCells.has === 'function' ? !!plantClearCells.has(key) : plantClearCells.includes(key)
-    } catch { return false }
-  }
-  const plantCapOpen = cell => plantSetReal ? !plantAttempted(cell) : (Number.isFinite(plantClears) && plantClears < PLANT_CLEAR_MAX)
-  const plantOf = b => b && b.name && PLANT_CLEAR_FAMILY.includes(b.name) ? b.name : null
+  // for byte. (v0.637.0) the helper definitions hoisted above the self
+  // section (the F1 hole) - the lateral section reads them unchanged.
   const supportCell = feet.offset(d.x, 0, d.z)
   const support = rd(supportCell)
   if (support && support.boundingBox === 'block') return { ok: false, why: 'the support is already solid' }
