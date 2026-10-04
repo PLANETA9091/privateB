@@ -125,3 +125,28 @@ test('the grain-only face speaks alone (the inflow silent)', () => {
   assert.ok(row.startsWith('tithe ledger: inflow 0 line(s)'))
   assert.ok(row.includes('the commons\' source is the front'))
 })
+
+// (v0.599.0) THE FIELD-FOUND GRAIN: the fleet face 37178311099 carried the
+// grain line BARE (the fleet-level report prints no bot tag) and the
+// v0.598.0 prefix gate went blind - 'the tithe never spoke' while the grain
+// stood in the log. The tag is optional now; the bare face is the anchor.
+const FIELD_GRAIN_BARE = 'smelt fuel commons grain: asked 4, delivered 0, dry 4 - every ask came up dry: the commons\' source is the front (the tithe is the only inflow)'
+
+test('the bare fleet-level grain parses (the field-corrected prefix law)', () => {
+  const p = parseFuelGrain(FIELD_GRAIN_BARE)
+  assert.ok(p, 'the bare grain line must parse')
+  assert.equal(p.kind, 'grain')
+  assert.equal(p.asked, 4)
+  assert.equal(p.delivered, 0)
+  assert.equal(p.dry, 4)
+  const tagged = parseFuelGrain(GRAIN_DRY_ALL)
+  assert.ok(tagged, 'the tagged grain still parses')
+})
+
+test('THE LIVE FACE VERDICT (fleet 37178311099): the bare grain speaks alone', () => {
+  const c = titheCensus([FIELD_GRAIN_BARE])
+  assert.equal(c.grain.n, 1)
+  assert.equal(c.unparsed, 0)
+  const row = titheRow(c)
+  assert.equal(row, 'tithe ledger: inflow 0 line(s) attempted 0 delivered 0 (0u) dry 0, grain asked 4 delivered 0 dry 4 - the grain reads dry 100% - the commons\' source is the front')
+})

@@ -13,12 +13,22 @@
 // Zero fleet wiring, zero new log lines. The always-print law: a none face
 // is a verdict too.
 
-const TITHE_PREFIX = /^F\d+ (?:\[[A-Za-z0-9]+\] )?/
+// (v0.599.0) THE PREFIX LAW, FIELD-CORRECTED: the fleet face 37178311099
+// read the grain line BARE ('smelt fuel commons grain: asked 4, ...' - the
+// fleet-level report carries no bot tag) and the v0.598.0 gate missed it -
+// 'the tithe never spoke' while the grain stood in the log (the honest
+// verdict cannot survive a blind prefix). The tag is OPTIONAL on both
+// families now: the inflow rides per-bot consoles (F-tagged), the grain
+// rides the fleet report (bare). The grammar behind the tag stays strict.
+const TITHE_TAG_OPT = '(?:F\\d+ (?:\\[[A-Za-z0-9]+\\] )?)?'
+const TITHE_PREFIX = new RegExp('^' + TITHE_TAG_OPT)
 export const TITHE_CAP = 4
 export const TITHE_DRY_SHARE = 0.5
 
-const INFLOW_RE = TITHE_PREFIX.source + 'fuel tithe inflow: attempted (\\d+), delivered (\\d+)(?: \\((\\d+)u\\))?, dry (\\d+)'
-const GRAIN_RE = TITHE_PREFIX.source + 'smelt fuel commons grain: asked (\\d+), delivered (\\d+)(?: \\((\\d+)u over (\\d+) opens\\))?, dry (\\d+)'
+const INFLOW_RE = '^' + TITHE_TAG_OPT + 'fuel tithe inflow: attempted (\\d+), delivered (\\d+)(?: \\((\\d+)u\\))?, dry (\\d+)'
+const GRAIN_RE = '^' + TITHE_TAG_OPT + 'smelt fuel commons grain: asked (\\d+), delivered (\\d+)(?: \\((\\d+)u over (\\d+) opens\\))?, dry (\\d+)'
+const INFLOW_MATCH = new RegExp(INFLOW_RE)
+const GRAIN_MATCH = new RegExp(GRAIN_RE)
 
 // The torn sweep: a line that STARTS like a member but failed the full
 // grammar rides unparsed (the honest sweep - the v0.595.0 law).
@@ -34,7 +44,7 @@ const NEAR_RE = / - the opens fired near (\d+) of (\d+) - /
 const SPLIT_RE = / - the opens split far (\d+)\/near (\d+) of (\d+) - /
 
 export function parseTitheInflow (line) {
-  const m = TITHE_PREFIX.test(line) ? line.match(INFLOW_RE) : null
+  const m = line.match(INFLOW_MATCH)
   if (!m) return null
   const attempted = Number(m[1])
   const delivered = Number(m[2])
@@ -51,7 +61,7 @@ export function parseTitheInflow (line) {
 }
 
 export function parseFuelGrain (line) {
-  const m = TITHE_PREFIX.test(line) ? line.match(GRAIN_RE) : null
+  const m = line.match(GRAIN_MATCH)
   if (!m) return null
   return {
     kind: 'grain',
