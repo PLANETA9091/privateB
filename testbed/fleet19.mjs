@@ -38,7 +38,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltUnreachableBandRow, smeltReachBand, smeltAttemptDist, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
-import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -224,6 +224,10 @@ const finalSmeltNoFuelMachine = new Map()
 // ('protected') or nothing that burns at all ('bare'). Fed at the same seat,
 // one extra set - the grains can never split.
 const finalSmeltNoFuelPantry = new Map()
+// (v0.585.0) THE FUEL COMMONS' GRAIN LEDGER: the supply front's own face seat
+// - the smelt leg's fuelResupply asks counted by their answer (asks /
+// delivered / units / chests / dry), the commons itself no longer blind.
+const fuelCommonsGrainLedger = { asks: 0, delivered: 0, units: 0, chests: 0, dry: 0 }
 // (v0.574.0) THE UNREACHABLE OWNER LEDGER: the owner family's second seat -
 // which MACHINE the 'machine unreachable' walks failed on. Fed at the same
 // seat, one extra set - the census grains can never split.
@@ -743,6 +747,18 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
             log: m => console.log(`${miner.username} ${m}`)
           })
+          // (v0.585.0) THE GRAIN FEED: every ask counts once - delivered when
+          // coal moved, dry otherwise (the junk ask is an honest dry);
+          // chestsVisited sums only PAID opens. One extra add beside the
+          // no-fuel grains - the supply's own answer rides the family's seat.
+          fuelCommonsGrainLedger.asks++
+          if ((fuel?.taken ?? 0) > 0) {
+            fuelCommonsGrainLedger.delivered++
+            fuelCommonsGrainLedger.units += fuel.taken
+          } else {
+            fuelCommonsGrainLedger.dry++
+          }
+          fuelCommonsGrainLedger.chests += fuel?.chestsVisited ?? 0
           // (v0.524.0) THE MIDFIELD FOOD RIDER - the mid-field hungry ask's
           // first slice: the fuel ask's walk is ALREADY PAID when it delivers,
           // so the rider reads the plate for free at the paid chest. The pure
@@ -4215,6 +4231,11 @@ if (smeltNoFuelOwner) console.log(smeltNoFuelOwner)
 // - it can only speak when they spoke.
 const smeltNoFuelPantry = smeltNoFuelPantryRow([...finalSmeltNoFuelPantry].map(([state, count]) => ({ state, count })))
 if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)
+// (v0.585.0) THE FUEL COMMONS' GRAIN - the supply's own answer beside the
+// pantry's depth read: were the asks made, did any coal move, what did the
+// opens cost. It can only speak when the smelt leg asked.
+const fuelCommonsGrain = fuelCommonsGrainRow(fuelCommonsGrainLedger)
+if (fuelCommonsGrain) console.log(fuelCommonsGrain)
 // (v0.574.0) THE UNREACHABLE OWNER MAP - the census's leader class ('machine
 // unreachable', 9 of 12 on the fleet 37149142927 face) reads its own machine
 // split: one machine = the cell's cure, a spread = the walk lattice. The same

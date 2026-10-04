@@ -1415,3 +1415,37 @@ export async function withdrawFuelCommons (bot, {
   const reason = taken > 0 ? 'ok' : (chestsVisited > 0 ? 'commons empty' : 'no chest reached')
   return { taken, plan: planAll.length > 0 ? planAll : null, chestsVisited, reason }
 }
+
+// (v0.585.0) THE FUEL COMMONS' GRAIN - the supply front's own face seat. The
+// no-fuel family read the POCKET (the anatomy), the MACHINE (the owner map),
+// the DEPTH (the pantry) - but the commons itself, the supply's own answer,
+// reads blind: the face never said whether the asks were even made, whether
+// ANY coal moved, how many chest opens the sweeps paid. The grain is five
+// numbers fed at the smelt leg's fuelResupply seat (the family's own feed;
+// the torch lane has its own book in torchbook.mjs): asks / delivered /
+// units / chests / dry. The laws: every ask counts once (delivered when
+// taken > 0, dry otherwise - the early 'nothing to fuel' junk ask is an
+// honest dry), chestsVisited sums only PAID opens (the increment sits after
+// the successful open). The verdicts: zero asks stay lean (the supply was
+// never needed - a subset of the smelt leg's own legs by construction);
+// every ask dry names the source ('commons empty' vs 'no chest reached' ride
+// the per-ask log lines - the grain names the front); every ask fed says the
+// line holds; a mix says the dry asks name the thin chests. Junk-safe: the
+// negative and non-finite floors read 0 (the row never lies upward).
+export function fuelCommonsGrainRow (grain) {
+  const g = (grain && typeof grain === 'object') ? grain : {}
+  const clean = (v) => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
+  const a = clean(g.asks)
+  const d = clean(g.delivered)
+  const u = clean(g.units)
+  const c = clean(g.chests)
+  const w = clean(g.dry)
+  if (a === 0) return null
+  if (d === 0) {
+    return `smelt fuel commons grain: asked ${a}, delivered 0, dry ${w} - every ask came up dry: the commons' source is the front (the tithe is the only inflow)`
+  }
+  if (w === 0) {
+    return `smelt fuel commons grain: asked ${a}, delivered ${d} (${u}u over ${c} opens), dry 0 - every ask fed: the commons holds the supply line`
+  }
+  return `smelt fuel commons grain: asked ${a}, delivered ${d} (${u}u over ${c} opens), dry ${w} - the commons reads mixed: the dry asks name the thin chests`
+}

@@ -994,7 +994,7 @@ test('withdrawFuelCommons: without a yardCenter the legacy nearest-first shape h
 test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy deposit, the anchor read is chest #0', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
-  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage \} from '\.\.\/src\/lib\/fuelbank\.mjs'/)
+  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow \} from '\.\.\/src\/lib\/fuelbank\.mjs'/) // (v0.585.0) the grain row rides the same import - the commons' own face seat
   assert.match(fleetSrc, /await deliverFuelTithe\(miner\.bot, \{/)
   assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*memory: fuelCommonsMemory,\s*\/\/ \(v0\.507\.0\)[^\n]*\n\s*budgetMs: anchorBudgetMs,/) // (v0.507.0) the low-chest registry wire joins the tithe call (the gravity stash))
   assert.match(fleetSrc, /remaining\(\) > 8000 \? Math\.min\(15000, Math\.floor\(remaining\(\) \/ 4\)\) : 0/, 'the budget guard: a dead chain never pays the delivery')
