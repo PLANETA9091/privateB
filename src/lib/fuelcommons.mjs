@@ -102,6 +102,9 @@ export function fuelCommonsCensus (lines) {
     budgetTaken: 0,
     budgetWant: 0,
     unparsed: 0,
+    // (v0.596.0) the seats: per-bot per-kind tallies (additive, the seats'
+    // own grain - the class rows stay byte for byte)
+    byBot: {},
   }
   if (!Array.isArray(lines)) return c
   const seenBots = new Set()
@@ -112,6 +115,12 @@ export function fuelCommonsCensus (lines) {
       c.n++
       c.byKind[s.kind] = (c.byKind[s.kind] || 0) + 1
       seenBots.add(s.bot)
+      if (!c.byBot[s.bot] || typeof c.byBot[s.bot] !== 'object') {
+        c.byBot[s.bot] = { n: 0, gate: 0, dry: 0, took: 0, budget: 0, nochest: 0, defer: 0, openfail: 0, walkfail: 0 }
+      }
+      const seat = c.byBot[s.bot]
+      seat.n++
+      seat[s.kind] = (seat[s.kind] || 0) + 1
       if (s.kind === 'gate') {
         c.levels.n++
         c.levels.sum += s.levels
@@ -129,6 +138,15 @@ export function fuelCommonsCensus (lines) {
 
 // the family's half boundary (the owner maps' own shape, one number)
 export const FUEL_ASK_SHARE = 0.5
+
+// (v0.596.0) THE ASK'S SEAT GRAIN - the outcomes' own owner map. The first
+// field read (fleet 37173632953) named the face MIXED (budget 43.2%, dry
+// 35.1%) and priced the front but not the SEAT - the overdue owners' lesson
+// (v0.592.0) rides: 'one bot's walk vs the fleet's reach, two different
+// cures'. The census grows byBot (additive - the row bytes never move, the
+// comparability law holds); the seat row names WHICH bot owns a death class:
+// one seat -> that seat's own slice is the cure; spread -> the slice is the
+// fleet's front. The deliveries (took) are not deaths - no seats to name.
 
 /**
  * The row: did the ask eat, and if not - which wall owns the face? The
@@ -163,4 +181,53 @@ export function fuelCommonsRow (c) {
     ['walkfail', Number.isFinite(k.walkfail) ? k.walkfail : 0],
   ].sort((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : 1)).slice(0, 2)
   return `${head} - the outcomes read mixed (${entries.map(([kind, v]) => `${kind} ${pct(v)}%`).join(', ')}) - no class owns the face`
+}
+
+// (v0.596.0) the death classes that name seats (the deliveries are not
+// deaths - the ask ate, there is nobody to cure)
+const SEAT_KINDS = ["gate", "dry", "budget", "nochest", "defer", "openfail", "walkfail"]
+
+/**
+ * The seat row: WHICH bot owns a death class of the ask's outcomes? The
+ * half boundary FUEL_ASK_SHARE splits the verdicts - one seat holds the
+ * half -> that seat's own slice is the cure; the deaths are spread -> the
+ * slice is the fleet's front. The dominant death kind rides when none is
+ * named (ties ride name-asc). The always-print law holds (every none form
+ * is a verdict too).
+ * @param {{byBot: Record<string, object>}|null} c a fuelCommonsCensus result
+ * @param {string|null} [kind] a death class (gate|dry|budget|nochest|defer|openfail|walkfail); null reads the dominant
+ * @returns {string}
+ */
+export function fuelCommonsOwnerRow (c, kind = null) {
+  const byBot = c && typeof c.byBot === 'object' && c.byBot ? c.byBot : null
+  if (!byBot || Object.keys(byBot).length === 0) return 'ask seats: none (no outcome ever spoke)'
+  const names = Object.keys(byBot)
+  const totals = {}
+  for (const k of SEAT_KINDS) totals[k] = 0
+  for (const b of names) {
+    const rec = byBot[b]
+    if (!rec || typeof rec !== 'object') continue
+    for (const k of SEAT_KINDS) {
+      const v = Number.isFinite(rec[k]) ? rec[k] : 0
+      totals[k] += v > 0 ? v : 0
+    }
+  }
+  const kindUsed = SEAT_KINDS.includes(kind) ? kind
+    : SEAT_KINDS.slice().sort((a, b) => (totals[b] - totals[a]) || (a < b ? -1 : 1))[0]
+  const total = totals[kindUsed]
+  if (total === 0) return `ask seats (${kindUsed}): none (${names.length} bot(s) spoke, the ask never died this way)`
+  const owners = []
+  for (const b of names) {
+    const rec = byBot[b]
+    const v = rec && typeof rec === 'object' && Number.isFinite(rec[kindUsed]) ? rec[kindUsed] : 0
+    if (v > 0) owners.push({ name: b, n: v })
+  }
+  owners.sort((a, b) => (b.n - a.n) || (a.name < b.name ? -1 : 1))
+  const top = owners[0]
+  const pct = ((top.n / total) * 100).toFixed(1)
+  const head = `ask seats (${kindUsed}): ${owners.length} bot(s) carry ${total} death(s)`
+  if (top.n / total >= FUEL_ASK_SHARE) {
+    return `${head} - ${top.name} holds ${pct}% (${top.n}) - one seat owns the ask's deaths (that seat's own slice is the cure)`
+  }
+  return `${head} - top ${top.name}=${top.n} (${pct}%) - the deaths are spread (the slice is the fleet's front)`
 }

@@ -28,6 +28,18 @@ const SHAPE_DEFER = 'F3 fuel commons: the ask defers (this stance came up dry 90
 const SHAPE_OPENFAIL = 'F11 fuel commons: open failed (open fuel chest: timeout after 10000ms)'
 const SHAPE_OPENFAIL_DIG = 'F12 [F12] fuel commons: open failed after the cover dig (chest already destroyed)'
 
+// the mini-face fixture (the seats' own tallies ride it)
+const MINI = [
+  FACE_GATE_A,
+  'F4 fuel commons: chest at [-116,73,415] the yard stands 27 levels up over 12b lateral - the walk ladder cannot climb, the ask rides (the tithe owns the deep resupply)',
+  FACE_GATE_A_2,
+  'F9 fuel commons: chest at [-130,73,389] the yard stands 31 levels up over 13b lateral - the walk ladder cannot climb, the ask rides (the tithe owns the deep resupply)',
+  FACE_BUDGET,
+  'F8 fuel commons: budget spent (0/1 units)',
+  FACE_WALKFAIL,
+  'F13 [F13] fuel commons: chest holds no fuel',
+]
+
 test('parseFuelCommonsAsk: the gate\'s doom form reads bot, cell, levels, lateral', () => {
   assert.deepEqual(parseFuelCommonsAsk(FACE_GATE_A), {
     bot: 'F14', kind: 'gate',
@@ -193,4 +205,74 @@ test('fuelCommonsRow: below every boundary the mixed form names the actual top t
     FACE_GATE_A, FACE_GATE_A_2, SHAPE_OPENFAIL])
   assert.equal(fuelCommonsRow(c),
     'fuel commons asks: 7 outcome(s) across 5 bot(s) (took 0u from 0 ask(s), dry 1, gate 2, budget 1) - the outcomes read mixed (gate 28.6%, budget 14.3%) - no class owns the face')
+})
+
+
+// (v0.596.0) THE ASK'S SEAT GRAIN - the outcomes' own owner map. The first
+// seat read (fleet 37173632953): the budget deaths are SPREAD (13 bots,
+// top F11=3, 18.8% - the slice is the fleet's front) and the dry deaths
+// ride ONE SEAT (F7 holds 8 of 13, 61.5% - that seat's own walk is the cure).
+import { fuelCommonsOwnerRow } from '../../src/lib/fuelcommons.mjs'
+
+test('fuelCommonsCensus: the seats grow byBot per kind (additive, the class rows never move)', () => {
+  const c = fuelCommonsCensus(MINI)
+  assert.deepEqual(c.byBot, {
+    F14: { n: 2, gate: 1, dry: 0, took: 0, budget: 1, nochest: 0, defer: 0, openfail: 0, walkfail: 0 },
+    F4: { n: 1, gate: 1, dry: 0, took: 0, budget: 0, nochest: 0, defer: 0, openfail: 0, walkfail: 0 },
+    F7: { n: 1, gate: 1, dry: 0, took: 0, budget: 0, nochest: 0, defer: 0, openfail: 0, walkfail: 0 },
+    F9: { n: 1, gate: 1, dry: 0, took: 0, budget: 0, nochest: 0, defer: 0, openfail: 0, walkfail: 0 },
+    F8: { n: 2, gate: 0, dry: 0, took: 0, budget: 1, nochest: 0, defer: 0, openfail: 0, walkfail: 1 },
+    F13: { n: 1, gate: 0, dry: 1, took: 0, budget: 0, nochest: 0, defer: 0, openfail: 0, walkfail: 0 },
+  })
+})
+
+test('fuelCommonsOwnerRow: the dominant death kind rides when none is named (ties name-asc)', () => {
+  const c = fuelCommonsCensus(MINI)
+  assert.equal(fuelCommonsOwnerRow(c),
+    "ask seats (gate): 4 bot(s) carry 4 death(s) - top F14=1 (25.0%) - the deaths are spread (the slice is the fleet's front)")
+})
+
+test("fuelCommonsOwnerRow: the dry seats ride ONE SEAT above the boundary (the live anchor)", () => {
+  const c = fuelCommonsCensus(MINI
+    .concat(Array(8).fill('F7 fuel commons: chest holds no fuel'))
+    .concat(Array(5).fill('F4 fuel commons: chest holds no fuel')))
+  assert.equal(c.byKind.dry, 14, 'MINI already carries one dry chest (F13) - 8 + 5 + 1')
+  assert.equal(fuelCommonsOwnerRow(c, 'dry'),
+    "ask seats (dry): 3 bot(s) carry 14 death(s) - F7 holds 57.1% (8) - one seat owns the ask's deaths (that seat's own slice is the cure)")
+})
+
+test('fuelCommonsOwnerRow: a one-seat budget above the boundary names the seat (the live anchor)', () => {
+  const c = fuelCommonsCensus(MINI.concat(Array(3).fill('F11 fuel commons: budget spent (0/1 units)')))
+  assert.equal(fuelCommonsOwnerRow(c, 'budget'),
+    "ask seats (budget): 3 bot(s) carry 5 death(s) - F11 holds 60.0% (3) - one seat owns the ask's deaths (that seat's own slice is the cure)")
+})
+
+test('fuelCommonsOwnerRow: the none forms are verdicts too (the always-print law)', () => {
+  assert.equal(fuelCommonsOwnerRow(null), 'ask seats: none (no outcome ever spoke)')
+  assert.equal(fuelCommonsOwnerRow(fuelCommonsCensus([])), 'ask seats: none (no outcome ever spoke)')
+  const c = fuelCommonsCensus(MINI)
+  assert.equal(fuelCommonsOwnerRow(c, 'defer'),
+    'ask seats (defer): none (6 bot(s) spoke, the ask never died this way)')
+  assert.equal(fuelCommonsOwnerRow(c, 'nochest'),
+    'ask seats (nochest): none (6 bot(s) spoke, the ask never died this way)')
+})
+
+test("fuelCommonsOwnerRow: the deliveries are not deaths - took falls to the dominant kind", () => {
+  const c = fuelCommonsCensus([SHAPE_TOOK, FACE_BUDGET])
+  assert.equal(fuelCommonsOwnerRow(c, 'took'),
+    "ask seats (budget): 1 bot(s) carry 1 death(s) - F14 holds 100.0% (1) - one seat owns the ask's deaths (that seat's own slice is the cure)")
+})
+
+test('fuelCommonsOwnerRow: the junk battery - junk seats never invent owners', () => {
+  const c = { byBot: { F1: null, F2: 42, F3: { budget: -5 }, F4: { budget: 2 } } }
+  assert.equal(fuelCommonsOwnerRow(c, 'budget'),
+    "ask seats (budget): 1 bot(s) carry 2 death(s) - F4 holds 100.0% (2) - one seat owns the ask's deaths (that seat's own slice is the cure)")
+  assert.equal(fuelCommonsOwnerRow({}), 'ask seats: none (no outcome ever spoke)')
+  assert.equal(fuelCommonsOwnerRow({ byBot: {} }), 'ask seats: none (no outcome ever spoke)')
+})
+
+test('fuelCommonsOwnerRow: the boundary rides FUEL_ASK_SHARE exactly (0.5 trips)', () => {
+  const c = fuelCommonsCensus([FACE_BUDGET, 'F8 fuel commons: budget spent (0/1 units)'])
+  assert.equal(fuelCommonsOwnerRow(c, 'budget'),
+    "ask seats (budget): 2 bot(s) carry 2 death(s) - F14 holds 50.0% (1) - one seat owns the ask's deaths (that seat's own slice is the cure)")
 })
