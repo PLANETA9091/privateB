@@ -362,15 +362,41 @@ export const CLIMB_MIN_SLICE_MS = 15000
  *   'budget exhausted (walk floor)', banked=0 with the bot 17 blocks from the
  *   yard, pockets full. The slice now prices the stagger FIRST.
  * @param {number} [p.minClimbSliceMs] below this the climb is skipped (default CLIMB_MIN_SLICE_MS)
- * @returns {{climbSliceMs: number, climbSkipped: boolean}}
+ * @returns {{climbSliceMs: number, climbSkipped: boolean, climbBorrowedMs: number}}
  */
 export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, staggerDelayMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS } = {}) {
   const m = Number.isFinite(entryMarginMs) && entryMarginMs > 0 ? entryMarginMs : 0
   const c = Number.isFinite(chainBudgetMs) && chainBudgetMs > 0 ? chainBudgetMs : 0
   const s = Number.isFinite(staggerDelayMs) && staggerDelayMs > 0 ? staggerDelayMs : 0
   const min = Number.isFinite(minClimbSliceMs) && minClimbSliceMs >= 0 ? minClimbSliceMs : CLIMB_MIN_SLICE_MS
-  const climbSliceMs = Math.max(0, m - s - c)
-  return { climbSliceMs, climbSkipped: climbSliceMs < min }
+  // (v0.635.0) THE CRUMB BORROW - the climb's minimum slice is funded from the
+  // chain reserve when the margin's crumbs starve it. MEASURED (fleet
+  // 37222310370, the v0.632.0 face, the 'banked crater decode: 20.7%' verdict):
+  // ALL FIVE zero-banks rode ONE class - the flow-price clamp handed the CHAIN
+  // 161-300s (F2/F15/F18 300s, F7 161s), the stagger ate 40-88s, and the
+  // legacy subtraction (m - s - c) handed the final climb 0-1s: 'climb skipped
+  // (slice 0s/1s < min 15s)' x5, then the chains burned their full reserve on
+  // walk-to-chest timeouts from shaft mouths (d=6-23, walk 15s x2 per chest,
+  // raw hop stalls) and read banked=0 anyway - 300s of chain bought ZERO
+  // banked for every underground bot. The v0.50.0 doctrine already names the
+  // truth ('an underground bot's chain is worthless'); the arithmetic now
+  // respects it: when the crumbs (raw = m - s - c) fall below the min slice
+  // but real wall clock exists beyond the stagger (room = m - s >= min), the
+  // climb's min slice BORROWS from the chain reserve - slice = min, borrow =
+  // slice - raw. The caller's own finalBudget re-clamp
+  // (min(chainBudgetMs, wall clock left)) owns the wall truth, so the borrow
+  // cannot resurrect the v0.49.0 overrun class: the chain simply starts with
+  // the wall clock the climb actually left - and a funded climb is the ONLY
+  // step that turns the doomed underground walks into flat yard walks.
+  // Legacy faces stay byte-identical: raw >= min (the crumbs already fund the
+  // climb) returns raw with borrow 0; the room itself below the min (or the
+  // stagger overdrawing the margin) keeps the legacy skip - no room, no
+  // borrow, the thin-margin law stands.
+  const room = Math.max(0, m - s)
+  const raw = Math.max(0, room - c)
+  if (raw >= min) return { climbSliceMs: raw, climbSkipped: false, climbBorrowedMs: 0 }
+  if (room >= min) return { climbSliceMs: min, climbSkipped: false, climbBorrowedMs: min - raw }
+  return { climbSliceMs: raw, climbSkipped: true, climbBorrowedMs: 0 }
 }
 
 // ---------------------------------------------------------------------------

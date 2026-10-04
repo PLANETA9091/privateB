@@ -3240,6 +3240,13 @@ async function runBot (name, target, index) {
             ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
             : null
           if (finalDoom.doom) console.log(`${name} final climb: ${finalDoom.why} - climbing toward the yard's level (the walk ladder cannot)`)
+          // (v0.635.0) THE CRUMB BORROW, the wiring line: when the schedule
+          // funded the min slice from the chain reserve (the crumbs starved
+          // it), the class names itself - the face's five 'climb skipped
+          // (slice 0s/1s)' zero-banks are the count this line sizes.
+          if (!schedule.climbSkipped && schedule.climbBorrowedMs > 0) {
+            console.log(`${name} final climb: funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
+          }
           if (schedule.climbSkipped) {
             cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
           } else {

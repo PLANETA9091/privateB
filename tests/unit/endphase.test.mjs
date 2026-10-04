@@ -90,33 +90,62 @@ test('hardKillDelayMs: junk inputs fall back to the fleet defaults', () => {
 // Fleet 35580596054: F1's climb stalled ~85s, then the chain - priced AFTER it -
 // burned ~195s more on doomed wilderness hops. The chain's needs now RESERVE
 // their slice at entry; the climb gets only the remainder.
-test('finalBankSchedule: the climb gets what the chain does not need', () => {
+test('finalBankSchedule: the climb gets what the chain does not need (the crumb faces restated v0.635.0 - the shape grew the borrowed field, the values stand)', () => {
   assert.equal(CLIMB_MIN_SLICE_MS, 15000, 'the minimum climb slice is pinned - the fleet skip line prints it')
   // the measured shape: 390s margin at deadline, a 433-block bot's chain wants
   // the 280s cap -> the climb slice is 110s (>= the 15s minimum, it may run)
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 280000 }), { climbSliceMs: 110000, climbSkipped: false })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 280000 }), { climbSliceMs: 110000, climbSkipped: false, climbBorrowedMs: 0 })
   // a near-yard bot's chain (the 150s floor) leaves a fat climb slice
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000 }), { climbSliceMs: 240000, climbSkipped: false })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000 }), { climbSliceMs: 240000, climbSkipped: false, climbBorrowedMs: 0 })
 })
 
-test('finalBankSchedule: a thin margin skips the climb, the chain keeps the clock', () => {
-  // margin ~= chain: no climb slice left - a doomed underground staircase is
-  // worth less than the walk home
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 20000 }), { climbSliceMs: 0, climbSkipped: true })
-  // below the minimum slice the climb is skipped too (it cannot usefully start)
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 280000 }), { climbSliceMs: 0, climbSkipped: true })
-  assert.equal(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 8000 }).climbSkipped, true, '12s slice < the 15s minimum')
-  assert.equal(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 8000 }).climbSkipped, false, '22s slice >= the minimum - the climb may run')
+test('finalBankSchedule: the crumb borrow - the face\'s five zero-banks fund their climb (v0.635.0)', () => {
+  // MEASURED (fleet 37222310370, the v0.632.0 face, 'banked crater decode:
+  // 20.7%'): F2/F6/F15 (chain 300s, stagger 88/80/88s), F7 (chain 161s,
+  // stagger 56s), F18 (chain 300s, stagger 40s) - the legacy subtraction
+  // handed the final climb 0-1s, 'climb skipped' x5, and the chains burned
+  // their FULL reserve on walk-to-chest timeouts from shaft mouths and read
+  // banked=0 anyway. The old doctrine ('a doomed underground staircase is
+  // worth less than the walk home') is refuted by the face: the walk home
+  // from underground is worth ZERO. The climb's min slice now borrows from
+  // the chain reserve whenever real wall clock exists beyond the stagger.
+  // the F2-shaped face: margin 388s, stagger 88s, chain 300s -> raw 0 -> the
+  // climb gets its 15s minimum, borrowed whole from the chain reserve
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 })
+  // the F6-shaped face: the legacy read 'slice 1s < min' - now funded
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 381000, chainBudgetMs: 300000, staggerDelayMs: 80000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 14000 })
+  // the F7-shaped face: a thinner chain (161s) - the raw crumbs (0s) still borrow
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 217000, chainBudgetMs: 161000, staggerDelayMs: 56000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 })
+  // the partial-crumb face: raw 12s just under the min - the borrow tops up 3s
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 8000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 3000 })
+  // the crumb face that already funds the climb borrows NOTHING (the legacy byte)
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 8000 }), { climbSliceMs: 22000, climbSkipped: false, climbBorrowedMs: 0 })
 })
 
-test('finalBankSchedule: junk margins collapse to zero, junk chain gives the climb everything', () => {
-  assert.deepEqual(finalBankSchedule({}), { climbSliceMs: 0, climbSkipped: true })
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: -5, chainBudgetMs: NaN }), { climbSliceMs: 0, climbSkipped: true })
-  assert.deepEqual(finalBankSchedule({ entryMarginMs: 100000, chainBudgetMs: NaN }), { climbSliceMs: 100000, climbSkipped: false })
+test('finalBankSchedule: no room, no borrow - the thin-margin law stands', () => {
+  // the room itself below the minimum: a 15s staircase cannot fit, the legacy
+  // skip rides (the borrow never invents wall clock the margin does not have)
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 10000, chainBudgetMs: 20000 }), { climbSliceMs: 0, climbSkipped: true, climbBorrowedMs: 0 })
+  // the stagger overdrawing the margin: same law
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 8000, staggerDelayMs: 25000 }), { climbSliceMs: 0, climbSkipped: true, climbBorrowedMs: 0 })
+  // the room exactly the minimum funds the climb at the exact minimum
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 15000, chainBudgetMs: 280000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 })
+})
+
+test('finalBankSchedule: junk margins collapse to zero, junk chain gives the climb everything (restated v0.635.0)', () => {
+  assert.deepEqual(finalBankSchedule({}), { climbSliceMs: 0, climbSkipped: true, climbBorrowedMs: 0 })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: -5, chainBudgetMs: NaN }), { climbSliceMs: 0, climbSkipped: true, climbBorrowedMs: 0 })
+  assert.deepEqual(finalBankSchedule({ entryMarginMs: 100000, chainBudgetMs: NaN }), { climbSliceMs: 100000, climbSkipped: false, climbBorrowedMs: 0 })
   assert.equal(finalBankSchedule({ entryMarginMs: NaN, chainBudgetMs: 0 }).climbSkipped, true)
-  // the wall-clock invariant: climbSlice + chainBudget <= entryMargin (up to junk)
+  // the wall-clock invariant, FUNDED form: climbSlice + (chain - borrow) <=
+  // entryMargin - stagger (the chain's UNFUNDED number may overlap the slice;
+  // the caller's own finalBudget re-clamp owns that wall truth - the v0.49.0
+  // overrun class cannot return through the borrow)
   const s = finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 45000 })
-  assert.ok(s.climbSliceMs + 45000 <= 50000)
+  assert.equal(s.climbBorrowedMs, 10000, 'raw 5s borrows 10s to fund the 15s minimum')
+  assert.ok(s.climbSliceMs + (45000 - s.climbBorrowedMs) <= 50000, 'the funded pair respects the margin')
+  const t = finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000 })
+  assert.ok(t.climbSliceMs + (300000 - t.climbBorrowedMs) <= 388000 - 88000, 'the funded pair respects the margin minus the stagger')
 })
 
 // ---------------------------------------------------------------------------
@@ -201,13 +230,15 @@ test('finalBankSchedule: the stagger window is priced BEFORE the slice', () => {
   // (the old maths gave 231s - 72s of it was a lie the wall clock collected)
   assert.deepEqual(
     finalBankSchedule({ entryMarginMs: 381000, chainBudgetMs: 150000, staggerDelayMs: 72000 }),
-    { climbSliceMs: 159000, climbSkipped: false }
+    { climbSliceMs: 159000, climbSkipped: false, climbBorrowedMs: 0 }
   )
-  // a late entry whose margin barely covers stagger + chain: the climb skips
-  // honestly instead of borrowing from the reserve
+  // a late entry whose margin barely covers stagger + chain (raw 0s): the
+  // v0.635.0 crumb borrow funds the climb from the reserve - the face's five
+  // zero-banks priced the old skip as 300s of doomed walks and banked=0; the
+  // chain keeps the room the climb did not take (138s - 15s = 123s of wall)
   assert.deepEqual(
     finalBankSchedule({ entryMarginMs: 210000, chainBudgetMs: 150000, staggerDelayMs: 72000 }),
-    { climbSliceMs: 0, climbSkipped: true }
+    { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 }
   )
   // no stagger = the legacy maths exactly (backward compatibility)
   assert.deepEqual(
@@ -217,15 +248,23 @@ test('finalBankSchedule: the stagger window is priced BEFORE the slice', () => {
   // junk stagger reads as 0
   assert.deepEqual(
     finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 150000, staggerDelayMs: NaN }),
-    { climbSliceMs: 240000, climbSkipped: false }
+    { climbSliceMs: 240000, climbSkipped: false, climbBorrowedMs: 0 }
   )
-  // the invariant that protects banked>0: slice + stagger + chain <= margin
+  // the invariants that protect banked>0 (v0.635.0 funded form): the slice never
+  // exceeds the room (the climb never invents wall clock); a funded climb gets
+  // at least the minimum; when the chain fits the room the funded pair (slice +
+  // chain - borrow) respects it - the overdraw class (the flow-price clamp's
+  // own shape) rides the caller's finalBudget re-clamp, the wall truth it has
+  // always owned
   for (const [m, s, c] of [[381000, 72000, 150000], [390000, 120000, 280000], [100000, 8000, 150000]]) {
     const r = finalBankSchedule({ entryMarginMs: m, chainBudgetMs: c, staggerDelayMs: s })
+    const room = Math.max(0, m - s)
+    assert.ok(r.climbSliceMs <= room, `slice ${r.climbSliceMs} never exceeds the room ${room}`)
     if (!r.climbSkipped) {
-      assert.ok(r.climbSliceMs + s + c <= m, `slice ${r.climbSliceMs} + stagger ${s} + chain ${c} <= margin ${m}`)
+      assert.ok(r.climbSliceMs >= CLIMB_MIN_SLICE_MS, 'a funded climb gets at least the minimum')
+      if (c <= room) assert.ok(r.climbSliceMs + (c - r.climbBorrowedMs) <= room, 'the funded pair respects the room')
     } else {
-      assert.ok(m - s - c < CLIMB_MIN_SLICE_MS, 'a skipped climb really had no room')
+      assert.ok(room - c < CLIMB_MIN_SLICE_MS, 'a skipped climb really had no room')
     }
   }
 })
