@@ -11,8 +11,10 @@ import {
   bridgeRefusalClass,
   bridgeRefusalCensus,
   bridgeRefusalRow,
+  parseServerRefusedFill,
   BRIDGE_SHARE,
-  BRIDGE_BOOK_TORN_RE
+  BRIDGE_BOOK_TORN_RE,
+  BRIDGE_REFUSED_TORN_RE
 } from '../../src/lib/climbbridge.mjs'
 
 const FLOOR = 'F14 [F14] climb bridge: unavailable (no solid floor underfoot)'
@@ -166,4 +168,80 @@ test('bridge refusal book: junk census fields never crash the row', () => {
   const row = bridgeRefusalRow(junk)
   assert.ok(row.startsWith('bridge refusal book: 3 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 3 (100%)'))
   assert.ok(row.includes('the floor owns the climb tax'))
+})
+
+// (v0.615.0) THE SERVER-REFUSED FILL - the self-fill's first flight (fleet
+// 37196201457, cc64cf9 = v0.613.0): 15 server refusals (self 9, support 6),
+// ALL 15 with 'post=? (re-read failed)' - the re-read cannot speak after a
+// refusal. The byte-exact mined forms ride the battery.
+const REFUSED_SUPPORT = 'F17 [F17] climb bridge: the server refused the support fill at [-116,43,409] - the rotate ladder owns it (held=cobblestone, 1.2b, ref=stone, post=? (re-read failed))'
+const REFUSED_SELF = 'F3 [F3] climb bridge: the server refused the self fill at [-125,64,420] - the rotate ladder owns it (held=cobblestone, 1.1b, ref=cobblestone, post=? (re-read failed))'
+
+test('server-refused fill: the mined face parses byte-exact', () => {
+  const p = parseServerRefusedFill(REFUSED_SUPPORT)
+  assert.equal(p.kind, 'server-refused-fill')
+  assert.equal(p.bot, 'F17')
+  assert.equal(p.fill, 'support')
+  assert.deepEqual(p.cell, { x: -116, y: 43, z: 409 })
+  assert.equal(p.held, 'cobblestone')
+  assert.equal(p.arm, 1.2)
+  assert.equal(p.ref, 'stone')
+  assert.equal(p.post, '? (re-read failed)')
+  assert.equal(p.reReadFailed, true)
+  const s = parseServerRefusedFill(REFUSED_SELF)
+  assert.equal(s.bot, 'F3')
+  assert.equal(s.fill, 'self')
+  assert.equal(s.ref, 'cobblestone')
+  assert.equal(s.reReadFailed, true)
+  // the no-BRIDGE-repetition bare form keeps parsing (the tag is optional)
+  const bare = parseServerRefusedFill('climb bridge: the server refused the self fill at [1,2,3] - the rotate ladder owns it (held=dirt, 0.9b, ref=grass_block, post=ok)')
+  assert.equal(bare.bot, null)
+  assert.equal(bare.reReadFailed, false) // the re-read CAN speak - the flag rides the keyword
+  // junk keeps the null (the torn sweep owns the prefix-only lines)
+  assert.equal(parseServerRefusedFill(null), null)
+  assert.equal(parseServerRefusedFill(undefined), null)
+  assert.equal(parseServerRefusedFill(42), null)
+  assert.equal(parseServerRefusedFill('climb bridge: the server refused the self fill (torn'), null)
+  assert.equal(parseServerRefusedFill(FILL_PIT), null) // the landed fill is NOT a refused fill
+  assert.ok(BRIDGE_REFUSED_TORN_RE.test('F2 [F2] climb bridge: the server refused the'))
+})
+
+test('server-refused fill: the census counts the mined face whole', () => {
+  const c = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF,
+    'F12 [F12] climb bridge: the server refused the self fill at [-148,65,420] - the rotate ladder owns it (held=dirt, 1.1b, ref=dirt, post=? (re-read failed))',
+    FILL_PIT, FLOOR])
+  assert.equal(c.refused, 4)
+  assert.equal(c.refusedKinds.self, 3)
+  assert.equal(c.refusedKinds.support, 1)
+  assert.equal(c.refusedReReadFailed, 4) // every mined refusal's re-read failed
+  assert.equal(c.places, 1) // the landed fill keeps its own grain
+  assert.equal(c.n, 1) // the unavailable refusal keeps its own grain
+  assert.equal(c.refusedTorn, 0)
+  // the torn refused line rides its own bucket (not the unavailable one)
+  const t = bridgeRefusalCensus(['F2 [F2] climb bridge: the server refused the'])
+  assert.equal(t.refusedTorn, 1)
+  assert.equal(t.refused, 0)
+  assert.equal(t.unparsed, 0)
+})
+
+test('server-refused fill: the tail rides every verdict byte-exact', () => {
+  // the mined face's own mix: the unavailable book floor-owned AND the refused mass
+  const mixed = bridgeRefusalCensus([FLOOR, FLOOR, REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF])
+  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed (the refusal is the verdict)')
+  // the scatter form carries the tail too
+  const scatter = bridgeRefusalCensus([FLOOR, POCKET, REFUSED_SUPPORT, REFUSED_SUPPORT])
+  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed (the refusal is the verdict)'))
+  // the none-none form carries the tail when only the server spoke
+  const only = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF])
+  assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed (the refusal is the verdict)')
+})
+
+test('server-refused fill: old faces stay byte-stable (the tail only speaks when refused > 0)', () => {
+  assert.equal(bridgeRefusalRow(bridgeRefusalCensus([])), 'bridge refusal book: none refused, none placed (the bridge never spoke this run)')
+  assert.equal(bridgeRefusalRow(bridgeRefusalCensus([FILL_PIT])), 'bridge refusal book: none refused, 1 fill(s) placed (the climbs climbed clean)')
+  const floorOnly = bridgeRefusalRow(bridgeRefusalCensus([FLOOR, FLOOR, FLOOR]))
+  assert.equal(floorOnly, 'bridge refusal book: 3 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 3 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)')
+  // junk census fields never crash the tail
+  assert.equal(bridgeRefusalRow({ n: 2, byClass: { floor: 2 }, botCount: 1, refused: NaN }), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)')
+  assert.equal(bridgeRefusalRow(null), 'bridge refusal book: none refused, none placed (the bridge never spoke this run)')
 })

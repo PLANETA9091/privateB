@@ -59,6 +59,43 @@ export function parseBridgeFill (line) {
 // (fleet 37188370162). Junk (undefined, numbers, an empty string) falls to
 // 'other' - a refusal that never names a class is still a refusal (the
 // body-guard law: the count is the truth, the class is the read).
+// (v0.615.0) THE SERVER-REFUSED FILL - the self-fill's first flight (fleet
+// 37196201457, cc64cf9 = v0.613.0) answered the v0.610.0 self-fill wiring with
+// a NEW face: the server itself refuses the placement - 'F17 [F17] climb
+// bridge: the server refused the support fill at [-116,43,409] - the rotate
+// ladder owns it (held=cobblestone, 1.2b, ref=stone, post=? (re-read failed))'
+// - 15 of them (self 9, support 6), and EVERY ONE carried 'post=? (re-read
+// failed)': the post-placement re-read cannot speak after a refusal - the
+// refusal IS the verdict, the re-read is dead weight. The two landed-fill
+// shapes above have their parsers; this one has none - the one-parser-per-
+// emitter law gives it this file (the 'climb bridge:' family's owner). The
+// why tail may nest its own parens ('post=? (re-read failed)') - greedy to
+// the LAST ')', the re-read flag rides a keyword test (climbWhyClass's law).
+const REFUSED_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the server refused the (self|support) fill at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\] - the rotate ladder owns it \\(held=([a-z_]+), ([\\d.]+)b, ref=([a-z_]+), post=(.*)\\)$')
+
+// The torn sweep for the refused form - a line that STARTS like a member but
+// failed the full grammar rides refusedTorn (the honest sweep - the v0.595.0
+// law, this form's own bucket).
+export const BRIDGE_REFUSED_TORN_RE = /climb bridge: the server refused the/
+
+export function parseServerRefusedFill (line) {
+  const m = String(line ?? '').match(REFUSED_RE)
+  if (!m) return null
+  const b = String(line).match(/^F(\d+) /)
+  const post = m[8].trim()
+  return {
+    kind: 'server-refused-fill',
+    bot: b ? `F${b[1]}` : null,
+    fill: m[1],
+    cell: { x: Number(m[2]), y: Number(m[3]), z: Number(m[4]) },
+    held: m[5],
+    arm: Number(m[6]),
+    ref: m[7],
+    post,
+    reReadFailed: /re-read failed/.test(post)
+  }
+}
+
 export function bridgeRefusalClass (msg) {
   const s = String(msg ?? '').toLowerCase()
   if (s.includes('no solid floor underfoot')) return 'floor'
@@ -70,7 +107,8 @@ export function bridgeRefusalClass (msg) {
 }
 
 export function bridgeRefusalCensus (lines) {
-  const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0 }
+  const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
+    refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0 }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -86,7 +124,17 @@ export function bridgeRefusalCensus (lines) {
       c.fillKinds[f.fill] = (c.fillKinds[f.fill] || 0) + 1
       continue
     }
+    // (v0.615.0) the server-refused fill rides its own grain (the self-fill's
+    // first flight priced it: 15 refusals, every re-read failed)
+    const r = parseServerRefusedFill(line)
+    if (r) {
+      c.refused++
+      c.refusedKinds[r.fill] = (c.refusedKinds[r.fill] || 0) + 1
+      if (r.reReadFailed) c.refusedReReadFailed++
+      continue
+    }
     if (BRIDGE_BOOK_TORN_RE.test(line)) c.unparsed++
+    else if (BRIDGE_REFUSED_TORN_RE.test(line)) c.refusedTorn++
   }
   c.botCount = c.bots.size
   return c
@@ -94,6 +142,11 @@ export function bridgeRefusalCensus (lines) {
 
 const pct = (part, whole) => whole > 0 ? Math.round(part * 100 / whole) : 0
 
+// (v0.615.0) when the server refused placements, ONE tail clause rides the
+// verdict (the mined face's own read - old faces byte-stable, the clause only
+// speaks when the face carries refusals):
+//   ' - the server refused N fill(s): self S, support P, R re-read(s) failed
+//     (the refusal is the verdict)'
 // ONE always-print verdict; at most one class owns the half boundary:
 //   floor   - 'no solid floor underfoot' over the half: the bot stands over
 //             its own hole - the support-under-self fill is the front
@@ -109,22 +162,40 @@ const pct = (part, whole) => whole > 0 ? Math.round(part * 100 / whole) : 0
 export function bridgeRefusalRow (c) {
   const places = c && Number.isFinite(c.places) && c.places > 0 ? Math.floor(c.places) : 0
   const n = c && Number.isFinite(c.n) && c.n > 0 ? Math.floor(c.n) : 0
-  if (n === 0) {
-    if (places === 0) return 'bridge refusal book: none refused, none placed (the bridge never spoke this run)'
-    return `bridge refusal book: none refused, ${places} fill(s) placed (the climbs climbed clean)`
-  }
-  const classes = Object.entries(c.byClass || {})
-    .filter(([, v]) => Number.isFinite(v) && v > 0)
-    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-  const list = classes.map(([k, v]) => `${k} ${v} (${pct(v, n)}%)`).join(', ')
-  const head = `bridge refusal book: ${n} refusal(s) across ${c.botCount || 0} bot(s), ${places} fill(s) placed - ${list}`
-  const top = classes[0]
-  const share = top ? pct(top[1], n) : 0
-  if (share < 50 || !top) return `${head} - the refusals scatter (no class owns the climb tax)`
-  if (top[0] === 'floor') return `${head} - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)`
-  if (top[0] === 'pocket') return `${head} - the pocket owns the climb tax (the climb arrives empty-handed - the carried fill is the front)`
-  if (top[0] === 'step') return `${head} - the dig ladder owns the level (the step's dig is the front)`
-  if (top[0] === 'budget') return `${head} - the bridge budget owns the tax (the fills spent - the cap is the front)`
-  if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
-  return `${head} - that refusal's own cure is the front`
+  // (v0.615.0) the server-refused tail rides EVERY verdict (the mass must
+  // speak whatever class owns the unavailable book - the face's floor class
+  // must not bury the refused fills)
+  const base = n === 0
+    ? (places === 0
+        ? 'bridge refusal book: none refused, none placed (the bridge never spoke this run)'
+        : `bridge refusal book: none refused, ${places} fill(s) placed (the climbs climbed clean)`)
+    : (() => {
+        const classes = Object.entries(c.byClass || {})
+          .filter(([, v]) => Number.isFinite(v) && v > 0)
+          .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+        const list = classes.map(([k, v]) => `${k} ${v} (${pct(v, n)}%)`).join(', ')
+        const head = `bridge refusal book: ${n} refusal(s) across ${c.botCount || 0} bot(s), ${places} fill(s) placed - ${list}`
+        const top = classes[0]
+        const share = top ? pct(top[1], n) : 0
+        if (share < 50 || !top) return `${head} - the refusals scatter (no class owns the climb tax)`
+        if (top[0] === 'floor') return `${head} - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)`
+        if (top[0] === 'pocket') return `${head} - the pocket owns the climb tax (the climb arrives empty-handed - the carried fill is the front)`
+        if (top[0] === 'step') return `${head} - the dig ladder owns the level (the step's dig is the front)`
+        if (top[0] === 'budget') return `${head} - the bridge budget owns the tax (the fills spent - the cap is the front)`
+        if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
+        return `${head} - that refusal's own cure is the front`
+      })()
+  return base + refusedTail(c)
+}
+
+// The v0.615.0 tail clause - the server-refused fill mass (the refusal IS the
+// verdict: the re-read is dead weight after a refusal, 15 of 15 failed on the
+// self-fill's first flight)
+function refusedTail (c) {
+  const refused = c && Number.isFinite(c.refused) && c.refused > 0 ? Math.floor(c.refused) : 0
+  if (refused === 0) return ''
+  const s = (c.refusedKinds && c.refusedKinds.self) || 0
+  const p = (c.refusedKinds && c.refusedKinds.support) || 0
+  const rrf = (c && Number.isFinite(c.refusedReReadFailed)) ? c.refusedReReadFailed : 0
+  return ` - the server refused ${refused} fill(s): self ${s}, support ${p}, ${rrf} re-read(s) failed (the refusal is the verdict)`
 }
