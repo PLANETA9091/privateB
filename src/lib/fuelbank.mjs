@@ -780,6 +780,27 @@ export function climbFundRefusal ({ dy = null, lateral = null, walkBudgetMs = nu
   return `the yard stands ${Math.round(up)} levels up over ${Math.round(lat)}b lateral - the ladder may route it but the slice cannot fund the climb (the walk asks ${Math.round(budget / 1000)}s, the slice holds ${Math.round(slice / 1000)}s)`
 }
 
+// (v0.643.0) THE NUDGE'S OWN FLOOR - the decide-class rescue's honest split.
+// The rescue path (the v0.155.0 decide-class nudge + the retry) shares ONE
+// slice, and the face (fleet 37233218979, the v0.640.0 tree) measured the
+// starvation: F7's nudge walked 13.0s of the 15s slice, the retry read a
+// <= 2000ms window and the delivery returned '0 delivered (walk failed ...)'
+// with the final leg never funded (F2: the 12.2s nudge left 2.8s for the
+// decide class to eat). The nudge's doctrine only needs a CHANGED start (the
+// v0.147.0 law); the final leg needs its own honest slice. The split hands
+// the leg its floor FIRST and lets the nudge spend only the slice's headroom:
+// a slice that cannot fund both stands the nudge down (the line names it)
+// and the retry rides the whole remaining slice. Junk-safe: junk reads 0 (the
+// nudge stands down, the caller's own gates keep their byte).
+export const ANCHOR_NUDGE_LEG_FLOOR_MS = 6000
+
+export function nudgeLegSplitMs ({ remainingMs = 0, floorMs = ANCHOR_NUDGE_LEG_FLOOR_MS, capMs = 15000 } = {}) {
+  const rem = Number.isFinite(remainingMs) && remainingMs > 0 ? Math.floor(remainingMs) : 0
+  const floor = Number.isFinite(floorMs) && floorMs > 0 ? Math.floor(floorMs) : 0
+  const cap = Number.isFinite(capMs) && capMs > 0 ? Math.floor(capMs) : 15000
+  return Math.max(0, Math.min(cap, rem - floor))
+}
+
 /**
  * (v0.124.0) THE ANCHOR DELIVERY - the tithe's dedicated inflow. The pocket
  * fuel over FUEL_TITHE_BOUND rides to the fleet's ONE fuel chest BEFORE the
@@ -883,7 +904,12 @@ export async function deliverFuelTithe (bot, {
       // the start, and the re-issue below runs from the new position. The
       // refusal class keeps its wait-out above (the window expiry is a REAL
       // change); the nudge never kills the chain.
-      const nudgeMs = Math.min(remainingMs(), 15000)
+      // (v0.643.0) THE NUDGE'S OWN FLOOR: the split reserves the final leg's
+      // slice first - the face's starvation shape (the 13s nudge, the 2s leg)
+      // cannot return; a starved split stands the nudge down by name and the
+      // retry rides the whole remaining slice.
+      const nudgeMs = nudgeLegSplitMs({ remainingMs: remainingMs(), floorMs: ANCHOR_NUDGE_LEG_FLOOR_MS })
+      if (nudgeMs <= 1000) log(`fuel anchor: the nudge stands down - the slice funds the final leg first (${Math.max(0, Math.round(remainingMs()))}ms left)`)
       if (nudgeMs > 1000) {
         try {
           const n = await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel anchor: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - the side-step ladder was dead here

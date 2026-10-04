@@ -17,7 +17,8 @@ import {
   chestCoverPlan,
   rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
   rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
-  rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP // (v0.507.0) the gravity stash
+  rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP, // (v0.507.0) the gravity stash
+  nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS // (v0.643.0) the nudge's own floor
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -1925,4 +1926,58 @@ test('THE ASK-SIDE GRAVITY READ: the source pins (the wire reads the registry it
   assert.match(src, /the low registry re-ranks the anchor - the diggers'-band chest/, 'the re-rank line names the deep chest and the doctrine')
   assert.match(src, /exclude: freshEmpty, memory, log/, 'the ask\'s anchor call carries the commons memory')
   assert.match(src, /pickFuelAnchor\(usable, yardCenter, lowCells\)/, 'the pick reads the live low cells (the delivery preference at the ask)')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.643.0) THE NUDGE'S OWN FLOOR - the decide-class rescue's honest split.
+// THE EVIDENCE (fleet 37233218979, the v0.640.0 face): 2 of the tithe's 3 dry
+// inflows died of clock starvation INSIDE the rescue path - F7's nudge walked
+// 13.0s of the 15s slice ('1 segment(s) walked in 13.0s, goal now d=17.0'),
+// the retry read remainingMs() <= 2000 and the delivery returned '0 delivered
+// (walk failed (Took to long to decide path to goal!))' with the final leg
+// never funded; F2's 12.2s nudge left 2.8s and the decide class ate the
+// starved retry. The split hands the final leg its floor FIRST (the nudge's
+// doctrine only needs a CHANGED start - the v0.147.0 law).
+
+test('THE NUDGE LEG SPLIT: the face\'s starvation shape cannot return (the F7/F2 faces re-priced)', () => {
+  // F7: the slice held ~13s after walk-1 - the legacy min(remaining, 15000)
+  // handed the nudge ALL 13s and starved the leg to the 2000ms gate. The
+  // split: the nudge takes the headroom above the leg's floor.
+  assert.equal(nudgeLegSplitMs({ remainingMs: 13000 }), 13000 - ANCHOR_NUDGE_LEG_FLOOR_MS)
+  assert.equal(13000 - ANCHOR_NUDGE_LEG_FLOOR_MS, 7000, 'the F7 face reads a 7s nudge (was 13s) and a funded 6s leg')
+  // F2: ~12.8s after walk-1 - the legacy left the retry 2.8s; the split
+  // funds the leg's floor and shrinks the nudge.
+  assert.equal(nudgeLegSplitMs({ remainingMs: 12800 }), 6800)
+  // the invariant: whenever the nudge is positive, nudge + floor <= remaining
+  // (the leg's slice is never borrowed by the nudge again).
+  for (const rem of [7000, 9000, 12800, 15000, 21234]) {
+    const nudge = nudgeLegSplitMs({ remainingMs: rem })
+    assert.ok(nudge + ANCHOR_NUDGE_LEG_FLOOR_MS <= rem || nudge === 0, `the floor holds at ${rem}`)
+  }
+})
+
+test('THE NUDGE LEG SPLIT: the starved face stands the nudge down (the leg keeps the slice)', () => {
+  // the legacy shape at a 5s slice ran the nudge anyway (min(5000, 15000)) and
+  // the leg read <= 2000ms - the double death. The split: nudge 0, the retry
+  // rides the whole remaining slice (the stand-down line names it in the wire).
+  assert.equal(nudgeLegSplitMs({ remainingMs: 5000 }), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: 6000 }), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: 6000 + 1 }), 1, 'the headroom starts above the floor, byte for byte')
+  // the cap law: a fat slice never hands the nudge more than the legacy cap.
+  assert.equal(nudgeLegSplitMs({ remainingMs: 60000 }), 15000)
+})
+
+test('THE NUDGE LEG SPLIT: the junk laws + the source pin (the wire reads the split, the legacy min is gone)', () => {
+  assert.equal(nudgeLegSplitMs({}), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: 0 }), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: -5 }), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: NaN }), 0)
+  assert.equal(nudgeLegSplitMs({ remainingMs: Infinity }), 0, 'Infinity is junk too - the junk-safe law reads 0 (the nudge stands down)')
+  assert.equal(nudgeLegSplitMs({ remainingMs: 20000, floorMs: null, capMs: null }), 15000, 'a null floor reads 0 (junk floors, not defaults) and the 15000 cap still bounds')
+  assert.equal(nudgeLegSplitMs({ remainingMs: 20000 }), 14000, 'the defaults ride undefined: floor 6000, cap 15000')
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.match(src, /const nudgeMs = nudgeLegSplitMs\(\{ remainingMs: remainingMs\(\), floorMs: ANCHOR_NUDGE_LEG_FLOOR_MS \}\)/, 'the delivery rescue path reads the split')
+  assert.equal((src.match(/const nudgeMs = nudgeLegSplitMs\(/g) || []).length, 1, 'the split rides exactly the delivery side (one wire, one truth)')
+  assert.equal((src.match(/const nudgeMs = Math\.min\(remainingMs\(\), 15000\)/g) || []).length, 1, 'the ask side\'s own nudge keeps its legacy byte (a different seam, unmeasured - the next face prices it)')
+  assert.match(src, /the nudge stands down - the slice funds the final leg first/, 'the stand-down names itself (the defer form, the fuel filter key)')
 })
