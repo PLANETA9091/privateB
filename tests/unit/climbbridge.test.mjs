@@ -14,6 +14,7 @@ import {
   parseServerRefusedFill,
   parseBridgeGateWait,
   parsePitDonor,
+  parsePlantClear,
   BRIDGE_SHARE,
   BRIDGE_BOOK_TORN_RE,
   BRIDGE_REFUSED_TORN_RE
@@ -521,4 +522,44 @@ test('open cell confession: the fresh read\'s word priced per kind (v0.626.0)', 
   const torn = bridgeRefusalCensus(['F4 [F4] climb bridge: the server refused the support fill at [-116,43,407] - the rotate ladder owns it (held=cobblestone'])
   assert.equal(torn.refusedTorn, 1)
   assert.deepEqual(torn.refusedPostKinds, {})
+})
+
+test('plant clear book: the confession cure speaks (v0.628.0)', () => {
+  const clears = (s, fill, name, cell) => `F${s} [F${s}] climb bridge: the ${fill} fill's cell holds a ${name} at [${cell}] - the plant clears first`
+  const pcRef = (s, name, cell) => `F${s} [F${s}] climb bridge: the plant clear refused at [${cell}] (${name}) - the ladder owns it`
+  // the byte-exact parses (both forms, the tag law rides)
+  assert.deepEqual(parsePlantClear(clears('6', 'dirt', 'leaf_litter', '-91,59,398')), { kind: 'plant-clear', bot: 'F6', result: 'clears', fillKind: 'dirt', name: 'leaf_litter' })
+  assert.deepEqual(parsePlantClear(pcRef('9', 'short_grass', '-91,60,398')), { kind: 'plant-clear', bot: 'F9', result: 'refused', name: 'short_grass' })
+  // the refused form's name may be 'unknown' (the plan's nullish plantName)
+  assert.equal(parsePlantClear(pcRef('9', 'unknown', '-91,60,398')).name, 'unknown')
+  // junk and the family's near-misses stay null
+  assert.equal(parsePlantClear(''), null)
+  assert.equal(parsePlantClear(undefined), null)
+  assert.equal(parsePlantClear(clears('6', 'dirt', 'Leaf_Litter', '-91,59,398')), null) // names are lowercase block ids
+  assert.equal(parsePlantClear("F6 [F6] climb bridge: the dirt fill's cell holds a leaf_litter at [-91,59,398] (torn"), null)
+  assert.equal(parsePlantClear('F6 [F6] climb bridge: the plant clear refused at [-91,59,398] (short_grass) - the ladder owns it (extra'), null)
+  // the census counts the family; the names ride their own map
+  const lines = [clears('6', 'dirt', 'leaf_litter', '-91,59,398'), clears('6', 'support', 'leaf_litter', '-91,60,398'), clears('7', 'pit', 'short_grass', '-117,65,395'), pcRef('9', 'short_grass', '-88,59,401')]
+  const c = bridgeRefusalCensus(lines)
+  assert.equal(c.plantCleared, 3)
+  assert.equal(c.plantClearRefused, 1)
+  assert.deepEqual(c.plantClearNames, { leaf_litter: 2, short_grass: 1 })
+  assert.equal(c.botCount, 0) // the bots set stays the refusal book's own
+  // the lens law: the plant lines match none of the family's other parsers
+  assert.equal(c.n, 0)
+  assert.equal(c.places, 0)
+  assert.equal(c.refused, 0)
+  assert.equal(c.gates, 0)
+  assert.equal(c.pitDonated, 0)
+  // the tail rides the row's VERY END (after the gate tail AND the donor tail - newest last)
+  const withGate = bridgeRefusalCensus([...lines, 'F4 [F4] climb bridge: the self fill still waits for ground - the ladder owns it', 'F6 [F6] climb bridge: the pocket is empty - the pit donates a dirt at [-91,59,398] - the fill refunds it'])
+  const row = bridgeRefusalRow(withGate)
+  assert.ok(row.endsWith(' - the plant cleared 3 cell(s), 1 clear(s) refused'), row)
+  assert.ok(row.indexOf('the gate waited') < row.indexOf('the pit donated'), row)
+  assert.ok(row.indexOf('the pit donated') < row.indexOf('the plant cleared'), row)
+  // a refused-only face still speaks (the cure's honest half)
+  assert.ok(bridgeRefusalRow(bridgeRefusalCensus([pcRef('9', 'short_grass', '-88,59,401')])).endsWith(' - the plant cleared 0 cell(s), 1 clear(s) refused'))
+  // the old faces (no plant lines) stay byte-stable; the junk fallback silent
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('the plant cleared'))
+  assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the plant cleared'))
 })

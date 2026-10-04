@@ -112,6 +112,33 @@ export function parsePitDonor (line) {
   return null
 }
 
+// (v0.628.0) THE PLANT CLEAR'S OWN BOOK - the confession cure's two forms join
+// the census (the pit donor's own precedent, one fire later). The v0.627.0
+// emitter (the plant front's own cure: the confessed groundcover digs before
+// the fill) speaks two NEW forms that were lens-safe at birth and fell
+// through every parse - the one-parser-per-emitter law gives them this file
+// (the 'climb bridge:' family's owner):
+//   'F1 [F1] climb bridge: the dirt fill's cell holds a leaf_litter at
+//    [-91,59,398] - the plant clears first'
+//   'F2 [F2] climb bridge: the plant clear refused at [-91,59,398]
+//    (short_grass) - the ladder owns it'
+// The clears form carries the fillKind (the cure's own subject - whose fill
+// needed the cell) and the plant name; the refused form's name may be
+// 'unknown' (the plan's nullish plantName - the donor's own law).
+const PLANT_CLEAR_DIGS_RE = new RegExp('^' + TAG_OPT + "climb bridge: the ([a-z_]+) fill's cell holds a ([a-z_]+) at \\[-?\\d+,-?\\d+,-?\\d+\\] - the plant clears first$")
+const PLANT_CLEAR_REFUSED_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the plant clear refused at \\[-?\\d+,-?\\d+,-?\\d+\\] \\(([a-z_]+|unknown)\\) - the ladder owns it$')
+
+export function parsePlantClear (line) {
+  const s = String(line ?? '')
+  const b = s.match(/^F(\d+) /)
+  const bot = b ? `F${b[1]}` : null
+  let m = s.match(PLANT_CLEAR_DIGS_RE)
+  if (m) return { kind: 'plant-clear', bot, result: 'clears', fillKind: m[1], name: m[2] }
+  m = s.match(PLANT_CLEAR_REFUSED_RE)
+  if (m) return { kind: 'plant-clear', bot, result: 'refused', name: m[1] }
+  return null
+}
+
 // The refusal's own class (climbWhyClass's keyword-include law - the why may
 // nest its own parens, the class rides a keyword, never an equality). The
 // classes are the face's own taxonomy: floor 67, pocket 58, step 0, budget 0
@@ -169,7 +196,8 @@ export function bridgeRefusalCensus (lines) {
   const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
     refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set(),
     gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {},
-    pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {}, refusedPostKinds: {} }
+    pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {}, refusedPostKinds: {},
+    plantCleared: 0, plantClearRefused: 0, plantClearNames: {} }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -241,6 +269,20 @@ export function bridgeRefusalCensus (lines) {
       }
       continue
     }
+    // (v0.628.0) the plant clear's own grain: the confession cure's two forms
+    // join the census (they fell through every parse and were DROPPED before
+    // - the donor's own precedent). The bots set stays the refusal book's own
+    // (the head keeps its byte).
+    const pc = parsePlantClear(line)
+    if (pc) {
+      if (pc.result === 'clears') {
+        c.plantCleared++
+        c.plantClearNames[pc.name] = (c.plantClearNames[pc.name] || 0) + 1
+      } else {
+        c.plantClearRefused++
+      }
+      continue
+    }
     if (BRIDGE_BOOK_TORN_RE.test(line)) c.unparsed++
     else if (BRIDGE_REFUSED_TORN_RE.test(line)) c.refusedTorn++
   }
@@ -303,7 +345,7 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + confessionTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c)
+  return base + refusedTail(c) + confessionTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c) + plantClearTail(c)
 }
 
 // (v0.626.0) THE OPEN CELL'S CONFESSION - the fresh read's word, priced per
@@ -347,6 +389,22 @@ function pitDonorTail (c) {
   const r = c && Number.isFinite(c.pitDonorRefused) ? c.pitDonorRefused : 0
   if (d <= 0 && r <= 0) return ''
   return ` - the pit donated ${d} fill(s), ${r} dig(s) refused`
+}
+
+// (v0.628.0) THE PLANT CLEAR'S OWN TAIL - the confession cure's live behavior
+// rides the row's VERY END (after the pit donor tail - the family's newest
+// evidence last, the newest-last law). THE LAW: the clause speaks only when
+// the clear SPOKE (plantCleared > 0 || plantClearRefused > 0); the junk
+// fallback (a census without the fields) reads zeros and stays silent, never
+// a lie; the old faces (no plant lines) stay byte-stable. The names ride the
+// census (plantClearNames - the plant front priced per face in mining), the
+// tail carries the counts:
+//   ' - the plant cleared N cell(s), M clear(s) refused'
+function plantClearTail (c) {
+  const d = c && Number.isFinite(c.plantCleared) ? c.plantCleared : 0
+  const r = c && Number.isFinite(c.plantClearRefused) ? c.plantClearRefused : 0
+  if (d <= 0 && r <= 0) return ''
+  return ` - the plant cleared ${d} cell(s), ${r} clear(s) refused`
 }
 
 // (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face (the
