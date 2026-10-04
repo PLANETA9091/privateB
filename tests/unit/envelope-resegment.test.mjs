@@ -110,5 +110,9 @@ test('the wiring pins: every fall-through keeps the exclude (the account of reco
   assert.match(block, /if \(!plan\.retry\) \{\n\s*log\(`fuel commons: envelope re-segment deferred/)
   assert.match(block, /arrived = true/)
   const landedCount = (block.match(/arrived = true/g) || []).length
-  assert.equal(landedCount, 2) // the legacy retry's landing + the re-segment's landing - no third door
+  // (v0.597.0) the two new doors are the last-mile hop's own landings (the
+  // decide-fail seat + the re-segment's floor) - the helper returns true ONLY
+  // on a real raw landing (walkRawToward within reach), the same contract the
+  // legacy two doors kept: a landing, never a claim. 2 legacy + 2 hop doors.
+  assert.equal(landedCount, 4)
 })

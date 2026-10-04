@@ -770,7 +770,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
             itemsNeeded,
             yardCenter: yardGoal,
             memory: fuelCommonsMemory,
-            budgetMs: Math.min(30000, Math.max(8000, smeltSecs * 1000 / 3)),
+            budgetMs: Math.min(30000, Math.max(20000, smeltSecs * 1000 / 2)),
             log: m => console.log(`${miner.username} ${m}`)
           })
           // (v0.585.0) THE GRAIN FEED: every ask counts once - delivered when
@@ -1251,15 +1251,18 @@ async function runBot (name, target, index) {
         // cure (face 36374720492: 199 'no coal' skips while the tithe banked the
         // fleet's coal). The ask rides the SAME commons machinery as the smelt
         // leg's fuelResupply (yard walk, anchor-first, empty-chest memory) with
-        // a TIGHTER budget: the ask fires mid-dig (the craft cadence), a 12s
-        // slice keeps the dig loop's stall bounded, and cap 2 prices the
+        // the arc-priced budget: (v0.597.0) the face's torch asks (F14, F8,
+        // fleet 37173632953) died 0/1 on 12s slices that the yard arc (the
+        // failed decide + the nudge's 7-11s + the last mile) can NEVER fund -
+        // 20s funds the arc, and a dead dig stall was already the 12s truth
+        // (the ask spent its slice and died anyway). Cap 2 prices the
         // allowance exactly (2 coal = 8 torches). The ask line rides the
         // existing 'torch|craft' filter keys - no filter change.
         torchResupply: ({ itemsNeeded }) => withdrawFuelCommons(miner.bot, {
           itemsNeeded,
           yardCenter: yardGoal,
           memory: fuelCommonsMemory,
-          budgetMs: 12000,
+          budgetMs: 20000,
           cap: 2,
           log: m => console.log(`${miner.username} ${m}`)
         })

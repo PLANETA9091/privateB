@@ -182,7 +182,7 @@ test('withdrawStackMove: a refused dest click returns the stack to the chest slo
 // --------------------------------------------------------- withdrawFuelCommons
 // A mock chest world: findChest -> bot.findBlock, gotoSafe -> bot.pathfinder.goto,
 // openChest -> a 27-slot chest window whose pocket rows ARE the bot inventory.
-function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes = 0, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0, chestPos = null, extraBlocks = null } = {}) {
+function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes = 0, walkFails = false, openFails = false, walkPathFails = null, botPos = null, gotoSlowMs = 0, chestPos = null, extraBlocks = null, rawWalkMoves = false, rawWalkStuckAt = null } = {}) {
   resetWalkGovernors() // (v0.143.0) the fleet goal ceiling is module state - fresh per test world
   let ghostClicks = 0 // (v0.159.0) the one-shot ghost: the first N clicks die, the retry lands
   const chestSlots = Array.from({ length: 27 }, () => null)
@@ -267,6 +267,23 @@ function mockChestWorld ({ chestItem = null, clickGhost = false, clickGhostTimes
       return // refusal: the held stack stays held (the diff reports it)
     }
     return origClick(idx, button)
+  }
+  // (v0.597.0) THE RAW-WALK KNOBS: rawWalkMoves gives the bot a look +
+  // setControlState pair whose look STEPS the bot 6 blocks toward the chest
+  // (the raw walker's own tick loop reads the live position every tick -
+  // the walkRawToward contract needs no pathfinder); rawWalkStuckAt freezes
+  // the steps when the NEXT step would cross that wall line (the wall twin
+  // - the stall gate owns it, the walker never lands through it).
+  if (rawWalkMoves || rawWalkStuckAt != null) {
+    bot.setControlState = () => {}
+    bot.look = async () => {
+      const p = bot.entity.position
+      const t = chestBlock.position
+      const d = p.distanceTo(t)
+      if (rawWalkStuckAt != null && d - 6 <= rawWalkStuckAt) return
+      const k = Math.min(6, Math.max(0, d - 1)) / d
+      bot.entity.position = new Vec3(p.x + (t.x - p.x) * k, p.y + (t.y - p.y) * k, p.z + (t.z - p.z) * k)
+    }
   }
   return { bot, slots, chestBlock }
 }
@@ -361,6 +378,83 @@ test('THE NUDGE CLOCK GUARD (v0.156.0): the overrun segment leaves no re-goto cl
   assert.ok(lines.some(l => /the nudge spent the walk slice/.test(l)), 'the spend is named for the field read')
   assert.ok(!lines.some(l => /timeout after -/.test(l)), 'no negative timeout may exist anywhere in the chain')
   assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'no fake landing')
+})
+
+// (v0.597.0) THE ASK ARC LAW - the fleet slice funds the measured yard arc,
+// and the envelope's own completion rides the raw walker. The face's 16
+// budget deaths (fleet 37173632953) all died at the same seat: the approach
+// walked, landed INSIDE the direct envelope (d=7-10), and the re-goto could
+// not be bought (12 floor refusals below the 2000ms decision floor, 2
+// re-segment floors, 1 decide-fail). The seat read (v0.596.0) named the
+// deaths SPREAD across 13 bots - the slice is the fleet's front - and the
+// seat mechanics here complete what the slice funds.
+test('THE LAST-MILE RAW HOP (v0.597.0): the floor refused the re-goto and the raw walker lands the chest anyway', async () => {
+  // the 12-death shape: the slow goto burns the slice's head, the approach's
+  // raw segment walks (3 ticks) and DECLARES the envelope, and the re-goto
+  // floor (2000ms) stands between the bot and a chest it can see. The hop
+  // rides the remaining clock straight to the coal.
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'once', botPos: new Vec3(30, 64, 30), gotoSlowMs: 2400, rawWalkMoves: true })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 4600, log: m => lines.push(m) })
+  assert.equal(res.reason, 'ok', 'the last mile landed - the chest is reached')
+  assert.equal(res.taken, 5, 'ceil(40/8) = 5 coal through the raw hop')
+  assert.ok(lines.some(l => /the nudge spent the walk slice/.test(l)), 'the floor refusal still names its spend byte for byte')
+  assert.ok(lines.some(l => /the last mile landed \(raw, d=/.test(l)), 'the hop landing is named')
+  assert.ok(!lines.some(l => /the nudge retry landed/.test(l)), 'the re-goto never ran - the hop owns the landing')
+  const inPocket = world.bot.inventory.items().reduce((a, i) => a + i.count, 0)
+  assert.equal(inPocket, 5, 'the verified diff agrees')
+})
+
+test('THE LAST-MILE RAW HOP (v0.597.0): the decide-fail after the envelope - the hop converts what the re-segment never prices', async () => {
+  // the F8 shape: the envelope was declared, the re-goto died DECIDING
+  // ('Took to long to decide path to goal!') - the falsified envelope's
+  // cheapest falsifier-test is the straight walk the envelope already
+  // proved. A landing seats the chest; the re-segment plan never prices.
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always', botPos: new Vec3(30, 64, 30), rawWalkMoves: true })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, log: m => lines.push(m) })
+  assert.equal(res.reason, 'ok', 'the hop landed the falsified envelope')
+  assert.equal(res.taken, 5)
+  assert.ok(lines.some(l => /chest walk failed after the nudge/.test(l)), 'the decide-fail happened')
+  assert.ok(lines.some(l => /the last mile landed \(raw, d=/.test(l)), 'the hop converted it')
+  assert.ok(!lines.some(l => /envelope re-segment/.test(l)), 'the re-segment never priced - the hop was cheaper')
+  const inPocket = world.bot.inventory.items().reduce((a, i) => a + i.count, 0)
+  assert.equal(inPocket, 5)
+})
+
+test('THE LAST-MILE RAW HOP (v0.597.0): the wall twin - a refused hop keeps the honest exclude byte for byte', async () => {
+  // the geometry is real: the raw walker freezes at the wall line, the stall
+  // gate throws, the refusal is named and the chest is excluded - the same
+  // honest end the floor refusals rode before the law.
+  const world = mockChestWorld({ chestItem: item('coal', 30), walkPathFails: 'always', botPos: new Vec3(30, 64, 30), rawWalkMoves: true, rawWalkStuckAt: 5 })
+  const lines = []
+  const res = await withdrawFuelCommons(world.bot, { itemsNeeded: 40, budgetMs: 8000, log: m => lines.push(m) })
+  assert.equal(res.taken, 0, 'a wall is a wall - nothing reached the pocket')
+  assert.equal(res.reason, 'no chest reached', 'the honest terminal')
+  assert.ok(lines.some(l => /the last mile refused \(raw walk stalled/.test(l)), 'the refusal is named for the field read')
+  assert.ok(!lines.some(l => /the last mile landed/.test(l)), 'a refusal never claims a landing')
+  assert.ok(lines.some(l => /envelope re-segment/.test(l)), 'the stuck hop CONFIRMS the falsified envelope - the re-segment prices its second shot honestly (byte for byte)')
+})
+
+test('THE ASK ARC LAW (v0.597.0): the wiring pins - the arc-priced slices and the three last-mile seats', () => {
+  const fuelSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // the arc-priced slice: the ask funds the measured yard arc (the failed
+  // decide + the nudge's 7-11s + the last mile = 15-22s) - the share /2 and
+  // the 20000 floor replace the 8000 floor that starved 16/16 asks
+  assert.match(fleetSrc, /budgetMs: Math\.min\(30000, Math\.max\(20000, smeltSecs \* 1000 \/ 2\)\)/)
+  assert.doesNotMatch(fleetSrc, /Math\.max\(8000, smeltSecs \* 1000 \/ 3\)/)
+  // the torch seat rides the same arc (F14, F8 died 0/1 on the 12s slice)
+  assert.match(fleetSrc, /torchResupply: \(\{ itemsNeeded \}\) => withdrawFuelCommons\(miner\.bot, \{\s*itemsNeeded,\s*yardCenter: yardGoal,\s*memory: fuelCommonsMemory,\s*budgetMs: 20000,/)
+  assert.doesNotMatch(fleetSrc, /torchResupply: \(\{ itemsNeeded \}\) => withdrawFuelCommons\(miner\.bot, \{\s*itemsNeeded,\s*yardCenter: yardGoal,\s*memory: fuelCommonsMemory,\s*budgetMs: 12000,/)
+  // the helper and the three seats: the nudge's floor, the decide-fail, the
+  // re-segment's floor (the n2 declaration)
+  assert.match(fuelSrc, /const lastMileRaw = async \(chestPos, declared\) => \{/)
+  assert.equal((fuelSrc.match(/if \(await lastMileRaw\(chest\.position, nudgedInside\)\) arrived = true/g) || []).length, 2, 'the nudge floor + the decide-fail seats ride the declared envelope')
+  assert.match(fuelSrc, /if \(await lastMileRaw\(chest\.position, n2\.walked\)\) arrived = true/, "the re-segment's floor rides the second shot's own declaration")
+  // the floor's spend lines stay byte for byte (the v0.156.0 field shapes)
+  assert.match(fuelSrc, /the nudge spent the walk slice \(\$\{Math\.round\(remainingMs\(\)\)\}ms left\) - no re-goto clock/)
+  assert.match(fuelSrc, /the re-segment spent the walk slice \(\$\{Math\.round\(remainingMs\(\)\)\}ms left\) - the exclude owns the chest/)
 })
 
 test('withdrawFuelCommons: a partial commons stock is taken honestly, then the scan stops', async () => {

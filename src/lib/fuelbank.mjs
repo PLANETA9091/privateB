@@ -1101,6 +1101,33 @@ export async function withdrawFuelCommons (bot, {
   if (!Number.isFinite(ask) || ask <= 0) return { taken: 0, plan: null, chestsVisited: 0, reason: 'nothing to fuel' }
   const started = Date.now()
   const remainingMs = () => budgetMs - (Date.now() - started)
+  // (v0.597.0) THE LAST-MILE RAW HOP - the envelope's own completion. The
+  // face's 16 budget deaths (fleet 37173632953) all died at the SAME seat:
+  // the approach walked (7-11s of raw segments), landed INSIDE the direct
+  // envelope (d=7-10), and the re-goto could not be bought - 12 floor
+  // refusals below the 2000ms the pathfinder's decision costs, 2 re-segment
+  // floors, 1 decide-fail after the envelope was already declared. The bot
+  // stood one straight hop from a chest that held the coal. The raw walker -
+  // the same machinery that just walked the approach, no pathfinder, no
+  // decision tax, its own stall/net-progress/timeout aborts bounding it -
+  // owns the close with whatever clock remains. One helper, three seats:
+  // the nudge's floor, the falsified envelope's cheapest falsifier-test
+  // (before the re-segment prices a second 15s approach), the re-segment's
+  // floor. The declared gate is strict (only a DECLARED envelope rides -
+  // the v0.355.0 read); a dead clock stands down honestly, and every
+  // refusal keeps today's lines byte for byte. Walk mechanics, not
+  // outcomes - the v0.595.0 lens never claims them.
+  const lastMileRaw = async (chestPos, declared) => {
+    if (!declared || remainingMs() <= 0) return false
+    try {
+      const r = await walkRawToward(bot, chestPos, { timeoutMs: remainingMs() })
+      log(`fuel commons: the last mile landed (raw, d=${Number.isFinite(r?.d) ? r.d.toFixed(1) : '?'})`)
+      return true
+    } catch (eRaw) {
+      log(`fuel commons: the last mile refused (${eRaw?.message || eRaw})`)
+      return false
+    }
+  }
   // (v0.506.0) THE ASK BACKOFF: a sweep that ended DRY from THIS STANCE defers
   // the immediate re-ask - the climb fund's refusals are geometry, and geometry
   // does not move in 45s (the commons ledger's dead letter box: 53 asks, 0
@@ -1274,6 +1301,13 @@ export async function withdrawFuelCommons (bot, {
                 arrived = true
               } catch (e2) {
                 log(`fuel commons: chest walk failed after the nudge (${e2?.message || e2})`)
+                // (v0.597.0) THE LAST-MILE RAW HOP: the falsified envelope's
+                // cheapest falsifier-test - the straight walk the envelope
+                // already proved (the face's F8 decide-fail: the re-goto died
+                // deciding at d=8.1 INSIDE the envelope). A landing seats the
+                // chest and the re-segment never prices; a refusal rides the
+                // re-segment plan byte for byte below.
+                if (await lastMileRaw(chest.position, nudgedInside)) arrived = true
                 // (v0.355.0) THE FALSIFIED ENVELOPE RE-SEGMENT: the envelope's
                 // verdict is a DISTANCE read, the death is a DECISION read -
                 // face 11 measured the disagreement 40 times in one calm face
@@ -1285,8 +1319,11 @@ export async function withdrawFuelCommons (bot, {
                 // position) before the exclude. Every defer/refusal/stall falls
                 // through to the exclude byte for byte (the account of record
                 // law); the ladder is bounded by NUDGE_SHOT_MAX and the floor.
-                const plan = nudgeReSegmentPlan({ shotsUsed: nudgeShots, envelopeInside: nudgedInside, failMsg: e2?.message || String(e2 ?? ''), remainingMs: remainingMs() })
-                if (!plan.retry) {
+                const plan = arrived ? null : nudgeReSegmentPlan({ shotsUsed: nudgeShots, envelopeInside: nudgedInside, failMsg: e2?.message || String(e2 ?? ''), remainingMs: remainingMs() })
+                if (arrived) {
+                  // (v0.597.0) the last mile landed above - the envelope stands,
+                  // the re-segment never prices (the take owns the chest now)
+                } else if (!plan.retry) {
                   log(`fuel commons: envelope re-segment deferred: ${plan.why}`)
                 } else {
                   nudgeShots++
@@ -1304,6 +1341,11 @@ export async function withdrawFuelCommons (bot, {
                       }
                     } else {
                       log(`fuel commons: the re-segment spent the walk slice (${Math.round(remainingMs())}ms left) - the exclude owns the chest`)
+                      // (v0.597.0) THE LAST-MILE RAW HOP: the second shot's own
+                      // envelope declaration (n2.walked) - the same completion
+                      // law at the re-segment's floor (the face's 2 re-segment
+                      // floor deaths: F15, F11's 0/6).
+                      if (await lastMileRaw(chest.position, n2.walked)) arrived = true
                     }
                   } catch (eRe) {
                     log(`fuel commons: envelope re-segment swallowed: ${eRe?.message || eRe} - the exclude owns the chest`)
@@ -1312,6 +1354,11 @@ export async function withdrawFuelCommons (bot, {
               }
             } else {
               log(`fuel commons: the nudge spent the walk slice (${Math.round(remainingMs())}ms left) - no re-goto clock`)
+              // (v0.597.0) THE LAST-MILE RAW HOP: the envelope was declared and
+              // the floor had no clock for the re-goto's decision - the straight
+              // hop is the honest completion (the face's 12 floor-refusal deaths:
+              // the bot stood d=7-10 from a chest that held the coal).
+              if (await lastMileRaw(chest.position, nudgedInside)) arrived = true
             }
           } catch { /* the nudge never kills the chain */ }
         }
