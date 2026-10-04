@@ -1561,6 +1561,26 @@ export const BRIDGE_SELF_WALL_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 // ladder owns the level).
 export const PIT_DONOR_MAX = 2
 
+// (v0.627.0) THE PLANT CLEAR - the confession's own cure, priced by fleet
+// 37212035127 (the v0.626.0 lens tree): 'post=leaf_litter STILL OPEN' x6 +
+// 'post=short_grass' x1 - the PLANT front owned 7 of 26 refusals (27%). The
+// groundcover (leaf_litter, short_grass) rides NO collision (boundingBox
+// 'empty' - the plan reads the cell clear) but the SERVER keeps the cell for
+// its plant: the placement dies into it TWICE ('refused twice') while the
+// pocket held cobble the whole time. THE CURE: when the fill's LATERAL target
+// cell (the support cell at feet level / the pit cell below-lateral) reads a
+// confessing plant, the plan sends the caller DIGGING - the plant breaks
+// bare-hand instantly (zero hardness, no drop guarantee needed - groundcover
+// drops nothing useful and needs no tool), the cell reads air, and the loop
+// re-judges into the fill that was priced. THE SELF CELL IS EXCLUDED - the
+// underfoot dig is the v0.624.0 pit-maker's own jurisdiction (its landing
+// guard owns the void/lava floor; a self-cell plant dig would re-implement
+// that guard blind). PLANT_CLEAR_MAX bounds the clears per climb (a dig that
+// the server refuses must not loop: past the cap the legacy paths stand and
+// the honest refusal prints as always).
+export const PLANT_CLEAR_FAMILY = ['leaf_litter', 'short_grass']
+export const PLANT_CLEAR_MAX = 2
+
 // (v0.621.0) the donor vocab: dirt-family first (the drop rides bare-handed),
 // then the stone-family matrix (each drops a PILLAR_BLOCKS member - a pick is
 // required and verified against the pocket).
@@ -1623,7 +1643,7 @@ export function pitDonor ({ feet, d, read, items = null } = {}) {
   return null
 }
 
-export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0 } = {}) {
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0, plantClears = 0 } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
   if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
@@ -1708,9 +1728,24 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   const step2 = rd(feet.offset(d.x, 2, d.z))
   const clear = b => !!b && b.boundingBox === 'empty'
   if (!clear(step) || !clear(step2)) return { ok: false, why: 'the step cells are not clear (the dig ladder owns this level)' }
+  // (v0.627.0) THE PLANT CLEAR - the lateral target's confessed groundcover
+  // digs first (see PLANT_CLEAR_FAMILY). The cap spent keeps the legacy byte
+  // (the plan plans into the plant cell as today - the honest refusal owns
+  // the rest); a non-confessing read (air, unknown, junk) never sees this
+  // branch. The verdict carries the fill kind it serves (the log names it).
+  const plantCapOpen = Number.isFinite(plantClears) && plantClears < PLANT_CLEAR_MAX
+  const plantOf = b => b && b.name && PLANT_CLEAR_FAMILY.includes(b.name) ? b.name : null
   const support = rd(feet.offset(d.x, 0, d.z))
   if (support && support.boundingBox === 'block') return { ok: false, why: 'the support is already solid' }
+  const supportPlant = plantCapOpen ? plantOf(support) : null
+  if (supportPlant) {
+    return { ok: true, kind: 'plant-clear', fillKind: 'support', cell: feet.offset(d.x, 0, d.z), plantName: supportPlant, item: null, placedNext: done }
+  }
   const below = rd(feet.offset(d.x, -1, d.z))
+  const belowPlant = plantCapOpen && below && below.boundingBox === 'empty' ? plantOf(below) : null
+  if (belowPlant) {
+    return { ok: true, kind: 'plant-clear', fillKind: 'pit', cell: feet.offset(d.x, -1, d.z), plantName: belowPlant, item: null, placedNext: done }
+  }
   if (below && below.boundingBox === 'block') {
     return {
       ok: true, kind: 'support',

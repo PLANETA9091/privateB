@@ -531,7 +531,7 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
 // record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
 // is the pure gate the climbOut wiring executes: the step path clear + the
 // support non-solid + a placeable pocket = fill the missing floor.
-import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE } from '../../src/lib/surface.mjs'
+import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE, PLANT_CLEAR_FAMILY, PLANT_CLEAR_MAX } from '../../src/lib/surface.mjs'
 
 const cell = (x, y, z) => ({
   x, y, z,
@@ -1265,4 +1265,66 @@ test('WIRING PIN: the altitude-demand guard rides BOTH walkable-surface call sit
   // the guard reads the CALLER's targetY (not raisedTargetY) - the stale-entry
   // raise inside climbOut must never trigger the skip
   assert.ok(minerSrc.includes('!climbSurfaceShort({ targetY,'), 'the guard consumes the caller-owned targetY')
+})
+
+test('plant clear: the confessed groundcover digs before the fill (v0.627.0)', () => {
+  const LEAF = blk('leaf_litter', 'empty') // no collision - the plan reads the cell clear
+  const SGRASS = blk('short_grass', 'empty')
+  // the family + the cap are pinned (the confessed kinds, the donor's own cap law)
+  assert.deepEqual(PLANT_CLEAR_FAMILY, ['leaf_litter', 'short_grass'])
+  assert.equal(PLANT_CLEAR_MAX, 2)
+  // the support cell holds the confessed plant - the plan sends the caller DIGGING
+  const supportPlant = cellWorld({
+    '10,63,20': STONE, // ownFloor
+    '11,65,20': AIR, '11,66,20': AIR, // the step cells clear
+    '11,64,20': LEAF, // the support cell - the plant front's own face
+    '11,63,20': STONE // the pit floor solid
+  })
+  const p1 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportPlant, items: POCKET })
+  assert.equal(p1.ok, true)
+  assert.equal(p1.kind, 'plant-clear')
+  assert.equal(p1.fillKind, 'support')
+  assert.equal(p1.plantName, 'leaf_litter')
+  assert.deepEqual({ x: p1.cell.x, y: p1.cell.y, z: p1.cell.z }, { x: 11, y: 64, z: 20 })
+  assert.equal(p1.item, null)
+  assert.equal(p1.placedNext, 0, 'the clear spends no fill budget')
+  // the pit cell (below lateral) holds short_grass - the pit fill's own confession
+  const pitPlant = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': SGRASS // the pit level - the plant sits where the fill would go
+  })
+  const p2 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET })
+  assert.equal(p2.ok, true)
+  assert.equal(p2.kind, 'plant-clear')
+  assert.equal(p2.fillKind, 'pit')
+  assert.equal(p2.plantName, 'short_grass')
+  assert.deepEqual({ x: p2.cell.x, y: p2.cell.y, z: p2.cell.z }, { x: 11, y: 63, z: 20 })
+  // the cap spent keeps the legacy byte: the plan plans INTO the plant cell as today
+  const capSpent = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX })
+  assert.equal(capSpent.ok, true)
+  assert.equal(capSpent.kind, 'support', 'past the cap the legacy support fill plans as always - the honest refusal owns the rest')
+  assert.equal(capSpent.refCell.y, 63)
+  // junk plantClears is the closed cap (never a crash, never a fresh dig budget)
+  const junkCap = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportPlant, items: POCKET, plantClears: 'two' })
+  assert.equal(junkCap.kind, 'support')
+  // a non-confessing cell never sees the branch: air support keeps the legacy byte
+  const airCase = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p3 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: airCase, items: POCKET })
+  assert.equal(p3.kind, 'support')
+  // the solid support keeps its own refusal (the plant check rides AFTER the solid check)
+  const solidCase = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': STONE
+  })
+  const p4 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: solidCase, items: POCKET })
+  assert.equal(p4.ok, false)
+  assert.equal(p4.why, 'the support is already solid')
 })

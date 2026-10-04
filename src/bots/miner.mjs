@@ -35,6 +35,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail,
+  PLANT_CLEAR_FAMILY, // (v0.627.0) THE PLANT CLEAR - the confessed groundcover digs before the fill
   SEAL_PLACE_TIMEOUT_MS // (v0.544.0) THE SEAL PLACE FENCE - the PILLAR lesson reaches the miner's own seal legs
 } from '../lib/surface.mjs'
 import { isHostileEntity, pickWeapon, pickMeleeWeapon, threatVerdict, threatVerdictLane, effectiveHp, isPoisoned, witchFightStep, meleeFightStep, meleeReturnPlan, driftReturnPlan, cooldownTicksForWeapon, foughtEntityGone, FIGHT_DEADLINE_MS, MELEE_RETURN_WAIT_TICKS, DRIFT_RETURN_TICKS, DETECT_RANGE, ENGAGE_RANGE, FLEE_HP, fleeResponse, kiteHopTarget, RANGED_HOSTILES, RANGED_COOLDOWN_MS, rangedCooldownUntil, rangedCooldownLive, MELEE_COOLDOWN_MS, meleeCooldownUntil, meleeCooldownLive, fightDeathVerdict, ringRangedClass, OPEN_FIELD_FLEE_HP, LENS_FOE_RANGE } from '../lib/combat.mjs'
@@ -5101,6 +5102,7 @@ export function createMiner ({
     let pounceProbes = 0 // (v0.313.0) one decline-naming probe per climb - the field mystery needs the guard's voice
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     let bridgeDonors = 0 // (v0.621.0) pit donor digs this climb, bounded by PIT_DONOR_MAX
+    let bridgePlantClears = 0 // (v0.627.0) plant clears this climb, bounded by PLANT_CLEAR_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
     // measured the trap (17:05 run): a shaft that turned into a water column
@@ -5499,14 +5501,41 @@ export function createMiner ({
           // verdict, lands (bounded poll), and the plan re-reads from the
           // LANDED feet - the landed ownFloor often reads solid (the hole
           // self-solves) or the fill rides the grounded standing transport.
-          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded(), donors: bridgeDonors })
+          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded(), donors: bridgeDonors, plantClears: bridgePlantClears })
           if (!bp.ok && bp.waitGround) {
             const grounded = await bridgeWaitGround()
             const feetNow = (() => { try { return bot.entity?.position ? bot.entity.position.floored() : feet } catch { return feet } })()
-            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors })
+            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors, plantClears: bridgePlantClears })
             if (diagLevels < 3 && (bp.ok || !bp.waitGround)) log(`${tag} climb bridge: the self fill waited ${grounded ? 'and grounded' : 'and stayed afloat'} - the re-plan ${bp.ok ? `reads the ${bp.kind} fill` : `refuses (${bp.why})`}`)
           }
           if (bp.ok) {
+            if (bp.kind === 'plant-clear') {
+              // (v0.627.0) THE PLANT CLEAR's executor half: the confession
+              // priced the plant front at 7 of 26 refusals (27%) - the
+              // groundcover rides no collision (the plan reads the cell
+              // clear) but the SERVER keeps the cell for its plant and the
+              // placement dies into it twice. Dig the confessed plant
+              // bare-hand (zero hardness - no tool, no drop guarantee),
+              // settle for the block update, and let the loop re-judge into
+              // the fill that was priced. A failed dig logs the honest
+              // refusal and falls to the ladder; the cap (PLANT_CLEAR_MAX)
+              // lives plan-side.
+              let dugOk = false
+              try {
+                const plantB = readCell(bp.cell)
+                if (plantB && plantB.name && PLANT_CLEAR_FAMILY.includes(plantB.name)) {
+                  dugOk = await bot.fastDig(plantB, { maxTicks: digWindow })
+                }
+              } catch { dugOk = false }
+              if (dugOk) {
+                bridgePlantClears++
+                await settleTicks(2, 'climb bridge plant clear settle')
+                if (diagLevels < 3) log(`${tag} climb bridge: the ${bp.fillKind} fill's cell holds a ${bp.plantName} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the plant clears first`)
+                continue
+              }
+              if (diagLevels < 3) log(`${tag} climb bridge: the plant clear refused at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.plantName ?? 'unknown'}) - the ladder owns it`)
+              continue
+            }
             if (bp.kind === 'donor') {
               // (v0.621.0) THE PIT DONOR's executor half: the pocket class
               // owned 113 of 117 bridge refusals (97%) on fleet 37205134738 -
