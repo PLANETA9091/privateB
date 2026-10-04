@@ -75,13 +75,20 @@ test('v0.257.0 wiring: the executor is the miner\'s own climbOut at the YARD lev
   assert.match(fleetSrc, /const fenceAt = Date\.now\(\) \+ plan\.climbMs/, 'the fence is the priced slice - the leg clock owns the spend')
 })
 
-test('v0.257.0 arithmetic: the F18 face shape is the cure - the leftover-clock refusal flips to a funded upfront climb', () => {
+test('v0.257.0 arithmetic: the F18 face shape under the per-level law - the 75s leftover refuses honestly, the wall\'s own price funds', () => {
   // F18's doom arrived with 75s of LEFTOVER chain clock and refused (the
-  // one-ms boundary). The upfront consult reads the clock at LEG START - the
-  // same wall funded when the leg opens fat.
+  // one-ms boundary). (v0.606.0) THE PER-LEVEL LAW re-prices this wall:
+  // 27 levels x 4.2s/level = 113.4s - the flat-era flip funded a 27-level
+  // wall with 45s, the funded-but-doomed slice the field priced (face
+  // 37183256337: timeout 4 of 7 ascents, 0 of 7 landed). The 75s leftover
+  // refuses HONESTLY now (the why names the real price) and the funded
+  // door opens at the wall's own number.
   const starvedLeftover = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 75000 })
-  assert.equal(starvedLeftover.ascend, true, '75s at leg start funds the climb - the exact clock that refused at doom time')
-  assert.equal(starvedLeftover.climbMs, 45000, 'the slice is the calibration constant, unchanged')
+  assert.equal(starvedLeftover.ascend, false, '75s cannot fund the 113s climb + the 30s walk floor - the honest refusal')
+  assert.match(starvedLeftover.why, /cannot fund the 113s climb \+ the 30s walk floor/, 'the refusal names the real price')
+  const funded = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 143400 })
+  assert.equal(funded.ascend, true, 'the wall\'s own price funds the climb the flat era doomed')
+  assert.equal(funded.climbMs, 113400, 'the slice scales with the wall (27 x 4200)')
   const thin = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 29000 })
   assert.equal(thin.ascend, false, 'a 29s clock still refuses - the arithmetic is UNTOUCHED')
   assert.match(thin.why, /cannot fund/)

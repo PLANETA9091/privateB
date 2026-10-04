@@ -16,10 +16,14 @@ test('quarry ascent: the calibration constants carry the measured shape', () => 
 })
 
 test('quarry ascent: the face-36340470441 shape ascends (yard 80 vs dig 59, funded clock)', () => {
+  // (v0.606.0) THE PER-LEVEL LAW re-prices this wall: 21 levels x 4.2s/level
+  // = 88.2s - the flat 45s slice under-priced this face (the timeout class,
+  // face 37183256337: 0 of 7 climbs landed). The face still ascends - the
+  // funded clock now carries the wall's own price.
   const p = quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 195000 })
   assert.equal(p.ascend, true)
   assert.equal(p.dy, 21)
-  assert.equal(p.climbMs, 45000)
+  assert.equal(p.climbMs, 88200, 'the slice scales with the wall (21 x 4200)')
   assert.match(p.why, /21 levels up/)
 })
 
@@ -49,17 +53,22 @@ test('quarry ascent: junk family reads no ascent (the legacy shape byte for byte
 })
 
 test('quarry ascent: a junk climbMs keeps the default slice (never zero/overrun)', () => {
+  // (v0.606.0) the default slice is the wall's own price now - the floor
+  // constant only binds the shallow walls (dy <= 10).
   const p = quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 195000, climbMs: 'junk' })
   assert.equal(p.ascend, true)
-  assert.equal(p.climbMs, 45000)
+  assert.equal(p.climbMs, 88200, 'the junk override falls through to the scaled default')
 })
 
 test('quarry ascent: the funded clock funds the climb (the chain keeps the rest)', () => {
-  const p = quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 76000 })
+  // (v0.606.0) the boundary re-anchors on the wall's own price: 88200ms
+  // climb + 30000ms walk floor = 118200ms - the old 75s boundary priced the
+  // flat slice the field doom'd (timeout 4 of 7 ascents, 0 landed).
+  const p = quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 118200 })
   assert.equal(p.ascend, true)
-  assert.equal(p.climbMs, 45000)
-  assert.equal(quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 75000 }).ascend, true) // exactly the climb + the walk floor
-  assert.equal(quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 74999 }).ascend, false) // one ms short - the honest refusal
+  assert.equal(p.climbMs, 88200)
+  assert.equal(quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 118199 }).ascend, false) // one ms short - the honest refusal
+  assert.equal(quarryAscentPlan({ botY: 59, yardY: 80, remainingMs: 76000 }).ascend, false) // the flat-era boundary cannot fund the scaled wall
 })
 
 test('quarry ascent: the doom gate arithmetic is untouched byte for byte', () => {
