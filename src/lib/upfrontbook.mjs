@@ -123,7 +123,118 @@ const reasonThrottle = reason => {
   if (reason === 'stalled') return 'the stall owns the climb - the wall refuses the dig'
   if (reason === 'wet wall') return 'the wet wall owns the climb - the geometry is the front'
   if (reason === 'zero-gain') return "the ok-without-rise is the front - the climb's ok hides a no-rise wall"
+  if (reason === 'low-o2') return "the deep yard's air is the front - the climb ran out of sky"
   return "that reason's own cure is the front"
+}
+
+// (v0.613.0) THE DEMAND-CLOSURE LENS - the upfront leg's demand rides the
+// funded line ('the yard stands N levels up') and the landed line rides the
+// rise ('climbed +N levels'), but no lens ever PAIRED them: a landing that
+// rose less than the demand still prints 'the hop ladder is pre-funded'.
+// THE FACE: fleet 37193219050 (512fbf0 = v0.610.0, the altitude-demand
+// guard's first flight) - the instant '+0' face is GONE (the guard holds)
+// and the timeout class is gone (0 of 11 vs 4 of 5 on face 37191475285),
+// but ALL THREE landings are partial rises: F16 demanded 12 climbed +6,
+// F5 demanded 13 climbed +8, F10 demanded 9 climbed +1 - the demand stands
+// 5-8 levels above every 'pre-funded' walk. The census pairs each funded
+// with the bot's next terminal outcome (the log interleaves bots, so the
+// pairing walks per-bot order, the bankcensus stranded-pairing shape):
+//   closed   - the rise met the demand (gained >= dy - 1, the 1-level
+//              already-out tolerance climbSurfaceShort's own boundary)
+//   partial  - the rise fell short (the gap is the demand still standing)
+//   aborted  - the terminal is a failure (the demand untested; by reason)
+//   condemned- the route latched before the climb
+//   unrated  - the landed numbers rode '?' (the emitter's nullish fallback)
+//   unresolved - a funded superseded by a re-fund with no terminal between
+//   orphan   - a terminal with no funded in front (the funded rode torn)
+// Mining-surface only: zero fleet wiring, zero new log lines.
+
+// ONE always-print verdict over the demand-closure census; the bands are
+// exclusive:
+//   none          - the family never spoke (the none form is a verdict)
+//   torn book     - terminals rode without a funding ask
+//   untested      - no landing at all: the top abort class owns the face
+//   unrated       - every landing rode '?' numbers - the demand unpriced
+//   closes        - every priced landing met its demand
+//   all partial   - every priced landing fell short: the demand stands (the
+//                   biggest gap named - the 'pre-funded' walk's own lie)
+//   mixed         - some closed, some short: the biggest gap still names
+//                   the front
+export function upfrontDemandRow (c) {
+  const landings = c.closed + c.partial + c.unrated
+  if (c.demanded === 0 && landings === 0 && c.aborted === 0 && c.condemned === 0 && c.orphan === 0) {
+    return c.torn > 0
+      ? `upfront demand book: none - the ascent never asked (${c.torn} torn line(s) rode the family's name)`
+      : 'upfront demand book: none - the ascent never asked'
+  }
+  const head = `upfront demand book: demanded ${c.demanded}, closed ${c.closed}, partial ${c.partial}, aborted ${c.aborted} across ${c.botCount} bot(s)`
+  if (c.demanded === 0) {
+    return `${head} - the book reads torn - outcomes rode without a funding ask`
+  }
+  const gapName = c.biggestGap
+    ? `the biggest gap ${c.biggestGap.gap} levels: ${c.biggestGap.bot} demanded ${c.biggestGap.dy}, climbed +${c.biggestGap.gained}`
+    : null
+  if (landings === 0) {
+    if (c.condemned > 0 && c.aborted === 0) return `${head} - the route is condemned - the demands go untested`
+    const top = topReason(c.abortReasons) || ['no read', c.aborted]
+    return `${head} - the demand goes untested - ${top[0]} owns the aborts (${top[1]} of ${c.aborted}) - ${reasonThrottle(top[0])}`
+  }
+  if (c.partial === 0 && c.closed === 0) {
+    return `${head} - the landings ride unrated numbers (?) - the demand unpriced`
+  }
+  if (c.partial === 0) {
+    return `${head} - the landings close their demands (${c.closed} of ${landings} priced)`
+  }
+  if (c.closed === 0) {
+    return `${head} - every landing is partial - the demand stands (${gapName})`
+  }
+  return `${head} - partial ${c.partial} of ${c.partial + c.closed} priced landings - ${gapName}`
+}
+
+export function upfrontDemandCensus (lines) {
+  const c = {
+    demanded: 0, closed: 0, partial: 0, aborted: 0, condemned: 0,
+    unrated: 0, unresolved: 0, orphan: 0, torn: 0,
+    abortReasons: {}, biggestGap: null,
+    bots: new Set()
+  }
+  const pending = new Map() // bot -> {dy} (the unnamed bot rides '_')
+  for (const line of lines) {
+    const p = parseUpfrontAscent(line)
+    if (!p) {
+      if (typeof line === 'string' && UPFRONT_BOOK_TORN_RE.test(line)) c.torn++
+      continue
+    }
+    const key = p.bot || '_'
+    if (p.kind === 'funded') {
+      if (pending.has(key)) c.unresolved++ // a re-fund superseded the open demand
+      pending.set(key, { dy: p.dy })
+      c.demanded++
+      if (p.bot) c.bots.add(p.bot)
+      continue
+    }
+    const open = pending.get(key)
+    if (open) pending.delete(key)
+    if (p.kind === 'landed') {
+      if (!open) { c.orphan++; continue }
+      if (p.gained === null) { c.unrated++; continue }
+      if (p.gained >= open.dy - 1) { c.closed++; continue } // the 1-level already-out tolerance
+      c.partial++
+      const gap = open.dy - p.gained
+      if (c.biggestGap === null || gap > c.biggestGap.gap) {
+        c.biggestGap = { bot: p.bot, dy: open.dy, gained: p.gained, gap }
+      }
+    } else if (p.kind === 'failed') {
+      if (!open) { c.orphan++; continue }
+      c.aborted++
+      c.abortReasons[p.reason] = (c.abortReasons[p.reason] || 0) + 1
+    } else if (p.kind === 'route-latched') {
+      if (!open) { c.orphan++; continue }
+      c.condemned++
+    }
+  }
+  c.botCount = c.bots.size
+  return c
 }
 
 // ONE always-print verdict; the bands are exclusive:

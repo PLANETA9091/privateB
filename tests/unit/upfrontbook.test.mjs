@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseUpfrontAscent, upfrontAscentCensus, upfrontAscentRow, UPFRONT_RE, UPFRONT_BOOK_TORN_RE, UPFRONT_LAND_SHARE } from '../../src/lib/upfrontbook.mjs'
+import { parseUpfrontAscent, upfrontAscentCensus, upfrontAscentRow, upfrontDemandCensus, upfrontDemandRow, UPFRONT_RE, UPFRONT_BOOK_TORN_RE, UPFRONT_LAND_SHARE } from '../../src/lib/upfrontbook.mjs'
 
 // The live face's own lines (fleet 37184982755, ae8ab88 = v0.602.0) -
 // byte-exact against the held log ci-logs/fleet19-37184982755/.
@@ -197,4 +197,132 @@ test('the row bands: none, condemned, torn book, never-lands, zero-gain face, la
   // The boundary constant is exported and rides the exclusive-half law.
   assert.equal(UPFRONT_LAND_SHARE, 0.5)
   assert.ok(UPFRONT_RE instanceof RegExp)
+})
+
+// (v0.613.0) THE DEMAND-CLOSURE LENS - the funded demand paired with the
+// bot's next terminal. THE FACE: fleet 37193219050 (512fbf0 = v0.610.0, the
+// altitude-demand guard's first flight) - the instant '+0' face is GONE (the
+// guard holds) and the timeout class is gone (0 of 11 vs 4 of 5 on face
+// 37191475285), but ALL THREE landings are partial rises: the demand stands
+// 5-8 levels above every 'pre-funded' walk.
+
+const fundedLine = (bot, dy) => `${bot} chest ascent (upfront): the yard stands ${dy} levels up - the climb buys the walk its route - funding the climb before the leg's walks`
+const landedLine = (bot, gained, dug = 0, steps = 0) => `${bot} chest ascent (upfront): climbed +${gained} levels (dug ${dug}, ${steps} steps) - the hop ladder is pre-funded`
+const failedLine = (bot, reason = 'stalled') => `${bot} chest ascent (upfront): failed (${reason}) - the leg walks from here`
+const latchedLine = bot => `${bot} chest ascent (upfront): route-latched after 3 refused climbs - the route is condemned, the leg walks the whole route`
+
+// fleet 37193219050's upfront family byte-exact (28 lines, 11 bots - the
+// log interleaves the bots, the pairing walks per-bot order).
+const FACE_37193219050 = [
+  fundedLine('F15', 21), failedLine('F15', 'low-o2'),
+  fundedLine('F16', 12), fundedLine('F5', 13),
+  landedLine('F16', 6, 12, 6), landedLine('F5', 8, 6, 8),
+  fundedLine('F10', 9), landedLine('F10', 1, 0, 4),
+  fundedLine('F13', 9), failedLine('F13'),
+  fundedLine('F14', 9), failedLine('F14'),
+  fundedLine('F13', 8), fundedLine('F9', 9),
+  failedLine('F9'), failedLine('F13'),
+  fundedLine('F8', 9), fundedLine('F11', 9), fundedLine('F6', 9),
+  failedLine('F8'), failedLine('F11'), failedLine('F6'),
+  fundedLine('F17', 10), failedLine('F17'),
+  fundedLine('F11', 10), failedLine('F11'),
+  fundedLine('F6', 10), failedLine('F6')
+]
+
+test('THE DEMAND-CLOSURE LENS: the mined face pairs every funding with its own next terminal (the log interleaves, the lens reads per-bot order)', () => {
+  const c = upfrontDemandCensus(FACE_37193219050)
+  assert.equal(c.demanded, 14)
+  assert.equal(c.closed, 0)
+  assert.equal(c.partial, 3)
+  assert.equal(c.aborted, 11)
+  assert.deepEqual(c.abortReasons, { stalled: 10, 'low-o2': 1 })
+  assert.equal(c.condemned, 0)
+  assert.equal(c.unrated, 0)
+  assert.equal(c.unresolved, 0)
+  assert.equal(c.orphan, 0)
+  assert.equal(c.torn, 0)
+  assert.deepEqual(c.biggestGap, { bot: 'F10', dy: 9, gained: 1, gap: 8 })
+  assert.equal(c.botCount, 11)
+})
+
+test('the demand row names the all-partial face: the pre-funded walk\'s own lie', () => {
+  const row = upfrontDemandRow(upfrontDemandCensus(FACE_37193219050))
+  assert.equal(row, 'upfront demand book: demanded 14, closed 0, partial 3, aborted 11 across 11 bot(s) - every landing is partial - the demand stands (the biggest gap 8 levels: F10 demanded 9, climbed +1)')
+})
+
+test('a landing closes its demand at the demand and inside the 1-level already-out tolerance', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 12), landedLine('F1', 12), fundedLine('F2', 12), landedLine('F2', 11)])
+  assert.equal(c.closed, 2)
+  assert.equal(c.partial, 0)
+  assert.equal(c.biggestGap, null)
+  assert.match(upfrontDemandRow(c), /the landings close their demands \(2 of 2 priced\)/)
+})
+
+test('the partial boundary: the tolerance minus one is partial, and the tie keeps the first gap', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 12), landedLine('F1', 10), fundedLine('F2', 12), landedLine('F2', 10)])
+  assert.equal(c.partial, 2)
+  assert.equal(c.closed, 0)
+  assert.deepEqual(c.biggestGap, { bot: 'F1', dy: 12, gained: 10, gap: 2 })
+})
+
+test('the pairing survives the interleaving: each bot closes its own demand', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 9), fundedLine('F2', 15), landedLine('F1', 9), landedLine('F2', 15)])
+  assert.equal(c.closed, 2)
+  assert.equal(c.biggestGap, null)
+})
+
+test('a re-fund with no terminal between supersedes the open demand (unresolved)', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 9), fundedLine('F1', 8), failedLine('F1')])
+  assert.equal(c.unresolved, 1)
+  assert.equal(c.aborted, 1)
+  assert.equal(c.demanded, 2)
+})
+
+test('terminals without a funding ask ride orphans and the row reads torn', () => {
+  const c = upfrontDemandCensus([landedLine('F1', 5), failedLine('F2')])
+  assert.equal(c.orphan, 2)
+  assert.equal(c.demanded, 0)
+  assert.match(upfrontDemandRow(c), /the book reads torn - outcomes rode without a funding ask/)
+})
+
+test('the ? landing rides unrated and its own row band', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 9), landedLine('F1', '?')])
+  assert.equal(c.unrated, 1)
+  assert.match(upfrontDemandRow(c), /the landings ride unrated numbers \(\?\) - the demand unpriced/)
+})
+
+test('the untested face names the top abort class; the condemned face names the latch', () => {
+  const untested = upfrontDemandRow(upfrontDemandCensus([fundedLine('F1', 9), failedLine('F1'), fundedLine('F1', 10), failedLine('F1')]))
+  assert.match(untested, /the demand goes untested - stalled owns the aborts \(2 of 2\) - the stall owns the climb - the wall refuses the dig/)
+  const condemned = upfrontDemandRow(upfrontDemandCensus([fundedLine('F1', 9), latchedLine('F1')]))
+  assert.match(condemned, /the route is condemned - the demands go untested/)
+})
+
+test('the mixed band: some closed, some short - the biggest gap still names the front', () => {
+  const c = upfrontDemandCensus([fundedLine('F1', 12), landedLine('F1', 12), fundedLine('F2', 9), landedLine('F2', 1, 0, 4)])
+  assert.equal(c.closed, 1)
+  assert.equal(c.partial, 1)
+  assert.match(upfrontDemandRow(c), /partial 1 of 2 priced landings - the biggest gap 8 levels: F2 demanded 9, climbed \+1/)
+})
+
+test('the new low-o2 class rides the abort census and the vocabulary names the air', () => {
+  const c = upfrontDemandCensus([fundedLine('F15', 21), failedLine('F15', 'low-o2')])
+  assert.deepEqual(c.abortReasons, { 'low-o2': 1 })
+  assert.match(upfrontDemandRow(c), /low-o2 owns the aborts \(1 of 1\) - the deep yard's air is the front - the climb ran out of sky/)
+  const never = upfrontAscentRow(upfrontAscentCensus([fundedLine('F15', 21), failedLine('F15', 'low-o2')]))
+  assert.match(never, /low-o2 owns the failures \(1 of 1\) - the deep yard's air is the front/)
+})
+
+test('junk never parses into a demand: foreign families, non-strings, the none and torn forms', () => {
+  const c = upfrontDemandCensus([
+    'F2 chest ascent: refused (the clock 6s cannot fund the 155s climb + the 30s walk floor) - the skip stands',
+    'F3 climb out (arm): climbed +2 levels',
+    42, null, undefined,
+    'junk text entirely'
+  ])
+  assert.equal(c.demanded, 0)
+  assert.equal(c.botCount, 0)
+  assert.equal(upfrontDemandRow(c), 'upfront demand book: none - the ascent never asked')
+  const torn = upfrontDemandRow(upfrontDemandCensus(['F2 chest ascent (upfront): climbed +2 levels (dug']))
+  assert.match(torn, /none - the ascent never asked \(1 torn line\(s\) rode the family's name\)/)
 })
