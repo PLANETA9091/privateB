@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, writeOffWhyRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, writeOffWhyRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, stallWhyClass, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink; (v0.581.0) the open pool's age anatomy
 import { createScout } from '../src/bots/scout.mjs'
@@ -3507,7 +3507,15 @@ async function runBot (name, target, index) {
             // (v0.556.0) the climb-doomed strand names its class too - the same
             // class the census just computed rides the why book (the strand's
             // write-off/attribution faces read it; 'other' never rides)
-            const climbTok = whyBookToken(whyCls)
+            // (v0.589.0) THE STALL'S STAGE - the ladder's own leg rides the
+            // book when the stall stalled: stallWhyClass reshapes the class to
+            // 'stalled-s<leg>' (cr.stage - the climb result's escalation state,
+            // s0 the first wall / s1 the 90-degree leg / s2 the 180-degree leg),
+            // the shaft-bottom legs name their labels and the write-off why
+            // mass aims the ladder's own seat; an unknown stage rides the
+            // legacy 'stalled' token (the honest net). The census and the
+            // owner map keep their CLASS grain - the comparability law.
+            const climbTok = whyBookToken(stallWhyClass(whyCls, cr.stage))
             if (climbTok) finalBankWhys.set(name, climbTok)
           } else {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })

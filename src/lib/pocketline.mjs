@@ -156,6 +156,14 @@ export const WRITE_OFF_WHY_LEVERS = {
   'doom-latched': 'the doom latch is the front',
   'no-chest': 'the yard\'s chest reach is the front', // (v0.586.0) the scan refusal's own lever - the bot stood with the stake and no chest answered
   'stalled': 'the climb\'s own stall is the front',
+  // (v0.589.0) THE STALL'S STAGE LEVERS - the ladder's own legs join the
+  // table (stallWhyClass reshapes the token, the legs name their fronts:
+  // s0 the climb's first wall on the caller's own bearing, s1 the 90-degree
+  // escalated leg, s2 the 180-degree leg, ex the ladder's exhaustion).
+  'stalled-s0': 'the climb\'s first wall is the front',
+  'stalled-s1': 'the escalated ladder is the front',
+  'stalled-s2': 'the rotated bearing is the front',
+  'stalled-ex': 'the ladder\'s own exhaustion is the front',
   'wet-wall': 'the water\'s wall is the front',
   'wet-sentinel': 'the o2 sentinel is the front',
 }
@@ -754,6 +762,39 @@ export function whyBookToken (cls) {
   if (!s || s === 'other') return null
   const tok = s.replace(/\s+/g, '-')
   return /^[a-z0-9-]+$/.test(tok) ? tok : null
+}
+
+// (v0.589.0) THE STALL'S STAGE - the stall class reshaped to the climb
+// ladder's own leg. Fleet 37169265512's read named the front but not the
+// seat: 'write-off whys: stalled carries 1049u of 1291u (81.3%)' while the
+// same face's climb results carried the ladder's escalation state
+// (cr.stage - surface.mjs's climbEntry: stage 0 the ordinary budgets on the
+// caller's own bearing, stage 1 the 90-degree escalated leg, stage 2 the
+// 180-degree leg, stage 3 the exhausted refusal that never attempts) and
+// the why book dropped it between the result and the set. THE CURE: a
+// stalled class whose climb carried a stage rides the stage-granular token
+// ('stalled-s0'/'stalled-s1'/'stalled-s2') - the shaft-bottom legs name
+// their labels, the next lever is aimed by the ladder's own seat. THE LAWS:
+// the legacy 'stalled' token stays the honest net (an unknown or negative
+// stage never invents a leg - the bands' own blind law), only the stall
+// family reshapes (timeout/wet wall/etc. keep their class grain - the
+// comparability law, the doom census's vocabulary rides climbWhyClass
+// unchanged), the exhaustion form ('stalled-ex') names the ladder's own
+// top (climbEntry refuses at stage 3 today - the honest net if the ladder
+// ever reports a stalled attempt there), a non-integer stage floors (the
+// ladder's own state is integral - a fraction is junk to floor, not junk
+// to drop). The token rides the book's law (/^[a-z0-9-]+$/ - whyBookToken
+// passes it unchanged), the consumers keep their generic read.
+export function stallWhyClass (cls, stage) {
+  if (cls !== 'stalled') return cls
+  // (the null catch - the v0.585.0 lesson's ride: Number(null) === 0 in JS,
+  // so a null stage would read the first leg and INVENT s0 - null is the
+  // unknown net, never the ordinary-budget leg)
+  if (stage === null || stage === undefined) return 'stalled'
+  const s = Number(stage)
+  if (!Number.isFinite(s) || s < 0) return 'stalled'
+  if (s >= 3) return 'stalled-ex'
+  return 'stalled-s' + Math.floor(s)
 }
 
 // (v0.336.0) THE DOOM-WHY ROW - the census's WHY side: the same failed climb

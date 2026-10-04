@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import {
   writeOffWhyRow,
   WRITE_OFF_MIN_UNITS, WRITE_OFF_WHY_SHARE, WRITE_OFF_WHY_LEVERS,
-  climbWhyClass, whyBookToken, // (v0.586.0) the chest-scan class rides the feed's own wash
+  climbWhyClass, whyBookToken, stallWhyClass, // (v0.589.0) the stall's stage rides the ladder's own leg
 } from '../../src/lib/pocketline.mjs'
 
 // the fleet 37161734898 face's own write-off shape: four holders, two classes
@@ -152,8 +152,85 @@ test('the junk battery: torn views, impossible counts and under-floor pockets ne
   assert.equal(writeOffWhyRow(faceMiners, { whys: null }), 'write-off whys: unnamed carries 578u of 578u (100.0%) - the whys stayed blind: the ledger names no class', 'a missing why book reads the blind form, the mass still counted')
 })
 
+// ---------------------------------------------------------------------------
+// (v0.589.0) THE STALL'S STAGE - the ladder's own leg joins the book. Fleet
+// 37169265512's read named the front but not the seat: 'stalled carries 1049u
+// of 1291u (81.3%)' while the climb results carried the escalation state
+// (cr.stage) and the book dropped it between the result and the set. The legs
+// name their labels: s0 the climb's first wall (the ordinary budgets on the
+// caller's own bearing), s1 the 90-degree escalated leg, s2 the 180-degree
+// leg, ex the ladder's own exhaustion.
+// ---------------------------------------------------------------------------
+
+test('stallWhyClass: the ladder legs name themselves', () => {
+  assert.equal(stallWhyClass('stalled', 0), 'stalled-s0', 'the ordinary-budget leg - stage 0 is a REAL leg, never the unknown net')
+  assert.equal(stallWhyClass('stalled', 1), 'stalled-s1', 'the 90-degree escalated leg')
+  assert.equal(stallWhyClass('stalled', 2), 'stalled-s2', 'the 180-degree escalated leg')
+})
+
+test('stallWhyClass: the honest net - an unknown stage never invents a leg', () => {
+  assert.equal(stallWhyClass('stalled', undefined), 'stalled', 'the legacy token rides when the stage is absent')
+  assert.equal(stallWhyClass('stalled', null), 'stalled', 'a null stage never invents')
+  assert.equal(stallWhyClass('stalled', NaN), 'stalled', 'a NaN stage never invents')
+  assert.equal(stallWhyClass('stalled', -1), 'stalled', 'a negative stage is junk - the legacy token')
+  assert.equal(stallWhyClass('stalled', 'abc'), 'stalled', 'a non-numeric stage never invents')
+  assert.equal(stallWhyClass('stalled', 1.7), 'stalled-s1', 'a fractional stage floors - junk to floor, not junk to drop')
+})
+
+test('stallWhyClass: the exhaustion form names the ladder own top', () => {
+  assert.equal(stallWhyClass('stalled', 3), 'stalled-ex', 'the exhausted ladder (climbEntry refuses at 3 today - the honest net)')
+  assert.equal(stallWhyClass('stalled', 9), 'stalled-ex', 'any stage at or past the ladder top reads the exhaustion form')
+})
+
+test('stallWhyClass: only the stall family reshapes - the class grain keeps its comparability', () => {
+  assert.equal(stallWhyClass('timeout', 2), 'timeout', 'the second class keeps its grain')
+  assert.equal(stallWhyClass('wet wall', 0), 'wet wall', 'the wet family keeps its grain')
+  assert.equal(stallWhyClass('no-chest', 1), 'no-chest', 'the scan refusal keeps its grain')
+  assert.equal(stallWhyClass(null, 1), null, 'a junk class rides through untouched - the reshaper never invents classes')
+  assert.equal(climbWhyClass('stalled'), 'stalled', 'the census vocabulary rides climbWhyClass unchanged - the comparability law')
+})
+
+test('the stage tokens ride the why book law untouched', () => {
+  assert.equal(whyBookToken('stalled-s0'), 'stalled-s0', 'the book law (/^[a-z0-9-]+$/) passes the leg tokens')
+  assert.equal(whyBookToken(stallWhyClass(climbWhyClass('stalled'), 1)), 'stalled-s1', 'the full feed wash rides: reason -> class -> stage -> token')
+})
+
+test('the stage levers: the table names each leg own front', () => {
+  assert.equal(WRITE_OFF_WHY_LEVERS['stalled-s0'], 'the climb' + String.fromCharCode(39) + 's first wall is the front')
+  assert.equal(WRITE_OFF_WHY_LEVERS['stalled-s1'], 'the escalated ladder is the front')
+  assert.equal(WRITE_OFF_WHY_LEVERS['stalled-s2'], 'the rotated bearing is the front')
+  assert.equal(WRITE_OFF_WHY_LEVERS['stalled-ex'], 'the ladder' + String.fromCharCode(39) + 's own exhaustion is the front')
+  assert.equal(WRITE_OFF_WHY_LEVERS.stalled, 'the climb' + String.fromCharCode(39) + 's own stall is the front', 'the legacy lever stays - the honest net reads it')
+})
+
+test('the live anchor staged: the 37169265512 face mass rides the legs now', () => {
+  // the face's own mass (stalled 1049u of 1291u) split by the ladder's legs:
+  // s0 = F8 359u + F5 178u + F3 141u = 678u, s1 = F7 193u + F4 178u = 371u,
+  // plus F6 242u unnamed - s0 owns 678/1291 (52.5%) and names its lever
+  const miners = [
+    { username: 'F8', bot: { inventory: { items: () => [{ count: 359 }] } } },
+    { username: 'F6', bot: { inventory: { items: () => [{ count: 242 }] } } },
+    { username: 'F7', bot: { inventory: { items: () => [{ count: 193 }] } } },
+    { username: 'F4', bot: { inventory: { items: () => [{ count: 178 }] } } },
+    { username: 'F5', bot: { inventory: { items: () => [{ count: 178 }] } } },
+    { username: 'F3', bot: { inventory: { items: () => [{ count: 141 }] } } },
+  ]
+  const whys = new Map([['F8', 'stalled-s0'], ['F7', 'stalled-s1'], ['F4', 'stalled-s1'], ['F5', 'stalled-s0'], ['F3', 'stalled-s0']])
+  assert.equal(
+    writeOffWhyRow(miners, { whys }),
+    'write-off whys: stalled-s0 carries 678u of 1291u (52.5%) - the climb' + String.fromCharCode(39) + 's first wall is the front',
+    'the ladder seat owns the read - the cure aims the leg, not the family',
+  )
+  // the split names no front: a three-way leg spread reads quiet (the family's
+  // own leanness law - the per-bot row one rung up is the face's read then)
+  const spread = new Map([['F8', 'stalled-s0'], ['F7', 'stalled-s1'], ['F4', 'stalled-s2'], ['F5', 'stalled-s0'], ['F3', 'stalled-s1']])
+  assert.equal(writeOffWhyRow(miners, { whys: spread }), null, 'a leg spread names no front - the honest silence')
+})
+
 test('the wiring pin: the feed, the leanness and the print ride fleet19', () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   assert.match(src, /const writeOffWhy = writeOffWhyRow\(list, \{ whys: finalBankWhys \}\)/, 'the row rides the write-off row\'s own feed (ONE book)')
   assert.match(src, /if \(writeOffWhy\) console\.log\(writeOffWhy\)/, 'the print follows the leanness law')
+  assert.match(src, /whyBookToken\(stallWhyClass\(whyCls, cr\.stage\)\)/, 'the climb-doom feed rides the stage reshape - the legs name their labels (v0.589.0)')
+  assert.match(src, /doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, stallWhyClass, reconnectCensusRow/, 'the import carries the reshaper')
 })
