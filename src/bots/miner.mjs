@@ -5534,9 +5534,15 @@ export function createMiner ({
             let dist = null
             let refName = null
             let postB = null
+            // (v0.622.0) the count's truth lives OUTSIDE the place try now -
+            // the fresh post read (below) re-judges with it after the catch:
+            // the packet's truth is the ITEM LEAVING THE INVENTORY (the
+            // v0.76.0 doctrine), so the conversion check needs the same
+            // before/after pair the first judge used.
+            const countOf = n => inventoryItems(bot).filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+            let before = null
             try {
-              const countOf = n => inventoryItems(bot).filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
-              const before = countOf(bp.item.name)
+              before = countOf(bp.item.name)
               await withTimeout(bot.equip(bp.item, 'hand'), 5000, 'climb bridge equip')
               const refB = readCell(bp.refCell)
               refName = (() => { try { return refB && refB.name ? refB.name : null } catch { return null } })()
@@ -5581,6 +5587,26 @@ export function createMiner ({
             if (placedOk) {
               if (diagLevels < 3 && !lateRecovered) log(`${tag} climb bridge: placed ${bp.item.name} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.kind}) - the step re-judges`)
               continue
+            }
+            // (v0.622.0) THE FRESH POST READ - the blind mass's wiring cure.
+            // Three field faces (37200930827 / 37203144265 / 37205134738) read
+            // the refused family 112/112 'post=? (re-read failed)' with ZERO
+            // 'STILL OPEN' and ZERO 'landed late': when the place path throws
+            // into the outer catch the v0.168.0 recheck ladder never runs and
+            // postB dies null - the row names a blind leg instead of a
+            // verdict. The named cure is FORCE THE FRESH READ (never skip it
+            // - the recheck ladder stays whole): ONE settle + ONE read when
+            // postB is still null, then the SAME judge re-decides - a solid
+            // read or a dropped item converts the phantom refusal honestly,
+            // an open read prints the REAL 'STILL OPEN' face, only a null
+            // read keeps the blind form. Junk-safe end to end.
+            if (!postB) {
+              await settleTicks(BRIDGE_RECHECK_TICKS, 'climb bridge fresh post settle')
+              try { postB = readCell(bp.cell) } catch { postB = null }
+              if (bridgeFillLanded({ postBlock: postB, before, after: countOf(bp.item.name) })) {
+                if (diagLevels < 3) log(`${tag} climb bridge: the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] landed late (the fresh read caught the update) - the step re-judges`)
+                continue
+              }
             }
             if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })() })})`)
             }
