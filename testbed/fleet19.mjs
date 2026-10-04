@@ -33,7 +33,7 @@ import { ensureTools, ensureCampFurnace, campBuildTier, CAMP_BUILD_PUT_SECS, cou
 import { sparePickCheck, craftSparePickaxe, bestPickTier, ORE_TIER_TABLE } from '../src/lib/toolupgrade.mjs'
 import { standGoalNear, gotoSafe, pathThrottleStats, gotoSafeStats, walkRetryPlan, waitForWaterRescueClear, doomedGoalStats, walkGovernorStatsFor, goalBrakeStatsFor, setFleetGoalSweeper, withTimeout } from '../src/lib/jobqueue.mjs'
 import { PATH_PRIO_BANK } from '../src/lib/pathsemaphore.mjs'
-import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS } from '../src/lib/surface.mjs'
+import { PILLAR_MAX_MS, verticalDoomPlan, quarryAscentPlan, steerFluidLock, sealCensus, sealPlan, sealCrossTarget, sealLanded, SEAL_PLACE_TIMEOUT_MS, SEAL_DIG_TIMEOUT_MS, walledCure, tunnelFluidName, routeRefusalLatch, wetShiftPlan, wetColumnMemoBlocked, WET_SHIFT_BLOCKS, WET_SHIFT_MIN_SLICE_MS, WET_SHIFT_TUNNEL_MAX_MS, wetShiftCrossPlan, wetShiftCrossLanded, SEAL_CROSS_ROUNDS, SEAL_CROSS_SETTLE_TICKS, anchorDrop, ANCHOR_DROP_TIMEOUT_MS, refusalMemo } from '../src/lib/surface.mjs'
 import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltUnreachableBandRow, smeltReachBand, smeltAttemptDist, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
@@ -328,7 +328,19 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
   // chest before the hop' / 'climbed +N levels (...) - the hop gets its route' /
   // 'refused (<why>) - the skip stands' / 'failed (<reason>) - the skip stands'.
   // Junk-safe: any unreadable shape returns false - the legacy skip byte for byte.
-  const chestAscentHook = clockFn => async ({ chestPos, doom }) => {
+  // (v0.629.0) THE QUIET REFUSAL - the per-chain identical-refusal memo rides
+  // the factory closure: the hop loop consults this hook PER DOOMED CHEST, and
+  // face 37212035127's end-bank chain (F17, 5s of clock vs the 118s climb)
+  // echoed TWELVE identical clock-refusal lines while the deposit loop's own
+  // 'chest skip (vertical doom: ...)' line already carried the verdict per
+  // chest. The FIRST refusal of a distinct why prints byte-exact (the lens
+  // pins hold); an identical repeat is silent - the inputs cannot change the
+  // verdict inside one chain. A funded climb resets the memo (a later
+  // refusal is a new event). The chain's returns are untouched - the skip
+  // stands byte for byte either way.
+  const chestAscentHook = clockFn => {
+    const quiet = refusalMemo() // (v0.629.0) the per-chain echo memo
+    return async ({ chestPos, doom }) => {
     const cy = chestPos && Number.isFinite(chestPos.y) ? chestPos.y : null
     const plan = (() => {
       try {
@@ -336,9 +348,10 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       } catch { return { ascend: false, why: 'plan error' } }
     })()
     if (!plan.ascend) {
-      console.log(`${miner.username} chest ascent: refused (${plan.why}) - the skip stands`)
+      if (quiet.see(plan.why)) console.log(`${miner.username} chest ascent: refused (${plan.why}) - the skip stands`)
       return false
     }
+    quiet.reset() // (v0.629.0) the clock funded a climb - a later refusal is a new event
     // (v0.321.0) THE ROUTE REFUSAL LATCH: a route the memo has refused
     // ROUTE_REFUSAL_LATCH_CYCLES times is not asked again - the hook's
     // own climb is skipped and the legacy skip stands (fleet 36617588210:
@@ -376,6 +389,7 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     } catch (e) {
       console.log(`${miner.username} chest ascent: failed (${e?.message ?? 'error'}) - the skip stands`)
       return false
+    }
     }
   }
   // (v0.257.0) THE UPFRONT ASCENT EXECUTOR - the funding lever (face

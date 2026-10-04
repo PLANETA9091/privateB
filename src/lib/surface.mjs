@@ -1461,6 +1461,52 @@ export function routeRefusalLatch (opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (v0.629.0) THE QUIET REFUSAL - the per-chain identical-refusal memo.
+//
+// MEASURED (fleet 37212035127, the memo's first face, the end-bank chain):
+// F17 held 5s of chain clock against a 118s climb and the hop loop's scan
+// offered TWELVE yard chests one after another - every chest asked the
+// chest-ascent hook, every ask priced the SAME plan (the clock only
+// shrinks, the dy bands are the one yard), and TWELVE byte-identical
+// 'chest ascent: refused (the clock 5s cannot fund the 118s climb + the
+// 30s walk floor) - the skip stands' lines rode the log. The deposit loop's
+// own 'chest skip (vertical doom: ...)' line already carries the verdict
+// per chest - the repeats are ECHO, and the echo distorts the lens (the
+// verticalgate census reads the refusal mass as evidence; twelve rows of
+// one event is twelve-fold noise).
+//
+// THE CURE: a pure per-chain memo factory. The FIRST refusal of a distinct
+// why prints (true); an IDENTICAL consecutive repeat is silent (false) -
+// the inputs cannot change the verdict inside one chain. `reset()` revives
+// the next refusal (a funded climb or any other verdict class means the
+// chain's state moved - a later refusal is a NEW event worth its line).
+// Junk-safe: a junk why coerces through String() (null reads 'null', so a
+// junk stream dedups consistently too, never lies). The chain's RETURNS
+// are untouched - the skip stands byte for byte either way; only the echo
+// dies.
+// ---------------------------------------------------------------------------
+
+/**
+ * A per-chain identical-refusal memo. Pure closure state, no bot fields.
+ * @returns {{see: (why: unknown) => boolean, reset: () => void}}
+ *   see(why) - true when the why is NEW (print it), false when it repeats
+ *   the memo (stay silent); reset() clears the memo (the next see is a new
+ *   event again).
+ */
+export function refusalMemo () {
+  let last = null
+  return {
+    see (why) {
+      const w = String(why ?? '')
+      if (w === last) return false
+      last = w
+      return true
+    },
+    reset () { last = null }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // (v0.76.0) THE DIG FORENSICS - a fastDig false carries TWO OPPOSITE meanings
 // and the climb has treated them identically since v0.11.3.
 //

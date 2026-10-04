@@ -51,7 +51,11 @@ test('v0.256.0 wiring: the legacy skip shape stays whole for the no-hook callers
 })
 
 test('v0.256.0 wiring: the harness executor prices the climb with the SAME arithmetic and owns the honest lines', () => {
-  assert.match(fleetSrc, /const chestAscentHook = clockFn => async \(\{ chestPos, doom \}\) => \{/, 'the hook factory takes this chain\'s own clock')
+  // (v0.629.0) THE QUIET REFUSAL restated the factory shape: the closure now
+  // carries the per-chain echo memo (const quiet = refusalMemo()) and returns
+  // the hook - the clock-taking intent is byte-identical, the pin follows.
+  assert.match(fleetSrc, /const chestAscentHook = clockFn => \{/, 'the hook factory takes this chain\'s own clock (the memo-carrying closure shape)')
+  assert.match(fleetSrc, /const quiet = refusalMemo\(\) \/\/ \(v0\.629\.0\) the per-chain echo memo/, 'the per-chain echo memo rides the factory closure')
   assert.match(fleetSrc, /return quarryAscentPlan\(\{ botY: miner\.bot\?\.entity\?\.position\?\.y, yardY: cy, remainingMs: typeof clockFn === 'function' \? clockFn\(\) : null \}\)/, 'the SAME quarryAscentPlan arithmetic (dy >= 8, the slice + the floor)')
   assert.match(fleetSrc, /await miner\.climbOut\(\{ dir: dir \|\| undefined, targetY: cy, force: true, maxMs: plan\.climbMs, shouldStop: \(\) => Date\.now\(\) > fenceAt \}\)/, 'the executor is the miner\'s own climbOut at the CHEST\'s level, fenced by the priced slice')
   assert.match(fleetSrc, /chest ascent: \$\{doom\?\.why \?\? 'vertical doom'\} - climbing toward the chest before the hop/, 'the climb line names the doom it answers')
@@ -59,6 +63,56 @@ test('v0.256.0 wiring: the harness executor prices the climb with the SAME arith
   assert.match(fleetSrc, /chest ascent: refused \(\$\{plan\.why\}\) - the skip stands/, 'a starved clock refuses honestly and keeps the skip')
   assert.match(fleetSrc, /chest ascent: failed \(\$\{cr\?\.reason \?\? 'no read'\}\) - the skip stands/, 'a failed climb names itself and keeps the skip')
   assert.match(fleetSrc, /chest ascent: failed \(\$\{e\?\.message \?\? 'error'\}\) - the skip stands/, 'a throwing executor reads no climb')
+})
+
+test('v0.629.0 THE QUIET REFUSAL: the pure memo dedups identical consecutive refusals, revives on reset, never lies on junk', async () => {
+  const { refusalMemo } = await import('../../src/lib/surface.mjs')
+  // F17's face (fleet 37212035127): the SAME why echoed TWELVE times in one
+  // chain - the first prints, the echo dies.
+  const why = 'the clock 5s cannot fund the 118s climb + the 30s walk floor'
+  const m = refusalMemo()
+  assert.equal(m.see(why), true, 'the FIRST refusal of a distinct why prints')
+  assert.equal(m.see(why), false, 'the identical repeat is silent')
+  assert.equal(m.see(why), false, 'the echo stays silent (twelve asks, one line)')
+  // A different why prints (the chain moved - a new event).
+  assert.equal(m.see('no clock read'), true, 'a different why prints - the memo rebases, it does not block')
+  assert.equal(m.see('no clock read'), false, 'the new why\'s own echo is silent too')
+  // reset revives: after a funded climb a later refusal is a NEW event.
+  m.reset()
+  assert.equal(m.see('no clock read'), true, 'reset revives the next refusal')
+  // Per-chain scope: two memos never see each other (each depositLoot leg
+  // gets its own factory closure).
+  const a = refusalMemo(), b = refusalMemo()
+  a.see(why)
+  assert.equal(b.see(why), true, 'a second chain\'s memo prints its own first refusal')
+  // Junk-safe: the null/undefined/number whys coerce consistently - a junk
+  // stream dedups the same way, never crashes, never lies.
+  const j = refusalMemo()
+  assert.equal(j.see(null), true)
+  assert.equal(j.see(null), false)
+  assert.equal(j.see(undefined), false, 'null and undefined coerce to the same silence')
+  assert.equal(j.see(0), true, 'a numeric junk why is a new event (String coercion)')
+  assert.equal(j.see('0'), false, 'the coerced string matches the numeric echo')
+})
+
+test('v0.629.0 wiring: the hook consults the memo BEFORE the print and resets it on the funded path, the returns untouched', () => {
+  // The refusal branch: the print rides the memo's verdict - the template
+  // literal stays byte-exact (the lens pin above holds).
+  const refuseIdx = fleetSrc.indexOf("if (!plan.ascend) {")
+  const seeIdx = fleetSrc.indexOf('if (quiet.see(plan.why)) console.log(`${miner.username} chest ascent: refused (${plan.why}) - the skip stands`)', refuseIdx)
+  assert.ok(seeIdx > refuseIdx, 'the identical echo is silent - the first refusal prints byte-exact through the memo')
+  const retFalseIdx = fleetSrc.indexOf('return false', seeIdx)
+  assert.ok(retFalseIdx > seeIdx && retFalseIdx - seeIdx < 200, 'the skip stands byte for byte either way (false returns unconditionally)')
+  // The funded path resets: a climb attempt means the chain moved.
+  const resetIdx = fleetSrc.indexOf('quiet.reset() // (v0.629.0) the clock funded a climb - a later refusal is a new event')
+  assert.ok(resetIdx > seeIdx, 'the reset rides after the refusal branch, before the climb')
+  const routeLatchIdx = fleetSrc.indexOf('const routeLatch = routeRefusalLatch({ refusedCycles: miner.bot?._routeRefusals })', resetIdx)
+  assert.ok(routeLatchIdx > resetIdx, 'the route latch\'s order is untouched (the memo does not gate the latch)')
+  // The upfront executor stays byte-silent on refusal (its shape is the
+  // COMMON one - no spam there, no memo needed).
+  const upIdx = fleetSrc.indexOf('const chestAscentUpfront = clockFn => async ({ budgetMs } = {}) => {')
+  const upSilentIdx = fleetSrc.indexOf('if (!plan.ascend) return false', upIdx)
+  assert.ok(upIdx > -1 && upSilentIdx > upIdx, 'the upfront executor\'s silent refusal is untouched')
 })
 
 test('v0.256.0 wiring: BOTH deposit legs ride the hook - the pre-smelt chain on its own clock, the final bank on the fleet clock', () => {
