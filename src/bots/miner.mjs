@@ -5100,6 +5100,7 @@ export function createMiner ({
     let pounceFails = 0 // (v0.313.0) the pounce's OWN evidence budget - the diagLevels cap must never starve it again
     let pounceProbes = 0 // (v0.313.0) one decline-naming probe per climb - the field mystery needs the guard's voice
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
+    let bridgeDonors = 0 // (v0.621.0) pit donor digs this climb, bounded by PIT_DONOR_MAX
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
     // measured the trap (17:05 run): a shaft that turned into a water column
@@ -5490,15 +5491,43 @@ export function createMiner ({
           // verdict, lands (bounded poll), and the plan re-reads from the
           // LANDED feet - the landed ownFloor often reads solid (the hole
           // self-solves) or the fill rides the grounded standing transport.
-          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded() })
+          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded(), donors: bridgeDonors })
           if (!bp.ok && bp.waitGround) {
             const grounded = await bridgeWaitGround()
             const feetNow = (() => { try { return bot.entity?.position ? bot.entity.position.floored() : feet } catch { return feet } })()
-            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded })
+            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors })
             if (diagLevels < 3 && (bp.ok || !bp.waitGround)) log(`${tag} climb bridge: the self fill waited ${grounded ? 'and grounded' : 'and stayed afloat'} - the re-plan ${bp.ok ? `reads the ${bp.kind} fill` : `refuses (${bp.why})`}`)
           }
           if (bp.ok) {
-            bridgePlaced = bp.placedNext
+            if (bp.kind === 'donor') {
+              // (v0.621.0) THE PIT DONOR's executor half: the pocket class
+              // owned 113 of 117 bridge refusals (97%) on fleet 37205134738 -
+              // the climbs arrive empty-handed while the bot stands IN THE PIT
+              // IT DUG. Dig ONE matrix cell beside (the plan picked it: never
+              // the step bearing, dirt-family without a pick - the granite
+              // lesson), let the drop auto-collect, and re-judge: the pocket
+              // now holds the fill. A dig that fails falls to the ladder
+              // honestly; the donor cap (PIT_DONOR_MAX) lives plan-side.
+              let dugOk = false
+              let donorBlockName = null
+              try {
+                const donorB = readCell(bp.cell)
+                donorBlockName = (() => { try { return donorB && donorB.name ? donorB.name : null } catch { return null } })()
+                if (donorB) dugOk = await bot.fastDig(donorB, { maxTicks: digWindow })
+              } catch { dugOk = false }
+              if (dugOk) {
+                bridgeDonors++
+                if (donorBlockName) {
+                  stats.mined++
+                  stats.byName[donorBlockName] = (stats.byName[donorBlockName] || 0) + 1
+                }
+                await settleTicks(6, 'climb bridge donor settle')
+                if (diagLevels < 3) log(`${tag} climb bridge: the pocket is empty - the pit donates a ${bp.donorName} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the fill refunds it`)
+                continue
+              }
+              if (diagLevels < 3) log(`${tag} climb bridge: the pit donor refused at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.donorName ?? 'unknown'}) - the ladder owns it`)
+            } else {
+              bridgePlaced = bp.placedNext
             let placedOk = false
             let lateRecovered = false
             let heldName = null
@@ -5554,6 +5583,7 @@ export function createMiner ({
               continue
             }
             if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })() })})`)
+            }
           } else if (bp.waitGround) {
             // still afloat past the bounded wait (the wet face) - the honest
             // skip: no packet was sent, the rotate ladder owns the level

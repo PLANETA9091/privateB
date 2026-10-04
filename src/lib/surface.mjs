@@ -1547,14 +1547,80 @@ export const BRIDGE_PLACE_MAX = 8
 // fill's side-face shape, mirrored).
 export const BRIDGE_SELF_WALL_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
-export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true } = {}) {
+// (v0.621.0) THE PIT DONOR - the carried fill's own half, priced by fleet
+// 37205134738: the pocket class owned 113 of 117 bridge refusals (97%) - the
+// climbs arrive empty-handed (the tithe keeps 14 but 121 fills + the re-places
+// ate the pockets) while the bot stands IN THE PIT IT DUG. The pit donates:
+// the bot mines ONE block from the shaft's own matrix (a lateral cell at feet
+// level, never the step bearing - the support the climb builds toward), the
+// drop auto-collects, and the loop re-judges - the pocket now holds the fill.
+// THE DROP GUARANTEE is the law: dirt-family drops bare-handed (the granite
+// lesson - a bare hand needs 150 ticks on stone-family and drops NOTHING),
+// stone-family only when a pickaxe rides the pocket. PIT_DONOR_MAX bounds the
+// digs per climb (a drop that never collects ends the donation, the rotate
+// ladder owns the level).
+export const PIT_DONOR_MAX = 2
+
+// (v0.621.0) the donor vocab: dirt-family first (the drop rides bare-handed),
+// then the stone-family matrix (each drops a PILLAR_BLOCKS member - a pick is
+// required and verified against the pocket).
+export const PIT_DONOR_DIRT = ['dirt', 'grass_block']
+export const PIT_DONOR_STONE = ['stone', 'cobblestone', 'andesite', 'diorite', 'granite', 'cobbled_deepslate', 'tuff', 'netherrack']
+
+/**
+ * The pit's own donation probe (v0.621.0): a diggable matrix cell at feet
+ * level, never the step bearing (the support the climb builds toward), never
+ * underfoot. Direction order is BRIDGE_SELF_WALL_DIRS (deterministic, first
+ * match); the vocab a direction accepts depends on the pickaxe - dirt-family
+ * always (the drop rides bare-handed), stone-family only with a pick in the
+ * pocket. Junk reads refuse the cell, never throw.
+ * @param {{offset: Function}} feet
+ * @param {{x: number, z: number}} d
+ * @param {Function} read
+ * @param {Array<{name?: string, count?: number}>|null|undefined} items
+ * @returns {{cell: object, name: string}|null}
+ */
+export function pitDonor ({ feet, d, read, items = null } = {}) {
+  if (!feet || !d || typeof feet.offset !== 'function' || typeof read !== 'function') return null
+  const hasPick = Array.isArray(items) && items.some(i => i && typeof i.name === 'string' && i.name.endsWith('pickaxe') && Number.isFinite(i.count) && i.count > 0)
+  const rd = cell => { try { return read(cell) } catch { return null } }
+  for (const w of BRIDGE_SELF_WALL_DIRS) {
+    if (w[0] === d.x && w[1] === d.z) continue // the step bearing - the support digs its own climb
+    const cell = feet.offset(w[0], 0, w[1])
+    const b = rd(cell)
+    if (!b || b.boundingBox !== 'block' || !b.name) continue
+    if (PIT_DONOR_DIRT.includes(b.name)) return { cell, name: b.name }
+    if (hasPick && PIT_DONOR_STONE.includes(b.name)) return { cell, name: b.name }
+  }
+  return null
+}
+
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0 } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
   if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
-  const item = pickPillarBlock(items)
-  if (!item) return { ok: false, why: 'no placeable block in the pocket' }
+  // (v0.621.0) the geometry guard rides BEFORE the pocket check now - the
+  // donor verdict needs a valid read to probe the matrix; every legacy caller
+  // passes valid geometry, the byte order only moves for junk callers.
   if (!feet || !d || typeof feet.offset !== 'function' || typeof read !== 'function') {
     return { ok: false, why: 'no geometry read' }
+  }
+  const item = pickPillarBlock(items)
+  if (!item) {
+    // (v0.621.0) THE PIT DONOR - the pocket class's own cure: the empty pocket
+    // no longer refuses while the pit can donate (grounded, the donor cap
+    // unspent, a diggable matrix cell beside). The verdict sends the caller
+    // DIGGING, not placing - the drop refunds the pocket and the loop
+    // re-judges into the fill that was priced. grounded:false keeps the
+    // legacy byte (a falling bot digs nothing new); the donor cap spent keeps
+    // it too (a drop that never collected must not loop the dig).
+    if (grounded !== false && Number.isFinite(donors) && donors < PIT_DONOR_MAX) {
+      const donor = pitDonor({ feet, d, read, items })
+      if (donor) {
+        return { ok: true, kind: 'donor', cell: donor.cell, donorName: donor.name, item: null, placedNext: done }
+      }
+    }
+    return { ok: false, why: 'no placeable block in the pocket' }
   }
   const rd = cell => { try { return read(cell) } catch { return null } }
   const ownFloor = rd(feet.offset(0, -1, 0))

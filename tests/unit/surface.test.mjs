@@ -531,7 +531,7 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
 // record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
 // is the pure gate the climbOut wiring executes: the step path clear + the
 // support non-solid + a placeable pocket = fill the missing floor.
-import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS } from '../../src/lib/surface.mjs'
+import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE } from '../../src/lib/surface.mjs'
 
 const cell = (x, y, z) => ({
   x, y, z,
@@ -541,8 +541,12 @@ const blk = (name, boundingBox) => ({ name, boundingBox })
 const AIR = blk('air', 'empty')
 const WATER = blk('water', 'fluid')
 const STONE = blk('stone', 'block')
+const DIRT = blk('dirt', 'block')
+const GRASS = blk('grass_block', 'block')
 const COBBLE_ITEM = { name: 'cobblestone', count: 64 }
 const POCKET = [COBBLE_ITEM]
+const PICK_ITEM = { name: 'iron_pickaxe', count: 1 }
+const PICK_POCKET = [PICK_ITEM]
 // a world map keyed 'x,y,z'; unreadable cells (absent) read null
 const cellWorld = cells => {
   const map = new Map(Object.entries(cells))
@@ -834,6 +838,95 @@ test('bridgePlan: the underfoot gate rides after the pocket and budget gates (th
   assert.equal(pBudget.ok, false)
   assert.match(pBudget.why, /the bridge budget is spent \(8\/8\)/)
   assert.equal('waitGround' in pBudget, false, 'the spent budget refuses before the gate speaks')
+})
+
+// (v0.621.0) THE PIT DONOR - the pocket class's own cure, priced by fleet
+// 37205134738: 113 of 117 bridge refusals read 'no placeable block in the
+// pocket' (97%) while the bot stands IN THE PIT IT DUG. The empty pocket no
+// longer refuses while the matrix can donate: ONE lateral cell at feet level
+// (never the step bearing) digs, the drop auto-collects, the loop re-judges
+// into the fill. The drop guarantee is the law: dirt-family bare-handed,
+// stone-family only with a pick (the granite lesson: a bare hand needs 150
+// ticks on stone and drops NOTHING).
+test('pitDonor: the probe is deterministic - the first solid non-step lateral wins, the step bearing is excluded', () => {
+  assert.deepEqual(PIT_DONOR_DIRT, ['dirt', 'grass_block'])
+  assert.deepEqual(PIT_DONOR_STONE, ['stone', 'cobblestone', 'andesite', 'diorite', 'granite', 'cobbled_deepslate', 'tuff', 'netherrack'])
+  assert.equal(PIT_DONOR_MAX, 2)
+  // feet at (10,64,20), d = +x: the step bearing (+x) reads solid but MUST
+  // never donate (digging it eats the support the climb builds toward); -x
+  // reads stone and wins as the first non-step probe
+  const read = cellWorld({
+    '11,64,20': STONE, // the step bearing - excluded
+    '9,64,20': STONE // -x - the first non-step probe
+  })
+  const p = pitDonor({ feet: cell(10, 64, 20), d: D, read, items: PICK_POCKET })
+  assert.ok(p, 'the matrix donates')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 9, y: 64, z: 20 })
+  assert.equal(p.name, 'stone')
+})
+
+test('pitDonor: the drop guarantee is the law - stone-family needs a pick, dirt-family never does', () => {
+  const stoneWorld = cellWorld({ '9,64,20': STONE })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: stoneWorld, items: [] }), null, 'no pick - the bare hand drops NOTHING on stone (the granite lesson)')
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: stoneWorld, items: [{ name: 'iron_pickaxe', count: 0 }] }), null, 'a junk count is no pick')
+  assert.ok(pitDonor({ feet: cell(10, 64, 20), d: D, read: stoneWorld, items: PICK_POCKET }), 'a pick mines the stone-family matrix')
+  const dirtWorld = cellWorld({ '9,64,20': DIRT })
+  const pd = pitDonor({ feet: cell(10, 64, 20), d: D, read: dirtWorld, items: [] })
+  assert.ok(pd, 'dirt drops bare-handed')
+  assert.equal(pd.name, 'dirt')
+  const grassWorld = cellWorld({ '10,64,19': GRASS })
+  const pg = pitDonor({ feet: cell(10, 64, 20), d: { x: 1, z: 0 }, read: grassWorld, items: null })
+  assert.ok(pg, 'grass_block drops dirt bare-handed (the -z probe)')
+  assert.equal(pg.name, 'grass_block')
+  const junk = cellWorld({ '9,64,20': WATER })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: junk, items: PICK_POCKET }), null, 'a fluid cell donates nothing')
+})
+
+test('bridgePlan: the pit donor - the empty pocket converts to a dig verdict while the matrix holds', () => {
+  // the pocket class's own face: the bot at the bridge step with NOTHING to
+  // place, the shaft matrix beside at feet level. The verdict sends the
+  // caller DIGGING (kind donor, item null, the fill budget untouched).
+  const read = cellWorld({
+    '10,63,20': STONE, // ownFloor solid - the support case's pocket face
+    '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR,
+    '9,64,20': DIRT // the -x donor
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [] })
+  assert.deepEqual(p, {
+    ok: true, kind: 'donor',
+    cell: p.cell, donorName: 'dirt', item: null, placedNext: 0
+  }, 'the donor rides before the legacy pocket refusal')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 9, y: 64, z: 20 })
+  // the legacy byte stands when the matrix cannot donate: no pick, stone only
+  const stoneOnly = cellWorld({
+    '10,63,20': STONE, '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR,
+    '9,64,20': STONE
+  })
+  const pl = bridgePlan({ feet: cell(10, 64, 20), d: D, read: stoneOnly, items: [] })
+  assert.equal(pl.ok, false)
+  assert.match(pl.why, /^no placeable block in the pocket$/)
+  assert.equal('kind' in pl, false)
+})
+
+test('bridgePlan: the pit donor rides the gates - falling bots dig nothing, the cap ends the donation, the budget stays first', () => {
+  const read = cellWorld({
+    '10,63,20': STONE, '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR,
+    '9,64,20': DIRT
+  })
+  const falling = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [], grounded: false })
+  assert.equal(falling.ok, false)
+  assert.match(falling.why, /^no placeable block in the pocket$/, 'a falling bot digs nothing new')
+  const capped = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [], donors: PIT_DONOR_MAX })
+  assert.equal(capped.ok, false)
+  assert.match(capped.why, /^no placeable block in the pocket$/, 'the donor cap spent ends the donation')
+  const oneLeft = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [], donors: 1 })
+  assert.equal(oneLeft.ok, true, 'one dig left in the cap still donates')
+  const spent = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [], placed: BRIDGE_PLACE_MAX })
+  assert.equal(spent.ok, false)
+  assert.match(spent.why, /the bridge budget is spent \(8\/8\)/, 'the fill budget stays the first gate')
 })
 
 test('bridgePlan: an unreadable self cell never fills blind (the chunk-desync class)', () => {
