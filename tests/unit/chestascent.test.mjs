@@ -79,19 +79,40 @@ test('v0.256.0 wiring: the filter key carries the chest ascent at the TAIL band 
 
 test('v0.256.0 arithmetic: the F12 face shape is the funded ascent, the starved clock and the junk shapes stay honest refusals', () => {
   // F12's own shape: the dig floor y~52, the yard chests y~79 (27 levels up).
-  const funded = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 90000 })
-  assert.equal(funded.ascend, true, 'a 27-level chest with 90s of chain clock ascends')
-  assert.equal(funded.dy, 27)
-  assert.equal(funded.climbMs, 45000, 'the climb slice is the calibration constant')
-  // The starved chain: the same wall with 60s left cannot fund 45+30.
+  // (v0.604.0) THE PER-LEVEL LAW re-prices this wall: 27 levels x 4.2s/level
+  // = 113.4s of dig - the flat 45s slice was the timeout class (face
+  // 37183256337: 0 of 7 climbs landed, timeout 4). A 90s clock refuses
+  // HONESTLY now; the funded case needs the full wall's price.
+  const deepThin = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 90000 })
+  assert.equal(deepThin.ascend, false, 'a 27-level wall on 90s refuses - the slice reads the wall now')
+  assert.match(deepThin.why, /cannot fund the 113s climb \+ the 30s walk floor/, 'the refusal names the real price')
+  const deepFunded = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 143400 })
+  assert.equal(deepFunded.ascend, true, 'the fully funded deep wall ascends')
+  assert.equal(deepFunded.climbMs, 113400, 'the climb slice scales with the wall (27 x 4200)')
+  // The starved chain: the same wall with 60s left still refuses.
   const starved = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 60000 })
   assert.equal(starved.ascend, false, 'the starved clock refuses - the legacy skip stands')
   assert.match(starved.why, /cannot fund/)
-  // The one-ms-short boundary: 74999ms < 75000ms needed.
-  const boundary = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 74999 })
+  // The one-ms-short boundary rides the SHALLOW shape (dy 10 keeps the flat
+  // 45s floor byte for byte - 45+30 = 75s).
+  const shallowWall = { botY: 52, yardY: 62, remainingMs: 75000 } // dy 10
+  const boundary = quarryAscentPlan({ ...shallowWall, remainingMs: 74999 })
   assert.equal(boundary.ascend, false, 'one ms short of the slice+floor refuses')
-  const fundedB = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 75000 })
+  const fundedB = quarryAscentPlan(shallowWall)
   assert.equal(fundedB.ascend, true, 'exactly funded ascends')
+  assert.equal(fundedB.climbMs, 45000, 'the shallow wall keeps the legacy slice (dy 10 <= the 45s floor)')
+  // The per-level trip point: dy 11 prices 46.2s of climb - 75s cannot fund
+  // the 46.2+30 walk floor anymore (the law's own arithmetic).
+  const trip = quarryAscentPlan({ botY: 52, yardY: 63, remainingMs: 75000 }) // dy 11
+  assert.equal(trip.ascend, false, 'dy 11 needs 46.2s + 30s > 75s - the honest refusal')
+  const tripFunded = quarryAscentPlan({ botY: 52, yardY: 63, remainingMs: 76200 })
+  assert.equal(tripFunded.ascend, true, 'the dy-11 wall on its exact price ascends')
+  assert.equal(tripFunded.climbMs, 46200, 'the slice reads 11 x 4200')
+  // The explicit override door: a caller-passed climbMs still wins (the
+  // junk-safe legacy shape).
+  const override = quarryAscentPlan({ botY: 52, yardY: 79, remainingMs: 90000, climbMs: 45000 })
+  assert.equal(override.ascend, true, 'the explicit slice overrides the scale')
+  assert.equal(override.climbMs, 45000)
   // The junk family: no read, no climb, no crash.
   assert.equal(quarryAscentPlan({}).ascend, false)
   assert.equal(quarryAscentPlan({ botY: NaN, yardY: 79, remainingMs: 90000 }).ascend, false)

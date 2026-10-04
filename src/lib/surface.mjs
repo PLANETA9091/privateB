@@ -761,8 +761,22 @@ export function verticalDoomPlan ({ botY = null, yardY = null, lateral = null, m
 // position, a junk clock or a below-floor dy reads no ascent - the legacy
 // refusal shape byte for byte.
 export const QUARRY_ASCENT_MIN_DY = 8
-export const QUARRY_ASCENT_CLIMB_MS = 45000 // one climb slice: ~4 levels of staircase + the settle
+export const QUARRY_ASCENT_CLIMB_MS = 45000 // one climb slice FLOOR: ~4 levels of staircase + the settle
 export const QUARRY_ASCENT_WALK_FLOOR_MS = 30000 // the walk needs real clock after the climb
+// (v0.604.0) THE PER-LEVEL LAW - the climb slice scales with the wall it digs.
+// Face 37183256337 (the v0.600.0 flight): '7 failed ascents (timeout 4, wet
+// wall 3), 0 of 7 climbs landed' - the flat 45s slice priced a FOUR-level
+// staircase while the deep era's yards stand 20-31 levels up, and every
+// funded-but-doomed slice burned its chain clock and landed nothing. The
+// measured price is the v0.294.0 bank law's own number (~4.2s/level,
+// 'climb out (bank): OK +11 levels ... 46s'). The demand now reads the wall:
+// climbMs = max(45s floor, dy * 4200). A shallow chest (dy <= 10) keeps the
+// legacy slice byte for byte; a deep wall is either funded FULLY (the upfront
+// leg's fat clock - the climb can now outlive its old fence and LAND) or
+// refused honestly (the thin doom-time clock - the refusal's why names the
+// real price). The wet-wall geometry class is not this cure's face - the
+// timeout class is.
+export const QUARRY_ASCENT_PER_LEVEL_MS = 4200
 
 export function quarryAscentPlan (p = {}) {
   const q = p && typeof p === 'object' ? p : {}
@@ -772,7 +786,11 @@ export function quarryAscentPlan (p = {}) {
   if (dy == null || dy < (Number.isFinite(QUARRY_ASCENT_MIN_DY) ? QUARRY_ASCENT_MIN_DY : 8)) {
     return { ascend: false, why: dy == null ? 'no vertical read' : `dy ${Math.round(dy)} below the ascent floor`, dy: dy == null ? null : Math.round(dy) }
   }
-  const cm = Number.isFinite(q.climbMs) && q.climbMs > 0 ? Math.floor(q.climbMs) : QUARRY_ASCENT_CLIMB_MS
+  // (v0.604.0) the slice reads the wall: the flat 45s stays the shallow floor,
+  // a deep dy scales (an explicit climbMs override still wins - the junk-safe
+  // legacy door). dy is >= MIN_DY here, the rounding only prices junk-adjacent
+  // fractional reads honestly.
+  const cm = Number.isFinite(q.climbMs) && q.climbMs > 0 ? Math.floor(q.climbMs) : Math.max(QUARRY_ASCENT_CLIMB_MS, Math.round(dy) * QUARRY_ASCENT_PER_LEVEL_MS)
   const wf = Number.isFinite(q.walkFloorMs) && q.walkFloorMs >= 0 ? Math.floor(q.walkFloorMs) : QUARRY_ASCENT_WALK_FLOOR_MS
   const rem = Number.isFinite(q.remainingMs) ? Math.floor(q.remainingMs) : null
   if (rem == null) return { ascend: false, why: 'no clock read', dy: Math.round(dy) }
