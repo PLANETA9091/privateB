@@ -25,6 +25,7 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
+import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
@@ -917,6 +918,25 @@ if (shooter.total > 0) {
         console.log(`  the cross-read's answer: ${verdict}`)
       }
     }
+  }
+}
+
+// (v0.647.0) THE DEATH-DROP CENSUS - the deathdrop class's own arm join:
+// the stakes the v0.199.0 drop lines name, joined to the re-loot lane's
+// voice after each stake (line order = time order). A mass stake with no
+// lane row is the SILENT class - the recovery never spoke for it - the
+// v0.201.0 walk lane's own accountability seat (face 37239853197: arms 1
+// of 7, ~714u at stake, the silent six carried every unit). Mining-surface
+// only: zero fleet wiring, zero new log lines.
+{
+  const dc = deathDropCensus(lines)
+  if (dc && dc.drops.length > 0) {
+    console.log(`--- DEATH DROP CENSUS (v0.647.0: the stakes' own arm join - the lane's voice vs the silent six) ---`)
+    console.log(`  stakes: ${dc.drops.length} death drop(s) across ${dc.deaths} death(s), ${dc.lostU}u at stake (${dc.emptyReads} empty-pocket read(s))`)
+    const armed = dc.armed.bots.map((b) => `${b}`).join('+') || '-'
+    const silent = dc.silent.bots.map((b) => `${b}`).join('+') || '-'
+    console.log(`  arm join: armed ${dc.armed.n} (${dc.armed.u}u: ${armed}) / SILENT ${dc.silent.n} (${dc.silent.u}u: ${silent})${dc.silent.u > 0 ? ' - THE SILENT CLASS: the recovery never spoke for these stakes' : ''}`)
+    if (dc.silent.n > 0) console.log(`  the silent stakes' bots heaviest-first: ${dc.silent.bots.join(' ')} - the wiring read needs its own face priced by this lens first`)
   }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
