@@ -6,6 +6,7 @@
 // lava ends it). drowning.mjs imports nothing from this file, so the edge is
 // acyclic.
 import { isWaterName, SHAFT_FLUID_NAMES, oxygenInDomain } from './drowning.mjs'
+import { SAPLING_FOR_LOG } from './sapling.mjs'
 
 /** The tunnel's fluid-family predicate: the water family (kelp/seagrass/bubble
  * column included - the dig list cannot chew them and the step-in drowns) plus
@@ -1638,7 +1639,20 @@ export const PIT_DONOR_MAX = 2
 // a flood); an attempted cell never re-rides (the loop guard the
 // success-only scalar could not give). A null or junk set (every legacy
 // caller, every legacy test) keeps the scalar byte for byte.
-export const PLANT_CLEAR_FAMILY = ['leaf_litter', 'short_grass']
+export const PLANT_CLEAR_FAMILY = [
+  'leaf_litter', 'short_grass',
+  // (v0.634.0) THE SAPLING CELL - the fleet's OWN planted saplings join the
+  // family: F14's support fill at [-121,64,389] refused on post=oak_sapling
+  // STILL OPEN (fleet 37222310370, the v0.632.0 face) - the planter (sapling.mjs
+  // replantStump) chose the cell, the bridge fill died into it, and the family
+  // knew only the groundcover. Derived from the planter's own map (ONE source
+  // of truth - the planter never plants what the map nulls: dark_oak is a 2x2
+  // law, bamboo is a shoot, the nether fungi are not saplings). A dug sapling
+  // drops its item (the replant stock refunds) and the fill makes the cell
+  // unplantable - one dig resolves the cell, no planter war. The per-cell law
+  // (v0.633.0) bounds the churn: one attempt per cell per climb.
+  ...Object.values(SAPLING_FOR_LOG).filter(Boolean)
+]
 export const PLANT_CLEAR_MAX = 2
 
 // (v0.621.0) the donor vocab: dirt-family first (the drop rides bare-handed),

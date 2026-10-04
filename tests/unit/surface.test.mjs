@@ -1271,7 +1271,11 @@ test('plant clear: the confessed groundcover digs before the fill (v0.627.0)', (
   const LEAF = blk('leaf_litter', 'empty') // no collision - the plan reads the cell clear
   const SGRASS = blk('short_grass', 'empty')
   // the family + the cap are pinned (the confessed kinds, the donor's own cap law)
-  assert.deepEqual(PLANT_CLEAR_FAMILY, ['leaf_litter', 'short_grass'])
+  assert.deepEqual(PLANT_CLEAR_FAMILY, [
+    'leaf_litter', 'short_grass',
+    'oak_sapling', 'birch_sapling', 'spruce_sapling', 'jungle_sapling',
+    'acacia_sapling', 'cherry_sapling', 'pale_oak_sapling'
+  ])
   assert.equal(PLANT_CLEAR_MAX, 2)
   // the support cell holds the confessed plant - the plan sends the caller DIGGING
   const supportPlant = cellWorld({
@@ -1369,4 +1373,36 @@ test('plant clear: the per-cell law - the unattempted cell earns its one shot, t
   assert.equal(junkSet.kind, 'pit', 'a junk set reads as no set - the spent scalar keeps the legacy byte')
   const junkSetOpen = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: 0, plantClearCells: 42 })
   assert.equal(junkSetOpen.kind, 'plant-clear', 'a junk set with the scalar open keeps the scalar-open byte')
+})
+
+test('plant clear: the sapling cell confesses - the fleet\'s own planted saplings join the family (v0.634.0)', () => {
+  const OAKSAP = blk('oak_sapling', 'empty') // no collision - the plan reads the cell clear
+  // F14's refused face (fleet 37222310370): the support cell holds the planter's oak_sapling,
+  // the fill planned INTO it and the server refused (post=oak_sapling STILL OPEN)
+  const supportSapling = cellWorld({
+    '10,63,20': GRASS, // ownFloor - the mined ref=grass_block
+    '11,65,20': AIR, '11,66,20': AIR, // the step cells clear
+    '11,64,20': OAKSAP, // the support cell - the planter's own choice
+    '11,63,20': STONE // the pit floor solid
+  })
+  const p1 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportSapling, items: POCKET })
+  assert.equal(p1.ok, true)
+  assert.equal(p1.kind, 'plant-clear', 'the sapling cell confesses before the fill dies into it again')
+  assert.equal(p1.fillKind, 'support')
+  assert.equal(p1.plantName, 'oak_sapling')
+  assert.deepEqual({ x: p1.cell.x, y: p1.cell.y, z: p1.cell.z }, { x: 11, y: 64, z: 20 })
+  // the pit-level twin: a sapling below-lateral confesses the same way
+  const pitSapling = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': blk('birch_sapling', 'empty')
+  })
+  const p2 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitSapling, items: POCKET })
+  assert.equal(p2.kind, 'plant-clear')
+  assert.equal(p2.fillKind, 'pit')
+  assert.equal(p2.plantName, 'birch_sapling')
+  // the per-cell law composes: an attempted sapling cell never re-rides
+  const attempted = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportSapling, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: new Set(['11,64,20']) })
+  assert.equal(attempted.kind, 'support', 'the attempt-once guard rides the widened family unchanged')
 })
