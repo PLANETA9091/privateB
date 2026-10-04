@@ -1328,3 +1328,45 @@ test('plant clear: the confessed groundcover digs before the fill (v0.627.0)', (
   assert.equal(p4.ok, false)
   assert.equal(p4.why, 'the support is already solid')
 })
+
+test('plant clear: the per-cell law - the unattempted cell earns its one shot, the attempted cell never re-rides (v0.633.0)', () => {
+  const LEAF = blk('leaf_litter', 'empty')
+  // F9's refused-twice face (fleet 37216259817): the pit cell below-lateral
+  // confesses leaf_litter, the scalar clears spent on OTHER cells
+  const pitPlant = cellWorld({
+    '10,63,20': STONE, // ownFloor solid (the pit fill's ref cell face)
+    '11,65,20': AIR, '11,66,20': AIR, // the step cells clear
+    '11,64,20': AIR, // the support cell open
+    '11,63,20': LEAF // the pit cell - F9's leaf_litter at [-101,64,378]
+  })
+  const theCell = new Set(['11,63,20'])
+  // the set WITH the key: the cell never re-rides, even past a spent scalar
+  const attempted = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: theCell })
+  assert.equal(attempted.ok, true)
+  assert.equal(attempted.kind, 'pit', 'an attempted cell never re-rides - the loop guard the success-only scalar could not give')
+  assert.deepEqual({ x: attempted.cell.x, y: attempted.cell.y, z: attempted.cell.z }, { x: 11, y: 63, z: 20 })
+  // the scalar OPEN + the cell attempted: the set governs, the legacy pit fill
+  // plans into the plant (a failed dig closes after ONE attempt)
+  const scalarOpen = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: 0, plantClearCells: theCell })
+  assert.equal(scalarOpen.kind, 'pit', 'the set governs: one attempt per cell, the re-plan rides the legacy path')
+  // the set WITHOUT the key: the clear rides past the spent scalar (F9's cure)
+  const otherCells = new Set(['9,63,20', '12,63,20'])
+  const freshCell = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: otherCells })
+  assert.equal(freshCell.ok, true)
+  assert.equal(freshCell.kind, 'plant-clear', 'the spent scalar dooms no cell that never met a dig')
+  assert.equal(freshCell.fillKind, 'pit')
+  assert.equal(freshCell.plantName, 'leaf_litter')
+  assert.deepEqual({ x: freshCell.cell.x, y: freshCell.cell.y, z: freshCell.cell.z }, { x: 11, y: 63, z: 20 })
+  assert.equal(freshCell.item, null)
+  assert.equal(freshCell.placedNext, 0, 'the clear spends no fill budget')
+  // the array tolerance: the includes path mirrors the Set path
+  const arraySpent = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: ['11,63,20'] })
+  assert.equal(arraySpent.kind, 'pit')
+  const arrayFresh = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: [] })
+  assert.equal(arrayFresh.kind, 'plant-clear')
+  // a junk set never crashes and never widens: the scalar's own byte decides
+  const junkSet = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: 'junk' })
+  assert.equal(junkSet.kind, 'pit', 'a junk set reads as no set - the spent scalar keeps the legacy byte')
+  const junkSetOpen = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitPlant, items: POCKET, plantClears: 0, plantClearCells: 42 })
+  assert.equal(junkSetOpen.kind, 'plant-clear', 'a junk set with the scalar open keeps the scalar-open byte')
+})

@@ -1624,6 +1624,20 @@ export const PIT_DONOR_MAX = 2
 // that guard blind). PLANT_CLEAR_MAX bounds the clears per climb (a dig that
 // the server refuses must not loop: past the cap the legacy paths stand and
 // the honest refusal prints as always).
+// (v0.633.0) THE PER-CELL CLEAR LAW - the scalar cap counted the CLIMB, the
+// plant front counts the CELL: fleet 37216259817's residual pair rode F9's
+// pit fill at [-101,64,378] refused twice on leaf_litter while F9's two
+// clears were spent on OTHER cells - the spent scalar doomed a cell that
+// never met a dig. And the scalar counts SUCCESSES only (the executor
+// increments on dugOk), so a failing dig never closed anything: the re-plan
+// re-rode the clear on the same cell unbounded (the livelock class). The law
+// now: a REAL attempt set (Set-like .has or an array) GOVERNS the clear -
+// one attempt per cell per climb, no scalar ceiling above it (each clear
+// serves exactly one priced fill and BRIDGE_PLACE_MAX bounds the fills, so
+// the leg stays bounded; the field's own face ran 4 clears per bot without
+// a flood); an attempted cell never re-rides (the loop guard the
+// success-only scalar could not give). A null or junk set (every legacy
+// caller, every legacy test) keeps the scalar byte for byte.
 export const PLANT_CLEAR_FAMILY = ['leaf_litter', 'short_grass']
 export const PLANT_CLEAR_MAX = 2
 
@@ -1689,7 +1703,7 @@ export function pitDonor ({ feet, d, read, items = null } = {}) {
   return null
 }
 
-export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0, plantClears = 0 } = {}) {
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0, plantClears = 0, plantClearCells = null } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
   if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
@@ -1777,20 +1791,36 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   // (v0.627.0) THE PLANT CLEAR - the lateral target's confessed groundcover
   // digs first (see PLANT_CLEAR_FAMILY). The cap spent keeps the legacy byte
   // (the plan plans into the plant cell as today - the honest refusal owns
-  // the rest); a non-confessing read (air, unknown, junk) never sees this
+  // the rest; v0.633.0 refines this: the cap spent keeps it for an ATTEMPTED
+  // cell only - an unattempted cell still earns its one clear); a
+  // non-confessing read (air, unknown, junk) never sees this
   // branch. The verdict carries the fill kind it serves (the log names it).
-  const plantCapOpen = Number.isFinite(plantClears) && plantClears < PLANT_CLEAR_MAX
-  const plantOf = b => b && b.name && PLANT_CLEAR_FAMILY.includes(b.name) ? b.name : null
-  const support = rd(feet.offset(d.x, 0, d.z))
-  if (support && support.boundingBox === 'block') return { ok: false, why: 'the support is already solid' }
-  const supportPlant = plantCapOpen ? plantOf(support) : null
-  if (supportPlant) {
-    return { ok: true, kind: 'plant-clear', fillKind: 'support', cell: feet.offset(d.x, 0, d.z), plantName: supportPlant, item: null, placedNext: done }
+  // (v0.633.0) the per-cell clear law rides here: a real attempt set governs
+  // (one attempt per cell, no scalar ceiling - see PLANT_CLEAR_MAX's comment
+  // block); a null or junk set (every legacy caller) keeps the scalar byte
+  // for byte.
+  const plantSetReal = !!plantClearCells && (Array.isArray(plantClearCells) || typeof plantClearCells.has === 'function')
+  const plantAttempted = cell => {
+    if (!cell || !plantSetReal) return false
+    try {
+      const key = `${cell.x},${cell.y},${cell.z}`
+      return typeof plantClearCells.has === 'function' ? !!plantClearCells.has(key) : plantClearCells.includes(key)
+    } catch { return false }
   }
-  const below = rd(feet.offset(d.x, -1, d.z))
-  const belowPlant = plantCapOpen && below && below.boundingBox === 'empty' ? plantOf(below) : null
+  const plantCapOpen = cell => plantSetReal ? !plantAttempted(cell) : (Number.isFinite(plantClears) && plantClears < PLANT_CLEAR_MAX)
+  const plantOf = b => b && b.name && PLANT_CLEAR_FAMILY.includes(b.name) ? b.name : null
+  const supportCell = feet.offset(d.x, 0, d.z)
+  const support = rd(supportCell)
+  if (support && support.boundingBox === 'block') return { ok: false, why: 'the support is already solid' }
+  const supportPlant = plantCapOpen(supportCell) ? plantOf(support) : null
+  if (supportPlant) {
+    return { ok: true, kind: 'plant-clear', fillKind: 'support', cell: supportCell, plantName: supportPlant, item: null, placedNext: done }
+  }
+  const belowCell = feet.offset(d.x, -1, d.z)
+  const below = rd(belowCell)
+  const belowPlant = plantCapOpen(belowCell) && below && below.boundingBox === 'empty' ? plantOf(below) : null
   if (belowPlant) {
-    return { ok: true, kind: 'plant-clear', fillKind: 'pit', cell: feet.offset(d.x, -1, d.z), plantName: belowPlant, item: null, placedNext: done }
+    return { ok: true, kind: 'plant-clear', fillKind: 'pit', cell: belowCell, plantName: belowPlant, item: null, placedNext: done }
   }
   if (below && below.boundingBox === 'block') {
     return {

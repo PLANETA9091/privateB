@@ -5103,6 +5103,16 @@ export function createMiner ({
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     let bridgeDonors = 0 // (v0.621.0) pit donor digs this climb, bounded by PIT_DONOR_MAX
     let bridgePlantClears = 0 // (v0.627.0) plant clears this climb, bounded by PLANT_CLEAR_MAX
+    // (v0.633.0) the per-cell attempt marks ('x,y,z' keys): the set GOVERNS
+    // the plant clear - one attempt per cell per climb, no scalar ceiling
+    // above it (each clear serves exactly one priced fill, BRIDGE_PLACE_MAX
+    // bounds the fills), and an attempted cell never re-rides - the loop
+    // guard the success-only scalar could not give (a failing dig never
+    // incremented anything). F9's pit fill at [-101,64,378] rode 'refused
+    // twice' on fleet 37216259817 while the climb's two scalar clears were
+    // spent on OTHER cells - this set gives the unattempted cell its shot.
+    // The scalar stays as the no-set callers' cap and the executor's count.
+    const bridgePlantCleared = new Set()
     const start = Date.now()
     // One horizontal escape gallery under a wet ceiling (v0.17.0). The fleet
     // measured the trap (17:05 run): a shaft that turned into a water column
@@ -5501,11 +5511,11 @@ export function createMiner ({
           // verdict, lands (bounded poll), and the plan re-reads from the
           // LANDED feet - the landed ownFloor often reads solid (the hole
           // self-solves) or the fill rides the grounded standing transport.
-          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded(), donors: bridgeDonors, plantClears: bridgePlantClears })
+          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded(), donors: bridgeDonors, plantClears: bridgePlantClears, plantClearCells: bridgePlantCleared })
           if (!bp.ok && bp.waitGround) {
             const grounded = await bridgeWaitGround()
             const feetNow = (() => { try { return bot.entity?.position ? bot.entity.position.floored() : feet } catch { return feet } })()
-            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors, plantClears: bridgePlantClears })
+            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors, plantClears: bridgePlantClears, plantClearCells: bridgePlantCleared })
             if (diagLevels < 3 && (bp.ok || !bp.waitGround)) log(`${tag} climb bridge: the self fill waited ${grounded ? 'and grounded' : 'and stayed afloat'} - the re-plan ${bp.ok ? `reads the ${bp.kind} fill` : `refuses (${bp.why})`}`)
           }
           if (bp.ok) {
@@ -5521,6 +5531,7 @@ export function createMiner ({
               // refusal and falls to the ladder; the cap (PLANT_CLEAR_MAX)
               // lives plan-side.
               let dugOk = false
+              try { bridgePlantCleared.add(`${bp.cell.x},${bp.cell.y},${bp.cell.z}`) } catch { }
               try {
                 const plantB = readCell(bp.cell)
                 if (plantB && plantB.name && PLANT_CLEAR_FAMILY.includes(plantB.name)) {
