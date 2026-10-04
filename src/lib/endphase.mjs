@@ -361,13 +361,34 @@ export const CLIMB_MIN_SLICE_MS = 15000
  * reads NO need (null - the caller keeps the legacy min laws); the min stays
  * the floor (a shallow wall never prices below the slice the schedule
  * already guarantees).
+ *
+ * (v0.641.0) THE DEEP-WINDOW MARGIN - the price carries the variance the
+ * deep window already prices. MEASURED (fleet 37233218979, the v0.640.0
+ * face, banked=0 - the first zero-delivery face of the era, the yard 22
+ * levels up over 2-7b lateral, every delivery leg severed by the vertical
+ * doom): the need lines FIRED (4 need-priced climbs: 84-160s funded) and
+ * the fences became the wall - F17 'need 160s (38 levels)' then 'timeout
+ * (fenced at 160s)' with the staircase LIVE at the cut (dug=39+, the diag
+ * lines riding) - 4.2s/level priced the doom column at ZERO variance while
+ * the wet bands, the dig-heavy stone and the gravity settles ate the
+ * difference. The deep window (v0.307.0) already owns this law: 'the window
+ * grows with the honest climb (dy * 4.2s) doubled for the wet bands + the
+ * walk', capped by DEEP_WINDOW_MAX_MS. The same margin reaches the final
+ * climb: need = min(DEEP_WINDOW_MAX_MS, max(min, dy * 4200 * 2)). The
+ * asymmetry is doctrine-clean: the MID-RUN ascent keeps its x1 (the v0.604.0
+ * refusal is honest - the trip spends real mining clock, a doom trip is the
+ * v0.181.0 class), the FINAL climb borrows from the worthless-underground-
+ * chain reserve (the v0.50.0 doctrine) - its only cost is the fence, and a
+ * fence that cuts a live staircase at the central price is the v0.640.0
+ * face's own refutation.
  * @param {object} [p]
  * @param {number} [p.dy] levels from the bot's feet up to the yard's level (yardY - botY)
  * @returns {number|null} the climb's need in ms (>= CLIMB_MIN_SLICE_MS), or null when the wall is unreadable
  */
 export function finalClimbNeedMs ({ dy = null } = {}) {
   if (!Number.isFinite(dy) || dy <= 0) return null
-  return Math.max(CLIMB_MIN_SLICE_MS, Math.round(dy) * DEEP_CLIMB_MS_PER_LEVEL)
+  const priced = Math.round(dy) * DEEP_CLIMB_MS_PER_LEVEL * DEEP_WINDOW_MARGIN
+  return Math.min(DEEP_WINDOW_MAX_MS, Math.max(CLIMB_MIN_SLICE_MS, priced))
 }
 
 /**

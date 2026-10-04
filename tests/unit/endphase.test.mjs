@@ -132,14 +132,22 @@ test('finalBankSchedule: the crumb borrow - the face\'s five zero-banks fund the
 // quarry-ascent per-level law already prices). The need prices the slice, the
 // borrow funds the need, and a junk/absent need reads the v0.635.0 laws byte
 // for byte.
-test('finalClimbNeedMs: the yard wall prices at the v0.294.0 per-level law', () => {
-  // F8's own face: 21 levels -> 21 * 4200 = 88.2s (the fence that starved it read 34s)
-  assert.equal(finalClimbNeedMs({ dy: 21 }), 88200)
-  // the doom threshold (VERTICAL_DOOM_MIN_DY = 20) prices 84s
-  assert.equal(finalClimbNeedMs({ dy: 20 }), 84000)
+test('finalClimbNeedMs: the yard wall prices at the v0.294.0 per-level law (the deep-window margin, v0.641.0)', () => {
+  // the v0.641.0 margin: the price doubles for the wet bands + the walk (the
+  // deep window's own doctrine, v0.307.0) and caps at DEEP_WINDOW_MAX_MS.
+  // MEASURED (fleet 37233218979, the v0.640.0 face, banked=0): F17 'need 160s
+  // (38 levels)' then 'timeout (fenced at 160s)' with the staircase LIVE at
+  // the cut (dug=39+) - the central price left zero variance room.
+  // F8's own face: 21 levels -> 21 * 4200 * 2 = 176.4s (the fence that starved it read 34s)
+  assert.equal(finalClimbNeedMs({ dy: 21 }), 176400)
+  // the doom threshold (VERTICAL_DOOM_MIN_DY = 20) prices 168s
+  assert.equal(finalClimbNeedMs({ dy: 20 }), 168000)
+  // the cap: F17's 38 levels read 319.2s raw -> DEEP_WINDOW_MAX_MS (300s)
+  assert.equal(finalClimbNeedMs({ dy: 38 }), 300000)
+  assert.equal(finalClimbNeedMs({ dy: 100 }), 300000, 'the cap guards the price, not the intent')
   // a fractional dy rounds honestly
-  assert.equal(finalClimbNeedMs({ dy: 21.4 }), 88200, 'round(21.4) = 21')
-  assert.equal(finalClimbNeedMs({ dy: 21.5 }), 92400, 'round(21.5) = 22')
+  assert.equal(finalClimbNeedMs({ dy: 21.4 }), 176400, 'round(21.4) = 21')
+  assert.equal(finalClimbNeedMs({ dy: 21.5 }), 184800, 'round(21.5) = 22')
   // the min floor: a shallow wall never prices below the guaranteed slice
   assert.equal(finalClimbNeedMs({ dy: 1 }), CLIMB_MIN_SLICE_MS)
   // junk laws: no wall, no need (the caller keeps the legacy min laws)
@@ -148,30 +156,31 @@ test('finalClimbNeedMs: the yard wall prices at the v0.294.0 per-level law', () 
   }
 })
 
-test('finalBankSchedule: the borrow funds the NEED, not the min (v0.638.0)', () => {
+test('finalBankSchedule: the borrow funds the NEED, not the min (v0.638.0, the deep-window margin v0.641.0)', () => {
   // the F8-shaped face: raw 34s crumbs (the clamp's 300s chain ate the rest),
-  // the yard 21 levels up (need 88.2s) -> the slice prices the wall, the
-  // borrow tops up 54.2s from the chain reserve
+  // the yard 21 levels up (need 176.4s at the doubled price) -> the slice
+  // prices the wall, the borrow tops up 142.4s from the chain reserve
   assert.deepEqual(
-    finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 88200 }),
-    { climbSliceMs: 88200, climbSkipped: false, climbBorrowedMs: 54200 }
+    finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 176400 }),
+    { climbSliceMs: 176400, climbSkipped: false, climbBorrowedMs: 142400 }
   )
-  // the crumbs already fund the need: the legacy byte (borrow 0, the full raw)
+  // the crumbs already fund the need: the legacy byte (borrow 0, the full
+  // raw) - raw 200s (margin 480s - chain 280s) >= the need 176.4s
   assert.deepEqual(
-    finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 280000, climbNeedMs: 88200 }),
-    { climbSliceMs: 110000, climbSkipped: false, climbBorrowedMs: 0 }
+    finalBankSchedule({ entryMarginMs: 480000, chainBudgetMs: 280000, climbNeedMs: 176400 }),
+    { climbSliceMs: 200000, climbSkipped: false, climbBorrowedMs: 0 }
   )
   // the best-shot branch: the room cannot fund the full need but can fund the
   // min - the whole room rides (the underground chain bought ZERO every face;
   // the caller's finalBudget re-clamp owns the wall truth)
   assert.deepEqual(
-    finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 30000, climbNeedMs: 88200 }),
+    finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 30000, climbNeedMs: 176400 }),
     { climbSliceMs: 50000, climbSkipped: false, climbBorrowedMs: 30000 }
   )
   // the stagger prices first in the need form too (the v0.49.0 law holds)
   assert.deepEqual(
-    finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000, climbNeedMs: 88200 }),
-    { climbSliceMs: 88200, climbSkipped: false, climbBorrowedMs: 88200 }
+    finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000, climbNeedMs: 176400 }),
+    { climbSliceMs: 176400, climbSkipped: false, climbBorrowedMs: 176400 }
   )
 })
 
@@ -201,7 +210,7 @@ test('finalBankSchedule: a junk or absent need reads the v0.635.0 laws byte for 
   )
   // the funded invariants in the need form: the slice never exceeds the room;
   // the funded pair respects it
-  const r = finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 88200 })
+  const r = finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 176400 })
   assert.ok(r.climbSliceMs <= 334000, 'the slice never exceeds the room')
   assert.ok(r.climbSliceMs + (300000 - r.climbBorrowedMs) <= 334000, 'the funded pair respects the room')
 })

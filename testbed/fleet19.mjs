@@ -3257,7 +3257,7 @@ async function runBot (name, target, index) {
           // sizes itself against the yard's own arithmetic.
           if (!schedule.climbSkipped && schedule.climbBorrowedMs > 0) {
             if (climbNeedMs != null) {
-              console.log(`${name} final climb: need ${(climbNeedMs / 1000).toFixed(0)}s (${finalDoom.dy} levels at the v0.294.0 4.2s price) - funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
+              console.log(`${name} final climb: need ${(climbNeedMs / 1000).toFixed(0)}s (${finalDoom.dy} levels at the v0.294.0 4.2s price, the deep-window margin) - funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
             } else {
               console.log(`${name} final climb: funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
             }
