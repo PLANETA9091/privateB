@@ -1651,7 +1651,23 @@ export const PLANT_CLEAR_FAMILY = [
   // drops its item (the replant stock refunds) and the fill makes the cell
   // unplantable - one dig resolves the cell, no planter war. The per-cell law
   // (v0.633.0) bounds the churn: one attempt per cell per climb.
-  ...Object.values(SAPLING_FOR_LOG).filter(Boolean)
+  ...Object.values(SAPLING_FOR_LOG).filter(Boolean),
+  // (v0.644.0) THE FLOWER CELL - the vanilla small flowers join the family:
+  // F2's pit fill at [-63,63,408] refused twice on post=lily_of_the_valley
+  // STILL OPEN (fleet 37235900235, the v0.641.0 face) - the fill died into a
+  // flower the family never knew, ref-after=cobblestone rode it, and the
+  // class held. Derived from the vanilla small_flowers tag (ONE source of
+  // truth - the same derivation law the sapling rung rides): every member
+  // breaks bare-hand instantly (the groundcover precedent) and drops itself
+  // at worst (the sapling-refund precedent - pocket junk, never a chain
+  // loss; a wither_rose in the path is a wither hazard the dig REMOVES).
+  // The tall flowers stay OUT (rose_bush, lilac, peony, sunflower and the
+  // two-tall family are unmeasured and their halves read differently - the
+  // next face prices them).
+  'allium', 'azure_bluet', 'blue_orchid', 'cornflower', 'dandelion',
+  'lily_of_the_valley', 'oxeye_daisy', 'poppy', 'torchflower', 'wither_rose',
+  'orange_tulip', 'pink_tulip', 'red_tulip', 'white_tulip', 'cactus_flower',
+  'open_eyeblossom', 'closed_eyeblossom'
 ]
 export const PLANT_CLEAR_MAX = 2
 

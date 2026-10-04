@@ -1215,13 +1215,13 @@ test('bridgePlan: the waitGround gate precedes the self plant clear - a falling 
 })
 
 test('bridgePlan: the self plant clear speaks only the family - a non-family plant keeps the legacy self fill', () => {
-  const POPPY = blk('poppy', 'empty')
+  const ROSEBUSH = blk('rose_bush', 'empty') // the tall flower stays out (v0.644.0)
   const read = cellWorld({
-    '10,63,20': POPPY,
+    '10,63,20': ROSEBUSH,
     '11,63,20': STONE
   })
   const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: new Set() })
-  assert.equal(p.kind, 'self', 'poppy is not the family - no clear, the legacy plan stands')
+  assert.equal(p.kind, 'self', 'rose_bush is not the family - no clear, the legacy plan stands (the tall flowers read their halves differently)')
 })
 
 // (v0.638.0) THE SHADOW GATE - the entity-collision law's own pre-flight. The
@@ -1414,7 +1414,12 @@ test('plant clear: the confessed groundcover digs before the fill (v0.627.0)', (
   assert.deepEqual(PLANT_CLEAR_FAMILY, [
     'leaf_litter', 'short_grass',
     'oak_sapling', 'birch_sapling', 'spruce_sapling', 'jungle_sapling',
-    'acacia_sapling', 'cherry_sapling', 'pale_oak_sapling'
+    'acacia_sapling', 'cherry_sapling', 'pale_oak_sapling',
+    // (v0.644.0) the flower cell: the vanilla small_flowers tag rides
+    'allium', 'azure_bluet', 'blue_orchid', 'cornflower', 'dandelion',
+    'lily_of_the_valley', 'oxeye_daisy', 'poppy', 'torchflower', 'wither_rose',
+    'orange_tulip', 'pink_tulip', 'red_tulip', 'white_tulip', 'cactus_flower',
+    'open_eyeblossom', 'closed_eyeblossom'
   ])
   assert.equal(PLANT_CLEAR_MAX, 2)
   // the support cell holds the confessed plant - the plan sends the caller DIGGING
@@ -1592,4 +1597,63 @@ test('INTERACTIVE REFERENCE LAW: the sneak wrap rides exactly the two bridge pla
   // a non-interactive reference stays byte for byte (the membership gate first)
   assert.ok(minerSrc.includes("if (!interactiveRefName(refN)) return place()"),
     'the plain-solid fills take the legacy path untouched')
+})
+
+// (v0.644.0) THE FLOWER CELL - the vanilla small flowers join the family.
+// MEASURED (fleet 37235900235, the v0.641.0 face): F2's pit fill at
+// [-63,63,408] refused twice on post=lily_of_the_valley STILL OPEN - the
+// fill died into a flower the family never knew (the family held only the
+// groundcover + the saplings), ref-after=cobblestone rode the line. The
+// derivation rides the vanilla small_flowers tag (the sapling rung's own
+// one-source law); the tall flowers stay out (unmeasured, the halves read
+// differently).
+test('plant clear: the flower cell confesses - the small flowers join the family (v0.644.0)', () => {
+  const LILY = blk('lily_of_the_valley', 'empty') // no collision - the plan reads the cell clear
+  // F2's refused face (fleet 37235900235): the pit cell below-lateral holds
+  // the flower, the fill planned INTO it and the server refused twice
+  const pitFlower = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': LILY // the pit cell - the flower's own cell
+  })
+  const p1 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitFlower, items: POCKET })
+  assert.equal(p1.kind, 'plant-clear', 'the flower cell confesses before the fill dies into it again')
+  assert.equal(p1.fillKind, 'pit')
+  assert.equal(p1.plantName, 'lily_of_the_valley')
+  assert.deepEqual({ x: p1.cell.x, y: p1.cell.y, z: p1.cell.z }, { x: 11, y: 63, z: 20 })
+  // the support-level twin: a flower at feet level confesses the same way
+  const supportFlower = cellWorld({
+    '10,63,20': GRASS,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': blk('poppy', 'empty'),
+    '11,63,20': STONE
+  })
+  const p2 = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportFlower, items: POCKET })
+  assert.equal(p2.kind, 'plant-clear')
+  assert.equal(p2.fillKind, 'support')
+  assert.equal(p2.plantName, 'poppy')
+  // the per-cell law composes: an attempted flower cell never re-rides
+  const attempted = bridgePlan({ feet: cell(10, 64, 20), d: D, read: pitFlower, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: new Set(['11,63,20']) })
+  assert.equal(attempted.kind, 'pit', 'the attempt-once guard rides the widened family unchanged')
+})
+
+test('plant clear: the flower family reads the small_flowers tag (the tall flowers stay out, junk reads false)', () => {
+  // the measured member + the tag's face members ride true
+  for (const name of ['lily_of_the_valley', 'poppy', 'dandelion', 'cornflower',
+    'blue_orchid', 'allium', 'azure_bluet', 'oxeye_daisy',
+    'red_tulip', 'orange_tulip', 'white_tulip', 'pink_tulip',
+    'torchflower', 'wither_rose', 'cactus_flower',
+    'open_eyeblossom', 'closed_eyeblossom']) {
+    assert.ok(PLANT_CLEAR_FAMILY.includes(name), `${name} rides the family`)
+  }
+  // the two-tall family stays OUT (unmeasured - the halves read differently)
+  for (const name of ['rose_bush', 'lilac', 'peony', 'sunflower', 'large_fern', 'tall_grass', 'pitcher_plant']) {
+    assert.ok(!PLANT_CLEAR_FAMILY.includes(name), `${name} stays out`)
+  }
+  // the junk law: the groundcover + the saplings keep their seats, junk reads false
+  assert.ok(PLANT_CLEAR_FAMILY.includes('leaf_litter') && PLANT_CLEAR_FAMILY.includes('short_grass'))
+  assert.ok(PLANT_CLEAR_FAMILY.includes('oak_sapling'))
+  assert.ok(!PLANT_CLEAR_FAMILY.includes('crafting_table'))
+  assert.ok(!PLANT_CLEAR_FAMILY.includes(null) && !PLANT_CLEAR_FAMILY.includes(undefined))
 })
