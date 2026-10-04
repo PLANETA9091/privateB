@@ -531,7 +531,7 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
 // record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
 // is the pure gate the climbOut wiring executes: the step path clear + the
 // support non-solid + a placeable pocket = fill the missing floor.
-import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE, PLANT_CLEAR_FAMILY, PLANT_CLEAR_MAX } from '../../src/lib/surface.mjs'
+import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE, PLANT_CLEAR_FAMILY, PLANT_CLEAR_MAX, fillCollidesEntity, SHADOW_EPSILON } from '../../src/lib/surface.mjs'
 
 const cell = (x, y, z) => ({
   x, y, z,
@@ -1221,6 +1221,40 @@ test('bridgePlan: the self plant clear speaks only the family - a non-family pla
   })
   const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, plantClears: 0, plantClearCells: new Set() })
   assert.equal(p.kind, 'self', 'poppy is not the family - no clear, the legacy plan stands')
+})
+
+// (v0.638.0) THE SHADOW GATE - the entity-collision law's own pre-flight. The
+// ref-after split decided the air-post class 7/7 for geometry/entity (every
+// reference survived); the bot's own box leaning into the target cell is the
+// one entity the bot always carries. The F12 lead-in, the self dip, the
+// boundary kiss, the jump-over, the junk law.
+test('fillCollidesEntity: the support lead-in - the box leaning into the target column defers, the cell center flies', () => {
+  // the F12-shaped walk: feet near the +x edge of the feet cell, target beside
+  assert.equal(fillCollidesEntity({ pos: { x: 10.8, y: 64, z: 20.5 }, cell: { x: 11, y: 64, z: 20 } }), true)
+  assert.equal(fillCollidesEntity({ pos: { x: 10.5, y: 64, z: 20.5 }, cell: { x: 11, y: 64, z: 20 } }), false, 'the cell center never collides - the fill flies')
+})
+
+test('fillCollidesEntity: the self dip - the box dipped into the underfoot pit cell defers, the exact plane flies', () => {
+  // the v0.618.0 falling class, grounded edition: the feet 0.3 BELOW the pit top
+  assert.equal(fillCollidesEntity({ pos: { x: 10.5, y: 62.7, z: 20.5 }, cell: { x: 10, y: 62, z: 20 } }), true)
+  // standing exactly ON the pit top plane - touch, no intersection, the packet flies
+  assert.equal(fillCollidesEntity({ pos: { x: 10.5, y: 63, z: 20.5 }, cell: { x: 10, y: 62, z: 20 } }), false)
+})
+
+test('fillCollidesEntity: the boundary kiss never defers and a jump-over never defers', () => {
+  // the lean is shallower than the epsilon - the packet flies as today
+  assert.equal(fillCollidesEntity({ pos: { x: 10.72, y: 64, z: 20.5 }, cell: { x: 11, y: 64, z: 20 } }), false)
+  // the bot well above the cell - no vertical overlap
+  assert.equal(fillCollidesEntity({ pos: { x: 10.8, y: 66, z: 20.5 }, cell: { x: 11, y: 64, z: 20 } }), false)
+  // the epsilon rides the export (the gate's own floor is pinned)
+  assert.equal(SHADOW_EPSILON, 0.05)
+})
+
+test('fillCollidesEntity: junk geometry is a false, never a throw - the packet flies, the ladder owns it', () => {
+  assert.equal(fillCollidesEntity({}), false)
+  assert.equal(fillCollidesEntity({ pos: null, cell: { x: 1, y: 2, z: 3 } }), false)
+  assert.equal(fillCollidesEntity({ pos: { x: NaN, y: 64, z: 20 }, cell: { x: 11, y: 64, z: 20 } }), false)
+  assert.equal(fillCollidesEntity({ pos: { x: 10.5, y: 64, z: 20.5 }, cell: { x: 'junk', y: 64, z: 20 } }), false)
 })
 
 // (v0.300.0) THE WET-CEILING ASCEND - the climb's answer to the sealed water

@@ -34,7 +34,7 @@ import {
   tunnelZeroWhy, // (v0.240.0) the silent-break verdict - the steered 0-block class names its gate
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
-  bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail,
+  bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail, fillCollidesEntity, // (v0.638.0) THE SHADOW GATE rides the bridge imports
   PLANT_CLEAR_FAMILY, // (v0.627.0) THE PLANT CLEAR - the confessed groundcover digs before the fill
   SEAL_PLACE_TIMEOUT_MS // (v0.544.0) THE SEAL PLACE FENCE - the PILLAR lesson reaches the miner's own seal legs
 } from '../lib/surface.mjs'
@@ -5574,6 +5574,20 @@ export function createMiner ({
                 continue
               }
               if (diagLevels < 3) log(`${tag} climb bridge: the pit donor refused at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.donorName ?? 'unknown'}) - the ladder owns it`)
+            } else if (fillCollidesEntity({ pos: bot.entity.position, cell: bp.cell })) {
+              // (v0.638.0) THE SHADOW GATE defer - the entity-collision law's
+              // own pre-flight. The ref-after split (fleet 37228589272)
+              // decided the air-post class 7/7 for geometry/entity: every
+              // reference SURVIVED the confess-time re-read, so the server's
+              // refusal of a valid, in-reach placement is the vanilla rule -
+              // a block may not land in a cell any entity's box intersects,
+              // and the bot's own box leans into the target (the support
+              // lead-in, the self dip). A real penetration defers the packet
+              // (the waitGround shape: no packet, the walk/settle moves the
+              // box, the loop re-plans, the ladder owns what stays); a
+              // boundary kiss flies as today - the gate never costs a fill
+              // that would have landed.
+              if (diagLevels < 3) log(`${tag} climb bridge: the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] defers - the bot's own box holds the cell (the entity-collision law)`)
             } else {
               bridgePlaced = bp.placedNext
             let placedOk = false

@@ -1941,6 +1941,45 @@ export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = n
   return out
 }
 
+// (v0.638.0) THE SHADOW GATE - the entity-collision law's own pre-flight. The
+// ref-after split (fleet 37228589272, the v0.636.0 face) DECIDED the air-post
+// class: 7 of 7 surviving refusals rode ref-after=<same name> - every
+// reference SURVIVED the confess-time re-read (diorite, smooth_stone x6),
+// the stale-reference theory is dead (0 ghosts caught), 0 water this face,
+// and the distances sat 0.5-1.0b (reach died with the v0.632.0 face). What
+// remains is the vanilla placement rule the bot always carries with it: a
+// block may not be placed into a cell any ENTITY's box intersects, and the
+// bot's own box (0.6 wide, 1.8 tall) leans into the target cell - the
+// support lead-in (walking toward the fill: F12's triple [-152,65,404],
+// [-152,65,403], [-151,65,404] refused in a row), the self dip (the
+// v0.618.0 underfoot gate caught the FALLING class, the grounded edge-lean
+// survives). The gate is a pure overlap check: the bot's AABB vs the target
+// cell's box, with an epsilon - only a REAL penetration (deeper than
+// SHADOW_EPSILON on every axis) collides; a boundary kiss never does (a
+// conservative gate never costs a fill that would have landed). The defer
+// is the waitGround shape: no packet, the honest line, the walk/settle
+// moves the box and the loop re-plans - the ladder owns what stays.
+export const ENTITY_BOX_HALF = 0.3
+export const ENTITY_BOX_HEIGHT = 1.8
+export const SHADOW_EPSILON = 0.05
+
+export function fillCollidesEntity ({ pos = null, cell = null, halfWidth = ENTITY_BOX_HALF, height = ENTITY_BOX_HEIGHT, epsilon = SHADOW_EPSILON } = {}) {
+  try {
+    if (!pos || !cell) return false
+    const px = pos.x
+    const py = pos.y
+    const pz = pos.z
+    const cx = cell.x
+    const cy = cell.y
+    const cz = cell.z
+    if (![px, py, pz, cx, cy, cz].every(Number.isFinite)) return false
+    const overlapX = Math.min(px + halfWidth, cx + 1) - Math.max(px - halfWidth, cx)
+    const overlapY = Math.min(py + height, cy + 1) - Math.max(py, cy)
+    const overlapZ = Math.min(pz + halfWidth, cz + 1) - Math.max(pz - halfWidth, cz)
+    return overlapX > epsilon && overlapY > epsilon && overlapZ > epsilon
+  } catch { return false }
+}
+
 /** Pure: the forensics suffix for a SURVIVING dig refusal - what the bot held,
  * whether it stood on ground, and what the post-settle re-read says. Every
  * field is optional; junk reads print 'n/a'/'?' placeholders instead of
