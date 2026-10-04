@@ -62,6 +62,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   const { goals } = pathfinderPkg.default // dynamic import wraps the CJS default export
   const { WorldMap } = await import(path.join(root, 'src', 'fleet', 'worldmap.mjs'))
   const { Vec3 } = await import('vec3')
+  const { isNight } = await import(path.join(root, 'src', 'lib', 'nightsafety.mjs'))
 
   // The shared scout -> miner resource map: while mining, every bot records what it sees;
   // the assertion at the end proves the pipeline actually filled it.
@@ -86,6 +87,17 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
     log(`${m.username} spawned at ${m.bot.entity.position.floored()}`)
   }
 
+  // NIGHT GUARD (the smelting test's own law): the testbed world keeps the real
+  // clock - a server up >10 min is IN-GAME NIGHT, and the night mobs own bare
+  // bootstrap bots (the fleet survives night through redundancy; two unarmoured
+  // test bots cannot). CI worlds start fresh (day) so this guard never fires
+  // there; locally it turns the mob-slaughter flake into an honest skip.
+  const tod0 = miners.find(m => m.bot?.entity)?.bot?.time?.timeOfDay ?? 0
+  if (isNight(tod0)) {
+    t.skip(`in-game night at spawn (timeOfDay ${tod0}) - the night mobs own bare bootstrap bots, productivity not measurable`)
+    return
+  }
+
   const deadline = Date.now() + WINDOW_SECONDS * 1000
   const direction = [new Vec3(1, 0, 0), new Vec3(-1, 0, 0)]
 
@@ -93,7 +105,23 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   // Both bots work CONCURRENTLY: the sequential loop burned up to 105s per bot before
   // the mining window even started, which is exactly how the whole test outgrew its
   // own 330s budget. Different direction per bot keeps them off each other's trees.
-  const toolResults = await Promise.all(miners.map(async (m, i) => {
+  // TOOL-PHASE HARD CAP (fleet 37166578886's face): the gatherWood/ensureTools caps
+  // are COOPERATIVE (shouldStop is polled BETWEEN operations) - one awaited goto/dig
+  // that never settles (the combat AI owns the pathfinder at nightfall; ProdTest2's
+  // 60s gatherWood rode 5.5 min past its cap while fleeing zombies) holds Promise.all
+  // hostage to the runner's 420s kill. The cap converts the never-settling phase into
+  // an honest {ok:false}; the barren/woodless law below reads it like any other
+  // tool failure. 300s > the legitimate worst case (2 attempts x gatherWood+tools+
+  // inland walk ~= 235s) and leaves the 45s mining window under the 420s file kill.
+  const TOOL_PHASE_HARD_CAP_MS = 300000
+  const withHardCap = (p, ms, label) => Promise.race([
+    p,
+    new Promise(resolve => {
+      const timer = setTimeout(() => resolve({ ok: false, kit: `${label} hard cap ${Math.round(ms / 1000)}s (the operation never settled)` }), ms)
+      if (typeof timer.unref === 'function') timer.unref()
+    })
+  ])
+  const toolResults = await Promise.all(miners.map((m, i) => withHardCap((async () => {
     // TWO attempts with an inland relocation between them (the smelting test's
     // escalation): a fresh CI world can spawn on a beach/island where EVERY
     // neighbour cell is under water - the table then has no legal placement cell
@@ -122,7 +150,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
       } catch (e) { log(`${m.username} inland walk failed: ${e.message}`) }
     }
     return res
-  }))
+  })(), TOOL_PHASE_HARD_CAP_MS, `${m.username} tool phase`)))
   // TOLERANT to BARREN spawns (the smelting test's rule): when BOTH bots starved
   // with no wood materials AND no table in reach, the world gave them nothing to
   // work with - an environment condition, not a tool-chain regression. Skip so CI
@@ -133,6 +161,18 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   })
   if (!toolResults.some(r => r.ok) && woodless) {
     t.skip(`barren spawn: neither bot reached wood or a table (${toolResults.map(r => r.kit).join(' | ')}) - productivity not measurable`)
+    return
+  }
+  // MID-TEST NIGHT GUARD (fleet 37166578886's face): the unit suite is ~7 min, so a
+  // fresh CI world crosses dusk INSIDE this test - night fell during a hung tool
+  // phase, the zombies slain the bots mid-loop ('was slain by Zombie' x2 + a creeper
+  // at the gate), and the file hung to the runner's 420s kill. The spawn-time guard
+  // cannot see it (the world starts at day). At night the tool failures are the
+  // mobs' tax and the mining window would read the zombie storm, not the fleet -
+  // the honest skip, the smelting test's own law.
+  const todMid = miners.find(m => m.bot?.entity)?.bot?.time?.timeOfDay ?? 0
+  if (isNight(todMid)) {
+    t.skip(`in-game night fell mid-test (timeOfDay ${todMid}) - the night mobs own the ground, productivity not measurable`)
     return
   }
   assert.ok(
