@@ -5467,7 +5467,15 @@ export function createMiner ({
             stats.climbs = (stats.climbs ?? 0) + 1
             bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetBlocked.y, now: Date.now() })
             log(`${tag} climb: walkable surface at y=${feetBlocked.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over (blocked step)`)
-            return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+            // (v0.625.0) THE HONEST SECS - the OK verdict carries the climb's own
+            // clock: the emitter prints `${r.secs?.toFixed(0)}s` and a secs-less
+            // return interpolated the literal 'undefineds' (fleet 37212035127's
+            // F16 face: 'OK +11 levels (14 steps, 27 dug, undefineds)') - the
+            // climb counted, its price never joined the lens's secs pricing
+            // (climbout.mjs reads secs null and keeps it out of the sum). The
+            // start clock is this function's own (line ~5104); the main return
+            // below has priced itself this way since v0.21.0.
+            return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed, secs: (Date.now() - start) / 1000 }
           }
         }
         // (v0.165.0) THE BRIDGE STEP: the support-less signature is exact - the
@@ -5711,7 +5719,12 @@ export function createMiner ({
           stats.climbs = (stats.climbs ?? 0) + 1
           bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetNow.y, now: Date.now() })
           log(`${tag} climb: walkable surface at y=${feetNow.y} (+${gainedNow} levels, dug=${dug}) - the walk takes over`)
-          return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed }
+          // (v0.625.0) THE HONEST SECS - the rise-failure path's mirror of the
+          // blocked-step fix above: the same emitter, the same 'undefineds'
+          // face, the same start clock. Both walkable-surface verdicts now
+          // price themselves; the lens's undefineds tolerance stays for the
+          // held history (the old faces must keep parsing byte for byte).
+          return { ok: true, reason: 'walkable surface', gained: gainedNow, dug, steps, traversed, secs: (Date.now() - start) / 1000 }
         }
         // (v0.311.0) THE WELL POUNCE - before the ladder spends its A* and its
         // digs, the 8/10 well signature (fleet 36566021862: support=solid
