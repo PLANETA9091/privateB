@@ -1547,7 +1547,7 @@ export const BRIDGE_PLACE_MAX = 8
 // fill's side-face shape, mirrored).
 export const BRIDGE_SELF_WALL_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
 
-export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX } = {}) {
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
   if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
@@ -1575,6 +1575,26 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
     // step path is clear - the fill converts the floor class, the dig ladder
     // had its chance.
     if (ownFloor && (ownFloor.boundingBox === 'empty' || ownFloor.boundingBox === 'fluid')) {
+      // (v0.618.0) THE UNDERFOOT GATE - the self fill's own timing, priced by
+      // its first two flights: the target cell sits DIRECTLY BELOW the feet,
+      // so a FALLING bot's AABB dips into the very cell the fill targets by
+      // packet time (the server keeps the block for entity collision). Fleet
+      // 37200930827 measured the split: the self fill landed 9 of 22 (41%)
+      // while the support fill rode 30 of 40 (75%) - the gap is the fall; the
+      // cell grain agrees (23 refusals, 23 distinct cells, 0 repeats - the
+      // bias is POSITIONAL, not a doomed-cell law). The gate: an ungrounded
+      // bot returns the waitGround verdict instead of the plan - the caller
+      // lands first (bounded), re-plans from the grounded feet (the landed
+      // ownFloor often reads solid - the hole self-solves), and only then
+      // fills. Default grounded=true keeps every legacy caller byte for byte;
+      // the gate lives ONLY on the self branch - the support/pit targets are
+      // lateral, never underfoot, and ride the vanilla reach untouched.
+      if (grounded === false) {
+        return {
+          ok: false, waitGround: true,
+          why: 'the self fill waits for ground (the falling AABB dips into the target cell)'
+        }
+      }
       for (const w of BRIDGE_SELF_WALL_DIRS) {
         const wall = rd(feet.offset(w[0], -1, w[1]))
         if (wall && wall.boundingBox === 'block') {

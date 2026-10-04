@@ -747,6 +747,95 @@ test('bridgePlan: the wall probe order is deterministic - +x wins, the face poin
   assert.deepEqual(p.face, { x: -1, y: 0, z: 0 })
 })
 
+// (v0.618.0) THE UNDERFOOT GATE - fleet 37200930827 priced the self fill's own
+// timing: the target sits DIRECTLY BELOW the feet, so a falling bot's AABB
+// dips into the target cell by packet time (the server keeps the block for
+// entity collision). The live split: self 9 of 22 (41%) vs support 30 of 40
+// (75%) - the gap is the fall; the cell grain (23 distinct, 0 repeats) says
+// the bias is positional, not a doomed cell. grounded:false -> the waitGround
+// verdict; the caller lands, re-plans from the grounded feet, then fills.
+test('bridgePlan: the underfoot gate - an ungrounded bot waits instead of filling the cell its AABB dips into', () => {
+  const read = cellWorld({
+    '10,63,20': AIR, // ownFloor - the hole the bot falls over
+    '11,63,20': STONE, // the wall reads solid - the fill WOULD be planned
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, grounded: false })
+  assert.deepEqual(p, {
+    ok: false, waitGround: true,
+    why: 'the self fill waits for ground (the falling AABB dips into the target cell)'
+  }, 'the waitGround verdict rides before the wall probe - the packet is never sent while falling')
+  // the flooded hole gates too (the fluid self cell collides the same way)
+  const wet = cellWorld({
+    '10,63,20': WATER, '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': WATER
+  })
+  const pw = bridgePlan({ feet: cell(10, 64, 20), d: D, read: wet, items: POCKET, grounded: false })
+  assert.equal(pw.waitGround, true)
+  assert.equal(pw.ok, false)
+})
+
+test('bridgePlan: the underfoot gate is byte for byte the legacy plan when grounded - default and explicit true', () => {
+  const read = cellWorld({
+    '10,63,20': AIR,
+    '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR
+  })
+  const pDefault = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  const pTrue = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, grounded: true })
+  assert.equal(pDefault.ok, true, 'no grounded param - the legacy self fill fires byte for byte')
+  assert.equal(pTrue.ok, true, 'explicit grounded:true - the same plan')
+  assert.equal(pDefault.kind, 'self')
+  assert.equal(pTrue.kind, 'self')
+  assert.deepEqual({ x: pTrue.cell.x, y: pTrue.cell.y, z: pTrue.cell.z }, { x: 10, y: 63, z: 20 })
+  assert.equal('waitGround' in pDefault, false)
+  assert.equal('waitGround' in pTrue, false)
+})
+
+test('bridgePlan: the underfoot gate lives only on the self branch - the lateral fills ride a falling bot untouched', () => {
+  // solid ownFloor + grounded:false -> the support plan returns byte for byte
+  // (the support/pit targets are lateral, never underfoot - the fall cannot
+  // collide with them)
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, grounded: false })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'support')
+  assert.deepEqual(p.face, { x: 0, y: 1, z: 0 })
+  assert.equal('waitGround' in p, false)
+  // an unreadable self cell + grounded:false -> the legacy refusal stands
+  // (no fill was coming; the chunk-desync class stays the rotate ladder's)
+  const blind = cellWorld({
+    '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR
+  })
+  const pb = bridgePlan({ feet: cell(10, 64, 20), d: D, read: blind, items: POCKET, grounded: false })
+  assert.equal(pb.ok, false)
+  assert.match(pb.why, /^no solid floor underfoot$/)
+  assert.equal('waitGround' in pb, false)
+})
+
+test('bridgePlan: the underfoot gate rides after the pocket and budget gates (the gate order holds)', () => {
+  const read = cellWorld({
+    '10,63,20': AIR, '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR
+  })
+  const pPocket = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [], grounded: false })
+  assert.equal(pPocket.ok, false)
+  assert.match(pPocket.why, /no placeable block/)
+  assert.equal('waitGround' in pPocket, false, 'the empty pocket refuses before the gate speaks')
+  const pBudget = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: BRIDGE_PLACE_MAX, grounded: false })
+  assert.equal(pBudget.ok, false)
+  assert.match(pBudget.why, /the bridge budget is spent \(8\/8\)/)
+  assert.equal('waitGround' in pBudget, false, 'the spent budget refuses before the gate speaks')
+})
+
 test('bridgePlan: an unreadable self cell never fills blind (the chunk-desync class)', () => {
   // a wall exists but the SELF cell read failed - the legacy refusal, never a blind fill
   const read = cellWorld({

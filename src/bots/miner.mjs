@@ -5118,6 +5118,19 @@ export function createMiner ({
     const settleTicks = async (n, label) => {
       try { await withTimeout(bot.waitForTicks(n), 2000, label) } catch { /* dead physics: the time/fail budgets end this climb */ }
     }
+    // (v0.618.0) THE UNDERFOOT GATE's physics reads - the executor owns the
+    // bot, the library owns the verdict (grounded:false -> the waitGround
+    // shape). bridgeWaitGround polls bounded: a 1-3 block fall lands within
+    // ~0.7s, so 12 ticks cover it; a bot still afloat past the bound (the wet
+    // face) skips honestly to the rotate ladder.
+    const bridgeGrounded = () => { try { return bot.entity?.onGround === true } catch { return false } }
+    const bridgeWaitGround = async () => {
+      for (let i = 0; i < 12; i++) {
+        if (bridgeGrounded()) return true
+        await settleTicks(1, 'climb bridge ground wait')
+      }
+      return bridgeGrounded()
+    }
     const escapeTraverse = async ({ shouldStop }) => {
       const t0 = Date.now()
       let walked = 0
@@ -5469,7 +5482,21 @@ export function createMiner ({
         // re-judges WITHOUT a fail; a refused fill falls through to the honest
         // diag + rotate ladder. Budget: BRIDGE_PLACE_MAX fills per climb.
         if (!blockedWet && !blockedRefusal && !digFailCell) {
-          const bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced })
+          // (v0.618.0) THE UNDERFOOT GATE: the self fill's target sits DIRECTLY
+          // BELOW the feet - a falling bot's AABB dips into the target cell by
+          // packet time and the server keeps the block for entity collision
+          // (fleet 37200930827: self 9 of 22 (41%) vs support 30 of 40 (75%) -
+          // the gap is the fall). The ungrounded bot gets the waitGround
+          // verdict, lands (bounded poll), and the plan re-reads from the
+          // LANDED feet - the landed ownFloor often reads solid (the hole
+          // self-solves) or the fill rides the grounded standing transport.
+          let bp = bridgePlan({ feet, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded: bridgeGrounded() })
+          if (!bp.ok && bp.waitGround) {
+            const grounded = await bridgeWaitGround()
+            const feetNow = (() => { try { return bot.entity?.position ? bot.entity.position.floored() : feet } catch { return feet } })()
+            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded })
+            if (diagLevels < 3 && (bp.ok || !bp.waitGround)) log(`${tag} climb bridge: the self fill waited ${grounded ? 'and grounded' : 'and stayed afloat'} - the re-plan ${bp.ok ? `reads the ${bp.kind} fill` : `refuses (${bp.why})`}`)
+          }
           if (bp.ok) {
             bridgePlaced = bp.placedNext
             let placedOk = false
@@ -5527,6 +5554,10 @@ export function createMiner ({
               continue
             }
             if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })() })})`)
+          } else if (bp.waitGround) {
+            // still afloat past the bounded wait (the wet face) - the honest
+            // skip: no packet was sent, the rotate ladder owns the level
+            if (diagLevels < 3) log(`${tag} climb bridge: the self fill still waits for ground - the ladder owns it`)
           } else if (diagLevels < 3 && bridgePlaced === 0) {
             log(`${tag} climb bridge: unavailable (${bp.why})`)
           }
