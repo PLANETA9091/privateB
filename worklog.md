@@ -14743,3 +14743,18 @@ Work Log:
 Stage Summary:
 - Master = cc64cf9 (pkg 0.613.0). The guard's flight clean; the partial-rise front priced (3 of 3, the biggest gap 8); the low-o2 class named; the next fire wires the demand-closure law with the price in hand.
 - NEXT FIRE: (1) read CI on cc64cf9 + MINE the surviving dispatch (v0.613.0's first flight). (2) THE PARTIAL-RISE CURE (wired): climbSurfaceShort's demand-closure - a rise leaving the yard >1 above is not a landing; re-anchor the rose-keeps-handover pins. (3) Their bridge floor class face (the self-fill's first flight). (4) The low-o2 front (the deep-yard oxygen, their deep-anchor strand). (5) QUEUES: the whale-walk cure (timeout 232 + night 217); the fast-stall face (0.7-14s on 8-10-up walls). (6) OPEN FRONTS: took 0 in eleven runs, builder race, unaccounted 193u. (7) Version next 0.614.0 (origin x3 GATING; explicit paths; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-1900
+Agent: Super Z (main)
+Task: fire 1900 (cron 414125) - v0.614.0 THE DEMAND-CLOSURE LAW (the partial-rise cure wired)
+
+Work Log:
+- Rebase clean at start (master = c175676, pkg 0.613.0). READS: push CI 37196175555 (cc64cf9) SUCCESS; fleet 37196184483 (cc64cf9) IN_PROGRESS all fire, their 37196201457 queued behind - the lane BUSY, no new dispatch (max-one-active; the queue already two deep).
+- Front: v0.614.0 THE DEMAND-CLOSURE LAW (src/lib/surface.mjs climbSurfaceShort, one line; zero wiring changes): the v0.610.0 guard's promised field data CAME (face 37193219050 - all three landings partial, gaps 6/5/8). The gained > 0 rose-keeps exemption DROPPED - the law reads the geometry alone (t - f > 1 = short, rise or no rise); a closure (t - f <= 1) keeps the handover whatever the delta; 'already out' never consults the guard; the v0.609.0 downstream zero-gain re-classification stays byte for byte (its face is now empty upstream). The gained argument stays in the signature for the wiring's byte-stability (miner.mjs untouched - zero collision surface on the hot file). A skipped verdict keeps the climb on its funded budgets: an honest rise, an honest closure, or an honest stall - never a partial landing the chain walks on.
+- Tests: surface 94/94 (the rose-keeps block re-anchored: gained 3 of 15 now SHORT; +1 block: the mined partial faces byte-exact F16/F5/F10 + the closure-keeps pin). Adjacent battery direct: chestupfront 11, chestascent 6, quarryascent 8, verticalgate 14, upfrontbook 19, climbbridge 11, deposit 29 - all green; syntax 458/0. Slot 0.614.0 free x2 gates (origin 0.613.0). Commit 883e73b pushed CLEAN attempt 1.
+- CI 37197449707 (883e73b) PENDING at close (the repo's CI concurrency: the two dispatch runs + the worklog push ahead). DISPATCH: NONE - the law's first flight rides the NEXT lawful dispatch.
+
+Stage Summary:
+- Master = 883e73b (pkg 0.614.0). The partial landing is barred upstream - the priced cure is wired; the climb verdicts demand closure.
+- NEXT FIRE: (1) read CI 37197449707 + MINE the surviving dispatch (both cc64cf9 = v0.613.0: the demand-closure row's first live print, fillKinds.self, the low-o2 face). (2) The law's FIRST FLIGHT needs its own dispatch: do partials become honest stalls (the why-lens reads the trade)? does F11's +20 closure still land? (3) QUEUES: the fast-stall face (0.7-14s on 8-10-up walls); the whale-walk cure (timeout 232 + night 217); low-o2. (4) OPEN FRONTS: took 0 in eleven runs, builder race, unaccounted 193u. (5) Version next 0.615.0 (origin x3 GATING; explicit paths; lane HOT). Identity: PLANETA9091.
