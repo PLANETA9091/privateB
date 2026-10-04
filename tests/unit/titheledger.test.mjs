@@ -150,3 +150,48 @@ test('THE LIVE FACE VERDICT (fleet 37178311099): the bare grain speaks alone', (
   const row = titheRow(c)
   assert.equal(row, 'tithe ledger: inflow 0 line(s) attempted 0 delivered 0 (0u) dry 0, grain asked 4 delivered 0 dry 4 - the grain reads dry 100% - the commons\' source is the front')
 })
+
+// (v0.603.0) THE SELF-READ LAW: the fleet face 37183256337 carried the
+// tithe's FIRST INFLOW EVER and the row read 'the cap is the throttle'
+// while the emitter's own suffix named the geometry ('the walk's landed
+// verdict lied'). The opens FIRED - the cap never bound - and the suffix's
+// own class outranks the arithmetic. The face's own lines are the anchors.
+const FIELD_INFLOW_FAR = 'fuel tithe inflow: attempted 4, delivered 0 (0u), dry 4 - the opens fired far 1 of 4 - the walk\'s landed verdict lied: the geometry is the front - the inflow ran dry: the skips named their lines (the commons\' source is the front)'
+const FIELD_GRAIN_DRY10 = 'smelt fuel commons grain: asked 10, delivered 0, dry 10 - every ask came up dry: the commons\' source is the front (the tithe is the only inflow)'
+
+test('the self-read inflow parses byte-exact (the first inflow face)', () => {
+  const p = parseTitheInflow(FIELD_INFLOW_FAR)
+  assert.ok(p, 'the field inflow line must parse')
+  assert.equal(p.open, 'far')
+  assert.equal(p.far, 1)
+  assert.equal(p.attempted, 4)
+  assert.equal(p.delivered, 0)
+  assert.equal(p.dry, 4)
+  assert.equal(parseFuelGrain(FIELD_GRAIN_DRY10).asked, 10)
+})
+
+test('THE LIVE FACE VERDICT (fleet 37183256337): the geometry owns the throttle', () => {
+  const c = titheCensus([FIELD_INFLOW_FAR, FIELD_GRAIN_DRY10])
+  assert.equal(c.inflow.far, 1)
+  const row = titheRow(c)
+  assert.equal(row, 'tithe ledger: inflow 1 line(s) attempted 4 delivered 0 (0u) dry 4, grain asked 10 delivered 0 dry 10 - the opens fired far on 1 line(s) - the walk\'s landed verdict lied - the geometry is the throttle')
+  assert.ok(!row.includes('the cap is the throttle'), 'the arithmetic verdict must not contradict the field')
+})
+
+test('the self-read splits: the chest\'s gate and the reach own their faces', () => {
+  const near = titheRow(titheCensus([DRY_NEAR]))
+  assert.ok(near.includes('the opens fired near on 1 line(s) - the chest refused the use - the chest\'s gate is the throttle'), near)
+  const split = titheRow(titheCensus([DRY_SPLIT]))
+  assert.ok(split.includes('the opens read mixed (far on 0, near on 0, split on 1) - the reach is the throttle'), split)
+})
+
+test('the self-read boundary: a landed delivery keeps the arithmetic verdicts', () => {
+  // the far suffix present but a delivery landed -> the cap law stands
+  const fed = titheRow(titheCensus(['F2 fuel tithe inflow: attempted 4, delivered 1, dry 3 - the opens fired far 1 of 4 - the walk\'s landed verdict lied: the geometry is the front - the inflow feeds the commons (the tithe owns the refill)']))
+  assert.ok(fed.includes('the cap is the throttle'), fed)
+  // the bare dry face (no open lens) keeps the arithmetic verdicts
+  const bare = titheRow(titheCensus([DRY_BARE]))
+  assert.ok(bare.includes('the cap is the throttle'), bare)
+  // the suffix words alone never claim the grammar
+  assert.equal(parseTitheInflow('the walk\'s landed verdict lied: the geometry is the front'), null)
+})

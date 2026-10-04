@@ -13,6 +13,19 @@
 // Zero fleet wiring, zero new log lines. The always-print law: a none face
 // is a verdict too.
 
+// (v0.603.0) THE SELF-READ LAW, FIELD-CORRECTED: the fleet face 37183256337
+// carried the tithe's FIRST INFLOW EVER SPEKEN ('attempted 4, delivered 0
+// (0u), dry 4 - the opens fired far 1 of 4 - the walk's landed verdict lied:
+// the geometry is the front') and the row read 'the cap is the throttle'
+// (dry 100%, max attempted 4 <= cap 4) - two verdicts on one face, the row
+// contradicting the emitter's own diagnosis. The law: when the inflow
+// delivered 0 and its lines carry the open-lens suffixes, THE OPENS FIRED -
+// the cap never bound this face - and the suffix's own class names the
+// throttle: far owns the geometry (the landed verdict lied), near owns the
+// chest's own gate (the chest refused the use), a split reads the reach.
+// The arithmetic verdicts stand untouched whenever a delivery landed (the
+// geometry only prices the all-dry face) or the opens never spoke.
+
 // (v0.600.0) THE PREFIX LAW, FIELD-CORRECTED: the fleet face 37178311099
 // read the grain line BARE ('smelt fuel commons grain: asked 4, ...' - the
 // fleet-level report carries no bot tag) and the v0.598.0 gate missed it -
@@ -132,6 +145,13 @@ export function titheRow (c) {
   }
   const dryShare = pct(f.dry, f.attempted)
   if (f.dry > 0 && dryShare >= 50) {
+    // (v0.603.0) the self-read outranks the arithmetic: the opens fired and
+    // delivered nothing - the walk/chest read is the observed front
+    if (f.delivered === 0 && (f.far > 0 || f.near > 0 || f.split > 0)) {
+      if (f.far > 0 && f.near === 0) return `${head} - the opens fired far on ${f.far} line(s) - the walk's landed verdict lied - the geometry is the throttle`
+      if (f.near > 0 && f.far === 0) return `${head} - the opens fired near on ${f.near} line(s) - the chest refused the use - the chest's gate is the throttle`
+      return `${head} - the opens read mixed (far on ${f.far}, near on ${f.near}, split on ${f.split}) - the reach is the throttle`
+    }
     if (f.maxAttempted <= TITHE_CAP) return `${head} - the inflow read dry ${dryShare}% and the asks never exceeded the cap ${TITHE_CAP} (max attempted ${f.maxAttempted}) - the cap is the throttle`
     return `${head} - the inflow read dry ${dryShare}% with the asks outrunning the cap (max attempted ${f.maxAttempted}) - the source is the throttle`
   }
