@@ -25,7 +25,7 @@ import { WaterTableBoard } from '../src/lib/watertable.mjs'
 import { attachMemoryGuard } from '../src/fleet/memory-guard.mjs'
 import { APPROACH_THRESHOLD, approachWalk, yardApproachPlan } from '../src/lib/approach.mjs'
 import { KEEP as DEPOSIT_KEEP, needsBanking, bankFallback, effectiveWalkBudget, inventoryLoad, bankTripDue, bankRefusalDue, fuelTripWanted, needsBankingTripViable, duskBankDue, midBankBudgetMs, finalBankBudgetMs, yardWalkBudgetMs, smeltClampSeconds, smeltChainReserve, MID_BANK_RETURN_MARGIN_MS, bankRescueGate, YARD_CHEST_RADIUS, CHEST_DOOM_TTL_MS, walkRawToward, NEEDS_BANKING_MIN_REMAINING_MS } from '../src/lib/deposit.mjs'
-import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
+import { finalBankDelayMs, hardKillDelayMs, endBankBudgetMs, prePositionDue, finalBankSchedule, finalClimbNeedMs, climbRetryPlan, bankClimbRetry, finalBankDoomLatch, FINAL_BANK_DOOM_REARM_MS, CLIMB_MIN_SLICE_MS, END_BANK_BUDGET_CAP_MS, FINAL_CLIMB_RESCUE_WAIT_MS, flowPriceClock } from '../src/lib/endphase.mjs'
 import { deliverableNow } from '../src/lib/deliverability.mjs' // (v0.385.0) THE DELIVERABILITY ARM - the gate compares, flowPriceClock prices (the sibling law)
 import { mapTripTargets, oreSteerOrder, tierDeferOrder, planHave, planItemsOf } from '../src/fleet/materialplan.mjs'
 import { pickOreTarget, rememberSkip } from '../src/fleet/oresteer.mjs'
@@ -3193,7 +3193,25 @@ async function runBot (name, target, index) {
         // (F4, fleet 35605960761: entry margin 381s, chain 150s, slice 231s,
         // stagger +72s - the overlap ate the chain's reserve and the re-clamp
         // handed it ~19s, every hop 'budget exhausted (walk floor)').
-        const schedule = finalBankSchedule({ entryMarginMs, chainBudgetMs, staggerDelayMs: delayMs })
+        // (v0.638.0) THE NEED-PRICED SLICE: the doom geometry is read BEFORE
+        // the schedule so the yard's own wall price rides the arithmetic (the
+        // v0.604.0 per-level law reaches the final climb) - F8's 21-level yard
+        // fenced at 34s read 'timeout' by construction; the need (dy * 4.2s,
+        // the v0.294.0 price) now prices the slice and the borrow funds it.
+        // The bot does not move during the stagger sleep (the end-phase work
+        // loop already exited; the doom bots stand far out and stagger least).
+        const finalDoom = (() => {
+          if (!yardGoal || !miner.bot?.entity) return { doom: false }
+          try {
+            return verticalDoomPlan({
+              botY: miner.bot.entity.position.y,
+              yardY: yardGoal.y,
+              lateral: Math.hypot(miner.bot.entity.position.x - yardGoal.x, miner.bot.entity.position.z - yardGoal.z)
+            })
+          } catch { return { doom: false } }
+        })()
+        const climbNeedMs = finalDoom.doom ? finalClimbNeedMs({ dy: finalDoom.dy }) : null
+        const schedule = finalBankSchedule({ entryMarginMs, chainBudgetMs, staggerDelayMs: delayMs, climbNeedMs })
         if (delayMs > 0 && Date.now() >= deadline) {
           console.log(`${name} final bank: staggered +${Math.round(delayMs / 1000)}s`)
           await new Promise(r => setTimeout(r, delayMs))
@@ -3226,16 +3244,6 @@ async function runBot (name, target, index) {
           // (climbTargetY) - the walk ladder cannot climb, the climb can. The
           // fences keep their slice discipline; only the direction and the
           // target change, both no-ops when the doom is absent.
-          const finalDoom = (() => {
-            if (!yardGoal || !miner.bot?.entity) return { doom: false }
-            try {
-              return verticalDoomPlan({
-                botY: miner.bot.entity.position.y,
-                yardY: yardGoal.y,
-                lateral: Math.hypot(miner.bot.entity.position.x - yardGoal.x, miner.bot.entity.position.z - yardGoal.z)
-              })
-            } catch { return { doom: false } }
-          })()
           const finalDoomDir = finalDoom.doom && miner.bot?.entity && yardGoal
             ? new Vec3(yardGoal.x - miner.bot.entity.position.x, 0, yardGoal.z - miner.bot.entity.position.z)
             : null
@@ -3244,8 +3252,15 @@ async function runBot (name, target, index) {
           // funded the min slice from the chain reserve (the crumbs starved
           // it), the class names itself - the face's five 'climb skipped
           // (slice 0s/1s)' zero-banks are the count this line sizes.
+          // (v0.638.0) the need-priced form names the wall it funds - the dy
+          // and the need ride the same 'final climb' filter key, the class
+          // sizes itself against the yard's own arithmetic.
           if (!schedule.climbSkipped && schedule.climbBorrowedMs > 0) {
-            console.log(`${name} final climb: funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
+            if (climbNeedMs != null) {
+              console.log(`${name} final climb: need ${(climbNeedMs / 1000).toFixed(0)}s (${finalDoom.dy} levels at the v0.294.0 4.2s price) - funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
+            } else {
+              console.log(`${name} final climb: funded +${Math.round(schedule.climbBorrowedMs / 1000)}s from the chain reserve (the crumbs starved the slice - the underground chain is worthless without the climb)`)
+            }
           }
           if (schedule.climbSkipped) {
             cr = { ok: false, reason: `climb skipped (slice ${Math.round(schedule.climbSliceMs / 1000)}s < min ${Math.round(CLIMB_MIN_SLICE_MS / 1000)}s - the chain keeps its budget)`, gained: 0, dug: 0, steps: 0 }
@@ -3279,7 +3294,14 @@ async function runBot (name, target, index) {
               const cleared = await waitForWaterRescueClear(miner.bot, { maxMs: FINAL_CLIMB_RESCUE_WAIT_MS })
               console.log(`${name} final climb: ${cleared ? `waited out the wet rescue (${Math.round((Date.now() - waitStart) / 1000)}s) - the attempt starts honest` : `the rescue held the whole ${Math.round(FINAL_CLIMB_RESCUE_WAIT_MS / 1000)}s wait - the attempt proceeds (the owner gate rules)`}`) // rides the 'final climb' filter key, the class sizes itself
             }
-            const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)
+            // (v0.638.0) the fence reads the slice the schedule granted - the
+            // schedule already owns the wall arithmetic (the room, the
+            // stagger, the chain reserve) and shouldStop cuts at this exact
+            // wall, so the historical PILLAR cap only re-starves the
+            // need-priced slice (dy >= 22 prices past 90s; the chain lent the
+            // clock, the fence refusing to spend it is the absurdity). Mid-run
+            // climbs keep their cap - this is the FINAL climb only.
+            const climbFenceMs = schedule.climbSliceMs
             const climbFenceAt = Date.now() + climbFenceMs
             cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: climbFenceMs, shouldStop: () => Date.now() > climbFenceAt })
             if (!cr.ok && cr.reason === 'timeout') cr.reason = `timeout (fenced at ${Math.round(climbFenceMs / 1000)}s - the chain keeps its reserve)`
@@ -3309,7 +3331,7 @@ async function runBot (name, target, index) {
                 console.log(`${name} final climb: ${retryCleared ? `waited out the wet rescue (${Math.round((Date.now() - retryWaitStart) / 1000)}s) - the attempt starts honest` : `the rescue held the whole ${Math.round(FINAL_CLIMB_RESCUE_WAIT_MS / 1000)}s wait - the attempt proceeds (the owner gate rules)`}`)
               }
               const retryFenceAt = Date.now() + retryPlan.maxMs
-              cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: Math.min(PILLAR_MAX_MS, retryPlan.maxMs), shouldStop: () => Date.now() > retryFenceAt })
+              cr = await miner.climbOut({ dir: finalDoomDir || direction, targetY: finalDoom.doom ? yardGoal.y : null, force: true, maxMs: retryPlan.maxMs, shouldStop: () => Date.now() > retryFenceAt })
               if (!cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot - the retry counts too
               climbAttempts = 2
             } else if (!cr.ok && cr.reason === 'wet wall') {

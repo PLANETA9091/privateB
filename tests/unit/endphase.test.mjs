@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { finalBankDelayMs, FINAL_BANK_STEP_MS, FINAL_BANK_CAP_MS, FINAL_BANK_REF_DIST } from '../../src/lib/endphase.mjs'
-import { finalBankSchedule, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
+import { finalBankSchedule, finalClimbNeedMs, climbRetryPlan, bankClimbRetry, CLIMB_MIN_SLICE_MS } from '../../src/lib/endphase.mjs'
 
 test('slots: deterministic index spacing, bot 0 banks immediately', () => {
   assert.equal(finalBankDelayMs({ index: 0 }), 0)
@@ -120,6 +120,90 @@ test('finalBankSchedule: the crumb borrow - the face\'s five zero-banks fund the
   assert.deepEqual(finalBankSchedule({ entryMarginMs: 20000, chainBudgetMs: 8000 }), { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 3000 })
   // the crumb face that already funds the climb borrows NOTHING (the legacy byte)
   assert.deepEqual(finalBankSchedule({ entryMarginMs: 30000, chainBudgetMs: 8000 }), { climbSliceMs: 22000, climbSkipped: false, climbBorrowedMs: 0 })
+})
+
+// ---------------------------------------------------------------------------
+// (v0.638.0) THE NEED-PRICED CLIMB - min != need. The v0.636.0 face (fleet
+// 37228589272, the crumb borrow's first field flight) moved the failure class
+// INSIDE the funded slice: F8 'final climb: the yard stands 21 levels up over
+// 20b lateral' then 'failed - timeout (fenced at 34s - the chain keeps its
+// reserve)' - the borrow funds the FLAT min while the yard's wall has the
+// v0.294.0 measured price (4.2s/level, the same number the v0.604.0
+// quarry-ascent per-level law already prices). The need prices the slice, the
+// borrow funds the need, and a junk/absent need reads the v0.635.0 laws byte
+// for byte.
+test('finalClimbNeedMs: the yard wall prices at the v0.294.0 per-level law', () => {
+  // F8's own face: 21 levels -> 21 * 4200 = 88.2s (the fence that starved it read 34s)
+  assert.equal(finalClimbNeedMs({ dy: 21 }), 88200)
+  // the doom threshold (VERTICAL_DOOM_MIN_DY = 20) prices 84s
+  assert.equal(finalClimbNeedMs({ dy: 20 }), 84000)
+  // a fractional dy rounds honestly
+  assert.equal(finalClimbNeedMs({ dy: 21.4 }), 88200, 'round(21.4) = 21')
+  assert.equal(finalClimbNeedMs({ dy: 21.5 }), 92400, 'round(21.5) = 22')
+  // the min floor: a shallow wall never prices below the guaranteed slice
+  assert.equal(finalClimbNeedMs({ dy: 1 }), CLIMB_MIN_SLICE_MS)
+  // junk laws: no wall, no need (the caller keeps the legacy min laws)
+  for (const junk of [null, undefined, NaN, 0, -3, '21', Infinity]) {
+    assert.equal(finalClimbNeedMs({ dy: junk }), null, String(junk))
+  }
+})
+
+test('finalBankSchedule: the borrow funds the NEED, not the min (v0.638.0)', () => {
+  // the F8-shaped face: raw 34s crumbs (the clamp's 300s chain ate the rest),
+  // the yard 21 levels up (need 88.2s) -> the slice prices the wall, the
+  // borrow tops up 54.2s from the chain reserve
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 88200 }),
+    { climbSliceMs: 88200, climbSkipped: false, climbBorrowedMs: 54200 }
+  )
+  // the crumbs already fund the need: the legacy byte (borrow 0, the full raw)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 390000, chainBudgetMs: 280000, climbNeedMs: 88200 }),
+    { climbSliceMs: 110000, climbSkipped: false, climbBorrowedMs: 0 }
+  )
+  // the best-shot branch: the room cannot fund the full need but can fund the
+  // min - the whole room rides (the underground chain bought ZERO every face;
+  // the caller's finalBudget re-clamp owns the wall truth)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 50000, chainBudgetMs: 30000, climbNeedMs: 88200 }),
+    { climbSliceMs: 50000, climbSkipped: false, climbBorrowedMs: 30000 }
+  )
+  // the stagger prices first in the need form too (the v0.49.0 law holds)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000, climbNeedMs: 88200 }),
+    { climbSliceMs: 88200, climbSkipped: false, climbBorrowedMs: 88200 }
+  )
+})
+
+test('finalBankSchedule: a junk or absent need reads the v0.635.0 laws byte for byte', () => {
+  // the absent need: the v0.635.0 face re-reads EXACTLY (the F2-shaped face)
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000 }),
+    { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 }
+  )
+  // a junk need: the same byte as absent, every flavor
+  for (const junk of [null, undefined, NaN, 0, -88200, '88200', Infinity]) {
+    assert.deepEqual(
+      finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000, climbNeedMs: junk }),
+      { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 },
+      String(junk)
+    )
+  }
+  // a need below the min floors at the min: the v0.635.0 byte
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 388000, chainBudgetMs: 300000, staggerDelayMs: 88000, climbNeedMs: 5000 }),
+    { climbSliceMs: 15000, climbSkipped: false, climbBorrowedMs: 15000 }
+  )
+  // the thin-margin law stands in the need form: no room, no borrow, the skip
+  assert.deepEqual(
+    finalBankSchedule({ entryMarginMs: 10000, chainBudgetMs: 20000, climbNeedMs: 88200 }),
+    { climbSliceMs: 0, climbSkipped: true, climbBorrowedMs: 0 }
+  )
+  // the funded invariants in the need form: the slice never exceeds the room;
+  // the funded pair respects it
+  const r = finalBankSchedule({ entryMarginMs: 334000, chainBudgetMs: 300000, climbNeedMs: 88200 })
+  assert.ok(r.climbSliceMs <= 334000, 'the slice never exceeds the room')
+  assert.ok(r.climbSliceMs + (300000 - r.climbBorrowedMs) <= 334000, 'the funded pair respects the room')
 })
 
 test('finalBankSchedule: no room, no borrow - the thin-margin law stands', () => {
@@ -404,8 +488,12 @@ test('REGRESSION PIN: both final climb attempts wait out the rescue before burni
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   // attempt 1: the wait rides BEFORE the fence clock (the slice starts post-wait)
   const wait1 = src.indexOf('if (miner.bot?._waterRescue === true) {')
-  const fence1 = src.indexOf('const climbFenceMs = Math.min(PILLAR_MAX_MS, schedule.climbSliceMs)')
+  // (v0.638.0) the fence reads the slice the schedule granted - the
+  // need-priced wall the chain lent; the historical PILLAR cap left the FINAL
+  // fence (it re-starved the need at dy >= 22), mid-run climbs keep theirs
+  const fence1 = src.indexOf('const climbFenceMs = schedule.climbSliceMs')
   assert.ok(wait1 > -1 && fence1 > wait1, 'attempt 1 waits before its fence clock starts')
+  assert.ok(fence1 > -1, 'the final fence reads the granted slice (the v0.638.0 need-priced wall)')
   // attempt 2 (the retry): the same patience rides
   const wait2 = src.indexOf('if (miner.bot?._waterRescue === true) {', wait1 + 1)
   const retryFence = src.indexOf('const retryFenceAt = Date.now() + retryPlan.maxMs')

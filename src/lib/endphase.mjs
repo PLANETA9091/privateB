@@ -347,6 +347,30 @@ export function prePositionDue ({ remainingMs = Infinity, yardDist = 0, yardDy =
 export const CLIMB_MIN_SLICE_MS = 15000
 
 /**
+ * The final climb's own wall price - the v0.604.0 per-level law reaches the
+ * final bank. MEASURED (fleet 37228589272, the v0.636.0 face, the crumb
+ * borrow's first field flight): 'climb skipped' fell 10 -> 0 and the crater
+ * read 42.7% (was 20.7%) - the v0.635.0 borrow landed - but the surviving
+ * failure class moved INSIDE the funded slice: F8 'final climb: the yard
+ * stands 21 levels up over 20b lateral' then 'failed - timeout (fenced at
+ * 34s - the chain keeps its reserve)'. The borrow funds the FLAT min (15s)
+ * while the yard's wall has a measured price - the v0.294.0 bank law's own
+ * 4.2s/level (DEEP_CLIMB_MS_PER_LEVEL), the same number the v0.604.0
+ * quarry-ascent law already prices (max(floor, dy * 4200)). A 21-level yard
+ * cannot land in 34s by arithmetic. Pure, junk-safe: a junk/negative/zero dy
+ * reads NO need (null - the caller keeps the legacy min laws); the min stays
+ * the floor (a shallow wall never prices below the slice the schedule
+ * already guarantees).
+ * @param {object} [p]
+ * @param {number} [p.dy] levels from the bot's feet up to the yard's level (yardY - botY)
+ * @returns {number|null} the climb's need in ms (>= CLIMB_MIN_SLICE_MS), or null when the wall is unreadable
+ */
+export function finalClimbNeedMs ({ dy = null } = {}) {
+  if (!Number.isFinite(dy) || dy <= 0) return null
+  return Math.max(CLIMB_MIN_SLICE_MS, Math.round(dy) * DEEP_CLIMB_MS_PER_LEVEL)
+}
+
+/**
  * Split the end-phase entry margin between the chain (reserved) and the climb
  * (what remains). Pure, junk-tolerant: junk/negative margins collapse to 0, a
  * junk chain budget reads as 0 (the climb gets everything - the caller's own
@@ -362,9 +386,18 @@ export const CLIMB_MIN_SLICE_MS = 15000
  *   'budget exhausted (walk floor)', banked=0 with the bot 17 blocks from the
  *   yard, pockets full. The slice now prices the stagger FIRST.
  * @param {number} [p.minClimbSliceMs] below this the climb is skipped (default CLIMB_MIN_SLICE_MS)
+ * @param {number|null} [p.climbNeedMs] (v0.638.0) the climb's OWN price - the yard's wall
+ *   priced by finalClimbNeedMs (dy * 4200, the v0.294.0 measurement), passed
+ *   only when the vertical doom stands. The borrow funds the NEED, not the
+ *   flat min: raw >= need -> the legacy byte; room >= need -> slice = need
+ *   (the borrow tops up to the wall's price); room < need but >= min -> the
+ *   best shot (slice = room - the doctrine already owns the trade: the
+ *   underground chain bought ZERO every face, a funded attempt is the only
+ *   road to banked>0). Junk/absent need reads as the min - the v0.635.0 laws
+ *   byte for byte.
  * @returns {{climbSliceMs: number, climbSkipped: boolean, climbBorrowedMs: number}}
  */
-export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, staggerDelayMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS } = {}) {
+export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, staggerDelayMs = 0, minClimbSliceMs = CLIMB_MIN_SLICE_MS, climbNeedMs = null } = {}) {
   const m = Number.isFinite(entryMarginMs) && entryMarginMs > 0 ? entryMarginMs : 0
   const c = Number.isFinite(chainBudgetMs) && chainBudgetMs > 0 ? chainBudgetMs : 0
   const s = Number.isFinite(staggerDelayMs) && staggerDelayMs > 0 ? staggerDelayMs : 0
@@ -392,10 +425,23 @@ export function finalBankSchedule ({ entryMarginMs = 0, chainBudgetMs = 0, stagg
   // climb) returns raw with borrow 0; the room itself below the min (or the
   // stagger overdrawing the margin) keeps the legacy skip - no room, no
   // borrow, the thin-margin law stands.
+  // (v0.638.0) THE NEED, not the min: when the caller prices the wall
+  // (climbNeedMs, the v0.604.0 per-level law's own shape), the borrow funds
+  // the NEED. The v0.636.0 face (fleet 37228589272) moved the failure class
+  // INSIDE the funded slice: F8's 21-level yard, fenced at 34s, read timeout
+  // by arithmetic - min != need. The need floors at the min (a shallow wall
+  // never prices below the guaranteed slice); a junk/absent need reads as the
+  // min (the v0.635.0 laws byte for byte). The best-shot branch (room < need
+  // but >= min) funds the whole room - the underground chain bought ZERO
+  // every face, the funded attempt is the only road to banked>0, and the
+  // caller's finalBudget re-clamp still owns the wall truth (the v0.49.0
+  // overrun class cannot return through either borrow).
+  const need = Number.isFinite(climbNeedMs) && climbNeedMs > 0 ? Math.max(min, Math.round(climbNeedMs)) : min
   const room = Math.max(0, m - s)
   const raw = Math.max(0, room - c)
-  if (raw >= min) return { climbSliceMs: raw, climbSkipped: false, climbBorrowedMs: 0 }
-  if (room >= min) return { climbSliceMs: min, climbSkipped: false, climbBorrowedMs: min - raw }
+  if (raw >= need) return { climbSliceMs: raw, climbSkipped: false, climbBorrowedMs: 0 }
+  if (room >= need) return { climbSliceMs: need, climbSkipped: false, climbBorrowedMs: need - raw }
+  if (need > min && room >= min) return { climbSliceMs: room, climbSkipped: false, climbBorrowedMs: room - raw }
   return { climbSliceMs: raw, climbSkipped: true, climbBorrowedMs: 0 }
 }
 
