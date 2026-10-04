@@ -1928,6 +1928,31 @@ export function bridgeFillLanded ({ postBlock = null, before = null, after = nul
  * (ref-after=<same name>). One junk-safe re-read of the ref cell at confess
  * time splits (a) from (b) in the NEXT face without a new theory. The field
  * is OPT-IN: a legacy call (no refAfterName) stays byte for byte. */
+
+/* (v0.641.0) THE INTERACTIVE REFERENCE LAW - the vanilla placement rule the
+ * bridge fills keep meeting: a use-on an INTERACTIVE block opens that block's
+ * UI and does NOT place, unless the player sneaks. MEASURED (fleet
+ * 37233218979, the v0.640.0 face): 12 of the 29 surviving refusals rode
+ * ref-after=crafting_table (the fleet's own workstations serving as fill
+ * references - the reference SURVIVED every re-read, the geometry signature),
+ * and the v0.637.0 face (37230426426) added furnace x1 - the packet opened
+ * the UI instead of placing. The set is the vanilla interactive furniture the
+ * fleet's world can hold as a fill reference; junk reads false. The cure
+ * rides the place packet (the executor's sneak wrap), the law itself is the
+ * membership test. */
+export const INTERACTIVE_PLACE_REFS = new Set([
+  'crafting_table', 'furnace', 'blast_furnace', 'smoker',
+  'chest', 'trapped_chest', 'ender_chest', 'barrel',
+  'dispenser', 'dropper', 'hopper', 'brewing_stand',
+  'enchanting_table', 'anvil', 'chipped_anvil', 'damaged_anvil',
+  'loom', 'cartography_table', 'grindstone', 'stonecutter', 'smithing_table',
+  'lectern', 'jukebox', 'bell', 'note_block'
+])
+
+export function interactiveRefName (name) {
+  return typeof name === 'string' && INTERACTIVE_PLACE_REFS.has(name)
+}
+
 export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = null, postName = null, postLanded = null, refAfterName } = {}) {
   const held = typeof heldName === 'string' && heldName ? heldName : 'n/a'
   const d = Number.isFinite(dist) ? `${dist.toFixed(1)}b` : 'd?'

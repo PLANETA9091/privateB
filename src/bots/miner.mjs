@@ -35,6 +35,7 @@ import {
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING,
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
   bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_RECHECK_TICKS, bridgeFillLanded, bridgeRefusalDetail, fillCollidesEntity, // (v0.638.0) THE SHADOW GATE rides the bridge imports
+  interactiveRefName, // (v0.641.0) THE INTERACTIVE REFERENCE LAW - a use-on an interactive block opens its UI, the place needs the sneak
   PLANT_CLEAR_FAMILY, // (v0.627.0) THE PLANT CLEAR - the confessed groundcover digs before the fill
   SEAL_PLACE_TIMEOUT_MS // (v0.544.0) THE SEAL PLACE FENCE - the PILLAR lesson reaches the miner's own seal legs
 } from '../lib/surface.mjs'
@@ -5611,6 +5612,19 @@ export function createMiner ({
             // v0.76.0 doctrine), so the conversion check needs the same
             // before/after pair the first judge used.
             const countOf = n => inventoryItems(bot).filter(i => i.name === n).reduce((a, i) => a + i.count, 0)
+            // (v0.641.0) THE INTERACTIVE REFERENCE LAW: a use-on an interactive
+            // block (the fleet's own crafting tables and furnaces serving as
+            // fill references) opens its UI and never places - the bot sneaks
+            // for the place packet (the vanilla sneak bypasses the UI) and the
+            // finally releases on EVERY path: a stuck sneak would pin the
+            // climb's own edge physics. A non-interactive reference stays byte
+            // for byte. The re-place below rides the same law.
+            const sneakPlace = async (refN, place) => {
+              if (!interactiveRefName(refN)) return place()
+              let sneaked = false
+              try { bot.setControlState('sneak', true); sneaked = true } catch { }
+              try { return await place() } finally { if (sneaked) { try { bot.setControlState('sneak', false) } catch { } } }
+            }
             let before = null
             try {
               before = countOf(bp.item.name)
@@ -5619,7 +5633,7 @@ export function createMiner ({
               refName = (() => { try { return refB && refB.name ? refB.name : null } catch { return null } })()
               dist = (() => { try { return bot.entity.position.distanceTo(bp.cell.offset(0.5, 0.5, 0.5)) } catch { return null } })()
               heldName = (() => { try { return bot.heldItem?.name ?? null } catch { return null } })()
-              await withTimeout(bot.placeBlock(refB, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge place')
+              await sneakPlace(refName, () => withTimeout(bot.placeBlock(refB, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge place'))
               await settleTicks(10, 'climb bridge settle')
               let nowB = null
               try { nowB = readCell(bp.cell) } catch { nowB = null }
@@ -5645,7 +5659,8 @@ export function createMiner ({
                 } else {
                   try {
                     const refB2 = readCell(bp.refCell)
-                    await withTimeout(bot.placeBlock(refB2, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge re-place')
+                    const refName2 = (() => { try { return refB2 && refB2.name ? refB2.name : null } catch { return null } })()
+                    await sneakPlace(refName2, () => withTimeout(bot.placeBlock(refB2, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge re-place'))
                     await settleTicks(10, 'climb bridge re-place settle')
                     let nowB2 = null
                     try { nowB2 = readCell(bp.cell) } catch { nowB2 = null }

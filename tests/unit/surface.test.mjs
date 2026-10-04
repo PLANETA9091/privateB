@@ -17,7 +17,8 @@ import {
   verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY,
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING, chestVerticalDoom,
   wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
-  climbSurfaceShort // (v0.610.0) the altitude-demand guard
+  climbSurfaceShort, // (v0.610.0) the altitude-demand guard
+  interactiveRefName // (v0.641.0) THE INTERACTIVE REFERENCE LAW - the membership test the place packet rides
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -1544,4 +1545,51 @@ test('plant clear: the sapling cell confesses - the fleet\'s own planted sapling
   // the per-cell law composes: an attempted sapling cell never re-rides
   const attempted = bridgePlan({ feet: cell(10, 64, 20), d: D, read: supportSapling, items: POCKET, plantClears: PLANT_CLEAR_MAX, plantClearCells: new Set(['11,64,20']) })
   assert.equal(attempted.kind, 'support', 'the attempt-once guard rides the widened family unchanged')
+})
+
+// (v0.641.0) THE INTERACTIVE REFERENCE LAW - a use-on an interactive block
+// opens that block's UI and does NOT place, unless the player sneaks.
+// MEASURED (fleet 37233218979, the v0.640.0 face): 12 of the 29 surviving
+// refusals rode ref-after=crafting_table (the fleet's own workstations
+// serving as fill references - the reference survived every re-read), the
+// v0.637.0 face (37230426426) added furnace x1 - the packet opened the UI
+// instead of placing, refused twice every time. The cure rides the place
+// packet: the executor sneaks for the place, the finally releases on every
+// path (a stuck sneak would pin the climb's own edge physics).
+test('INTERACTIVE REFERENCE LAW: the membership splits the vanilla UI furniture from the plain solids (junk reads false)', () => {
+  // the measured class rides true
+  assert.equal(interactiveRefName('crafting_table'), true, 'the face\'s own class: the fleet\'s crafting tables as fill references')
+  assert.equal(interactiveRefName('furnace'), true, 'the v0.637.0 face\'s sighting rides too')
+  // the near family the fleet's world can hold
+  assert.equal(interactiveRefName('chest'), true)
+  assert.equal(interactiveRefName('barrel'), true)
+  assert.equal(interactiveRefName('blast_furnace'), true)
+  // the law never costs a plain-solid fill: the faces' dominant references stay false
+  assert.equal(interactiveRefName('grass_block'), false, 'the face\'s dominant ref-after class is NOT interactive - those refusals ride another theory')
+  assert.equal(interactiveRefName('dirt'), false)
+  assert.equal(interactiveRefName('stone'), false)
+  assert.equal(interactiveRefName('cobblestone'), false)
+  assert.equal(interactiveRefName('sand'), false)
+  assert.equal(interactiveRefName('diorite'), false)
+  assert.equal(interactiveRefName('smooth_stone'), false)
+  // the junk law
+  assert.equal(interactiveRefName(null), false)
+  assert.equal(interactiveRefName(undefined), false)
+  assert.equal(interactiveRefName(42), false)
+  assert.equal(interactiveRefName(''), false)
+})
+
+test('INTERACTIVE REFERENCE LAW: the sneak wrap rides exactly the two bridge place sites (the dead-wire class - the live-bot shape only the source can prove)', () => {
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  // the wrap rides the FIRST place and the RE-PLACE - the same refusal class
+  assert.ok(minerSrc.includes("await sneakPlace(refName, () => withTimeout(bot.placeBlock(refB, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge place')"),
+    'the first place packet rides the law')
+  assert.ok(minerSrc.includes("await sneakPlace(refName2, () => withTimeout(bot.placeBlock(refB2, new Vec3(bp.face.x, bp.face.y, bp.face.z)), PILLAR_PLACE_TIMEOUT_MS, 'climb bridge re-place')"),
+    'the re-place rides the same law (the same ref cell, the same UI)')
+  // the release is the finally shape (a stuck sneak pins the climb physics)
+  assert.ok(/try \{ return await place\(\) \} finally \{ if \(sneaked\) \{ try \{ bot\.setControlState\('sneak', false\) \} catch \{ \} \} \}/.test(minerSrc),
+    'the finally owns the release on every path - the throw path included')
+  // a non-interactive reference stays byte for byte (the membership gate first)
+  assert.ok(minerSrc.includes("if (!interactiveRefName(refN)) return place()"),
+    'the plain-solid fills take the legacy path untouched')
 })
