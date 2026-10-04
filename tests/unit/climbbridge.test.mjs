@@ -227,13 +227,13 @@ test('server-refused fill: the census counts the mined face whole', () => {
 test('server-refused fill: the tail rides every verdict byte-exact', () => {
   // the mined face's own mix: the unavailable book floor-owned AND the refused mass
   const mixed = bridgeRefusalCensus([FLOOR, FLOOR, REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF])
-  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed (the refusal is the verdict)')
+  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed, 2 distinct cell(s), 1 repeat(s) (the refusal is the verdict)') // the REFUSED_SELF pair shares ONE cell - the repeat rides
   // the scatter form carries the tail too
   const scatter = bridgeRefusalCensus([FLOOR, POCKET, REFUSED_SUPPORT, REFUSED_SUPPORT])
-  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed (the refusal is the verdict)'))
+  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed, 1 distinct cell(s), 1 repeat(s) (the refusal is the verdict)')) // the twin lines share the cell
   // the none-none form carries the tail when only the server spoke
   const only = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF])
-  assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed (the refusal is the verdict)')
+  assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed, 2 distinct cell(s), 0 repeat(s) (the refusal is the verdict)')
 })
 
 test('server-refused fill: old faces stay byte-stable (the tail only speaks when refused > 0)', () => {
@@ -244,4 +244,24 @@ test('server-refused fill: old faces stay byte-stable (the tail only speaks when
   // junk census fields never crash the tail
   assert.equal(bridgeRefusalRow({ n: 2, byClass: { floor: 2 }, botCount: 1, refused: NaN }), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)')
   assert.equal(bridgeRefusalRow(null), 'bridge refusal book: none refused, none placed (the bridge never spoke this run)')
+})
+
+test('server-refused fill: the cell grain prices the v0.168.0 transient doctrine (v0.616.0)', () => {
+  // the mined face's cells are all distinct -> the repeat mass reads 0 (the
+  // re-place ladder may convert - the doctrine holds on THIS face)
+  const mined = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF,
+    'F12 [F12] climb bridge: the server refused the self fill at [-148,65,420] - the rotate ladder owns it (held=dirt, 1.1b, ref=dirt, post=? (re-read failed))'])
+  assert.equal(mined.refused, 4)
+  assert.equal(mined.refusedUniqueCells, 3) // REFUSED_SELF's pair rides ONE cell
+  assert.equal(mined.refusedCellRepeats, 1)
+  // a REVISITED cell - the same cell refused twice - names the geometry law
+  const revisit = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SUPPORT])
+  assert.equal(revisit.refused, 2)
+  assert.equal(revisit.refusedUniqueCells, 1)
+  assert.equal(revisit.refusedCellRepeats, 1)
+  const row = bridgeRefusalRow(revisit)
+  assert.ok(row.includes('the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed, 1 distinct cell(s), 1 repeat(s)'))
+  // junk census fields keep the fallback honest (uniq falls back to refused)
+  assert.ok(bridgeRefusalRow({ refused: 2, refusedKinds: { self: 1, support: 1 }, refusedReReadFailed: 1 }).includes('2 distinct cell(s), 0 repeat(s)'))
+  assert.equal(bridgeRefusalCensus([FLOOR]).refusedCellRepeats, 0) // the unavailable book never rides the cell grain
 })

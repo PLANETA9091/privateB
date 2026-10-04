@@ -108,7 +108,7 @@ export function bridgeRefusalClass (msg) {
 
 export function bridgeRefusalCensus (lines) {
   const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
-    refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0 }
+    refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set() }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -126,17 +126,30 @@ export function bridgeRefusalCensus (lines) {
     }
     // (v0.615.0) the server-refused fill rides its own grain (the self-fill's
     // first flight priced it: 15 refusals, every re-read failed)
+    // (v0.616.0) the CELL grain joins: refusedCellKeys tracks the distinct
+    // refused cells - the v0.168.0 transient doctrine faces its own re-price
+    // (a repeat cell is a GEOMETRY law - the rotate ladder truly owns it;
+    // an all-unique face keeps the retry ladder honest - the server rolls
+    // dice, the re-place converts). The dead-re-read cure decision rides
+    // THIS split on the next field face.
     const r = parseServerRefusedFill(line)
     if (r) {
       c.refused++
       c.refusedKinds[r.fill] = (c.refusedKinds[r.fill] || 0) + 1
       if (r.reReadFailed) c.refusedReReadFailed++
+      const key = `${r.cell.x},${r.cell.y},${r.cell.z}`
+      c.refusedCellKeys.add(key)
       continue
     }
     if (BRIDGE_BOOK_TORN_RE.test(line)) c.unparsed++
     else if (BRIDGE_REFUSED_TORN_RE.test(line)) c.refusedTorn++
   }
   c.botCount = c.bots.size
+  // (v0.616.0) the cell grain: the distinct mass names the law - repeats are
+  // geometry (the rotate ladder owns the cell), all-unique is transient (the
+  // re-place ladder converts - the v0.168.0 doctrine holds)
+  c.refusedUniqueCells = c.refusedCellKeys.size
+  c.refusedCellRepeats = c.refused - c.refusedUniqueCells
   return c
 }
 
@@ -145,8 +158,13 @@ const pct = (part, whole) => whole > 0 ? Math.round(part * 100 / whole) : 0
 // (v0.615.0) when the server refused placements, ONE tail clause rides the
 // verdict (the mined face's own read - old faces byte-stable, the clause only
 // speaks when the face carries refusals):
-//   ' - the server refused N fill(s): self S, support P, R re-read(s) failed
-//     (the refusal is the verdict)'
+//   ' - the server refused N fill(s): self S, support P, R re-read(s) failed,
+//     U distinct cell(s), W repeat(s) (the refusal is the verdict)'
+// (v0.616.0) the cell grain rides the same clause - the repeats name the law:
+// repeat(s) > 0 = the cell itself refuses (geometry - the rotate ladder owns
+// it); repeat(s) = 0 = the server rolls dice (the v0.168.0 re-place ladder
+// converts - the retry doctrine holds). The dead-re-read cure decision is
+// priced by THIS split.
 // ONE always-print verdict; at most one class owns the half boundary:
 //   floor   - 'no solid floor underfoot' over the half: the bot stands over
 //             its own hole - the support-under-self fill is the front
@@ -197,5 +215,7 @@ function refusedTail (c) {
   const s = (c.refusedKinds && c.refusedKinds.self) || 0
   const p = (c.refusedKinds && c.refusedKinds.support) || 0
   const rrf = (c && Number.isFinite(c.refusedReReadFailed)) ? c.refusedReReadFailed : 0
-  return ` - the server refused ${refused} fill(s): self ${s}, support ${p}, ${rrf} re-read(s) failed (the refusal is the verdict)`
+  const uniq = (c && Number.isFinite(c.refusedUniqueCells)) ? c.refusedUniqueCells : refused
+  const rep = (c && Number.isFinite(c.refusedCellRepeats)) ? c.refusedCellRepeats : 0
+  return ` - the server refused ${refused} fill(s): self ${s}, support ${p}, ${rrf} re-read(s) failed, ${uniq} distinct cell(s), ${rep} repeat(s) (the refusal is the verdict)`
 }
