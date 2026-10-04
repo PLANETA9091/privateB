@@ -28,7 +28,10 @@ export const BRIDGE_BOOK_TORN_RE = /climb bridge: unavailable \(/
 // The landed fill: 'F1 [F1] climb bridge: placed cobblestone at [-111,17,425]
 // (pit) - the step re-judges'. The block name and the fill kind ride the
 // census's own grain (the transport's proof, the diag's 3-level cadence).
-const PLACE_RE = new RegExp('^' + TAG_OPT + 'climb bridge: placed ([a-z_]+) at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\] \\((support|pit)\\) - the step re-judges$')
+// (v0.610.0) the 'self' kind joins: the support-under-self fill (the bridge's
+// own support geometry applied to the SELF cell - the floor class's priced
+// cure) lands its own kind so the next face can count the cure firing.
+const PLACE_RE = new RegExp('^' + TAG_OPT + 'climb bridge: placed ([a-z_]+) at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\] \\((support|pit|self)\\) - the step re-judges$')
 
 export function parseBridgeRefusal (line) {
   const m = String(line ?? '').match(BOOK_RE)

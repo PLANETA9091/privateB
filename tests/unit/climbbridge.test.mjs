@@ -125,6 +125,18 @@ test('bridge refusal book: the fill parser - the transport proof', () => {
   assert.equal(parseBridgeFill(42), null)
 })
 
+test('bridge refusal book: the self fill parses - the v0.610.0 cure joins the kind vocabulary', () => {
+  const f = parseBridgeFill('F14 [F14] climb bridge: placed cobblestone at [-120,63,405] (self) - the step re-judges')
+  assert.deepEqual(f, { kind: 'bridge-fill', bot: 'F14', block: 'cobblestone', cell: { x: -120, y: 63, z: 405 }, fill: 'self' }, 'the support-under-self fill lands its own kind')
+  const c = bridgeRefusalCensus(['F14 [F14] climb bridge: placed cobblestone at [-120,63,405] (self) - the step re-judges', FILL_PIT, FLOOR])
+  assert.equal(c.places, 2)
+  assert.equal(c.fillKinds.self, 1)
+  assert.equal(c.fillKinds.pit, 1)
+  assert.equal(c.n, 1, 'the refusal count is untouched by the fill')
+  // the wrong-kind refusal still rides unparsed (the grammar stays strict)
+  assert.equal(parseBridgeFill('F1 [F1] climb bridge: placed cobblestone at [-111,17,425] (pillar) - the step re-judges'), null)
+})
+
 test('bridge refusal book: the torn sweep and the junk battery', () => {
   const c = bridgeRefusalCensus([
     'F2 [F2] climb bridge: unavailable (no solid floor',

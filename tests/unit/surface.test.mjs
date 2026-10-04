@@ -531,7 +531,7 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
 // record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
 // is the pure gate the climbOut wiring executes: the step path clear + the
 // support non-solid + a placeable pocket = fill the missing floor.
-import { bridgePlan, BRIDGE_PLACE_MAX } from '../../src/lib/surface.mjs'
+import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS } from '../../src/lib/surface.mjs'
 
 const cell = (x, y, z) => ({
   x, y, z,
@@ -668,16 +668,94 @@ test('bridgePlan: the budget is spent - the fills stop at BRIDGE_PLACE_MAX per c
   assert.equal(bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: -3 }).ok, true)
 })
 
-test('bridgePlan: an airborne bot cannot bridge (no solid floor underfoot - the reference would be void)', () => {
+test('BRIDGE_SELF_WALL_DIRS: the self fill\'s wall probe order is pinned', () => {
+  assert.deepEqual(BRIDGE_SELF_WALL_DIRS, [[1, 0], [-1, 0], [0, 1], [0, -1]])
+})
+
+test('bridgePlan: the support-under-self fill - the bot over its own hole fills its own floor (the v0.608.0 book\'s priced cure)', () => {
+  // feet at (10,64,20); ownFloor (10,63,20) reads AIR (the bot stands over its
+  // own hole - the face-37188370162 floor class) but the hole's wall at +x
+  // reads stone. The v0.165.0 law refused here; the v0.610.0 cure fills the
+  // SELF floor cell against the wall's side face (the pit fill's own shape
+  // mirrored) - the step re-judges on the next loop with solid ground.
   const read = cellWorld({
-    '10,63,20': AIR, // ownFloor - the bot is falling
+    '10,63,20': AIR, // ownFloor - the hole the bot stands over
+    '11,63,20': STONE, // the hole's wall at +x (first probe) - the reference
     '11,65,20': AIR, '11,66,20': AIR,
-    '11,64,20': AIR,
-    '11,63,20': STONE
+    '11,64,20': AIR
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, true, 'the floor class converts to a fill, not a refusal')
+  assert.equal(p.kind, 'self')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 10, y: 63, z: 20 }, 'the fill goes into the SELF floor cell')
+  assert.deepEqual({ x: p.refCell.x, y: p.refCell.y, z: p.refCell.z }, { x: 11, y: 63, z: 20 }, 'the reference is the hole\'s wall')
+  assert.deepEqual(p.face, { x: -1, y: 0, z: 0 }, 'placed against the wall\'s face pointing back into the self cell')
+  assert.equal(p.item.name, 'cobblestone')
+  assert.equal(p.placedNext, 1)
+})
+
+test('bridgePlan: the open void keeps the legacy refusal byte for byte (no wall, no fill)', () => {
+  // the hole's every horizontal neighbour reads air/fluid/null - nothing to
+  // place against: the truly airborne bot stays the rotate ladder's (the
+  // legacy refusal byte for byte - the cure cannot fill against void)
+  const read = cellWorld({
+    '10,63,20': AIR, // ownFloor
+    '11,63,20': AIR, '9,63,20': AIR, '10,63,21': WATER, '10,63,19': AIR,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': AIR
   })
   const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
   assert.equal(p.ok, false)
-  assert.match(p.why, /no solid floor underfoot/)
+  assert.match(p.why, /^no solid floor underfoot$/)
+})
+
+test('bridgePlan: the flooded self cell fills too (water is replaceable - the lake precedent)', () => {
+  const read = cellWorld({
+    '10,63,20': WATER, // ownFloor reads fluid - the flooded hole
+    '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR,
+    '11,64,20': WATER
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'self')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 10, y: 63, z: 20 })
+})
+
+test('bridgePlan: the self fill rides the pocket and budget gates byte for byte', () => {
+  const read = cellWorld({
+    '10,63,20': AIR, '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR
+  })
+  const p0 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: [] })
+  assert.equal(p0.ok, false)
+  assert.match(p0.why, /no placeable block/)
+  const p8 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, placed: BRIDGE_PLACE_MAX })
+  assert.equal(p8.ok, false)
+  assert.match(p8.why, /the bridge budget is spent \(8\/8\)/)
+})
+
+test('bridgePlan: the wall probe order is deterministic - +x wins, the face points back', () => {
+  const read = cellWorld({
+    '10,63,20': AIR,
+    '11,63,20': STONE, '9,63,20': STONE, '10,63,21': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.kind, 'self')
+  assert.deepEqual({ x: p.refCell.x, y: p.refCell.y, z: p.refCell.z }, { x: 11, y: 63, z: 20 }, '+x is the first probe')
+  assert.deepEqual(p.face, { x: -1, y: 0, z: 0 })
+})
+
+test('bridgePlan: an unreadable self cell never fills blind (the chunk-desync class)', () => {
+  // a wall exists but the SELF cell read failed - the legacy refusal, never a blind fill
+  const read = cellWorld({
+    '11,63,20': STONE,
+    '11,65,20': AIR, '11,66,20': AIR, '11,64,20': AIR
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
+  assert.equal(p.ok, false)
+  assert.match(p.why, /^no solid floor underfoot$/)
 })
 
 test('bridgePlan: an unreadable neighbourhood refuses (the chunk-desync class never bridges blind)', () => {

@@ -1528,6 +1528,12 @@ export function isDigLanded (block) {
 // unreadable cell refuses - the legacy rotate ladder owns the level.
 export const BRIDGE_PLACE_MAX = 8
 
+// (v0.610.0) THE SUPPORT-UNDER-SELF FILL - the wall probe order for the self
+// fill, deterministic, first match wins: +x, -x, +z, -z. The placement face
+// rides the wall's own side normal pointing BACK into the self cell (the pit
+// fill's side-face shape, mirrored).
+export const BRIDGE_SELF_WALL_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
 export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
@@ -1539,7 +1545,38 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   }
   const rd = cell => { try { return read(cell) } catch { return null } }
   const ownFloor = rd(feet.offset(0, -1, 0))
-  if (!ownFloor || ownFloor.boundingBox !== 'block') return { ok: false, why: 'no solid floor underfoot' }
+  if (!ownFloor || ownFloor.boundingBox !== 'block') {
+    // (v0.610.0) THE SUPPORT-UNDER-SELF FILL - the v0.608.0 book's priced cure,
+    // measured on face 37188370162: the floor class owned 54% of 125 refusals
+    // ('the bot stands over its own hole') and every one burned the rotate
+    // ladder's fail budget while the pocket held cobble. The bridge's own
+    // support geometry applies to the SELF cell: the self floor cell reads
+    // empty or fluid (the lake precedent - water is replaceable) and a hole
+    // WALL reads solid -> fill the self floor against the wall's side face
+    // (the pit fill's side-face shape; the target cell sits BELOW the feet -
+    // it never overlaps the bot's AABB, the standing-placement transport
+    // holds). The step re-judges on the next loop with solid ground underfoot.
+    // No wall / an unreadable or junk self cell -> the legacy refusal byte for
+    // byte (the truly open void and the chunk-desync class stay the rotate
+    // ladder's). Call-site contract (v0.165.0): the bridge runs only when the
+    // step path is clear - the fill converts the floor class, the dig ladder
+    // had its chance.
+    if (ownFloor && (ownFloor.boundingBox === 'empty' || ownFloor.boundingBox === 'fluid')) {
+      for (const w of BRIDGE_SELF_WALL_DIRS) {
+        const wall = rd(feet.offset(w[0], -1, w[1]))
+        if (wall && wall.boundingBox === 'block') {
+          // (the -0 lesson) 0 - w[n], never -w[n]: a mirrored zero must read
+          // +0 - the deep pins and the Vec3 wire both distinguish -0
+          return {
+            ok: true, kind: 'self',
+            cell: feet.offset(0, -1, 0), refCell: feet.offset(w[0], -1, w[1]),
+            face: { x: 0 - w[0], y: 0, z: 0 - w[1] }, item, placedNext: done + 1
+          }
+        }
+      }
+    }
+    return { ok: false, why: 'no solid floor underfoot' }
+  }
   const step = rd(feet.offset(d.x, 1, d.z))
   const step2 = rd(feet.offset(d.x, 2, d.z))
   const clear = b => !!b && b.boundingBox === 'empty'
