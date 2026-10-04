@@ -917,19 +917,28 @@ export async function deliverFuelTithe (bot, {
     // close shot's re-goto), the open times out, a solid block sits on the
     // chest and vanilla refuses to open it. One bounded dig of the cover,
     // then ONE honest re-open; every other shape keeps the legacy exit.
+    // (v0.590.0) THE OPEN'S DIST LENS: every open-failed exit carries the
+    // bot-chest distance MEASURED at the failure (the seat's own truth).
+    // The face 37169265512 chain: 'the nudge retry landed' then the open's
+    // 10s tax then the cover dig's 'not at the chest' - the walk's landed
+    // verdict and the geometry can disagree, and nothing measured the seat.
+    // The inflow grain reads it: far names the geometry, near names the
+    // chest's own refusal. Junk-safe: a failed read rides null (no lens).
+    const failDist = (() => { try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return null } })()
     if (await digChestCover(bot, anchor, e, log, 'fuel anchor')) {
       try { block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null } catch { block = null }
       if (block && isChestName(block.name)) {
         try {
           window = await withTimeout(bot.openChest(block), 10000, 'open fuel anchor (cover dug)')
         } catch (e2) {
-          return { delivered: 0, why: `open failed after the cover dig (${e2?.message || e2})` }
+          const failDist2 = (() => { try { return Math.round(bot.entity.position.distanceTo(new Vec3(anchor.x, anchor.y, anchor.z))) } catch { return null } })()
+          return { delivered: 0, why: `open failed after the cover dig (${e2?.message || e2})`, dist: failDist2 }
         }
       } else {
-        return { delivered: 0, why: `open failed and the anchor block vanished after the dig (${e?.message || e})` }
+        return { delivered: 0, why: `open failed and the anchor block vanished after the dig (${e?.message || e})`, dist: failDist }
       }
     } else {
-      return { delivered: 0, why: `open failed (${e?.message || e})` }
+      return { delivered: 0, why: `open failed (${e?.message || e})`, dist: failDist }
     }
   }
   try {
@@ -1476,7 +1485,23 @@ export function fuelTitheInflowRow (flow) {
   const w = clean(g.dry)
   if (a === 0) return null
   if (d === 0) {
-    return `fuel tithe inflow: attempted ${a}, delivered 0, dry ${w} - the inflow ran dry: the skips named their lines (the commons' source is the front)`
+    // (v0.590.0) THE OPEN'S DIST LENS: far/near count the dry asks whose open
+    // failure carried a measured distance (far past CHEST_OPEN_DIG_MAX_DIST -
+    // the open fired far from the chest, the walk's landed verdict lied; near
+    // - the open fired at the chest and the chest refused the use). Junk-safe:
+    // negative/NaN floors to 0; a zero far+near reads the honest legacy form
+    // (the blind law - no dist data, no invention). The fed form ignores the
+    // lens (a delivery is a delivery).
+    const far = clean(g.far)
+    const near = clean(g.near)
+    const lens = far + near > 0
+      ? (far > 0 && near === 0)
+        ? ` - the opens fired far ${far} of ${w} - the walk's landed verdict lied: the geometry is the front`
+        : (near > 0 && far === 0)
+          ? ` - the opens fired near ${near} of ${w} - the chest refused the use: the storm's hand is the front`
+          : ` - the opens split far ${far}/near ${near} of ${w} - the reach reads mixed`
+      : ''
+    return `fuel tithe inflow: attempted ${a}, delivered 0, dry ${w}${lens} - the inflow ran dry: the skips named their lines (the commons' source is the front)`
   }
   return `fuel tithe inflow: attempted ${a}, delivered ${d} (${u}u), dry ${w} - the inflow feeds the commons (the tithe owns the refill)`
 }

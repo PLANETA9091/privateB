@@ -994,7 +994,7 @@ test('withdrawFuelCommons: without a yardCenter the legacy nearest-first shape h
 test('REGRESSION PIN: the anchor wiring - the delivery rides before the legacy deposit, the anchor read is chest #0', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   const bankSrc = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
-  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow, fuelTitheInflowRow \} from '\.\.\/src\/lib\/fuelbank\.mjs'/) // (v0.587.0) the inflow row rides the same import - the tithe's own face seat
+  assert.match(fleetSrc, /import \{ withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow, fuelTitheInflowRow, CHEST_OPEN_DIG_MAX_DIST \} from '\.\.\/src\/lib\/fuelbank\.mjs'/) // (v0.587.0) the inflow row rides the same import - the tithe's own face seat; (v0.590.0) the dist lens's threshold rides it too - the feed classifies far/near with the cover-dig's own bound
   assert.match(fleetSrc, /await deliverFuelTithe\(miner\.bot, \{/)
   assert.match(fleetSrc, /yardCenter: yardGoal,\s*\n\s*memory: fuelCommonsMemory,\s*\/\/ \(v0\.507\.0\)[^\n]*\n\s*budgetMs: anchorBudgetMs,/) // (v0.507.0) the low-chest registry wire joins the tithe call (the gravity stash))
   assert.match(fleetSrc, /remaining\(\) > 8000 \? Math\.min\(15000, Math\.floor\(remaining\(\) \/ 4\)\) : 0/, 'the budget guard: a dead chain never pays the delivery')

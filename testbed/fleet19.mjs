@@ -38,7 +38,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltUnreachableBandRow, smeltReachBand, smeltAttemptDist, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
-import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow, fuelTitheInflowRow } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow, fuelTitheInflowRow, CHEST_OPEN_DIG_MAX_DIST } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -232,7 +232,7 @@ const fuelCommonsGrainLedger = { asks: 0, delivered: 0, units: 0, chests: 0, dry
 // the tithe's deliveries counted at both seats (arrival + final-leg), one
 // book: attempted / delivered / units / dry ('no overage' never counts -
 // the healthy lean is silent).
-const fuelTitheInflowLedger = { attempted: 0, delivered: 0, units: 0, dry: 0 }
+const fuelTitheInflowLedger = { attempted: 0, delivered: 0, units: 0, dry: 0, far: 0, near: 0 }
 // (v0.574.0) THE UNREACHABLE OWNER LEDGER: the owner family's second seat -
 // which MACHINE the 'machine unreachable' walks failed on. Fed at the same
 // seat, one extra set - the census grains can never split.
@@ -652,6 +652,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           fuelTitheInflowLedger.units += arrivalRes.delivered
         } else {
           fuelTitheInflowLedger.dry++
+          // (v0.590.0) THE OPEN'S DIST LENS: the open-failed exits carry the
+          // distance MEASURED at the failure - far past the cover-dig's own
+          // reach bound (CHEST_OPEN_DIG_MAX_DIST) names the geometry (the
+          // walk's landed verdict lied), near names the chest's own refusal.
+          // No dist on the exit (walk failed, unreadable block) reads neither.
+          if (Number.isFinite(arrivalRes.dist) && arrivalRes.dist >= 0) {
+            if (arrivalRes.dist > CHEST_OPEN_DIG_MAX_DIST) fuelTitheInflowLedger.far++
+            else fuelTitheInflowLedger.near++
+          }
         }
       }
     }
@@ -1022,6 +1031,12 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
           fuelTitheInflowLedger.units += anchorRes.delivered
         } else {
           fuelTitheInflowLedger.dry++
+          // (v0.590.0) THE OPEN'S DIST LENS (the fallback seat): the same read
+          // the arrival seat feeds - one lens, two seats, one book.
+          if (Number.isFinite(anchorRes.dist) && anchorRes.dist >= 0) {
+            if (anchorRes.dist > CHEST_OPEN_DIG_MAX_DIST) fuelTitheInflowLedger.far++
+            else fuelTitheInflowLedger.near++
+          }
         }
       }
     } else if (overage > 0) {
