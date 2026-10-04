@@ -524,6 +524,37 @@ test('open cell confession: the fresh read\'s word priced per kind (v0.626.0)', 
   assert.deepEqual(torn.refusedPostKinds, {})
 })
 
+test('the pit refusal joins the book (v0.630.0)', () => {
+  // the fleet 37216259817 face's own line - byte-exact from the mined log
+  const pitRef = 'F9 [F9] climb bridge: the server refused the pit fill at [-101,64,378] - the rotate ladder owns it (held=cobblestone, 1.1b, ref=crafting_table, post=leaf_litter STILL OPEN (refused twice))'
+  const r = parseServerRefusedFill(pitRef)
+  assert.deepEqual(r, { kind: 'server-refused-fill', bot: 'F9', fill: 'pit', cell: { x: -101, y: 64, z: 378 }, held: 'cobblestone', arm: 1.1, ref: 'crafting_table', post: 'leaf_litter STILL OPEN (refused twice)', reReadFailed: false })
+  // the census grain: the pit refusal counts, confesses, and keys its cell
+  const c = bridgeRefusalCensus([pitRef])
+  assert.equal(c.refused, 1)
+  assert.deepEqual(c.refusedKinds, { pit: 1 })
+  assert.deepEqual(c.refusedPostKinds, { leaf_litter: 1 })
+  assert.equal(c.refusedUniqueCells, 1)
+  assert.equal(c.refusedReReadFailed, 0)
+  assert.equal(c.refusedTorn, 0)
+  assert.equal(c.botCount, 0) // the bots set stays the unavailable book's own (the family's convention)
+  // the tail's gated pit clause rides inside the kinds segment
+  const row = bridgeRefusalRow(c)
+  assert.ok(row.includes(' - the server refused 1 fill(s): self 0, support 0, pit 1, 0 re-read(s) failed, 1 distinct cell(s), 0 repeat(s) (the refusal is the verdict)'), row)
+  // the pit refusal confesses through the open-cell grain (the plant front's own word)
+  assert.ok(row.includes(' - the open cells confess: leaf_litter 1'), row)
+  // the pit family is NOT the underfoot law - no rate verdict on a pit-only face
+  assert.ok(!row.includes('the self fill landed'), row)
+  // the old self/support faces stay byte-stable (no pit clause, the exact pre-widening byte)
+  const oldFace = bridgeRefusalRow(bridgeRefusalCensus(['F17 [F17] climb bridge: the server refused the support fill at [-116,43,409] - the rotate ladder owns it (held=cobblestone, 1.2b, ref=stone, post=? (re-read failed))']))
+  assert.ok(oldFace.includes(' - the server refused 1 fill(s): self 0, support 1, 1 re-read(s) failed, 1 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)'), oldFace)
+  assert.ok(!oldFace.includes(' pit '), oldFace)
+  // the torn pit line still rides its own bucket (it failed the full grammar)
+  const torn = bridgeRefusalCensus(['F9 [F9] climb bridge: the server refused the pit fill at [-101,64,378'])
+  assert.equal(torn.refusedTorn, 1)
+  assert.equal(torn.refused, 0)
+})
+
 test('plant clear book: the confession cure speaks (v0.628.0)', () => {
   const clears = (s, fill, name, cell) => `F${s} [F${s}] climb bridge: the ${fill} fill's cell holds a ${name} at [${cell}] - the plant clears first`
   const pcRef = (s, name, cell) => `F${s} [F${s}] climb bridge: the plant clear refused at [${cell}] (${name}) - the ladder owns it`

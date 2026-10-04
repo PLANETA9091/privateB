@@ -157,7 +157,20 @@ export function parsePlantClear (line) {
 // emitter law gives it this file (the 'climb bridge:' family's owner). The
 // why tail may nest its own parens ('post=? (re-read failed)') - greedy to
 // the LAST ')', the re-read flag rides a keyword test (climbWhyClass's law).
-const REFUSED_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the server refused the (self|support) fill at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\] - the rotate ladder owns it \\(held=([a-z_]+), ([\\d.]+)b, ref=([a-z_]+), post=(.*)\\)$')
+// (v0.630.0) THE PIT REFUSAL JOINS THE BOOK - the fleet 37216259817 face (the
+// v0.627.0 plant clear's own first flight) spoke the family's third kind:
+// 'F9 [F9] climb bridge: the server refused the pit fill at [-101,64,378] -
+// the rotate ladder owns it (held=cobblestone, 1.1b, ref=crafting_table,
+// post=leaf_litter STILL OPEN (refused twice))' - and the pinned family
+// (self|support) let it FALL THROUGH to the torn sweep (refusedTorn) while
+// the pit fill's PLACED form has parsed since the start (PLACE_RE pins
+// support|pit|self) - the book counted the pit fill's successes and dropped
+// its refusal (the bridgebook.mjs precedent uses [a-z_]+ and never dropped
+// it). THE FIX: the family widens to (self|support|pit) - the same pinned
+// vocabulary as PLACE_RE; refusedTail grows a gated pit clause (old faces
+// byte-stable); the confession grain and the cell grain read the pit
+// refusal's own word at last.
+const REFUSED_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the server refused the (self|support|pit) fill at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\] - the rotate ladder owns it \\(held=([a-z_]+), ([\\d.]+)b, ref=([a-z_]+), post=(.*)\\)$')
 
 // The torn sweep for the refused form - a line that STARTS like a member but
 // failed the full grammar rides refusedTorn (the honest sweep - the v0.595.0
@@ -479,7 +492,11 @@ function refusedTail (c) {
   const rrf = (c && Number.isFinite(c.refusedReReadFailed)) ? c.refusedReReadFailed : 0
   const uniq = (c && Number.isFinite(c.refusedUniqueCells)) ? c.refusedUniqueCells : refused
   const rep = (c && Number.isFinite(c.refusedCellRepeats)) ? c.refusedCellRepeats : 0
-  return ` - the server refused ${refused} fill(s): self ${s}, support ${p}, ${rrf} re-read(s) failed, ${uniq} distinct cell(s), ${rep} repeat(s) (the refusal is the verdict)`
+  // (v0.630.0) the pit clause rides gated (pit > 0) - the old faces (no pit
+  // refusals in the kinds map) stay byte-stable
+  const pit = (c.refusedKinds && c.refusedKinds.pit) || 0
+  const kinds = `self ${s}, support ${p}` + (pit > 0 ? `, pit ${pit}` : '')
+  return ` - the server refused ${refused} fill(s): ${kinds}, ${rrf} re-read(s) failed, ${uniq} distinct cell(s), ${rep} repeat(s) (the refusal is the verdict)`
 }
 
 // (v0.617.0) THE UNDERFOOT RATE - the refused mass's own lever evidence. The
