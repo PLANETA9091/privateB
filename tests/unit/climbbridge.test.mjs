@@ -227,10 +227,10 @@ test('server-refused fill: the census counts the mined face whole', () => {
 test('server-refused fill: the tail rides every verdict byte-exact', () => {
   // the mined face's own mix: the unavailable book floor-owned AND the refused mass
   const mixed = bridgeRefusalCensus([FLOOR, FLOOR, REFUSED_SUPPORT, REFUSED_SELF, REFUSED_SELF])
-  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed, 2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)') // the REFUSED_SELF pair shares ONE cell - the repeat rides; the WHOLLY-blind face (3/3) names the blind leg
+  assert.equal(bridgeRefusalRow(mixed), 'bridge refusal book: 2 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 2 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 3 fill(s): self 2, support 1, 3 re-read(s) failed, 2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass) - the repeat(s) name the geometry law (the rotate ladder owns those cells)') // the REFUSED_SELF pair shares ONE cell - the repeat rides; the WHOLLY-blind face (3/3) names the blind leg; the repeat mass names the geometry law
   // the scatter form carries the tail too
   const scatter = bridgeRefusalCensus([FLOOR, POCKET, REFUSED_SUPPORT, REFUSED_SUPPORT])
-  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the server refused 2 fill(s): self 0, support 2, 2 re-read(s) failed, 1 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)')) // the twin lines share the cell; 2/2 blind
+  assert.ok(bridgeRefusalRow(scatter).endsWith(' - the re-read never spoke (the blind leg owns the mass) - the repeat(s) name the geometry law (the rotate ladder owns those cells)')) // the twin lines share the cell; 2/2 blind; the geometry verdict rides last
   // the none-none form carries the tail when only the server spoke
   const only = bridgeRefusalCensus([REFUSED_SUPPORT, REFUSED_SELF])
   assert.equal(bridgeRefusalRow(only), 'bridge refusal book: none refused, none placed (the bridge never spoke this run) - the server refused 2 fill(s): self 1, support 1, 2 re-read(s) failed, 2 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)')
@@ -315,7 +315,7 @@ test('underfoot rate: the comparison must EXIST - the silent faces', () => {
   // refusals without placements: the pocket front owns it, no rate noise
   const refusedOnly = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, REFUSED_SUPPORT]))
   assert.ok(!refusedOnly.includes('landed'), refusedOnly)
-  assert.ok(refusedOnly.endsWith('2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass)'), refusedOnly)
+  assert.ok(refusedOnly.endsWith(' - the re-read never spoke (the blind leg owns the mass) - the repeat(s) name the geometry law (the rotate ladder owns those cells)'), refusedOnly)
   // placements without refusals: no lever to price
   const placedOnly = bridgeRefusalRow(bridgeRefusalCensus([FILL_SELF, FILL_SELF, 'F1 [F1] climb bridge: placed cobblestone at [1,64,425] (support) - the step re-judges']))
   assert.equal(placedOnly, 'bridge refusal book: none refused, 3 fill(s) placed (the climbs climbed clean)')
@@ -360,4 +360,28 @@ test('re-read blind mass: the wholly-blind face names itself (v0.618.0)', () => 
   // the empty and refused-free books never carry it
   assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([])).includes('the re-read never spoke'))
   assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])).includes('the re-read never spoke'))
+})
+
+// (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face gave the
+// v0.616.0 cell grain its >0 side at last: 40 refused, 36 distinct, 4
+// REPEATS (F15/F8 share [-91,59,398]; F12's self+support share
+// [-117,65,395]). The row now speaks the verdict the v0.616.0 law named:
+// repeat(s) > 0 = the CELL itself refuses (the rotate ladder truly owns
+// those cells); 0 repeats = the transient face (the re-place ladder
+// converts). Junk-safe: the fallback (no field) reads 0 and stays silent.
+test('geometry verdict: the repeat mass names the doomed cells (v0.620.0)', () => {
+  // the repeat battery: the REFUSED_SELF pair shares ONE cell -> the verdict rides
+  const rep = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, REFUSED_SELF.replace('[-125,64,420]', '[-125,65,421]')]))
+  assert.ok(rep.endsWith('2 distinct cell(s), 1 repeat(s) (the refusal is the verdict) - the re-read never spoke (the blind leg owns the mass) - the repeat(s) name the geometry law (the rotate ladder owns those cells)'), rep)
+  // the verdict rides LAST - after the blind mass and the rate lever
+  const lever = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, FILL_SELF]))
+  assert.ok(lever.indexOf('the repeat(s) name the geometry law') > lever.indexOf('the re-read never spoke'), lever)
+  assert.ok(lever.indexOf('the repeat(s) name the geometry law') > lever.indexOf('the self fill landed'), lever)
+  // the all-unique face stays transient-quiet (the v0.616.0 doctrine's own side)
+  const uniq = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SUPPORT]))
+  assert.ok(!uniq.includes('geometry law'), uniq)
+  // the junk fallback (a census without the field) reads 0 repeats - silent, never a lie
+  assert.ok(!bridgeRefusalRow({ refused: 2, refusedKinds: { self: 2 }, refusedReReadFailed: 2 }).includes('geometry law'))
+  // the unavailable-only book never carries it
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])).includes('geometry law'))
 })

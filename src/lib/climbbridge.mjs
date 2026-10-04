@@ -203,7 +203,27 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c)
+  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c)
+}
+
+// (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face (the
+// v0.618.0 clause's own first flight) gave the v0.616.0 cell grain its >0
+// side at last: 40 refused fills, 36 distinct cells, 4 REPEATS - the first
+// live repeat mass (F15 and F8 share [-91,59,398]; F12's self and support
+// fills share [-117,65,395]). The v0.616.0 law named the split but the row
+// never spoke the verdict: repeat(s) > 0 = the CELL itself refuses (a
+// geometry law - the rotate ladder truly owns those cells; the retry ladder
+// burns its budget on them), repeat(s) = 0 = the server rolls dice (the
+// transient face - the re-place ladder converts). THE LAW: the clause speaks
+// only when the repeat mass EXISTS (refusedCellRepeats > 0) - an all-unique
+// face stays transient-quiet; the junk fallback (a census without the field,
+// uniq=read) reads 0 repeats and is silent, never a lie. The clause rides
+// LAST on the row (the refused family's closing verdict):
+//   ' - the repeat(s) name the geometry law (the rotate ladder owns those cells)'
+function geometryTail (c) {
+  const rep = c && Number.isFinite(c.refusedCellRepeats) ? c.refusedCellRepeats : 0
+  if (rep <= 0) return ''
+  return ' - the repeat(s) name the geometry law (the rotate ladder owns those cells)'
 }
 
 // (v0.618.0) THE RE-READ BLIND MASS - the fleet 37200930827 face (the
