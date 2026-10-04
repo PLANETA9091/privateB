@@ -8,7 +8,8 @@ import {
   DESPAWN_FLOOR_SHARE, DROP_MERGE_WINDOW_MS, DROP_RESOLVE_MIN_UNITS,
   OPEN_FRESH_MS, OPEN_OVERDUE_MS, OPEN_OVERDUE_SHARE,
   itemCountOf, dropCensusRecord, observeItemSpawn, observeItemCollect,
-  observeItemGone, openDropUnits, dropCensusRow, dropOpenAnatomyRow
+  observeItemGone, openDropUnits, dropCensusRow, dropOpenAnatomyRow,
+  overdueOwnerRow
 } from '../../src/lib/dropcensus.mjs'
 
 const item = (id, count, name = 'item') => ({ id, name, metadata: count == null ? [] : [{ count }] })
@@ -247,12 +248,13 @@ test('the constants route the row (one constant per judgment, no split by constr
 
 test('the wiring pin: the fleet counts the lifecycle live and prints the row', () => {
   const src = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
-  assert.ok(src.includes("import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow } from '../src/lib/dropcensus.mjs'"), 'the import line rides')
+  assert.ok(src.includes("import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow, overdueOwnerRow } from '../src/lib/dropcensus.mjs'"), 'the import line rides (v0.592.0: the owners\' grain joins)')
   assert.equal((src.match(/observeItemSpawn\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the spawn seat, exactly once')
   assert.equal((src.match(/observeItemCollect\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the collect seat, exactly once')
   assert.equal((src.match(/observeItemGone\(dc, e, Date\.now\(\)\)/g) || []).length, 1, 'the gone seat, exactly once')
   assert.equal((src.match(/dropCensusRow\(dropCensusRecords\)/g) || []).length, 1, 'the deadline row, exactly once')
   assert.equal((src.match(/dropOpenAnatomyRow\(dropCensusRecords\)/g) || []).length, 1, 'the anatomy row, exactly once (v0.581.0)')
+  assert.equal((src.match(/overdueOwnerRow\(dropCensusRecords\)/g) || []).length, 1, 'the owners\' row, exactly once (v0.592.0)')
   assert.ok(src.includes('const dropCensusRecords = []'), 'the fleet-wide book exists')
   assert.ok(src.includes('dc.name = miner.username'), 'the record rides its bot name (the top holder reads by name)')
   assert.ok(/entitySpawn.*try \{ observeItemSpawn/.test(src.replace(/\n/g, ' ')), 'the spawn listener is try-guarded')
@@ -329,4 +331,82 @@ test('the open pool: the none forms are verdicts too (the always-print law)', ()
   const torn = dropCensusRecord()
   torn.live = 'torn'
   assert.ok(dropOpenAnatomyRow([torn, null, 'junk'], 1_000_000 + 500).includes('the pool ended clean'))
+})
+
+test('THE OVERDUE OWNER GRAIN: one seat names the owner\'s own walk, a spread names the fleet\'s reach (v0.592.0)', () => {
+  const TD = 1_000_000 + 500_000 // the deadline clock
+  const rec = (name) => { const r = dropCensusRecord(); if (name !== undefined) r.name = name; return r }
+  // ONE SEAT: one bot holds the overdue class over the half boundary - the
+  // owner's own walk is the cure (the rescue's class, not the fleet's reach)
+  const a = rec('F16')
+  observeItemSpawn(a, item(91, 2942), TD - OPEN_OVERDUE_MS) // the seat's own overdue mass
+  observeItemSpawn(a, item(92, 100), TD - 30_000) // the fresh tail never enters the old class
+  assert.equal(overdueOwnerRow([a], TD),
+    'overdue owners: 1 bot(s) hold 2942u overdue - F16 holds 100.0% (2942u) - one seat owns the old ground (that seat\'s own walk is the cure)')
+  // exactly the half boundary trips (the family law - OPEN_OVERDUE_SHARE's own number)
+  const half = rec('F5')
+  observeItemSpawn(half, item(93, 400), TD - OPEN_OVERDUE_MS)
+  const other = rec('F7')
+  observeItemSpawn(other, item(94, 400), TD - OPEN_OVERDUE_MS - 1) // 400/800 = the boundary
+  const halfRow = overdueOwnerRow([half, other], TD)
+  assert.ok(halfRow.includes('one seat owns the old ground'), 'the boundary trips')
+  assert.ok(halfRow.includes('F5 holds 50.0% (400u)'))
+  // SPREAD: no owner reaches the half - the reach is the fleet's front
+  const b = rec('F9')
+  observeItemSpawn(b, item(95, 520), TD - OPEN_OVERDUE_MS)
+  const c = rec('F12')
+  observeItemSpawn(c, item(96, 410), TD - OPEN_OVERDUE_MS)
+  const d = rec('F4')
+  observeItemSpawn(d, item(97, 380), TD - OPEN_OVERDUE_MS)
+  const spreadRow = overdueOwnerRow([b, c, d], TD)
+  assert.equal(spreadRow,
+    'overdue owners: 3 bot(s) hold 1310u overdue - top F9=520u (39.7%) - the old ground is spread (the reach is the fleet\'s front)')
+  // the sum law: the owners' overdue total can never split from the anatomy's
+  const tallied = [a, half, other, b, c, d]
+  const anatomyOverdue = dropOpenAnatomyRow(tallied, TD).match(/(\d+)u overdue/)
+  const ownersTotal = Number(overdueOwnerRow(tallied, TD).match(/hold (\d+)u overdue/)[1])
+  assert.equal(ownersTotal, Number(anatomyOverdue[1]), 'one age ladder, one arithmetic')
+  // the top-holder law: units desc, name asc on the tie
+  const t1 = rec('F9')
+  observeItemSpawn(t1, item(98, 70), TD - OPEN_OVERDUE_MS)
+  const t2 = rec('F4')
+  observeItemSpawn(t2, item(99, 70), TD - OPEN_OVERDUE_MS)
+  const t3 = rec('F6')
+  observeItemSpawn(t3, item(104, 40), TD - OPEN_OVERDUE_MS)
+  assert.ok(overdueOwnerRow([t1, t2, t3], TD).includes('top F4=70u'), 'the tie reads name-asc')
+  // the junk battery: torn records, junk names, impossible clocks, null mass
+  const torn = rec()
+  torn.live = 'torn'
+  const junkName = rec('   ')
+  observeItemSpawn(junkName, item(100, 80), TD - OPEN_OVERDUE_MS)
+  assert.ok(overdueOwnerRow([torn, junkName, null, 5], TD).includes('- holds 100.0% (80u)'), 'the blank name rides the dash')
+  const backClock = rec('F2')
+  observeItemSpawn(backClock, item(101, 90), TD + 10) // the age reads negative - the middle, never the old class
+  assert.ok(overdueOwnerRow([backClock], TD).includes('no overdue mass'), 'the impossible clock is nobody\'s old ground')
+  const blind = rec('F3')
+  observeItemSpawn(blind, item(102, null), TD - OPEN_OVERDUE_MS)
+  assert.ok(overdueOwnerRow([blind], TD).includes('no overdue mass'), 'the unreadable mass never enters the units')
+  const collected = rec('F8')
+  observeItemSpawn(collected, item(103, 90), TD - OPEN_OVERDUE_MS)
+  observeItemCollect(collected, item(103, 90), TD - 10)
+  assert.equal(overdueOwnerRow([collected], TD), 'overdue owners: none (the pool ended clean)', 'the collected exit is gone from the pool')
+})
+
+test('the overdue owners: the none forms are verdicts too (the always-print law)', () => {
+  assert.equal(overdueOwnerRow([]), 'overdue owners: none (the pool ended clean)')
+  assert.equal(overdueOwnerRow(null), 'overdue owners: none (the pool ended clean)')
+  const rec = () => dropCensusRecord()
+  assert.equal(overdueOwnerRow([rec()]), 'overdue owners: none (the pool ended clean)')
+  // a live pool with no old class: the none-form names the live drops
+  const r2 = dropCensusRecord()
+  observeItemSpawn(r2, item(111, 30), 1_000_000)
+  assert.equal(overdueOwnerRow([r2], 1_000_000 + 500), 'overdue owners: none (1 drops live, no overdue mass)')
+  // the grain form (under 64u, the write-off family's own number)
+  const r3 = dropCensusRecord()
+  observeItemSpawn(r3, item(112, 21), 1_000_000)
+  assert.equal(overdueOwnerRow([r3], 1_000_000 + 301_000), 'overdue owners: 21u of overdue mass under the 64u grain, the sample stays too small to judge')
+  // the boundary: exactly 300s reads the old class (>= the despawn clock)
+  const r4 = dropCensusRecord()
+  observeItemSpawn(r4, item(113, 40), 1_000_000 + 200_000)
+  assert.equal(overdueOwnerRow([r4], 1_000_000 + 500_000), 'overdue owners: 40u of overdue mass under the 64u grain, the sample stays too small to judge')
 })

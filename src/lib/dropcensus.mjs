@@ -306,3 +306,56 @@ export function dropOpenAnatomyRow (records, nowMs = Date.now()) {
   }
   return `drop open pool: ${units}u live at the deadline ${shape} - the deadline's own tail, no cure named`
 }
+
+/**
+ * (v0.592.0) THE OVERDUE OWNER GRAIN: the anatomy's overdue class read by
+ * holder. The verdict 'the sweep's reach is the front' spoke twice
+ * (fleet 37166593085's 10747u, fleet 37169265512's 5883u) and priced the
+ * front but not the SEAT: a pool held by ONE bot is that seat's own walk
+ * (the owner never came back - the rescue's class), a pool SPREAD across
+ * many bots is the fleet's reach (every walker leaves a tail - the
+ * reach-wide cure). The two cures are different work; one row names
+ * which. The tally rides the anatomy's own arithmetic (the sum law - one
+ * age ladder, one readable-mass convention: age impossible reads the
+ * honest middle, null mass never enters the units), so this row's
+ * overdue total can never disagree with dropOpenAnatomyRow's.
+ * ALWAYS speaks (the census's own law); the none-forms are verdicts too.
+ * @param {Array<ReturnType<typeof dropCensusRecord>>|null} records
+ * @param {number} nowMs the deadline clock (a parameter - the tests hold it)
+ * @returns {string}
+ */
+export function overdueOwnerRow (records, nowMs = Date.now()) {
+  const list = Array.isArray(records) ? records : []
+  let overdue = 0
+  let entries = 0
+  const owners = []
+  for (const r of list) {
+    if (!r || typeof r !== 'object' || !(r.live instanceof Map)) continue
+    let own = 0
+    for (const t of r.live.values()) {
+      if (!t || t.collected) continue
+      entries++ // every live entry is a live drop, readable mass or not
+      const c = itemCountOf(t?.entity)
+      if (c == null) continue // unreadable mass never enters the units (the lens's convention)
+      const age = (Number.isFinite(nowMs) && nowMs >= 0 ? nowMs : Date.now()) - t.ts
+      if (!Number.isFinite(age) || age < 0) continue // the impossible clock rides the middle, never the old class
+      if (age < OPEN_OVERDUE_MS) continue
+      own += c
+    }
+    if (own > 0) owners.push({ name: (typeof r.name === 'string' && r.name.trim() !== '') ? r.name.trim() : '-', units: own })
+  }
+  overdue = owners.reduce((s, o) => s + o.units, 0)
+  if (entries === 0) return 'overdue owners: none (the pool ended clean)'
+  if (overdue === 0) return `overdue owners: none (${entries} drops live, no overdue mass)`
+  if (overdue < DROP_RESOLVE_MIN_UNITS) {
+    return `overdue owners: ${overdue}u of overdue mass under the ${DROP_RESOLVE_MIN_UNITS}u grain, the sample stays too small to judge`
+  }
+  owners.sort((a, b) => (b.units - a.units) || (a.name < b.name ? -1 : 1))
+  const top = owners[0]
+  const pct = ((top.units / overdue) * 100).toFixed(1)
+  const head = `overdue owners: ${owners.length} bot(s) hold ${overdue}u overdue`
+  if (top.units / overdue >= OPEN_OVERDUE_SHARE) {
+    return `${head} - ${top.name} holds ${pct}% (${top.units}u) - one seat owns the old ground (that seat's own walk is the cure)`
+  }
+  return `${head} - top ${top.name}=${top.units}u (${pct}%) - the old ground is spread (the reach is the fleet's front)`
+}
