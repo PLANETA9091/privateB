@@ -17,7 +17,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { withTimeout, gotoSafe } from '../../src/lib/jobqueue.mjs'
+import { withTimeout, gotoSafe, startFleetValveTicker } from '../../src/lib/jobqueue.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -344,6 +344,16 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
   const { smeltBatch } = await import(path.join(root, 'src', 'lib', 'smelting.mjs'))
   const pathfinderPkg = await import('mineflayer-pathfinder')
   const { goals } = pathfinderPkg.default // dynamic import wraps the CJS default export
+
+  // (v0.631.0) THE INTEGRATION LANE'S OWN ALLOC VALVE (CI 37219683279): the fleet
+  // flight feeds the gotoSafe funnel's singleton valve via startFleetValveTicker
+  // (testbed/fleet19.mjs), but this lane never sampled it - the valve could not
+  // refuse a single walk, and the zombie-night path storm (kite hops + no-path job
+  // retries) re-ran run92's OOM class: heap 4.0 GB, Ineffective mark-compacts, the
+  // integration job died looking like a pipeline failure. The ticker feeds the SAME
+  // instance gotoSafe consults (the run93 lesson), the transitions ride the test
+  // log, the interval is unref'd (never holds the process open past t.after).
+  startFleetValveTicker({ onLine: line => log(line) })
 
   // --- spawn one bot, ground mode, survival ---
   const miners = [createMiner({ host: HOST, port: PORT, username: 'SmeltTest', fly: false, mode: 'rage', log })]

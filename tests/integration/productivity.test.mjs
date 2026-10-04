@@ -57,7 +57,7 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
 
   const { createMiner, fleetStats } = await import(path.join(root, 'src', 'bots', 'miner.mjs'))
   const { ensureTools, countItem, relocateToSolidGround } = await import(path.join(root, 'src', 'bots', 'tools.mjs'))
-  const { gotoSafe } = await import(path.join(root, 'src', 'lib', 'jobqueue.mjs'))
+  const { gotoSafe, startFleetValveTicker } = await import(path.join(root, 'src', 'lib', 'jobqueue.mjs'))
   const pathfinderPkg = await import('mineflayer-pathfinder')
   const { goals } = pathfinderPkg.default // dynamic import wraps the CJS default export
   const { WorldMap } = await import(path.join(root, 'src', 'fleet', 'worldmap.mjs'))
@@ -67,6 +67,15 @@ test(`fleet productivity: ${BOT_COUNT} bots mine on the ground for ${WINDOW_SECO
   // The shared scout -> miner resource map: while mining, every bot records what it sees;
   // the assertion at the end proves the pipeline actually filled it.
   const map = new WorldMap({ file: path.join(logDir, 'map.json') })
+
+  // (v0.631.0) THE INTEGRATION LANE'S OWN ALLOC VALVE (CI 37219683279): the same
+  // wiring the smelt lane got - the fleet flight feeds the gotoSafe funnel's
+  // singleton valve via startFleetValveTicker, this lane never sampled it, and a
+  // path storm here re-runs run92's OOM class (heap 4.0 GB, Ineffective
+  // mark-compacts, the job dies looking like a pipeline failure). The ticker feeds
+  // the SAME instance gotoSafe consults (the run93 lesson); the transitions ride
+  // the test log; the interval is unref'd (never holds the process past t.after).
+  startFleetValveTicker({ onLine: line => log(line) })
 
   // --- spawn the fleet in ground mode (no flight, exactly like production) ---
   const miners = []
