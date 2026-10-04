@@ -1449,3 +1449,34 @@ export function fuelCommonsGrainRow (grain) {
   }
   return `smelt fuel commons grain: asked ${a}, delivered ${d} (${u}u over ${c} opens), dry ${w} - the commons reads mixed: the dry asks name the thin chests`
 }
+
+// (v0.587.0) THE TITHE'S INFLOW GRAIN - the grain's twin on the INFLOW side.
+// The commons' grain (v0.585.0) read the asks' answers (outflow); fleet
+// 37166593085's face read 'asked 3, delivered 0, dry 3 - every ask came up
+// dry: the commons' source is the front (the tithe is the only inflow)' and
+// the inflow itself stayed unread: ZERO 'fuel anchor: delivered' lines rode
+// the whole face while F7's real attempt failed BOTH seats ('0 delivered
+// (open failed (...))' twice). The grain: three numbers fed at BOTH tithe
+// seats (the arrival seat and the final-leg fallback - one function, one
+// book): attempted / delivered / dry, units summed on the deliveries. THE
+// LEAN LAW: 'no overage' never counts (the healthy lean is silent - a pocket
+// that keeps its own fuel never asked; the reads that fire every chain stay
+// invisible), so attempted = delivered + dry by construction. THE VERDICTS:
+// zero attempts stay lean (the overage never rode anywhere); every attempt
+// dry names the front (the skips named their lines - the per-call '0
+// delivered (why)' log lines carry the why vocabulary); a delivery says the
+// inflow feeds the commons. Junk-safe: the null/negative floors read 0 (the
+// row never lies upward - the grain's own law).
+export function fuelTitheInflowRow (flow) {
+  const g = (flow && typeof flow === 'object') ? flow : {}
+  const clean = (v) => (Number.isFinite(v) && v > 0) ? Math.floor(v) : 0
+  const a = clean(g.attempted)
+  const d = clean(g.delivered)
+  const u = clean(g.units)
+  const w = clean(g.dry)
+  if (a === 0) return null
+  if (d === 0) {
+    return `fuel tithe inflow: attempted ${a}, delivered 0, dry ${w} - the inflow ran dry: the skips named their lines (the commons' source is the front)`
+  }
+  return `fuel tithe inflow: attempted ${a}, delivered ${d} (${u}u), dry ${w} - the inflow feeds the commons (the tithe owns the refill)`
+}

@@ -38,7 +38,7 @@ import { heapSpaceUsedMb } from '../src/lib/heapspace.mjs'
 import { recoveryDue, recoveryCooldownMs, tripDue, TRIP_WALK_MS, famineDue } from '../src/lib/woodplan.mjs'
 import { smeltInventory, smeltablesIn, smeltZeroWhy, smeltRefusalCensusRow, smeltNoFuelAnatomyRow, smeltNoFuelOwnerRow, pocketFuelBare, smeltNoFuelPantryRow, smeltUnreachableOwnerRow, smeltUnreachableWhyRow, smeltUnreachableCrossRow, smeltUnreachableBandRow, smeltReachBand, smeltAttemptDist, smeltFuelKeep, smeltInputKeep, sweepFinishedSmelts, sweepCensusLine, pickFuel } from '../src/lib/smelting.mjs'
 import { classifySweepReason } from '../src/lib/walkfail.mjs' // (v0.577.0) the walk-fail lens's own classifier - the why split's ONE vocabulary
-import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow } from '../src/lib/fuelbank.mjs'
+import { withdrawFuelCommons, newCommonsMemory, deliverFuelTithe, fuelPocketOverage, fuelCommonsGrainRow, fuelTitheInflowRow } from '../src/lib/fuelbank.mjs'
 import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RIDER_FOOD_BUDGET_MS, foodFamineDue } from '../src/lib/foodbank.mjs'
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
@@ -228,6 +228,11 @@ const finalSmeltNoFuelPantry = new Map()
 // - the smelt leg's fuelResupply asks counted by their answer (asks /
 // delivered / units / chests / dry), the commons itself no longer blind.
 const fuelCommonsGrainLedger = { asks: 0, delivered: 0, units: 0, chests: 0, dry: 0 }
+// (v0.587.0) THE TITHE'S INFLOW LEDGER: the grain's twin on the INFLOW side -
+// the tithe's deliveries counted at both seats (arrival + final-leg), one
+// book: attempted / delivered / units / dry ('no overage' never counts -
+// the healthy lean is silent).
+const fuelTitheInflowLedger = { attempted: 0, delivered: 0, units: 0, dry: 0 }
 // (v0.574.0) THE UNREACHABLE OWNER LEDGER: the owner family's second seat -
 // which MACHINE the 'machine unreachable' walks failed on. Fed at the same
 // seat, one extra set - the census grains can never split.
@@ -637,6 +642,18 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       })
       if (arrivalRes.delivered > 0) console.log(`${miner.username} fuel anchor: delivered ${arrivalRes.delivered} fuel overage (arrival seat: ${arrivalRes.why}) - the yard chest eats before the leg spends`)
       else if (arrivalRes.why !== 'no overage') console.log(`${miner.username} fuel anchor: 0 delivered at arrival (${arrivalRes.why}) - the final-leg seat retries`)
+      // (v0.587.0) THE INFLOW FEED: 'no overage' never counts (the healthy
+      // lean is silent); every real attempt is a delivery or a dry - one add
+      // beside the grain's own, the seats can never split the book.
+      if (arrivalRes.why !== 'no overage') {
+        fuelTitheInflowLedger.attempted++
+        if ((arrivalRes.delivered ?? 0) > 0) {
+          fuelTitheInflowLedger.delivered++
+          fuelTitheInflowLedger.units += arrivalRes.delivered
+        } else {
+          fuelTitheInflowLedger.dry++
+        }
+      }
     }
   } catch { /* the final-leg seat is the fallback */ }
   if (SMELT) {
@@ -996,6 +1013,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
       // failed from never-tried. Every exit now names itself; 'no overage'
       // (the healthy lean pocket) stays quiet - it fires every chain.
       else if (anchorRes.why !== 'no overage') console.log(`${miner.username} fuel anchor: 0 delivered (${anchorRes.why}) - the legacy scatter carries the tithe`)
+      // (v0.587.0) THE INFLOW FEED (the fallback seat): the same book the
+      // arrival seat feeds - one overage, two seats, one read.
+      if (anchorRes.why !== 'no overage') {
+        fuelTitheInflowLedger.attempted++
+        if ((anchorRes.delivered ?? 0) > 0) {
+          fuelTitheInflowLedger.delivered++
+          fuelTitheInflowLedger.units += anchorRes.delivered
+        } else {
+          fuelTitheInflowLedger.dry++
+        }
+      }
     } else if (overage > 0) {
       // (v0.157.0) THE CLOCK-LABEL FIX: remaining() returns MILLISECONDS (the
       // run556 reads 'the final leg clock (10075s)', '(12899s)', '(14837s)' on
@@ -4236,6 +4264,12 @@ if (smeltNoFuelPantry) console.log(smeltNoFuelPantry)
 // opens cost. It can only speak when the smelt leg asked.
 const fuelCommonsGrain = fuelCommonsGrainRow(fuelCommonsGrainLedger)
 if (fuelCommonsGrain) console.log(fuelCommonsGrain)
+// (v0.587.0) THE TITHE'S INFLOW GRAIN - the grain's twin on the inflow side:
+// did the tithe flow at all (the face 37166593085 read zero deliveries while
+// F7's real attempt failed both seats). It can only speak when a real
+// attempt was made ('no overage' never counts - the healthy lean is silent).
+const fuelTitheInflow = fuelTitheInflowRow(fuelTitheInflowLedger)
+if (fuelTitheInflow) console.log(fuelTitheInflow)
 // (v0.574.0) THE UNREACHABLE OWNER MAP - the census's leader class ('machine
 // unreachable', 9 of 12 on the fleet 37149142927 face) reads its own machine
 // split: one machine = the cell's cure, a spread = the walk lattice. The same
