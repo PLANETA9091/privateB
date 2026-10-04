@@ -14490,3 +14490,19 @@ Work Log:
 Stage Summary:
 - Master = 9771c5a (pkg 0.598.0). The tithe inflow has its instrument; the live verdict says the rung's cap 4 owns the throttle - the scale-up lever is named. Their v0.597.0 ASK ARC LAW attacks the ask-side slice (the fleet cure the v0.596.0 seat read named) - the two laws are complementary halves of the same refill front.
 - NEXT FIRE: (1) read CI 37180462057 (9771c5a) - must be green. (2) MINE fleet 37178311099's face (ad51acb = v0.596.0, COMPLETED SUCCESS, log under ci-logs/): the seats' SECOND read, the ask volume next read (73 -> ?), the tithe inflow next read (delivered 1 -> ?), the storm's next face (465 -> ?), the pool 18145u -> ?, the overdue 1650u -> ?, run titheCensus on it (the lens's first field read). (3) MINE fleet 37180720652 (9771c5a = v0.598.0) when it lands: THE TITHE LEDGER's first flight read (does the inflow row name the cap?), the ask-arc law's first face (their lastMileRaw hops + the 20000 slices - took > 0 finally?), the seats' third read. (4) QUEUES: the cap scale-up decision (if the next face confirms the cap throttle - raise TITHE_CAP or loop the rung; their ask-arc law may shift the dry face first - read before touching); the builder race cure (re-read); the deep anchor behind FIVE gate reads. (5) OPEN FRONTS: overdue 1650u spread, unaccounted 639u, the storm band (465, F18 61%), the cap 4 throttle (now instrumented). (6) Version next 0.599.0 (origin x3 GATING; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron39-20261004-1339
+Agent: Super Z (main)
+Task: fire 1339 (cron 415967) - v0.599.0 THE DRY READ'S CHEST (the books' dry face closes on the cell it actually read)
+
+Work Log:
+- Sandbox alive; fast-forwarded a0c48e9 -> 9771c5a -> 1ffbe09. CI: adabf4a (v0.597.0 ASK ARC) SUCCESS; fire-1300 landed v0.598.0 THE TITHE LEDGER + dispatched fleet 37180720652 on 9771c5a (IN_PROGRESS - max-one-active held my dispatch).
+- MINED fleet 37178311099 (the unmined v0.596.0 flight): conversion 72.4%, write-off 465u (doom-latched F19 263u = 56.6%; timeout F5 136u; night F15 66u - the v0.140.1 law), budget deaths 37 (the cure unflown there), storm 476 with F6 = 100% (474 disproved reads, the net held), bank arm silence 8/102u, drop pool 14987u live.
+- THE DISCOVERY: the tithe DID feed - F18 banked 28 x coal into [-108,71,407], F2 banked 1 x coal - yet 'asked 4, delivered 0, dry 4' with ZERO took lines and F18's own late 'chest holds no fuel' x3; the asks anchored SIBLING chests ([-108,71,401]/[-108,71,411]/[-138,71,409]). 29u of inflow sat in one cell while every ask read a dry neighbor - and the dry read was the books' one ANONYMOUS line, the divergence unanswerable.
+- DELIVERED v0.599.0 THE DRY READ'S CHEST: the emitter names its cell ('chest holds no fuel at [x,y,z]'); the parser reads both faces (the bare legacy record byte for byte - the old pins caught the chest:null drift and the battery re-priced it); the census sums dryNamed + dryByChest; fuelCommonsDryScatterRow names WHICH chest owns the dry (the FUEL_ASK_SHARE half: one-owns -> that anchor's read is the cure; scatter -> the divergence itself is the front). Battery: syntax 452/0; unit 257/257 PASSED.
+- Dispatch: NONE of mine (their fleet 37180720652 in_progress).
+
+Stage Summary:
+- Master = 3aea593 + worklog (pkg 0.599.0). Next face: all three book lines name their chest - the anchor-divergence cure rides evidence.
+- NEXT FIRE: CI on 3aea593 green?; mine fleet 37180720652 (the tithe ledger's FIRST flight); dispatch when lawful (the scatter row's first face); fronts: the anchor-divergence cure, the doom-latch write-off (F19 263u: wet shaft-bottom + pre-position starvation t-13s/39b), F6's storm cell, the bank arm silence. Version next 0.600.0 (origin x3 GATING). Identity: PLANETA9091.
