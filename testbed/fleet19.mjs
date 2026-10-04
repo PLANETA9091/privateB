@@ -2213,16 +2213,22 @@ async function runBot (name, target, index) {
           lastBankAt = Date.now()
           const distB = Math.round(miner.bot.entity.position.distanceTo(yardGoal))
           console.log(`${name} pre-position: ${distB}b from yard, t-${Math.round((deadline - Date.now()) / 1000)}s - walking home`)
+          prePositionArmed.add(name) // (v0.645.0) the seat's own census: a fired seat is an armed seat (the walk home is the delivery's first leg)
+          bankArmSpoke.add(name) // (v0.645.0) the arm census stops lying: the seat's wanted pass IS a bank pass (face 37239853197: F19 pre-positioned with 231u aboard while the row still read 'never armed')
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           if (await ensureSurface('pre-position')) {
             const preBudget = Math.max(0, deadline - Date.now())
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: preBudget })
             if (res.deposited > 0) {
               banked += res.deposited
+              prePositionLanded.push(res.deposited) // (v0.645.0) the landed delivery's units - the seat's own conversion
               console.log(`${name} pre-position bank: +${res.deposited}`)
             } else {
+              prePositionFailed.push(String(res.reason || 'unknown')) // (v0.645.0) the honest reason rides the census (the next face splits the classes)
               console.log(`${name} pre-position bank: 0 (${res.reason})`)
             }
+          } else {
+            prePositionFailed.push('surface refused') // (v0.645.0) the walk home's own gate refused - the honest class (the climb-outs' wet anatomy rides the 'climb out (pre-position)' lines)
           }
           break // the run is over for this bot - the end phase finishes the rest
         }
@@ -3841,6 +3847,9 @@ setFleetDuckSweeper(stormSweepAllGoals)
 const noPathLedger = []
 const fullChestLedger = [] // (v0.65.0) shared fleet-wide 'chest full' verdicts - one discovery spares the other 18 the walk
 const bankArmSpoke = new Set() // (v0.574.0) THE ARM SILENCE CENSUS - every bot whose bank arm family WANTED a pass (planned/dusk/dusk-plan/pockets-full/deliverable/shed all feed one bankWanted gate, and the wanted pass speaks); the end-phase row reads the complement - the never-wanted bots whose pockets rode the deadline in silence
+const prePositionArmed = new Set() // (v0.645.0) THE PRE-POSITION'S OWN CENSUS - the walk-home seat's armed set (the dig loop's one-shot delivery seat; face 37239853197 armed 10 bots and the arm census still read them 'never armed' - the seat's wanted pass was invisible to the book)
+const prePositionLanded = [] // (v0.645.0) the landed pre-position deliveries' unit counts (the seat's own conversion: face 37239853197 landed 3 of 10, +378u)
+const prePositionFailed = [] // (v0.645.0) the failed pre-position chains' honest reasons (the next face splits the wet-climb class from the budget-exhausted class - the two fronts price different cures)
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -4477,6 +4486,32 @@ console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-iss
     let top = null
     silentArms.forEach((m, i) => { if (!top || silentUnits[i] > top[1]) top = [m.username, silentUnits[i]] })
     console.log(`bank arm census: ${silentArms.length} bot(s) never armed a bank pass - their end pockets carried ${silentTotal}u${top && top[1] > 0 ? ` (top ${top[0]}=${top[1]}u)` : ''} - the arms' silence is the face's own read`)
+  }
+}
+// (v0.645.0) THE PRE-POSITION'S OWN CENSUS - the walk-home seat's conversion,
+// first priced. Face 37239853197 (the v0.644.0 fleet): the seat armed 10 bots,
+// landed 3 (+378u: F2 +114, F4 +187, F12 +77), and the failed class rode the
+// deadline (F19's 231u whale strand) while the arm census still read the seat's
+// bots 'never armed' - the seat's wanted pass was invisible to the book. Two
+// honest lines: the spoke add at the seat (the arm census reads the full arm
+// family) and this row (the seat's own armed/landed/failed + the failed whys'
+// top class) - the next face splits the wet-climb class from the
+// budget-exhausted class (the two fronts price different cures - the arm
+// census's own split law). The lean law rides: a face with no armed seat is
+// silent (the healthy shape).
+{
+  if (prePositionArmed.size > 0) {
+    const landedUnits = prePositionLanded.reduce((a, b) => a + b, 0)
+    const whyCount = new Map()
+    let topWhy = null
+    let topN = 0
+    for (const r of prePositionFailed) {
+      const k = String(r).split(' (')[0]
+      const n = (whyCount.get(k) || 0) + 1
+      whyCount.set(k, n)
+      if (n > topN) { topN = n; topWhy = k }
+    }
+    console.log(`pre-position census: armed ${prePositionArmed.size}, landed ${prePositionLanded.length} (+${landedUnits}u), failed ${prePositionFailed.length}${topWhy ? ` (top why: ${topWhy} x${topN})` : ''} - the seat's own delivery, first priced`)
   }
 }
 const wgs = walkGovernorStatsFor()

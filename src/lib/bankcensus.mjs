@@ -71,6 +71,26 @@ export function parseDoomWhy(s) {
   return m ? { whyClass: m[1], carried: num(m[2]), total: num(m[3]), pct: num(m[4]) } : null
 }
 
+// (v0.645.0) THE PRE-POSITION'S OWN CENSUS - the walk-home seat's conversion
+// row, first priced (the wiring's own v0.645.0 row, fleet19.mjs). Byte-exact
+// fed face (37239853197's shape, the census's own numbers):
+//   'pre-position census: armed 10, landed 3 (+378u), failed 3 (top why: chest unreachable x2) - the seat's own delivery, first priced'
+// The bare failed face (a single fail or a spread with no dominating class -
+// the emitter prints the top why only when one exists):
+//   'pre-position census: armed 2, landed 1 (+114u), failed 1 - the seat's own delivery, first priced'
+// The optional top-why tail rides only when present (the parseWriteOff law -
+// the bare pins stay byte-equal). Junk-safe: a non-string reads null, a
+// non-numeric capture is a junk line (never invented, the grain's own law).
+const PREPOSITION_RE = /^pre-position census: armed (\d+), landed (\d+) \(\+(\d+)u\), failed (\d+)(?: \(top why: (.+) x(\d+)\))? - the seat's own delivery, first priced$/
+
+export function parsePrePositionCensus(s) {
+  const m = typeof s === 'string' ? s.match(PREPOSITION_RE) : null
+  if (!m) return null
+  const e = { armed: num(m[1]), landed: num(m[2]), landedUnits: num(m[3]), failed: num(m[4]) }
+  if (m[5] !== undefined) { e.topWhy = m[5]; e.topWhyCount = num(m[6]) }
+  return e
+}
+
 const LOOT_RE = /^loot ledger: mined=(\d+) banked=(\d+) smelted=(\d+) pocket=(\d+)u\/(\d+)s accounted=(\d+) unaccounted=(\d+) surplus=(\d+)u conversion=([\d.]+)%$/
 const POCKET_ANATOMY_RE = /^pocket anatomy: spread across (\d+) holders, top (F\d+) (\d+)u = ([\d.]+)% of (\d+)u - (.+)$/
 const SURPLUS_FACE_RE = /^surplus face: crafted-class (\d+)u of (\d+)u pocket \(([\d.]+)%\), top (.+?) - the mined counter never saw these units \(surplus (\d+)u\)$/

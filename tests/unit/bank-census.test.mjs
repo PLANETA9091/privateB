@@ -3,7 +3,7 @@
 // byte. Tests feed the face-19 (36802577873) verbatim lines, the junk
 // battery, and the missing-block tolerance (a FATAL face truncates the end
 // phase - the v0.358.0 lesson).
-import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable } from '../../src/lib/bankcensus.mjs'
+import { bankFlowCensus, parseSurplusItems, parseStranded, parseWriteOff, parseDoomWhy, parseDeliverable, parsePrePositionCensus } from '../../src/lib/bankcensus.mjs'
 import assert from 'node:assert'
 import { test } from 'node:test'
 
@@ -281,4 +281,37 @@ test('write-off why mass: tolerance stays honest (no write-off line reads null, 
   assert.deepEqual(bankFlowCensus([]).writeOffWhys, null)
   const bare = bankFlowCensus(['final write-off: F1 102u/15s (the deadline pocket rode unbanked)'])
   assert.deepEqual(bare.writeOffWhys, { units: 102, byClass: { unnamed: 102 } })
+})
+
+// ---- (v0.645.0) THE PRE-POSITION'S OWN CENSUS - the seat's conversion row ----
+// Face 37239853197 (the v0.644.0 fleet): the walk-home seat armed 10 bots,
+// landed 3 (+378u: F2 +114, F4 +187, F12 +77), and the failed class rode the
+// deadline (F19's 231u whale) while the arm census still read the seat's bots
+// 'never armed'. The wiring now speaks the row; the parser reads it byte for
+// byte (the blind-tool lesson's own shape).
+
+test('pre-position census parsed (the seat\'s own conversion, the fed face)', () => {
+  const e = parsePrePositionCensus('pre-position census: armed 10, landed 3 (+378u), failed 3 (top why: chest unreachable x2) - the seat\'s own delivery, first priced')
+  assert.deepEqual(e, { armed: 10, landed: 3, landedUnits: 378, failed: 3, topWhy: 'chest unreachable', topWhyCount: 2 })
+})
+
+test('pre-position census: the bare failed face (no top why rides)', () => {
+  const e = parsePrePositionCensus('pre-position census: armed 2, landed 1 (+114u), failed 1 - the seat\'s own delivery, first priced')
+  assert.deepEqual(e, { armed: 2, landed: 1, landedUnits: 114, failed: 1 })
+})
+
+test('pre-position census: the all-landed face (failed 0, no top why)', () => {
+  const e = parsePrePositionCensus('pre-position census: armed 3, landed 3 (+378u), failed 0 - the seat\'s own delivery, first priced')
+  assert.deepEqual(e, { armed: 3, landed: 3, landedUnits: 378, failed: 0 })
+})
+
+test('pre-position census: junk reads null (the parser never invents)', () => {
+  assert.equal(parsePrePositionCensus(null), null)
+  assert.equal(parsePrePositionCensus(42), null)
+  assert.equal(parsePrePositionCensus(undefined), null)
+  assert.equal(parsePrePositionCensus('pre-position census: armed x, landed 3 (+1u), failed 0 - the seat\'s own delivery, first priced'), null)
+  // the arm census row is a different family - never a pre-position read
+  assert.equal(parsePrePositionCensus('bank arm census: 12 bot(s) never armed a bank pass - their end pockets carried 633u (top F19=227u) - the arms\' silence is the face\'s own read'), null)
+  // the imagined suffix is a junk line (the anatomy law)
+  assert.equal(parsePrePositionCensus('pre-position census: armed 10, landed 3 (+378u), failed 3 (top why: chest unreachable x2) - the seat\'s own delivery, first priced BOOM'), null)
 })
