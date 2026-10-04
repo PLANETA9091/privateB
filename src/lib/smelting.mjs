@@ -42,7 +42,30 @@ export const SMELT_OUTPUT = {
   cod: 'cooked_cod',
   salmon: 'cooked_salmon',
   potato: 'baked_potato',
-  kelp: 'dried_kelp'
+  kelp: 'dried_kelp',
+  // (v0.593.0) THE CHARCOAL RUNG's own outputs - the nine overworld logs the
+  // fleet's gatherWood actually yields. The exclusion below (smeltablesIn's
+  // LOG_RE delete) was priced 'a net fuel loss' when logs' best use WAS
+  // burning: a log as furnace fuel smelts 1.5 items, but the SAME log smelted
+  // INTO charcoal yields 8 (FUEL_YIELD.charcoal) - and the face re-priced the
+  // famine three fires running (37166593085 / 37169265512 / 37171678894): the
+  // commons' asks read dry 3/3, the tithe inflow dry 2/2, torches=8 for the
+  // whole run, smelted=16, and the mined tally carried stone=0 - the fleet
+  // NEVER mines coal ore, so mined coal can never be the commons' source, and
+  // the code itself named the cure ('charcoal the renewable one - a future
+  // dedicated leg', fuelbank.mjs). The gate (smeltablesIn) opens ONLY when the
+  // pocket holds ZERO solid fuel and logs above the rung's own reserve - the
+  // map entries alone change nothing (the delete loop still runs first; the
+  // legacy closed-gate byte is pinned in the tests).
+  oak_log: 'charcoal',
+  birch_log: 'charcoal',
+  spruce_log: 'charcoal',
+  jungle_log: 'charcoal',
+  dark_oak_log: 'charcoal',
+  acacia_log: 'charcoal',
+  mangrove_log: 'charcoal',
+  cherry_log: 'charcoal',
+  pale_oak_log: 'charcoal'
 }
 
 // which machine each input WANTS (furnace always works; blast furnace is 2x for
@@ -707,6 +730,25 @@ export const FUEL_YIELD = {
 export const PLANK_SUFFIX = '_planks'
 export const LOG_RE = /_(log|stem)$/
 
+// (v0.593.0) THE CHARCOAL RUNG's own arithmetic. The face priced the famine
+// (37171678894: pockets sat sticks 4-6, planks 5, coals 0 - the metal window's
+// solidPick reads ONLY coal-family, the commons' chest read dry, and the mined
+// tally carried stone=0), so the rung converts the pocket's SPARE logs into
+// charcoal - the one fuel vocabulary every famine reads (the metal window's
+// solidPick, the torch plan's coal+charcoal count, the tithe's FUEL_COMMON_ORDER).
+// THE LIFELINE: 2 logs (one tool generation - 2 logs craft 8 planks, a pick
+// plus sticks) stay out of the rung's reach; the conversion FUEL comes from
+// pickFuel's own wood margin (sticks/planks above their reserves - the rung
+// never cannibalizes the tool chain). THE CAP: 4 per chain (a raw_copper:18
+// batch needs ceil(18/8)=3 charcoal - one cap covers it; the timeout path
+// pulls un-smelted input back and the next chain re-runs, the v0.41.0 shape).
+const CHARCOAL_LOG_RESERVE = 2
+const CHARCOAL_BATCH_CAP = 4
+const CHARCOAL_LOGS = new Set([
+  'oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log',
+  'acacia_log', 'mangrove_log', 'cherry_log', 'pale_oak_log'
+])
+
 export function fuelYieldOf (fuelName) {
   if (FUEL_YIELD[fuelName] != null) return FUEL_YIELD[fuelName]
   if (fuelName.endsWith(PLANK_SUFFIX)) return 1.5
@@ -892,6 +934,37 @@ export function smeltablesIn (bot, { reserveCobble = 8 } = {}) {
   }
   for (const name of [...totals.keys()]) {
     if (LOG_RE.test(name)) totals.delete(name)
+  }
+  // (v0.593.0) THE CHARCOAL RUNG - the commons' source's own pump. The gate
+  // opens ONLY on the measured famine shape: the pocket holds ZERO solid fuel
+  // (the family the metal window's solidPick reads - coal, charcoal, coal_block,
+  // dried_kelp_block, blaze_rod, the pocketFuelBare vocabulary) AND logs above
+  // the rung's own reserve (2). The offer: the DOMINANT held species, count
+  // min(logSpare, 4) - one species per chain keeps the furnace's input slot
+  // single-vocabulary (the machine loop's expectOut reads one output name), and
+  // the conversion fuel comes from pickFuel's own wood margin - sticks/planks
+  // above their reserves burn, the 2-log lifeline never enters the furnace.
+  // Junk-safe: a dead inventory reads zero solid fuel and zero logs - the gate
+  // stays closed (the legacy byte for byte); fractional counts floor through
+  // the integer arithmetic; a held solid fuel keeps the gate shut even beside
+  // a log mountain (the rung never competes with real fuel). Closed-gate
+  // callers (fuel held, logs at/below the reserve, no logs) read the legacy
+  // plan byte for byte - the delete loop above stays the ungated truth.
+  const solidFuel = ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']
+    .reduce((a, name) => a + countItem(bot, name), 0)
+  if (solidFuel === 0) {
+    const logTotal = countMatching(bot, LOG_RE)
+    const spare = Math.floor(logTotal) - CHARCOAL_LOG_RESERVE
+    if (spare > 0) {
+      let bestName = null
+      let bestCount = 0
+      for (const item of inventoryItems(bot)) {
+        if (!CHARCOAL_LOGS.has(item?.name)) continue
+        const c = Number.isFinite(item.count) ? Math.floor(item.count) : 0
+        if (c > bestCount) { bestCount = c; bestName = item.name }
+      }
+      if (bestName) totals.set(bestName, Math.min(spare, CHARCOAL_BATCH_CAP))
+    }
   }
   // (v0.106.0) THE METAL PRECEDENCE: run94 (35841864758) measured the ladder
   // starvation exactly - 7 smelt calls fleet-wide, 5 of them cobblestone (239u),

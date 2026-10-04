@@ -341,14 +341,17 @@ test('pickFuel METAL window: reserves and the at-or-below pin stand unchanged', 
 })
 
 // ---------------------------------------------------------------- smeltables
-test('smeltablesIn lists piles biggest-first, reserves cobble, drops logs', () => {
+// (v0.593.0) THE CHARCOAL RUNG re-priced this fixture: oak_log:20 with ZERO
+// solid fuel and no metal is the famine face itself - the gate opens and the
+// spare logs ride the plan as charcoal input. The legacy closed-gate byte
+// lives in its own twin below (the lifeline + the fuel-hold pins).
+test('smeltablesIn lists piles biggest-first, reserves cobble, the rung offers the log spare', () => {
   const bot = makeMockBot({
     items: [item('sand', 30), item('cobblestone', 12), item('oak_log', 20), item('iron_ore', 5), item('dirt', 64)]
   })
   const plan = smeltablesIn(bot)
   const names = plan.map(p => p.name)
-  // logs never smelt (tool lifeline + net fuel loss), dirt is not smeltable at all
-  assert.ok(!names.includes('oak_log'))
+  // dirt is not smeltable at all
   assert.ok(!names.includes('dirt'))
   // cobble reserve (8) leaves 4 smeltable
   assert.equal(plan.find(p => p.name === 'cobblestone').count, 4)
@@ -356,6 +359,79 @@ test('smeltablesIn lists piles biggest-first, reserves cobble, drops logs', () =
   assert.equal(names[0], 'iron_ore')
   // the non-metals keep the legacy count-desc order behind the metal class
   assert.ok(names.indexOf('sand') < names.indexOf('cobblestone'), 'sand 30 sorts above cobble 4')
+  // (v0.593.0) THE CHARCOAL RUNG: zero solid fuel + oak_log:20 -> the dominant
+  // species rides the plan tail at the cap (spare 18, cap 4); the stable sort
+  // keeps the cobble 4 tie in insertion order (cobble before oak)
+  assert.equal(plan.find(p => p.name === 'oak_log').count, 4, 'the rung offers min(spare, cap) = 4 charcoal inputs')
+  assert.equal(names[3], 'oak_log', 'the rung offer rides the non-metal tail')
+})
+
+// (v0.593.0) THE CLOSED-GATE TWIN - the legacy byte pinned where it still holds:
+// logs AT the lifeline (2) never smelt, the tool-bootstrap reserve stands.
+test('smeltablesIn CLOSED GATE: logs at the lifeline stay unsmeltable (the legacy byte)', () => {
+  const bot = makeMockBot({
+    items: [item('sand', 30), item('cobblestone', 12), item('oak_log', 2), item('iron_ore', 5), item('dirt', 64)]
+  })
+  const plan = smeltablesIn(bot)
+  const names = plan.map(p => p.name)
+  assert.ok(!names.includes('oak_log'), 'the 2-log lifeline never enters the furnace')
+  assert.equal(plan.find(p => p.name === 'cobblestone').count, 4)
+  assert.equal(names[0], 'iron_ore')
+})
+
+// (v0.593.0) THE RUNG BATTERY - the gate's own arithmetic, the face's own shapes.
+test('charcoal rung: the famine face offers exactly one log (spare = total - reserve)', () => {
+  // fleet 37171678894's pocket shape: logs 3, sticks 5, planks 5, coals 0
+  const bot = makeMockBot({
+    items: [item('oak_log', 3), item('stick', 5), item('oak_planks', 5), item('dirt', 10)]
+  })
+  const plan = smeltablesIn(bot)
+  assert.deepEqual(plan, [{ name: 'oak_log', count: 1 }], 'the famine pocket offers 1 charcoal input, nothing else is smeltable')
+})
+
+test('charcoal rung: a held solid fuel keeps the gate shut even beside a log mountain', () => {
+  for (const fuel of ['coal', 'charcoal', 'coal_block', 'dried_kelp_block', 'blaze_rod']) {
+    const bot = makeMockBot({ items: [item('oak_log', 20), item(fuel, 1)] })
+    const names = smeltablesIn(bot).map(p => p.name)
+    assert.ok(!names.includes('oak_log'), `${fuel} held - the rung never competes with real fuel`)
+  }
+})
+
+test('charcoal rung: the dominant held species rides, the cap holds at 4', () => {
+  const bot = makeMockBot({ items: [item('birch_log', 5), item('oak_log', 2)] })
+  assert.deepEqual(smeltablesIn(bot), [{ name: 'birch_log', count: 4 }], 'birch dominates (5 vs 2), the cap bounds the batch at 4')
+})
+
+test('charcoal rung: the metal class still leads, the offer rides the non-metal tail', () => {
+  const bot = makeMockBot({ items: [item('oak_log', 9), item('raw_copper', 17)] })
+  assert.deepEqual(
+    smeltablesIn(bot).map(p => p.name),
+    ['raw_copper', 'oak_log'],
+    'the metal precedence stands; the rung offer rides behind it'
+  )
+})
+
+test('charcoal rung: the nine overworld logs all map to charcoal, all want a furnace', () => {
+  const logs = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'dark_oak_log', 'acacia_log', 'mangrove_log', 'cherry_log', 'pale_oak_log']
+  for (const log of logs) {
+    assert.equal(SMELT_OUTPUT[log], 'charcoal', `${log} -> charcoal`)
+    assert.equal(machineFor(log), 'furnace', `${log} wants the plain furnace (blast rejects it, the fallback chain must never try it first)`)
+  }
+})
+
+test('charcoal rung: junk floors - fractional log counts read the floored spare, a dead inventory stays closed', () => {
+  // fractional counts: 2.7 total logs floors to 2 -> the spare reads 0, the gate stays shut
+  const frac = makeMockBot({ items: [item('oak_log', 2.7)] })
+  assert.deepEqual(smeltablesIn(frac), [], '2.7 logs floor to 2 - the lifeline holds, no fractional offers')
+  // fractional dominance floors per stack: 5.5 logs -> spare 3, the offer floors to 3
+  const frac2 = makeMockBot({ items: [item('oak_log', 5.5)] })
+  assert.deepEqual(smeltablesIn(frac2), [{ name: 'oak_log', count: 3 }], '5.5 logs floor to 5 - the spare 3 rides integer')
+  // an empty pocket is the honest closed gate
+  const empty = makeMockBot({ items: [] })
+  assert.deepEqual(smeltablesIn(empty), [])
+  // stems are NOT the rung's vocabulary (the lean law - the fleet's world never yields them)
+  const stem = makeMockBot({ items: [item('crimson_stem', 20)] })
+  assert.deepEqual(smeltablesIn(stem), [], 'stems stay outside the rung')
 })
 
 // (v0.106.0) THE METAL PRECEDENCE - run94 (35841864758) measured the ladder

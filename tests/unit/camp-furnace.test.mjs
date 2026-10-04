@@ -85,15 +85,31 @@ test('ensureCampFurnace: a machine near exits before ANY build step (light fake 
   assert.equal(crafted, 0, 'no craft beside an existing machine')
 })
 
-test('ensureCampFurnace: nothing to smelt exits cleanly (empty pockets)', async () => {
+test('ensureCampFurnace: nothing to smelt exits cleanly (the lifeline pocket)', async () => {
   const bot = {
     entity: { position: { distanceTo: () => 2 } },
-    inventory: { items: () => [{ name: 'oak_log', count: 5 }] }, // logs are never smelted
+    inventory: { items: () => [{ name: 'oak_log', count: 2 }] }, // at the lifeline - the rung's gate stays closed
     findBlocks: () => [],
     findBlock: () => null
   }
   const r = await ensureCampFurnace(bot, { log: () => {} })
   assert.deepEqual(r, { built: false, why: 'nothing to smelt' })
+})
+
+// (v0.593.0) THE CHARCOAL RUNG re-priced the old 'logs are never smelted' pin:
+// logs 5 with ZERO solid fuel is the famine face - the gate offers the spare 3,
+// the smelt gate PASSES, and the honest next refusal is the build's own cobble
+// gate (a furnace must exist before any charcoal converts; the yard bay owns
+// the machines in the field, the camp build prices its own cobble here).
+test('ensureCampFurnace: the rung offer proceeds to the cobble gate (the famine face)', async () => {
+  const bot = {
+    entity: { position: { distanceTo: () => 2 } },
+    inventory: { items: () => [{ name: 'oak_log', count: 5 }] }, // logs 5, zero solid fuel: the rung offers 3
+    findBlocks: () => [],
+    findBlock: () => null
+  }
+  const r = await ensureCampFurnace(bot, { log: () => {} })
+  assert.deepEqual(r, { built: false, why: 'cobble 0/8' }, 'the rung offer passes the smelt gate; the build prices its own cobble')
 })
 
 test('ensureCampFurnace: the cobble gate refuses honestly (7 of 8)', async () => {
