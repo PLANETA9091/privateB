@@ -14407,3 +14407,22 @@ Work Log:
 Stage Summary:
 - Master = cdc66a0 (pkg 0.593.0). The cache family has its row and its first verdict names the builder's race; the stall whale is GONE (0 stalled mass), the bank arm turned healthy, the storm halved, the deep anchor's seat priced a third time with a NEW killer (low-o2 8/8).
 - NEXT FIRE: (1) MINE fleet 37173632953's face (60a4162 = v0.592.0): the overdue owners' FIRST read ('one seat owns the old ground' vs 'spread'), the far/near lens's FIRST read (geometry vs the storm's hand), the pool's next read (14310u -> ?), the storm's next face (677 -> ?). (2) read CI on cdc66a0 (37174736179) - must be green. (3) when the lane clears, dispatch the 0.593.0 tree - the cached-skip grain's first flight (expect 'the builder's race is the front' or the clock). (4) THE BUILDER'S RACE CURE queues (the ask vs the cache builder's window - the cache's pre-build or the ask's own wait); the low-o2 ladder killer queues (8/8 drowned ascents - the water rescue's seat); the deep anchor stays queued behind TWO lens reads now (the gate lens priced the seat a third time). (5) OPEN FRONTS: the pool's mixed verdict (14310u, aging owns 70%), the pocket whale (611u/95s, F11 726u live), unaccounted 504u, the commons' source (dry 3/3), the storm's F2 50%. (6) Version next 0.594.0 (origin x3 pre-add/pre-commit/post-rebase GATING; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-1139
+Agent: Super Z (main)
+Task: fire 1139 (cron 415967) - v0.594.0 THE CHARCOAL RUNG (the commons' source's own pump)
+
+Work Log:
+- Sandbox DIED again (fresh clone + npm install; identity re-set).
+- LANE STATE READ: master 0.592.0 (fire 1100) + 0.593.0 mid-fire (fire 1130, THE CACHED-SKIP GRAIN); the lane already mined the 37169265512 face (the vertical gate census + the open's dist lens); CI on 909999f CANCELLED (superseded); the un-read face was 37171678894 (the stall stage's first flight).
+- FACE MINED (37171678894, v0.589.0): the stall whale DISSOLVED to 0 (timeout 388u/388u 100% - the staged tokens honestly silent); the pocket whale F3 388u = 63.5% of 611u unbanked (bank flow 1.8u/s needs 337s past the deadline); the commons dry the THIRD fire (asked 3, delivered 0) + inflow dry 2/2; bands mid 3/3; pool 14310u (overdue 10747->2136); storm halved (677); conversion 73.5%; bank arm 11/19 silent (134u); torched=8.
+- THE SEAT READ: the stick-dry rungs fire and break (F1's chain lands sticks 4-6 then 'skip (no coal)' - the famine is COAL-side) and the mined tally carries stone=0 (the fleet NEVER mines coal ore). The tithe fires only on overage > FUEL_TITHE_BOUND 6 - a stock lens reads vacuous. fuelbank.mjs itself named the cure: 'charcoal the renewable one - a future dedicated leg'.
+- DELIVERED v0.594.0 THE CHARCOAL RUNG (src/lib/smelting.mjs): SMELT_OUTPUT grows the nine overworld logs -> charcoal; smeltablesIn's LOG_RE delete grows the gate (zero solid fuel AND logs above the lifeline 2 -> the dominant species, min(spare, 4)); ZERO wiring edits - the carriesSmelt gate, the solidPick, the torch count, the tithe's FUEL_COMMON_ORDER all read charcoal today. The conversion fuel rides pickFuel's wood margin (the tool chain never cannibalized).
+- Tests: the evolved 344 pin, the closed-gate twin, the fuel-hold pin (5 fuels), the face anchor (oak_log:3 -> 1), the species/cap pins, the metal ride, the nine-map pin, the junk floors + the camp-furnace evolution ('cobble 0/8' honest chain + the lifeline twin). Battery: unit 255/255 PASSED (the stale 'logs are never smelted' pin caught by the battery itself).
+- COLLISION #62 GATED PRE-ADD (cdc66a0 took 0.593.0 mid-fire, verticalgate.mjs, zero overlap; re-slot 0.594.0 before add); rebase conflict on package.json resolved line-wise; the POST-REBASE GATE re-read origin and GATED the push - push CLEAN b72d678..16bf7bf.
+- Dispatch: NONE (the lane's 37173632953 IN_PROGRESS - the max-one-active law).
+
+Stage Summary:
+- Master = 16bf7bf (pkg 0.594.0). The commons' source has its pump; the next face reads charcoal land.
+- NEXT FIRE: (1) read CI on 16bf7bf. (2) read fleet 37173632953's face (the overdue owners' row + the far/near lens + the cached-skip grain first flights). (3) dispatch 0.594.0 when lawful - the rung's first flight ('took N x charcoal', the torch cadence, the tithe's maturity). (4) OPEN FRONTS: the pocket whale F3 388u, the bank arm's fifth face, the storm band, the cached-skip builder's race. (5) Version next 0.595.0 (origin x3 GATING). Identity: PLANETA9091.
