@@ -80,3 +80,38 @@ test('CONTRACT PIN: the field face parses whole and the priced form joins the se
   assert.equal(census.secs.sum, 95, 'the sum carries both clocks (57 + 38)')
   assert.equal(census.gains.sum, 25, 'the gains side stays whole (11 + 14)')
 })
+
+// (v0.640.0) THE ALREADY-OUT ZERO - the v0.625.0 law's own tail: the walkable-
+// surface pair was priced, but ONE secs-less ok return slipped it. MEASURED
+// (fleet 37230426426, the v0.637.0 face): the final climb emitter prints every
+// ok result (no gained > 0 gate there - the climb-out emitters never print a
+// gained-0 row), and four already-out verdicts rode it as 'OK +0 levels
+// (0 steps, 0 dug, undefineds)' - F3/F8/F17/F19, the literal junk byte, the
+// climb's zero cost unreadable. The `start` clock lives below the plan gate
+// (TDZ), so the return books the constant 0 - the 'stopped' gate's own
+// precedent: a climb that never ran costs 0 climb seconds.
+test('REGRESSION PIN (v0.640.0): the already-out return books its honest zero (the last secs-less ok return is gone)', () => {
+  const zero = minerSrc.split('return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0, secs: 0 }').length - 1
+  assert.equal(zero, 1, 'the already-out return carries secs: 0 exactly once (the plan gate is the only producer)')
+  const bare = minerSrc.match(/return \{ ok: true, reason: `already out \(\$\{plan\.source\}\)`, gained: 0, dug: 0, steps: 0 \}/)
+  assert.equal(bare, null, 'the secs-less already-out shape must not remain - it re-prints the literal undefineds on the next final climb')
+})
+
+test('CONTRACT PIN (v0.640.0): the zero clock parses as a priced zero (the shared OK tail the final climb emitter interpolates)', () => {
+  // the cured source's tail: '..., 0s)' - the honest zero is a TIMED row
+  const cured = parseClimbOut('F3 climb out (trip): OK +0 levels (0 steps, 0 dug, 0s)')
+  assert.equal(cured.verdict, 'ok')
+  assert.equal(cured.gained, 0)
+  assert.equal(cured.secs, 0, '0s reads secs 0 - a priced zero, never the null unknown')
+  // the held undefineds tolerance stays (the old faces keep parsing)
+  const held = parseClimbOut('F8 climb out (trip): OK +0 levels (0 steps, 0 dug, undefineds)')
+  assert.equal(held.verdict, 'ok')
+  assert.equal(held.secs, null, 'the held shape stays secs-null')
+  // the census books the zero clocks: they count as priced rows, the sum stays honest
+  const census = climbOutCensus([
+    'F3 climb out (trip): OK +0 levels (0 steps, 0 dug, 0s)',
+    'F19 climb out (trip): OK +0 levels (0 steps, 0 dug, 0s)'
+  ])
+  assert.equal(census.secs.n, 2, 'both zero clocks count as priced rows')
+  assert.equal(census.secs.sum, 0, 'the sum stays 0 + 0 - the stamp invents nothing')
+})

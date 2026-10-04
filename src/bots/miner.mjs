@@ -5041,7 +5041,16 @@ export function createMiner ({
       // being out proves the climb problem solved: forget any stale exhaustion
       // (v0.18.0) so a later descent never inherits a dead wall's ledger
       bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, feetY: feet0.y, now: Date.now() })
-      return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0 }
+      // (v0.640.0) THE ALREADY-OUT ZERO: the last secs-less ok return books its
+      // honest clock - the climb never started, so the climb's cost is 0s (the
+      // 'stopped' gate's own precedent below). MEASURED (fleet 37230426426, the
+      // v0.637.0 face): 4 final climbs (F3/F8/F17/F19) printed the literal
+      // 'undefineds' - 'OK +0 levels (0 steps, 0 dug, undefineds)' - the
+      // emitter's optional-chained secs reading the absent key; the v0.625.0
+      // law priced the walkable-surface pair, this return slipped it. The
+      // `start` clock lives below the plan gate (TDZ), and an already-out
+      // climb spent zero climb time - the constant 0 is the honest book.
+      return { ok: true, reason: `already out (${plan.source})`, gained: 0, dug: 0, steps: 0, secs: 0 }
     }
     // (v0.18.0) DEEP CLIMB PERSISTENCE: the ladder lives on the bot across
     // calls. From the y=42 aquifer floor one call's budgets (4 fails, 2
