@@ -626,6 +626,44 @@ export function isWalkableSurface (p) {
   return false
 }
 
+// (v0.610.0) THE ALTITUDE-DEMAND GUARD - the plan-vs-ground disagreement's
+// own edge, mined on fleet 37188370162: 'F1 chest ascent (upfront): the yard
+// stands 15 levels up - funding the climb' and 0.4ms later 'climbed +0 levels
+// (dug 0, 0 steps) - the hop ladder is pre-funded'. The v0.23.0 walkable-surface
+// probe answers ONE question - 'am I stuck in a hole/shaft?' (daylight + 2
+// walkable dirs) - and a quarry pit's floor is OPEN SKY: the probe's yes is
+// true while the yard the caller demanded still stands 15 levels up. The
+// verdict then hands a zero-gain landing to the deposit chain (v0.609.0 had
+// to re-classify it downstream - 'failed (zero-gain)' - AFTER the funded
+// clock was written off as a landing). The cure is upstream and surgical:
+// when the CALLER demanded an altitude (its own targetY - not the stale
+// shaft-entry raise inside climbOut, so every plain shaft-exit and the
+// v0.23.0/v0.37.0 stale-entry faces keep their verdict byte for byte) that
+// still stands more than one level above the bot's feet, AND the climb rose
+// nothing (gained <= 0 - the bot may even have settled BELOW its start), the
+// surface handover is a lie below the demand - skipped, and the climb keeps
+// its own funded budgets (the fail ladder, the maxMs fence) toward the
+// demanded level: an honest rise or an honest stall, never a fake landing.
+// A climb that DID rise keeps the handover (the v0.609.0 landed pins ride
+// byte for byte; the partial-rise re-price owns another face, with field
+// data). Junk-safe: an unreadable target or feet keeps the legacy verdict.
+//
+// @param {object} p
+// @param {number|null} [p.targetY] the CALLER's demanded altitude (the yard's
+//   level on the ascent legs; null on every plain climb - the guard stays off)
+// @param {number|null} [p.feetY] the bot's current feet cell y (the handover read)
+// @param {number} [p.gained] the climb's level delta so far (feetNow - feet0)
+// @returns {boolean} true = the demanded altitude is still > 1 above the bot
+//   and nothing was gained - the walkable-surface verdict must NOT fire
+export function climbSurfaceShort ({ targetY = null, feetY = null, gained = 0 } = {}) {
+  const t = Number.isFinite(targetY) ? targetY : null
+  const f = Number.isFinite(feetY) ? feetY : null
+  const g = Number.isFinite(gained) ? gained : 0
+  if (t == null || f == null) return false // junk keeps the legacy verdict
+  if (g > 0) return false // the climb rose - the handover is honest
+  return t - f > 1 // the demanded altitude still stands above the bot
+}
+
 export const RISE_ASSIST_TIMEOUT_MS = 4500
 export const RISE_LONGHOLD_TICKS = 32
 

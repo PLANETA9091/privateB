@@ -20,6 +20,7 @@ import { torchDue, torchWallDirs, torchRestockWanted, countTorches } from '../li
 import {
   pillarTarget, climbableCeiling, isWetCell, traverseStep,
   climbEntry, climbLedgerUpdate, climbStarted, isWalkableSurface, climbOwnerGate,
+  climbSurfaceShort, // (v0.610.0) the altitude-demand guard - the surface verdict never lands below a demanded altitude
   stepDigPlan, STEP_MAX_PASSES, climbDigWindow, climbRearmTicks, CLIMB_REARM_TICKS, riseRecoveryPlan, isDigLanded, digRefusalDetail,
   climbPouncePlan, CLIMB_POUNCE_BACK_TICKS, CLIMB_POUNCE_JUMP_TICKS, // (v0.311.0) the well pounce
   wetWallYield, WET_WALL_YIELD_ROTATIONS, // (v0.312.0) the wet-wall yield
@@ -5439,7 +5440,15 @@ export function createMiner ({
               walkFlat: !!stepC && stepC.boundingBox === 'empty' && !!floorC && floorC.boundingBox === 'empty' && !!belowC && belowC.boundingBox === 'block'
             }
           }
-          if (isWalkableSurface({ skyLit: skyLitBlocked, probes: probesBlocked })) {
+          // (v0.610.0) THE ALTITUDE-DEMAND GUARD: a caller-demanded altitude
+          // (the yard's level on the ascent legs) that still stands above a
+          // bot that rose NOTHING makes the surface verdict a fake landing -
+          // fleet 37188370162's F1: funded at 15 levels up, '+0 (dug 0,
+          // 0 steps)' 0.4ms later, the pit floor IS open sky. Plain climbs
+          // (targetY null) and any climb that rose keep the verdict byte for
+          // byte; a short one keeps digging toward the demand (or fails
+          // honestly on its own budgets).
+          if (isWalkableSurface({ skyLit: skyLitBlocked, probes: probesBlocked }) && !climbSurfaceShort({ targetY, feetY: feetBlocked.y, gained: feetBlocked.y - feet0.y })) {
             const gainedNow = feetBlocked.y - feet0.y
             stats.climbs = (stats.climbs ?? 0) + 1
             bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetBlocked.y, now: Date.now() })
@@ -5604,7 +5613,13 @@ export function createMiner ({
             walkFlat: !!stepC && stepC.boundingBox === 'empty' && !!floorC && floorC.boundingBox === 'empty' && !!belowC && belowC.boundingBox === 'block'
           }
         }
-        if (isWalkableSurface({ skyLit, probes })) {
+        // (v0.610.0) THE ALTITUDE-DEMAND GUARD (the rise-failure path's
+        // mirror of the blocked-step guard above): the probe proves 'not
+        // stuck in a hole', never 'at the demanded yard' - a zero-gain
+        // handover below the caller's targetY is skipped, the funded budgets
+        // keep climbing toward the demand. targetY null and gained > 0 keep
+        // the v0.23.0/v0.37.0 verdicts byte for byte.
+        if (isWalkableSurface({ skyLit, probes }) && !climbSurfaceShort({ targetY, feetY: feetNow.y, gained: feetNow.y - feet0.y })) {
           const gainedNow = feetNow.y - feet0.y
           stats.climbs = (stats.climbs ?? 0) + 1
           bot._climbLedger = climbLedgerUpdate(bot._climbLedger, { ok: true, gained: gainedNow, feetY: feetNow.y, now: Date.now() })

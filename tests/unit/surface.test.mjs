@@ -16,7 +16,8 @@ import {
   veinDigRefusal, VEIN_DROP_REFUSE,
   verticalDoomPlan, VERTICAL_DOOM_MIN_DY, climbTargetY,
   wetEscapeGate, wetEscapeAccount, WET_ESCAPE_WALK_CEILING, chestVerticalDoom,
-  wetCeilingAscendGate, WET_CEILING_DIG_BUDGET // (v0.300.0) the wet-ceiling ascend
+  wetCeilingAscendGate, WET_CEILING_DIG_BUDGET, // (v0.300.0) the wet-ceiling ascend
+  climbSurfaceShort // (v0.610.0) the altitude-demand guard
 } from '../../src/lib/surface.mjs'
 
 test('pillarTarget: a recorded shaft entry y above the feet wins outright', () => {
@@ -831,4 +832,76 @@ test('WIRING PIN: the wet-ceiling ascend rides the blockedWet branch (v0.300.0)'
     'the gate consumes the per-climb counter')
   assert.ok(/catch \{ \/\* the dig lost the race: the rotate ladder owns it \*\/ \}/.test(minerSrc),
     'a lost dig falls through to the rotate ladder byte for byte')
+})
+
+// (v0.610.0) THE ALTITUDE-DEMAND GUARD - the plan-vs-ground disagreement's
+// own edge. Mined face (fleet 37188370162): 'F1 chest ascent (upfront): the
+// yard stands 15 levels up - funding the climb before the leg's walks' and
+// 0.4ms later 'climbed +0 levels (dug 0, 0 steps) - the hop ladder is
+// pre-funded'. The v0.23.0 walkable-surface probe answers 'am I stuck in a
+// hole' (daylight + 2 walkable dirs) - and a quarry pit's floor is open sky -
+// so the probe's yes handed a zero-gain landing to the deposit chain while
+// the demanded yard still stood 15 levels up. The guard skips that verdict;
+// the climb keeps its funded budgets toward the demand.
+test('climbSurfaceShort: the F1 face - the yard 15 up, the pit floor open sky, gained 0 reads SHORT (the verdict must not fire)', () => {
+  // feet 65 at plan time, the yard (targetY) 80 - the funded demand; the
+  // instant handover read the bot still at 65 with nothing gained
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 65, gained: 0 }), true)
+})
+
+test('climbSurfaceShort: a climb that ROSE keeps the handover (the v0.609.0 landed pins ride byte for byte)', () => {
+  // the bot rose 3 of 15: the partial-rise handover is an honest landing for
+  // the executors - re-pricing it owns another face, with field data
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 68, gained: 3 }), false)
+  // even a full rise at the demand reads honest
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 80, gained: 15 }), false)
+})
+
+test('climbSurfaceShort: a settled-back bot (negative gained) below the demand reads SHORT', () => {
+  // gravity settled the bot one BELOW its start during the failed step
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 64, gained: -1 }), true)
+})
+
+test('climbSurfaceShort: the boundary - one level short is the verdict own ground, two is the lie', () => {
+  // targetY - feetY > 1 is the guard's arithmetic; a bot within 1 of the
+  // demand IS at the yard (the one-level step the walk ladder owns)
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 79, gained: 0 }), false)
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 78, gained: 0 }), true)
+})
+
+test('climbSurfaceShort: targetY null (every plain climb) keeps the legacy verdict - the v0.23.0/v0.37.0 faces byte for byte', () => {
+  // the plain shaft-exit caller and the stale-entry raise (raised INSIDE
+  // climbOut from stats.shaftEntryY) never pass the caller's targetY - the
+  // F2 'stale entry demanded levels the terrain no longer owes' case keeps
+  // its walkable-surface verdict untouched
+  assert.equal(climbSurfaceShort({ targetY: null, feetY: 65, gained: 0 }), false)
+  assert.equal(climbSurfaceShort({ feetY: 65, gained: 0 }), false)
+})
+
+test('climbSurfaceShort: junk reads are safe (the legacy verdict fires)', () => {
+  assert.equal(climbSurfaceShort({ targetY: 'junk', feetY: 65, gained: 0 }), false)
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: null, gained: 0 }), false)
+  assert.equal(climbSurfaceShort({ targetY: NaN, feetY: 65 }), false)
+  assert.equal(climbSurfaceShort({}), false)
+  assert.equal(climbSurfaceShort(), false)
+  // a junk gained reads 0 (no rise proven) - the demand still rules
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 65, gained: 'junk' }), true)
+})
+
+test('WIRING PIN: the altitude-demand guard rides BOTH walkable-surface call sites (v0.610.0)', () => {
+  const minerSrc = fs.readFileSync(new URL('../../src/bots/miner.mjs', import.meta.url), 'utf8')
+  assert.ok(/climbSurfaceShort,\s*\/\/ \(v0\.610\.0\)/.test(minerSrc),
+    'the guard is imported (the wiring is live, not dead code)')
+  // the blocked-step site (v0.311.0's neighbor) and the rise-failure site
+  // (v0.23.0's own verdict) BOTH read the guard - either path can hand the
+  // instant zero-gain landing the face mined
+  const guardCount = minerSrc.split('!climbSurfaceShort({ targetY,').length - 1
+  assert.equal(guardCount, 2, 'the guard rides exactly the two walkable-surface verdicts')
+  const blockedIdx = minerSrc.indexOf('isWalkableSurface({ skyLit: skyLitBlocked, probes: probesBlocked }) && !climbSurfaceShort({ targetY, feetY: feetBlocked.y')
+  const riseIdx = minerSrc.indexOf('isWalkableSurface({ skyLit, probes }) && !climbSurfaceShort({ targetY, feetY: feetNow.y')
+  assert.ok(blockedIdx > 0, 'the blocked-step verdict reads the guard')
+  assert.ok(riseIdx > blockedIdx, 'the rise-failure verdict reads the guard (the later site)')
+  // the guard reads the CALLER's targetY (not raisedTargetY) - the stale-entry
+  // raise inside climbOut must never trigger the skip
+  assert.ok(minerSrc.includes('!climbSurfaceShort({ targetY,'), 'the guard consumes the caller-owned targetY')
 })
