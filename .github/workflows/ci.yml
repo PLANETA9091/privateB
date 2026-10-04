@@ -66,6 +66,15 @@ jobs:
       FLEET_TEST_BOTS: '2'
       FLEET_TEST_SECONDS: '90'
       FLEET_TEST_MIN_BLOCKS: '4'
+      # (v0.631.0) THE INTEGRATION HEADROOM - the smelting integration test OOM'd
+      # on the runner (run 37219683279, b94c045): 'Ineffective mark-compacts near
+      # heap limit' at 3962.7MB - Node 22's DEFAULT old-space boundary on
+      # ubuntu-latest (the fleet job below sets its own 3584 cap for the same
+      # bot+server workload; this job set none, so the default cap ruled). The
+      # headroom is the evidence-backed first cure: if the OOM moves past 6GB,
+      # the leak is code-side and the next face prices it with the new boundary;
+      # if it passes, the suite needed headroom, not a leak fix.
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
 
