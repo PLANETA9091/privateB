@@ -929,6 +929,96 @@ test('bridgePlan: the pit donor rides the gates - falling bots dig nothing, the 
   assert.match(spent.why, /the bridge budget is spent \(8\/8\)/, 'the fill budget stays the first gate')
 })
 
+// (v0.624.0) THE BELOW-FEET PROBE - the donor's own pit-maker, priced by
+// fleet 37209388659 (the donor's first field flight): 0 donate lines against
+// 6 legacy 'no placeable block in the pocket' refusals - the open-yard empty
+// pocket has AIR at every lateral (the probe found nothing to dig); the
+// diggable mass is the ground UNDER the bot. The probe rides LAST (every
+// lateral byte holds) and the landing cell below it must read 'block' - one
+// read covers the void and the lava floor (the bot must drop exactly ONE
+// into its own pit, never past it).
+test('pitDonor: the below-feet probe - the open-yard pit-maker rides LAST, the lateral bytes hold', () => {
+  // the open yard: every lateral reads air, the ground underfoot is dirt
+  const openYard = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT, '10,62,20': STONE
+  })
+  const pb = pitDonor({ feet: cell(10, 64, 20), d: D, read: openYard, items: [] })
+  assert.ok(pb, 'the ground underfoot donates bare-handed when the laterals are air')
+  assert.deepEqual({ x: pb.cell.x, y: pb.cell.y, z: pb.cell.z }, { x: 10, y: 63, z: 20 }, 'the probe cell is the below-feet cell')
+  assert.equal(pb.name, 'dirt')
+  // the lateral byte holds: a diggable lateral wins BEFORE the below probe
+  const lateralFirst = cellWorld({
+    '11,64,20': AIR, '9,64,20': DIRT, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT, '10,62,20': STONE
+  })
+  const pl = pitDonor({ feet: cell(10, 64, 20), d: D, read: lateralFirst, items: [] })
+  assert.deepEqual({ x: pl.cell.x, y: pl.cell.y, z: pl.cell.z }, { x: 9, y: 64, z: 20 }, 'the lateral keeps its byte - the below probe is last')
+  // the landing guard: the void (null) and the fluid both refuse the dig
+  const voidBelow = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT
+  })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: voidBelow, items: [] }), null, 'no landing read - the bot would fall PAST the pit')
+  const lavaBelow = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT, '10,62,20': WATER
+  })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: lavaBelow, items: [] }), null, 'a fluid landing refuses the dig (the lava-floor class)')
+  // the drop guarantee holds below: stone needs the pick, dirt never does
+  const stoneBelow = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': STONE, '10,62,20': STONE
+  })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: stoneBelow, items: [] }), null, 'stone underfoot without a pick drops NOTHING (the granite lesson)')
+  const ps = pitDonor({ feet: cell(10, 64, 20), d: D, read: stoneBelow, items: PICK_POCKET })
+  assert.ok(ps, 'a pick mines the stone underfoot')
+  assert.equal(ps.name, 'stone')
+  // the below cell itself must be diggable BLOCK: a fluid underfoot donates nothing
+  const fluidUnder = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': WATER, '10,62,20': STONE
+  })
+  assert.equal(pitDonor({ feet: cell(10, 64, 20), d: D, read: fluidUnder, items: PICK_POCKET }), null, 'a fluid cell underfoot donates nothing')
+})
+
+test('bridgePlan: the below-feet donor converts the open-yard empty pocket - the landing guard keeps the legacy byte over the void and the fluid', () => {
+  const openYard = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT, '10,62,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read: openYard, items: [] })
+  assert.deepEqual(p, {
+    ok: true, kind: 'donor',
+    cell: p.cell, donorName: 'dirt', item: null, placedNext: 0
+  }, 'the open-yard empty pocket digs its own pit (the verdict rides the same donor form - the lens parses it unchanged)')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 10, y: 63, z: 20 })
+  // the landing guard keeps the legacy byte: no landing read (the void) or a
+  // fluid landing - the open yard honestly refuses, the ladder owns it
+  const voidBelow = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT
+  })
+  const pv = bridgePlan({ feet: cell(10, 64, 20), d: D, read: voidBelow, items: [] })
+  assert.equal(pv.ok, false)
+  assert.match(pv.why, /^no placeable block in the pocket$/, 'the void keeps the legacy byte')
+  assert.equal('kind' in pv, false)
+  const fluidLanding = cellWorld({
+    '11,64,20': AIR, '9,64,20': AIR, '10,64,21': AIR, '10,64,19': AIR,
+    '10,63,20': DIRT, '10,62,20': WATER
+  })
+  const pf = bridgePlan({ feet: cell(10, 64, 20), d: D, read: fluidLanding, items: [] })
+  assert.equal(pf.ok, false)
+  assert.match(pf.why, /^no placeable block in the pocket$/, 'the fluid landing keeps the legacy byte (the lava-floor class)')
+  // the donor cap and the falling bot end the below donation exactly as the lateral's
+  const capped = bridgePlan({ feet: cell(10, 64, 20), d: D, read: openYard, items: [], donors: PIT_DONOR_MAX })
+  assert.equal(capped.ok, false)
+  assert.match(capped.why, /^no placeable block in the pocket$/, 'the cap ends the below donation')
+  const falling = bridgePlan({ feet: cell(10, 64, 20), d: D, read: openYard, items: [], grounded: false })
+  assert.equal(falling.ok, false)
+  assert.match(falling.why, /^no placeable block in the pocket$/, 'a falling bot digs nothing underfoot')
+})
+
 test('bridgePlan: an unreadable self cell never fills blind (the chunk-desync class)', () => {
   // a wall exists but the SELF cell read failed - the legacy refusal, never a blind fill
   const read = cellWorld({

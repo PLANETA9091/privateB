@@ -1568,12 +1568,16 @@ export const PIT_DONOR_DIRT = ['dirt', 'grass_block']
 export const PIT_DONOR_STONE = ['stone', 'cobblestone', 'andesite', 'diorite', 'granite', 'cobbled_deepslate', 'tuff', 'netherrack']
 
 /**
- * The pit's own donation probe (v0.621.0): a diggable matrix cell at feet
- * level, never the step bearing (the support the climb builds toward), never
- * underfoot. Direction order is BRIDGE_SELF_WALL_DIRS (deterministic, first
- * match); the vocab a direction accepts depends on the pickaxe - dirt-family
- * always (the drop rides bare-handed), stone-family only with a pick in the
- * pocket. Junk reads refuse the cell, never throw.
+ * The pit's own donation probe (v0.621.0; the below-feet leg v0.624.0): a
+ * diggable matrix cell at feet level, never the step bearing (the support
+ * the climb builds toward); when every lateral reads air/undiggable, the
+ * ground UNDER the bot is the last probe (the pit-maker - the landing cell
+ * below it must read solid, so the dig drops the bot exactly one into its
+ * own pit). Lateral order is BRIDGE_SELF_WALL_DIRS (deterministic, first
+ * match), the below-feet cell rides LAST; the vocab a direction accepts
+ * depends on the pickaxe - dirt-family always (the drop rides bare-handed),
+ * stone-family only with a pick in the pocket. Junk reads refuse the cell,
+ * never throw.
  * @param {{offset: Function}} feet
  * @param {{x: number, z: number}} d
  * @param {Function} read
@@ -1591,6 +1595,30 @@ export function pitDonor ({ feet, d, read, items = null } = {}) {
     if (!b || b.boundingBox !== 'block' || !b.name) continue
     if (PIT_DONOR_DIRT.includes(b.name)) return { cell, name: b.name }
     if (hasPick && PIT_DONOR_STONE.includes(b.name)) return { cell, name: b.name }
+  }
+  // (v0.624.0) THE BELOW-FEET PROBE - the donor's own pit-maker, LAST (every
+  // lateral cell keeps its byte). The donor's first field flight (fleet
+  // 37209388659) read 0 donate lines against 6 legacy pocket refusals: the
+  // open-yard empty pocket has AIR at feet level - the diggable mass is the
+  // ground UNDER the bot. Dig it and the bot drops ONE into its own pit: the
+  // pit walls become the lateral probe's geometry, the drop refunds the
+  // pocket (dirt/cobble ride PILLAR_BLOCKS), and the climb loop re-judges
+  // from the landed feet (it re-derives feet every pass; the waitGround gate
+  // owns the fall). THE LANDING GUARD: the cell below the probe must read
+  // 'block' - one read covers both dangers (the void's empty reads and the
+  // lava floor's fluid reads; a bot that digs over either falls PAST the
+  // pit). Same drop-guarantee vocab: dirt-family bare-handed, stone-family
+  // only with the verified pick. A just-placed fill can be the probe's cell
+  // (the last fill empties the pocket) - the dig refunds the SAME block and
+  // the drop-in self-solves the hole; the donor cap bounds the churn.
+  const below = feet.offset(0, -1, 0)
+  const belowB = rd(below)
+  if (belowB && belowB.boundingBox === 'block' && belowB.name) {
+    const landing = rd(feet.offset(0, -2, 0))
+    if (landing && landing.boundingBox === 'block') {
+      if (PIT_DONOR_DIRT.includes(belowB.name)) return { cell: below, name: belowB.name }
+      if (hasPick && PIT_DONOR_STONE.includes(belowB.name)) return { cell: below, name: belowB.name }
+    }
   }
   return null
 }
