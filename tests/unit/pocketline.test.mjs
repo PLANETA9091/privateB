@@ -832,6 +832,11 @@ test('climbWhyClass: the face\'s own taxonomy - the decorated reasons classify b
   assert.strictEqual(climbWhyClass('No path to the goal! (51 blocks from yard)'), 'unreachable')
   // the bare exhaustion (F11's live reason) keeps its own class
   assert.strictEqual(climbWhyClass('budget exhausted'), 'exhausted')
+  // (v0.586.0) THE CHEST-SCAN CLASS - the chain feed's own scan refusal joins
+  // the taxonomy (fleet 37163977552: 'F14 final bank: 0 (no chest in range)'
+  // stranded 261u while the why book stayed empty - 'other' never rides).
+  assert.strictEqual(climbWhyClass('no chest in range'), 'no-chest')
+  assert.strictEqual(climbWhyClass('No Chest In Range'), 'no-chest')
   // (v0.558.0) THE SENTINEL CLASS - the wet family's second member. Fleet
   // 37121182189's face read 'other carries 2 of 4 (50.0%)' while both cycles
   // were F15's 'wet-sentinel' refusals - the o2-watch guard the mover's own

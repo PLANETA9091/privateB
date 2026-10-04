@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import {
   writeOffWhyRow,
   WRITE_OFF_MIN_UNITS, WRITE_OFF_WHY_SHARE, WRITE_OFF_WHY_LEVERS,
+  climbWhyClass, whyBookToken, // (v0.586.0) the chest-scan class rides the feed's own wash
 } from '../../src/lib/pocketline.mjs'
 
 // the fleet 37161734898 face's own write-off shape: four holders, two classes
@@ -34,6 +35,21 @@ test('the live anchor: the 37161734898 face reads timeout owns the strand', () =
     writeOffWhyRow(faceMiners, { whys: faceWhys }),
     'write-off whys: timeout carries 394u of 578u (68.2%) - the deadline\'s own clock is the front',
   )
+})
+
+test('the chest-scan class: the 37163977552 face named - F14 stood with 261u and no chest answered', () => {
+  // the face's own shape: F14's strand read 'unnamed carries 261u of 261u
+  // (100.0%)' because climbWhyClass dropped 'no chest in range' to 'other'
+  // and whyBookToken never let it ride. The taxonomy grew: the same strand
+  // now names its lever - the yard's chest reach is the front.
+  const miners = [{ username: 'F14', bot: { inventory: { items: () => [...Array(19).fill({ count: 13 }), { count: 14 }] } } }] // 261u over 20 slots - the face's own shape
+  const row = writeOffWhyRow(miners, { whys: new Map([['F14', 'no-chest']]) })
+  assert.equal(
+    row,
+    'write-off whys: no-chest carries 261u of 261u (100.0%) - the yard' + String.fromCharCode(39) + 's chest reach is the front',
+  )
+  // the feed law: the chain feed's token rides whyBookToken's own wash
+  assert.equal(whyBookToken(climbWhyClass('no chest in range')), 'no-chest', 'the chain feed now names the strand - the blind form had no class to ride')
 })
 
 test('each class names its own lever', () => {

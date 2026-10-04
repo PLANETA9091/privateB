@@ -154,6 +154,7 @@ export const WRITE_OFF_WHY_LEVERS = {
   'low-o2': 'the water\'s own clock is the front',
   'unreachable': 'the walk lattice is the front',
   'doom-latched': 'the doom latch is the front',
+  'no-chest': 'the yard\'s chest reach is the front', // (v0.586.0) the scan refusal's own lever - the bot stood with the stake and no chest answered
   'stalled': 'the climb\'s own stall is the front',
   'wet-wall': 'the water\'s wall is the front',
   'wet-sentinel': 'the o2 sentinel is the front',
@@ -726,6 +727,15 @@ export function climbWhyClass (reason) {
   // budget trying - the exhaustion is the messenger, not the cause.
   if (s.includes('unreachable') || s.includes('no path')) return 'unreachable'
   if (s.includes('exhausted')) return 'exhausted'
+  // (v0.586.0) THE CHEST-SCAN CLASS - the chain feed's own scan refusal joins
+  // the taxonomy. Fleet 37163977552's face read the why mass's first verdict
+  // BLIND ('unnamed carries 261u of 261u (100.0%) - the whys stayed blind')
+  // while the per-bot row one line up named the strand: 'F14 final bank: 0
+  // (no chest in range)' - the chain feed RAN, the class fell to 'other',
+  // whyBookToken dropped it, the book stayed empty. A known family must never
+  // ride 'other' (the v0.558.0 law). Root cause first: the bot STOOD with the
+  // stake and no chest answered the scan - the yard's reach is the wall.
+  if (s.includes('no chest in range')) return 'no-chest'
   if (s.includes('stopped')) return 'stopped'
   return 'other'
 }
