@@ -130,5 +130,10 @@ test('the wiring pin: the feed, the ledger and the print ride fleet19', () => {
 test('the wiring pin: the push sites compute the distance (the sweep\'s own catch scope)', () => {
   const lib = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
   const hits = lib.match(/dist: smeltAttemptDist\(bot, machineBlock\)/g) || []
-  assert.equal(hits.length, 4, 'all four unreachable push sites carry the dist field')
+  assert.equal(hits.length, 6, 'the four sweep push sites + the two smeltBatch returns carry the dist field (v0.584.0 cured the blind form\'s feed: the doom return and the ladder-exhausted return)')
+})
+
+test('the wiring pin: the batch-level attempt forwards the distance (the v0.584.0 feed cure)', () => {
+  const lib = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
+  assert.match(lib, /attempts\.push\(\{ name, machine: machineKind, dist: res\.dist, reason: res\.reason \}\)/, 'the honest-attempts push forwards the batch\'s own dist - the blind form\'s legacy paths feed the bands now')
 })

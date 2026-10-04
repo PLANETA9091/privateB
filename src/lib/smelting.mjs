@@ -1028,7 +1028,7 @@ export async function smeltBatch (bot, {
   if (!walked) {
     const doom = chestVerticalDoom({ botPos: bot?.entity?.position ?? null, chestPos: machineBlock.position })
     if (doom.doom) {
-      return { smelted: 0, rescued: 0, fired: 0, reason: `machine unreachable (${doom.why} - the walk ladder cannot climb)` }
+      return { smelted: 0, rescued: 0, fired: 0, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${doom.why} - the walk ladder cannot climb)` }
     }
   }
   // (v0.130.0) THE MACHINE WALK NEVER TAKES THE FREE REFUSAL: the doomed
@@ -1153,7 +1153,7 @@ export async function smeltBatch (bot, {
     }
   }
   if (!walked) {
-    return { smelted: 0, rescued: 0, fired: 0, reason: `machine unreachable (${lastWalkError})` }
+    return { smelted: 0, rescued: 0, fired: 0, dist: smeltAttemptDist(bot, machineBlock), reason: `machine unreachable (${lastWalkError})` }
   }
 
   let furnace
@@ -1606,7 +1606,7 @@ export async function smeltInventory (bot, {
           // now, so a zero verdict names every machine it lost to.
           // (v0.137.0) 'fired' is a SUCCESS shape, not a loss - the batch is in
           // the machine and the harvest reads it later.
-          attempts.push({ name, machine: machineKind, reason: res.reason })
+          attempts.push({ name, machine: machineKind, dist: res.dist, reason: res.reason })
           // (v0.93.0) the spent walk slice closes the scan (see the flag above)
           if (/visit budget spent \(walk slice\)/.test(res.reason)) { sliceSpent = true; break }
         }
