@@ -40,7 +40,13 @@ const SHAPES = [
       sliceS: m[9] != null ? Number(m[9]) : null,
     }),
   },
-  { re: new RegExp(OPEN_TAG + 'chest holds no fuel$'), build: (m) => ({ bot: m[1], kind: 'dry' }) },
+  // (v0.599.0) the dry read's two faces: the bare legacy form (chest null -
+  // the pre-0.599.0 fleets and the torn lines stay members) and the named
+  // form (the emitter's own cell - the books' dry face closes on the chest
+  // it actually read, the tithe's filled chest becomes comparable)
+  { re: new RegExp(OPEN_TAG + 'chest holds no fuel(?: at \\[(-?\\d+),(-?\\d+),(-?\\d+)\\])?$'), build: (m) => (m[2] != null
+    ? { bot: m[1], kind: 'dry', chest: { x: Number(m[2]), y: Number(m[3]), z: Number(m[4]) } }
+    : { bot: m[1], kind: 'dry' }) },
   {
     re: new RegExp(OPEN_TAG + 'took (\\d+) units \\(([^)]*)\\) from a yard chest$'),
     build: (m) => ({ bot: m[1], kind: 'took', units: Number(m[2]), what: m[3] }),
@@ -105,6 +111,10 @@ export function fuelCommonsCensus (lines) {
     // (v0.596.0) the seats: per-bot per-kind tallies (additive, the seats'
     // own grain - the class rows stay byte for byte)
     byBot: {},
+    // (v0.599.0) the dry reads' own scatter: only a NAMED chest rides (the
+    // bare form cannot scatter) - 'x,y,z' -> count, plus the named split
+    dryNamed: 0,
+    dryByChest: {},
   }
   if (!Array.isArray(lines)) return c
   const seenBots = new Set()
@@ -128,6 +138,11 @@ export function fuelCommonsCensus (lines) {
       }
       if (s.kind === 'took') c.tookUnits += s.units
       if (s.kind === 'budget') { c.budgetTaken += s.taken; c.budgetWant += s.want }
+      if (s.kind === 'dry' && s.chest) {
+        c.dryNamed++
+        const key = `${s.chest.x},${s.chest.y},${s.chest.z}`
+        c.dryByChest[key] = (c.dryByChest[key] || 0) + 1
+      }
       continue
     }
     if (OUTCOME_TORN_RE.test(line)) c.unparsed++
@@ -230,4 +245,38 @@ export function fuelCommonsOwnerRow (c, kind = null) {
     return `${head} - ${top.name} holds ${pct}% (${top.n}) - one seat owns the ask's deaths (that seat's own slice is the cure)`
   }
   return `${head} - top ${top.name}=${top.n} (${pct}%) - the deaths are spread (the slice is the fleet's front)`
+}
+
+// (v0.599.0) THE DRY READS' OWN SCATTER ROW: WHICH chest owns the dry? The
+// books' three lines are the deposit ('banked N items at (x,y,z)' - the
+// tithe's inflow names its chest), the ask's anchor ('chest at [x,y,z]'),
+// and the dry read - the one anonymous line, until the emitter named its
+// chest. Fleet 37178311099's face: the tithe banked 28 x coal into
+// [-108,71,407], the asks anchored [-108,71,401] and the sibling cells,
+// the grain read 'asked 4, delivered 0, dry 4' - whether the filled chest
+// EVER got read is the divergence's own face, and only a named dry read
+// can answer it. The half boundary FUEL_ASK_SHARE splits the verdicts -
+// one chest holds the half -> that anchor's own read is the cure; the
+// reads scatter -> the divergence itself is the front. The bare form's
+// anonymous fleet reads its own verdict (the always-print law).
+// @param {{byKind?: {dry?: number}, dryNamed?: number, dryByChest?: Record<string, number>}|null} c a fuelCommonsCensus result
+// @returns {string}
+export function fuelCommonsDryScatterRow (c) {
+  const dry = c && c.byKind && Number.isFinite(c.byKind.dry) ? c.byKind.dry : 0
+  const anonymous = `fuel commons dry reads: ${dry} dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)`
+  const map = c && typeof c.dryByChest === 'object' && c.dryByChest ? c.dryByChest : null
+  if (!map) return anonymous
+  const chests = Object.entries(map)
+    .map(([cell, n]) => ({ cell, n: Number.isFinite(n) ? n : 0 }))
+    .filter(e => e.n > 0)
+    .sort((a, b) => (b.n - a.n) || (a.cell < b.cell ? -1 : 1))
+  if (chests.length === 0) return anonymous
+  const total = chests.reduce((s, e) => s + e.n, 0)
+  const top = chests[0]
+  const pct = ((top.n / total) * 100).toFixed(1)
+  const head = `fuel commons dry reads: ${total} named across ${chests.length} chest(s) (dry ${dry}) - top [${top.cell}] x${top.n} (${pct}%)`
+  if (top.n / total >= FUEL_ASK_SHARE) {
+    return `${head} - one chest owns the dry (that anchor's own read is the cure)`
+  }
+  return `${head} - the dry reads scatter (the filled chest never read is the divergence's face)`
 }

@@ -11,6 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseFuelCommonsAsk, fuelCommonsCensus, fuelCommonsRow, FUEL_ASK_SHARE,
+  fuelCommonsDryScatterRow,
 } from '../../src/lib/fuelcommons.mjs'
 
 // the face's own shapes, byte for byte from fleet 37173632953's log
@@ -275,4 +276,91 @@ test('fuelCommonsOwnerRow: the boundary rides FUEL_ASK_SHARE exactly (0.5 trips)
   const c = fuelCommonsCensus([FACE_BUDGET, 'F8 fuel commons: budget spent (0/1 units)'])
   assert.equal(fuelCommonsOwnerRow(c, 'budget'),
     "ask seats (budget): 2 bot(s) carry 2 death(s) - F14 holds 50.0% (1) - one seat owns the ask's deaths (that seat's own slice is the cure)")
+})
+
+// ---------------------------------------------------------------------------
+// (v0.599.0) THE DRY READ'S CHEST - the books' dry face closes on the cell.
+// Fleet 37178311099's face: the tithe banked 28 x coal into [-108,71,407],
+// the asks anchored [-108,71,401] and the sibling cells, the grain read
+// 'asked 4, delivered 0, dry 4' - and every dry read was anonymous, so
+// whether the filled chest ever got read is unanswerable. The emitter names
+// its chest; the parser reads both faces; the census sums the scatter.
+const NAMED_A = 'F18 fuel commons: chest holds no fuel at [-108,71,407]'
+const NAMED_A_TAG = 'F3 [F3] fuel commons: chest holds no fuel at [-108,71,407]'
+const NAMED_B = 'F6 fuel commons: chest holds no fuel at [-138,71,409]'
+const NAMED_C = 'F4 fuel commons: chest holds no fuel at [-108,71,411]'
+const NAMED_NEG = 'F9 fuel commons: chest holds no fuel at [-93,40,-396]'
+const TORN_NAMED = 'F18 fuel commons: chest holds no fuel at [-108,71'
+
+test("parseFuelCommonsAsk: the named dry face reads the chest it actually read (the v0.599.0 emitter's own template)", () => {
+  assert.deepEqual(parseFuelCommonsAsk(NAMED_A), {
+    bot: 'F18', kind: 'dry', chest: { x: -108, y: 71, z: 407 },
+  })
+  assert.deepEqual(parseFuelCommonsAsk(NAMED_A_TAG), {
+    bot: 'F3', kind: 'dry', chest: { x: -108, y: 71, z: 407 },
+  })
+  assert.deepEqual(parseFuelCommonsAsk(NAMED_NEG), {
+    bot: 'F9', kind: 'dry', chest: { x: -93, y: 40, z: -396 },
+  })
+})
+
+test('parseFuelCommonsAsk: the bare legacy dry face stays byte for byte (the pre-0.599.0 record shape)', () => {
+  assert.deepEqual(parseFuelCommonsAsk(FACE_DRY), { bot: 'F7', kind: 'dry' })
+  assert.deepEqual(parseFuelCommonsAsk('F13 [F13] fuel commons: chest holds no fuel'), { bot: 'F13', kind: 'dry' })
+})
+
+test('parseFuelCommonsAsk: the junk battery - torn and garbage cells never parse', () => {
+  assert.equal(parseFuelCommonsAsk(TORN_NAMED), null)
+  assert.equal(parseFuelCommonsAsk('F18 fuel commons: chest holds no fuel at [a,b,c]'), null)
+  assert.equal(parseFuelCommonsAsk('F18 fuel commons: chest holds no fuel at [-108,71,407] tail'), null)
+  assert.equal(parseFuelCommonsAsk(null), null)
+  assert.equal(parseFuelCommonsAsk(42), null)
+})
+
+test('fuelCommonsCensus: the named dry reads sum additively (dryNamed + dryByChest), the bare form cannot scatter', () => {
+  const c = fuelCommonsCensus([NAMED_A, NAMED_A_TAG, NAMED_B, FACE_DRY])
+  assert.equal(c.n, 4)
+  assert.equal(c.byKind.dry, 4)
+  assert.equal(c.dryNamed, 3)
+  assert.deepEqual(c.dryByChest, { '-108,71,407': 2, '-138,71,409': 1 })
+  const bare = fuelCommonsCensus([FACE_DRY, 'F13 [F13] fuel commons: chest holds no fuel'])
+  assert.equal(bare.dryNamed, 0)
+  assert.deepEqual(bare.dryByChest, {})
+})
+
+test('fuelCommonsCensus: the torn named line rides unparsed (the honest sweep holds)', () => {
+  const c = fuelCommonsCensus([TORN_NAMED, 'F18 fuel commons: chest holds no fuel at [a,b,c]'])
+  assert.equal(c.n, 0)
+  assert.equal(c.unparsed, 2)
+})
+
+test('fuelCommonsDryScatterRow: one chest holds the half - that anchor is the cure', () => {
+  const c = fuelCommonsCensus([NAMED_A, NAMED_A_TAG, NAMED_B])
+  assert.equal(fuelCommonsDryScatterRow(c),
+    'fuel commons dry reads: 3 named across 2 chest(s) (dry 3) - top [-108,71,407] x2 (66.7%) - one chest owns the dry (that anchor\'s own read is the cure)')
+})
+
+test('fuelCommonsDryScatterRow: the boundary rides FUEL_ASK_SHARE exactly (0.5 trips, ties ride cell-asc)', () => {
+  const c = fuelCommonsCensus([NAMED_B, NAMED_A])
+  assert.equal(fuelCommonsDryScatterRow(c),
+    'fuel commons dry reads: 2 named across 2 chest(s) (dry 2) - top [-108,71,407] x1 (50.0%) - one chest owns the dry (that anchor\'s own read is the cure)')
+})
+
+test('fuelCommonsDryScatterRow: the reads scatter - the divergence itself is the front', () => {
+  const c = fuelCommonsCensus([NAMED_A, NAMED_B, NAMED_C])
+  assert.equal(fuelCommonsDryScatterRow(c),
+    'fuel commons dry reads: 3 named across 3 chest(s) (dry 3) - top [-108,71,407] x1 (33.3%) - the dry reads scatter (the filled chest never read is the divergence\'s face)')
+})
+
+test('fuelCommonsDryScatterRow: the none forms are verdicts too (the always-print law)', () => {
+  assert.equal(fuelCommonsDryScatterRow(null),
+    'fuel commons dry reads: 0 dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)')
+  assert.equal(fuelCommonsDryScatterRow(fuelCommonsCensus([])),
+    'fuel commons dry reads: 0 dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)')
+  assert.equal(fuelCommonsDryScatterRow(fuelCommonsCensus([FACE_DRY])),
+    'fuel commons dry reads: 1 dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)')
+  assert.equal(fuelCommonsDryScatterRow({}),
+    'fuel commons dry reads: 0 dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)')
+  assert.equal(fuelCommonsDryScatterRow({ byKind: { dry: 2 }, dryNamed: 1, dryByChest: { '[-108,71,407]': 0, junk: null } }),
+    'fuel commons dry reads: 2 dry, none named - the anonymous fleet cannot scatter (the pre-0.599.0 face)')
 })

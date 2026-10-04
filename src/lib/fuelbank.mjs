@@ -1411,8 +1411,16 @@ export async function withdrawFuelCommons (bot, {
         : []
       const plan = fuelWithdrawPlan({ itemsNeeded: ask - taken, chestItems, cap: wantTotal - taken })
       if (!plan) {
-        log('fuel commons: chest holds no fuel')
+        // (v0.599.0) THE DRY READ'S CHEST: the dry face names the chest it
+        // read - fleet 37178311099's books never closed (the tithe banked
+        // 28 x coal into [-108,71,407], the asks anchored [-108,71,401] and
+        // the sibling cells, and every dry read was anonymous - whether the
+        // filled chest ever got read is the divergence's own face). The
+        // deposit names its chest, the anchor names its chest, the ask's
+        // one anonymous line was the dry read. The bare form stays the
+        // parser's torn law (fuelcommons.mjs reads both faces).
         const cell = chest.position.floored ? chest.position.floored() : chest.position
+        log(`fuel commons: chest holds no fuel at [${cell.x},${cell.y},${cell.z}]`)
         exclude.push(cell)
         // (v0.99.0) remember it: ONLY a chest that was opened and READ empty
         // earns a memory entry - a walk failure is transient saturation (the
