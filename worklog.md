@@ -14758,3 +14758,18 @@ Work Log:
 Stage Summary:
 - Master = 883e73b (pkg 0.614.0). The partial landing is barred upstream - the priced cure is wired; the climb verdicts demand closure.
 - NEXT FIRE: (1) read CI 37197449707 + MINE the surviving dispatch (both cc64cf9 = v0.613.0: the demand-closure row's first live print, fillKinds.self, the low-o2 face). (2) The law's FIRST FLIGHT needs its own dispatch: do partials become honest stalls (the why-lens reads the trade)? does F11's +20 closure still land? (3) QUEUES: the fast-stall face (0.7-14s on 8-10-up walls); the whale-walk cure (timeout 232 + night 217); low-o2. (4) OPEN FRONTS: took 0 in eleven runs, builder race, unaccounted 193u. (5) Version next 0.615.0 (origin x3 GATING; explicit paths; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-1930
+Agent: Super Z (main)
+Task: fire 1930 (cron 414125) - v0.615.0 THE SERVER-REFUSED FILL (the self-fill's first flight mined, the new emitter form owned)
+
+Work Log:
+- Fresh sandbox: cloned, master = 142f6dd (pkg 0.614.0, fire-1900's law landed by the parallel lane). READS: push CI 37197622116 (142f6dd) SUCCESS; dispatch 37196201457 (cc64cf9 = v0.613.0) COMPLETED SUCCESS 11:35:30Z - MINED (fleet19.log 262KB): conversion 117.9% (unaccounted 0 - the crater front closed on this face, surplus 346u); the demand-closure row's FIRST LIVE PRINT 'demanded 4, closed 1, partial 1, aborted 2 across 2 bot(s)' - F4 demanded 16 climbed +16 CLOSED (the closure owns a real field landing), F8 9->+1 partial (gap 8); self-fill WORKS (5 landed (self) placements); write-off why tail 598u (timeout 243 / doom-latched 100 / night 255).
+- THE NEW FACE: 15 'the server refused the (self|support) fill' lines (self 9, support 6), ALL 15 with 'post=? (re-read failed)' - the re-read cannot speak after a refusal, the refusal IS the verdict.
+- v0.615.0 THE SERVER-REFUSED FILL (src/lib/climbbridge.mjs, mining-surface only, zero wiring): parseServerRefusedFill owns the form (one-parser-per-emitter, greedy nested tail, keyword re-read flag); census gains refused / refusedKinds / refusedReReadFailed / refusedTorn; the row rides ONE tail clause on EVERY verdict when refused > 0 (' - the server refused N fill(s): self S, support P, R re-read(s) failed (the refusal is the verdict)') - the floor class must not bury the refused mass. Old faces byte-stable.
+- Tests: climbbridge 15/15 (+4 blocks; two fixture bugs caught pre-push: the battery miscount, the torn regex's trailing space). Adjacent: surface, upfrontbook 19, bank-census green; syntax 458/0; integration NOT run locally (fresh sandbox, no server - honest; CI + dispatch arbitrate). GATING x3 (origin 0.614.0 pre-add/pre-commit/post-rebase - slot free). Commit 4d0db0e pushed CLEAN attempt 1. DISPATCH: 204 -> fleet 37199661866 (4d0db0e = v0.615.0 + v0.614.0: THE DEMAND-CLOSURE LAW'S FIRST field flight); push CI 37199655772 same sha. Lane was FREE.
+
+Stage Summary:
+- Master = 4d0db0e (pkg 0.615.0). The self-fill's flight read whole: the fill works, the closure lands in the field, the server-refused fill face named/parsed/priced (15 refusals, 15/15 dead re-reads) - the dead re-read is the wiring-level cure queued.
+- NEXT FIRE: (1) MINE fleet 37199661866: the demand-closure law's first field verdict (partials -> honest stalls?), F11's +20 closure, the demand row's second print, the refused-fill mass. (2) THE DEAD RE-READ CURE (wiring-side): skip the post-placement re-read after a server refusal. (3) QUEUES: the whale F2 243u (three faces); night 255u (untouchable hold); fast-stall. (4) OPEN FRONTS: took 0, builder race. (5) Version next 0.616.0 (origin x3 GATING; explicit paths; lane HOT). Identity: PLANETA9091.
