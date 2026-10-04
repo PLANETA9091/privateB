@@ -7,7 +7,7 @@
 // vanilla tod, the sky); the night hold stays untouchable.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { shedPlan, SHED_SAFETY_MS, SHED_SLACK_MS } from '../../src/lib/bankshed.mjs'
+import { shedPlan, SHED_SAFETY_MS, SHED_SLACK_MS, SHED_SEED_MIN_UNITS } from '../../src/lib/bankshed.mjs'
 import { DUSK_BANK_SAFETY_MS } from '../../src/lib/duskbank.mjs'
 
 const NOW = 1_000_000
@@ -15,11 +15,15 @@ const NOW = 1_000_000
 test('shedPlan: junk reads unknown (never guessed)', () => {
   assert.equal(shedPlan({}).why, 'unknown')
   assert.equal(shedPlan({ pocketUnits: NaN, rate: 1, remainingMs: 1000, budgetMs: 1000 }).why, 'unknown')
-  assert.equal(shedPlan({ pocketUnits: 500, rate: NaN, remainingMs: 1000, budgetMs: 1000 }).why, 'unknown')
-  // a measured rate of zero (or negative) cannot price a need
-  assert.equal(shedPlan({ pocketUnits: 500, rate: 0, remainingMs: 1000, budgetMs: 1000 }).why, 'unknown')
-  assert.equal(shedPlan({ pocketUnits: 500, rate: -1, remainingMs: 1000, budgetMs: 1000 }).why, 'unknown')
-  assert.equal(shedPlan({ pocketUnits: 500, rate: Infinity, remainingMs: 1000, budgetMs: 1000 }).why, 'unknown')
+  // (v0.601.0) the rate leaves the junk gate: a cold flow is the SEED's own
+  // read, not a verdict refusal - a heavy pocket with no clock left reads
+  // 'late' honestly (the fit check), not 'unknown' (the old blind face)
+  assert.equal(shedPlan({ pocketUnits: 500, rate: 0, remainingMs: 1000, budgetMs: 1000 }).why, 'late')
+  assert.equal(shedPlan({ pocketUnits: 500, rate: -1, remainingMs: 1000, budgetMs: 1000 }).why, 'late')
+  assert.equal(shedPlan({ pocketUnits: 500, rate: NaN, remainingMs: 1000, budgetMs: 1000 }).why, 'late')
+  // Infinity is NOT finite - the junk-cold read (Number.isFinite), and the
+  // heavy pocket with no clock left prices the honest 'late'
+  assert.equal(shedPlan({ pocketUnits: 500, rate: Infinity, remainingMs: 1000, budgetMs: 1000 }).why, 'late')
   // the run clock is a measured input - junk never prices a trip
   assert.equal(shedPlan({ pocketUnits: 500, rate: 1, remainingMs: NaN, budgetMs: 1000 }).why, 'unknown')
   assert.equal(shedPlan({ pocketUnits: 500, rate: 1, remainingMs: -1, budgetMs: 1000 }).why, 'unknown')
@@ -260,4 +264,84 @@ test('THE CONSULT SEAT PIN - the ladder, the viability and the label read the sh
     "the arm names itself ('shed' - the 7th label on the 'bank ' filter key)")
   assert.match(FLEET_SRC, /bank trip: shed - the pocket needs /,
     "the cause line names the gap it is curing (the gate's own contract)")
+})
+
+// ---------------------------------------------------------------------------
+// (v0.601.0) THE COLD-START SEED - fleet 37180720652's face: CALM storm,
+// mined=858, pockets 715u across 14 holders - and banked=46 (bank flow
+// 0.0u/s, 17 of 19 bots never armed a pass, 492u rode the write-off). The
+// deadlock: the shed prices its need from the MEASURED flow, flowPriceClock
+// reads rate null on a stood-still window, and the old gate read 'unknown' -
+// a fleet that never banked could never arm the trip that would teach the
+// flow. The seed arms ONE trip on the geometry alone when the pocket's own
+// mass prices it; the measured flow takes over from the second bank on.
+const COLD_TRIP = 172000 // shedTripMs({ dist: 30, climbLevels: 20 }) - the field shape
+const COLD = { rate: null, tripMs: COLD_TRIP, remainingMs: 300000, budgetMs: 248000, now: NOW }
+
+test('shedPlan: THE COLD-START SEED - the face\u0027s own shape arms on the geometry alone', () => {
+  const r = shedPlan({ ...COLD, pocketUnits: 48 })
+  assert.equal(r.go, true)
+  assert.equal(r.why, 'seed')
+  assert.equal(r.untilMs, NOW + COLD_TRIP + SHED_SAFETY_MS)
+  assert.equal(r.needS, null) // the need is unpriceable - the honest nulls
+  assert.equal(r.gapS, null)
+})
+
+test('shedPlan: the seed\u0027s floor - SHED_SEED_MIN_UNITS prices the pocket (the boundary)', () => {
+  assert.equal(SHED_SEED_MIN_UNITS, 40)
+  // below the floor the legacy 'unknown' stands (the end bank covers a light pocket honestly)
+  assert.equal(shedPlan({ ...COLD, pocketUnits: 39 }).why, 'unknown')
+  assert.equal(shedPlan({ ...COLD, pocketUnits: SHED_SEED_MIN_UNITS }).why, 'seed')
+  // a fractional pocket floors before the boundary reads (the floor law)
+  assert.equal(shedPlan({ ...COLD, pocketUnits: 39.9 }).why, 'unknown')
+  assert.equal(shedPlan({ ...COLD, pocketUnits: 40.5 }).why, 'seed')
+})
+
+test('shedPlan: the seed respects the fit - no clock reads late (needS stays null)', () => {
+  const r = shedPlan({ ...COLD, pocketUnits: 748, remainingMs: COLD_TRIP + SHED_SAFETY_MS + SHED_SLACK_MS - 1 })
+  assert.equal(r.go, false)
+  assert.equal(r.why, 'late')
+  assert.equal(r.needS, null)
+  assert.equal(r.remainingMs, COLD_TRIP + SHED_SAFETY_MS + SHED_SLACK_MS - 1)
+  // at the boundary the seed speaks (one ms law parity)
+  const ok = shedPlan({ ...COLD, pocketUnits: 748, remainingMs: COLD_TRIP + SHED_SAFETY_MS + SHED_SLACK_MS })
+  assert.equal(ok.why, 'seed')
+})
+
+test('shedPlan: the seed never double-books - the holding gate reads first', () => {
+  const r = shedPlan({ ...COLD, pocketUnits: 748, tripUntil: NOW + 30000 })
+  assert.equal(r.go, false)
+  assert.equal(r.why, 'holding')
+  assert.equal(r.remainingMs, 30000)
+})
+
+test('shedPlan: the cold junk battery - a junk pocket stays unknown, the seed never guesses', () => {
+  assert.equal(shedPlan({ ...COLD, pocketUnits: NaN }).why, 'unknown')
+  assert.equal(shedPlan({ ...COLD, pocketUnits: Infinity }).why, 'unknown')
+  assert.equal(shedPlan({ ...COLD, pocketUnits: 0 }).why, 'unknown')
+  assert.equal(shedPlan({ ...COLD, pocketUnits: -5 }).why, 'unknown')
+  // the budget is still config - junk stays unknown even on a cold flow
+  assert.equal(shedPlan({ pocketUnits: 748, rate: null, remainingMs: 300000, budgetMs: 0 }).why, 'unknown')
+  assert.equal(shedPlan({ pocketUnits: 748, rate: null, remainingMs: -1, budgetMs: 248000 }).why, 'unknown')
+})
+
+test('shedTripDue: the seed rides the refractory - the churn law is a family law', () => {
+  // 149999ms since the last attempt: silent (the family clock owns the seed too)
+  const r = shedTripDue({ ...FIELD, rate: null, remainingMs: 300000, msSinceBank: SHED_RETRY_MS - 1 })
+  assert.equal(r.due, false)
+  assert.equal(r.why, 'refractory')
+  assert.equal(r.tripMs, COLD_TRIP) // the pricing rides even a refusal
+  // at the cadence the seed speaks
+  const due = shedTripDue({ ...FIELD, rate: null, remainingMs: 300000, msSinceBank: SHED_RETRY_MS })
+  assert.equal(due.due, true)
+  assert.equal(due.why, 'seed')
+  assert.equal(due.untilMs, NOW + COLD_TRIP + SHED_SAFETY_MS)
+})
+
+test('shedTripDue: the MEASURED flow still outranks the seed - a live rate never reads seed', () => {
+  const live = shedTripDue({ ...FIELD, remainingMs: 300000, msSinceBank: SHED_RETRY_MS })
+  assert.equal(live.why, 'shed')
+  assert.equal(live.needS, 680)
+  // the same shape on a cold flow reads the seed (the two faces never blur)
+  assert.equal(shedTripDue({ ...FIELD, rate: null, remainingMs: 300000, msSinceBank: SHED_RETRY_MS }).why, 'seed')
 })

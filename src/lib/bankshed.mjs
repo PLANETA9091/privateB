@@ -148,16 +148,45 @@ export function shedPlan ({
   now = Date.now(),
   tripUntil = 0
 } = {}) {
-  // junk first: a shed is priced, never guessed - the rate is a MEASURED
-  // flow (zero or negative cannot price a need), the budget is config
-  // (zero is impossible - the end bank always has one)
-  if (!fin(pocketUnits) || !fin(rate) || rate <= 0 || !fin(remainingMs) ||
+  // junk first: a shed is priced, never guessed - the budget is config
+  // (zero is impossible - the end bank always has one). (v0.601.0) the RATE
+  // leaves the junk gate - the cold-flow shape is the seed's own read below
+  // (a rate of zero is no longer 'no verdict', it is the cold books).
+  if (!fin(pocketUnits) || !fin(remainingMs) ||
       remainingMs < 0 || !fin(budgetMs) || budgetMs <= 0) {
     return { go: false, why: 'unknown' }
   }
   // an active trip re-reads first - never double-booked, never extended
   if (fin(tripUntil) && tripUntil > now) {
     return { go: false, why: 'holding', remainingMs: tripUntil - now }
+  }
+  // (v0.601.0) THE COLD-START SEED - fleet 37180720652's face: CALM storm,
+  // mined=858, pockets 715u across 14 holders - and banked=46 (bank flow
+  // 0.0u/s, 17 of 19 bots never armed a pass, 492u rode the write-off). The
+  // deadlock: the shed prices its need from the MEASURED bank flow, the
+  // flowPriceClock reads rate null on a stood-still window (<2 samples or
+  // delta<=0), and the old gate returned 'unknown' - a fleet that never
+  // banked can never arm the trip that would teach the flow. The dusk arm
+  // (the other opener) rides the night hold (the v0.140.1 doctrine stands),
+  // so a slow day that crosses the light threshold near dusk never opens
+  // the books at all. THE SEED: when the flow is cold AND the pocket is
+  // heavy (SHED_SEED_MIN_UNITS - F4's own proven pass was 46u, this face's
+  // write-offs rode 66-120u) AND the priced trip fits the run clock, ONE
+  // trip arms on the geometry alone - the books open, the measured flow
+  // takes over from the second bank on. Every other shape keeps its
+  // legacy verdict byte for byte (junk unknown, holding holding, light
+  // light, late late); the refractory in shedTripDue bounds the seed to
+  // the family cadence; the night hold in the wiring gates the sky.
+  const rateLive = fin(rate) && rate > 0
+  if (!rateLive) {
+    if (Math.floor(pocketUnits) < SHED_SEED_MIN_UNITS) {
+      return { go: false, why: 'unknown' }
+    }
+    if (!fin(tripMs) || tripMs < 0 ||
+        remainingMs < tripMs + SHED_SAFETY_MS + SHED_SLACK_MS) {
+      return { go: false, why: 'late', remainingMs, needS: null }
+    }
+    return { go: true, why: 'seed', untilMs: now + tripMs + SHED_SAFETY_MS, needS: null, gapS: null }
   }
   // the leanness law: the end bank covers the pocket (the <= law parity
   // with bankBudgetGapRow - the two rows must never disagree about the
@@ -210,6 +239,14 @@ export function shedPlan ({
  *  as a legacy refusal. */
 export const SHED_RETRY_MS = 150000
 
+/** (v0.601.0) The cold-start seed's pocket floor (bankable units): a cold
+ *  flow (the books never opened) arms the trip only when the pocket's own
+ *  mass prices it - below the floor the legacy 'unknown' stands (the end
+ *  bank covers a light pocket honestly). The field read: F4's single pass
+ *  banked 46u (the only spoken arm on fleet 37180720652), the write-offs
+ *  rode 66-120u - 40 is the floor under the proven pass. */
+export const SHED_SEED_MIN_UNITS = 40
+
 /**
  * (v0.564.0) Should this bot START a shed bank trip now - the gap-driven
  * sibling of bankTripDue, pure. A shed is the END-BUDGET ESCAPE: the
@@ -260,5 +297,8 @@ export function shedTripDue ({
   if (since < every) {
     return { due: false, why: 'refractory', tripMs, needS: plan.needS, gapS: plan.gapS }
   }
-  return { due: true, why: 'shed', tripMs, needS: plan.needS, gapS: plan.gapS, untilMs: plan.untilMs }
+  // (v0.601.0) the plan's own why rides the due path - the seed's due trip
+  // labels itself 'seed' (the cause line's own branch reads it), the
+  // measured face still reads 'shed' byte for byte (shedPlan's why there)
+  return { due: true, why: plan.why, tripMs, needS: plan.needS, gapS: plan.gapS, untilMs: plan.untilMs }
 }

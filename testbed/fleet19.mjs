@@ -2720,9 +2720,16 @@ async function runBot (name, target, index) {
             // (v0.566.0) the shed's cause form: the priced numbers ride the
             // line, the class sizes itself in the 'bank ' filter key (the
             // deliverable cause's own shape) - the wiring logs the GAP it is
-            // curing (the gate's own contract)
+            // curing (the gate's own contract). (v0.601.0) the seed's own
+            // cause form: the books are cold - the flow never measured a
+            // bank - and the pocket's own mass prices the trip (the need is
+            // unpriceable, the '?' face is the honest read).
             const sa = shedArm
-            console.log(`${name} bank trip: shed - the pocket needs ${sa.needS != null ? Math.round(sa.needS) : '?'}s at the end bank, the budget holds ${sa.needS != null && sa.gapS != null ? Math.round(sa.needS - sa.gapS) : '?'}s (${sa.gapS != null ? Math.round(sa.gapS) : '?'}s short) - the priced trip ${sa.tripMs != null ? Math.round(sa.tripMs / 1000) : '?'}s still fits - the delivery fires early`)
+            if (sa.why === 'seed') {
+              console.log(`${name} bank trip: shed seed - the books are cold (the flow never measured a bank) and the pocket carries ${(() => { try { return Math.round(pocketTotals([miner], { keep: DEPOSIT_KEEP }).bankable) } catch { return '?' } })()}u - one trip opens them, the measured flow takes over (the cold-start deadlock's own cure)`)
+            } else {
+              console.log(`${name} bank trip: shed - the pocket needs ${sa.needS != null ? Math.round(sa.needS) : '?'}s at the end bank, the budget holds ${sa.needS != null && sa.gapS != null ? Math.round(sa.needS - sa.gapS) : '?'}s (${sa.gapS != null ? Math.round(sa.gapS) : '?'}s short) - the priced trip ${sa.tripMs != null ? Math.round(sa.tripMs / 1000) : '?'}s still fits - the delivery fires early`)
+            }
           }
           try { await consolidateSurplus(miner.bot, { log: m => console.log(`${name} ${m}`) }) } catch { /* keep going */ }
           // (v0.154.0) the bank trip's climb retry fences against the trip's
