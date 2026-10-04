@@ -801,6 +801,32 @@ export function nudgeLegSplitMs ({ remainingMs = 0, floorMs = ANCHOR_NUDGE_LEG_F
   return Math.max(0, Math.min(cap, rem - floor))
 }
 
+// (v0.645.0) THE ARRIVAL REACH LAW - the walk's landed verdict and the
+// geometry can disagree, and the open's own tax made the lie expensive.
+// MEASURED (fleet 37237898451, the v0.642.0 face): F13's arrival seat read
+// '0 delivered at arrival (open failed (open fuel anchor: timeout after
+// 10000ms))' with 'the opens fired far 1 of 1 - the walk's landed verdict
+// lied: the geometry is the front' - the walk resolved while the bot stood
+// beyond reach, the 10s open timeout burned on a packet the server never
+// had, and the cover dig refused ('not at the chest', the reach's own
+// arithmetic). THE LAW: before the first open, MEASURE the bot-chest
+// distance; beyond CHEST_OPEN_DIG_MAX_DIST (the codebase's own reach
+// number - the cover dig already refuses past it) one bounded re-approach
+// rides (the v0.147.0 moved-start machinery); still beyond - the honest
+// why returns BEFORE the open (the dist feeds the far lens as before, the
+// 10s tax dies). Junk-safe: a junk read rides null - no gate, the legacy
+// byte (the open attempt is the floor, never a regression).
+export const ANCHOR_ARRIVAL_REAPPROACH_MS = 8000
+
+export function anchorArrivalDist ({ botPos = null, chestPos = null } = {}) {
+  const read = v => (v && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)) ? v : null
+  const b = read(botPos)
+  const c = read(chestPos)
+  if (!b || !c) return null
+  const d = Math.sqrt((b.x - c.x) ** 2 + (b.y - c.y) ** 2 + (b.z - c.z) ** 2)
+  return Number.isFinite(d) && d >= 0 ? Math.round(d) : null
+}
+
 /**
  * (v0.124.0) THE ANCHOR DELIVERY - the tithe's dedicated inflow. The pocket
  * fuel over FUEL_TITHE_BOUND rides to the fleet's ONE fuel chest BEFORE the
@@ -932,6 +958,23 @@ export async function deliverFuelTithe (bot, {
     }
   }
   if (remainingMs() <= 0) return { delivered: 0, why: 'budget spent after walk' }
+  // (v0.645.0) THE ARRIVAL REACH GATE - the walk's landed verdict gets its
+  // geometry read before the open's 10s tax rides a doomed packet: beyond
+  // reach one bounded re-approach rides; still beyond - the honest why
+  // returns BEFORE the open (the dist feeds the far lens as before).
+  {
+    const arrivedDist = anchorArrivalDist({ botPos: (() => { try { return bot?.entity?.position ?? null } catch { return null } })(), chestPos: anchor })
+    if (arrivedDist != null && arrivedDist > CHEST_OPEN_DIG_MAX_DIST) {
+      log(`fuel anchor: the arrival lied (d=${arrivedDist} > ${CHEST_OPEN_DIG_MAX_DIST}) - one bounded re-approach rides`)
+      try {
+        await approachWalk(bot, { x: anchor.x, y: anchor.y, z: anchor.z }, { budgetMs: Math.min(remainingMs(), ANCHOR_ARRIVAL_REAPPROACH_MS), closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel anchor: arrival re-approach ${m}`) })
+      } catch { /* the re-approach never kills the chain */ }
+      const dist2 = anchorArrivalDist({ botPos: (() => { try { return bot?.entity?.position ?? null } catch { return null } })(), chestPos: anchor })
+      if (dist2 != null && dist2 > CHEST_OPEN_DIG_MAX_DIST) {
+        return { delivered: 0, why: `anchor beyond reach (d=${dist2}) - the open never had it`, dist: dist2 }
+      }
+    }
+  }
   let block = null
   try { block = typeof bot.blockAt === 'function' ? bot.blockAt(new Vec3(anchor.x, anchor.y, anchor.z)) : null } catch { block = null }
   if (!block || !isChestName(block.name)) return { delivered: 0, why: 'anchor block unreadable' }

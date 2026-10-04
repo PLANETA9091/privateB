@@ -36,14 +36,14 @@ test('the wiring pins: all five wake sites inject the raw walker', () => {
   assert.match(toolSrc, /approachWalk\(bot, chest\.position, \{ budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log\(`pool seed: path nudge \$\{m\}`\) \}\)/)
 })
 
-test('the ledger: the pre-existing raw-walk sites stay byte-identical (8 rawWalk sites total)', () => {
+test('the ledger: the raw-walk sites stay byte-identical (9 rawWalk sites total - the v0.645.0 arrival re-approach joins the wake)', () => {
   const fleetSrc = readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
   const smeltSrc = readFileSync(new URL('../../src/lib/smelting.mjs', import.meta.url), 'utf8')
   assert.match(depositSrc, /rawWalk: walkRawToward/) // the v0.56.0 chain - the original
   assert.match(fleetSrc, /rawWalk: walkRawToward/) // the yard approach
   assert.match(smeltSrc, /rawWalk: walkRawToward/) // the smelting walk nudge
   const total = (fuelSrc.match(/rawWalk: walkRawToward/g) || []).length + (toolSrc.match(/rawWalk: walkRawToward/g) || []).length
-  assert.equal(total, 5) // exactly the five wake sites, no more
+  assert.equal(total, 6) // the five wake sites + the v0.645.0 arrival re-approach (the same closeShot+rawWalk shape, one new rider)
 })
 
 test('the walker exists where the family imports it from (the deposit export, the injected signature)', () => {

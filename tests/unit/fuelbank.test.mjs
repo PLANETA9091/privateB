@@ -18,7 +18,8 @@ import {
   rememberDryStance, dryStanceDeferred, clearDryStance, ASK_BACKOFF_TTL_MS, // (v0.506.0) the ask backoff
   rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP, // (v0.507.0) the gravity stash
-  nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS // (v0.643.0) the nudge's own floor
+  nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS, // (v0.643.0) the nudge's own floor
+  anchorArrivalDist, ANCHOR_ARRIVAL_REAPPROACH_MS, CHEST_OPEN_DIG_MAX_DIST // (v0.645.0) the arrival reach law
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -839,7 +840,11 @@ function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = fal
   const chestBlock = { name: 'chest', position: new Vec3(10.5, 64, 10.5) }
   const bot = {
     username: 'AnchorBot',
-    entity: { position: botPos ?? new Vec3(1.5, 64, 1.5) },
+    // (v0.645.0) the mock bot stands WITHIN the open's reach of the anchor
+    // chest (d=1) - the goto no-op is then an HONEST landed shape; the old
+    // far default (d=13) was the very lie the arrival reach gate names, and
+    // the gate refused every mock delivery that rode it.
+    entity: { position: botPos ?? new Vec3(9.5, 64, 10.5) },
     inventory: { items: () => (current ? current.slots.slice(27) : slots.slice(27)).filter(Boolean) },
     findBlocks: noScan ? undefined : ({ matching }) => [chestBlock].filter(b => matching(b)),
     blockAt: () => (blockAtNull ? null : chestBlock),
@@ -948,7 +953,10 @@ test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge cla
   // the CLOSE SHOT: the segment goto succeeds in the mock (no bot movement -
   // the stall rule ends the approach), then the re-issue lands. 3 gotos:
   // walk + shot + retry.
-  const world = mockAnchorWorld({ pocketCoal: 14, walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!' })
+  // (v0.645.0) the far start rides again (d=12.7 - the close shot's own
+  // shape) and moveOnGoto makes the segment walk an HONEST move - the bot
+  // ends within the open's reach, the arrival gate reads it and lands.
+  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(1.5, 64, 1.5), walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!', moveOnGoto: true })
   const sleeps = []
   const res = await deliverFuelTithe(world.bot, {
     yardCenter: { x: 0, y: 64, z: 0 },
@@ -987,7 +995,10 @@ test('THE DECIDE-CLASS NUDGE (v0.155.0): a far decide failure walks an approach 
 test('THE DECIDE-CLASS NUDGE (v0.155.0): the churn refusal never nudges (the wait-out stays)', async () => {
   // the refusal class is TIME-BOXED - the window expiry is the real change;
   // the far start does not turn it into a nudge class
-  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(40, 64, 40), walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 4s' })
+  // (v0.645.0) moveOnGoto: the re-issue's re-goto lands the bot within the
+  // open's reach - the arrival gate reads an honest arrival and the deposit
+  // rides (the far static mock was the lie the gate names).
+  const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(40, 64, 40), walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 4s', moveOnGoto: true })
   const sleeps = []
   const lines = []
   const res = await deliverFuelTithe(world.bot, {
@@ -1980,4 +1991,41 @@ test('THE NUDGE LEG SPLIT: the junk laws + the source pin (the wire reads the sp
   assert.equal((src.match(/const nudgeMs = nudgeLegSplitMs\(/g) || []).length, 1, 'the split rides exactly the delivery side (one wire, one truth)')
   assert.equal((src.match(/const nudgeMs = Math\.min\(remainingMs\(\), 15000\)/g) || []).length, 1, 'the ask side\'s own nudge keeps its legacy byte (a different seam, unmeasured - the next face prices it)')
   assert.match(src, /the nudge stands down - the slice funds the final leg first/, 'the stand-down names itself (the defer form, the fuel filter key)')
+})
+
+// ---------------------------------------------------------------------------
+// (v0.645.0) THE ARRIVAL REACH LAW - the walk's landed verdict gets its
+// geometry read before the open's 10s tax rides a doomed packet.
+// THE EVIDENCE (fleet 37237898451, the v0.642.0 face): F13's arrival seat
+// read '0 delivered at arrival (open failed (open fuel anchor: timeout after
+// 10000ms))' with 'the opens fired far 1 of 1 - the walk's landed verdict
+// lied: the geometry is the front' - the open burned 10s on a packet the
+// server never had, and the cover dig refused ('not at the chest', the
+// reach's own arithmetic).
+
+test('THE ARRIVAL REACH LAW: the F13 face re-priced - the gate fires beyond the reach, the cover-dig number stays the boundary', () => {
+  // F13's shape: the walk resolved, the bot stood 9 blocks out - the open
+  // never had it. The gate reads 9 > 4 and one bounded re-approach rides.
+  assert.equal(anchorArrivalDist({ botPos: { x: 0, y: 64, z: 0 }, chestPos: { x: 9, y: 64, z: 0 } }), 9)
+  assert.ok(9 > CHEST_OPEN_DIG_MAX_DIST, 'the F13 dist is beyond the reach the cover dig already refuses')
+  // the 3D read: a diagonal (3, 4) pair reads 5 - beyond, the gate fires
+  assert.equal(anchorArrivalDist({ botPos: { x: 0, y: 64, z: 0 }, chestPos: { x: 3, y: 68, z: 0 } }), 5)
+  // the boundary: d = 4 is AT the chest (the cover-dig's own number, byte
+  // respected) - the gate never fires there, the legacy open rides
+  assert.equal(anchorArrivalDist({ botPos: { x: 0, y: 64, z: 0 }, chestPos: { x: 4, y: 64, z: 0 } }), CHEST_OPEN_DIG_MAX_DIST)
+  // d = 3.4 rounds to 3 - inside, no gate
+  assert.equal(anchorArrivalDist({ botPos: { x: 0, y: 64, z: 0 }, chestPos: { x: 3.4, y: 64, z: 0 } }), 3)
+})
+
+test('THE ARRIVAL REACH LAW: the junk laws + the source pin (the gate rides once, the far lens stays fed)', () => {
+  // junk reads null - no gate, the legacy byte (the open attempt is the floor)
+  assert.equal(anchorArrivalDist({}), null)
+  assert.equal(anchorArrivalDist({ botPos: { x: 1, y: 2, z: 3 }, chestPos: null }), null)
+  assert.equal(anchorArrivalDist({ botPos: { x: 1, y: NaN, z: 3 }, chestPos: { x: 1, y: 2, z: 3 } }), null)
+  assert.equal(anchorArrivalDist({ botPos: { x: 1, y: 2, z: 3 }, chestPos: { x: 1, y: 2, z: 3 } }), 0, 'a standing-on read is honest zero')
+  const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
+  assert.equal((src.match(/the arrival lied \(d=/g) || []).length, 1, 'the gate names the lie exactly once (the reason form, the fuel filter key)')
+  assert.match(src, /anchor beyond reach \(d=\$\{dist2\}\) - the open never had it/, 'the honest why returns BEFORE the open, the dist feeds the far lens')
+  assert.match(src, /budgetMs: Math\.min\(remainingMs\(\), ANCHOR_ARRIVAL_REAPPROACH_MS\)/, 'the re-approach rides the bounded budget, not a bare slice')
+  assert.match(src, /arrivedDist > CHEST_OPEN_DIG_MAX_DIST/, 'the reach is the codebase\'s own number - no new magic constant')
 })
