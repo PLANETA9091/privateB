@@ -1888,8 +1888,25 @@ export function bridgeFillLanded ({ postBlock = null, before = null, after = nul
  * reference (ref=null-read), (c) genuine server refusals (post STILL OPEN) in
  * the NEXT fleet's log without a new theory. Junk-safe: placeholders instead
  * of throws - the dig refusal's digRefusalDetail doctrine at the bridge's own
- * geometry. */
-export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = null, postName = null, postLanded = null } = {}) {
+ * geometry.
+ *
+ * (v0.636.0) THE REFERENCE RE-READ - the air-post class's next discriminator.
+ * Two faces priced the class and it owns the refusal front: fleet
+ * 37222310370 (the v0.632.0 face) 9 of 10, fleet 37225166929 (the v0.634.0
+ * face) 31 of 37 - every line riding post=air STILL OPEN with the reference
+ * a NAMED SOLID (dirt/stone/cobblestone/grass_block) at d 0.5-1.5b: the
+ * reach theory is dead (reach refusals ride d >= 3b) and a null-read ref is
+ * not the shape either. Two suspects survive and the face cannot split
+ * them: (a) THE STALE REFERENCE - the client placed against a ghost (the
+ * ref cell read solid client-side, the server never had it) - the ref
+ * re-read AFTER the refusal catches the correction (ref-after=air or a
+ * different name); (b) THE GEOMETRY/ENTITY class - the server refuses the
+ * placement for the bot's own box (the self fill races gravity into the
+ * cell under the feet) or the placement face - the reference survives
+ * (ref-after=<same name>). One junk-safe re-read of the ref cell at confess
+ * time splits (a) from (b) in the NEXT face without a new theory. The field
+ * is OPT-IN: a legacy call (no refAfterName) stays byte for byte. */
+export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = null, postName = null, postLanded = null, refAfterName } = {}) {
   const held = typeof heldName === 'string' && heldName ? heldName : 'n/a'
   const d = Number.isFinite(dist) ? `${dist.toFixed(1)}b` : 'd?'
   const ref = typeof refName === 'string' && refName ? refName : 'null-read'
@@ -1897,7 +1914,9 @@ export function bridgeRefusalDetail ({ heldName = null, dist = null, refName = n
   if (postLanded === true) post = `post=${typeof postName === 'string' && postName ? postName : 'block'} LANDED (late block update)`
   else if (postLanded === false) post = `post=${typeof postName === 'string' && postName ? postName : '?'} STILL OPEN (refused twice)`
   else post = 'post=? (re-read failed)'
-  return `held=${held}, ${d}, ref=${ref}, ${post}`
+  let out = `held=${held}, ${d}, ref=${ref}, ${post}`
+  if (refAfterName !== undefined) out += `, ref-after=${typeof refAfterName === 'string' && refAfterName ? refAfterName : 'null-read'}`
+  return out
 }
 
 /** Pure: the forensics suffix for a SURVIVING dig refusal - what the bot held,

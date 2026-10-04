@@ -1118,6 +1118,40 @@ test('bridgeRefusalDetail: junk inputs print placeholders instead of throwing', 
   assert.match(bridgeRefusalDetail({ postLanded: false, postName: 7 }), /post=\? STILL OPEN/)
 })
 
+// (v0.636.0) THE REFERENCE RE-READ - the air-post class's discriminator. The
+// class owns the refusal front (9 of 10 on the v0.632.0 face, 31 of 37 on the
+// v0.634.0 face) and the face could not split the stale reference from the
+// geometry/entity class; the opt-in ref-after field does, byte-safe.
+test('bridgeRefusalDetail: the legacy form stays byte for byte without refAfterName', () => {
+  // the F19-shaped v0.632.0 face line, verbatim
+  assert.equal(bridgeRefusalDetail({ heldName: 'cobblestone', dist: 0.812, refName: 'grass_block', postName: 'air', postLanded: false }),
+    'held=cobblestone, 0.8b, ref=grass_block, post=air STILL OPEN (refused twice)')
+  assert.equal(bridgeRefusalDetail({ heldName: 'cobblestone', dist: 4.83, refName: 'stone', postName: 'cobblestone', postLanded: true }),
+    'held=cobblestone, 4.8b, ref=stone, post=cobblestone LANDED (late block update)')
+})
+
+test('bridgeRefusalDetail: ref-after=air is the stale-reference signature (the client placed against a ghost)', () => {
+  const s = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 0.9, refName: 'grass_block', postName: 'air', postLanded: false, refAfterName: 'air' })
+  assert.equal(s, 'held=cobblestone, 0.9b, ref=grass_block, post=air STILL OPEN (refused twice), ref-after=air')
+})
+
+test('bridgeRefusalDetail: ref-after=<same name> is the geometry/entity signature (the ref survived)', () => {
+  // the self-fill shape races the bot's own box into the cell under the feet
+  const s = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 0.6, refName: 'stone', postName: 'air', postLanded: false, refAfterName: 'stone' })
+  assert.equal(s, 'held=cobblestone, 0.6b, ref=stone, post=air STILL OPEN (refused twice), ref-after=stone')
+  // a DIFFERENT name after is the correction caught mid-flight - the stale class too
+  const t = bridgeRefusalDetail({ heldName: 'cobblestone', dist: 0.8, refName: 'grass_block', postName: 'air', postLanded: false, refAfterName: 'dirt' })
+  assert.match(t, /, ref-after=dirt$/)
+})
+
+test('bridgeRefusalDetail: a failed ref re-read confesses null-read, junk stays safe', () => {
+  assert.match(bridgeRefusalDetail({ heldName: 'dirt', dist: 1.2, refName: 'dirt', postName: 'air', postLanded: false, refAfterName: null }), /, ref-after=null-read$/)
+  assert.match(bridgeRefusalDetail({ refAfterName: 42 }), /, ref-after=null-read$/)
+  assert.match(bridgeRefusalDetail({ refAfterName: 'andesite' }), /, ref-after=andesite$/)
+  // the legacy no-field call never grew the tail
+  assert.ok(!bridgeRefusalDetail({}).includes('ref-after'))
+})
+
 // (v0.300.0) THE WET-CEILING ASCEND - the climb's answer to the sealed water
 // column. Face 36517770723: 17 climb deaths 'failed - stalled', every sampled
 // diag 'blocked toward X (dug=0, wet) water (stop)' at EVERY bearing - the

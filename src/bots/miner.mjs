@@ -5656,7 +5656,16 @@ export function createMiner ({
                 continue
               }
             }
-            if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })() })})`)
+            // (v0.636.0) THE REFERENCE RE-READ - one junk-safe read of the
+            // ref cell at confess time. The air-post class owns the refusal
+            // front (9 of 10 on the v0.632.0 face, 31 of 37 on the v0.634.0
+            // face - every ref a named solid at d 0.5-1.5b, post=air STILL
+            // OPEN twice); ref-after splits the stale reference (the client
+            // placed against a ghost - the ref reads air/different after)
+            // from the geometry/entity class (the ref survives) in the next
+            // face. Surviving refusals only - one read per confessed fill.
+            const refAfterName = (() => { try { const b = readCell(bp.refCell); return b && b.name ? b.name : null } catch { return null } })()
+            if (diagLevels < 3) log(`${tag} climb bridge: the server refused the ${bp.kind} fill at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the rotate ladder owns it (${bridgeRefusalDetail({ heldName, dist, refName, postName: (() => { try { return postB && postB.name ? postB.name : null } catch { return null } })(), postLanded: (() => { try { return postB ? postB.boundingBox === 'block' : null } catch { return null } })(), refAfterName })})`)
             }
           } else if (bp.waitGround) {
             // still afloat past the bounded wait (the wet face) - the honest
