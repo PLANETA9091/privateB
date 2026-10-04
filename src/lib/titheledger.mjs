@@ -13,7 +13,7 @@
 // Zero fleet wiring, zero new log lines. The always-print law: a none face
 // is a verdict too.
 
-// (v0.599.0) THE PREFIX LAW, FIELD-CORRECTED: the fleet face 37178311099
+// (v0.600.0) THE PREFIX LAW, FIELD-CORRECTED: the fleet face 37178311099
 // read the grain line BARE ('smelt fuel commons grain: asked 4, ...' - the
 // fleet-level report carries no bot tag) and the v0.598.0 gate missed it -
 // 'the tithe never spoke' while the grain stood in the log (the honest

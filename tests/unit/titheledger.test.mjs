@@ -126,7 +126,7 @@ test('the grain-only face speaks alone (the inflow silent)', () => {
   assert.ok(row.includes('the commons\' source is the front'))
 })
 
-// (v0.599.0) THE FIELD-FOUND GRAIN: the fleet face 37178311099 carried the
+// (v0.600.0) THE FIELD-FOUND GRAIN: the fleet face 37178311099 carried the
 // grain line BARE (the fleet-level report prints no bot tag) and the
 // v0.598.0 prefix gate went blind - 'the tithe never spoke' while the grain
 // stood in the log. The tag is optional now; the bare face is the anchor.
