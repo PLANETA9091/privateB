@@ -53,6 +53,39 @@ export function parseBridgeFill (line) {
   }
 }
 
+// (v0.621.0) THE GATE'S OWN BOOK - the v0.619.0 underfoot gate's three new
+// emitter forms (deliberately lens-safe at birth: PLACE_RE/REFUSED_RE/BOOK_RE
+// match none) printed 53 lines on their FIRST field flight (fleet
+// 37203144265's successor face 37205134738: 43 'reads', 9 'refuses', 1
+// 'still waits') and the book did not see ONE of them - the gate's live
+// behavior was invisible exactly when it started converting (the self fill's
+// rate climbed 26% -> 48% on the same face). One parser, three verdicts:
+//   reads   - 'the re-plan reads the <kind> fill' (the landed feet re-plan a
+//             fill - the gate's whole point)
+//   refuses - 'the re-plan refuses (<why>)' (the landed feet's own geometry
+//             solved or refused the level: 'the support is already solid' =
+//             the hole SELF-SOLVED under the gate)
+//   waits   - 'the self fill still waits for ground - the ladder owns it'
+//             (the bound expired afloat - the honest skip)
+// The why may nest its own parens - greedy to the LAST ')', the book's own
+// law. Junk-safe: null, never a throw.
+const GATE_READS_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill waited and grounded - the re-plan reads the (self|support|pit) fill$')
+const GATE_REFUSES_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill waited and grounded - the re-plan refuses \\((.*)\\)$')
+const GATE_WAITING_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill still waits for ground - the ladder owns it$')
+
+export function parseBridgeGateWait (line) {
+  const s = String(line ?? '')
+  const b = s.match(/^F(\d+) /)
+  const bot = b ? `F${b[1]}` : null
+  let m = s.match(GATE_READS_RE)
+  if (m) return { kind: 'gate-wait', bot, result: 'reads', fill: m[1] }
+  m = s.match(GATE_REFUSES_RE)
+  if (m) return { kind: 'gate-wait', bot, result: 'refuses', why: m[1].trim() }
+  m = s.match(GATE_WAITING_RE)
+  if (m) return { kind: 'gate-wait', bot, result: 'still-waits' }
+  return null
+}
+
 // The refusal's own class (climbWhyClass's keyword-include law - the why may
 // nest its own parens, the class rides a keyword, never an equality). The
 // classes are the face's own taxonomy: floor 67, pocket 58, step 0, budget 0
@@ -108,7 +141,8 @@ export function bridgeRefusalClass (msg) {
 
 export function bridgeRefusalCensus (lines) {
   const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
-    refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set() }
+    refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set(),
+    gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {} }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -139,6 +173,25 @@ export function bridgeRefusalCensus (lines) {
       if (r.reReadFailed) c.refusedReReadFailed++
       const key = `${r.cell.x},${r.cell.y},${r.cell.z}`
       c.refusedCellKeys.add(key)
+      continue
+    }
+    // (v0.621.0) the gate's own grain: the underfoot gate's three forms join
+    // the census (they fell through every parse and were DROPPED before - the
+    // gate's live behavior was invisible to the book). The bots set stays the
+    // refusal book's own (the gate tail carries its own story; the head
+    // keeps its byte).
+    const g = parseBridgeGateWait(line)
+    if (g) {
+      c.gates++
+      if (g.result === 'reads') {
+        c.gateReads++
+        c.gateReadKinds[g.fill] = (c.gateReadKinds[g.fill] || 0) + 1
+      } else if (g.result === 'refuses') {
+        c.gateRefuses++
+        c.gateRefuseWhys[g.why] = (c.gateRefuseWhys[g.why] || 0) + 1
+      } else {
+        c.gateStillWaits++
+      }
       continue
     }
     if (BRIDGE_BOOK_TORN_RE.test(line)) c.unparsed++
@@ -203,7 +256,7 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c)
+  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c)
 }
 
 // (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face (the
@@ -224,6 +277,25 @@ function geometryTail (c) {
   const rep = c && Number.isFinite(c.refusedCellRepeats) ? c.refusedCellRepeats : 0
   if (rep <= 0) return ''
   return ' - the repeat(s) name the geometry law (the rotate ladder owns those cells)'
+}
+
+// (v0.621.0) THE GATE TAIL - the underfoot gate's live behavior rides the
+// row's very end (the family's newest evidence, after the geometry verdict):
+//   ' - the gate waited N time(s): R reads, F refuses, S still waiting'
+// The law: the clause speaks only when the gate SPOKE (gates > 0) - the old
+// faces (no gate lines) stay byte-stable; the junk fallback (a census without
+// the fields) reads zeros and stays silent, never a lie. The tail prices the
+// v0.619.0 gate's conversion face to face: reads = the landed feet re-planned
+// a fill (the gate's whole point), refuses = the landed feet's own geometry
+// solved or refused the level ('the support is already solid' = the hole
+// SELF-SOLVED), still waiting = the bound expired afloat (the honest skip).
+function gateTail (c) {
+  const n = c && Number.isFinite(c.gates) ? c.gates : 0
+  if (n <= 0) return ''
+  const reads = Number.isFinite(c.gateReads) ? c.gateReads : 0
+  const refuses = Number.isFinite(c.gateRefuses) ? c.gateRefuses : 0
+  const still = Number.isFinite(c.gateStillWaits) ? c.gateStillWaits : 0
+  return ` - the gate waited ${n} time(s): ${reads} reads, ${refuses} refuses, ${still} still waiting`
 }
 
 // (v0.618.0) THE RE-READ BLIND MASS - the fleet 37200930827 face (the

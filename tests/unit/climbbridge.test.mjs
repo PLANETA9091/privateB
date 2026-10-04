@@ -12,6 +12,7 @@ import {
   bridgeRefusalCensus,
   bridgeRefusalRow,
   parseServerRefusedFill,
+  parseBridgeGateWait,
   BRIDGE_SHARE,
   BRIDGE_BOOK_TORN_RE,
   BRIDGE_REFUSED_TORN_RE
@@ -384,4 +385,59 @@ test('geometry verdict: the repeat mass names the doomed cells (v0.620.0)', () =
   assert.ok(!bridgeRefusalRow({ refused: 2, refusedKinds: { self: 2 }, refusedReReadFailed: 2 }).includes('geometry law'))
   // the unavailable-only book never carries it
   assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])).includes('geometry law'))
+})
+
+// (v0.621.0) THE GATE'S OWN BOOK - the v0.619.0 underfoot gate's three forms
+// printed 53 lines on their first field flight (fleet 37205134738: 43 reads,
+// 9 refuses, 1 still waits) and the book saw NONE of them. One parser, three
+// verdicts; the tail rides the row's very end; the bots set stays the refusal
+// book's own; junk-safe end to end.
+test('gate wait: the mined forms parse byte-exact (v0.621.0)', () => {
+  const reads = parseBridgeGateWait('F7 [F7] climb bridge: the self fill waited and grounded - the re-plan reads the self fill')
+  assert.deepEqual(reads, { kind: 'gate-wait', bot: 'F7', result: 'reads', fill: 'self' })
+  const readsSup = parseBridgeGateWait('F4 [F4] climb bridge: the self fill waited and grounded - the re-plan reads the support fill')
+  assert.equal(readsSup.result, 'reads')
+  assert.equal(readsSup.fill, 'support')
+  const refuses = parseBridgeGateWait('F4 [F4] climb bridge: the self fill waited and grounded - the re-plan refuses (the step cells are not clear (the dig ladder owns this level))')
+  assert.deepEqual(refuses, { kind: 'gate-wait', bot: 'F4', result: 'refuses', why: 'the step cells are not clear (the dig ladder owns this level)' })
+  const waits = parseBridgeGateWait('F4 [F4] climb bridge: the self fill still waits for ground - the ladder owns it')
+  assert.deepEqual(waits, { kind: 'gate-wait', bot: 'F4', result: 'still-waits' })
+  // the bare form keeps parsing (the tag is optional)
+  const bare = parseBridgeGateWait('climb bridge: the self fill waited and grounded - the re-plan reads the pit fill')
+  assert.equal(bare.bot, null)
+  assert.equal(bare.fill, 'pit')
+  // junk keeps the null
+  assert.equal(parseBridgeGateWait(null), null)
+  assert.equal(parseBridgeGateWait(undefined), null)
+  assert.equal(parseBridgeGateWait(42), null)
+  assert.equal(parseBridgeGateWait(FILL_SELF), null) // the placed fill is NOT a gate line
+  assert.equal(parseBridgeGateWait('F2 [F2] climb bridge: the self fill waited and grounded - the re-plan (torn'), null)
+})
+
+test('gate wait: the census counts the family and the tail rides last (v0.621.0)', () => {
+  const gate = (s) => `F${s} [F${s}] climb bridge: the self fill waited and grounded - the re-plan reads the self fill`
+  const refuse = (w) => `F3 [F3] climb bridge: the self fill waited and grounded - the re-plan refuses (${w})`
+  const lines = [
+    gate('7'), gate('9'), refuse('the support is already solid'),
+    'F4 [F4] climb bridge: the self fill still waits for ground - the ladder owns it',
+    REFUSED_SELF, FILL_SELF, FLOOR
+  ]
+  const c = bridgeRefusalCensus(lines)
+  assert.equal(c.gates, 4)
+  assert.equal(c.gateReads, 2)
+  assert.equal(c.gateRefuses, 1)
+  assert.equal(c.gateStillWaits, 1)
+  assert.deepEqual(c.gateReadKinds, { self: 2 })
+  assert.deepEqual(c.gateRefuseWhys, { 'the support is already solid': 1 })
+  // the bots set stays the REFUSAL book's own (the gate lines never join it)
+  assert.equal(c.botCount, 1) // FLOOR's F14 only; the refused/fill families never joined either
+  const row = bridgeRefusalRow(c)
+  assert.ok(row.endsWith(' - the gate waited 4 time(s): 2 reads, 1 refuses, 1 still waiting'), row)
+  // the tail rides AFTER the geometry verdict (the family's newest evidence last)
+  const repRow = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, gate('7')]))
+  assert.ok(repRow.indexOf('the repeat(s) name the geometry law') < repRow.indexOf('the gate waited'), repRow)
+  // the junk fallback (no fields) is silent, never a lie
+  assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the gate waited'))
+  // the old faces (no gate lines) stay byte-stable
+  assert.equal(bridgeRefusalRow(bridgeRefusalCensus([FLOOR, POCKET])), 'bridge refusal book: 2 refusal(s) across 2 bot(s), 0 fill(s) placed - floor 1 (50%), pocket 1 (50%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front)')
 })
