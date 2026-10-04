@@ -129,6 +129,74 @@ export function writeOffRow (miners, { minUnits = WRITE_OFF_MIN_UNITS, whys = nu
   }).join(', ')} (the deadline pocket rode unbanked)`
 }
 
+// (v0.583.0) THE WRITE-OFF'S WHY MASS - the write-off family's second seat.
+// The row one rung up names each holder's why (F5 303u/20s timeout) but never
+// aggregates the FLEET's stranded mass per class: fleet 37161734898's face
+// read timeout 394u of 578u stranded (68.2%) and no row owned that read - the
+// end-phase's own clock vs the dark vs the water rode unscored. THE MASS: the
+// same pocket walk writeOffRow makes (ONE book - the holders over the family's
+// own 64u floor), units summed per why class. THE LAWS: the family's own grain
+// (WRITE_OFF_MIN_UNITS = 64 - a class speaks only with a stake, the drift
+// impossible by construction), the census's half boundary (WRITE_OFF_WHY_SHARE
+// = 0.5, the family's own shape), the leanness law (under either bound prints
+// nothing - the per-bot row one rung up is the face's read then), the census's
+// tie law (units desc, why asc). Junk: a holder whose why token is absent or
+// dirty reads its honest 'unnamed' bucket (a stranded pocket with no why is
+// still stranded mass - the bands' own blind law) and CAN lead - the row then
+// names the blindness; impossible counts are zeroed (the writeOffRow junk law).
+// The verdict names the class's own front (WRITE_OFF_WHY_LEVERS - one table,
+// the fallback is the why split's own honest form).
+export const WRITE_OFF_WHY_SHARE = 0.5
+
+export const WRITE_OFF_WHY_LEVERS = {
+  'timeout': 'the deadline\'s own clock is the front',
+  'night': 'the dark holds the walks - the dusk bank is the front',
+  'low-o2': 'the water\'s own clock is the front',
+  'unreachable': 'the walk lattice is the front',
+  'doom-latched': 'the doom latch is the front',
+  'stalled': 'the climb\'s own stall is the front',
+  'wet-wall': 'the water\'s wall is the front',
+  'wet-sentinel': 'the o2 sentinel is the front',
+}
+
+export function writeOffWhyRow (miners, { minUnits = WRITE_OFF_MIN_UNITS, whys = null } = {}) {
+  const min = (Number.isFinite(minUnits) && minUnits > 0) ? Math.floor(minUnits) : WRITE_OFF_MIN_UNITS
+  const whyBook = (whys instanceof Map) ? whys : (whys && typeof whys === 'object' ? new Map(Object.entries(whys)) : null)
+  const whyFor = name => {
+    if (!whyBook) return null
+    let w = null
+    try { w = whyBook.get(name) } catch { return null }
+    return (typeof w === 'string' && /^[a-z0-9-]+$/.test(w)) ? w : null
+  }
+  const acc = new Map()
+  for (const m of (Array.isArray(miners) ? miners : [])) {
+    try {
+      const items = m?.bot?.inventory?.items?.()
+      if (!Array.isArray(items)) continue
+      let units = 0
+      for (const it of items) {
+        const c = it?.count
+        units += (Number.isFinite(c) && c > 0) ? c : 0
+      }
+      if (units < min) continue
+      const why = whyFor(m?.username) || 'unnamed'
+      acc.set(why, (acc.get(why) || 0) + units)
+    } catch { /* a torn window view on a dying bot holds nothing this read */ }
+  }
+  const total = [...acc.values()].reduce((a, b) => a + b, 0)
+  if (total < min) return null
+  const good = [...acc].map(([why, units]) => ({ why, units }))
+  good.sort((a, b) => (b.units - a.units) || (a.why < b.why ? -1 : 1))
+  const top = good[0]
+  if (top.units < min || top.units / total < WRITE_OFF_WHY_SHARE) return null
+  const pct = ((top.units / total) * 100).toFixed(1)
+  if (top.why === 'unnamed') {
+    return `write-off whys: unnamed carries ${top.units}u of ${total}u (${pct}%) - the whys stayed blind: the ledger names no class`
+  }
+  const lever = WRITE_OFF_WHY_LEVERS[top.why] || 'the class\'s own detail is the front'
+  return `write-off whys: ${top.why} carries ${top.units}u of ${total}u (${pct}%) - ${lever}`
+}
+
 /**
  * Where the mined yield ended up. Everything not visibly banked, smelted or
  * still pocketed is UNACCOUNTED - the 93% class, now a number per run.

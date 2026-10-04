@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import v8 from 'node:v8'
 import { createMiner, fleetStats } from '../src/bots/miner.mjs'
-import { pocketTotals, lootLedger, writeOffRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
+import { pocketTotals, lootLedger, writeOffRow, writeOffWhyRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink; (v0.581.0) the open pool's age anatomy
 import { createScout } from '../src/bots/scout.mjs'
@@ -4142,6 +4142,14 @@ try { console.log(dropOpenAnatomyRow(dropCensusRecords)) } catch { /* (v0.581.0)
 // log dive (fleet 37121182189's 405u strand read 'unbanked' with the doctrine
 // sitting 3400 lines upstream).
 console.log(writeOffRow(list, { whys: finalBankWhys }))
+// (v0.583.0) THE WRITE-OFF'S WHY MASS - the write-off family's second seat:
+// the per-bot row names each holder's why, this row sums the FLEET's stranded
+// units per class (the same pocket walk, ONE book) - timeout vs night vs the
+// water reads which front owns the strand. Leanness: under the family's grain
+// (64u) or the half boundary (0.5) prints nothing - the per-bot row one rung
+// up is the face's read then. The print follows the write-off row sibling.
+const writeOffWhy = writeOffWhyRow(list, { whys: finalBankWhys })
+if (writeOffWhy) console.log(writeOffWhy)
 // (v0.324.0) THE BANK-ATTRIBUTION ROW - banked was a fleet number with no
 // NAMES: fleet 36631612575 healed the crater but the anatomy row flipped to
 // WHALE F12 (220u = 31.1%) - the same bot the no-chest front names. The row
