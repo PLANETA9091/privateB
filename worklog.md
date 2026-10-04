@@ -14288,3 +14288,19 @@ Work Log:
 Stage Summary:
 - Master = 46f83cd (pkg 0.586.0). The why mass's blindness named its class; the chest-scan strand rides the book now.
 - NEXT FIRE: (1) read fleet 37166593085's face (e1af6cd = v0.585.0): 'smelt fuel commons grain: ...' FIRST read + THE BANDS' FIRST SPEAKING VERDICT possible. (2) read CI on 46f83cd (37167358201) + the rerun of 37164630149. (3) when the active run clears, dispatch v0.586.0 - the chest-scan class's first flight. (4) OPEN FRONTS: the cross's detail-class shift (no-path -> other), the drop pool GROWING (7161u, aging dominates), unaccounted=94u, the pocket whale 565u, the dig/budget/commons cures. (5) Version next 0.587.0 (origin x3 pre-add/pre-commit/post-rebase; explicit paths; commit-before-rebase; lane HOT). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261004-0930
+Agent: Super Z (main)
+Task: fire 0930 (cron 414125) - v0.587.0 THE TITHE'S INFLOW GRAIN
+
+Work Log:
+- READS: fleet 37166593085 (e1af6cd = v0.585.0) SUCCESS - the grain's first verdict 'asked 3, delivered 0, dry 3 - the commons' source is the front'; THE BANDS' FIRST SPEAKING VERDICT (the feed cure worked): 'mid carries 3 of 3 - the walk died in the near field'; the write-off whys' second read NAMED: 'stalled carries 1049u of 1291u (81.3%)' (15/15 climb cycles stalled, fleet-wide); the cross dissolved; the drop pool exploded 16954u (overdue 10747u); banked collapsed 223u; bank arm 13/802u; STORM 586 (F17 98%). CI: the 2f3585a rerun SUCCESS (the flake confirmed, closed); e1af6cd push 37166578886 FAILURE unread (the dispatch on the same sha SUCCESS - likely the flake class); 46f83cd push cancelled (the code rides 30805ca).
+- Front taken: THE TITHE'S INFLOW GRAIN (the grain's twin): the face read zero tithe deliveries while F7's real attempt failed BOTH seats on 'open failed (timeout)' - the inflow ran dry, no row owned the read. fuelTitheInflowRow: attempted / delivered / dry + units fed at BOTH tithe seats (one book); THE LEAN LAW: 'no overage' never counts (the healthy lean is silent), attempted = delivered + dry by construction; verdicts: lean / all-dry names the front (the per-call lines carry the why) / fed.
+- Tests: tests/unit/fuel-tithe-inflow.test.mjs 8/8 (the face's own shape, the lean law, the junk battery, byte-stable forms, the two-books pin); the anchor import pin extended. Battery: syntax 446/0; unit 254/254 file(s) PASSED. Server DOWN -> integration skip honest.
+- Version 0.587.0 (origin pre-add = pre-commit = post-rebase 0.586.0 - NO collision). Commit bea451f, push CLEAN attempt 1 (30805ca..bea451f).
+- DISPATCH: POST 204 -> fleet 37169265512 on bea451f (in_progress at close) - the inflow grain's first flight + the chest-scan class's first flight, one flight. CI bea451f in_progress at close. NOTE: the parallel agent pushed a026e9b mid-fire - rebase rides it next fire.
+
+Stage Summary:
+- Master moved: bea451f (mine) -> a026e9b (the parallel agent). The inflow has its grain; the stall whale (1049u) owns the strand.
+- NEXT FIRE: (1) rebase on origin (a026e9b) FIRST. (2) read fleet 37169265512's face: 'fuel tithe inflow: ...' FIRST read, 'write-off whys: no-chest ...' possible, the stall whale's next face, the bands' second speaking read, the pool's next read. (3) read CI on bea451f (37169265512) + 30805ca (37167820367) + 37166578886's failure. (4) THE STALL CURE queues (the shaft-bottom climb-out legs name their labels); the pool's sweep-reach front; the pocket whale 1402u. (5) Version next 0.588.0 (origin x3; explicit paths; commit-before-rebase; lane HOT - the parallel agent is live). Identity: PLANETA9091.
