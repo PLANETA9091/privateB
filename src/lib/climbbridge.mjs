@@ -203,7 +203,7 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c)
+  return base + refusedTail(c) + fillRateTail(c)
 }
 
 // The v0.615.0 tail clause - the server-refused fill mass (the refusal IS the
@@ -218,4 +218,38 @@ function refusedTail (c) {
   const uniq = (c && Number.isFinite(c.refusedUniqueCells)) ? c.refusedUniqueCells : refused
   const rep = (c && Number.isFinite(c.refusedCellRepeats)) ? c.refusedCellRepeats : 0
   return ` - the server refused ${refused} fill(s): self ${s}, support ${p}, ${rrf} re-read(s) failed, ${uniq} distinct cell(s), ${rep} repeat(s) (the refusal is the verdict)`
+}
+
+// (v0.617.0) THE UNDERFOOT RATE - the refused mass's own lever evidence. The
+// counts and the cell grain do not name the lever: the self-fill's first
+// flight refused self 9 against support 6, but the REAL suspect is the RATE -
+// the self fill landed 5 of its 14 attempts (36%) while the support fill
+// landed 46 of 52 (88%) - a 5x gap. The self fill's target cell sits DIRECTLY
+// BELOW the feet: the bot is falling (it stands over its own hole - the exact
+// face the v0.611.0 cure serves), and by packet time a falling bot's AABB
+// dips into the very cell the fill targets - the server keeps the block for
+// entity collision. The support fill's target is lateral - never underfoot -
+// and rides the vanilla reach untouched. THE LAW: the clause speaks only
+// when the comparison EXISTS - the self family needs a landed fill AND a
+// refusal (a rate without both is noise: a family that never placed is the
+// pocket front's, a family that never refused has no lever to price); the
+// support paren rides the same law. The verdict splits on the house's own
+// half boundary: under the half -> 'the underfoot placement is the suspect'
+// (the falling-AABB read); at or over -> 'the underfoot placement holds'.
+// Junk census fields are silent, never a crash (the tail's own law).
+function fillRateTail (c) {
+  const selfPlaced = (c && c.fillKinds && Number.isFinite(c.fillKinds.self) && c.fillKinds.self > 0) ? c.fillKinds.self : 0
+  const selfRefused = (c && c.refusedKinds && Number.isFinite(c.refusedKinds.self) && c.refusedKinds.self > 0) ? c.refusedKinds.self : 0
+  if (selfPlaced === 0 || selfRefused === 0) return ''
+  const selfA = selfPlaced + selfRefused
+  const selfPct = Math.round(selfPlaced * 100 / selfA)
+  const verdict = selfPct < 50 ? 'the underfoot placement is the suspect' : 'the underfoot placement holds'
+  let s = ` - the self fill landed ${selfPlaced} of ${selfA} (${selfPct}%) - ${verdict}`
+  const supPlaced = (c && c.fillKinds && Number.isFinite(c.fillKinds.support) && c.fillKinds.support > 0) ? c.fillKinds.support : 0
+  const supRefused = (c && c.refusedKinds && Number.isFinite(c.refusedKinds.support) && c.refusedKinds.support > 0) ? c.refusedKinds.support : 0
+  if (supPlaced > 0 && supRefused > 0) {
+    const supA = supPlaced + supRefused
+    s += ` (the support fill rides ${supPlaced} of ${supA} (${Math.round(supPlaced * 100 / supA)}%))`
+  }
+  return s
 }

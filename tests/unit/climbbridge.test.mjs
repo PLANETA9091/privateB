@@ -265,3 +265,69 @@ test('server-refused fill: the cell grain prices the v0.168.0 transient doctrine
   assert.ok(bridgeRefusalRow({ refused: 2, refusedKinds: { self: 1, support: 1 }, refusedReReadFailed: 1 }).includes('2 distinct cell(s), 0 repeat(s)'))
   assert.equal(bridgeRefusalCensus([FLOOR]).refusedCellRepeats, 0) // the unavailable book never rides the cell grain
 })
+
+// (v0.617.0) THE UNDERFOOT RATE - the refused mass's own lever evidence. The
+// collisions (#72, #73) taught the shape: the v0.615.0 lane landed the count
+// tail, the v0.616.0 lane added the cell grain - the rate rides ON TOP of
+// both. THE MINED FACE: the self fill landed 5 of 14 (36%) against the
+// support fill's 46 of 52 (88%) - a 5x gap, the underfoot placement's own
+// server face (the bot falls into the very cell the fill targets) - and the
+// cell grain agrees: 15 distinct cells, 0 repeats, the transient face (not a
+// doomed-cell geometry law). THE LAW: the clause speaks only when the
+// comparison EXISTS - landed AND refused in the family - the v0.615.0/v0.616.0
+// pinned faces (places=0) stay silent under it.
+const FILL_SELF = 'F9 [F9] climb bridge: placed cobblestone at [-138,63,405] (self) - the step re-judges'
+
+test('underfoot rate: the mined face 37196201457 reads the lever WHOLE', () => {
+  const lines = []
+  for (let i = 0; i < 13; i++) lines.push(POCKET)
+  for (let i = 0; i < 3; i++) lines.push(FLOOR)
+  for (let i = 0; i < 9; i++) lines.push(`F3 [F3] climb bridge: the server refused the self fill at [-125,${64 - (i % 3)},${420 + i}] - the rotate ladder owns it (held=cobblestone, 1.1b, ref=cobblestone, post=? (re-read failed))`)
+  for (let i = 0; i < 6; i++) lines.push(`F17 [F17] climb bridge: the server refused the support fill at [-116,${43 + (i % 2)},${409 + i}] - the rotate ladder owns it (held=cobblestone, 1.2b, ref=stone, post=? (re-read failed))`)
+  for (let i = 0; i < 46; i++) lines.push(`F1 [F1] climb bridge: placed cobblestone at [${i},64,425] (support) - the step re-judges`)
+  for (let i = 0; i < 16; i++) lines.push(`F2 [F2] climb bridge: placed dirt at [${i},65,426] (pit) - the step re-judges`)
+  for (let i = 0; i < 5; i++) lines.push(FILL_SELF)
+  const c = bridgeRefusalCensus(lines)
+  assert.equal(c.refused, 15)
+  assert.deepEqual(c.refusedKinds, { self: 9, support: 6 })
+  assert.deepEqual(c.fillKinds, { support: 46, pit: 16, self: 5 })
+  assert.equal(c.refusedUniqueCells, 15)
+  assert.equal(c.refusedCellRepeats, 0)
+  assert.equal(
+    bridgeRefusalRow(c),
+    'bridge refusal book: 16 refusal(s) across 2 bot(s), 67 fill(s) placed - pocket 13 (81%), floor 3 (19%) - the pocket owns the climb tax (the climb arrives empty-handed - the carried fill is the front) - the server refused 15 fill(s): self 9, support 6, 15 re-read(s) failed, 15 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 5 of 14 (36%) - the underfoot placement is the suspect (the support fill rides 46 of 52 (88%))'
+  )
+})
+
+test('underfoot rate: the verdict splits on the half boundary', () => {
+  // at the half: 1 of 2 -> 'holds'
+  const holds = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF]))
+  assert.ok(holds.endsWith('1 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), holds)
+  // over the half: 3 of 4 -> 'holds'
+  const over = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF, FILL_SELF.replace('[-138,63,405]', '[-138,63,406]'), FILL_SELF.replace('[-138,63,405]', '[-138,63,407]')]))
+  assert.ok(over.endsWith(' - the self fill landed 3 of 4 (75%) - the underfoot placement holds'), over)
+  // under the half: 1 of 3 -> 'the suspect'
+  const under = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF.replace('[-125,64,420]', '[-125,64,421]'), FILL_SELF]))
+  assert.ok(under.endsWith('2 distinct cell(s), 0 repeat(s) (the refusal is the verdict) - the self fill landed 1 of 3 (33%) - the underfoot placement is the suspect'), under)
+})
+
+test('underfoot rate: the comparison must EXIST - the silent faces', () => {
+  // refusals without placements: the pocket front owns it, no rate noise
+  const refusedOnly = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, REFUSED_SELF, REFUSED_SUPPORT]))
+  assert.ok(!refusedOnly.includes('landed'), refusedOnly)
+  assert.ok(refusedOnly.endsWith('2 distinct cell(s), 1 repeat(s) (the refusal is the verdict)'), refusedOnly)
+  // placements without refusals: no lever to price
+  const placedOnly = bridgeRefusalRow(bridgeRefusalCensus([FILL_SELF, FILL_SELF, 'F1 [F1] climb bridge: placed cobblestone at [1,64,425] (support) - the step re-judges']))
+  assert.equal(placedOnly, 'bridge refusal book: none refused, 3 fill(s) placed (the climbs climbed clean)')
+  // the support paren needs its own landed AND refused
+  const noSupRefusal = bridgeRefusalRow(bridgeRefusalCensus([REFUSED_SELF, FILL_SELF, 'F1 [F1] climb bridge: placed cobblestone at [1,64,425] (support) - the step re-judges']))
+  assert.ok(noSupRefusal.endsWith(' - the self fill landed 1 of 2 (50%) - the underfoot placement holds'), noSupRefusal)
+  assert.ok(!noSupRefusal.includes('the support fill rides'), noSupRefusal)
+})
+
+test('underfoot rate: junk census fields stay silent, never crash', () => {
+  assert.equal(bridgeRefusalRow(null), 'bridge refusal book: none refused, none placed (the bridge never spoke this run)')
+  assert.equal(bridgeRefusalRow({ n: 1, byClass: { floor: 1 }, botCount: 1, refused: 1, refusedKinds: null }), 'bridge refusal book: 1 refusal(s) across 1 bot(s), 0 fill(s) placed - floor 1 (100%) - the floor owns the climb tax (the bot stands over its own hole - the support-under-self fill is the front) - the server refused 1 fill(s): self 0, support 0, 0 re-read(s) failed, 1 distinct cell(s), 0 repeat(s) (the refusal is the verdict)')
+  const junkFills = { n: 0, byClass: {}, botCount: 0, places: 1, fillKinds: { self: NaN }, refused: 2, refusedKinds: { self: 2 }, refusedReReadFailed: 2 }
+  assert.ok(!bridgeRefusalRow(junkFills).includes('landed'), 'a NaN fill count is not a landed fill')
+})
