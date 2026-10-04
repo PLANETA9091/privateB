@@ -639,29 +639,42 @@ export function isWalkableSurface (p) {
 // when the CALLER demanded an altitude (its own targetY - not the stale
 // shaft-entry raise inside climbOut, so every plain shaft-exit and the
 // v0.23.0/v0.37.0 stale-entry faces keep their verdict byte for byte) that
-// still stands more than one level above the bot's feet, AND the climb rose
-// nothing (gained <= 0 - the bot may even have settled BELOW its start), the
-// surface handover is a lie below the demand - skipped, and the climb keeps
-// its own funded budgets (the fail ladder, the maxMs fence) toward the
-// demanded level: an honest rise or an honest stall, never a fake landing.
-// A climb that DID rise keeps the handover (the v0.609.0 landed pins ride
-// byte for byte; the partial-rise re-price owns another face, with field
-// data). Junk-safe: an unreadable target or feet keeps the legacy verdict.
+// still stands more than one level above the bot's feet, the surface
+// handover is a lie below the demand - skipped, and the climb keeps its own
+// funded budgets (the fail ladder, the maxMs fence) toward the demanded
+// level: an honest rise or an honest stall, never a fake landing.
+//
+// (v0.614.0) THE DEMAND-CLOSURE LAW - the v0.610.0 guard exempted every
+// climb that ROSE (gained > 0 kept the handover; the v0.609.0 landed pins
+// rode byte for byte and 'the partial-rise re-price owns another face, with
+// field data'). THE FIELD DATA CAME: fleet 37193219050 (512fbf0 = v0.610.0,
+// the guard's first flight) landed THREE climbs and ALL THREE are partial
+// rises - F16 demanded 12 climbed +6, F5 demanded 13 climbed +8, F10
+// demanded 9 climbed +1 - the demand stands 5-8 levels above every
+// 'pre-funded' walk (the demand-closure lens priced it: 'every landing is
+// partial'). A rise that leaves the yard still more than one level above is
+// NOT a landing - the exemption is gone, the geometry rules alone: the
+// demanded altitude standing above the bot bars the handover, rise or no
+// rise. A closure (t - f <= 1, the one-level step the walk ladder owns)
+// keeps the handover whatever the delta; the 'already out' return never
+// consults the guard. The gained argument stays in the signature for the
+// wiring's byte-stability (both call sites pass it) - the law no longer
+// reads it. Junk-safe: an unreadable target or feet keeps the legacy
+// verdict.
 //
 // @param {object} p
 // @param {number|null} [p.targetY] the CALLER's demanded altitude (the yard's
 //   level on the ascent legs; null on every plain climb - the guard stays off)
 // @param {number|null} [p.feetY] the bot's current feet cell y (the handover read)
-// @param {number} [p.gained] the climb's level delta so far (feetNow - feet0)
+// @param {number} [p.gained] accepted for the wiring's byte-stability - the
+//   demand-closure law reads the geometry alone
 // @returns {boolean} true = the demanded altitude is still > 1 above the bot
-//   and nothing was gained - the walkable-surface verdict must NOT fire
+//   - the walkable-surface verdict must NOT fire, however far the climb rose
 export function climbSurfaceShort ({ targetY = null, feetY = null, gained = 0 } = {}) {
   const t = Number.isFinite(targetY) ? targetY : null
   const f = Number.isFinite(feetY) ? feetY : null
-  const g = Number.isFinite(gained) ? gained : 0
   if (t == null || f == null) return false // junk keeps the legacy verdict
-  if (g > 0) return false // the climb rose - the handover is honest
-  return t - f > 1 // the demanded altitude still stands above the bot
+  return t - f > 1 // the demanded altitude still stands above the bot - rise or no rise
 }
 
 export const RISE_ASSIST_TIMEOUT_MS = 4500

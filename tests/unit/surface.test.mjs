@@ -927,12 +927,22 @@ test('climbSurfaceShort: the F1 face - the yard 15 up, the pit floor open sky, g
   assert.equal(climbSurfaceShort({ targetY: 80, feetY: 65, gained: 0 }), true)
 })
 
-test('climbSurfaceShort: a climb that ROSE keeps the handover (the v0.609.0 landed pins ride byte for byte)', () => {
-  // the bot rose 3 of 15: the partial-rise handover is an honest landing for
-  // the executors - re-pricing it owns another face, with field data
-  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 68, gained: 3 }), false)
-  // even a full rise at the demand reads honest
+test('climbSurfaceShort: a PARTIAL rise reads SHORT (the v0.614.0 demand-closure law - the v0.609.0 rose-keeps exemption is gone)', () => {
+  // the bot rose 3 of 15: the yard still stands 9 above - the handover is a
+  // lie below the demand (fleet 37193219050: all three landings partial)
+  assert.equal(climbSurfaceShort({ targetY: 80, feetY: 68, gained: 3 }), true)
+  // a closure (the demand met within the one-level tolerance) keeps the
+  // handover whatever the delta rode
   assert.equal(climbSurfaceShort({ targetY: 80, feetY: 80, gained: 15 }), false)
+})
+
+test('climbSurfaceShort: the mined partial faces byte-exact (fleet 37193219050, feet0 = 65)', () => {
+  // F16 demanded 12 climbed +6 - the yard stands 6 above the 'pre-funded' walk
+  assert.equal(climbSurfaceShort({ targetY: 65 + 12, feetY: 65 + 6, gained: 6 }), true)
+  // F5 demanded 13 climbed +8 - the yard stands 5 above
+  assert.equal(climbSurfaceShort({ targetY: 65 + 13, feetY: 65 + 8, gained: 8 }), true)
+  // F10 demanded 9 climbed +1 - the yard stands 8 above (the biggest gap)
+  assert.equal(climbSurfaceShort({ targetY: 65 + 9, feetY: 65 + 1, gained: 1 }), true)
 })
 
 test('climbSurfaceShort: a settled-back bot (negative gained) below the demand reads SHORT', () => {
@@ -962,7 +972,8 @@ test('climbSurfaceShort: junk reads are safe (the legacy verdict fires)', () => 
   assert.equal(climbSurfaceShort({ targetY: NaN, feetY: 65 }), false)
   assert.equal(climbSurfaceShort({}), false)
   assert.equal(climbSurfaceShort(), false)
-  // a junk gained reads 0 (no rise proven) - the demand still rules
+  // a junk gained is unread (the v0.614.0 law reads the geometry alone) -
+  // the demand still rules
   assert.equal(climbSurfaceShort({ targetY: 80, feetY: 65, gained: 'junk' }), true)
 })
 
