@@ -593,7 +593,11 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
       t.skip(`no budget left for the table phase (${Math.round(budgetLeft() / 1000)}s left) - chain not exercised`)
       return
     }
+    // (v0.604.0) the wet-class counters: the flooded-world skip reads them
+    let attemptsMade = 0
+    let wetAttempts = 0
     for (let attempt = 0; attempt < 3 && !table; attempt++) {
+      attemptsMade++
       const carve = await carveAlcove(bot, miner)
       if (carve.cell) {
         // (v0.184.0) digAbove now targets THE carved cell (carveAlcove returns
@@ -612,16 +616,33 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
         // handoff - the next attempt probes dry walls instead of re-carving
         // the same pond's wall three times.
         if (!table && carvedCellFlooded(bot.blockAt(carve.cell))) {
+          wetAttempts++
           log(`table attempt ${attempt}: the carved cell flooded late (${bot.blockAt(carve.cell)?.name}) - relocating to dry ground`)
           try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
         }
       } else if (carve.wet) {
+        wetAttempts++
         // (v0.352.0) the wet column is not a pipeline failure - walk out of
         // the water (the fleet's relocate escalation, the tools phase's own
         // wet-spawn cure) and let the next attempt probe dry walls
         log(`table attempt ${attempt}: the column is wet - relocating to solid ground`)
         try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
       }
+    }
+    // (v0.604.0) THE FLOODED WORLD SKIP: the ladder's all-wet face is a WORLD,
+    // not a pipeline failure. Face CI 37185357844 (the v0.603.0 tree, green on
+    // its own unit battery and zero smelt files touched): the spawn put the
+    // shaft bottom beside a pond, all THREE attempts carried the wet class
+    // (carved-flooded-late x2 + the wet column x1), and the assert fired on a
+    // world the ladder cannot dry. The wet verdicts already name themselves
+    // (carvedCellFlooded / carve.wet) - counting them is free. EVERY attempt
+    // wet -> the same honest skip family as wood-scarce / budget / death
+    // (the v0.184.0 law: an environment flake must not look like a pipeline
+    // failure); ANY non-wet attempt in the mix keeps the assert - a placement
+    // bug in a dry world must still fire.
+    if (!table && attemptsMade > 0 && wetAttempts === attemptsMade) {
+      t.skip(`the shaft bottom is a flooded world (${wetAttempts}/${attemptsMade} wet attempts: carved cells read water, the relocate handoff found no dry wall) - chain not exercised`)
+      return
     }
   }
   assert.ok(table, 'a crafting table must be placeable at the shaft bottom')
