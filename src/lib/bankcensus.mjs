@@ -15,7 +15,14 @@ const num = (s) => Number(s)
 const STRANDED_RE = /^(F\d+) (\d+)u\/(\d+)u pocket$/
 
 // Write-off entry: 'F1 102u/15s' - units the deadline collected unbanked.
-const WRITEOFF_RE = /^(F\d+) (\d+)u\/(\d+)s$/
+// (v0.612.0) THE WHY TAIL: the emitter's v0.553.0 row rides the class when
+// the end-phase knew it - 'F16 214u/16s timeout', 'F10 131u/19s doom-latched'
+// (fleet 37191475285's face: the tail rode 3 of 4 entries) - and the anchored
+// bare regex DROPPED every suffixed entry: the mining read saw 141u of the
+// 552u crater and lost ALL reasons (the blind-tool lesson's own shape). The
+// optional token rides the emitter's own law (/^[a-z0-9-]+$/, one token); a
+// dirty or multi-word tail is a junk line, not a read.
+const WRITEOFF_RE = /^(F\d+) (\d+)u\/(\d+)s(?: ([a-z0-9-]+))?$/
 
 // Surplus top item: 'stick 96u'.
 const SURPLUS_ITEM_RE = /^([a-z_]+) (\d+)u$/
@@ -42,12 +49,18 @@ export function parseStranded(s) {
 
 // 'F1 102u/15s, F13 65u/14s (the deadline pocket rode unbanked)'
 //   -> [{bot, units, seconds}, ...] (the trailing parenthetical dropped)
+// (v0.612.0) the why tail rides when the emitter knew the class:
+//   'F16 214u/16s timeout' -> { bot: 'F16', units: 214, seconds: 16, why: 'timeout' }
+//   'F17 141u/25s'         -> { bot: 'F17', units: 141, seconds: 25 } (byte-equal bare form)
 export function parseWriteOff(s) {
   if (typeof s !== 'string') return []
   const head = s.replace(/ \([^)]*\)$/, '')
   return head.split(', ').map((p) => {
     const m = p.trim().match(WRITEOFF_RE)
-    return m ? { bot: m[1], units: num(m[2]), seconds: num(m[3]) } : null
+    if (!m) return null
+    const e = { bot: m[1], units: num(m[2]), seconds: num(m[3]) }
+    if (m[4] !== undefined) e.why = m[4] // the key rides only when present - the bare pins stay byte-equal
+    return e
   }).filter(Boolean)
 }
 
@@ -199,6 +212,26 @@ export function bankFlowCensus(lines) {
   const woM = last(/^final write-off: (.+)$/)
   const writeOff = woM ? parseWriteOff(woM[1]) : []
 
+  // (v0.612.0) THE WHY TAIL'S MASS - the mining read of the emitter's own
+  // v0.583.0 law (writeOffWhyRow aggregates the live inventory; THIS reads
+  // the printed line - the blind-tool lesson): units summed per why class,
+  // a bare entry rides the honest 'unnamed' bucket (a stranded pocket with
+  // no why is still stranded mass - the bands' own blind law). The mined
+  // face (fleet 37191475285): timeout 280u, unnamed 141u, doom-latched 131u
+  // of the 552u crater - the per-class lever table (WRITE_OFF_WHY_LEVERS)
+  // can now be priced from the LOG alone.
+  let writeOffWhys = null
+  if (writeOff.length) {
+    const byClass = {}
+    let units = 0
+    for (const w of writeOff) {
+      units += w.units
+      const k = w.why || 'unnamed'
+      byClass[k] = (byClass[k] || 0) + w.units
+    }
+    writeOffWhys = { units, byClass }
+  }
+
   // (v0.387.0) The deliverability arm's firings: each cause line is an
   // event (the refractory cadence keeps them sparse - the count IS the
   // arm's field activity, no dedupe). The aggregate names the whale's
@@ -229,5 +262,5 @@ export function bankFlowCensus(lines) {
     why: parseDoomWhy(dwM ? dwM[1] : null),
   } : null
 
-  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, doom, deliverable }
+  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable }
 }

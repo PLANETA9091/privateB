@@ -236,3 +236,49 @@ test('the missing-block tolerance covers the deliverable field', () => {
   const c = bankFlowCensus(['boom'])
   assert.equal(c.deliverable, null)
 })
+
+// (v0.612.0) THE WHY TAIL - the emitter's v0.553.0 row rides the class
+// ('F16 214u/16s timeout') and the v0.382.0 anchored regex dropped every
+// suffixed entry: the mining read saw 141u of fleet 37191475285's 552u
+// crater (25.5%) and lost ALL reasons. The tail rides the emitter's own
+// token law; the bare form stays byte-equal.
+test('write-off why tail: the mined face parses WHOLE (fleet 37191475285, 4 of 4 entries)', () => {
+  const entries = parseWriteOff('F16 214u/16s timeout, F17 141u/25s, F10 131u/19s doom-latched, F2 66u/16s timeout (the deadline pocket rode unbanked)')
+  assert.deepEqual(entries, [
+    { bot: 'F16', units: 214, seconds: 16, why: 'timeout' },
+    { bot: 'F17', units: 141, seconds: 25 },
+    { bot: 'F10', units: 131, seconds: 19, why: 'doom-latched' },
+    { bot: 'F2', units: 66, seconds: 16, why: 'timeout' },
+  ])
+})
+
+test('write-off why tail: the bare form stays byte-equal (the why key rides only when present)', () => {
+  assert.deepEqual(parseWriteOff('F1 102u/15s, F13 65u/14s (the deadline pocket rode unbanked)'), [{ bot: 'F1', units: 102, seconds: 15 }, { bot: 'F13', units: 65, seconds: 14 }])
+  // the v0.553.0 night face: the why rides a single clean token
+  assert.deepEqual(parseWriteOff('F15 205u/12s night'), [{ bot: 'F15', units: 205, seconds: 12, why: 'night' }])
+})
+
+test('write-off why tail: dirty tails are junk lines, not reads (the emitter own token law)', () => {
+  // the emitter filters to /^[a-z0-9-]+$/ - a dirty tail cannot come from it
+  assert.deepEqual(parseWriteOff('F1 102u/15s TIMEOUT!'), [])
+  assert.deepEqual(parseWriteOff('F1 102u/15s wet wall'), []) // multi-word is not one token
+  // the dash sits INSIDE the emitter's own class - a '-' tail would ride the
+  // row itself, so the parser mirrors it honestly (junk in, junk out)
+  assert.deepEqual(parseWriteOff('F1 102u/15s -'), [{ bot: 'F1', units: 102, seconds: 15, why: '-' }])
+})
+
+test('write-off why mass: the census aggregates the crater per class (the v0.583.0 unnamed law)', () => {
+  const c = bankFlowCensus([
+    'loot ledger: mined=3226 banked=1982 smelted=57 pocket=791u/139s accounted=2830 unaccounted=396 surplus=0u conversion=87.7%',
+    'final write-off: F16 214u/16s timeout, F17 141u/25s, F10 131u/19s doom-latched, F2 66u/16s timeout (the deadline pocket rode unbanked)',
+  ])
+  assert.equal(c.writeOff.length, 4)
+  assert.deepEqual(c.writeOffWhys, { units: 552, byClass: { timeout: 280, unnamed: 141, 'doom-latched': 131 } })
+})
+
+test('write-off why mass: tolerance stays honest (no write-off line reads null, the bare row reads the unnamed bucket)', () => {
+  assert.equal(bankFlowCensus(['boom']).writeOffWhys, null)
+  assert.deepEqual(bankFlowCensus([]).writeOffWhys, null)
+  const bare = bankFlowCensus(['final write-off: F1 102u/15s (the deadline pocket rode unbanked)'])
+  assert.deepEqual(bare.writeOffWhys, { units: 102, byClass: { unnamed: 102 } })
+})
