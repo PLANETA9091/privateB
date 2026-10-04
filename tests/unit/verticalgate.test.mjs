@@ -10,6 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseVerticalSkip, parseVerticalAscent, verticalGateCensus, verticalGateRow,
+  parseCachedSkip, cachedSkipCensus, cachedSkipRow, CACHED_ZERO_SHARE,
 } from '../../src/lib/verticalgate.mjs'
 
 // the face's own shapes, byte for byte from fleet 37169265512's log
@@ -165,4 +166,69 @@ test('verticalGateRow: the healthy form and the honest silences', () => {
   assert.equal(verticalGateRow([]), null, 'a quiet strand prints nothing')
   assert.equal(verticalGateRow(['noise', 'more noise']), null, 'unrelated lines never summon the row')
   assert.equal(verticalGateRow(null), null, 'junk input is the honest quiet')
+})
+
+test('THE CACHED-SKIP GRAIN: the skip line\'s own cache verdicts read as one family (v0.593.0)', () => {
+  // the face's byte-exact shapes (fleet 37171678894): the [bot] tag is
+  // optional in the grammar (the v0.590.0 pattern), the outer name is truth
+  assert.deepEqual(parseCachedSkip('F8 [F8] chest skip (no path cached 0s ago at [-147,72,406])'),
+    { bot: 'F8', why: 'no path cached', ageS: 0, cell: { x: -147, y: 72, z: 406 } })
+  assert.deepEqual(parseCachedSkip('F9 chest skip (full cached 8s ago at [-107,72,400])'),
+    { bot: 'F9', why: 'full cached', ageS: 8, cell: { x: -107, y: 72, z: 400 } })
+  assert.deepEqual(parseCachedSkip('F8 [F8] chest skip (doomed goal cached 3s ago at [-147,72,406])'),
+    { bot: 'F8', why: 'doomed goal cached', ageS: 3, cell: { x: -147, y: 72, z: 406 } })
+  // the junk battery: torn payloads, junk numbers, foreign shapes
+  assert.equal(parseCachedSkip('F8 [F8] chest skip (no path cached ago at junk)'), null)
+  assert.equal(parseCachedSkip('F8 [F8] chest skip (vertical doom: the yard stands 29 levels up - the walk ladder cannot climb)'), null, 'the doom grammar stays vertical skip\'s')
+  assert.equal(parseCachedSkip('noise'), null)
+  assert.equal(parseCachedSkip(null), null)
+  assert.equal(parseCachedSkip(42), null)
+})
+
+test('THE CACHED-SKIP CENSUS: the tallies, the honest unparsed and the builder\'s race (the face\'s own mass)', () => {
+  // the live anchor: fleet 37171678894 read 39 skips across 27 cells,
+  // no path cached 39, 32 born empty at the ask (0s) - the builder's race
+  const lines = [
+    'F8 [F8] chest skip (no path cached 0s ago at [-147,72,406])',
+    'F8 [F8] chest skip (no path cached 0s ago at [-147,72,406])', // the same cell asks twice - cells count ONCE
+    'F9 chest skip (no path cached 0s ago at [-147,72,400])',
+    'F1 [F1] chest skip (no path cached 2s ago at [-117,72,404])',
+    'F9 [F9] chest skip (no path cached 8s ago at [-107,72,400])',
+    'F19 [F19] chest skip (vertical doom: the yard stands 29 levels up over 18b lateral - the walk ladder cannot climb)', // the other family's line
+    'F8 [F8] chest skip (no path cached seconds ago at junk)', // the torn payload rides unparsed
+  ]
+  const c = cachedSkipCensus(lines)
+  assert.equal(c.n, 5)
+  assert.deepEqual(c.byWhy, { 'no path cached': 5 })
+  assert.equal(c.zeroAge, 3)
+  assert.equal(c.maxAgeS, 8)
+  assert.equal(c.cells, 4) // [-147,72,406] seen twice, counted once
+  assert.equal(c.unparsed, 1, 'the torn member is named, never dropped (the honest-sweep law)')
+  assert.deepEqual(cachedSkipCensus([]), { n: 0, byWhy: {}, zeroAge: 0, maxAgeS: 0, cells: 0, unparsed: 0 })
+  assert.deepEqual(cachedSkipCensus(null), { n: 0, byWhy: {}, zeroAge: 0, maxAgeS: 0, cells: 0, unparsed: 0 })
+  // the half boundary: exactly 0.5 trips (the family law)
+  assert.equal(CACHED_ZERO_SHARE, 0.5)
+})
+
+test('THE CACHED-SKIP ROW: the builder\'s race vs the cache\'s own clock (byte-stable verdicts)', () => {
+  const c = cachedSkipCensus([
+    'F8 [F8] chest skip (no path cached 0s ago at [-147,72,406])',
+    'F9 chest skip (no path cached 0s ago at [-147,72,400])',
+  ])
+  assert.equal(cachedSkipRow(c),
+    'cached skips: 2 skips across 2 cells (no path cached 2) - 2 born empty at the ask - the builder\'s race is the front')
+  // the aged cache: the why split sorts desc then name-asc, the clock owns the verdict
+  const aged = cachedSkipCensus([
+    'F9 chest skip (no path cached 5s ago at [1,2,3])',
+    'F1 [F1] chest skip (full cached 8s ago at [4,5,6])',
+    'F2 chest skip (doomed goal cached 3s ago at [7,8,9])',
+    'F2 chest skip (doomed goal cached 3s ago at [7,8,9])',
+  ])
+  assert.equal(cachedSkipRow(aged),
+    'cached skips: 4 skips across 3 cells (doomed goal cached 2, full cached 1, no path cached 1) - oldest answer 8s - the cache\'s own clock is the front')
+  // the always-print law: the none form is a verdict too
+  assert.equal(cachedSkipRow(null), 'cached skips: none (no cached verdict ever skipped a chest)')
+  assert.equal(cachedSkipRow(cachedSkipCensus([])), 'cached skips: none (no cached verdict ever skipped a chest)')
+  assert.equal(cachedSkipRow({ n: 3, byWhy: { 'no path cached': 3 }, zeroAge: 1, maxAgeS: 0, cells: 1 }),
+    'cached skips: 3 skips across 1 cells (no path cached 3) - oldest answer 0s - the cache\'s own clock is the front', 'a one-in-three zero age reads the clock, never the race')
 })

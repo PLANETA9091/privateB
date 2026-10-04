@@ -200,3 +200,91 @@ export function verticalGateRow (lines) {
   else verdict = 'the ascent never lands: the deep anchor\'s seat is priced'
   return `vertical gate: ${parts.join(', ')} - ${verdict}`
 }
+
+// (v0.593.0) THE CACHED-SKIP GRAIN - the chest skip's own cache verdicts,
+// read as one family. The face's first read (fleet 37171678894, the
+// v0.589.0 tree) carried 39 'chest skip (no path cached Xs ago at ...)'
+// lines against the vertical doom's 29 - a class BIGGER than the named
+// strand and nobody's row read it. deposit.mjs's skip line speaks THREE
+// cached verdicts beside the doom: the cache has NO answer (no path
+// cached), the cache answers FULL (full cached), the cache answers DOOMED
+// (doomed goal cached). Every shape carries the same economics - the
+// answer's age in seconds and the cell that asked. The grain: who asked,
+// how old the answers were, and whether the cache was BORN EMPTY at the
+// ask (a 0s age is the builder's race - the ask landed inside the same
+// think window that builds the cache, the answer never existed yet).
+// ONE PARSER PER EMITTER (the v0.409.0 law): the cached family gets one
+// regex of its own - the vertical doom's grammar stays parseVerticalSkip's.
+// Pure functions only (the deep-strand law): this file never sees a bot.
+
+const CACHED_SKIP_RE = /^(F\d+) (?:\[[A-Za-z0-9]+\] )?chest skip \((no path cached|full cached|doomed goal cached) (\d+)s ago at \[(-?\d+),(-?\d+),(-?\d+)\]\)$/
+
+/**
+ * Parse one chest skip's cached-verdict line.
+ * @param {string} line the log line (the outer bot name is the truth; the lib's own [bot] tag is optional)
+ * @returns {{bot: string, why: string, ageS: number, cell: {x: number, y: number, z: number}}|null} null on any non-member line
+ */
+export function parseCachedSkip (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(CACHED_SKIP_RE)
+  if (!m) return null
+  return {
+    bot: m[1],
+    why: m[2],
+    ageS: Number(m[3]),
+    cell: { x: Number(m[4]), y: Number(m[5]), z: Number(m[6]) },
+  }
+}
+
+/**
+ * Tally the cached-skip family over the log's lines: the why split, the
+ * zero-age count (the builder's race), the oldest answer, the distinct
+ * cells that asked. Junk lines and the doom grammar stay unparsed.
+ * @param {string[]} lines
+ * @returns {{n: number, byWhy: {'no path cached': number, 'full cached': number, 'doomed goal cached': number}, zeroAge: number, maxAgeS: number, cells: number, unparsed: number}}
+ */
+export function cachedSkipCensus (lines) {
+  const c = { n: 0, byWhy: {}, zeroAge: 0, maxAgeS: 0, cells: 0, unparsed: 0 }
+  if (!Array.isArray(lines)) return c
+  const seen = new Set()
+  for (const line of lines) {
+    const s = parseCachedSkip(line)
+    if (!s) continue
+    c.n++
+    c.byWhy[s.why] = (c.byWhy[s.why] || 0) + 1
+    if (s.ageS === 0) c.zeroAge++
+    if (s.ageS > c.maxAgeS) c.maxAgeS = s.ageS
+    const k = `${s.cell.x},${s.cell.y},${s.cell.z}`
+    if (!seen.has(k)) { seen.add(k); c.cells++ }
+  }
+  c.cells = seen.size
+  // the honest sweep: a line of THIS family's three whys that failed the
+  // full grammar is named unparsed - torn ages and cells stay visible
+  c.unparsed = Array.isArray(lines)
+    ? lines.filter(l => typeof l === 'string' && /chest skip \((?:no path cached|full cached|doomed goal cached)/.test(l) && !CACHED_SKIP_RE.test(l)).length
+    : 0
+  return c
+}
+
+// the family's half boundary (the owner maps' own shape, one number)
+export const CACHED_ZERO_SHARE = 0.5
+
+/**
+ * The row: is the cache born empty at the asks, or does it hold answers?
+ * Byte-stable; the always-print law holds (the none form is a verdict).
+ * @param {{n: number, byWhy: Record<string, number>, zeroAge: number, maxAgeS: number, cells: number}|null} c a cachedSkipCensus result
+ * @returns {string}
+ */
+export function cachedSkipRow (c) {
+  if (!c || !Number.isFinite(c.n) || c.n === 0) return 'cached skips: none (no cached verdict ever skipped a chest)'
+  const whys = Object.entries(c.byWhy || {})
+    .sort((x, y) => (y[1] - x[1]) || (x[0] < y[0] ? -1 : 1))
+    .map(([w, n]) => `${w} ${n}`)
+    .join(', ')
+  const head = `cached skips: ${c.n} skips across ${c.cells} cells (${whys})`
+  const zero = Number.isFinite(c.zeroAge) && c.zeroAge > 0 ? c.zeroAge : 0
+  if (zero / c.n >= CACHED_ZERO_SHARE) {
+    return `${head} - ${zero} born empty at the ask - the builder's race is the front`
+  }
+  return `${head} - oldest answer ${Number.isFinite(c.maxAgeS) ? Math.floor(c.maxAgeS) : 0}s - the cache's own clock is the front`
+}
