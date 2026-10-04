@@ -169,7 +169,7 @@ export function bridgeRefusalCensus (lines) {
   const c = { n: 0, bots: new Set(), byClass: {}, places: 0, fillKinds: {}, unparsed: 0,
     refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set(),
     gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {},
-    pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {} }
+    pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {}, refusedPostKinds: {} }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -200,6 +200,13 @@ export function bridgeRefusalCensus (lines) {
       if (r.reReadFailed) c.refusedReReadFailed++
       const key = `${r.cell.x},${r.cell.y},${r.cell.z}`
       c.refusedCellKeys.add(key)
+      // (v0.626.0) the confession grain: the fresh read's own word - what the
+      // cell reads AFTER the refusal (the v0.622.0 cure turned the blind leg
+      // into a named face; THIS grain prices the named face per kind - the
+      // plant front leaf_litter/short_grass = a diggable groundcover, the
+      // water face = the wet cell, the air face = the honest open cell)
+      const pk = r.post.trim().split(/\s+/)[0]
+      if (pk) c.refusedPostKinds[pk] = (c.refusedPostKinds[pk] || 0) + 1
       continue
     }
     // (v0.621.0) the gate's own grain: the underfoot gate's three forms join
@@ -296,7 +303,35 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c)
+  return base + refusedTail(c) + confessionTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c)
+}
+
+// (v0.626.0) THE OPEN CELL'S CONFESSION - the fresh read's word, priced per
+// face. The v0.622.0 fresh post read cured the blind leg in the field (the
+// fleet 37212035127 face, the 4d329cd lens tree: 0 'post=?' residue across
+// TWO faces now) - every refusal now confesses what its cell READS: 'post=air
+// STILL OPEN (refused twice)' became the family's honest verdict. But the row
+// never priced the CONFESSION per kind - and the kinds are not equal: the
+// fleet 37212035127 face confessed air 19, leaf_litter 6, short_grass 1 - the
+// PLANT front (leaf_litter/short_grass = diggable groundcover, no collision,
+// instant bare-hand break) owned 7 of 26 refusals (27%): the server keeps the
+// cell for its plant, the fill's placement dies into it twice. THE LAW: the
+// clause speaks only when the read SPOKE at least once (a non-'?' kind
+// exists) - the wholly-blind face is the blind mass's own clause (the '?'
+// kind never confesses); the junk fallback (a census without the field) is
+// silent, never a lie; the sort rides the walkfail book's law (count desc,
+// ties by name asc). The tail rides INSIDE the refused family - after the
+// verdict paren, before the blind mass clause (the confession and the blind
+// mass are near-exclusive: a wholly-blind face confesses nothing):
+//   ' - the open cells confess: air 19, leaf_litter 6, short_grass 1'
+function confessionTail (c) {
+  const kinds = c && c.refusedPostKinds && typeof c.refusedPostKinds === 'object' ? c.refusedPostKinds : null
+  if (!kinds) return ''
+  const entries = Object.entries(kinds)
+    .filter(([k, v]) => k !== '?' && Number.isFinite(v) && v > 0)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (!entries.length) return ''
+  return ' - the open cells confess: ' + entries.map(([k, v]) => `${k} ${v}`).join(', ')
 }
 
 // (v0.623.0) THE PIT DONOR'S OWN TAIL - the pocket cure's live behavior rides

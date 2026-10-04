@@ -479,3 +479,46 @@ test('pit donor book: the pocket cure speaks (v0.623.0)', () => {
   assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('the pit donated'))
   assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the pit donated'))
 })
+
+test('open cell confession: the fresh read\'s word priced per kind (v0.626.0)', () => {
+  const refused = (s, kind, cell) => `F${s} [F${s}] climb bridge: the server refused the support fill at [${cell}] - the rotate ladder owns it (held=cobblestone, 0.8b, ref=stone, post=${kind} STILL OPEN (refused twice))`
+  // the census grain: each parsed refusal confesses its post kind
+  const lines = [
+    refused('4', 'air', '-116,43,407'),
+    refused('1', 'air', '-110,67,409'),
+    refused('7', 'leaf_litter', '-117,45,407'),
+    refused('4', 'leaf_litter', '-120,64,383'),
+    refused('3', 'water', '-110,47,421')
+  ]
+  const c = bridgeRefusalCensus(lines)
+  assert.equal(c.refused, 5)
+  assert.deepEqual(c.refusedPostKinds, { air: 2, leaf_litter: 2, water: 1 })
+  // the tail rides INSIDE the refused family: after the verdict paren, before the blind mass
+  const row = bridgeRefusalRow(c)
+  assert.ok(row.includes(' - the open cells confess: air 2, leaf_litter 2, water 1'), row)
+  assert.ok(row.indexOf('(the refusal is the verdict)') < row.indexOf('the open cells confess'), row)
+  // the newest-last law: the confession rides before the gate tail and the donor tail
+  const withGate = bridgeRefusalRow(bridgeRefusalCensus([...lines, 'F4 [F4] climb bridge: the self fill still waits for ground - the ladder owns it', `F6 [F6] climb bridge: the pocket is empty - the pit donates a dirt at [-91,59,398] - the fill refunds it`]))
+  assert.ok(withGate.includes('the open cells confess: air 2, leaf_litter 2, water 1'), withGate)
+  assert.ok(withGate.indexOf('the open cells confess') < withGate.indexOf('the gate waited'), withGate)
+  assert.ok(withGate.indexOf('the gate waited') < withGate.indexOf('the pit donated'), withGate)
+  // the sort law: count desc, ties by name asc
+  assert.ok(row.indexOf('air 2') < row.indexOf('leaf_litter 2'), row)
+  // the wholly-blind face ('?') never confesses - the blind clause owns it
+  const blind = bridgeRefusalCensus([REFUSED_SELF, REFUSED_SUPPORT])
+  assert.deepEqual(blind.refusedPostKinds, { '?': 2 })
+  const blindRow = bridgeRefusalRow(blind)
+  assert.ok(!blindRow.includes('the open cells confess'), blindRow)
+  assert.ok(blindRow.includes('the re-read never spoke'), blindRow)
+  // a partial face confesses ONLY the kinds that spoke (the '?' kind filtered)
+  const mixed = bridgeRefusalCensus([refused('4', 'air', '-116,43,407'), REFUSED_SELF])
+  const mixedRow = bridgeRefusalRow(mixed)
+  assert.ok(mixedRow.includes(' - the open cells confess: air 1'), mixedRow)
+  // the junk fallback (no field) is silent, never a lie; the old faces byte-stable
+  assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the open cells confess'))
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('the open cells confess'))
+  // the torn line never confesses (it failed the full grammar)
+  const torn = bridgeRefusalCensus(['F4 [F4] climb bridge: the server refused the support fill at [-116,43,407] - the rotate ladder owns it (held=cobblestone'])
+  assert.equal(torn.refusedTorn, 1)
+  assert.deepEqual(torn.refusedPostKinds, {})
+})
