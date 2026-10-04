@@ -19,7 +19,7 @@ import {
   rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP, // (v0.507.0) the gravity stash
   nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS, // (v0.643.0) the nudge's own floor
-  anchorArrivalDist, ANCHOR_ARRIVAL_REAPPROACH_MS, CHEST_OPEN_DIG_MAX_DIST // (v0.645.0) the arrival reach law
+  anchorArrivalDist, ANCHOR_ARRIVAL_REAPPROACH_MS, CHEST_OPEN_DIG_MAX_DIST // (v0.646.0) the arrival reach law
 } from '../../src/lib/fuelbank.mjs'
 
 // Unique stable numeric type per item name - window transfers match by type, and
@@ -840,7 +840,7 @@ function mockAnchorWorld ({ pocketCoal = 14, pocketCharcoal = 0, walkFails = fal
   const chestBlock = { name: 'chest', position: new Vec3(10.5, 64, 10.5) }
   const bot = {
     username: 'AnchorBot',
-    // (v0.645.0) the mock bot stands WITHIN the open's reach of the anchor
+    // (v0.646.0) the mock bot stands WITHIN the open's reach of the anchor
     // chest (d=1) - the goto no-op is then an HONEST landed shape; the old
     // far default (d=13) was the very lie the arrival reach gate names, and
     // the gate refused every mock delivery that rode it.
@@ -953,7 +953,7 @@ test('THE TITHE RETRY: a path-class failure re-issues immediately (the nudge cla
   // the CLOSE SHOT: the segment goto succeeds in the mock (no bot movement -
   // the stall rule ends the approach), then the re-issue lands. 3 gotos:
   // walk + shot + retry.
-  // (v0.645.0) the far start rides again (d=12.7 - the close shot's own
+  // (v0.646.0) the far start rides again (d=12.7 - the close shot's own
   // shape) and moveOnGoto makes the segment walk an HONEST move - the bot
   // ends within the open's reach, the arrival gate reads it and lands.
   const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(1.5, 64, 1.5), walkFailTimes: 1, firstWalkError: 'Took to long to decide path to goal!', moveOnGoto: true })
@@ -995,7 +995,7 @@ test('THE DECIDE-CLASS NUDGE (v0.155.0): a far decide failure walks an approach 
 test('THE DECIDE-CLASS NUDGE (v0.155.0): the churn refusal never nudges (the wait-out stays)', async () => {
   // the refusal class is TIME-BOXED - the window expiry is the real change;
   // the far start does not turn it into a nudge class
-  // (v0.645.0) moveOnGoto: the re-issue's re-goto lands the bot within the
+  // (v0.646.0) moveOnGoto: the re-issue's re-goto lands the bot within the
   // open's reach - the arrival gate reads an honest arrival and the deposit
   // rides (the far static mock was the lie the gate names).
   const world = mockAnchorWorld({ pocketCoal: 14, botPos: new Vec3(40, 64, 40), walkFailTimes: 1, firstWalkError: 'walk governor: bot churned 4 goals without progress - fuel anchor walk refused for 4s', moveOnGoto: true })
@@ -1994,7 +1994,7 @@ test('THE NUDGE LEG SPLIT: the junk laws + the source pin (the wire reads the sp
 })
 
 // ---------------------------------------------------------------------------
-// (v0.645.0) THE ARRIVAL REACH LAW - the walk's landed verdict gets its
+// (v0.646.0) THE ARRIVAL REACH LAW - the walk's landed verdict gets its
 // geometry read before the open's 10s tax rides a doomed packet.
 // THE EVIDENCE (fleet 37237898451, the v0.642.0 face): F13's arrival seat
 // read '0 delivered at arrival (open failed (open fuel anchor: timeout after

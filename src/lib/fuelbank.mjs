@@ -801,7 +801,7 @@ export function nudgeLegSplitMs ({ remainingMs = 0, floorMs = ANCHOR_NUDGE_LEG_F
   return Math.max(0, Math.min(cap, rem - floor))
 }
 
-// (v0.645.0) THE ARRIVAL REACH LAW - the walk's landed verdict and the
+// (v0.646.0) THE ARRIVAL REACH LAW - the walk's landed verdict and the
 // geometry can disagree, and the open's own tax made the lie expensive.
 // MEASURED (fleet 37237898451, the v0.642.0 face): F13's arrival seat read
 // '0 delivered at arrival (open failed (open fuel anchor: timeout after
@@ -958,7 +958,7 @@ export async function deliverFuelTithe (bot, {
     }
   }
   if (remainingMs() <= 0) return { delivered: 0, why: 'budget spent after walk' }
-  // (v0.645.0) THE ARRIVAL REACH GATE - the walk's landed verdict gets its
+  // (v0.646.0) THE ARRIVAL REACH GATE - the walk's landed verdict gets its
   // geometry read before the open's 10s tax rides a doomed packet: beyond
   // reach one bounded re-approach rides; still beyond - the honest why
   // returns BEFORE the open (the dist feeds the far lens as before).
