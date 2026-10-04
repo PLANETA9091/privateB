@@ -95,6 +95,11 @@ test('the census: the live face 37184982755 reads additive - 13 funded, 7 landed
   assert.equal(c.funded, 13)
   assert.equal(c.landed, 7)
   assert.equal(c.zeroGain, 5)
+  // (v0.609.0) THE FIELD-CORRECTED SPLIT: four of the five zero-gain climbs
+  // rode (dug 0, 0 steps) - the honest already-out no-op; ONE rode (dug 1,
+  // 0 steps) - the lie (digs burned, no rise).
+  assert.equal(c.zeroDigGain, 1)
+  assert.equal(c.alreadyOut, 4)
   assert.equal(c.failed, 6)
   assert.equal(c.latched, 1)
   assert.equal(c.torn, 1)
@@ -129,7 +134,8 @@ test('the row bands: none, condemned, torn book, never-lands, zero-gain face, la
     'F1 chest ascent (upfront): failed (wet wall) - the leg walks from here'
   ]))
   assert.match(neverWet, /the wet wall owns the climb - the geometry is the front/)
-  // THE LIVE FACE ROW: the zero-gain climb is the face (5 of 7 over the half).
+  // THE LIVE FACE ROW (v0.609.0 field-corrected): the already-outs own the
+  // face (4 of 7 over the half) - the lie band never fires (1 of 7).
   const live = upfrontAscentRow(upfrontAscentCensus([
     ...[16, 16, 16, 19, 19, 13, 13, 12, 12, 37, 20, 15, 14].map((dy, i) => `F${(i % 12) + 1} chest ascent (upfront): the yard stands ${dy} levels up - the climb buys the walk its route - funding the climb before the leg's walks`),
     ...[0, 0, 0, 0].map((_, i) => `F${i + 2} chest ascent (upfront): climbed +0 levels (dug 0, 0 steps) - the hop ladder is pre-funded`),
@@ -144,7 +150,33 @@ test('the row bands: none, condemned, torn book, never-lands, zero-gain face, la
     'F1 chest ascent (upfront): failed (stalled) - the leg walks from here',
     'F1 chest ascent (upfront): route-latched after 3 refused climbs - the route is condemned, the leg walks the whole route'
   ]))
-  assert.equal(live, 'upfront ascent book: funded 13, landed 7, failed 6, latched 1 across 16 bot(s) - the zero-gain climb is the face - 5 of 7 landed climbs rose no levels - the landed verdict lies - the climb reports ok and rises nothing')
+  assert.equal(live, 'upfront ascent book: funded 13, landed 7, failed 6, latched 1 across 16 bot(s) - the ground called the climbs already-out - 4 of 7 landed climbs dug nothing and rose nothing - the plan\'s vertical read and the ground disagree')
+  // The zero-gain LIE band: digs burned, no rise (the wet wall's graceful
+  // exit) - the landed verdict lies.
+  const lie = upfrontAscentRow(upfrontAscentCensus([
+    "F1 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",
+    "F2 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",
+    'F1 chest ascent (upfront): climbed +0 levels (dug 3, 1 steps) - the hop ladder is pre-funded',
+    'F2 chest ascent (upfront): climbed +4 levels (dug 4, 4 steps) - the hop ladder is pre-funded'
+  ]))
+  assert.match(lie, /the zero-gain climb is the face - 1 of 2 landed climbs dug and rose no levels - the landed verdict lies/)
+  // The already-out band: the honest no-ops own the face - the plan's
+  // vertical read and the ground disagree.
+  const ground = upfrontAscentRow(upfrontAscentCensus([
+    "F1 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",
+    "F2 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",
+    'F1 chest ascent (upfront): climbed +0 levels (dug 0, 0 steps) - the hop ladder is pre-funded',
+    'F2 chest ascent (upfront): climbed +4 levels (dug 4, 4 steps) - the hop ladder is pre-funded'
+  ]))
+  assert.match(ground, /the ground called the climbs already-out - 1 of 2 landed climbs dug nothing and rose nothing - the plan's vertical read and the ground disagree/)
+  // The wiring's own re-classification rides the failed family: the
+  // v0.609.0 guard emits 'failed (zero-gain)' - the throttle names it.
+  assert.equal(parseUpfrontAscent('F8 chest ascent (upfront): failed (zero-gain) - the leg walks from here').reason, 'zero-gain')
+  const lieThrottle = upfrontAscentRow(upfrontAscentCensus([
+    "F1 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",
+    'F1 chest ascent (upfront): failed (zero-gain) - the leg walks from here'
+  ]))
+  assert.match(lieThrottle, /zero-gain owns the failures \(1 of 1\) - the ok-without-rise is the front - the climb's ok hides a no-rise wall/)
   // The lands band: real gains over the half.
   const lands = upfrontAscentRow(upfrontAscentCensus([
     "F1 chest ascent (upfront): the yard stands 9 levels up - the climb buys the walk its route - funding the climb before the leg's walks",

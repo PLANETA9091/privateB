@@ -356,6 +356,17 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     try {
       const cr = await miner.climbOut({ dir: dir || undefined, targetY: cy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
       if (cr && !cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) one truth per bot: every memo-refused climb feeds the route latch
+      // (v0.609.0) THE ZERO-GAIN TRUTH: climbOut's ok may ride gained 0 - the
+      // 'already out (...)' reason is the honest no-op (the target was met
+      // before the climb), but any OTHER ok-without-rise (the 'walkable
+      // surface' return after a wet-wall shuffle dug and rose nothing) is a
+      // failed climb wearing a landing's clothes: the chain must not walk
+      // believing the hop got its route. Face 37184982755: '+0 (dug 1,
+      // 0 steps)' returned true to the chain.
+      if (cr && cr.ok && !(cr.gained > 0) && !String(cr?.reason ?? '').startsWith('already out')) {
+        console.log(`${miner.username} chest ascent: failed (zero-gain) - the skip stands`)
+        return false
+      }
       if (cr && cr.ok) {
         console.log(`${miner.username} chest ascent: climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop gets its route`)
         return true
@@ -405,6 +416,15 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     try {
       const cr = await miner.climbOut({ dir: dir || undefined, targetY: yy, force: true, maxMs: plan.climbMs, shouldStop: () => Date.now() > fenceAt })
       if (cr && !cr.ok && cr.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count
+      // (v0.609.0) THE ZERO-GAIN TRUTH (the mirror of the doom hook's guard):
+      // an ok-without-rise that is NOT the 'already out (...)' no-op is the
+      // wet wall's graceful exit - the landing verdict lied to the deposit
+      // chain (face 37184982755: '+0 (dug 1, 0 steps)' - 'the hop ladder is
+      // pre-funded' while the bot stood at the dig floor).
+      if (cr && cr.ok && !(cr.gained > 0) && !String(cr?.reason ?? '').startsWith('already out')) {
+        console.log(`${miner.username} chest ascent (upfront): failed (zero-gain) - the leg walks from here`)
+        return false
+      }
       if (cr && cr.ok) {
         console.log(`${miner.username} chest ascent (upfront): climbed +${cr.gained ?? '?'} levels (dug ${cr.dug ?? '?'}, ${cr.steps ?? '?'} steps) - the hop ladder is pre-funded`)
         return true

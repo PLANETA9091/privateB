@@ -75,6 +75,18 @@ test('v0.257.0 wiring: the executor is the miner\'s own climbOut at the YARD lev
   assert.match(fleetSrc, /const fenceAt = Date\.now\(\) \+ plan\.climbMs/, 'the fence is the priced slice - the leg clock owns the spend')
 })
 
+test('v0.609.0 wiring: the zero-gain truth guards BOTH executors - an ok-without-rise that is not the already-out no-op is a failed climb', () => {
+  // climbOut's ok may ride gained 0: 'already out (...)' is the honest
+  // no-op (the target was met), but the 'walkable surface' return after a
+  // wet-wall shuffle dug and rose NOTHING while the chain believed the hop
+  // ladder pre-funded (face 37184982755: '+0 (dug 1, 0 steps)').
+  assert.match(fleetSrc, /if \(cr && cr\.ok && !\(cr\.gained > 0\) && !String\(cr\?\.reason \?\? ''\)\.startsWith\('already out'\)\) \{/, 'the guard reads the gained and the already-out reason')
+  assert.match(fleetSrc, /chest ascent \(upfront\): failed \(zero-gain\) - the leg walks from here/, 'the upfront executor re-classifies the lie into the failed family')
+  assert.match(fleetSrc, /chest ascent: failed \(zero-gain\) - the skip stands/, "the doom hook's mirror guard re-classifies the same lie")
+  // The landed lines stay byte for byte - only the guard sits above them.
+  assert.match(fleetSrc, /chest ascent \(upfront\): climbed \+\$\{cr\.gained \?\? '\?'\} levels \(dug \$\{cr\.dug \?\? '\?'\}, \$\{cr\.steps \?\? '\?'\} steps\) - the hop ladder is pre-funded/, 'the honest landing line keeps its shape')
+})
+
 test('v0.257.0 arithmetic: the F18 face shape under the per-level law - the 75s leftover refuses honestly, the wall\'s own price funds', () => {
   // F18's doom arrived with 75s of LEFTOVER chain clock and refused (the
   // one-ms boundary). (v0.606.0) THE PER-LEVEL LAW re-prices this wall:
