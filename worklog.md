@@ -16872,3 +16872,26 @@ Work Log:
 Stage Summary:
 - Face 37386244195 IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x12, does the mob storm repeat or was it one night, reloot-lane gap, bank absorption recovery, sand window 3rd, rescue orphan class).
 - Version 0.670.0 reserved for the next code fire (the reloot walk lane is the top candidate front if code fires).
+
+---
+Task ID: cron30-20261006-0730
+Agent: cron30 fire 0730 (PLANETA9091 identity)
+Task: maintain privateB - poll the 12th flight, diagnose its failure, one atomic improvement.
+
+Work Log:
+- Synced master: 593f97d tip, identity still PLANETA9091 (held), lane silent since 02df300.
+- THE 12TH FLIGHT FAILED: face 37386244195 COMPLETED FAILURE - Integration's Smoke test step died, Unit x2 SUCCESS, big fleet leg SKIPPED (dependent). NOT a code regression: the same sha 02df300 passed Integration in the lane's own push CI 17 min earlier, and my 593f97d push-CI 37386401035 also SUCCESS.
+- DIAGNOSED from the job log (the hang pinned): the smoke bot dug 3 sand cells (each dig took 12-16s - sluggish server), came back to place into the first hole (-136,62,393) and the cell answered WATER - the ~30s of slow ticks let the neighbouring water reclaim the dug hole (y62 is waterline country). The old selector never read the hole cell itself (only the floor below it) -> placed "into water" (read back water, no confirm), then the dig-back guard (`name !== 'air'`) called bot.dig() ON THE WATER - fluids have no break progress, the await never settled, 138s of silence, FAIL overall timeout (180s).
+- THE FIX (v0.670.0 THE SMOKE WATER GUARD, one atomic commit 04ad4b7):
+  - NEW src/lib/smokespot.mjs: the pure cell selector - the hole path REQUIRES the hole cell still empty (air; a watered hole is refused, the neighbour scan rescues), the scan requires an empty cell over a solid non-fluid floor; diggableBack() gates the re-dig to boundingBox 'block' only - a fluid is skipped with a WARN, never dug.
+  - NEW tests/unit/smokespot.test.mjs: 6 field tests pinning the hang shape (the watered hole refused + dry neighbour chosen; dry hole first choice; hole-below-feet path; fluid floor refused; the void reads null; only blocks re-dig).
+  - testbed/smoke.mjs wired (the selection block replaced by the lens; the dig-back guard swapped to diggableBack).
+  - Version 0.669.0 -> 0.670.0 (GATING x3: origin/master still 0.669.0, the number was free).
+- Tests: syntax 476 files 0 broken; unit 271/271 PASSED (incl. the new lens). Integration rides CI.
+- CI: push 37389934503 on 04ad4b7 IN_PROGRESS at log-off - its Integration job re-runs the smoke on the SAME cached world (water at the coords) - the fix's own field validation, verdict rides next fire (poll FIRST, rerun if smoke still hangs).
+- NO dispatch this fire (the box went to the diagnosis + fix + CI; the 13th flight dispatches next fire at the opening if CI is green - law x19 pending).
+- Push attempt 1 clean: 593f97d..04ad4b7, author PLANETA9091 (the identity held through a code commit).
+
+Stage Summary:
+- v0.670.0 THE SMOKE WATER GUARD landed; CI 37389934503 in flight on 04ad4b7.
+- Next fire: (1) poll CI 37389934503 - if Integration green, the fix is field-proven; if smoke hangs again, pull the job log and iterate. (2) dispatch the 13th flight on the green sha (law x19). (3) mine nothing new unless a face lands (the 12th's failure left no fleet log - failure was pre-fleet).
