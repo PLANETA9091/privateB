@@ -1035,6 +1035,12 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
   const dryBits = Object.entries(aw.dryByWhy).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
   console.log(`  ask why census: ${aw.terminals} dry terminal(s), ${aw.unitsDry}u un-taken - whys: ${whyBits.length ? whyBits.join(', ') : 'none'}`)
   console.log(`  ask why census (dry by last why): ${dryBits.length ? dryBits.join(', ') : 'none priced'}`)
+  // (v0.653.0) THE DECIDE'S OWN SKINS - the decide class's own anatomy: the
+  // geometry skin (no-path) vs the budget skin (decide-timeout), with the
+  // opposite cures - the next lever prices WHICH skin owns the dry
+  const skinBits = Object.entries(aw.decideSkins).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
+  const skinDryBits = Object.entries(aw.dryBySkin).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
+  console.log(`  ask why census (decide skins): ${skinBits.length ? skinBits.join(', ') : 'no decide whys'} (dry: ${skinDryBits.length ? skinDryBits.join(', ') : 'none priced'})`)
 }
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))

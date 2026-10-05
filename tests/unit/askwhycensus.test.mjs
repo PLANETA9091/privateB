@@ -5,7 +5,7 @@
 // riding NO census anywhere in the mining surface.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { askWhyCensus, askWhyClass, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES } from '../../src/lib/askwhycensus.mjs'
+import { askWhyCensus, askWhyClass, decideSkin, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES } from '../../src/lib/askwhycensus.mjs'
 
 test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
   // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
@@ -110,7 +110,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 } })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -128,4 +128,53 @@ test('THE ASK WHY CENSUS: the regexes ride the emitter\'s own shapes (the anchor
   assert.ok(!ASK_WHY_RE.test('F5 fuel commons: the last mile refused (raw walk timeout after 6973ms (d=19.0))'), 'the raw hop\'s refusal is NOT a chest-walk-failed why')
   assert.ok(!ASK_WHY_RE.test('F11 food commons: chest walk failed after the nudge (water rescue in progress) and more'), 'the anchor holds')
   assert.equal(ASK_WHY_CLASSES[0].key, 'ceiling', 'the class order is part of the law - the ceiling reads first')
+})
+
+test("THE DECIDE'S OWN SKINS: the decide class is two anatomies with opposite cures (the v0.651.0 face's own split)", () => {
+  // the skin laws: geometry vs budget, the first matching skin owns the why
+  assert.equal(decideSkin('No path to the goal!'), 'noPath', 'the geometry skin - the stance cannot reach the chest')
+  assert.equal(decideSkin('Took to long to decide path to goal!'), 'decideBudget', 'the budget skin - the pathfinder\'s slice expired')
+  assert.equal(decideSkin('water rescue in progress (walk refused)'), 'unnamed', 'a non-decide why never wears a skin')
+  assert.equal(decideSkin('the decide took a coffee break'), 'unnamed', 'the prose-drift guard - a decide-family grain that matches neither skin stays lossless')
+  assert.equal(decideSkin(''), 'unnamed')
+  assert.equal(decideSkin(null), 'unnamed')
+  assert.equal(decideSkin(42), 'unnamed')
+  assert.equal(DECIDE_SKIN_CLASSES[0].key, 'noPath', 'the skin order is part of the law - the geometry reads first')
+
+  // the v0.651.0 face (fleet 37251959440) byte-exact shape: 26 decide whys
+  // split no-path x14 vs decide-budget x12 - the fuel side ALL after-the-nudge
+  // (17/17), the food side ALL first-walk (9/9), two lanes two seats
+  const face = []
+  for (let i = 0; i < 11; i++) face.push(`F${1 + (i % 3)} fuel commons: chest walk failed after the nudge (No path to the goal!)`)
+  for (let i = 0; i < 6; i++) face.push(`F${4 + (i % 3)} fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)`)
+  for (let i = 0; i < 3; i++) face.push(`F${7 + (i % 2)} food commons: chest walk failed (No path to the goal!)`)
+  for (let i = 0; i < 6; i++) face.push(`F9 food commons: chest walk failed (Took to long to decide path to goal!)`)
+  const c = askWhyCensus(face)
+  assert.equal(c.whys.decide, 26, 'the owner class never changes - the additive law')
+  assert.deepEqual(c.decideSkins, { noPath: 14, decideBudget: 12, unnamed: 0 }, 'the face\'s own split')
+  assert.deepEqual(c.dryBySkin, { noPath: 0, decideBudget: 0, unnamed: 0 }, 'whys without terminals price no dry')
+
+  // the dry join rides the skin when the last why was a decide
+  const geo = askWhyCensus([
+    'F5 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F5 fuel commons: budget spent (1/4 units)'
+  ])
+  assert.equal(geo.dryByWhy.decide, 3, 'the owner class still prices the dry')
+  assert.equal(geo.dryBySkin.noPath, 3, 'the geometry seat owns its units by name')
+  assert.equal(geo.dryBySkin.decideBudget, 0)
+  const bud = askWhyCensus([
+    'F6 food commons: chest walk failed (Took to long to decide path to goal!)',
+    'F6 food commons: budget spent (0/2 units)'
+  ])
+  assert.equal(bud.dryBySkin.decideBudget, 2, 'the budget seat owns its units by name')
+  // the cross-bot law holds for skins too: F5's skin never prices F9's terminal
+  const cross = askWhyCensus([
+    'F5 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F9 fuel commons: budget spent (0/7 units)'
+  ])
+  assert.equal(cross.dryByWhy.decide, 0)
+  assert.deepEqual(cross.dryBySkin, { noPath: 0, decideBudget: 0, unnamed: 0 })
+  // a terminal with no why prices nothing (the v0.652.0 law rides unchanged)
+  const silent = askWhyCensus(['F2 fuel commons: budget spent (0/6 units)'])
+  assert.deepEqual(silent.dryBySkin, { noPath: 0, decideBudget: 0, unnamed: 0 })
 })

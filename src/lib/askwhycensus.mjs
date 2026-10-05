@@ -48,6 +48,38 @@ export const ASK_WHY_CLASSES = [
   { key: 'timeout', re: /timeout after \d+ms/ }
 ]
 
+// (v0.653.0) THE DECIDE'S OWN SKINS - the decide class is TWO anatomies with
+// opposite cures: 'No path to the goal!' is GEOMETRY (the stance cannot reach
+// the chest - a retry from the same spot deterministically fails; the cure
+// family is a different chest or an honest early terminal) while 'Took to
+// long to decide path to goal!' is BUDGET (the pathfinder's computation slice
+// expired - a re-decide under lighter tick pressure can succeed). The v0.651.0
+// face (fleet 37251959440, the calm one) read the split no-path x14 vs
+// decide-budget x12 on 26 decide whys - and the lanes split by SIDE: the fuel
+// asks failed ALL after-the-nudge (17/17, the post-nudge direct walk), the
+// food asks ALL on the first walk (9/9, no nudge yet). The skins ride the
+// census ADDITIVELY: the decide class stays the owner (the existing rows stay
+// byte-stable), the new fields price WHICH skin owns the dry - the next lever
+// prices from DATA (the price-before-wire law). The unnamed skin is the drift
+// guard: if the emitter's prose ever renames itself partially (a why that
+// names the decide family but neither skin), the grain stays lossless (the
+// v0.583.0 unnamed law).
+export const DECIDE_SKIN_CLASSES = [
+  { key: 'noPath', re: /No path to the goal/ },
+  { key: 'decideBudget', re: /Took to long to decide/ }
+]
+
+const ZERO_SKINS = () => ({ noPath: 0, decideBudget: 0, unnamed: 0 })
+
+/** Which decide skin owns this why string (non-decide / junk -> 'unnamed'). */
+export function decideSkin (why) {
+  if (typeof why !== 'string' || why.length === 0) return 'unnamed'
+  for (const s of DECIDE_SKIN_CLASSES) {
+    if (s.re.test(why)) return s.key
+  }
+  return 'unnamed'
+}
+
 const ZERO_CLASSES = () => ({ ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 })
 
 /** Which class owns this why string (junk / unknown -> 'unnamed'). */
@@ -64,11 +96,11 @@ export function askWhyClass (why) {
  * string - junk-safe: non-strings judge nothing).
  *
  * @param {string|string[]|null} lines
- * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}}}
+ * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}}}
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)
-  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES() }
+  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS() }
   if (!list) return out
   // per-bot pending whys since the bot's last terminal (the bot tag is the
   // join key - the cross-bot law: F5's whys never price F9's terminal)
@@ -80,9 +112,13 @@ export function askWhyCensus (lines) {
       const bot = raw.slice(0, raw.indexOf(' '))
       const klass = askWhyClass(whyM[1])
       out.whys[klass] += 1
+      // (v0.653.0) the decide class wears its skin - the anatomy rides the
+      // same why line, the owner class never changes (the additive law)
+      const skin = klass === 'decide' ? decideSkin(whyM[1]) : null
+      if (skin !== null) out.decideSkins[skin] += 1
       const arr = pending.get(bot)
-      if (arr) arr.push(klass)
-      else pending.set(bot, [klass])
+      if (arr) arr.push({ klass, skin })
+      else pending.set(bot, [{ klass, skin }])
       continue
     }
     const termM = ASK_TERMINAL_RE.exec(raw)
@@ -95,7 +131,12 @@ export function askWhyCensus (lines) {
       out.unitsDry += dry
       const arr = pending.get(bot)
       const last = Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : null
-      if (last !== null) out.dryByWhy[last] += dry
+      if (last !== null) {
+        out.dryByWhy[last.klass] += dry
+        // (v0.653.0) the dry prices the skin when the last why was a decide -
+        // the geometry seat and the budget seat own their units by name
+        if (last.klass === 'decide' && last.skin !== null) out.dryBySkin[last.skin] += dry
+      }
       pending.set(bot, [])
     }
   }
