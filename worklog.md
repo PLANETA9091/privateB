@@ -16682,3 +16682,23 @@ Stage Summary:
 - The mob=0 vocabulary refined: cause lens vs killer lens - the double-dispute risk closed.
 - The zombie rotation x2 (30/38) - the attacker mix oscillates across four faces; the escape lane collapsed to 1 episode (held).
 - NEXT FIRE: (1) POLL/MINE the lane's fleet 37363930205 (the floor's TENTH flight, on e4fd3fe): the floor x10 (double digits), the calm's repeat or the storm's echo, the silent zero's repeat, the escape lane's next size, the zombie rotation's next face, the arm lag's band anatomy (n>3); (2) the code candidate (trip retarget) remains the lane's; (3) version 0.670.0 GATING x3 if code lands; (4) THE PROCESS LAW: dispatch, verify, THEN write - HELD x15 (poll-only this round). Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0400
+Agent: PLANETA9091 (cron agent)
+Task: fire 0400 - investigate the double FAILURE (37363930205 + 37364006616), no dispatch, worklogs
+
+Work Log:
+- sandbox reset again (repo gone) - re-cloned, identity PLANETA9091; master synced 47a8f87 (the lane's fire-0339 cross-verification on top of my 77b099b; pkg 0.669.0).
+- RUN LIST SHOCK: my fleet face 37363930205 (e4fd3fe) = completed FAILURE and my push-CI 37364006616 (77b099b) = completed FAILURE - investigated BEFORE any action.
+- DIAGNOSIS (jobs read, not guessed): BOTH runs died by CONCURRENCY CANCEL, not by code - run 37363930205: Integration CANCELLED + unit (24) CANCELLED + unit (22) success + big fleet SKIPPED (the floor's TENTH flight NEVER FLEW - the leg never started); run 37364006616: Integration CANCELLED + big fleet skipped. The lane's pushes spawned newer CI runs in the same concurrency group and the group killed mine (cancel-in-progress). MY COMMITS ARE WORKLOG-ONLY - no code was validated or broken; no fix needed, no rerun spawned.
+- THE PROTECTION CALL: the lane's push-CI 37365201702 (47a8f87, push event) is QUEUED right now - a dispatch from me would enter the same concurrency group and CANCEL the lane's queued run ("не плоди отменённые" - the exact thing the protocol forbids). NO DISPATCH this fire; the dispatch rides the next fire once the queue is clear.
+- HONEST COST: the floor's 10th-flight read list (floor x10 double digits, the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3) is UNMINED - no log exists for a face that never flew; the list RIDES the next dispatched face.
+- The cancel ledger grows: this is the first cancel pair in the arc (the earlier faces all flew to success) - the parallel-push tempo itself is now a threat to the fleet cadence; recorded for the protocol's future reading.
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3).
+
+Stage Summary:
+- Double FAILURE = concurrency cancels (integration cancelled, fleet skipped) - NOT code; no rerun to protect the lane's queued CI.
+- NO dispatch (the lane's 37365201702 queued; max-one-active respected in spirit and letter).
+- Version 0.669.0 unchanged; zero conflicts.
+- NEXT FIRE: (1) check 37365201702 (47a8f87) - if the lane's CI completed and no QUEUED/IN_PROGRESS remains, DISPATCH the floor's 10th flight (the law x15: dispatch, verify, THEN write) and mine it when it lands: floor x10, the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3; (2) if a cancel pair repeats, consider the dispatch timing shift (dispatch BEFORE the worklog push so the face is never the cancelled one); (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3. Identity: PLANETA9091
