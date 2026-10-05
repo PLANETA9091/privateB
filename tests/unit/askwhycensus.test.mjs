@@ -83,7 +83,7 @@ test('THE ASK WHY CENSUS: the terminal with no why prices nothing (missing evide
   const c = askWhyCensus(['F1 fuel commons: budget spent (0/4 units)'])
   assert.equal(c.terminals, 1)
   assert.equal(c.unitsDry, 4)
-  assert.equal(c.dryByWhy.decide + c.dryByWhy.ceiling + c.dryByWhy.water + c.dryByWhy.timeout + c.dryByWhy.unnamed, 0, 'no why, no class - the junk never invents (the v0.203.0 law)')
+  assert.equal(c.dryByWhy.decide + c.dryByWhy.ceiling + c.dryByWhy.water + c.dryByWhy.governor + c.dryByWhy.timeout + c.dryByWhy.goalChanged + c.dryByWhy.unnamed, 0, 'no why, no class - the junk never invents (the v0.203.0 law)')
 })
 
 test('THE ASK WHY CENSUS: the unnamed bucket keeps the grain lossless (an unclassed why never vanishes)', () => {
@@ -103,6 +103,8 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
   assert.equal(askWhyClass('Took to long to decide path to goal!'), 'decide')
   assert.equal(askWhyClass('No path to the goal!'), 'decide')
   assert.equal(askWhyClass('fuel commons walk @-1,394: timeout after 3000ms'), 'timeout', 'the goto timeout that is NOT the decide class rides the timeout bucket')
+  assert.equal(askWhyClass('walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s'), 'governor', 'the per-bot churn refusal rides its OWN class - NOT the ceiling family (a progress-aware refusal, not a budget-aware one)')
+  assert.equal(askWhyClass('The goal was changed before it could be completed!'), 'goalChanged', 'the superseded goal is the ask ladder\u0027s own churn witness')
   assert.equal(askWhyClass(''), 'unnamed')
   assert.equal(askWhyClass(null), 'unnamed')
   assert.equal(askWhyClass(42), 'unnamed')
@@ -110,7 +112,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } } })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -128,6 +130,8 @@ test('THE ASK WHY CENSUS: the regexes ride the emitter\'s own shapes (the anchor
   assert.ok(!ASK_WHY_RE.test('F5 fuel commons: the last mile refused (raw walk timeout after 6973ms (d=19.0))'), 'the raw hop\'s refusal is NOT a chest-walk-failed why')
   assert.ok(!ASK_WHY_RE.test('F11 food commons: chest walk failed after the nudge (water rescue in progress) and more'), 'the anchor holds')
   assert.equal(ASK_WHY_CLASSES[0].key, 'ceiling', 'the class order is part of the law - the ceiling reads first')
+  assert.equal(ASK_WHY_CLASSES[2].key, 'governor', 'the governor sits with the throttle family (after the water interlock, before the decide)')
+  assert.equal(ASK_WHY_CLASSES[5].key, 'goalChanged', 'the goal-changed grain closes the class law before the unnamed fallback')
 })
 
 test("THE DECIDE'S OWN SKINS: the decide class is two anatomies with opposite cures (the v0.651.0 face's own split)", () => {
@@ -239,4 +243,105 @@ test("THE DECIDE'S OWN SIDES: the skins ride two ladders with different anatomie
   ])
   assert.deepEqual(wet.sides.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
   assert.deepEqual(wet.dryBySide.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
+})
+
+test("THE GOVERNOR'S OWN CLASS: the unnamed bucket's grain priced by name (the v0.653.0 mob storm face's own read)", () => {
+  // fleet 37254403895 (the v0.653.0 face, the mob storm: 14 deaths) read the
+  // ask why census with unnamed x7 - the raw grain named the anatomy itself:
+  // the walk governor x6 (ALL food-side: F18 x3 + F8 x3 - the food ladder's
+  // walks churn-refused, the food side's own mass OUTSIDE the decide skins)
+  // plus the goal-changed grain x1 (the calm face's unnamed x1 again). The
+  // face's own lines, verbatim and in file order:
+  const face = [
+    'F10 fuel commons: budget spent (0/1 units)',
+    'F4 fuel commons: budget spent (0/1 units)',
+    'F5 fuel commons: chest walk failed after the nudge (fleet goal ceiling: 30 goals fleet-wide in 5s - fuel commons walk @-154,408 (nudge retry) refused for 2s)',
+    'F5 fuel commons: budget spent (0/1 units)',
+    'F13 fuel commons: budget spent (0/1 units)',
+    'F18 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F18 fuel commons: budget spent (0/1 units)',
+    'F3 fuel commons: budget spent (0/1 units)',
+    'F1 fuel commons: budget spent (0/1 units)',
+    'F17 fuel commons: budget spent (0/1 units)',
+    'F7 fuel commons: budget spent (0/1 units)',
+    'F11 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F11 fuel commons: budget spent (0/1 units)',
+    'F19 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F19 fuel commons: budget spent (0/1 units)',
+    'F15 fuel commons: chest walk failed after the nudge (fuel commons walk @-129,418 (nudge retry): timeout after 4994ms)',
+    'F15 fuel commons: budget spent (0/1 units)',
+    'F14 fuel commons: budget spent (0/1 units)',
+    'F13 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F13 fuel commons: budget spent (0/1 units)',
+    'F11 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F11 fuel commons: budget spent (0/1 units)',
+    'F12 fuel commons: budget spent (0/1 units)',
+    'F5 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F5 fuel commons: budget spent (0/1 units)',
+    'F4 fuel commons: budget spent (0/1 units)',
+    'F19 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F14 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F14 fuel commons: budget spent (0/1 units)',
+    'F19 fuel commons: budget spent (0/1 units)',
+    'F13 fuel commons: budget spent (0/1 units)',
+    'F1 food commons: chest walk failed (The goal was changed before it could be completed!)',
+    'F1 food commons: chest walk failed (Took to long to decide path to goal!)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-150,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-154,408 refused for 8s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,418 refused for 12s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,416 refused for 12s)'
+  ]
+  const c = askWhyCensus(face)
+  assert.equal(c.terminals, 21, 'the face\'s own 21 dry terminals')
+  assert.equal(c.unitsDry, 21, 'each terminal read 1 unit dry (0 of 1)')
+  assert.equal(c.whys.unnamed, 0, 'the unnamed bucket EMPTY - the storm face\'s grain all named')
+  assert.equal(c.whys.governor, 6, 'the walk governor x6 - the food ladder\'s own churn-refusal mass')
+  assert.equal(c.whys.goalChanged, 1, 'the superseded goal\'s own witness')
+  assert.equal(c.whys.ceiling, 1)
+  assert.equal(c.whys.decide, 9, 'the owner class never changes - the additive law')
+  assert.equal(c.whys.timeout, 1)
+  assert.equal(c.whys.water, 0)
+  // the dry rows byte-stable: the governor and goal-changed whys price no
+  // terminal on this face (no ask terminal followed them) - the re-classing
+  // moves COUNTS only, the dry stays where the last-refusal law put it
+  assert.equal(c.dryByWhy.ceiling, 1)
+  assert.equal(c.dryByWhy.decide, 8)
+  assert.equal(c.dryByWhy.timeout, 1)
+  assert.equal(c.dryByWhy.governor, 0)
+  assert.equal(c.dryByWhy.goalChanged, 0)
+  assert.equal(c.dryByWhy.unnamed, 0)
+  // the decide skins ride unchanged (the second face CONFIRMS the split:
+  // noPath owns the mass again, 6 vs 3 - the geometry seat)
+  assert.deepEqual(c.decideSkins, { noPath: 6, decideBudget: 3, unnamed: 0 })
+  assert.deepEqual(c.dryBySkin, { noPath: 6, decideBudget: 2, unnamed: 0 })
+  // the side slice: the fuel side owns the decide dry AGAIN (8u of 8u); the
+  // food side's decide mass is ONE budget why - the food side's REAL mass is
+  // the governor, which the decide-skin slice cannot price (its own seat)
+  assert.deepEqual(c.sides.fuel, { noPath: 6, decideBudget: 2, unnamed: 0 })
+  assert.deepEqual(c.sides.food, { noPath: 0, decideBudget: 1, unnamed: 0 })
+  assert.deepEqual(c.dryBySide.fuel, { noPath: 6, decideBudget: 2, unnamed: 0 })
+  assert.deepEqual(c.dryBySide.food, { noPath: 0, decideBudget: 0, unnamed: 0 })
+
+  // the governor's own dry join: when a terminal DOES follow a governor why,
+  // the dry prices the governor class (the last refusal wins - the same law)
+  const gov = askWhyCensus([
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F8 food commons: budget spent (0/2 units)'
+  ])
+  assert.equal(gov.dryByWhy.governor, 2, 'the governor seat owns its units by name')
+  assert.equal(gov.whys.governor, 1)
+  // a non-decide why never wears a skin: the governor's mass stays OUT of
+  // the decide-skin rows (the skins slice stays pure - the v0.653.0 law)
+  assert.deepEqual(gov.decideSkins, { noPath: 0, decideBudget: 0, unnamed: 0 })
+  // the goal-changed grain's own dry join
+  const gc = askWhyCensus([
+    'F1 food commons: chest walk failed (The goal was changed before it could be completed!)',
+    'F1 food commons: budget spent (0/3 units)'
+  ])
+  assert.equal(gc.dryByWhy.goalChanged, 3, 'the goal-changed seat owns its units by name')
+  // the junk laws ride: junk never becomes a governor
+  assert.equal(askWhyCensus(['F5 fuel commons: chest walk failed (walk governor junk without the colon prose)']).whys.governor, 0, 'the prose without the governor\'s own marker stays unnamed - the junk never invents')
+  assert.equal(askWhyCensus(['F5 fuel commons: chest walk failed (the objective was changed by the junk)']).whys.goalChanged, 0, 'the prose without the goal-changed marker stays unnamed - the junk never invents (the v0.583.0 law)')
 })

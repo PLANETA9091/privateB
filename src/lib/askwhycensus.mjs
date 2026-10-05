@@ -30,6 +30,28 @@ export const ASK_TERMINAL_RE = /^F\d+ (?:fuel|food) commons: budget spent \((\d+
 /** The ask ladder's walk-failure line: the first goto, the post-nudge retry. */
 export const ASK_WHY_RE = /^F\d+ (?:fuel|food) commons: chest walk failed(?: after the nudge)? \((.+)\)$/
 
+// (v0.656.0) THE GOVERNOR'S OWN CLASS - the unnamed bucket's grain priced by
+// name. THE EVIDENCE (fleet 37254403895, the v0.653.0 face, the mob storm):
+// the ask why census read unnamed x7 - and the raw grain named the anatomy
+// itself: 'walk governor: bot churned 4 goals without progress - food commons
+// walk @... refused' x6 (ALL food-side: F18 x3 + F8 x3 - the food ladder's
+// walks churn-refused, the food side's OWN mass sitting OUTSIDE the decide
+// skins the side row prices) plus 'The goal was changed before it could be
+// completed!' x1 - the same grain the calm face (37251959440) read unnamed
+// x1: twice-seen grain is a class, not noise (the census's own law: the
+// unnamed bucket keeps the grain lossless UNTIL the class is priced).
+// THE FAMILY LAW: the walk governor is a throttle, but NOT the ceiling
+// family's sibling - the ceiling is the fleet-wide goal budget ('30 goals
+// fleet-wide in 5s'), the goal brake its per-burst share ('6 goals in 5s'),
+// the governor the per-bot CHURN detection ('bot churned 4 goals without
+// progress') - a progress-aware refusal, not a budget-aware one, so its own
+// class (the v0.652.0 family law prices siblings together only when the
+// mechanism is the same). goalChanged: the ask ladder's own churn witness -
+// the goal superseded before completion, the scheduler's reassignment made
+// visible. Both ride ADDITIVELY: the existing classes keep their order and
+// their counts (the rows byte-stable), the unnamed bucket shrinks by the
+// named mass only.
+
 /**
  * The why classes, in match order (the first matching class owns the why -
  * the throttle's prose can name a timeout inside itself, the throttle IS
@@ -38,14 +60,18 @@ export const ASK_WHY_RE = /^F\d+ (?:fuel|food) commons: chest walk failed(?: aft
  * field read: 'fleet goal ceiling' x2 AND 'goal brake' x3 rode one face -
  * siblings of the same goal-budget throttle, the codebase's own vocabulary
  * names the family the goal brake - dropwalk.mjs's 'the goal brake's share').
- * The unnamed bucket keeps the grain lossless without inventing a class
- * (the v0.583.0 'unnamed' law).
+ * (v0.656.0) the governor rides its OWN class (the per-bot churn refusal is
+ * a different mechanism from the fleet budget throttle) and the goal-changed
+ * grain its own (twice-seen). The unnamed bucket keeps the remaining grain
+ * lossless without inventing a class (the v0.583.0 'unnamed' law).
  */
 export const ASK_WHY_CLASSES = [
   { key: 'ceiling', re: /fleet goal ceiling|goal brake:/ },
   { key: 'water', re: /water rescue in progress/ },
+  { key: 'governor', re: /walk governor:/ },
   { key: 'decide', re: /Took to long to decide path to goal|No path to the goal/ },
-  { key: 'timeout', re: /timeout after \d+ms/ }
+  { key: 'timeout', re: /timeout after \d+ms/ },
+  { key: 'goalChanged', re: /goal was changed/ }
 ]
 
 // (v0.653.0) THE DECIDE'S OWN SKINS - the decide class is TWO anatomies with
@@ -109,7 +135,7 @@ export function askSide (raw) {
   return m ? m[1] : null
 }
 
-const ZERO_CLASSES = () => ({ ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 })
+const ZERO_CLASSES = () => ({ ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 })
 
 /** Which class owns this why string (junk / unknown -> 'unnamed'). */
 export function askWhyClass (why) {
@@ -125,7 +151,7 @@ export function askWhyClass (why) {
  * string - junk-safe: non-strings judge nothing).
  *
  * @param {string|string[]|null} lines
- * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}, sides: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}, dryBySide: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}}
+ * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}, sides: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}, dryBySide: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}}
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)
