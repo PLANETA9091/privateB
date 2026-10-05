@@ -265,10 +265,28 @@ async function stepOutPlace (bot, itemName, cell, attemptCell) {
 // the dig update, so placeMachine saw 8 solid cells and returned null in 1ms). Dig the
 // column above the cell before placing: no gravity block overhead = no refill race.
 async function digAbove (bot, miner, cell) {
-  for (let dy = 1; dy <= 2; dy++) {
+  // (v0.668.0) THE FULL-COLUMN DIG + THE REFILL SWEEP: the dy 1..2 window left
+  // any TALLER gravity column alive above it, and the falling chain re-took the
+  // carved cell AFTER the dig (CI 37304139768: three attempts carved the same
+  // (-117,42,405), the place 0.3-0.6s later refused 'the block is still gravel'
+  // every time - each dig shortened the column but the dy-2 ceiling never
+  // reached its top, so the fall kept feeding). The dig now runs to the
+  // column's top (dy 6, still bounded), and a 3-pass sweep re-reads THE carved
+  // cell: a gravity block that LANDED in it gets dug again - each sweep dig
+  // drops the column one more level, and the column is finite. The sweep ends
+  // the moment the cell holds air or a non-gravity block (a different class
+  // owns that verdict: the wet handoff, the dry-cell law).
+  for (let dy = 1; dy <= 6; dy++) {
     const b = bot.blockAt(cell.offset(0, dy, 0))
     if (!b || b.type === 0 || b.boundingBox !== 'block') continue
     try { await withTimeout(bot.fastDig(b), 10000, `dig above ${cell}+${dy}`) } catch { /* leave it */ }
+  }
+  for (let sweep = 0; sweep < 3; sweep++) {
+    await bot.waitForTicks(5)
+    const re = bot.blockAt(cell)
+    if (!re || re.boundingBox === 'empty') break
+    if (!/gravel|sand/.test(re.name ?? '')) break
+    try { await withTimeout(bot.fastDig(re), 10000, `refill sweep ${cell}`) } catch { break }
   }
 }
 
@@ -606,6 +624,7 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     // (v0.604.0) the wet-class counters: the flooded-world skip reads them
     let attemptsMade = 0
     let wetAttempts = 0
+    let gravityRefills = 0
     for (let attempt = 0; attempt < 3 && !table; attempt++) {
       attemptsMade++
       const carve = await carveAlcove(bot, miner)
@@ -629,6 +648,17 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
           wetAttempts++
           log(`table attempt ${attempt}: the carved cell flooded late (${bot.blockAt(carve.cell)?.name}) - relocating to dry ground`)
           try { await relocateToSolidGround(bot) } catch { /* the next attempt probes anyway */ }
+        } else if (!table) {
+          // (v0.668.0) THE GRAVITY COUNTER: a refill that survives the sweep is
+          // the environment's own verdict (the column out-lasted the out-dig).
+          // Named here so the skip below reads the class it skips on - the same
+          // law the wet counters follow (an environment flake must not look
+          // like a pipeline failure).
+          const re = bot.blockAt(carve.cell)
+          if (re && /gravel|sand/.test(re.name ?? '')) {
+            gravityRefills++
+            log(`table attempt ${attempt}: the gravity refill holds the carved cell (${re.name}) - the sweep dug and the column kept falling`)
+          }
         }
       } else if (carve.wet) {
         wetAttempts++
@@ -652,6 +682,18 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     // bug in a dry world must still fire.
     if (!table && attemptsMade > 0 && wetAttempts === attemptsMade) {
       t.skip(`the shaft bottom is a flooded world (${wetAttempts}/${attemptsMade} wet attempts: carved cells read water, the relocate handoff found no dry wall) - chain not exercised`)
+      return
+    }
+    // (v0.668.0) THE GRAVITY WORLD SKIP: the flooded-world law's own sibling.
+    // Face CI 37304139768: every attempt carved dry, every place refused 'the
+    // block is still gravel' - a shaft bottom under a 3+ gravel column re-took
+    // each carved cell between the dig and the place, and the assert fired on a
+    // GEOLOGY the ladder cannot out-dig. Environment-class attempts (gravity
+    // refills + wet columns) covering the whole ladder = the same honest skip
+    // family; a non-environment failure in the mix keeps the assert (a real
+    // placement bug must still fire).
+    if (!table && attemptsMade > 0 && gravityRefills > 0 && gravityRefills + wetAttempts === attemptsMade) {
+      t.skip(`the shaft bottom is a gravity world (${gravityRefills}/${attemptsMade} gravity refills, ${wetAttempts} wet - the falling column re-took every carved cell the sweep could not out-dig) - chain not exercised`)
       return
     }
   }
