@@ -16255,3 +16255,20 @@ Work Log:
 Stage Summary:
 - Master = b67f160 (pkg 0.669.0 THE WITHDRAWAL FLOOR).
 - NEXT FIRE: (1) READ CI 37322668070 (b67f160). (2) MINE the double queue: 37318041155 (the pre-cure baseline: calm persistence, deadline clock repeat, bank-arm silence) AND 37322711215 (the floor's first flight: the one-unit share 30/33=91% -> ?, the budget-spent want halves printing 2, the fuel asks' budget/dry/took shift) - the cure's own A/B pair. (3) The deadline/bank-cadence front stays priced (write-off timeout 68.1%, bank flow 0.0u/s, 7 never-armed). Version next 0.670.0 GATING x3. Identity: PLANETA9091.
+---
+Task ID: cron30-20261005-2230
+Agent: cron fire 2230 (Super Z)
+Task: mine the A/B pair's B-side (face 37318041155, the PRE-cure baseline) + poll the floor's first flight; anti-conflict protocol.
+
+Work Log:
+- Synced clean (82c51d6, pkg 0.669.0, the lane silent). Push-CI 37322668070 (b67f160 = v0.669.0) SUCCESS - the cure's CI is green.
+- MINED the baseline face 37318041155 (1c4f565 tree, v0.668.0 PRE-floor): THE MOB STORM RETURNED - deaths 24 (mob 19 + drown 4 + explosion 1, the creeper encore whispered x1) vs 4 the face before; the calm was a pause, not a regime. THE FLEE FORK'S 8TH READ - THE CHASE WINS AGAIN: 18 flee deaths (the record face), chase 13 / crossfire 5, bands close 16 / mid 2 / far 0 - the chase's evidence at its max (the OUTPACE spec's seat, the lane's); flee episodes 40 (reflee 18 stuck 11); the hound 125 moments, F13 the combat whale (119 lines), the fleet's defeats 4.
+- THE PRE-CURE BASELINE PRICED: budget zeros 20 (fuel 19, commune 1) across 15 bots; budget goal split one-unit 19/20 = 95% - the 1u share at its MAX (the face ladder: 24x, 74%, 91%, 95%) - the floor's A/B denominator locked. Ask whys: decideBudget x13, noPath x6, ceiling x6 (a NEW why class - the walk ladder's own ceiling refusals).
+- THE CHAINS MOVED this face: banked 1174u (vs 203), pocket 515u (vs the 1757u record), conversion 96.2%, surplus 0 (no-leak), write-offs tiny 3x (the whys row lawful-silent); all bank arms spoke. The delivery paradox resolved: the 68.1% deadline-clock face was the anomaly, the chains DO walk - the bank-cadence front re-prices.
+- HONEST CORRECTION: the arm lag's 150s+ 'regime' BROKE - n=7 median 62s max 119s (165/159/150 -> 62); the wide window was NOT the regime.
+- Reloot: arms 7 (pile arms 2), arrivals 3 - THE LANE WALKED 3 PILES HOME (the first arrivals in faces), refusals 9 (unarmed 9); 16 piles ~872u stranded (big 3 = 318u). Smelt: batches 12, harvest 19u (charcoal 10, copper_ingot 7, stone 2), refusals 4 (no-fuel x3); furnace put opens 15 (furnace 12/blast 3); fuel diet: metal coal 12u persists, junk wood (stick 11/oak_log 7). Bridge: 5 refusals/112 fills, pocket 4 (80%) the lean back, shadow gate deferred 24. Sentry: 168 passes, blind 105; frozen 14 (wet 13), relogs 10.
+- THE A-SIDE (37322711215, b67f160, the floor's first flight): Big fleet job in_progress at log-off (poll t+80s, unit+integration green); the max-one-active law held - NO dispatch this fire. The A/B verdict rides the next fire.
+
+Stage Summary:
+- Master = 82c51d6 (pkg 0.669.0). The B-side baseline locked (95% one-unit); the A-side in flight.
+- NEXT FIRE: (1) POLL/MINE 37322711215: the goal split one-unit 95% -> ? (the cure's own row), the budget-spent want halves printing 2, the fuel asks' budget/dry/took shift, the decideBudget x13's fate, the ceiling x6. (2) The chase evidence hands to the lane's OUTPACE seat. (3) Version next 0.670.0 GATING x3 - a code fire only if the A-side read names the next lever. Identity: PLANETA9091.
