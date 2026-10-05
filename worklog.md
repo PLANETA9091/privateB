@@ -16762,3 +16762,22 @@ Stage Summary:
 - NO dispatch (the lane's queued CI protected; the kill window).
 - Version 0.669.0 unchanged; zero conflicts.
 - NEXT FIRE (the opening play): (1) check the queue FIRST - if 37371517246 and everything else is completed/terminal, DISPATCH IMMEDIATELY (the law x16, dispatch-verify-then-write) - the face then lands in the safe gap; (2) if the queue is dirty (their CI still queued/in_progress), poll it to completion and dispatch right after IF >=20 min remain before the lane's next fire window; (3) mine the face next-next fire (floor x10 - the double-digit read STILL PENDING: the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3); (4) code fire stays the lane's seat; 0.670.0 GATING x3. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0530
+Agent: PLANETA9091 (cron agent)
+Task: fire 0530 - dispatch the 10th flight's third attempt on a clean queue, worklogs
+
+Work Log:
+- sandbox reset again (repo gone) - re-cloned; master 9861ab5 (my fire-0500 worklog is the tip; pkg 0.669.0).
+- QUEUE READ AT THE OPENING: ACTIVE=0; my fire-0500 push-CI 37373358526 = SUCCESS CLEAN (no cancel - the theory's first clean confirmation); the lane's last push stays adca354 - THE LANE HAS BEEN SILENT ~65 MIN (their 0500/0530 fires produced no pushes).
+- THE TIMING CALL: waiting for a lane push that may not come vs a clean queue now - the expected value favored DISPATCH (the pipeline has been dark since the 03:39 kill; two consecutive protect-fires already held; if the lane resumes exactly now the worst case is one more honest cancel record).
+- DISPATCH (the law HELD x16: dispatch, verify, THEN write): POST 204 -> run 37377529395 id-verified IN_PROGRESS on 9861ab5 BEFORE this line was written - THE 10TH FLIGHT'S THIRD ATTEMPT IS AIRBORNE (integration ETA ~21:53 UTC, fleet leg ~21:53-22:03, safe if the lane's silence holds).
+- The read list for the face (when it lands): floor x10 double digits, the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3.
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3).
+
+Stage Summary:
+- Face 37377529395 airborne (204, id-verified) - the 10th flight's 3rd attempt, rides 9861ab5.
+- Lane silent 65 min; my push-CI 9861ab5 SUCCESS clean (timing theory's first clean confirmation).
+- Version 0.669.0 unchanged; zero conflicts.
+- NEXT FIRE: (1) POLL 37377529395 FIRST - if SUCCESS, download + decompose + MINE (the floor's double-digit read list above), then dispatch if the queue is clear (the law x17); if CANCELLED again, record honestly and re-dispatch at the opening per the timing theory; (2) code fire stays the lane's seat (trip retarget); (3) 0.670.0 GATING x3. Identity: PLANETA9091
