@@ -29,6 +29,7 @@ import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
+import { mainFreezeCensus } from '../../src/lib/mainfreeze.mjs' // (v0.661.0) THE MAIN FREEZE'S OWN ROW - the blackbox dump's own census (the ring's last named activity reads at last)
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
@@ -1407,6 +1408,13 @@ if (stormMem.hb.count > 0) {
   const hb = stormMem.hb
   console.log(`  heartbeat distress: n=${hb.count} max late=${hb.maxLateMs}ms max mainLate=${hb.maxMainLateMs}ms (rss bookends ${stormMem.rss.firstM}M -> ${stormMem.rss.lastM}M, peak ${stormMem.rss.peakM}M)`)
 }
+// (v0.661.0) THE MAIN FREEZE'S OWN ROW - the distress row's own body: the
+// blackbox dump fires when mainLate >= 5s and the freeze owns the face's
+// economy (the 37265374356 face: ~53s at ts=561s, 'pf:queue fuel commons
+// w' named, banked 55 of 1640 mined - the cadence froze inside the one
+// window that had to deliver). Face order, each freeze its own token;
+// 'no main freeze' on the honest zero.
+console.log('  ' + mainFreezeCensus(lines).row)
 const s = stormMem.storms
 if (s.probes + s.fatals > 0) {
   console.log(`  stormguard verdicts: probes=${s.probes} fatals=${s.fatals} peak storm rss=${s.peakStormRssM === null ? '-' : s.peakStormRssM + 'M'} peak rate=${s.peakRateMBs === null ? '-' : s.peakRateMBs + 'MB/s'}`)
