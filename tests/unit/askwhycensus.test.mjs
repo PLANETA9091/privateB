@@ -5,7 +5,7 @@
 // riding NO census anywhere in the mining surface.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { askWhyCensus, askWhyClass, decideSkin, askSide, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES, ASK_SIDES } from '../../src/lib/askwhycensus.mjs'
+import { askWhyCensus, askWhyClass, decideSkin, askSide, governorRunBucket, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES, ASK_SIDES, GOVERNOR_RUN_BUCKETS } from '../../src/lib/askwhycensus.mjs'
 
 test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
   // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
@@ -112,7 +112,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, governorRuns: { len1: 0, len2: 0, len3: 0, len4plus: 0 } })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -344,4 +344,97 @@ test("THE GOVERNOR'S OWN CLASS: the unnamed bucket's grain priced by name (the v
   // the junk laws ride: junk never becomes a governor
   assert.equal(askWhyCensus(['F5 fuel commons: chest walk failed (walk governor junk without the colon prose)']).whys.governor, 0, 'the prose without the governor\'s own marker stays unnamed - the junk never invents')
   assert.equal(askWhyCensus(['F5 fuel commons: chest walk failed (the objective was changed by the junk)']).whys.goalChanged, 0, 'the prose without the goal-changed marker stays unnamed - the junk never invents (the v0.583.0 law)')
+})
+
+test("THE GOVERNOR'S OWN RUNS: the consecutive-refusal anatomy (the two mob-storm faces' own read)", () => {
+  // the bucket laws: a closed run of n governor whys rides its own bucket
+  assert.equal(governorRunBucket(1), 'len1')
+  assert.equal(governorRunBucket(2), 'len2')
+  assert.equal(governorRunBucket(3), 'len3')
+  assert.equal(governorRunBucket(4), 'len4plus')
+  assert.equal(governorRunBucket(9), 'len4plus', 'every run of 4+ rides one bucket - the spiral signature needs no finer grain')
+  assert.equal(governorRunBucket(0), null, 'a run of zero never existed - the junk never invents')
+  assert.equal(governorRunBucket(-1), null)
+  assert.equal(governorRunBucket(1.5), null)
+  assert.equal(governorRunBucket('x'), null)
+  assert.equal(governorRunBucket(null), null)
+  assert.deepEqual(GOVERNOR_RUN_BUCKETS, ['len1', 'len2', 'len3', 'len4plus'], 'the bucket order is part of the law')
+
+  // the run laws: one bot's back-to-back governor whys are ONE run (EOF closes)
+  const triplet = askWhyCensus([
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-150,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-154,408 refused for 8s)'
+  ])
+  assert.deepEqual(triplet.governorRuns, { len1: 0, len2: 0, len3: 1, len4plus: 0 }, 'three consecutive refusals = the spiral signature')
+  // a NON-governor why closes the run (the refusal chain changed its mind)
+  const broke = askWhyCensus([
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F8 food commons: chest walk failed (No path to the goal!)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,418 refused for 12s)'
+  ])
+  assert.deepEqual(broke.governorRuns, { len1: 2, len2: 0, len3: 0, len4plus: 0 }, 'the decide why between the governors breaks the run')
+  // a TERMINAL closes the run (the ladder's outcome happened)
+  const termed = askWhyCensus([
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F8 food commons: budget spent (0/1 units)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,418 refused for 12s)'
+  ])
+  assert.deepEqual(termed.governorRuns, { len1: 2, len2: 0, len3: 0, len4plus: 0 }, 'the terminal closes the bot\'s open run')
+  // the cross-bot law for runs: interleaved governors are SEPARATE runs
+  const cross = askWhyCensus([
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-150,392 refused for 8s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,418 refused for 12s)'
+  ])
+  assert.deepEqual(cross.governorRuns, { len1: 0, len2: 2, len3: 0, len4plus: 0 }, 'each bot\'s run grows only from its OWN refusals (F18 x2 = a run of 2, F8 x2 = a run of 2 - the runs weave, never merge)')
+  // the run WEAVES across other bots' lines (per-bot independence)
+  const weave = askWhyCensus([
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-150,392 refused for 8s)'
+  ])
+  assert.deepEqual(weave.governorRuns, { len1: 1, len2: 1, len3: 0, len4plus: 0 }, 'F18\'s run of 2 weaves through F8\'s run of 1')
+
+  // fleet 37256535767 (the v0.655.0 face, the mob storm's twin) byte-exact:
+  // the governor x7 = F15's singleton (the FIRST fuel-side governor, the
+  // post-nudge retry) + F1's triplet + F7's triplet (F7's three no-path whys
+  // sit BEFORE its governor run - the decide mass and the run are separate)
+  const twin = askWhyCensus([
+    'F15 fuel commons: budget spent (0/1 units)',
+    'F15 fuel commons: chest walk failed after the nudge (walk governor: bot churned 4 goals without progress - fuel commons walk @-128,393 (nudge retry) refused for 12s)',
+    'F7 food commons: chest walk failed (No path to the goal!)',
+    'F7 food commons: chest walk failed (No path to the goal!)',
+    'F7 food commons: chest walk failed (No path to the goal!)',
+    'F1 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-139,411 refused for 12s)',
+    'F1 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-139,409 refused for 12s)',
+    'F1 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-139,413 refused for 12s)',
+    'F7 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-139,415 refused for 12s)',
+    'F7 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-139,413 refused for 12s)',
+    'F7 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-144,415 refused for 12s)'
+  ])
+  assert.equal(twin.whys.governor, 7)
+  assert.equal(twin.whys.decide, 3, 'F7\'s pre-run no-path mass stays decide (the owner class never changes)')
+  assert.deepEqual(twin.governorRuns, { len1: 1, len2: 0, len3: 2, len4plus: 0 }, 'the twin face\'s own run split: one singleton + two triplets')
+  assert.equal(twin.dryByWhy.governor, 0, 'the runs are pure counts - the dry rows stay untouched (the conservation law)')
+
+  // fleet 37254403895 (the v0.653.0 face, the mob storm) byte-exact tail:
+  // the governor x6 = TWO triplets (F18 then F8, back-to-back in the log)
+  const storm = askWhyCensus([
+    'F1 food commons: chest walk failed (The goal was changed before it could be completed!)',
+    'F1 food commons: chest walk failed (Took to long to decide path to goal!)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-152,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-150,392 refused for 8s)',
+    'F18 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-154,408 refused for 8s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-129,418 refused for 12s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,418 refused for 12s)',
+    'F8 food commons: chest walk failed (walk governor: bot churned 4 goals without progress - food commons walk @-134,416 refused for 12s)'
+  ])
+  assert.equal(storm.whys.governor, 6)
+  assert.deepEqual(storm.governorRuns, { len1: 0, len2: 0, len3: 2, len4plus: 0 }, 'the storm face\'s own run split: two triplets')
+  // the spiral's own witness: each refusal names a DIFFERENT chest - the bot
+  // churns through the exclusion while the governor holds (the lever's own
+  // price: a run of 3 means the exclude+next-chest answer fed the churn)
+  assert.ok(true, 'the run-length distribution is the lever\'s data - wire NOTHING until a fresh face prices it (the price-before-wire law)')
 })

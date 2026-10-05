@@ -135,6 +135,37 @@ export function askSide (raw) {
   return m ? m[1] : null
 }
 
+// (v0.658.0) THE GOVERNOR'S OWN RUNS - the churn governor's refusal anatomy:
+// how many governor whys land CONSECUTIVELY for the same bot. THE EVIDENCE
+// (two faces): fleet 37254403895 (the v0.653.0 face, the mob storm) read the
+// governor x6 as TWO TRIPLETS (F18 x3 then F8 x3, back-to-back in the log);
+// fleet 37256535767 (the v0.655.0 face, the mob storm's twin) read x7 as
+// F1 x3 + F7 x3 + F15 x1 (the first fuel-side governor, post-nudge). The
+// shape is the EXCLUSION SPIRAL: the governor holds the bot refused ('bot
+// churned 4 goals without progress'), the ladder answers exclude+next-chest,
+// the next chest is a NEW goal - and the governor refuses it too (each
+// refusal names a DIFFERENT chest: @-152,392 / @-150,392 / @-154,408 - the
+// bot churns while the governor holds). A run of 1 is one refusal; a run of
+// 3+ is the spiral signature - the lever (a spiral break) prices from the
+// run-length distribution (the price-before-wire law). THE LAWS: a run
+// breaks when a NON-governor why rides the same bot (the refusal chain
+// changed its mind), when a terminal closes the bot's ask (the ladder's
+// outcome happened), and at EOF (the unclosed run still counts - the rescue
+// ledger's own convention). The runs are pure COUNTS - the dry rows stay
+// untouched (the conservation law: sum(dryByWhy) never moves).
+export const GOVERNOR_RUN_BUCKETS = ['len1', 'len2', 'len3', 'len4plus']
+
+const ZERO_RUNS = () => ({ len1: 0, len2: 0, len3: 0, len4plus: 0 })
+
+/** Which run-length bucket owns a closed run of n governor whys (junk -> null). */
+export function governorRunBucket (n) {
+  if (!Number.isInteger(n) || n < 1) return null
+  if (n === 1) return 'len1'
+  if (n === 2) return 'len2'
+  if (n === 3) return 'len3'
+  return 'len4plus'
+}
+
 const ZERO_CLASSES = () => ({ ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 })
 
 /** Which class owns this why string (junk / unknown -> 'unnamed'). */
@@ -155,11 +186,20 @@ export function askWhyClass (why) {
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)
-  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS(), sides: ZERO_SIDES(), dryBySide: ZERO_SIDES() }
+  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS(), sides: ZERO_SIDES(), dryBySide: ZERO_SIDES(), governorRuns: ZERO_RUNS() }
   if (!list) return out
   // per-bot pending whys since the bot's last terminal (the bot tag is the
   // join key - the cross-bot law: F5's whys never price F9's terminal)
   const pending = new Map()
+  // (v0.658.0) per-bot OPEN governor run (the consecutive-refusal detector)
+  const govRun = new Map()
+  const closeRun = (bot) => {
+    const n = govRun.get(bot) || 0
+    if (n > 0) {
+      out.governorRuns[governorRunBucket(n)] += 1
+      govRun.set(bot, 0)
+    }
+  }
   for (const raw of list) {
     if (typeof raw !== 'string') continue
     const whyM = ASK_WHY_RE.exec(raw)
@@ -167,6 +207,10 @@ export function askWhyCensus (lines) {
       const bot = raw.slice(0, raw.indexOf(' '))
       const klass = askWhyClass(whyM[1])
       out.whys[klass] += 1
+      // (v0.658.0) the governor's run anatomy: a governor why EXTENDS the
+      // bot's open run, any other why CLOSES it (the refusal chain broke)
+      if (klass === 'governor') govRun.set(bot, (govRun.get(bot) || 0) + 1)
+      else closeRun(bot)
       // (v0.653.0) the decide class wears its skin - the anatomy rides the
       // same why line, the owner class never changes (the additive law)
       const skin = klass === 'decide' ? decideSkin(whyM[1]) : null
@@ -198,8 +242,12 @@ export function askWhyCensus (lines) {
         // conservation holds (the why that priced it names the row)
         if (last.klass === 'decide' && last.skin !== null && last.side !== null) out.dryBySide[last.side][last.skin] += dry
       }
+      closeRun(bot)
       pending.set(bot, [])
     }
   }
+  // (v0.658.0) EOF closes every open run (the rescue ledger's own convention:
+  // the unclosed refusal chain still counts - it happened)
+  for (const bot of [...govRun.keys()]) closeRun(bot)
   return out
 }
