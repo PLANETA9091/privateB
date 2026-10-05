@@ -15660,3 +15660,23 @@ Work Log:
 Stage Summary:
 - Master = b478f00 + this worklog (pkg 0.660.0). No version bump; version next 0.661.0 GATING x3 (the lane lands 1-2 commits per fire).
 - NEXT FIRE: (1) POLL/MINE 37265374356 FIRST (must be completed by then): download artifact, decompose - the iron join's first field read + the runs row + the death census + the strand arbitration. (2) Version 0.661.0 only after the read prices the front. (3) The lane's seats stay reserved - take the OUTSIDE fronts (furnace/smelt chain, tool repair/replace, WorldMap targets, blaze rods/chorus). Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1330
+Agent: cron fire 1330 (Super Z)
+Task: mine the landed v0.660.0 tree face 37265374356 (the iron join's first field read + the runs row + the death census + the strand arbitration); one atomic unit; anti-conflict protocol.
+
+Work Log:
+- Synced clean (master 6c750a5 = my fire-1300 worklog; the lane silent this window so far). THE FACE SEATED: dispatch 37265374356 (#2155, v0.660.0 tree) completed SUCCESS; artifact downloaded (fleet19.log) and decomposed offline.
+- THE IRON JOIN'S FIRST FIELD READ (the v0.659.0 wire's live print, the fire's headline): 'ask why census (decide skins by side): fuel: noPath x5, decideBudget x12 (noPath 5u, decideBudget 12u) | iron: noPath x1 (noPath 3u)' - the iron ladder WORE its side on a live face for the first time; 42 iron lines on the face; the conservation law held live over fuel+iron (the ask mass's decide skins fully seated). The face's iron anatomy: F8's noPath ('No path to the goal!' + budget spent 0/3) is the iron row's 1 why/3u; THREE iron timeouts named THREE DIFFERENT chests (@-125,412 F4 / @-136,386 F3 / @-134,386 F19, each ~15s at the cap: 14955/14994/14983ms) - THE @-128,387 WALL DID NOT REPEAT: no single chest owns the refusals this face - the multi-ladder wall is EPISODIC like the spiral.
+- THE RUNS ROW'S THIRD READ: 'no governor runs' - four faces now carry the row: {len2:1, len3:3} (storm 37254403895), zero (storm 37261117203), len2 x1 (calm 37261127179), zero (this calm) - NO clean storm correlation (2 of 4) - THE SPIRAL IS EPISODIC; the break lever's urgency drops again; the CAP-the-re-ask lever prices only on a fresh spiral sighting.
+- THE WRITE-OFF WHYS ROW LAWFUL-SILENT (the gate read in source: WRITE_OFF_WHY_SHARE = 0.5): 8 write-offs 1384u (F7 265u top = 19.1%) and NO class owned >= 50% - the strand's owner rotation completes its THIRD SHAPE: stalled-s0 52.2% (calm) -> wet-wall 66.5% (calm) -> FRAGMENTED/no owner (this calm). Field evidence for the multi-front law: a single-lever wire would price ZERO of this face's mass.
+- THE DEATH CENSUS NAMED LINE ABSENT (lawful): 7 deaths across 6 kinds (mob 4: Drowned/Skeleton/Zombie x2 + explosion Creeper + drown 1 + fall 1), max share 28.6% - below the mass floor; the lane's module stayed silent on a fragmented face. FACE VERDICT: CALM (STORM: 0, WET: 0).
+- THE FLEE FORK'S THIRD READ (the lane's seat, prices hotter): 'flee carries 125u/3 death(s) - the ESCAPE fails - the disengage is the leak' + 'the escapes die off the shared grounds - the chase's reach, not the ground, takes them' - THREE faces now agree the disengage must GAIN ground.
+- THE SILENT CLASS GROWS: 'armed 1 (59u: F19) / SILENT 6 (260u)' - 81.5% of the 319u stake mass never spoke (was 62% on the prior calm face) - the reloot arm gate's neighborhood read prices higher every calm face.
+- THE ECONOMY CLOSED: mined 1640, banked 55, pocket 1555u, surplus 0, conversion 98.2%; pocket anatomy 14 holders top F7 265u (17%) 'the chains own the crater's face, no single walk cures it'; stranded pockets zero-delivered: 1 (F17 0u/130u); fate normal end - deadline 600s reached.
+- NO code change, NO version bump this fire (mining fire; the fire-1300 precedent; the lane's seats stayed reserved - zero collision). Version next 0.661.0 GATING x3.
+
+Stage Summary:
+- Master = 6c750a5 (pkg 0.660.0) + this worklog. The v0.659.0 iron join: field-read COMPLETE (its side prints, its law holds live); the @-128,387 wall front demoted to episodic; the spiral demoted again (episodic, 2 of 4 faces).
+- NEXT FIRE: (1) the lane's flee fork + reloot arm gate + o2-reset trio stay the hottest priced seats - COORDINATE, not mine. (2) Version 0.661.0 GATING x3 on the OUTSIDE fronts (furnace/smelt chain, tool repair/replace, WorldMap targets, blaze rods/chorus). (3) If a fresh dispatch flies, the iron side's second live read + the strand's owner rotation (fragmented repeat?) ride it. Identity: PLANETA9091.
