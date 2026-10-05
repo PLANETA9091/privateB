@@ -532,7 +532,7 @@ test('wiring: the vertical gate rides the four yard walk sources (the fuelbank +
 // record). run74 (36082849774, the v0.164.0 fleet) confirmed x13. bridgePlan
 // is the pure gate the climbOut wiring executes: the step path clear + the
 // support non-solid + a placeable pocket = fill the missing floor.
-import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE, PLANT_CLEAR_FAMILY, PLANT_CLEAR_MAX, fillCollidesEntity, SHADOW_EPSILON } from '../../src/lib/surface.mjs'
+import { bridgePlan, BRIDGE_PLACE_MAX, BRIDGE_SELF_WALL_DIRS, pitDonor, PIT_DONOR_MAX, PIT_DONOR_DIRT, PIT_DONOR_STONE, PLANT_CLEAR_FAMILY, PLANT_CLEAR_MAX, STEP_DIG_MAX, fillCollidesEntity, SHADOW_EPSILON } from '../../src/lib/surface.mjs'
 
 const cell = (x, y, z) => ({
   x, y, z,
@@ -641,6 +641,82 @@ test('bridgePlan: a wet step cell refuses - the wet-escape ladder owns the water
   const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET })
   assert.equal(p.ok, false)
   assert.match(p.why, /the step cells are not clear/)
+})
+
+test('bridgePlan: the step-dig re-plan - a solid step cell digs first (the row\'s own front, v0.667.0)', () => {
+  // the waitGround bounce lands the bot LOWER - the re-plan reads the LANDED
+  // feet, whose step cells are fresh geometry the staircase never scanned
+  // (fleet 37288570972: F13 unavailable + F8/F12 re-plan diags, dug=0 each)
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': STONE, // the lower blocker
+    '11,66,20': AIR,
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true })
+  assert.equal(p.ok, true, 'the re-plan\'s dig half fires where the legacy byte refused')
+  assert.equal(p.kind, 'step-dig')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 11, y: 65, z: 20 }, 'the LOWER blocker leads (the staircase\'s own bottom-up law)')
+  assert.equal(p.stepName, 'stone')
+  assert.equal(p.item, null, 'a dig plan carries no item')
+})
+
+test('bridgePlan: the step-dig re-plan - the lower clear, the upper cell digs (the second pass)', () => {
+  const read = cellWorld({
+    '10,63,20': STONE,
+    '11,65,20': AIR, // the lower cleared on the first pass
+    '11,66,20': STONE, // the upper holds
+    '11,64,20': AIR,
+    '11,63,20': STONE
+  })
+  const p = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true })
+  assert.equal(p.ok, true)
+  assert.equal(p.kind, 'step-dig')
+  assert.deepEqual({ x: p.cell.x, y: p.cell.y, z: p.cell.z }, { x: 11, y: 66, z: 20 })
+})
+
+test('bridgePlan: the step-dig re-plan keeps the legacy byte for the non-block classes', () => {
+  // water - the wet-escape ladder's territory, never the bridge's dig
+  const wet = cellWorld({
+    '10,63,20': STONE, '11,65,20': WATER, '11,66,20': AIR, '11,64,20': AIR, '11,63,20': STONE
+  })
+  const pw = bridgePlan({ feet: cell(10, 64, 20), d: D, read: wet, items: POCKET, replan: true })
+  assert.equal(pw.ok, false)
+  assert.match(pw.why, /the step cells are not clear/)
+  // the unreadable read - the chunk-desync class never digs blind
+  const half = cellWorld({ '10,63,20': STONE, '11,64,20': AIR, '11,63,20': STONE })
+  const pn = bridgePlan({ feet: cell(10, 64, 20), d: D, read: half, items: POCKET, replan: true })
+  assert.equal(pn.ok, false)
+  assert.match(pn.why, /the step cells are not clear/)
+  // the legacy caller (no replan) - the v0.165.0 contract byte stays exact
+  const solid = cellWorld({
+    '10,63,20': STONE, '11,65,20': STONE, '11,66,20': AIR, '11,64,20': AIR, '11,63,20': STONE
+  })
+  const pl = bridgePlan({ feet: cell(10, 64, 20), d: D, read: solid, items: POCKET })
+  assert.equal(pl.ok, false, 'the FIRST plan never digs - the staircase just scanned these cells')
+  assert.match(pl.why, /the step cells are not clear/)
+})
+
+test('bridgePlan: the step-dig churn law - the per-cell set and the scalar fallback', () => {
+  const read = cellWorld({
+    '10,63,20': STONE, '11,65,20': STONE, '11,66,20': AIR, '11,64,20': AIR, '11,63,20': STONE
+  })
+  // a real set: the attempted cell keeps the legacy byte (one attempt per cell)
+  const attempted = new Set(['11,65,20'])
+  const p1 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true, stepDigCells: attempted })
+  assert.equal(p1.ok, false, 'the attempted cell never re-digs (the v0.633.0 law)')
+  assert.match(p1.why, /the step cells are not clear/)
+  // a null set + the scalar: the cap spent keeps the byte
+  const p2 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true, stepDigs: STEP_DIG_MAX })
+  assert.equal(p2.ok, false)
+  assert.match(p2.why, /the step cells are not clear/)
+  const p3 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true, stepDigs: 1 })
+  assert.equal(p3.ok, true, 'under the scalar cap the dig rides')
+  assert.equal(p3.kind, 'step-dig')
+  // a junk set never crashes the guard (the try/catch law)
+  const p4 = bridgePlan({ feet: cell(10, 64, 20), d: D, read, items: POCKET, replan: true, stepDigCells: 'junk' })
+  assert.equal(p4.ok, true, 'a junk set reads as unattempted - the plan still rides')
 })
 
 test('bridgePlan: an empty pocket cannot bridge (the legacy rotate ladder owns the level)', () => {

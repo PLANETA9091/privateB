@@ -1671,6 +1671,11 @@ export const PLANT_CLEAR_FAMILY = [
 ]
 export const PLANT_CLEAR_MAX = 2
 
+// (v0.667.0) the step-dig cap: the re-plan's dig half rides the same scalar
+// fallback law the plant clear rides (a null set + the scalar ceiling - the
+// legacy caller keeps a bound); a real per-cell set owns the count instead.
+export const STEP_DIG_MAX = 2
+
 // (v0.621.0) the donor vocab: dirt-family first (the drop rides bare-handed),
 // then the stone-family matrix (each drops a PILLAR_BLOCKS member - a pick is
 // required and verified against the pocket).
@@ -1733,7 +1738,7 @@ export function pitDonor ({ feet, d, read, items = null } = {}) {
   return null
 }
 
-export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0, plantClears = 0, plantClearCells = null } = {}) {
+export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced = BRIDGE_PLACE_MAX, grounded = true, donors = 0, plantClears = 0, plantClearCells = null, replan = false, stepDigs = 0, stepDigCells = null } = {}) {
   const done = Number.isFinite(placed) && placed > 0 ? Math.floor(placed) : 0
   const cap = Number.isFinite(maxPlaced) && maxPlaced > 0 ? Math.floor(maxPlaced) : BRIDGE_PLACE_MAX
   if (done >= cap) return { ok: false, why: `the bridge budget is spent (${done}/${cap})` }
@@ -1848,7 +1853,44 @@ export function bridgePlan ({ feet, d, read, items = null, placed = 0, maxPlaced
   const step = rd(feet.offset(d.x, 1, d.z))
   const step2 = rd(feet.offset(d.x, 2, d.z))
   const clear = b => !!b && b.boundingBox === 'empty'
-  if (!clear(step) || !clear(step2)) return { ok: false, why: 'the step cells are not clear (the dig ladder owns this level)' }
+  if (!clear(step) || !clear(step2)) {
+    // (v0.667.0) THE STEP-DIG RE-PLAN - the row's own front, wired. The
+    // v0.165.0 contract keeps the legacy refusal for the FIRST plan: the dig
+    // staircase just scanned these cells (the contract's 'the dig ladder had
+    // its chance' stays true there). The waitGround re-plan is the gap: the
+    // bounce lands the bot LOWER and the re-plan reads the LANDED feet, whose
+    // step cells are fresh geometry the staircase never scanned - fleet
+    // 37288570972 rode the class three times (F13 unavailable + F8/F12
+    // re-plan diags, dug=0 each) after face 37282368137's book named the
+    // kind x1. The solid blocker digs first (the staircase's own bottom-up
+    // law - the LOWER cell leads, the loop re-judges into the upper); water,
+    // an unreadable read and a non-block keep the legacy byte (the
+    // wet-escape ladder and the chunk-desync class stay where they live).
+    // The v0.633.0 churn law rides: a real per-cell set bounds the dig to
+    // ONE attempt per cell per climb; a null set falls to the scalar
+    // (STEP_DIG_MAX).
+    const stepSetReal = !!stepDigCells
+    const stepAttempted = cell => {
+      if (!cell || !stepSetReal) return false
+      try {
+        const key = `${cell.x},${cell.y},${cell.z}`
+        return typeof stepDigCells.has === 'function' ? !!stepDigCells.has(key) : stepDigCells.includes(key)
+      } catch { return false }
+    }
+    const stepCapOpen = cell => stepSetReal ? !stepAttempted(cell) : (Number.isFinite(stepDigs) && stepDigs < STEP_DIG_MAX)
+    if (replan) {
+      const blocker = b => (b && b.boundingBox === 'block') ? b : null
+      const lower = blocker(step)
+      const upper = blocker(step2)
+      const target = lower
+        ? { cell: feet.offset(d.x, 1, d.z), name: lower.name }
+        : upper ? { cell: feet.offset(d.x, 2, d.z), name: upper.name } : null
+      if (target && stepCapOpen(target.cell)) {
+        return { ok: true, kind: 'step-dig', cell: target.cell, stepName: target.name, item: null, placedNext: done }
+      }
+    }
+    return { ok: false, why: 'the step cells are not clear (the dig ladder owns this level)' }
+  }
   // (v0.627.0) THE PLANT CLEAR - the lateral target's confessed groundcover
   // digs first (see PLANT_CLEAR_FAMILY). The cap spent keeps the legacy byte
   // (the plan plans into the plant cell as today - the honest refusal owns

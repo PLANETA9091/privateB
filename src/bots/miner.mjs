@@ -5125,6 +5125,8 @@ export function createMiner ({
     let bridgePlaced = 0 // (v0.165.0) bridge fills this climb, bounded by BRIDGE_PLACE_MAX
     let bridgeDonors = 0 // (v0.621.0) pit donor digs this climb, bounded by PIT_DONOR_MAX
     let bridgePlantClears = 0 // (v0.627.0) plant clears this climb, bounded by PLANT_CLEAR_MAX
+    let bridgeStepDigs = 0 // (v0.667.0) step digs this climb (the scalar fallback bound)
+    const bridgeStepDigCleared = new Set() // (v0.667.0) the step-dig's per-cell one-attempt marks
     // (v0.633.0) the per-cell attempt marks ('x,y,z' keys): the set GOVERNS
     // the plant clear - one attempt per cell per climb, no scalar ceiling
     // above it (each clear serves exactly one priced fill, BRIDGE_PLACE_MAX
@@ -5537,7 +5539,7 @@ export function createMiner ({
           if (!bp.ok && bp.waitGround) {
             const grounded = await bridgeWaitGround()
             const feetNow = (() => { try { return bot.entity?.position ? bot.entity.position.floored() : feet } catch { return feet } })()
-            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors, plantClears: bridgePlantClears, plantClearCells: bridgePlantCleared })
+            bp = bridgePlan({ feet: feetNow, d, read: readCell, items: inventoryItems(bot), placed: bridgePlaced, grounded, donors: bridgeDonors, plantClears: bridgePlantClears, plantClearCells: bridgePlantCleared, replan: true, stepDigs: bridgeStepDigs, stepDigCells: bridgeStepDigCleared })
             if (diagLevels < 3 && (bp.ok || !bp.waitGround)) log(`${tag} climb bridge: the self fill waited ${grounded ? 'and grounded' : 'and stayed afloat'} - the re-plan ${bp.ok ? `reads the ${bp.kind} fill` : `refuses (${bp.why})`}`)
           }
           if (bp.ok) {
@@ -5567,6 +5569,32 @@ export function createMiner ({
                 continue
               }
               if (diagLevels < 3) log(`${tag} climb bridge: the plant clear refused at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.plantName ?? 'unknown'}) - the ladder owns it`)
+              continue
+            }
+            if (bp.kind === 'step-dig') {
+              // (v0.667.0) THE STEP-DIG's executor half: the re-plan's landed
+              // feet read step cells the staircase never scanned (the
+              // v0.618.0 bounce's own shadow - fleet 37288570972's F13/F8/F12
+              // rode the refusal into a burned rotate cycle each, dug=0).
+              // Dig the ONE solid blocker the plan picked (the lower cell
+              // leads - the staircase's own bottom-up law), settle, and let
+              // the loop re-judge: the cleared cell re-plans into the fill or
+              // the next dig. A failed dig logs the honest refusal and falls
+              // to the ladder; the per-cell set bounds the churn (the
+              // v0.633.0 law).
+              let dugOk = false
+              try { bridgeStepDigCleared.add(`${bp.cell.x},${bp.cell.y},${bp.cell.z}`) } catch { }
+              try {
+                const stepB = readCell(bp.cell)
+                if (stepB && stepB.boundingBox === 'block') dugOk = await bot.fastDig(stepB, { maxTicks: digWindow })
+              } catch { dugOk = false }
+              if (dugOk) {
+                bridgeStepDigs++
+                await settleTicks(2, 'climb bridge step dig settle')
+                if (diagLevels < 3) log(`${tag} climb bridge: the step cell holds a ${bp.stepName} at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] - the step digs first`)
+                continue
+              }
+              if (diagLevels < 3) log(`${tag} climb bridge: the step dig refused at [${bp.cell.x},${bp.cell.y},${bp.cell.z}] (${bp.stepName ?? 'unknown'}) - the ladder owns it`)
               continue
             }
             if (bp.kind === 'donor') {
