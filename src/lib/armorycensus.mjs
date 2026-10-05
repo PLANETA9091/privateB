@@ -39,6 +39,14 @@
 //     ('sticks N < 2, one-type planks N cannot unlock the craft'),
 //     the stick-miss and the table refusal ride as legs.
 //
+// THE CRAFT-HOLDS SEAT (v0.662.0): the spare lane's craft-miss grows
+// the holds sum - the pocket's own material read at the miss (the
+// sword lane's craftHolds law mirrored verbatim: summed on the MISSES
+// only, the OK verdict's holds never count - the holds field prices
+// what the pocket HELD when the craft failed, the retry's own material
+// read; the mining-surface law gives the seat its own print segment,
+// non-zero only).
+//
 // Pure parser, unit-pinned (the smelthold v0.491.0 shape); decompose
 // is its field read. Mining-surface only: zero fleet wiring, zero new
 // log lines. Junk-safe end to end: non-string rows skipped, a face
@@ -102,7 +110,7 @@ function failedClass (why) {
 /**
  * Read the armory lanes' craft verdicts and their failure anatomy.
  * @param {string[]} lines one fleet-log, all lines
- * @returns {null|{sword: {ok: number, okTiers: Object<string,number>, failed: number, failedWhy: Object<string,number>, craftVerdicts: number, craftMisses: number, craftHolds: number, stickMisses: number, tableRefusals: number, skips: number, skipClasses: Object<string,number>, stormRefusals: number, ingredientsRefusals: number, prose: number}, spare: {ok: number, okTiers: Object<string,number>, craftMisses: number, craftVerdicts: number, stickMisses: number, tableRefusals: number, skips: number, skipClasses: Object<string,number>}, total: number}}
+ * @returns {null|{sword: {ok: number, okTiers: Object<string,number>, failed: number, failedWhy: Object<string,number>, craftVerdicts: number, craftMisses: number, craftHolds: number, stickMisses: number, tableRefusals: number, skips: number, skipClasses: Object<string,number>, stormRefusals: number, ingredientsRefusals: number, prose: number}, spare: {ok: number, okTiers: Object<string,number>, craftMisses: number, craftHolds: number, craftVerdicts: number, stickMisses: number, tableRefusals: number, skips: number, skipClasses: Object<string,number>}, total: number}}
  */
 export function armoryCensus (lines) {
   if (!Array.isArray(lines)) return null
@@ -113,7 +121,7 @@ export function armoryCensus (lines) {
     stormRefusals: 0, ingredientsRefusals: 0, prose: 0
   }
   const spare = {
-    ok: 0, okTiers: {}, craftMisses: 0, craftVerdicts: 0,
+    ok: 0, okTiers: {}, craftMisses: 0, craftHolds: 0, craftVerdicts: 0,
     stickMisses: 0, tableRefusals: 0, skips: 0, skipClasses: {}
   }
   for (const line of lines) {
@@ -164,7 +172,10 @@ export function armoryCensus (lines) {
         spare.ok++
         spare.okTiers[m[3]] = (spare.okTiers[m[3]] || 0) + 1
       } else {
+        // The sword lane's law mirrored (v0.662.0): the miss's holds is
+        // the pocket's own material read - the OK's holds never count.
         spare.craftMisses++
+        spare.craftHolds += Number(m[4])
       }
       continue
     }

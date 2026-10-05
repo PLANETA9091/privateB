@@ -2297,11 +2297,11 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const s = ac.sword
     const tbits = []
     for (const [tier, n] of Object.entries(s.okTiers)) tbits.push(`${tier} ${n}`)
-    console.log(`  sword: armed ${s.ok} (${tbits.join(' / ')}) | failed ${s.failed} (craft-miss ${s.failedWhy['craft-miss']} / table ${s.failedWhy.table}) - stick-miss ${s.stickMisses}, table-refused ${s.tableRefusals}`)
+    console.log(`  sword: armed ${s.ok} (${tbits.join(' / ')}) | failed ${s.failed} (craft-miss ${s.failedWhy['craft-miss']}${s.craftHolds ? ` (${s.craftHolds}u pocket at the misses)` : ''} / table ${s.failedWhy.table}) - stick-miss ${s.stickMisses}, table-refused ${s.tableRefusals}`)
     const sp = ac.spare
     const pbits = []
     for (const [tier, n] of Object.entries(sp.okTiers)) pbits.push(`${tier} ${n}`)
-    console.log(`  spare pick: armed ${sp.ok} (${pbits.join(' / ')}) | craft-miss ${sp.craftMisses} - stick-miss ${sp.stickMisses}, table-refused ${sp.tableRefusals}, skips ${sp.skips} (stick-drought ${sp.skipClasses['stick-drought'] || 0} / materials ${sp.skipClasses.materials || 0} / other ${sp.skips - (sp.skipClasses['stick-drought'] || 0) - (sp.skipClasses.materials || 0)})`)
+    console.log(`  spare pick: armed ${sp.ok} (${pbits.join(' / ')}) | craft-miss ${sp.craftMisses}${sp.craftHolds ? ` (${sp.craftHolds}u pocket at the misses)` : ''} - stick-miss ${sp.stickMisses}, table-refused ${sp.tableRefusals}, skips ${sp.skips} (stick-drought ${sp.skipClasses['stick-drought'] || 0} / materials ${sp.skipClasses.materials || 0} / other ${sp.skips - (sp.skipClasses['stick-drought'] || 0) - (sp.skipClasses.materials || 0)})`)
     if (s.stormRefusals || s.ingredientsRefusals || s.prose) console.log(`  legs: storm ${s.stormRefusals} / ingredients ${s.ingredientsRefusals} / prose ${s.prose}`)
   }
 }

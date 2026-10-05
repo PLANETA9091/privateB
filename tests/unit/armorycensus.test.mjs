@@ -2,6 +2,8 @@
 // armorycensus.test.mjs - THE ARMORY CENSUS (v0.494.0) unit tests.
 // The lines are byte-verbatim from the stored faces (face 42 = run108,
 // face 43 = run84a fleet19.log), hand-traced first, then pinned.
+// v0.662.0: the spare lane's craft-holds seat joins (the sword lane's
+// law mirrored - summed on the misses only, the OK's holds never count).
 //
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -70,6 +72,7 @@ test('v0.494.0 face-42 mini: the read-order law holds, the table leg owns the sw
   assert.equal(b.spare.ok, 1)
   assert.deepEqual(b.spare.okTiers, { wooden_pickaxe: 1 })
   assert.equal(b.spare.craftMisses, 0)
+  assert.equal(b.spare.craftHolds, 0)
   assert.equal(b.spare.stickMisses, 1)
   assert.equal(b.spare.tableRefusals, 1)
   assert.equal(b.spare.skips, 2)
@@ -142,6 +145,31 @@ test('v0.494.0 both faces: 37 swords + 25 spare picks armed - the wooden tier do
   // The totals: every armory line classified (77 + 66 = 143).
   assert.equal(b42.total, 77)
   assert.equal(b43.total, 66)
+})
+
+test('v0.662.0 the spare craft-holds seat: the miss holds is the pocket own material read - the OK holds never count', () => {
+  // The docstring's own skins: the craft-miss verdict carries the holds
+  // field (the pocket count AFTER the craft); the census sums it on the
+  // MISSES only - the sword lane's craftHolds law mirrored verbatim.
+  const b = armoryCensus([
+    'F1 spare pick: craft did not land (wooden_pickaxe, holds 0)',
+    'F2 spare pick: craft did not land (wooden_pickaxe, holds 2)',
+    'F3 spare pick: OK (wooden_pickaxe, holds 1)'
+  ])
+  assert.equal(b.spare.craftVerdicts, 3)
+  assert.equal(b.spare.craftMisses, 2)
+  assert.equal(b.spare.craftHolds, 2)
+  assert.equal(b.spare.ok, 1)
+  assert.deepEqual(b.spare.okTiers, { wooden_pickaxe: 1 })
+  // The sword lane's own seat unchanged (its holds law rides untouched).
+  const s = armoryCensus(['F3 sword: craft did not land (wooden_sword, holds 0)'])
+  assert.equal(s.sword.craftMisses, 1)
+  assert.equal(s.sword.craftHolds, 0)
+  // The junk battery: a malformed holds never matches (the \d+ group),
+  // a non-string row skips, the honest zero holds the seat at zero.
+  const junk = armoryCensus(['F1 spare pick: craft did not land (wooden_pickaxe, holds x)', undefined, 'garbage'])
+  assert.equal(junk.spare.craftVerdicts, 0)
+  assert.equal(junk.spare.craftHolds, 0)
 })
 
 test('v0.494.0 junk/blob/zero: the honest zero is itself the read - an unarmed fleet is the v0.66.0 fists era own signature', () => {
