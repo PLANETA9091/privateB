@@ -69,3 +69,39 @@ test('REGRESSION PIN: the parser reads the emitter\'s own row byte for byte', ()
   assert.equal(parsePrePositionCensus('pre-position census: armed 1, landed 1 (+5u), failed 0 - the seat\'s own delivery, first priced BOOM'), null,
     'an imagined suffix is a junk line (the anatomy law)')
 })
+
+// ---- (v0.648.0) THE CLIMB-OUT'S OWN SPLIT ----
+// Face 37243173708 (the v0.645.0 fleet): the census spoke ('surface refused
+// x31') but the split had to be hand-mined from the climb-out lines - the
+// STALLED class (x17) is the front, the wet (x10) the second, and the two
+// fronts price different cures. The verdict record rides ensureSurface
+// (gated to the seat's own reason - the single-shot law: the first refusal
+// IS the final verdict) and the row's tail rides the split inside the
+// top-why parens. The DEAD WIRING class is only catchable at the source.
+
+test('REGRESSION PIN (v0.648.0): the climb-out verdict record rides the seat\'s own gate, before the single-shot return', () => {
+  const recNeedle = "if (!r.ok && reason === 'pre-position') prePositionClimbRefusals.push(String(r.reason || 'unknown'))"
+  const recAt = fleetSrc.indexOf(recNeedle)
+  assert.ok(recAt > -1, 'the verdict record rides ensureSurface, gated to the seat\'s own reason (bank/trip climbs never feed the seat\'s class)')
+  const failLogAt = fleetSrc.indexOf('climb out (${reason}): failed - ${r.reason}')
+  assert.ok(failLogAt > -1 && recAt > failLogAt,
+    'the record rides the first attempt\'s verdict (beside its own failure log - the single-shot law: the seat passes no chain clock, the first refusal IS the final verdict)')
+  const earlyReturnAt = fleetSrc.indexOf('if (r.ok || !chainLeftMs) return r.ok')
+  assert.ok(earlyReturnAt > -1 && recAt < earlyReturnAt,
+    'the record rides BEFORE the single-shot return (the bank retry ladder never feeds the seat\'s class)')
+  const bankRetryAt = fleetSrc.indexOf('const plan = bankClimbRetry({ chainLeftMs')
+  assert.ok(bankRetryAt > recAt, 'the record rides before the retry ladder (the ladder is the bank\'s own front)')
+})
+
+test('REGRESSION PIN (v0.648.0): the split tail rides the row\'s template, the record lives beside the census family', () => {
+  const rowAt = fleetSrc.indexOf('pre-position census: armed ${prePositionArmed.size}')
+  const tailAt = fleetSrc.indexOf('; climb-outs: ${climbOuts}')
+  assert.ok(rowAt > -1, 'the row exists (the v0.645.0 anchor)')
+  assert.ok(tailAt > rowAt, 'the tail rides the row\'s own template (one line, the parser reads both forms)')
+  const gateAt = fleetSrc.indexOf('climbOuts ? `; climb-outs: ${climbOuts}` : \'\'')
+  assert.ok(gateAt > -1, 'the tail is gated on the records (no climb refusals, no tail - the healthy silence)')
+  const declAt = fleetSrc.indexOf('const prePositionClimbRefusals = []')
+  const familyAt = fleetSrc.indexOf('const prePositionFailed = []')
+  assert.ok(declAt > -1 && familyAt > -1 && declAt > familyAt,
+    'the verdict record lives beside the census family (one scope, the family\'s own law)')
+})

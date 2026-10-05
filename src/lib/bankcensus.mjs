@@ -81,13 +81,33 @@ export function parseDoomWhy(s) {
 // The optional top-why tail rides only when present (the parseWriteOff law -
 // the bare pins stay byte-equal). Junk-safe: a non-string reads null, a
 // non-numeric capture is a junk line (never invented, the grain's own law).
-const PREPOSITION_RE = /^pre-position census: armed (\d+), landed (\d+) \(\+(\d+)u\), failed (\d+)(?: \(top why: (.+) x(\d+)\))? - the seat's own delivery, first priced$/
+// (v0.648.0) THE CLIMB-OUT'S OWN SPLIT - the surface-refused class was one
+// flat name while the climb-out lines carried the anatomy (face 37243173708:
+// surface refused x31 = stalled x17 + wet-sentinel x5 + low-o2 x4 + timeout
+// x2 + wet wall x1 + stopped x1 + rescue x1 - the STALLED class is the front,
+// the wet the second; the two fronts price different cures). The row gains an
+// OPTIONAL tail inside the top-why parens ('; climb-outs: stalled x17, ...')
+// and the parser reads BOTH forms forever (the v0.390.0 alternation law): a
+// row without the tail parses exactly as before (the capture grid unchanged),
+// a malformed tail entry is a junk line (never invented, the grain's own
+// law). The top-why capture narrows from (.+) to [^;)]+ - the emitter's own
+// vocabulary never rides a semicolon or a paren inside the why text.
+const PREPOSITION_RE = /^pre-position census: armed (\d+), landed (\d+) \(\+(\d+)u\), failed (\d+)(?: \(top why: ([^;)]+) x(\d+)(?:; climb-outs: ([^)]+))?\))? - the seat's own delivery, first priced$/
 
 export function parsePrePositionCensus(s) {
   const m = typeof s === 'string' ? s.match(PREPOSITION_RE) : null
   if (!m) return null
   const e = { armed: num(m[1]), landed: num(m[2]), landedUnits: num(m[3]), failed: num(m[4]) }
   if (m[5] !== undefined) { e.topWhy = m[5]; e.topWhyCount = num(m[6]) }
+  if (m[7] !== undefined) {
+    const climbOuts = []
+    for (const part of m[7].split(', ')) {
+      const pm = part.match(/^(.+) x(\d+)$/)
+      if (!pm) return null // the junk law: a malformed entry is a junk line, never invented
+      climbOuts.push({ kind: pm[1], count: num(pm[2]) })
+    }
+    e.climbOuts = climbOuts
+  }
   return e
 }
 

@@ -315,3 +315,52 @@ test('pre-position census: junk reads null (the parser never invents)', () => {
   // the imagined suffix is a junk line (the anatomy law)
   assert.equal(parsePrePositionCensus('pre-position census: armed 10, landed 3 (+378u), failed 3 (top why: chest unreachable x2) - the seat\'s own delivery, first priced BOOM'), null)
 })
+
+// ---- (v0.648.0) THE CLIMB-OUT'S OWN SPLIT - the tail rides the anatomy ----
+// Face 37243173708 (the v0.645.0 fleet): the census spoke for the first time
+// ('armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31)') and
+// the split had to be hand-mined from the climb-out lines (stalled x17 is
+// the front, the wet x10 the second - the two fronts price different cures).
+// The row now carries the split itself ('; climb-outs: ...' inside the
+// top-why parens); the parser reads both forms forever.
+
+test('pre-position census: the climb-out split rides the fed face (the storm anatomy verbatim)', () => {
+  const e = parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31; climb-outs: stalled x17, wet-sentinel x5, low-o2 x4, timeout x2, rescue x1, stopped x1, wet wall x1) - the seat\'s own delivery, first priced')
+  assert.deepEqual(e, {
+    armed: 17, landed: 0, landedUnits: 0, failed: 42,
+    topWhy: 'surface refused', topWhyCount: 31,
+    climbOuts: [
+      { kind: 'stalled', count: 17 },
+      { kind: 'wet-sentinel', count: 5 },
+      { kind: 'low-o2', count: 4 },
+      { kind: 'timeout', count: 2 },
+      { kind: 'rescue', count: 1 },
+      { kind: 'stopped', count: 1 },
+      { kind: 'wet wall', count: 1 }
+    ]
+  })
+})
+
+test('pre-position census: the tail-less face parses exactly as before (the capture grid unchanged)', () => {
+  const e = parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31) - the seat\'s own delivery, first priced')
+  assert.deepEqual(e, { armed: 17, landed: 0, landedUnits: 0, failed: 42, topWhy: 'surface refused', topWhyCount: 31 })
+  assert.ok(!('climbOuts' in e), 'no climb refusals, no tail key (the healthy silence)')
+  // the split beside a non-climb top why rides the same shape (the front named, the climb priced beside it)
+  const e2 = parsePrePositionCensus('pre-position census: armed 4, landed 1 (+60u), failed 8 (top why: chest unreachable x5; climb-outs: stalled x3) - the seat\'s own delivery, first priced')
+  assert.deepEqual(e2, {
+    armed: 4, landed: 1, landedUnits: 60, failed: 8,
+    topWhy: 'chest unreachable', topWhyCount: 5,
+    climbOuts: [{ kind: 'stalled', count: 3 }]
+  })
+})
+
+test('pre-position census: the malformed tail is a junk line (the parser never invents)', () => {
+  // an entry without its xN count is junk - the whole row reads null
+  assert.equal(parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31; climb-outs: stalled 17) - the seat\'s own delivery, first priced'), null)
+  // a semicolon inside the top-why text cannot ride (the emitter\'s vocabulary never carries one)
+  assert.equal(parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface; refused x31) - the seat\'s own delivery, first priced'), null)
+  // an imagined tail suffix is junk (the anatomy law)
+  assert.equal(parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31; climb-outs: stalled x17) - the seat\'s own delivery, first priced BOOM'), null)
+  // a truncated tail (no closing paren before the row\'s own suffix) is junk
+  assert.equal(parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31; climb-outs: stalled x17 BOOM'), null)
+})

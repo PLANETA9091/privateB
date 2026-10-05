@@ -1525,6 +1525,16 @@ async function runBot (name, target, index) {
         if (!r.ok && r.memoRefusal) miner.bot._routeRefusals = (miner.bot._routeRefusals || 0) + 1 // (v0.321.0) the route latch's count (the door owns the gate)
         if (r.ok && r.gained > 0) console.log(`${name} climb out (${reason}): OK +${r.gained} levels (${r.steps} steps, ${r.dug} dug${r.traversed ? `, ${r.traversed} traversed` : ''}, ${r.secs?.toFixed(0)}s)`)
         else if (!r.ok) console.log(`${name} climb out (${reason}): failed - ${r.reason}${r.waitSecs ? ` (wait ${r.waitSecs}s)` : ''}${r.traversed ? ` (traversed ${r.traversed})` : ''}${r.stage ? ` [stage ${r.stage}]` : ''}`)
+        // (v0.648.0) THE CLIMB-OUT'S OWN SPLIT - the seat's census read
+        // 'surface refused' as one flat name while the climb-out lines carried
+        // the anatomy (face 37243173708: surface refused x31 = stalled x17 +
+        // wet x10 + the rest - the STALLED class is the front, the wet the
+        // second). The verdict rides the records gated to the seat's own
+        // reason: the single-shot law means the first refusal IS the final
+        // verdict (the seat passes no chain clock, the bank's retry ladder
+        // never feeds the seat's class).
+        if (!r.ok && reason === 'pre-position') prePositionClimbRefusals.push(String(r.reason || 'unknown'))
+        if (r.ok || !chainLeftMs) return r.ok
         // (v0.154.0) THE BANK CLIMB RETRY: the mid-run bank trip's climb was
         // SINGLE-SHOT - 'climb out (bank): failed - stalled' x16 + 'timeout' x7
         // in the run108/run84a logs, F3's 3-of-4 bank trips dead at the climb in
@@ -1539,7 +1549,6 @@ async function runBot (name, target, index) {
         // live lane owns the bot, the air owns the wet escape, the ledger
         // cooldown would refuse). Only the 'bank' caller passes a chain clock -
         // 'trip' and 'pre-position' keep the byte-identical single-shot shape.
-        if (r.ok || !chainLeftMs) return r.ok
         const plan = bankClimbRetry({ chainLeftMs, spentMs: Date.now() - climbT0, reason: r.reason })
         if (!plan.retry) {
           console.log(`${name} climb out (${reason}): no retry (${plan.why})`)
@@ -3850,6 +3859,7 @@ const bankArmSpoke = new Set() // (v0.574.0) THE ARM SILENCE CENSUS - every bot 
 const prePositionArmed = new Set() // (v0.645.0) THE PRE-POSITION'S OWN CENSUS - the walk-home seat's armed set (the dig loop's one-shot delivery seat; face 37239853197 armed 10 bots and the arm census still read them 'never armed' - the seat's wanted pass was invisible to the book)
 const prePositionLanded = [] // (v0.645.0) the landed pre-position deliveries' unit counts (the seat's own conversion: face 37239853197 landed 3 of 10, +378u)
 const prePositionFailed = [] // (v0.645.0) the failed pre-position chains' honest reasons (the next face splits the wet-climb class from the budget-exhausted class - the two fronts price different cures)
+const prePositionClimbRefusals = [] // (v0.648.0) the seat's own climb-out verdicts (ensureSurface's r.reason, gated to 'pre-position' - the surface-refused class's own anatomy: stalled vs wet vs the rest, the split the row rides)
 const names = Array.from({ length: COUNT }, (_, i) => `F${i + 1}`)
 const runners = []
 
@@ -4511,7 +4521,21 @@ console.log(`doomed-goal ledger: ${dgs.records} recorded, ${dgs.refusals} re-iss
       whyCount.set(k, n)
       if (n > topN) { topN = n; topWhy = k }
     }
-    console.log(`pre-position census: armed ${prePositionArmed.size}, landed ${prePositionLanded.length} (+${landedUnits}u), failed ${prePositionFailed.length}${topWhy ? ` (top why: ${topWhy} x${topN})` : ''} - the seat's own delivery, first priced`)
+    // (v0.648.0) THE CLIMB-OUT'S OWN SPLIT - the tail rides the split inside
+    // the top-why parens (count desc, then name asc - deterministic; every
+    // kind rides, the grain is lossless). No climb refusals, no tail (the
+    // healthy silence - a face whose chains failed elsewhere names those
+    // whys, the climb was not the front).
+    const climbKinds = new Map()
+    for (const k of prePositionClimbRefusals) {
+      const key = String(k)
+      climbKinds.set(key, (climbKinds.get(key) || 0) + 1)
+    }
+    const climbOuts = [...climbKinds.entries()]
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .map(([k, n]) => `${k} x${n}`)
+      .join(', ')
+    console.log(`pre-position census: armed ${prePositionArmed.size}, landed ${prePositionLanded.length} (+${landedUnits}u), failed ${prePositionFailed.length}${topWhy ? ` (top why: ${topWhy} x${topN}${climbOuts ? `; climb-outs: ${climbOuts}` : ''})` : ''} - the seat's own delivery, first priced`)
   }
 }
 const wgs = walkGovernorStatsFor()
