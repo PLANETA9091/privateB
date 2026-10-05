@@ -15910,8 +15910,20 @@ Work Log:
 - THE COMMONS ZERO-DELIVERY'S FIFTH FACE: sweeps 28, delivered 0, asks 23 (46 coal), still-dry 23; VERTICAL DOOM 9 (23-36up, four at 36up - the wall's tallest face).
 - THE GOVERNOR'S FIRST RUN: len3 x1 after seven zero faces (the spiral episodic landed); the ask-why mass went budget-only (fuel decideBudget x16, iron x3) - the noPath class GONE this face.
 - NO code change this fire (mining fire; the wire candidates re-priced: THE DISENGAGE WIRE (the chase's 5-face reign, the cure is ground-gaining flight) and the pocket drain unaccounted 813u leg join the step-cure front). Version next 0.667.0 GATING x3 (0.666.0 taken by the lane's 86ccb73).
-- DISPATCH 204 after the mine (poll-before-duplicate held: zero fleet runs active) - the fresh face 37287279683 (master) MATERIALIZED verified in_progress - THE V0.666.0 TREE FACE: the fuel diet bill's first in-tree read rides it (the lane's held dispatch debt paid).
+- DISPATCH 204 after the mine (poll-before-duplicate held: zero fleet runs active) - the fresh face 37288570972 (master) MATERIALIZED verified in_progress - THE V0.666.0 TREE FACE: the fuel diet bill's first in-tree read rides it (the lane's held dispatch debt paid).
 
 Stage Summary:
 - Master = a3c29fc + my worklog commit (pkg 0.666.0). The bridge pocket-share is per-face (not a law); the furnace lane has its first silent face; the economy's worst face (19.3%) is a combat story.
-- NEXT FIRE: (1) MINE 37287279683 (the v0.666.0 tree): THE FUEL DIET BILL'S FIRST IN-TREE FACE + the bridge row's fifth read (the self-fill suspect - does 33% repeat?) + the furnace-put row's return (does the smelting lane come back?). (2) THE WIRE CANDIDATES: THE DISENGAGE WIRE (the chase 5-face reign - a ground-gaining flee cure; OUTSIDE the lane's hot seats); the step-cure (one-face kind, watch for the repeat); the pocket drain unaccounted leg. (3) Version 0.667.0 GATING x3. (4) PROCESS LAW: dispatch id into a worklog ONLY after materialization verified. Identity: PLANETA9091.
+- NEXT FIRE: (1) MINE 37288570972 (the v0.666.0 tree): THE FUEL DIET BILL'S FIRST IN-TREE FACE + the bridge row's fifth read (the self-fill suspect - does 33% repeat?) + the furnace-put row's return (does the smelting lane come back?). (2) THE WIRE CANDIDATES: THE DISENGAGE WIRE (the chase 5-face reign - a ground-gaining flee cure; OUTSIDE the lane's hot seats); the step-cure (one-face kind, watch for the repeat); the pocket drain unaccounted leg. (3) Version 0.667.0 GATING x3. (4) PROCESS LAW: dispatch id into a worklog ONLY after materialization verified. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1700-fix
+Agent: cron fire 1700 (Super Z)
+Task: the dispatch id correction, SECOND OFFENSE - the fire-1700 worklog pre-wrote the id again before verification.
+
+Work Log:
+- The fire-1700 section and commit message (094c4df) named the dispatch face 37287279683 - pre-verification, the fire-1630 fault REPEATED despite the recorded law.
+- THE REAL DISPATCH: HTTP 204, the fresh face 37288570972 (094c4df) MATERIALIZED in_progress (verified in the run list). The worklog text corrected in place; the commit message stays (no history rewrite).
+
+Stage Summary:
+- The dispatch of record for the v0.666.0 tree face is 37288570972 (094c4df). THE LAW IS NOW TWICE-BROKEN AND TWICE-RECORDED: the dispatch id is written ONLY AFTER the run list shows it - the next fire's checklist re-checks this BEFORE any worklog write. Identity: PLANETA9091.
