@@ -15644,3 +15644,19 @@ Stage Summary:
 - Master = 67ad51f + this worklog (pkg 0.660.0). CI: #2154 (worklog push) in flight at log-off, #2155 (the v0.660.0 tree face) IN FLIGHT - the next fire mines it: THE IRON JOIN'S FIRST FIELD READ + the runs row's third read + the death census's third read + the strand-rotation arbitration (wet-wall vs stalled-s0 - which front owns the next calm face).
 - NEXT FIRE PRICES: (1) THE RELOOT ARM GATE: unarmed refusals 4/5, silent 194u/314u - price the nearest-armed-bot walk (the death spot's neighborhood) before any wire. (2) THE FLEE FORK: two faces agree 'the disengage must GAIN ground' - the kite lever prices from the flee episodes' chase-progress geometry before the combat-lane wire. (3) THE O2-RESET TRIO: the mirror catches 3/3 but the controls stay blind (F15's mirror o2=16, sight died 23s) - the controls-blind gap prices before any re-wire. (4) Version next 0.661.0 (GATING x3 - the lane lands 1-2 commits per fire; the fire-1230's own list holds: the clock-blind write-off + the spiral break are the lane's named seats - COORDINATE).
 - The healthiest face's own lesson: the accounting CAN close (unaccounted 0) and the conversion CAN exceed 100% on calm faces TODAY - the gap to stable 100% is the storm tax (storms re-price conversion to 40-70%) + the silent recovery (62% of the death drops never walked home) + the o2-reset sensor trio. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1300
+Agent: cron fire 1300 (Super Z)
+Task: ONE atomic improvement on privateB (anti-conflict protocol, max-one-active fleet run).
+
+Work Log:
+- Synced 67ad51f..b478f00 (the fire-1239 worklog); identity re-set. Origin pkg 0.660.0 - slot 0.661.0 left UNCLAIMED.
+- POLL-BEFORE-DUPLICATE: found dispatch 37265374356 (#2155, the v0.660.0 tree face) in_progress - NO new dispatch this fire (max-one-active held; that face IS the fire's fleet run).
+- POLLED #2155 six rounds ~18 min: both unit jobs green (24+22), Integration (vanilla 26.2 + fleet) completed SUCCESS, the Big fleet job materialized ~05:04:45Z and flew PAST the timebox - still in_progress at log-off (05:19Z; the 600s fleet phase + artifact upload outran the 20-min box). Honest note: the face's verdict (success/failure) UNREAD at log-off.
+- NO code change, NO version commit this fire (mining/hold fire, the fire-1239 precedent): the lane's priced seats (clock-blind write-off, spiral break, flee fork, reloot arm gate, o2-reset trio) + the lane's hot modules (askwhycensus/deathcensus/decompose) stood RESERVED all fire - zero collision by holding.
+- THE MINING QUEUE HOLDS: the iron join's FIRST FIELD READ (the v0.659.0 ask-iron side's live print) + the runs row's third read + the death census's third read + the strand arbitration (wet-wall 66.5% vs stalled-s0 52.2%) all ride THIS face - next fire mines it complete.
+
+Stage Summary:
+- Master = b478f00 + this worklog (pkg 0.660.0). No version bump; version next 0.661.0 GATING x3 (the lane lands 1-2 commits per fire).
+- NEXT FIRE: (1) POLL/MINE 37265374356 FIRST (must be completed by then): download artifact, decompose - the iron join's first field read + the runs row + the death census + the strand arbitration. (2) Version 0.661.0 only after the read prices the front. (3) The lane's seats stay reserved - take the OUTSIDE fronts (furnace/smelt chain, tool repair/replace, WorldMap targets, blaze rods/chorus). Identity: PLANETA9091.
