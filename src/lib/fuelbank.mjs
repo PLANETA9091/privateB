@@ -794,6 +794,25 @@ export function climbFundRefusal ({ dy = null, lateral = null, walkBudgetMs = nu
 // nudge stands down, the caller's own gates keep their byte).
 export const ANCHOR_NUDGE_LEG_FLOOR_MS = 6000
 
+// (v0.651.0) THE ASK'S OWN FLOOR - the commons chest-hop ladder's twin of the
+// v0.643.0 law. The ask side's path-geometry rescue (the v0.147.0 nudge + the
+// same-chest retry) read the legacy Math.min(remainingMs(), 15000): a FAT
+// slice handed the nudge everything, and the approach's segment - a budget,
+// not a wall (the v0.156.0 lesson) - could overrun into BOTH legs' death: the
+// v0.156.0 gate denies at <= 2000ms, the v0.597.0 raw hop dies at rem <= 0,
+// and the chest is excluded with the rescue never priced (the delivery
+// side's measured shape: F7's 13s nudge, the 2s leg - fleet 37233218979).
+// THE WIRE: the split caps the nudge at the headroom above the v0.156.0
+// gate's own 2000ms WHEN that headroom still funds a real walk (> 1000ms) -
+// after any fat-slice nudge the gate passes and the ladder rides with clock.
+// A THIN slice keeps the legacy byte (the ternary): the approach's spend is
+// geometry-driven (the envelope's 3-tick segment, not the budget), the
+// declared envelope is what feeds the v0.597.0 raw hop, and the gate+hop
+// structure owns the thin clock honestly (the v0.156.0 named stop). The
+// re-segment's second shot (the v0.355.0 falsified-envelope wire) keeps its
+// legacy byte - a different seam, unmeasured - and the next face prices it.
+export const ANCHOR_ASK_LEG_FLOOR_MS = 2000
+
 export function nudgeLegSplitMs ({ remainingMs = 0, floorMs = ANCHOR_NUDGE_LEG_FLOOR_MS, capMs = 15000 } = {}) {
   const rem = Number.isFinite(remainingMs) && remainingMs > 0 ? Math.floor(remainingMs) : 0
   const floor = Number.isFinite(floorMs) && floorMs > 0 ? Math.floor(floorMs) : 0
@@ -1342,7 +1361,13 @@ export async function withdrawFuelCommons (bot, {
       // keeps its fuel, the ledger stays honest for the rest.
       if (!nudgeUsed && PATH_GEOMETRY_RE.test(e?.message || '')) {
         nudgeUsed = true
-        const nudgeMs = Math.min(remainingMs(), 15000)
+        // (v0.651.0) THE ASK'S OWN FLOOR: the split caps the nudge at the
+        // headroom above the v0.156.0 gate's own 2000ms when that headroom
+        // still funds a real walk - the fat slice can no longer overrun into
+        // both legs' death; a thin slice keeps the legacy byte (the ternary)
+        // and the gate+hop structure owns the thin clock honestly.
+        const headroomMs = nudgeLegSplitMs({ remainingMs: remainingMs(), floorMs: ANCHOR_ASK_LEG_FLOOR_MS })
+        const nudgeMs = headroomMs > 1000 ? headroomMs : Math.min(remainingMs(), 15000)
         if (nudgeMs > 1000) {
           try {
             const n = await approachWalk(bot, chest.position, { budgetMs: nudgeMs, closeShot: true, rawWalk: walkRawToward, log: m => log(`fuel commons: path nudge ${m}`) }) // (v0.356.0) the raw walker wakes - F14's stall had no side-step to fire

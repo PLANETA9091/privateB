@@ -19,6 +19,7 @@ import {
   rearmDryNear, forgetEmptyNear, DRY_REARM_RADIUS, // (v0.509.0) the refill tidings + (v0.510.0) the funded forget
   rememberLowChest, liveLowCells, LOW_CHEST_TTL_MS, LOW_CHEST_CAP, // (v0.507.0) the gravity stash
   nudgeLegSplitMs, ANCHOR_NUDGE_LEG_FLOOR_MS, // (v0.643.0) the nudge's own floor
+  ANCHOR_ASK_LEG_FLOOR_MS, // (v0.651.0) the ask's own floor - the commons ladder's twin of the law
   anchorArrivalDist, ANCHOR_ARRIVAL_REAPPROACH_MS, CHEST_OPEN_DIG_MAX_DIST // (v0.646.0) the arrival reach law
 } from '../../src/lib/fuelbank.mjs'
 
@@ -1988,9 +1989,43 @@ test('THE NUDGE LEG SPLIT: the junk laws + the source pin (the wire reads the sp
   assert.equal(nudgeLegSplitMs({ remainingMs: 20000 }), 14000, 'the defaults ride undefined: floor 6000, cap 15000')
   const src = readFileSync(new URL('../../src/lib/fuelbank.mjs', import.meta.url), 'utf8')
   assert.match(src, /const nudgeMs = nudgeLegSplitMs\(\{ remainingMs: remainingMs\(\), floorMs: ANCHOR_NUDGE_LEG_FLOOR_MS \}\)/, 'the delivery rescue path reads the split')
-  assert.equal((src.match(/const nudgeMs = nudgeLegSplitMs\(/g) || []).length, 1, 'the split rides exactly the delivery side (one wire, one truth)')
-  assert.equal((src.match(/const nudgeMs = Math\.min\(remainingMs\(\), 15000\)/g) || []).length, 1, 'the ask side\'s own nudge keeps its legacy byte (a different seam, unmeasured - the next face prices it)')
-  assert.match(src, /the nudge stands down - the slice funds the final leg first/, 'the stand-down names itself (the defer form, the fuel filter key)')
+  // (v0.651.0) the ask's own floor joined: the delivery rescue reads the
+  // split as nudgeMs, the ask ladder reads it as headroomMs (the fat cap +
+  // the thin byte - the ternary keeps the v0.597.0 completion path alive).
+  assert.equal((src.match(/const nudgeMs = nudgeLegSplitMs\(/g) || []).length, 1, 'the delivery rescue reads the split as nudgeMs (one wire, one truth)')
+  assert.match(src, /const headroomMs = nudgeLegSplitMs\(\{ remainingMs: remainingMs\(\), floorMs: ANCHOR_ASK_LEG_FLOOR_MS \}\)/, 'the ask ladder reads the split as headroomMs (the v0.651.0 twin law)')
+  assert.equal((src.match(/const nudgeMs = headroomMs > 1000 \? headroomMs : Math\.min\(remainingMs\(\), 15000\)/g) || []).length, 1, 'the thin byte rides the ternary exactly once (the v0.597.0 completion path keeps its legacy door)')
+  assert.equal((src.match(/const nudgeMs = Math\.min\(remainingMs\(\), 15000\)/g) || []).length, 0, 'the legacy const form is GONE from the tree (the fat slice has no full-slice door left)')
+  assert.match(src, /the nudge stands down - the slice funds the final leg first/, 'the delivery stand-down names itself (the defer form, the fuel filter key)')
+})
+
+test('THE ASK\'S OWN FLOOR: the commons ladder\'s split re-priced (the fat cap + the thin byte)', () => {
+  // the ask side's legacy shape: min(rem, 15000) handed the nudge the WHOLE
+  // fat slice, and the approach's segment - a budget, not a wall - could
+  // overrun into both legs' death (the v0.156.0 gate denies at <= 2000ms, the
+  // v0.597.0 raw hop dies at rem <= 0). The twin law: the fat slice is capped
+  // at the headroom above the gate's own 2000ms; a thin slice keeps the
+  // legacy byte (the approach's spend is geometry-driven, the envelope feeds
+  // the raw hop - the stand-down would kill the v0.597.0 completion).
+  assert.equal(ANCHOR_ASK_LEG_FLOOR_MS, 2000, 'the floor IS the v0.156.0 guard gate\'s number - the codebase\'s own constant')
+  // the fat regime: the headroom funds a real walk - the nudge rides the
+  // headroom, the gate always passes after it.
+  const fatNudge = (rem) => nudgeLegSplitMs({ remainingMs: rem, floorMs: ANCHOR_ASK_LEG_FLOOR_MS })
+  assert.equal(fatNudge(15000), 13000, 'a fat slice reads a 13s nudge cap and a funded 2s re-goto floor (was the full 15s nudge)')
+  assert.ok(fatNudge(15000) > 1000, 'the fat cap still funds a real walk - the ternary rides the headroom')
+  assert.equal(fatNudge(3001), 1001, 'the headroom starts above the walk-floor, byte for byte')
+  for (const rem of [3001, 5000, 9000, 15000, 25000]) {
+    const nudge = fatNudge(rem)
+    assert.ok(rem - nudge >= ANCHOR_ASK_LEG_FLOOR_MS, `the fat cap reserves the gate floor at ${rem}`)
+  }
+  // the thin regime: the headroom cannot fund a real walk - the ternary keeps
+  // the legacy byte (min(rem, 15000)), the envelope still declares, the raw
+  // hop still completes (the v0.597.0 law the stand-down would have killed).
+  const thinNudge = (rem) => fatNudge(rem) > 1000 ? fatNudge(rem) : Math.min(rem, 15000)
+  assert.equal(thinNudge(2500), 2500, 'a thin slice rides the legacy byte (the approach walks, the envelope declares)')
+  assert.equal(thinNudge(3000), 3000, 'the headroom at the walk-floor boundary keeps the legacy byte')
+  assert.equal(thinNudge(60000), 15000, 'the cap law never hands the nudge more than 15s in either regime')
+  assert.equal(thinNudge(0), 0, 'a dead clock walks nothing in either regime')
 })
 
 // ---------------------------------------------------------------------------
