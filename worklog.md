@@ -15836,3 +15836,26 @@ Work Log:
 Stage Summary:
 - Master = e99e87e (pkg 0.665.0, no code change this fire). The v0.665.0 bridge row live-verified in-tree; the pocket-tax grew to 75%; the shadow gate's second read flips the kind share; the kindling diet's exception class grows (3/7 non-coal copper puts).
 - NEXT FIRE: (1) MINE the fresh dispatch face (my 1600 dispatch): the pocket-tax's third read + the shadow gate's third read + the furnace-put row's 5th (does the diet re-coal or keep degrading?). (2) THE WIRE CANDIDATES priced and waiting: THE POCKET-TAX FRONT SHARPENED - pocket 75% owns the climb tax while the pit donated 4 and the pocket held 961u at end - the carried-fill economics read (the climb arrives empty-handed is now two-face law); the o2-reset lead measurement (needs sight-loss stamps); the commons vertical-doom delivery (OUTSIDE the lane's hot seats only). (3) Version 0.666.0 GATING x3. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1630
+Agent: cron fire 1630 (Super Z)
+Task: mine the face 37282368137 (the pocket-tax's third read + the shadow gate's third + the furnace-put row's 5th + the silent clock 6th + the arm lag 6th + the strand crown check); the anti-conflict protocol.
+
+Work Log:
+- Synced clean (master fc1bf1f, pkg 0.665.0; the lane silent; my push CI 37282424532 on fc1bf1f = SUCCESS at fire start). POLLED my 1600 dispatch 37282368137 (e99e87e = v0.665.0) ~11 min to SUCCESS - FULLY GREEN (both units + Integration + Big fleet).
+- MINED face 37282368137 (3059 lines -> ci-logs/fleet19-37282368137/, normal end 600s).
+- THE POCKET-TAX VANISHED (the bridge row's third read): 3 refusal(s) across 3 bot(s), 76 fill(s) placed - pocket 0, other 2 (67%), step 1 (33%) - the two-face law (55% -> 75%) met its ZERO: the pocket owned NOTHING this face; A NEW REFUSAL KIND NAMED: 'step' (1 of 3, the row's own hint 'that refusal's own cure is the front'); server refused 6 (support 4 / self 2), 0 re-reads failed, 0 repeats; open cells air 5 / water 1 (the water grain's THIRD consecutive face); self fill 4 of 6 (67% - down from 90%); support 47/51 (92%); gate waited 37 (31 reads, 6 refuses, 0 still waiting); pit donated 3; plant cleared 22; THE SHADOW GATE DEFERRED 16 (support 13 / self 3 - the support share leads a second straight face).
+- THE FURNACE PUT ROW'S FIFTH READ: opens 18 (16 furnace / 2 blast), puts 9 - THE DIET PARTIALLY RE-COALED (copper coal x3 of 5 copper puts vs 3 of 7 last face); the commons stay kindling (cobblestone fuel=stick x3, sand fuel=oak_log x1); no logs-smelt-logs this face; smelt verdict forecast 22 -> actual 16, exact 3/5; fuel census coal 1u->8 (8.00/u third straight face), stick 14u->5 (0.36/u).
+- THE ARM LAG'S SIXTH READ: n=2, median 164.5s, max 182s - back in the 2-3min band (the 93s median was the outlier, not a trend). THE SILENT CLOCK'S SIXTH READ: pre-tail x0 / end-phase x2 160u (F6 F5) - THE FIRST END-PHASE-ONLY FACE: the 5-face pre-tail dominance flipped (the bank's loop outlived the read on both stakes).
+- THE ECONOMY: mined 2171, banked 1213, pocket 1228u, conversion 113.4% (second-best); material balance leaks -20u (-1.0%) - NO-LEAK (the sinks outran mined by 20u, the inflated side's own honest landing).
+- THE DEATHS: 5 (2 combat chase-class [close 1 / far 1] + 3 non-combat incl. 2 drown o2-reset(-1) F11 F8 - down from 6); stranded piles 4 ~290u (biggest 141u F6, 49%); the reloot lane never walked AGAIN (arms 2, arrivals 0, refusals 7 unarmed 7).
+- THE STRAND CROWN CONTESTED: fail whys rescue-owns:7 stalled:7 low-o:4 stopped:3 timeout:2 wet-wall:1 wet-sentinel:1 - rescue-owns TIES stalled for the first time (7/28 each) - the arbitration's owner flips per-face, no single crown.
+- THE COMMONS ZERO-DELIVERY'S FOURTH FACE: sweeps 43 (torch 35 / smelt 8), delivered 0, asks 38 (76 coal), still-dry 38; vertical doom 4 (29up x3, 30up x1) - the wall holds.
+- THE IRON SIDE'S SIXTH READ: noPath x3, decideBudget x0 - THE HEALTHIEST IRON READ EVER; the budget mass sits on the FUEL side (decideBudget x16) + food x6; the governor runs' 7th zero.
+- NO code change this fire (mining fire; the wire candidates re-priced: the pocket-tax's zero and the new 'step' kind both point at the climb surface, not the pocket - the carried-fill economics front REOPENS as the step-cure front). Version next 0.666.0 GATING x3.
+- DISPATCH 204 after the mine (poll-before-duplicate held: zero fleet runs active) - the fresh face 37282486286 (fc1bf1f) MATERIALIZED in_progress, rides for the next fire.
+
+Stage Summary:
+- Master = fc1bf1f (pkg 0.665.0, no code change this fire). The pocket-tax is NOT a law (zero on face 3); the 'step' refusal kind is the new front; the silent clock's first end-phase-only face; the strand crown is contested.
+- NEXT FIRE: (1) MINE the fresh dispatch face 37282486286: the bridge row's fourth read (does 'step' repeat? does the pocket return?), the furnace-put 6th, the silent clock 7th. (2) THE WIRE CANDIDATES: THE STEP-CURE FRONT (the row's own hint - read the 'step' refusal's emitter FIRST, then price the cure; the climb surface, likely OUTSIDE the lane's hot seats); the o2-reset lead measurement (needs sight-loss stamps); the commons vertical-doom delivery (29-30up, four faces of zero - OUTSIDE the lane's hot seats: deathdropcensus/mainfreeze/bank-cadence/pf:queue). (3) Version 0.666.0 GATING x3. Identity: PLANETA9091.
