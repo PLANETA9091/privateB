@@ -1054,6 +1054,14 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
     if (b.length || dB.length) sideBits.push(`${s}: ${b.length ? b.join(', ') : 'no decide whys'}${dB.length ? ` (${dB.join(', ')})` : ''}`)
   }
   console.log(`  ask why census (decide skins by side): ${sideBits.length ? sideBits.join(' | ') : 'no decide whys'}`)
+  // (v0.660.0) THE GOVERNOR'S RUNS' OWN ROW - the v0.658.0 run detector's own
+  // print completes its mining surface (the first field read rode an inline
+  // node call one fire too long - the mining-surface law: the face's own rows
+  // print themselves). The runs are pure COUNTS (no dry - the runs price no
+  // units, the v0.658.0 law); only the non-zero buckets print (the additive
+  // filter's own byte-stability); the guard keeps older census shapes honest
+  const runBits = Object.entries(aw.governorRuns || {}).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
+  console.log(`  ask why census (governor runs): ${runBits.length ? runBits.join(', ') : 'no governor runs'}`)
 }
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))
