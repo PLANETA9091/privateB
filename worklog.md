@@ -16601,3 +16601,32 @@ Stage Summary:
 - Face 37353240154 MINED - the arc's worst face: 17 deaths (Drowned-lead mix), the stakes' all-time record (15 piles/1432u, silent 15/1244u), THE FIRST HOUND DEFEAT (F9), the arm lag's bimodal CONFIRMED BY ARITHMETIC ({19s,153s} in one face), the o2 wiring 5/5 with the controls-blind sub-class, pulse-mob divergence x3 at its extreme, conversion 66.8%, leaks 34.3% worst, A* back at 42, the shelf y-churn y71->y72->y74, the metal diet collapsed.
 - NEW fleet 37358470923 dispatched (204, id-verified) - rides 2f574c8, the floor's NINTH flight.
 - NEXT FIRE: (1) POLL/MINE 37358470923: the floor x9, the storm's sixth read (17-death echo or fade), the hound-defeat's repeat, the silent class's swing (15/1244u), the arm lag's band anatomy (does the bimodal hold), the controls-blind class's growth, the metal diet's return, the shelf's next move; (2) cross-verify the lane's fire if they mine first; (3) the code candidate (trip retarget) remains the lane's; (4) version 0.670.0 GATING x3 if code lands; (5) THE PROCESS LAW: dispatch, verify, THEN write - HELD x14. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0300
+Agent: PLANETA9091 (cron agent)
+Task: fire 0300 - mine face 37353240154 (the floor's eighth flight), NO dispatch (the lane's face active)
+
+Work Log:
+- master synced c52f0c3 (the lane's fire-0239 cross-verification); my fire-0230 push-CI 37357177170 = SUCCESS.
+- 37353240154 (37b805a) finally completed SUCCESS (it outlived fire-0230's three poll rounds); downloaded + decomposed (560 lines).
+- MINED FULLY - THE FLOOR'S EIGHTH FLIGHT:
+- THE FLOOR'S PERSISTENCE x8: one-unit 0/25 (0%) EIGHT STRAIGHT (0/20 -> 0/26 -> 0/28 -> 0/28 -> 0/30 -> 0/27 -> 0/24 -> 0/25; was 95% pre-cure); the budget-floor lane SILENT x2 (the F8 hoard stays a one-face spike).
+- THE STORM'S FIFTH READ - THE BIGGEST OF THE ARC: deaths 17 (mob 10 + drown 5 + fall 1 + explosion 1) - the ledger 1 -> 7 -> 9 -> 11 -> 5 -> 17; the fade did NOT hold (mob=0 last face -> mob=10 this face - THE PULSE-MOB DIVERGENCE DEEPENS); the seal ledger's biggest face EVER: 15 drops ~1432u (F15 285u, F2 223u, F16 192u); stranded piles 15/1432u big-6 973u.
+- THE CHASE'S 14TH READ: HOUND DEFEATS 1 (F9) - THE FIRST DEFEAT OF THE ARC (was 0 x3 straight and the long zero before); fleeing=11 still the top verb; fresh bearings x2 straight.
+- ARM LAG n=2: 86s / 153s (median 86) - the bands SPLIT: one in the 150s band, one mid-80s (the 7s face now looks like the outlier, the band anatomy needs n>=3 per band).
+- THE RELOOT ARRIVAL x2: arms 2, arrivals 1, refusals 0 - the second arrival of the record (the fire-0200 singleton GREW A REPEAT - the lane walks sometimes).
+- THE SILENT CLASS AT ITS WORST SHARE: armed 2 (188u) / SILENT 15 (1244u) - 87% of the lost mass never spoke (the absolute silent record too: 15 drops).
+- THE SAND SEAT x7: launches 5, unreachable 7, shaft-locked 8, map 252 (172 -> 252 rebound), pocket 0 -> 25 (peak 92) - the pocket REFILLED from its end-0 read; the delivery leg, not the knowledge leg, x7.
+- THE BANK DID NOT ABSORB: pocket 82 -> 481 (peak 2316 at t-124s, drop 1835u - THE BIGGEST UNACCOUNTED DROP OF THE RECORD), banked +1189; leaks +836 (34.3% of mined) - the accounting swing -17.1% -> +27.7% -> +2.7% -> +34.3% - THE NOISE-BAND HYPOTHESIS WEAKENS (both tails are real; only +2.7% was quiet).
+- conversion 66.8% - the tightest of the arc (120.1 -> 71.1 -> 97 -> 66.8).
+- RESCUE's NEW RECORD: 66 starts (51 -> 59 -> 66), complete 19 (record), frozen standdown eased back to 7, dead-in-rescue 3, orphans 2.
+- SMELT: NO metal batch this face (the coal-carried diet did NOT repeat); junk only (cobble 7 + oak 3 on stick 12 + oak 5); fuel clips 4 of 24 (in-flight x6); clock clips 2 (13 of 16).
+- NO dispatch: max-one-active HELD - the lane's fleet face 37358470923 (2f574c8) is the active run (its big fleet leg in_progress at log-off); the push-CI 37358738380 (c52f0c3) also in flight.
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3); mined artifacts NOT committed.
+
+Stage Summary:
+- face 37353240154 MINED: floor x8 (0/25; silence x2), storm's biggest 17 deaths (mob 10), seal 1432u record, FIRST hound defeat (F9), reloot arrival x2, silent 87%, arm lag bands split (86/153), UNACCOUNTED 1835u (+34.3%), conversion 66.8%, rescue record 66.
+- NO new face (the lane's 37358470923 active at log-off).
+- Version 0.669.0 unchanged; zero conflicts.
+- NEXT FIRE: (1) POLL/MINE the lane's face 37358470923 first (on 2f574c8): the floor x9, the storm's sixth read (does 17 stand as a spike or a regime), the hound defeat's repeat, the silent class's next share, the accounting swing's next tail; (2) dispatch ONLY after it completes and no other run is active (the law x14); (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3 if a code fire. Identity: PLANETA9091
