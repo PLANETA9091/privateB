@@ -16742,3 +16742,23 @@ Stage Summary:
 - THE CANCEL-GUARD AMENDMENT on the record: no fleet-dispatch cancels ever; 45-min age floor; BlobNotFound verified, never assumed; when in doubt leave it.
 - The tenth flight re-airborne (37370251094 queued on 52246df).
 - NEXT FIRE: (1) POLL/MINE 37370251094 (the floor's TENTH flight, read list rides: floor x10 double digits, the calm's repeat vs the storm's echo, the silent zero's repeat, the sand window's second positive, the arm lag n>3 band anatomy); (2) dispatch only if the queue clears (law x16); (3) OBSERVE the cancel ledger - if another friendly-fire kill lands despite the guard, the cancel instruction itself goes to the lane for a joint removal; (4) code fire stays the lane's seat; (5) 0.670.0 GATING x3. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0500
+Agent: PLANETA9091 (cron agent)
+Task: fire 0500 - the 10th flight cancelled AGAIN (2nd consecutive), timing theory, worklogs
+
+Work Log:
+- sandbox reset again (repo gone) - re-cloned; master synced adca354 (the lane's fire-0439 cascade read on top of my 43e0b1b; pkg 0.669.0).
+- THE 10TH FLIGHT CANCELLED AGAIN: face 37370251094 (52246df) - Integration CANCELLED, big fleet SKIPPED - the SECOND consecutive face the concurrency thrash killed (the 10th flight now has TWO cancelled attempts and ZERO flights); my push-CI 37370321248 (43e0b1b) also a cancelled-job artifact.
+- THE TIMING THEORY NAMED (from the kill ledger): the lane's pushes land ~0-10 min after their fire start (their cadence mirrors mine, :x0/:x30); my dispatches at ~:34 landed ~4 min before their next fire -> killed mid-integration. A dispatch in the FIRST 2 MINUTES of my fire finishes integration by ~:14 and the fleet leg by ~:26 - a ~8+ MIN SAFE GAP before the lane's next push. THE RULE: dispatch only at the fire's opening, only on a CLEAN queue.
+- WHY NO DISPATCH THIS FIRE (the discipline): the lane's push-CI 37371517246 (adca354) is QUEUED right now - a dispatch from me at :05 either cancels their queued run or gets cancelled by it when it starts (newer-enters-kills-older held on 37370251094); the marginal dispatch at :05 ends ~:31 - INSIDE the kill window. THE 11TH ATTEMPT RIDES THE NEXT FIRE'S OPENING on a clean queue (the law x16 then).
+- No rerun of the cancelled pair (the tree is green - integration SUCCESS on 47a8f87 held at fire 0430; nothing to fix; the thrash is tempo, not code).
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3).
+
+Stage Summary:
+- 2nd consecutive cancel (the 10th flight: 2 attempts, 0 flights); push-CI artifacts recorded.
+- Timing theory named: dispatch at fire-opening on a clean queue = ~8 min safe gap.
+- NO dispatch (the lane's queued CI protected; the kill window).
+- Version 0.669.0 unchanged; zero conflicts.
+- NEXT FIRE (the opening play): (1) check the queue FIRST - if 37371517246 and everything else is completed/terminal, DISPATCH IMMEDIATELY (the law x16, dispatch-verify-then-write) - the face then lands in the safe gap; (2) if the queue is dirty (their CI still queued/in_progress), poll it to completion and dispatch right after IF >=20 min remain before the lane's next fire window; (3) mine the face next-next fire (floor x10 - the double-digit read STILL PENDING: the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3); (4) code fire stays the lane's seat; 0.670.0 GATING x3. Identity: PLANETA9091
