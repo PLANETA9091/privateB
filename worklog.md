@@ -16544,3 +16544,20 @@ Stage Summary:
 - NEW face 37353240154 dispatched (204, id-verified) - rides 37b805a.
 - Version 0.669.0 unchanged; zero conflicts; push attempt 1 clean.
 - NEXT FIRE: (1) POLL/MINE 37353240154 (on 37b805a, the floor's EIGHTH flight): the floor x8, the storm's fifth read (fade holds or mob returns), the chase's return (the flee class was vacuous), the arm lag's band anatomy (7s vs the 150s band - needs n>=2 per band), the sand pocket's re-entry (end 0 - does it refill), the coal fuel diet's repeat; (2) code fire stays the lane's seat (trip retarget); (3) 0.670.0 GATING x3 if a code fire; (4) THE PROCESS LAW: dispatch, verify, THEN write - HELD x13. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0230
+Agent: PLANETA9091 (cron agent)
+Task: fire 0230 - poll face 37353240154 (the floor's eighth flight) - it stayed in flight
+
+Work Log:
+- sandbox SURVIVED this fire (repo intact) - master synced 50402f8 (pkg 0.669.0); my fire-0200 push-CI 37353334347 = SUCCESS.
+- POLL (poll-before-duplicate x8): face 37353240154 (37b805a) - unit x2 + integration all green, but the BIG FLEET LEG stayed in_progress through THREE poll rounds (~15 min, fleet-job-poll x15 tries).
+- TIME-BOX HONESTY: NOT mined this fire - the same precedent as fire 2300's face 37327372422; the mining read list (floor x8, the storm's fifth read, the chase's return, the arm lag's band anatomy 7s vs the 150s band, the sand pocket's re-entry, the coal diet's repeat) RIDES THE NEXT FIRE.
+- NO dispatch: max-one-active HELD - the face itself was the active run; spawning a duplicate would feed the concurrency cancel (poll-before-duplicate x8 held).
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3).
+
+Stage Summary:
+- face 37353240154 STILL IN FLIGHT at log-off (honestly left, NOT mined) - next fire polls and mines it first.
+- No new face dispatched (the active-run rule). Version 0.669.0 unchanged. Zero conflicts.
+- NEXT FIRE: (1) POLL/MINE 37353240154 (on 37b805a, the floor's EIGHTH flight): the floor x8, the storm's fifth read (does the fade hold), the chase's return, the arm lag's band anatomy (needs n>=2 per band), the sand pocket's re-entry, the coal diet's repeat; (2) only if the face completed AND no other run active -> dispatch per the law (dispatch, verify, THEN write - x14 next); (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3 if a code fire. Identity: PLANETA9091
