@@ -25,6 +25,8 @@ import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, p
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
+import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666.0) THE FUEL DIET'S OWN BILL - the intent side's fuel split by the emitter's own window law (metal vs junk) + the kindling bill + the coal touch + the plain-furnace mismatch
+import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
@@ -1855,6 +1857,36 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       parts.push(bit)
     }
     console.log(`  furnace put (v0.664.0): ${parts.join(' | ')}`)
+  }
+  // (v0.666.0) THE FUEL DIET'S OWN BILL - the intent side's fuel economics
+  // split by the emitter's own window law (METAL_INPUTS verdict: metal
+  // windows run coal-first, junk windows wood-first above the floor). The
+  // smelt ledger counts the fuel whole and the furnace put prints the
+  // pairing whole - the diet's COST is this row: the metal windows'
+  // kindling bill (the fuel units vs the coal units that carry the same
+  // capacity, the vanilla table's own 8:1 - arithmetic, not judgment) and
+  // the junk windows' coal touch (the JUNK_COAL_FLOOR's own field read)
+  // and the metal-in-a-plain-furnace mismatch (the blast lane's speed
+  // lost). Zero starts print nothing (the byte-stable silence); an
+  // unknown fuel never invents capacity.
+  const fd = fuelDiet(lines)
+  if (fd && fd.starts > 0) {
+    const winBits = (win) => {
+      const itemBits = Object.entries(win.items).sort((x, y) => y[1] - x[1]).slice(0, 2).map(([k, n]) => `${k} ${n}`).join(' ')
+      const fuelBits = Object.entries(win.fuelItems).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' ')
+      return `${win.batches} batch(es) ${itemBits}u on fuel ${win.fuel}u (${fuelBits}) - capacity ${Math.round(win.capacity * 10) / 10} smelts`
+    }
+    const parts = []
+    if (fd.metal.batches) parts.push(`metal ${winBits(fd.metal)}, coal's ${fuelYieldOf('coal')}/u carries it on ${coalEquivalent(fd.metal.capacity)}u`)
+    if (fd.junk.batches) {
+      const coalTouch = fd.junk.fuelItems.coal || 0
+      parts.push(`junk ${winBits(fd.junk)}${coalTouch ? `, the coal touch ${coalTouch}u` : ''}`)
+    }
+    if (fd.metalMismatch.count) {
+      const mmBits = Object.entries(fd.metalMismatch.bots).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}=${n}`).join(' ')
+      parts.push(`the metal sat in a plain furnace x${fd.metalMismatch.count}${mmBits ? ` (${mmBits})` : ''}`)
+    }
+    console.log(`  fuel diet (v0.666.0): ${parts.join(' | ')}`)
   }
   // (v0.463.0) THE TIER DEFER CENSUS - the tool ladder's own voice
   // counted. The v0.252.0 steer prints one verdict line per NEW deferred
