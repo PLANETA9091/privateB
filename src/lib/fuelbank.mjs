@@ -65,6 +65,41 @@ const { goals } = pathfinderPkg
 // = 6 - the largest smelt plan a 600s run realistically carries.
 export const FUEL_WITHDRAW_CAP = 6
 
+// (v0.669.0) THE WITHDRAWAL FLOOR - the 1u-goal miscalibration's own named
+// cure. The goal split lens (v0.475.0) asked: do the zero-delivery budgets
+// ride TINY goals (raise the floor) or spread across sizes (the chain is
+// the lever)? Three faces answered the same way - 24x (face 42), 25 of 34
+// (face 43), 30 of 33 = 91% (face 37313831720) - the one-unit goal IS the
+// miscalibration: the ask sizes the want to the smelt leg's own deficit
+// (fuelNeeded('coal', need) = 1 for need <= 8), so a whole yard walk (the
+// approach, the open, the climb) is armed to serve ONE coal, and the walk
+// dies in decide/budget more often than it eats. The floor lifts the ask's
+// WANT to a small batch so the walk's price amortizes (2 coal = 16 smelts,
+// the same walk); the chest's honest stock still bounds the take (a chest
+// holding 1 yields 1 - the floor is a want, never a requirement), and the
+// modesty cap stays the authority (the floor never exceeds the cap; the
+// food commons' full-cap precedent rides - fuel was the only deficit-sized
+// ask in the fleet).
+export const FUEL_WITHDRAW_FLOOR = 2
+
+/**
+ * Pure, junk-safe: the ask's goal units for a smelt need - the deficit
+ * sizing raised to the withdrawal floor, capped by the modesty cap. 0 on a
+ * junk ask (the caller's own guard owns the no-ask verdict).
+ * @param {{itemsNeeded?: number, cap?: number, floor?: number}} opts
+ * @returns {number}
+ */
+export function withdrawGoal ({ itemsNeeded = 0, cap = FUEL_WITHDRAW_CAP, floor = FUEL_WITHDRAW_FLOOR } = {}) {
+  const need = Number(itemsNeeded)
+  if (!Number.isFinite(need) || need <= 0) return 0
+  const capN = Number(cap)
+  const capSafe = Number.isFinite(capN) && capN > 0 ? Math.floor(capN) : FUEL_WITHDRAW_CAP
+  const floorN = Number(floor)
+  const floorSafe = Number.isFinite(floorN) && floorN > 0 ? Math.floor(floorN) : 0
+  const want = Math.min(capSafe, Math.max(floorSafe, fuelNeeded('coal', Math.ceil(need))))
+  return Number.isFinite(want) && want > 0 ? want : 0
+}
+
 // Burn priority: both yield 8 smelts/unit; coal is the deeper stock (mined),
 // charcoal the renewable one (a future dedicated leg). Order is policy, not
 // physics - tests pin it.
@@ -1089,7 +1124,9 @@ export function fuelWithdrawPlan ({ itemsNeeded = 0, chestItems = null, cap = FU
   const capN = Number(cap)
   const capSafe = Number.isFinite(capN) && capN > 0 ? Math.floor(capN) : FUEL_WITHDRAW_CAP
   if (!Array.isArray(chestItems)) return null
-  const want = Math.min(capSafe, fuelNeeded('coal', Math.ceil(need)))
+  // (v0.669.0) the floor rides: the plan's want is the batch goal, the
+  // chest's stock still bounds the take below it
+  const want = withdrawGoal({ itemsNeeded: need, cap: capSafe })
   if (!(want > 0) || !Number.isFinite(want)) return null
   const plan = []
   let left = want
@@ -1233,7 +1270,9 @@ export async function withdrawFuelCommons (bot, {
       return { taken: 0, plan: null, chestsVisited: 0, reason: 'ask deferred (dry stance)' }
     }
   }
-  const wantTotal = Math.min(Number(cap) > 0 ? Math.floor(Number(cap)) : FUEL_WITHDRAW_CAP, fuelNeeded('coal', Math.ceil(ask)))
+  // (v0.669.0) the floor rides the sweep's goal too - the budget-spent
+  // verdict's want half prints the batch (the goal split's own lever)
+  const wantTotal = withdrawGoal({ itemsNeeded: ask, cap: Number(cap) > 0 ? Math.floor(Number(cap)) : FUEL_WITHDRAW_CAP })
   const exclude = []
   // (v0.99.0) the sweep memory: known-empty chests are pre-excluded so a
   // repeat ask walks ONWARD instead of re-walking the same cobble (run89:

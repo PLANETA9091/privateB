@@ -9,7 +9,7 @@ import { Vec3 } from 'vec3'
 import { resetDoomedGoalLedger, recordDoomedGoal, gotoSafe, resetWalkGovernors } from '../../src/lib/jobqueue.mjs' // (v0.143.0) the resets drop the module-level fleet goal ceiling the wall-clock tests would otherwise burst
 import {
   fuelWithdrawPlan, pickWithdrawSlots, withdrawStackMove, withdrawFuelCommons,
-  FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER,
+  FUEL_WITHDRAW_CAP, FUEL_COMMON_ORDER, withdrawGoal, FUEL_WITHDRAW_FLOOR, // (v0.669.0) the withdrawal floor
   newCommonsMemory, rememberEmptyChest, liveEmptyCells,
   COMMONS_SWEEP_CHESTS, COMMONS_EMPTY_TTL_MS,
   pickFuelAnchor, scanYardChests, fuelPocketOverage, deliverFuelTithe,
@@ -55,10 +55,38 @@ test('fuelWithdrawPlan: junk chest views yield null, the input array is never mu
 test('fuelWithdrawPlan: sizes the slice off the plan (ceil(n/8)), capped', () => {
   const chest = [item('coal', 30)]
   assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 40, chestItems: chest }), [{ name: 'coal', count: 5 }])
-  assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 8, chestItems: chest }), [{ name: 'coal', count: 1 }])
+  // (v0.669.0) the withdrawal floor rides: the 1u goal was the miscalibration
+  // (30/33 = 91% of the zero-delivery budgets), the want lifts to the batch
+  assert.equal(FUEL_WITHDRAW_FLOOR, 2)
+  assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 8, chestItems: chest }), [{ name: 'coal', count: 2 }], 'the floor lifts the 1u want to the batch')
   assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 9, chestItems: chest }), [{ name: 'coal', count: 2 }])
   // 100 smeltables -> 13 coal wanted, the cap says 6: the commons is not stripped
   assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 100, chestItems: chest }), [{ name: 'coal', count: FUEL_WITHDRAW_CAP }])
+})
+
+test('withdrawGoal (v0.669.0): the floor lifts the deficit-sized 1u goal, the cap stays the authority', () => {
+  // the face's own shape: need <= 8 -> fuelNeeded('coal', need) = 1, the
+  // whole yard walk served ONE coal - the goal split's own named cure lifts it
+  assert.equal(withdrawGoal({ itemsNeeded: 1 }), 2)
+  assert.equal(withdrawGoal({ itemsNeeded: 8 }), 2)
+  // needs already above the floor ride the honest deficit sizing
+  assert.equal(withdrawGoal({ itemsNeeded: 9 }), 2)
+  assert.equal(withdrawGoal({ itemsNeeded: 17 }), 3)
+  assert.equal(withdrawGoal({ itemsNeeded: 40 }), 5)
+  // the cap wins over the floor and over the need (the modesty law)
+  assert.equal(withdrawGoal({ itemsNeeded: 100 }), FUEL_WITHDRAW_CAP)
+  assert.equal(withdrawGoal({ itemsNeeded: 100, cap: 3 }), 3)
+  assert.equal(withdrawGoal({ itemsNeeded: 8, cap: 1 }), 1, 'a cap below the floor is never exceeded')
+  // junk asks read 0 (the caller's own guard owns the no-ask verdict)
+  for (const junk of [null, undefined, 0, -3, NaN, 'junk']) assert.equal(withdrawGoal({ itemsNeeded: junk }), 0)
+  // junk cap/floor fall to the honest defaults
+  assert.equal(withdrawGoal({ itemsNeeded: 8, cap: NaN }), 2)
+  assert.equal(withdrawGoal({ itemsNeeded: 8, floor: 0 }), 1, 'a zeroed floor reads the bare deficit sizing')
+})
+
+test('fuelWithdrawPlan (v0.669.0): the floor is a want, the chest\'s honest stock still bounds the take', () => {
+  assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 8, chestItems: [item('coal', 5)] }), [{ name: 'coal', count: 2 }], 'the chest serves the batch')
+  assert.deepEqual(fuelWithdrawPlan({ itemsNeeded: 8, chestItems: [item('coal', 1)] }), [{ name: 'coal', count: 1 }], 'a chest holding 1 yields 1 - the floor never conjures coal')
 })
 
 test('fuelWithdrawPlan: coal before charcoal, mixed fills the rest', () => {
