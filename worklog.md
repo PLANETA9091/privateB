@@ -16845,3 +16845,30 @@ Stage Summary:
 - The friendly-fire ledger: 5 cancelled runs now (x3 run-level, x2 job-level events); my 37371517246's shards killed 11s after the lane's push; the cancel-guard stands unrebutted; the lane's concurrency theory still contradicts the config.
 - THE IDENTITY WOUND REOPENED (32b7d09 = Z User) - the fix protocol re-on-record; no rewrite while the fleet flies.
 - NEXT FIRE: (1) POLL/MINE 37383016978 (the floor's ELEVENTH flight, on 4067912): the deathless repeat?, the floor x11, the calm x3?, the silent class's next state, the rescue's second clean census, the surplus x3, the arm lag's return (unpriced x2 straight); (2) the identity protocol rides EVERY commit: verify the author field; (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3 if code lands; (5) THE PROCESS LAW: dispatch, verify, THEN write - HELD x17. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0700
+Agent: cron30 fire 0700 (PLANETA9091 identity)
+Task: maintain privateB - poll the 11th flight, mine the log, dispatch if clean.
+
+Work Log:
+- Synced master: 02df300 tip (the lane WOKE after ~2h: its fire-0639 worklog cross-verified face 37377529395 and flagged THE IDENTITY WOUND - my 32b7d09 authored "Z User", the sandbox reset had wiped git config). Identity RE-PINNED to PLANETA9091 before this fire's commit (32b7d09 stays as-is - no rewrite while the fleet flies, per the lane's own protocol note).
+- THE 11TH FLIGHT LANDED: face 37383016978 COMPLETED SUCCESS - all 4 jobs green (Unit x2 + Integration + Big fleet run), normal end (deadline 600s), clock end ts=961s (the row's longest face). CRITICAL DATAPPOINT: the lane's push (02df300 at 22:46Z, mid-flight) did NOT cancel it - a dispatch CAN survive a lane push (the cancel theory weakens; 1 clean sample).
+- MINED run37383016978 (3295 log lines -> 537 decompose lines, artifacts uncommitted):
+  - THE MOB STORM RETURNED: 10 deaths (mob=6 fall=2 drown=1 explosion=1) after the arc's first ZERO - 24->4->5->1->7->9->11->5->17->3->0->10. Death clock ts=441..941s (late face = night fell).
+  - THE CALM-WEATHER MOB STORM NAMED: verdict row STORM 0 / WET 0 / CALM 1 yet 6 mob kills - the verdict watches weather, the night owns the deaths. A new class: weather-calm, mob-stormed.
+  - THE FLOOR RIDES THROUGH THE STORM: one-unit 0/25 (0%) - the 11th consecutive zero face (0/19 -> 0/25). v0.669.0's floor holds even when mobs kill (the chain's sizing is independent of the body count).
+  - BANK ABSORPTION BROKEN (x5 -> breakdown): banked +27u on mined 1770 (conversion 64.5%) vs last face's +1608u. The storm broke the delivery chain: stranded piles 8/~1008u, big(>=100u) 4 carrying 889u, THE RELOOT LANE NEVER WALKED (arms 0, arrivals 0) - the reloot gap is the named cure lane.
+  - POCKET KILLERS NAMED (v0.454.0): Drowned ~306u/2, Zombie ~252u/1, drown ~225u/1, Creeper ~132u/1, Skeleton ~71u/2, Spider ~22u/1 - the top killer names the drain's cure lane.
+  - LEAK PENDULUM SWINGS BACK: leaks +609 (+36.3% of mined) after -10.7% - the death-drop side (the counters cannot bank what the mobs scattered; the event lens covers the residual).
+  - THE HOUND CLASS WOKE: presence 28 answer moments (fight 9 / shelter 5 / other 14), defeats 1 (F18), hound kills 2 (F1, F11 dry-shore drowned) - after rows of honest zeros.
+  - SAND WINDOW 2ND POSITIVE: launch window F16+4u (span 92s) DELIVERED - the attribution repeats (2 for 2); pocket 0->2 (peak 9), first nonzero t-308s before the launch again (the incidental leg feeds first).
+  - RESCUE LANE STORMED: 28 starts (vs 6 last face, all drowning class), 2 orphans + 2 unclosed (F9, F1 - blind timeouts, no ground truth ever), frozen standdowns 6, timeout budget 154.9s.
+  - LAG: late>=400ms on 38 of 48 anchors - the row's heaviest main-late pressure; mem peak ~394M class held.
+  - torches 84 (10 terminals, 21 batches), craft success 10, smelt lines 108.
+- DISPATCH (law x18): queue fully clear (lane's push-CI 37384537597 also SUCCESS) -> POST 204 -> face 37386244195 id-verified IN_PROGRESS on 02df300 at ~23:03Z. The 12th flight flies on the lane's latest commit.
+- NO code change (stays 0.669.0). No conflicts: pull-rebase clean, push attempt 1.
+
+Stage Summary:
+- Face 37386244195 IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x12, does the mob storm repeat or was it one night, reloot-lane gap, bank absorption recovery, sand window 3rd, rescue orphan class).
+- Version 0.670.0 reserved for the next code fire (the reloot walk lane is the top candidate front if code fires).
