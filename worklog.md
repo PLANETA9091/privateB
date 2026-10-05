@@ -15755,3 +15755,21 @@ Work Log:
 Stage Summary:
 - Master = 0047b1d (pkg 0.663.0). The silent stake's clock priced: the arm lag 63-192s is the recovery's own wall - a death inside the last ~240s cannot recover in-face even when the despawn fits; the pre-tail silent class (F6 115u, F11 120u, F15 118u across two faces) is the wiring seat; the end-phase class (266u) is the pre-position lane's territory.
 - NEXT FIRE: (1) POLL 37273689240 (the 2a65fad face) + the v0.663.0 push CI 37275509932; mine the 2a65fad face - the silent clock row + arm lag read ride their THIRD face. (2) Dispatch the v0.663.0 tree face after poll-before-duplicate x2 (the clock row's first in-tree face). (3) THE WIRE candidates, priced and waiting: the pre-tail silent class (WHY did the read never fire - the F11 loop-stall lead; the read lives at the fleet19 loop top) vs the arm lag itself (the walk arms minutes late - the bootstrap's own price); any reloot wire stays OUTSIDE the lane's hot seats (mainfreeze/bank-cadence/pf:queue). (4) The flee fork's wire candidate accumulates: crossfire x2 + crowd 25% vs solo 11% + the shooter's far-band - the flight decision's second-hostile read. (5) Version 0.664.0 GATING x3. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1500
+Agent: cron fire 1500 (Super Z)
+Task: v0.664.0 code fire - THE FURNACE PUT'S OWN PAIR (the furnace lane's read-back lines, the fire-1500 gap survey); the anti-conflict protocol; the slot collision lived.
+
+Work Log:
+- Synced clean (master 2a65fad, pkg 0.662.0). The face 37273689240 (2a65fad) still IN_PROGRESS at fire start (poll 4 tries) - dispatch held by poll-before-duplicate; it completed SUCCESS later in the window (its mining rides 1530).
+- THE GAP (the fire-1500 survey, the v0.660.0 method): the face's line anatomy vs decompose's readers - 'furnace within reach - opening without a walk' x24 and 'furnace slots after put: input=X fuel=Y' x17 had ZERO readers (smeltLedger v0.461.0 reads the intent side only, smeltVerdict v0.490.0 grades the yield).
+- v0.664.0 THE FURNACE PUT'S OWN PAIR (531ae44): new pure module src/lib/furnaceput.mjs (the torchbook shape) - FURNACE_NOWALK_OPEN_RE (the no-walk opener, the machine named verbatim) + FURNACE_PUT_RE (the input x fuel pairing, the 'pocket keeps N' tail, the 'empty' null-voice). THE LIVE FIX CAUGHT: the smelting lane's tag is the SINGLE-bracket form '[F16]' - not the doubled 'F9 [F9]' shape - first live decompose printed nothing, the raw-line check named the wrapper difference, the regexes re-anchored (the honest note in the module + the commit).
+- THE ROW LIVE-VERIFIED on face 37271081497 byte-exact: 'furnace put (v0.664.0): opens 24 (furnace 20 / blast_furnace 4) | puts 17 (input=raw_copper fuel=coal x7, input=sand fuel=stick x4, input=cobblestone fuel=stick x3, ...)' - THE KINDLING DIET NAMED: the copper burns coal, the commons smelt on sticks/planks x10.
+- Tests: furnaceput 6/6; syntax 472/0; full unit 269/269 (~5 min). Integration skipped locally (no testbed world) - CI covers.
+- THE SLOT COLLISION LIVED: origin took 0.663.0 MID-FIRE (the lane's 0047b1d THE SILENT STAKE'S OWN CLOCK - deathdropcensus + decompose, landed while I wrote). GATE 1 fired -> stash -> pull --rebase (clean auto-merge of decompose, both lanes' rows coexist) -> stash pop -> 0.664.0 gated free (gate 2 pre-commit, gate 3 pre-push). Zero conflicts, zero lost lines.
+- PUSH CLEAN attempt 1 (a459cdb..531ae44). DISPATCH 204 after the face completed (poll-before-duplicate held): the v0.664.0 face 37276644962 (531ae44) MATERIALIZED in flight - the furnace-put row's first field read rides it. Push CI 37276619650 pending at log-off (concurrency may cancel it - the face's own jobs cover the same sha, the b3fcc10 precedent).
+
+Stage Summary:
+- Master = 531ae44 (pkg 0.664.0). The furnace lane's read-back has its book; the kindling diet is the next read's own row.
+- NEXT FIRE: (1) MINE 37273689240 (completed, unmined) + POLL/MINE 37276644962 (v0.664.0): the furnace-put row's first live read (does the kindling diet repeat?), the spare-holds second read, the iron noPath anatomy. (2) The kindling wire candidate: fuelcommons' furnace diet vs the coal reserve - OUTSIDE the lane's hot seats only (deathdropcensus/mainfreeze/bank-cadence/pf:queue). (3) Version 0.665.0 GATING x3. Identity: PLANETA9091.
