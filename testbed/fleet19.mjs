@@ -1104,7 +1104,21 @@ async function smeltThenBank (miner, { yardGoal = null, budgetMs = null } = {}) 
     }
   } catch { /* the plate ride is best-effort - the deposit verdict above stays whole */ }
   const deposited = pre.deposited + res.deposited
-  if (deposited > 0) return { deposited, reason: 'ok' }
+  // (v0.650.0) THE PARTIAL'S OWN WHY - the chain's terminal verdict rides the
+  // partial return. Fleet 37244959245 (the v0.646.0 face, the calm one):
+  // 'write-off whys: unnamed carries 322u of 393u (81.9%) - the whys stayed
+  // blind' while the same face's per-bot row read 'F7 246u/22s' UNNAMED - and
+  // F7's own line one page up read 'F7 final bank: +159' - a PARTIAL
+  // delivery whose remainder rode the write-off with no why. The 0-deposit
+  // branch fed the book (the v0.556.0 third refuse class), the partial
+  // branch never did: the chain delivered, the final leg's own refusal
+  // (res.reason - the clock cut, the scan missed) was DISCARDED at this
+  // return. The residual field is ADDITIVE junk-safe: reason stays 'ok'
+  // (every existing caller byte for byte), the residual reads the terminal
+  // truth (the last refusal wins - the v0.556.0 law), a fully-drained
+  // delivery carries its own noise harmlessly (the write-off row reads the
+  // book only for holders with units - a drained bot is not a holder).
+  if (deposited > 0) return { deposited, reason: 'ok', residual: res.reason || pre.reason || null }
   return { deposited: 0, reason: res.reason || pre.reason }
 }
 
@@ -3640,6 +3654,17 @@ async function runBot (name, target, index) {
             const res = await smeltThenBank(miner, { yardGoal, budgetMs: finalBudget })
             if (res.deposited > 0) {
               banked += res.deposited
+              // (v0.650.0) THE PARTIAL'S OWN WHY - the book's fourth feed: the
+              // chain delivered but the pocket still held at the deadline - the
+              // residual verdict (the chain's own terminal truth, the v0.650.0
+              // return) names the remainder's class. Fleet 37244959245's blind
+              // mass (322u of 393u unnamed, F7's 246u whale at its head) was
+              // THIS branch's silence: the 0-deposit feed (the v0.556.0 third
+              // refuse class) never rode a partial. The token law holds: a junk
+              // or 'other' residual reads null - the legacy byte, the book
+              // never invents.
+              const partialTok = whyBookToken(climbWhyClass(res.residual))
+              if (partialTok) finalBankWhys.set(name, partialTok)
               console.log(`${name} final bank: +${res.deposited}`)
             } else {
               // (v0.556.0) THE THIRD REFUSE CLASS - the chain's own refusal

@@ -899,6 +899,30 @@ test('THE THIRD REFUSE CLASS rides its own refuse sites (the wiring)', () => {
   assert.ok(climbFeedIdx > fleetSrc.indexOf('finalBankDoomWhy.set(whyCls'), 'the climb feed rides beside the doom-why census feed (the same class, one computation)')
 })
 
+test('THE PARTIAL\'S OWN WHY rides its own seams (the wiring, v0.650.0)', () => {
+  const fleetSrc = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  // seam 1: the chain's terminal return carries the residual - the partial's
+  // own verdict survives the return (fleet 37244959245: F7 final bank: +159
+  // while the write-off row read 'F7 246u/22s' UNNAMED - the 322u-of-393u
+  // blind mass was this return's own discard)
+  const residualAt = fleetSrc.indexOf("if (deposited > 0) return { deposited, reason: 'ok', residual: res.reason || pre.reason || null }")
+  assert.ok(residualAt > -1, 'the terminal return carries the residual field (reason stays ok - the additive junk-safe shape)')
+  // seam 2: the end-phase partial branch feeds the book - the fourth feed,
+  // beside the banked increment, BEFORE the delivery print (the same law the
+  // third refuse class rides: the class is known AT the verdict)
+  const feedAt = fleetSrc.indexOf('const partialTok = whyBookToken(climbWhyClass(res.residual))')
+  assert.ok(feedAt > -1, 'the partial feed exists (the why book\'s fourth feed)')
+  const partialPrintAt = fleetSrc.indexOf('console.log(`${name} final bank: +${res.deposited}`)')
+  assert.ok(partialPrintAt > feedAt, 'the feed rides BEFORE the delivery print (the class is known AT the verdict)')
+  const bankedAt = fleetSrc.lastIndexOf('banked += res.deposited', feedAt)
+  assert.ok(bankedAt > -1 && bankedAt < feedAt, 'the feed rides beside the banked increment (the same branch, one verdict)')
+  // the token law: a junk residual reads null - the book never invents
+  assert.strictEqual(whyBookToken(climbWhyClass(undefined)), null, 'a missing residual is the legacy byte (the book stays empty)')
+  assert.strictEqual(whyBookToken(climbWhyClass('some totally novel prose')), null, 'an unknown residual rides other - dropped, never invented')
+  assert.strictEqual(whyBookToken(climbWhyClass('budget exhausted')), 'exhausted', 'the clock cut names its own class (F7\'s shape: the 1545s need vs the 300s clamp)')
+  assert.strictEqual(whyBookToken(climbWhyClass('no chest in range')), 'no-chest', 'the scan miss names its own class (the v0.586.0 chest-scan law)')
+})
+
 test('doomWhyRow: the face datum - the tax splits two ways, neither head a whale (spread form)', () => {
   // face 36660134341's exact distribution, byte-stable ties class asc
   const entries = [{ cls: 'stalled', cycles: 3 }, { cls: 'wet wall', cycles: 3 }, { cls: 'low-o2', cycles: 1 }]
