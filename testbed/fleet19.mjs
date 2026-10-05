@@ -3144,7 +3144,28 @@ async function runBot (name, target, index) {
         finalBankWhys.set(name, 'doom-latched') // (v0.553.0) the write-off's why rides the verdict
         console.log(`${name} final bank: 0 (dooms-latched after ${doomLatch.failed} failed shaft-bottom climb cycles - the chain is refused, the clock mines on)`)
       } else if (bankable && !doomLatch.rearmGranted && surfaceHoldVerdict({ timeOfDay: miner.bot.time?.timeOfDay, purpose: 'final-bank' }) === 'hold') {
-        finalBankWhys.set(name, 'night') // (v0.553.0) the write-off's why rides the verdict (fleet 37121182189's strand)
+        // (v0.652.0) THE NIGHT'S OWN MESSENGER GATE - the sky's verdict must not
+        // overwrite the bot's own machinery verdict. Fleet 37251959440 (the
+        // v0.651.0 face) read F15's climb cycle feed 'wet-wall' (the 'still
+        // underground after 1 climb attempt' exit's own class, whyBookToken's
+        // space law) and the LATER night scan overwrote it with 'night' - the
+        // write-off whys row then read 'night carries 313u of 595u (52.6%) -
+        // the dusk bank is the front' and priced a cure the strand could never
+        // ride (F15 rode the shaft bottom - the dusk bank arms SURFACE trips;
+        // the climb-out machinery is that strand's front). The doom latch above
+        // already runs this outrank ('the refusal is the terminal truth - the
+        // deferral would only re-arm the doomed walk'); the gate extends it to
+        // every machinery verdict: a hold is not a refusal of THIS bot's chain
+        // - it defers EVERYTHING under the sky regardless of the bot's state,
+        // so the book's own verdict (the climb stage, the chain's refusal, the
+        // partial's residual) IS the strand's class. The never-verdicted bot
+        // (the surface bot the hold caught before any chain ran - F6's shape
+        // on the same face) still feeds 'night' byte for byte - the genuine
+        // night class, the dusk bank's own read. The 'last refusal wins' law
+        // keeps its shape between REFUSAL feeds (each refusal overwrites the
+        // previous - the newest terminal truth); the hold is the sky's, the
+        // machinery's verdicts outrank it.
+        if (!finalBankWhys.has(name)) finalBankWhys.set(name, 'night') // (v0.553.0) the write-off's why rides the verdict (fleet 37121182189's strand); (v0.652.0) the gate: the machinery's verdict outranks the sky's
         console.log(`${name} final bank deferred: night (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - the pocket rides out the dark alive (the v0.140.1 night hold)`)
       } else if (bankable) {
         // (v0.41.0) PRICE THE CHAIN AT ENTRY: the budget is computed from the

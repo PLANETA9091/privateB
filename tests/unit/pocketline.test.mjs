@@ -1062,6 +1062,34 @@ test('writeOffRow: THE WIRING PIN - the why ledger feeds the defer sites and rid
     'the report row reads the ledger (the single write-off site)')
 })
 
+// ---- (v0.652.0) THE NIGHT'S OWN MESSENGER GATE ----
+// fleet 37251959440 (the v0.651.0 face): F15's climb cycle fed 'wet-wall' (the
+// 'still underground after 1 climb attempt' exit's own class) and the LATER
+// night scan OVERWROTE it with 'night' - the write-off whys row then read
+// 'night carries 313u of 595u (52.6%) - the dusk bank is the front' and priced
+// a cure the strand could never ride (F15 rode the shaft bottom; the dusk bank
+// arms SURFACE trips). The doom latch's own outrank law ('the refusal is the
+// terminal truth') extends to every machinery verdict: the hold is the sky's,
+// not the bot's refusal - the book's own verdict IS the strand's class.
+
+test('writeOffRow: THE NIGHT\'S OWN MESSENGER GATE - the sky never overwrites the machinery verdict (v0.652.0)', () => {
+  const src = fs.readFileSync(new URL('../../testbed/fleet19.mjs', import.meta.url), 'utf8')
+  const gatedFeed = src.indexOf("if (!finalBankWhys.has(name)) finalBankWhys.set(name, 'night')")
+  assert.ok(gatedFeed > 0, 'the night feed rides the outrank gate - the book\'s own verdict is the strand\'s class')
+  // the genuine night class still feeds byte for byte (the never-verdicted
+  // surface bot - F6's shape on the same face: the hold caught it before any
+  // chain ran, the dusk bank's own read)
+  assert.ok(src.includes("finalBankWhys.set(name, 'night')"), 'the legacy feed shape survives inside the gate')
+  // the gate rides AT the defer site (the class is known at the verdict, the
+  // v0.553.0 law's own window shape - the pin reads the same 400-byte window)
+  const nightFeed = src.indexOf("finalBankWhys.set(name, 'night')")
+  assert.ok(src.slice(nightFeed, nightFeed + 400).includes('final bank deferred: night'),
+    'the gated feed rides its own defer site')
+  // the log line keeps its byte (the hold names itself - the v0.140.1 pin's read)
+  assert.ok(src.includes('- the pocket rides out the dark alive (the v0.140.1 night hold)'),
+    'the deferral line stays byte for byte')
+})
+
 // ---- (v0.554.0) THE ATTRIBUTION'S HONEST TAIL ----
 // fleet 37121182189: the attribution row read 'stranded: F15 0u/205u pocket,
 // F10 0u/128u pocket, F12 0u/72u pocket - the walk never delivered' while the
