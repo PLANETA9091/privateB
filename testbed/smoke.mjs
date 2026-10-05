@@ -9,6 +9,7 @@
 //
 // Usage: node testbed/smoke.mjs [host] [port] [username]
 import mineflayer from 'mineflayer'
+import { pickSmokeSpot, diggableBack } from '../src/lib/smokespot.mjs'
 import { Vec3 } from 'vec3'
 
 const host = process.argv[2] || '127.0.0.1'
@@ -189,26 +190,14 @@ bot.once('spawn', async () => {
     step('equip ok')
     let spot = null
     {
+      // (v0.670.0) the water-reclaim guard: the selector is the pure
+      // smokespot lens - the hole path requires the hole to still be air (the
+      // face 37386244195 hang: water reclaimed the dug hole, the old selector
+      // never read the hole itself), and the scan refuses fluid floors.
       const feet = bot.entity.position.floored()
-      // if the hole is NOT where we stand, it is a perfectly good placement cell
-      if (target && Math.abs(target.position.x - feet.x) < 0.5 &&
-        Math.abs(target.position.z - feet.z) < 0.5 && target.position.y === feet.y) {
-        // (the hole IS below us - skip straight to the neighbour scan)
-      } else if (target) {
-        const ref = bot.blockAt(target.position.offset(0, -1, 0))
-        if (ref && ref.boundingBox !== 'empty') spot = { ref, face: new Vec3(0, 1, 0), cell: target.position }
-      }
-      if (!spot) {
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const cell = feet.offset(dx, 0, dz)
-          const cellB = bot.blockAt(cell)
-          const floorB = bot.blockAt(cell.offset(0, -1, 0))
-          if (cellB && cellB.boundingBox === 'empty' && floorB && floorB.boundingBox !== 'empty' && floorB.boundingBox !== 'fluid') {
-            spot = { ref: floorB, face: new Vec3(0, 1, 0), cell }
-            break
-          }
-        }
-      }
+      const at = p => bot.blockAt(new Vec3(p.x, p.y, p.z))
+      const raw = pickSmokeSpot({ feet: { x: feet.x, y: feet.y, z: feet.z }, target: target ? { x: target.position.x, y: target.position.y, z: target.position.z } : null, at })
+      if (raw) spot = { ref: raw.ref, face: new Vec3(raw.face.x, raw.face.y, raw.face.z), cell: new Vec3(raw.cell.x, raw.cell.y, raw.cell.z) }
     }
     if (spot) {
       try {
@@ -218,7 +207,7 @@ bot.once('spawn', async () => {
         step(`place -> ${spot.cell.floored()}: ${placed && placed.name}`)
         if (!placed || placed.name === 'air') step('WARN: placement not confirmed (may be server desync)')
         const toDig = bot.blockAt(spot.cell)
-        if (toDig && toDig.name !== 'air') {
+        if (diggableBack(toDig)) { // (v0.670.0) only a real block re-digs - a fluid (the water that beat the place) is skipped, digging it has no progress and hangs
           await bot.dig(toDig)
           await bot.waitForTicks(10)
           const after = bot.blockAt(spot.cell)
