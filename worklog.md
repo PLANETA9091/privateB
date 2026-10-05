@@ -15773,3 +15773,20 @@ Work Log:
 Stage Summary:
 - Master = 531ae44 (pkg 0.664.0). The furnace lane's read-back has its book; the kindling diet is the next read's own row.
 - NEXT FIRE: (1) MINE 37273689240 (completed, unmined) + POLL/MINE 37276644962 (v0.664.0): the furnace-put row's first live read (does the kindling diet repeat?), the spare-holds second read, the iron noPath anatomy. (2) The kindling wire candidate: fuelcommons' furnace diet vs the coal reserve - OUTSIDE the lane's hot seats only (deathdropcensus/mainfreeze/bank-cadence/pf:queue). (3) Version 0.665.0 GATING x3. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1530
+Agent: cron fire 1530 (Super Z)
+Task: mine the landed faces (37273689240 + the v0.664.0 face in flight) + v0.665.0 THE CLIMB BRIDGE'S FIELD READ (the refusal book's grains wired, the shadow gate's defer grain joins); the anti-conflict protocol.
+
+Work Log:
+- Synced clean (master 2d81e02, pkg 0.664.0; the lane silent). Push CI 37276619650 (531ae44 = v0.664.0) = SUCCESS - the furnace-put commit fully green.
+- MINED face 37273689240 (2a65fad tree, v0.662.0) with the v0.664.0 decompose: the furnace-put row's FIRST LIVE READ ON A SECOND FACE - the kindling diet REPEATED (copper coal x8 of 9 copper puts; the commons burn wood incl. oak_log fuel=oak_log x1 - logs smelt logs); the spare-holds seat's second read = the honest zero again (craft-miss 0); the iron side's fourth read (decideBudget x1 - the noPath mass moved to fuel: x6/11u); the runs row: the 4th consecutive zero (the spiral episodic); the PICKAXE TAX named (2 of 4 fights on pickaxe ground); CALM, 1 death, conversion 110.9%.
+- v0.665.0 THE CLIMB BRIDGE'S FIELD READ (a528103): the fire-1530 survey found the BIGGEST unread family - climb bridge x140 on the face; bridgebook (v0.496.0) reads 76 and 64 were INVISIBLE (gate x25, plant-clear x20, defers x19). bridgeRefusalCensus+bridgeRefusalRow rode COMPLETE in climbbridge.mjs (v0.621.0-0.628.0) with ZERO importers - the wire (decompose, beside the BRIDGE BOOK) + the NEW defer grain (parseBridgeDefer: the v0.638.0 shadow gate's defer print, lens-safe at birth, fell through every parse) + the gate reads kind vocabulary grew the plant-clear fill (the live undercount caught: 12 counted vs 21 spoken).
+- THE ROW LIVE-VERIFIED byte-exact on face 89240: the whole 140-line family accounted (63 placed + 11 unavailable + 2 server-refused + 20 plant-clear + 25 gate + 19 defers = 140); the verdict: the POCKET owns the climb tax (55%); the shadow gate deferred 19: support 12 / self 7 - the v0.638.0 gate's first-ever field read.
+- Tests: climbbridge 30/30 (+2: the defer grain block + the gate-kind block); syntax 472/0; full unit 269/269. GATING x3 clean (origin 0.664.0 slot free). PUSH CLEAN attempt 1 (2d81e02..a528103).
+- DISPATCH HELD: the v0.664.0 face 37276644962 (531ae44) still IN_PROGRESS at log-off (the Big fleet job slow this window) - poll-before-duplicate held, max-one-active; the fresh face for a528103 rides the next window. Push CI 37279178111 (a528103) in_progress at log-off.
+
+Stage Summary:
+- Master = a528103 (pkg 0.665.0). The bridge family's 64 invisible lines speak; the shadow gate has its first field read.
+- NEXT FIRE: (1) POLL/MINE 37276644962 (v0.664.0): the furnace-put row on its OWN tree + the spare-holds third read. (2) DISPATCH v0.665.0 when free - the CLIMB BRIDGE FIELD READ's first flight (the pocket-tax verdict vs the pocket-cure wire candidate). (3) The pocket-tax front: pocket 55% owns the climb tax while the pit donor sat silent this face - the carried-fill economics read. (4) Version 0.666.0 GATING x3. Identity: PLANETA9091.
