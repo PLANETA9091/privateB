@@ -16799,3 +16799,28 @@ Stage Summary:
 - Face 37377529395 IN FLIGHT at log-off (integration green, fleet leg running ~25 min) - the 10th flight's 3rd attempt is the closest yet to landing.
 - Next fire: poll it FIRST - if SUCCESS, download + decompose + MINE (floor x10 double digits: the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3); then dispatch if the queue is clear (the law x17).
 - Version 0.669.0 unchanged; zero conflicts. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0630
+Agent: cron30 fire 0630 (PLANETA9091 identity)
+Task: maintain privateB - poll the 10th flight's 3rd attempt, mine the log, dispatch if clean.
+
+Work Log:
+- Synced master: 4067912 tip (fire-0600's worklog), lane silent ~2h (nothing since adca354 ~20:31Z).
+- THE 10TH FLIGHT FLEW: face 37377529395 COMPLETED SUCCESS (3rd attempt, 2 cancellations before it) - fate FLEET RESULT normal end (deadline 600s reached), ZERO deaths, fleet clock 641s, complete account.
+- MINED run37377529395 (2295 log lines -> 396 decompose lines, artifacts kept uncommitted):
+  - THE FLOOR HITS DOUBLE DIGITS: one-unit 0/19 (0%) - the 10th consecutive zero face (0/20 0/26 0/28 0/28 0/30 0/27 0/24 0/25 0/30 0/19; pre-cure 95%). v0.669.0's withdrawal floor is the cure, confirmed beyond doubt.
+  - CALM REPEATS: verdict STORM 0 / WET 0 / CALM 1 - combat 0, hound presence 0, flee episodes 0, critical bars 0, fights 0, shelter tries 0 - the whole silent class reads zero honestly (2nd calm face in the row).
+  - BANK ABSORPTION x5: banked +1608u on mined 2416u (conversion 108.7%), pocket 1015u at end - "the bank absorbed the drain (the delivery chain closed end-to-end)".
+  - LEAK RECONCILE: balance -10.7% (leaks -247u) vs the event lens's legs 134u = NO-LEAK verdict - the negative side is the unit-count trap's surplus (crafting inflation), the pendulum (−17→+28→+3→+34→−6→−11%) is now explained from both sides.
+  - SAND STAYS STUCK: worst seat all face (n=39 boards @ 0%), 4 demands / 0 launches (4 unreachable + 6 shaft-locked skips), pocket 0→2 via the incidental leg (first nonzero t-219s, BEFORE any launch) - the delivery leg, not knowledge, is the lever (96 positions held).
+  - ASSIST LEDGER n=1: handoff F9 ROSE 0 vs DIED 1 (stopped) - "the ownership died more than it delivered"; the n>3 band anatomy stays hungry.
+  - RESCUE LANE: 6 starts (drowning; F11=4 the wet magnet), 2 complete / 4 released, 0 unclosed, price avg 7.7s/2.9s.
+  - minor: duplicate-login kicks 3 (F12 F6 F17), hazard memorized 6, climb pay 43%, camp built 3 vs reused 13, table gate refused F2 (woodless).
+- DISPATCH (law x17): queue clean (active 0) -> POST 204 -> face 37383016978 id-verified IN_PROGRESS on 4067912 at 22:31:26Z; t+80s all three jobs running (Unit x2 + Integration). The 11th flight is airborne.
+- My fire-0600 push-CI 37380269897 SUCCESS clean (3rd clean confirmation of the timing theory).
+- NO code change (stays 0.669.0). No conflicts: pull-rebase clean, push attempt 1.
+
+Stage Summary:
+- Face 37383016978 IN FLIGHT at log-off (all jobs green-in-progress) - poll it FIRST next fire.
+- Next fire: if SUCCESS, download + decompose + MINE (floor x11, calm x3, silent zero x3, bank absorption x6, sand delivery-leg watch); dispatch if clean (law x18). Version 0.670.0 reserved for the next code fire (trip-retarget remains the lane's seat).
