@@ -52,6 +52,7 @@ import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch 
 import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
+import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
@@ -2069,6 +2070,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     const top = bb.rows.slice(0, 3).map(r => `${r.bot} ${r.unavailable + r.placed + r.serverRefused} (un ${r.unavailable}/pl ${r.placed}/veto ${r.serverRefused})`).join(', ')
     if (top) console.log(`  the burners: ${top}`)
+  }
+}
+// (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains the
+// BRIDGE BOOK never saw: the underfoot gate's waited-grounded forms, the pit
+// donor, the plant clear and the shadow gate's defers (the v0.621.0-0.628.0
+// census rode complete with its row builder and ZERO importers - the
+// fire-1530 survey: 140 bridge lines on face 37273689240, 64 invisible:
+// gate x25 + plant-clear x20 + defers x19). The row is the module's own
+// verdict shape (the always-print law inside its own block); a face with no
+// bridge voice prints nothing here (the byte-stable silence).
+{
+  const brc = bridgeRefusalCensus(lines)
+  if (brc && (brc.n > 0 || brc.places > 0 || brc.refused > 0 || brc.gates > 0 || brc.pitDonated > 0 || brc.pitDonorRefused > 0 || brc.plantCleared > 0 || brc.plantClearRefused > 0 || brc.defers > 0 || brc.unparsed > 0 || brc.refusedTorn > 0)) {
+    console.log('--- CLIMB BRIDGE FIELD READ (v0.665.0: the refusal book\'s own grains) ---')
+    console.log(`  ${bridgeRefusalRow(brc)}`)
   }
 }
 

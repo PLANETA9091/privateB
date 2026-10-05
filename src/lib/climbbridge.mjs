@@ -69,7 +69,12 @@ export function parseBridgeFill (line) {
 //             (the bound expired afloat - the honest skip)
 // The why may nest its own parens - greedy to the LAST ')', the book's own
 // law. Junk-safe: null, never a throw.
-const GATE_READS_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill waited and grounded - the re-plan reads the (self|support|pit) fill$')
+// (v0.665.0) the reads kind vocabulary grows the plant-clear fill (the
+// v0.628.0 emitter added the fourth fill kind; the fire-1530 live read
+// caught the gate's own undercount: 12 counted against 21 spoken - the 9
+// 'reads the plant-clear fill' lines fell through GATE_READS_RE's older
+// vocabulary). The re-plan reads the kind the plan owns - all four ride.
+const GATE_READS_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill waited and grounded - the re-plan reads the (self|support|pit|plant-clear) fill$')
 const GATE_REFUSES_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill waited and grounded - the re-plan refuses \\((.*)\\)$')
 const GATE_WAITING_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the self fill still waits for ground - the ladder owns it$')
 
@@ -137,6 +142,29 @@ export function parsePlantClear (line) {
   m = s.match(PLANT_CLEAR_REFUSED_RE)
   if (m) return { kind: 'plant-clear', bot, result: 'refused', name: m[1] }
   return null
+}
+
+// (v0.665.0) THE SHADOW GATE'S DEFER GRAIN - the v0.638.0 entity-collision
+// gate's own defer print joins the book (the plant clear's own precedent, one
+// fire later). The v0.638.0 executor else-if speaks ONE form, lens-safe at
+// birth - every parser in this file matched none and the lines fell through
+// every parse into the void (the gate book's own crime again): the fire-1530
+// survey priced the mass at 19 lines on face 37273689240 (support 12 / self
+// 7) with ZERO readers anywhere:
+//   'F5 [F5] climb bridge: the support fill at [-125,41,401] defers - the
+//    bot's own box holds the cell (the entity-collision law)'
+// The fill kind rides the census (WHOSE fill the bot's own box blocked - the
+// underfoot rate's own sibling evidence); the cell rides the line verbatim
+// (never re-read here - the census counts, the geometry verdicts live in the
+// refused family's own grains). Junk-safe: null, never a throw.
+const DEFER_RE = new RegExp('^' + TAG_OPT + 'climb bridge: the (self|support|pit) fill at \\[-?\\d+,-?\\d+,-?\\d+\\] defers - the bot\'s own box holds the cell \\(the entity-collision law\\)$')
+
+export function parseBridgeDefer (line) {
+  const s = String(line ?? '')
+  const b = s.match(/^F(\d+) /)
+  const m = s.match(DEFER_RE)
+  if (!m) return null
+  return { kind: 'bridge-defer', bot: b ? `F${b[1]}` : null, fill: m[1] }
 }
 
 // The refusal's own class (climbWhyClass's keyword-include law - the why may
@@ -210,7 +238,8 @@ export function bridgeRefusalCensus (lines) {
     refused: 0, refusedKinds: {}, refusedReReadFailed: 0, refusedTorn: 0, refusedCellKeys: new Set(),
     gates: 0, gateReads: 0, gateRefuses: 0, gateStillWaits: 0, gateReadKinds: {}, gateRefuseWhys: {},
     pitDonated: 0, pitDonorRefused: 0, pitDonorNames: {}, refusedPostKinds: {},
-    plantCleared: 0, plantClearRefused: 0, plantClearNames: {} }
+    plantCleared: 0, plantClearRefused: 0, plantClearNames: {},
+    defers: 0, deferKinds: {} }
   for (const line of lines) {
     const p = parseBridgeRefusal(line)
     if (p) {
@@ -296,6 +325,15 @@ export function bridgeRefusalCensus (lines) {
       }
       continue
     }
+    // (v0.665.0) the shadow gate's defer grain: the v0.638.0 gate's own
+    // defer print joins the census (the plant clear's own precedent - the
+    // newest evidence counted before the torn sweep).
+    const df = parseBridgeDefer(line)
+    if (df) {
+      c.defers++
+      c.deferKinds[df.fill] = (c.deferKinds[df.fill] || 0) + 1
+      continue
+    }
     if (BRIDGE_BOOK_TORN_RE.test(line)) c.unparsed++
     else if (BRIDGE_REFUSED_TORN_RE.test(line)) c.refusedTorn++
   }
@@ -358,7 +396,7 @@ export function bridgeRefusalRow (c) {
         if (top[0] === 'geometry') return `${head} - the geometry read is the front (the sensor, not the world)`
         return `${head} - that refusal's own cure is the front`
       })()
-  return base + refusedTail(c) + confessionTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c) + plantClearTail(c)
+  return base + refusedTail(c) + confessionTail(c) + blindMassTail(c) + fillRateTail(c) + geometryTail(c) + gateTail(c) + pitDonorTail(c) + plantClearTail(c) + deferTail(c)
 }
 
 // (v0.626.0) THE OPEN CELL'S CONFESSION - the fresh read's word, priced per
@@ -418,6 +456,23 @@ function plantClearTail (c) {
   const r = c && Number.isFinite(c.plantClearRefused) ? c.plantClearRefused : 0
   if (d <= 0 && r <= 0) return ''
   return ` - the plant cleared ${d} cell(s), ${r} clear(s) refused`
+}
+
+// (v0.665.0) THE DEFER TAIL - the shadow gate's live behavior rides the row's
+// VERY END (the family's newest evidence last, the newest-last law). THE LAW:
+// the clause speaks only when the gate DEFERRED (defers > 0); the junk
+// fallback (a census without the fields) reads zeros and stays silent, never
+// a lie; the old faces (no defer lines) stay byte-stable. The kinds ride the
+// walkfail book's sort law (count desc, ties by name asc):
+//   ' - the shadow gate deferred N fill(s): support 12, self 7 (the bot's own box holds the cell)'
+function deferTail (c) {
+  const n = c && Number.isFinite(c.defers) ? c.defers : 0
+  if (n <= 0) return ''
+  const kinds = Object.entries(c.deferKinds || {})
+    .filter(([, v]) => Number.isFinite(v) && v > 0)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([k, v]) => `${k} ${v}`).join(', ')
+  return ` - the shadow gate deferred ${n} fill(s)${kinds ? `: ${kinds}` : ''} (the bot's own box holds the cell)`
 }
 
 // (v0.620.0) THE GEOMETRY VERDICT - the fleet 37203144265 face (the

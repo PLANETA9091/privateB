@@ -15,6 +15,7 @@ import {
   parseBridgeGateWait,
   parsePitDonor,
   parsePlantClear,
+  parseBridgeDefer,
   BRIDGE_SHARE,
   BRIDGE_BOOK_TORN_RE,
   BRIDGE_REFUSED_TORN_RE
@@ -593,4 +594,54 @@ test('plant clear book: the confession cure speaks (v0.628.0)', () => {
   // the old faces (no plant lines) stay byte-stable; the junk fallback silent
   assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('the plant cleared'))
   assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('the plant cleared'))
+})
+
+// (v0.665.0) THE SHADOW GATE'S DEFER GRAIN - the v0.638.0 entity-collision
+// gate's own defer print joins the book. The fire-1530 live read priced the
+// mass at 19 lines on face 37273689240 (support 12 / self 7) with ZERO
+// readers; the gate reads kind vocabulary grows the plant-clear fill (the
+// gate's own undercount caught live: 12 counted against 21 spoken).
+test('climb bridge field read: the shadow gate defer grain joins the book', () => {
+  const defer = (kind, cell) => `F5 [F5] climb bridge: the ${kind} fill at [${cell}] defers - the bot's own box holds the cell (the entity-collision law)`
+  const c = bridgeRefusalCensus([
+    defer('support', '-125,41,401'),
+    defer('self', '-117,41,395'),
+    defer('support', '-128,40,401'),
+    'F5 [F5] climb bridge: placed cobblestone at [-125,40,401] (support) - the step re-judges',
+    'F5 [F5] climb bridge: unavailable (no placeable block in the pocket)'
+  ])
+  assert.equal(c.defers, 3)
+  assert.equal(c.deferKinds.support, 2)
+  assert.equal(c.deferKinds.self, 1)
+  assert.equal(c.places, 1)
+  assert.equal(c.n, 1)
+  // the parser itself rides the same grain (the one-parser-per-emitter law)
+  const p = parseBridgeDefer(defer('pit', '-91,59,398'))
+  assert.ok(p && p.kind === 'bridge-defer' && p.bot === 'F5' && p.fill === 'pit')
+  // the junk battery: a wrong verb, a bare kind, a missing tail never match
+  assert.equal(parseBridgeDefer('F5 [F5] climb bridge: the support fill at [-1,1,1] waits - the bot\'s own box holds the cell (the entity-collision law)'), null)
+  assert.equal(parseBridgeDefer('F5 [F5] climb bridge: the fill at [-1,1,1] defers - the bot\'s own box holds the cell (the entity-collision law)'), null)
+  assert.equal(parseBridgeDefer('F5 [F5] climb bridge: the support fill at [-1,1,1] defers - the bot\'s own box holds the cell'), null)
+  assert.equal(parseBridgeDefer(42), null)
+  // the row's defer tail: the kinds ride the sort law (count desc, ties asc)
+  const row = bridgeRefusalRow(c)
+  assert.ok(row.endsWith(' - the shadow gate deferred 3 fill(s): support 2, self 1 (the bot\'s own box holds the cell)'))
+  // the honest silence: no defer lines, no tail; the junk census is silent
+  assert.ok(!bridgeRefusalRow(bridgeRefusalCensus([FLOOR])).includes('shadow gate'))
+  assert.ok(!bridgeRefusalRow({ refused: 1 }).includes('shadow gate'))
+})
+
+test('climb bridge field read: the gate reads kind grows the plant-clear fill', () => {
+  const c = bridgeRefusalCensus([
+    'F3 [F3] climb bridge: the self fill waited and grounded - the re-plan reads the plant-clear fill',
+    'F3 [F3] climb bridge: the self fill waited and grounded - the re-plan reads the support fill',
+    'F3 [F3] climb bridge: the self fill waited and grounded - the re-plan refuses (the support is already solid)'
+  ])
+  assert.equal(c.gates, 3)
+  assert.equal(c.gateReads, 2)
+  assert.equal(c.gateReadKinds['plant-clear'], 1)
+  assert.equal(c.gateReadKinds.support, 1)
+  assert.equal(c.gateRefuses, 1)
+  const row = bridgeRefusalRow(c)
+  assert.ok(row.includes(' - the gate waited 3 time(s): 2 reads, 1 refuses, 0 still waiting'))
 })
