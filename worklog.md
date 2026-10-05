@@ -15927,3 +15927,27 @@ Work Log:
 
 Stage Summary:
 - The dispatch of record for the v0.666.0 tree face is 37288570972 (094c4df). THE LAW IS NOW TWICE-BROKEN AND TWICE-RECORDED: the dispatch id is written ONLY AFTER the run list shows it - the next fire's checklist re-checks this BEFORE any worklog write. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1730
+Agent: cron fire 1730 (Super Z)
+Task: mine the face 37288570972 (THE FUEL DIET BILL'S FIRST IN-TREE FACE + the bridge row's fifth read + the furnace-put row's return); the anti-conflict protocol; THE PROCESS LAW HELD (dispatch id verified before any worklog write).
+
+Work Log:
+- Synced clean (master 078652c, pkg 0.666.0; the lane silent). POLLED my 1700 dispatch 37288570972 (094c4df = the v0.666.0 tree, the fuel diet module aboard) ~19 min to SUCCESS - FULLY GREEN (both units + Integration + Big fleet).
+- MINED face 37288570972 (2871 lines -> ci-logs/fleet19-37288570972/, normal end 600s).
+- THE FUEL DIET BILL'S FIRST IN-TREE FACE (the lane's v0.666.0 module on its own tree, byte-stable): metal 5 batch(es) raw_copper 15u on fuel 15u (oak_log 11 / stick 3 / coal 1) - capacity 26 smelts, coal's 8/u carries it on 4u | junk 8 batch(es) cobblestone 16 + oak_log 7u on fuel 28u (stick 12 / oak_planks 9 / coal 5) - capacity 62.5, the coal touch 5u. THE WOOD DIET CONFIRMED CROSS-ROW: the furnace-put row's own pairing (copper fuel=oak_log x3, fuel=stick x1, fuel=coal x1 of 5 copper puts) matches the bill's split - the copper ate WOOD 14 of 15 fuel units; the coal 8.00/u efficiency stands but the pocket BURNS WOOD because the wood is what the climb gathers.
+- THE FURNACE PUT ROW RETURNED (after the first furnace-less face): opens 20 (19 furnace / 1 blast), puts 13; the commons stay kindling (cobblestone fuel=stick x3, fuel=oak_planks x2, fuel=coal x1); logs smelt logs again (oak_log fuel=oak_planks x1, fuel=oak_log x1); smelt verdict forecast 38 -> actual 33, exact 7/9.
+- THE BRIDGE ROW'S FIFTH READ - THE REFUSALS SCATTER: 12 refusal(s) across 7 bot(s), 140 fill(s) placed - pocket 5 (42%) / floor 4 (33%) / other 2 (17%) / step 1 (8%) - the row's own verdict: 'no class owns the climb tax' (the pocket-share per-face arc 55 -> 75 -> 0 -> 67 -> 42 closes the law question: the tax is distributed); 'step' REPEATED (its second face - a standing kind now); 'floor' repeated too (4x); server refused 6 (support 5 / pit 1, self 0), 0 repeats; open cells air 6 (the water grain gone a second face); gate waited 50 (41 reads, 9 refuses); pit donated 6; plant cleared 48; THE SHADOW GATE DEFERRED 21 (support 16 / self 5 - support leads a FOURTH straight face).
+- THE ECONOMY RECOVERED: mined 1865, banked 954, pocket 808u, conversion 96.5% (from the 19.3% pit); material balance leaks -72u (-4.0%) - NO-LEAK (the counters close the loop).
+- THE FACE CALMED: 4 combat deaths (priced 309u, close band 0 - mid 1/far 2/blind 1) + 1 non-combat; stranded piles 5 ~390u (biggest 180u F10); the flee fork 3 (crossfire 2 / chase 1 - the chase's reign PAUSED, the crossfire class leads this face).
+- THE SILENT CLOCK'S EIGHTH READ: pre-tail x2 70u / end-phase x2 239u - 4 stakes 309u (from 15 stakes 1361u - the churn's silence shrank 5x with the calm); the arm join: armed 1 (81u F13) / silent 4. THE ARM LAG ROW ABSENT (n=0 - the byte-stable zero's first face: no walk rows joined, the row's silence is its own honest zero).
+- THE STRAND CROWN HOLDS: bank doom why stalled 4 of 8 (50%); fail whys stalled:4 timeout:2 wet-wall:1 - stalled keeps the calm faces (6 of 9).
+- THE COMMONS ZERO-DELIVERY'S SIXTH FACE: sweeps 39 (torch 33 / smelt 6), delivered 0, asks 33 (66 coal), still-dry 33; vertical doom 3 (23up/8lat, 20up/18lat, 29up/1lat).
+- THE GOVERNOR'S SECOND ZERO (1 run in 9 faces); the iron side stays healthy (noPath x2, decideBudget x1); the fuel side carries the budget mass (decideBudget x13).
+- NO code change this fire (mining fire; the wire candidates re-priced: the wood-diet economics now CROSS-ROW VERIFIED - the coal-reserve wire's target is the climb's wood supply, not the selector; the disengage wire paused with the chase; the step kind is standing). Version next 0.667.0 GATING x3.
+- DISPATCH 204 AFTER the mine, ID VERIFIED BEFORE ANY WORKLOG WRITE (the twice-recorded law HELD this fire): the fresh face 37291680048 (078652c) MATERIALIZED in_progress - the fuel diet bill's SECOND in-tree face rides it.
+
+Stage Summary:
+- Master = 078652c (pkg 0.666.0, no code change this fire). The wood diet is cross-row law; the climb tax is distributed (no owner); the process law held.
+- NEXT FIRE: (1) MINE 37291680048: the fuel diet bill's second in-tree read (does the wood diet repeat or re-coal?), the bridge row's sixth (do 'step'/'floor' keep standing?), the furnace-put row. (2) THE WIRE CANDIDATES: THE COAL-RESERVE WIRE SHARPENED (the copper burns wood 14/15 while coal 1u carries 8 - the reserve's coal never reaches the smelting lane; read fuelcommons/the smelt lane's reserve path FIRST, OUTSIDE the lane's hot seats); the disengage wire (paused - watch the chase's return); the step-cure. (3) Version 0.667.0 GATING x3. (4) THE PROCESS LAW: dispatch, verify in the run list, THEN write. Identity: PLANETA9091.
