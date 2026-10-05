@@ -16702,3 +16702,21 @@ Stage Summary:
 - NO dispatch (the lane's 37365201702 queued; max-one-active respected in spirit and letter).
 - Version 0.669.0 unchanged; zero conflicts.
 - NEXT FIRE: (1) check 37365201702 (47a8f87) - if the lane's CI completed and no QUEUED/IN_PROGRESS remains, DISPATCH the floor's 10th flight (the law x15: dispatch, verify, THEN write) and mine it when it lands: floor x10, the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3; (2) if a cancel pair repeats, consider the dispatch timing shift (dispatch BEFORE the worklog push so the face is never the cancelled one); (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3. Identity: PLANETA9091
+
+---
+Task ID: cron30-20261006-0430
+Agent: PLANETA9091 (cron agent)
+Task: fire 0430 - diagnose the failure cascade, dispatch the floor's 10th flight, worklogs
+
+Work Log:
+- sandbox reset again (repo gone) - re-cloned; master 52246df (my fire-0400 worklog on the lane's 47a8f87; pkg 0.669.0).
+- THE FAILURE CASCADE READ AT JOB LEVEL (both sides' "failures" inspected, not guessed): my push-CI 37367275786 (52246df) - unit (24) SUCCESS, unit (22) CANCELLED, Integration CANCELLED; the lane's 37365201702 (47a8f87) - Integration SUCCESS, unit (22) SUCCESS, unit (24) CANCELLED. VERDICT: THE TREE IS GREEN (integration completed success on the newest full tree) - every "failure" run conclusion is a CANCELLED-job artifact of the concurrency thrash (each newer push cancels the older in-flight run; both agents' pushes feed it). No code broken anywhere in the cascade; no fix needed.
+- DISPATCH (the law HELD x15: dispatch, verify, THEN write): POST 204 -> run 37370251094 id-verified QUEUED on 52246df BEFORE this line was written - THE FLOOR'S TENTH FLIGHT IS AIRBORNE (its read list rides the next fire: floor x10 double digits, the calm's repeat, the silent zero's repeat, the sand window's second positive, the arm lag n>3).
+- CANCEL-LEDGER RULE NAMED: the thrash window is the push tempo; the dispatch goes FIRST in the fire's order (this fire and forward) so the face grabs the queue slot before any worklog push lands.
+- NO code change (stays 0.669.0, next free 0.670.0 GATING x3).
+
+Stage Summary:
+- Cascade diagnosed: cancelled jobs, green tree (integration SUCCESS on 47a8f87) - no rerun needed, nothing to fix.
+- Face 37370251094 dispatched (204, id-verified) - the floor's 10th flight, rides 52246df.
+- Version 0.669.0 unchanged; zero conflicts.
+- NEXT FIRE: (1) POLL/MINE 37370251094 first (floor x10: the double-digit read, the calm's repeat vs the storm, the silent zero's repeat, the sand window's second positive, the arm lag n>3); (2) dispatch ONLY if the queue is clear after it (law x16); (3) code fire stays the lane's seat (trip retarget); (4) 0.670.0 GATING x3. Identity: PLANETA9091
