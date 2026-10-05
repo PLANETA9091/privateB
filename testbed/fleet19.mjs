@@ -16,6 +16,7 @@ import { createMiner, fleetStats } from '../src/bots/miner.mjs'
 import { pocketTotals, lootLedger, writeOffRow, writeOffWhyRow, bankedCraterDecode, unaccountedMassDecode, pocketAnatomyRow, surplusFaceRow, bankFlowRow, bankBudgetGapRow, bankAttributionRow, doomCensusRow, climbWhyClass, doomWhyRow, doomOwnerRow, whyBookToken, stallWhyClass, reconnectCensusRow } from '../src/lib/pocketline.mjs'
 import { belowResidueRow } from '../src/lib/drops.mjs' // (v0.203.0) the sweep drop ledger's run-level row
 import { dropCensusRecord, observeItemSpawn, observeItemCollect, observeItemGone, dropCensusRow, dropOpenAnatomyRow, overdueOwnerRow } from '../src/lib/dropcensus.mjs' // (v0.576.0) the drop census: the leak's first measured sink; (v0.581.0) the open pool's age anatomy; (v0.592.0) the overdue owners' grain
+import { deathCensusRecord, deathCensusRow } from '../src/lib/deathcensus.mjs' // (v0.656.0) the death's own census: the death mass's report seat - the killer names the front
 import { createScout } from '../src/bots/scout.mjs'
 import { WorldMap } from '../src/fleet/worldmap.mjs'
 import { attachChatSync } from '../src/fleet/chatsync.mjs'
@@ -156,6 +157,7 @@ const guards = new Map() // name -> memory guard (see src/fleet/memory-guard.mjs
 // the deadline row sums the whole fleet's books (the reconnect must not erase
 // what the bot already saw, the seedStats law at the fleet scale).
 const dropCensusRecords = []
+const deathCensusRecords = [] // (v0.656.0) the death announce lines' own records - the report's death mass reads them (the dropCensusRecords twin)
 let spawned = 0
 let reconnects = 0
 // (v0.565.0) THE RECONNECT CENSUS LEDGER: the same re-links keyed per BOT -
@@ -1294,6 +1296,21 @@ async function runBot (name, target, index) {
           // (v0.249.0) 'drown context' joins at the TAIL - the sequence pins
           // (drops.test, deposit-hop-doom.test) read the head band verbatim,
           // so the new key rides behind 'wood trip' and both pins stay whole.
+          // (v0.656.0) THE DEATH'S OWN CENSUS - the death announce's own
+          // record at the pass (the dropCensusRecords' twin shape): the
+          // server verdict already names the killer (the v0.117.0 doctrine),
+          // the line is ALREADY in the fleet log - the census parses it here
+          // and the report row reads the mass (fleet 37256535767: 33 deaths
+          // - Drowned x26 - and the report was blind to all of them; the
+          // per-face log dive is the mass's old seat). The observe rides its
+          // OWN announce guard (the record's RE selects the death announce
+          // itself - a non-announce line reads null) so the harness filter's
+          // one-liner below keeps its byte (the three regression pins read
+          // that shape: drops.test, bank-trip.test, reloot-wiring.test).
+          try {
+            const drec = deathCensusRecord(`${name} ${m}`)
+            if (drec) deathCensusRecords.push(drec)
+          } catch { /* the census never holds the death strip */ }
           if (/combat|died|death drop|reloot|KICKED|error|climb|water|scan:|hop|chest skip|approach|swallowed|bank |deposit|torch|craft|smelt|fuel|vein sweep|wood trip|drown context|suffocate context|drowned-kill context|void context|steer tier defer|steer hazard|cobble tithe|quarry ascent|chest ascent|smelt tithe|ration/.test(m)) console.log(`${name} ${m}`) // (v0.277.0) 'void context' joins the tail - the out-of-world class's first voice (two mute deaths: [117,-90,0], [118,-148,2]); (v0.511.0) 'ration' joins - the flesh ration's attempts and verdicts are survivability law, not noise
         },
         // (v0.269.0) THE TORCH-COAL RESUPPLY - the pocket-closed torch economy's
@@ -4350,6 +4367,14 @@ if (crater) console.log(`banked crater decode: ${crater}`)
 // invents a mass).
 const mass = unaccountedMassDecode({ mined: s.mined, banked, smelted, pocket: endPk.units })
 if (mass) console.log(`unaccounted mass decode: ${mass}`)
+// (v0.656.0) THE DEATH'S OWN CENSUS - the decode above names the gap; the
+// death mass is the gap's first driver (the deaths drop the fleet's carried
+// loot) and had no report seat: fleet 37256535767 read 33 deaths (Drowned x26,
+// 78.8%) with the killer living only in the log stream. The row sits right
+// after the decode it completes, before the drop census (the item-entity
+// leak's own read). ALWAYS printed on a live mass - the none-form is the
+// healthy silence (a deathless face reads no row).
+try { console.log(deathCensusRow(deathCensusRecords)) } catch { /* the census never holds the teardown */ }
 // (v0.576.0) THE DROP CENSUS - the decode above names the gap; the census
 // prices its first suspect: the item-entity lifecycle counted live across the
 // whole fleet (every bot instance, reconnects included). Sits right after the
