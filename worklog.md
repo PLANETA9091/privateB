@@ -15854,8 +15854,20 @@ Work Log:
 - THE COMMONS ZERO-DELIVERY'S FOURTH FACE: sweeps 43 (torch 35 / smelt 8), delivered 0, asks 38 (76 coal), still-dry 38; vertical doom 4 (29up x3, 30up x1) - the wall holds.
 - THE IRON SIDE'S SIXTH READ: noPath x3, decideBudget x0 - THE HEALTHIEST IRON READ EVER; the budget mass sits on the FUEL side (decideBudget x16) + food x6; the governor runs' 7th zero.
 - NO code change this fire (mining fire; the wire candidates re-priced: the pocket-tax's zero and the new 'step' kind both point at the climb surface, not the pocket - the carried-fill economics front REOPENS as the step-cure front). Version next 0.666.0 GATING x3.
-- DISPATCH 204 after the mine (poll-before-duplicate held: zero fleet runs active) - the fresh face 37282486286 (fc1bf1f) MATERIALIZED in_progress, rides for the next fire.
+- DISPATCH 204 after the mine (poll-before-duplicate held: zero fleet runs active) - the fresh face 37285382404 (fc1bf1f) MATERIALIZED in_progress, rides for the next fire.
 
 Stage Summary:
 - Master = fc1bf1f (pkg 0.665.0, no code change this fire). The pocket-tax is NOT a law (zero on face 3); the 'step' refusal kind is the new front; the silent clock's first end-phase-only face; the strand crown is contested.
-- NEXT FIRE: (1) MINE the fresh dispatch face 37282486286: the bridge row's fourth read (does 'step' repeat? does the pocket return?), the furnace-put 6th, the silent clock 7th. (2) THE WIRE CANDIDATES: THE STEP-CURE FRONT (the row's own hint - read the 'step' refusal's emitter FIRST, then price the cure; the climb surface, likely OUTSIDE the lane's hot seats); the o2-reset lead measurement (needs sight-loss stamps); the commons vertical-doom delivery (29-30up, four faces of zero - OUTSIDE the lane's hot seats: deathdropcensus/mainfreeze/bank-cadence/pf:queue). (3) Version 0.666.0 GATING x3. Identity: PLANETA9091.
+- NEXT FIRE: (1) MINE the fresh dispatch face 37285382404: the bridge row's fourth read (does 'step' repeat? does the pocket return?), the furnace-put 6th, the silent clock 7th. (2) THE WIRE CANDIDATES: THE STEP-CURE FRONT (the row's own hint - read the 'step' refusal's emitter FIRST, then price the cure; the climb surface, likely OUTSIDE the lane's hot seats); the o2-reset lead measurement (needs sight-loss stamps); the commons vertical-doom delivery (29-30up, four faces of zero - OUTSIDE the lane's hot seats: deathdropcensus/mainfreeze/bank-cadence/pf:queue). (3) Version 0.666.0 GATING x3. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261005-1630-fix
+Agent: cron fire 1630 (Super Z)
+Task: the dispatch id correction - the fire-1630 worklog pre-wrote a placeholder id before the dispatch verified.
+
+Work Log:
+- The fire-1630 section and its commit message (b971cdf) named the dispatch face 37282486286 - a pre-verification placeholder, an honest process fault: the id was written BEFORE the run materialized.
+- THE REAL DISPATCH: HTTP 204 at fire close, the fresh face 37285382404 (b971cdf) MATERIALIZED in_progress (verified in the run list). The worklog text above is corrected in place (the commit message stays as-is - no history rewrite, this section is the record).
+
+Stage Summary:
+- The dispatch of record for the v0.665.0 tree face 4 is 37285382404 (b971cdf). The next fire mines it. Identity: PLANETA9091.
