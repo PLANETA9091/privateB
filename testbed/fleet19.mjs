@@ -43,7 +43,7 @@ import { withdrawFoodCommons, pocketFood, riderFoodAsk, MIDFIELD_HUNGRY_BAND, RI
 import { upgradeCheck, upgradeTools, keepForIron, PICK_TIERS, withdrawIronCommune, seedIronPool } from '../src/lib/toolupgrade.mjs'
 import { swordCheck, craftSword } from '../src/lib/arms.mjs'
 import { walkForbidden, surfaceHoldVerdict } from '../src/lib/nightsafety.mjs'
-import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
+import { relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS } from '../src/lib/reloot.mjs'
 import { wetChurnPlan, churnSwap, WET_CHURN_WINDOW_MS, WET_CHURN_COOLDOWN_MS } from '../src/lib/wetchurn.mjs' // (v0.223.0) the after-storm evacuation: the plan reads the bot's OWN rescue log, the swap prices the dry pass
 import { dragonZoneAnchor, inDragonZone, dragonZoneExit, DRAGON_ZONE_EXIT_MS } from '../src/lib/dragonzone.mjs' // (v0.225.0) the kill zone: the anchor clusters the magic kills, the exit prices the walk out
 import { duskBankPlan } from '../src/lib/duskbank.mjs' // (v0.229.0) the heavy pocket's priced dusk delivery: the plan landed v0.226.0, the wiring rides this lane
@@ -1193,6 +1193,7 @@ async function runBot (name, target, index) {
   // hit the end-phase gates, the retry rebuilt the miner, and the un-evaluated
   // record died with the old closure before the plan ever SAW the death.
   let deathCarry = null
+  let deathCarryAnnounced = 0 // (v0.649.0) the carry voice's own dedup: one line per carried death clock (the record's `at` is its id)
   // (v0.316.0) THE SHAFT-BOTTOM DOOM LATCH: per-bot count of failed final-bank
   // climb cycles (the 'still underground' verdicts). From the 3rd entry the
   // chain is refused at the door - F9 printed the identical verdict 7x on face
@@ -1419,6 +1420,21 @@ async function runBot (name, target, index) {
             await miner.climbOut({ dir: direction, force: true, maxMs: 30000, shouldStop: () => Date.now() > deadline })
           } catch { /* gatherWood's walk retries from wherever the climb stopped */ }
           console.log(`${name} respawn bootstrap resuming (tod=${Math.floor(miner.bot.time?.timeOfDay ?? -1)}) - dawn or deadline`)
+        }
+        // (v0.649.0) THE DEATH CARRY'S VOICE: the silent class's rebuild face
+        // gets its own seat. MEASURED (fleet 37243173708, the v0.645.0 face):
+        // the arm join returned armed 1 / SILENT 12 (1216u) and F11's anatomy
+        // read a whole post-death tail dying to a KICK with the loop top never
+        // re-reached - the rebuild path was INVISIBLE. One line per carried
+        // death, at the rebuild's mouth: the next face counts HOW MANY records
+        // actually carry (and at what age/stake) instead of pricing the
+        // silence from nothing. The stake rides 'unknown' when it did not
+        // survive the death event - never a fabricated 0 (the write-off law).
+        if (attempt > 0 && deathCarry && deathCarryAnnounced !== deathCarry.at) {
+          deathCarryAnnounced = deathCarry.at
+          const carryStake = deathCarry.pocketU != null ? `~${deathCarry.pocketU}u` : 'unknown'
+          const carryAge = Math.max(0, Math.round((Date.now() - deathCarry.at) / 1000))
+          console.log(`${name} death carry: the un-attempted stake rides the rebuild (stake ${carryStake}, age ${carryAge}s) - the lane re-arms on the fresh pass`)
         }
         if (attempt > 0) console.log(`${name} respawned without tools - re-bootstrapping (attempt ${attempt})`)
         // spawn -> walk to a tree -> chop -> craft (no op, no gifts). 60s: the stall
@@ -3666,7 +3682,11 @@ async function runBot (name, target, index) {
     // honestly instead of inventing a no-death verdict.
     if (miner) {
       const prevDeath = miner.lastDeath?.() ?? null
-      deathCarry = (prevDeath && !prevDeath.attempted) ? { spot: prevDeath.spot, at: prevDeath.at } : null
+      // (v0.649.0) THE DEATH CARRY STAKE: the carry rides relootCarry - the
+      // seed keeps the POCKET STAKE too (the v0.484.0 pile arm reads it; the
+      // old shape dropped it at both hops and every post-rebuild big pile
+      // armed as an empty pocket - the silent class's rebuild face).
+      deathCarry = relootCarry(prevDeath)
     }
     if (Date.now() >= deadline) break
     failStreak++

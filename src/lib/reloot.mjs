@@ -655,3 +655,42 @@ export function relootWriteoffLine ({
   const s = cap(surfaceWhy, 24)
   return `${tag} reloot: write-off (goal ${g}, stake ${stake}, age ${age}, walk ${w} -> retry ${r} -> surface ${s})`
 }
+
+// (v0.649.0) THE DEATH CARRY STAKE - the rebuild's seed keeps the stake.
+// MEASURED (fleet 37243173708, the v0.645.0 face, mined with the v0.647.0
+// lens): the DEATH DROP CENSUS read 13 death-drop stakes (1235u at stake)
+// and the arm join returned armed 1 / SILENT 12 (1216u) - the silent class
+// did not just survive the v0.647.0 wiring, it GREW (was 6 of 7 on the wet
+// storm's face). The face's own anatomy narrowed the class: F11's attempt
+// ran its whole post-death tail (approach -> deposits -> communes ->
+// pre-position bank) and died to a duplicate_login KICK with the loop top
+// never re-reached - and at every rebuild the runner's carry read
+// `{ spot, at }` and the miner's seed restored `{ spot, at, attempted }` -
+// the POCKET STAKE was dropped at BOTH hops (the v0.484.0 pile arm reads
+// `relootDeath.pocketU` -> undefined -> not-bypass: after ANY rebuild a big
+// pile rides the unarmed delay like an empty pocket, the very suspect the
+// silent-six read named). THE CURE: relootCarry(prevDeath) is the ONE shape
+// both hops share - an un-attempted death carries its spot, its clock AND
+// its stake; a resolved or junk record carries null (the v0.203.0 law: a
+// resolved record stays resolved, a failed login invents nothing). The
+// stake rides honesty: a junk pocketU reads null - the write-off line's
+// 'unknown' never becomes a fabricated 0. Pure: reads, never decides -
+// the runner's carry assignment and the miner's seed restore keep their
+// own wiring.
+//
+// @param {object|null} [prevDeath] the dying attempt's lastDeath record
+// @returns {{spot:{x,y,z}, at:number, pocketU:number|null}|null} the carry
+//   (pocketU null when the stake did not survive the death event) or null
+export function relootCarry (prevDeath = null) {
+  if (!prevDeath || typeof prevDeath !== 'object') return null
+  if (prevDeath.attempted) return null
+  const s = prevDeath.spot
+  const at = prevDeath.at
+  if (!s || typeof s !== 'object' ||
+    !Number.isFinite(s.x) || !Number.isFinite(s.y) || !Number.isFinite(s.z)) return null
+  if (!Number.isFinite(at)) return null
+  const pocketU = Number.isFinite(prevDeath.pocketU) && prevDeath.pocketU > 0
+    ? Math.floor(prevDeath.pocketU)
+    : null
+  return { spot: { x: s.x, y: s.y, z: s.z }, at, pocketU }
+}

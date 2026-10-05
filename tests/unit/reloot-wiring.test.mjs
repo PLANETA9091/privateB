@@ -25,8 +25,8 @@ test('REGRESSION PIN: the miner death handler records the re-loot state', () => 
 })
 
 test('REGRESSION PIN: the fleet imports the pure plan, the retry classifier, the surface ladder and the rim dig', () => {
-  assert.match(fleetSrc, /import \{ relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
-    'the census rides the import (the runner reads the plan, the v0.484.0 pile verdict, the classifier, the scanner, the census, the surface ladder, the rim dig AND the v0.261.0 unarmed verdict from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
+  assert.match(fleetSrc, /import \{ relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootRimDig, relootUnarmedVerdict, relootWriteoffLine, relootCarry, RELOOT_SURFACE_RISE_MAX, RELOOT_RETRY_RANGE, RELOOT_DESPAWN_MS \} from '\.\.\/src\/lib\/reloot\.mjs'/,
+    'the census rides the import (the runner reads the plan, the v0.484.0 pile verdict, the classifier, the scanner, the census, the surface ladder, the rim dig, the v0.261.0 unarmed verdict AND the v0.648.0 carry shape from the module; the v0.207.0 precedent: the import line grows with the wiring, the intent pin moves with it)')
 })
 
 test('REGRESSION PIN: the re-loot call carries every scalar (the run195 dead-wire class)', () => {
@@ -109,9 +109,11 @@ test('v0.203.0: the death record survives the attempt cycle (the carry-seed)', (
   assert.ok(fleetSrc.includes('seedLastDeath: deathCarry'), 'the seed rides the createMiner call (the fresh attempt inherits the plan)')
   const end = fleetSrc.match(/if \(miner\) \{\n      const prevDeath = miner\.lastDeath\?\.\(\) \?\? null[\s\S]*?\n    \}/)
   assert.ok(end, 'the attempt-end site reads the old miner\'s record')
-  assert.ok(end[0].includes('!prevDeath.attempted'), 'only an UN-attempted record carries (a resolved death stays resolved)')
-  assert.ok(end[0].includes('deathCarry = (prevDeath && !prevDeath.attempted) ? { spot: prevDeath.spot, at: prevDeath.at } : null'),
-    'the carry is honest: no record -> no carry (never a fabricated death)')
+  // (v0.649.0) the carry rides relootCarry - the ONE shape both hops share:
+  // the un-attempted law, the junk battery and the pocket stake live in the
+  // pure function (unit-pinned in reloot.test.mjs), the wiring stays a read.
+  assert.ok(end[0].includes('deathCarry = relootCarry(prevDeath)'),
+    'the carry rides relootCarry (the v0.648.0 shape: spot + clock + pocketU; no record -> no carry, never a fabricated death)')
 })
 
 test('v0.203.0: the miner seeds the record from the carry (guarded read)', () => {
@@ -120,6 +122,9 @@ test('v0.203.0: the miner seeds the record from the carry (guarded read)', () =>
     'a junk seed reads as no-record, never as a walk (the guarded-read law)')
   assert.ok(minerSrc.includes('attempted: !!seedLastDeath.attempted'),
     "the seed CLONES - the old closure's record object is never aliased across instances")
+  // (v0.649.0) the seed keeps the pocket stake too - the v0.484.0 pile arm reads it
+  assert.ok(minerSrc.includes('seedLastDeath.pocketU'),
+    'the seed keeps the stake (the post-rebuild big pile arms as a pile, not as an empty pocket)')
 })
 
 // ---- v0.207.0 THE WET-COLUMN RETRY ----

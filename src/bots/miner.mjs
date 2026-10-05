@@ -345,7 +345,19 @@ export function createMiner ({
   let lastDeath = null
   if (seedLastDeath && Number.isFinite(seedLastDeath.at) && seedLastDeath.spot &&
     Number.isFinite(seedLastDeath.spot.x) && Number.isFinite(seedLastDeath.spot.y) && Number.isFinite(seedLastDeath.spot.z)) {
-    lastDeath = { spot: { x: seedLastDeath.spot.x, y: seedLastDeath.spot.y, z: seedLastDeath.spot.z }, at: seedLastDeath.at, attempted: !!seedLastDeath.attempted }
+    // (v0.649.0) THE DEATH CARRY STAKE: the seed keeps the pocket stake too -
+    // the v0.484.0 pile arm reads lastDeath.pocketU, and a seed that dropped
+    // it armed every post-rebuild big pile as an empty pocket (the silent
+    // class's rebuild face). A junk stake reads null - the pile arm's own
+    // junk law judges it not-bypass, the write-off line says 'unknown'.
+    lastDeath = {
+      spot: { x: seedLastDeath.spot.x, y: seedLastDeath.spot.y, z: seedLastDeath.spot.z },
+      at: seedLastDeath.at,
+      attempted: !!seedLastDeath.attempted,
+      pocketU: Number.isFinite(seedLastDeath.pocketU) && seedLastDeath.pocketU > 0
+        ? Math.floor(seedLastDeath.pocketU)
+        : null
+    }
   }
   // (v0.421.0) THE SEAL WATCH STATE - the death stake the last death erased
   // and the flag that says a respawn read is owed. The seal death ledger

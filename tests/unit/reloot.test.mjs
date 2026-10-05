@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, relootUnarmedVerdict, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
+  relootPlan, relootPileVerdict, relootRetry, relootSurfaceY, relootSurfaceWhy, relootSurfaceRetry, relootCap, relootRimDig, relootUnarmedVerdict, relootCarry, RELOOT_DESPAWN_MS, RELOOT_MAX_DIST, RELOOT_MARGIN_MS, RELOOT_GOAL_RANGE,
   RELOOT_SURFACE_RISE_MAX,
   RELOOT_RETRY_RANGE, RELOOT_RETRY_FLOOR_MS, RELOOT_UNARMED_GRACE_MS
 } from '../../src/lib/reloot.mjs'
@@ -628,4 +628,40 @@ test('v0.484.0: the pile arm raises the floor monotonically (a custom floor neve
   assert.equal(relootPileVerdict({ pileU: 100, floorU: 200 }).bypass, false, 'a higher floor holds')
   assert.equal(relootPileVerdict({ pileU: 200, floorU: 200 }).bypass, true)
   assert.equal(relootPileVerdict({ pileU: 1, floorU: 1 }).bypass, true, 'a lower floor is the caller\u0027s own priced read - the default stays BIG_PILE_U')
+})
+
+// (v0.649.0) THE DEATH CARRY STAKE - the rebuild's seed keeps the stake.
+// Measured face (fleet 37243173708, the v0.645.0 tree, the v0.647.0 lens):
+// 13 death-drop stakes, 1235u at stake, the arm join read armed 1 / SILENT
+// 12 (1216u) - and the F11 anatomy priced the rebuild hop: the carry read
+// `{ spot, at }` and the seed restored `{ spot, at, attempted }`, the POCKET
+// STAKE dropped at BOTH hops (the v0.484.0 pile arm read undefined ->
+// not-bypass - every post-rebuild big pile armed as an empty pocket).
+test('v0.649.0: the carry keeps the un-attempted stake (spot, clock AND pocketU)', () => {
+  const death = { spot: { x: -135, y: 64, z: 397 }, at: 1728100000000, attempted: false, pocketU: 256 }
+  const c = relootCarry(death)
+  assert.deepEqual(c, { spot: { x: -135, y: 64, z: 397 }, at: 1728100000000, pocketU: 256 })
+  // the seed is CLONED - the old closure's object is never aliased (the v0.203.0 law byte)
+  assert.notEqual(c.spot, death.spot)
+  // a fractional stake floors (the unit is a count, never a fraction)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: 19.7 }).pocketU, 19)
+  // a zero stake reads null - 'unknown', never a fabricated 0 (the write-off law)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: 0 }).pocketU, null)
+})
+
+test('v0.649.0: the carry refuses resolved records and invents nothing from junk', () => {
+  // a resolved record stays resolved (the v0.203.0 law - the carry rides NOTHING)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: true, pocketU: 100 }), null)
+  // junk shapes carry null - a junk seed reads as no-record, never as a walk
+  assert.equal(relootCarry(null), null)
+  assert.equal(relootCarry(undefined), null)
+  assert.equal(relootCarry('death'), null)
+  assert.equal(relootCarry({}), null)
+  assert.equal(relootCarry({ spot: null, at: 5, attempted: false }), null)
+  assert.equal(relootCarry({ spot: { x: NaN, y: 2, z: 3 }, at: 5, attempted: false }), null)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 'soon', attempted: false }), null)
+  // a junk stake rides null (honest 'unknown' at the write-off line)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: NaN }).pocketU, null)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false, pocketU: -5 }).pocketU, null)
+  assert.equal(relootCarry({ spot: { x: 1, y: 2, z: 3 }, at: 5, attempted: false }).pocketU, null)
 })
