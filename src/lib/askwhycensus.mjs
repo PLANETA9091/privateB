@@ -80,6 +80,35 @@ export function decideSkin (why) {
   return 'unnamed'
 }
 
+// (v0.655.0) THE DECIDE'S OWN SIDES - the skin split rides TWO ask ladders
+// (fuel commons and food commons) and the sides' anatomy is NOT the same:
+// the v0.651.0 face (fleet 37251959440) read the fuel asks failing ALL
+// after-the-nudge (17/17 - the post-nudge direct walk decides-fails INSIDE
+// the fuel ladder's three-leg rescue: the nudge, the last-mile raw hop, the
+// re-segment) while the food asks failed ALL on the FIRST walk (9/9 - the
+// food ladder owns NO rescue at all, the exclude-and-move-on is its whole
+// law). The next lever is the food ladder's own rescue seat - and it prices
+// from the per-side split: WHICH side owns WHICH skin and HOW MUCH dry, per
+// face (a food-side decide-budget mass prices a re-decide rescue; a food-side
+// no-path mass prices the exclude as already-honest). The census grows the
+// side fields ADDITIVELY (the existing rows stay byte-stable): sides +
+// dryBySide, each {fuel: ZERO_SKINS, food: ZERO_SKINS}. The side fields are
+// a pure SLICE of the existing decide pricing - the why's own side names the
+// row ('the last refusal wins' keeps its side, the dry rides the same row as
+// the why that priced it - the conservation holds: sum(dryBySide decide
+// skins) == dryByWhy.decide when every why names its side). A line the verb
+// cannot name prices nothing (the junk never invents, the v0.203.0 law).
+export const ASK_SIDES = ['fuel', 'food']
+
+const ZERO_SIDES = () => ({ fuel: ZERO_SKINS(), food: ZERO_SKINS() })
+
+/** Which ask side owns this line (junk / non-ask -> null - nothing prices). */
+export function askSide (raw) {
+  if (typeof raw !== 'string') return null
+  const m = /^F\d+ (fuel|food) commons:/.exec(raw)
+  return m ? m[1] : null
+}
+
 const ZERO_CLASSES = () => ({ ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 })
 
 /** Which class owns this why string (junk / unknown -> 'unnamed'). */
@@ -96,11 +125,11 @@ export function askWhyClass (why) {
  * string - junk-safe: non-strings judge nothing).
  *
  * @param {string|string[]|null} lines
- * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}}}
+ * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, decide: number, timeout: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}, sides: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}, dryBySide: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}}
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)
-  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS() }
+  const out = { terminals: 0, unitsDry: 0, whys: ZERO_CLASSES(), dryByWhy: ZERO_CLASSES(), decideSkins: ZERO_SKINS(), dryBySkin: ZERO_SKINS(), sides: ZERO_SIDES(), dryBySide: ZERO_SIDES() }
   if (!list) return out
   // per-bot pending whys since the bot's last terminal (the bot tag is the
   // join key - the cross-bot law: F5's whys never price F9's terminal)
@@ -116,9 +145,12 @@ export function askWhyCensus (lines) {
       // same why line, the owner class never changes (the additive law)
       const skin = klass === 'decide' ? decideSkin(whyM[1]) : null
       if (skin !== null) out.decideSkins[skin] += 1
+      // (v0.655.0) the why's own side names the side row - the pure slice
+      const side = askSide(raw)
+      if (skin !== null && side !== null) out.sides[side][skin] += 1
       const arr = pending.get(bot)
-      if (arr) arr.push({ klass, skin })
-      else pending.set(bot, [{ klass, skin }])
+      if (arr) arr.push({ klass, skin, side })
+      else pending.set(bot, [{ klass, skin, side }])
       continue
     }
     const termM = ASK_TERMINAL_RE.exec(raw)
@@ -136,6 +168,9 @@ export function askWhyCensus (lines) {
         // (v0.653.0) the dry prices the skin when the last why was a decide -
         // the geometry seat and the budget seat own their units by name
         if (last.klass === 'decide' && last.skin !== null) out.dryBySkin[last.skin] += dry
+        // (v0.655.0) the dry rides the why's own side - the same slice, the
+        // conservation holds (the why that priced it names the row)
+        if (last.klass === 'decide' && last.skin !== null && last.side !== null) out.dryBySide[last.side][last.skin] += dry
       }
       pending.set(bot, [])
     }

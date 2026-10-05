@@ -1041,6 +1041,16 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
   const skinBits = Object.entries(aw.decideSkins).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
   const skinDryBits = Object.entries(aw.dryBySkin).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
   console.log(`  ask why census (decide skins): ${skinBits.length ? skinBits.join(', ') : 'no decide whys'} (dry: ${skinDryBits.length ? skinDryBits.join(', ') : 'none priced'})`)
+  // (v0.655.0) THE DECIDE'S OWN SIDES - the skins' side split: the fuel ladder
+  // owns the three-leg rescue, the food ladder owns none - the food rescue
+  // seat prices from this row (which side owns which skin and how much dry)
+  const sideBits = []
+  for (const s of (aw.sides ? ['fuel', 'food'] : [])) {
+    const b = Object.entries(aw.sides[s]).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
+    const dB = Object.entries(aw.dryBySide[s]).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
+    if (b.length || dB.length) sideBits.push(`${s}: ${b.length ? b.join(', ') : 'no decide whys'}${dB.length ? ` (${dB.join(', ')})` : ''}`)
+  }
+  console.log(`  ask why census (decide skins by side): ${sideBits.length ? sideBits.join(' | ') : 'no decide whys'}`)
 }
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))

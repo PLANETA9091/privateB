@@ -5,7 +5,7 @@
 // riding NO census anywhere in the mining surface.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { askWhyCensus, askWhyClass, decideSkin, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES } from '../../src/lib/askwhycensus.mjs'
+import { askWhyCensus, askWhyClass, decideSkin, askSide, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES, DECIDE_SKIN_CLASSES, ASK_SIDES } from '../../src/lib/askwhycensus.mjs'
 
 test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
   // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
@@ -110,7 +110,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } } })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -177,4 +177,66 @@ test("THE DECIDE'S OWN SKINS: the decide class is two anatomies with opposite cu
   // a terminal with no why prices nothing (the v0.652.0 law rides unchanged)
   const silent = askWhyCensus(['F2 fuel commons: budget spent (0/6 units)'])
   assert.deepEqual(silent.dryBySkin, { noPath: 0, decideBudget: 0, unnamed: 0 })
+})
+
+test("THE DECIDE'S OWN SIDES: the skins ride two ladders with different anatomies (the v0.651.0 face's own side split)", () => {
+  // the side laws: the verb names the row, junk names nothing
+  assert.equal(askSide('F5 fuel commons: chest walk failed (No path to the goal!)'), 'fuel')
+  assert.equal(askSide('F11 food commons: budget spent (0/4 units)'), 'food')
+  assert.equal(askSide('F9 iron commune: chest walk failed (No path to the goal!)'), null, 'a non-ask ladder never wears a side')
+  assert.equal(askSide('not a line'), null)
+  assert.equal(askSide(''), null)
+  assert.equal(askSide(null), null)
+  assert.equal(askSide(42), null)
+  assert.deepEqual(ASK_SIDES, ['fuel', 'food'], 'the side order is part of the law')
+
+  // the v0.651.0 face byte-exact side split: fuel no-path x11 / decide-budget
+  // x6, food no-path x3 / decide-budget x6 (fuel ALL after-the-nudge 17/17,
+  // food ALL first-walk 9/9)
+  const face = []
+  for (let i = 0; i < 11; i++) face.push(`F${1 + (i % 3)} fuel commons: chest walk failed after the nudge (No path to the goal!)`)
+  for (let i = 0; i < 6; i++) face.push(`F${4 + (i % 3)} fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)`)
+  for (let i = 0; i < 3; i++) face.push(`F${7 + (i % 2)} food commons: chest walk failed (No path to the goal!)`)
+  for (let i = 0; i < 6; i++) face.push(`F9 food commons: chest walk failed (Took to long to decide path to goal!)`)
+  const c = askWhyCensus(face)
+  assert.deepEqual(c.sides.fuel, { noPath: 11, decideBudget: 6, unnamed: 0 }, 'the fuel side owns the post-nudge geometry mass')
+  assert.deepEqual(c.sides.food, { noPath: 3, decideBudget: 6, unnamed: 0 }, 'the food side owns the first-walk budget mass')
+  assert.equal(c.sides.fuel.noPath + c.sides.fuel.decideBudget + c.sides.food.noPath + c.sides.food.decideBudget, 26, 'the side slice conserves the decide mass')
+
+  // the dry rides the why's own side (the conservation: the side slice of the
+  // decide pricing)
+  const geo = askWhyCensus([
+    'F5 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F5 fuel commons: budget spent (1/4 units)'
+  ])
+  assert.equal(geo.dryBySide.fuel.noPath, 3)
+  assert.equal(geo.dryBySide.food.noPath, 0)
+  const bud = askWhyCensus([
+    'F6 food commons: chest walk failed (Took to long to decide path to goal!)',
+    'F6 food commons: budget spent (0/2 units)'
+  ])
+  assert.equal(bud.dryBySide.food.decideBudget, 2, 'the food budget seat owns its dry by name')
+  // the cross-SIDE law: F5's fuel why never prices F9's food terminal
+  const cross = askWhyCensus([
+    'F5 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F9 food commons: budget spent (0/7 units)'
+  ])
+  assert.equal(cross.dryByWhy.decide, 0, 'the cross-bot law covers the cross-side case too (different bots)')
+  assert.deepEqual(cross.dryBySide, { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } })
+  // the same bot's cross-side join: the why's own side names the dry row
+  // (the pure-slice law - 'the last refusal wins' keeps its side)
+  const samebot = askWhyCensus([
+    'F5 fuel commons: chest walk failed (Took to long to decide path to goal!)',
+    'F5 food commons: budget spent (0/5 units)'
+  ])
+  assert.equal(samebot.dryByWhy.decide, 5, 'the per-bot join law rides unchanged (the v0.652.0 convention)')
+  assert.equal(samebot.dryBySide.fuel.decideBudget, 5, 'the dry rides the WHY\'s side - the slice stays pure')
+  assert.equal(samebot.dryBySide.food.decideBudget, 0)
+  // a non-decide why never prices a side row
+  const wet = askWhyCensus([
+    'F8 fuel commons: chest walk failed (water rescue in progress)',
+    'F8 fuel commons: budget spent (0/3 units)'
+  ])
+  assert.deepEqual(wet.sides.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
+  assert.deepEqual(wet.dryBySide.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
 })
