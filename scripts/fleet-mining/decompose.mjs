@@ -26,7 +26,8 @@ import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the 
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
-import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join
+import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
+import { RELOOT_DESPAWN_MS } from '../../src/lib/reloot.mjs' // (v0.663.0) the despawn one-truth - the arm-lag row's own inversion base
 import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePersistence } from '../../src/lib/upgradecensus.mjs' // (v0.465.0) the tool ladder's own harvest - the rung's delivered tools counted; (v0.467.0) the defer promise's order-aware join; (v0.468.0) the verdict census - the counter-vs-words window named; (v0.470.0) the verdict spread - the worn class's per-bot spread; (v0.471.0) the promise persistence - the kept bots' cross-face fate
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { mainFreezeCensus } from '../../src/lib/mainfreeze.mjs' // (v0.661.0) THE MAIN FREEZE'S OWN ROW - the blackbox dump's own census (the ring's last named activity reads at last)
@@ -939,6 +940,25 @@ if (shooter.total > 0) {
     const silent = dc.silent.bots.map((b) => `${b}`).join('+') || '-'
     console.log(`  arm join: armed ${dc.armed.n} (${dc.armed.u}u: ${armed}) / SILENT ${dc.silent.n} (${dc.silent.u}u: ${silent})${dc.silent.u > 0 ? ' - THE SILENT CLASS: the recovery never spoke for these stakes' : ''}`)
     if (dc.silent.n > 0) console.log(`  the silent stakes' bots heaviest-first: ${dc.silent.bots.join(' ')} - the wiring read needs its own face priced by this lens first`)
+    // (v0.663.0) THE SILENT STAKE'S OWN CLOCK - the arm's lag vs the face's
+    // tail. The arm lag reads the WALK row's own window field (the bot's
+    // own plan arithmetic - despawn minus window = the minutes the
+    // respawned bot's bootstrap and the loop's serialization price before
+    // the walk arms). The silent split rides the seal death clock's
+    // end-phase law: pre-tail = the read had the window and never spoke
+    // (the wiring seat); end-phase = the bank's loop outlived the read.
+    // Non-zero only (the mining-surface law): a face with no walks prints
+    // no lag row, a face with no silent stakes prints no split row.
+    if (dc.clock.armLag.n > 0) {
+      console.log(`  arm lag (v0.663.0: the walk's own window read, the ${Math.round(RELOOT_DESPAWN_MS / 1000)}s despawn inverted): n=${dc.clock.armLag.n}, median ${dc.clock.armLag.medianS}s, max ${dc.clock.armLag.maxS}s - the respawned bot's bootstrap prices the wait before the walk arms`)
+    }
+    const sp = dc.clock.silent
+    if (sp.preTail.n > 0 || sp.endPhase.n > 0) {
+      const preNote = `pre-tail x${sp.preTail.n} stake(s) ${sp.preTail.u}u${sp.preTail.bots.length ? ` (${sp.preTail.bots.join(' ')}) - the read had the window and never spoke (the wiring seat)` : ''}`
+      const epNote = `end-phase x${sp.endPhase.n} stake(s) ${sp.endPhase.u}u${sp.endPhase.bots.length ? ` (${sp.endPhase.bots.join(' ')}) - the bank's loop outlived the read` : ''}`
+      const untimedNote = sp.untimed > 0 ? ` / untimed ${sp.untimed} (pre-first-hb)` : ''
+      console.log(`  silent clock (v0.663.0): ${preNote} / ${epNote}${untimedNote}`)
+    }
   }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first
