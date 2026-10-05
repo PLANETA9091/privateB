@@ -16895,3 +16895,24 @@ Work Log:
 Stage Summary:
 - v0.670.0 THE SMOKE WATER GUARD landed; CI 37389934503 in flight on 04ad4b7.
 - Next fire: (1) poll CI 37389934503 - if Integration green, the fix is field-proven; if smoke hangs again, pull the job log and iterate. (2) dispatch the 13th flight on the green sha (law x19). (3) mine nothing new unless a face lands (the 12th's failure left no fleet log - failure was pre-fleet).
+
+---
+Task ID: fire-0739
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0739 - continue privateB to 100% (root-cause the 12th flight's smoke-gate death; cross-verify the lane's fix; dispatch law x19)
+
+Work Log:
+- SANDBOX DIED (3rd in the arc) - recovery protocol: fresh clone + identity re-pinned local+global + master fetched to the lane's overnight stack (593f97d, then 04ad4b7 + 99a4d84).
+- THE 12TH FLIGHT'S DEATH ROOT-CAUSED (independent, from the raw CI log of 37386244195): NOT friendly fire, NOT a cancel - a REAL smoke-gate hang. Job timeline: login ok 4.7s, chunk scan ok, 3 sands dug (attempts 12s apart - slow server ticks), pickup 1x sand, "place -> (-136, 62, 393): water" at 41.2s, then silence to "FAIL: overall timeout (180s)". MECHANISM: the place-back target was the FIRST dug hole; ~30s of slow ticks let the neighbouring sea RECLAIM the hole; the old selector never read the hole's own content (only the floor below), and the dig-back guard (`name !== 'air'`) then called bot.dig() ON THE WATER - fluids have no break progress, the dig promise never resolves, the script spun to the 180s timeout. Unit x2 green; Big fleet leg SKIPPED - the 12th flight never flew.
+- THE CONVERGENCE: the lane's fire-0730 (04ad4b7, v0.670.0 THE SMOKE WATER GUARD) diagnosed the SAME mechanism from the SAME log while this fire was reading it - two independent reads, same root, same guard shape. The same sha 02df300 had passed Integration 17 min earlier (push-CI 37384537597 SUCCESS) - a flake class, not a regression (the lane's verdict CONFIRMED).
+- CROSS-VERIFIED the lane's fix (src/lib/smokespot.mjs + tests/unit/smokespot.test.mjs + smoke.mjs rewiring): the pure pickSmokeSpot lens - the hole path REQUIRES the hole cell still empty (a watered hole is refused, the neighbour scan takes over); the scan requires an empty cell over a solid non-fluid floor (floorOk excludes 'empty' AND 'fluid' - safe under either lib semantic); diggableBack = boundingBox === 'block' ONLY. Wiring verified at source level: import (line 12), selector (line 199), the dig-back guard (line 210). Residual dig sites audited: canopy-eat digs leaves (solid), the 3-attempt target digs HAND_DIGGABLE only (sand does not wash out under water). Syntax x3 clean locally (node --check). VERDICT: CONFIRMED - the hang path is closed; the water race can cost a WARN, never the hang.
+- MINOR OBSERVATION (no code, candidate for the next fire): the placement-not-confirmed WARN catches air/null but NOT a fluid answer - a place washed out between waitForTicks and blockAt slips silently (no hang, cosmetics only).
+- FIELD VALIDATION WATCHED LIVE at step level: gate 37389934503 on 04ad4b7 - Unit x2 SUCCESS (271/271 incl. the 6 new smokespot field tests), Integration's "Smoke test (login, chunks, dig, place)" step SUCCESS in the SAME-WATER world that killed the 12th flight.
+- DISPATCH (law x19): poll-before-duplicate x2 (queue: only the two push gates 37389934503 + 37390252055, no fleet in flight) -> POST 204 -> face 37390912359 id-verified IN_PROGRESS on 99a4d84 at 23:52:07Z. THE 12TH FLIGHT'S ATTEMPT 2 airborne - on the guarded tree (v0.670.0). t+~60s: Unit x2 + Integration all in_progress (the standard early face shape).
+- NO code change (stays 0.670.0 - the fix is the lane's 04ad4b7; next free 0.671.0). No conflicts: pull-rebase clean.
+
+Stage Summary:
+- Face 37390912359 IN FLIGHT at log-off (12th flight attempt 2, on the guarded tree) - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (does the mob storm repeat on 99a4d84, the floor x12, the reloot-lane gap check, bank absorption recovery, sand window 3rd, rescue orphan class, arm lag's return).
+- The smoke water guard is field-validated (same-water world); the flake class that killed the 12th flight pre-fleet is closed. Attempt-1's artifact 11379271131 (1134 bytes - server log tail only) preserved in the ledger.
+- The identity protocol held: author field verified after this commit. The dispatch-first law HELD x19 (dispatch, verify id, THEN write).
+- Version 0.670.0 (the lane's smoke guard). 0.671.0 next free - candidates: the fluid-answer WARN gap, the reloot walk lane (the lane's seat), trip retarget.
