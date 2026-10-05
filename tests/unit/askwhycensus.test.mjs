@@ -1,0 +1,131 @@
+// THE ASK'S OWN WHY BOOK - the census's own tests (v0.652.0).
+// The face that prices the shape: fleet 37249185472 (the v0.650.0 face, the
+// water storm) - 36 dry 'budget spent' terminals, the ask ladder's whys
+// (the decide class, the fleet goal ceiling, the water rescue interlock)
+// riding NO census anywhere in the mining surface.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { askWhyCensus, askWhyClass, ASK_TERMINAL_RE, ASK_WHY_RE, ASK_WHY_CLASSES } from '../../src/lib/askwhycensus.mjs'
+
+test('THE ASK WHY CENSUS: the storm face re-priced byte-exact (the decide, the ceiling, the water, the dry terminals)', () => {
+  // the v0.650.0 face's own shapes, verbatim (the tags, the parens, the prose)
+  const lines = [
+    'F5 fuel commons: chest walk failed (Took to long to decide path to goal!)',
+    'F5 fuel commons: path nudge inside the direct envelope',
+    'F5 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F5 fuel commons: budget spent (0/1 units)',
+    'F9 fuel commons: chest walk failed after the nudge (fleet goal ceiling: 30 goals fleet-wide in 5s - fuel commons walk @-130,394 (nudge retry) refused for 4s)',
+    'F9 fuel commons: the last mile refused (raw walk timeout after 6973ms (d=19.0))',
+    'F9 fuel commons: budget spent (0/1 units)',
+    'F11 food commons: chest walk failed (water rescue in progress (food commons walk @-128,394 refused))',
+    'F11 food commons: the plate stays empty (no chest reached) - the next trip retries',
+    'F1 fuel commons: budget spent (0/1 units)'
+  ]
+  const c = askWhyCensus(lines)
+  assert.equal(c.terminals, 3, 'three budget terminals closed (F5, F9, F1; F11 never closed one)')
+  assert.equal(c.unitsDry, 3, 'each terminal read 1 unit dry (0 of 1)')
+  assert.equal(c.whys.decide, 2, 'F5 rode the decide class twice (the first goto + the post-nudge)')
+  assert.equal(c.whys.ceiling, 1, 'F9 rode the ceiling class (the re-goto the fleet goal ceiling refused)')
+  assert.equal(c.whys.water, 1, 'F11 rode the water interlock (the food commons walk refused mid-rescue)')
+  assert.equal(c.whys.timeout, 0, 'the last mile\'s raw-walk timeout is NOT a chest-walk-failed why (a different line family)')
+  assert.equal(c.whys.unnamed, 0, 'the face\'s whys all named their class - no unnamed grain')
+  assert.equal(c.dryByWhy.decide, 1, 'F5\'s terminal prices the decide class (the last refusal wins)')
+  assert.equal(c.dryByWhy.ceiling, 1, 'F9\'s terminal prices the ceiling class')
+  assert.equal(c.dryByWhy.water, 0, 'F11 never closed a terminal - the water why prices nothing (the interlock is not the terminal)')
+})
+
+test('THE ASK WHY CENSUS: the goal brake rides the ceiling family (the v0.650.0 face\'s own skin pair)', () => {
+  // the face's own lines: F13's food commons walks rode the per-burst goal
+  // brake x3 while F9's re-goto rode the fleet goal ceiling - siblings of
+  // the same jobqueue throttle (the codebase names the family the goal
+  // brake), one class owns both skins.
+  const c = askWhyCensus([
+    'F13 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-130,394 refused for 16s)',
+    'F13 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-129,394 refused for 16s)',
+    'F13 food commons: chest walk failed (goal brake: 6 goals in 5s - food commons walk @-128,394 refused for 16s)',
+    'F13 food commons: budget spent (0/1 units)'
+  ])
+  assert.equal(c.whys.ceiling, 3, 'all three brake skins ride the ceiling class')
+  assert.equal(c.whys.unnamed, 0)
+  assert.equal(c.dryByWhy.ceiling, 1, 'the terminal prices the ceiling family')
+})
+
+test('THE ASK WHY CENSUS: the last refusal wins (the multi-why ladder prices the terminal)', () => {
+  const lines = [
+    'F2 fuel commons: chest walk failed (No path to the goal!)',
+    'F2 fuel commons: chest walk failed (fleet goal ceiling: 30 goals fleet-wide in 5s - refused for 2s)',
+    'F2 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F2 fuel commons: budget spent (3/8 units)'
+  ]
+  const c = askWhyCensus(lines)
+  assert.equal(c.terminals, 1)
+  assert.equal(c.unitsDry, 5, 'the partial delivery reads 5 units dry (8 wanted, 3 taken)')
+  assert.equal(c.whys.decide, 2, 'both decide whys count (the first goto + the post-nudge)')
+  assert.equal(c.whys.ceiling, 1)
+  assert.equal(c.dryByWhy.decide, 5, 'the LAST why before the terminal owns the dry units')
+  assert.equal(c.dryByWhy.ceiling, 0, 'the earlier whys stay counted but price nothing')
+})
+
+test('THE ASK WHY CENSUS: the cross-bot law (F5\'s whys never price F9\'s terminal)', () => {
+  const lines = [
+    'F5 fuel commons: chest walk failed (Took to long to decide path to goal!)',
+    'F9 fuel commons: budget spent (0/2 units)',
+    'F5 fuel commons: budget spent (0/2 units)'
+  ]
+  const c = askWhyCensus(lines)
+  assert.equal(c.terminals, 2)
+  assert.equal(c.unitsDry, 4)
+  assert.equal(c.dryByWhy.decide, 2, 'only F5\'s own terminal prices F5\'s why')
+  assert.equal(c.whys.decide, 1)
+})
+
+test('THE ASK WHY CENSUS: the terminal with no why prices nothing (missing evidence is not a class)', () => {
+  const c = askWhyCensus(['F1 fuel commons: budget spent (0/4 units)'])
+  assert.equal(c.terminals, 1)
+  assert.equal(c.unitsDry, 4)
+  assert.equal(c.dryByWhy.decide + c.dryByWhy.ceiling + c.dryByWhy.water + c.dryByWhy.timeout + c.dryByWhy.unnamed, 0, 'no why, no class - the junk never invents (the v0.203.0 law)')
+})
+
+test('THE ASK WHY CENSUS: the unnamed bucket keeps the grain lossless (an unclassed why never vanishes)', () => {
+  const lines = [
+    'F7 fuel commons: chest walk failed (something novel the taxonomy never met)',
+    'F7 fuel commons: budget spent (0/1 units)'
+  ]
+  const c = askWhyCensus(lines)
+  assert.equal(c.whys.unnamed, 1, 'the novel why rides the unnamed bucket (the v0.583.0 law)')
+  assert.equal(c.dryByWhy.unnamed, 1, 'the unnamed why still prices the terminal it owns')
+})
+
+test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can name a timeout inside itself)', () => {
+  assert.equal(askWhyClass('fleet goal ceiling: 30 goals fleet-wide in 5s - fuel commons walk (nudge retry) refused for 4s'), 'ceiling', 'the ceiling IS the front even when the prose carries the walk\'s own refusal')
+  assert.equal(askWhyClass('goal brake: 6 goals in 5s - food commons walk @-130,394 refused for 16s'), 'ceiling', 'the per-burst goal brake is the ceiling family\'s second skin (the jobqueue\'s own throttle pair)')
+  assert.equal(askWhyClass('water rescue in progress (food commons walk @-128,394 refused)'), 'water', 'the water interlock IS the front even when the prose names a walk')
+  assert.equal(askWhyClass('Took to long to decide path to goal!'), 'decide')
+  assert.equal(askWhyClass('No path to the goal!'), 'decide')
+  assert.equal(askWhyClass('fuel commons walk @-1,394: timeout after 3000ms'), 'timeout', 'the goto timeout that is NOT the decide class rides the timeout bucket')
+  assert.equal(askWhyClass(''), 'unnamed')
+  assert.equal(askWhyClass(null), 'unnamed')
+  assert.equal(askWhyClass(42), 'unnamed')
+})
+
+test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
+  // the junk-safe law: non-strings judge nothing, junk shapes never match
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, decide: 0, timeout: 0, unnamed: 0 } })
+  assert.deepEqual(askWhyCensus(undefined).terminals, 0)
+  assert.deepEqual(askWhyCensus(42).terminals, 0)
+  assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
+  assert.equal(askWhyCensus(['F5 fuel commons: budget spent (junk)']).terminals, 0, 'a malformed terminal never counts')
+  assert.equal(askWhyCensus(['F5 fuel commons: budget spent (2/1 units)']).unitsDry, 0, 'took > want is junk - no negative dry (the Number(null) lesson)')
+  assert.equal(askWhyCensus(['F5 fuel commons: chest walk failed ()']).whys.unnamed, 0, 'the empty parens are a MALFORMED line - junk never matches (the junk-safe law), it never counts as a why')
+})
+
+test('THE ASK WHY CENSUS: the regexes ride the emitter\'s own shapes (the anchoring law)', () => {
+  assert.ok(ASK_TERMINAL_RE.test('F9 fuel commons: budget spent (0/1 units)'))
+  assert.ok(ASK_TERMINAL_RE.test('F11 food commons: budget spent (0/4 units)'), 'the food commons rides the same terminal shape')
+  assert.ok(!ASK_TERMINAL_RE.test('F9 fuel commons: budget spent (0/1 units) plus noise'), 'the anchor holds - a suffixed line is not the terminal')
+  assert.ok(ASK_WHY_RE.test('F5 fuel commons: chest walk failed (Took to long to decide path to goal!)'))
+  assert.ok(ASK_WHY_RE.test('F5 fuel commons: chest walk failed after the nudge (No path to the goal!)'), 'the post-nudge skin rides the same why')
+  assert.ok(!ASK_WHY_RE.test('F5 fuel commons: the last mile refused (raw walk timeout after 6973ms (d=19.0))'), 'the raw hop\'s refusal is NOT a chest-walk-failed why')
+  assert.ok(!ASK_WHY_RE.test('F11 food commons: chest walk failed after the nudge (water rescue in progress) and more'), 'the anchor holds')
+  assert.equal(ASK_WHY_CLASSES[0].key, 'ceiling', 'the class order is part of the law - the ceiling reads first')
+})

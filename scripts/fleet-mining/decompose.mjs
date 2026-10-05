@@ -2,6 +2,7 @@
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
+import { askWhyCensus } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat)
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
@@ -1023,6 +1024,18 @@ console.log('  craft success lines:', count(/batch\(es\)/))
 console.log('  per-bot craft batches:', fmt(perBot(/batch\(es\)/)))
 console.log('  smelt lines:', count(/smelt/i))
 console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fuel commons/), ' fuelbank:', count(/fuelbank|bank fuel/i))
+// (v0.652.0) THE ASK'S OWN WHY BOOK: the dry 'budget spent' terminals priced
+// by name - the decide class, the fleet goal ceiling, the water interlock -
+// the delivery side's why-book law at the ask ladder's own seat (face
+// 37249185472 read 36 dry terminals with no why census anywhere; the next
+// face names the front before any blind code change prices itself).
+{
+  const aw = askWhyCensus(lines)
+  const whyBits = Object.entries(aw.whys).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
+  const dryBits = Object.entries(aw.dryByWhy).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
+  console.log(`  ask why census: ${aw.terminals} dry terminal(s), ${aw.unitsDry}u un-taken - whys: ${whyBits.length ? whyBits.join(', ') : 'none'}`)
+  console.log(`  ask why census (dry by last why): ${dryBits.length ? dryBits.join(', ') : 'none priced'}`)
+}
 console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))
 
