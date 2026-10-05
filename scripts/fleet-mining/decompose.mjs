@@ -24,6 +24,7 @@ import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the ve
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
 import { smeltLedger } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals
+import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
 import { tierDeferCensus } from '../../src/lib/tierdefer.mjs' // (v0.463.0) the tool ladder's own voice - the steer's deferred names counted
 import { deathGrounds, DEATH_GROUND_RADIUS } from '../../src/lib/deathground.mjs' // (v0.464.0) the combat deaths' spatial join - the mob-cure's WHERE input
 import { deathDropCensus } from '../../src/lib/deathdropcensus.mjs' // (v0.647.0) the death-drop stakes' own census - the silent-arm join; (v0.663.0) the stakes' own clock rides the same shape
@@ -1832,6 +1833,27 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const counterBit = mbJoin ? ` vs the counter's smelted +${mbJoin.smelted}u` : ''
       console.log(`  smelt harvest (v0.462.0): took ${sl.collected}u/${sl.tooks} line(s)${collectedBits ? ` (${collectedBits})` : ''}${counterBit}`)
     }
+  }
+  // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the machine's diet counted.
+  // smeltLedger reads the intent side ('smelting N x ...'), smeltVerdict
+  // grades the yield - and the lane's own slot read-back (the v0.92.0
+  // truth line) plus its no-walk opener had zero readers (the fire-1500
+  // gap survey: 24 + 17 rows on face 37271081497). The pairing prints
+  // whole - which smelt burns which fuel is the row's answer, never the
+  // census's judgment. Zero opens and zero puts read nothing honestly.
+  const fp = furnacePut(lines)
+  if (fp && (fp.totals.opens > 0 || fp.totals.puts > 0)) {
+    const parts = []
+    if (fp.totals.opens) parts.push(`opens ${fp.totals.opens} (furnace ${fp.totals.opensFurnace} / blast_furnace ${fp.totals.opensBlast})`)
+    if (fp.totals.puts) {
+      const pairBits = Object.entries(fp.totals.pairs).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} x${n}`).join(', ')
+      let bit = `puts ${fp.totals.puts}`
+      if (pairBits) bit += ` (${pairBits})`
+      if (fp.totals.pocketKeeps) bit += ` - pocket keeps ${fp.totals.pocketKept}u x${fp.totals.pocketKeeps}`
+      if (fp.totals.emptyInputs || fp.totals.emptyFuels) bit += `, empty slots ${fp.totals.emptyInputs + fp.totals.emptyFuels}`
+      parts.push(bit)
+    }
+    console.log(`  furnace put (v0.664.0): ${parts.join(' | ')}`)
   }
   // (v0.463.0) THE TIER DEFER CENSUS - the tool ladder's own voice
   // counted. The v0.252.0 steer prints one verdict line per NEW deferred
