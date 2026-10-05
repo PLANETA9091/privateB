@@ -24,11 +24,34 @@
 // next face prices the ask storm by name - the decide class, the ceiling
 // class, the water interlock - and the next lever prices from DATA.
 
+// (v0.659.0) THE IRON LADDER'S OWN JOIN - the ask census's own scope grows the
+// third ask ladder. THE EVIDENCE (fleet 37258915708, the v0.656.0 face, the
+// calm-ish one - the same face whose write-off whys row read the climb's first
+// wall as the strand's owner, stalled-s0 295u of 565u): the ask side's own
+// read found the IRON LADDER BLIND - 'F16 iron commune: chest walk failed
+// (iron commune walk @-128,387: timeout after 14967ms)' and its four siblings
+// (4 timeout whys + 1 decide why) plus 2 'budget spent (0/3 units)' terminals
+// (6u dry) rode NO census - the census's own RE covered the fuel|food commons
+// pair only, and the iron commune ladder speaks the SAME vocabulary (the same
+// chest-walk-failed line, the same budget-spent terminal, the same decide
+// grain). THE FACE'S OWN ANATOMY: 3 of the 4 iron timeouts name ONE chest
+// (@-128,387 - F16 14967ms, F1 726ms, F18 1724ms; F19's 890ms names
+// @-129,387) - and the SAME chest @-128,387 refused the food ladder too (F16
+// food commons walk @-128,387: timeout after 9306ms): ONE CHEST, THREE
+// LADDERS REFUSED - a multi-ladder wall priced nowhere until this join. THE
+// LAWS: the class regexes are ladder-agnostic (the timeout is the timeout,
+// the decide is the decide - the iron whys ride the SAME classes); the sides
+// slice grows 'iron' so the conservation law holds over the WHOLE ask mass
+// (sum(dryBySide decide skins) == dryByWhy.decide - every ask why now names
+// its side); the fuel/food rows keep their order and counts byte-stable, the
+// iron segment prints itself only when the iron mass is non-zero (the
+// additive law, the v0.656.0 Object.entries precedent).
+
 /** The ask's dry terminal: 'F9 fuel commons: budget spent (0/4 units)'. */
-export const ASK_TERMINAL_RE = /^F\d+ (?:fuel|food) commons: budget spent \((\d+)\/(\d+) units\)$/
+export const ASK_TERMINAL_RE = /^F\d+ (?:(?:fuel|food) commons|iron commune): budget spent \((\d+)\/(\d+) units\)$/
 
 /** The ask ladder's walk-failure line: the first goto, the post-nudge retry. */
-export const ASK_WHY_RE = /^F\d+ (?:fuel|food) commons: chest walk failed(?: after the nudge)? \((.+)\)$/
+export const ASK_WHY_RE = /^F\d+ (?:(?:fuel|food) commons|iron commune): chest walk failed(?: after the nudge)? \((.+)\)$/
 
 // (v0.656.0) THE GOVERNOR'S OWN CLASS - the unnamed bucket's grain priced by
 // name. THE EVIDENCE (fleet 37254403895, the v0.653.0 face, the mob storm):
@@ -124,15 +147,19 @@ export function decideSkin (why) {
 // the why that priced it - the conservation holds: sum(dryBySide decide
 // skins) == dryByWhy.decide when every why names its side). A line the verb
 // cannot name prices nothing (the junk never invents, the v0.203.0 law).
-export const ASK_SIDES = ['fuel', 'food']
+// (v0.659.0) the iron commune is the THIRD ask side - the same ladder family,
+// the same vocabulary, its own wall (the conservation law's own scope: every
+// ask why names its side)
+export const ASK_SIDES = ['fuel', 'food', 'iron']
 
-const ZERO_SIDES = () => ({ fuel: ZERO_SKINS(), food: ZERO_SKINS() })
+const ZERO_SIDES = () => ({ fuel: ZERO_SKINS(), food: ZERO_SKINS(), iron: ZERO_SKINS() })
 
 /** Which ask side owns this line (junk / non-ask -> null - nothing prices). */
 export function askSide (raw) {
   if (typeof raw !== 'string') return null
-  const m = /^F\d+ (fuel|food) commons:/.exec(raw)
-  return m ? m[1] : null
+  const m = /^F\d+ (fuel commons|food commons|iron commune):/.exec(raw)
+  if (!m) return null
+  return m[1] === 'iron commune' ? 'iron' : m[1].replace(' commons', '')
 }
 
 // (v0.658.0) THE GOVERNOR'S OWN RUNS - the churn governor's refusal anatomy:
@@ -182,7 +209,7 @@ export function askWhyClass (why) {
  * string - junk-safe: non-strings judge nothing).
  *
  * @param {string|string[]|null} lines
- * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}, sides: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}, dryBySide: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}}}
+ * @returns {{terminals: number, unitsDry: number, whys: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, dryByWhy: {ceiling: number, water: number, governor: number, decide: number, timeout: number, goalChanged: number, unnamed: number}, decideSkins: {noPath: number, decideBudget: number, unnamed: number}, dryBySkin: {noPath: number, decideBudget: number, unnamed: number}, sides: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}, iron: {noPath: number, decideBudget: number, unnamed: number}}, dryBySide: {fuel: {noPath: number, decideBudget: number, unnamed: number}, food: {noPath: number, decideBudget: number, unnamed: number}, iron: {noPath: number, decideBudget: number, unnamed: number}}}
  */
 export function askWhyCensus (lines) {
   const list = Array.isArray(lines) ? lines : (typeof lines === 'string' ? lines.split('\n') : null)

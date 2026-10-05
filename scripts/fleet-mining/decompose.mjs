@@ -1045,7 +1045,10 @@ console.log('  fuel anchor:', count(/fuel anchor/), ' fuel commons:', count(/fue
   // owns the three-leg rescue, the food ladder owns none - the food rescue
   // seat prices from this row (which side owns which skin and how much dry)
   const sideBits = []
-  for (const s of (aw.sides ? ['fuel', 'food'] : [])) {
+  // (v0.659.0) the loop rides the census's OWN side keys - the iron commune
+  // (the third ask ladder) prints its segment only when its mass is non-zero
+  // (the additive law, the filter's own byte-stability)
+  for (const s of (aw.sides ? Object.keys(aw.sides) : [])) {
     const b = Object.entries(aw.sides[s]).filter(([, n]) => n > 0).map(([k, n]) => `${k} x${n}`)
     const dB = Object.entries(aw.dryBySide[s]).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}u`)
     if (b.length || dB.length) sideBits.push(`${s}: ${b.length ? b.join(', ') : 'no decide whys'}${dB.length ? ` (${dB.join(', ')})` : ''}`)

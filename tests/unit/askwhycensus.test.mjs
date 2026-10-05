@@ -112,7 +112,7 @@ test('THE ASK WHY CENSUS: the class order owns the why (the throttle prose can n
 
 test('THE ASK WHY CENSUS: the junk battery (the parser judges nothing it cannot read)', () => {
   // the junk-safe law: non-strings judge nothing, junk shapes never match
-  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } }, governorRuns: { len1: 0, len2: 0, len3: 0, len4plus: 0 } })
+  assert.deepEqual(askWhyCensus(null), { terminals: 0, unitsDry: 0, whys: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, dryByWhy: { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 0, goalChanged: 0, unnamed: 0 }, decideSkins: { noPath: 0, decideBudget: 0, unnamed: 0 }, dryBySkin: { noPath: 0, decideBudget: 0, unnamed: 0 }, sides: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, dryBySide: { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } }, governorRuns: { len1: 0, len2: 0, len3: 0, len4plus: 0 } })
   assert.deepEqual(askWhyCensus(undefined).terminals, 0)
   assert.deepEqual(askWhyCensus(42).terminals, 0)
   assert.equal(askWhyCensus([null, 42, {}, 'not a line']).terminals, 0)
@@ -187,12 +187,15 @@ test("THE DECIDE'S OWN SIDES: the skins ride two ladders with different anatomie
   // the side laws: the verb names the row, junk names nothing
   assert.equal(askSide('F5 fuel commons: chest walk failed (No path to the goal!)'), 'fuel')
   assert.equal(askSide('F11 food commons: budget spent (0/4 units)'), 'food')
-  assert.equal(askSide('F9 iron commune: chest walk failed (No path to the goal!)'), null, 'a non-ask ladder never wears a side')
+  // (v0.659.0) the iron commune IS an ask ladder now - it wears its own side
+  assert.equal(askSide('F16 iron commune: chest walk failed (No path to the goal!)'), 'iron', 'the iron ladder wears its own side (the third ask ladder)')
+  assert.equal(askSide('F9 fuel bank: chest walk failed (No path to the goal!)'), null, 'a non-ask ladder never wears a side')
+  assert.equal(askSide('F9 iron commune: budget spent (0/3 units)'), 'iron', 'the iron terminal names its side too')
   assert.equal(askSide('not a line'), null)
   assert.equal(askSide(''), null)
   assert.equal(askSide(null), null)
   assert.equal(askSide(42), null)
-  assert.deepEqual(ASK_SIDES, ['fuel', 'food'], 'the side order is part of the law')
+  assert.deepEqual(ASK_SIDES, ['fuel', 'food', 'iron'], 'the side order is part of the law (the iron joins third, the v0.659.0 join)')
 
   // the v0.651.0 face byte-exact side split: fuel no-path x11 / decide-budget
   // x6, food no-path x3 / decide-budget x6 (fuel ALL after-the-nudge 17/17,
@@ -226,7 +229,7 @@ test("THE DECIDE'S OWN SIDES: the skins ride two ladders with different anatomie
     'F9 food commons: budget spent (0/7 units)'
   ])
   assert.equal(cross.dryByWhy.decide, 0, 'the cross-bot law covers the cross-side case too (different bots)')
-  assert.deepEqual(cross.dryBySide, { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 } })
+  assert.deepEqual(cross.dryBySide, { fuel: { noPath: 0, decideBudget: 0, unnamed: 0 }, food: { noPath: 0, decideBudget: 0, unnamed: 0 }, iron: { noPath: 0, decideBudget: 0, unnamed: 0 } })
   // the same bot's cross-side join: the why's own side names the dry row
   // (the pure-slice law - 'the last refusal wins' keeps its side)
   const samebot = askWhyCensus([
@@ -243,6 +246,52 @@ test("THE DECIDE'S OWN SIDES: the skins ride two ladders with different anatomie
   ])
   assert.deepEqual(wet.sides.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
   assert.deepEqual(wet.dryBySide.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 })
+})
+
+test("THE IRON LADDER'S OWN JOIN: the third ask ladder's own mass joins the census (the v0.656.0 face's own iron read)", () => {
+  // fleet 37258915708 (the v0.656.0 face, the calm-ish one) - the iron mass
+  // rode NO census before this join: 5 chest-walk-failed whys (4 timeout +
+  // 1 decide) + 2 budget-spent terminals (6u dry). THE FACE'S OWN LINES in
+  // file order (3 of the 4 timeouts name ONE chest @-128,387 - and the SAME
+  // chest refused the food ladder: one chest, three ladders refused)
+  const face = [
+    'F16 iron commune: chest walk failed (iron commune walk @-128,387: timeout after 14967ms)',
+    'F16 iron commune: budget spent (0/3 units)',
+    'F19 iron commune: chest walk failed (Took to long to decide path to goal!)',
+    'F19 iron commune: chest walk failed (iron commune walk @-129,387: timeout after 890ms)',
+    'F19 iron commune: budget spent (0/3 units)',
+    'F1 iron commune: chest walk failed (iron commune walk @-128,387: timeout after 726ms)',
+    'F18 iron commune: chest walk failed (iron commune walk @-128,387: timeout after 1724ms)'
+  ]
+  const c = askWhyCensus(face)
+  assert.equal(c.terminals, 2, 'the iron terminals count (the same budget-spent vocabulary)')
+  assert.equal(c.unitsDry, 6, '2 x 3u dry - the iron strand prices its mass')
+  assert.deepEqual(c.whys, { ceiling: 0, water: 0, governor: 0, decide: 1, timeout: 4, goalChanged: 0, unnamed: 0 }, 'the class regexes are ladder-agnostic - the iron whys ride the SAME classes')
+  assert.deepEqual(c.dryByWhy, { ceiling: 0, water: 0, governor: 0, decide: 0, timeout: 6, goalChanged: 0, unnamed: 0 }, 'both terminals\' last why was a timeout (the last refusal wins)')
+  assert.deepEqual(c.decideSkins, { noPath: 0, decideBudget: 1, unnamed: 0 }, 'the iron decide grain wears the budget skin')
+  assert.deepEqual(c.sides.iron, { noPath: 0, decideBudget: 1, unnamed: 0 }, 'the iron side prices its own decide mass')
+  assert.deepEqual(c.sides.fuel, { noPath: 0, decideBudget: 0, unnamed: 0 }, 'the fuel side stays untouched')
+  assert.deepEqual(c.sides.food, { noPath: 0, decideBudget: 0, unnamed: 0 }, 'the food side stays untouched')
+  assert.deepEqual(c.dryBySide.iron, { noPath: 0, decideBudget: 0, unnamed: 0 }, 'F19\'s decide was followed by a timeout - the last refusal prices the dry, not the decide')
+  // the conservation law with iron aboard: every ask why names its side
+  const sumSkins = c.sides.fuel.noPath + c.sides.fuel.decideBudget + c.sides.food.noPath + c.sides.food.decideBudget + c.sides.iron.noPath + c.sides.iron.decideBudget
+  assert.equal(sumSkins, c.decideSkins.noPath + c.decideSkins.decideBudget, 'the side slice conserves the decide mass over ALL THREE ladders')
+  // the iron decide's own dry join: the last-refusal-wins law per side
+  const ironDecide = askWhyCensus([
+    'F5 iron commune: chest walk failed (Took to long to decide path to goal!)',
+    'F5 iron commune: budget spent (0/2 units)'
+  ])
+  assert.equal(ironDecide.dryByWhy.decide, 2, 'the iron decide prices the dry by name')
+  assert.equal(ironDecide.dryBySide.iron.decideBudget, 2, 'the iron side\'s own dry seat (the conservation law\'s scope grows with the join)')
+  // the junk laws: the iron ladder judges nothing it cannot read
+  const junk = askWhyCensus([
+    'F9 iron commune: chest walk failed (the objective was changed by the junk)',
+    'F9 iron commune: budget spent (junk)',
+    'F9 iron commune: chest holds 0 ingot(s) + 0 raw_iron - nothing to complete here'
+  ])
+  assert.equal(junk.whys.unnamed, 1, 'prose without the marker stays unnamed (the v0.583.0 law)')
+  assert.equal(junk.terminals, 0, 'a malformed iron terminal never counts')
+  assert.equal(junk.unitsDry, 0, 'the empty-chest line is the ladder\'s own early exit, not a why - it judges nothing')
 })
 
 test("THE GOVERNOR'S OWN CLASS: the unnamed bucket's grain priced by name (the v0.653.0 mob storm face's own read)", () => {
