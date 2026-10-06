@@ -17555,3 +17555,22 @@ Stage Summary:
 - THE DROUGHT'S START SEAT HAS ITS WHY-BOOK: the 28th's 4 refusals split timeout / wet-sentinel / wet wall / rescue owns the bot - F1 owned 3 of 4 (one bot's climb owned the face's walk starts); the seat now reads two-legged (refusals + the flat walk) with both legs' own books.
 - Fronts: F1's climb anatomy (3 fails one face - the wet wall + the rescue ownership ride the same bot), the famine anatomy's 4th read, the walk's delivery's 2nd face read, the refusal's why's 2nd read, the wall-miss timing's 4th read, the bank yield's 7th leg, the correlation's 10th point.
 - Next fire: (1) poll 37441962855 FIRST - SUCCESS -> mine (the v0.690.0 tree's first face). (2) push-CI verdicts on a74ff7f. (3) dispatch law x35 on clear.
+
+---
+Task ID: cron30-20261006-1800
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1800 - the 29th's mine, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo at 4996924 (up to date at start). Version 0.691.0, next free 0.692.0. Push-CI on a74ff7f (v0.691.0) SUCCESS 37444342235 - THE REFUSAL'S WHY CI-proven.
+- THE 29TH FLIGHT 37441962855 (on 21daa81, the v0.690.0 tree's first face) SUCCESS - MINED (527 decompose lines, run37441962855/): the famine anatomy's 4TH READ logs 3/3 (F19=1 F3=1 F2=1) BUT the drought's seat SWUNG BACK to the flat walk - gathered 3 refused 0, 1/3 cured (gain 0..25 median 0), THE WALK CAME HOME EMPTY; the refusal's why's 2ND READ: honest silence (0 refusals, 0 wood-trip climb fails - the climb-refusal seat never opened this face); the wall-miss timing's 4TH READ 0.6..8.4u (median 4.2, 7/12 inside 5u - 12 misses, the busiest wall yet); the bank yield's 7TH LEG 11.5u/visit (1395u over 121 - the dial 0.0 -> 2.8 -> 11.3 -> 11.8 -> 7.6 -> 11.7 -> 11.5, the lane holds); CORRELATION 10TH POINT ents max 2881 @ rss max 454M ALIVE; THE MOB WAVE PEAKED: deaths 10, combat 8 (bursts 70% in 1 cluster, siege pace 1.76/min over 5.7min), multi-kill grounds 2, flee-ground cross-read 5/8 on shared grounds (flee 4/6 - the shared flee ground is the kill zone); kicks 3 (calm); storm margin 89M.
+- v0.692.0 THE WALK'S COST (re-numbered v0.693.0): tripcensus's delivery grows span {cured, flat, negative} {min, median, max}|null - the face-line span famine->gathered prices what the trip BURNED (a flat walk delivered nothing yet still spent its segment). decompose rides 'the walk's cost'. Maiden read byte-exact on the 29th: 'cured 697..697, flat 485..518 lines per trip - THE FLAT WALK'S TOLL'; the 26th cross-read: F8's flat walk took 722 lines while the cures took 304..507 - the flats are the SLOW ones too. +1 test (the 29th byte-exact), 3 delivery assertions ride the span field; tripcensus 5/5; full unit 276/276; syntax 488 0-broken. Zero fleet wiring.
+- SLOT COLLISION #17: the lane took 0.692.0 mid-fire (THE LOOP LEDGER transitloop.mjs, e74e4a2 - the swim loop's whale verdict, F12 152 launches zero-yield) - re-numbered to v0.693.0 (5ebf465; package.json + the version comments; the house convention). My code commit rode in as 91bc97b on top of their e74e4a2, then the re-number.
+- DISPATCH law x35: the 29th landed -> the dispatch queue clear -> POST 204 -> face 37447831347 QUEUED->in-flight on 5ebf465 (the 30th, the v0.693.0 tree's first face). My push-CI on 91bc97b cancelled by the newer push (normal concurrency); the live push-CI is on 5ebf465.
+
+Stage Summary:
+- Version 0.693.0 (THE WALK'S COST, the SLOT COLLISION #17 re-number, 5ebf465); next free 0.694.0; dispatch law x35 (face 37447831347 in flight on 5ebf465).
+- THE DROUGHT'S SEAT IS GENUINELY TWO-LEGGED ACROSS FACES: the 28th's leg was the climb refusals (4, F1=3); the 29th's leg is the flat walk (2/3, the flats burned 485-518 lines each - THE FLAT WALK'S TOLL); the why-book's honest silence held on the refusal-free face.
+- The mob wave peaked on the 29th (8 combat deaths, 70% bursts, 5/8 shared flee grounds) - the flee-ground kill zone is the mob-cure's own WHERE input.
+- Fronts: the flat walk's anatomy (why the walk returns +0 - the 45s gather window's own read), the mob wave's burst cluster (the shared flee ground), the famine anatomy's 5th read, the walk's cost's 2nd read, the wall-miss 5th, the bank 8th leg, the correlation 11th point.
+- Next fire: (1) poll 37447831347 FIRST - SUCCESS -> mine (the v0.693.0 tree's first face carries the walk's cost row). (2) push-CI verdicts on 5ebf465. (3) dispatch law x36 on clear.
