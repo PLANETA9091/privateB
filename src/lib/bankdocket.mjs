@@ -50,8 +50,17 @@
 //
 // Junk-safe: non-array / non-string-blob reads null (the smeltledger
 // convention); a face with no bank lines reads the honest zero shape.
+//
+// (v0.702.0) THE DOOR'S RATE DIAL - the docket's second arg (the visit
+// lane's own line count, the yield dial's denominator) grows the rate:
+// the door leg's share of the lane (the 32nd: 45/143 = 31.5% - the
+// approach is the bank's ceiling; the 33rd: 25/123 = 20.3% - the door
+// failures halved and the bank moved 0 -> 1785u, the door is the bank's
+// own thermostat). No visits, junk visits, or a legless face reads no
+// rate (the honest silence - the law the yield dial already rides).
+//
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only,
-// the v0.379/.../v0.699.0 precedent) - the bank bytes already ride the
+// the v0.379/.../v0.701.0 precedent) - the bank bytes already ride the
 // filter-key.
 //
 
@@ -59,15 +68,18 @@
  * bankDocket(lines) - the bank lane's outcome docket.
  *
  * @param {string[]|string} [lines] the face log (array or raw blob)
+ * @param {number} [visits] the visit lane's own line count (the yield
+ *   dial's denominator) - the rate rides only on a positive finite count
  * @returns {null|{bankLines: number,
  *   door: {unreachable: number, noChest: number, lidTimeout: number,
  *          beyondRadius: number, total: number},
  *   pocket: {zeroProbes: number, depositZeros: number, total: number,
  *            nothingToDeposit: number},
  *   views: number, fallbacks: number, plans: number,
- *   depositPositives: number}}
+ *   depositPositives: number,
+ *   rate?: {visits: number, doorPct: number, pocketPct: number}}}
  */
-export function bankDocket (lines) {
+export function bankDocket (lines, visits) {
   const src = Array.isArray(lines)
     ? lines
     : (typeof lines === 'string' ? lines.split('\n') : null)
@@ -105,6 +117,17 @@ export function bankDocket (lines) {
     if (/direct deposit: \d+ chest slots/.test(line)) d.views++
     if (/bank fallback:/.test(line)) d.fallbacks++
     if (/\bbank trip: /.test(line)) d.plans++
+  }
+  // (v0.702.0) THE DOOR'S RATE DIAL - the legs' share of the visit lane,
+  // the bankYield rounding (x1000 round / 10 - one honest decimal). The
+  // rate rides only on a positive finite count AND legs that read: a
+  // visit count alone names no silence, a legless lane needs no dial.
+  if (Number.isFinite(visits) && visits > 0 && (d.door.total > 0 || d.pocket.total > 0)) {
+    d.rate = {
+      visits,
+      doorPct: Math.round((d.door.total / visits) * 1000) / 10,
+      pocketPct: Math.round((d.pocket.total / visits) * 1000) / 10
+    }
   }
   return d
 }

@@ -1178,14 +1178,14 @@ if (bankYieldRow) console.log(`  bank yield: ${bankYieldRow.rateUPerVisit}u/visi
 // no chest reached) and the empty-pocket leg (the chest reached, the
 // deposit moved 0: the zero probes + the deposit zeros). The fork names
 // the silence's owner - the fleet's cure input rides whichever leg owns.
-const bd = bankDocket(lines)
+const bd = bankDocket(lines, bankVisitLines)
 if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
   const fork = bd.pocket.total > bd.door.total
     ? ' - THE POCKET MET THE CHEST EMPTY: the visits and the mass lived on different clocks'
     : bd.door.total > bd.pocket.total
       ? ' - THE CHEST DOOR NEVER OPENED: the walk\'s own failures own the silence'
       : ' - THE DOCKET SPLITS: the door and the empty pocket share the silence'
-  console.log(`  the bank's docket (v0.700.0): the door leg ${bd.door.total} (chest unreachable ${bd.door.unreachable}, no chest ${bd.door.noChest}, lid timeouts ${bd.door.lidTimeout}, beyond radius ${bd.door.beyondRadius}), the empty-pocket leg ${bd.pocket.total} (zero probes ${bd.pocket.zeroProbes}, deposit zeros ${bd.pocket.depositZeros}), the why-phrase ${bd.pocket.nothingToDeposit}, views ${bd.views}, fallbacks ${bd.fallbacks}${bd.depositPositives > 0 ? `, deposit positives ${bd.depositPositives}` : ''}${fork}`)
+  console.log(`  the bank's docket (v0.700.0): the door leg ${bd.door.total} (chest unreachable ${bd.door.unreachable}, no chest ${bd.door.noChest}, lid timeouts ${bd.door.lidTimeout}, beyond radius ${bd.door.beyondRadius}), the empty-pocket leg ${bd.pocket.total} (zero probes ${bd.pocket.zeroProbes}, deposit zeros ${bd.pocket.depositZeros}), the why-phrase ${bd.pocket.nothingToDeposit}, views ${bd.views}, fallbacks ${bd.fallbacks}${bd.depositPositives > 0 ? `, deposit positives ${bd.depositPositives}` : ''}${fork}${bd.rate ? `, the door's rate ${bd.rate.doorPct}% of ${bd.rate.visits} visit-lines` : ''}`)
 }
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))

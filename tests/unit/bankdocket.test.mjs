@@ -79,3 +79,33 @@ test('bankDocket honest zeros and the junk battery', () => {
   assert.equal(j.pocket.total, 0)
   assert.equal(j.plans, 0)
 })
+
+test("the door's rate dial: the era's own rates ride byte-exact (45/143 = 31.5%, 25/123 = 20.3%)", () => {
+  // the live faces' proven counts (the docket's byte-exact reads), scaled
+  // to the visit lane: the 32nd's door 45 + pocket 6 over 143 visit-lines,
+  // the 33rd's door 25 over 123 - the door failures HALVED as the bank
+  // moved 0 -> 1785u (the door is the bank's own thermostat)
+  const doorLine = 'F4 [F4] hop: chest at [-115,79,415] d=28 zero: chest unreachable (Took to long to decide path to goal!)'
+  const pocketLine = 'F16 [F16] hop: chest at [-141,79,389] d=20 zero: nothing to deposit'
+  const face32 = [...Array(45).fill(doorLine), ...Array(6).fill(pocketLine)]
+  const r32 = bankDocket(face32, 143)
+  assert.deepEqual(r32.rate, { visits: 143, doorPct: 31.5, pocketPct: 4.2 })
+  const r33 = bankDocket([...Array(25).fill(doorLine)], 123)
+  assert.deepEqual(r33.rate, { visits: 123, doorPct: 20.3, pocketPct: 0 })
+  // the rounding rides the bankYield convention (x1000 round / 10): the
+  // mini's own legs over a small lane read one honest decimal
+  const mini = bankDocket(face32Mini, 16)
+  assert.deepEqual(mini.rate, { visits: 16, doorPct: 31.3, pocketPct: 12.5 })
+})
+
+test("the door's rate dial honest silence: no visits, junk visits, or a legless face reads no rate", () => {
+  // no second arg - the v0.700.0 shape untouched (the rate stays out)
+  assert.equal(bankDocket(face32Mini).rate, undefined)
+  // junk visits: zero, negative, non-number, NaN - the yield dial's own law
+  assert.equal(bankDocket(face32Mini, 0).rate, undefined)
+  assert.equal(bankDocket(face32Mini, -5).rate, undefined)
+  assert.equal(bankDocket(face32Mini, '143').rate, undefined)
+  assert.equal(bankDocket(face32Mini, NaN).rate, undefined)
+  // a legless face with a live lane count names no silence
+  assert.equal(bankDocket(['F9 bank: 12', 'F6 bank trip: fuel-tithe budget 240s'], 200).rate, undefined)
+})
