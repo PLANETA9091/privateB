@@ -36,6 +36,16 @@
 // the tail census with the emitter's EXACTLY TWO head skins ('head WET'
 // or 'head dry/unknown' - the emitter's ternary; anything else refuses,
 // the anchor law) + 'snapshot Ns old|none'.
+// (v0.707.0) THE GRAMMAR CORRECTED BY ITS OWN REUSE: the snapshot's
+// fraction was written REQUIRED (\d+(?:\.\d+)s) while the emitter's own
+// words carry BOTH forms ('snapshot 2s old' AND 'snapshot 2.6s old' -
+// the 36th rides both on one face) - the reader was tighter than the
+// emitter, and every integer-snapshot mirror was invisible to the cue
+// lens (the era's three reset(-1) mirrors ALL rode integers: 1s / 0s /
+// 2s). The toll's reuse (sensortoll.mjs imports this RE) surfaced the
+// gap; the fraction is optional now - the emitter's grammar, byte for
+// byte. The v0.479.0/v0.480.0 pricing can only GAIN the mirrors it was
+// blind to (never lose one - the RE grew, never shrank).
 // Per death the mirror joins AT OR BEFORE the death's line index (the
 // leakClock law - the same join the sentry pass rides; the mirror prints
 // in the death handler so the pair is adjacent in practice, but the law
@@ -58,7 +68,7 @@ import { parseSentryPass } from './sentry.mjs'
 
 export const DROWN_CONTEXT_RE = /^(F\d+) \[\1\] death: drown context \(o2 (reset\(-1\)|\?|\d+), feet ((?:unknown|[a-z_]+)(?: wl)?), head ((?:unknown|[a-z_]+)(?: wl)?), rescue (active|\d+s ago|never), leg (.+), (wet \d+s|wet \d+s@last|wet unknown)\)$/i
 
-export const BREATH_MIRROR_RE = /^(F\d+) \[\1\] water: breath mirror \[([a-z-]+)\](?: - .*)? \(o2 ([^,]*), (head WET|head dry\/unknown), snapshot (\d+(?:\.\d+)s old|none)\)$/i
+export const BREATH_MIRROR_RE = /^(F\d+) \[\1\] water: breath mirror \[([a-z-]+)\](?: - .*)? \(o2 ([^,]*), (head WET|head dry\/unknown), snapshot (\d+(?:\.\d+)?s old|none)\)$/i
 
 // o2Gap(lines) ->
 //   { deaths, rescue: { live, stale, never }, wet: { live, atLast, unknown },
