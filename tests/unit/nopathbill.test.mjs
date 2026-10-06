@@ -96,3 +96,93 @@ test('the one-lane face reads real zeros and the raw blob splits by newline', ()
   assert.deepEqual(bill.food, { n: 0, byBot: {}, repeats: {}, distinct: 0 })
   assert.deepEqual(bill.iron, { n: 0, byBot: {}, repeats: {}, distinct: 0 })
 })
+
+// (v0.718.0) THE RIDER'S OWN CROSS-LANE - the shape grows additively (the
+// v0.653.0 law): the v0.716.0 cells stay byte-stable, the new cell prices
+// the JOIN - the bots the door family refused ACROSS LANES.
+
+test('the 41st\'s own rider skin byte-verbatim - F15 rode all three lanes, F4 kept its own', () => {
+  const face = [
+    'F15 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F4 food commons: chest walk failed (No path to the goal!)',
+    'F4 food commons: chest walk failed (No path to the goal!)',
+    'F15 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F15 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F15 iron commune: iron commune: chest walk failed after the nudge (No path to the goal!)',
+    'F15 iron commune: chest walk failed (No path to the goal!)',
+    'F15 iron commune: chest walk failed (No path to the goal!)',
+    'F15 food commons: chest walk failed (No path to the goal!)',
+    'F15 food commons: chest walk failed (No path to the goal!)'
+  ]
+  const bill = nopathBill(face)
+  assert.ok(bill, 'the rider face opens the bill')
+  assert.equal(bill.n, 10)
+  // the v0.716.0 cells stay byte-stable under the additive law
+  assert.equal(bill.fuel.n, 3)
+  assert.equal(bill.iron.n, 3)
+  assert.equal(bill.food.n, 4)
+  // THE RIDER: F15 rode fuel 3 + iron 3 + food 2 = 8 rides across 3 lanes
+  assert.deepEqual(bill.crossLane.bots, { F15: 3 })
+  assert.deepEqual(bill.crossLane.rides, { F15: 8 })
+  assert.equal(bill.crossLane.total, 8)
+  // F4's food x2 is the lane's own column, NOT a rider (one lane only)
+  assert.equal(bill.crossLane.bots.F4, undefined)
+  assert.equal(bill.crossLane.rides.F4, undefined)
+})
+
+test('the 40th\'s crowd+column face reads the empty crossLane - the honest zero', () => {
+  const face = [
+    'F9 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F6 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F13 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F10 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F1 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F18 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F15 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F17 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F11 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F1 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F18 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F7 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F9 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F10 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F15 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F4 iron commune: iron commune: chest walk failed after the nudge (No path to the goal!)'
+  ]
+  const bill = nopathBill(face)
+  assert.ok(bill, 'the 40th\'s face opens the bill')
+  assert.equal(bill.n, 16)
+  // the crowd (fuel, 10 bots) and the column (F4's iron x3) kept their
+  // lanes - even F15's fuel x2 stayed single-lane on the 40th: the rider
+  // was born on the 41st, the 40th reads the empty cell
+  assert.deepEqual(bill.crossLane, { bots: {}, rides: {}, total: 0 })
+})
+
+test('the two-rider edge - a 2-lane rider and a 3-lane whale name themselves', () => {
+  const face = [
+    'F2 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F2 food commons: chest walk failed (No path to the goal!)',
+    'F7 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F7 food commons: chest walk failed (No path to the goal!)',
+    'F7 iron commune: chest walk failed (No path to the goal!)'
+  ]
+  const bill = nopathBill(face)
+  assert.ok(bill, 'the two-rider face opens the bill')
+  assert.equal(bill.n, 5)
+  assert.deepEqual(bill.crossLane.bots, { F2: 2, F7: 3 })
+  assert.deepEqual(bill.crossLane.rides, { F2: 2, F7: 3 })
+  assert.equal(bill.crossLane.total, 5)
+})
+
+test('the single-lane column is not a rider - the v0.716.0 verdict stays the lane\'s subject', () => {
+  const blob = [
+    'F1 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F1 fuel commons: chest walk failed after the nudge (No path to the goal!)',
+    'F1 fuel commons: chest walk failed after the nudge (No path to the goal!)'
+  ].join('\n')
+  const bill = nopathBill(blob)
+  assert.ok(bill, 'the column face opens the bill')
+  assert.deepEqual(bill.fuel.repeats, { F1: 3 })
+  // the column reproduces INSIDE its lane - the crossLane cell stays empty
+  assert.deepEqual(bill.crossLane, { bots: {}, rides: {}, total: 0 })
+})

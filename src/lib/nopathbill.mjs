@@ -20,8 +20,16 @@ import { decideSkin } from './askwhycensus.mjs'
 //
 // A no-path-free face reads the honest silence (null); a one-lane face reads
 // the other lanes' real zeros (the cells read honestly, the count is true).
+//
+// (v0.718.0) THE RIDER'S OWN CROSS-LANE - the shape grows additively (the
+// v0.653.0 law: the existing rows stay byte-stable, the new fields price
+// the join): crossLane = { bots, rides, total } names the bots the door
+// family refused ACROSS LANES (2+ lanes - the stance read: every lane
+// refused the same bot's approach; the v0.716.0 column/crowd verdicts stay
+// each lane's own subject).
+//
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only, the
-// v0.379/.../v0.715.0 precedent).
+// v0.379/.../v0.717.0 precedent).
 //
 
 // The door family's own byte: the ask ladder's grammar (ASK_WHY_RE) plus
@@ -64,6 +72,33 @@ export function nopathBill (lines) {
     lane.distinct = Object.keys(lane.byBot).length
     for (const [bot, count] of Object.entries(lane.byBot)) {
       if (count >= 2) lane.repeats[bot] = count
+    }
+  }
+  // (v0.718.0) THE RIDER'S OWN CROSS-LANE - the lanes' byBot books joined
+  // post-fold (additive: the v0.716.0 cells stay byte-stable, the new cell
+  // prices the JOIN): a bot riding 2+ lanes is THE RIDER (the stance read -
+  // every lane refused the same bot's approach; the 41st's F15 the whale,
+  // 8 of 13 rides across all three lanes). The lane's own column stays the
+  // lane's subject (F1's fuel x3 is the column, not a rider; F4's food x2
+  // on the 41st the same) - the crossLane cell reads the multi-lane bots
+  // only: bots[bot] = the LANES' count (2..3), rides[bot] = the bot's total
+  // rides, total = the riders' combined weight. A one-lane face (or a face
+  // whose every bot kept its lane) reads the empty cell - the honest zero.
+  bill.crossLane = { bots: {}, rides: {}, total: 0 }
+  const laneSeen = new Map()
+  for (const [name, lane] of [['fuel', bill.fuel], ['food', bill.food], ['iron', bill.iron]]) {
+    for (const [bot, count] of Object.entries(lane.byBot)) {
+      if (!laneSeen.has(bot)) laneSeen.set(bot, { lanes: [], rides: 0 })
+      const seen = laneSeen.get(bot)
+      seen.lanes.push(name)
+      seen.rides += count
+    }
+  }
+  for (const [bot, seen] of laneSeen) {
+    if (seen.lanes.length >= 2) {
+      bill.crossLane.bots[bot] = seen.lanes.length
+      bill.crossLane.rides[bot] = seen.rides
+      bill.crossLane.total += seen.rides
     }
   }
   return bill

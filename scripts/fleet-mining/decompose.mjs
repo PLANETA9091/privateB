@@ -1300,7 +1300,14 @@ if (npb) {
   const laneRow = (lane) => lane.n > 0
     ? `${lane.n} by ${lane.distinct} bot(s)${Object.keys(lane.repeats).length > 0 ? ` (repeats ${Object.entries(lane.repeats).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')})` : ''}`
     : 'clean'
-  console.log(`  the no-path door's own bot bill (v0.716.0): ${npb.n} ride(s) - fuel ${laneRow(npb.fuel)} / food ${laneRow(npb.food)} / iron ${laneRow(npb.iron)} - the repeats' column vs the crowd's spread names the spike's owner`)
+  // (v0.718.0) THE RIDER'S OWN CROSS-LANE - the additive tail (the v0.653.0
+  // law: the row's existing prose stays byte-stable): the bots the door
+  // family refused ACROSS LANES, the heaviest first (the stance read -
+  // every lane refused the same bot's approach, the 41st's F15 the whale).
+  const riders = npb.crossLane.total > 0
+    ? Object.entries(npb.crossLane.rides).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}u@${npb.crossLane.bots[k]}lanes`).join(' ')
+    : ''
+  console.log(`  the no-path door's own bot bill (v0.716.0): ${npb.n} ride(s) - fuel ${laneRow(npb.fuel)} / food ${laneRow(npb.food)} / iron ${laneRow(npb.iron)} - the repeats' column vs the crowd's spread names the spike's owner${riders ? ` - the cross-lane rider(s) (v0.718.0): ${riders} - THE STANCE READ: every lane refused the same bot's approach` : ''}`)
 }
 // (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors fold
 // into one toll (a census is a SUM, not a row of cells): the storm's
