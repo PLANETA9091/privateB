@@ -18113,3 +18113,23 @@ Stage Summary:
 - The witness has a confusion matrix: the drown kind's tail lies twice (the mob's proximity), the explosion's splits (the blast removes its own witness) - the inference's design input has named pairs now.
 - THE F17 COLUMN is the era's first fleet-side front: 22 duplicate-login kicks across two faces with zero freezes - the spawn/reconnect lane hammers a name that already holds.
 - Next fire: (1) poll 37512568836 FIRST - SUCCESS -> mine with the v0.719.0 decompose (the confusions tail's maiden fleet read, the kick bill's 3rd, the rider's 5th, the dial's 12th). (2) CI verdicts on e6173b9 (its push run) + 759ef89 (37512778992). (3) dispatch law x57 on clear.
+
+---
+Task ID: cron30-20261007-0300
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0300 - the 44th's mine (found SUCCESS), the decide door's own book, dispatch on clear
+
+Work Log:
+- Repo synced 759ef89 -> 8680056 (the lane's v0.719.0 THE CONFUSION'S OWN PAIRS, e6173b9). VERDICTS: 759ef89 push 37512778992 SUCCESS (the v0.718.0 tree CI-proven). Face 44 = 37512568836 IN_PROGRESS at poll start, landed SUCCESS by mid-fire.
+- ONE ATOMIC IMPROVEMENT: v0.720.0 THE DECIDE DOOR'S OWN BOOK (603c4e5, 0.719.0 -> 0.720.0) - decideBook(lines) folds the door leg's decide rides per bot AND per goal (the bankdocket's own skin anchor 'chest unreachable' + the decide tail; the hop probe's goal coordinate, the bank's honest unpositioned row). byBot/repeats (the v0.715.0 rider law), byGoal/goalRepeats (the v0.716.0 crowd law's decide twin - the shared dead chest), unpositioned; the bankdocket boundary held (the nudge family stays the askwhycensus/nopathbill subject; the sum check book.n === door.decideTimeouts). The honest silence (null) on a decide-free face.
+- THE ERA BYTE-EXACT, sums byte-consistent (4/10/34/18): the 40th 4 rides bots 4 spread; the 41st 10 rides bots 3 (THE RIDER SHAPE F8=4 F1=4 F10=2); the 42nd 34 rides THE DECIDE STORM (bots 10, EIGHT repeat bots; goals 20 with SIX cross-bot columns, the y~80 chest band); the 43rd 18 rides bots 8 (F15=5 the rider) goals 13 (three columns x2). The geometry->budget move has its per-face anatomy: the 42nd both-sided, the 41st bot-sided, the 43rd mild both.
+- FACE 44 MINED (512 rows, the v0.720.0 decompose): THE CALM FACE - 3 deaths; the decide book's read the HONEST SILENCE (decide 0 - the 42nd's storm answered by zero); the door's rate 8.8% of 125 (THE ERA LOW - the door's arc storm 34 -> budget 18 -> calm 0 closes); the no-path bill's 5TH read 4 rides (fuel 4 by 4, no rider); the kick bill's 3RD read 11 churn (cooled 45% from 89%, the pair F1, F18=3); the relog bill's 4TH 1 -> 1 (no repeats); leaks -212 (-12.6% NEGATIVE - crafting's unit inflation outran the losses, the unit-count trap).
+- Tests: +4; decidebook 4/4, neighbors 25/25 (nopathbill/bankdocket/askwhy), syntax 514 files 0-broken. Zero fleet wiring (mining-surface only, the v0.379/.../v0.719.0 precedent).
+- Commit 603c4e5 pushed attempt-1 clean (author verified PLANETA9091 pre-push and post-commit). push-CI 37516259910 pending at fire's end (not waited honestly).
+- DISPATCH LAW x56: the queue clear -> POST 204 -> FACE 45 = 37516287610 IN_PROGRESS on 603c4e5 (the v0.720.0 tree's first face; materialization verified).
+
+Stage Summary:
+- Version 0.720.0 (THE DECIDE DOOR'S OWN BOOK, 603c4e5); next free 0.721.0; dispatch law x56 (face 45 37516287610).
+- The decide starvation priced across four faces: the storm's both-sided shape (the 42nd), the riders (the 41st), the mild mix (the 43rd), the calm zero (the 44th); the door's arc closes - the cure's targets split by the chest band (the goal side) and the riders (the stance side).
+- Fronts: the 45th's mine (the decide book's 5th read, the dial's 13th), the y~80 chest band's shared-dead-goal coordinates, the unit-count trap (the negative leak), the gather drought.
+- Next fire: (1) poll 37516287610 FIRST - SUCCESS -> mine with the v0.720.0 decompose. (2) push-CI verdict on 603c4e5 (37516259910 / its arbiter). (3) dispatch law x57 on clear.
