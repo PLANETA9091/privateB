@@ -92,6 +92,7 @@ export function deathKindCensus (lines) {
   const vertical = []
   const unparsed = []
   const inferredOnly = []
+  const otherVerbs = {}
   let total = 0
   for (const l of rows) {
     if (typeof l !== 'string' || !l.length) continue // junk-safe: the FATAL face truncates (the v0.358.0 lesson)
@@ -132,6 +133,15 @@ export function deathKindCensus (lines) {
     const kind = rawKind === 'mob' ? 'mob' : rawKind
     total++
     byKind[kind] = (byKind[kind] || 0) + 1
+    // (v0.674.0) THE OTHER-VERB CENSUS: the honest-'other' bucket carries the
+    // server's VERBATIM verb - the run37399670805 spear debut ('was speared
+    // by Zombie' x2, kind=other) sat LUMPED in other=2 until the decode
+    // read the death lines by hand. The tally surfaces every honest-'other'
+    // verb BY ITS WORDS: a new vanilla phrasing names itself in the decode
+    // the same face it debuts (no re-adjudication - the server's own words
+    // count, the doctrine untouched; a verb rule joins deathcause.mjs on
+    // the evidence the census surfaces).
+    if (kind === 'other') otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
     if (bot) byBot[bot] = (byBot[bot] || 0) + 1
     if (isVertical(kind, verb)) {
       const pm = tail ? POS_RE.exec(tail) : null
@@ -145,5 +155,5 @@ export function deathKindCensus (lines) {
       })
     }
   }
-  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length }
+  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs }
 }

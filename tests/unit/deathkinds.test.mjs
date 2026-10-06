@@ -201,3 +201,39 @@ test('a genuinely alien announce shape still surfaces in the escape hatch', () =
   assert.equal(c.total, 0)
   assert.equal(c.unparsed.length, 1)
 })
+
+// (v0.674.0) THE OTHER-VERB CENSUS - the run37403158305-era class: the
+// spear debut ('was speared by Zombie' x2, kind=other) sat LUMPED in
+// other=2 until the decode read the death lines by hand. The tally
+// surfaces every honest-'other' verb BY ITS WORDS (the byte-exact run16
+// field rows below).
+const RUN16_SPEAR_F3 = 'F3 [F3] died - respawning (cause: server: was speared by Zombie [kind=other] | inferred: zombie@2.0 (0s before death at [-99,67,420]))'
+const RUN16_SPEAR_F18 = 'F18 [F18] died - respawning (cause: server: was speared by Zombie [kind=other] | inferred: zombie@1.7 (0s before death at [-113,65,414]))'
+
+test('THE OTHER-VERB CENSUS: the spear debut names itself (the run16 pair, byte-exact)', () => {
+  const c = deathKindCensus([RUN16_SPEAR_F3, RUN16_SPEAR_F18])
+  assert.equal(c.total, 2)
+  assert.equal(c.byKind.other, 2)
+  assert.deepEqual(c.otherVerbs, { 'was speared by Zombie': 2 })
+  assert.equal(c.inferredOnlyCount, 0) // server-verdict rows, not inferred-only
+})
+
+test('the other-verb tally never pollutes from the other kinds (split stays clean)', () => {
+  const c = deathKindCensus([FACE27_FALL, FACE27_MOB, RUN16_SPEAR_F3])
+  assert.equal(c.total, 3)
+  assert.deepEqual(c.otherVerbs, { 'was speared by Zombie': 1 })
+})
+
+test('the void phrasing (kind=other) tallies its own verb honestly', () => {
+  const voidLine = 'F9 [F9] died - respawning (cause: server: fell out of the world [kind=other] | inferred: fall/env (0s before death at [-100,1,300]) [the inference corroborates the server verdict])'
+  const c = deathKindCensus([voidLine])
+  assert.deepEqual(c.otherVerbs, { 'fell out of the world': 1 })
+  // a mixed other face sorts the verbs into one census
+  const c2 = deathKindCensus([voidLine, voidLine, RUN16_SPEAR_F18])
+  assert.deepEqual(c2.otherVerbs, { 'fell out of the world': 2, 'was speared by Zombie': 1 })
+})
+
+test('WIRING: the decompose prints the other-verb census row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /other-verb census: \$\{ovs\.map/, 'the honest-other verbs print by their words')
+})

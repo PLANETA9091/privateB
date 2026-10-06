@@ -142,6 +142,12 @@ if (sweep.keywordOnly.length) {
   for (const v of kinds.vertical) {
     console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)
   }
+  // (v0.674.0) THE OTHER-VERB CENSUS - the honest-'other' verbs named by
+  // their words (a new vanilla phrasing surfaces the face it debuts).
+  const ovs = Object.entries(kinds.otherVerbs).sort((a, b) => b[1] - a[1])
+  if (ovs.length) {
+    console.log(`  other-verb census: ${ovs.map(([v, n]) => `${n}x "${v}"`).join(' | ')} - the honest-'other' verbs named (a new phrasing names itself)`)
+  }
 }
 // (v0.403.0) THE SEAL DEATH LEDGER - the seal economy's third leg: what
 // DEATH erased. The reserve keeps at bank time, death bypasses the pocket
