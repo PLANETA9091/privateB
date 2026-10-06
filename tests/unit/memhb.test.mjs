@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseMemLine, parseStormCooldown, memHbCensus, MEM_HB_RE, STORM_COOLDOWN_RE, OOM_LOCK_RE, FREEZE_STORM_RE, RSS_JUMP_STORM_M } from '../../src/lib/memhb.mjs'
+import { parseMemLine, parseStormCooldown, memHbCensus, MEM_HB_RE, STORM_COOLDOWN_RE, OOM_LOCK_RE, FREEZE_STORM_RE, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs'
 
 test('mem-hb: the boot read parses - the zero-fields face of the same shape', () => {
   const line = '   mem: heap=133M/162M old=103M ext=151M ab=148M rss=429M cols=0 ents=0 evicted=0 path=4a/0q (max 6) stale=0'
@@ -231,4 +231,52 @@ test('WIRING: the decompose prints the rss jump row', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /rss jump: max \+\$\{rj\.max\}M\/gauge/, "the storm between the gauges prints in the MEMORY block")
   assert.match(src, /the FATAL saw \+\$\{mem\.freezeStorm\.to - mem\.freezeStorm\.from\}M/, "the FATAL's own gap joins the row")
+})
+
+// ---- (v0.678.0) THE ENTITY CLIMB - the memory storm's candidate driver ----
+// The 20th flight's ents climbed 2023 -> 2691 (+30%) across its gauges
+// while rss stayed flat - the mob storm's entities PRECEDED the memory
+// storm the FATAL named. The climb read mirrors the rss jump's own laws.
+
+test('mem-hb: the ents jump prices the sharpest climb, despawn drops never fold in', () => {
+  const c = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=2000 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1960 evicted=0 path=0a/0q (max 6) stale=0', // despawn drop
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=2020 evicted=0 path=0a/0q (max 6) stale=0', // +60
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=2060 evicted=0 path=0a/0q (max 6) stale=0' // +40
+  ])
+  assert.equal(c.entJump.max, 60)
+  assert.equal(c.entJump.storms, 1) // only the +60 clears the threshold
+  assert.equal(c.entsMax, 2060)
+})
+
+test('mem-hb: the entity climb rides a flat-rss face - the 20th flight shape', () => {
+  // the driver read exists precisely for this shape: rss flat, ents climbing
+  const c = memHbCensus([
+    '   mem: heap=106M/149M old=89M ext=122M ab=120M rss=385M cols=1940 ents=2023 evicted=263 path=6a/0q (max 6) stale=0',
+    '   mem: heap=106M/149M old=89M ext=122M ab=120M rss=382M cols=1948 ents=2150 evicted=401 path=6a/0q (max 6) stale=0',
+    '   mem: heap=106M/149M old=89M ext=122M ab=120M rss=383M cols=1950 ents=2400 evicted=617 path=6a/0q (max 6) stale=0',
+    '   mem: heap=106M/149M old=89M ext=122M ab=120M rss=383M cols=1952 ents=2691 evicted=852 path=6a/0q (max 6) stale=0'
+  ])
+  assert.equal(c.rssJump.max, 1) // the honest flat: one +1M leg (the 20th flight's own row), the storm invisible
+  assert.equal(c.entJump.max, 291) // the driver's sharpest gauge leg (2400 -> 2691)
+  assert.equal(c.entJump.storms, 3)
+  assert.equal(c.entsMax, 2691)
+})
+
+test('mem-hb: the entity threshold is the named constant + the calm face reads zero storms', () => {
+  assert.equal(ENT_JUMP_STORM_N, 50)
+  const calm = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=2000 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=2008 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1995 evicted=0 path=0a/0q (max 6) stale=0'
+  ])
+  assert.equal(calm.entJump.max, 8)
+  assert.equal(calm.entJump.storms, 0)
+})
+
+test('WIRING: the decompose prints the entity climb row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /ents jump: max \+\$\{ej\.max\}\/gauge/, "the driver read prints in the MEMORY block beside the rss jump")
+  assert.match(src, /DRIVER x\$\{ej\.storms\}/, "the driver-class count joins the row")
 })

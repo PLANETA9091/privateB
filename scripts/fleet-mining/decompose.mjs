@@ -62,7 +62,7 @@ import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the 
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
-import { memHbCensus, RSS_JUMP_STORM_M } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
+import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
@@ -2299,6 +2299,13 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       ? `; the FATAL saw +${mem.freezeStorm.to - mem.freezeStorm.from}M while frozen ${mem.freezeStorm.frozenS}s (past the ${mem.freezeStorm.floor}M floor - the storm lived between the gauges)`
       : ''
     console.log(rjRow + fsNote)
+    // (v0.678.0) THE ENTITY CLIMB - the driver read beside the storm read:
+    // the 20th flight's ents climbed 2023 -> 2691 (+30%) while rss stayed
+    // flat - the mob storm's entities PRECEDED the memory storm the FATAL
+    // named. The sharpest gauge-to-gauge climb prices the population
+    // pressure on every face; the driver class is the >= threshold count.
+    const ej = mem.entJump
+    console.log(`  ents jump: max +${ej.max}/gauge${ej.storms > 0 ? ` - DRIVER x${ej.storms} (>= ${ENT_JUMP_STORM_N}/gauge) - the entity climb is the memory storm's candidate driver` : ''}`)
     const stormNote = mem.stormCooldowns > 0
       ? Object.entries(mem.stormByBot).map(([b, s]) => `${b}=${s.count}(max ${s.maxConsecutive})`).join(' ')
       : 'none'

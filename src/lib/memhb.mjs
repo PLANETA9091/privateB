@@ -75,6 +75,14 @@ export const FREEZE_STORM_RE = /^\[stormguard\] FATAL \(freeze storm: main pulse
 // read). A calm face's gauge-to-gauge climbs live in the single digits.
 export const RSS_JUMP_STORM_M = 100
 
+// (v0.678.0) THE ENTITY CLIMB storm threshold - the memory storm's
+// candidate DRIVER read beside the rss jump. The 20th flight's ents
+// climbed 2023 -> 2691 (+30%) across its gauges while rss stayed flat -
+// the mob storm's entities preceded the memory storm the FATAL named.
+// A climb of >= 50 ents between consecutive gauges is the driver class;
+// a calm face's spawn/despawn churn lives in the single digits.
+export const ENT_JUMP_STORM_N = 50
+
 /**
  * Parse one mem-gauge line into its precursor read, or null.
  * Junk-safe: non-string input and every non-gauge shape judge NOTHING.
@@ -121,7 +129,7 @@ export function parseStormCooldown (line) {
  * field read). Accepts an array of lines or a raw text blob (split on
  * newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number, rssJump: {max: number, storms: number}, freezeStorm: {frozenS: number, from: number, to: number, floor: number}|null}}
+ * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number, rssJump: {max: number, storms: number}, entJump: {max: number, storms: number}, freezeStorm: {frozenS: number, from: number, to: number, floor: number}|null}}
  */
 export function memHbCensus (lines) {
   const rows = Array.isArray(lines)
@@ -151,6 +159,12 @@ export function memHbCensus (lines) {
   let rssPrev = null
   let rssJumpMax = 0
   let rssStorms = 0
+  // (v0.678.0) THE ENTITY CLIMB - the same gauge-to-gauge read over ents:
+  // the population climb is the memory storm's candidate driver, priced
+  // even when the rss gauges stay flat (the 20th flight's shape).
+  let entsPrev = null
+  let entJumpMax = 0
+  let entStorms = 0
   let freezeStorm = null
   for (const l of rows) {
     const p = parseMemLine(l)
@@ -165,6 +179,15 @@ export function memHbCensus (lines) {
         if (rj >= RSS_JUMP_STORM_M) rssStorms++
       }
       rssPrev = p.rss
+      // (v0.678.0) the sharpest ents climb between consecutive gauges; a
+      // NEGATIVE delta is despawn churn - counted, never folded into any
+      // climb (the rss jump's own GC-drop law, mirrored)
+      if (entsPrev !== null) {
+        const ej = p.ents - entsPrev
+        if (ej > entJumpMax) entJumpMax = ej
+        if (ej >= ENT_JUMP_STORM_N) entStorms++
+      }
+      entsPrev = p.ents
       if (heapUsedMax === null || p.heapUsed > heapUsedMax) heapUsedMax = p.heapUsed
       heapLimitLast = p.heapLimit
       if (colsMax === null || p.cols > colsMax) colsMax = p.cols
@@ -224,6 +247,7 @@ export function memHbCensus (lines) {
     stormByBot,
     oomLocks,
     rssJump: { max: rssJumpMax, storms: rssStorms },
+    entJump: { max: entJumpMax, storms: entStorms },
     freezeStorm
   }
 }
