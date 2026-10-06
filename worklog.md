@@ -17814,3 +17814,22 @@ Stage Summary:
 - THE FUEL LANE'S DOOR AND THE STORM SHARE A SEAT: the storm's last pf frames rode the fuel-commons walk; v0.704.0's door census (19/21 per face) now measures that lane's starvation rate per face.
 - Fronts: the 36th's mine (the fuel door's maiden fleet read + its 3rd read, the rate dial's 4th point, the correlation 14th, the storm arbiter), the iron commune's own door (the scope extension: 5/20, its own why-tails), the mainLate early-kill design input, the famine's next break, the sand delivery leg.
 - Next fire: (1) poll 37474596256 FIRST - SUCCESS -> mine (the v0.704.0 tree: the fuel door row rides its decompose); FAILURE with the storm again -> the drift is confirmed and the memory diet graduates to the top front. (2) CI verdicts on 3e5a78e (37474258815) + 6da461b (37471925301). (3) dispatch law x45 on clear.
+
+---
+Task ID: cron30-20261006-2200
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 2200 - face 36's poll window, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo synced 6da461b -> 217d5ec (the lane's fire-2140: v0.704.0 THE FUEL LANE'S OWN DOOR + the face-35 storm diagnosis). CI verdicts green: 2ee2028 SUCCESS (the v0.703.0 tree), 6da461b SUCCESS; 3e5a78e cancelled by 217d5ec's arrival (the successor arbitrates).
+- Face 36 = 37474596256 (on 3e5a78e, the v0.704.0 tree) IN_PROGRESS - poll-only held through the fire (the integration leg still running at fire's end; the fleet job had not started - a full face is ~20+ min, the window could not hold it honestly).
+- ONE ATOMIC IMPROVEMENT: v0.705.0 THE IRON COMMUNE'S OWN DOOR (835795f, package.json 0.704.0 -> 0.705.0) - the fire-2140 front lands, AND THE LENS CORRECTS ITS OWN v0.704.0: the fuel cell's prefix-blind skin ('chest walk failed after the nudge') was swallowing the iron commune's OWN nudge skins - the raw-log era reads were cross-contaminated (fuel 19/21 = 18+1 and 15+6 iron-nudge rides). The iron family anchors on its own prefix ('iron commune: (iron commune: )?chest walk failed') and is checked BEFORE the fuel cell (a MENTION is not a member: the fuel refused-tail names an iron walk inside its parens - that line stays the fuel lane's). PRODUCTION BYTE-EXACT on both raw logs: fuel 18 (decide 14, no path 2, retry 2) and 15 (decide 12, no path 2, retry 1); iron the 32nd 5 (decide 1, no path 1, water-rescue refusals 3), the 34th 20 (decide 9, no path 7, retry timeouts 4); the bank's legs untouched byte-identical (45/6 @ 31.5%, 43/1 @ 34.4%). Three lanes' doors read side by side now: the bank's legs, the fuel commune, the iron commune.
+- Tests: +2 (the era's iron shapes byte-exact; the contamination guard + the mention-is-not-a-member); the v0.704.0 honest-zeros shape grew the iron cell; bankdocket 10/10, famine-ledger 6/6, tripcensus 6/6, climbcost 3/3, calmrescue 5/5 (30/30 targeted); syntax 496 files 0 broken. Zero fleet wiring.
+- Commit 835795f pushed attempt-1 clean (author verified PLANETA9091 pre-push). push-CI on 835795f in flight at fire's end (not waited honestly).
+- DISPATCH law x45: face 36 in flight -> poll-only, NO dispatch. The next fire's first job.
+
+Stage Summary:
+- Version 0.705.0 (835795f); next free 0.706.0; dispatch law x45 held (face 36 37474596256 on the v0.704.0 tree).
+- THE CROSS-CONTAMINATION CORRECTED: the era's true lane doors: fuel 18/15, iron 5/20 (the 32nd/34th) - the iron lane's door GREW 4x between the faces (the decide skins 1 -> 9 lead).
+- Fronts: the 36th's mine (the fuel door's maiden fleet read + its 3rd read with the corrected cells, the iron row's maiden fleet read, the rate dial's 4th point, the correlation 14th, the storm arbiter), the mainLate early-kill design input, the famine's next break, the sand delivery leg.
+- Next fire: (1) poll 37474596256 FIRST - SUCCESS -> mine with the v0.705.0 decompose (the corrected fuel cells + the iron row ride its surface); FAILURE with the storm again -> the drift is confirmed, the memory diet graduates to the top front. (2) push-CI verdicts on 835795f + 217d5ec (37474915290). (3) dispatch law x46 on clear.
