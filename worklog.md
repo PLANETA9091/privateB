@@ -18262,3 +18262,23 @@ Stage Summary:
 - The confusion class now has its own lens: the o2Blind cell prices the witness's blindness per pair per bot; the fire-0340 addendum's front #1 is owned.
 - Fronts: the 48th's mine (the o2Blind cell's 2nd read, the near pin's 3rd, the freeze gate's 2nd, the kick bill's 7th, the dial's 16th, the census's 13th), the commons drought (3rd zero face running - the WHERE join still needs the anchor's own anatomy), the closing minute (2 all-inside faces in the era - the hard-kill co-occurrence), the gather drought (sand's delivery leg).
 - Next fire: (1) poll 37530997515 FIRST - SUCCESS -> mine with the v0.725.0 decompose (the o2Blind cell's 2nd fleet read). (2) push-CI verdicts on bce6bc4 (37530954309) + da7fad2 (37528684243). (3) dispatch law x60 on clear.
+
+---
+
+## Task ID: cron30-20261007-0500
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0500 - the 47th's verdicts (all green), the instant churn's own bill, dispatch on clear
+
+Work Log:
+- Repo synced da7fad2; the lane landed v0.723.0 (45980d2 near-pin), v0.724.0 (6a5845d freezebill) and fire-0440's v0.725.0 (bce6bc4 o2Blind) mid-fire. VERDICTS ALL GREEN: 5131569 push-CI 37524318861 SUCCESS (the v0.722.0 tree CI-proven); 6a5845d 37527546635 SUCCESS; 6ff2279 37524933187 SUCCESS; face 47 = 37524391418 (on 5131569) SUCCESS.
+- ONE ATOMIC IMPROVEMENT: v0.726.0 THE INSTANT CHURN (f8ce569, package.json 0.725.0 -> 0.726.0 after the lane took 0.725.0; the fire's first commit had to be amended - the version tags were staged before the retag, the classic order trap). swirlbill.mjs swirlBill(lines): the rescue lane's zero-close loop priced - an instant close (rescue complete in 0.0s) joins the nearest OPEN start of the SAME bot; a close with no open start counts orphan (the lane's own leak). THE VERDICT IS A CONCENTRATION (the pinbill law): instant >= 10 AND share >= 50% reads THE INSTANT CHURN.
+- FACE 47 = 37524391418 MINED WITH THE MAIDEN LENS (the churn's motive face): F13 closed 78 of 83 starts in 0.0s (94.0%) beside 81 liar-ladder ratchets and DIED of drown anyway ('rescue aborted (dead mid-rescue) in 2.3s') - the churn, not the cure; F1's 3 of 16 (18.8%) stays honestly out on both bars; the face's raw counters printed the numbers ('rescue complete 0.0s: 81') but no cell owned the class. The lane's o2Blind row (v0.725.0) prints beside the churn's - two lenses, one face, both honest.
+- Tests: +5 (the 47th's F13/F1 byte-verbatim era read, the per-bot interleave, the orphan leak, the bars - 10@50% in / 9 out / 12-of-30 out, the junk/blob/release-skin silences); swirlbill 5/5, deathkinds 29/29 (the lane's, post-rebase), syntax 520 0-broken. The local unit runner flaked under load (a different fork each run: worldmap-persist / wet-shift-plan / watertable 'Promise resolution pending' at pass 0 fail 0, exit 124 at 276 files passed) - each file verified green directly; CI is the arbiter.
+- Rebase conflict on package.json (their 0.725.0 vs my 0.726.0) resolved keep-mine after one inverted-keep mistake caught and fixed pre-push; decompose auto-merged (their confusions tail + my churn block coexist). Push f8ce569 attempt-1 clean.
+- DISPATCH LAW x60: NOT fired - face 48 = 37530997515 (the lane's, on bce6bc4) in flight at the checkpoint; the one-active law holds.
+
+Stage Summary:
+- Version 0.726.0 (THE INSTANT CHURN, f8ce569); next free 0.727.0; dispatch law x60 pending (face 48 in flight).
+- The instant churn priced: the 47th's F13 78/83 instant closes are the era's debut churn verdict - the trigger's drowning and the lane's surface-safe in the same breath, and the bot died anyway.
+- Fronts: the 48th's mine (the churn's 2nd read, the witness's 2nd, the freeze ladder's 3rd, the seat bill's 4th), the churn's own cure question (a trigger that closes 78 starts instantly is a trigger precision loss - the fleet-side fix waits on more faces), the relog stall's 100% face, the gather drought.
+- Next fire: (1) poll 37530997515 FIRST - SUCCESS -> mine with the v0.726.0 decompose (the churn's 2nd read on the v0.725.0 tree). (2) CI verdicts on f8ce569 (the arbiter). (3) dispatch law x60 on clear.
