@@ -59,14 +59,26 @@ function kindOfInferred (name) {
   return { kind: 'mob', attacker: name }
 }
 
-/** The inference verdict bracket, named the way the death line prints it. */
+/** The inference verdict bracket, named the way the death line prints it.
+ * (v0.713.0) the vocabulary grows its own named tails: the BYSTANDER (the
+ * explosion's own skin - the exploder removed itself at detonation, the
+ * nearest-harm scan read the next-nearest hostile; debuted on the 37th's
+ * Creeper pair) and the case-insensitive contradicts (the emitter prints
+ * 'CONTRADICTS' uppercase - the v0.425.0 match missed the byte, the
+ * grammar corrected by its own reuse). */
 function corroborationOf (tail) {
   if (typeof tail !== 'string' || !tail.length) return 'absent'
+  if (/names a BYSTANDER/i.test(tail)) return 'bystander'
   if (/corroborates/.test(tail)) return 'corroborates'
   if (/blind to this kind/.test(tail)) return 'blind'
-  if (/contradicts/.test(tail)) return 'contradicts'
+  if (/contradicts/i.test(tail)) return 'contradicts'
   return 'unknown'
 }
+
+/** The inferred tail's own name ('zombie@0.6' -> zombie, 'fall/env',
+ * 'drowning') - the kind join's input (the name's own bucket vs the
+ * server's kind). A tail that names nothing readable joins nothing. */
+const INFERRED_NAME_RE = /^([a-z][a-z/]*)(?:@[\d.]+)?/
 
 /** The vertical family: the server's own fall kind, or the vanilla void
  * phrasing riding the honest-'other' bucket today. */
@@ -80,7 +92,10 @@ function isVertical (kind, verb) {
  * @param {string[]} lines the full fleet19.log lines
  * @returns {{total: number, byKind: Object<string, number>, byBot: Object<string, number>,
  *   vertical: Array<{bot: string, verb: string, kind: string, attacker: string|null,
- *   pos: number[]|null, corroboration: string}>, verticalCount: number, unparsed: string[]}}
+ *   pos: number[]|null, corroboration: string}>, verticalCount: number, unparsed: string[],
+ *   inference: {total: number, corroborates: number, blind: number, contradicts: number,
+ *   bystander: number, unknown: number, absent: number, kindAgree: number,
+ *   kindDisagree: number}}}
  *   junk-safe: non-string rows judge nothing; an announce-shaped line the
  *   payload regex cannot parse lands in unparsed (the escape hatch - a new
  *   phrasing must surface, never vanish).
@@ -93,6 +108,13 @@ export function deathKindCensus (lines) {
   const unparsed = []
   const inferredOnly = []
   const otherVerbs = {}
+  // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of every
+  // server-verdict row's inferred tail: the verdict bracket's own word
+  // (corroborates / blind / contradicts / bystander / unknown / absent)
+  // and the kind join (the inferred name's own bucket vs the server's
+  // kind). The server kind stays the authority (the v0.117.0 doctrine) -
+  // the bill measures the WITNESS, never re-adjudicates the verdict.
+  const inference = { total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0, unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0 }
   let total = 0
   for (const l of rows) {
     if (typeof l !== 'string' || !l.length) continue // junk-safe: the FATAL face truncates (the v0.358.0 lesson)
@@ -143,6 +165,15 @@ export function deathKindCensus (lines) {
     // the evidence the census surfaces).
     if (kind === 'other') otherVerbs[verb] = (otherVerbs[verb] || 0) + 1
     if (bot) byBot[bot] = (byBot[bot] || 0) + 1
+    // (v0.713.0) the inference's own bill rides every server-verdict row
+    const bracket = corroborationOf(tail)
+    inference[bracket]++
+    inference.total++
+    const nm = tail ? INFERRED_NAME_RE.exec(tail) : null
+    if (nm) {
+      if (kindOfInferred(nm[1]).kind === kind) inference.kindAgree++
+      else inference.kindDisagree++
+    }
     if (isVertical(kind, verb)) {
       const pm = tail ? POS_RE.exec(tail) : null
       vertical.push({
@@ -155,5 +186,5 @@ export function deathKindCensus (lines) {
       })
     }
   }
-  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs }
+  return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs, inference }
 }

@@ -153,6 +153,10 @@ if (sweep.keywordOnly.length) {
   // many of them carry no server verdict.
   const inferredNote = kinds.inferredOnlyCount ? `, INFERRED-ONLY ${kinds.inferredOnlyCount}` : ''
   console.log(`  death causes: ${causeRow}${inferredNote}${unparsedNote}`)
+  // (v0.713.0) THE INFERENCE'S OWN BILL - the two-way read of the
+  // inference's tails across the whole face (the server kind stays the
+  // authority; the bill measures the witness, never re-adjudicates).
+  if (kinds.inference.total > 0) console.log(`  the inference's own bill (v0.713.0): ${kinds.inference.total} death(s) with a server verdict and an inferred tail - the kind join agree ${kinds.inference.kindAgree} / disagree ${kinds.inference.kindDisagree}; the bracket corroborates ${kinds.inference.corroborates}, blind ${kinds.inference.blind}, contradicts ${kinds.inference.contradicts}, bystander ${kinds.inference.bystander}`)
   for (const v of kinds.vertical) {
     console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)
   }

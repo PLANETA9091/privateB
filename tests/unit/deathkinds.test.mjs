@@ -237,3 +237,60 @@ test('WIRING: the decompose prints the other-verb census row', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /other-verb census: \$\{ovs\.map/, 'the honest-other verbs print by their words')
 })
+
+// (v0.713.0) THE INFERENCE'S OWN BILL - the era's real tails, byte-exact.
+// The 40th's 12 deaths: 8 agree / 4 disagree; corroborates 7, blind 2,
+// contradicts 2 (the emitter prints 'CONTRADICTS' uppercase - the
+// v0.425.0 case-sensitive match missed the byte), bystander 1 (the
+// explosion's own skin - the exploder removed itself, the scan read the
+// next-nearest hostile). The server kind stays the authority.
+const FACE40_SKELETON_CONTRADICTS = 'F10 [F10] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: fall/env (0s before death at [-124,64,402]) [the inference CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)])'
+const FACE40_SPIDER_CONTRADICTS = 'F7 [F7] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: spider@1.2 (0s before death at [-133,64,444]) [the inference CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)])'
+const FACE40_CREEPER_BYSTANDER = 'F2 [F2] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: zombie@0.5 (0s before death at [-163,64,413]) [the inference names a BYSTANDER - the exploder removed itself at detonation, the nearest-harm scan read the next-nearest hostile (a real witness, not the killer; the server killer stays the authority)])'
+const FACE40_DROWN_BLIND = 'F6 [F6] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-118,49,394]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE40_ZOMBIE_AGREE = 'F13 [F13] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.6 (0s before death at [-151,63,425]) [the inference corroborates the server verdict])'
+
+test("the inference's own bill: the era's two-way read byte-exact (the 40th's 12)", () => {
+  const c = deathKindCensus([
+    FACE40_SKELETON_CONTRADICTS, // mob|fall/env - kindDisagree, contradicts
+    FACE40_SPIDER_CONTRADICTS, // mob|spider - kindAgree (both mob), contradicts
+    FACE40_CREEPER_BYSTANDER, // explosion|zombie - kindDisagree, bystander
+    FACE40_DROWN_BLIND, // drown|fall/env - kindDisagree, blind
+    FACE40_ZOMBIE_AGREE // mob|zombie - kindAgree, corroborates
+  ])
+  assert.equal(c.total, 5)
+  assert.deepEqual(c.inference, {
+    total: 5, corroborates: 1, blind: 1, contradicts: 2, bystander: 1,
+    unknown: 0, absent: 0, kindAgree: 2, kindDisagree: 3
+  })
+  // the case byte: the emitter's 'CONTRADICTS' lands in contradicts now
+  // (the v0.425.0 bracket match was case-sensitive and read it unknown)
+  const alone = deathKindCensus([FACE40_SKELETON_CONTRADICTS])
+  assert.equal(alone.inference.contradicts, 1)
+  assert.equal(alone.inference.unknown, 0)
+  // the bystander tail is the explosion's own skin (the 37th's Creeper
+  // pair rides it - the fire-2240 'blind to the kind' note corrected)
+  const by = deathKindCensus([FACE40_CREEPER_BYSTANDER])
+  assert.equal(by.inference.bystander, 1)
+  assert.equal(by.inference.blind, 0)
+})
+
+test("the inference's own bill: the honest silence and the junk battery", () => {
+  // a deathless face reads the zero bill
+  const c = deathKindCensus(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)'])
+  assert.deepEqual(c.inference, {
+    total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0
+  })
+  // junk-safe: the non-string rows judge nothing
+  const j = deathKindCensus([42, null, undefined])
+  assert.deepEqual(j.inference, {
+    total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0
+  })
+  // the spear pair (kind=other, inferred zombie) disagrees at the kind
+  // join - the server kind stays the authority, the bill only measures
+  const spear = deathKindCensus([RUN16_SPEAR_F3])
+  assert.equal(spear.inference.kindDisagree, 1)
+  assert.equal(spear.inference.kindAgree, 0)
+})
