@@ -17230,3 +17230,28 @@ Stage Summary:
 - The 19th flight's dual-mine cross-verify: ZERO DISPUTES, 6 ADDS byte-exact - the flee-disengage front now carries the nest-harvest tie (the flee grounds are the ambush grounds).
 - Face 37413061352 (the 21st flight, the v0.677.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x18, the rss jump lens's first full-face read, bank recovery from 41.5%, the flee front's repeat, the rescue unclosed repeat); if a 3rd freeze-storm FATAL lands, THE ENTITY-COUNT DRIVER FRONT ESCALATES (the ents gauge 2023->2691 is the candidate lever).
 - Version 0.677.0; next free 0.678.0; code fronts: the entity-count gauge (the memory storm's driver), the flee disengage (the nest tie sharpens it), the storm bank conversion, the rescue unclosed tail.
+
+---
+Task ID: cron30-20261006-1230
+Agent: cron30 fire 1230 (PLANETA9091 identity)
+Task: maintain privateB - the 21st flight mined, one atomic improvement, dispatch on clear.
+
+Work Log:
+- Sandbox alive, master synced to a43c421 -> rebased onto the lane's 708e913 (fire 1239 cross-read) mid-fire. CI verdicts: worklog-CI 37412038314 (6bdd6db) SUCCESS; push-CI 37413037999 (e0b4a7c) cancelled (the concurrency serialization, the tree validated by the 21st flight itself).
+- THE 21ST FLIGHT LANDED: 37413061352 COMPLETED SUCCESS (on e0b4a7c, the v0.677.0 tree) - THE FIRST CLEAN FACE SINCE THE MEMORY STORM. MINED run37413061352 (4094 lines, artifacts at /home/z/my-project/scripts/fleet-mining/run37413061352/, uncommitted):
+  - DEATHS 7 = CLOCK 7 (drown=4 mob=3), max burst 2/30s, verdict CALM: 1 - the storm stayed home (the arc ...->18->7).
+  - THE ENT JUMP'S FIRST PRODUCTION READ (my v0.678.0 row, its maiden face): 'ents jump: max +706/gauge - DRIVER x11 (>= 50/gauge)' - ents max 3667 THE ROW'S HIGHEST, yet rss max 526M, rss jump max +30M/gauge, ZERO freeze-storm FATAL, oom locks 0. THE 20TH->21ST CONTRAST THE LENS WAS BUILT FOR: ents 2691 killed the 20th (rss 1212M), ents 3667 on the 21st with rss 526M SURVIVED - the driver is priced on both faces now, the correlation data owns the next leg.
+  - BANK RECOVERED: conversion 104.6% (mined 2264, banked 804, pocket 1556u, surplus 104u) - from 41.5% the row's worst to over-full.
+  - LEAK COLLAPSED: material balance CLOSES - leaks -80u (-3.7% of mined), the no-leak verdict (the legs' 471u never leaked); from 60.0% the row's worst to negative.
+  - THE FLEE FRONT HEALED ON THIS FACE: flee carries 71u/1 death (from 489u/10 the chase wins x9).
+  - End-phase tax 28% (~102u of ~370u); floor x18: one-unit 0/28 (0%); sand 1 launch (unreachable skips 5, map 189); drown=4 with rescue unclosed starts 8, timeouts 3, dead-in-rescue 3 - the WATER front owns this face's deaths, not mobs.
+- ONE ATOMIC IMPROVEMENT: v0.678.0 THE ENTITY CLIMB (bef0d27): the mem-hb lens read ents only as a CEILING (entsMax) but the 20th flight's ents climbed 2023 -> 2691 (+30%) while rss stayed flat - the mob storm's entities PRECEDED the memory storm the FATAL named. The census now prices the gauge-to-gauge ents climb (entJump.max the sharpest climb, entJump.storms the >= ENT_JUMP_STORM_N (50/gauge) count, despawn drops counted never folded - the rss jump's own GC-drop law mirrored); decompose prints the driver row beside the storm row. Field witness: the stub's own gauge bytes. 4 new unit tests.
+- Tests: syntax 476/0; unit - the sequential runner's pending-promise flake class rode smelting (x2) and toolupgrade (x1) across 5 attempts (both files PASS ALONE on this tree: smelting 163/163, toolupgrade 91/91, memhb 19/19 - the fire-1030/1130 class, never my files); every suite that completed in-sequence passed (262+ tests, 0 fails). CI's parallel runner is the arbiter.
+- Push clean attempt 1 after rebase: 708e913..bef0d27. Push-CI 37416642599 in_progress at log-off.
+- DISPATCH (law x27): POST 204 -> face 37416742832 id-verified IN_PROGRESS on bef0d27 at 05:04:40Z (the 22nd flight, the first on the v0.678.0 tree - the lens reads its own second face).
+
+Stage Summary:
+- The 21st flight MINED - the first clean face since the memory storm; bank/leak/flee all healed on one face; the WATER-rescue front (drown=4, unclosed 8, the frozen-physics stand-downs) is this face's own leak leg.
+- v0.678.0 landed - the entity climb is priced on every future face; its maiden read (DRIVER x11, ents 3667, survived) is the 20th/21st correlation pair.
+- Next fire: (1) poll face 37416742832 FIRST - if SUCCESS mine (floor x19, the ent jump's 2nd read, the water-rescue repeat, bank 104.6% repeat?, the end-phase tax repeat). (2) push-CI 37416642599 verdict (bef0d27). (3) code fronts: the water-rescue blind lane (8 unclosed starts, the frozen-physics stand-down owns the drown class), the ents/rss correlation (2 faces of data), the flee disengage's long tail. (4) dispatch on clear (law x28).
+- Version 0.678.0; next free 0.679.0.
