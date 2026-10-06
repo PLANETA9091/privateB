@@ -191,6 +191,26 @@ export function sealDeathCensus (lines) {
     burstDeaths++
     if (k === 0 || !burstRider[k - 1] || timedTs[k] - timedTs[k - 1] > DEATH_BURST_WINDOW_S) burstClusters++
   }
+  // (v0.721.0) THE DEADLINE'S OWN STORM - the two clock reads meet. The
+  // end-phase tax (v0.675.0) priced the final window's UNITS, the burst
+  // share (v0.676.0) priced the storm's SIZE - neither asked whether the
+  // storm itself sits inside the deadline's window. The join prices it:
+  // the burst riders whose stamp lands at or past clockEnd - the
+  // end-phase window. The all-inside case names THE DEADLINE'S OWN
+  // STORM (the whole regime the closing minute called - face 45: all 3
+  // riders at ts=781 inside the final 60s of clock end 821); the zero
+  // case names the MID-FACE storm (face 42: 8 riders, 0 inside - the
+  // deadline never touched it); the partial names the ride-in (face 43:
+  // 7 of 8 - the storm crossed the cut). The clock never invents: no
+  // bursts, no join (the burst share's own silence), no clock end, no
+  // join either (an untimed-end face judges no deadline).
+  let burstEndPhase = 0
+  if (clockEnd !== null && burstDeaths > 0) {
+    const endCut = clockEnd - DEATH_END_PHASE_WINDOW_S
+    for (let k = 0; k < timedTs.length; k++) {
+      if (burstRider[k] && timedTs[k] >= endCut) burstEndPhase++
+    }
+  }
   // (v0.680.0) THE SIEGE PACE - the sustained-pressure read beside the
   // burst read: deaths per clock-minute over the timed span. The 22nd
   // flight (37416742832) rode 29 mob deaths at max burst 3 - a SUSTAINED
@@ -228,6 +248,7 @@ export function sealDeathCensus (lines) {
       burstMin: DEATH_BURST_MIN,
       burstDeaths,
       burstClusters,
+      burstEndPhase,
       pace,
       spanS
     }

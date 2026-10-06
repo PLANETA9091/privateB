@@ -231,9 +231,17 @@ if (sweep.keywordOnly.length) {
       // burst names the densest 30s window, the share names the storm's
       // SIZE (the deaths die together - the swarm face vs the skirmish
       // face; the arc counts the totals, this prices the regime).
+      // (v0.721.0) THE DEADLINE'S OWN STORM - the join the two reads never
+      // made: the burst riders' own membership in the final window. All
+      // inside names the closing minute's own regime; zero names the
+      // mid-face storm the deadline never touched; the partial names the
+      // ride-in (the storm crossed the cut).
       if (c.burstDeaths > 0) {
         const share = Math.round((100 * c.burstDeaths) / c.timed)
-        console.log(`  burst share: ${c.burstDeaths} of ${c.timed} deaths rode bursts (>=${c.burstMin} in ${c.burstWindowS}s) (${share}%) in ${c.burstClusters} cluster(s) - the storm's own share`)
+        const stormNote = c.burstEndPhase === c.burstDeaths
+          ? `- THE DEADLINE'S OWN STORM (v0.721.0): all ${c.burstDeaths} burst rider(s) sit in the final ${c.endPhaseWindowS}s - the closing minute called the regime`
+          : `- the deadline's own storm (v0.721.0): ${c.burstEndPhase} of ${c.burstDeaths} burst rider(s) sit in the final ${c.endPhaseWindowS}s`
+        console.log(`  burst share: ${c.burstDeaths} of ${c.timed} deaths rode bursts (>=${c.burstMin} in ${c.burstWindowS}s) (${share}%) in ${c.burstClusters} cluster(s) - the storm's own share ${stormNote}`)
       }
     }
   }

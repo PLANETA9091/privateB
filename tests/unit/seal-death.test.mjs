@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
-const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, pace: null, spanS: 0 }
+const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0 } // (v0.721.0) the deadline's own storm joins the zero shape
 
 test('seal-death: the F14 verbatim loss parses - stacks SUMMED per name, seal-class priced', () => {
   const line = 'F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64, diorite 28, dirt 26, cobblestone 19, andesite 7, +12 more)'
@@ -88,6 +88,105 @@ test('seal-death: the junk battery - prose, anatomy strangers, non-strings', () 
   for (const l of junk) assert.equal(parseSealDeathDrop(l), null)
   const c = sealDeathCensus(junk)
   assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, deathRows: [], endPhaseLost: 0, clock: CLOCK_ZERO }) // (v0.675.0) the tax fields ride the zero shape
+})
+
+test('seal-death clock: the deadline storm join - the 45th all-inside regime (v0.721.0)', () => {
+  // face 45 (37516287610) byte-verbatim: three deaths in ONE 30s window at
+  // ts=781, clock end 821 - the whole burst sits inside the final 60s. The
+  // join names THE DEADLINE'S OWN STORM: all riders are end-phase riders.
+  const deaths = [
+    'F14 [F14] death drop: ~41u lost at [-115,64,424] (cobblestone 20, dirt 12, +4 more)',
+    'F2 [F2] death drop: ~19u lost at [-141,65,397] (dirt 11, cobblestone 5, +2 more)',
+    'F15 [F15] death drop: ~227u lost at [-119,65,392] (cobblestone 98, dirt 44, +9 more)'
+  ]
+  const log = ['b] n=1 ts=10s rss=250M late=5ms mainLate=0ms']
+  let n = 2
+  for (const line of deaths) {
+    log.push(`b] n=${n} ts=781s rss=255M late=5ms mainLate=0ms`, line)
+    n++
+  }
+  log.push('b] n=30 ts=821s rss=261M late=4ms mainLate=0ms')
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.clockEnd, 821)
+  assert.equal(c.clock.maxBurst, 3)
+  assert.equal(c.clock.burstDeaths, 3)
+  assert.equal(c.clock.burstClusters, 1)
+  assert.equal(c.clock.endPhase, 3)
+  // the join: all three riders inside the final 60s (cut 761) - the named
+  // storm's own number, and the row's all-inside branch fires
+  assert.equal(c.clock.burstEndPhase, 3)
+  assert.equal(c.clock.burstEndPhase === c.clock.burstDeaths, true)
+})
+
+test('seal-death clock: the deadline storm join - the ride-in and the mid-face silences (v0.721.0)', () => {
+  // face 43 (37509214512) shape: the burst rides INTO the final window -
+  // one rider at 681 stays before the cut (clock end 761, cut 701), the
+  // other seven land inside: 7 of 8, the partial form (the storm crossed
+  // the cut, it did not start there).
+  const rideIn = [
+    'F5 [F5] death drop: ~30u lost at [0,64,0] (cobblestone 30)', // 681 - the pre-cut rider
+    'F12 [F12] death drop: ~20u lost at [1,64,1] (dirt 20)', // 701
+    'F14 [F14] death drop: ~10u lost at [2,64,2] (dirt 10)', // 701
+    'F2 [F2] death drop: ~15u lost at [3,64,3] (cobblestone 15)', // 701
+    'F9 [F9] death drop: ~25u lost at [4,64,4] (cobblestone 25)', // 701
+    'F15 [F15] death drop: ~35u lost at [5,64,5] (dirt 35)', // 721
+    'F18 [F18] death drop: ~12u lost at [6,64,6] (dirt 12)', // 721
+    'F3 [F3] death drop: ~18u lost at [7,64,7] (cobblestone 18)' // 741
+  ]
+  const stamps = [681, 701, 701, 701, 701, 721, 721, 741]
+  const log43 = ['b] n=1 ts=10s rss=250M late=5ms mainLate=0ms']
+  let n = 2
+  for (let i = 0; i < rideIn.length; i++) {
+    log43.push(`b] n=${n} ts=${stamps[i]}s rss=255M late=5ms mainLate=0ms`, rideIn[i])
+    n++
+  }
+  log43.push('b] n=40 ts=761s rss=261M late=4ms mainLate=0ms')
+  const c43 = sealDeathCensus(log43)
+  assert.equal(c43.clock.burstDeaths, 8)
+  assert.equal(c43.clock.burstClusters, 1)
+  assert.equal(c43.clock.endPhase, 7)
+  assert.equal(c43.clock.burstEndPhase, 7) // 7 of 8 - the partial keeps the number
+  assert.equal(c43.clock.burstEndPhase === c43.clock.burstDeaths, false)
+  // face 42 (37504847346) shape: the MID-FACE storm - the whole burst sits
+  // before the cut (clock end 981, cut 921, cluster 821..901): 0 of 8, the
+  // deadline never touched the regime.
+  const midFace = [
+    'F6 [F6] death drop: ~22u lost at [0,64,0] (cobblestone 22)', // 821
+    'F1 [F1] death drop: ~14u lost at [1,64,1] (dirt 14)', // 841
+    'F10 [F10] death drop: ~16u lost at [2,64,2] (dirt 16)', // 841
+    'F11 [F11] death drop: ~19u lost at [3,64,3] (cobblestone 19)', // 841
+    'F7 [F7] death drop: ~21u lost at [4,64,4] (cobblestone 21)', // 861
+    'F8 [F8] death drop: ~17u lost at [5,64,5] (dirt 17)', // 881
+    'F4 [F4] death drop: ~13u lost at [6,64,6] (dirt 13)', // 881
+    'F16 [F16] death drop: ~24u lost at [7,64,7] (cobblestone 24)' // 901
+  ]
+  const stamps42 = [821, 841, 841, 841, 861, 881, 881, 901]
+  const log42 = ['b] n=1 ts=10s rss=250M late=5ms mainLate=0ms']
+  n = 2
+  for (let i = 0; i < midFace.length; i++) {
+    log42.push(`b] n=${n} ts=${stamps42[i]}s rss=255M late=5ms mainLate=0ms`, midFace[i])
+    n++
+  }
+  log42.push('b] n=50 ts=981s rss=261M late=4ms mainLate=0ms')
+  const c42 = sealDeathCensus(log42)
+  assert.equal(c42.clock.burstDeaths, 8)
+  assert.equal(c42.clock.endPhase, 0)
+  assert.equal(c42.clock.burstEndPhase, 0) // 0 of 8 - the mid-face storm's own zero
+  // face 44 (37512568836) shape: no bursts - the join keeps the burst
+  // share's own silence (0 stays 0, no row fires, no invented storm).
+  const log44 = [
+    'b] n=1 ts=10s rss=250M late=5ms mainLate=0ms',
+    'b] n=2 ts=601s rss=252M late=5ms mainLate=0ms',
+    'F14 [F14] death drop: ~15u lost at [0,64,0] (cobblestone 15)',
+    'b] n=3 ts=661s rss=255M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~9u lost at [1,64,1] (dirt 9)',
+    'b] n=4 ts=841s rss=261M late=4ms mainLate=0ms',
+    'F15 [F15] death drop: ~17u lost at [2,64,2] (cobblestone 17)'
+  ]
+  const c44 = sealDeathCensus(log44)
+  assert.equal(c44.clock.maxBurst, 1)
+  assert.equal(c44.clock.burstDeaths, 0)
+  assert.equal(c44.clock.burstEndPhase, 0) // the honest silence where the burst share's is
 })
 
 test('seal-death: the honest zero on a deathless face + the pinned anatomy', () => {
