@@ -111,7 +111,24 @@
 // 3 on the 32nd). 'other' stays the honest residual (the sum of the
 // tails never claims the cell); an 'other' that names neither tail
 // stays silent inside it. The fuel cell's own 'other' keeps its shape
-// this version (its 32nd water-rescue ride is the fuel-side followup).
+// this version (its water-rescue ride is the fuel-side followup).
+//
+// (v0.710.0) THE FUEL OTHER'S SKIN - the fuel-side followup lands: the
+// fuel cell's honest 'other' splits by its own named tails, the iron
+// cell's (v0.709.0) parallel shape. THE ERA'S RIDES BYTE-EXACT: the
+// 36th's other 1 = the WATER-RESCUE REFUSAL ('chest walk failed after
+// the nudge (water rescue in progress (fuel commons walk @... refused))'
+// - the rescue lane flying prices the fuel walk too) and the 37th's
+// other 1 = THE GOVERNOR'S CHURN BRAKE ('chest walk failed after the
+// nudge (walk governor: bot churned 4 goals without progress - fuel
+// commons walk @... refused for 12s)'). THE RATE LIMITER'S TWO VOICES,
+// one family: the iron's rides say 'goal brake: N goals in Ms', the
+// fuel's say 'walk governor: bot churned N goals without progress' -
+// both are the walk governor turning a goal storm away, so the fuel
+// cell's goalBrake matches BOTH grammars (the family read, the byte
+// kept). 'other' stays the honest residual; an 'other' that names
+// neither tail stays silent inside it. The 32nd/34th/38th read other 0
+// (the row rides its honest silence).
 //
 // (v0.704.0) THE FUEL LANE'S OWN DOOR - that front lands: the nudge
 // walk's own verdict in the fuel lane's skin ('fuel commons: chest walk
@@ -146,7 +163,8 @@
  *   pocket: {zeroProbes: number, depositZeros: number, total: number,
  *            nothingToDeposit: number},
  *   fuel: {total: number, decide: number, noPath: number,
- *          retryTimeout: number, other: number},
+ *          retryTimeout: number, other: number, goalBrake: number,
+ *          rescueRefused: number},
  *   iron: {total: number, decide: number, noPath: number,
  *          retryTimeout: number, other: number, goalBrake: number,
  *          rescueRefused: number},
@@ -163,7 +181,7 @@ export function bankDocket (lines, visits) {
     bankLines: 0,
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
-    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     views: 0,
     fallbacks: 0,
@@ -221,7 +239,19 @@ export function bankDocket (lines, visits) {
       if (/Took to long to decide path to goal/.test(line)) d.fuel.decide++
       else if (/No path to the goal/.test(line)) d.fuel.noPath++
       else if (/\(nudge retry\): timeout after/.test(line)) d.fuel.retryTimeout++
-      else d.fuel.other++
+      else {
+        d.fuel.other++
+        // (v0.710.0) THE FUEL OTHER'S SKIN - the honest residual names
+        // its own rides: the walk governor's brake (the rate limiter's
+        // two voices - the iron's 'goal brake: N goals in Ms' and the
+        // fuel's own 'walk governor: bot churned N goals without
+        // progress') and the water rescue's own refusal (the rescue
+        // lane flying prices the fuel walk). An 'other' that names
+        // neither stays silent inside the residual.
+        if (/goal brake: \d+ goals in \d+s/.test(line) ||
+          /walk governor: bot churned \d+ goals without progress/.test(line)) d.fuel.goalBrake++
+        else if (/water rescue in progress/.test(line)) d.fuel.rescueRefused++
+      }
       continue
     }
     // the empty-pocket leg: the chest reached and open, the deposit moved 0

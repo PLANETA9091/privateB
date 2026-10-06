@@ -67,7 +67,7 @@ test('bankDocket honest zeros and the junk battery', () => {
     bankLines: 0,
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
-    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     views: 0, fallbacks: 0, plans: 0, depositPositives: 0
   })
@@ -143,12 +143,12 @@ test("the fuel lane's own door: the era's counts byte-exact (the 32nd: 19, the 3
   const retry = 'F15 fuel commons: chest walk failed after the nudge (fuel commons walk @-119,379 (nudge retry): timeout after 3948ms)'
   const refused = 'F1 fuel commons: chest walk failed after the nudge (water rescue in progress (iron commune walk @-141,389 (nudge retry) refused))'
   const r32 = bankDocket([...Array(14).fill(decide), ...Array(2).fill(noPath), ...Array(2).fill(retry), refused])
-  assert.deepEqual(r32.fuel, { total: 19, decide: 14, noPath: 2, retryTimeout: 2, other: 1 })
+  assert.deepEqual(r32.fuel, { total: 19, decide: 14, noPath: 2, retryTimeout: 2, other: 1, goalBrake: 0, rescueRefused: 1 })
   assert.equal(r32.door.total, 0) // the bank's door leg never swallowed the fuel lane
   assert.equal(r32.pocket.total, 0)
   assert.equal(r32.bankLines, 0) // no 'bank' word rides the fuel door's skin
   const r34 = bankDocket([...Array(17).fill(decide), ...Array(3).fill(noPath), retry])
-  assert.deepEqual(r34.fuel, { total: 21, decide: 17, noPath: 3, retryTimeout: 1, other: 0 })
+  assert.deepEqual(r34.fuel, { total: 21, decide: 17, noPath: 3, retryTimeout: 1, other: 0, goalBrake: 0, rescueRefused: 0 })
   // the rescue-refused tail says 'nudge retry' too but never ': timeout
   // after' - the byte keeps it OUT of the retry cell (the honest other)
   const onlyRefused = bankDocket([refused])
@@ -168,7 +168,7 @@ test("the fuel lane's own door: the era's counts byte-exact (the 32nd: 19, the 3
 test("the fuel lane's own door: the honest silence and the junk battery", () => {
   // a face whose fuel lane walked clean reads the zero cell - no door
   const clean = bankDocket(['F2 fuel commons: the nudge retry landed', 'F3 fuel commons: budget spent (4/4 units)'])
-  assert.deepEqual(clean.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 })
+  assert.deepEqual(clean.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 })
   // junk lines inside a live face are skipped, never invented
   const j = bankDocket(['fuel commons: chest walk failed after the nudge', 123, null])
   assert.equal(j.fuel.total, 1)
@@ -200,7 +200,7 @@ test('the iron nudge skin rides IRON, not fuel - the v0.704.0 cross-contaminatio
   const ironNudge = 'F3 iron commune: iron commune: chest walk failed after the nudge (Took to long to decide path to goal!)'
   const r = bankDocket([ironNudge])
   assert.deepEqual(r.iron, { total: 1, decide: 1, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 })
-  assert.deepEqual(r.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 })
+  assert.deepEqual(r.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 })
   // a MENTION is not a member: the fuel refused-tail names an iron walk
   // inside its parens - the line stays the fuel lane's
   const fuelRefused = 'F1 fuel commons: chest walk failed after the nudge (water rescue in progress (iron commune walk @-141,389 (nudge retry) refused))'
@@ -269,4 +269,33 @@ test("the iron's other skin: the goal brake and the water rescue's refusal named
   assert.equal(mixed.iron.other, 2)
   assert.equal(mixed.iron.goalBrake, 1)
   assert.equal(mixed.iron.rescueRefused, 1)
+})
+
+test("the fuel's other skin: the governor's two voices and the rescue's refusal named (the era's reads byte-exact)", () => {
+  // the 37th's other 1 = THE GOVERNOR'S CHURN BRAKE - the fuel lane's
+  // own voice ('walk governor: bot churned N goals without progress'),
+  // the same rate limiter the iron's 'goal brake: N goals in 5s' serves
+  const churnBrake = 'F8 fuel commons: chest walk failed after the nudge (walk governor: bot churned 4 goals without progress - fuel commons walk @-139,422 (nudge retry) refused for 12s)'
+  const r37 = bankDocket([churnBrake])
+  assert.deepEqual(r37.fuel, { total: 1, decide: 0, noPath: 0, retryTimeout: 0, other: 1, goalBrake: 1, rescueRefused: 0 })
+  // the iron's own voice lands in the fuel cell too (a fuel walk refused
+  // by the SAME limiter would ride the family read) - the grammar byte
+  const goalBrake = 'F2 fuel commons: chest walk failed after the nudge (goal brake: 6 goals in 5s - fuel commons walk @-129,416 refused for 5s)'
+  const gb = bankDocket([goalBrake])
+  assert.equal(gb.fuel.other, 1)
+  assert.equal(gb.fuel.goalBrake, 1)
+  assert.equal(gb.fuel.rescueRefused, 0)
+  // the 36th's other 1 = the WATER-RESCUE REFUSAL (the rescue lane
+  // flying prices the fuel walk) - the fleet's byte-exact ride
+  const rescueRefused = 'F17 fuel commons: chest walk failed after the nudge (water rescue in progress (fuel commons walk @-129,398 (nudge retry) refused))'
+  const r36 = bankDocket([rescueRefused])
+  assert.deepEqual(r36.fuel, { total: 1, decide: 0, noPath: 0, retryTimeout: 0, other: 1, goalBrake: 0, rescueRefused: 1 })
+  // an 'other' that names neither tail stays silent inside the residual
+  const unnamed = bankDocket(['F9 fuel commons: chest walk failed after the nudge (the walk gave up on its own)'])
+  assert.deepEqual(unnamed.fuel, { total: 1, decide: 0, noPath: 0, retryTimeout: 0, other: 1, goalBrake: 0, rescueRefused: 0 })
+  // a mixed face keeps both counts honest (the residual never claims)
+  const mixed = bankDocket([churnBrake, rescueRefused])
+  assert.equal(mixed.fuel.other, 2)
+  assert.equal(mixed.fuel.goalBrake, 1)
+  assert.equal(mixed.fuel.rescueRefused, 1)
 })
