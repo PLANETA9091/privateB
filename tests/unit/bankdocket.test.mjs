@@ -25,7 +25,7 @@ const face32Mini = [
 
 test('bankDocket reads face 32 byte-exact: the door leg owns the silence (45 vs 6 on the live face), four skins', () => {
   const r = bankDocket(face32Mini)
-  assert.deepEqual(r.door, { unreachable: 2, noChest: 1, lidTimeout: 1, beyondRadius: 1, total: 5 })
+  assert.deepEqual(r.door, { unreachable: 2, decideTimeouts: 1, noChest: 1, lidTimeout: 1, beyondRadius: 1, total: 5 })
   assert.deepEqual(r.pocket, { zeroProbes: 1, depositZeros: 1, total: 2, nothingToDeposit: 3 })
   assert.equal(r.views, 1)
   assert.equal(r.fallbacks, 1)
@@ -65,7 +65,7 @@ test('bankDocket honest zeros and the junk battery', () => {
   // a face with no bank bytes reads the honest zero shape
   assert.deepEqual(bankDocket(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)']), {
     bankLines: 0,
-    door: { unreachable: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
+    door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     views: 0, fallbacks: 0, plans: 0, depositPositives: 0
   })
@@ -108,4 +108,24 @@ test("the door's rate dial honest silence: no visits, junk visits, or a legless 
   assert.equal(bankDocket(face32Mini, NaN).rate, undefined)
   // a legless face with a live lane count names no silence
   assert.equal(bankDocket(['F9 bank: 12', 'F6 bank trip: fuel-tithe budget 240s'], 200).rate, undefined)
+})
+
+test("the decide skin's own count: the era's A* shares byte-exact (the 32nd: 19 of 39, the 34th: 27 of 35)", () => {
+  // the live faces' proven counts (raw-log reconciled): the decide marker
+  // ('Took to long to decide path to goal!') rides INSIDE the unreachable
+  // branch only - the marker's other rides (the fuel lane's 'chest walk
+  // failed after the nudge') stay OUT of the docket's door leg
+  const decide = 'F4 [F4] hop: chest at [-115,79,415] d=28 zero: chest unreachable (Took to long to decide path to goal!)'
+  const bare = 'F7 bank: chest unreachable'
+  const r32 = bankDocket([...Array(19).fill(decide), ...Array(20).fill(bare)])
+  assert.equal(r32.door.unreachable, 39)
+  assert.equal(r32.door.decideTimeouts, 19)
+  const r34 = bankDocket([...Array(27).fill(decide), ...Array(8).fill(bare)])
+  assert.equal(r34.door.unreachable, 35)
+  assert.equal(r34.door.decideTimeouts, 27)
+  // the fuel lane's own door family stays unclassified (not the bank
+  // lane's leg) - the next fire's front
+  const fuel = bankDocket(['F1 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)'])
+  assert.equal(fuel.door.total, 0)
+  assert.equal(fuel.door.decideTimeouts, 0)
 })

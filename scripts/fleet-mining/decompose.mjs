@@ -1185,7 +1185,7 @@ if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
     : bd.door.total > bd.pocket.total
       ? ' - THE CHEST DOOR NEVER OPENED: the walk\'s own failures own the silence'
       : ' - THE DOCKET SPLITS: the door and the empty pocket share the silence'
-  console.log(`  the bank's docket (v0.700.0): the door leg ${bd.door.total} (chest unreachable ${bd.door.unreachable}, no chest ${bd.door.noChest}, lid timeouts ${bd.door.lidTimeout}, beyond radius ${bd.door.beyondRadius}), the empty-pocket leg ${bd.pocket.total} (zero probes ${bd.pocket.zeroProbes}, deposit zeros ${bd.pocket.depositZeros}), the why-phrase ${bd.pocket.nothingToDeposit}, views ${bd.views}, fallbacks ${bd.fallbacks}${bd.depositPositives > 0 ? `, deposit positives ${bd.depositPositives}` : ''}${fork}${bd.rate ? `, the door's rate ${bd.rate.doorPct}% of ${bd.rate.visits} visit-lines` : ''}`)
+  console.log(`  the bank's docket (v0.700.0): the door leg ${bd.door.total} (chest unreachable ${bd.door.unreachable}, decide timeouts ${bd.door.decideTimeouts}, no chest ${bd.door.noChest}, lid timeouts ${bd.door.lidTimeout}, beyond radius ${bd.door.beyondRadius}), the empty-pocket leg ${bd.pocket.total} (zero probes ${bd.pocket.zeroProbes}, deposit zeros ${bd.pocket.depositZeros}), the why-phrase ${bd.pocket.nothingToDeposit}, views ${bd.views}, fallbacks ${bd.fallbacks}${bd.depositPositives > 0 ? `, deposit positives ${bd.depositPositives}` : ''}${fork}${bd.rate ? `, the door's rate ${bd.rate.doorPct}% of ${bd.rate.visits} visit-lines` : ''}`)
 }
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))

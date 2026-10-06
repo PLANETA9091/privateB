@@ -59,6 +59,17 @@
 // own thermostat). No visits, junk visits, or a legless face reads no
 // rate (the honest silence - the law the yield dial already rides).
 //
+// (v0.703.0) THE DECIDE SKIN'S OWN COUNT - the unreachable skin splits
+// by its own why-tail: 'chest unreachable (Took to long to decide path
+// to goal!)' is the A* family's doorstep starvation, the bare skin is
+// the walk's own verdict. door.decideTimeouts names the A* share per
+// face (the 32nd: 19 of 39, the 34th: 27 of 35) - the doorstep decide
+// budget's standing design input. The fire-2030 worklog's '39 of the
+// 45' was the ad-hoc grep's own error (the lens corrects again: the
+// marker's other 20 rides on the 32nd lived in the fuel lane's 'chest
+// walk failed after the nudge' family - a door the docket does not
+// classify, the next fire's front).
+//
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only,
 // the v0.379/.../v0.701.0 precedent) - the bank bytes already ride the
 // filter-key.
@@ -71,8 +82,8 @@
  * @param {number} [visits] the visit lane's own line count (the yield
  *   dial's denominator) - the rate rides only on a positive finite count
  * @returns {null|{bankLines: number,
- *   door: {unreachable: number, noChest: number, lidTimeout: number,
- *          beyondRadius: number, total: number},
+ *   door: {unreachable: number, decideTimeouts: number, noChest: number,
+ *          lidTimeout: number, beyondRadius: number, total: number},
  *   pocket: {zeroProbes: number, depositZeros: number, total: number,
  *            nothingToDeposit: number},
  *   views: number, fallbacks: number, plans: number,
@@ -86,7 +97,7 @@ export function bankDocket (lines, visits) {
   if (!src) return null
   const d = {
     bankLines: 0,
-    door: { unreachable: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
+    door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     views: 0,
     fallbacks: 0,
@@ -103,7 +114,14 @@ export function bankDocket (lines, visits) {
     // probe-wrapped door failures ride the probe's own skin)
     if (/zero: cannot open chest/.test(line)) { d.door.lidTimeout++; d.door.total++; continue }
     if (/zero: chest beyond/.test(line)) { d.door.beyondRadius++; d.door.total++; continue }
-    if (/chest unreachable/.test(line)) { d.door.unreachable++; d.door.total++; continue }
+    if (/chest unreachable/.test(line)) {
+      d.door.unreachable++
+      // (v0.703.0) the decide skin's own count - the A* family's share of
+      // the unreachable leg (the doorstep starvation's standing input)
+      if (/Took to long to decide path to goal/.test(line)) d.door.decideTimeouts++
+      d.door.total++
+      continue
+    }
     if (/no chest reached/.test(line)) { d.door.noChest++; d.door.total++; continue }
     // the empty-pocket leg: the chest reached and open, the deposit moved 0
     if (/chest at \S+ d=\d+ zero: nothing to deposit/.test(line)) { d.pocket.zeroProbes++; d.pocket.total++; continue }
