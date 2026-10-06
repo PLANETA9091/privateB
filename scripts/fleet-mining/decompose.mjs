@@ -44,7 +44,7 @@ import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fi
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves)
-import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.689.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate
+import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
@@ -2127,7 +2127,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   }
 }
 
-// (v0.689.0) THE WALK'S DELIVERY - the gather drought's cure input. The
+// (v0.690.0) THE WALK'S DELIVERY - the gather drought's cure input. The
 // famine→gathered pairing prices the walk itself: cured = the walk brought
 // wood home, flat = the pocket didn't move (THE DROUGHT'S SEAT rides the
 // walk), negative = the trip ate its own cure.

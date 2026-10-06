@@ -1,5 +1,7 @@
 //
-// tripcensus.mjs - THE WALK'S DELIVERY (v0.689.0)
+// tripcensus.mjs - THE WALK'S DELIVERY (v0.690.0; SLOT COLLISION #16:
+// 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire - the re-number
+// rides the house convention)
 //
 // The gather drought's cure input. The famine anatomy (v0.687.0) priced
 // WHICH SLOT starves; the repeat read (v0.688.0) priced the PERSISTENCE
