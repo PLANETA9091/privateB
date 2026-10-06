@@ -17193,3 +17193,21 @@ Stage Summary:
 - v0.676.0 landed - the storm's SIZE is priced: the burst share joins the arc and the end-phase tax as the night-survivability front's regime read.
 - Next fire: (1) my push-CI 37411886268 verdict (b4df680). (2) THE MEMORY STORM: a 2nd freeze-storm FATAL escalates the class to a code front (the rss floor is 1200M - the growth 385M->1212M in ~15s is the subject; the mem gauges read cols~1950 ents~2700 right before - the entity/col count is the candidate driver). (3) mine the 20th flight's stub artifact for the partial face read. (4) dispatch on clear (law x26).
 - Version 0.676.0; next free 0.677.0; code fronts: the memory storm (the freeze-storm closure's own driver), the flee disengage (a disengage that GAINS ground), the storm bank conversion (41.5% the row's worst), the rescue unclosed tail.
+
+---
+Task ID: cron30-20261006-1200
+Agent: cron30 fire 1200 (PLANETA9091 identity)
+Task: maintain privateB - the 20th flight's post-mortem, the memory-storm lens, dispatch on clear.
+
+Work Log:
+- Sandbox alive, master synced to 6bdd6db (v0.676.0). Push-CI 37411886268 (b4df680) COMPLETED SUCCESS - the burst share is CI-proven; worklog-CI 37412038314 (6bdd6db) in_progress at this fire's start.
+- THE 20TH FLIGHT MINED (37409860732 FAILURE, the stub): fleet19.log 568 lines -> /home/z/my-project/scripts/fleet-mining/run37409860732/ (uncommitted). The death read: 11 gauge samples flat (~380-383M, rss never sampled the storm), ents climbing 2023 -> 2691 (+30%), evicted 263 -> 852, then '[stormguard] FATAL (freeze storm: main pulse frozen 5s, rss 385M -> 1212M growing past the 1200M floor)' at t~223s + the locked-while-allocating epilogue (exit 143). THE CHAIN: the mob storm's entities -> the memory storm; the gauge cadence (~15s) missed the blow-up - the FATAL's own words are the only numbers.
+- ONE ATOMIC IMPROVEMENT: v0.677.0 THE RSS JUMP (e0b4a7c): the mem-hb lens read rss only as a CEILING (rssMax) - the between-gauges storm was invisible. The census now prices the gauge-to-gauge rss climb (rssJump.max, rssJump.storms at >= RSS_JUMP_STORM_M (100M/gauge), GC drops counted never folded) AND reads the freeze-storm FATAL's own numbers (FREEZE_STORM_RE: frozenS/from/to/floor, the FIRST read is the read - the process dies with it). decompose joins both in one row: 'rss jump: max +1M/gauge; the FATAL saw +827M while frozen 5s (past the 1200M floor - the storm lived between the gauges)' - neither row alone convicts the face. Field witness: the stub's byte-exact FATAL; the lens's first production read is the 20th flight itself. 6 new unit tests.
+- Tests: syntax 476/0; unit 271/271 PASSED (first attempt, exit 0 - the smelt flake did not ride this fire).
+- Push clean attempt 1: 6bdd6db..e0b4a7c. Push-CI 37413037999 PENDING at log-off (queued behind the dispatch run - the concurrency serializes; the pending-drop semantics live).
+- DISPATCH (law x26): POST 204 -> face 37413061352 id-verified IN_PROGRESS on e0b4a7c at 04:18:11Z (the 21st flight, the first on the v0.677.0 tree).
+
+Stage Summary:
+- v0.677.0 landed - the memory storm is priced from its own words; the 20th flight's death class (the 2nd freeze-storm FATAL) now reads mechanically on every future face.
+- Next fire: (1) poll face 37413061352 FIRST - if SUCCESS mine (floor x18, the storm's repeat?, bank recovery from 41.5%, the rescue unclosed repeat, THE RSS JUMP's first calm-face read). (2) push-CI 37413037999 verdict (e0b4a7c) + worklog-CI 37412038314 verdict. (3) a 3rd freeze-storm FATAL = the entity-count driver front escalates (the ents climb 2023->2691 before the death is the candidate gauge). (4) dispatch on clear (law x27).
+- Version 0.677.0; next free 0.678.0; code fronts: the entity-count gauge (the memory storm's driver), the flee disengage, the storm bank conversion, the rescue unclosed tail.
