@@ -222,3 +222,89 @@ test('the zero ledger carries the forensics fields empty (junk stays junk)', () 
   assert.deepEqual(r.unclosedLines, [])
   assert.deepEqual(r.timeoutSecondsByBot, {})
 })
+
+// (v0.728.0) THE SAVED FACE - the starts' own collective verdict. The end
+// histogram prices every terminus; the calm paradox (v0.701.0) prices the
+// 0-death face's lane churn; the BUSY face's water win (deaths rode, none
+// of them drown) had no owner. The era's bytes below are verbatim fleet-log
+// lines (the 46th run 37520787094, the 47th run 37524391418, the 48th run
+// 37530997515); the start volumes ride repeated real start lines (the
+// excerpt law - the counts stay the logs' own).
+
+const realStart48 = 'F10 [F10] water: drowning rescue start (drowning, oxygen 14)'
+const realStart48b = 'F9 [F9] water: drowning rescue start (drowning, oxygen 4)'
+const realStart47 = 'F13 [F13] water: drowning rescue start (drowning, oxygen 15)'
+const realRelease48 = 'F10 [F10] water: rescue released (surface-safe, open water - no land known; the walk gate reopens) in 9.0s'
+
+// the 48th's two combat deaths - mob and explosion kinds (the fence's own
+// era bytes: neither is the drown kind, neither counts)
+const realDeathMob48 = 'F7 [F7] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.5 (0s before death at [-91,70,422]) [the inference corroborates the server verdict])'
+const realDeathExplosion48 = 'F15 [F15] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: creeper@2.7 (0s before death at [-108,64,383]) [the inference corroborates the server verdict])'
+
+// the 47th's trio - every drown death of the face, the server kind the
+// authority while the inference rode its fall/env blind (the o2Blind's own
+// faces)
+const realDrownDeaths47 = [
+  'F1 [F1] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-126,53,408]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+  'F13 [F13] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-137,54,428]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+  'F10 [F10] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-134,51,411]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+]
+
+// the 46th's single death - the hound's own (the mob-by-Drowned fence)
+const realDeathMobByDrowned46 = 'F16 [F16] died - respawning (cause: server: was impaled by Drowned [kind=mob by Drowned] | inferred: drowned@12.9 (0s before death at [-107,63,368]) [the inference corroborates the server verdict])'
+
+test('the 48th reads THE SAVED FACE: 45 starts, 2 combat deaths, 0 drown-kind', () => {
+  const lines = []
+  for (let i = 0; i < 43; i++) lines.push(i % 2 ? realStart48 : realStart48b)
+  lines.push(realStart48, realStart48b) // 45 starts, the log's own shapes
+  lines.push(realRelease48, end('complete', 'F9', 3.2))
+  lines.push(realDeathMob48, realDeathExplosion48) // the combat price rode
+  const r = rescueLedger(lines)
+  assert.equal(r.saved.starts, 45)
+  assert.equal(r.saved.drownDeaths, 0)
+  assert.equal(r.saved.verdict, 'THE SAVED FACE')
+})
+
+test('the 47th reads not saved: the trio counted by the server kind, the inference blind ignored', () => {
+  const lines = []
+  for (let i = 0; i < 118; i++) lines.push(i % 3 === 0 ? realStart47 : (i % 3 === 1 ? realStart48 : realStart48b))
+  for (const d of realDrownDeaths47) lines.push(d)
+  const r = rescueLedger(lines)
+  assert.equal(r.saved.starts, 118)
+  assert.equal(r.saved.drownDeaths, 3) // the server kind stays the authority
+  assert.equal(r.saved.verdict, null) // the deaths' own bills own the read
+})
+
+test('the 46th reads THE SAVED FACE beside the hound fence: mob-by-Drowned never counts', () => {
+  const lines = []
+  for (let i = 0; i < 23; i++) lines.push(realStart48) // the 46th's 23 starts
+  lines.push(realDeathMobByDrowned46) // the hound won - another grammar
+  const r = rescueLedger(lines)
+  assert.equal(r.saved.starts, 23)
+  assert.equal(r.saved.drownDeaths, 0) // the fence held
+  assert.equal(r.saved.verdict, 'THE SAVED FACE')
+})
+
+test("the bar's own edge: 20 starts in, 19 out (the volume the claim needs)", () => {
+  const twenty = Array.from({ length: 20 }, () => realStart48)
+  const nineteen = twenty.slice(1)
+  assert.equal(rescueLedger(twenty).saved.verdict, 'THE SAVED FACE')
+  const out = rescueLedger(nineteen)
+  assert.equal(out.saved.starts, 19)
+  assert.equal(out.saved.drownDeaths, 0)
+  assert.equal(out.saved.verdict, null) // the sparse calm proves nothing
+})
+
+test('junk never invents the verdict: prose kind tokens, blob lines, the zero shape', () => {
+  // the anatomy-sweep's prose quoting the kind never counts (the fence)
+  const prose = '  ~ the anatomy sweep filtered a line quoting [kind=drown] in prose'
+  const blob = 'F1 water: rescue complete in 0.0s (the blob form)'
+  const r = rescueLedger([prose, blob, null, 42, {}, realDeathMob48])
+  assert.equal(r.saved.starts, 0)
+  assert.equal(r.saved.drownDeaths, 0)
+  assert.equal(r.saved.verdict, null)
+  const empty = rescueLedger([])
+  assert.deepEqual(empty.saved, { starts: 0, drownDeaths: 0, verdict: null })
+  const junk = rescueLedger(null)
+  assert.deepEqual(junk.saved, { starts: 0, drownDeaths: 0, verdict: null })
+})

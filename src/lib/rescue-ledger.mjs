@@ -30,6 +30,28 @@ const BOT_TAG_RE = /^F(\d+)\s/
 export const RESCUE_START_RE = /water: drowning rescue start \(/
 
 /**
+ * (v0.728.0) THE SAVED FACE's drown-kind byte - the server verdict's own
+ * kind field (the deathcensus.mjs grammar, verbatim: 'server: drowned
+ * [kind=drown]'). The full death-line shape is the fence: a prose line
+ * quoting the kind (the anatomy sweep's keyword carriers) never counts,
+ * and the mob-by-Drowned kill ('[kind=mob by Drowned]' - the hound won)
+ * rides another grammar and stays outside (the o2Blind fence law).
+ */
+export const DROWN_DEATH_RE = /^F\d+ \[F\d+\] died - respawning .*\[kind=drown\]/
+
+/**
+ * (v0.728.0) THE SAVED FACE's volume bar - the starts the verdict's claim
+ * needs: the lane genuinely flew at fleet scale. The era's saved faces
+ * clear it with margin (the 46th's 23, the 48th's 45, the lib's own
+ * face-14 throughline's 53); below it the sparse calm is the weather's
+ * own, not the lane's proof (the bars never invent).
+ */
+export const SAVED_MIN_STARTS = 20
+
+/** (v0.728.0) The verdict's own name (the shape the decompose prints). */
+export const SAVED_VERDICT = 'THE SAVED FACE'
+
+/**
  * The end-line classes, in match order (the `done` ladder's values verbatim,
  * then the catch-path). An end line is 'water: rescue <done> in Ns' except
  * the catch-path abort, which carries no duration. The dead class is the
@@ -110,13 +132,17 @@ export function rescueLedger (lines) {
   const perBot = {}
   const midEvents = {}
   let orphanEnds = 0
+  // (v0.728.0) THE SAVED FACE's own count - the drown-kind deaths the face
+  // rode while its starts flew (fleet-wide; the verdict is the face's own,
+  // not a bot's). The fence lives in the regex, not here.
+  let drownDeaths = 0
   const orphanEndLines = []
   const unclosedLines = []
   const timeoutSecondsByBot = {}
   const LINE_CAP = 12 // the forensics arrays stay bounded on a whale face
   const pushCapped = (arr, line) => { if (arr.length < LINE_CAP) arr.push(line) }
   if (!Array.isArray(lines)) {
-    return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot }
+    return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths) }
   }
   const open = new Map() // bot -> true while an episode is open
   const openStartLine = new Map() // bot -> the verbatim start line of its open episode
@@ -132,6 +158,11 @@ export function rescueLedger (lines) {
 
   for (const line of lines) {
     if (typeof line !== 'string') continue
+    // (v0.728.0) the drown-kind death line counts where it stands - the
+    // death shape collides with no start/end/mid grammar (the line's own
+    // byte is unique), so the count rides the loop's top without stealing
+    // a classification.
+    if (DROWN_DEATH_RE.test(line)) drownDeaths++
     const mid = RESCUE_MID_EVENTS.find(e => e.re.test(line))
     if (mid) midEvents[mid.key] = (midEvents[mid.key] || 0) + 1
 
@@ -176,5 +207,29 @@ export function rescueLedger (lines) {
     }
   }
 
-  return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot }
+  return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths) }
+}
+
+/**
+ * (v0.728.0) THE SAVED FACE - the starts' own collective verdict, the cell
+ * the end histogram never held: the ledger prices every END, the calm
+ * paradox (v0.701.0) prices the 0-DEATH face's lane churn - but the busy
+ * face's water win (deaths rode, none of them drown) had no owner. The
+ * verdict answers one question: did the water lane lose a rider this face?
+ *   - starts >= SAVED_MIN_STARTS && drownDeaths === 0 -> THE SAVED FACE
+ *     (the volume proved the lane flew, the zero proved it landed).
+ *   - drownDeaths > 0 -> not saved (verdict null; the deaths' own bills -
+ *     the o2Blind join, the seal ledger, the toll - own that read).
+ *   - below the bar with zero deaths -> the honest silence (the sparse
+ *     calm proves nothing - the bars never invent).
+ * The server kind stays the authority (the shelterledger law): the 47th's
+ * three drown deaths rode misread inference tails (fall/env) and still
+ * count - the kind byte is the verdict's own grain.
+ */
+function savedCell (starts, drownDeaths) {
+  return {
+    starts,
+    drownDeaths,
+    verdict: starts >= SAVED_MIN_STARTS && drownDeaths === 0 ? SAVED_VERDICT : null
+  }
 }

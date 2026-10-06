@@ -322,6 +322,22 @@ if (calm && calm.paradox) {
   const top = p.top ? `top ${p.top[0]}=${p.top[1]} of ${p.spenders} spender(s)` : 'no spender table'
   console.log(`  the calm paradox (v0.701.0): 0 death(s) rode ${p.starts} rescue start(s) (${top}, ends complete ${p.ends.complete} / released ${p.ends.released} / standdown ${p.ends.frozenStanddown} / timeout ${p.ends.timeout} / unclosed ${p.ends.unclosed}) - the water lane churns on its own clock, the deaths are not its meter`)
 }
+// (v0.728.0) THE SAVED FACE - the starts' own collective verdict, the cell
+// the end histogram never held: the ledger prices every END, the calm
+// paradox prices the 0-DEATH face's lane churn - but the BUSY face's water
+// win (deaths rode, none of them drown) had no owner. The 48th is the
+// motive: 45 starts, 2 combat deaths (mob + explosion), 0 drown-kind - the
+// water lane landed every rider it launched for. The two lenses never
+// collide: the paradox demands 0 deaths total, the saved face demands 0
+// drown-kind deaths at volume (the 46th's mob-by-Drowned kill stays the
+// hound's own - the kind byte is the grain, the server kind the authority).
+if (ledger.saved.verdict) {
+  console.log(`  the starts' own verdict (v0.728.0): ${ledger.saved.verdict} - ${ledger.saved.starts} start(s), 0 drown-kind death(s) - the water lane landed every rider`)
+} else if (ledger.saved.drownDeaths > 0) {
+  console.log(`  the starts' own verdict (v0.728.0): not saved - ${ledger.saved.drownDeaths} drown-kind death(s) among ${ledger.saved.starts} start(s) (the deaths' own bills own the read)`)
+}
+// below the bar with zero deaths: the honest silence (the sparse calm
+// proves nothing - the bars never invent)
 // (v0.679.0) THE ORPHAN OWNER - the orphans' per-bot split: the fleet-wide
 // count answers 'how many', the owner split answers 'WHOSE client died'
 // (the stand-down's own words: 'the reconnect lane owns a dead client').
