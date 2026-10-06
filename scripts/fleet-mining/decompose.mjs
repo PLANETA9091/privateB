@@ -45,6 +45,7 @@ import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execut
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves)
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
+import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the climb's price - the trip's real rent (+levels/steps/dug/seconds) filed under the delivery class
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
@@ -2148,6 +2149,26 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       if (sp.flat) seg.push(`flat ${sp.flat.min}..${sp.flat.max}`)
       if (sp.negative) seg.push(`negative ${sp.negative.min}..${sp.negative.max}`)
       if (seg.length) console.log(`  the walk's cost: ${seg.join(', ')} lines per trip${sp.flat ? ' - THE FLAT WALK\'S TOLL: the walk that delivered nothing still burned its segment' : ''}`)
+    }
+  }
+  // (v0.694.0) THE CLIMB'S PRICE - the flat walk's anatomy: the trip's
+  // REAL rent (+levels/steps/dug/seconds from the climb-out OK line inside
+  // the famine→gathered window), filed under the delivery class. If the
+  // climb doesn't split the classes, the flat walk's toll is NOT the climb.
+  const cc = woodClimbCost(lines)
+  if (cc && (cc.climbed > 0 || cc.noClimb > 0)) {
+    const seg = []
+    for (const cls of ['cured', 'flat', 'negative']) {
+      const c = cc.byClass[cls]
+      if (c) seg.push(`${cls} ${c.n}: ${c.seconds.min}..${c.seconds.max}s (median ${c.seconds.median}) +${c.levels.min}..${c.levels.max} lv`)
+    }
+    if (seg.length) {
+      const f = cc.byClass.flat
+      const c = cc.byClass.cured
+      const fork = f && c && f.seconds.median > c.seconds.median
+        ? ' - THE FLAT WALK\'S RENT IS THE CLIMB ITSELF'
+        : (f && c ? ' - THE CLIMB DOESN\'T SPLIT THE CLASSES: the flat walk\'s toll is not the climb' : '')
+      console.log(`  the climb's price: ${cc.trips} trip(s) closed, ${cc.climbed} climbed - ${seg.join(', ')}${fork}`)
     }
   }
 }

@@ -7,7 +7,8 @@
 // grows its own clock - the face-line span famine→gathered prices what
 // the trip BURNED: a flat walk delivered nothing yet still spent its
 // segment; the face-29 read: the flats took 485 and 518 lines, the one
-// cure 697)
+// cure 697) - the famine/gathered regexes are exported for the one-parser
+// law by import (the v0.694.0 climb's price rides the same trip voice)
 //
 // The gather drought's cure input. The famine anatomy (v0.687.0) priced
 // WHICH SLOT starves; the repeat read (v0.688.0) priced the PERSISTENCE
@@ -48,8 +49,8 @@ const spanOf = (xs) => xs.length
 
 // the four canonical wood-trip forms (the trip voice's own skin - the bot
 // id rides the line head, no [F#] tag on this family)
-const WOOD_FAMINE_RE = /^([A-Za-z]\d+) wood trip: famine \(sticks (\d+) planks (\d+) logs (\d+)\) - .+$/
-const WOOD_GATHERED_RE = /^([A-Za-z]\d+) wood trip: gathered \(sticks (-?\d+) planks (-?\d+) logs (-?\d+)\)$/
+export const WOOD_FAMINE_RE = /^([A-Za-z]\d+) wood trip: famine \(sticks (\d+) planks (\d+) logs (\d+)\) - .+$/
+export const WOOD_GATHERED_RE = /^([A-Za-z]\d+) wood trip: gathered \(sticks (-?\d+) planks (-?\d+) logs (-?\d+)\)$/
 const WOOD_REFUSED_RE = /^([A-Za-z]\d+) wood trip: 0 \(climb refused\)$/
 const WOOD_DEFERRED_RE = /^([A-Za-z]\d+) wood trip: deferred night \(tod=(-?\d+), sticks (\d+) planks (\d+) logs (\d+)\) - gathering at dawn$/
 
