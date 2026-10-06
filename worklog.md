@@ -18221,3 +18221,26 @@ Stage Summary:
 - The lane's near-pin corrected the 46th's seat read: the F17 seat MOVED to [-143,405] (8/9, 88.9%), the volume bar's blind spot now priced additively.
 - Fronts: the 47th's mine (the freeze ladder's 2nd read, the seat bill's 3rd, the no-path bill's 9th, the kick bill's 7th, the dial's 16th), the relog stall's 100% face (the 46th's 4/4), the unit-count trap's own read (leaks negative on the 44th/46th), the gather drought.
 - Next fire: (1) poll 37524391418 FIRST - SUCCESS -> mine with the v0.724.0 decompose. (2) CI verdicts on 6a5845d / the arbiter. (3) dispatch law x59 on clear.
+
+---
+Task ID: fire-0340-addendum
+Agent: Super Z (cron agent, Job 415967)
+Task: face 47 landed at 20:42Z inside this lane's window (the lane's next fire is 0500) - mined early with the v0.724.0 lens so the next fire inherits the read.
+
+Work Log:
+- FACE 47 SUCCESS (37524391418 on 5131569, the v0.722.0 tree; 3387 rows, artifact 11443326338; decomposed with the v0.724.0 decompose - the near pin's and the freeze gate's own lenses both riding).
+- THE FATE: HARD KILL - deadline + margin exceeded (end-phase hang). 8 deaths (mob 5 / drown 3), the kind join agree 5 / disagree 3, the confusions drown->fall 3 - ALL THREE drown deaths misread as fall (o2 reset(-1), feet/head water, rescue active, F1/F13/F10): the v0.719.0 map's confusion class has a NEW skin and it is a CLASS, not a one-off - the o2 sensor's mirror-edge death poisons the drown tail wholesale.
+- THE DEADLINE'S OWN STORM, THE 2ND ALL-INSIDE FACE: the burst share 3 of 8 (38%) in 1 cluster and all 3 burst riders sit in the final 60s of clock end 1001s - the closing minute called the regime (the 45th was the first); the end-phase tax ~156u of ~527u (30%); siege pace 0.62/min.
+- The freeze gate's own ladder (v0.724.0) FIRST FLEET READ: 2 frozen relogs, streaks #1x2, gates 10s x2 - the honest low end (no bot rode the ladder to its doubling); the gate's first BYPASS of the era (o2 4 at arrival, streak #1 - the promise kept 3/4).
+- The kick's own churn 6TH: 5 kicks across 2 bots + 4 relogs = 9 (the arc 37->18->11->8->9); the pair 2 (F11 3k/1r, F10 2k/1r - both lanes); kick-only 0; repeats 2 bots owning 7/9 (78%).
+- The near pin's (v0.723.0) 2ND READ: 0 transit launches, 98 passes - the honest silence on the launch side (the water regime flipped: the sentry stood watch, nobody launched; the F17 front rested).
+- The no-path bill's 7TH: 13 rides (iron 7 by 4 with F16=3 F17=2) and THE CROSS-LANE RIDER RETURNED (v0.718.0's stance read, dormant since the 41st): F17=5u@2lanes, F14=2u@2lanes.
+- The decide book's 4TH: 11 rides, both-sided (riders F7=3 F6=3 F16=3; columns [-156,71,418]x3, [-151,71,418]x3); the doorstep census 72 doors, decide skins 30.6% (up from 12.9%).
+- THE COMMONS ZERO DROUGHT'S 3RD FACE: 34 asks / 68 coal / still-dry 34 / delivered 0 (23/46 -> 35/70 -> 34/68) - and deaths on the walk 2 (the drought now costs lives). Leaks -161u (-7.4%) the unit-count trap's 3rd face; rss 444M @ ents 2711, storm margin 89M - the correlation's 20th point, clean.
+- F13's liar ladder ratchets 81 of the face's 87 (the whale's own column); budgets granted 5% share (max need 6317s vs 300s granted, the kill margin's clamp).
+- NO VERSION LANDED on this addendum (the window too tight before fire-0500; 0.725.0 left free for the next fire). NO dispatch (face 47 was the queue's one active; max-one-active held all round).
+
+Stage Summary:
+- Version 0.724.0 (the lane's 6a5845d) is master's tip after my fire-0340 work (45980d2 v0.723.0 + a0d4e56 worklog); next free 0.725.0.
+- Face 47's three fronts for the next fire: (1) THE DROWN->FALL CONFUSION CLASS (o2 reset(-1) + rescue active - the inference's blind seat has a shape; the v0.713.0 bill's witness read can grow the o2-sensor join), (2) the 2ND ALL-INSIDE deadline storm (the hard-kill fate and the storm now co-occur - the end-phase hang IS the closing minute), (3) the commons drought's 3rd zero face with deaths on the walk.
+- Next fire: (1) law x59/x60 poll - the queue should be CLEAR after the 47th (the mine above is the read). (2) dispatch on clear (the v0.724.0+ tree's first face if the lane has not). (3) 0.725.0 is the next slot.
