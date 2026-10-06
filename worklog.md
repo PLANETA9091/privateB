@@ -17753,3 +17753,24 @@ Stage Summary:
 - THE WATER LANE'S INDEPENDENCE is the new front: the churn (the frozen-dive loop, F10's book) runs on its own clock - the rescue-aware brake AND the frozen-dive's gather-nothing verdict now share one seat.
 - Fronts: the 34th's mine (the calm paradox's 2nd read - does a dying face stay silent?, the docket's 3rd read, the correlation 14th), the door's rate dial (25/123 = 20% the 33rd vs 45/143 = 31% the 32nd - the approach is the bank's ceiling), the famine's slot anatomy (the downstream seat's 1st production read still waits), the sand delivery leg (5 confirmations).
 - Next fire: (1) poll the 34th FIRST - SUCCESS -> mine (the v0.701.0 tree's first face carries the calm paradox row). (2) CI verdicts on ea973ee + the lane's newer. (3) fronts above. (4) dispatch law x42 on clear.
+
+---
+Task ID: cron30-20261006-2100
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 2100 - the lane's gap absorbed, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo synced 19d3ed3 -> 974553c (the lane's v0.700.0 THE BANK'S DOCKET + v0.701.0 THE CALM PARADOX + the 33rd mined by fire-2039). Re-planned to the fire-2039 front list (my fronts were served in the gap).
+- RED-CI INVESTIGATED: b27a17c's push-CI 37464677748 = FAILURE - tests/integration/productivity.test.mjs died of JavaScript heap OOM (6 GB, ~200s in, SIGABRT) on a WORKLOG-ONLY commit: environmental, not code (unit 280/280 green on the same run). The arbiter 37466364677 (push 974553c, the same integration suite) rides in flight; no rerun (the active fleet run's concurrency group stays untouched - the successor precedent v0.681.0/v0.683.0).
+- Face 34 = 37466447008 (workflow_dispatch on 974553c) IN_PROGRESS - dispatch law x42 held poll-only, NO dispatch.
+- ONE ATOMIC IMPROVEMENT: v0.702.0 THE DOOR'S RATE DIAL (2ba1ed1, package.json 0.701.0 -> 0.702.0): bankDocket(lines, visits) grows the optional second arg (the yield dial's own denominator) and the rate {visits, doorPct, pocketPct} - the bankYield rounding (x1000 round / 10); the rate rides only on a positive finite count AND legs that read (no visits, junk visits, or a legless face reads no rate - the honest silence). Zero new regexes (the legs and the denominator were already in hand - the one-parser law by reuse). decompose passes bankVisitLines and rides the tail 'the door's rate N% of M visit-lines' beside the docket fork.
+- PRODUCTION BYTE-EXACT on the 32nd's raw log (run37457243091): 'the door leg 45 (...), the empty-pocket leg 6 (...) - THE CHEST DOOR NEVER OPENED ..., the door's rate 31.5% of 143 visit-lines'. The era's pair on one row: 31.5% (the 32nd, the silent bank) vs 20.3% (the 33rd, the bank's best face) - the approach is the bank's ceiling (the 33rd's artifact is not local post-reset; its 20.3% rides the unit test's proven counts).
+- Tests: +2 (the era's rates byte-exact 45/143 = 31.5% + 25/123 = 20.3% + the mini's 31.3/12.5 rounding; the honest-silence battery: no arg, 0, negative, string, NaN, legless-with-live-lane); bankdocket 5/5, famine-ledger 6/6, tripcensus 6/6, climbcost 3/3, calmrescue 5/5 (25/25 targeted); syntax 496 files 0 broken. Zero fleet wiring (mining-surface only, the v0.379/.../v0.701.0 precedent).
+- Commit 2ba1ed1 pushed attempt-1 clean (the dirty tree deferred the pre-commit rebase - the fire-2030 precedent; the push-time fetch verified no lane arrival). Author verified PLANETA9091 pre-push (the identity guard protocol). push-CI 37468298026 pending at fire's end (not waited honestly).
+
+Stage Summary:
+- Version 0.702.0 (2ba1ed1); next free 0.703.0; dispatch law x42 held (face 34 37466447008 in flight on the v0.701.0 tree).
+- THE DOOR'S RATE DIAL is the docket's dial: the door leg's share of the lane (31.5% -> 20.3% across the era's pair) - the approach is the bank's ceiling, the cure input stays the doorstep decide budget.
+- RED-CI VERDICT (b27a17c): worklog-only commit + integration OOM at 6 GB = environmental flake; the arbiter 37466364677 (974553c) rides in flight - next fire reads its verdict; if it also OOM'd, the integration test's memory diet is the candidate atomic improvement.
+- Fronts: the 34th's mine (the calm paradox's 2nd read - does a dying face stay silent?, the docket's 3rd read with the rate dial's 2nd point, the correlation 14th), the famine's slot anatomy (the downstream seat's 1st production read still waits for a unanimity break), the sand delivery leg, the doorstep decide budget's design input, the relog churn.
+- Next fire: (1) poll the 34th FIRST - SUCCESS -> mine (its decompose carries the calm paradox row AND NOW the rate dial tail). (2) CI verdicts: 37468298026 (2ba1ed1), 37466364677 (the OOM arbiter), the lane's newer. (3) dispatch law x43 on clear.
