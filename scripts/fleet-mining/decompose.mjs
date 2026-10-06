@@ -1401,6 +1401,24 @@ if (openDeaf.openDeaf.length > 0) {
     } else if (dw.fails > 0) {
       console.log(`  the decide weather: ${dw.fails} starve(s), ${dw.ungauged} before the first gauge - the sky never read`)
     }
+    // (v0.694.0) THE HOP LANE'S SKY - the hop-zero lane's own decide
+    // starves under the same sky (the v0.689.0 lens grew the lane): the
+    // bank yard's own zeros ride here, and the drained sky names the
+    // starves the entity climb cannot explain (the rss that stayed is
+    // the row's own suspect).
+    if (dw.hop.zeros > 0) {
+      if (dw.hop.gauged > 0 && dw.hop.ents) {
+        const share = dw.hop.crowded
+          ? `${dw.hop.crowded.n}/${dw.hop.crowded.of} at or past half the face's ents ceiling`
+          : 'the share unpriced (no ceiling)'
+        const drained = dw.hop.drained && dw.hop.drainedRss
+          ? `, ${dw.hop.drained.n}/${dw.hop.drained.of} under the drained sky (ents 0 - the entity climb cannot explain those, the rss held ${dw.hop.drainedRss.min}..${dw.hop.drainedRss.max}M)`
+          : ''
+        console.log(`  the hop lane's sky: ${dw.hop.zeros} hop zero(s) starved at ents ${dw.hop.ents.min}..${dw.hop.ents.max} (median ${dw.hop.ents.median}) / rss ${dw.hop.rss.min}..${dw.hop.rss.max}M - ${share}${drained}`)
+      } else {
+        console.log(`  the hop lane's sky: ${dw.hop.zeros} hop zero(s), ${dw.hop.ungauged} before the first gauge - the sky never read`)
+      }
+    }
   }
 }
 
