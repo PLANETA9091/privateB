@@ -190,6 +190,14 @@ if (sweep.keywordOnly.length) {
         const share = Math.round((100 * sealDeath.endPhaseLost) / sealDeath.lostTotal)
         console.log(`  end-phase tax: ~${sealDeath.endPhaseLost}u of ~${sealDeath.lostTotal}u lost (${share}%) died in the final ${c.endPhaseWindowS}s - the deadline's own tax`)
       }
+      // (v0.676.0) THE BURST SHARE - the storm regime's own read: the max
+      // burst names the densest 30s window, the share names the storm's
+      // SIZE (the deaths die together - the swarm face vs the skirmish
+      // face; the arc counts the totals, this prices the regime).
+      if (c.burstDeaths > 0) {
+        const share = Math.round((100 * c.burstDeaths) / c.timed)
+        console.log(`  burst share: ${c.burstDeaths} of ${c.timed} deaths rode bursts (>=${c.burstMin} in ${c.burstWindowS}s) (${share}%) in ${c.burstClusters} cluster(s) - the storm's own share`)
+      }
     }
   }
 }

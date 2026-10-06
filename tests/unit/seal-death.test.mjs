@@ -14,10 +14,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S } from '../../src/lib/sealdeath.mjs'
+import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
-const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30 }
+const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0 }
 
 test('seal-death: the F14 verbatim loss parses - stacks SUMMED per name, seal-class priced', () => {
   const line = 'F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64, diorite 28, dirt 26, cobblestone 19, andesite 7, +12 more)'
@@ -361,4 +361,82 @@ test('no clock, no tax (junk-safe honesty)', () => {
 test('WIRING: the decompose prints the end-phase tax row', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /end-phase tax: ~\$\{sealDeath\.endPhaseLost\}u/, "the deadline's own tax prints beside the death clock")
+})
+
+// ---- (v0.676.0) THE BURST SHARE - the storm regime's own read ----
+// The max burst names the densest 30s window; the share names the storm's
+// SIZE. The synthetic faces ride the v0.407.0 hb-clock shapes.
+
+test('THE BURST SHARE: riders of a 3+ window count, one cluster names one storm', () => {
+  const c = sealDeathCensus([
+    'b] n=1 ts=400s rss=251M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: ~1u lost at [0,64,0] (dirt 1)',
+    'b] n=2 ts=410s rss=251M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~1u lost at [1,64,1] (dirt 1)',
+    'b] n=3 ts=420s rss=251M late=5ms mainLate=0ms',
+    'F3 [F3] death drop: ~1u lost at [2,64,2] (dirt 1)',
+    'b] n=4 ts=800s rss=251M late=5ms mainLate=0ms',
+    'F4 [F4] death drop: ~1u lost at [3,64,3] (dirt 1)'
+  ])
+  assert.equal(c.clock.timed, 4)
+  assert.equal(c.clock.maxBurst, 3)
+  assert.equal(c.clock.burstDeaths, 3) // the solitary F4 stays out
+  assert.equal(c.clock.burstClusters, 1)
+})
+
+test('THE BURST SHARE: a pair is a skirmish, not a storm (the >= 3 threshold)', () => {
+  const c = sealDeathCensus([
+    'b] n=1 ts=100s rss=251M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: ~1u lost at [0,64,0] (dirt 1)',
+    'b] n=2 ts=110s rss=251M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~1u lost at [1,64,1] (dirt 1)'
+  ])
+  assert.equal(c.clock.maxBurst, 2)
+  assert.equal(c.clock.burstDeaths, 0)
+  assert.equal(c.clock.burstClusters, 0)
+})
+
+test('THE BURST SHARE: two storms, two clusters (the ts-gap splits)', () => {
+  const log = []
+  const storms = [[400, 410, 420], [700, 710, 720]]
+  let n = 1
+  let b = 1
+  for (const storm of storms) {
+    for (const ts of storm) {
+      log.push(`b] n=${n} ts=${ts}s rss=251M late=5ms mainLate=0ms`, `F${b} [F${b}] death drop: ~1u lost at [${b},64,0] (dirt 1)`)
+      n++
+      b = (b % 19) + 1
+    }
+  }
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.timed, 6)
+  assert.equal(c.clock.maxBurst, 3)
+  assert.equal(c.clock.burstDeaths, 6)
+  assert.equal(c.clock.burstClusters, 2)
+})
+
+test('THE BURST SHARE: the untimed death has no place in any window', () => {
+  const c = sealDeathCensus([
+    'F9 [F9] death drop: ~5u lost at [-1,64,0] (dirt 5)', // pre-first-hb, untimed
+    'b] n=1 ts=400s rss=251M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: ~1u lost at [0,64,0] (dirt 1)',
+    'b] n=2 ts=410s rss=251M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: ~1u lost at [1,64,1] (dirt 1)',
+    'b] n=3 ts=420s rss=251M late=5ms mainLate=0ms',
+    'F3 [F3] death drop: ~1u lost at [2,64,2] (dirt 1)'
+  ])
+  assert.equal(c.clock.timed, 3)
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.burstDeaths, 3) // only the timed trio rides
+  assert.equal(c.clock.burstClusters, 1)
+})
+
+test('THE BURST SHARE: the threshold is the named constant (the bound law)', () => {
+  assert.equal(DEATH_BURST_MIN, 3)
+  assert.equal(DEATH_BURST_WINDOW_S, 30)
+})
+
+test('WIRING: the decompose prints the burst share row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /burst share: \$\{c\.burstDeaths\} of \$\{c\.timed\} deaths/, "the storm's own share prints beside the death clock")
 })

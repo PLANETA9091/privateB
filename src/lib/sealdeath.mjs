@@ -42,6 +42,11 @@ import { SEAL_PRIORITY } from './shelter.mjs'
 // back-to-back re-deaths) live in.
 export const DEATH_END_PHASE_WINDOW_S = 60
 export const DEATH_BURST_WINDOW_S = 30
+// (v0.676.0) THE BURST SHARE threshold - a burst is 3+ deaths inside the
+// burst window: a pair is a skirmish, 3+ is the storm's own signature
+// (the run37407340102 face: 18 deaths, max burst 7 in 30s - the deaths
+// die together; the arc counts the totals, the share prices the REGIME).
+export const DEATH_BURST_MIN = 3
 
 // The heartbeat line: 'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms'
 // (heartbeat.mjs's own emitted form) - the same clock the v0.395.0
@@ -106,7 +111,7 @@ export function parseSealDeathDrop (line) {
  * The seal death ledger over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>, clock: {timed: number, untimed: number, clockEnd: number|null, firstTs: number|null, lastTs: number|null, endPhase: number, endPhaseWindowS: number, maxBurst: number, burstWindowS: number}}}
+ * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>, clock: {timed: number, untimed: number, clockEnd: number|null, firstTs: number|null, lastTs: number|null, endPhase: number, endPhaseWindowS: number, maxBurst: number, burstWindowS: number, burstMin: number, burstDeaths: number, burstClusters: number}}}
  */
 export function sealDeathCensus (lines) {
   const rows = Array.isArray(lines)
@@ -163,9 +168,28 @@ export function sealDeathCensus (lines) {
   // line), the burst is the densest sliding window over the timed stamps.
   const timedTs = stamps.filter(t => t !== null).sort((a, b) => a - b)
   let maxBurst = 0
+  // (v0.676.0) THE BURST SHARE - the max burst names the densest window,
+  // never the storm's SIZE: a swarm face and a skirmish face can share one
+  // max burst. The same sliding window marks every rider of ANY span
+  // holding >= DEATH_BURST_MIN deaths; the share of marked deaths is the
+  // regime's own read (the deaths die together). The clusters are the
+  // maximal marked runs in time - a ts-gap beyond the window splits them
+  // (the storm moved, it did not end). The clock never invents: an
+  // untimed death (pre-first-hb) has no place in any window.
+  const burstRider = new Array(timedTs.length).fill(false)
   for (let i = 0, j = 0; i < timedTs.length; i++) {
     while (timedTs[i] - timedTs[j] > DEATH_BURST_WINDOW_S) j++
     if (i - j + 1 > maxBurst) maxBurst = i - j + 1
+    if (i - j + 1 >= DEATH_BURST_MIN) {
+      for (let k = j; k <= i; k++) burstRider[k] = true
+    }
+  }
+  let burstDeaths = 0
+  let burstClusters = 0
+  for (let k = 0; k < timedTs.length; k++) {
+    if (!burstRider[k]) continue
+    burstDeaths++
+    if (k === 0 || !burstRider[k - 1] || timedTs[k] - timedTs[k - 1] > DEATH_BURST_WINDOW_S) burstClusters++
   }
   const endPhase = clockEnd === null
     ? 0
@@ -192,7 +216,10 @@ export function sealDeathCensus (lines) {
       endPhase,
       endPhaseWindowS: DEATH_END_PHASE_WINDOW_S,
       maxBurst,
-      burstWindowS: DEATH_BURST_WINDOW_S
+      burstWindowS: DEATH_BURST_WINDOW_S,
+      burstMin: DEATH_BURST_MIN,
+      burstDeaths,
+      burstClusters
     }
   }
 }
