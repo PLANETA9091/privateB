@@ -17538,3 +17538,20 @@ Stage Summary:
 - The wall-miss door's record: 0.1u (the door asked when the threat stood a tenth of a block away); the bank dial's 6 legs hold the ~11-12u lane; the correlation's 9 points: rss killer, ents passenger.
 - Fronts for next fire: the climb-refusal seat (why 4/5 walks refused - the route gate's wood-trip read), the famine anatomy's 4th read on the 29th, the walk's delivery's 2nd face read, the wall-miss timing's 4th read, the bank yield's 7th leg, the correlation's 10th point.
 - Next fire: (1) poll 37441962855 FIRST - SUCCESS -> mine (the v0.690.0 tree's first face carries THE WALK'S DELIVERY's decompose block). (2) push-CI verdicts on 21daa81. (3) dispatch law x35 on clear.
+
+---
+Task ID: cron30-20261006-1730
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1730 - the 29th's poll window, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo at 537591d (up to date, no lane collision this fire). Version 0.690.0, next free 0.691.0. Push-CI on 21daa81 (v0.690.0) SUCCESS 37441494372 - THE WALK'S DELIVERY CI-proven.
+- v0.691.0 THE REFUSAL'S WHY (a74ff7f): climbrefusal.mjs woodRefusalCensus joins the refusal line ('wood trip: 0 (climb refused)' names no cause) with the climb-fail line ONE line earlier (ensureSurface's own voice, the 1:1 shape) - the why = the bot's most recent unconsumed 'climb out (wood trip): failed - X' reason class; the consumed why is spent (a 2nd refusal with no fresh fail reads unexplained); lane isolation (bank-lane fails never explain wood refusals); climbFails inventories every wood-trip climb fail. decompose rides 'the climb-refusal seat' beside the walk's delivery. Maiden read byte-exact on the 28th: '4 refusals (F1=3 F3=1) - timeout 1 / wet-sentinel 1 / wet wall 1 / rescue owns the bot 1 (unexplained 0)' - F1 owned 3 of 4, the drought's START seat has its why-book. +3 tests; climbrefusal 3/3; full unit 276/276; syntax 486 0-broken. Zero fleet wiring.
+- THE 29TH FLIGHT 37441962855 (on 21daa81, the v0.690.0 tree's first face, dispatch law x34): unit+integration jobs SUCCESS, the Big fleet run still IN_PROGRESS after two poll rounds (200s) - NOT waited honestly (the time-box). Poll-only this fire - next fire polls it FIRST (it will be the famine anatomy's 4th read, the walk's delivery's 2nd face read, the refusal's why's 2nd read, the wall-miss 4th, the bank 7th leg, the correlation 10th point).
+- NO DISPATCH this fire (the law held): the 29th is the repo's ONE active dispatch run - x35 stays with the next fire on a clear queue.
+
+Stage Summary:
+- Version 0.691.0 (a74ff7f); next free 0.692.0; the 29th face 37441962855 in flight on 21daa81 (NOT waited - honest).
+- THE DROUGHT'S START SEAT HAS ITS WHY-BOOK: the 28th's 4 refusals split timeout / wet-sentinel / wet wall / rescue owns the bot - F1 owned 3 of 4 (one bot's climb owned the face's walk starts); the seat now reads two-legged (refusals + the flat walk) with both legs' own books.
+- Fronts: F1's climb anatomy (3 fails one face - the wet wall + the rescue ownership ride the same bot), the famine anatomy's 4th read, the walk's delivery's 2nd face read, the refusal's why's 2nd read, the wall-miss timing's 4th read, the bank yield's 7th leg, the correlation's 10th point.
+- Next fire: (1) poll 37441962855 FIRST - SUCCESS -> mine (the v0.690.0 tree's first face). (2) push-CI verdicts on a74ff7f. (3) dispatch law x35 on clear.
