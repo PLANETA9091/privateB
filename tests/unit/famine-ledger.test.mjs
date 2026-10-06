@@ -23,8 +23,9 @@ test('famineCensus reads face 26 byte-exact: the log slot owns the wood drought,
   assert.equal(r.wood.n, 3)
   assert.deepEqual(r.wood.byBot, { F10: 1, F8: 2 })
   // the face-26 verdict: every wood famine sat on logs 0 - the gather
-  // leg starved while the conversion stock (planks) held
-  assert.deepEqual(r.wood.slots, { logsZero: 3, planksZero: 0, sticksZero: 1 })
+  // leg starved while the conversion stock (planks) held. The head-
+  // unanimous face reads down: [] - the honest silence (v0.699.0).
+  assert.deepEqual(r.wood.slots, { logsZero: 3, planksZero: 0, sticksZero: 1, down: [] })
   assert.equal(r.food.n, 3)
   assert.deepEqual(r.food.byBot, { F11: 1, F16: 1, F9: 1 })
   assert.equal(r.food.plateZero, 3)
@@ -38,7 +39,13 @@ test('famineCensus slot anatomy separates the legs: the conversion famine (logs 
     'F3 wood trip: famine (sticks 0 planks 0 logs 4) - gathering',
     'F5 wood trip: famine (sticks 2 planks 0 logs 1) - gathering'
   ])
-  assert.deepEqual(r.wood.slots, { logsZero: 0, planksZero: 2, sticksZero: 1 })
+  assert.deepEqual(r.wood.slots, {
+    logsZero: 0, planksZero: 2, sticksZero: 1,
+    down: [ // v0.699.0: BOTH famines held logs - the starve sat below the head
+      { bot: 'F3', sticks: 0, planks: 0, logs: 4 },
+      { bot: 'F5', sticks: 2, planks: 0, logs: 1 }
+    ]
+  })
   // the honest zero family: no food famine this face
   assert.equal(r.food.n, 0)
   assert.equal(r.food.hunger, null)
@@ -48,7 +55,7 @@ test('famineCensus honest zeros and the junk battery', () => {
   // a face with no famine lines reads the honest zero shape
   const r = famineCensus(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)'])
   assert.deepEqual(r, {
-    wood: { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0 }, repeats: { n: 0, byBot: {}, span: null } },
+    wood: { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0, down: [] }, repeats: { n: 0, byBot: {}, span: null } },
     food: { n: 0, byBot: {}, plateZero: 0, hunger: null, repeats: { n: 0, byBot: {}, span: null } }
   })
   // junk-safe: non-string-blob reads null (the smeltledger convention)
@@ -83,4 +90,25 @@ test('famineCensus repeats family separation: food repeats price the commons wal
   assert.deepEqual(r.food.repeats, { n: 1, byBot: { F9: 1 }, span: { min: 2, median: 2, max: 2 } })
   assert.equal(r.wood.repeats.n, 0)
   assert.equal(r.wood.repeats.span, null)
+})
+
+test('famineCensus downstream seat names the unanimity break (v0.699.0): the face-31 shape - 4 of 5 sat at the head, ONE held logs', () => {
+  // the face-31 read's own shape (logs 4/5, NOT unanimous - which famine
+  // sat downstream?): four famines starved at the head, F14's held logs 2
+  // - the walk brought wood home, the conversion leg starved. A repeat
+  // famine (F6 again) files BOTH books: the seat map and the repeats.
+  const lines = new Array(40).fill('F1 [F1] mem: ok')
+  lines[2] = 'F5 wood trip: famine (sticks 0 planks 0 logs 0) - gathering'
+  lines[7] = 'F4 wood trip: famine (sticks 1 planks 2 logs 0) - gathering'
+  lines[11] = 'F3 wood trip: famine (sticks 0 planks 0 logs 0) - gathering'
+  lines[19] = 'F14 wood trip: famine (sticks 1 planks 3 logs 2) - gathering'
+  lines[27] = 'F6 wood trip: famine (sticks 0 planks 1 logs 0) - gathering'
+  lines[33] = 'F6 wood trip: famine (sticks 0 planks 0 logs 0) - gathering'
+  const r = famineCensus(lines)
+  assert.equal(r.wood.n, 6)
+  assert.deepEqual(r.wood.slots, {
+    logsZero: 5, planksZero: 3, sticksZero: 4,
+    down: [{ bot: 'F14', sticks: 1, planks: 3, logs: 2 }] // the seat, named in face order
+  })
+  assert.deepEqual(r.wood.repeats, { n: 1, byBot: { F6: 1 }, span: { min: 6, median: 6, max: 6 } })
 })

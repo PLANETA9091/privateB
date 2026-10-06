@@ -21,8 +21,20 @@
 //   plate 0  -> the bot carried no food at all (the hunger number is
 //               then the reserve's own clock)
 //
+// v0.699.0 THE DOWNSTREAM SEAT - the unanimity break named. The face-31
+// read (logs 4/5, NOT unanimous) begged the question the aggregate cannot
+// answer: WHICH famine sat below the head. slots grows down: every wood
+// famine that held logs > 0 rides {bot, sticks, planks, logs} in face
+// order - the walk brought raw wood home (the gather leg held) yet the
+// sticks famine fired: the starve sat BELOW the head (the conversion
+// leg's own seat, not the drought's). The head-unanimous face (the 26th
+// 3/3, the 32nd 3/3) reads down: [] - the honest silence (the drought
+// needs no name, it starved everyone). Zero new regexes: the famine
+// line's own captures were already in the census's hand.
+//
 // census shape: famineCensus(lines) ->
-//   { wood: {n, byBot, slots: {logsZero, planksZero, sticksZero},
+//   { wood: {n, byBot, slots: {logsZero, planksZero, sticksZero,
+//     down: [{bot, sticks, planks, logs}]},
 //     repeats: {n, byBot, span: {min, median, max}|null}},
 //     food: {n, byBot, plateZero, hunger: {min, median, max}|null,
 //     repeats: {n, byBot, span: {min, median, max}|null}} }
@@ -62,7 +74,8 @@ const bump = (m, k) => { m[k] = (m[k] || 0) + 1 }
  *
  * @param {string[]|string} [lines] the face log (array or raw blob)
  * @returns {null|{wood: {n: number, byBot: object,
- *   slots: {logsZero: number, planksZero: number, sticksZero: number},
+ *   slots: {logsZero: number, planksZero: number, sticksZero: number,
+ *   down: {bot: string, sticks: number, planks: number, logs: number}[]},
  *   repeats: {n: number, byBot: object, span: {min, median, max}|null}},
  *   food: {n: number, byBot: object, plateZero: number,
  *   hunger: {min, median, max}|null,
@@ -74,7 +87,7 @@ export function famineCensus (lines) {
     : (typeof lines === 'string' ? lines.split('\n') : null)
   if (!src) return null
   const emptyRepeats = () => ({ n: 0, byBot: {}, span: null })
-  const wood = { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0 }, repeats: emptyRepeats() }
+  const wood = { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0, down: [] }, repeats: emptyRepeats() }
   const food = { n: 0, byBot: {}, plateZero: 0, hunger: null, repeats: emptyRepeats() }
   const hungers = []
   // the repeat trackers: per family, the bot's famine count and the last
@@ -103,6 +116,7 @@ export function famineCensus (lines) {
       feed(wood, 'wood', wm[1], i)
       const sticks = Number(wm[2]); const planks = Number(wm[3]); const logs = Number(wm[4])
       if (logs === 0) wood.slots.logsZero++
+      else wood.slots.down.push({ bot: wm[1], sticks, planks, logs }) // the unanimity break: the starve sat below the head
       if (planks === 0) wood.slots.planksZero++
       if (sticks === 0) wood.slots.sticksZero++
       continue

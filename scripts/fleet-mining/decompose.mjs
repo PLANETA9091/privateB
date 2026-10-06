@@ -2130,6 +2130,14 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (fc.wood.n > 0) {
       const bots = Object.entries(fc.wood.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
       console.log(`  wood famines: ${fc.wood.n} per-bot: ${bots} - the starved slot: logs ${fc.wood.slots.logsZero}/${fc.wood.n}${fc.wood.slots.logsZero === fc.wood.n ? ' (THE GATHER DROUGHT: the head starved every time)' : ''}, planks ${fc.wood.slots.planksZero}/${fc.wood.n}, sticks ${fc.wood.slots.sticksZero}/${fc.wood.n}`)
+      // (v0.699.0) THE DOWNSTREAM SEAT - the unanimity break named: the
+      // famine that held logs > 0 starved BELOW the head (the walk brought
+      // wood home, the conversion leg starved). The head-unanimous face
+      // rides the honest silence (the drought needs no name).
+      if (fc.wood.slots.down.length > 0) {
+        const ds = fc.wood.slots.down.map((d) => `${d.bot} (sticks ${d.sticks} planks ${d.planks} logs ${d.logs})`).join('; ')
+        console.log(`  the downstream seat: ${ds} - the walk brought wood home, the starve sat below the head (the conversion leg, not the drought)`)
+      }
       if (fc.wood.repeats.n > 0) {
         const rb = Object.entries(fc.wood.repeats.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
         const sp = fc.wood.repeats.span
