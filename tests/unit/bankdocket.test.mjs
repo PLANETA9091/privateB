@@ -67,6 +67,7 @@ test('bankDocket honest zeros and the junk battery', () => {
     bankLines: 0,
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
+    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
     views: 0, fallbacks: 0, plans: 0, depositPositives: 0
   })
   // junk-safe: non-input reads null (the smeltledger convention)
@@ -128,4 +129,50 @@ test("the decide skin's own count: the era's A* shares byte-exact (the 32nd: 19 
   const fuel = bankDocket(['F1 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)'])
   assert.equal(fuel.door.total, 0)
   assert.equal(fuel.door.decideTimeouts, 0)
+})
+
+test("the fuel lane's own door: the era's counts byte-exact (the 32nd: 19, the 34th: 21), the legs untouched", () => {
+  // (v0.704.0) the live faces' proven shapes (raw-log reconciled): the
+  // 32nd's 19 fuel doors ride decide 14 / no path 2 / retry 2 / the
+  // water-rescue refusal 1, the 34th's 21 ride decide 17 / no path 3 /
+  // retry 1. The fire-2130 worklog's '20x/27x' was the ad-hoc grep's
+  // error (the lens corrects a third time). The bank's legs stay put.
+  const decide = 'F11 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)'
+  const noPath = 'F18 fuel commons: chest walk failed after the nudge (No path to the goal!)'
+  const retry = 'F15 fuel commons: chest walk failed after the nudge (fuel commons walk @-119,379 (nudge retry): timeout after 3948ms)'
+  const refused = 'F1 fuel commons: chest walk failed after the nudge (water rescue in progress (iron commune walk @-141,389 (nudge retry) refused))'
+  const r32 = bankDocket([...Array(14).fill(decide), ...Array(2).fill(noPath), ...Array(2).fill(retry), refused])
+  assert.deepEqual(r32.fuel, { total: 19, decide: 14, noPath: 2, retryTimeout: 2, other: 1 })
+  assert.equal(r32.door.total, 0) // the bank's door leg never swallowed the fuel lane
+  assert.equal(r32.pocket.total, 0)
+  assert.equal(r32.bankLines, 0) // no 'bank' word rides the fuel door's skin
+  const r34 = bankDocket([...Array(17).fill(decide), ...Array(3).fill(noPath), retry])
+  assert.deepEqual(r34.fuel, { total: 21, decide: 17, noPath: 3, retryTimeout: 1, other: 0 })
+  // the rescue-refused tail says 'nudge retry' too but never ': timeout
+  // after' - the byte keeps it OUT of the retry cell (the honest other)
+  const onlyRefused = bankDocket([refused])
+  assert.equal(onlyRefused.fuel.other, 1)
+  assert.equal(onlyRefused.fuel.retryTimeout, 0)
+  // a mixed face: the fuel door rides beside live legs, nothing moves
+  const mixed = bankDocket([
+    'F4 [F4] hop: chest at [-115,79,415] d=28 zero: chest unreachable (Took to long to decide path to goal!)',
+    'F4 bank: 0 (nothing to deposit)',
+    decide
+  ])
+  assert.equal(mixed.door.total, 1)
+  assert.equal(mixed.pocket.total, 1)
+  assert.equal(mixed.fuel.total, 1)
+})
+
+test("the fuel lane's own door: the honest silence and the junk battery", () => {
+  // a face whose fuel lane walked clean reads the zero cell - no door
+  const clean = bankDocket(['F2 fuel commons: the nudge retry landed', 'F3 fuel commons: budget spent (4/4 units)'])
+  assert.deepEqual(clean.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 })
+  // junk lines inside a live face are skipped, never invented
+  const j = bankDocket(['fuel commons: chest walk failed after the nudge', 123, null])
+  assert.equal(j.fuel.total, 1)
+  assert.equal(j.fuel.other, 1) // the bare skin (no why-tail) rides the honest other
+  // junk input reads null (the smeltledger convention, inherited)
+  assert.equal(bankDocket(42), null)
+  assert.equal(bankDocket(undefined), null)
 })

@@ -70,6 +70,22 @@
 // walk failed after the nudge' family - a door the docket does not
 // classify, the next fire's front).
 //
+// (v0.704.0) THE FUEL LANE'S OWN DOOR - that front lands: the nudge
+// walk's own verdict in the fuel lane's skin ('fuel commons: chest walk
+// failed after the nudge (...)') joins the docket as its own cell, the
+// bank's legs untouched (the era's rows 45/6, 25/0, 43/1 stay put).
+// The why-tail names the starver: the A* doorstep's decide marker, the
+// no-path verdict, the nudge-retry's own timeout ('(nudge retry):
+// timeout after Nms' - the rescue-refused tail says 'nudge retry' too
+// but never ': timeout after', the byte keeps them apart), and 'other'
+// absorbs the rest (the 32nd's water-rescue refusal rides here). The
+// era's own reads, raw-log reconciled: the 32nd 19 (decide 14, no path
+// 2, retry 2, other 1), the 34th 21 (decide 17, no path 3, retry 1).
+// The fire-2130 worklog's '20x/27x' was the ad-hoc grep's error again
+// (the lens corrects a third time). The iron commune's bare 'chest
+// walk failed' family (5 on the 32nd, 20 on the 34th) is a THIRD
+// lane's door - the scope extension's own front, still unclassified.
+//
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only,
 // the v0.379/.../v0.701.0 precedent) - the bank bytes already ride the
 // filter-key.
@@ -86,6 +102,8 @@
  *          lidTimeout: number, beyondRadius: number, total: number},
  *   pocket: {zeroProbes: number, depositZeros: number, total: number,
  *            nothingToDeposit: number},
+ *   fuel: {total: number, decide: number, noPath: number,
+ *          retryTimeout: number, other: number},
  *   views: number, fallbacks: number, plans: number,
  *   depositPositives: number,
  *   rate?: {visits: number, doorPct: number, pocketPct: number}}}
@@ -99,6 +117,7 @@ export function bankDocket (lines, visits) {
     bankLines: 0,
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
+    fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
     views: 0,
     fallbacks: 0,
     plans: 0,
@@ -123,6 +142,18 @@ export function bankDocket (lines, visits) {
       continue
     }
     if (/no chest reached/.test(line)) { d.door.noChest++; d.door.total++; continue }
+    // (v0.704.0) THE FUEL LANE'S OWN DOOR - the nudge walk's own verdict
+    // in the fuel lane's skin: a door the bank's legs never classified.
+    // The why-tail names the starver; the sum of the tails is the total
+    // (the honest split, no residual).
+    if (/chest walk failed after the nudge/.test(line)) {
+      d.fuel.total++
+      if (/Took to long to decide path to goal/.test(line)) d.fuel.decide++
+      else if (/No path to the goal/.test(line)) d.fuel.noPath++
+      else if (/\(nudge retry\): timeout after/.test(line)) d.fuel.retryTimeout++
+      else d.fuel.other++
+      continue
+    }
     // the empty-pocket leg: the chest reached and open, the deposit moved 0
     if (/chest at \S+ d=\d+ zero: nothing to deposit/.test(line)) { d.pocket.zeroProbes++; d.pocket.total++; continue }
     const dm = line.match(/^([A-Za-z]\d+) bank: (\d+)(?: \((.+)\))?$/)
