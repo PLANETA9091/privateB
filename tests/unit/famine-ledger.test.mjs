@@ -48,8 +48,8 @@ test('famineCensus honest zeros and the junk battery', () => {
   // a face with no famine lines reads the honest zero shape
   const r = famineCensus(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)'])
   assert.deepEqual(r, {
-    wood: { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0 } },
-    food: { n: 0, byBot: {}, plateZero: 0, hunger: null }
+    wood: { n: 0, byBot: {}, slots: { logsZero: 0, planksZero: 0, sticksZero: 0 }, repeats: { n: 0, byBot: {}, span: null } },
+    food: { n: 0, byBot: {}, plateZero: 0, hunger: null, repeats: { n: 0, byBot: {}, span: null } }
   })
   // junk-safe: non-string-blob reads null (the smeltledger convention)
   assert.equal(famineCensus(42), null)
@@ -58,4 +58,29 @@ test('famineCensus honest zeros and the junk battery', () => {
   const j = famineCensus(['wood trip: famine', 'F1 food trip: famine (hunger x, plate 0) - walk', 123])
   assert.equal(j.wood.n, 0)
   assert.equal(j.food.n, 0)
+})
+
+test('famineCensus repeats reads the 26th byte-exact: F8 famine-d twice, the walk between delivered nothing', () => {
+  // face 26 verbatim: F8's two wood famines sat 1739 lines apart
+  // (fleet19.log lines 294 -> 2033) - the gather walk's cure failed
+  const lines = new Array(294).fill('F1 [F1] mem: ok')
+  lines[293] = 'F8 wood trip: famine (sticks 0 planks 1 logs 0) - gathering'
+  lines[2032] = 'F8 wood trip: famine (sticks 3 planks 1 logs 0) - gathering'
+  const r = famineCensus(lines)
+  assert.equal(r.wood.n, 2)
+  assert.deepEqual(r.wood.repeats, { n: 1, byBot: { F8: 1 }, span: { min: 1739, median: 1739, max: 1739 } })
+  // the food lane never repeated this face - the honest silence
+  assert.deepEqual(r.food.repeats, { n: 0, byBot: {}, span: null })
+})
+
+test('famineCensus repeats family separation: food repeats price the commons walk, wood stays silent', () => {
+  const r = famineCensus([
+    'F9 food trip: famine (hunger 17, plate 0) - the commons walk',
+    'F11 food trip: famine (hunger 14, plate 2) - the commons walk',
+    'F9 food trip: famine (hunger 12, plate 0) - the commons walk',
+    'F9 wood trip: famine (sticks 0 planks 0 logs 4) - gathering'
+  ])
+  assert.deepEqual(r.food.repeats, { n: 1, byBot: { F9: 1 }, span: { min: 2, median: 2, max: 2 } })
+  assert.equal(r.wood.repeats.n, 0)
+  assert.equal(r.wood.repeats.span, null)
 })

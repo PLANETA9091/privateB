@@ -2088,11 +2088,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (fc.wood.n > 0) {
       const bots = Object.entries(fc.wood.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
       console.log(`  wood famines: ${fc.wood.n} per-bot: ${bots} - the starved slot: logs ${fc.wood.slots.logsZero}/${fc.wood.n}${fc.wood.slots.logsZero === fc.wood.n ? ' (THE GATHER DROUGHT: the head starved every time)' : ''}, planks ${fc.wood.slots.planksZero}/${fc.wood.n}, sticks ${fc.wood.slots.sticksZero}/${fc.wood.n}`)
+      if (fc.wood.repeats.n > 0) {
+        const rb = Object.entries(fc.wood.repeats.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+        const sp = fc.wood.repeats.span
+        console.log(`  wood repeats: ${fc.wood.repeats.n} (${rb}) - the gather walk between famines delivered nothing (span ${sp.min}..${sp.max} lines${sp.min === sp.max ? '' : `, median ${sp.median}`}) - THE DROUGHT'S PERSISTENCE`)
+      }
     }
     if (fc.food.n > 0) {
       const bots = Object.entries(fc.food.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
       const h = fc.food.hunger
       console.log(`  food famines: ${fc.food.n} per-bot: ${bots} - hunger at famine: min ${h.min} median ${h.median} max ${h.max} (plate 0: ${fc.food.plateZero}/${fc.food.n})`)
+      if (fc.food.repeats.n > 0) {
+        const rb = Object.entries(fc.food.repeats.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+        const sp = fc.food.repeats.span
+        console.log(`  food repeats: ${fc.food.repeats.n} (${rb}) - the commons walk between famines fed nothing (span ${sp.min}..${sp.max} lines${sp.min === sp.max ? '' : `, median ${sp.median}`})`)
+      }
     }
   }
 }
