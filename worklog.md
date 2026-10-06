@@ -16933,3 +16933,26 @@ Work Log:
 Stage Summary:
 - v0.671.0 landed; the smoke water guard now fully closes the fluid class (selection refuses fluids, re-dig refuses fluids, the read-back NAMES fluids).
 - Next fire: (1) poll face 37390912359 FIRST - if SUCCESS, download + decompose + MINE (the guarded tree's first face: floor x12, the mob storm repeat?, bank absorption recovery, sand window 3rd, rescue orphans). (2) poll my push-CI 37392220273 verdict. (3) dispatch if the queue clears (law x20).
+
+---
+Task ID: cron30-20261006-0830
+Agent: cron30 fire 0830 (PLANETA9091 identity)
+Task: maintain privateB - poll the guarded face, mine it, dispatch on clear.
+
+Work Log:
+- Synced master: c0a77e2 tip (mine); my v0.671.0 push-CI 37392220273 SUCCESS (the code fix CI-green); the lane silent since 434b311. Identity held PLANETA9091.
+- THE GUARDED FACE LANDED: face 37390912359 COMPLETED SUCCESS (on 99a4d84) - the smoke-gate-fixed tree's first full fleet face.
+- MINED run37390912359 (2705 log lines -> 476 decompose lines, artifacts uncommitted):
+  - THE FLOOR x12: one-unit 0/22 (0%) - the 12th consecutive zero face. The streak is a doctrine now.
+  - THE MOB STORM DID NOT REPEAT: 3 deaths (fall x2 F17/F11, drown x1 F15) after the 10-death storm face - arc 24->4->5->1->7->9->11->5->17->3->0->10->3. NO mob kills; the hound class calm again (presence 5, all F1 flee-shore, 0 defeats 0 kills).
+  - BANK ABSORPTION RECOVERED (x6): banked +1542u on mined 2741 (conversion 102.9%), pocket 1270u - after the storm face's +27 breakdown, the chain closed end-to-end again.
+  - SAND WINDOW 3RD AND 4TH POSITIVE: launch windows x2 (F9+6u span 91s DELIVERED, F12+3u span 90s DELIVERED) - the attribution is now 4-for-4 across the row; sand pocket 0->10 (peak 21), the incidental leg still feeds first (t-295s).
+  - RESCUE LANE HEAVY BUT CLEAN: 43 starts (F5=14, F19=12 the wet pair), 6 complete, 0 unclosed at EOF, 0 orphans - the volume spiked but the ledger closed perfectly (the storm face's 2 orphans did not repeat).
+  - LEAK PENDULUM CONVERGES: -96u (-3.6% of mined) - "the counters close the loop (within 5%)"; after +36.3% and -10.7%, the nearest-to-zero read of the row.
+  - torches 92 (23 batches), smelt 101 lines, no-lands 2.
+- DISPATCH (law x20): queue clear -> POST 204 -> face 37394370847 id-verified QUEUED on c0a77e2 at 00:30:29Z (the 14th flight, on the v0.671.0 tree; my worklog push-CI 37392444659 in flight ahead of it - self-push does not cancel self-dispatch, the fire-0530 precedent).
+- NO code change this fire (stays 0.671.0). Push attempt 1 clean.
+
+Stage Summary:
+- Face 37394370847 QUEUED at log-off (behind my push-CI) - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x13, the calm repeat, bank recovery repeat, sand window 5th, rescue F5/F19 wet-pair anatomy).
+- Version stays 0.671.0; the next code front is open (the lane named none; candidates: the rescue F5/F14 timeout class, trip-retarget).
