@@ -7,7 +7,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseMemLine, parseStormCooldown, memHbCensus, MEM_HB_RE, STORM_COOLDOWN_RE, OOM_LOCK_RE } from '../../src/lib/memhb.mjs'
+import fs from 'node:fs'
+import { parseMemLine, parseStormCooldown, memHbCensus, MEM_HB_RE, STORM_COOLDOWN_RE, OOM_LOCK_RE, FREEZE_STORM_RE, RSS_JUMP_STORM_M } from '../../src/lib/memhb.mjs'
 
 test('mem-hb: the boot read parses - the zero-fields face of the same shape', () => {
   const line = '   mem: heap=133M/162M old=103M ext=151M ab=148M rss=429M cols=0 ents=0 evicted=0 path=4a/0q (max 6) stale=0'
@@ -166,4 +167,68 @@ test('mem-hb: the three skins, one emitter (v0.478.0) - the face-43 undercount f
   const other = parseStormCooldown('F2 [somelane] craft stick: storm cooldown 100ms left (3 consecutive timeouts) - refusing')
   assert.equal(other.skin, 'other')
   assert.equal(other.bot, 'F2')
+})
+
+// ---- (v0.677.0) THE RSS JUMP - the storm between the gauges ----
+// The 20th flight (37409860732) read FLAT gauges (~382M across 8 samples)
+// and died between them: the FATAL's own words carry the numbers the
+// gauges never sampled. The verbatim below is the stub log's own line.
+const FREEZE_FATAL = '[stormguard] FATAL (freeze storm: main pulse frozen 5s, rss 385M -> 1212M growing past the 1200M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134; last: pf:done fuel commons wa @+0.0s <- climb @+0.0s <- pf:done next column alt @+-0.0s)'
+
+test('mem-hb: the rss jump prices the sharpest climb, GC drops never fold in', () => {
+  const c = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=375M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0', // GC drop
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=420M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0', // +45
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=470M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0' // +50 the max
+  ])
+  assert.equal(c.rssJump.max, 50)
+  assert.equal(c.rssJump.storms, 0)
+  assert.equal(c.rssMax, 470)
+})
+
+test('mem-hb: the storm threshold counts the >= 100M/gauge climbs', () => {
+  const c = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=490M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0', // +110 storm
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=400M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0', // GC drop
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=530M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0' // +130 storm, the max
+  ])
+  assert.equal(c.rssJump.max, 130)
+  assert.equal(c.rssJump.storms, 2)
+})
+
+test('mem-hb: the freeze-storm FATAL prices the gap between the gauges', () => {
+  const c = memHbCensus([
+    '   mem: heap=106M/149M old=89M ext=122M ab=120M rss=383M cols=1952 ents=2691 evicted=852 path=6a/0q (max 6) stale=0',
+    FREEZE_FATAL,
+    '[stormguard] the MAIN thread is locked while allocating (run53/35647216505 OOM class; mainLate read 927ms but the pulse has been frozen 5s - the reading was stale) - every closure applier lives on the locked main; emergency SIGTERM keeps the story readable (exit 143)'
+  ])
+  // the byte-exact 20th-flight read: the gauges never sampled the climb
+  assert.equal(c.rssJump.max, 0)
+  assert.equal(c.rssJump.storms, 0)
+  assert.deepEqual(c.freezeStorm, { frozenS: 5, from: 385, to: 1212, floor: 1200 })
+  assert.equal(c.oomLocks, 1) // the epilogue still counts as its own row
+})
+
+test('mem-hb: no FATAL, no freezeStorm - the honest null (junk-safe)', () => {
+  const c = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0',
+    'the stormguard FATAL watched the freeze storm rss 385M -> 1212M story unfold', // a prose carrier, not the emitter shape
+    null,
+    42
+  ])
+  assert.equal(c.freezeStorm, null)
+  assert.equal(c.oomLocks, 0)
+  assert.ok(!FREEZE_STORM_RE.test('the stormguard FATAL watched the freeze storm rss 385M -> 1212M story unfold'))
+})
+
+test('mem-hb: the storm threshold is the named constant (the bound law)', () => {
+  assert.equal(RSS_JUMP_STORM_M, 100)
+})
+
+test('WIRING: the decompose prints the rss jump row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /rss jump: max \+\$\{rj\.max\}M\/gauge/, "the storm between the gauges prints in the MEMORY block")
+  assert.match(src, /the FATAL saw \+\$\{mem\.freezeStorm\.to - mem\.freezeStorm\.from\}M/, "the FATAL's own gap joins the row")
 })

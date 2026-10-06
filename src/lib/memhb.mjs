@@ -58,6 +58,23 @@ export const STORM_COOLDOWN_RE = /^F\d+(?: \[[^\]]+\])* craft ([a-z_][a-z0-9_]*)
 //     emergency SIGTERM keeps the story readable (exit 143)'
 export const OOM_LOCK_RE = /^\[stormguard\] the MAIN thread is (locked while allocating|allocating itself to death while frozen) \(run53\/\d+ OOM class/
 
+// (v0.677.0) THE FREEZE-STORM FATAL - the storm the gauge cadence misses
+// lives BETWEEN the gauges. The 20th flight (37409860732) read FLAT gauges
+// (~382M across 8 samples, the census's honest rssMax 383M) and died
+// between them: the FATAL's own words carry the numbers the gauges never
+// sampled - 'rss 385M -> 1212M growing past the 1200M floor'. The census
+// prices that gap from the FATAL's own read, never invented:
+//   '[stormguard] FATAL (freeze storm: main pulse frozen 5s, rss 385M ->
+//     1212M growing past the 1200M floor - the closure cannot land; run
+//     36292057377 spent the probe at 2271M ... ; last: pf:... <- pf:...)'
+export const FREEZE_STORM_RE = /^\[stormguard\] FATAL \(freeze storm: main pulse frozen (\d+)s, rss (\d+)M -> (\d+)M growing past the (\d+)M floor/
+
+// (v0.677.0) THE RSS JUMP storm threshold - a climb of >= 100M between
+// consecutive gauges (~15s apart on the emitter's clock) is the storm
+// class; the run53-class deaths ride +827M in ONE gap (the FATAL's own
+// read). A calm face's gauge-to-gauge climbs live in the single digits.
+export const RSS_JUMP_STORM_M = 100
+
 /**
  * Parse one mem-gauge line into its precursor read, or null.
  * Junk-safe: non-string input and every non-gauge shape judge NOTHING.
@@ -104,7 +121,7 @@ export function parseStormCooldown (line) {
  * field read). Accepts an array of lines or a raw text blob (split on
  * newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number}}
+ * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number, rssJump: {max: number, storms: number}, freezeStorm: {frozenS: number, from: number, to: number, floor: number}|null}}
  */
 export function memHbCensus (lines) {
   const rows = Array.isArray(lines)
@@ -128,11 +145,26 @@ export function memHbCensus (lines) {
   const stormByBot = {}
   let stormCooldowns = 0
   let oomLocks = 0
+  // (v0.677.0) THE RSS JUMP - the gauge-to-gauge climb read (the storm
+  // between the gauges, as far as the gauges themselves saw it) + the
+  // freeze-storm FATAL's own numbers (the gap the cadence missed).
+  let rssPrev = null
+  let rssJumpMax = 0
+  let rssStorms = 0
+  let freezeStorm = null
   for (const l of rows) {
     const p = parseMemLine(l)
     if (p) {
       reads++
       if (rssMax === null || p.rss > rssMax) rssMax = p.rss
+      // (v0.677.0) the sharpest climb between consecutive gauges; a
+      // NEGATIVE delta is a GC drop - counted, never folded into any climb
+      if (rssPrev !== null) {
+        const rj = p.rss - rssPrev
+        if (rj > rssJumpMax) rssJumpMax = rj
+        if (rj >= RSS_JUMP_STORM_M) rssStorms++
+      }
+      rssPrev = p.rss
       if (heapUsedMax === null || p.heapUsed > heapUsedMax) heapUsedMax = p.heapUsed
       heapLimitLast = p.heapLimit
       if (colsMax === null || p.cols > colsMax) colsMax = p.cols
@@ -165,6 +197,12 @@ export function memHbCensus (lines) {
       continue
     }
     if (typeof l === 'string' && OOM_LOCK_RE.test(l)) oomLocks++
+    // (v0.677.0) the freeze-storm FATAL - the process dies with it, so the
+    // FIRST read is the read (a face carries at most one)
+    const fsm = typeof l === 'string' ? l.match(FREEZE_STORM_RE) : null
+    if (fsm && freezeStorm === null) {
+      freezeStorm = { frozenS: Number(fsm[1]), from: Number(fsm[2]), to: Number(fsm[3]), floor: Number(fsm[4]) }
+    }
   }
   return {
     reads,
@@ -184,6 +222,8 @@ export function memHbCensus (lines) {
     path: { peakActive, peakQueue, pathMax },
     stormCooldowns,
     stormByBot,
-    oomLocks
+    oomLocks,
+    rssJump: { max: rssJumpMax, storms: rssStorms },
+    freezeStorm
   }
 }

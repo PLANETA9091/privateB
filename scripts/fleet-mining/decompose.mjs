@@ -62,7 +62,7 @@ import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the 
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
-import { memHbCensus } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
+import { memHbCensus, RSS_JUMP_STORM_M } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
 import { voidCensus } from '../../src/lib/voidcensus.mjs' // (v0.423.0) the out-of-world stamp's field read
@@ -2288,6 +2288,17 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log('=== MEMORY / OOM PRECURSORS (the mem-hb lens, v0.408.0) ===')
     console.log(`  gauges: ${mem.reads} reads, rss max ${mem.rssMax}M, heap max ${mem.heapUsedMax}/${mem.heapLimitLast}M, cols max ${mem.colsMax}, ents max ${mem.entsMax}, stale max ${mem.staleMax}`)
     console.log(`  evicted: max ${ev.max}, first ${ev.first} -> last ${ev.last}, peak jump ${ev.peakJump}/gauge, ${ev.resets} guard-reset(s); path peak ${mem.path.peakActive}a/${mem.path.peakQueue}q (max ${mem.path.pathMax})`)
+    // (v0.677.0) THE RSS JUMP - the storm between the gauges: the sharpest
+    // gauge-to-gauge climb priced, the freeze-storm FATAL's own numbers
+    // joined beside it. The 20th flight (37409860732) read flat gauges and
+    // died between them - the gauges' honest flat PLUS the FATAL's +827M
+    // IS the storm's shape (neither row alone convicts the face).
+    const rj = mem.rssJump
+    const rjRow = `  rss jump: max +${rj.max}M/gauge${rj.storms > 0 ? ` - STORM x${rj.storms} (>= ${RSS_JUMP_STORM_M}M/gauge)` : ''}`
+    const fsNote = mem.freezeStorm
+      ? `; the FATAL saw +${mem.freezeStorm.to - mem.freezeStorm.from}M while frozen ${mem.freezeStorm.frozenS}s (past the ${mem.freezeStorm.floor}M floor - the storm lived between the gauges)`
+      : ''
+    console.log(rjRow + fsNote)
     const stormNote = mem.stormCooldowns > 0
       ? Object.entries(mem.stormByBot).map(([b, s]) => `${b}=${s.count}(max ${s.maxConsecutive})`).join(' ')
       : 'none'
