@@ -29,8 +29,16 @@
 // whose every launch spread wide reads the empty pin cell (the honest
 // zero - THE CROWD'S WANDER, the goal's own verdict).
 //
+// (v0.723.0) THE NEAR PIN rides beside the verdict: the bots the volume
+// bar left unnamed - the share held (70%+) of 6..9 launches. The 46th's
+// F17 8/9 at [-143,405] (88.9%) is the cell's own motive: the transit
+// census's row named THE PINNED SEAT while the bar's volume guard kept
+// the bill's silence. The near cell prices what the bar leaves on the
+// table without lowering it (a volume short is not a concentration
+// short); the pin's own bot stays the pin's subject.
+//
 // Pure: reads, never mutates. Zero fleet wiring (mining-surface only,
-// the v0.379/.../v0.721.0 precedent).
+// the v0.379/.../v0.722.0 precedent).
 //
 
 // The transit launch's own byte: the bot token, the water lane's prefix,
@@ -49,6 +57,16 @@ const PIN_PASS_RE = /^(F\d+) \[\1\] water: pass \d+ head=(\S+) shore=(?:none|hit
 const PIN_MIN_LAUNCHES = 10
 const PIN_SHARE = 0.7
 
+// (v0.723.0) THE NEAR PIN's window - the concentration the volume bar
+// left unnamed: 6..9 launches at one aim holding the share. The 46th's
+// F17 rode 8/9 at [-143,405] (88.9%) while the transit census's own row
+// named THE PINNED SEAT at the same aim - the volume guard keeps small
+// samples honest and the shape rode behind it. The share bar never
+// drops (a volume short is not a concentration short); the floor holds
+// at 6 (a majority of the bar's own window - below it the seat is a
+// coincidence's shape, not a bot's stance).
+const PIN_NEAR_MIN_LAUNCHES = 6
+
 /**
  * pinBill(lines) - the water lane's own seat read, per bot.
  *
@@ -57,7 +75,9 @@ const PIN_SHARE = 0.7
  *   bots: Object<string, {total: number, targets: Object<string, number>,
  *     nPass: number, passes: Object<string, number>}>,
  *   pinned: Object<string, {target: string, launches: number, of: number,
- *     share: number, watch?: {pos: string, passes: number}}>}}
+ *     share: number, watch?: {pos: string, passes: number}}}>,
+ *   nearPin: Object<string, {target: string, launches: number, of: number,
+ *     share: number, watch?: {pos: string, passes: number}>}}
  *   null when the face rode neither family (the honest silence).
  */
 export function pinBill (lines) {
@@ -95,20 +115,27 @@ export function pinBill (lines) {
   }
   if (n === 0 && nPass === 0) return null
   // THE PIN VERDICT - the concentration read, post-fold (the fold's own
-  // cells stay raw; the verdict prices the join)
+  // cells stay raw; the verdict prices the join). (v0.723.0) the near
+  // cell rides beside it: the bots the volume bar left unnamed - the
+  // share held, the window 6..9. The pinned bot's own cell stays the
+  // pin's subject (the pin is not near itself); a bot below the near
+  // floor or below the share bar reads neither cell (the bars never
+  // invent).
   const pinned = {}
+  const nearPin = {}
   for (const [name, b] of Object.entries(bots)) {
     const targets = Object.entries(b.targets).sort((a, c) => c[1] - a[1])
     if (!targets.length) continue
     const [tgt, topN] = targets[0]
     const share = topN / b.total
-    if (b.total < PIN_MIN_LAUNCHES || share < PIN_SHARE) continue
+    if (share < PIN_SHARE) continue
     const seat = { target: tgt, launches: topN, of: b.total, share: Math.round(share * 1000) / 10 }
     // the watch: the bot's own top pass ground (no passes, no watch -
     // the launch-only seat reads)
     const passes = Object.entries(b.passes).sort((a, c) => c[1] - a[1])
     if (passes.length) seat.watch = { pos: passes[0][0], passes: passes[0][1] }
-    pinned[name] = seat
+    if (b.total >= PIN_MIN_LAUNCHES) pinned[name] = seat
+    else if (b.total >= PIN_NEAR_MIN_LAUNCHES) nearPin[name] = seat
   }
-  return { n, nPass, bots, pinned }
+  return { n, nPass, bots, pinned, nearPin }
 }

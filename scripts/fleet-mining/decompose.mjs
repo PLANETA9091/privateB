@@ -2554,7 +2554,11 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   if (pb) {
     const pins = Object.entries(pb.pinned).sort((a, b) => b[1].launches - a[1].launches)
     const pinRow = pins.map(([name, p]) => `${name} rides ${p.launches}/${p.of} at ${p.target} (${p.share}%)${p.watch ? ` - the sentry watch ${p.watch.passes} pass(es) at ${p.watch.pos}` : ''}`).join('; ')
-    console.log(`  the water lane's own seat (v0.722.0): ${pb.n} transit launch(es), ${pb.nPass} pass(es)${pins.length ? ` - THE PINNED SEAT: ${pinRow} - the same land refused one bot's re-aims` : ' - no pin, the fleet\'s launches wander (the crowd\'s own spread)'}`)
+    // (v0.723.0) the near pin - the bots the volume bar left unnamed
+    // (the share held of 6..9 launches); the row's own prose byte-stable
+    const nears = Object.entries(pb.nearPin || {}).sort((a, b) => b[1].launches - a[1].launches)
+    const nearRow = nears.map(([name, p]) => `${name} rides ${p.launches}/${p.of} at ${p.target} (${p.share}%)${p.watch ? ` - the sentry watch ${p.watch.passes} pass(es) at ${p.watch.pos}` : ''}`).join('; ')
+    console.log(`  the water lane's own seat (v0.722.0): ${pb.n} transit launch(es), ${pb.nPass} pass(es)${pins.length ? ` - THE PINNED SEAT: ${pinRow} - the same land refused one bot's re-aims` : ' - no pin, the fleet\'s launches wander (the crowd\'s own spread)'}${nears.length ? `; the near pin (v0.723.0): ${nearRow} - the concentration the volume bar left unnamed` : ''}`)
   }
 }
 

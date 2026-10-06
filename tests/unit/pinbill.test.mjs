@@ -133,3 +133,108 @@ test('the grammar\'s edges - the reset skin, the hit shore, the blob form, the n
   const blob = pinBill(face.join('\n') + '\n')
   assert.deepEqual(blob, pb)
 })
+
+// (v0.723.0) THE NEAR PIN - the concentration the volume bar left
+// unnamed: the share held (70%+) of 6..9 launches. The 46th (run
+// 37520787094) is the cell's own motive: F17 rode 8/9 launches at ONE
+// aim [-143,405] (88.9%) while the transit census's own row named THE
+// PINNED SEAT (the walls class, d flat 14..13) - the bar's volume guard
+// kept the bill's silence one launch short of the seat.
+
+test("the near pin rides the 46th's own bytes - F17 8/9 the bar's one-launch short", () => {
+  // the face's own transit spread: F17 8 at one aim (7x d=13 + 1x d=14 -
+  // the d rides, the aim holds) + 1 birch wander; the real pass grounds
+  const t1 = 'F17 [F17] water: transit toward known land (oak_log) at [-143,405] d=13'
+  const t2 = 'F17 [F17] water: transit toward known land (oak_log) at [-143,405] d=14'
+  const t3 = 'F17 [F17] water: transit toward known land (birch_log) at [-131,396] d=8'
+  const p1 = 'F17 [F17] water: pass 7 head=wet shore=none land=n/a y=43.8 o2=20 probes=0 at=[-139,44,405]'
+  const p2 = 'F17 [F17] water: pass 6 head=wet shore=none land=n/a y=61.5 o2=19 probes=0 at=[-161,61,404]'
+  const face = [
+    ...Array(7).fill(t1),
+    t2,
+    t3,
+    ...Array(7).fill(p1),
+    ...Array(2).fill(p2)
+  ]
+  const pb = pinBill(face)
+  assert.ok(pb, 'the near-pin face opens the bill')
+  assert.equal(pb.n, 9)
+  // the volume bar's own verdict stays byte-stable (the v0.722.0 cell)
+  assert.deepEqual(pb.pinned, {})
+  // the near cell prices what the bar left unnamed - the watch rides
+  assert.deepEqual(pb.nearPin, {
+    F17: {
+      target: '[-143,405]',
+      launches: 8,
+      of: 9,
+      share: 88.9,
+      watch: { pos: '[-139,405]', passes: 7 }
+    }
+  })
+})
+
+test("the pin is not near - the pin's own bot stays the pin's subject, a near bot rides beside it", () => {
+  // the 45th's pin shape (12 at one aim) beside a near-shaped neighbor
+  // (F11: 5 of 7 at one aim = 71.4%, the window's own share)
+  const t17 = 'F17 [F17] water: transit toward known land (oak_log) at [-129,403] d=2'
+  const t11a = 'F11 [F11] water: transit toward known land (oak_log) at [-140,400] d=19'
+  const t11b = 'F11 [F11] water: transit toward known land (oak_log) at [-124,386] d=8'
+  const face = [...Array(12).fill(t17), ...Array(5).fill(t11a), ...Array(2).fill(t11b)]
+  const pb = pinBill(face)
+  assert.deepEqual(pb.pinned, {
+    F17: { target: '[-129,403]', launches: 12, of: 12, share: 100 }
+  })
+  assert.deepEqual(pb.nearPin, {
+    F11: { target: '[-140,400]', launches: 5, of: 7, share: 71.4 }
+  })
+  assert.equal(pb.nearPin.F17, undefined)
+})
+
+test('the bars never invent - the floor, the share and the boundary bytes', () => {
+  const t = (bot, x, z) => `${bot} [${bot}] water: transit toward known land (oak_log) at [${x},${z}] d=2`
+  // (a) 6 launches, 5 at one aim - the floor's own byte (6 is in)
+  const floorIn = pinBill([...Array(5).fill(t('F1', -129, 403)), t('F1', -140, 400)])
+  assert.deepEqual(floorIn.nearPin, {
+    F1: { target: '[-129,403]', launches: 5, of: 6, share: 83.3 }
+  })
+  // (b) 5 launches all one aim - below the near floor (the coincidence's seat)
+  const floorOut = pinBill([...Array(5).fill(t('F2', -129, 403))])
+  assert.deepEqual(floorOut.nearPin, {})
+  // (c) 9 launches, 6 at one aim - below the share bar (66.7%: the
+  // concentration never drops to catch a volume)
+  const shareOut = pinBill([...Array(6).fill(t('F3', -129, 403)), t('F3', -140, 400), t('F3', -124, 386), t('F3', -135, 395)])
+  assert.deepEqual(shareOut.nearPin, {})
+  // (d) 10 launches, 7 at one aim - the pin's own boundary (70% exactly)
+  const pinEdge = pinBill([...Array(7).fill(t('F4', -129, 403)), t('F4', -140, 400), t('F4', -124, 386), t('F4', -135, 395)])
+  assert.deepEqual(pinEdge.pinned, {
+    F4: { target: '[-129,403]', launches: 7, of: 10, share: 70 }
+  })
+  assert.deepEqual(pinEdge.nearPin, {})
+  // (e) 10 launches, 6 at one aim - neither cell (60%)
+  const neither = pinBill([...Array(6).fill(t('F5', -129, 403)), t('F5', -140, 400), t('F5', -124, 386), t('F5', -135, 395), t('F5', -150, 410)])
+  assert.deepEqual(neither.pinned, {})
+  assert.deepEqual(neither.nearPin, {})
+})
+
+test('the honest silences hold - the blob form and the empty cells', () => {
+  assert.equal(pinBill(null), null)
+  assert.equal(pinBill(''), null)
+  assert.equal(pinBill([42, 'not a log line']), null)
+  // the passes-only face: the fold reads, both verdict cells stay empty
+  const p = 'F12 [F12] water: pass 0 head=wet shore=none land=n/a y=44.0 o2=18 probes=0 at=[-125,44,378]'
+  const passesOnly = pinBill([p, p])
+  assert.equal(passesOnly.n, 0)
+  assert.equal(passesOnly.nPass, 2)
+  assert.deepEqual(passesOnly.pinned, {})
+  assert.deepEqual(passesOnly.nearPin, {})
+  // the blob form rides the near cell the same (the v0.722.0 law)
+  const face = [
+    ...Array(8).fill('F17 [F17] water: transit toward known land (oak_log) at [-143,405] d=13'),
+    'F17 [F17] water: transit toward known land (birch_log) at [-131,396] d=8'
+  ]
+  const pb = pinBill(face)
+  assert.deepEqual(pb.nearPin, {
+    F17: { target: '[-143,405]', launches: 8, of: 9, share: 88.9 }
+  })
+  assert.deepEqual(pinBill(face.join('\n') + '\n'), pb)
+})
