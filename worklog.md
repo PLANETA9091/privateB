@@ -17120,3 +17120,18 @@ Work Log:
 Stage Summary:
 - v0.674.0 landed - the honest-'other' verbs surface by their words; the death-attribution front now self-names new vanilla phrasings.
 - Next fire: (1) poll face 37407340102 FIRST - if SUCCESS mine (floor x17, calm repeat?, bank 2-peat, sand 2nd multi-window face, spear repeat under the v0.673.0 verb). (2) my push-CI 37407221650 verdict. (3) watch the smelt-timeout flake: a 2nd integration timeout = the world-rot class, not a flake.
+---
+Task ID: cron30-20261006-1100
+Agent: cron30 fire 1100 (PLANETA9091 identity)
+Task: maintain privateB - poll the 19th flight, one atomic improvement, no dispatch (max-one-active).
+
+Work Log:
+- Sandbox alive, master synced to bbdf4d1. The 19th flight 37403158305 ACTIVE (dispatched 03:05:38Z on 5f85a49) - no dispatch this fire (max-one-active, the law holds).
+- ONE ATOMIC IMPROVEMENT: v0.675.0 THE END-PHASE TAX (ed23f0a) - the join the clock never made: the death clock counted the end-phase DEATHS, the leak clock priced the late THIRD, neither named the UNITS lost inside the final 60s window itself (the run37399670805 class: 6 of 7 drops late-third = 734u of 892u). sealDeathCensus keeps per-death rows (bot/lost/sealLost/empty/ts - the stamp joined to the drop's own price) and computes endPhaseLost; decompose prints 'end-phase tax: ~Nu of ~Mu lost (x%) died in the final 60s - the deadline's own tax'. The stamp never invents: untimed deaths (pre-first-hb) stay out of the tax (the clock's own law), empty reads price 0. 4 new unit tests + the two zero-shape asserts updated.
+- Tests: syntax 476/0; unit 271/271 PASSED.
+- THE 19TH FLIGHT WATCHED LIVE: unit x2 SUCCESS on 5f85a49; Integration SUCCESS at ~03:2xZ - THE SMELT FLAKE DID NOT REPEAT (the run18 failure reads flake-class, one witness); the Big fleet leg materialized at ~03:21Z, lands ~03:31Z - past this box's edge.
+- Pushes clean attempt 1: bbdf4d1..ed23f0a (code). My push-CI 37408115347 PENDING at log-off (the bbdf4d1 CI 37407405358 in progress; the 5f85a49 tree's units+integration already proven by the 19th flight's own jobs).
+
+Stage Summary:
+- v0.675.0 landed - the deadline's own tax is priced: the night-survivability front gains its sharpest number (the end-phase units the rescue cannot repay).
+- Next fire: (1) poll face 37403158305 FIRST - if SUCCESS mine (floor x17, calm repeat, bank 2-peat, sand repeat, the spear verb's first v0.673.0-era read, the FIRST end-phase tax read). (2) push-CI 37408115347 verdict. (3) dispatch on clear (law x25). (4) the tax's first field read names whether the deadline itself is the top killer.
