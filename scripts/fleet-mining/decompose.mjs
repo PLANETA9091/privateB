@@ -184,6 +184,13 @@ if (sweep.keywordOnly.length) {
       const untimedNote = c.untimed > 0 ? `, ${c.untimed} untimed (pre-first-hb)` : ''
       const spanNote = c.firstTs === c.lastTs ? `at ts=${c.firstTs}s` : `span ts=${c.firstTs}..${c.lastTs}s`
       console.log(`  death clock: ${c.timed} timed ${spanNote}, clock end ts=${c.clockEnd}s, end-phase(${c.endPhaseWindowS}s) ${c.endPhase}, max burst ${c.maxBurst} in ${c.burstWindowS}s${untimedNote}`)
+      // (v0.680.0) THE SIEGE PACE - the sustained-pressure read beside the
+      // burst read: the 22nd flight (37416742832) rode 29 mob deaths at max
+      // burst 3 - a SUSTAINED siege the max burst alone underprices.
+      const paceNote = c.pace !== null
+        ? `  siege pace: ${c.pace} deaths/min over ${(c.spanS / 60).toFixed(1)} min of timed span - the sustained pressure the max burst misses`
+        : ''
+      if (paceNote) console.log(paceNote)
       // (v0.675.0) THE END-PHASE TAX - the deadline's own price: the units
       // whose deaths stamped inside the final 60s window (the rescue and
       // the re-gather cannot repay them - the face ends before any walk).

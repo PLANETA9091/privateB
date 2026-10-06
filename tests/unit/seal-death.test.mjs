@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
-const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0 }
+const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, pace: null, spanS: 0 }
 
 test('seal-death: the F14 verbatim loss parses - stacks SUMMED per name, seal-class priced', () => {
   const line = 'F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64, diorite 28, dirt 26, cobblestone 19, andesite 7, +12 more)'
@@ -439,4 +439,51 @@ test('THE BURST SHARE: the threshold is the named constant (the bound law)', () 
 test('WIRING: the decompose prints the burst share row', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /burst share: \$\{c\.burstDeaths\} of \$\{c\.timed\} deaths/, "the storm's own share prints beside the death clock")
+})
+
+// ---- (v0.680.0) THE SIEGE PACE - the sustained-pressure read ----
+// The 22nd flight (37416742832) rode 29 mob deaths at max burst 3 - a
+// SUSTAINED siege the max burst alone underprices. The pace prices the
+// deaths' own density: deaths per clock-minute over the timed span.
+
+test('seal-death siege pace: the two-death battery prices 1.52/min over its 79s span', () => {
+  const c = sealDeathCensus([
+    'b] n=1 ts=21s rss=251M late=5ms mainLate=0ms',
+    'F14 [F14] death drop: ~10u lost at [0,64,0] (cobblestone 10)',
+    'b] n=2 ts=100s rss=252M late=6ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=3 ts=590s rss=260M late=4ms mainLate=0ms'
+  ])
+  assert.equal(c.clock.spanS, 79) // 100 - 21, the deaths' own span
+  assert.equal(c.clock.pace, 1.52) // 2 deaths / (79/60) min
+})
+
+test('seal-death siege pace: the 22nd-flight shape - 29 deaths, low burst, high pace', () => {
+  // a sustained siege: deaths every 26s over a 728s span (41..769), max burst 2
+  const rows = []
+  for (let n = 1; n <= 29; n++) {
+    const ts = 41 + (n - 1) * 26 // 41..769, the 22nd's sustained shape
+    rows.push(`b] n=${n} ts=${ts}s rss=300M late=5ms mainLate=0ms`)
+    rows.push(`F${((n % 19) + 1)} [F${((n % 19) + 1)}] death drop: ~40u lost at [0,64,0] (cobblestone 40)`)
+  }
+  const c = sealDeathCensus(rows)
+  assert.equal(c.clock.timed, 29)
+  assert.equal(c.clock.maxBurst, 2) // 26s apart never triples within 30s - two ride each window
+  assert.equal(c.clock.spanS, 728)
+  assert.equal(c.clock.pace, 2.39) // 29 / (728/60)
+})
+
+test('seal-death siege pace: the clock never invents - null on a zero span', () => {
+  const c = sealDeathCensus([
+    'b] n=1 ts=100s rss=252M late=6ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)'
+  ])
+  assert.equal(c.clock.timed, 1)
+  assert.equal(c.clock.spanS, 0)
+  assert.equal(c.clock.pace, null)
+})
+
+test('WIRING: the decompose prints the siege pace row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /siege pace: \$\{c\.pace\} deaths\/min/, 'the sustained pressure prints beside the death clock')
 })

@@ -111,7 +111,7 @@ export function parseSealDeathDrop (line) {
  * The seal death ledger over a whole face log (pure; the decompose field
  * read). Accepts an array of lines or a raw text blob (split on newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>, clock: {timed: number, untimed: number, clockEnd: number|null, firstTs: number|null, lastTs: number|null, endPhase: number, endPhaseWindowS: number, maxBurst: number, burstWindowS: number, burstMin: number, burstDeaths: number, burstClusters: number}}}
+ * @returns {{drops: number, emptyReads: number, lostTotal: number, sealLostTotal: number, byBot: Object<string,{drops: number, emptyReads: number, lost: number, sealLost: number, items: Object<string,number>}>, clock: {timed: number, untimed: number, clockEnd: number|null, firstTs: number|null, lastTs: number|null, endPhase: number, endPhaseWindowS: number, maxBurst: number, burstWindowS: number, burstMin: number, burstDeaths: number, burstClusters: number, pace: number|null, spanS: number}}}
  */
 export function sealDeathCensus (lines) {
   const rows = Array.isArray(lines)
@@ -191,6 +191,14 @@ export function sealDeathCensus (lines) {
     burstDeaths++
     if (k === 0 || !burstRider[k - 1] || timedTs[k] - timedTs[k - 1] > DEATH_BURST_WINDOW_S) burstClusters++
   }
+  // (v0.680.0) THE SIEGE PACE - the sustained-pressure read beside the
+  // burst read: deaths per clock-minute over the timed span. The 22nd
+  // flight (37416742832) rode 29 mob deaths at max burst 3 - a SUSTAINED
+  // siege the max burst alone underprices (the swarm that never clusters).
+  // The pace is the deaths' own density: null when the span cannot price
+  // it (0 or 1 timed death, or a zero span - the clock never invents).
+  const spanS = timedTs.length > 1 ? timedTs[timedTs.length - 1] - timedTs[0] : 0
+  const pace = spanS > 0 ? Number((timedTs.length / (spanS / 60)).toFixed(2)) : null
   const endPhase = clockEnd === null
     ? 0
     : timedTs.filter(t => t >= clockEnd - DEATH_END_PHASE_WINDOW_S).length
@@ -219,7 +227,9 @@ export function sealDeathCensus (lines) {
       burstWindowS: DEATH_BURST_WINDOW_S,
       burstMin: DEATH_BURST_MIN,
       burstDeaths,
-      burstClusters
+      burstClusters,
+      pace,
+      spanS
     }
   }
 }
