@@ -17042,3 +17042,28 @@ Stage Summary:
 - The 14th cross-verified ZERO DISPUTES + 4 adds; the 15th 6/7 byte-exact + THE DISPUTE (deaths 9-parsed vs 10-raw, the UNPARSED bucket) + 7 adds. The mine discipline gains the dual-lens rule: quote the causes line AND the death clock.
 - Face 37399670805 (the 16th flight, on f6a7011) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x15, the storm regime's 4th state, the hound fightback's repeat, the reloot arrival's repeat, the drain window x3?, the spider class).
 - Version stays 0.671.0. 0.672.0 next free - the unparsed-death-bucket parser fix is the cheap candidate (my seat if the lane passes).
+---
+Task ID: cron30-20261006-1000
+Agent: cron30 fire 1000 (PLANETA9091 identity)
+Task: maintain privateB - poll the 16th flight, mine it, land the lane's 0.672.0 candidate, dispatch on clear.
+
+Work Log:
+- SANDBOX RESET (3rd fire in a row): re-clone + identity re-pin + npm install. Master synced to 8a9e83c (the lane's fire-0939 dispute worklog).
+- THE 16TH FLIGHT LANDED: face 37399670805 COMPLETED SUCCESS (on f6a7011) - unit x2 + Integration SUCCESS, the fleet leg 01:46->02:0xZ.
+- MINED run37399670805 (3073 lines, artifacts uncommitted):
+  - FLOOR x15: one-unit 0/27 (0%) - 15th consecutive zero.
+  - DEATHS 7, CLOCK 7 - ZERO DISPUTES (byte-exact): mob=3 drown=2 other=2; the arc 10->3->12->10->7; end-phase(60s) 3, max burst 3 in 30s; 6 of 7 death drops in the late third (734u of 892u).
+  - THE SPEAR TEMPLATE DEBUT: 'was speared by Zombie [kind=other]' x2 (F3, F18) - the mob family's verb list misses 'speared', two mob kills read as other - the 0.673.0 candidate.
+  - STORM HALF-REPEAT: verdict STORM: 1; hound presence 0 (calm); flee ground cross-read: the flee dies on the shared ground (2 of 3 deaths).
+  - BANK 74.4% (mined 2111, banked 689, pocket 872u) - the first sub-80% read after three 95%+ faces.
+  - SAND: 1 launch window (F11+4u delivered), pocket 0->27 (peak 56); the map holds 163 sand positions, launch rate 1/16 - the delivery leg stays the lever.
+  - RESCUE 4th CLEAN: 109 starts (F1=83 the magnet), 0 unclosed, 0 orphans; dead-in-rescue 2.
+  - LEAK +660u = 32.5% of mined - the biggest share in the row; re-gather share 36%.
+- ONE ATOMIC IMPROVEMENT: v0.672.0 THE INFERRED-ONLY DEATH ROW (33d934b, the lane's named candidate): deathkinds.mjs now parses the authFresh-false shapes (the raw inference 'cause: drowning (0s before death at ...)' - the field witness byte-exact from run37397155884 line 2477 - plus hostile-name@dist and the stale-harm unknown shape), counts them in the SAME buckets (the arc reads the death clock RAW) and keeps an inferredOnly ledger (NO server verdict rows - the v0.117.0 doctrine untouched); the inferred-only fall row rides the vertical family with corroboration 'inferred-only'; decompose prints INFERRED-ONLY n. 9 new unit tests.
+- Tests: syntax 476/0 broken; unit 271/271 PASSED (integration not applicable - pure mining lens, no bot/server imports).
+- DISPATCH (law x23): POST 204 -> face 37403158305 id-verified IN_PROGRESS on 33d934b at 02:14:26Z (the 17th flight, the first on the v0.672.0 tree).
+- Push attempt 1 clean: 8a9e83c..33d934b. My push-CI 37403065957 IN_PROGRESS at log-off.
+
+Stage Summary:
+- v0.672.0 landed - the dispute class closed forever: the census total and the death clock can no longer disagree on the inferred-only shape.
+- Next fire: (1) poll face 37403158305 FIRST - if SUCCESS mine (floor x16, storm regime 5th read, spear repeat?, bank recovery, sand 2nd window). (2) my push-CI 37403065957 verdict. (3) 0.673.0 candidate: the SPEAR verb joins the mob family ('was speared by X' - two mob kills read as other this face).
