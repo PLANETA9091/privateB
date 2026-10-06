@@ -169,7 +169,14 @@ if (sweep.keywordOnly.length) {
     // reads the honest silence - the prose byte-stable)
     const confPairs = Object.entries(kinds.inference.confusions).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
     const confTail = confPairs ? `; the confusions: ${confPairs}` : ''
-    console.log(`  the inference's own bill (v0.713.0): ${kinds.inference.total} death(s) with a server verdict and an inferred tail - the kind join agree ${kinds.inference.kindAgree} / disagree ${kinds.inference.kindDisagree}; the bracket corroborates ${kinds.inference.corroborates}, blind ${kinds.inference.blind}, contradicts ${kinds.inference.contradicts}, bystander ${kinds.inference.bystander}${confTail}`)
+    // (v0.725.0) THE MISREAD'S OWN WITNESS - the confusions that rode the
+    // dead sensor (the death context's o2 reset(-1) skin), heaviest first;
+    // an all-agree face or a confusion-free face reads the honest silence
+    const o2b = kinds.inference.o2Blind || { n: 0, pairs: {}, bots: {} }
+    const o2bPairs = Object.entries(o2b.pairs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
+    const o2bBots = Object.entries(o2b.bots).sort((a, b) => b[1] - a[1]).map(([b, n]) => `${b}=${n}`).join(' ')
+    const o2bTail = o2b.n ? `; the misread's own witness (v0.725.0): ${o2b.n} confusion(s) rode the dead sensor (${o2bPairs}; bots ${o2bBots})` : ''
+    console.log(`  the inference's own bill (v0.713.0): ${kinds.inference.total} death(s) with a server verdict and an inferred tail - the kind join agree ${kinds.inference.kindAgree} / disagree ${kinds.inference.kindDisagree}; the bracket corroborates ${kinds.inference.corroborates}, blind ${kinds.inference.blind}, contradicts ${kinds.inference.contradicts}, bystander ${kinds.inference.bystander}${confTail}${o2bTail}`)
   }
   for (const v of kinds.vertical) {
     console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)

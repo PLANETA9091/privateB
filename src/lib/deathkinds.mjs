@@ -20,6 +20,25 @@
 // The vertical family = kind fall PLUS the vanilla void phrasing ('fell out
 // of the world' - parseDeathMessage honest-'other's it today, but it IS a
 // vertical death and the front counts it).
+//
+// (v0.725.0) THE MISREAD'S OWN WITNESS - the confusion's own context join
+// (the v0.653.0 additive law - the v0.713.0/v0.719.0 cells byte-stable).
+// The v0.719.0 confusions map counts the kind join's lie per pair; the
+// 47th's read named the class behind one of them: ALL THREE drown->fall
+// confusions rode the death context's o2 reset(-1) skin - the sensor died
+// and the water kept the bot (the v0.707.0 toll owns the skin's MASS, the
+// join prices what it did to the WITNESS). The inference bill grows
+// o2Blind: the confused deaths whose own death context (o2gap's grammar,
+// the one-parser law by reuse) carried the reset skin. The join rides the
+// log's own adjacency: the latest server-verdict death row holds the
+// pending confusion; the same bot's 'death: drown context' line resolves
+// it (reset counts, any other o2 skin - the mirror's 'o2 0', the dry
+// read - resolves WITHOUT counting); the next death row replaces the
+// pending (the context never spoke - the honest drop); the mob kind's
+// 'drowned-kill context' rides another grammar and stays outside (the
+// fence - the cell prices what the drown context owns). A kindAgree row's
+// context resolves nothing (the join prices the LIE's witness, not the
+// sensor's toll - the v0.707.0 census's own subject).
 
 /** The fleet's death announce anatomy, parsed to its payload. The kind group
  * is the server's bucket word; the attacker group only exists for the mob
@@ -80,6 +99,11 @@ function corroborationOf (tail) {
  * server's kind). A tail that names nothing readable joins nothing. */
 const INFERRED_NAME_RE = /^([a-z][a-z/]*)(?:@[\d.]+)?/
 
+// (v0.725.0) the death context's own grammar - o2gap's parser imported
+// (the one-parser law by reuse, the sensortoll precedent): the join
+// reads the same bytes the death printed, never re-lexes them.
+import { DROWN_CONTEXT_RE } from './o2gap.mjs'
+
 /** The vertical family: the server's own fall kind, or the vanilla void
  * phrasing riding the honest-'other' bucket today. */
 function isVertical (kind, verb) {
@@ -121,10 +145,32 @@ export function deathKindCensus (lines) {
   // misread twice (the 42nd's zombie, the 43rd's creeper - the mob's
   // proximity poisons the water death's tail) and the explosion kind
   // misread three times (the blast's confusion splits mob vs fall).
-  const inference = { total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0, unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {} }
+  const inference = { total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0, unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {}, o2Blind: { n: 0, pairs: {}, bots: {} } }
+  // (v0.725.0) the pending confusion - the latest server-verdict death
+  // row holds its own pair (null when the kind joined or the tail was
+  // silent); the same bot's drown-context line resolves it
+  let pendingConf = null
   let total = 0
   for (const l of rows) {
     if (typeof l !== 'string' || !l.length) continue // junk-safe: the FATAL face truncates (the v0.358.0 lesson)
+    // (v0.725.0) THE MISREAD'S OWN WITNESS - the death's own context line
+    // resolves the pending confusion (the log's own adjacency: the latest
+    // death row holds the pair, the same bot's drown context speaks for
+    // it). The reset skin counts; any other o2 skin resolves without
+    // counting; another bot's context speaks for nobody. The context line
+    // never counts as a death (the face-27 law holds).
+    const cm = DROWN_CONTEXT_RE.exec(l)
+    if (cm) {
+      if (pendingConf && pendingConf.bot === cm[1]) {
+        if (cm[2] === 'reset(-1)' && pendingConf.pair) {
+          inference.o2Blind.n++
+          inference.o2Blind.pairs[pendingConf.pair] = (inference.o2Blind.pairs[pendingConf.pair] || 0) + 1
+          inference.o2Blind.bots[pendingConf.bot] = (inference.o2Blind.bots[pendingConf.bot] || 0) + 1
+        }
+        pendingConf = null // the context spoke - consumed either way
+      }
+      continue
+    }
     const m = DEATH_KIND_RE.exec(l)
     if (!m) {
       if (!/^F\d+ \[F\d+\] died - respawning/.test(l)) continue
@@ -140,6 +186,7 @@ export function deathKindCensus (lines) {
         byKind[kind] = (byKind[kind] || 0) + 1
         if (bot) byBot[bot] = (byBot[bot] || 0) + 1
         inferredOnly.push({ bot, name: iname, kind, attacker, pos })
+        pendingConf = { bot, pair: null } // (v0.725.0) a death row is a death row - it owns the next context
         if (isVertical(kind, iname)) {
           vertical.push({ bot, verb: iname, kind, attacker, pos, corroboration: 'inferred-only' })
         }
@@ -152,6 +199,7 @@ export function deathKindCensus (lines) {
         byKind.unknown = (byKind.unknown || 0) + 1
         if (bot) byBot[bot] = (byBot[bot] || 0) + 1
         inferredOnly.push({ bot, name: 'unknown', kind: 'unknown', attacker: null, pos: [Number(um[1]), Number(um[2]), Number(um[3])] })
+        pendingConf = { bot, pair: null } // (v0.725.0) the unknown death owns the context too
         continue
       }
       unparsed.push(l)
@@ -177,16 +225,19 @@ export function deathKindCensus (lines) {
     inference[bracket]++
     inference.total++
     const nm = tail ? INFERRED_NAME_RE.exec(tail) : null
+    let pair = null
     if (nm) {
       const ik = kindOfInferred(nm[1]).kind
       if (ik === kind) inference.kindAgree++
       else {
         inference.kindDisagree++
         // (v0.719.0) the confusion's own pair - the kind join's lie named
-        const pair = `${kind}->${ik}`
+        pair = `${kind}->${ik}`
         inference.confusions[pair] = (inference.confusions[pair] || 0) + 1
       }
     }
+    // (v0.725.0) the latest death owns the context - the confusion rides
+    pendingConf = { bot, pair }
     if (isVertical(kind, verb)) {
       const pm = tail ? POS_RE.exec(tail) : null
       vertical.push({

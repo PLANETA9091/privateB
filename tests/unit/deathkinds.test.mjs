@@ -262,7 +262,8 @@ test("the inference's own bill: the era's two-way read byte-exact (the 40th's 12
   assert.deepEqual(c.inference, {
     total: 5, corroborates: 1, blind: 1, contradicts: 2, bystander: 1,
     unknown: 0, absent: 0, kindAgree: 2, kindDisagree: 3,
-    confusions: { 'mob->fall': 1, 'explosion->mob': 1, 'drown->fall': 1 }
+    confusions: { 'mob->fall': 1, 'explosion->mob': 1, 'drown->fall': 1 },
+    o2Blind: { n: 0, pairs: {}, bots: {} }
   })
   // the case byte: the emitter's 'CONTRADICTS' lands in contradicts now
   // (the v0.425.0 bracket match was case-sensitive and read it unknown)
@@ -281,13 +282,15 @@ test("the inference's own bill: the honest silence and the junk battery", () => 
   const c = deathKindCensus(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)'])
   assert.deepEqual(c.inference, {
     total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
-    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {}
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {},
+    o2Blind: { n: 0, pairs: {}, bots: {} }
   })
   // junk-safe: the non-string rows judge nothing
   const j = deathKindCensus([42, null, undefined])
   assert.deepEqual(j.inference, {
     total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
-    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {}
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {},
+    o2Blind: { n: 0, pairs: {}, bots: {} }
   })
   // the spear pair (kind=other, inferred zombie) disagrees at the kind
   // join - the server kind stays the authority, the bill only measures
@@ -340,4 +343,122 @@ test("the confusion's own pairs: the honest silence - an all-agree face never op
   const mixed = deathKindCensus([FACE40_SKELETON_CONTRADICTS, FACE40_SPIDER_CONTRADICTS])
   assert.deepEqual(mixed.inference.confusions, { 'mob->fall': 1 })
   assert.equal(mixed.inference.contradicts, 2)
+})
+
+// (v0.725.0) THE MISREAD'S OWN WITNESS - the confusion's own context join.
+// The 47th (run 37524391418) named the class: ALL THREE drown->fall
+// confusions rode the death context's o2 reset(-1) skin (the sensor died
+// and the water kept the bot) - the witness's own blindness has an
+// anatomy. The lines below carry the face's own bytes.
+
+test("the 47th's confused trio: every drown->fall rode the dead sensor - the o2Blind join reads the adjacency", () => {
+  // the face's own bytes: the death row, the breath mirror interleaved,
+  // the context line (the join survives the interleave - the log prints
+  // them 1-3 lines apart)
+  const d1 = 'F1 [F1] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-126,53,408]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+  const m1 = 'F1 [F1] water: breath mirror [rescue-ran] - the rescue lane owned the death window (paged 1.1s before death) - its own timeline lines own the failure (o2 reset(-1), head WET, snapshot 1.1s old)'
+  const c1 = 'F1 [F1] death: drown context (o2 reset(-1), feet water, head water, rescue active, leg fuel commons walk @-126,414, wet 14s)'
+  const d2 = 'F13 [F13] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-137,54,428]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+  const c2 = 'F13 [F13] death: drown context (o2 reset(-1), feet water, head water, rescue active, leg fuel commons walk @-136,418 (nudge retry), wet 6s)'
+  const d3 = 'F10 [F10] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-134,51,411]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+  const c3 = 'F10 [F10] death: drown context (o2 reset(-1), feet water, head water, rescue active, leg deploy, wet 3s)'
+  // the five mob agrees - no drown context follows (the death drop owns
+  // their wake), the pending drops honestly
+  const mobs = [
+    'F12 [F12] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.9 (0s before death at [-180,64,421]) [the inference corroborates the server verdict])',
+    'F19 [F19] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.5 (0s before death at [-95,66,435]) [the inference corroborates the server verdict])',
+    'F2 [F2] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@11.4 (0s before death at [-110,66,399]) [the inference corroborates the server verdict])',
+    'F10 [F10] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.8 (0s before death at [-140,64,430]) [the inference corroborates the server verdict])',
+    'F5 [F5] died - respawning (cause: server: was slain by Zombie [kind=mob by Zombie] | inferred: zombie@0.5 (0s before death at [-139,64,448]) [the inference corroborates the server verdict])'
+  ]
+  const c = deathKindCensus([d1, m1, c1, d2, c2, d3, c3, ...mobs])
+  // the v0.713.0/v0.719.0 cells byte-stable
+  assert.equal(c.inference.total, 8)
+  assert.equal(c.inference.corroborates, 5)
+  assert.equal(c.inference.blind, 3)
+  assert.equal(c.inference.kindAgree, 5)
+  assert.equal(c.inference.kindDisagree, 3)
+  assert.deepEqual(c.inference.confusions, { 'drown->fall': 3 })
+  // the new cell: every confusion rode the dead sensor
+  assert.deepEqual(c.inference.o2Blind, {
+    n: 3,
+    pairs: { 'drown->fall': 3 },
+    bots: { F1: 1, F13: 1, F10: 1 }
+  })
+  assert.equal(c.unparsed.length, 0)
+})
+
+test('the join never invents - the drops, the agree row and the counted o2 skin resolve without counting', () => {
+  // (i) the confused death whose context never comes - the next death
+  // row replaces the pending (the confusion still counts, the witness
+  // stays silent)
+  const noContext = deathKindCensus([
+    'F7 [F7] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-120,50,400]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+    FACE27_MOB
+  ])
+  assert.deepEqual(noContext.inference.confusions, { 'drown->fall': 1 })
+  assert.deepEqual(noContext.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  // (ii) the kindAgree drown death with a reset context - the join
+  // prices the LIE's witness, not the sensor's toll (the v0.707.0
+  // census's own subject)
+  const agree = deathKindCensus([
+    'F6 [F6] died - respawning (cause: server: drowned [kind=drown] | inferred: drowning@0.5 (0s before death at [-118,49,402]) [the inference corroborates the server verdict])',
+    'F6 [F6] death: drown context (o2 reset(-1), feet water, head water, rescue active, leg walk, wet 9s)'
+  ])
+  assert.equal(agree.inference.kindAgree, 1)
+  assert.equal(agree.inference.kindDisagree, 0)
+  assert.deepEqual(agree.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  // (iii) the confused death whose context rode the counted skin (o2 0)
+  // - the mirror read zero, the sensor SPOKE - resolves without counting
+  const counted = deathKindCensus([
+    'F8 [F8] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-122,51,404]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+    'F8 [F8] death: drown context (o2 0, feet water, head water, rescue active, leg walk, wet 4s)'
+  ])
+  assert.deepEqual(counted.inference.confusions, { 'drown->fall': 1 })
+  assert.deepEqual(counted.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  // (iv) another bot's context speaks for nobody (F8's context cannot
+  // resolve F7's pending confusion)
+  const cross = deathKindCensus([
+    'F7 [F7] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-120,50,400]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+    'F8 [F8] death: drown context (o2 reset(-1), feet water, head water, rescue active, leg walk, wet 4s)'
+  ])
+  assert.deepEqual(cross.inference.confusions, { 'drown->fall': 1 })
+  assert.deepEqual(cross.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+})
+
+test("the drowned-kill fence - the 42nd's other grammar stays outside the join", () => {
+  // the 42nd's F16 byte: the Drowned KILL rides 'drowned-kill context'
+  // (a different grammar, kind=mob) - a confused mob death followed by
+  // it resolves nothing (the fence: the cell prices what the drown
+  // context owns)
+  const mobConfused = 'F16 [F16] died - respawning (cause: server: was slain by Drowned [kind=mob by Drowned] | inferred: fall/env (0s before death at [-107,63,368]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+  const c = deathKindCensus([
+    mobConfused,
+    'F16 [F16] death: drowned-kill context (dry-shore, y 63, feet air, head air, water none)'
+  ])
+  assert.deepEqual(c.inference.confusions, { 'mob->fall': 1 })
+  assert.deepEqual(c.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+})
+
+test("the zero shape and the class's debut - the face-27 anatomy retro-reads the join", () => {
+  // the junk battery rides the zero shape (the FATAL-truncation lesson)
+  const empty = deathKindCensus([42, 'prose', null, ''])
+  assert.deepEqual(empty.inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  assert.deepEqual(deathKindCensus([]).inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  assert.deepEqual(deathKindCensus(null).inference.o2Blind, { n: 0, pairs: {}, bots: {} })
+  // the class's debut: the face-27 anatomy's own confused drown death
+  // (F5, rescue never) rode the reset context - the join retro-reads it
+  const debut = deathKindCensus([
+    FACE27_FALL,
+    'F14 [F14] death drop: pocket read empty at death (0u)',
+    FACE27_DROWN,
+    'F5 [F5] death: drown context (o2 reset(-1), feet water, head water, rescue never, leg unknown, wet 26s)',
+    FACE27_MOB
+  ])
+  assert.deepEqual(debut.inference.confusions, { 'drown->fall': 1 })
+  assert.deepEqual(debut.inference.o2Blind, {
+    n: 1,
+    pairs: { 'drown->fall': 1 },
+    bots: { F5: 1 }
+  })
 })
