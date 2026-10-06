@@ -17255,3 +17255,22 @@ Stage Summary:
 - v0.678.0 landed - the entity climb is priced on every future face; its maiden read (DRIVER x11, ents 3667, survived) is the 20th/21st correlation pair.
 - Next fire: (1) poll face 37416742832 FIRST - if SUCCESS mine (floor x19, the ent jump's 2nd read, the water-rescue repeat, bank 104.6% repeat?, the end-phase tax repeat). (2) push-CI 37416642599 verdict (bef0d27). (3) code fronts: the water-rescue blind lane (8 unclosed starts, the frozen-physics stand-down owns the drown class), the ents/rss correlation (2 faces of data), the flee disengage's long tail. (4) dispatch on clear (law x28).
 - Version 0.678.0; next free 0.679.0.
+
+---
+Task ID: cron30-20261006-1300
+Agent: cron30 fire 1300 (PLANETA9091 identity)
+Task: maintain privateB - push-CI verdict, one atomic improvement, poll the 22nd flight, dispatch on clear.
+
+Work Log:
+- Sandbox alive; master synced to bef0d27. The fire's leftover worklog entry (fire 1230's, appended post-push last fire) landed first: worklog-only commit a963f84, push attempt 1.
+- CI verdicts: push-CI 37416642599 (bef0d27, the v0.678.0 tree) COMPLETED SUCCESS - THE ENTITY CLIMB IS CI-PROVEN. Push-CI 37415122149 (708e913) SUCCESS; 37413119268 (a43c421) SUCCESS.
+- ONE ATOMIC IMPROVEMENT: v0.679.0 THE ORPHAN OWNER (f8f48d1): the rescue ledger's orphan ends counted FLEET-WIDE only - never WHO owns them. The 21st flight rode 8 orphans and the stand-down's own words name the class ('the reconnect lane owns a dead client'). orphanOwnerCensus attributes every orphan end line to its bot and its end class (one classifier, never forked - rides rescue-ledger.mjs's own rescueEndClass; the tag rides anywhere: the raw ledger shape AND the decompose-decorated shape; a non-end line is unattributed, never invented). decompose prints the owner row beside the fleet-wide count. A duplicate was caught BEFORE it landed: the blind-bracket census idea was already v0.431.0's rescueClockCensus (passes/shoreHits/probes series + fullBlind) - the lib was deleted, the genuinely unread slice (the owner split) shipped instead.
+- THE MAIDEN PRODUCTION READ rode its own fire: decompose over the 21st's real log reads 'orphan owners: F3=4 F8=1 F19=3 (frozenStanddown 5, timeout 2, released 1) - the dead-client class names its bot' (8 = the fleet-wide orphan count, byte-consistent).
+- Tests: syntax 478/0; orphanowner 6/6 alone; the seq-runner's pending-promise flake class rode smelting/toolupgrade again across attempts (both pass alone on this tree - the fire-1030/1130 class, never my files); CI's parallel runner is the arbiter.
+- Push clean attempt 1: a963f84..f8f48d1.
+- THE 22ND FLIGHT (37416742832, on bef0d27, dispatched 05:04:40Z last fire) STILL IN FLIGHT at this fire's end (~25 min: units + Integration SUCCESS, the Big fleet leg flying past the 21st's ~15 min pace) - poll-only, NO dispatch (max-one-active: the 22nd IS the active fleet run; a duplicate would be the cancelled class). The leg's own past-deadline pace is itself a data point (the 20th died at t~223s; the 21st flew clean; the 22nd flying long is neither).
+
+Stage Summary:
+- v0.679.0 landed - the orphan owner is named mechanically; the dead-client class has its per-bot read.
+- Version 0.679.0 (f8f48d1); next free 0.680.0. Dispatch law stays x27 (poll-only this fire).
+- Next fire: (1) poll face 37416742832 FIRST - SUCCESS -> mine (floor x19, the ent jump's 2nd read, the orphan owners' 2nd read, bank/leak repeats, the water-rescue repeat). (2) push-CI verdict on f8f48d1. (3) fronts: the dead-client reconnect lane (F3 x4 orphans + drown o2 reset(-1)), the ents/rss correlation (3 faces of data after this mine), the flee disengage's long tail. (4) dispatch law x28 on clear.
