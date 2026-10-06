@@ -17595,3 +17595,22 @@ Stage Summary:
 - THE FLEE FORK IS NOW A TWO-FACE CONFIRMATION: the 24th's shared-ground deaths 3/6, the 29th's 6 flee deaths 677u with the chase STUCK 4/4 - the disengage that GAINS ground is the mob-cure's own input (the fleet-side fix candidate when the mining lens closes the read).
 - Fronts: the flat walk's anatomy (why the walk returns +0), the sand delivery leg (228 positions vs 3 launches), F14's frozen-standdown loop (starts 8, standdowns 7), the one-unit floor (0/22), the storm margin's 4th read, the correlation's 11th point.
 - Next fire: (1) poll 37447831347 FIRST - SUCCESS -> mine (the walk's cost's 2nd read, the loop ledger's 2nd production read, the famine's next, the wall-miss's 5th, the bank's next leg, the correlation's 11th). (2) CI verdicts on e74e4a2 + 553938e (and the lane's newer). (3) fronts above. (4) dispatch law x36 on clear.
+
+---
+Task ID: cron30-20261006-1830
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1830 - one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo synced 553938e -> 48192c8 (the lane's v0.692.0 THE LOOP LEDGER absorbed). Version 0.694.0.
+- THE 30TH 37447831347 (on 5ebf465): poll-only ~270s mid-fire (in_progress, 27min+ past the 600s window - the long tail); landed LATE SUCCESS before the fire's end. Mined next fire.
+- push-CI on 5ebf465 = cancelled (concurrency-preempted by its own same-sha dispatch run, whose unit+integration were SUCCESS - the tree's verification rode the dispatch run).
+- v0.694.0 THE CLIMB'S PRICE (891b859): climbcost.mjs woodClimbCost - the flat walk's anatomy: the trip's real rent (+levels/steps/dug/SECONDS from the climb-out OK line inside the famine->gathered window), filed under the delivery class. One-parser law by import (the tripcensus famine/gathered regexes exported; the climb OK line is the one new byte). Honest forks: unread/noClimb/stray/orphans never fake a rent; the climb-fail skin stays the refusal's why lens' territory (v0.691.0, lane isolation). decompose rides 'the climb's price' under the walk's cost line; the fork speaks only when BOTH classes read. Maiden read byte-exact on the 29th: 'cured 1: 39..39s (median 39) +16..16 lv, flat 2: 25..27s (median 26) +11..12 lv - THE CLIMB DOESN'T SPLIT THE CLASSES: the flat walk's toll is not the climb' - the flats climbed FASTER; the drought's seat is the gather window's own emptiness, NOT the start leg. Cross-read on the 26th: F8's flat 20s +8 lv, the cures rode noClimb (honest silence). +3 tests (the 29th byte-exact, the anatomy split, the honest zeros + junk battery + the 1:1 second-climb law); climbcost 3/3, tripcensus 5/5 (the exports change no behavior); syntax 490 files 0 broken; toolupgrade solo green (the full-suite concurrent runner hit the known pending-promise flake class - CI arbitrates, the house precedent). Zero fleet wiring (mining-surface only, the v0.379/.../v0.693.0 precedent).
+- Commit 891b859 pushed attempt-1 clean (rebase on 48192c8 no-op). push-CI 37452502440 queued at fire's end (not waited honestly).
+- DISPATCH law x36: the 30th landed -> queue clear -> POST 204 -> face 31 = 37452538949 IN_PROGRESS on 891b859 (the v0.694.0 tree's first face).
+
+Stage Summary:
+- Version 0.694.0 (891b859); next free 0.695.0; dispatch law x36 (face 37452538949 in flight).
+- THE FLAT WALK'S TOLL IS NOT THE CLIMB: the 29th's flats climbed 25..27s (median 26) vs the cure's 39s - the drought's seat narrowed to the gather window's own emptiness; the walk's cost lens has its world-units leg now.
+- Fronts: the 30th's mine (the climb's price's 1st face read, the walk's cost's 2nd face read, the loop ledger's 2nd production read, the famine's 5th, the wall-miss 5th, the bank 8th leg, the correlation 11th point), the gather window's own seconds.
+- Next fire: (1) poll 37452538949 FIRST - SUCCESS -> mine. (2) push-CI verdicts on 891b859. (3) dispatch law x37 on clear.
