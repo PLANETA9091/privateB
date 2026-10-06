@@ -42,6 +42,7 @@ import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) t
 import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
+import { famineCensus } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves)
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
@@ -2072,6 +2073,27 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  ${r.bot}: launches ${r.launches}, skips ${r.skips}${whys ? ` (${whys})` : ''} - ${r.voice}`)
     }
     console.log(`  shaft-lock cast: ${v.shaftRoster.length ? `${v.shaftRoster.join(' ')} (${v.shaftRoster.length} bot(s) the shaft gate held)` : 'none - the underground economy took no trip tax this face'}`)
+  }
+}
+
+// (v0.687.0) THE FAMINE CENSUS - the trip's own starvation anatomy. The
+// fleet's famine byte rode every face; this lens prices WHICH SLOT
+// starves: the wood line's own chain read (logs 0 = the gather leg,
+// sticks 0 = the conversion leg) and the food line's plate read (hunger
+// + plate 0 = the bot carried no food at all).
+{
+  const fc = famineCensus(lines)
+  if (fc.wood.n > 0 || fc.food.n > 0) {
+    console.log('--- FAMINE CENSUS (v0.687.0: the trip\'s own starvation anatomy) ---')
+    if (fc.wood.n > 0) {
+      const bots = Object.entries(fc.wood.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+      console.log(`  wood famines: ${fc.wood.n} per-bot: ${bots} - the starved slot: logs ${fc.wood.slots.logsZero}/${fc.wood.n}${fc.wood.slots.logsZero === fc.wood.n ? ' (THE GATHER DROUGHT: the head starved every time)' : ''}, planks ${fc.wood.slots.planksZero}/${fc.wood.n}, sticks ${fc.wood.slots.sticksZero}/${fc.wood.n}`)
+    }
+    if (fc.food.n > 0) {
+      const bots = Object.entries(fc.food.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+      const h = fc.food.hunger
+      console.log(`  food famines: ${fc.food.n} per-bot: ${bots} - hunger at famine: min ${h.min} median ${h.median} max ${h.max} (plate 0: ${fc.food.plateZero}/${fc.food.n})`)
+    }
   }
 }
 
