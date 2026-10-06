@@ -37,19 +37,42 @@
 export const DUP_BURST_MIN = 3
 export const DUP_BURST_WINDOW_S = 60
 
+// (v0.732.0) THE METRONOME SKIN - the 50th face (run 37539316731) showed
+// the burst's own second disease: F5 lost ELEVEN sessions in 109s at a
+// fixed period (gaps 17s 10s 8s 8s 13s 10s 12s 8s 10s 13s - median 10s,
+// spread 2.1). The freeze ladder's patience DOUBLES (10s -> 20s -> 40s ->
+// 60s, the v0.724.0 skin); this one REPEATS on a clock - a re-spawn
+// timer re-creating the session every ~10s, each new login killing the
+// last. Two re-spawn diseases, two cures: the ladder needs patience,
+// the metronome needs its timer's owner named. A burst is METRONOMIC
+// when it carries DUP_METRO_MIN losses (8+ - the 48th's 4-loss churn
+// stays the plain burst) and its gaps hold within DUP_METRO_SPREAD
+// (max/min <= 2.5 - a zero-gap burst has no period and never reads
+// metronomic).
+export const DUP_METRO_MIN = 8
+export const DUP_METRO_SPREAD = 2.5
+
 const DUP_LOSS_RE = /^\[(\d{2}):(\d{2}):(\d{2})\] \[Server thread\/INFO\]: (\S+) lost connection: You logged in from another location$/
 const OTHER_LOSS_RE = /^\[\d{2}:\d{2}:\d{2}\] \[Server thread\/INFO\]: \S+ lost connection:/
 
 function mkBurst (bot, run) {
   const gaps = []
   for (let i = 1; i < run.length; i++) gaps.push(run[i].monoS - run[i - 1].monoS)
+  const sorted = [...gaps].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  const medianGapS = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+  const gmin = sorted.length ? sorted[0] : 0
+  const gmax = sorted.length ? sorted[sorted.length - 1] : 0
+  const periodic = run.length >= DUP_METRO_MIN && gmin > 0 && gmax / gmin <= DUP_METRO_SPREAD
   return {
     bot,
     n: run.length,
     spanS: run[run.length - 1].monoS - run[0].monoS,
     first: run[0].at,
     last: run[run.length - 1].at,
-    gaps
+    gaps,
+    medianGapS,
+    periodic
   }
 }
 
@@ -59,7 +82,8 @@ function mkBurst (bot, run) {
  * @returns {null|{losses: {n: number, byBot: Object<string, number>,
  *   first: string, last: string, cadence: Object<string, number[]>},
  *   bursts: {n: number, list: Array<{bot: string, n: number, spanS: number,
- *   first: string, last: string, gaps: number[]}>},
+ *   first: string, last: string, gaps: number[], medianGapS: number,
+ *   periodic: boolean}>},
  *   storm: {n: number, bots: number, first: string, last: string},
  *   otherLosses: number}} the clock (null on a loss-free log)
  */

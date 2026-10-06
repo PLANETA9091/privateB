@@ -1312,8 +1312,16 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     const delta = dc.losses.n - fleetKicks
     console.log(`  the fleet lens printed ${fleetKicks} kicked line(s) - the server's clock owns ${dc.losses.n}${delta > 0 ? ` (${delta} the fleet never saw)` : fleetKicks === dc.losses.n ? ' (the lens saw every loss)' : ''}`)
     if (dc.bursts.n > 0) {
-      const burstTail = dc.bursts.list.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s (${b.first}..${b.last})`).join('; ')
-      console.log(`  THE DUPLICATE BURST: ${burstTail} - the re-spawn lane's own loop (the patience is not the cure)`)
+      const metro = dc.bursts.list.filter((b) => b.periodic)
+      const plain = dc.bursts.list.filter((b) => !b.periodic)
+      if (metro.length) {
+        const metroTail = metro.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s at a fixed period (median ${b.medianGapS}s, spread ${Math.min(...b.gaps)}..${Math.max(...b.gaps)}s)`).join('; ')
+        console.log(`  THE METRONOME BURST (v0.732.0): ${metroTail} - the re-spawn timer's own rhythm (the freeze ladder doubles its patience, this one repeats on a clock - a different disease, a different cure)`)
+      }
+      if (plain.length) {
+        const burstTail = plain.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s (${b.first}..${b.last})`).join('; ')
+        console.log(`  THE DUPLICATE BURST: ${burstTail} - the re-spawn lane's own loop (the patience is not the cure)`)
+      }
     } else {
       const [topBot, topN] = Object.entries(dc.losses.byBot).sort((a, b) => b[1] - a[1])[0]
       console.log(`  no burst (top ${topBot} ${topN} loss(es)) - the churn stayed honest to its bars`)

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dupClock, DUP_BURST_MIN, DUP_BURST_WINDOW_S } from '../../src/lib/dupclock.mjs'
+import { dupClock, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
 
 // The 48th face's server log (run 37530997515) - the duplicate churn's
 // own clock, byte-verbatim. The fleet lens printed 9 kicked lines; the
@@ -45,8 +45,8 @@ test('the 48th era: 12 duplicate losses, the cadence and the two bursts', () => 
   assert.deepEqual(d.losses.cadence.F19, [29, 6])
   assert.ok(!d.losses.cadence.F9, 'a single loss has no cadence')
   assert.equal(d.bursts.n, 2)
-  assert.deepEqual(d.bursts.list[0], { bot: 'F3', n: 4, spanS: 36, first: '21:24:36', last: '21:25:12', gaps: [18, 6, 12] })
-  assert.deepEqual(d.bursts.list[1], { bot: 'F19', n: 3, spanS: 35, first: '21:23:50', last: '21:24:25', gaps: [29, 6] })
+  assert.deepEqual(d.bursts.list[0], { bot: 'F3', n: 4, spanS: 36, first: '21:24:36', last: '21:25:12', gaps: [18, 6, 12], medianGapS: 12, periodic: false })
+  assert.deepEqual(d.bursts.list[1], { bot: 'F19', n: 3, spanS: 35, first: '21:23:50', last: '21:24:25', gaps: [29, 6], medianGapS: 17.5, periodic: false })
   assert.deepEqual(d.storm, { n: 9, bots: 5, first: '21:24:19', last: '21:25:13' })
   assert.equal(d.otherLosses, 2, 'the graceful disconnects are counted, not priced')
 })
@@ -54,6 +54,8 @@ test('the 48th era: 12 duplicate losses, the cadence and the two bursts', () => 
 test('the burst bars: two in the window out, three on the boundary in, a broken run out', () => {
   assert.equal(DUP_BURST_MIN, 3)
   assert.equal(DUP_BURST_WINDOW_S, 60)
+  assert.equal(DUP_METRO_MIN, 8)
+  assert.equal(DUP_METRO_SPREAD, 2.5)
   const two = dupClock([
     '[10:00:00] [Server thread/INFO]: F5 lost connection: You logged in from another location',
     '[10:00:10] [Server thread/INFO]: F5 lost connection: You logged in from another location'
@@ -88,6 +90,42 @@ test('the storm window: the busiest 60s across bots, ties keep the first window'
   assert.equal(d.bursts.n, 0, 'interleaved bots never burst per-bot - the storm is the fleet row')
 })
 
+test('the metronome skin: the 50th\'s F5 lost eleven sessions at a fixed period', () => {
+  const F5 = [
+    '[22:38:30] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:38:47] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:38:57] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:05] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:13] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:26] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:36] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:48] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:56] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:40:06] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:40:19] [Server thread/INFO]: F5 lost connection: You logged in from another location'
+  ]
+  const d = dupClock(F5)
+  assert.equal(d.bursts.n, 1)
+  assert.equal(d.bursts.list[0].n, 11)
+  assert.equal(d.bursts.list[0].spanS, 109)
+  assert.deepEqual(d.bursts.list[0].gaps, [17, 10, 8, 8, 13, 10, 12, 8, 10, 13])
+  assert.equal(d.bursts.list[0].medianGapS, 10)
+  assert.equal(d.bursts.list[0].periodic, true, 'median 10s, spread 2.1 - the re-spawn timer\'s own rhythm')
+  const seven = dupClock(F5.slice(0, 7))
+  assert.equal(seven.bursts.list[0].periodic, false, '8 losses is the metro bar - seven stays the plain burst')
+  const wide = dupClock([
+    '[10:00:00] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:05] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:25] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:30] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:50] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:55] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:01:15] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:01:20] [Server thread/INFO]: F6 lost connection: You logged in from another location'
+  ])
+  assert.equal(wide.bursts.list[0].periodic, false, 'spread 4 - the gaps breathe, no fixed clock')
+})
+
 test('the honest silences: null shapes and the midnight carry', () => {
   assert.equal(dupClock(null), null)
   assert.equal(dupClock('junk'), null)
@@ -101,5 +139,5 @@ test('the honest silences: null shapes and the midnight carry', () => {
     '[00:00:10] [Server thread/INFO]: F7 lost connection: You logged in from another location',
     '[00:00:30] [Server thread/INFO]: F7 lost connection: You logged in from another location'
   ])
-  assert.deepEqual(wrap.bursts.list[0], { bot: 'F7', n: 3, spanS: 40, first: '23:59:50', last: '00:00:30', gaps: [20, 20] }, 'the midnight wrap never prices a negative gap')
+  assert.deepEqual(wrap.bursts.list[0], { bot: 'F7', n: 3, spanS: 40, first: '23:59:50', last: '00:00:30', gaps: [20, 20], medianGapS: 20, periodic: false }, 'the midnight wrap never prices a negative gap')
 })
