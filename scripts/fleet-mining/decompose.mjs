@@ -80,6 +80,7 @@ import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) t
 import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg); (v0.706.0) + the doorstep storm's census (the three lanes' doors folded into one toll)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
+import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -1168,6 +1169,23 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       ? `; the loop's skin: ${rb.repeats} bot(s) relogged 2+ (${rbs}) owning ${rb.repeatRelogs}/${rb.relogs} relogs (${pct(rb.repeatRelogs / rb.relogs)}%)${rb.repeatRelogs / rb.relogs >= 0.5 ? ' - THE RELOG FEEDS THE LOOP' : ''}`
       : '; no repeats - the saver did its job, the loop never opened'
     console.log(`  the relog's own bill (v0.715.0): ${rb.relogs} relog(s) -> ${rb.stalls} stalled walk-out(s) (${pct(rb.stallRate)}%), the ladder r1 ${rb.rungs.r1} / r2 ${rb.rungs.r2} / r3 ${rb.rungs.r3}${loopTail}`)
+  }
+}
+
+// (v0.724.0) THE FREEZE GATE'S OWN LADDER - the frozen relog's own byte
+// anatomy (the loop bill's meter priced the STALLS, the freeze's own
+// bytes rode unread): the streaks (#N consecutive), the gate windows
+// (the sentry's pages ladder 10s -> 20s -> 40s -> 60s), the vitals the
+// client carried INTO the freeze. THE FULL LADDER: a bot whose streak
+// reached 3+ - the gate doubled twice and the client still froze (the
+// patience is not the cure). The honest silence when no client froze.
+{
+  const fzb = freezeBill(lines)
+  if (fzb) {
+    const streakRow = Object.entries(fzb.streaks).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, v]) => `#${k}x${v}`).join(' ')
+    const gateRow = Object.entries(fzb.gates).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, v]) => `${k}s x${v}`).join(' ')
+    const ladderRow = Object.entries(fzb.ladder).sort((a, b) => b[1].maxStreak - a[1].maxStreak).map(([k, v]) => `${k} #${v.maxStreak}@${v.maxGate}s`).join(' ')
+    console.log(`  the freeze gate's own ladder (v0.724.0): ${fzb.n} frozen relog(s) - streaks ${streakRow} - gates ${gateRow}${ladderRow ? ` - THE FULL LADDER: ${ladderRow} - the gate doubled twice and the client still froze (the patience is not the cure)` : ' - the low end (no bot rode the ladder to its doubling)'}`)
   }
 }
 // (v0.717.0) THE KICK'S OWN CHURN - the duplicate-login kick's own bill:
