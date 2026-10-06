@@ -77,6 +77,7 @@ import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the 
 import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) the calm paradox - the death-free face's full-speed water lane
 import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg); (v0.706.0) + the doorstep storm's census (the three lanes' doors folded into one toll)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
+import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -1116,19 +1117,38 @@ console.log('  hazard memorized:', count(/hazard memorized/))
 // no stall line, so the rung rows ARE the account).
 {
   const rws = count(/relog walk-out stalled/)
+  // (v0.437.0) THE WALK-OUT WITNESS LENS - the window's own numbers (the
+  // rung verdicts below stay the 0.425.0 lane's raw counts). Hoisted: the
+  // v0.715.0 bill rides the same census whether the stalls printed or not.
+  const wwc = walkoutWitnessCensus(lines)
   if (rws > 0) {
     console.log("--- RELOG WALK-OUT CENSUS (v0.425.0: the frozen-after-relog detector) ---")
     console.log(`  stalled windows: ${rws} per-bot: ${fmt(perBot(/relog walk-out stalled/))}`)
     console.log(`  rung 1 (gates reset): ${count(/rung 1: the walk gates/)}  rung 2 (+ goal release): ${count(/rung 2: the gates reset/)}  rung 3 (shift exit named): ${count(/rung 3: the gates reset/)}`)
-    // (v0.437.0) THE WALK-OUT WITNESS LENS - the window's own numbers (the
-    // rung verdicts above stay the 0.425.0 lane's raw counts).
-    const wwc = walkoutWitnessCensus(lines)
     const ws = wwc.windows.windowS
     const dp = wwc.windows.displacement
     const wwn = wwc.windows.n
     const dpRow = dp.n > 0 ? `, displacement ${dp.min}..${dp.max} blocks (avg ${(dp.sum / dp.n).toFixed(2)}) vs the bar max ${wwc.windows.barMax}` : ''
     console.log(`  witness numbers: window ${ws.min}..${ws.max}s (avg ${(ws.sum / ws.n).toFixed(1)})${dpRow}, unmeasured ${dp.unmeasured}/${wwn}`)
     if (wwc.unparsed > 0) console.log(`  unparsed: ${wwc.unparsed} walk-out line(s) the grammar refused - the escape hatch`)
+  }
+  // (v0.715.0) THE RELOG'S OWN LOOP BILL - the founding warning's own
+  // meter (the v0.425.0 header: 'the relog lane was feeding the loop
+  // it exists to break'): the relogs joined to the walk-out's stalled
+  // deliveries (a walked-out verdict prints nothing - the stalls are
+  // the promise's FAILED deliveries by shape), the ladder's depth, and
+  // the REPEATS - the bots that relogged 2+ times, the loop's own skin
+  // (a single relog is the saver's job; the second is the column
+  // reproducing). Opens on relogs > 0 - a stall-free relog face reads
+  // the promise HELD, the bill's own honest read.
+  const rb = relogBill(frozenCensus(lines), wwc)
+  if (rb) {
+    const rbs = Object.entries(rb.repeatBots).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const pct = (x) => (x * 100).toFixed(0)
+    const loopTail = rb.repeats > 0
+      ? `; the loop's skin: ${rb.repeats} bot(s) relogged 2+ (${rbs}) owning ${rb.repeatRelogs}/${rb.relogs} relogs (${pct(rb.repeatRelogs / rb.relogs)}%)${rb.repeatRelogs / rb.relogs >= 0.5 ? ' - THE RELOG FEEDS THE LOOP' : ''}`
+      : '; no repeats - the saver did its job, the loop never opened'
+    console.log(`  the relog's own bill (v0.715.0): ${rb.relogs} relog(s) -> ${rb.stalls} stalled walk-out(s) (${pct(rb.stallRate)}%), the ladder r1 ${rb.rungs.r1} / r2 ${rb.rungs.r2} / r3 ${rb.rungs.r3}${loopTail}`)
   }
 }
 console.log('--- NUDGE FAMILY FIELD LEGS ---')
