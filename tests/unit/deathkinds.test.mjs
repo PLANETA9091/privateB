@@ -115,6 +115,89 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /import \{ deathKindCensus \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head')
-  assert.match(src, /death causes: \$\{causeRow\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face')
+  assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
+})
+
+// (v0.672.0) THE FIELD WITNESS - run37397155884 line 2477, byte for byte:
+// the authFresh-false row that sank into the escape hatch and opened THE
+// ARC'S FIRST DISPUTE (the causes row read 9, the death clock said 10).
+const RUN15_INFERRED_DROWN = 'F16 [F16] died - respawning (cause: drowning (0s before death at [-122,48,403]))'
+
+test('THE FIELD WITNESS: the inferred-only drowning row joins the census - the arc reads the clock raw', () => {
+  const c = deathKindCensus([RUN15_INFERRED_DROWN])
+  assert.equal(c.total, 1)
+  assert.equal(c.byKind.drown, 1)
+  assert.deepEqual(c.byBot, { F16: 1 })
+  assert.equal(c.unparsed.length, 0)
+  assert.equal(c.inferredOnlyCount, 1)
+  assert.equal(c.inferredOnly[0].bot, 'F16')
+  assert.equal(c.inferredOnly[0].name, 'drowning')
+  assert.equal(c.inferredOnly[0].kind, 'drown')
+  assert.equal(c.inferredOnly[0].attacker, null)
+  assert.deepEqual(c.inferredOnly[0].pos, [-122, 48, 403])
+  assert.equal(c.verticalCount, 0) // drown is not the vertical family
+})
+
+test('the inferred-only hostile row: the name@dist shape names the mob family and the attacker', () => {
+  const line = 'F9 [F9] died - respawning (cause: zombie@2.2 (0.3s before death at [-110,64,410]))'
+  const c = deathKindCensus([line])
+  assert.equal(c.total, 1)
+  assert.equal(c.byKind.mob, 1)
+  assert.equal(c.inferredOnlyCount, 1)
+  assert.equal(c.inferredOnly[0].kind, 'mob')
+  assert.equal(c.inferredOnly[0].attacker, 'zombie')
+  assert.deepEqual(c.inferredOnly[0].pos, [-110, 64, 410])
+})
+
+test('the inferred-only fall row rides the vertical family - honest inferred-only corroboration', () => {
+  const line = 'F7 [F7] died - respawning (cause: fall/env (0s before death at [-130,52,411]))'
+  const c = deathKindCensus([line])
+  assert.equal(c.total, 1)
+  assert.equal(c.byKind.fall, 1)
+  assert.equal(c.verticalCount, 1)
+  assert.equal(c.vertical[0].verb, 'fall/env')
+  assert.equal(c.vertical[0].corroboration, 'inferred-only')
+  assert.deepEqual(c.vertical[0].pos, [-130, 52, 411])
+})
+
+test('the stale-harm unknown row counts as kind unknown (never the hatch)', () => {
+  const line = 'F2 [F2] died - respawning (cause: unknown (no hp drop in the last 6s at [-126,50,408]))'
+  const c = deathKindCensus([line])
+  assert.equal(c.total, 1)
+  assert.equal(c.byKind.unknown, 1)
+  assert.equal(c.inferredOnlyCount, 1)
+  assert.equal(c.inferredOnly[0].kind, 'unknown')
+  assert.equal(c.inferredOnly[0].attacker, null)
+})
+
+test('server-verdict rows NEVER read inferred-only (the v0.117.0 doctrine untouched)', () => {
+  const c = deathKindCensus([FACE27_FALL, FACE27_DROWN, FACE27_MOB, FACE26_MOB])
+  assert.equal(c.total, 4)
+  assert.equal(c.inferredOnlyCount, 0)
+  assert.deepEqual(c.inferredOnly, [])
+})
+
+test('the mixed face: server rows + the inferred row count together - the dispute closes', () => {
+  // run37397155884's anatomy: 3 parsed server rows + F16's inferred row =
+  // the death clock's 4; before v0.672.0 the row read 3 + UNPARSED 1.
+  const c = deathKindCensus([
+    FACE27_FALL,
+    FACE27_DROWN,
+    FACE27_MOB,
+    RUN15_INFERRED_DROWN
+  ])
+  assert.equal(c.total, 4)
+  assert.equal(c.byKind.drown, 2)
+  assert.equal(c.byKind.fall, 1)
+  assert.equal(c.byKind.mob, 1)
+  assert.equal(c.inferredOnlyCount, 1)
+  assert.equal(c.unparsed.length, 0)
+})
+
+test('a genuinely alien announce shape still surfaces in the escape hatch', () => {
+  const alien = 'F5 [F5] died - respawning (cause: the void opened beneath (a phrasing no rule knows))'
+  const c = deathKindCensus([alien])
+  assert.equal(c.total, 0)
+  assert.equal(c.unparsed.length, 1)
 })

@@ -133,7 +133,12 @@ if (sweep.keywordOnly.length) {
     ? Object.entries(kinds.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
     : 'none'
   const unparsedNote = kinds.unparsed.length ? `, UNPARSED ${kinds.unparsed.length}` : ''
-  console.log(`  death causes: ${causeRow}${unparsedNote}`)
+  // (v0.672.0) the inferred-only note: rows the death handler printed from
+  // the raw inference (no server verdict at the killing tick) now JOIN the
+  // buckets - the arc reads the death clock raw - and this note names how
+  // many of them carry no server verdict.
+  const inferredNote = kinds.inferredOnlyCount ? `, INFERRED-ONLY ${kinds.inferredOnlyCount}` : ''
+  console.log(`  death causes: ${causeRow}${inferredNote}${unparsedNote}`)
   for (const v of kinds.vertical) {
     console.log(`  vertical death: ${v.bot} ${v.verb}${v.attacker ? ` by ${v.attacker}` : ''} at [${v.pos ? v.pos.join(',') : 'cell unreadable'}] (inference ${v.corroboration})`)
   }
