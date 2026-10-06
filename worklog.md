@@ -18382,3 +18382,21 @@ Stage Summary:
 - The release->hound pattern has its era depth: the 46th the debut byte (unpriced for two faces), the 49th the verdict - the water lane's save has a price the shore collects.
 - The 50th's fronts for the next fire: (1) THE CHURN WHALE F5=11 duplicate_login kicks (the kickkinds class's own column - the server's clock owns what the fleet lens saw), (2) THE CROWDED SKY'S 2ND VERDICT (63% of walk refusals + 48/61 starves crowded - the banked crater's collapse to 12.6% is the sky's own price), (3) THE LEAK SHARE'S CLIMB (7.0% -> 25.7% -> 33.2% across the 48th/49th/50th - the drops stayed lost, the re-gather share fell 57% -> 43% -> 36%), (4) the gather drought's empty walks (1/5 cured, the flat walk's toll), (5) the trip lane's collapse (0 sand launches, the map's sand knowledge shrank to 42).
 - Next fire: (1) poll 37543519356 FIRST - SUCCESS -> mine with the v0.731.0 decompose (the release toll's 3rd read, the saved cell's 4th, the skywalk's 3rd). (2) push-CI verdict on ea831b0 (37543236967). (3) dispatch law x63 on clear (0.732.0 next slot).
+
+---
+Task ID: cron30-20261007-0700
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0700 - the 50th's mine (completed success, the long tail), the metronome skin, dispatch on clear
+
+Work Log:
+- Repo synced to de8c444 (the lane's v0.731.0 THE RELEASE'S OWN TOLL + their face 51 = 37543519356 in flight). My v0.730.0 push-CI 37541501994 SUCCESS; face 50 = 37539316731 (on fc56707) COMPLETED SUCCESS after the ~50min long tail (green, not hung) - mined with the v0.731.0 decompose + server log.
+- FACE 50'S READ: 19 duplicate losses (F5=11 F19=2 + six singles, 1 unseen by the fleet lens), the storm 10 losses across 5 bots in 60s; F5 lost ELEVEN sessions in 109s at gaps 17s 10s 8s 8s 13s 10s 12s 8s 10s 13s - median 10s, spread 2.1 - A FIXED PERIOD RE-SPAWN LOOP; the kinds' 2nd read: 18 kicks all duplicate_login, the dupKicks reconcile holds; the crowded sky's 3rd read WORSE (29 of 46 refusals, 63.0% vs the 48th's 46.7%, ents median 2049) - REPRODUCED; the relog loop feeds (4 -> 3 stalled, 75%).
+- ONE ATOMIC IMPROVEMENT: v0.732.0 THE METRONOME SKIN (92558dc). dupclock.mjs grows additively: DUP_METRO_MIN=8, DUP_METRO_SPREAD=2.5; bursts carry medianGapS + periodic; the decompose print splits THE METRONOME BURST (a re-spawn timer repeating on a clock - the timer's owner is the cure question) vs THE DUPLICATE BURST (the plain loop; the freeze ladder doubles its patience, the metronome repeats - two diseases, two cures). THE 50TH'S MAIDEN READ: 'F5 lost 11 session(s) in 109s at a fixed period (median 10s, spread 8..17s)'; the 48th's bursts stay honestly plain (n < 8).
+- Tests: +1 (the F5 eleven-loss era byte-verbatim, the 7-loss plain bar, the wide-gaps no-clock bar); the era deepEqual shapes grew the new fields honestly (one slice bug caught mid-fire: 8 losses is the metro bar, not seven); dupclock 5/5, neighbors 13/13, syntax 526 0-broken. Push 92558dc attempt-1 clean.
+- DISPATCH LAW x63: NOT fired - face 51 (the lane's own) in flight at fire's end.
+
+Stage Summary:
+- Version 0.732.0 (THE METRONOME SKIN, 92558dc); next free 0.733.0; face 51 on the lane's v0.731.0 tree in flight.
+- The re-spawn churn has TWO named diseases now: the plain burst and the metronome; the crowded sky REPRODUCED on a second face.
+- Fronts: the 51st's mine (the metronome's 2nd read, the release toll's 2nd), the metronome timer's owner, the relog stall's 75% face, the gather drought.
+- Next fire: (1) poll 37543519356 FIRST - SUCCESS -> mine with the v0.732.0 decompose + server log. (2) push-CI verdict on 92558dc. (3) dispatch law x64 on clear.
