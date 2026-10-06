@@ -131,7 +131,7 @@ test('WIRING: decompose rides the decide weather beside the decide clock', () =>
   assert.ok(src.includes('the decide weather: the A* starved at ents'), 'the print rides beside the decide clock')
 })
 
-// (v0.694.0) THE HOP LANE'S SKY - the hop-zero lane's own decide starves
+// (v0.695.0) THE HOP LANE'S SKY - the hop-zero lane's own decide starves
 // join the same sky under a separate count; the drained sky names the
 // starves the entity climb cannot explain.
 

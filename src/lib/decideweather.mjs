@@ -1,4 +1,4 @@
-// (v0.689.0, hop lane v0.694.0) THE DECIDE WEATHER - the A* starvation's
+// (v0.689.0, hop lane v0.695.0) THE DECIDE WEATHER - the A* starvation's
 // own sky read.
 //
 // The decide clock (v0.413.0) priced the starvation's clustering (the
@@ -14,7 +14,7 @@
 // the bank lane's refusals stay bankfail's own read) to the nearest mem
 // gauge at or before the starve's own heartbeat anchor.
 //
-// (v0.694.0) THE HOP LANE'S SKY: the hop-zero lane (v0.399.0) carried its
+// (v0.695.0) THE HOP LANE'S SKY: the hop-zero lane (v0.399.0) carried its
 // own decide-timeout zeros all along - the 30th face's hop clock priced 9
 // of them, the hottest spot the BANK YARD's own chest band - but the
 // weather read them not (the v0.689.0 scope was walkfail's family only).
@@ -32,7 +32,7 @@
 //     cadence's own ~16s staleness is the read's grain - the sky at the
 //     starve, never a future sky)
 //
-// (v0.694.0) THE DRAINED SKY: a gauge can read ents 0 AND cols 0 - the
+// (v0.695.0) THE DRAINED SKY: a gauge can read ents 0 AND cols 0 - the
 // face's own entity drain (the 30th's gauges read 678 -> 389 -> 116 -> 0
 // across ts 601..641s while the rss HELD 452..455M). A zero joined to a
 // drained gauge is the crowded-sky hypothesis's own falsifier inside the
@@ -135,7 +135,7 @@ export function decideWeather (lines) {
       }
       continue
     }
-    // (v0.694.0) the hop lane's own decide-timeout zeros - the same sky,
+    // (v0.695.0) the hop lane's own decide-timeout zeros - the same sky,
     // a separate count (the lanes share the weather, never the ledger)
     const hz = parseHopZero(l)
     if (hz && hz.klass && hz.klass.why === 'decide-timeout') {
@@ -164,7 +164,7 @@ export function decideWeather (lines) {
     const half = faceEntsMax / 2
     crowded = { n: gaugedEnts.filter((e) => e >= half).length, of: gauged }
   }
-  // (v0.694.0) the hop lane's own join - the same gauge walk, its own book
+  // (v0.695.0) the hop lane's own join - the same gauge walk, its own book
   const hopGaugedEnts = []
   const hopGaugedRss = []
   let hopUngauged = 0

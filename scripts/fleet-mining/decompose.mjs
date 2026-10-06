@@ -1401,7 +1401,7 @@ if (openDeaf.openDeaf.length > 0) {
     } else if (dw.fails > 0) {
       console.log(`  the decide weather: ${dw.fails} starve(s), ${dw.ungauged} before the first gauge - the sky never read`)
     }
-    // (v0.694.0) THE HOP LANE'S SKY - the hop-zero lane's own decide
+    // (v0.695.0) THE HOP LANE'S SKY - the hop-zero lane's own decide
     // starves under the same sky (the v0.689.0 lens grew the lane): the
     // bank yard's own zeros ride here, and the drained sky names the
     // starves the entity climb cannot explain (the rss that stayed is
