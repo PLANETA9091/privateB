@@ -68,6 +68,7 @@ test('bankDocket honest zeros and the junk battery', () => {
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
     views: 0, fallbacks: 0, plans: 0, depositPositives: 0
   })
   // junk-safe: non-input reads null (the smeltledger convention)
@@ -175,4 +176,35 @@ test("the fuel lane's own door: the honest silence and the junk battery", () => 
   // junk input reads null (the smeltledger convention, inherited)
   assert.equal(bankDocket(42), null)
   assert.equal(bankDocket(undefined), null)
+})
+
+test("the iron commune's own door: the era's shapes byte-exact (the 32nd: 5 = 1+1+0+3, the 34th: 20 = 9+7+4+0)", () => {
+  // the live faces' proven skins (raw-log reconciled): the decide marker,
+  // the no-path verdict, the walk's own timeout byte, the water-rescue
+  // refusals (the honest other - they say 'nudge retry' but never
+  // ': timeout after', the fuel precedent)
+  const decide = 'F11 iron commune: chest walk failed (Took to long to decide path to goal!)'
+  const noPath = 'F1 iron commune: chest walk failed (No path to the goal!)'
+  const timeout = 'F3 iron commune: chest walk failed (iron commune walk @-105,401: timeout after 1208ms)'
+  const rescueRefused = 'F1 iron commune: chest walk failed (water rescue in progress (iron commune walk @-143,389 refused))'
+  const r32 = bankDocket([...Array(1).fill(decide), ...Array(1).fill(noPath), ...Array(3).fill(rescueRefused)])
+  assert.deepEqual(r32.iron, { total: 5, decide: 1, noPath: 1, retryTimeout: 0, other: 3 })
+  const r34 = bankDocket([...Array(9).fill(decide), ...Array(7).fill(noPath), ...Array(4).fill(timeout)])
+  assert.deepEqual(r34.iron, { total: 20, decide: 9, noPath: 7, retryTimeout: 4, other: 0 })
+})
+
+test('the iron nudge skin rides IRON, not fuel - the v0.704.0 cross-contamination corrected', () => {
+  // the double-prefix nudge skin is the iron lane's own ride: the
+  // prefix-blind fuel cell swallowed it (the era's fuel reads 19/21 were
+  // 18+1 and 15+6); the prefix anchor takes it home
+  const ironNudge = 'F3 iron commune: iron commune: chest walk failed after the nudge (Took to long to decide path to goal!)'
+  const r = bankDocket([ironNudge])
+  assert.deepEqual(r.iron, { total: 1, decide: 1, noPath: 0, retryTimeout: 0, other: 0 })
+  assert.deepEqual(r.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 })
+  // a MENTION is not a member: the fuel refused-tail names an iron walk
+  // inside its parens - the line stays the fuel lane's
+  const fuelRefused = 'F1 fuel commons: chest walk failed after the nudge (water rescue in progress (iron commune walk @-141,389 (nudge retry) refused))'
+  const m = bankDocket([fuelRefused])
+  assert.equal(m.fuel.total, 1)
+  assert.equal(m.iron.total, 0)
 })

@@ -70,6 +70,24 @@
 // walk failed after the nudge' family - a door the docket does not
 // classify, the next fire's front).
 //
+// (v0.705.0) THE IRON COMMUNE'S OWN DOOR - the third lane's door lands,
+// AND THE LENS CORRECTS ITS OWN v0.704.0: the fuel cell's skin regex
+// ('chest walk failed after the nudge', prefix-blind) was swallowing the
+// iron commune's OWN nudge skins ('iron commune: iron commune: chest
+// walk failed after the nudge') - the raw-log era reads were cross-
+// contaminated (fuel 19/21 = 18+1 and 15+6 iron-nudge rides). The iron
+// family anchors on its own prefix ('iron commune: (iron commune: )?
+// chest walk failed') and is checked BEFORE the fuel cell: the fuel
+// reads drop to the honest 18 (the 32nd) and 15 (the 34th), the iron
+// rises named - the 32nd 5 (decide 1, no path 1, water-rescue refusals
+// 3), the 34th 20 (decide 9, no path 7, retry timeouts 4). The iron
+// why-tails mirror the fuel split: the decide marker, the no-path
+// verdict, the walk's own ': timeout after' byte, the honest other
+// (the water-rescue-refused tails say 'nudge retry' too but never
+// ': timeout after' - the fuel precedent). Three lanes' doors now read
+// side by side: the bank's legs, the fuel commune, the iron commune -
+// the doorstep decide storm's full census per face.
+//
 // (v0.704.0) THE FUEL LANE'S OWN DOOR - that front lands: the nudge
 // walk's own verdict in the fuel lane's skin ('fuel commons: chest walk
 // failed after the nudge (...)') joins the docket as its own cell, the
@@ -104,6 +122,8 @@
  *            nothingToDeposit: number},
  *   fuel: {total: number, decide: number, noPath: number,
  *          retryTimeout: number, other: number},
+ *   iron: {total: number, decide: number, noPath: number,
+ *          retryTimeout: number, other: number},
  *   views: number, fallbacks: number, plans: number,
  *   depositPositives: number,
  *   rate?: {visits: number, doorPct: number, pocketPct: number}}}
@@ -118,6 +138,7 @@ export function bankDocket (lines, visits) {
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
     views: 0,
     fallbacks: 0,
     plans: 0,
@@ -142,10 +163,24 @@ export function bankDocket (lines, visits) {
       continue
     }
     if (/no chest reached/.test(line)) { d.door.noChest++; d.door.total++; continue }
+    // (v0.705.0) THE IRON COMMUNE'S OWN DOOR - anchored on the family's
+    // own prefix (the double-prefix nudge skin included) and checked
+    // BEFORE the fuel cell: the fuel refused-tail can MENTION an iron
+    // walk inside its parens ('water rescue in progress (iron commune
+    // walk ...)') - a mention is not a member.
+    if (/\biron commune: (?:iron commune: )?chest walk failed/.test(line)) {
+      d.iron.total++
+      if (/Took to long to decide path to goal/.test(line)) d.iron.decide++
+      else if (/No path to the goal/.test(line)) d.iron.noPath++
+      else if (/: timeout after/.test(line)) d.iron.retryTimeout++
+      else d.iron.other++
+      continue
+    }
     // (v0.704.0) THE FUEL LANE'S OWN DOOR - the nudge walk's own verdict
     // in the fuel lane's skin: a door the bank's legs never classified.
     // The why-tail names the starver; the sum of the tails is the total
-    // (the honest split, no residual).
+    // (the honest split, no residual). The iron nudge skins no longer
+    // land here (the v0.705.0 prefix anchor above took them home).
     if (/chest walk failed after the nudge/.test(line)) {
       d.fuel.total++
       if (/Took to long to decide path to goal/.test(line)) d.fuel.decide++
