@@ -243,3 +243,32 @@ test('frozen-census: the honest zero - a face with no freeze family reads zeros'
   assert.equal(c.dupKicks.n, 0)
   assert.equal(c.unparsed, 0)
 })
+
+// (v0.684.0) THE GATE PROMISE RATE - the endings' own verdict ratio. The
+// two-face arc already in the field: the 23rd kept 1 of 4 (25%, the o2
+// reset(-1) drown's face), the 24th kept 5 of 6 (83%, the calmer face).
+test('frozen-census: the gate promise rate - kept vs voided (the 23rd/24th arc)', () => {
+  // the 23rd shape: bypassed x3 + clears x1 -> 25% kept
+  const c23 = frozenCensus([
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=4) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate clears - the rescue completed with living physics'
+  ])
+  assert.deepEqual(c23.gatePromise, { kept: 1, voided: 3, total: 4, pct: 25 })
+  // the 24th shape: bypassed x1 + clears x5 -> 83% kept
+  const c24 = frozenCensus([
+    'F12 [F12] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 1)',
+    'F12 [F12] water: frozen-return gate clears - the rescue completed with living physics',
+    'F12 [F12] water: frozen-return gate clears - the rescue completed with living physics',
+    'F12 [F12] water: frozen-return gate clears - the rescue completed with living physics',
+    'F12 [F12] water: frozen-return gate clears - the rescue completed with living physics',
+    'F12 [F12] water: frozen-return gate clears - the rescue completed with living physics'
+  ])
+  assert.deepEqual(c24.gatePromise, { kept: 5, voided: 1, total: 6, pct: 83 })
+  // a face with no endings prices no rate - the honest silence
+  const c0 = frozenCensus(['F1 [F1] walk: timeout after 8000ms'])
+  assert.equal(c0.gatePromise, null)
+  assert.equal(c0.gateBypassed.n, 0)
+  assert.equal(c0.gateClears.n, 0)
+})

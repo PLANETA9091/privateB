@@ -360,6 +360,15 @@ export function frozenCensus (lines) {
     if (/^F\d+ \[F\d+\] water: (frozen|freeze named|apex rest)/.test(l)) unparsed++
   }
   const vAvg = vO2.n > 0 ? vO2.sum / vO2.n : null
+  // (v0.684.0) THE GATE PROMISE RATE - the endings' own verdict ratio: the
+  // hold's promise KEPT (clears - the rescue completed with living physics)
+  // vs VOIDED at arrival (bypassed - the critical read spent the promise).
+  // total 0 reads null (the honest silence - a face with no endings prices
+  // no rate, the rate never invents itself).
+  const gateEndingsTotal = gateBypassed.n + gateClears.n
+  const gatePromise = gateEndingsTotal > 0
+    ? { kept: gateClears.n, voided: gateBypassed.n, total: gateEndingsTotal, pct: Math.round((gateClears.n / gateEndingsTotal) * 100) }
+    : null
   return {
     verdicts: { ...verdicts, o2: { ...vO2, avg: vAvg } },
     relogs: { ...relogs, holds, bypass },
@@ -368,6 +377,7 @@ export function frozenCensus (lines) {
     gateHolds: gateHolds.n,
     gateBypassed,
     gateClears,
+    gatePromise,
     apexRests,
     dupKicks,
     unparsed

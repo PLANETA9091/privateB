@@ -2228,7 +2228,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const gbTail = fc.gateBypassed.n > 0
         ? ` (o2 at arrival ${gbLo}..${gbHi}${fc.gateBypassed.o2.unknown > 0 ? `, unknown ${fc.gateBypassed.o2.unknown}` : ''}${fc.gateBypassed.streakMax !== null ? `, streak max #${fc.gateBypassed.streakMax}` : ''})`
         : ''
-      console.log(`  gate endings: bypassed ${fc.gateBypassed.n}${gbTail}, clears ${fc.gateClears.n} - the hold's promise priced at arrival`)
+      console.log(`  gate endings: bypassed ${fc.gateBypassed.n}${gbTail}, clears ${fc.gateClears.n}${fc.gatePromise ? ` - the promise kept ${fc.gatePromise.kept}/${fc.gatePromise.total} (${fc.gatePromise.pct}%)` : ''} - the hold's promise priced at arrival`)
     }
     if (fc.apexRests.n > 0) {
       const ab = Object.entries(fc.apexRests.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
