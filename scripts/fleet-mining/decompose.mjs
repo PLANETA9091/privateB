@@ -18,6 +18,7 @@ import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' /
 import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
 import { entryWindow } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
+import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
@@ -1377,6 +1378,24 @@ if (openDeaf.openDeaf.length > 0) {
       const span = dc.firstTs === dc.lastTs ? `at ts=${dc.firstTs}s` : `span ts=${dc.firstTs}..${dc.lastTs}s`
       const untimed = dc.untimed > 0 ? `, ${dc.untimed} untimed` : ''
       console.log(`  decide clock: ${dc.timed} timed ${span} of clock end ${dc.clockEnd}s, max burst ${dc.maxBurst} in ${dc.burstWindowS}s${untimed}`)
+    }
+    // (v0.689.0) THE DECIDE WEATHER - the starves' own sky read (the memory
+    // correlation front's sibling leg): every decide refusal joined to the
+    // mem gauge at or before its own anchor - does the A* starve under the
+    // entity climb's pressure, or on its own geometry.
+    const dw = decideWeather(lines)
+    if (dw.gauged > 0 && dw.ents) {
+      const fork = dw.crowded
+        ? (dw.crowded.n * 2 >= dw.crowded.of
+            ? 'the starve rode the crowded sky'
+            : 'the starve is its own disease - the sky stayed calm at the starves')
+        : 'the share unpriced (no ceiling)'
+      const share = dw.crowded
+        ? `${dw.crowded.n}/${dw.crowded.of} gauged starves sat at or past half the face's ents ceiling`
+        : 'the share unpriced (no ceiling)'
+      console.log(`  the decide weather: the A* starved at ents ${dw.ents.min}..${dw.ents.max} (median ${dw.ents.median}) / rss ${dw.rss.min}..${dw.rss.max}M - ${share} (${fork})`)
+    } else if (dw.fails > 0) {
+      console.log(`  the decide weather: ${dw.fails} starve(s), ${dw.ungauged} before the first gauge - the sky never read`)
     }
   }
 }
