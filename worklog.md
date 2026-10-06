@@ -17067,3 +17067,33 @@ Work Log:
 Stage Summary:
 - v0.672.0 landed - the dispute class closed forever: the census total and the death clock can no longer disagree on the inferred-only shape.
 - Next fire: (1) poll face 37403158305 FIRST - if SUCCESS mine (floor x16, storm regime 5th read, spear repeat?, bank recovery, sand 2nd window). (2) my push-CI 37403065957 verdict. (3) 0.673.0 candidate: the SPEAR verb joins the mob family ('was speared by X' - two mob kills read as other this face).
+
+---
+Task ID: fire-1039
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1039 - continue privateB to 100% (cross-verify v0.672.0; mine the 17th flight; land the 0.673.0 candidate; dispatch on clear)
+
+Work Log:
+- SANDBOX DIED (6th consecutive fire) - recovery protocol: fresh clone + identity re-pinned local+global + npm install; master fetched to 0399b13 (the lane's fire-1000: the 16th flight mined, v0.672.0 landed, the 17th dispatched).
+- THE 17TH FLIGHT LANDED: face 37403158305 COMPLETED SUCCESS (on 33d934b, the v0.672.0 tree) - all 4 jobs green, the fleet leg 02:25:34->02:39:44Z; the lane's push-CI 37403065957 also SUCCESS.
+- MINED run37403158305 (3171 log lines -> 501 decompose rows, artifacts uncommitted):
+  - THE FLOOR x16: one-unit 0/24 (0%, 0u) - 2-3u 24 (49u), 4+u 0 - the 16th consecutive zero face.
+  - DEATHS 4, CLOCK 4 - ZERO DISPUTES and INFERRED-ONLY 0 (the v0.672.0 lens's first production read is CLEAN): drown=2 mob=1 fall=1; the arc 10->3->12->10->7->4 (the calm return); end-phase 0, max burst 1/30s. F6 drowned (o2 reset(-1), rescue active, wet 12s, ~81u dropped - 79% of the face's 102u at stake), F7 drowned (o2 reset(-1), rescue 2s ago, wet 3s, ~21u), F2 slain by Drowned (the hound won 1, in-water arena), F9 fall. NO spear repeat - the spear class stays 1-for-1 (did not fire on the guarded tree's first face).
+  - the re-entry price lens caught 2/2 (the sight-loss + head-water wiring: mirrors 2, rescue-ran both); effective window saves n=10 median 1.55s, misses 0, unpriced 2 (F6/F7, lead ?s).
+  - BANK 89.9% (mined 2172, banked 1113, pocket 819u, surplus 0u) - recovery from 74.4% but short of the 95% band; the pocket drain ledger: 77->823u (peak 1841u at t-113s, drop 1018u), banked +1101 smelted +20 over 49 samples - the bank absorbed the drain end-to-end.
+  - LEAK +215u = 10.3% of mined; the event lens's legs 167u (deaths 102u/2 drops + placed 65u) - shortfall -48u UNEMITTED (the lens's own blind spot, quantified); death-drop clock: mid 81u/1 late 21u/1, clock center 0.64.
+  - SAND: launches 6 (sand=3 gravel=2 coal_ore=1), pocket 0->9 (PEAK 113 - the fattest peak since the explosion face), first nonzero t-355s BEFORE the first launch (the incidental leg feeds first - repeat finding); starved targets sand=4; skips 12 (shaft-locked 8, unreachable 4).
+  - RESCUE 5TH CLEAN LEDGER: 56 starts (F4=9 F6=9 F7=8 the wet trio), unclosed 0, orphans 0; complete 0.0s x2, >0s x7.
+  - THE FLEE FORK: 1 episode died mid-flee (chased 1, band close) - THE CHASE WINS: the flee never opens distance; the price's answer: flee carries 0u/1 death - the ESCAPE fails, the disengage is the leak (the code-front note: a disengage that GAINS ground).
+  - THE CLAIM: ROSE 0 vs DIED 3 (timeout 2, wet wall 1) - the ownership died more than it delivered.
+  - SILENT CLOCK: pre-tail x3 stakes 21u (F7 F2 F9) - the silent class fired 3 (was x2 on the 13th); end-phase 0.
+  - TORCHES 108 (27 batches, no-lands 2, errors 0); smelt lines 128 (tithe 3 firings F19/F12/F11); sweeps 37: delivered 0 / budget-spent 23 / silent-exhaust 10 / ghost 4; verdict flips 0, SIEGE none, fate normal end (deadline 600s).
+- v0.672.0 CROSS-VERIFIED (source-level, CONFIRMED): src/lib/deathkinds.mjs - the inferred-only regex byte-exact parses the run37397155884 field witness (light node -e check: name 'drowning' + pos [-122,48,403] captured); the unknown-shape rides the inferredOnly ledger; an inferred-only fall joins the vertical family with corroboration 'inferred-only'; the escape hatch preserved; the server-verdict path untouched (the v0.117.0 doctrine); decompose prints INFERRED-ONLY conditionally (count>0 only) - the 17th face's zero prints honestly as absence.
+- ONE ATOMIC IMPROVEMENT: v0.673.0 THE SPEAR VERB (5f61f0c, the lane's named candidate): 'speared' joins the generic mob alternation in deathcause.mjs - the 16th flight's 'F3 was speared by Zombie' / 'F18 was speared by Zombie' read kind=other (two mob kills honest-other'd, the v0.136.0 knockoff shape); the attacker rides the row; the other-bot isolation holds for the new verb. 4 new unit test asserts incl. the byte-exact field shape. Syntax checked (node --check); version 0.673.0; push 0399b13..5f61f0c attempt 1 clean.
+- DISPATCH (law x24): POST 204 -> face 37405804786 id-verified on 5f61f0c at 02:46:56Z (the 18th flight, the first on the v0.673.0 tree). The queue held ONLY my own push-CI 37405762795 (the fire-0530 precedent: self-push does not cancel self-dispatch); no foreign fleet dispatch existed - the pending-drop risk was zero.
+
+Stage Summary:
+- The 17th flight mined: deaths 4 (the calm return, INFERRED-ONLY 0 - the v0.672.0 lens clean), bank 89.9% (recovering), leak 10.3% with a -48u unemitted shortfall, rescue 5th clean, the flee-chase fork named as a code front.
+- v0.672.0 cross-verified CONFIRMED; v0.673.0 THE SPEAR VERB landed (the collaboration loop: the lane's fire-1000 candidate -> one-fire landing).
+- Face 37405804786 (the 18th flight, the v0.673.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x17, the spear verb's first mined face - a spear kill should now read kind=mob if the class fires, the calm repeat x3, bank recovery repeat, the flee-disengage front, the silent class x3 repeat).
+- Version 0.673.0; next free 0.674.0; code fronts open: the flee disengage (the chase wins - the escape never gains ground), the silent-class wiring seat, the unemitted-leak lens (-48u shortfall quantified).
