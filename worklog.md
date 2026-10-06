@@ -17712,3 +17712,24 @@ Stage Summary:
 - The identity guard is now protocol: dual-pin BEFORE staging, verify the author printed AFTER staging (the fresh clone's Z User default never reached a commit).
 - Fronts: the 33rd's mine (the downstream seat's 1st production read, the silent bank's anatomy - WHY 143 visits moved 0u, the whale's water bill's 2nd read, the correlation 13th), the relog churn (kicks 33 - F17 10), the rescue-aware brake's design input.
 - Next fire: (1) poll 37461703252 FIRST - SUCCESS -> mine (the 33rd rides the v0.699.0 tree: the downstream seat row is IN its decompose surface). (2) push-CI verdict on 8e9be46 (37461677301). (3) fronts above. (4) dispatch law x40 on clear.
+
+---
+Task ID: cron30-20261006-2030
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 2030 - the 33rd's poll window, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo synced (no lane push since 19d3ed3; 0.699.0 = the tip's version, next free 0.700.0). Push-CI verdicts riding the window: 8e9be46 (v0.699.0) = 37461677301 SUCCESS (the tree CI-proven); 9028b28 (v0.698.0) = SUCCESS.
+- THE 33RD 37461703252 (on 8e9be46): poll-only (still in_progress at fire's end - the long tail again); NOT waited honestly. Law x40 held: NO dispatch (the repo's one active dispatch run).
+- ONE ATOMIC IMPROVEMENT: v0.700.0 THE BANK'S DOCKET (724cc97, package.json 0.699.0 -> 0.700.0): the fire-2000 front's own answer - the SILENT BANK's anatomy (the 32nd's 143 bank-ish visit-lines, 0u banked). bankdocket.mjs bankDocket(lines) classifies the bank lane's bytes into two legs: the DOOR leg (the chest never delivered, FOUR skins: pure chest-unreachable, no-chest-reached, the probe's doorstep decide-timeout skin 'zero: chest unreachable (Took to long to decide path to goal!)', the lid timeout 'zero: cannot open chest', the beyond-radius 'zero: chest beyond the hop search radius') and the EMPTY-POCKET leg (the chest reached and open, the deposit moved 0: the zero probes + the 'bank: 0' deposit bytes). Witnesses: the view byte, the fallback byte, the plan voice, the why-phrase (rides across every family), the deposit positives. The fork names the silence's owner (door/pocket/split).
+- THE 32ND'S DOCKET VERDICT (byte-reconciled against the raw log during the build - the ad-hoc grep estimate of 44 empty-pocket probes was WRONG, the lens corrected it): door 45 (unreachable 39, no chest 2, lid 3, beyond 1) vs pocket 6 (probes 5, deposit zeros 1) - THE CHEST DOOR NEVER OPENED. 39 of the 45 ride the doorstep decide-timeout skin - the A* starvation family's own ground (the decide weather's 15/17 crowded read agrees); the bank lane dies on PATHING, not on emptiness - the deposit cadence is innocent, the cure input is the door (the doorstep decide budget, not the pocket's clock).
+- Tests: +3 (the face-32 byte-exact four-skin shape, the fork flip + tie + the deposit positive, the honest zeros + junk battery); bankdocket 3/3, famine-ledger 6/6, tripcensus 6/6, climbcost 3/3 (18/18 targeted); syntax 494 files 0 broken. Zero fleet wiring.
+- Commit 724cc97 pushed attempt-1 clean (the lane stayed quiet in the window; the rebase-before-commit was deferred by the dirty tree, the push-time fetch verified no arrival). push-CI 37464609693 pending at fire's end (not waited honestly).
+- DISPATCH law x40: the 33rd in flight -> poll-only held; x41 next fire on clear.
+
+Stage Summary:
+- Version 0.700.0 (724cc97); next free 0.701.0; the 33rd (37461703252) in flight on 8e9be46.
+- THE SILENT BANK IS THE DOOR'S OWN SILENCE: 45 door failures vs 6 empty arrivals - the bank's 0u was never the pocket's fault; the doorstep decide-timeout (39/45) joins the A* crowded-sky family as the fleet's next cure target.
+- The lens-corrected read is the fire's own lesson: the ad-hoc grep said 'the pocket met the chest empty' (44 vs 41), the byte-reconciled lens flipped it (45 vs 6) - the probe lines' why-tails carry the truth ('zero: chest unreachable' skins are door failures).
+- Fronts: the 33rd's mine (the docket's 2nd read, the downstream seat's 1st production read, the correlation 13th, the whale's bill 2nd), the doorstep decide budget's design input, the relog churn (kicks 33).
+- Next fire: (1) poll 37461703252 FIRST - SUCCESS -> mine (the 33rd rides the v0.699.0 tree: the downstream seat row is IN its surface; mine with the v0.700.0 local decompose for the docket row too). (2) push-CI verdict on 724cc97 (37464609693). (3) dispatch law x41 on clear.
