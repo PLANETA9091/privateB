@@ -45,6 +45,7 @@ import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execut
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves)
 import { woodTripCensus } from '../../src/lib/tripcensus.mjs' // (v0.690.0) the walk's delivery - the famine→gathered pairing prices the gather walk's own cure rate (SLOT COLLISION #16: 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire)
+import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
@@ -2139,6 +2140,22 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const g = tc.delivery.gain
       console.log(`  the gather walk's delivery: ${tc.delivery.cured}/${tc.delivery.n} trips cured (gain ${g.min}..${g.max}${g.min === g.max ? '' : `, median ${g.median}`}) flat ${tc.delivery.flat} negative ${tc.delivery.negative}${tc.delivery.flat > 0 ? ' - THE WALK CAME HOME EMPTY: the drought\'s seat rides the walk' : ''}`)
     }
+  }
+}
+
+// (v0.691.0) THE REFUSAL'S WHY - the climb-refusal seat's own anatomy.
+// The refusal line names no cause; the cause rides the climb-fail line
+// ONE line earlier (the 1:1 shape). The join prices WHY the walk's start
+// is the seat (the face-28 read: 4 refusals, F1 owned 3).
+{
+  const rc = woodRefusalCensus(lines)
+  if (rc.refused.n > 0) {
+    const bots = Object.entries(rc.refused.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+    const whys = Object.entries(rc.refused.reasons).map(([w, n]) => `${w} ${n}`).join(' / ')
+    console.log(`  the climb-refusal seat: ${rc.refused.n} refusals (${bots}) - ${whys} (unexplained ${rc.refused.unexplained}) - THE WALK'S START IS THE SEAT`)
+  } else if (rc.climbFails.n > 0) {
+    const whys = Object.entries(rc.climbFails.reasons).map(([w, n]) => `${w} ${n}`).join(' / ')
+    console.log(`  the climb-refusal seat: 0 refusals (${rc.climbFails.n} wood-trip climb fails: ${whys} - the log cut mid-pair or the refusal path skipped)`)
   }
 }
 
