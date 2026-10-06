@@ -889,6 +889,10 @@ if (shooter.total > 0) {
     const book = sl.ringed + sl.laneLost + sl.died + sl.open
     console.log(`  shelter tries: ${sl.tries} - ringed ${sl.ringed} / laneLost ${sl.laneLost} / died ${sl.died} / open ${sl.open} - book ${book}/${sl.tries}; pregate refusals ${sl.pregate}`)
     console.log(`  the doors: wall ${sl.wallMisses}/${sl.tries} missed (the open-field signature - the wall never landed at this n) | ring ${sl.ringLanded} landed / ${sl.ringRefused} refused of ${sl.ringTries} tried`)
+    if (sl.wallMissTiming) {
+      const t = sl.wallMissTiming
+      console.log(`  the wall-miss timing: threat at ${t.min}..${t.max}u (median ${t.median}) when the wall was asked - ${t.within5}/${t.n} already inside 5u (the door arrives after the threat is close)`)
+    }
     console.log(`  the re-scan tax: ${sl.sameThreatRescans} same-threat pairs / ${sl.threatChangedRescans} threat-changed (the scan re-asking what the world answered)`)
     const cls = Object.entries(sl.skipClasses).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}:${n}`).join(' ')
     if (cls) console.log(`  the refusals: ${cls}`)

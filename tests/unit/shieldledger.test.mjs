@@ -134,7 +134,7 @@ test('shelterLadder zero law: no shelter verbs reads the honest zero shape', () 
     tries: 0, ringed: 0, laneLost: 0, died: 0, open: 0, pregate: 0,
     wallMisses: 0, ringTries: 0, ringLanded: 0, ringRefused: 0,
     sameThreatRescans: 0, threatChangedRescans: 0,
-    skipClasses: {}, pregateClasses: {}, prose: null, rows: []
+    skipClasses: {}, pregateClasses: {}, wallMissTiming: null, prose: null, rows: []
   })
 })
 
@@ -179,4 +179,35 @@ test('shelterLadder rides parseCombatLine - one parser per shape for the verbs',
   ])
   assert.equal(r.tries, 1)
   assert.equal(r.died, 1)
+})
+
+test('shelterLadder wallMissTiming reads the 25th face byte-exact: 3 misses, every threat already inside 5u', () => {
+  // face 25 (run 37424678301) verbatim - the open-field signature's own
+  // clock: the wall was asked only after the drowned stood close
+  const r = shelterLadder([
+    'F12 [F12] combat: shelter try vs drowned (dist 2.6, proximity pre-fight)',
+    'F12 [F12] combat: shelter wall miss (open field: no diggable wall, ring next, drowned@2.6)',
+    'F12 [F12] combat: shelter ring try vs drowned (dist 2.6, +z-x+x-z first, full ring, proximity pre-fight)',
+    'F12 [F12] combat: shelter skip (open field: ring incomplete 6/8)',
+    'F12 [F12] combat: shelter try vs drowned (dist 4.0, proximity pre-fight)',
+    'F12 [F12] combat: shelter wall miss (open field: no diggable wall, ring next, drowned@4.0)',
+    'F12 [F12] combat: shelter skip (open field: ring not buildable [BB BB BB -o] vs drowned@4.0)',
+    'F13 [F13] combat: shelter try vs drowned (dist 4.6, proximity pre-fight)',
+    'F13 [F13] combat: shelter wall miss (open field: no diggable wall, ring next, drowned@4.6)',
+    'F12 [F12] combat: fighting drowned (dist 2.6, hp 16.8, 1 nearby, proximity)'
+  ])
+  assert.deepEqual(r.wallMissTiming, { n: 3, min: 2.6, median: 4, max: 4.6, within5: 3 })
+  assert.equal(r.wallMisses, 3)
+})
+
+test('shelterLadder wallMissTiming honest silence: no misses reads null, junk reads null', () => {
+  // a face with tries but zero wall misses never invents a timing
+  const r = shelterLadder([
+    'F2 [F2] combat: shelter try vs zombie (dist 2.0, proximity)',
+    'F2 [F2] combat: sheltering from zombie (ring 8/8, proximity)'
+  ])
+  assert.equal(r.wallMissTiming, null)
+  // junk-safe: non-string-blob reads null (the smeltledger convention)
+  assert.equal(shelterLadder(42), null)
+  assert.equal(shelterLadder(null), null)
 })

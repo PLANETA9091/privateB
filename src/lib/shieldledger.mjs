@@ -49,6 +49,17 @@
 // live there), the death via DIED_KIND_RE (maptrip); this lib owns only
 // the skip-class grammar and the episode book.
 //
+// v0.685.0 THE WALL-MISS DISTANCE - the door's timing read. The count
+// priced the door's misses (faces 42+43: 18 misses, 0 walls landed);
+// the TIMING was never priced - how close the threat already was when
+// the wall was asked. Every wall-miss line carries its threat distance
+// ('... ring next, drowned@2.6') and parseCombatLine already lifts it
+// (dist). wallMissTiming: {n, min, median, max, within5} over the
+// face's misses in log order, null when zero misses (the calm face
+// never invents a timing). within5 = the misses asked while the threat
+// already stood inside 5u - the open-field signature's own clock: the
+// face-25 read 2.6/4.0/4.6 (3/3 within 5u) - the wall is asked late.
+//
 
 import { DIED_KIND_RE } from './maptrip.mjs'
 import { parseCombatLine } from './shootercensus.mjs'
@@ -78,6 +89,7 @@ function skipClass (line) {
  *   ringTries: number, ringLanded: number, ringRefused: number,
  *   sameThreatRescans: number, threatChangedRescans: number,
  *   skipClasses: object, pregateClasses: object,
+ *   wallMissTiming: {n, min, median, max, within5}|null,
  *   prose: {min, median, max}|null, rows: object[]}}
  */
 export function shelterLadder (lines) {
@@ -87,6 +99,7 @@ export function shelterLadder (lines) {
   if (!src) return null
   const state = new Map()
   const rows = []
+  const wallMissDistLog = [] // the door's timing input (v0.685.0), log order
   let tries = 0
   let pregate = 0
   const pregateClasses = {}
@@ -133,6 +146,7 @@ export function shelterLadder (lines) {
     }
     if (cm.verb === 'shelter-wall-miss') {
       st.wallMisses++
+      if (cm.dist !== null) wallMissDistLog.push(cm.dist)
     } else if (cm.verb === 'ring-try') {
       // (the ring try's verb key is 'ring-try' in parseCombatLine's own
       // verb table - 'shelter ring try' routes there, most-specific-first)
@@ -179,6 +193,17 @@ export function shelterLadder (lines) {
       else threatChangedRescans++
     }
   }
+  // the door's timing read (v0.685.0): the threat's distance at each
+  // wall miss - null when the wall was never asked (honest silence)
+  const wallMissTiming = wallMissDistLog.length
+    ? {
+        n: wallMissDistLog.length,
+        min: Math.min(...wallMissDistLog),
+        median: medianOf(wallMissDistLog),
+        max: Math.max(...wallMissDistLog),
+        within5: wallMissDistLog.filter(d => d <= 5).length
+      }
+    : null
   const spans = rows
     .filter(r => r.closerIdx !== null)
     .map(r => r.closerIdx - r.openIdx)
@@ -197,6 +222,7 @@ export function shelterLadder (lines) {
     threatChangedRescans,
     skipClasses,
     pregateClasses,
+    wallMissTiming,
     prose: spans.length
       ? { min: Math.min(...spans), median: medianOf(spans), max: Math.max(...spans) }
       : null,
