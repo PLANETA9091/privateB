@@ -261,7 +261,8 @@ test("the inference's own bill: the era's two-way read byte-exact (the 40th's 12
   assert.equal(c.total, 5)
   assert.deepEqual(c.inference, {
     total: 5, corroborates: 1, blind: 1, contradicts: 2, bystander: 1,
-    unknown: 0, absent: 0, kindAgree: 2, kindDisagree: 3
+    unknown: 0, absent: 0, kindAgree: 2, kindDisagree: 3,
+    confusions: { 'mob->fall': 1, 'explosion->mob': 1, 'drown->fall': 1 }
   })
   // the case byte: the emitter's 'CONTRADICTS' lands in contradicts now
   // (the v0.425.0 bracket match was case-sensitive and read it unknown)
@@ -280,17 +281,63 @@ test("the inference's own bill: the honest silence and the junk battery", () => 
   const c = deathKindCensus(['F1 [F1] combat: fighting zombie (dist 2.0, hp 20.0, 0 nearby, proximity)'])
   assert.deepEqual(c.inference, {
     total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
-    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {}
   })
   // junk-safe: the non-string rows judge nothing
   const j = deathKindCensus([42, null, undefined])
   assert.deepEqual(j.inference, {
     total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0,
-    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0
+    unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {}
   })
   // the spear pair (kind=other, inferred zombie) disagrees at the kind
   // join - the server kind stays the authority, the bill only measures
   const spear = deathKindCensus([RUN16_SPEAR_F3])
   assert.equal(spear.inference.kindDisagree, 1)
   assert.equal(spear.inference.kindAgree, 0)
+})
+
+// (v0.719.0) THE CONFUSION'S OWN PAIRS - the 43rd's five kind joins,
+// the lines byte-verbatim from the stored face: the drown kind misread
+// twice (the creeper CONTRADICTS + the fall/env blind) and the
+// explosion kind misread three times (the fall/env blind + two
+// BYSTANDER zombies). The witness's own blind seats, named per pair.
+const FACE43_DROWN_CREEPER = 'F12 [F12] died - respawning (cause: server: drowned [kind=drown] | inferred: creeper@11.4 (0s before death at [-127,48,412]) [the inference CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)])'
+const FACE43_DROWN_FALL = 'F11 [F11] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-126,53,408]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE43_EXPLOSION_FALL = 'F16 [F16] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: fall/env (0s before death at [-112,66,408]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])'
+const FACE43_EXPLOSION_ZOMBIE_A = 'F11 [F11] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: zombie@2.9 (0s before death at [-166,64,449]) [the inference names a BYSTANDER - the exploder removed itself at detonation, the nearest-harm scan read the next-nearest hostile (a real witness, not the killer; the server killer stays the authority)])'
+const FACE43_EXPLOSION_ZOMBIE_B = 'F15 [F15] died - respawning (cause: server: was blown up by Creeper [kind=explosion by Creeper] | inferred: zombie@1.2 (0s before death at [-170,65,421]) [the inference names a BYSTANDER - the exploder removed itself at detonation, the nearest-harm scan read the next-nearest hostile (a real witness, not the killer; the server killer stays the authority)])'
+
+test("the confusion's own pairs: the 43rd's kind joins named per pair (byte-verbatim)", () => {
+  const c = deathKindCensus([
+    FACE43_DROWN_CREEPER,
+    FACE43_DROWN_FALL,
+    FACE43_EXPLOSION_FALL,
+    FACE43_EXPLOSION_ZOMBIE_A,
+    FACE43_EXPLOSION_ZOMBIE_B
+  ])
+  assert.equal(c.inference.kindDisagree, 5)
+  assert.deepEqual(c.inference.confusions, {
+    'drown->mob': 1,
+    'drown->fall': 1,
+    'explosion->fall': 1,
+    'explosion->mob': 2
+  })
+  // the pair map rides the additive law: the v0.713.0 cells stay byte-stable
+  assert.equal(c.inference.total, 5)
+  assert.equal(c.inference.kindAgree, 0)
+  assert.equal(c.inference.contradicts, 1)
+  assert.equal(c.inference.bystander, 2)
+  assert.equal(c.inference.blind, 2)
+})
+
+test("the confusion's own pairs: the honest silence - an all-agree face never opens the map", () => {
+  const c = deathKindCensus([FACE27_FALL, FACE27_MOB])
+  assert.equal(c.inference.kindDisagree, 0)
+  assert.deepEqual(c.inference.confusions, {})
+  // a mixed face keeps only the pairs that lied (the 40th's skeleton
+  // contradict rides mob->fall; the spider's contradict agrees at the
+  // kind join - both mob - so it opens no pair)
+  const mixed = deathKindCensus([FACE40_SKELETON_CONTRADICTS, FACE40_SPIDER_CONTRADICTS])
+  assert.deepEqual(mixed.inference.confusions, { 'mob->fall': 1 })
+  assert.equal(mixed.inference.contradicts, 2)
 })

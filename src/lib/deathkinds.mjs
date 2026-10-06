@@ -95,7 +95,7 @@ function isVertical (kind, verb) {
  *   pos: number[]|null, corroboration: string}>, verticalCount: number, unparsed: string[],
  *   inference: {total: number, corroborates: number, blind: number, contradicts: number,
  *   bystander: number, unknown: number, absent: number, kindAgree: number,
- *   kindDisagree: number}}}
+ *   kindDisagree: number, confusions: Object<string, number>}}}
  *   junk-safe: non-string rows judge nothing; an announce-shaped line the
  *   payload regex cannot parse lands in unparsed (the escape hatch - a new
  *   phrasing must surface, never vanish).
@@ -114,7 +114,14 @@ export function deathKindCensus (lines) {
   // and the kind join (the inferred name's own bucket vs the server's
   // kind). The server kind stays the authority (the v0.117.0 doctrine) -
   // the bill measures the WITNESS, never re-adjudicates the verdict.
-  const inference = { total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0, unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0 }
+  // (v0.719.0) THE CONFUSION'S OWN PAIRS - the kind join's lie gets its
+  // own map: every kindDisagree row counts its 'serverKind->inferredKind'
+  // pair (the additive law - the v0.713.0 cells stay byte-stable). The
+  // era's read names the witness's own blind seats: the drown kind
+  // misread twice (the 42nd's zombie, the 43rd's creeper - the mob's
+  // proximity poisons the water death's tail) and the explosion kind
+  // misread three times (the blast's confusion splits mob vs fall).
+  const inference = { total: 0, corroborates: 0, blind: 0, contradicts: 0, bystander: 0, unknown: 0, absent: 0, kindAgree: 0, kindDisagree: 0, confusions: {} }
   let total = 0
   for (const l of rows) {
     if (typeof l !== 'string' || !l.length) continue // junk-safe: the FATAL face truncates (the v0.358.0 lesson)
@@ -171,8 +178,14 @@ export function deathKindCensus (lines) {
     inference.total++
     const nm = tail ? INFERRED_NAME_RE.exec(tail) : null
     if (nm) {
-      if (kindOfInferred(nm[1]).kind === kind) inference.kindAgree++
-      else inference.kindDisagree++
+      const ik = kindOfInferred(nm[1]).kind
+      if (ik === kind) inference.kindAgree++
+      else {
+        inference.kindDisagree++
+        // (v0.719.0) the confusion's own pair - the kind join's lie named
+        const pair = `${kind}->${ik}`
+        inference.confusions[pair] = (inference.confusions[pair] || 0) + 1
+      }
     }
     if (isVertical(kind, verb)) {
       const pm = tail ? POS_RE.exec(tail) : null
