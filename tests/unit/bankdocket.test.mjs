@@ -68,7 +68,7 @@ test('bankDocket honest zeros and the junk battery', () => {
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
-    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     views: 0, fallbacks: 0, plans: 0, depositPositives: 0
   })
   // junk-safe: non-input reads null (the smeltledger convention)
@@ -188,9 +188,9 @@ test("the iron commune's own door: the era's shapes byte-exact (the 32nd: 5 = 1+
   const timeout = 'F3 iron commune: chest walk failed (iron commune walk @-105,401: timeout after 1208ms)'
   const rescueRefused = 'F1 iron commune: chest walk failed (water rescue in progress (iron commune walk @-143,389 refused))'
   const r32 = bankDocket([...Array(1).fill(decide), ...Array(1).fill(noPath), ...Array(3).fill(rescueRefused)])
-  assert.deepEqual(r32.iron, { total: 5, decide: 1, noPath: 1, retryTimeout: 0, other: 3 })
+  assert.deepEqual(r32.iron, { total: 5, decide: 1, noPath: 1, retryTimeout: 0, other: 3, goalBrake: 0, rescueRefused: 3 })
   const r34 = bankDocket([...Array(9).fill(decide), ...Array(7).fill(noPath), ...Array(4).fill(timeout)])
-  assert.deepEqual(r34.iron, { total: 20, decide: 9, noPath: 7, retryTimeout: 4, other: 0 })
+  assert.deepEqual(r34.iron, { total: 20, decide: 9, noPath: 7, retryTimeout: 4, other: 0, goalBrake: 0, rescueRefused: 0 })
 })
 
 test('the iron nudge skin rides IRON, not fuel - the v0.704.0 cross-contamination corrected', () => {
@@ -199,7 +199,7 @@ test('the iron nudge skin rides IRON, not fuel - the v0.704.0 cross-contaminatio
   // 18+1 and 15+6); the prefix anchor takes it home
   const ironNudge = 'F3 iron commune: iron commune: chest walk failed after the nudge (Took to long to decide path to goal!)'
   const r = bankDocket([ironNudge])
-  assert.deepEqual(r.iron, { total: 1, decide: 1, noPath: 0, retryTimeout: 0, other: 0 })
+  assert.deepEqual(r.iron, { total: 1, decide: 1, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 })
   assert.deepEqual(r.fuel, { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 })
   // a MENTION is not a member: the fuel refused-tail names an iron walk
   // inside its parens - the line stays the fuel lane's
@@ -246,4 +246,27 @@ test("the doorstep storm's census: the era's sums byte-exact + the honest silenc
   assert.equal(doorstepStormCensus(null), null)
   assert.equal(doorstepStormCensus(42), null)
   assert.equal(doorstepStormCensus(undefined), null)
+})
+
+test("the iron's other skin: the goal brake and the water rescue's refusal named (the era's reads byte-exact)", () => {
+  // the 37th's other 6 = the GOAL BRAKE (the walk governor's own rate
+  // limiter turning a goal storm away - 'goal brake: N goals in 5s')
+  const goalBrake = 'F6 iron commune: chest walk failed (goal brake: 6 goals in 5s - iron commune walk @-129,420 refused for 5s)'
+  const r37 = bankDocket([...Array(6).fill(goalBrake)])
+  assert.deepEqual(r37.iron, { total: 6, decide: 0, noPath: 0, retryTimeout: 0, other: 6, goalBrake: 6, rescueRefused: 0 })
+  // the 32nd's other 3 = the WATER-RESCUE REFUSAL (the rescue lane flying
+  // prices the walk) - the era's oldest 'other' finally named
+  const rescueRefused = 'F1 iron commune: chest walk failed (water rescue in progress (iron commune walk @-126,389 refused))'
+  const r32 = bankDocket([...Array(3).fill(rescueRefused)])
+  assert.deepEqual(r32.iron, { total: 3, decide: 0, noPath: 0, retryTimeout: 0, other: 3, goalBrake: 0, rescueRefused: 3 })
+  // an 'other' that names neither tail stays silent inside the residual
+  // (the honest split: the named tails never claim the cell)
+  const unnamed = bankDocket(['F9 iron commune: chest walk failed (the walk gave up on its own)'])
+  assert.deepEqual(unnamed.iron, { total: 1, decide: 0, noPath: 0, retryTimeout: 0, other: 1, goalBrake: 0, rescueRefused: 0 })
+  // the other is a residual, never a member of the sum's claim: a mixed
+  // face keeps both counts honest
+  const mixed = bankDocket([goalBrake, rescueRefused, unnamed.other ? 'x' : 'x'].slice(0, 2))
+  assert.equal(mixed.iron.other, 2)
+  assert.equal(mixed.iron.goalBrake, 1)
+  assert.equal(mixed.iron.rescueRefused, 1)
 })

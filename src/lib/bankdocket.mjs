@@ -101,6 +101,18 @@
 // reuse (the cells were already in hand - one-parser law by sums, zero
 // new regexes); a doorless face or junk reads the honest silence.
 //
+// (v0.709.0) THE IRON'S OTHER SKIN - the iron cell's honest 'other'
+// splits by its own named tails (the 37th's other 6 led the storm's
+// rise and nobody could say what rode there): the GOAL BRAKE ('goal
+// brake: N goals in 5s - iron commune walk @... refused for Ms' - the
+// walk governor's own rate limiter turning a goal storm away, 6 on the
+// 37th) and the WATER-RESCUE REFUSAL ('water rescue in progress (iron
+// commune walk @... refused)' - the rescue lane flying prices the walk,
+// 3 on the 32nd). 'other' stays the honest residual (the sum of the
+// tails never claims the cell); an 'other' that names neither tail
+// stays silent inside it. The fuel cell's own 'other' keeps its shape
+// this version (its 32nd water-rescue ride is the fuel-side followup).
+//
 // (v0.704.0) THE FUEL LANE'S OWN DOOR - that front lands: the nudge
 // walk's own verdict in the fuel lane's skin ('fuel commons: chest walk
 // failed after the nudge (...)') joins the docket as its own cell, the
@@ -136,7 +148,8 @@
  *   fuel: {total: number, decide: number, noPath: number,
  *          retryTimeout: number, other: number},
  *   iron: {total: number, decide: number, noPath: number,
- *          retryTimeout: number, other: number},
+ *          retryTimeout: number, other: number, goalBrake: number,
+ *          rescueRefused: number},
  *   views: number, fallbacks: number, plans: number,
  *   depositPositives: number,
  *   rate?: {visits: number, doorPct: number, pocketPct: number}}}
@@ -151,7 +164,7 @@ export function bankDocket (lines, visits) {
     door: { unreachable: 0, decideTimeouts: 0, noChest: 0, lidTimeout: 0, beyondRadius: 0, total: 0 },
     pocket: { zeroProbes: 0, depositZeros: 0, total: 0, nothingToDeposit: 0 },
     fuel: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
-    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0 },
+    iron: { total: 0, decide: 0, noPath: 0, retryTimeout: 0, other: 0, goalBrake: 0, rescueRefused: 0 },
     views: 0,
     fallbacks: 0,
     plans: 0,
@@ -186,7 +199,16 @@ export function bankDocket (lines, visits) {
       if (/Took to long to decide path to goal/.test(line)) d.iron.decide++
       else if (/No path to the goal/.test(line)) d.iron.noPath++
       else if (/: timeout after/.test(line)) d.iron.retryTimeout++
-      else d.iron.other++
+      else {
+        d.iron.other++
+        // (v0.709.0) THE IRON'S OTHER SKIN - the honest residual names
+        // its own rides: the walk governor's goal brake (a goal storm
+        // turned away by the rate limiter) and the water rescue's own
+        // refusal (the rescue lane flying prices the walk). An 'other'
+        // that names neither stays silent inside the residual.
+        if (/goal brake: \d+ goals in \d+s/.test(line)) d.iron.goalBrake++
+        else if (/water rescue in progress/.test(line)) d.iron.rescueRefused++
+      }
       continue
     }
     // (v0.704.0) THE FUEL LANE'S OWN DOOR - the nudge walk's own verdict

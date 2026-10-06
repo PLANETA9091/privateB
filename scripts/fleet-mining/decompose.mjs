@@ -1216,7 +1216,7 @@ if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
 // Its own row (the legs-only gate does not own it), the honest silence
 // when the lane walked clean.
 if (bd && bd.fuel.total > 0) console.log(`  the fuel lane's own door (v0.704.0): ${bd.fuel.total} walk failure(s) after the nudge (decide ${bd.fuel.decide}, no path ${bd.fuel.noPath}, retry timeouts ${bd.fuel.retryTimeout}${bd.fuel.other > 0 ? `, other ${bd.fuel.other}` : ''})`)
-if (bd && bd.iron.total > 0) console.log(`  the iron commune's own door (v0.705.0): ${bd.iron.total} walk failure(s) (decide ${bd.iron.decide}, no path ${bd.iron.noPath}, retry timeouts ${bd.iron.retryTimeout}${bd.iron.other > 0 ? `, other ${bd.iron.other}` : ''})`)
+if (bd && bd.iron.total > 0) console.log(`  the iron commune's own door (v0.705.0): ${bd.iron.total} walk failure(s) (decide ${bd.iron.decide}, no path ${bd.iron.noPath}, retry timeouts ${bd.iron.retryTimeout}${bd.iron.other > 0 ? `, other ${bd.iron.other}${bd.iron.goalBrake > 0 || bd.iron.rescueRefused > 0 ? ` - the other's skins: the goal brake ${bd.iron.goalBrake}, the water rescue's refusals ${bd.iron.rescueRefused}` : ''}` : ''})`)
 // (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors fold
 // into one toll (a census is a SUM, not a row of cells): the storm's
 // size per face and the decide skins' share of it (the A* doorstep
