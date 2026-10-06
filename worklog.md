@@ -18342,3 +18342,21 @@ Stage Summary:
 - The duplicate churn's cadence priced: the 48th's F3 4-in-36s / F19 3-in-35s debut the burst verdicts; the server log joins the mining surface as decompose's optional third input.
 - Fronts: the 50th's mine (the clock's 2nd, the saved face's 3rd, the sky-walk's 3rd, the ladder's 5th), the timeout-kick class (the census's blind-spot candidate), the relog stall's 100% face, the gather drought.
 - Next fire: (1) poll 37539316731 FIRST - SUCCESS -> mine with the v0.729.0 decompose + the server log. (2) push-CI verdict on fc56707/b5dfd89. (3) dispatch law x62 on clear.
+
+---
+Task ID: cron30-20261007-0630
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0630 - the 49th's CI verdicts (green), the timeout-kick's own census, dispatch x62 on clear
+
+Work Log:
+- Repo synced 416d74f (0.729.0). VERDICTS ALL GREEN: the v0.729.0 tree's push-CI 37539614218 (416d74f) SUCCESS - the arbiter for the whole retag chain (9136b0f/fc56707/b5dfd89 runs cancelled by the arbiter, the successor covered them); face 50 = 37539316731 (on fc56707) IN_PROGRESS all fire (unit+integration legs SUCCESS, the fleet leg long - started 22:14:35Z, past the ~18min nominal at fire's end).
+- ONE ATOMIC IMPROVEMENT: v0.730.0 THE KICK'S OWN KINDS (1f36e20). The frozen census sweeps exactly one kick class (duplicate_login); every other reason is nobody's cell - the 49th's single 'F10 KICKED: disconnect.timeout' rode unread. kickkinds.mjs kickKindCensus(lines): ALL KICKED lines folded per KIND (the translate value byte as written - the two era skins report as different kinds), n/byKind/byBot/dupN; the dup class RECONCILES against frozenCensus's dupKicks (a miss is the blind spot's own alarm); a formless kick byte is not a kind; kick-free = honest silence.
+- THE 49TH'S MAIDEN READ: 'the kick's own kinds: 1 kicked line(s) - disconnect.timeout 1; the dup class 0, the dupKicks reconcile holds'. The 48th's nine duplicate-login kicks reconcile byte-exact (dupN 9 = dupKicks.n 9). Three lenses ride one kick stream (kickbill + dupclock + kickkinds), each honest to its own class.
+- Tests: +4 (the 49th's timeout byte, the 48th's nine-byte reconcile against frozenCensus, the mixed both-skins face, the honest silences incl. the formless byte); kickkinds 4/4, neighbors 12/12 (kickbill/frozencensus/dupclock), syntax 526 files 0-broken. Push 1f36e20 attempt-1 clean.
+- DISPATCH LAW x62: NOT fired - face 50 (37539316731) still in flight at fire's end (the one-active law holds; the fire's own dispatch from 0600 is the run in question).
+
+Stage Summary:
+- Version 0.730.0 (THE KICK'S OWN KINDS, 1f36e20); next free 0.731.0; dispatch law x62 pending (face 50 in flight - unusually long, watch for a hang pattern).
+- The kick stream's census blindness closed: the timeout class (and any future kind) lands in the kinds row; the dup reconcile guards the churn's own fold.
+- Fronts: the 50th's mine when it lands (the clock's 2nd, the kinds' 2nd, the sky-walk's 3rd, the ladder's 5th), the fleet leg's long-tail hang pattern (33+ min vs ~18 nominal), the relog stall's 100% face, the gather drought.
+- Next fire: (1) poll 37539316731 FIRST - SUCCESS -> mine with the v0.730.0 decompose + server log. (2) push-CI verdict on 1f36e20. (3) dispatch law x62/x63 on clear (face 50 must be closed first).
