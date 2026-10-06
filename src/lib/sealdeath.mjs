@@ -122,6 +122,16 @@ export function sealDeathCensus (lines) {
   // non-string row judges nothing, and a death before the first hb stays
   // untimed (null) - the stamp never invents.
   const stamps = []
+  // (v0.675.0) THE END-PHASE TAX - the per-death rows join the clock stamp
+  // to the drop's own price (the join the clock never made: it counted the
+  // end-phase DEATHS, the leak clock priced the late THIRD - neither named
+  // the units lost inside the final 60s window itself). The run37399670805
+  // face measured 6 of 7 drops in the late third (734u of 892u): the
+  // fleet's deaths concentrate at the face's end AND carry most of the
+  // lost mass - deaths the rescue/re-gather lanes cannot repay (the face
+  // ends before any walk does). The stamp never invents: an untimed death
+  // (pre-first-hb) stays honestly out of the tax (the clock's own law).
+  const deathRows = []
   let lastT = null
   let clockEnd = null
   for (const l of rows) {
@@ -130,6 +140,7 @@ export function sealDeathCensus (lines) {
     const p = parseSealDeathDrop(l)
     if (!p) continue
     stamps.push(lastT)
+    deathRows.push({ bot: p.bot, lost: p.empty ? 0 : p.lost, sealLost: p.sealLost, empty: p.empty, ts: lastT })
     const b = (byBot[p.bot] = byBot[p.bot] || { drops: 0, emptyReads: 0, lost: 0, sealLost: 0, items: {} })
     if (p.empty) {
       emptyReads++
@@ -159,12 +170,19 @@ export function sealDeathCensus (lines) {
   const endPhase = clockEnd === null
     ? 0
     : timedTs.filter(t => t >= clockEnd - DEATH_END_PHASE_WINDOW_S).length
+  // (v0.675.0) the tax: the units whose death stamped inside the final
+  // endPhaseWindowS (60s) window; the empty reads price 0 by construction.
+  const endPhaseLost = clockEnd === null
+    ? 0
+    : deathRows.reduce((s, r) => s + (r.ts !== null && r.ts >= clockEnd - DEATH_END_PHASE_WINDOW_S ? r.lost : 0), 0)
   return {
     drops,
     emptyReads,
     lostTotal,
     sealLostTotal,
     byBot,
+    deathRows,
+    endPhaseLost,
     clock: {
       timed: timedTs.length,
       untimed: stamps.length - timedTs.length,

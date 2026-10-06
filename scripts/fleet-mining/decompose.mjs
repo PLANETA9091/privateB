@@ -183,6 +183,13 @@ if (sweep.keywordOnly.length) {
       const untimedNote = c.untimed > 0 ? `, ${c.untimed} untimed (pre-first-hb)` : ''
       const spanNote = c.firstTs === c.lastTs ? `at ts=${c.firstTs}s` : `span ts=${c.firstTs}..${c.lastTs}s`
       console.log(`  death clock: ${c.timed} timed ${spanNote}, clock end ts=${c.clockEnd}s, end-phase(${c.endPhaseWindowS}s) ${c.endPhase}, max burst ${c.maxBurst} in ${c.burstWindowS}s${untimedNote}`)
+      // (v0.675.0) THE END-PHASE TAX - the deadline's own price: the units
+      // whose deaths stamped inside the final 60s window (the rescue and
+      // the re-gather cannot repay them - the face ends before any walk).
+      if (sealDeath.endPhaseLost > 0 && sealDeath.lostTotal > 0) {
+        const share = Math.round((100 * sealDeath.endPhaseLost) / sealDeath.lostTotal)
+        console.log(`  end-phase tax: ~${sealDeath.endPhaseLost}u of ~${sealDeath.lostTotal}u lost (${share}%) died in the final ${c.endPhaseWindowS}s - the deadline's own tax`)
+      }
     }
   }
 }

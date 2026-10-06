@@ -13,6 +13,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
@@ -86,12 +87,12 @@ test('seal-death: the junk battery - prose, anatomy strangers, non-strings', () 
   ]
   for (const l of junk) assert.equal(parseSealDeathDrop(l), null)
   const c = sealDeathCensus(junk)
-  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, clock: CLOCK_ZERO })
+  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, deathRows: [], endPhaseLost: 0, clock: CLOCK_ZERO }) // (v0.675.0) the tax fields ride the zero shape
 })
 
 test('seal-death: the honest zero on a deathless face + the pinned anatomy', () => {
   const c = sealDeathCensus(['launching 19 bots for 600s', 'F2 [F2] combat: fighting skeleton'])
-  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, clock: CLOCK_ZERO })
+  assert.deepEqual(c, { drops: 0, emptyReads: 0, lostTotal: 0, sealLostTotal: 0, byBot: {}, deathRows: [], endPhaseLost: 0, clock: CLOCK_ZERO }) // (v0.675.0) the tax fields ride the zero shape
   // the anatomy pins: the RES list lives in the module, the seal class rides
   // shelter.mjs's ONE list (the co-derivation law)
   assert.match('F1 [F1] death drop: ~1u lost at [0,0,0] (dirt 1)', SEAL_DEATH_LOSS_RE)
@@ -308,4 +309,56 @@ test('parseSealDeathDrop captures the pile\u0027s pos (the additive capture, the
   assert.equal(p.pos, '-142,61,391')
   const e = parseSealDeathDrop('F9 [F9] death drop: pocket read empty at death (0u)')
   assert.equal(e.pos, null)
+})
+
+// (v0.675.0) THE END-PHASE TAX - the clock counted the end-phase DEATHS,
+// the leak clock priced the late THIRD; neither named the UNITS lost
+// inside the final 60s window. deathRows joins the stamp to the drop's
+// own price. The synthetic face: 3 priced drops + 1 empty read, the
+// last hb at ts=305 (the window opens at 245).
+const HB = (n, ts) => `    b] n=${n} ts=${ts}s rss=400M late=100ms mainLate=40ms`
+const TAX_FACE = [
+  HB(1, 100),
+  'F2 [F2] death drop: ~100u lost at [-120,50,400] (cobblestone 60, dirt 40)', // ts=100, mid-face
+  HB(2, 200),
+  'F3 [F3] death drop: ~40u lost at [-125,52,407] (cobblestone 30, coal 10)', // ts=200, pre-window (245)
+  HB(3, 250),
+  'F4 [F4] death drop: ~70u lost at [-130,55,410] (raw_copper 55, andesite 15)', // ts=250, IN window
+  HB(4, 290),
+  'F5 [F5] death drop: pocket read empty at death (0u)', // ts=290, in window, prices 0
+  HB(5, 305)
+]
+
+test('THE END-PHASE TAX: the final 60s window prices its deaths (the run16 class)', () => {
+  const c = sealDeathCensus(TAX_FACE)
+  assert.equal(c.drops, 3)
+  assert.equal(c.lostTotal, 210)
+  assert.equal(c.clock.endPhase, 2) // the ts=250 drop + the ts=290 empty read
+  assert.equal(c.endPhaseLost, 70) // the empty read prices 0 - only F4's 70u
+  assert.equal(c.deathRows.length, 4)
+  assert.deepEqual(c.deathRows.map(r => r.bot), ['F2', 'F3', 'F4', 'F5'])
+  assert.deepEqual(c.deathRows.map(r => r.ts), [100, 200, 250, 290])
+})
+
+test('the untimed death stays honestly out of the tax (the clock\'s own law)', () => {
+  const c = sealDeathCensus([
+    'F9 [F9] death drop: ~55u lost at [-110,48,390] (cobblestone 55)', // BEFORE the first hb - untimed
+    HB(1, 300)
+  ])
+  assert.equal(c.lostTotal, 55) // the mass is real
+  assert.equal(c.clock.untimed, 1)
+  assert.equal(c.clock.endPhase, 0)
+  assert.equal(c.endPhaseLost, 0) // the tax never invents a stamp
+  assert.equal(c.deathRows[0].ts, null)
+})
+
+test('no clock, no tax (junk-safe honesty)', () => {
+  const c = sealDeathCensus(['F1 [F1] death drop: ~20u lost at [-100,50,380] (dirt 20)'])
+  assert.equal(c.clock.clockEnd, null)
+  assert.equal(c.endPhaseLost, 0)
+})
+
+test('WIRING: the decompose prints the end-phase tax row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /end-phase tax: ~\$\{sealDeath\.endPhaseLost\}u/, "the deadline's own tax prints beside the death clock")
 })
