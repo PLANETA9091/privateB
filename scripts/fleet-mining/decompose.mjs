@@ -81,6 +81,7 @@ import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' /
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
+import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -2539,6 +2540,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     }
     if (sc.spots.length > 5) console.log(`  ... ${sc.spots.length - 5} more spot(s) - the tail stays in the lib's row`)
     if (sc.unparsed > 0) console.log(`  unparsed: ${sc.unparsed} pass-shaped line(s) the grammar refused - the escape hatch`)
+  }
+}
+
+// (v0.722.0) THE PINNED SEAT'S OWN BILL - the water lane's own launch
+// anatomy: the transit launches folded per bot per target, the passes
+// per ground plane; the pin verdict names the bot whose top aim holds
+// 70%+ of 10+ launches (the 45th's F17 79/79 at [-129,403] rode unnamed
+// between the sentry's spots and the whale's 50+ ledger - the seat's
+// own lens). The honest silence when the face rode neither family.
+{
+  const pb = pinBill(lines)
+  if (pb) {
+    const pins = Object.entries(pb.pinned).sort((a, b) => b[1].launches - a[1].launches)
+    const pinRow = pins.map(([name, p]) => `${name} rides ${p.launches}/${p.of} at ${p.target} (${p.share}%)${p.watch ? ` - the sentry watch ${p.watch.passes} pass(es) at ${p.watch.pos}` : ''}`).join('; ')
+    console.log(`  the water lane's own seat (v0.722.0): ${pb.n} transit launch(es), ${pb.nPass} pass(es)${pins.length ? ` - THE PINNED SEAT: ${pinRow} - the same land refused one bot's re-aims` : ' - no pin, the fleet\'s launches wander (the crowd\'s own spread)'}`)
   }
 }
 
