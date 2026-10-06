@@ -55,6 +55,7 @@ import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt 
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { stickBill } from '../../src/lib/stickbill.mjs' // (v0.711.0) the stick economy's own bill - the four lanes' stick cells folded into one toll
 import { chaseBill } from '../../src/lib/chasebill.mjs' // (v0.712.0) the chase's own geometry - the chased deaths' killDelta bill (the speed gap vs the trade lost)
+import { crossfireBill } from '../../src/lib/crossfirebill.mjs' // (v0.714.0) the crossfire's own bill - the second hostile's kill folded (the killer's, the fled threat's, the crowd sensor's reads)
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
@@ -801,6 +802,21 @@ if (shooter.total > 0) {
     }
     for (const r of fl.rows.filter(x => x.outcome === 'crossfire')) {
       console.log(`   crossfire: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - died to ${r.killer || 'the ' + r.deathKind + ' kind'} (the second hostile's kill)`)
+    }
+    // (v0.714.0) THE CROSSFIRE'S OWN BILL - the face-level fold of the
+    // second hostile's kills (the chased class's own bill rides beside
+    // it, the v0.712.0 row): WHO owns the toll (the killer's server
+    // token, the authority), WHAT the exit was escaping (the fled
+    // threat's split), the kind families, and the crowd sensor's read
+    // (the ledger's founding law: the crossfire's sensor is the nearby
+    // count). The honest silence when no crossfire death rode the face.
+    const xb = crossfireBill(fl)
+    if (xb) {
+      const bk = Object.entries(xb.byKiller).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'
+      const bm = Object.entries(xb.byMob).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'
+      const bd = Object.entries(xb.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'
+      const miss = xb.unpricedKiller > 0 ? `, the second hostile unnamed ${xb.unpricedKiller}` : ''
+      console.log(`  the crossfire's bill (v0.714.0): ${xb.n} crossfire death(s) - the second hostile: ${bk}; fled: ${bm}; kind ${bd}; solo ${xb.crowd.solo} / crowd ${xb.crowd.crowd} / unpriced ${xb.crowd.unpriced}${miss} - the exit ran into the second hostile's reach`)
     }
     const refl = fl.rows.filter(x => x.outcome === 'reflee' && x.refleeDelta !== null)
     if (refl.length) {
