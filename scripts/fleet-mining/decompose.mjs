@@ -25,6 +25,7 @@ import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.4
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
+import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
@@ -1315,6 +1316,19 @@ if (npb) {
     ? Object.entries(npb.crossLane.rides).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}u@${npb.crossLane.bots[k]}lanes`).join(' ')
     : ''
   console.log(`  the no-path door's own bot bill (v0.716.0): ${npb.n} ride(s) - fuel ${laneRow(npb.fuel)} / food ${laneRow(npb.food)} / iron ${laneRow(npb.iron)} - the repeats' column vs the crowd's spread names the spike's owner${riders ? ` - the cross-lane rider(s) (v0.718.0): ${riders} - THE STANCE READ: every lane refused the same bot's approach` : ''}`)
+}
+// (v0.720.0) THE DECIDE DOOR'S OWN BOOK - the decide starvation's WHO+WHERE
+// read (the door leg's decide rides per bot and per goal): a goal's column
+// is cross-bot (the shared dead chest - the goal-side cure, the v0.716.0
+// crowd law's decide twin), a bot's repeats name the rider (the v0.715.0
+// repeats law - the starvation keeps visiting the same bot); the honest
+// silence when the door read no decide.
+const dcb = decideBook(lines)
+if (dcb) {
+  const goalRow = dcb.distinctGoals > 0
+    ? `goals ${dcb.distinctGoals}${Object.keys(dcb.goalRepeats).length > 0 ? ` (repeats ${Object.entries(dcb.goalRepeats).sort((a, b) => b[1] - a[1]).map(([k, v]) => `[${k}]x${v}`).join(' ')})` : ''}${dcb.unpositioned > 0 ? `, unpositioned ${dcb.unpositioned}` : ''}`
+    : `unpositioned ${dcb.unpositioned}`
+  console.log(`  the decide door's own book (v0.720.0): ${dcb.n} decide ride(s) - bots ${dcb.distinct}${Object.keys(dcb.repeats).length > 0 ? ` (repeats ${Object.entries(dcb.repeats).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')})` : ''}, ${goalRow} - the goal's cross-bot column names the shared dead chest, the bot's repeats name the rider`)
 }
 // (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors fold
 // into one toll (a census is a SUM, not a row of cells): the storm's
