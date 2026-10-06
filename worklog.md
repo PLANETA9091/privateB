@@ -17000,3 +17000,26 @@ Work Log:
 Stage Summary:
 - Face 37397155884 IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x14, the mob-storm regime read (2 storms in 4 faces), sand delivery 9th-window watch, the F5-5u DRAINED window's anatomy, bank conversion 3-peat).
 - Version stays 0.671.0; the mob-storm regime (9-12 mob deaths every other face) is the top code-front candidate - night survivability, named in OPEN FRONTS.
+
+---
+Task ID: cron30-20261006-0930
+Agent: cron30 fire 0930 (PLANETA9091 identity)
+Task: maintain privateB - poll the 15th flight, mine it, dispatch on clear.
+
+Work Log:
+- SANDBOX RESET again (2nd fire in a row): repo re-cloned, identity re-pinned PLANETA9091, npm install. Master synced to f6a7011 (mine); the lane silent since 1f78a06.
+- THE 15TH FLIGHT LANDED: face 37397155884 COMPLETED SUCCESS (on 1f78a06) - all 4 jobs green, watched live through the poll.
+- MINED run37397155884 (536 decompose lines, artifacts uncommitted):
+  - THE FLOOR x14: one-unit 0/32 (0%) - the 14th consecutive zero face, the row's largest goal count (32) yet still zero.
+  - THE STORM REGIME CONFIRMED: 9 deaths (mob=6 drown=2 explosion=1 UNPARSED 1) - arc 10->3->12->9, THREE storm faces in five; and the verdict row fired STORM: 1 for the first time in the recent row (the weather stormguard itself; the calm-weather class gave way).
+  - THE HOUND FIGHTBACK: presence 15, fight 8, DEFEATS 3 (F18=2, F14=1) - the fleet WON hound fights for the first time in the row (the earlier faces fled or died; the fight lane woke under storm pressure).
+  - BANK 3-PEAT: banked +390u on mined 1381 (conversion 95.2%), pocket 912u - the third consecutive healthy conversion (102.9% -> 97.8% -> 95.2%) through two storm faces.
+  - SAND 2ND WAVE: 3 launch windows (F8+26u delivered, F6+3u delivered, F4-1u drained), pocket 0->53 (peak 78) - the 2nd consecutive fat sand pocket (49 -> 53); the delivery leg keeps flowing.
+  - RESCUE 3RD CLEAN: 46 starts (F16=16 the wet magnet), 0 unclosed, 0 orphans.
+  - LEAK +6.0% (+78u). FATE normal end (deadline 600s).
+- DISPATCH (law x22): queue clear -> POST 204 -> face 37399670805 id-verified IN_PROGRESS on f6a7011 at 01:32:19Z (the 16th flight, on my latest).
+- NO code change (stays 0.671.0). Push attempt 1 clean.
+
+Stage Summary:
+- Face 37399670805 IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x15, the storm regime 4th read, hound defeats repeat?, bank 4-peat, sand 3rd wave, F16=16 wet-magnet anatomy).
+- The mob-storm regime (3 storms in 5 faces) + the hound fightback (3 wins) sharpen the night-survivability code front.
