@@ -17993,3 +17993,22 @@ Stage Summary:
 - THE STORM GUARD'S HEAVIEST SURVIVED FACE: 20s main freeze at 548M @ ents 3688 (both era highs) and the loop lived - the correlation's 17th point sits at the top of the alive band; the mainLate early-kill design input now has a survival datum beside the 35th's fatality.
 - Fronts: the 41st's mine (the bill's 2nd read, the dial's 9th, the census's 6th, the chase bill's 2nd), the fuel no-path spike's anatomy (15, era high), the material leak face (40.8%), the gather drought (5 faces), the stick bill's fall (113 -> 82), the sand leg's recovery (0 -> 3).
 - Next fire: (1) poll 37498980203 FIRST - SUCCESS -> mine with the v0.713.0 decompose (the inference's own bill row rides). (2) CI verdicts on 848f31c (37498854461) + 501c550 (37497045914). (3) dispatch law x52 on clear.
+
+---
+Task ID: cron30-20261007-0100
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0100 - the 41st's poll window (long tail), the crossfire's own bill, poll-only
+
+Work Log:
+- Repo synced c2838db -> 1d00f4d (the lane's fires 0000/0030/0040 + face 40 mined, face 41 = 37498980203 on 848f31c dispatched by the lane's law x51). Next free 0.714.0.
+- Face 41 = 37498980203 IN_PROGRESS all window (unit legs SUCCESS, the integration leg's long tail ~26 min at fire's end) - DISPATCH LAW x52: poll-only, NO dispatch. The next fire inherits the queue.
+- ONE ATOMIC IMPROVEMENT: v0.714.0 THE CROSSFIRE'S OWN BILL (f18da1c, package.json 0.713.0 -> 0.714.0) - the flee ledger's crossfire class folded at the face level (the chased class's own bill rides beside it, the v0.712.0 row). crossfirebill.mjs crossfireBill(flee): byKiller (the second hostile's server token, the v0.117.0 authority), byMob (the fled threat's own split), byKind (the kind's head word - the family split), crowd (solo/crowd/unpriced - the ledger's founding law: the crossfire's sensor is the nearby count), unpricedKiller (the honest audit row), bots. The doorstepStormCensus signature law; a crossfire-free face reads the honest silence (null). Zero fleet wiring (mining-surface only, the v0.379/.../v0.713.0 precedent).
+- THE ERA BYTE-EXACT: the 40th is the DEBUT face - crossfire 2 (F5 fled a skeleton @8.7, died to a Zombie; F7 fled a zombie @5.2, died to a Skeleton - both solo nearby 1, kind mob 2); the 36th/37th/39th the honest silence (re-mined from the held artifacts). THE TWO LENSES' VOCABULARIES priced: the death-side flee fork reads 10 flee deaths (chase 6 / crossfire 4) while the ledger's book reads 11 episodes (chased 4 / crossfire 2) - the bill opens the LEDGER's book (the chasebill's own lens). THE CROWD SENSOR'S SECOND DATA POINT: face 43's crossfire rode nearby 2 (the crowd read the exit) - the 40th's rode SOLO: the second hostile's reach finds the solo exit too.
+- Tests: +4 (the debut pair byte-verbatim through the real lens path, the honest silences incl. the chased-only face, the edge skins - the unnamed killer / the crowd skin / the explosion family's kind head, the era's bill by hand); crossfirebill 4/4, neighbors 37/37 (chasebill/fleeledger/stickbill/bankdocket), syntax 506 files 0-broken.
+- Commit f18da1c pushed attempt-1 clean (no lane arrival; author verified PLANETA9091 pre-push and post-commit). push-CI 37501550973 pending at fire's end (not waited honestly).
+
+Stage Summary:
+- Version 0.714.0 (THE CROSSFIRE'S OWN BILL, f18da1c); next free 0.715.0; dispatch law x52 held poll-only (face 41 in flight).
+- The second hostile's toll is countable per face: the debut read names Zombie and Skeleton the second hostiles, both kills on SOLO exits - the disengage design input grows a second lane (the exit must dodge the OTHER threats' reach, not only the fled mob's).
+- Fronts: the 41st's mine (the crossfire bill's 2nd read, the chase bill's 2nd, the dial's 9th, the census's 6th, the inference bill's 2nd), the fuel no-path spike's anatomy (15, era high), the material leak face (40.8%), the gather drought (5 faces), the crowd sensor's verdict (2 points: crowd / solo).
+- Next fire: (1) poll 37498980203 FIRST - SUCCESS -> mine with the v0.714.0 decompose (the crossfire's bill row rides beside the chase's). (2) push-CI verdicts on f18da1c (37501550973) + 1d00f4d (37499159915). (3) dispatch law x53 on clear.
