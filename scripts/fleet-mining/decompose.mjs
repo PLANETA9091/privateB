@@ -70,7 +70,7 @@ import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-tar
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
 import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) the calm paradox - the death-free face's full-speed water lane
-import { bankDocket } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg)
+import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg); (v0.706.0) + the doorstep storm's census (the three lanes' doors folded into one toll)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1193,6 +1193,14 @@ if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
 // when the lane walked clean.
 if (bd && bd.fuel.total > 0) console.log(`  the fuel lane's own door (v0.704.0): ${bd.fuel.total} walk failure(s) after the nudge (decide ${bd.fuel.decide}, no path ${bd.fuel.noPath}, retry timeouts ${bd.fuel.retryTimeout}${bd.fuel.other > 0 ? `, other ${bd.fuel.other}` : ''})`)
 if (bd && bd.iron.total > 0) console.log(`  the iron commune's own door (v0.705.0): ${bd.iron.total} walk failure(s) (decide ${bd.iron.decide}, no path ${bd.iron.noPath}, retry timeouts ${bd.iron.retryTimeout}${bd.iron.other > 0 ? `, other ${bd.iron.other}` : ''})`)
+// (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors fold
+// into one toll (a census is a SUM, not a row of cells): the storm's
+// size per face and the decide skins' share of it (the A* doorstep
+// starvation's own slice). The honest silence when no door read.
+if (bd) {
+  const storm = doorstepStormCensus(bd)
+  if (storm) console.log(`  the doorstep storm's census (v0.706.0): ${storm.total} door(s) across the three lanes (${storm.lanes.map(l => `${l.lane} ${l.total}`).join(', ')}) - the decide skins ${storm.decide} of ${storm.total} (${storm.decidePct}%)`)
+}
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))
 console.log('  deposit probe:', count(/deposit/i))

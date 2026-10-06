@@ -88,6 +88,19 @@
 // side by side: the bank's legs, the fuel commune, the iron commune -
 // the doorstep decide storm's full census per face.
 //
+// (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors were
+// read side by side (v0.705.0), but a census is a SUM, not a row of
+// cells: doorstepStormCensus(d) folds the bank's door leg, the fuel
+// commune's and the iron commune's into one shape (the storm's toll
+// per face) and names the decide skins' share of it (the A* doorstep
+// starvation's own slice - the era's four-point rate dial and the
+// three-lane split now roll up to one number a design input can ride).
+// The 36th's maiden read: 26 + 13 + 3 = 42 doors, the decide skins 15
+// of 42 (35.7%) - the storm cooled across the era (the 32nd 68, the
+// 34th 78) while its decide core stayed a third of the toll. Pure
+// reuse (the cells were already in hand - one-parser law by sums, zero
+// new regexes); a doorless face or junk reads the honest silence.
+//
 // (v0.704.0) THE FUEL LANE'S OWN DOOR - that front lands: the nudge
 // walk's own verdict in the fuel lane's skin ('fuel commons: chest walk
 // failed after the nudge (...)') joins the docket as its own cell, the
@@ -214,4 +227,30 @@ export function bankDocket (lines, visits) {
     }
   }
   return d
+}
+
+/**
+ * doorstepStormCensus(d) - the three lanes' doors folded into one toll.
+ *
+ * @param {{door?: {total?: number, decideTimeouts?: number},
+ *          fuel?: {total?: number, decide?: number},
+ *          iron?: {total?: number, decide?: number}}|null|*} [d]
+ *   a bankDocket shape (the cells were already read - pure reuse)
+ * @returns {null|{lanes: {lane: string, total: number, decide: number}[],
+ *   total: number, decide: number, decidePct: number}}
+ *   null on junk or a doorless face (the honest silence - no door
+ *   anywhere, no storm to census); decidePct rides the bankYield
+ *   rounding (x1000 round / 10 - one honest decimal)
+ */
+export function doorstepStormCensus (d) {
+  if (!d || typeof d !== 'object') return null
+  const lanes = [
+    { lane: "the bank's", total: d.door && Number(d.door.total) || 0, decide: d.door && Number(d.door.decideTimeouts) || 0 },
+    { lane: "the fuel's", total: d.fuel && Number(d.fuel.total) || 0, decide: d.fuel && Number(d.fuel.decide) || 0 },
+    { lane: "the iron's", total: d.iron && Number(d.iron.total) || 0, decide: d.iron && Number(d.iron.decide) || 0 }
+  ]
+  const total = lanes.reduce((s, l) => s + l.total, 0)
+  if (!(total > 0)) return null
+  const decide = lanes.reduce((s, l) => s + l.decide, 0)
+  return { lanes, total, decide, decidePct: Math.round((decide / total) * 1000) / 10 }
 }

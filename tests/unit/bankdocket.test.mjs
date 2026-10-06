@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bankDocket } from '../../src/lib/bankdocket.mjs'
+import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs'
 
 // Face 32's live shapes verbatim (run 37457243091, the silent-bank face:
 // 143 bank-ish lines, 0u banked) - the docket's two legs ride the bank
@@ -207,4 +207,43 @@ test('the iron nudge skin rides IRON, not fuel - the v0.704.0 cross-contaminatio
   const m = bankDocket([fuelRefused])
   assert.equal(m.fuel.total, 1)
   assert.equal(m.iron.total, 0)
+})
+
+test("the doorstep storm's census: the era's sums byte-exact + the honest silence battery", () => {
+  // the 36th's maiden read (run 37474596256, the v0.705.0 decompose's
+  // own cells folded): 26 + 13 + 3 = 42 doors, the decide skins
+  // 9 + 4 + 2 = 15 of 42 = 35.7% - the storm cooled across the era
+  // (the 32nd's 68 = 45+18+5, the 34th's 78 = 43+15+20) while its
+  // decide core stayed a third of the toll
+  const decide = 'F4 [F4] hop: chest at [-115,79,415] d=28 zero: chest unreachable (Took to long to decide path to goal!)'
+  const bare = 'F7 bank: chest unreachable'
+  const fuelDoor = 'F2 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)'
+  const ironDoor = 'F11 iron commune: chest walk failed (No path to the goal!)'
+  const r36 = bankDocket([
+    ...Array(9).fill(decide), ...Array(12).fill(bare), // the bank's 21 unreachable (9 decide) + 5 no-chest below
+    ...Array(5).fill('F3 food trip: 0 (no chest reached) - the lane walked empty'),
+    ...Array(4).fill(fuelDoor),
+    ...Array(6).fill(fuelDoor.replace(/Took[^)]*/, 'No path to the goal!')),
+    ...Array(2).fill(fuelDoor.replace(/Took[^)]*/, '(nudge retry): timeout after 900ms')),
+    ...Array(1).fill(fuelDoor.replace(/Took[^)]*/, 'water rescue in progress (iron commune walk @-141,389 refused)')),
+    ...Array(2).fill(ironDoor.replace('iron commune: chest walk failed', 'iron commune: iron commune: chest walk failed after the nudge').replace(/No path[^)]*/, 'Took to long to decide path to goal!')),
+    ...Array(1).fill(ironDoor)
+  ])
+  assert.equal(r36.door.total, 26)
+  assert.equal(r36.fuel.total, 13)
+  assert.equal(r36.iron.total, 3)
+  const s36 = doorstepStormCensus(r36)
+  assert.equal(s36.total, 42)
+  assert.equal(s36.decide, 15)
+  assert.equal(s36.decidePct, 35.7)
+  assert.deepEqual(s36.lanes.map(l => [l.lane, l.total]), [["the bank's", 26], ["the fuel's", 13], ["the iron's", 3]])
+  // a doorless face reads the honest silence - no door anywhere, no
+  // storm to census (the pocket leg does not own the storm)
+  const pocketOnly = bankDocket(['F16 [F16] hop: chest at [-141,79,389] d=20 zero: nothing to deposit'])
+  assert.equal(doorstepStormCensus(pocketOnly), null)
+  assert.equal(doorstepStormCensus(bankDocket(['F2 bank: 12 (the mass moved)'])), null)
+  // junk reads null (the smeltledger convention, inherited)
+  assert.equal(doorstepStormCensus(null), null)
+  assert.equal(doorstepStormCensus(42), null)
+  assert.equal(doorstepStormCensus(undefined), null)
 })
