@@ -17,6 +17,7 @@ import { zeroClockCensus, budgetFloorVerdict } from '../../src/lib/zeroclock.mjs
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
 import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
+import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
@@ -511,6 +512,17 @@ if (stoll && stoll.rides > 0) {
   const whyBits = Object.entries(stoll.mirrorWhy).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k} ${v}`).join(', ')
   const topBot = Object.entries(stoll.botRides).sort((a, b) => b[1] - a[1])[0]
   console.log(`  the sensor's toll (v0.707.0): ${stoll.rides} reset(-1) ride(s) - drown contexts ${stoll.deaths} (never ${stoll.rescue.never} / live ${stoll.rescue.live} / stale ${stoll.rescue.stale}), breath mirrors ${stoll.mirrors}${whyBits ? ` (${whyBits})` : ''}, deep-pocket ascends ${stoll.ascends}${stoll.other > 0 ? `, other ${stoll.other}` : ''} - top ${topBot ? `${topBot[0]}=${topBot[1]}` : 'none'}`)
+}
+// (v0.708.0) THE ASCEND'S LIVE FENCE - the stall lane's own mass (the
+// live side the v0.707.0 toll fences out): the sensor-innocent stalls
+// (the jump sat 3+ passes on a FULL sensor, the ceiling dig bought the
+// way out) with the fence's cross-check leg (dead here == the toll's
+// ascends). Silent on an ascend-free face.
+const astall = ascendStall(lines)
+if (astall && astall.ascends > 0) {
+  const topStall = Object.entries(astall.bots).sort((a, b) => b[1] - a[1])[0]
+  const passes = Object.entries(astall.minPasses).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}+ x${v}`).join(', ')
+  console.log(`  the ascend's live fence (v0.708.0): ${astall.ascends} ascend(s) - the stall lane's ${astall.live} live (sensor held), ${astall.dead} dead (the toll's own)${passes ? `, stall floor ${passes}` : ''} - top ${topStall ? `${topStall[0]}=${topStall[1]}` : 'none'}`)
 }
 // (v0.382.0) THE BANK-FLOW CENSUS - face 19 (36802577873) closed 19/19 ALIVE
 // with a 495u pocket still unbanked (38.6% of it crafted-class surplus the
