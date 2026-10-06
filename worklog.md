@@ -17396,3 +17396,24 @@ Stage Summary:
 - v0.683.0 THE STORM MARGIN landed - the near-miss class has its row; the memory-storm watch sharpens without escalating (FATAL 0, the class stays 2 witnesses).
 - Version 0.683.0 (d69e78b); next free 0.684.0. Dispatch law stays x30 (the 25th in flight; poll-only this fire).
 - Next fire: (1) poll face 37424678301 FIRST - SUCCESS -> mine (the crater's 3rd read, the storm margin's 2nd read, the siege pace's 4th read, the correlation's 6th point, the water whale's repeat?, the gate endings' 3rd read). (2) push-CI verdicts on d69e78b + 37424661080 + 37424748482. (3) fronts: THE WATER WHALE (F12's rescue-transit loop - 86 launches at one target, 0 ground gained, the brake outlived 8x - the lane-side cure is a ground-gain gate), the bank flow's deadline math (0.9u/s vs the 942u pocket), the shared-ground disengage (the flee must EXIT the ground), the sand delivery leg (197 positions, 1 launch). (4) dispatch law x31 on clear.
+
+---
+
+Task ID: fire-1500
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1500 - the 24th's mine (found already mined by the lane), one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo fast-forwarded 91513c2..c3cb8c8 (the lane's fire-1439: the 24th flight ALREADY MINED - correlation 5th point ents 2863+553M ALIVE, rss jump +80M the era's closest approach, crater 2nd read 25.1%, floor x20, the water whale F12; v0.683.0 THE STORM MARGIN d69e78b landed). No lane collision; version 0.683.0 claimed by the worklog -> next free 0.684.0.
+- THE 24TH FLIGHT CROSS-VERIFIED by my own decompose run (3119 lines, run37421661533/): deaths 10 = clock 10 (mob=5 drown=3 fall=1 explosion=1), siege pace 3rd read 0.77/min over 13.0 min; crater 2nd read 25.1% (banked 316 of 1258u - the v0.682.0 lens's 2nd production read, the bank silence partially healed but still under the floor); gate endings 2nd read bypassed 1 (o2 0..0, streak #1) / clears 5 (the v0.681.0 lens's 2nd read); storm margin maiden read 20M of headroom (max +80M of the 100M storm line); flee 94u/4 (survival fork 2/13, wall 11/15 missed - the open-field signature); escape hatch SILENT (no unparsed - the grammar owns its family on this face too).
+- THE 25TH FLIGHT (face 37424678301 on adcd437, the v0.682.0 tree's first face): poll 5 tries all IN_PROGRESS - still flying at fire end, poll-only, max-one-active held, NO dispatch (law x30 stands).
+- ONE ATOMIC IMPROVEMENT v0.684.0 THE GATE PROMISE RATE (7684219): the gate endings' own verdict ratio - the promise KEPT (clears) vs VOIDED at arrival (bypassed), total 0 reads null (the rate never invents itself); decompose rides it in the endings row. THE MAIDEN READS rode their own fires byte-exact: the 23rd kept 1/4 (25%, the o2 reset(-1) drown's face) vs the 24th kept 5/6 (83%, the calmer face) - the promise's rate arc prices the reconnect lane's health per face. Zero fleet wiring (mining-surface only).
+- THE VERSION LEDGER ALIGNED: the lane's v0.683.0 (d69e78b) landed WITHOUT its package.json bump (the worklog owned the name, the field stayed 0.682.0) - this fire's bump writes 0.684.0 past the claimed 0.683.0; the ledger and the worklog agree again.
+- Tests: frozen-census 21/21 (1 new: the 23rd/24th arc + the honest silence); syntax 478 files 0 broken. (Full unit cut by the time-box - CI's parallel runner is the arbiter.)
+- Dispatch: NONE this fire (the 25th in flight - poll-only). push-CI on 7756455 (v0.681.0) was still pending at the last check (honest); the 25th's run will carry the v0.682.0 tree and the next push-CI rides 7684219.
+
+Stage Summary:
+- v0.684.0 THE GATE PROMISE RATE landed (7684219); next free 0.685.0; dispatch law x30 stands (face 37424678301 in flight on adcd437).
+- The 24th cross-verified (the lane's numbers zero disputes: crater 25.1%, gate endings 1/5, storm margin 20M); the 23rd/24th promise-rate arc: 25% -> 83%.
+- Fronts for next fire: the bank silence's deposit-flow autopsy (25.1% still under the 50% floor - the crater rides every mine now), the relog churn (37 kicks on the 23rd), the stick-drought (12/13), the flee wall's open-field signature (11/15 missed).
+- Next fire: (1) poll face 37424678301 FIRST - SUCCESS -> mine (the crater's 3rd read on the v0.682.0 tree, the gate promise's 3rd point, the siege pace's 4th read). (2) push-CI verdicts on 7756455/7684219. (3) dispatch law x31 on clear.
