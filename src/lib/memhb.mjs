@@ -129,7 +129,7 @@ export function parseStormCooldown (line) {
  * field read). Accepts an array of lines or a raw text blob (split on
  * newline).
  * @param {string[]|string} [lines] the face log
- * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number, rssJump: {max: number, storms: number}, entJump: {max: number, storms: number}, freezeStorm: {frozenS: number, from: number, to: number, floor: number}|null}}
+ * @returns {{reads: number, rssMax: number|null, heapUsedMax: number|null, heapLimitLast: number|null, colsMax: number|null, entsMax: number|null, staleMax: number|null, evicted: {max: number|null, first: number|null, last: number|null, peakJump: number, resets: number}, path: {peakActive: number, peakQueue: number, pathMax: number|null}, stormCooldowns: number, stormByBot: Object<string,{count: number, maxConsecutive: number}>, oomLocks: number, rssJump: {max: number, storms: number, marginM: number|null}, entJump: {max: number, storms: number}, freezeStorm: {frozenS: number, from: number, to: number, floor: number}|null}}
  */
 export function memHbCensus (lines) {
   const rows = Array.isArray(lines)
@@ -227,6 +227,15 @@ export function memHbCensus (lines) {
       freezeStorm = { frozenS: Number(fsm[1]), from: Number(fsm[2]), to: Number(fsm[3]), floor: Number(fsm[4]) }
     }
   }
+  // (v0.683.0) THE STORM MARGIN - the near-miss read: how much headroom the
+  // face's sharpest climb left below the storm line. The 24th flight
+  // (37421661533) read max +80M against the 100M line - the margin was 20M
+  // while the 20th flight's killer storm lived ENTIRELY between gauges the
+  // cadence never sampled. A thin margin is not safety: it is the size of
+  // the blind spot the next blow-up may spend. The margin prices the
+  // near-miss class only (a storm face is convicted by the STORM count; a
+  // climbless face has no margin story) - honest silence otherwise.
+  const rssMarginM = rssJumpMax > 0 && rssStorms === 0 ? RSS_JUMP_STORM_M - rssJumpMax : null
   return {
     reads,
     rssMax,
@@ -246,7 +255,7 @@ export function memHbCensus (lines) {
     stormCooldowns,
     stormByBot,
     oomLocks,
-    rssJump: { max: rssJumpMax, storms: rssStorms },
+    rssJump: { max: rssJumpMax, storms: rssStorms, marginM: rssMarginM },
     entJump: { max: entJumpMax, storms: entStorms },
     freezeStorm
   }

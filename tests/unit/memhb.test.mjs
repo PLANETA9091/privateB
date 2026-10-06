@@ -280,3 +280,46 @@ test('WIRING: the decompose prints the entity climb row', () => {
   assert.match(src, /ents jump: max \+\$\{ej\.max\}\/gauge/, "the driver read prints in the MEMORY block beside the rss jump")
   assert.match(src, /DRIVER x\$\{ej\.storms\}/, "the driver-class count joins the row")
 })
+
+// (v0.683.0) THE STORM MARGIN - the near-miss read beside the storm read:
+// the headroom the face's sharpest climb left below the 100M storm line.
+// The 24th flight (37421661533) read max +80M of the line - 20M of
+// headroom - while the 20th flight's killer storm lived ENTIRELY between
+// the gauges. The margin prices the near-miss class only.
+
+test('mem-hb: the storm margin prices the near-miss (the 24th flight byte-exact)', () => {
+  // the 24th flight's sharpest gauge pair: rss 432M -> 512M (+80M), no storm
+  const c = memHbCensus([
+    '   mem: heap=121M/159M old=99M ext=144M ab=141M rss=432M cols=1603 ents=1969 evicted=962 path=2a/0q (max 6) stale=0',
+    '   mem: heap=161M/193M old=134M ext=211M ab=208M rss=512M cols=1848 ents=2133 evicted=547 path=6a/7q (max 6) stale=0'
+  ])
+  assert.equal(c.rssJump.max, 80)
+  assert.equal(c.rssJump.storms, 0)
+  assert.equal(c.rssJump.marginM, 20) // 100 - 80: the blind spot the next blow-up may spend
+})
+
+test('mem-hb: a storm face has no margin story - the STORM count convicts', () => {
+  const c = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0',
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=490M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0' // +110 storm
+  ])
+  assert.equal(c.rssJump.storms, 1)
+  assert.equal(c.rssJump.marginM, null) // the margin row stays silent; the STORM row is the answer
+})
+
+test('mem-hb: a climbless face has no margin - the honest silence', () => {
+  const single = memHbCensus([
+    '   mem: heap=100M/143M old=80M ext=120M ab=110M rss=380M cols=1900 ents=1900 evicted=0 path=0a/0q (max 6) stale=0'
+  ])
+  assert.equal(single.rssJump.max, 0)
+  assert.equal(single.rssJump.marginM, null) // one read, no jump, no margin
+  const junk = memHbCensus(['not a gauge line', 'F2 [F2] died - respawning'])
+  assert.equal(junk.reads, 0)
+  assert.equal(junk.rssJump.marginM, null)
+})
+
+test('WIRING: the decompose prints the storm margin row', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /storm margin: \$\{rj\.marginM\}M of headroom/, "the near-miss read prints beside the rss jump")
+  assert.match(src, /the 20th's storm lived between the gauges/, "the between-gauge doctrine rides the row")
+})

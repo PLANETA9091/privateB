@@ -2330,6 +2330,16 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       ? `; the FATAL saw +${mem.freezeStorm.to - mem.freezeStorm.from}M while frozen ${mem.freezeStorm.frozenS}s (past the ${mem.freezeStorm.floor}M floor - the storm lived between the gauges)`
       : ''
     console.log(rjRow + fsNote)
+    // (v0.683.0) THE STORM MARGIN - the near-miss read beside the storm
+    // read: the headroom the face's sharpest climb left below the storm
+    // line. The 24th flight (37421661533) read max +80M of the 100M line -
+    // 20M of headroom - while the 20th flight's killer storm lived
+    // ENTIRELY between the gauges. The margin is the cadence's own blind
+    // spot, not safety; the near-miss class only prints (a storm face is
+    // convicted by the STORM row; a climbless face has no margin story).
+    if (rj.marginM !== null) {
+      console.log(`  storm margin: ${rj.marginM}M of headroom (max +${rj.max}M of the ${RSS_JUMP_STORM_M}M storm line) - the gap is the cadence's own blind spot (the 20th's storm lived between the gauges)`)
+    }
     // (v0.678.0) THE ENTITY CLIMB - the driver read beside the storm read:
     // the 20th flight's ents climbed 2023 -> 2691 (+30%) while rss stayed
     // flat - the mob storm's entities PRECEDED the memory storm the FATAL
