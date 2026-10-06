@@ -16916,3 +16916,20 @@ Stage Summary:
 - The smoke water guard is field-validated (same-water world); the flake class that killed the 12th flight pre-fleet is closed. Attempt-1's artifact 11379271131 (1134 bytes - server log tail only) preserved in the ledger.
 - The identity protocol held: author field verified after this commit. The dispatch-first law HELD x19 (dispatch, verify id, THEN write).
 - Version 0.670.0 (the lane's smoke guard). 0.671.0 next free - candidates: the fluid-answer WARN gap, the reloot walk lane (the lane's seat), trip retarget.
+
+---
+Task ID: cron30-20261006-0800
+Agent: cron30 fire 0800 (PLANETA9091 identity)
+Task: maintain privateB - watch the guarded face, one atomic improvement (the lane's candidate).
+
+Work Log:
+- Synced master: 434b311 tip (the lane's fire-0739 worklog: it CROSS-VERIFIED my v0.670.0 fix, watched CI 37389934503 land SUCCESS - the smoke step green in the same-water world, the fix FIELD-PROVEN - and dispatched face 37390912359 on 99a4d84, law x19). Identity held PLANETA9091.
+- THE GUARDED FACE FLIES: 37390912359 Unit x2 SUCCESS + Integration (the smoke gate) SUCCESS - the v0.670.0 water guard's SECOND field confirmation - big fleet leg IN_PROGRESS at log-off (landing ~00:25Z, past this box).
+- ONE ATOMIC IMPROVEMENT (the lane's own next-fire candidate honored): v0.671.0 THE PLACE READ VERDICT (commit c2df7f1) - the smoke place-back's read-back warned only on air/missing, so a FLUID answer (the water that beat the place between selection and click) printed its name and stayed silent, indistinguishable from a confirmed placement. Fix: the pure placeReadVerdict lens (missing/fluid/air/block) in src/lib/smokespot.mjs + 6 verdict asserts in tests/unit/smokespot.test.mjs + smoke.mjs now warns 'the water won the race' on the fluid class. Version 0.670.0 -> 0.671.0 (GATING x3: origin still 0.670.0, the number free).
+- Tests: syntax 476 files 0 broken; unit 271/271 PASSED (the lens suite carries the new asserts).
+- CI: my push 37392220273 on c2df7f1 QUEUED at log-off (the lane's 434b311 push-CI just landed SUCCESS); verdict rides next fire.
+- NO dispatch (max-one-active: the lane's face 37390912359 owns the lane; poll-before-duplicate honored). Push attempt 1 clean: 434b311..c2df7f1, author PLANETA9091.
+
+Stage Summary:
+- v0.671.0 landed; the smoke water guard now fully closes the fluid class (selection refuses fluids, re-dig refuses fluids, the read-back NAMES fluids).
+- Next fire: (1) poll face 37390912359 FIRST - if SUCCESS, download + decompose + MINE (the guarded tree's first face: floor x12, the mob storm repeat?, bank absorption recovery, sand window 3rd, rescue orphans). (2) poll my push-CI 37392220273 verdict. (3) dispatch if the queue clears (law x20).
