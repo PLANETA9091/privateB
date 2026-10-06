@@ -54,6 +54,7 @@ import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring a
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { stickBill } from '../../src/lib/stickbill.mjs' // (v0.711.0) the stick economy's own bill - the four lanes' stick cells folded into one toll
+import { chaseBill } from '../../src/lib/chasebill.mjs' // (v0.712.0) the chase's own geometry - the chased deaths' killDelta bill (the speed gap vs the trade lost)
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
@@ -785,6 +786,14 @@ if (shooter.total > 0) {
     console.log(`  crowd price (v0.482.0): solo (nearby 0-1) ${cr.solo.starts} (died ${cr.solo.died}) / crowd (nearby 2+) ${cr.crowd.starts} (died ${cr.crowd.died})${cr.unpriced.starts ? ` / unpriced ${cr.unpriced.starts}` : ''} - ${crVerdict}`)
     for (const r of fl.rows.filter(x => x.outcome === 'chased')) {
       console.log(`   chased: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - killed @${r.killDist ?? '-'} (delta ${r.killDelta === null ? 'unpriced' : `${r.killDelta > 0 ? '+' : ''}${r.killDelta.toFixed(1)}`})${r.killDelta !== null && r.killDelta < 0 ? ' - THE MOB CLOSED IN' : r.killDelta !== null ? ' - the flee gained, the trade lost' : ''}`)
+    }
+    // (v0.712.0) THE CHASE'S OWN GEOMETRY - the chased rows folded into
+    // one bill: the speed gap's deaths (the mob closed in) vs the
+    // trade's (the flee gained and died anyway) vs the flat
+    // re-contact - the stable read underneath the cross-read's flip.
+    const cb = chaseBill(fl)
+    if (cb) {
+      console.log(`  the chase's bill (v0.712.0): ${cb.chased} chased death(s) - the mob closed in ${cb.closedIn}, the flee gained ${cb.gained} (the trade lost), flat re-contact ${cb.flat}, unpriced ${cb.unpriced}${cb.closedIn > cb.gained && cb.closedIn > cb.flat ? ' - THE SPEED GAP OWNS THE LEAK' : ''}`)
     }
     for (const r of fl.rows.filter(x => x.outcome === 'crossfire')) {
       console.log(`   crossfire: ${r.bot} fled ${r.mob} @${r.dist} (hp ${r.hp}) - died to ${r.killer || 'the ' + r.deathKind + ' kind'} (the second hostile's kill)`)
