@@ -24,6 +24,7 @@ import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) TH
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
+import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
@@ -1267,6 +1268,19 @@ if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
 // when the lane walked clean.
 if (bd && bd.fuel.total > 0) console.log(`  the fuel lane's own door (v0.704.0): ${bd.fuel.total} walk failure(s) after the nudge (decide ${bd.fuel.decide}, no path ${bd.fuel.noPath}, retry timeouts ${bd.fuel.retryTimeout}${bd.fuel.other > 0 ? `, other ${bd.fuel.other}${bd.fuel.goalBrake > 0 || bd.fuel.rescueRefused > 0 ? ` - the other's skins: the goal brake ${bd.fuel.goalBrake}, the water rescue's refusals ${bd.fuel.rescueRefused}` : ''}` : ''})`)
 if (bd && bd.iron.total > 0) console.log(`  the iron commune's own door (v0.705.0): ${bd.iron.total} walk failure(s) (decide ${bd.iron.decide}, no path ${bd.iron.noPath}, retry timeouts ${bd.iron.retryTimeout}${bd.iron.other > 0 ? `, other ${bd.iron.other}${bd.iron.goalBrake > 0 || bd.iron.rescueRefused > 0 ? ` - the other's skins: the goal brake ${bd.iron.goalBrake}, the water rescue's refusals ${bd.iron.rescueRefused}` : ''}` : ''})`)
+// (v0.716.0) THE NOPATH DOOR'S OWN BOT BILL - the spike's WHO read (the
+// door family's no-path rides folded per bot per lane): a lane's repeats
+// name the column reproducing (the relog lane's v0.715.0 law's door-side
+// twin), a wide distinct spread names the crowd riding (the goal's own
+// verdict - the approach side stays the coordinate lens's front). The
+// honest silence when the doors read no no-path.
+const npb = nopathBill(lines)
+if (npb) {
+  const laneRow = (lane) => lane.n > 0
+    ? `${lane.n} by ${lane.distinct} bot(s)${Object.keys(lane.repeats).length > 0 ? ` (repeats ${Object.entries(lane.repeats).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')})` : ''}`
+    : 'clean'
+  console.log(`  the no-path door's own bot bill (v0.716.0): ${npb.n} ride(s) - fuel ${laneRow(npb.fuel)} / food ${laneRow(npb.food)} / iron ${laneRow(npb.iron)} - the repeats' column vs the crowd's spread names the spike's owner`)
+}
 // (v0.706.0) THE DOORSTEP STORM'S CENSUS - the three lanes' doors fold
 // into one toll (a census is a SUM, not a row of cells): the storm's
 // size per face and the decide skins' share of it (the A* doorstep
