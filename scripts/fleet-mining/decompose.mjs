@@ -71,6 +71,7 @@ import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
+import { swirlBill } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
@@ -366,6 +367,26 @@ console.log('  per-bot ends:', Object.entries(ledger.perBot).map(([b, r]) => `${
       console.log(`  the frozen blindness: brackets ${rc.blind.lines} (passes n${p.n}, avg ${p.n > 0 ? (p.sum / p.n).toFixed(1) : 'n/a'}, max ${p.max}), full-blind (0 shore + 0 probes) ${rc.blind.fullBlind}${rc.blind.fullBlind > 0 ? ' - THE FROZEN DIVE GATHERS NOTHING before the reconnect lane takes over' : ''}, bracketless ${rc.blind.bracketlessStanddowns}`)
     }
     if (rc.unparsed > 0) console.log(`  unparsed: ${rc.unparsed} refused blind: token(s) - the escape hatch`)
+  }
+}
+// (v0.726.0) THE INSTANT CHURN - the rescue lane's zero-close loop: a start
+// whose close lands in 0.0s is a trigger arguing with its own lane (the
+// trigger said drowning, the lane said surface-safe in the same breath).
+// The 47th's F13 rode it 78 times of 83 starts and died of drown anyway -
+// the churn priced, the concentration verdict names the bot (the pinbill
+// law: the bars never invent, the minority close stays out).
+{
+  const sw = swirlBill(lines)
+  if (sw.instant > 0 || sw.orphan > 0) {
+    console.log('--- THE INSTANT CHURN (v0.726.0: the rescue lane\'s own zero-close) ---')
+    console.log(`  instant closes: ${sw.instant} of ${sw.starts} start(s), orphan close(s) ${sw.orphan} (the close with no open start - the lane's own leak)`)
+    for (const v of sw.verdicts) {
+      console.log(`  THE INSTANT CHURN: ${v.bot} closed ${v.instant} of ${v.of} starts in 0.0s (${(v.share * 100).toFixed(1)}%) - the trigger's drowning and the lane's surface-safe in the same breath`)
+    }
+    if (!sw.verdicts.length) {
+      const top = Object.entries(sw.bots).filter(([, b]) => b.instant > 0).sort((a, b) => b[1].instant - a[1].instant)[0]
+      console.log(`  the churn under the bar: no bot crossed instant>=10 & share>=50%${top ? ` (top ${top[0]}=${top[1].instant} of ${top[1].starts} starts)` : ''} - the boundary priced, no verdict`)
+    }
   }
 }
 // (v0.376.0) THE RELEASE STARVATION CENSUS - released is 0/230 across five
