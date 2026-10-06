@@ -2,6 +2,7 @@
 // Usage: node scripts/fleet-mining/decompose.mjs <path-to-fleet19.log>
 import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
+import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { askWhyCensus } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat)
 import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
@@ -255,6 +256,17 @@ console.log('  per-bot rescue starts:', fmt(perBot(/drowning rescue start/)))
 const ledger = rescueLedger(lines)
 console.log('--- RESCUE END-STATE LEDGER (v0.368.0) ---')
 console.log(`  starts: ${ledger.totals.starts}  unclosed at EOF: ${ledger.totals.unclosed}  orphans: ${ledger.orphanEnds}`)
+// (v0.679.0) THE ORPHAN OWNER - the orphans' per-bot split: the fleet-wide
+// count answers 'how many', the owner split answers 'WHOSE client died'
+// (the stand-down's own words: 'the reconnect lane owns a dead client').
+// The 21st flight rode 8 orphans - F3 x4, F8 x1, F19 x3 - the dead-client
+// class's owners, beside the same face's drown=4 'o2 reset(-1)' deaths.
+const oo = orphanOwnerCensus(ledger.orphanEndLines)
+if (oo.total > 0) {
+  const owners = Object.entries(oo.owners).map(([b, n]) => `${b}=${n}`).join(' ') || 'untagged'
+  const classes = Object.entries(oo.byClass).map(([k, n]) => `${k} ${n}`).join(', ')
+  console.log(`  orphan owners: ${owners} (${classes})${oo.unattributed > 0 ? `, unattributed ${oo.unattributed}` : ''} - the dead-client class names its bot`)
+}
 console.log(`  complete: ${ledger.totals.complete} (standing-wet ${ledger.totals.completeStandingWet})  released: ${ledger.totals.released}  frozen standdown: ${ledger.totals.frozenStanddown}`)
 console.log(`  timeout: ${ledger.totals.timeout}  dead-in-rescue: ${ledger.totals.dead}  bot-gone: ${ledger.totals.botGone}  error abort: ${ledger.totals.abortedError}`)
 const timeoutRe = RESCUE_END_CLASSES.find(c => c.key === 'timeout').re
