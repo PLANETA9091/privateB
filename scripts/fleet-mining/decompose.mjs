@@ -69,6 +69,7 @@ import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/li
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
+import { bankDocket } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1160,6 +1161,20 @@ console.log('  bank visits:', bankVisitLines)
 // that banked nothing is the 23rd's own finding (THE SILENT BANK).
 const bankYieldRow = bankYield(bankCensus.loot ? bankCensus.loot.banked : null, bankVisitLines)
 if (bankYieldRow) console.log(`  bank yield: ${bankYieldRow.rateUPerVisit}u/visit (${bankYieldRow.banked}u banked over ${bankYieldRow.visits} visit-lines)${bankYieldRow.silent ? ' - THE SILENT BANK (the lane walked, the mass never moved)' : ' - the bank moved'}`)
+// (v0.700.0) THE BANK'S DOCKET - the silent bank's own anatomy: the visit
+// lines dissect into the door leg (the walk failed: chest unreachable /
+// no chest reached) and the empty-pocket leg (the chest reached, the
+// deposit moved 0: the zero probes + the deposit zeros). The fork names
+// the silence's owner - the fleet's cure input rides whichever leg owns.
+const bd = bankDocket(lines)
+if (bd && (bd.door.total > 0 || bd.pocket.total > 0)) {
+  const fork = bd.pocket.total > bd.door.total
+    ? ' - THE POCKET MET THE CHEST EMPTY: the visits and the mass lived on different clocks'
+    : bd.door.total > bd.pocket.total
+      ? ' - THE CHEST DOOR NEVER OPENED: the walk\'s own failures own the silence'
+      : ' - THE DOCKET SPLITS: the door and the empty pocket share the silence'
+  console.log(`  the bank's docket (v0.700.0): the door leg ${bd.door.total} (chest unreachable ${bd.door.unreachable}, no chest ${bd.door.noChest}, lid timeouts ${bd.door.lidTimeout}, beyond radius ${bd.door.beyondRadius}), the empty-pocket leg ${bd.pocket.total} (zero probes ${bd.pocket.zeroProbes}, deposit zeros ${bd.pocket.depositZeros}), the why-phrase ${bd.pocket.nothingToDeposit}, views ${bd.views}, fallbacks ${bd.fallbacks}${bd.depositPositives > 0 ? `, deposit positives ${bd.depositPositives}` : ''}${fork}`)
+}
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))
 console.log('  deposit probe:', count(/deposit/i))
