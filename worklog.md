@@ -18032,3 +18032,24 @@ Stage Summary:
 - The era alternates: the 40th's storm + leak face (12 deaths, 40.8%) answered by the 41st's water face (5 deaths, 2.8% leak, the frozen family's spike).
 - Fronts: the 42nd's mine (the relog bill's 2nd read, the dial's 10th, the census's 7th), the frozen blindness (15/15 full-blind), the fuel no-path spike's anatomy, the gather drought (6 faces).
 - Next fire: (1) poll 37504847346 FIRST - SUCCESS -> mine with the v0.715.0 decompose. (2) push-CI verdict on 7ab7bec (37504832324 / its arbiter). (3) dispatch law x54 on clear.
+
+---
+Task ID: cron30-20261007-0200
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0200 - the 42nd's mine (found SUCCESS), the no-path spike's own bot bill, dispatch on clear
+
+Work Log:
+- Repo synced at f2ea9bf (no lane arrival). VERDICTS ALL GREEN: 7ab7bec push-CI 37504832324 SUCCESS; f2ea9bf worklog push 37504980636 success. Face 42 = 37504847346 (on 7ab7bec) IN_PROGRESS at poll start, landed SUCCESS by mid-fire.
+- ONE ATOMIC IMPROVEMENT: v0.716.0 THE NOPATH DOOR'S OWN BOT BILL (28c2e3d, package.json 0.715.0 -> 0.716.0) - the fuel no-path spike's anatomy priced COLUMN vs CROWD. nopathbill.mjs nopathBill(lines) folds the door family's no-path rides per bot per lane (fuel/food/iron): the repeats name the column reproducing (the v0.715.0 law's door-side twin), the distinct spread names the crowd riding (the goal's own verdict). Zero new skin regexes (decideSkin()'s own class rides); the grammar is ASK_WHY_RE's byte + the bot token + the v0.705.0 iron double-prefix skin (the ask ladder is blind to it, the bill is not). The honest silence (null) on a no-path-free face; one-lane faces read the others' real zeros.
+- THE ERA BYTE-EXACT: the 40th rides 18 (fuel 15 by 10 bots THE CROWD; iron 3 by F4 THE COLUMN); the 41st rides 13 (fuel 6 by 4, food 4 by 2, iron 3 by F15 - the column moved house; F15 the CROSS-LANE whale 8 of 13); the 42nd rides 10 (fuel 7 by 7 pure spread ZERO repeats, food 3 by 1 F8's column, iron clean).
+- FACE 42 MINED (586 rows, the v0.716.0 decompose): 13 deaths, THE CHASE FACE - 9 flee deaths ALL chase (crossfire 0; close 6/mid 1/far 2; 'flee carries 900u/9 deaths - the ESCAPE fails'); 17 flee episodes. The relog bill's 2ND READ: 7 -> 3 stalls (43%, r1 only; F5=3 F11=2 own 71%). The door leg 61 (unreachable 47, decide 34) - the door's rate 45.5% of 134 (the 10th point, THE ERA HIGH). Leaks 815u = 50.7% of mined (the era high returned), re-gather 43%, the leak clock all-LATE (1256u/13 late third, center 0.98; max 230u F7).
+- Tests: +4; nopathbill 4/4, neighbors 30/30 (bankdocket/askwhy/bankfail), syntax 510 files 0-broken. Zero fleet wiring (mining-surface only, the v0.379/.../v0.715.0 precedent).
+- Commit 28c2e3d pushed attempt-1 clean (author verified PLANETA9091 pre-push and post-commit). push-CI 37509175651 in_progress at fire's end (not waited honestly).
+- DISPATCH LAW x54: the queue clear -> POST 204 -> FACE 43 = 37509214512 QUEUED then IN_PROGRESS on 28c2e3d (the v0.716.0 tree's first face; materialization verified).
+
+Stage Summary:
+- Version 0.716.0 (THE NOPATH DOOR'S OWN BOT BILL, 28c2e3d); next free 0.717.0; dispatch law x54 (face 43 37509214512).
+- The no-path spike's anatomy splits the cure: the fuel side is CROWD-shaped (the goal's side - the coordinate lens's front), the iron/food side is COLUMN-shaped (the bot's stance), the 41st priced the cross-lane rider (F15, every lane refused one bot's stance).
+- The era: 40th leak+storm, 41st water+frozen, 42nd the chase face (the disengage leak's own face, 9 chase deaths) with the leak back at 50.7% and the door rate's era high 45.5%.
+- Fronts: the 43rd's mine (the no-path bill's 4th read, the relog bill's 3rd, the dial's 11th), the cross-lane rider's stance anatomy, the chase face's disengage design input, the leak clock's all-LATE concentration.
+- Next fire: (1) poll 37509214512 FIRST - SUCCESS -> mine with the v0.716.0 decompose. (2) push-CI verdict on 28c2e3d (37509175651 / its arbiter). (3) dispatch law x55 on clear.
