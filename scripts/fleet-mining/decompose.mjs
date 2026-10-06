@@ -84,6 +84,7 @@ import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.43
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
+import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
 import { dupClock } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -1258,6 +1259,19 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       ? Object.entries(kb.paired.byBot).map(([k, v]) => `${k} kicks ${v.kicks}/relogs ${v.relogs}`).join(', ')
       : 'none - the churn split clean'
     console.log(`  the kick's own churn (v0.717.0): ${kb.kicks} kick(s) across ${Object.keys(kb.kickBots).length} bot(s) + ${kb.relogs} relog(s) = ${kb.churn} churn event(s); the pair: ${kb.paired.n} bot(s) rode BOTH lanes (${pairTail}); the split: kick-only ${kb.kickOnly.n} (${kbSort(kb.kickOnly.bots)}), relog-only ${kb.relogOnly.n} (${kbSort(kb.relogOnly.bots)}); the churn's repeats: ${kb.repeats.n} bot(s) 2+ events owning ${kb.repeats.owned}/${kb.churn} (${kbpct(kb.repeats.share)}%)`)
+  }
+}
+// (v0.730.0) THE KICK'S OWN KINDS - the kicked clients' reason census. The
+// frozen census sweeps exactly one class (duplicate_login); the 49th's
+// single 'disconnect.timeout' kick rode unread - a face could lose ten
+// clients to timeouts and every lens would read silence. Opens on kicks
+// > 0 (the honest silence); the dup class reconciles against dupKicks.
+{
+  const kk = kickKindCensus(lines)
+  if (kk) {
+    const kindTail = Object.entries(kk.byKind).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' / ')
+    const dupN0 = (frozenCensus(lines).dupKicks && frozenCensus(lines).dupKicks.n) || 0
+    console.log(`  the kick's own kinds (v0.730.0): ${kk.n} kicked line(s) - ${kindTail}; the dup class ${kk.dupN}, the dupKicks reconcile ${kk.dupN === dupN0 ? 'holds' : `MISSES (census ${kk.dupN} vs dupKicks ${dupN0})`}`)
   }
 }
 // (v0.729.0) THE DUPLICATE'S OWN CLOCK - the server log's join side. The
