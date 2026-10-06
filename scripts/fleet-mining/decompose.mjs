@@ -262,6 +262,27 @@ if (sweep.keywordOnly.length) {
           : `- the deadline's own storm (v0.721.0): ${c.burstEndPhase} of ${c.burstDeaths} burst rider(s) sit in the final ${c.endPhaseWindowS}s`
         console.log(`  burst share: ${c.burstDeaths} of ${c.timed} deaths rode bursts (>=${c.burstMin} in ${c.burstWindowS}s) (${share}%) in ${c.burstClusters} cluster(s) - the storm's own share ${stormNote}`)
       }
+      // (v0.733.0) THE SIEGE'S OWN THIRDS - the death count's early/mid/late
+      // thirds over the face's own clock (the zero clock's law by reuse).
+      // The dominant third (>= 2/3 of the timed deaths in one third) names
+      // the storm's seat: late = THE DEADLINE'S OWN THIRD (the calm opening
+      // the storm ended), early = THE OPENING'S OWN STORM, mid = THE
+      // MIDDLE'S OWN STORM; the spread reads honestly. The grains never
+      // collide: the tax prices 60s units, the burst 30s windows, the thirds
+      // the face grain.
+      if (c.thirds) {
+        const t = c.thirds
+        const unplacedNote = t.unplaced > 0 ? `, ${t.unplaced} unplaced` : ''
+        const dom = Math.max(t.early, t.mid, t.late)
+        const domName = dom === t.late ? 'late' : (dom === t.mid ? 'mid' : 'early')
+        const dominant = dom >= Math.ceil((2 * c.timed) / 3)
+        let seat
+        if (!dominant) seat = "- the deaths spread across the face's clock"
+        else if (domName === 'late') seat = `- THE DEADLINE'S OWN THIRD: the opening ${Math.round(t.thirdS)}s took ${t.early}, the storm rode the face's end`
+        else if (domName === 'mid') seat = `- THE MIDDLE'S OWN STORM: ${t.mid} of ${c.timed} death(s) peaked mid-face`
+        else seat = `- THE OPENING'S OWN STORM: ${t.early} of ${c.timed} death(s) led the face`
+        console.log(`  the siege's own thirds (v0.733.0): early ${t.early} / mid ${t.mid} / late ${t.late} (thirds ${Math.round(t.thirdS)}s of the clock's ${c.clockEnd}s${unplacedNote}) ${seat}`)
+      }
     }
   }
 }

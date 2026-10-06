@@ -227,6 +227,35 @@ export function sealDeathCensus (lines) {
   const endPhaseLost = clockEnd === null
     ? 0
     : deathRows.reduce((s, r) => s + (r.ts !== null && r.ts >= clockEnd - DEATH_END_PHASE_WINDOW_S ? r.lost : 0), 0)
+  // (v0.733.0) THE SIEGE'S OWN THIRDS - the death count's own early/mid/late
+  // thirds over the face's FULL clock (the zero clock's v0.441.0 law by
+  // reuse: the hop zeros' early/mid/late anatomy rides the same cut). The
+  // end-phase tax (v0.675.0) prices the final 60s' UNITS, the burst share
+  // (v0.676.0) prices the 30s windows, the siege pace (v0.680.0) prices the
+  // timed span's density - none asked WHERE in the face's own clock the
+  // deaths sat. The 51st face (run 37543519356) is the motive: 18 deaths,
+  // first at ts=441 of clock end 841 - the opening THIRD took 0, the late
+  // third took 16 (89%) - the storm is the deadline's own, and the calm
+  // opening is the face's witness (the calm paradox v0.701.0 prices the
+  // whole-calm face; this prices the calm OPENING the storm ended). The
+  // boundary second belongs to the LATER third (t < thirdS strict - the
+  // zero clock's own cut). The clock never invents: no clock end or no
+  // timed death, no thirds (the shape stays null - the calm paradox owns
+  // the zero-death face); untimed deaths (pre-first-hb) stay out of the
+  // counts and ride 'unplaced' honestly.
+  let thirds = null
+  if (clockEnd !== null && timedTs.length > 0) {
+    const thirdS = clockEnd / 3
+    let early = 0
+    let mid = 0
+    let late = 0
+    for (const t of timedTs) {
+      if (t < thirdS) early++
+      else if (t < 2 * thirdS) mid++
+      else late++
+    }
+    thirds = { early, mid, late, thirdS, unplaced: stamps.length - timedTs.length }
+  }
   return {
     drops,
     emptyReads,
@@ -250,7 +279,8 @@ export function sealDeathCensus (lines) {
       burstClusters,
       burstEndPhase,
       pace,
-      spanS
+      spanS,
+      thirds
     }
   }
 }

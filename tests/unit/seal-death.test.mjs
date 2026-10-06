@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import { parseSealDeathDrop, sealDeathCensus, strandedPiles, SEAL_DEATH_LOSS_RE, SEAL_DEATH_EMPTY_RE, DEATH_END_PHASE_WINDOW_S, DEATH_BURST_WINDOW_S, DEATH_BURST_MIN } from '../../src/lib/sealdeath.mjs'
 import { SEAL_PRIORITY } from '../../src/lib/shelter.mjs'
 
-const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0 } // (v0.721.0) the deadline's own storm joins the zero shape
+const CLOCK_ZERO = { timed: 0, untimed: 0, clockEnd: null, firstTs: null, lastTs: null, endPhase: 0, endPhaseWindowS: 60, maxBurst: 0, burstWindowS: 30, burstMin: 3, burstDeaths: 0, burstClusters: 0, burstEndPhase: 0, pace: null, spanS: 0, thirds: null } // (v0.733.0) the siege's own thirds ride the zero shape as null (the calm paradox owns the zero-death face)
 
 test('seal-death: the F14 verbatim loss parses - stacks SUMMED per name, seal-class priced', () => {
   const line = 'F14 [F14] death drop: ~172u lost at [-117,60,380] (cobblestone 64, diorite 28, dirt 26, cobblestone 19, andesite 7, +12 more)'
@@ -585,4 +585,106 @@ test('seal-death siege pace: the clock never invents - null on a zero span', () 
 test('WIRING: the decompose prints the siege pace row', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.match(src, /siege pace: \$\{c\.pace\} deaths\/min/, 'the sustained pressure prints beside the death clock')
+})
+
+test('seal-death thirds: the 51st face byte-verbatim - the deadline\'s own third (v0.733.0)', () => {
+  // face 51 (run 37543519356): 18 deaths, first at ts=441 of clock end 841.
+  // The era's own stamps: 441 461 621 681 701 721 721 741 741 761 761 761
+  // 801 801 801 821 841 841. Thirds of 841 = 280.33: the opening third
+  // took 0, the middle took 2 (441, 461), the late took 16 (89%) - the
+  // storm is the deadline's own, the opening is the face's witness.
+  const stamps = [441, 461, 621, 681, 701, 721, 721, 741, 741, 761, 761, 761, 801, 801, 801, 821, 841, 841]
+  const log = []
+  let n = 1
+  let seen = 0
+  for (const ts of stamps) {
+    while (seen < ts) {
+      // the hb cadence walks ahead of the deaths so each stamp is the last hb
+      seen = Math.min(ts, seen + 20)
+      log.push(`b] n=${n} ts=${seen}s rss=300M late=5ms mainLate=0ms`)
+      n++
+    }
+    log.push(`F${(seen % 19) + 1} [F${(seen % 19) + 1}] death drop: pocket read empty at death (0u)`)
+  }
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.timed, 18)
+  assert.equal(c.clock.clockEnd, 841)
+  assert.deepEqual(c.clock.thirds, { early: 0, mid: 2, late: 16, thirdS: 841 / 3, unplaced: 0 })
+})
+
+test('seal-death thirds: the boundary second belongs to the LATER third', () => {
+  // clock end 840 -> thirdS exactly 280: ts=100 early, ts=279 early (the
+  // strict cut), ts=280 mid, ts=559 mid, ts=560 late. The zero clock's
+  // own law - the boundary second joins the later third.
+  const log = [
+    'b] n=1 ts=100s rss=250M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=2 ts=279s rss=250M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=3 ts=280s rss=250M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=4 ts=559s rss=250M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=5 ts=560s rss=250M late=5ms mainLate=0ms',
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=6 ts=840s rss=250M late=5ms mainLate=0ms'
+  ]
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.timed, 5)
+  assert.deepEqual(c.clock.thirds, { early: 2, mid: 2, late: 1, thirdS: 280, unplaced: 0 })
+})
+
+test('seal-death thirds: the untimed death rides unplaced, never a third', () => {
+  // a death before the first hb has no stamp - the counts exclude it and
+  // the field names it (the clock never invents).
+  const log = [
+    'F1 [F1] death drop: pocket read empty at death (0u)',
+    'b] n=1 ts=300s rss=250M late=5ms mainLate=0ms',
+    'F2 [F2] death drop: pocket read empty at death (0u)',
+    'b] n=2 ts=900s rss=250M late=5ms mainLate=0ms'
+  ]
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.timed, 1)
+  assert.equal(c.clock.untimed, 1)
+  assert.deepEqual(c.clock.thirds, { early: 0, mid: 1, late: 0, thirdS: 300, unplaced: 1 })
+})
+
+test('seal-death thirds: the honest silences - no clock end, no deaths', () => {
+  // no hb, no clock end - the thirds stay null (the shape never invents a
+  // window it did not see); no deaths - the calm paradox owns the face.
+  const noClock = sealDeathCensus(['F1 [F1] death drop: pocket read empty at death (0u)'])
+  assert.equal(noClock.clock.timed, 0)
+  assert.equal(noClock.clock.clockEnd, null)
+  assert.equal(noClock.clock.thirds, null)
+  const calm = sealDeathCensus(['b] n=1 ts=600s rss=250M late=5ms mainLate=0ms'])
+  assert.equal(calm.clock.timed, 0)
+  assert.equal(calm.clock.clockEnd, 600)
+  assert.equal(calm.clock.thirds, null)
+})
+
+test('seal-death thirds: the spread case prices honestly (no dominant seat)', () => {
+  // 2/2/2 across thirds of 200 (clock end 600): no third holds 2/3 of 6
+  // (the bar is ceil(4) = 4) - the counts stay, the seat stays unnamed.
+  const log = []
+  const stamps = [50, 150, 250, 350, 450, 550]
+  let n = 1
+  let seen = 0
+  for (const ts of stamps) {
+    while (seen < ts) {
+      seen = Math.min(ts, seen + 50)
+      log.push(`b] n=${n} ts=${seen}s rss=250M late=5ms mainLate=0ms`)
+      n++
+    }
+    log.push('F1 [F1] death drop: pocket read empty at death (0u)')
+  }
+  log.push('b] n=7 ts=600s rss=250M late=5ms mainLate=0ms') // the face's clock end - the last hb, not the last death
+  const c = sealDeathCensus(log)
+  assert.equal(c.clock.timed, 6)
+  assert.deepEqual(c.clock.thirds, { early: 2, mid: 2, late: 2, thirdS: 200, unplaced: 0 })
+})
+
+test('WIRING: the decompose prints the siege thirds row (v0.733.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /the siege's own thirds \(v0\.733\.0\): early \$\{t\.early\} \/ mid \$\{t\.mid\} \/ late \$\{t\.late\}/, 'the face grain prints beside the burst share')
+  assert.match(src, /THE DEADLINE'S OWN THIRD/, 'the dominant-late seat names the storm')
 })
