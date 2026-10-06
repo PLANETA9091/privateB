@@ -84,6 +84,7 @@ import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.43
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
+import { dupClock } from '../../src/lib/dupclock.mjs' // (v0.728.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -94,13 +95,19 @@ import { houndCensus } from '../../src/lib/houndcensus.mjs' // (v0.433.0) the ho
 import { faceFate } from '../../src/lib/facefate.mjs' // (v0.546.0) the frozen book's READER side - the face's own fate named before the censuses speak
 
 const file = process.argv[2]
-if (!file) { console.error('usage: decompose.mjs <fleet19.log> [priorFace.log]'); process.exit(1) }
+if (!file) { console.error('usage: decompose.mjs <fleet19.log> [priorFace.log] [serverLog.log]'); process.exit(1) }
 const lines = readFileSync(file, 'utf8').split('\n')
 // (v0.471.0) the optional prior face's log - the promise persistence's
 // roll call (the kept bots of the face BEFORE this one). Absent -> the
 // persistence row stays silent (no prior face, no cross-face read).
 const prevFile = process.argv[3] || null
 const prevLines = prevFile ? readFileSync(prevFile, 'utf8').split('\n') : null
+// (v0.728.0) the optional SERVER log - the duplicate churn's own clock
+// (the join side the fleet log never carries: every duplicate loss with
+// its wall-clock stamp, the seconds between them, the re-spawn bursts).
+// Absent -> the clock row stays silent (the fleet lens's own account).
+const serverFile = process.argv[4] || null
+const serverLines = serverFile ? readFileSync(serverFile, 'utf8').split('\n') : null
 
 const count = (re) => lines.filter(l => re.test(l)).length
 const perBot = (re) => {
@@ -1251,6 +1258,35 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       ? Object.entries(kb.paired.byBot).map(([k, v]) => `${k} kicks ${v.kicks}/relogs ${v.relogs}`).join(', ')
       : 'none - the churn split clean'
     console.log(`  the kick's own churn (v0.717.0): ${kb.kicks} kick(s) across ${Object.keys(kb.kickBots).length} bot(s) + ${kb.relogs} relog(s) = ${kb.churn} churn event(s); the pair: ${kb.paired.n} bot(s) rode BOTH lanes (${pairTail}); the split: kick-only ${kb.kickOnly.n} (${kbSort(kb.kickOnly.bots)}), relog-only ${kb.relogOnly.n} (${kbSort(kb.relogOnly.bots)}); the churn's repeats: ${kb.repeats.n} bot(s) 2+ events owning ${kb.repeats.owned}/${kb.churn} (${kbpct(kb.repeats.share)}%)`)
+  }
+}
+// (v0.728.0) THE DUPLICATE'S OWN CLOCK - the server log's join side. The
+// fleet log's KICKED line prints only when the kick packet reaches a
+// living client; the server's clock owns every duplicate loss and the
+// seconds between them. The 48th face: the fleet printed 9 kicked
+// lines, the server owned 12 - F3 lost four sessions in 36s, F19 three
+// in 35s (the fleet saw one of the three). Opens on losses > 0 (the
+// swirlbill honest-silence law); a clockless mine keeps the old shape.
+{
+  const dc = serverLines ? dupClock(serverLines) : null
+  if (dc) {
+    const dcSort = (m) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    console.log(`--- THE DUPLICATE'S OWN CLOCK (v0.728.0: the server log's join side) ---`)
+    console.log(`  duplicate losses: ${dc.losses.n} per-bot: ${dcSort(dc.losses.byBot)} (${dc.losses.first}..${dc.losses.last})`)
+    const cadTail = Object.entries(dc.losses.cadence).map(([b, gaps]) => `${b} ${gaps.join('s ')}s`).join(', ')
+    if (cadTail) console.log(`  the cadence: ${cadTail}`)
+    const fleetKicks = (frozenCensus(lines).dupKicks && frozenCensus(lines).dupKicks.n) || 0
+    const delta = dc.losses.n - fleetKicks
+    console.log(`  the fleet lens printed ${fleetKicks} kicked line(s) - the server's clock owns ${dc.losses.n}${delta > 0 ? ` (${delta} the fleet never saw)` : fleetKicks === dc.losses.n ? ' (the lens saw every loss)' : ''}`)
+    if (dc.bursts.n > 0) {
+      const burstTail = dc.bursts.list.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s (${b.first}..${b.last})`).join('; ')
+      console.log(`  THE DUPLICATE BURST: ${burstTail} - the re-spawn lane's own loop (the patience is not the cure)`)
+    } else {
+      const [topBot, topN] = Object.entries(dc.losses.byBot).sort((a, b) => b[1] - a[1])[0]
+      console.log(`  no burst (top ${topBot} ${topN} loss(es)) - the churn stayed honest to its bars`)
+    }
+    if (dc.storm) console.log(`  the fleet's own storm: ${dc.storm.n} loss(es) across ${dc.storm.bots} bot(s) (${dc.storm.first}..${dc.storm.last}, the 60s window)`)
+    if (dc.otherLosses > 0) console.log(`  other losses (not the duplicate class): ${dc.otherLosses}`)
   }
 }
 console.log('--- NUDGE FAMILY FIELD LEGS ---')
