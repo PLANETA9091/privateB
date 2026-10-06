@@ -2186,7 +2186,8 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const seg = []
     for (const cls of ['cured', 'flat', 'negative']) {
       const c = cc.byClass[cls]
-      if (c) seg.push(`${cls} ${c.n}: ${c.seconds.min}..${c.seconds.max}s (median ${c.seconds.median}) +${c.levels.min}..${c.levels.max} lv`)
+      // (v0.697.0) the stairs' tax rides the rent: seconds per level
+      if (c) seg.push(`${cls} ${c.n}: ${c.seconds.min}..${c.seconds.max}s (median ${c.seconds.median}) +${c.levels.min}..${c.levels.max} lv (tax ${c.rate.min.toFixed(2)}..${c.rate.max.toFixed(2)} s/lv)`)
     }
     if (seg.length) {
       const f = cc.byClass.flat
@@ -2194,7 +2195,8 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       const fork = f && c && f.seconds.median > c.seconds.median
         ? ' - THE FLAT WALK\'S RENT IS THE CLIMB ITSELF'
         : (f && c ? ' - THE CLIMB DOESN\'T SPLIT THE CLASSES: the flat walk\'s toll is not the climb' : '')
-      console.log(`  the climb's price: ${cc.trips} trip(s) closed, ${cc.climbed} climbed - ${seg.join(', ')}${fork}`)
+      const nc = cc.noClimb > 0 ? ` (noClimb ${cc.noClimb}: the zero-rent walk${cc.byClass.cured ? ' - the cure that never paid the stairs' : ''})` : ''
+      console.log(`  the climb's price: ${cc.trips} trip(s) closed, ${cc.climbed} climbed - ${seg.join(', ')}${fork}${nc}`)
     }
   }
 }

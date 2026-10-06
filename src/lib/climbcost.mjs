@@ -1,5 +1,10 @@
 //
-// climbcost.mjs - THE CLIMB'S PRICE (v0.694.0)
+// climbcost.mjs - THE CLIMB'S PRICE (v0.694.0) + THE STAIRS' TAX (v0.697.0:
+// the rate read - the face-31 keys: one cure paid 79s for +23 levels while
+// the OTHER cure paid nothing at all (the noClimb cure, +5 wood at zero
+// climb) - the HEIGHT DIFFERENCE is the rent's own variable, so the lens
+// now prices each class's seconds-per-level (the stairs' tax) beside the
+// raw rent, and the decompose row names the noClimb trips out loud)
 //
 // The flat walk's anatomy - the OPEN FRONTS' own next step (the fire-1800
 // hand-off: 'the flat walk's anatomy, the 45s gather window's own read').
@@ -66,7 +71,7 @@ const freshClasses = () => ({
 })
 
 const classSpan = (c) => c && c.levels.length
-  ? { n: c.levels.length, levels: spanOf(c.levels), steps: spanOf(c.steps), dug: spanOf(c.dug), seconds: spanOf(c.seconds) }
+  ? { n: c.levels.length, levels: spanOf(c.levels), steps: spanOf(c.steps), dug: spanOf(c.dug), seconds: spanOf(c.seconds), rate: spanOf(c.levels.map((lv, i) => lv > 0 ? c.seconds[i] / lv : null).filter((r) => r !== null)) }
   : null
 
 /**
@@ -74,9 +79,9 @@ const classSpan = (c) => c && c.levels.length
  *
  * @param {string[]|string} [lines] the face log (array or raw blob)
  * @returns {null|{trips: number, climbed: number,
- *   byClass: {cured: {n, levels, steps, dug, seconds}|null,
- *             flat: {n, levels, steps, dug, seconds}|null,
- *             negative: {n, levels, steps, dug, seconds}|null},
+ *   byClass: {cured: {n, levels, steps, dug, seconds, rate}|null,
+ *             flat: {n, levels, steps, dug, seconds, rate}|null,
+ *             negative: {n, levels, steps, dug, seconds, rate}|null},
  *   unread: number, noClimb: number, stray: number, orphans: number}}
  */
 export function woodClimbCost (lines) {

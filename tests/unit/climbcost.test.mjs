@@ -30,14 +30,16 @@ test('woodClimbCost reads face 29 byte-exact: the flats climbed 25..27s, the cur
     levels: { min: 16, median: 16, max: 16 },
     steps: { min: 16, median: 16, max: 16 },
     dug: { min: 33, median: 33, max: 33 },
-    seconds: { min: 39, median: 39, max: 39 }
+    seconds: { min: 39, median: 39, max: 39 },
+    rate: { min: 2.4375, median: 2.4375, max: 2.4375 } // the stairs' tax: 39s / 16 lv
   })
   assert.deepEqual(r.byClass.flat, {
     n: 2,
     levels: { min: 11, median: 11.5, max: 12 },
     steps: { min: 11, median: 11.5, max: 12 },
     dug: { min: 32, median: 33.5, max: 35 },
-    seconds: { min: 25, median: 26, max: 27 }
+    seconds: { min: 25, median: 26, max: 27 },
+    rate: { min: 2.25, median: 2.2613636363636367, max: 2.272727272727273 } // 27s/12lv, 25s/11lv
   })
   assert.equal(r.byClass.negative, null)
   assert.equal(r.unread, 0)
@@ -71,7 +73,8 @@ test('woodClimbCost anatomy split: the unread sentinel, the noClimb walk, the st
     levels: { min: 7, median: 7, max: 7 },
     steps: { min: 7, median: 7, max: 7 },
     dug: { min: 15, median: 15, max: 15 },
-    seconds: { min: 14, median: 14, max: 14 }
+    seconds: { min: 14, median: 14, max: 14 },
+    rate: { min: 2, median: 2, max: 2 }
   })
 })
 
@@ -96,6 +99,7 @@ test('woodClimbCost honest zeros, the second climb in one window, and the junk b
   assert.equal(two.stray, 1)
   assert.equal(two.noClimb, 0)
   assert.deepEqual(two.byClass.flat.seconds, { min: 27, median: 27, max: 27 })
+  assert.deepEqual(two.byClass.flat.rate, { min: 2.25, median: 2.25, max: 2.25 }) // 27s / 12 lv
   // junk-safe: non-input reads null (the smeltledger convention)
   assert.equal(woodClimbCost(42), null)
   assert.equal(woodClimbCost(null), null)
