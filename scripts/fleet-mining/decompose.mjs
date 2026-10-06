@@ -503,6 +503,10 @@ if (ew) {
 console.log('--- BANK-FLOW CENSUS (v0.382.0) ---')
 const bankCensus = bankFlowCensus(lines)
 if (bankCensus.loot) console.log(`  loot ledger: mined ${bankCensus.loot.mined} banked ${bankCensus.loot.banked} pocket ${bankCensus.loot.pocketUnits}u surplus ${bankCensus.loot.surplus}u conversion ${bankCensus.loot.conversionPct}%`)
+// (v0.682.0) THE CRATER VERDICT RIDE - the fleet's own decode judged the
+// banked share; the mining lens carries the verdict beside the numbers it
+// always read (the bank silence's NAME, not just its ledger row).
+if (bankCensus.crater) console.log(`  banked crater: ${bankCensus.crater.sharePct}% of the endgame loot reached chests (banked ${bankCensus.crater.banked} of ${bankCensus.crater.mass}u) - ${bankCensus.crater.tail}`)
 if (bankCensus.pocket) console.log(`  pocket anatomy: ${bankCensus.pocket.holders} holders, top ${bankCensus.pocket.topBot} ${bankCensus.pocket.topUnits}u (${bankCensus.pocket.topPct}%) - ${bankCensus.pocket.tail}`)
 if (bankCensus.surplus) console.log(`  surplus face: crafted-class ${bankCensus.surplus.craftedUnits}u of ${bankCensus.surplus.pocketUnits}u (${bankCensus.surplus.craftedPct}%), top ${bankCensus.surplus.top.map((t) => `${t.item} ${t.units}u`).join(', ') || 'none'}`)
 if (bankCensus.flow) console.log(`  bank flow: ${bankCensus.flow.rateUPerS}u/s (+${bankCensus.flow.bankedDelta}u over ${bankCensus.flow.windowS}s) - the ${bankCensus.flow.pocketUnits}u pocket needs ${bankCensus.flow.secondsPastDeadline}s past the deadline`)

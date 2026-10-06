@@ -364,3 +364,38 @@ test('pre-position census: the malformed tail is a junk line (the parser never i
   // a truncated tail (no closing paren before the row\'s own suffix) is junk
   assert.equal(parsePrePositionCensus('pre-position census: armed 17, landed 0 (+0u), failed 42 (top why: surface refused x31; climb-outs: stalled x17 BOOM'), null)
 })
+
+// (v0.682.0) THE CRATER VERDICT RIDE - the fleet's own v0.317.0 decode
+// printed the verdict; the mining lens carries it now. Byte-exact: the
+// 23rd flight's (37419141731) real crater line - the bank silence's NAME.
+test('bank-census: the crater verdict rides verbatim (the 23rd flight byte-exact)', () => {
+  const c = bankFlowCensus([
+    'loot ledger: mined=985 banked=0 smelted=1 pocket=761u/54s accounted=762 unaccounted=223 surplus=0u conversion=77.4%',
+    'banked crater decode: crater: 0.0% of the endgame loot reached chests (banked 0 of 761u) - the bank chains are the bottleneck, the mines are not'
+  ])
+  assert.deepEqual(c.crater, {
+    sharePct: 0, banked: 0, mass: 761,
+    tail: 'the bank chains are the bottleneck, the mines are not'
+  })
+})
+
+test('bank-census: the crater verdict - the last line wins, junk never invents', () => {
+  // two craters in one face: the later print carries the fuller count
+  const c = bankFlowCensus([
+    'banked crater decode: crater: 11.0% of the endgame loot reached chests (banked 83 of 754u) - the bank chains are the bottleneck, the mines are not',
+    'banked crater decode: crater: 4.2% of the endgame loot reached chests (banked 30 of 714u) - the bank chains are the bottleneck, the mines are not'
+  ])
+  assert.equal(c.crater.sharePct, 4.2)
+  assert.equal(c.crater.banked, 30)
+  assert.equal(c.crater.mass, 714)
+  // a healthy share prints nothing fleet-side -> the census reads null (honest silence, never invented)
+  const healthy = bankFlowCensus(['loot ledger: mined=100 banked=60 smelted=0 pocket=40u/3s accounted=100 unaccounted=0 surplus=0u conversion=100.0%'])
+  assert.equal(healthy.crater, null)
+  // junk battery: a renamed decode, a truncated pair, a non-string - all null
+  const junk = bankFlowCensus([
+    'banked crater decode: craterface: 0.0% of the endgame loot reached chests (banked 0 of 761u) - no',
+    'banked crater decode: crater: 0.0% of the endgame loot reached chests (banked 0 of ) - no',
+    42, null
+  ])
+  assert.equal(junk.crater, null)
+})

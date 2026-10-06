@@ -135,6 +135,15 @@ const BANK_FLOW_RE = /^bank flow: ([\d.]+)u\/s \(banked \+(\d+)u over (\d+)s\) -
 const BUDGET_RE = /^(F\d+) final bank budget: flow-priced (\d+)s \(fleet (?:bankable )?pocket (\d+)u(?: \(raw \d+u\))? at ([\d.]+)u\/s needs (\d+)s\) - the static (\d+)s covered only the fast flows(?: - the tail burst \((\d+)s, (\d+)u, (\d+)% of the window's delta\) is not a rate - priced at the ex-burst ([\d.]+)u\/s)?(?: - clamped to (\d+)s \(the kill margin\))?$/
 const ATTRIBUTION_RE = /^bank attribution: top (.+?); stranded: (.+)$/
 
+// (v0.682.0) THE CRATER VERDICT RIDE - the fleet's own v0.317.0 decode
+// already printed the verdict ('banked crater decode: crater: ...'); the
+// mining lens never carried it - the bank silence read its numbers (loot
+// ledger, doom why) but not its NAME. One parser, the last line wins,
+// junk never invents a crater (the body-guard law, same discipline as the
+// fleet-side decode: a healthy share prints nothing, so the census's null
+// is 'healthy or absent' - both read the same way, honestly).
+const CRATER_RE = /^banked crater decode: crater: ([\d.]+)% of the endgame loot reached chests \(banked (\d+) of (\d+)u\) - (.+)$/
+
 // (v0.387.0) THE DELIVERABLE CENSUS - the v0.385.0 arm's cause line carries
 // the priced numbers (fleet pocket Nu at Ru/s needs Ns vs Ns granted/left);
 // the blind-tool lesson applied to my own arm BEFORE the field needs it
@@ -302,5 +311,12 @@ export function bankFlowCensus(lines) {
     why: parseDoomWhy(dwM ? dwM[1] : null),
   } : null
 
-  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable }
+  // (v0.682.0) The crater verdict: the fleet's own banked-share judgment,
+  // ridden verbatim (the share, the pair it priced, the decode's tail).
+  const crM = last(CRATER_RE)
+  const crater = crM ? {
+    sharePct: num(crM[1]), banked: num(crM[2]), mass: num(crM[3]), tail: crM[4],
+  } : null
+
+  return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable, crater }
 }
