@@ -17417,3 +17417,22 @@ Stage Summary:
 - The 24th cross-verified (the lane's numbers zero disputes: crater 25.1%, gate endings 1/5, storm margin 20M); the 23rd/24th promise-rate arc: 25% -> 83%.
 - Fronts for next fire: the bank silence's deposit-flow autopsy (25.1% still under the 50% floor - the crater rides every mine now), the relog churn (37 kicks on the 23rd), the stick-drought (12/13), the flee wall's open-field signature (11/15 missed).
 - Next fire: (1) poll face 37424678301 FIRST - SUCCESS -> mine (the crater's 3rd read on the v0.682.0 tree, the gate promise's 3rd point, the siege pace's 4th read). (2) push-CI verdicts on 7756455/7684219. (3) dispatch law x31 on clear.
+
+---
+Task ID: cron30-20261006-1530
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1530 - poll the 25th flight, mine it, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo at 3728282 (up to date, no lane collision). Version 0.684.0, next free 0.685.0.
+- THE 25TH FLIGHT 37424678301 (on adcd437, v0.682.0's first face) completed SUCCESS - MINED (2903 lines, run37424678301/): THE BANK TURNED ALIVE - mined 2585 banked 1768 pocket 1008u conversion 108% (the crater's arc on the ledger side: 0% -> 25.1% -> ~68% banked share; the fleet's own bankedCraterDecode line never printed this face - the lens stayed honestly silent, CRATER_RE junk-safe held); deaths 1 only (F6 shot by Skeleton, 18u lost, fight verdict the TRADE loses), verdict CALM, max burst 1/30s; relog churn cooled (5 kicks vs the 23rd's 37); storm margin 85M (max +15M/gauge vs the 24th's +80M); MEMORY CORRELATION 6TH POINT: ents max 3627 @ rss 403-405M ALIVE (arc: 2691+1212M DEAD / 3667+526M / 3710+459M / 2246+459M / 2863+553M / 3627+405M - the verdict re-affirmed: rss climbs kill, ents are passengers); the gate promise lane SILENT this face (0 gate lines - frozencensus's honest null held); worst-slot stuck signature: sand held the worst seat all face (pct 0%..0%), the map holds 116 sand positions but 20 demands landed 6 launches + 14 unreachable skips (the delivery leg, v0.445.0's lever, still starved).
+- v0.685.0 THE WALL-MISS DISTANCE (725e960): the open-field signature's own clock - the wall's COUNT was priced (18 misses faces 42+43, 11 on the 24th, 3 on the 25th) but the door's TIMING never was. shieldledger.wallMissTiming {n, min, median, max, within5} prices the threat's distance at each wall miss (parseCombatLine's own dist lift - zero new parsing; null when zero misses, the calm face never invents a timing). decompose rides 'the wall-miss timing: threat at MIN..MAXu (median MED) - K/N already inside 5u (the door arrives after the threat is close)' beside the doors row. Maiden reads byte-exact on BOTH faces: the 24th 0.5..6.3u (median 3.3, 7/11 within 5u - the 0.5u miss the door's latest arrival) vs the 25th 2.6..4.6u (median 4, 3/3) - the wall is asked only after the threat stands close. Zero fleet wiring (mining-surface only).
+- Tests: shieldledger 13/13 (2 new + the zero-shape test rides the new field); syntax 478 files 0 broken; full unit 60 pass 0 fail (smelting.test.mjs cancelled by the known seq-runner pending-promise flake - never my files, CI's parallel runner arbitrates).
+- DISPATCH law x31: queue clear (the 25th landed; the only in-flight run was my own push-CI on 725e960 - push event, not a dispatch run) -> POST 204 -> face 37430980018 IN_PROGRESS on 725e960 (the 26th, the v0.685.0 tree's first face).
+- Two commits pushed attempt-1 clean both times (725e960 code, worklog next).
+
+Stage Summary:
+- Version 0.685.0 (725e960 + worklog); next free 0.686.0; dispatch law x31 (face 37430980018 in flight on 725e960).
+- The bank silence front RE-PRICED: the 25th banked 1768/2585 (~68%) - the crater arc 0% -> 25.1% -> ~68% across faces 23/24/25; the front widens from 'the bank is broken' to 'what flips the bank between faces' (the deposit-flow autopsy keeps its seat).
+- Fronts for next fire: the wall-miss timing's fleet design input (the door arrives late - arm the wall earlier?); the sand delivery leg (116 positions, 6 launches); the relog churn cooled; the wooden pickaxe tax (F12's 10-round fight on a pickaxe).
+- Next fire: (1) poll face 37430980018 FIRST - SUCCESS -> mine (the wall-miss timing's 3rd read on the v0.685.0 tree, the crater's 4th read, the siege pace's 5th read). (2) push-CI verdicts on 725e960/37430980018's push twin. (3) dispatch law x32 on clear.
