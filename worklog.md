@@ -17477,3 +17477,22 @@ Stage Summary:
 - THE BANK ARC CLOSED: the yield dial's 4 legs (0.0 -> 2.8 -> 11.3 -> 11.8u/visit) price the flip - the silent bank (the 23rd) healed into a stable ~11-12u/visit lane; the front's own question shifts to the famine anatomy's seat.
 - Fronts for next fire: the GATHER DROUGHT (the wood chain's log leg starved 3/3 wood famines on the 26th - the famine anatomy's first verdict; the cure input for woodplan's famineDue), the wall-miss timing's repeat (the 26th never asked the wall), the sand delivery leg (116 positions, 6 launches), the wooden pickaxe tax.
 - Next fire: (1) poll face 37434944132 FIRST - SUCCESS -> mine (the famine anatomy's 2nd read on the v0.687.0 tree, the wall-miss timing's repeat-or-silence, the bank yield's 5th leg, the correlation's 8th point). (2) push-CI verdicts on 99cd8c0. (3) dispatch law x33 on clear.
+
+---
+Task ID: cron30-20261006-1630
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1630 - poll the 27th flight, mine it, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo at ed5a866 (up to date, no lane collision). Version 0.687.0, next free 0.688.0. Push-CI on 99cd8c0 (v0.687.0) SUCCESS - the famine anatomy CI-proven.
+- THE 27TH FLIGHT 37434944132 (on 99cd8c0, the v0.687.0 tree's first face) SUCCESS 4/4 - MINED (3142 lines, run37434944132/): the famine anatomy's 2ND READ CONFIRMS THE GATHER DROUGHT - wood famines 2 (F7=1 F9=1), the starved slot logs 2/2 (the wood chain's head starved every time again; no repeats this face - the honest silence held), food famines 1 (F14, plate 0); the wall-miss timing's 2ND LIVE READ (the first on the v0.685.0 tree): 0.4..6.8u (median 3.05), 6/8 inside 5u - the 0.4u miss the newest latest-arrival record (the door asked when the threat stood half a block away); the bank yield's 5th leg 7.6u/visit (1013 banked over 133 visit-lines, conversion 97.4% - the dial dips, the bank still moved: arc 0.0 -> 2.8 -> 11.3 -> 11.8 -> 7.6); deaths 6 (mob=5 drown=1, the mob wave back); kicks 11 (F18 4); storm margin 77M (max jump +23M); CORRELATION 8TH POINT: ents max 3187 @ rss max 448M ALIVE (seven alive faces 405-553M, only the 1212M spike died).
+- v0.688.0 THE FAMINE REPEAT (4eecd9b, package.json bumped 0.687.0 -> 0.688.0): the drought's persistence read - one famine is a hunger, the SAME bot famine-ing again prices the walk between the famines (it delivered nothing). famineCensus grows repeats per family {n, byBot, span {min, median, max}|null} (the span in face lines = the drought's own clock; null on no repeats). decompose rides the repeats rows. Maiden read byte-exact on the 26th: F8's two wood famines sat 1739 lines apart (fleet19.log 294 -> 2033) - the drought sat across a whole face segment while the gather leg never delivered. The 27th cross-read: 0 repeats (the honest silence). Zero fleet wiring.
+- Tests: famine-ledger 5/5 (+2: the 26th span byte-exact + the family separation; the zero-shape rides the repeats field); syntax 480 files 0 broken; full unit every suite fail 0 (smelting cancelled by the known seq-runner flake, CI arbitrates).
+- DISPATCH law x33: the 27th landed -> queue clear of dispatch-runs -> POST 204 -> face 37438058900 IN_PROGRESS on 4eecd9b (the 28th, the v0.688.0 tree's first face).
+- Two commits pushed attempt-1 clean both times (4eecd9b code, worklog next).
+
+Stage Summary:
+- Version 0.688.0 (4eecd9b + worklog); next free 0.689.0; dispatch law x33 (face 37438058900 in flight on 4eecd9b).
+- THE GATHER DROUGHT CONFIRMED (2nd read: logs 2/2 + the 26th's 3/3 - the wood chain's head is the drought's stable seat); the wall-miss door's late arrival re-affirmed (median 3.05u, the 0.4u record); the bank dial's 5 legs hold a live lane.
+- Fronts for next fire: the gather drought's cure input (woodplan's famineDue rides the same anatomy - the log leg's walk needs its own verdict), the wall-miss door's design input (arm the wall earlier), the sand delivery leg (116 positions 6 launches), the mob wave's return (deaths mob=5 on the 27th).
+- Next fire: (1) poll face 37438058900 FIRST - SUCCESS -> mine (the famine anatomy's 3rd read on the v0.688.0 tree, the repeats' 2nd read, the wall-miss timing's 3rd read, the bank yield's 6th leg, the correlation's 9th point). (2) push-CI verdicts on 4eecd9b. (3) dispatch law x34 on clear.
