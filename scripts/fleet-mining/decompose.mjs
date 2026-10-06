@@ -66,6 +66,7 @@ import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) 
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
+import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -2398,6 +2399,26 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`    braked target [${t.x},${t.z}] (${t.land}) x${t.total} bots ${botsRow}`)
     }
     if (rc.unparsed > 0) console.log(`    unparsed: ${rc.unparsed} re-arm-lane line(s) the grammar refused - the escape hatch`)
+  }
+}
+
+// (v0.692.0) THE LOOP LEDGER - the per-bot swim loop's own account: the
+// launches spent, the stalls paid, the brakes eaten, the ground gained
+// across the paired stalls - and THE WHALE verdict for the zero-yield
+// loop (>= 50 launches, every paired stall gained <= 0). The 24th's F12
+// spent 152 launches across 4 targets while the cadence row said 'the
+// repeats earned their keep' (d 6..3, closed 50%) and the gain row said
+// 0..0 - both true, never reconciled; the ledger names the contradiction:
+// the progress rode the re-arms, the swims bought nothing. The silence
+// law: no whale, no row (the face's smaller loops stay data, never
+// verdicts).
+{
+  const loop = transitLoopLedger(lines)
+  if (loop && loop.whale) {
+    const w = loop.whale
+    const tt = w.topTarget ? ` (top ${w.topTarget.key} x${w.topTarget.n})` : ''
+    const gg = w.gains ? `, stall gains ${w.gains.min}..${w.gains.max} (${w.gains.n} paired, avg ${(w.gains.sum / w.gains.n).toFixed(1)})` : ''
+    console.log(`  loop ledger (v0.692.0): ${w.bot} spent ${w.launches} launch(es) across ${w.targets} target(s)${tt} - ${w.stalls} stall(s), ${w.brakes} brake(s)${gg} - THE WHALE'S LEDGER: the loop bought no ground`)
   }
 }
 
