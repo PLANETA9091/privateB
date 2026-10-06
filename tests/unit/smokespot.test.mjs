@@ -79,3 +79,18 @@ test('the dig-back guard: only a block may be re-dug - the water dig hangs', () 
   assert.equal(diggableBack(AIR), false)
   assert.equal(diggableBack(null), false)
 })
+
+import { placeReadVerdict } from '../../src/lib/smokespot.mjs'
+
+// THE CONFIRMATION LAW (v0.671.0): the place-back's read-back must name every
+// answer - the fluid class (the water that beat the place) used to print its
+// name and stay silent, indistinguishable from a confirmed placement.
+
+test('the place read verdict names every answer class', () => {
+  assert.equal(placeReadVerdict(SAND), 'block', 'a real block is the confirmed placement')
+  assert.equal(placeReadVerdict(WATER), 'fluid', 'the water-won race answers fluid and MUST warn')
+  assert.equal(placeReadVerdict(AIR), 'air')
+  assert.equal(placeReadVerdict(null), 'missing')
+  assert.equal(placeReadVerdict(undefined), 'missing')
+  assert.equal(placeReadVerdict(B('fluid', 'lava')), 'fluid', 'any fluid answers fluid')
+})

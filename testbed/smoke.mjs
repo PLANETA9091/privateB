@@ -9,7 +9,7 @@
 //
 // Usage: node testbed/smoke.mjs [host] [port] [username]
 import mineflayer from 'mineflayer'
-import { pickSmokeSpot, diggableBack } from '../src/lib/smokespot.mjs'
+import { pickSmokeSpot, diggableBack, placeReadVerdict } from '../src/lib/smokespot.mjs'
 import { Vec3 } from 'vec3'
 
 const host = process.argv[2] || '127.0.0.1'
@@ -205,7 +205,9 @@ bot.once('spawn', async () => {
         await bot.waitForTicks(10)
         const placed = bot.blockAt(spot.cell)
         step(`place -> ${spot.cell.floored()}: ${placed && placed.name}`)
-        if (!placed || placed.name === 'air') step('WARN: placement not confirmed (may be server desync)')
+        const verdict = placeReadVerdict(placed)
+        if (verdict === 'fluid') step('WARN: placement not confirmed - the cell answers fluid (the water won the race; the place is not in the world)')
+        else if (verdict !== 'block') step('WARN: placement not confirmed (may be server desync)')
         const toDig = bot.blockAt(spot.cell)
         if (diggableBack(toDig)) { // (v0.670.0) only a real block re-digs - a fluid (the water that beat the place) is skipped, digging it has no progress and hangs
           await bot.dig(toDig)

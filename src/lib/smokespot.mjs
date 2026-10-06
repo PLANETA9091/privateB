@@ -66,3 +66,16 @@ export function pickSmokeSpot({ feet, target, at }) {
 // water that beat the place) is skipped with a warn, never dug - digging a
 // fluid has no break progress and hangs the smoke script to its timeout.
 export const diggableBack = (b) => !!b && b.boundingBox === 'block'
+
+// (v0.671.0) THE PLACE READ VERDICT - the confirmation read's own lens.
+// The place-back step reads the cell back after 10 ticks; the old guard
+// warned only on air/missing, so a FLUID answer (the water that beat the
+// place between selection and click - the face 37386244195 class) printed
+// its name and stayed silent - the observer could not tell a confirmed
+// place from a watered cell. Every answer now names itself.
+export function placeReadVerdict(b) {
+  if (!b) return 'missing'
+  if (b.boundingBox === 'fluid') return 'fluid'
+  if (b.boundingBox === 'empty' || b.name === 'air') return 'air'
+  return 'block'
+}
