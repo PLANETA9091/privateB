@@ -17954,3 +17954,21 @@ Stage Summary:
 - The dial's two highest rates pair the era's two extreme yields (39.0% @ 430u, 37.4% @ 1369u) - the thermostat's load read needs the visit-line denominator priced.
 - Fronts: the 40th's mine (the bill's own-tree maiden read, the dial's 8th, the census's 5th), the flee-ground cross-read's instability, the gather drought (4 faces), the disengage leak.
 - Next fire: (1) poll 37493502472 FIRST - SUCCESS -> mine with the v0.711.0 decompose. (2) push-CI verdicts f657fbf (37493457939) + 002d08c (37491445895). (3) dispatch law x51 on clear.
+
+---
+Task ID: cron30-20261007-0030
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0030 - the 40th's poll window (long tail), one atomic improvement, poll-only
+
+Work Log:
+- Repo synced clean at c2838db (no lane arrival). Next free 0.712.0. Verdicts green: c2838db push SUCCESS (37493714141, the v0.711.0 tree CI-proven); 002d08c SUCCESS.
+- Face 40 = 37493502472 (on f657fbf) IN_PROGRESS all window (~44 min tail) - law x51 poll-only, NO dispatch.
+- ONE ATOMIC IMPROVEMENT: v0.712.0 THE CHASE'S OWN GEOMETRY (184890c, 0.711.0 -> 0.712.0) - the flee-ground cross-read's flip (the 37th 0/5 vs the 39th 2/3) priced underneath: chasebill.mjs chaseBill(flee) folds the flee ledger's EXISTING chased rows into the face-level bill - closedIn (THE SPEED GAP), gained (THE TRADE LOST), flat (THE EXACT RE-CONTACT), unpriced (the honest audit row). Era byte-exact on four faces: 7 chased - closedIn 4 (57%: the 39th F13 -0.7, the 37th F4 -5.9, the 36th F2 -0.1, the 34th F7 -3.3), gained 2 (the 39th F4 +2.8, the 37th F7 +13.2), flat 1 (the 37th F13 @0.6->0.6), unpriced 0 - the escape lane loses to FEET more often than to hp. The doorstepStormCensus signature law, zero new regexes; a chased-free face reads the honest silence.
+- Tests: +4; chasebill 4/4, neighbors 33/33, syntax 504 files 0-broken. Zero fleet wiring.
+- Commit 184890c pushed attempt-1 clean (author verified PLANETA9091). push-CI 37496920849 in_progress at fire's end.
+
+Stage Summary:
+- Version 0.712.0 (184890c); next free 0.713.0; law x51 held poll-only (face 40 in flight).
+- The disengage leak's own verdict: the speed gap owns 57% of the era's chased deaths - feet, not hp. The cross-read's flip explained: the spatial join answers WHERE, the geometry answers WHY.
+- Fronts: the 40th's mine (both bills ride the v0.712.0 decompose), the long-tail watch (44 min), the gather drought (4 faces), the flee hop cadence's design input.
+- Next fire: (1) poll 37493502472 FIRST - SUCCESS -> mine with the v0.712.0 decompose. (2) push-CI verdict on 184890c. (3) dispatch law x52 on clear.
