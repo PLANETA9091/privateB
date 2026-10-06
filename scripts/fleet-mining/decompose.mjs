@@ -69,6 +69,7 @@ import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/li
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
+import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) the calm paradox - the death-free face's full-speed water lane
 import { bankDocket } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
@@ -271,6 +272,17 @@ console.log('  per-bot rescue starts:', fmt(perBot(/drowning rescue start/)))
 const ledger = rescueLedger(lines)
 console.log('--- RESCUE END-STATE LEDGER (v0.368.0) ---')
 console.log(`  starts: ${ledger.totals.starts}  unclosed at EOF: ${ledger.totals.unclosed}  orphans: ${ledger.orphanEnds}`)
+// (v0.701.0) THE CALM PARADOX - the death-free face's full-speed water
+// lane: 0 deaths rode 35 rescue starts (the 33rd's own shape). The churn
+// has its explainers when deaths ride (honest silence); below the floor
+// the quiet lane stays data; at the paradox the row names the lane's own
+// clock (the frozen dives, the wet strands - never the deaths).
+const calm = calmRescueParadox(lines)
+if (calm && calm.paradox) {
+  const p = calm.paradox
+  const top = p.top ? `top ${p.top[0]}=${p.top[1]} of ${p.spenders} spender(s)` : 'no spender table'
+  console.log(`  the calm paradox (v0.701.0): 0 death(s) rode ${p.starts} rescue start(s) (${top}, ends complete ${p.ends.complete} / released ${p.ends.released} / standdown ${p.ends.frozenStanddown} / timeout ${p.ends.timeout} / unclosed ${p.ends.unclosed}) - the water lane churns on its own clock, the deaths are not its meter`)
+}
 // (v0.679.0) THE ORPHAN OWNER - the orphans' per-bot split: the fleet-wide
 // count answers 'how many', the owner split answers 'WHOSE client died'
 // (the stand-down's own words: 'the reconnect lane owns a dead client').
