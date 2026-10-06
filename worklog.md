@@ -17274,3 +17274,26 @@ Stage Summary:
 - v0.679.0 landed - the orphan owner is named mechanically; the dead-client class has its per-bot read.
 - Version 0.679.0 (f8f48d1); next free 0.680.0. Dispatch law stays x27 (poll-only this fire).
 - Next fire: (1) poll face 37416742832 FIRST - SUCCESS -> mine (floor x19, the ent jump's 2nd read, the orphan owners' 2nd read, bank/leak repeats, the water-rescue repeat). (2) push-CI verdict on f8f48d1. (3) fronts: the dead-client reconnect lane (F3 x4 orphans + drown o2 reset(-1)), the ents/rss correlation (3 faces of data after this mine), the flee disengage's long tail. (4) dispatch law x28 on clear.
+
+---
+Task ID: cron30-20261006-1330
+Agent: cron30 fire 1330 (PLANETA9091 identity)
+Task: maintain privateB - the 22nd flight mined, one atomic improvement (v0.680.0), dispatch on clear.
+
+Work Log:
+- Sandbox alive, master synced to 3307590. The 22ND FLIGHT LANDED mid-fire: 37416742832 COMPLETED SUCCESS (on bef0d27, the v0.678.0 tree) - TWO CONSECUTIVE CLEAN FACES after the memory storm. The long pace was the runner queue, not a hang: the Big fleet job waited 14 min for a runner (started 05:18:20Z), then flew its normal 600s.
+- THE 22ND FLIGHT MINED (3050 lines -> /home/z/my-project/scripts/fleet-mining/run37416742832/, uncommitted):
+  - DEATHS 29 = CLOCK 29, ALL MOB - THE STORM RETURNED (the arc 18 -> 7 -> 29, the row's worst death count); max burst 3/30s - a SUSTAINED siege (deaths every ~26s across ts=41..781), not a burst storm; verdict CALM memory-wise.
+  - THE ENT JUMP'S 2ND READ: 'ents jump: max +464/gauge - DRIVER x17', ents max 3710 THE ROW'S RECORD, rss max 459M, rss jump +26M, NO FATAL - the 3-face correlation the lens was built for: ents 2691 DIED (rss 1212M) / 3667 SURVIVED (526M) / 3710 SURVIVED (459M). The driver is necessary-not-sufficient; the rss margin held twice.
+  - ORPHANS 0, unclosed 0 (starts 23 all paired) - the dead-client front cooled; the orphan-owner lens reads zero honestly.
+  - FLEE 832u/22 - THE DISENGAGE RE-EXPLODED (71u/1 -> 832u/22): the mob storm's deaths ride flee episodes again, the row's biggest flee number; silent class 12 stakes 556u pre-tail.
+  - Bank 61.2% (the storm swing 41.5 -> 104.6 -> 61.2); leak 38.0% (+634u named share); floor x19 one-unit 0/26; end-phase 28% repeat.
+- ONE ATOMIC IMPROVEMENT: v0.680.0 THE SIEGE PACE (dda2d0f): the death clock prices the deaths' own density (clock.pace = timed / span-minutes, spanS beside it, null on a zero span); decompose prints 'siege pace: 2.35 deaths/min over 12.3 min of timed span - the sustained pressure the max burst misses'. Maiden production read rode its own fire (the 22nd's real log, exact hand math). 4 new unit tests + CLOCK_ZERO extended.
+- Tests: syntax 478/0; seal-death 35/35 alone; the seq-runner's pending-promise flake rode smelting again (passes alone - the fire-1030/1130 class); CI's parallel runner is the arbiter.
+- Push clean attempt 1: 3307590..dda2d0f. Push-CI on dda2d0f in flight at log-off.
+- DISPATCH (law x28): POST 204 -> face 37419141731 id-verified IN_PROGRESS on 3307590 at 05:33:38Z (the 23rd flight, the first on the v0.679.0 tree - the orphan-owner lens rides it; dispatched before the v0.680.0 push landed, so it flies the v0.679.0 tree).
+
+Stage Summary:
+- v0.680.0 landed - the sustained siege is priced; the burst-blind class has its row.
+- Version 0.680.0 (dda2d0f); next free 0.681.0. Dispatch law x28.
+- Next fire: (1) poll face 37419141732 FIRST〔37419141731〕- SUCCESS -> mine (floor x20, the siege pace's 2nd read, the ent jump's 3rd read, the orphan owner's 2nd read, the flee front's repeat at 832u/22). (2) push-CI verdict on dda2d0f. (3) fronts: THE FLEE DISENGAGE (832u/22 - the chase wins at siege pace; the disengage must GAIN ground), the ents/rss correlation (4 faces after this mine), the storm bank conversion. (4) dispatch law x29 on clear.
