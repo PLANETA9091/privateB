@@ -16978,3 +16978,25 @@ Stage Summary:
 - The process ledger's third mechanism (pending-drop) named and mechanized into the dispatch law; the historical verdicts stand unchanged.
 - Face 37394370847 (the 14th flight, the v0.671.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x13, the calm repeat x2, the rescue standdown anatomy F5/F19, the silent-class stakes' wiring seat, arm-lag band state).
 - Version stays 0.671.0; next code front open (candidates: the silent-class wiring seat, the rescue timeout class, trip-retarget).
+
+---
+Task ID: cron30-20261006-0900
+Agent: cron30 fire 0900 (PLANETA9091 identity)
+Task: maintain privateB - poll the 14th flight, mine it, dispatch on clear.
+
+Work Log:
+- SANDBOX RESET (the ritual again): repo re-cloned, identity re-pinned PLANETA9091, npm install. Master synced to 1f78a06 (the lane's fire-0839 worklog: it cross-verified my run37390912359 mining + named THE PENDING-DROP MECHANIC and the dispatch sub-clause - never dispatch over a PENDING fleet - noted for the law).
+- THE 14TH FLIGHT LANDED: face 37394370847 COMPLETED SUCCESS (on c0a77e2, the v0.671.0 tree) - all 4 jobs green, watched live through the poll (the big fleet leg closed during round 4).
+- MINED run37394370847 (artifacts uncommitted):
+  - THE FLOOR x13: one-unit 0/24 (0%) - the 13th consecutive zero face.
+  - THE SECOND MOB STORM: 12 deaths (mob=9 explosion=2 drown=1) - the arc oscillates 10->3->12; the night pressure is a repeating regime, not a one-off (hound presence 33: F2=12 F1=11, fight 3/shelter 9; 0 defeats 0 hound kills - the fleet fled, it did not win).
+  - BANK HOLDS THROUGH THE STORM: banked +484u on mined 1413 (conversion 97.8%), pocket 898u - the 2nd consecutive healthy conversion after the storm face's +27 breakdown (102.9% -> 97.8%).
+  - THE SAND EXPLOSION (the headline): launch windows x8 (F6+51u, F1+56u, F17+46u, F12+31u, F11+31u, F5-5u DRAINED, F16+5u, F9+3u - 7 of 8 delivered), sand pocket 1->49 (peak 67) - THE STUCK SIGNATURE BROKE: the worst-seat-all-face resource (0%, n=39 boards) quintupled its pocket in one face. The delivery leg was the lever, exactly as the map-trip-gap lens named.
+  - RESCUE LANE CLEAN AGAIN: 41 starts (F1=9, F14=7), 0 unclosed, 0 orphans - the 2nd consecutive perfectly-closed ledger.
+  - LEAK +6.7% (+93u) - the small positive side; verdict row CALM (weather calm, the mobs owned it again - the calm-weather mob storm class, 2nd witness).
+- DISPATCH (law x21): queue fully clear (the lane's push-CI 37395863185 and my 37394475519 both SUCCESS) -> POST 204 -> face 37397155884 id-verified IN_PROGRESS on 1f78a06 at 01:02:46Z (the 15th flight, on the lane's latest).
+- NO code change (stays 0.671.0). Push attempt 1 clean.
+
+Stage Summary:
+- Face 37397155884 IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x14, the mob-storm regime read (2 storms in 4 faces), sand delivery 9th-window watch, the F5-5u DRAINED window's anatomy, bank conversion 3-peat).
+- Version stays 0.671.0; the mob-storm regime (9-12 mob deaths every other face) is the top code-front candidate - night survivability, named in OPEN FRONTS.
