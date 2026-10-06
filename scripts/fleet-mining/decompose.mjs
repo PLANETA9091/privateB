@@ -53,6 +53,7 @@ import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the 
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
 import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
+import { stickBill } from '../../src/lib/stickbill.mjs' // (v0.711.0) the stick economy's own bill - the four lanes' stick cells folded into one toll
 import { armoryCensus } from '../../src/lib/armorycensus.mjs' // (v0.494.0) the armory census - the weapon supply chain's own book (the sword + spare-pick lanes' verdicts and failure anatomy)
 import { tableGate } from '../../src/lib/tablegate.mjs' // (v0.495.0) the table gate - the tool chain's zero-point (the spare-table bootstrap's own book)
 import { campBuild } from '../../src/lib/campbuild.mjs' // (v0.497.0) the camp build book - where furnaces come from (the camp ladder's field fate)
@@ -2718,6 +2719,21 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (mbits.length) console.log(`  mid-fails: ${tr.midFails} - ${mbits.join(' | ')}`)
     if (tr.chains) console.log(`  reboot chains: ${tr.chains} (recovered ${tr.chainsRecovered}) - loop legs ${tr.loops} (recovered ${tr.loopRecovered} / still-failed ${tr.loopStillFailed})`)
     if (tr.prose.surfaced || tr.prose.climbRefused) console.log(`  prose legs (never close): surfaced ${tr.prose.surfaced} / climb-refused ${tr.prose.climbRefused}`)
+  }
+}
+
+// (v0.711.0) THE STICK ECONOMY'S OWN BILL - one commodity, four lanes,
+// one toll. The recovery's stick-drought mid-fails, the armory's
+// stick-misses, the craft storm's stick refusals and the torch lane's
+// stick-dry economy (the rungs + the floor skips) were each a SIDE
+// cell in their own book; the gather drought kept the family hot
+// three faces running. The fold names the self-rescued share (the
+// rungs - the drought's answered skin) and leaves the hard core.
+{
+  const sb = stickBill(lines)
+  if (sb) {
+    const lbits = sb.lanes.map(l => `${l.lane} ${l.total}`).join(', ')
+    console.log(`  the stick bill (v0.711.0): ${sb.total} stick voice(s) - ${lbits}; self-rescued ${sb.selfRescued} by the rungs (${sb.plankRungs} plank + ${sb.logsRungs} logs), the floor's skips ${sb.stickSkips}`)
   }
 }
 
