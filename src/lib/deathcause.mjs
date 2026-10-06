@@ -59,7 +59,13 @@ const KINDS = [
   { re: /\bstarved to death\b/, kind: 'starve' },
   { re: /\bfroze to death\b/, kind: 'freeze' },
   { re: /\bwent out with a splash\b|\bexperienced kinetic energy\b/, kind: 'other' },
-  { re: /\bwas (?:slain|shot|killed|stabbed|doomed|impaled|fireballed|pummeled|skewered) by (\w+)\b/, kind: 'mob', group: 1 },
+  // (v0.673.0) THE SPEAR VERB: run37399670805 (the 16th flight) debuted
+  // vanilla 26.2's zombie spear template - 'F3 was speared by Zombie' /
+  // 'F18 was speared by Zombie' - and the verb list missed 'speared', so
+  // two MOB kills landed in the honest-'other' bucket (the death map
+  // undercounted mob pressure, the same shape the knockoff template fixed
+  // in v0.136.0). The verb joins the family; the attacker rides the row.
+  { re: /\bwas (?:slain|shot|killed|stabbed|doomed|impaled|fireballed|pummeled|skewered|speared) by (\w+)\b/, kind: 'mob', group: 1 },
   { re: /\bwas slain by (\w+)\b/, kind: 'mob', group: 1 }
 ]
 

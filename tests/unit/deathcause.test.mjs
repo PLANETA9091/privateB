@@ -54,6 +54,22 @@ test('parseDeathMessage: the other vanilla templates the fleet can hit', () => {
   assert.equal(parseDeathMessage('F4 was slain by Witch', 'F4').attacker, 'Witch', 'the witch front names its killer')
 })
 
+test('parseDeathMessage: THE SPEAR VERB (v0.673.0) joins the mob family', () => {
+  // run37399670805 (the 16th flight) field witness: F3 and F18 died to
+  // vanilla 26.2's zombie spear template and the verb list missed
+  // 'speared' - two mob kills read kind=other (the honest bucket).
+  const f3 = parseDeathMessage('F3 was speared by Zombie', 'F3')
+  assert.equal(f3.kind, 'mob', 'the spear kill is a mob kill, not honest-other')
+  assert.equal(f3.attacker, 'Zombie', 'the attacker rides the row')
+
+  const f18 = parseDeathMessage('F18 was speared by Zombie', 'F18')
+  assert.equal(f18.kind, 'mob')
+  assert.equal(f18.attacker, 'Zombie')
+
+  // the other-bot isolation holds for the new verb (one shared chat)
+  assert.equal(parseDeathMessage('F3 was speared by Zombie', 'F7'), null, "another bot's spear death is not ours")
+})
+
 test('parseDeathMessage: other bots and mobs never claim us (one shared chat)', () => {
   assert.equal(parseDeathMessage('F3 drowned', 'F7'), null, "another bot's death is not ours")
   assert.equal(parseDeathMessage('Zombie was slain by F3', 'F3'), null, 'our KILL is not our death')
