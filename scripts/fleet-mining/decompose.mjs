@@ -2158,6 +2158,14 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
   const tc = woodTripCensus(lines)
   if (tc.gathered.n > 0 || tc.refused.n > 0 || tc.deferred.n > 0) {
     console.log(`  wood trip outcomes: gathered ${tc.gathered.n} refused ${tc.refused.n} deferred ${tc.deferred.n} orphans ${tc.orphans.n} (the famine's own answers)`)
+    if (tc.deferred.n > 0) {
+      // (v0.696.0) THE DAWN'S DEBT - the deferral's own anatomy: who deferred,
+      // at what tod, and whether the same bot's next famine kept the promise
+      const db = Object.entries(tc.deferred.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
+      const t = tc.deferred.tods
+      console.log(`  the dawn's debt: ${tc.deferred.n} deferred night(s) (${db}) - tod ${t.min}..${t.max}${t.min === t.max ? '' : `, median ${t.median}`} - kept ${tc.deferred.debts.kept} open ${tc.deferred.debts.open} (the dawn's own promise)`)
+
+    }
     if (tc.delivery.n > 0) {
       const g = tc.delivery.gain
       console.log(`  the gather walk's delivery: ${tc.delivery.cured}/${tc.delivery.n} trips cured (gain ${g.min}..${g.max}${g.min === g.max ? '' : `, median ${g.median}`}) flat ${tc.delivery.flat} negative ${tc.delivery.negative}${tc.delivery.flat > 0 ? ' - THE WALK CAME HOME EMPTY: the drought\'s seat rides the walk' : ''}`)

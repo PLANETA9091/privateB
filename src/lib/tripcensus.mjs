@@ -9,6 +9,11 @@
 // segment; the face-29 read: the flats took 485 and 518 lines, the one
 // cure 697) - the famine/gathered regexes are exported for the one-parser
 // law by import (the v0.694.0 climb's price rides the same trip voice)
+// + THE DAWN'S DEBT (v0.696.0): the deferred night's own anatomy - the
+// fourth canonical trip form finally priced: the defer line promises
+// 'gathering at dawn', so the lens joins the promise to the SAME bot's
+// next famine line (the dawn kept its word - the walk re-fired) and
+// counts the promises the face never answered (the dawn's open debts)
 //
 // The gather drought's cure input. The famine anatomy (v0.687.0) priced
 // WHICH SLOT starves; the repeat read (v0.688.0) priced the PERSISTENCE
@@ -67,7 +72,8 @@ const bump = (m, k) => { m[k] = (m[k] || 0) + 1 }
  *   span: {cured: {min, median, max}|null, flat: {min, median, max}|null,
  *   negative: {min, median, max}|null}},
  *   refused: {n: number, byBot: object},
- *   deferred: {n: number}, orphans: {n: number}}}
+ *   deferred: {n: number, byBot: object, tods: {min, median, max}|null,
+ *   debts: {kept: number, open: number}}, orphans: {n: number}}}
  */
 export function woodTripCensus (lines) {
   const src = Array.isArray(lines)
@@ -77,10 +83,14 @@ export function woodTripCensus (lines) {
   const gathered = { n: 0, byBot: {}, logsAfter: null }
   const delivery = { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null, span: { cured: null, flat: null, negative: null } }
   const refused = { n: 0, byBot: {} }
-  const deferred = { n: 0 }
+  const deferred = { n: 0, byBot: {}, tods: null, debts: { kept: 0, open: 0 } }
   const orphans = { n: 0 }
   const logsAfters = []
   const gains = []
+  const tods = []
+  // the dawn's debts: defer lines waiting for the same bot's next famine
+  // (the promise 'gathering at dawn' is kept when the walk re-fires)
+  const pendingDefer = new Set()
   // the walk's cost: the face-line span per paired trip, split by class
   // (a flat walk delivered nothing yet still burned its segment)
   const spans = { cured: [], flat: [], negative: [] }
@@ -92,6 +102,10 @@ export function woodTripCensus (lines) {
     if (typeof line !== 'string') continue
     const fm = line.match(WOOD_FAMINE_RE)
     if (fm) {
+      if (pendingDefer.has(fm[1])) {
+        deferred.debts.kept++ // the dawn came: the bot re-fired the walk
+        pendingDefer.delete(fm[1])
+      }
       pending.set(fm[1], { before: Number(fm[2]) + Number(fm[3]) + Number(fm[4]), idx: i })
       continue
     }
@@ -125,9 +139,18 @@ export function woodTripCensus (lines) {
       continue
     }
     const dm = line.match(WOOD_DEFERRED_RE)
-    if (dm) deferred.n++
+    if (dm) {
+      deferred.n++
+      bump(deferred.byBot, dm[1])
+      tods.push(Number(dm[2]))
+      pendingDefer.add(dm[1]) // the promise rides until the same bot re-fires
+    }
   }
   orphans.n = pending.size // famines the face never answered (the log cut mid-walk)
+  deferred.debts.open = pendingDefer.size // promises the face never answered (the dawn never came, or the log cut first)
+  deferred.tods = tods.length
+    ? { min: Math.min(...tods), median: medianOf(tods), max: Math.max(...tods) }
+    : null
   gathered.logsAfter = logsAfters.length
     ? { min: Math.min(...logsAfters), median: medianOf(logsAfters), max: Math.max(...logsAfters) }
     : null

@@ -56,6 +56,42 @@ test('woodTripCensus anatomy split: refusal answers, the negative trip, the unre
   assert.deepEqual(r.gathered.logsAfter, { min: 1, median: 1, max: 1 })
   assert.equal(r.orphans.n, 1)
   assert.equal(r.deferred.n, 1)
+  // the dawn's debt anatomy rides the deferral's own byte (v0.696.0)
+  assert.deepEqual(r.deferred.byBot, { F12: 1 })
+  assert.deepEqual(r.deferred.tods, { min: 18000, median: 18000, max: 18000 })
+  assert.deepEqual(r.deferred.debts, { kept: 0, open: 1 })
+})
+
+test('woodTripCensus reads the dawn\'s debt: the promise kept when the same bot re-fires, open when the face cuts first', () => {
+  // the deferral answered by the dawn: F2 re-fires (kept), F7's dawn never came (open)
+  const lines = [
+    'F2 wood trip: deferred night (tod=17500, sticks 1 planks 2 logs 0) - gathering at dawn',
+    'F7 wood trip: deferred night (tod=18300, sticks 0 planks 3 logs 0) - gathering at dawn',
+    'F2 wood trip: famine (sticks 1 planks 2 logs 0) - gathering', // the dawn came for F2: the promise kept
+    'F2 wood trip: gathered (sticks 4 planks 10 logs 6)'
+  ]
+  const r = woodTripCensus(lines)
+  assert.deepEqual(r.deferred, {
+    n: 2,
+    byBot: { F2: 1, F7: 1 },
+    tods: { min: 17500, median: 17900, max: 18300 },
+    debts: { kept: 1, open: 1 }
+  })
+  // the re-fired famine pairs as its own trip (F2 cured +17)
+  assert.deepEqual(r.delivery, {
+    n: 1, cured: 1, flat: 0, negative: 0, unread: 0,
+    gain: { min: 17, median: 17, max: 17 },
+    span: { cured: { min: 1, median: 1, max: 1 }, flat: null, negative: null }
+  })
+  // a deferral answered by the SAME bot's refusal still kept the word (the walk re-fired, the start refused)
+  const r2 = woodTripCensus([
+    'F5 wood trip: deferred night (tod=18000, sticks 2 planks 1 logs 0) - gathering at dawn',
+    'F5 wood trip: famine (sticks 2 planks 1 logs 0) - gathering',
+    'F5 wood trip: 0 (climb refused)'
+  ])
+  assert.equal(r2.deferred.debts.kept, 1)
+  assert.equal(r2.deferred.debts.open, 0)
+  assert.equal(r2.refused.n, 1)
 })
 
 test('woodTripCensus honest zeros, the lone gathered line, and the junk battery', () => {
@@ -64,7 +100,7 @@ test('woodTripCensus honest zeros, the lone gathered line, and the junk battery'
     gathered: { n: 0, byBot: {}, logsAfter: null },
     delivery: { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null, span: { cured: null, flat: null, negative: null } },
     refused: { n: 0, byBot: {} },
-    deferred: { n: 0 },
+    deferred: { n: 0, byBot: {}, tods: null, debts: { kept: 0, open: 0 } },
     orphans: { n: 0 }
   })
   // a gathered line without a pending famine still counts as a trip byte,
