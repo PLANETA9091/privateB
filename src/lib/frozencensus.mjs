@@ -28,6 +28,12 @@
 //   gate      'water: frozen-return gate holds the page (Ns left) - the
 //             fresh client walks the hazard-ledgered column out' - the
 //             hold SURVIVING to hold a page: the relog promise met
+//   endings   'water: frozen-return gate bypassed (critical read o2=O) -
+//             the armed hold voids on arrival, the rescue owns the clock
+//             (relog streak S)' and 'water: frozen-return gate clears -
+//             the rescue completed with living physics' - the hold's TWO
+//             endings: the promise voided at arrival vs the promise met
+//             (the v0.681.0 gate-endings census)
 //   exemption 'water: apex rest held (N flat passes at y=Y.Y, o2=O, head
 //             dry - the lungs own the clock, the release window owns the
 //             rest)' - the v0.381.0 apex-rest skip: the frozen verdict NOT
@@ -81,6 +87,14 @@ const FREEZE_NAMED_RE = new RegExp(TAG + 'water: freeze named ([a-z][a-z-]*) - (
 // the gate hold: the page the hold actually held
 const GATE_HOLD_RE = new RegExp(TAG +
   'water: frozen-return gate holds the page \\((\\d+)s left\\) - the fresh client walks the hazard-ledgered column out$')
+
+// the gate endings: the hold's two arrival verdicts (the v0.681.0 census)
+const GATE_BYPASSED_RE = new RegExp(TAG +
+  'water: frozen-return gate bypassed \\(critical read o2=' + O2 +
+  '\\) - the armed hold voids on arrival, the rescue owns the clock \\(relog streak (\\d+)\\)$')
+
+const GATE_CLEARS_RE = new RegExp(TAG +
+  'water: frozen-return gate clears - the rescue completed with living physics$')
 
 // the exemption: the v0.381.0 apex rest (the verdict NOT condemning)
 const APEX_REST_RE = new RegExp(TAG +
@@ -179,6 +193,32 @@ export function parseGateHold (line) {
 }
 
 /**
+ * Parse one frozen-return gate bypassed line (the hold voided at arrival),
+ * or null. The o2 rides o2SensorLabel's shapes - the domain read (o2Value)
+ * decides value vs evidence, never this parser.
+ * @param {string} [line]
+ * @returns {null|{bot: string, o2: string, streak: number}}
+ */
+export function parseGateBypassed (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(GATE_BYPASSED_RE)
+  if (!m) return null
+  return { bot: m[1], o2: m[2], streak: Number(m[3]) }
+}
+
+/**
+ * Parse one frozen-return gate clears line (the hold's promise met), or null.
+ * @param {string} [line]
+ * @returns {null|{bot: string}}
+ */
+export function parseGateClears (line) {
+  if (typeof line !== 'string') return null
+  const m = line.match(GATE_CLEARS_RE)
+  if (!m) return null
+  return { bot: m[1] }
+}
+
+/**
  * Parse one apex rest line (the v0.381.0 exemption), or null.
  * @param {string} [line]
  * @returns {null|{bot: string, passes: number, y: number, o2: string}}
@@ -231,6 +271,8 @@ export function frozenCensus (lines) {
   const loopBreaks = { n: 0, why: { criticalLungs: 0, loopCap: 0 } }
   const freezeNamed = { n: 0, byCls: {} }
   const gateHolds = { n: 0 }
+  const gateBypassed = { n: 0, byBot: {}, o2: { min: null, max: null, unknown: 0 }, streakMax: null }
+  const gateClears = { n: 0, byBot: {} }
   const apexRests = { n: 0, byBot: {} }
   const dupKicks = { n: 0, byBot: {} }
   let unparsed = 0
@@ -284,6 +326,24 @@ export function frozenCensus (lines) {
       continue
     }
     if (parseGateHold(l)) { gateHolds.n++; continue }
+    const gb = parseGateBypassed(l)
+    if (gb) {
+      gateBypassed.n++
+      gateBypassed.byBot[gb.bot] = (gateBypassed.byBot[gb.bot] || 0) + 1
+      const gov = o2Value(gb.o2)
+      if (gov !== null) {
+        if (gateBypassed.o2.min === null || gov < gateBypassed.o2.min) gateBypassed.o2.min = gov
+        if (gateBypassed.o2.max === null || gov > gateBypassed.o2.max) gateBypassed.o2.max = gov
+      } else gateBypassed.o2.unknown++
+      if (gateBypassed.streakMax === null || gb.streak > gateBypassed.streakMax) gateBypassed.streakMax = gb.streak
+      continue
+    }
+    const gc = parseGateClears(l)
+    if (gc) {
+      gateClears.n++
+      gateClears.byBot[gc.bot] = (gateClears.byBot[gc.bot] || 0) + 1
+      continue
+    }
     const ap = parseApexRest(l)
     if (ap) {
       apexRests.n++
@@ -306,6 +366,8 @@ export function frozenCensus (lines) {
     loopBreaks,
     freezeNamed,
     gateHolds: gateHolds.n,
+    gateBypassed,
+    gateClears,
     apexRests,
     dupKicks,
     unparsed

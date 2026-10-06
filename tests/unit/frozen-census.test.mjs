@@ -10,7 +10,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseFrozenPhysics, parseFrozenRelog, parseFrozenLoopBreak,
-  parseFreezeNamed, parseGateHold, parseApexRest, parseDuplicateKick,
+  parseFreezeNamed, parseGateHold, parseGateBypassed, parseGateClears,
+  parseApexRest, parseDuplicateKick,
   frozenCensus
 } from '../../src/lib/frozencensus.mjs'
 
@@ -194,6 +195,41 @@ test('frozen-census: the escape hatch counts a freeze-lane line the grammar refu
   const c = frozenCensus(['F7 [F7] water: frozen physics (broken tail without the verdict verdict)'])
   assert.equal(c.unparsed, 1)
   assert.equal(c.verdicts.n, 0)
+})
+
+test('frozen-census: the gate endings - bypassed at arrival vs clears (the 23rd flight byte-exact, v0.681.0)', () => {
+  // the 23rd flight (face 37419141731) verbatims: the gate's TWO endings rode
+  // F18's freeze chain (relog x2 -> holds x2 -> bypassed x3 -> clears x1)
+  const c = frozenCensus([
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=4) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate bypassed (critical read o2=0) - the armed hold voids on arrival, the rescue owns the clock (relog streak 2)',
+    'F18 [F18] water: frozen-return gate clears - the rescue completed with living physics'
+  ])
+  assert.equal(c.gateBypassed.n, 3)
+  assert.deepEqual(c.gateBypassed.byBot, { F18: 3 })
+  assert.deepEqual(c.gateBypassed.o2, { min: 0, max: 4, unknown: 0 }) // 0 is a VALUE - the critical dry read, never unknown
+  assert.equal(c.gateBypassed.streakMax, 2)
+  assert.equal(c.gateClears.n, 1)
+  assert.deepEqual(c.gateClears.byBot, { F18: 1 })
+  assert.equal(c.unparsed, 0) // the escape hatch goes quiet - the grammar owns its family
+})
+
+test('frozen-census: the gate endings parsers - reset(-1) is unknown evidence, junk-safe', () => {
+  const line = 'F3 [F3] water: frozen-return gate bypassed (critical read o2=reset(-1)) - the armed hold voids on arrival, the rescue owns the clock (relog streak 5)'
+  const b = parseGateBypassed(line)
+  assert.deepEqual(b, { bot: 'F3', o2: 'reset(-1)', streak: 5 })
+  const c = frozenCensus([line])
+  assert.equal(c.gateBypassed.n, 1)
+  assert.equal(c.gateBypassed.o2.unknown, 1) // reset(-1) is evidence, never a value
+  assert.equal(c.gateBypassed.o2.min, null)
+  assert.equal(c.gateBypassed.o2.max, null)
+  assert.equal(c.gateBypassed.streakMax, 5)
+  assert.equal(parseGateClears('F9 [F9] water: frozen-return gate clears - the rescue completed with living physics').bot, 'F9')
+  assert.equal(parseGateClears('F9 [F9] water: frozen-return gate holds the page (7s left) - the fresh client walks the hazard-ledgered column out'), null) // the hold stays the hold's
+  assert.equal(parseGateBypassed('F9 [F9] water: frozen-return gate bypassed (critical read o2=?) - the armed hold voids on arrival, the rescue owns the clock (relog streak 1)').o2, '?')
+  assert.equal(parseGateBypassed(null), null)
+  assert.equal(parseGateClears(42), null)
 })
 
 test('frozen-census: the honest zero - a face with no freeze family reads zeros', () => {

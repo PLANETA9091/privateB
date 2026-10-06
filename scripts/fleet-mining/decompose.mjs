@@ -2199,7 +2199,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
 // the loop breaks (the grace working), the apex-rest exemption's share.
 {
   const fc = frozenCensus(lines)
-  const any = fc.verdicts.n + fc.relogs.n + fc.loopBreaks.n + fc.freezeNamed.n + fc.gateHolds + fc.apexRests.n + fc.dupKicks.n + fc.unparsed
+  const any = fc.verdicts.n + fc.relogs.n + fc.loopBreaks.n + fc.freezeNamed.n + fc.gateHolds + fc.gateBypassed.n + fc.gateClears.n + fc.apexRests.n + fc.dupKicks.n + fc.unparsed
   if (any > 0) {
     console.log('--- FROZEN CENSUS (v0.426.0: the freeze family\'s field read) ---')
     const vb = Object.entries(fc.verdicts.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
@@ -2218,6 +2218,14 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  freeze named: ${fc.freezeNamed.n} (${cls})`)
     }
     if (fc.gateHolds > 0) console.log(`  gate holds the page: ${fc.gateHolds}`)
+    if (fc.gateBypassed.n > 0 || fc.gateClears.n > 0) {
+      const gbLo = fc.gateBypassed.o2.min !== null ? String(fc.gateBypassed.o2.min) : '?'
+      const gbHi = fc.gateBypassed.o2.max !== null ? String(fc.gateBypassed.o2.max) : '?'
+      const gbTail = fc.gateBypassed.n > 0
+        ? ` (o2 at arrival ${gbLo}..${gbHi}${fc.gateBypassed.o2.unknown > 0 ? `, unknown ${fc.gateBypassed.o2.unknown}` : ''}${fc.gateBypassed.streakMax !== null ? `, streak max #${fc.gateBypassed.streakMax}` : ''})`
+        : ''
+      console.log(`  gate endings: bypassed ${fc.gateBypassed.n}${gbTail}, clears ${fc.gateClears.n} - the hold's promise priced at arrival`)
+    }
     if (fc.apexRests.n > 0) {
       const ab = Object.entries(fc.apexRests.byBot).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n}`).join(', ')
       console.log(`  apex rests (the exemption): ${fc.apexRests.n}${ab ? `, top bots: ${ab}` : ''}`)
