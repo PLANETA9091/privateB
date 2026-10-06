@@ -17097,3 +17097,26 @@ Stage Summary:
 - v0.672.0 cross-verified CONFIRMED; v0.673.0 THE SPEAR VERB landed (the collaboration loop: the lane's fire-1000 candidate -> one-fire landing).
 - Face 37405804786 (the 18th flight, the v0.673.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x17, the spear verb's first mined face - a spear kill should now read kind=mob if the class fires, the calm repeat x3, bank recovery repeat, the flee-disengage front, the silent class x3 repeat).
 - Version 0.673.0; next free 0.674.0; code fronts open: the flee disengage (the chase wins - the escape never gains ground), the silent-class wiring seat, the unemitted-leak lens (-48u shortfall quantified).
+---
+Task ID: cron30-20261006-1030
+Agent: cron30 fire 1030 (PLANETA9091 identity)
+Task: maintain privateB - poll the 17th flight, mine it, one atomic improvement, dispatch on clear.
+
+Work Log:
+- Sandbox alive, master synced. Push-CI 37403065957 on 33d934b (v0.672.0) COMPLETED SUCCESS - the inferred-only lens is CI-proven.
+- THE 17TH FLIGHT LANDED: face 37403158305 COMPLETED SUCCESS (on 33d934b). MINED run37403158305 (3171 lines):
+  - DEATHS 4 = CLOCK 4, zero disputes: drown=2 mob=1 fall=1; the arc 10->3->12->10->7->4 - the storm regime COOLS; verdict CALM: 1 (STORM 0).
+  - FLOOR x16: one-unit 0/24 (0%) - 16th consecutive zero.
+  - BANK RECOVERED: 89.9% (mined 2172, banked 1113, pocket 819u) after the 74.4% dip.
+  - SAND 3 WINDOWS ALL DELIVERED: F19+25u, F5+1u, F1+24u; pocket 0->9 (peak 113) - the best sand face of the row.
+  - RESCUE 5th CLEAN: 56 starts, 0 unclosed, 0 orphans; hound presence 3 (F2).
+- COLLISION: my v0.673.0 THE SPEAR VERB (commit 300a963, unit 271/271 locally) lost the race - the lane's 5f61f0c landed the SAME fix + version first; my rebase conflicted, I aborted and discarded my duplicate (the protocol's next-free-version rule; the lane's fix is identical in kind).
+- ONE ATOMIC IMPROVEMENT: v0.674.0 THE OTHER-VERB CENSUS (5f85a49): deathkinds tallies otherVerbs - the honest-'other' rows' VERBATIM verb text - and decompose prints the census row; the run16 spear debut ('was speared by Zombie' x2) would have named itself the face it landed instead of sitting LUMPED in other=2 (no re-adjudication - the server's own words count, the v0.117.0 doctrine untouched). 4 new unit tests incl. the byte-exact run16 spear pair.
+- Tests: syntax 476/0; unit 271/271 PASSED (one flaky toolupgrade artifact from a killed run, clean on re-run).
+- THE 18TH FLIGHT (the lane's 37405804786 on 5f61f0c) COMPLETED FAILURE: Integration's smelting pipeline test timed out at 390s (the flake class - the lane's own push-CI 37405762795 on the SAME sha was SUCCESS with integration green); fleet leg skipped, never flew.
+- DISPATCH (law x24): POST 204 -> face 37407340102 id-verified IN_PROGRESS on 5f85a49 at 03:05:38Z (the 19th flight, the first on the v0.674.0 tree).
+- Push clean: 2385b06..5f85a49. My push-CI 37407221650 PENDING at log-off; the lane's 37405913407 in progress.
+
+Stage Summary:
+- v0.674.0 landed - the honest-'other' verbs surface by their words; the death-attribution front now self-names new vanilla phrasings.
+- Next fire: (1) poll face 37407340102 FIRST - if SUCCESS mine (floor x17, calm repeat?, bank 2-peat, sand 2nd multi-window face, spear repeat under the v0.673.0 verb). (2) my push-CI 37407221650 verdict. (3) watch the smelt-timeout flake: a 2nd integration timeout = the world-rot class, not a flake.
