@@ -18073,3 +18073,24 @@ Stage Summary:
 - The churn's two lanes are TWO populations: the kick whales (F17/F9 - the collisions) and the relog savers (F5/F14 - the freezes) barely overlap; the churn's cure has two seats, the bill prices both.
 - See the mirror at /home/z/my-project/worklog.md for the cross-lane chain (fire-2340 and earlier).
 - Next fire: (1) poll 37509214512 FIRST - SUCCESS -> mine with the v0.717.0 decompose (the kick's churn row rides beside the relog's own bill). (2) CI verdicts on 4de6bba (its push run) + 71b17dc (37509443493). (3) dispatch law x55 on clear.
+
+---
+Task ID: cron30-20261007-0230
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0230 - the 43rd's mine (found SUCCESS), the rider's own cross-lane, dispatch on clear
+
+Work Log:
+- Repo synced 71b17dc -> 05d914d (the lane's v0.717.0 THE KICK'S OWN CHURN, 4de6bba). VERDICTS: 28c2e3d push-CI 37509175651 SUCCESS; 71b17dc 37509443493 SUCCESS. Face 43 = 37509214512 IN_PROGRESS at poll start, landed SUCCESS by mid-fire.
+- ONE ATOMIC IMPROVEMENT: v0.718.0 THE RIDER'S OWN CROSS-LANE (15657aa, 0.717.0 -> 0.718.0) - the no-path bill's shape grows additively (the v0.653.0 law): nopathBill's crossLane cell joins the lanes' byBot books post-fold and names the bots the door family refused ACROSS LANES (2+ lanes - THE STANCE READ). The lane's own column stays the lane's subject; a face whose every bot kept its lane reads the empty cell (the honest zero). decompose rides the additive tail (the heaviest rider first, the v0.716.0 prose byte-stable).
+- THE ERA BYTE-EXACT: the 40th reads the EMPTY cell (the rider was BORN on the 41st - even F15's fuel x2 stayed single-lane there); the 41st prices the debut F15=8u@3lanes (fuel 3 + iron 3 + food 2 of 13); the 42nd reads the empty cell again (F8's food x3 the lane's own column).
+- FACE 43 MINED (571 rows, the v0.718.0 decompose): 14 deaths the mob+fall face (fall 5, Creeper 3, Drowned 2, drown 2, Zombie 1); the flee fork 6 (chase 4 / CROSSFIRE 2 - the crossfire's 3rd read, the second hostile returned); the no-path bill's 4TH read 6 rides - FUEL CLEAN, no rider (the spike's lane silent after the 40th's crowd and the 42nd's spread); the door's rate 53.6% of 97 (the 11TH point, THE NEW ERA HIGH) WITH the no-path lane silent - THE DOOR'S CURE TARGET MOVED FROM GEOMETRY TO THE DECIDE BUDGET (unreachable 41, decide 18); the relog bill's 3rd 2 -> 1 (50%, no repeats - the saver did its job); leaks 24.3% (cooled from 50.7%); the inference's bill 14 (agree 9 / disagree 5; corroborates 9 / blind 2 / contradicts 1 / bystander 2 - F12 drowned while the tail said creeper).
+- Tests: +4; nopathbill 8/8, neighbors 25/25 (bankdocket/kickbill/askwhy), syntax 512 files 0-broken. Zero fleet wiring (mining-surface only, the v0.379/.../v0.717.0 precedent).
+- Commit 15657aa pushed attempt-1 clean (author verified PLANETA9091 pre-push and post-commit). push-CI 37512539457 pending at fire's end (not waited honestly).
+- DISPATCH LAW x55: the queue clear -> POST 204 -> FACE 44 = 37512568836 IN_PROGRESS on 15657aa (the v0.718.0 tree's first face; materialization verified).
+
+Stage Summary:
+- Version 0.718.0 (THE RIDER'S OWN CROSS-LANE, 15657aa); next free 0.719.0; dispatch law x55 (face 44 37512568836).
+- The no-path front's three skins priced across four faces: the crowd (the 40th), the column (F4/F8), the rider (the 41st's F15 - born and gone); the 43rd's fuel went CLEAN while the door rate hit the new era high 53.6% - the doorstep's cure target moved from geometry to the decide budget.
+- The crossfire's 3rd read: 2 on the 43rd - the second hostile alternates with the calm faces.
+- Fronts: the 44th's mine (the rider tail's 5th read, the kick bill's 3rd, the dial's 12th), the decide-budget's door anatomy, the chase+crossfire disengage design input (3 faces running), the gather drought, the inference's contradicts skin.
+- Next fire: (1) poll 37512568836 FIRST - SUCCESS -> mine with the v0.718.0 decompose. (2) push-CI verdict on 15657aa (37512539457 / its arbiter). (3) dispatch law x56 on clear.
