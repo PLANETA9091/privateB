@@ -68,6 +68,7 @@ import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the 
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
+import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -2476,6 +2477,20 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const tt = w.topTarget ? ` (top ${w.topTarget.key} x${w.topTarget.n})` : ''
     const gg = w.gains ? `, stall gains ${w.gains.min}..${w.gains.max} (${w.gains.n} paired, avg ${(w.gains.sum / w.gains.n).toFixed(1)})` : ''
     console.log(`  loop ledger (v0.692.0): ${w.bot} spent ${w.launches} launch(es) across ${w.targets} target(s)${tt} - ${w.stalls} stall(s), ${w.brakes} brake(s)${gg} - THE WHALE'S LEDGER: the loop bought no ground`)
+    // (v0.698.0) THE WHALE'S WATER BILL - the zero-gain loop's rescue-side
+    // account: does the whale own the face's rescue lane too? Rank 1 = the
+    // face's TOP rescue spender; null = the dry whale (the loop bought no
+    // ground and never called the rescue). No whale, no row (inherited).
+    const bill = whaleWaterBill(lines)
+    if (bill && bill.bill) {
+      const b = bill.bill
+      if (b.rank !== null) {
+        const top = b.rank === 1 ? 'TOP customer' : `rank-${b.rank} customer`
+        console.log(`  the whale's water bill (v0.698.0): ${b.bot}'s ${b.launches}-launch loop rode ${b.starts} rescue start(s) (rank ${b.rank} of ${b.spenders} spender(s)) - the zero-gain loop and the rescue lane's ${top} are one bot`)
+      } else {
+        console.log(`  the whale's water bill (v0.698.0): ${b.bot}'s ${b.launches}-launch loop rode 0 rescue start(s) - THE DRY WHALE (the loop bought no ground and never called the rescue)`)
+      }
+    }
   }
 }
 
