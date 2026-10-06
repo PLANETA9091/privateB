@@ -17894,3 +17894,23 @@ Stage Summary:
 - THE EXPLOSION KIND IS BACK (2 Creeper deaths on the 37th, the inference blind both times) - the death-kind front may want the creeper's own lane read.
 - Fronts: the 38th's + 39th's mines (the census row's 3rd read, the rate dial's 6th point, the correlation 16th/17th, the iron door's OTHER tail mass 6), the iron door's other-skin anatomy (the 37th's 6 'other' rides - the biggest yet), the creeper lane, the sand delivery leg (6 confirmations), the disengage leak (flee 249u/5).
 - Next fire: (1) poll 37484747076 (the lane's face 38) AND 37484939449 (my face 39) - mine whichever landed (the v0.708.0 tree carries the lane's ascend fence row; my decompose adds the toll row). (2) CI verdicts on 8cae12c + the lane's newer. (3) dispatch law x48 on clear.
+
+---
+Task ID: cron30-20261006-2330
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 2330 - the 38th's poll window (fleet queue DOUBLE-RUNNED), one atomic improvement, poll-only
+
+Work Log:
+- Repo synced e890131 -> 80ae7f0: the lane's fire-2240 worklog landed (80ae7f0, worklog-only - it mined the 37th too: the correlation's 15th point 411M ALIVE, the arbiter's 2nd clean face, the toll's honest fleet silence) and recorded its own dispatch fault honestly (the lane's face 39 = 37484939449 queued on e890131 while MY face 38 = 37484747076 was in flight - the fleet-queue secession serialized it away, concurrency did its job). Version stayed 0.708.0, next free 0.709.0.
+- THE FLEET QUEUE IS DOUBLE-RUNNED: face 38 = 37484747076 (on 17f2941) IN_PROGRESS (the fleet leg's long tail; unit + integration jobs already SUCCESS) + face 39 = 37484939449 (on e890131) PENDING - DISPATCH LAW x48: poll-only, NO dispatch (two active fleet runs is already one too many; the next fire inherits the queue).
+- Push-CI verdicts: 80ae7f0 = 37485416730 SUCCESS (the v0.708.0 tree CI-proven - the arbiter for the cancelled 17f2941 push); 8cae12c = 37483105013 SUCCESS; 37484898295 (e890131 push) cancelled by the successor.
+- ONE ATOMIC IMPROVEMENT: v0.709.0 THE IRON'S OTHER SKIN (5cd20a0, package.json 0.708.0 -> 0.709.0) - the fire-2300 front: the iron cell's honest 'other' splits by its own named tails. The raw-log read found them: the GOAL BRAKE ('goal brake: N goals in 5s - iron commune walk @... refused for Ms' - the walk governor's own rate limiter turning a goal storm away, the 37th's other 6 in full) and the WATER-RESCUE REFUSAL ('water rescue in progress (iron commune walk @... refused)' - the rescue lane flying prices the walk, the 32nd's other 3 in full - the era's oldest 'other' finally named). 'other' stays the honest residual; an 'other' naming neither stays silent inside it. The fuel cell's own 'other' keeps its shape this version (its 32nd water-rescue ride is the fuel-side followup). iron cell grows {goalBrake, rescueRefused}; decompose rides "the other's skins: the goal brake G, the water rescue's refusals R" inside the iron's own-door row (other > 0 only).
+- Tests: +1 (the era's shapes byte-exact: the 37th goal brake 6, the 32nd refusals 3; the unnamed residual's silence; the mixed face's honest counts); bankdocket 12/12 (the zero-shape + the era deepEquals upgraded with the two fields), ascendstall 2/2, sensortoll 2/2, o2gap 9/9 + neighbors (45/45 targeted); syntax 500 files 0-broken. Zero fleet wiring (mining-surface only, the v0.379/.../v0.708.0 precedent).
+- Commit 5cd20a0 pushed attempt-1 clean (no lane arrival; author verified PLANETA9091 pre-push). push-CI 37488676387 in_progress at fire's end (not waited honestly).
+
+Stage Summary:
+- Version 0.709.0 (5cd20a0); next free 0.710.0; dispatch law x48 held poll-only (the queue: face 38 in flight + face 39 pending).
+- THE IRON'S OTHER SKIN NAMED: the goal brake (the governor's rate limiter - the 37th's 6) and the water rescue's refusal (the 32nd's 3) - the era's other cells are now fully accounted; the storm census's 'other' rides have owners.
+- THE QUEUE'S INHERITANCE: face 39 (the lane's, on e890131 the v0.708.0 tree) lands after face 38 - the next fire mines BOTH (the 38th first: the live fence's 2nd read, the census's 3rd, the rate dial's 6th; then the 39th: the same rows on a tree one worklog apart - a paired read).
+- Fronts: the 38th's mine, the fuel cell's own 'other' split (the fuel-side followup of this version's iron work), the burst cluster's anatomy, the gather drought.
+- Next fire: (1) poll 37484747076 FIRST - SUCCESS -> mine with the v0.709.0 decompose; then 37484939449 -> mine. (2) push-CI verdict on 5cd20a0 (37488676387). (3) dispatch law x49 on clear (BOTH faces landed).
