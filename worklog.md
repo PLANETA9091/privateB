@@ -17652,3 +17652,21 @@ Stage Summary:
 - THE DROUGHT'S SEAT HAS NO SINGLE CHAIR: the climb's rent flips sides across faces (29th: flat cheaper; 30th: flat dearer) - the per-face fork is honest, the cross-face ledger is the next tool.
 - Fronts: the 31st's mine (the climb's price's 3rd read, the dawn's debt's 1st production read, the walk's cost's 3rd, the correlation 12th), the cross-face fork ledger, the Drowned shift's anatomy (the hound's cure input).
 - Next fire: (1) poll 37452538949 FIRST - SUCCESS -> mine (the 31st carries BOTH trees' rows: the climb's price AND the hop lane's sky). (2) push-CI verdicts on a5a945b. (3) dispatch law x38 on clear.
+
+---
+Task ID: cron30-20261006-1930
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1930 - one atomic improvement, dispatch on clear
+
+Work Log:
+- SANDBOX RESET: fresh clone per protocol (tip 4a94787, 0.696.0, no lane push after fire 1900); the mined run dirs were wiped - the historical reads survive in the tests' byte-exact fixtures and the worklog archive.
+- THE 31ST 37452538949 (on 891b859) SUCCESS - MINED (508 lines, run37452538949/): 5 trips (the biggest face), 2/5 cured flat 3, refused 0, deferred 0 (the dawn's debt's 1st production read = honest silence); the climb's price's 3rd read split nothing again (cured 79s +23 lv vs flat median 56s) - three-face verdict 2:1: the rent follows the TARGET'S HEIGHT, not the class; the key: F4's cure paid 79s for +23 lv, F14's cure paid NOTHING (noClimb, +5 wood at zero climb).
+- v0.697.0 THE STAIRS' TAX (0325feb): climbcost's class shapes grow rate (seconds-per-level); decompose's climb's price row rides 'tax X.XX..X.XX s/lv' and names noClimb out loud ('the zero-rent walk - the cure that never paid the stairs'). Maiden read byte-exact on the 31st. +rate on the test shapes; climbcost 3/3, tripcensus 6/6, syntax 490 0-broken. Zero fleet wiring.
+- Commit 0325feb pushed attempt-1 clean. push-CI rides the dispatch run (same sha, honestly not waited).
+- DISPATCH law x38: queue CLEAR -> POST 204 -> face 32 = 37457243091 IN_PROGRESS on 0325feb.
+
+Stage Summary:
+- Version 0.697.0 (0325feb); next free 0.698.0; dispatch law x38 (face 37457243091 in flight).
+- THE STAIRS' TAX IS THE RENT'S VARIABLE: the s/lv rates cluster 2.25..4.00 and the height choice owns the rent; the noClimb cure is the woodplan's free path (the low tree is the free one).
+- Fronts: the 32nd's mine (the stairs' tax's 2nd read, the climb's price's 4th, the correlation 12th), the height-aware target choice, the Drowned shift's anatomy.
+- Next fire: (1) poll 37457243091 FIRST - SUCCESS -> mine. (2) push-CI verdicts on 0325feb. (3) dispatch law x39 on clear.
