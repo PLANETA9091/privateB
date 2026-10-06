@@ -79,6 +79,7 @@ import { calmRescueParadox } from '../../src/lib/calmrescue.mjs' // (v0.701.0) t
 import { bankDocket, doorstepStormCensus } from '../../src/lib/bankdocket.mjs' // (v0.700.0) the bank's docket - the silent bank's own anatomy (the door leg vs the empty-pocket leg); (v0.706.0) + the doorstep storm's census (the three lanes' doors folded into one toll)
 import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.437.0) the walk-out witness's own numbers (the window/displacement/unmeasured read)
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
+import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
 import { gcPoolCensus } from '../../src/lib/gcpool.mjs' // (v0.421.0) the GC Pinned hunt's pool read (the old/ext/ab split)
@@ -1150,6 +1151,26 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       ? `; the loop's skin: ${rb.repeats} bot(s) relogged 2+ (${rbs}) owning ${rb.repeatRelogs}/${rb.relogs} relogs (${pct(rb.repeatRelogs / rb.relogs)}%)${rb.repeatRelogs / rb.relogs >= 0.5 ? ' - THE RELOG FEEDS THE LOOP' : ''}`
       : '; no repeats - the saver did its job, the loop never opened'
     console.log(`  the relog's own bill (v0.715.0): ${rb.relogs} relog(s) -> ${rb.stalls} stalled walk-out(s) (${pct(rb.stallRate)}%), the ladder r1 ${rb.rungs.r1} / r2 ${rb.rungs.r2} / r3 ${rb.rungs.r3}${loopTail}`)
+  }
+}
+// (v0.717.0) THE KICK'S OWN CHURN - the duplicate-login kick's own bill:
+// the frozen census's kick cells joined to its relog cells (the
+// signature law - parsed cells in, one shape out, zero new regexes).
+// The PAIRED bots (both lanes' customers - the double churn), the SPLIT
+// (kick-only whales vs relog-only savers - whose churn is whose), and
+// the REPEATS (2+ churn events of either kind - the v0.715.0 repeats
+// law over both lanes; a single event is the lane doing its job, the
+// second is the churn reproducing). Opens on kicks > 0 - a relog-only
+// face stays the relog bill's own subject.
+{
+  const kb = kickBill(frozenCensus(lines))
+  if (kb) {
+    const kbSort = (m) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
+    const kbpct = (x) => (x * 100).toFixed(0)
+    const pairTail = kb.paired.n > 0
+      ? Object.entries(kb.paired.byBot).map(([k, v]) => `${k} kicks ${v.kicks}/relogs ${v.relogs}`).join(', ')
+      : 'none - the churn split clean'
+    console.log(`  the kick's own churn (v0.717.0): ${kb.kicks} kick(s) across ${Object.keys(kb.kickBots).length} bot(s) + ${kb.relogs} relog(s) = ${kb.churn} churn event(s); the pair: ${kb.paired.n} bot(s) rode BOTH lanes (${pairTail}); the split: kick-only ${kb.kickOnly.n} (${kbSort(kb.kickOnly.bots)}), relog-only ${kb.relogOnly.n} (${kbSort(kb.relogOnly.bots)}); the churn's repeats: ${kb.repeats.n} bot(s) 2+ events owning ${kb.repeats.owned}/${kb.churn} (${kbpct(kb.repeats.share)}%)`)
   }
 }
 console.log('--- NUDGE FAMILY FIELD LEGS ---')
