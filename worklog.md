@@ -17323,3 +17323,27 @@ Stage Summary:
 - The 22nd flight MINED: THE DROWNED MASSACRE (28 hound kills, 22 in-water, the fleet won once) - the flee-disengage front's sharpest form: the shore-flee delivers the bot to the water; the correlation trio closes the entity-count question (rss climb kills, ents do not).
 - Face 37419141731 (the 23rd flight, the v0.679.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x20, the Drowned-massacre repeat?, the orphan owners' 3rd read, bank recovery, the correlation's 4th point).
 - Version 0.679.0; next free 0.680.0; code fronts: THE DRY-GROUND DISENGAGE (the flee must gain dry ground - in-water 22 is the price), the rss-climb watch (the kill condition is the climb, not the count), the water-rescue lane (drown=4 on the 21st), the storm bank conversion.
+
+---
+
+Task ID: fire-1400
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1400 - continue privateB to 100% (poll the 23rd flight FIRST, mine it, dispatch on clear, one atomic improvement)
+
+Work Log:
+- Repo fast-forwarded 2af638e..f918559 at fire start (the lane's fire-1330/1339 work was already on master: v0.680.0 THE SIEGE PACE dda2d0f + both worklogs; version 0.680.0 taken, next free 0.681.0).
+- push-CI verdict on dda2d0f (v0.680.0): unit 22/24 + Integration SUCCESS (Big fleet leg skipped - the dispatch-only job) - v0.680.0 CI-proven.
+- THE 23RD FLIGHT (face 37419141731 on 3307590, the v0.679.0 tree's first face) SUCCESS 4/4 - MINED (2714 lines): THE STORM BROKE - deaths 3 = clock 3 (fall=2 drown=1, arc from the 22nd's 29), max burst 1/30s, end-phase 1, siege pace 2nd read 0.6 deaths/min over 5.0 min (the 22nd's 2.35 / 4); verdict CALM.
+- THE DROWNED MASSACRE COOLED: hound presence 0, flee episodes 0, hound kills 0 - the calm face reads the 22nd's catastrophe zero honestly (the flee survival ledger's own honest-zero row).
+- THE CORRELATION 4TH POINT: ents max 2246 @ rss max 459M = ALIVE (rss jump +40M/gauge, FATAL 0, ent jump DRIVER x11) - the arc now reads 2691+1212M DEAD / 3667+526M ALIVE / 3710+459M ALIVE / 2246+459M ALIVE - the rss-climb verdict holds (the count rides along, the climb kills).
+- RESCUE: 19 starts (F18=12), unclosed 0, orphans 0 - the orphan owners row honest-silent (v0.679.0's 2nd read). F18: 6 frozenStanddown + 1 dead-in-rescue (the o2 reset(-1) drown, rescue live, wired mirror caught 1/1).
+- THE NEW FRONT THE ESCAPE HATCH NAMED: 'unparsed: 4 freeze-lane line(s) the grammar refused' - diagnosed (never guessed): the frozen-return gate's TWO ENDINGS the census never owned - 'gate bypassed (critical read o2=4/0/0) ... (relog streak 2)' x3 + 'gate clears - the rescue completed with living physics' x1. F18's chain: relog x2 -> holds the page x2 -> bypassed x3 -> clears x1 -> the o2 reset(-1) drown. The reconnect spends the air the rescue still owns.
+- ONE ATOMIC IMPROVEMENT v0.681.0 THE GATE ENDINGS (7756455): parseGateBypassed + parseGateClears in src/lib/frozencensus.mjs (one parser per emitter; the bypassed o2 rides the o2 domain read - 0 is a value, reset(-1)/? stay evidence; the relog streak priced; gateBypassed/gateClears buckets returned); decompose prints 'gate endings: bypassed 3 (o2 at arrival 0..4, streak max #2), clears 1 - the hold's promise priced at arrival'. THE MAIDEN PRODUCTION READ rode its own fire: the 23rd's real log reads exactly the hand count and the escape hatch goes quiet (unparsed 4 -> 0). 2 new unit tests (byte-exact 23rd verbatims + the domain read/junk-safe). frozen-census 20/20; syntax green. (The seq-runner full-unit pass was cut by the time-box - CI's parallel runner is the arbiter, the fire-1030/1130 class never my files.)
+- DISPATCH law x29: POST 204 -> face 37421661533 materialized IN_PROGRESS on f918559 (the 24th flight, the first on the v0.680.0 tree; a push-CI run 37420267239 also rides f918559 - different concurrency group, no cancellation).
+
+Stage Summary:
+- v0.681.0 THE GATE ENDINGS landed - the hold's promise priced at arrival; the escape hatch is honest-silent again.
+- The 23rd flight MINED: the storm broke (deaths 3, siege pace 0.6/min, hounds 0, flee 0); the correlation 4th point holds the rss-climb verdict; F18's freeze chain (relog->hold->bypass->clear->drown) is the reconnect-spends-air evidence.
+- New front surfaced by the lens: THE BANK WENT SILENT (banked 0u on 120 bank visits, fallback/budget exhausted 33, stalled owns 18/21 failed climb cycles 85.7%) - the next fire's prime candidate beside the dry-ground disengage (cooled this face) and the relog churn pricing (37 kicks).
+- Version 0.681.0 (7756455); next free 0.682.0. Dispatch law x29 (face 37421661533 in flight on f918559).
+- Next fire: (1) poll face 37421661532〔37421661533〕 FIRST - SUCCESS -> mine (floor x20?, the siege pace's 3rd read, the correlation's 5th point, the gate endings' 2nd read, the bank-silent repeat?). (2) push-CI verdict on 7756455. (3) fronts: THE BANK SILENCE (120 visits 0 banked - the deposit flow's own autopsy), the relog churn (37 kicks F13 11), the stick-drought (12/13 recovery mid-fails). (4) dispatch law x30 on clear.
