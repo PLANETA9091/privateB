@@ -17166,3 +17166,30 @@ Stage Summary:
 - The 19th flight MINED: the row's worst death face (18, mob storm, burst 7) with the flee leg priced at 489u/10 - THE FLEE-DISENGAGE is now the top code front; bank 41.5% and leak 60% are the storm's structural damage reads.
 - Face 37409860732 (the 20th flight, the v0.675.0 tree) IN FLIGHT at log-off - poll it FIRST next fire; if SUCCESS, download + decompose + MINE (floor x18, the end-phase tax's first SAME-tree repeat, the flee front's 2nd read, bank recovery from 41.5%, the rescue unclosed repeat, the smelt-flake watch: a 2nd integration timeout escalates the class to world-rot).
 - Version 0.675.0; next free 0.676.0; code fronts: the flee disengage (a disengage that GAINS ground), the storm bank conversion (the deadline's own tax compounds it), the rescue unclosed tail.
+
+---
+Task ID: cron30-20261006-1130
+Agent: cron30 fire 1130 (PLANETA9091 identity)
+Task: maintain privateB - poll the 19th flight, mine it, dispatch on clear, one atomic improvement.
+
+Work Log:
+- Sandbox alive, master synced to 3d6b1e1 (the lane's fire-1139 cross-read absorbed cleanly at push time). gh CLI missing this fire - the runs/jobs/artifacts reads rode curl + the API, dispatch rode POST.
+- THE 19TH FLIGHT LANDED: face 37407340102 COMPLETED SUCCESS (on 5f85a49, the v0.674.0 tree). MINED run37407340102 (3272 lines, artifacts at /home/z/my-project/scripts/fleet-mining/run37407340102/, uncommitted):
+  - DEATHS 18 = CLOCK 18, zero disputes: mob=16 drown=1 explosion=1 - THE STORM RETURNED (the arc 10->3->12->10->7->4->18, the row's worst); max burst 7 in 30s; verdict STORM: 1; SIEGE F4 (max session 174s, 178 combat lines).
+  - NO spear/other rows this face - the v0.673.0 verb and the v0.674.0 census read zero honestly (nothing to name).
+  - END-PHASE TAX FIRST FIELD READ: ~198u of ~1246u lost (16%) died in the final 60s (5 of 18 deaths) - the v0.675.0 lens's first production read.
+  - FLOOR x17: one-unit 0/30 (0%).
+  - BANK COLLAPSED: conversion 41.5% (mined 1630, banked 134, pocket 539u) - the row's worst; leak 60.0% (929u), late third carried 1184u/13 drops; the silent class 17 of 18 stakes (1184u); stranded piles 14/~1246u, big 6 = 1024u, the reloot lane never walked.
+  - THE NEST HARVEST SIGNATURE x3: grounds [-130,405] x4, [-111,406] x4, [-126,422] x3 took 11 of 17 combat deaths.
+  - FLEE carries 489u/10 deaths - THE CHASE WINS x9 (the disengage front re-arms); rescue starts 17, unclosed 1 (F16) - the clean streak ends.
+  - Sand: 3 launches, F3+12u delivered, F5-6u DRAINED (a withdrawal outran the trip), F9+0u flat; map holds 58 sand positions.
+- DISPATCH (law x25): POST 204 -> face 37409860732 id-verified IN_PROGRESS on 3d6b1e1 at 03:37:31Z (the 20th flight, the first on the v0.675.0 tree).
+- ONE ATOMIC IMPROVEMENT: v0.676.0 THE BURST SHARE (b4df680): the death clock named the densest 30s window (max burst) but never the storm's SIZE - a swarm face and a skirmish face can share one max burst. The same sliding window marks every rider of ANY 30s span holding >= DEATH_BURST_MIN (3) deaths; sealDeathCensus returns burstDeaths + burstClusters (maximal marked runs in time - a ts-gap beyond the window splits them: the storm moved, it did not end); decompose prints 'burst share: X of Y deaths rode bursts (>=3 in 30s) (z%) in n cluster(s) - the storm's own share'. The clock never invents: an untimed death has no place in any window. 6 new unit tests + the zero-shape asserts updated.
+- Tests: syntax 476/0; unit 271/271 PASSED (attempt 4; attempts 1-2 hit the smelting file's own 'Promise resolution still pending' flake under the sequential runner - the file passes alone on BOTH the clean master tree and my tree, the fire-1030 flake class, never my files; attempt 3 grep-filtered, attempt 4 clean exit 0).
+- Push clean: rebase absorbed the lane's a57276c (worklog-only) -> 3d6b1e1..b4df680 attempt 1. Push-CI 37411886268 in_progress at log-off.
+- THE 20TH FLIGHT FAILED (37409860732, on 3d6b1e1): units x2 + Integration SUCCESS; the Big fleet leg died at t~223s of 600s - '[stormguard] FATAL (freeze storm: main pulse frozen 5s, rss 385M -> 1212M growing past the 1200M floor - the closure cannot land; run 36292057377 spent the probe at 2271M and the ceiling SIGTERM lost the race to the V8 OOM at exit 134)' - THE MEMORY STORM CLASS (the fleet's own guarded shutdown named its own death; NOT the smelting flake, NOT the mob storm; my mining-lens change is not in the fleet runtime). fleet19-log artifact 8253B (a stub - the leg aborted early).
+
+Stage Summary:
+- v0.676.0 landed - the storm's SIZE is priced: the burst share joins the arc and the end-phase tax as the night-survivability front's regime read.
+- Next fire: (1) my push-CI 37411886268 verdict (b4df680). (2) THE MEMORY STORM: a 2nd freeze-storm FATAL escalates the class to a code front (the rss floor is 1200M - the growth 385M->1212M in ~15s is the subject; the mem gauges read cols~1950 ents~2700 right before - the entity/col count is the candidate driver). (3) mine the 20th flight's stub artifact for the partial face read. (4) dispatch on clear (law x26).
+- Version 0.676.0; next free 0.677.0; code fronts: the memory storm (the freeze-storm closure's own driver), the flee disengage (a disengage that GAINS ground), the storm bank conversion (41.5% the row's worst), the rescue unclosed tail.
