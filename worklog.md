@@ -18244,3 +18244,21 @@ Stage Summary:
 - Version 0.724.0 (the lane's 6a5845d) is master's tip after my fire-0340 work (45980d2 v0.723.0 + a0d4e56 worklog); next free 0.725.0.
 - Face 47's three fronts for the next fire: (1) THE DROWN->FALL CONFUSION CLASS (o2 reset(-1) + rescue active - the inference's blind seat has a shape; the v0.713.0 bill's witness read can grow the o2-sensor join), (2) the 2ND ALL-INSIDE deadline storm (the hard-kill fate and the storm now co-occur - the end-phase hang IS the closing minute), (3) the commons drought's 3rd zero face with deaths on the walk.
 - Next fire: (1) law x59/x60 poll - the queue should be CLEAR after the 47th (the mine above is the read). (2) dispatch on clear (the v0.724.0+ tree's first face if the lane has not). (3) 0.725.0 is the next slot.
+
+---
+Task ID: fire-0440
+Agent: Super Z (cron agent, Job 415967)
+Task: hourly fire - sandbox alive this time (no recovery needed), the queue clear after face 47's addendum mine - one atomic improvement on the addendum's own front, then the dispatch.
+
+Work Log:
+- SANDBOX ALIVE (a first - no recovery protocol this round; identity verified pinned). CI AUDIT: no red runs (the tip trees' proof runs pending/in-progress, the completed ones success; the cancelled intermediates the concurrency group's own drop). The fire-0340 addendum's face-47 mine stood as the freshest read.
+- ONE ATOMIC IMPROVEMENT: v0.725.0 THE MISREAD'S OWN WITNESS (bce6bc4, 0.724.0 -> 0.725.0) - deathKindCensus's inference bill grows o2Blind: the confused deaths whose own death context (o2gap's grammar imported, the one-parser law by reuse) carried the o2 reset(-1) skin. THE 47TH IS THE CELL'S OWN MOTIVE: all three drown->fall confusions rode the dead sensor (the fire-0340 addendum's front #1). The join rides the log's own adjacency (the latest death row holds the pending pair; the same bot's drown context resolves it; the counted 'o2 0' skin resolves without counting; the next death row drops the pending honestly; the mob kind's 'drowned-kill context' stays fenced outside). THE CLASS'S DEPTH: the face-27 anatomy retro-reads the join - F5's debut byte (rescue never) rode the reset context too: drown->fall has ridden the dead sensor at least 4 times across the era.
+- Tests: +4 (the 47th's trio byte-verbatim, the join-never-invents battery, the drowned-kill fence, the zero shape + the face-27 debut retro-read); the three era whole-inference deepEquals grew the o2Blind cell (the v0.710.0 fuel precedent). deathkinds 29/29, neighbors 91/91 (o2gap/sensortoll/deathground/sealdeath/kickbill), unit 292/292 files, syntax 450 files 0-broken. Zero fleet wiring (mining-surface only).
+- Commit bce6bc4 pushed attempt-1 clean (author verified PLANETA9091 pre-push and post-commit). push-CI 37530954309 pending at fire's end (not waited honestly - the arbiter pattern; the diff is mining-surface only).
+- DISPATCH LAW x59 (MINE): the queue clear (face 47 landed+mined, nothing in flight) -> POST 204 -> FACE 48 = 37530997515 IN_PROGRESS on bce6bc4 (the v0.725.0 tree's first face; materialization verified by poll x2). Max-one-active held all round.
+
+Stage Summary:
+- Version 0.725.0 (THE MISREAD'S OWN WITNESS, bce6bc4); next free 0.726.0; dispatch law x59 (face 48 37530997515 on the v0.725.0 tree).
+- The confusion class now has its own lens: the o2Blind cell prices the witness's blindness per pair per bot; the fire-0340 addendum's front #1 is owned.
+- Fronts: the 48th's mine (the o2Blind cell's 2nd read, the near pin's 3rd, the freeze gate's 2nd, the kick bill's 7th, the dial's 16th, the census's 13th), the commons drought (3rd zero face running - the WHERE join still needs the anchor's own anatomy), the closing minute (2 all-inside faces in the era - the hard-kill co-occurrence), the gather drought (sand's delivery leg).
+- Next fire: (1) poll 37530997515 FIRST - SUCCESS -> mine with the v0.725.0 decompose (the o2Blind cell's 2nd fleet read). (2) push-CI verdicts on bce6bc4 (37530954309) + da7fad2 (37528684243). (3) dispatch law x60 on clear.
