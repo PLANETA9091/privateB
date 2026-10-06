@@ -2132,7 +2132,8 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
 // (v0.690.0) THE WALK'S DELIVERY - the gather drought's cure input. The
 // famine→gathered pairing prices the walk itself: cured = the walk brought
 // wood home, flat = the pocket didn't move (THE DROUGHT'S SEAT rides the
-// walk), negative = the trip ate its own cure.
+// walk), negative = the trip ate its own cure. (v0.692.0) THE WALK'S COST
+// rides the same block: the face-line span per paired trip.
 {
   const tc = woodTripCensus(lines)
   if (tc.gathered.n > 0 || tc.refused.n > 0 || tc.deferred.n > 0) {
@@ -2140,6 +2141,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     if (tc.delivery.n > 0) {
       const g = tc.delivery.gain
       console.log(`  the gather walk's delivery: ${tc.delivery.cured}/${tc.delivery.n} trips cured (gain ${g.min}..${g.max}${g.min === g.max ? '' : `, median ${g.median}`}) flat ${tc.delivery.flat} negative ${tc.delivery.negative}${tc.delivery.flat > 0 ? ' - THE WALK CAME HOME EMPTY: the drought\'s seat rides the walk' : ''}`)
+      const sp = tc.delivery.span
+      const seg = []
+      if (sp.cured) seg.push(`cured ${sp.cured.min}..${sp.cured.max}`)
+      if (sp.flat) seg.push(`flat ${sp.flat.min}..${sp.flat.max}`)
+      if (sp.negative) seg.push(`negative ${sp.negative.min}..${sp.negative.max}`)
+      if (seg.length) console.log(`  the walk's cost: ${seg.join(', ')} lines per trip${sp.flat ? ' - THE FLAT WALK\'S TOLL: the walk that delivered nothing still burned its segment' : ''}`)
     }
   }
 }

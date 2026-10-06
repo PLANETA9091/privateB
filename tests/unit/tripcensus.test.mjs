@@ -24,7 +24,11 @@ test('woodTripCensus reads face 26 byte-exact: F8 first walk came home FLAT - th
   assert.deepEqual(r.gathered.logsAfter, { min: 0, median: 6, max: 7 })
   // the delivery: F10 +21 cured, F8's first walk +0 FLAT (before 1 -> after
   // 1, 'sticks 0 planks 1 logs 0' - the pocket didn't move), F8's second +21
-  assert.deepEqual(r.delivery, { n: 3, cured: 2, flat: 1, negative: 0, unread: 0, gain: { min: 0, median: 21, max: 21 } })
+  assert.deepEqual(r.delivery, {
+    n: 3, cured: 2, flat: 1, negative: 0, unread: 0,
+    gain: { min: 0, median: 21, max: 21 },
+    span: { cured: { min: 304, median: 405.5, max: 507 }, flat: { min: 722, median: 722, max: 722 }, negative: null }
+  })
   assert.equal(r.refused.n, 0)
   assert.equal(r.deferred.n, 0)
   assert.equal(r.orphans.n, 0)
@@ -43,7 +47,11 @@ test('woodTripCensus anatomy split: refusal answers, the negative trip, the unre
   ])
   assert.equal(r.refused.n, 1)
   assert.deepEqual(r.refused.byBot, { F7: 1 })
-  assert.deepEqual(r.delivery, { n: 2, cured: 0, flat: 0, negative: 1, unread: 1, gain: { min: -4, median: -4, max: -4 } })
+  assert.deepEqual(r.delivery, {
+    n: 2, cured: 0, flat: 0, negative: 1, unread: 1,
+    gain: { min: -4, median: -4, max: -4 },
+    span: { cured: null, flat: null, negative: { min: 1, median: 1, max: 1 } }
+  })
   // the -1 sentinel never joins the logs-after distribution (the death's byte is not a log count)
   assert.deepEqual(r.gathered.logsAfter, { min: 1, median: 1, max: 1 })
   assert.equal(r.orphans.n, 1)
@@ -54,7 +62,7 @@ test('woodTripCensus honest zeros, the lone gathered line, and the junk battery'
   // the calm face: no trip bytes, the honest zero shape
   assert.deepEqual(woodTripCensus([]), {
     gathered: { n: 0, byBot: {}, logsAfter: null },
-    delivery: { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null },
+    delivery: { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null, span: { cured: null, flat: null, negative: null } },
     refused: { n: 0, byBot: {} },
     deferred: { n: 0 },
     orphans: { n: 0 }
@@ -63,7 +71,7 @@ test('woodTripCensus honest zeros, the lone gathered line, and the junk battery'
   // but never invents a delivery pair
   const lone = woodTripCensus(['F2 wood trip: gathered (sticks 4 planks 0 logs 0)'])
   assert.equal(lone.gathered.n, 1)
-  assert.deepEqual(lone.delivery, { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null })
+  assert.deepEqual(lone.delivery, { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null, span: { cured: null, flat: null, negative: null } })
   // junk-safe: non-input reads null (the smeltledger convention)
   assert.equal(woodTripCensus(42), null)
   assert.equal(woodTripCensus(null), null)
@@ -83,7 +91,31 @@ test('woodTripCensus reads face 27 byte-exact: both walks cured, the drought lif
   assert.equal(r.gathered.n, 2)
   assert.deepEqual(r.gathered.byBot, { F9: 1, F7: 1 })
   // the cross-bot pairing: F9's answer pairs F9 (not F7's earlier famine)
-  assert.deepEqual(r.delivery, { n: 2, cured: 2, flat: 0, negative: 0, unread: 0, gain: { min: 16, median: 17.5, max: 19 } })
+  assert.deepEqual(r.delivery, {
+    n: 2, cured: 2, flat: 0, negative: 0, unread: 0,
+    gain: { min: 16, median: 17.5, max: 19 },
+    span: { cured: { min: 266, median: 470, max: 674 }, flat: null, negative: null }
+  })
   assert.deepEqual(r.gathered.logsAfter, { min: 6, median: 6.5, max: 7 })
+  assert.equal(r.orphans.n, 0)
+})
+
+test('woodTripCensus reads face 29 byte-exact: the walk\'s cost - the flats burned 485 and 518 lines for nothing', () => {
+  // face 29 verbatim (run 37441962855, the v0.690.0 tree's first face):
+  // 3 famines, 3 walks ran (0 refusals), 2 came home flat
+  const lines = new Array(2387).fill('F1 [F1] mem: ok')
+  lines[658] = 'F19 wood trip: famine (sticks 2 planks 2 logs 0) - gathering'
+  lines[845] = 'F3 wood trip: famine (sticks 0 planks 3 logs 0) - gathering'
+  lines[1143] = 'F19 wood trip: gathered (sticks 2 planks 2 logs 0)'
+  lines[1542] = 'F3 wood trip: gathered (sticks 1 planks 21 logs 6)'
+  lines[1868] = 'F2 wood trip: famine (sticks 2 planks 3 logs 0) - gathering'
+  lines[2386] = 'F2 wood trip: gathered (sticks 2 planks 3 logs 0)'
+  const r = woodTripCensus(lines)
+  assert.deepEqual(r.delivery, {
+    n: 3, cured: 1, flat: 2, negative: 0, unread: 0,
+    gain: { min: 0, median: 0, max: 25 },
+    span: { cured: { min: 697, median: 697, max: 697 }, flat: { min: 485, median: 501.5, max: 518 }, negative: null }
+  })
+  assert.equal(r.refused.n, 0)
   assert.equal(r.orphans.n, 0)
 })

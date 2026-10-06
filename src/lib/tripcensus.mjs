@@ -1,7 +1,11 @@
 //
 // tripcensus.mjs - THE WALK'S DELIVERY (v0.690.0; SLOT COLLISION #16:
 // 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire - the re-number
-// rides the house convention)
+// rides the house convention) + THE WALK'S COST (v0.692.0: the pairing
+// grows its own clock - the face-line span famine→gathered prices what
+// the trip BURNED: a flat walk delivered nothing yet still spent its
+// segment; the face-29 read: the flats took 485 and 518 lines, the one
+// cure 697)
 //
 // The gather drought's cure input. The famine anatomy (v0.687.0) priced
 // WHICH SLOT starves; the repeat read (v0.688.0) priced the PERSISTENCE
@@ -36,6 +40,10 @@ const medianOf = (xs) => {
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2
 }
 
+const spanOf = (xs) => xs.length
+  ? { min: Math.min(...xs), median: medianOf(xs), max: Math.max(...xs) }
+  : null
+
 // the four canonical wood-trip forms (the trip voice's own skin - the bot
 // id rides the line head, no [F#] tag on this family)
 const WOOD_FAMINE_RE = /^([A-Za-z]\d+) wood trip: famine \(sticks (\d+) planks (\d+) logs (\d+)\) - .+$/
@@ -52,7 +60,9 @@ const bump = (m, k) => { m[k] = (m[k] || 0) + 1 }
  * @returns {null|{gathered: {n: number, byBot: object,
  *   logsAfter: {min, median, max}|null},
  *   delivery: {n: number, cured: number, flat: number, negative: number,
- *   unread: number, gain: {min, median, max}|null},
+ *   unread: number, gain: {min, median, max}|null,
+ *   span: {cured: {min, median, max}|null, flat: {min, median, max}|null,
+ *   negative: {min, median, max}|null}},
  *   refused: {n: number, byBot: object},
  *   deferred: {n: number}, orphans: {n: number}}}
  */
@@ -62,20 +72,24 @@ export function woodTripCensus (lines) {
     : (typeof lines === 'string' ? lines.split('\n') : null)
   if (!src) return null
   const gathered = { n: 0, byBot: {}, logsAfter: null }
-  const delivery = { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null }
+  const delivery = { n: 0, cured: 0, flat: 0, negative: 0, unread: 0, gain: null, span: { cured: null, flat: null, negative: null } }
   const refused = { n: 0, byBot: {} }
   const deferred = { n: 0 }
   const orphans = { n: 0 }
   const logsAfters = []
   const gains = []
-  // the pending pairs: famine (the before mass) waiting for the same
-  // bot's gathered/refused answer (the trip's strict byte shape)
+  // the walk's cost: the face-line span per paired trip, split by class
+  // (a flat walk delivered nothing yet still burned its segment)
+  const spans = { cured: [], flat: [], negative: [] }
+  // the pending pairs: famine (the before mass + its line index) waiting
+  // for the same bot's gathered/refused answer (the trip's strict byte shape)
   const pending = new Map()
-  for (const line of src) {
+  for (let i = 0; i < src.length; i++) {
+    const line = src[i]
     if (typeof line !== 'string') continue
     const fm = line.match(WOOD_FAMINE_RE)
     if (fm) {
-      pending.set(fm[1], Number(fm[2]) + Number(fm[3]) + Number(fm[4]))
+      pending.set(fm[1], { before: Number(fm[2]) + Number(fm[3]) + Number(fm[4]), idx: i })
       continue
     }
     const gm = line.match(WOOD_GATHERED_RE)
@@ -85,16 +99,16 @@ export function woodTripCensus (lines) {
       const s = Number(gm[2]); const p = Number(gm[3]); const l = Number(gm[4])
       if (pending.has(gm[1])) {
         delivery.n++
-        const before = pending.get(gm[1])
+        const { before, idx } = pending.get(gm[1])
         pending.delete(gm[1])
         if (s < 0 || p < 0 || l < 0) {
           delivery.unread++ // the after-pocket sentinel: the pair exists, the mass doesn't
         } else {
           const gain = (s + p + l) - before
           gains.push(gain)
-          if (gain > 0) delivery.cured++
-          else if (gain === 0) delivery.flat++
-          else delivery.negative++
+          if (gain > 0) { delivery.cured++; spans.cured.push(i - idx) }
+          else if (gain === 0) { delivery.flat++; spans.flat.push(i - idx) }
+          else { delivery.negative++; spans.negative.push(i - idx) }
         }
       }
       if (l >= 0) logsAfters.push(l)
@@ -117,5 +131,6 @@ export function woodTripCensus (lines) {
   delivery.gain = gains.length
     ? { min: Math.min(...gains), median: medianOf(gains), max: Math.max(...gains) }
     : null
+  delivery.span = { cured: spanOf(spans.cured), flat: spanOf(spans.flat), negative: spanOf(spans.negative) }
   return { gathered, delivery, refused, deferred, orphans }
 }
