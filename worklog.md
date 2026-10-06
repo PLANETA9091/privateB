@@ -17347,3 +17347,24 @@ Stage Summary:
 - New front surfaced by the lens: THE BANK WENT SILENT (banked 0u on 120 bank visits, fallback/budget exhausted 33, stalled owns 18/21 failed climb cycles 85.7%) - the next fire's prime candidate beside the dry-ground disengage (cooled this face) and the relog churn pricing (37 kicks).
 - Version 0.681.0 (7756455); next free 0.682.0. Dispatch law x29 (face 37421661533 in flight on f918559).
 - Next fire: (1) poll face 37421661532〔37421661533〕 FIRST - SUCCESS -> mine (floor x20?, the siege pace's 3rd read, the correlation's 5th point, the gate endings' 2nd read, the bank-silent repeat?). (2) push-CI verdict on 7756455. (3) fronts: THE BANK SILENCE (120 visits 0 banked - the deposit flow's own autopsy), the relog churn (37 kicks F13 11), the stick-drought (12/13 recovery mid-fails). (4) dispatch law x30 on clear.
+
+---
+
+Task ID: fire-1430
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1430 - poll the 24th flight, one atomic improvement, dispatch on clear
+
+Work Log:
+- Repo already at 975f481 (fire-1400's tip, up to date, no lane collision this fire).
+- THE 24TH FLIGHT (face 37421661533 on f918559, the v0.680.0 tree's first face): poll ran 8 tries (~140s) all IN_PROGRESS - poll-only, max-one-active held, NO dispatch at that point. LATER single-check: completed SUCCESS 4/4 - LANDED but UNMINED at this fire's end (the time-box went to the code fire; next fire mines it FIRST: the siege pace's 3rd read, the gate endings' 2nd read, the correlation's 5th point, the crater row's fleet-side repeat).
+- push-CI on 7756455 (v0.681.0): still pending at check time (honest report); push-CI on 975f481 (the worklog commit): SUCCESS 37422149287.
+- ONE ATOMIC IMPROVEMENT v0.682.0 THE CRATER VERDICT RIDE (adcd437): the fleet's own v0.317.0 bankedCraterDecode already printed 'banked crater decode: crater: ...' (the 23rd's line 2679: 'crater: 0.0% of the endgame loot reached chests (banked 0 of 761u) - the bank chains are the bottleneck, the mines are not') but the mining lens NEVER carried it - the bank silence had numbers (loot ledger, doom why) and no NAME on the mine side. Fix: CRATER_RE in src/lib/bankcensus.mjs (one parser, the last line wins, share + the priced pair + the decode's tail; junk never invents a crater - the body-guard law; a healthy share's fleet-side silence reads null honestly) + decompose prints the verdict beside the ledger row. Zero fleet wiring (mining-surface only, the v0.379/v0.403/v0.408/v0.421 precedent). THE MAIDEN PRODUCTION READ rode its own fire: the 23rd's real log prints 'banked crater: 0% of the endgame loot reached chests (banked 0 of 761u) - the bank chains are the bottleneck, the mines are not' right beside 'loot ledger: mined 985 banked 0 pocket 761u' and 'bank doom why: stalled owns 18 of 21'.
+- Conversion definition double-checked while diagnosing (no bug): conversion = accounted/mined where accounted = banked+smelted+pocket (pocketline.mjs lootLedger) - the 77.4% beside banked 0 is the pocket's own weight, the crater decode prices the banked share separately (0%).
+- Tests: bank-census 39/39 (2 new: byte-exact 23rd verbatim + last-wins/junk/honest-silent); syntax 478 files 0 broken. (The seq-runner full-unit pass was cut by the time-box - CI's parallel runner is the arbiter.)
+- DISPATCH law x30: the 24th landed SUCCESS -> queue clear -> POST 204 -> face 37424678301 materialized IN_PROGRESS on adcd437 (the 25th flight, the first on the v0.682.0 tree); the v0.682.0 push-CI 37424661080 also in flight on adcd437 (different concurrency group).
+
+Stage Summary:
+- v0.682.0 THE CRATER VERDICT RIDE landed (adcd437) - the bank silence has its NAME on the mine side; next free 0.683.0; dispatch law x30 (face 37424678301 in flight on adcd437).
+- The 24th flight (37421661533, v0.680.0's first face) SUCCESS 4/4 - UNMINED: next fire mines it FIRST (the crater's 2nd read is already guaranteed by the fleet-side line; the lens now carries it).
+- Fronts for next fire: the bank silence's deposit-flow autopsy (120 visits, 0 banked, stalled 18/21 - the crater verdict now rides every mine), the relog churn (37 kicks), the stick-drought (12/13 recovery mid-fails), the dry-ground disengage (cooled on the 23rd).
+- Next fire: (1) mine face 37421661533 (download + decompose: floor x20, siege pace 3rd read, gate endings 2nd read, correlation 5th point, crater 2nd read). (2) poll 37424678301; push-CI verdicts on 7756455/37424661080. (3) dispatch law x31 on clear.
