@@ -346,6 +346,25 @@ if (ledger.saved.verdict) {
 }
 // below the bar with zero deaths: the honest silence (the sparse calm
 // proves nothing - the bars never invent)
+// (v0.731.0) THE RELEASE'S OWN TOLL - the release's own aftermath, the join
+// the arena census never held: the hound census prices the ARENA, the
+// ledger prices every END - the 49th asked whether the lane's own save
+// delivered the bot to the hound (F12+F13 died dry-shore with the release
+// as their latest rescue end; F16's rode a complete and stays outside).
+// The one-parser join rides the hound's own arena byte (imported, never
+// forked); the open and absent states never join (the episode's own price
+// and the pre-rescue kill name nobody's save).
+if (ledger.releasedKills.dryShoreKills > 0) {
+  const rk = ledger.releasedKills
+  const bots = Object.entries(rk.byBot).map(([b, n]) => `${b}=${n}`).join(' ') || 'untagged'
+  if (rk.verdict) {
+    console.log(`  the release's own toll (v0.731.0): ${rk.releasedKills} of the face's ${rk.dryShoreKills} dry-shore hound kill(s) rode a release (${bots}) - ${rk.verdict}: the lane's own save delivered the bot to the hound's arena`)
+  } else {
+    console.log(`  the release's own toll (v0.731.0): ${rk.releasedKills} of the face's ${rk.dryShoreKills} dry-shore hound kill(s) rode a release (${bots}) - under the toll bar, the mass names the boundary case`)
+  }
+}
+// a kill-free or dry-shore-free face: the honest silence (the release never
+// met the hound)
 // (v0.679.0) THE ORPHAN OWNER - the orphans' per-bot split: the fleet-wide
 // count answers 'how many', the owner split answers 'WHOSE client died'
 // (the stand-down's own words: 'the reconnect lane owns a dead client').

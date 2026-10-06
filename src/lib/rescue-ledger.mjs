@@ -51,6 +51,23 @@ export const SAVED_MIN_STARTS = 20
 /** (v0.728.0) The verdict's own name (the shape the decompose prints). */
 export const SAVED_VERDICT = 'THE SAVED FACE'
 
+// (v0.731.0) THE RELEASE'S OWN TOLL - the hound's own bytes imported (the
+// one-parser law by reuse, the o2gap grammar import precedent): the join
+// rides the hound census's own anchored kill shape + the arena byte, never
+// a fork. The ANCHORED shape leads: a prose sample quoting the arena fails
+// the anchor and never counts.
+import { KILL_RE, KILL_DRY_SHORE_RE } from './houndcensus.mjs'
+
+/**
+ * (v0.731.0) The release toll's own bar - the released kills the verdict's
+ * claim needs: two lives is a toll, one is the hound's own boundary case
+ * (the mass row still names it; the bars never invent).
+ */
+export const RELEASE_TOLL_MIN_KILLS = 2
+
+/** (v0.731.0) The toll verdict's own name (the shape the decompose prints). */
+export const RELEASE_TOLL_VERDICT = "THE RELEASE'S TOLL"
+
 /**
  * The end-line classes, in match order (the `done` ladder's values verbatim,
  * then the catch-path). An end line is 'water: rescue <done> in Ns' except
@@ -136,13 +153,25 @@ export function rescueLedger (lines) {
   // rode while its starts flew (fleet-wide; the verdict is the face's own,
   // not a bot's). The fence lives in the regex, not here.
   let drownDeaths = 0
+  // (v0.731.0) THE RELEASE'S OWN TOLL's state - the per-bot rescue-end
+  // state machine (the release's own aftermath): 'open' while an episode
+  // runs, the end class when it closes. A dry-shore hound kill joins the
+  // release only when the bot's LATEST rescue end was the release - the
+  // lane's own 'surface-safe' declaration delivered the bot to the hound's
+  // arena. The open state never joins (the kill mid-episode is the
+  // episode's own price - the dead-in-rescue class); the absent state
+  // never joins (a kill before any rescue line names nobody's save).
+  const rescueEndState = new Map() // bot -> 'open' | end-class
+  let dryShoreKills = 0
+  let releasedKills = 0
+  const releasedKillBots = {}
   const orphanEndLines = []
   const unclosedLines = []
   const timeoutSecondsByBot = {}
   const LINE_CAP = 12 // the forensics arrays stay bounded on a whale face
   const pushCapped = (arr, line) => { if (arr.length < LINE_CAP) arr.push(line) }
   if (!Array.isArray(lines)) {
-    return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths) }
+    return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths), releasedKills: releaseTollCell(dryShoreKills, releasedKills, releasedKillBots) }
   }
   const open = new Map() // bot -> true while an episode is open
   const openStartLine = new Map() // bot -> the verbatim start line of its open episode
@@ -163,6 +192,19 @@ export function rescueLedger (lines) {
     // byte is unique), so the count rides the loop's top without stealing
     // a classification.
     if (DROWN_DEATH_RE.test(line)) drownDeaths++
+    // (v0.731.0) the hound's arena byte - the dry-shore kill's own join:
+    // the kill always counts in the arena mass; the release join fires
+    // only when the bot's latest rescue end was the release (the state
+    // machine above the fold - open and absent never join). The anchored
+    // kill shape leads (the prose fence), the arena byte names the class.
+    if (KILL_RE.test(line) && KILL_DRY_SHORE_RE.test(line)) {
+      dryShoreKills++
+      const killBot = botOf(line)
+      if (killBot && rescueEndState.get(killBot) === 'released') {
+        releasedKills++
+        releasedKillBots[killBot] = (releasedKillBots[killBot] || 0) + 1
+      }
+    }
     const mid = RESCUE_MID_EVENTS.find(e => e.re.test(line))
     if (mid) midEvents[mid.key] = (midEvents[mid.key] || 0) + 1
 
@@ -179,6 +221,7 @@ export function rescueLedger (lines) {
       }
       open.set(bot, true)
       openStartLine.set(bot, line)
+      rescueEndState.set(bot, 'open') // (v0.731.0) the episode owns the bot until it closes
       continue
     }
 
@@ -192,6 +235,7 @@ export function rescueLedger (lines) {
     }
     totals[end]++
     rowOf(bot)[end]++
+    rescueEndState.set(bot, end) // (v0.731.0) the close's own class is the bot's state
     if (end === 'timeout') {
       const s = rescueEndSeconds(line)
       if (s != null) timeoutSecondsByBot[bot] = (timeoutSecondsByBot[bot] || 0) + s
@@ -207,7 +251,7 @@ export function rescueLedger (lines) {
     }
   }
 
-  return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths) }
+  return { totals, perBot, midEvents, orphanEnds, orphanEndLines, unclosedLines, timeoutSecondsByBot, saved: savedCell(totals.starts, drownDeaths), releasedKills: releaseTollCell(dryShoreKills, releasedKills, releasedKillBots) }
 }
 
 /**
@@ -231,5 +275,35 @@ function savedCell (starts, drownDeaths) {
     starts,
     drownDeaths,
     verdict: starts >= SAVED_MIN_STARTS && drownDeaths === 0 ? SAVED_VERDICT : null
+  }
+}
+
+/**
+ * (v0.731.0) THE RELEASE'S OWN TOLL - the release's own aftermath, the cell
+ * the arena census never held: the hound census prices the ARENA (dry-shore
+ * 3 / in-water 0 on the 49th), the rescue ledger prices every END - no cell
+ * asked whether the lane's own save delivered the bot to the hound. The
+ * 49th is the motive (run 37535680746): F12 and F13 died the hound's
+ * dry-shore kill with the release ('surface-safe, open water - no land
+ * known') as their latest rescue end - the lane declared them safe and the
+ * shore took them; F16's kill rode a COMPLETE (the shallows' own exit, not
+ * the release's declaration) and stays outside the join honestly.
+ *   - releasedKills: the dry-shore kills whose bot's latest rescue end was
+ *     the release (the state machine: a new episode opens the state, the
+ *     close's class replaces it; the open state and the absent state never
+ *     join - the episode's own price and the pre-rescue kill name nobody's
+ *     save).
+ *   - dryShoreKills: the arena's whole mass (the join's own denominator -
+ *     the hound census's own byte, imported one-parser).
+ *   - verdict: releasedKills >= RELEASE_TOLL_MIN_KILLS reads THE RELEASE'S
+ *     TOLL (two lives is a toll); one kill stays the boundary case the
+ *     mass row names; zero reads the honest silence.
+ */
+function releaseTollCell (dryShoreKills, releasedKills, releasedKillBots) {
+  return {
+    dryShoreKills,
+    releasedKills,
+    byBot: { ...releasedKillBots },
+    verdict: releasedKills >= RELEASE_TOLL_MIN_KILLS ? RELEASE_TOLL_VERDICT : null
   }
 }

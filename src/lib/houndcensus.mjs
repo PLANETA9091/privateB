@@ -80,8 +80,14 @@ const REVERDICT_RE = /[,\(] ?(?:proximity|sentry) re-verdict\)/
 // ('vs drowned (...)', 'drowned@4.9' in a shelter-skip's threat read).
 const DROWNED_MENTION_RE = /\bdrowned\b/
 
-const KILL_RE = /^F\d+ \[F\d+\] death: drowned-kill context \(/i
-const KILL_DRY_SHORE_RE = /drowned-kill context \(dry-shore/
+// (v0.731.0) the arenas' own bytes exported - the one-parser law by reuse
+// (the o2gap grammar import precedent): the release toll's join rides the
+// hound's own bytes, never a fork. The ANCHORED kill shape leads the join
+// (the census's own killsDryShore alignment): a prose sample quoting the
+// arena ('   ~ F12 ... drowned-kill context (dry-shore') fails the anchor
+// and never counts.
+export const KILL_RE = /^F\d+ \[F\d+\] death: drowned-kill context \(/i
+export const KILL_DRY_SHORE_RE = /drowned-kill context \(dry-shore/
 const KILL_IN_WATER_RE = /drowned-kill context \(in-water/
 const KILL_WATERLINE_RE = /drowned-kill context \(waterline/
 const DROWN_CTX_RE = /^F\d+ \[F\d+\] death: drown context \(/

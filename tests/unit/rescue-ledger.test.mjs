@@ -308,3 +308,103 @@ test('junk never invents the verdict: prose kind tokens, blob lines, the zero sh
   const junk = rescueLedger(null)
   assert.deepEqual(junk.saved, { starts: 0, drownDeaths: 0, verdict: null })
 })
+
+// (v0.731.0) THE RELEASE'S OWN TOLL - the release's own aftermath. The hound
+// census prices the ARENA; the ledger prices every END; the join asks
+// whether the lane's own save delivered the bot to the hound. The era's
+// bytes below are verbatim lines of the 49th (run 37535680746): F12 and F13
+// died the dry-shore kill with the release as their latest rescue end; F16
+// rode a complete and stays outside honestly.
+
+const realRelease49 = (bot, secs) => `${bot} [${bot}] water: rescue released (surface-safe, open water - no land known; the walk gate reopens) in ${secs}s`
+const realKill49 = {
+  f12: 'F12 [F12] death: drowned-kill context (dry-shore, y 64, feet air, head air, water none)',
+  f13: 'F13 [F13] death: drowned-kill context (dry-shore, y 63, feet air, head air, water none)',
+  f16: 'F16 [F16] death: drowned-kill context (dry-shore, y 64, feet air, head air, water none)'
+}
+const realDeath49 = {
+  f12: 'F12 [F12] died - respawning (cause: server: was impaled by Drowned [kind=mob by Drowned] | inferred: drowned@9.7 (0s before death at [-173,64,417]) [the inference corroborates the server verdict])',
+  f16: 'F16 [F16] died - respawning (cause: server: was impaled by Drowned [kind=mob by Drowned] | inferred: zombie@8.0 (0s before death at [-109,64,377]) [the inference CONTRADICTS the server verdict - the nearest harm was not the killer (the server kind stays the authority)])'
+}
+const realComplete49 = 'F16 [F16] water: rescue complete in 5.3s'
+const kill = (bot) => realKill49[bot === 'F16' ? 'f16' : 'f12'] // the anchored arena byte, the bot's own
+
+test("the 49th reads THE RELEASE'S TOLL: 2 of the 3 dry-shore kills rode a release (F12+F13), F16's complete stays outside", () => {
+  const lines = [
+    start('F13'), realRelease49('F13', '6.4s'),          // F13's release (the latest end before the kill)
+    start('F16'), realComplete49,                        // F16's complete - another exit class
+    start('F12'), realRelease49('F12', '5.4s'),          // F12's release
+    realDeath49.f12, realKill49.f12,                     // the release's own aftermath
+    realDeath49.f16, realKill49.f16,                     // the complete's own aftermath - OUTSIDE the join
+    realKill49.f13                                       // the release's own aftermath
+  ]
+  const r = rescueLedger(lines)
+  assert.equal(r.releasedKills.dryShoreKills, 3) // the arena's whole mass
+  assert.equal(r.releasedKills.releasedKills, 2) // F12 + F13 rode the release
+  assert.deepEqual(r.releasedKills.byBot, { F12: 1, F13: 1 })
+  assert.equal(r.releasedKills.verdict, "THE RELEASE'S TOLL")
+})
+
+test("the state machine's fences: complete, timeout, open and absent never join", () => {
+  // the complete's own aftermath (F16's shape)
+  const rComplete = rescueLedger([start('F16'), realComplete49, realDeath49.f16, kill('F16')])
+  assert.equal(rComplete.releasedKills.dryShoreKills, 1)
+  assert.equal(rComplete.releasedKills.releasedKills, 0)
+  assert.equal(rComplete.releasedKills.verdict, null)
+  // the timeout's own aftermath - the lane never declared safe
+  const rTimeout = rescueLedger([start('F12'), end('timeout', 'F12', 26.1, ' (still wet, 14 passes, 0 probes, tail dry/dry/dry)'), kill('F12')])
+  assert.equal(rTimeout.releasedKills.dryShoreKills, 1)
+  assert.equal(rTimeout.releasedKills.releasedKills, 0)
+  // the OPEN episode owns the bot - the kill mid-episode is the episode's own price
+  const rOpen = rescueLedger([start('F12'), kill('F12')])
+  assert.equal(rOpen.releasedKills.dryShoreKills, 1)
+  assert.equal(rOpen.releasedKills.releasedKills, 0)
+  // the ABSENT state - a kill before any rescue line names nobody's save
+  const rAbsent = rescueLedger([kill('F12')])
+  assert.equal(rAbsent.releasedKills.dryShoreKills, 1)
+  assert.equal(rAbsent.releasedKills.releasedKills, 0)
+})
+
+test('a new episode replaces the state: the release hands the bot to the next episode, not the kill', () => {
+  // release -> a new start (open) -> kill: the new episode owns the bot
+  const rOpen = rescueLedger([start('F12'), realRelease49('F12', '5.4s'), start('F12'), kill('F12')])
+  assert.equal(rOpen.releasedKills.releasedKills, 0)
+  // release -> another end (standdown) -> kill: the close's class replaced
+  const rStanddown = rescueLedger([
+    start('F12'), realRelease49('F12', '5.4s'),
+    start('F12'), end('standing down', 'F12', 9.4, ' (frozen physics - the walk gate reopens, the reconnect lane owns a dead client)'),
+    kill('F12')
+  ])
+  assert.equal(rStanddown.releasedKills.dryShoreKills, 1)
+  assert.equal(rStanddown.releasedKills.releasedKills, 0)
+  // and the honest positive: release -> kill -> a new episode -> kill rides released twice
+  const rTwice = rescueLedger([
+    start('F12'), realRelease49('F12', '5.4s'), kill('F12'),
+    start('F12'), realRelease49('F12', '7.3s'), kill('F12')
+  ])
+  assert.equal(rTwice.releasedKills.releasedKills, 2)
+  assert.deepEqual(rTwice.releasedKills.byBot, { F12: 2 })
+  assert.equal(rTwice.releasedKills.verdict, "THE RELEASE'S TOLL")
+})
+
+test("the toll bar's own edge: one released kill is the boundary case the mass row names", () => {
+  const rOne = rescueLedger([start('F12'), realRelease49('F12', '5.4s'), kill('F12')])
+  assert.equal(rOne.releasedKills.releasedKills, 1)
+  assert.equal(rOne.releasedKills.dryShoreKills, 1)
+  assert.equal(rOne.releasedKills.verdict, null) // one life is the hound's own boundary case
+})
+
+test('junk never invents the toll: prose quoting the arena fails the anchored kill shape', () => {
+  const proseSample = '   ~ F12 [F12] death: drowned-kill context (dry-shore, y 64, feet air, head air, water none)' // the sweep's indented sample
+  const blob = 'F1 water: rescue complete in 0.0s (the blob form)'
+  const inWater = 'F1 [F1] death: drowned-kill context (in-water, y 40, feet water, head water, water full)' // another arena, never the join
+  const r = rescueLedger([proseSample, blob, inWater, null, 42, {}])
+  assert.equal(r.releasedKills.dryShoreKills, 0) // the prose and the other arena stay out
+  assert.equal(r.releasedKills.releasedKills, 0)
+  assert.equal(r.releasedKills.verdict, null)
+  assert.deepEqual(r.releasedKills.byBot, {})
+  const empty = rescueLedger([])
+  assert.deepEqual(empty.releasedKills, { dryShoreKills: 0, releasedKills: 0, byBot: {}, verdict: null })
+  const junk = rescueLedger(undefined)
+  assert.deepEqual(junk.releasedKills, { dryShoreKills: 0, releasedKills: 0, byBot: {}, verdict: null })
+})
