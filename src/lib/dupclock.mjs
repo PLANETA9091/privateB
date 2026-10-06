@@ -1,5 +1,5 @@
 //
-// dupclock.mjs - THE DUPLICATE'S OWN CLOCK (v0.728.0)
+// dupclock.mjs - THE DUPLICATE'S OWN CLOCK (v0.729.0)
 //
 // The kick bill (v0.717.0) prices the churn's EVENTS from the fleet
 // log's own cells (kicks + relogs, the pair, the split, the repeats) -

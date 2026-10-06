@@ -84,7 +84,7 @@ import { walkoutWitnessCensus } from '../../src/lib/walkoutcensus.mjs' // (v0.43
 import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog's own loop bill - the relogs' repeats joined to the walk-out's stalled deliveries (the loop's own meter)
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
-import { dupClock } from '../../src/lib/dupclock.mjs' // (v0.728.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm)
+import { dupClock } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -102,7 +102,7 @@ const lines = readFileSync(file, 'utf8').split('\n')
 // persistence row stays silent (no prior face, no cross-face read).
 const prevFile = process.argv[3] || null
 const prevLines = prevFile ? readFileSync(prevFile, 'utf8').split('\n') : null
-// (v0.728.0) the optional SERVER log - the duplicate churn's own clock
+// (v0.729.0) the optional SERVER log - the duplicate churn's own clock
 // (the join side the fleet log never carries: every duplicate loss with
 // its wall-clock stamp, the seconds between them, the re-spawn bursts).
 // Absent -> the clock row stays silent (the fleet lens's own account).
@@ -329,7 +329,7 @@ if (calm && calm.paradox) {
   const top = p.top ? `top ${p.top[0]}=${p.top[1]} of ${p.spenders} spender(s)` : 'no spender table'
   console.log(`  the calm paradox (v0.701.0): 0 death(s) rode ${p.starts} rescue start(s) (${top}, ends complete ${p.ends.complete} / released ${p.ends.released} / standdown ${p.ends.frozenStanddown} / timeout ${p.ends.timeout} / unclosed ${p.ends.unclosed}) - the water lane churns on its own clock, the deaths are not its meter`)
 }
-// (v0.728.0) THE SAVED FACE - the starts' own collective verdict, the cell
+// (v0.729.0) THE SAVED FACE - the starts' own collective verdict, the cell
 // the end histogram never held: the ledger prices every END, the calm
 // paradox prices the 0-DEATH face's lane churn - but the BUSY face's water
 // win (deaths rode, none of them drown) had no owner. The 48th is the
@@ -339,9 +339,9 @@ if (calm && calm.paradox) {
 // drown-kind deaths at volume (the 46th's mob-by-Drowned kill stays the
 // hound's own - the kind byte is the grain, the server kind the authority).
 if (ledger.saved.verdict) {
-  console.log(`  the starts' own verdict (v0.728.0): ${ledger.saved.verdict} - ${ledger.saved.starts} start(s), 0 drown-kind death(s) - the water lane landed every rider`)
+  console.log(`  the starts' own verdict (v0.729.0): ${ledger.saved.verdict} - ${ledger.saved.starts} start(s), 0 drown-kind death(s) - the water lane landed every rider`)
 } else if (ledger.saved.drownDeaths > 0) {
-  console.log(`  the starts' own verdict (v0.728.0): not saved - ${ledger.saved.drownDeaths} drown-kind death(s) among ${ledger.saved.starts} start(s) (the deaths' own bills own the read)`)
+  console.log(`  the starts' own verdict (v0.729.0): not saved - ${ledger.saved.drownDeaths} drown-kind death(s) among ${ledger.saved.starts} start(s) (the deaths' own bills own the read)`)
 }
 // below the bar with zero deaths: the honest silence (the sparse calm
 // proves nothing - the bars never invent)
@@ -1260,7 +1260,7 @@ console.log('  hazard memorized:', count(/hazard memorized/))
     console.log(`  the kick's own churn (v0.717.0): ${kb.kicks} kick(s) across ${Object.keys(kb.kickBots).length} bot(s) + ${kb.relogs} relog(s) = ${kb.churn} churn event(s); the pair: ${kb.paired.n} bot(s) rode BOTH lanes (${pairTail}); the split: kick-only ${kb.kickOnly.n} (${kbSort(kb.kickOnly.bots)}), relog-only ${kb.relogOnly.n} (${kbSort(kb.relogOnly.bots)}); the churn's repeats: ${kb.repeats.n} bot(s) 2+ events owning ${kb.repeats.owned}/${kb.churn} (${kbpct(kb.repeats.share)}%)`)
   }
 }
-// (v0.728.0) THE DUPLICATE'S OWN CLOCK - the server log's join side. The
+// (v0.729.0) THE DUPLICATE'S OWN CLOCK - the server log's join side. The
 // fleet log's KICKED line prints only when the kick packet reaches a
 // living client; the server's clock owns every duplicate loss and the
 // seconds between them. The 48th face: the fleet printed 9 kicked
@@ -1271,7 +1271,7 @@ console.log('  hazard memorized:', count(/hazard memorized/))
   const dc = serverLines ? dupClock(serverLines) : null
   if (dc) {
     const dcSort = (m) => Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
-    console.log(`--- THE DUPLICATE'S OWN CLOCK (v0.728.0: the server log's join side) ---`)
+    console.log(`--- THE DUPLICATE'S OWN CLOCK (v0.729.0: the server log's join side) ---`)
     console.log(`  duplicate losses: ${dc.losses.n} per-bot: ${dcSort(dc.losses.byBot)} (${dc.losses.first}..${dc.losses.last})`)
     const cadTail = Object.entries(dc.losses.cadence).map(([b, gaps]) => `${b} ${gaps.join('s ')}s`).join(', ')
     if (cadTail) console.log(`  the cadence: ${cadTail}`)
