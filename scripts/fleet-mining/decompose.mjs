@@ -72,6 +72,7 @@ import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the name
 import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { swirlBill } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath)
+import { skyWalk } from '../../src/lib/skywalk.mjs' // (v0.727.0) the crowded sky's own walk - the decide starve's own hand on the walk refusals (the one-parser join: walkfail + decideweather)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
 import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
@@ -1634,6 +1635,17 @@ if (openDeaf.openDeaf.length > 0) {
       console.log(`  the decide weather: the A* starved at ents ${dw.ents.min}..${dw.ents.max} (median ${dw.ents.median}) / rss ${dw.rss.min}..${dw.rss.max}M - ${share} (${fork})`)
     } else if (dw.fails > 0) {
       console.log(`  the decide weather: ${dw.fails} starve(s), ${dw.ungauged} before the first gauge - the sky never read`)
+    }
+    // (v0.727.0) THE CROWDED SKY'S OWN WALK - the join the two rows above
+    // sat beside: the walk refusals' heaviest class is the decide timeout,
+    // the starves ride the crowded entity sky - the banked crater's own
+    // why (the one-parser join by reuse, the concentration law both
+    // sides; the under-bar none-form is the verdict too).
+    {
+      const sw = skyWalk(lines)
+      if (sw.refusals > 0 || sw.starves > 0) {
+        console.log(`  the crowded sky's own walk (v0.727.0): decide-timeout ${sw.decideTimeouts} of ${sw.refusals} walk refusal(s), the A* starved ${sw.starves} time(s)${sw.entsMedian != null ? ` at ents median ${sw.entsMedian}` : ''}${sw.crowdedN != null ? ` (${sw.crowdedN}/${sw.crowdedOf} at or past half the ceiling)` : ''}${sw.verdict ? ` - THE CROWDED SKY'S OWN WALK: the pathfinder's starve owns ${sw.verdict.decideTimeouts} of ${sw.verdict.of} refusals (${(sw.verdict.share * 100).toFixed(1)}%) - the bank chain's bottleneck is the sky, not the terrain` : ' - the join priced, no verdict (under a bar)'}`)
+      }
     }
     // (v0.695.0) THE HOP LANE'S SKY - the hop-zero lane's own decide
     // starves under the same sky (the v0.689.0 lens grew the lane): the
