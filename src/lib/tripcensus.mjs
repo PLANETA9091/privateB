@@ -1,7 +1,9 @@
 //
 // tripcensus.mjs - THE WALK'S DELIVERY (v0.690.0; SLOT COLLISION #16:
 // 0.689.0 taken by fire-1639's THE DECIDE WEATHER mid-fire - the re-number
-// rides the house convention) + THE WALK'S COST (v0.692.0: the pairing
+// rides the house convention) + THE WALK'S COST (v0.693.0; SLOT COLLISION
+// #17: 0.692.0 taken by the lane's THE LOOP LEDGER mid-fire - the re-number
+// rides the house convention: the pairing
 // grows its own clock - the face-line span famine→gathered prices what
 // the trip BURNED: a flat walk delivered nothing yet still spent its
 // segment; the face-29 read: the flats took 485 and 518 lines, the one

@@ -2132,8 +2132,9 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
 // (v0.690.0) THE WALK'S DELIVERY - the gather drought's cure input. The
 // famine→gathered pairing prices the walk itself: cured = the walk brought
 // wood home, flat = the pocket didn't move (THE DROUGHT'S SEAT rides the
-// walk), negative = the trip ate its own cure. (v0.692.0) THE WALK'S COST
-// rides the same block: the face-line span per paired trip.
+// walk), negative = the trip ate its own cure. (v0.693.0) THE WALK'S COST
+// rides the same block: the face-line span per paired trip (SLOT COLLISION
+// #17: 0.692.0 taken by the lane's THE LOOP LEDGER mid-fire).
 {
   const tc = woodTripCensus(lines)
   if (tc.gathered.n > 0 || tc.refused.n > 0 || tc.deferred.n > 0) {
