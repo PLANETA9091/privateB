@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { rescueLedger, rescueEndSeconds, RESCUE_END_CLASSES } from '../../src/lib/rescue-ledger.mjs'
 import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) the orphan end's per-bot owner (the dead-client class names its bot)
 import { askWhyCensus } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat)
-import { bankFlowCensus } from '../../src/lib/bankcensus.mjs'
+import { bankFlowCensus, bankYield } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
@@ -1145,7 +1145,14 @@ console.log('  iron lines:', count(/iron/))
 console.log('  ladder lead lines:', count(/ladder/))
 
 console.log('=== BANK / DEPOSIT ===')
-console.log('  bank visits:', count(/bank(ed)?[: ]/i) > 0 ? count(/\bbank\b/) : 0)
+const bankVisitLines = count(/bank(ed)?[: ]/i) > 0 ? count(/\bbank\b/) : 0
+console.log('  bank visits:', bankVisitLines)
+// (v0.686.0) THE BANK YIELD DIAL - the mass each visit-line carried: the
+// ratio that moved between faces 23/24/25 (0.0 -> 2.8 -> the alive bank).
+// The silence law: a face with no bank lane reads nothing; a live lane
+// that banked nothing is the 23rd's own finding (THE SILENT BANK).
+const bankYieldRow = bankYield(bankCensus.loot ? bankCensus.loot.banked : null, bankVisitLines)
+if (bankYieldRow) console.log(`  bank yield: ${bankYieldRow.rateUPerVisit}u/visit (${bankYieldRow.banked}u banked over ${bankYieldRow.visits} visit-lines)${bankYieldRow.silent ? ' - THE SILENT BANK (the lane walked, the mass never moved)' : ' - the bank moved'}`)
 console.log('  bank fallback/budget exhausted:', count(/budget exhausted/))
 console.log('  chest unreachable:', count(/chest unreachable/))
 console.log('  deposit probe:', count(/deposit/i))

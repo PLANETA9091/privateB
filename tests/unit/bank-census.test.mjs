@@ -399,3 +399,36 @@ test('bank-census: the crater verdict - the last line wins, junk never invents',
   ])
   assert.equal(junk.crater, null)
 })
+
+// (v0.686.0) THE BANK YIELD DIAL - the mass each visit-line carried: the
+// ratio that moved between faces 23/24/25 (0.0 -> 2.8 -> 11.3). Pure
+// arithmetic over the two existing counters; the silence law holds.
+
+import { bankYield } from '../../src/lib/bankcensus.mjs'
+
+test('bank yield: the 24th byte-exact - the partial heal priced (316u over 112 visit-lines)', () => {
+  assert.deepEqual(bankYield(316, 112), { banked: 316, visits: 112, rateUPerVisit: 2.8, silent: false })
+})
+
+test('bank yield: the 25th byte-exact - the alive bank priced (1768u over 156 visit-lines)', () => {
+  assert.deepEqual(bankYield(1768, 156), { banked: 1768, visits: 156, rateUPerVisit: 11.3, silent: false })
+})
+
+test('bank yield: banked 0 over a live lane is the finding, not silence (the 23rd shape)', () => {
+  assert.deepEqual(bankYield(0, 120), { banked: 0, visits: 120, rateUPerVisit: 0, silent: true })
+})
+
+test('bank yield: no bank lane (or junk) reads null - the rate never invents itself', () => {
+  assert.equal(bankYield(5, 0), null)
+  assert.equal(bankYield(null, 10), null)
+  assert.equal(bankYield(316, -1), null)
+  assert.equal(bankYield('316', 112), null)
+})
+
+test('WIRING: the decompose prints the bank yield row beside the visit count', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /bank yield: \$\{bankYieldRow\.rateUPerVisit\}u\/visit/, "the dial prints in the BANK / DEPOSIT block")
+  assert.match(src, /THE SILENT BANK/, "the 23rd's own finding names itself")
+})
+
+import fs from 'node:fs'

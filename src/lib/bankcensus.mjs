@@ -320,3 +320,21 @@ export function bankFlowCensus(lines) {
 
   return { loot, pocket, surplus, flow, budgets, budgetAgg, attribution, writeOff, writeOffWhys, doom, deliverable, crater }
 }
+
+// (v0.686.0) THE BANK YIELD DIAL - the flip's own number. The bank front
+// re-priced across faces 23/24/25: banked 0 of 120 visit-lines (the 23rd's
+// silent bank, the crater's 0%) -> 316 of 112 (the 24th's partial heal,
+// 2.8u/visit) -> 1768 banked (the 25th's alive bank). The loot ledger
+// always priced the banked MASS and the visit row always priced the LANE's
+// line count - but their RATIO (the mass each visit-line carried) was
+// never read: it is the dial that moved between the faces. Pure arithmetic
+// over the two existing counters (zero new parsing); the silence law:
+// visit-lines 0 (no bank lane at all) or a non-finite input reads null -
+// the rate never invents itself. banked 0 over a live lane is NOT silence
+// (it is the finding - the 23rd's own shape, `silent` names it).
+export function bankYield (bankedUnits, visitLines) {
+  if (!Number.isFinite(bankedUnits) || !Number.isFinite(visitLines)) return null
+  if (visitLines <= 0) return null
+  const rateUPerVisit = Math.round((bankedUnits / visitLines) * 10) / 10
+  return { banked: bankedUnits, visits: visitLines, rateUPerVisit, silent: bankedUnits === 0 }
+}
