@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dupClock, unseenLosses, surplusKicks, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
+import { dupClock, unseenLosses, surplusKicks, burstDoor, DUP_BURST_MIN, DUP_BURST_WINDOW_S, DUP_METRO_MIN, DUP_METRO_SPREAD } from '../../src/lib/dupclock.mjs'
 
 // The 48th face's server log (run 37530997515) - the duplicate churn's
 // own clock, byte-verbatim. The fleet lens printed 9 kicked lines; the
@@ -163,6 +163,126 @@ test("the unseen loss's own column (v0.734.0): the 51st face's delta names its b
     null,
     'fleet 3 vs server 2 clamps at zero - the bound holds')
   assert.equal(unseenLosses(null, null), null, 'empty maps - the silence')
+})
+
+// The 54th face's own door (run 37557552795), byte-verbatim from the
+// server log: F1 lost eleven sessions 01:55:27..01:56:48 - the FIRST gap
+// (15s) is the lead-in, the tail's nine gaps (5..9s) lock a clock the
+// metronome's whole-gap spread bar (15/5 = 3.0) never saw.
+const F1_DOOR = [
+  '[01:55:27] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:55:42] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:55:51] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:55:57] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:04] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:09] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:16] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:23] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:31] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:40] [Server thread/INFO]: F1 lost connection: You logged in from another location',
+  '[01:56:48] [Server thread/INFO]: F1 lost connection: You logged in from another location'
+]
+
+test("the burst's own door (v0.739.0): the 54th's F1 rode a 15s lead-in then locked a 7s clock", () => {
+  const d = dupClock(F1_DOOR)
+  assert.equal(d.bursts.n, 1)
+  const b = d.bursts.list[0]
+  assert.equal(b.bot, 'F1')
+  assert.equal(b.n, 11)
+  assert.equal(b.spanS, 81)
+  assert.deepEqual(b.gaps, [15, 9, 6, 7, 5, 7, 7, 8, 9, 8])
+  assert.equal(b.periodic, false, 'the whole-gap spread 15/5 = 3.0 fails the metro bar - the 54th is the near-miss, not the metronome')
+  const door = burstDoor(d.bursts.list)
+  assert.ok(door, 'the door opens - the timer past the lead-in is real')
+  assert.deepEqual(door, {
+    n: 1,
+    list: [{ bot: 'F1', n: 11, spanS: 81, leadInS: 15, tailN: 9, tailMedianS: 7, tailMinS: 5, tailMaxS: 9 }]
+  })
+  // the door's own story, asserted: the lead-in is the burst's widest gap
+  assert.equal(b.gaps[0], Math.max(...b.gaps), 'the widest ride precedes the lock - the door\'s own shape')
+})
+
+test("the burst's own door: the fences hold - the metronome, the noisy tail, the small burst", () => {
+  // the metronome's own row owns the clock: the 50th's F5 burst is
+  // periodic (spread 2.1 whole) - the door adds nothing, the silence.
+  const metro = dupClock([
+    '[22:38:30] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:38:47] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:38:57] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:05] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:13] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:26] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:36] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:48] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:39:56] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:40:06] [Server thread/INFO]: F5 lost connection: You logged in from another location',
+    '[22:40:19] [Server thread/INFO]: F5 lost connection: You logged in from another location'
+  ])
+  assert.equal(metro.bursts.list[0].periodic, true)
+  assert.equal(burstDoor(metro.bursts.list), null, 'the clock named whole - the door never re-opens it')
+  // the noisy tail: the lead-in AND the tail both breathe past the bar -
+  // no clock anywhere, the plain burst's own silence.
+  const noisy = dupClock([
+    '[10:00:00] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:05] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:07] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:17] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:19] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:29] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:31] [Server thread/INFO]: F6 lost connection: You logged in from another location',
+    '[10:00:41] [Server thread/INFO]: F6 lost connection: You logged in from another location'
+  ])
+  assert.equal(noisy.bursts.list[0].periodic, false)
+  assert.equal(burstDoor(noisy.bursts.list), null, 'tail spread 5 - the noise owns the whole burst')
+  // the small burst: the 48th's F3 lost four in 36s - under the metro
+  // volume bar, the door never opens for the ladder's own pace.
+  const small = dupClock([
+    '[21:24:36] [Server thread/INFO]: F3 lost connection: You logged in from another location',
+    '[21:24:54] [Server thread/INFO]: F3 lost connection: You logged in from another location',
+    '[21:25:00] [Server thread/INFO]: F3 lost connection: You logged in from another location',
+    '[21:25:12] [Server thread/INFO]: F3 lost connection: You logged in from another location'
+  ])
+  assert.equal(burstDoor(small.bursts.list), null, 'four losses is the ladder\'s pace, not a timer - the volume bar holds')
+})
+
+test("the burst's own door: the junk fence and the honest silences", () => {
+  assert.equal(burstDoor(null), null)
+  assert.equal(burstDoor('junk'), null)
+  assert.equal(burstDoor([]), null)
+  assert.equal(burstDoor([null, 'junk', 42, { periodic: false, gaps: [] }]), null, 'gap-less and non-object cells read the silence')
+  // the junk filter is the read's own normalization: a polluted gaps list
+  // (zero/NaN/negative bytes) drops the junk and reads the SAME door byte
+  // for byte - the shape never rides the noise.
+  const d = dupClock(F1_DOOR)
+  const [b] = d.bursts.list
+  const filtered = burstDoor([{ ...b, gaps: [0, ...b.gaps, NaN, -3] }])
+  assert.deepEqual(filtered, {
+    n: 1,
+    list: [{ bot: 'F1', n: 11, spanS: 81, leadInS: 15, tailN: 9, tailMedianS: 7, tailMinS: 5, tailMaxS: 9 }]
+  }, 'junk in, the same door out - the filter is the lib\'s own normalization')
+  // the lead-in-widest guard with junk present: a narrower byte prepended
+  // moves the door off the lead-in - the widest ride no longer precedes
+  // the lock, the door stays shut (the story holds or the silence does).
+  assert.equal(burstDoor([{ ...b, gaps: [3, ...b.gaps] }]), null, 'a 3s byte before the 15s door - the lead-in is no longer the widest ride')
+  // the volume bar's own edge: exactly 8 losses (7 gaps) with a 16s
+  // lead-in and a 6s tail - whole spread 2.67 fails the metro bar, tail
+  // spread 1.0 locks the clock - the door opens at the bar's edge.
+  const edge = dupClock([
+    '[10:00:00] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:16] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:22] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:28] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:34] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:40] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:46] [Server thread/INFO]: F8 lost connection: You logged in from another location',
+    '[10:00:52] [Server thread/INFO]: F8 lost connection: You logged in from another location'
+  ])
+  assert.equal(edge.bursts.list[0].n, 8)
+  assert.equal(edge.bursts.list[0].periodic, false, 'whole spread 2.67 - the near-miss at the bar\'s own edge')
+  assert.deepEqual(burstDoor(edge.bursts.list), {
+    n: 1,
+    list: [{ bot: 'F8', n: 8, spanS: 52, leadInS: 16, tailN: 6, tailMedianS: 6, tailMinS: 6, tailMaxS: 6 }]
+  }, 'eight losses is the metronome\'s own volume bar - the door opens there too')
 })
 
 test("the surplus kick's own side (v0.735.0): the 52nd face's mirror names its bot", () => {

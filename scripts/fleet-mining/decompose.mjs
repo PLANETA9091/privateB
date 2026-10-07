@@ -86,7 +86,7 @@ import { relogBill } from '../../src/lib/relogbill.mjs' // (v0.715.0) the relog'
 import { freezeBill } from '../../src/lib/freezebill.mjs' // (v0.724.0) the freeze gate's own ladder - the frozen relog's streak/gate/vitals bytes folded per bot (the doubling's own futility read)
 import { kickBill } from '../../src/lib/kickbill.mjs' // (v0.717.0) the kick's own churn - the kick cells joined to the relog cells (the pair, the split, the repeats over both lanes)
 import { kickKindCensus } from '../../src/lib/kickkinds.mjs' // (v0.730.0) the kick's own kinds - the kicked clients' reason census (the translate byte per kind; the dup class reconciles with the frozen census's dupKicks)
-import { dupClock, unseenLosses, surplusKicks } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 grows the unseen loss's own column)
+import { dupClock, unseenLosses, surplusKicks, burstDoor } from '../../src/lib/dupclock.mjs' // (v0.729.0) the duplicate's own clock - the server log's join side (the losses, the cadence, the bursts, the storm; v0.734.0 the unseen loss's own column, v0.735.0 the surplus kick's own side, v0.739.0 the burst's own door)
 import { pinBill } from '../../src/lib/pinbill.mjs' // (v0.722.0) the pinned seat's own bill - the water lane's launches per bot per target (the 70%/10+ concentration names the seat)
 import { memHbCensus, RSS_JUMP_STORM_M, ENT_JUMP_STORM_N } from '../../src/lib/memhb.mjs' // (v0.408.0) the OOM precursors' field read
 import { stormCensus } from '../../src/lib/stormcensus.mjs' // (v0.409.0) the storm EVENT story's field read (verdicts + valve + hb)
@@ -1372,6 +1372,15 @@ console.log('  hazard memorized:', count(/hazard memorized/))
       if (plain.length) {
         const burstTail = plain.map((b) => `${b.bot} lost ${b.n} session(s) in ${b.spanS}s (${b.first}..${b.last})`).join('; ')
         console.log(`  THE DUPLICATE BURST: ${burstTail} - the re-spawn lane's own loop (the patience is not the cure)`)
+      }
+      // (v0.739.0) THE BURST'S OWN DOOR - the plain burst's own near-miss:
+      // the whole-gap spread can fail the metronome's bar on the lead-in
+      // alone while the tail locks the fixed period. The door names the
+      // timer the bar never saw. No door reads the honest silence.
+      const door = burstDoor(dc.bursts.list)
+      if (door) {
+        const doorTail = door.list.map((d) => `${d.bot} lost ${d.n} session(s) in ${d.spanS}s - a ${d.leadInS}s lead-in then a locked clock (tail ${d.tailN} gap(s), median ${d.tailMedianS}s, spread ${d.tailMinS}..${d.tailMaxS}s)`).join('; ')
+        console.log(`  the burst's own door (v0.739.0): ${doorTail} - the metronome's spread bar never saw the timer past the door`)
       }
     } else {
       const [topBot, topN] = Object.entries(dc.losses.byBot).sort((a, b) => b[1] - a[1])[0]

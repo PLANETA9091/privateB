@@ -199,3 +199,56 @@ export function surplusKicks (fleetByBot, serverByBot) {
   }
   return n > 0 ? { n, byBot } : null
 }
+
+// (v0.739.0) THE BURST'S OWN DOOR - the 54th face (run 37557552795) grew
+// the metronome's own near-miss: F1 lost ELEVEN sessions in 81s
+// (01:55:27..01:56:48) and the whole-gap spread (15/5 = 3.0) failed the
+// metronome's bar - but the burst's own anatomy is a clock behind a door:
+// the FIRST gap (15s) is the lead-in - the re-spawn cycle's warm-up - and
+// the TAIL (9 gaps: 5..9s, median 7s, spread 1.8) locks the fixed period
+// the metronome skin exists to name. The whole-gap spread never sees past
+// the door: the widest ride precedes the lock, so the bar prices the
+// lead-in's noise and misses the timer entirely - the read fell back to
+// the plain burst row and the re-spawn rhythm stayed unnamed. burstDoor()
+// walks the clock's OWN burst list (the v0.736.0 skywalk law - two lenses,
+// one read, no re-parsing): a NON-periodic burst at the metronome's own
+// volume bar (n >= DUP_METRO_MIN) whose TAIL (gaps[1..], the door's own
+// aftermath, 2+ gaps) holds within DUP_METRO_SPREAD reads the door - the
+// lead-in's width, the tail's clock. THE FENCES: a periodic burst stays
+// the metronome's own row (the clock named whole - the door adds nothing);
+// a noisy tail (spread past the bar) stays the plain burst (no clock
+// anywhere - the silence never invents one); the lead-in must be the
+// burst's own widest gap (the door's own story - the widest ride PRECEDES
+// the lock; by the two bars above it must, and the guard keeps the story
+// explicit). Junk-safe: non-arrays, non-objects and gap-less cells read
+// the honest silence (null).
+export function burstDoor (burstList) {
+  if (!Array.isArray(burstList)) return null
+  const doors = []
+  for (const b of burstList) {
+    if (!b || typeof b !== 'object') continue
+    if (b.periodic) continue
+    const gaps = Array.isArray(b.gaps) ? b.gaps.filter((g) => Number.isFinite(g) && g > 0) : []
+    if (gaps.length + 1 < DUP_METRO_MIN) continue
+    const tail = gaps.slice(1)
+    if (tail.length < 2) continue
+    const tmin = Math.min(...tail)
+    const tmax = Math.max(...tail)
+    if (tmax / tmin > DUP_METRO_SPREAD) continue
+    if (gaps[0] < Math.max(...gaps)) continue
+    const sorted = [...tail].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+    doors.push({
+      bot: b.bot,
+      n: b.n,
+      spanS: b.spanS,
+      leadInS: gaps[0],
+      tailN: tail.length,
+      tailMedianS: median,
+      tailMinS: tmin,
+      tailMaxS: tmax
+    })
+  }
+  return doors.length ? { n: doors.length, list: doors } : null
+}
