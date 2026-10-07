@@ -1244,6 +1244,25 @@ if (shooter.total > 0) {
       const untimedNote = sp.untimed > 0 ? ` / untimed ${sp.untimed} (pre-first-hb)` : ''
       console.log(`  silent clock (v0.663.0): ${preNote} / ${epNote}${untimedNote}`)
     }
+    // (v0.757.0) THE SILENT CLASS'S OWN EXONERATION - the silent bucket's
+    // own WHY split, honestly named: an empty-pocket silent stake is the
+    // HONEST SILENCE (nothing to arm - the wiring is fine), a massy
+    // end-phase stake is THE DEADLINE'S OWN (the bank's loop outlived the
+    // read), and only a massy pre-tail stake is THE WIRING SEAT (the true
+    // miss - the read had the window, the stake had mass, the lane never
+    // spoke). The runtime's fix target is the seat, not the class. No
+    // silent stakes, nothing exonerated, no row (the honest silence at the
+    // class level); the massy untimed stakes ride the tail honestly.
+    const sv = dc.silentVerdict
+    const exonerated = sv.honest.n + sv.deadline.n + sv.seat.n
+    if (exonerated > 0) {
+      const parts = []
+      if (sv.honest.n > 0) parts.push(`the honest silence x${sv.honest.n} (${sv.honest.u}u: ${sv.honest.bots.join(' ')})`)
+      if (sv.deadline.n > 0) parts.push(`the deadline's own x${sv.deadline.n} (${sv.deadline.u}u: ${sv.deadline.bots.join(' ')})`)
+      if (sv.seat.n > 0) parts.push(`the wiring seat x${sv.seat.n} (${sv.seat.u}u: ${sv.seat.bots.join(' ')})`)
+      const unjudgedNote = sv.unjudged > 0 ? `, ${sv.unjudged} unjudged (no anchor)` : ''
+      console.log(`  the silent class's own exoneration (v0.757.0): ${parts.join(' / ')} - the true miss owns ${sv.seat.n} of ${dc.silent.n} silent stake(s), ${sv.seat.u}u of ${dc.silent.u}u${unjudgedNote}`)
+    }
   }
 }
 // (v0.358.0) THE FREEZE-STORM + NUDGE BLOCK - face 36740244530 (the first

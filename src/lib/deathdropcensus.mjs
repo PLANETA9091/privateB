@@ -23,6 +23,26 @@
 // heartbeat anchor (pre-first-hb, or a log with no clock) stays UNTIMED -
 // the stamp never invents (the sealdeath clock's own junk law).
 //
+// (v0.757.0) THE SILENT CLASS'S OWN EXONERATION - the silent bucket's own
+// WHY split, honestly named. The v0.663.0 clock split the silent stakes by
+// WHEN (pre-tail vs end-phase); the class still conflates WHY. Face 64
+// (37592942080) is the exoneration's own field read: the silent class held
+// 3 stakes (219u: F4+F1+F19) and only ONE was a true miss - F19's drop rode
+// the EMPTY form ('pocket read empty at death (0u)', the census's own
+// kind:'empty' row): nothing to arm, the wiring is fine - THE HONEST
+// SILENCE. F4's 121u died inside the end phase: the bank's loop outlived
+// the read - THE DEADLINE'S OWN. Only F1's ~98u pre-tail stake was the real
+// defect - THE WIRING SEAT (the read had the window, the stake had mass,
+// the lane never spoke). The runtime's fix target is the seat, not the
+// class - a silent-bucket headline that counts the honest silences as
+// defects buys the wrong cure. THE SPLIT LAW (riding the v0.663.0 cells,
+// zero re-parsing): a silent stake with u === 0 (the empty form, or a ~0u
+// loss) is the honest silence - mass is the read; every massy silent stake
+// keeps the clock's own classes (end-phase = the deadline's own, pre-tail
+// = the wiring seat); a massy stake with no anchor stays unjudged - the
+// stamp never invents. The field rides the census return additively (the
+// v0.756.0 meter precedent) - the v0.663.0 cells keep their shapes.
+//
 // WHY: face 37239853197 (the v0.644.0 tree, the wet storm) priced the class
 // again: 7 deaths, the v0.199.0 death-drop lines naming ~714u scattered at
 // the corpse sites, the loot ledger reading unaccounted=469u - the death
@@ -114,7 +134,8 @@ export function isDeathDropLine(l) {
  *   clock: {
  *     armLag: {n: number, medianS: number|null, maxS: number|null},
  *     silent: {preTail: {n: number, u: number, bots: string[]}, endPhase: {n: number, u: number, bots: string[]}, untimed: number}
- *   }
+ *   },
+ *   silentVerdict: {honest: {n: number, u: number, bots: string[]}, deadline: {n: number, u: number, bots: string[]}, seat: {n: number, u: number, bots: string[]}, unjudged: number}
  * }} the drops in log order (line = the source index; ts = the last
  *    heartbeat ts at the drop line, null pre-first-hb - the stamp never
  *    invents); lostU sums the loss-form masses (the empty form is 0 by
@@ -220,6 +241,16 @@ export function deathDropCensus(lines) {
     if (d.ts >= clockEnd - DEATH_END_PHASE_WINDOW_S) endPhase.push(d)
     else preTail.push(d)
   }
+  // (v0.757.0) the silent class's own exoneration: the honest silence (the
+  // zero-mass stake - nothing to arm), the deadline's own (the massy
+  // end-phase stake - the bank's loop outlived the read) and the wiring
+  // seat (the massy pre-tail stake - the true miss). The massy untimed
+  // stakes stay unjudged (the stamp never invents); the zero-mass stake is
+  // exonerated by shape before the clock is ever asked.
+  const honestSilent = silentRows.filter((d) => d.u === 0)
+  const seatRows = preTail.filter((d) => d.u > 0)
+  const deadlineRows = endPhase.filter((d) => d.u > 0)
+  const unjudged = silentRows.filter((d) => d.u > 0 && (d.ts === null || clockEnd === null)).length
   const tally = (list) => ({
     n: list.length,
     u: list.reduce((s, d) => s + d.u, 0),
@@ -243,6 +274,12 @@ export function deathDropCensus(lines) {
         endPhase: tally(endPhase),
         untimed
       }
+    },
+    silentVerdict: {
+      honest: tally(honestSilent),
+      deadline: tally(deadlineRows),
+      seat: tally(seatRows),
+      unjudged
     }
   }
 }

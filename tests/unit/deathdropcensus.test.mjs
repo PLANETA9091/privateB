@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { deathDropCensus, isDeathDropLine, DEATH_DROP_RE, DEATH_DROP_LOSS_RE, DEATH_DROP_EMPTY_RE, RELOOT_ROW_RE } from '../../src/lib/deathdropcensus.mjs'
 import { isDeathLine } from '../../src/lib/deathsweep.mjs'
+import fs from 'node:fs'
 
 const FACE = [
   'F6 [F6] hop: chest at [-146,72,405] d=10 zero: chest unreachable (Took to long to decide path to goal!)',
@@ -212,4 +213,86 @@ test('the junk battery: non-strings and junk shapes read an empty census', () =>
   assert.equal(c.deaths, 0)
   assert.equal(c.lostU, 113)
   assert.deepEqual(c.silent, { n: 1, u: 113, bots: ['F14'] })
+})
+
+// ---------------------------------------------------------------------------
+// (v0.757.0) THE SILENT CLASS'S OWN EXONERATION - the silent bucket's own
+// WHY split. Face 64 (37592942080) is the field read: the silent class held
+// 3 stakes (219u: F4+F1+F19) and only ONE was a true miss - F19's empty
+// form (the honest silence), F4's end-phase 121u (the deadline's own), F1's
+// pre-tail ~98u (the wiring seat).
+// ---------------------------------------------------------------------------
+
+// Face 64's own shapes verbatim: the empty form, the massy pre-tail stake,
+// the massy end-phase stake, the heartbeat anchors riding the census's own
+// clock (clockEnd 821, the end-phase cut 761)
+const face64 = () => [
+  'b] n=1 ts=100s rss=256M late=6ms mainLate=0ms',
+  'F19 [F19] died - respawning (cause: server: fell from a high place [kind=fall] | inferred: fall/env (0s before death at [-111,43,402]) [the inference corroborates the server verdict])',
+  'F19 [F19] death drop: pocket read empty at death (0u)',
+  'b] n=2 ts=300s rss=340M late=8ms mainLate=3ms',
+  'F1 [F1] died - respawning (cause: server: drowned [kind=drown] | inferred: fall/env (0s before death at [-138,47,409]) [the inference is blind to this kind - the hint is noise by construction (the server kind stays the authority)])',
+  'F1 [F1] death drop: ~98u lost at [-138,47,409] (dirt 20, cobblestone 15, sand 12)',
+  'b] n=3 ts=790s rss=500M late=9ms mainLate=4ms',
+  'F4 [F4] died - respawning (cause: server: was shot by Skeleton [kind=mob by Skeleton] | inferred: skeleton@3.4 (0s before death at [-125,63,452]) [the inference corroborates the server verdict])',
+  'F4 [F4] death drop: ~121u lost at [-125,63,452] (cobblestone 40, sand 30, diorite 20)',
+  'b] n=4 ts=821s rss=503M late=10ms mainLate=5ms'
+]
+
+test('the exoneration reads face 64 byte-exact: 3 silent stakes, ONE true miss - the seat, not the class', () => {
+  const c = deathDropCensus(face64())
+  // the v0.663.0 cells keep their shapes (the additive law)
+  assert.deepEqual(c.silent, { n: 3, u: 219, bots: ['F4', 'F1', 'F19'] })
+  assert.deepEqual(c.clock.silent.preTail, { n: 2, u: 98, bots: ['F1', 'F19'] })
+  assert.deepEqual(c.clock.silent.endPhase, { n: 1, u: 121, bots: ['F4'] })
+  // the v0.757.0 verdict: the honest silence exonerated by shape, the
+  // deadline's own by the clock, the seat by both
+  assert.deepEqual(c.silentVerdict.honest, { n: 1, u: 0, bots: ['F19'] })
+  assert.deepEqual(c.silentVerdict.deadline, { n: 1, u: 121, bots: ['F4'] })
+  assert.deepEqual(c.silentVerdict.seat, { n: 1, u: 98, bots: ['F1'] })
+  assert.equal(c.silentVerdict.unjudged, 0)
+})
+
+test('the exoneration fences: the armed stake never rides it, the zero-mass LOSS form is the honest silence, the massy untimed stays unjudged', () => {
+  // (1) the armed empty read joins the ARMED class (the lane spoke) - it
+  // never rides the silent verdict
+  const armedEmpty = deathDropCensus([
+    'b] n=1 ts=100s rss=256M late=6ms mainLate=0ms',
+    'F18 [F18] death drop: pocket read empty at death (0u)',
+    'F18 reloot: walking to the own death spot [-115,43,410] (31b, budget 14s, window 120s)'
+  ])
+  assert.deepEqual(armedEmpty.armed, { n: 1, u: 0, bots: ['F18'] })
+  assert.deepEqual(armedEmpty.silent, { n: 0, u: 0, bots: [] })
+  assert.deepEqual(armedEmpty.silentVerdict, { honest: { n: 0, u: 0, bots: [] }, deadline: { n: 0, u: 0, bots: [] }, seat: { n: 0, u: 0, bots: [] }, unjudged: 0 })
+
+  // (2) the zero-mass LOSS form (~0u) is the honest silence too - mass is
+  // the read, the drop's own shape is never asked
+  const zeroLoss = deathDropCensus([
+    'b] n=1 ts=100s rss=256M late=6ms mainLate=0ms',
+    'F7 [F7] death drop: ~0u lost at [-144,61,384]'
+  ])
+  assert.deepEqual(zeroLoss.silentVerdict.honest, { n: 1, u: 0, bots: ['F7'] })
+  assert.equal(zeroLoss.silentVerdict.unjudged, 0)
+
+  // (3) the massy stake with no anchor stays unjudged (the stamp never
+  // invents) - it rides neither the seat nor the deadline
+  const noAnchor = deathDropCensus([
+    'F6 [F6] death drop: ~80u lost at [-142,61,385]'
+  ])
+  assert.deepEqual(noAnchor.clock.silent.preTail, { n: 0, u: 0, bots: [] })
+  assert.deepEqual(noAnchor.silentVerdict.honest, { n: 0, u: 0, bots: [] })
+  assert.deepEqual(noAnchor.silentVerdict.seat, { n: 0, u: 0, bots: [] })
+  assert.deepEqual(noAnchor.silentVerdict.deadline, { n: 0, u: 0, bots: [] })
+  assert.equal(noAnchor.silentVerdict.unjudged, 1)
+})
+
+test('the exoneration junk battery + WIRING: the empty census reads the empty verdict, the decompose prints the row', () => {
+  const emptyVerdict = { honest: { n: 0, u: 0, bots: [] }, deadline: { n: 0, u: 0, bots: [] }, seat: { n: 0, u: 0, bots: [] }, unjudged: 0 }
+  assert.deepEqual(deathDropCensus([]).silentVerdict, emptyVerdict)
+  assert.deepEqual(deathDropCensus(null).silentVerdict, emptyVerdict)
+  assert.deepEqual(deathDropCensus([42, null, 'junk line']).silentVerdict, emptyVerdict)
+  // the WIRING: the row rides beside the silent clock in the death-drop block
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.match(src, /the silent class's own exoneration \(v0\.757\.0\)/, 'the row prints with its own version')
+  assert.match(src, /dc\.silentVerdict/, 'the verdict reads the census cells (one read, no re-parsing)')
 })
