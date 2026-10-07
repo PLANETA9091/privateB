@@ -18439,3 +18439,21 @@ Stage Summary:
 - The churn's two censuses now fold into three: kickbill (the events) + dupclock (the clock) + kickkinds (the kinds) + the unseen column (the blindness) - the fleet lens names its own blind bots.
 - Fronts: the 52nd's mine (the unseen column's 2nd read, your siege thirds' 2nd), the leak share's climb, the reloot lane's never-walked face, the crowded sky's worsening arc (46.7 -> 63.0 -> 74.1), the CI verdict on a8ff373.
 - Next fire: (1) poll 37549177806 FIRST - SUCCESS -> mine with the v0.734.0 decompose + server log. (2) push-CI verdict on a8ff373 (37550333730). (3) dispatch law x65 on clear.
+
+---
+Task ID: cron30-20261007-0830
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0830 - face 52's mine (the calm face), the surplus kick's own side, dispatch x65 on clear
+
+Work Log:
+- Sandbox SURVIVED. Master synced faa10ff (0.734.0). CI lineage green: 37550202037 (7a8db7e) SUCCESS, 37550686445 (faa10ff) SUCCESS; 37550333730 (a8ff373) cancelled superseded - the retag state is covered.
+- FACE 52 (37549177806, yours, on 9e35393) COMPLETED SUCCESS - MINED with the v0.734.0 decompose + server log (506 rows): THE CALM FACE - 3 deaths only (drown 2, suffocate 1, ZERO mob kills, the night storm never came), the leak COLLAPSED to 1.8% of mined (7.0 -> 25.7 -> 33.2 -> 75.7 -> 1.8, the counters close the loop), the re-gather share 91%, THE RELOOT LANE WALKED FOR THE FIRST TIME (arms 3, arrivals 1, one pile home - the lane's own debut after three never-walked faces), the crowded sky HEALED (decide-timeout 10 of 41, 24.4%, under the bar; zero-hops 1), banked 1923 of 2792 (68.9%, the era's best conversion), the churn 6 kicks + 2 relogs, the fleet's storm 5 losses across 5 bots in 17s, F6 the rescue magnet (44 starts).
+- ONE ATOMIC IMPROVEMENT: v0.735.0 THE SURPLUS KICK'S OWN SIDE (b8eefb7) - the unseen column's own join, MIRRORED. The 52nd flipped the lens: the fleet printed SIX dup kicks, the server's clock owns FIVE losses - the fleet saw MORE than the server. surplusKicks(fleetByBot, serverByBot) in dupclock.mjs walks the same clamp symmetrically (a server count above the fleet's clamps at zero; zero surplus = null, the honest silence). The two columns together close the join: unseen = the server owned and the fleet missed, surplus = the fleet printed and the clock never owned. THE 52ND'S MAIDEN READ: 'the surplus kick's own side (v0.735.0): 1 the server's clock never owned - F2=1' - the PAIR RIDER's own byte (F2 kicked once while relogging twice, the server's loss line never landed in the dup class).
+- Tests: dupclock 7/7 (+1: the 52nd's byte-verbatim mirror, the full-coverage silence, the mirrored clamp bound, the empty maps), unit 4432/4432, syntax 526 0-broken, integration 2/2 (the server survived, pid 14556). Push b8eefb7 attempt-1 clean.
+- DISPATCH LAW x65 FIRED (the process law held: dispatch, verify, then write): POST 204 -> FACE 53 = 37553652417 IN_PROGRESS on b8eefb7 (the v0.735.0 tree's first face). The push-CI 37553645066 rides beside it; the dispatch is the arbiter seat - the CI verdict rides the next fire (the runners were slow, 7+ min of polling at in_progress).
+
+Stage Summary:
+- Version 0.735.0 (THE SURPLUS KICK'S OWN SIDE, b8eefb7) is master's tip; next free 0.736.0; face 53 in flight.
+- The kick stream's census family is complete from both sides: kickbill (the events) + dupclock (the clock) + kickkinds (the kinds) + unseen (the server's orphan losses) + surplus (the fleet's orphan kicks).
+- Fronts: the 53rd's mine (the surplus's 2nd read, the calm's repeat?), the calm/storm alternation (0 mob kills vs the 51st's 14), the leak's crash (75.7 -> 1.8), the reloot lane's debut walk (does it repeat?).
+- Next fire: (1) poll 37553652417 FIRST - SUCCESS -> mine with the v0.735.0 decompose + server log. (2) CI verdict on b8eefb7 (the arbiter 37553652417). (3) dispatch law x66 on clear.
