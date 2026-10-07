@@ -18862,3 +18862,25 @@ Stage Summary:
 - THE WHALE'S OWN ROTATION HAS ITS LENS: the zero-yield loop's seat-hopping priced - the rotation was the wall's own disguise; the maiden read went byte-exact on the 62nd's own log.
 - Fronts: face 63's mine (the refusal anatomy's debut + the tally's 2nd face); the rotation row's field debut (rides the first face on fd4a1c2+); THE MIDDLE'S OWN STORM (the thirds' first mid-dominant read - the 2nd read names the class); the economy's arc swing (75.5% -> 36.6% banked crater - the arc's own volatility); the whale's cure (the rotation row names the disguise - the runtime's own brake question stays open).
 - Next fire: (1) poll face 63 (37589681027) - SUCCESS -> mine with the v0.753.0 refusal-anatomy stack (the smelt refusals' own voices decoded). (2) push-CI verdict on fd4a1c2 (the rotation's tree). (3) dispatch law x76 on clear (0.755.0 next slot).
+
+---
+Task ID: cron30-20261007-1530
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1530 - face 62's poll, the code fire's seat (one front), dispatch law x76 on clear
+
+Work Log:
+- Sandbox survived. Master synced 3d43479 (v0.752.0); next free 0.753.0; no lane pushes this fire.
+- Face 62 (37586368766, my x75 on 3d9ed3b) IN_PROGRESS at open - polled twice, fleet leg still running. NOT mined this fire (the mine rides the next fire, honest deferral). COMPLETED SUCCESS mid-fire - the slot freed.
+- The front hunt: fire 1500's three named fronts all partially lensed already (deathcause.inferenceVerdict owns the misread class, smelthold.refusalClass owns nothing/machine, maptrip owns the skip classes) - the front was named from the FIELD: face 61's raw refusal corpus (14 'smelt: 0' lines in run37583836654's fleet19.log, 5 distinct voices) vs the v0.491.0 lens's 2-class read.
+- v0.753.0 THE REFUSAL'S OWN ANATOMY (8c94d5d): smelthold.mjs grows refusalSegClass (nothing / no-fuel / busy / timeout / unreachable / other; the unknown voice reads 'other' - counted, never invented into a named class) + refusalSegs (the '; ' segment split; the nested parens survive - SMELT_HOLD_REFUSAL_RE anchors to the LAST closing paren) + smeltRefusalAnatomy (the fleet-wide mix + the byBot roster + the multi-skin count + the raw rows). ADDITIVE: refusedWhy keeps its {nothing, machine} shape, decompose's v0.491.0 row byte-identical - the two generations coexist, the parse never forks.
+- Face 61's own mix priced: nothing 4 / no-fuel 10 (F19's timeout head + seven no-fuel retrials) / unreachable 5 (goal-ceiling 2, visit-budget 2, blast 1) / busy 2 (F12's busy + busy cold) / timeout 1 / other 0, multi-skin 2 (F19's 8-seg skin, F12's 2-seg pair).
+- Wiring: decompose.mjs one additive fbit - 'refusal anatomy: ...' rides the SMELT HOLD LEDGER fates line beside the coarse read. LIVE-VERIFIED on face 61's own log: the row printed exactly the unit cells' numbers (the honest cells are the field's own).
+- Tests: +4 (the classifier's voices, the multi-skin split, the face-61 fleet mix with the byte-verbatim lines as the honest cells, the junk battery + the coarse-lens-untouched assert). smelthold 10/10, unit 298/298 files, syntax 530 0-broken. No new fleet log lines -> no fleet19.mjs filter-key needed (the lens reads existing lines).
+- Pushes: 8c94d5d attempt-1 clean (3d43479..8c94d5d). NO force-push, NO history rewrite.
+- DISPATCH LAW x76 FIRED: POST 204 -> face 63 = 37589681027 in_progress on 8c94d5d (the v0.753.0 tree's first face, fleet_seconds 600, materialization verified).
+- CI: push-CI 37589619660 (8c94d5d) IN_PROGRESS at log-off - the tree verdict rides the next fire (ci-poll watched the dispatch run instead - the known newest-run flake; polled by run id).
+
+Stage Summary:
+- v0.753.0 (THE REFUSAL'S OWN ANATOMY, 8c94d5d) is master's tip; next free 0.754.0; face 63 in flight (x76, the anatomy tree's first face); face 62 SUCCESS awaiting its mine.
+- Fronts: face 62's mine (the v0.752.0 tree's first face); face 63's mine (the refusal anatomy row rides the SMELT HOLD LEDGER fates line); the drought's skip gate (shaft-locked 8 + unreachable 5).
+- Next fire: (1) CI verdict on push-CI 37589619660 BY RUN ID (ci-poll sees only the newest run). (2) poll face 63 (37589681027) - SUCCESS -> mine (check the refusal anatomy row in the fates line). (3) dispatch law x77 on clear (0.754.0 next slot).
