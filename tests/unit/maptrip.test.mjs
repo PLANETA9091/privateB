@@ -960,3 +960,111 @@ test('leak-clock: junk-safe and nulls on non-array (the zero law)', () => {
   const r = leakClock([null, 42, 'garbage'])
   assert.deepEqual(r, { samples: 0, tMax: null, tMin: null, legs: { early: { n: 0, u: 0 }, mid: { n: 0, u: 0 }, late: { n: 0, u: 0 } }, unpositioned: { n: 0, u: 0 }, drops: { n: 0, u: 0, maxU: null, maxBot: null, maxShare: null }, placedByThird: { early: 0, mid: 0, late: 0 }, placedUnpositioned: 0, clockCenter: null })
 })
+
+// (v0.770.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
+// its phase. The verbatims are the field's own shapes: face 70
+// (37624132784) peaked 1738u at t-22s of a t-537s..t-0s span (95.9% in) -
+// the budget-floor verdict's lever claim ('the pocket's drain is the
+// lever, the budget is not') finally priced. The clock law (the zero
+// clock's v0.441.0 boundary law on the SAMPLES' OWN window): LATE = the
+// deadline's own signature (the claim confirmed), MID = the bank's own
+// pace is the lever, EARLY = the bank owned the window. The drop is the
+// subject - a no-drop face reads the honest silence; junk never invents
+// a clock.
+import { pocketPeakClock, pocketPeakClockRow } from '../../src/lib/maptrip.mjs'
+
+test('pocket-peak-clock: the face-70 cell - the peak rode LATE (the lever claim confirmed)', () => {
+  // the field's own shape: the inflow piled to the final 22 seconds
+  const lines = [
+    't-537s alive=19/19 mined=78 map=358p/10ch banked=18 smelted=0 pocket=74u/20s | sand=0 gravel=0 dirt=0 stone=0',
+    't-300s alive=19/19 mined=400 map=420p/12ch banked=60 smelted=0 pocket=900u/20s | sand=0 gravel=0 dirt=0 stone=0',
+    't-100s alive=19/19 mined=900 map=480p/12ch banked=110 smelted=4 pocket=1500u/20s | sand=0 gravel=0 dirt=0 stone=0',
+    't-22s alive=19/19 mined=1200 map=520p/12ch banked=310 smelted=8 pocket=1738u/20s | sand=0 gravel=0 dirt=0 stone=0',
+    't-0s alive=19/19 mined=1716 map=521p/12ch banked=448 smelted=8 pocket=1320u/20s | sand=0 gravel=0 dirt=0 stone=0'
+  ]
+  const c = pocketPeakClock(lines)
+  assert.ok(c, 'the clock prices a real drop')
+  assert.equal(c.peak, 1738)
+  assert.equal(c.peakT, 22)
+  assert.equal(c.firstT, 537)
+  assert.equal(c.lastT, 0)
+  assert.equal(c.span, 537)
+  assert.equal(c.elapsed, 515)
+  assert.equal(c.drop, 418)
+  assert.equal(c.phase, 'late')
+  const row = pocketPeakClockRow(c)
+  assert.equal(row, "the pocket's own peak clock (v0.770.0): the peak (1738u) rode LATE (t-22s of a t-537s..t-0s span, 95.9% in) - the deadline's own signature: the drain never got its window (the budget-floor verdict's lever claim confirmed: the pocket's drain is the front)")
+  // THE WIRING assert - the peak/peakT/drop are pocketDrain's own cells,
+  // the first-occurrence rule byte-shared (zero re-parsing drift)
+  const pd = pocketDrain(lines)
+  assert.equal(pd.peak, c.peak)
+  assert.equal(pd.peakT, c.peakT)
+  assert.equal(pd.drop, c.drop)
+  assert.equal(pd.verdict, 'banked') // the drain row's own verdict rides untouched
+})
+
+test('pocket-peak-clock: the boundary law - EARLY and MID peaks name their own levers', () => {
+  // EARLY: the peak at the window's own opening (0.0% in) - the bank
+  // owned the window
+  const early = [
+    't-300s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=90u/20s | sand=0',
+    't-200s alive=19/19 mined=20 map=1p/1ch banked=5 smelted=0 pocket=80u/20s | sand=0',
+    't-100s alive=19/19 mined=30 map=1p/1ch banked=15 smelted=0 pocket=70u/20s | sand=0',
+    't-0s alive=19/19 mined=40 map=1p/1ch banked=25 smelted=0 pocket=60u/20s | sand=0'
+  ]
+  const ce = pocketPeakClock(early)
+  assert.equal(ce.phase, 'early')
+  assert.equal(ce.frac, 0)
+  assert.match(pocketPeakClockRow(ce), /rode EARLY .*the chain drained the opening build - the bank owned the window \(the crater is not the deadline's\)/)
+  // MID: the peak at the window's own middle (50.0% in) - the bank
+  // trailed it home
+  const mid = [
+    't-300s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=60u/20s | sand=0',
+    't-150s alive=19/19 mined=20 map=1p/1ch banked=2 smelted=0 pocket=90u/20s | sand=0',
+    't-75s alive=19/19 mined=30 map=1p/1ch banked=10 smelted=0 pocket=80u/20s | sand=0',
+    't-0s alive=19/19 mined=40 map=1p/1ch banked=20 smelted=0 pocket=70u/20s | sand=0'
+  ]
+  const cm = pocketPeakClock(mid)
+  assert.equal(cm.phase, 'mid')
+  assert.equal(cm.frac, 0.5)
+  assert.match(pocketPeakClockRow(cm), /rode MID .*the drain had its window and the bank still trailed it home - the bank's own pace is the lever/)
+  // the boundary's own law (the zero clock's): elapsed == span/3 reads
+  // early, just past it reads mid
+  const atThird = [
+    't-300s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=60u/20s | sand=0',
+    't-200s alive=19/19 mined=20 map=1p/1ch banked=2 smelted=0 pocket=90u/20s | sand=0', // elapsed 100 = span/3 -> early
+    't-0s alive=19/19 mined=40 map=1p/1ch banked=20 smelted=0 pocket=70u/20s | sand=0'
+  ]
+  assert.equal(pocketPeakClock(atThird).phase, 'early')
+})
+
+test('pocket-peak-clock: the honest silences - no-drop, one sample, no pulse, flat t', () => {
+  // no-drop: the pocket never fell - nothing to time (the drain's own silence)
+  const rising = [
+    't-300s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=10u/20s | sand=0',
+    't-200s alive=19/19 mined=20 map=1p/1ch banked=1 smelted=0 pocket=20u/20s | sand=0',
+    't-0s alive=19/19 mined=30 map=1p/1ch banked=2 smelted=0 pocket=30u/20s | sand=0'
+  ]
+  assert.equal(pocketPeakClock(rising), null)
+  // a single sample - no window, no thirds
+  assert.equal(pocketPeakClock(['t-300s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=10u/20s | sand=0']), null)
+  // no pulse lines at all
+  assert.equal(pocketPeakClock(['F9 [F9] died - respawning (cause: server: drowned [kind=drown])']), null)
+  // a flat t (the EOF cluster only) - span 0, no thirds
+  const flat = [
+    't-0s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=90u/20s | sand=0',
+    't-0s alive=19/19 mined=10 map=1p/1ch banked=0 smelted=0 pocket=30u/20s | sand=0'
+  ]
+  assert.equal(pocketPeakClock(flat), null)
+})
+
+test('pocket-peak-clock: the junk battery (the zero law)', () => {
+  assert.equal(pocketPeakClock(null), null)
+  assert.equal(pocketPeakClock(undefined), null)
+  assert.equal(pocketPeakClock('t-300s alive=19/19'), null)
+  assert.equal(pocketPeakClock(42), null)
+  assert.equal(pocketPeakClock({ samples: 3 }), null)
+  assert.equal(pocketPeakClock([null, 42, 'garbage']), null)
+  assert.equal(pocketPeakClockRow(null), '')
+  assert.equal(pocketPeakClockRow(undefined), '')
+})

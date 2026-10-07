@@ -442,6 +442,66 @@ export function pocketDrain (lines) {
   }
 }
 
+// (v0.770.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
+// its phase. The drain row prices the peak-to-end drop but never WHEN the
+// peak rode: face 70 (37624132784) peaked 1738u at t-22s - the final 22
+// seconds of the whole window - while the budget-floor verdict's own
+// lever claim ('the pocket's drain is the lever, the budget is not',
+// v0.441.0) rode beside it UNTESTED. The clock prices the claim with the
+// ledger's own cells (zero re-parsing - the samples are parsePulseHeader's
+// own, the peak/peakT are pocketDrain's own, the first-occurrence rule
+// byte-shared): the peak sample's elapsed position in the SAMPLES' OWN
+// window (t counts down to EOF; span = firstT - lastT), thirds of the
+// window by the zero clock's boundary law (elapsed <= span/3 early,
+// <= 2*span/3 mid, else late) - the row prints the span so the reader
+// judges the density, the zero clock's own honesty.
+//
+// THE CLOCK LAW (the zero clock's v0.441.0 precedent generalized to the
+// single peak; the drop is the subject - a no-drop face has nothing to
+// time):
+// - LATE peak  = the deadline's own signature: the face's inflow piled to
+//   the end and the drain only got its window at EOF - the budget-floor
+//   verdict's lever claim CONFIRMED (the delivery chain's own design is
+//   the front)
+// - MID peak   = the drain had its window and the bank still trailed it
+//   home - the bank's own pace is the lever
+// - EARLY peak = the chain drained the opening build - the bank owned the
+//   window (the crater is not the deadline's)
+// Junk never invents a clock: a no-drop face, no pulse lines, fewer than
+// two samples, a single distinct t (span 0) - the honest silence, never a
+// fabricated phase.
+export function pocketPeakClock (lines) {
+  if (!Array.isArray(lines)) return null
+  const pd = pocketDrain(lines)
+  if (!pd || pd.drop <= 0) return null
+  const ts = []
+  for (const line of lines) {
+    const h = parsePulseHeader(line)
+    if (h) ts.push(h.t)
+  }
+  if (ts.length < 2) return null
+  const firstT = ts[0]
+  const lastT = ts[ts.length - 1]
+  const span = firstT - lastT
+  if (!Number.isFinite(span) || span <= 0) return null
+  const elapsed = firstT - pd.peakT
+  if (!Number.isFinite(elapsed) || elapsed < 0) return null
+  const frac = elapsed / span
+  const phase = elapsed <= span / 3 ? 'early' : elapsed <= (span * 2) / 3 ? 'mid' : 'late'
+  return { peak: pd.peak, peakT: pd.peakT, firstT, lastT, span, elapsed, frac, phase, drop: pd.drop }
+}
+
+export function pocketPeakClockRow (c) {
+  if (!c) return ''
+  const where = `t-${c.peakT}s of a t-${c.firstT}s..t-${c.lastT}s span, ${(c.frac * 100).toFixed(1)}% in`
+  const why = c.phase === 'late'
+    ? `the deadline's own signature: the drain never got its window (the budget-floor verdict's lever claim confirmed: the pocket's drain is the front)`
+    : c.phase === 'mid'
+      ? `the drain had its window and the bank still trailed it home - the bank's own pace is the lever`
+      : `the chain drained the opening build - the bank owned the window (the crater is not the deadline's)`
+  return `the pocket's own peak clock (v0.770.0): the peak (${c.peak}u) rode ${c.phase.toUpperCase()} (${where}) - ${why}`
+}
+
 // (v0.452.0) THE DRAIN ATTRIBUTION - the UNACCOUNTED residual learns its
 // legs. The drain ledger's honest 'unaccounted' named the open question
 // (placement/loss/crafting); the fleet log prices TWO of the three legs
