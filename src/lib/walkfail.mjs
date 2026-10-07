@@ -298,3 +298,89 @@ export function walkFailRidersRow (r) {
       !Number.isFinite(shareOfFails)) return null
   return `the walk-fail's own riders (v0.773.0): no solo walker owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE CROWD'S OWN WALK: the bill's tie law held, the spread is the shape - the fleet's own crowd prices the starves the solo law refused to name`
 }
+
+// (v0.776.0) THE WALK-FAIL'S OWN LANE BILL - the chest-walk book's
+// lane-level seat. The v0.410.0 census priced the lanes, the v0.773.0
+// seats named the walkers - no row ever named WHICH lane owns the book
+// (face 73's own census rode the answer raw: 'by lane: fuel commons=21
+// iron commune=9 food commons=7' - the fuel lane's majority sat unnamed
+// beside the fuel lever's own five-witness streak). THE BILL LAW (the
+// census's own byLane cell only, zero re-parsing - the v0.773.0 bill's
+// own precedent, the cell instead of the event): the top lane owns the
+// book under the strict-majority law (a tie owns nothing - the
+// storm-has-no-seat precedent). Junk never invents a lane: a missing or
+// empty tally, a non-finite or non-positive count, or a tied spread
+// reads the honest silence (null - the decompose's own guard skips the
+// row).
+export function walkFailLaneBill (byLane) {
+  const mix = (byLane && typeof byLane === 'object' && !Array.isArray(byLane)) ? byLane : {}
+  const tallies = {}
+  let total = 0
+  for (const [lane, n] of Object.entries(mix)) {
+    if (typeof lane !== 'string' || !lane || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[lane] = (tallies[lane] || 0) + n
+  }
+  let topUnits = 0
+  let topLane = null
+  for (const [lane, n] of Object.entries(tallies)) {
+    if (n > topUnits) { topUnits = n; topLane = lane }
+  }
+  if (topLane === null || topUnits <= total - topUnits) return null
+  return { lane: topLane, owns: topUnits, ofFails: total, shareOfFails: +(topUnits / total).toFixed(3) }
+}
+
+// (v0.776.0) the lane bill's own row - THE LANE'S OWN SEAT: the seat
+// names WHICH lane owns the book; the lever's own verdict prices the
+// lane's cure. Junk never prints a seat (the honest silence's own row
+// law).
+export function walkFailLaneBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { lane, owns, ofFails, shareOfFails } = bill
+  if (typeof lane !== 'string' || !lane || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || owns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the walk-fail's own lane bill (v0.776.0): ${lane} owns ${owns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE LANE'S OWN SEAT: one lane's own walks own the starves - the lane's own front prices the walks the raw split rode unnamed`
+}
+
+// (v0.776.0) THE WALK-FAIL'S OWN LANE RIDERS - the lane bill's silence's
+// own companion. The lane bill names the solo lane under the
+// strict-majority law; a no-majority lane mix rode raw with no row naming
+// the shape. THE RIDER LAW (the census's own byLane cell only, zero
+// re-parsing - the bill's own precedent): a MEASURE, never a
+// verdict-owner - the top two lanes' concentration prices the shape the
+// solo law refused to name (the bill's owner case leaves the companion
+// unprinted - the decompose's own branch law). Junk never invents a
+// shape: a missing or empty tally, a non-finite or non-positive count,
+// or fewer than two lanes reads the honest silence (null). The order is
+// deterministic (count desc, then the name's own).
+export function walkFailLaneRiders (byLane) {
+  const mix = (byLane && typeof byLane === 'object' && !Array.isArray(byLane)) ? byLane : {}
+  const tallies = {}
+  let total = 0
+  for (const [lane, n] of Object.entries(mix)) {
+    if (typeof lane !== 'string' || !lane || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[lane] = (tallies[lane] || 0) + n
+  }
+  const ranked = Object.entries(tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (total <= 0 || ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFails: total, pairOwns, shareOfFails: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.776.0) the lane riders' own row - THE LANE MIX'S OWN WALK: a
+// measure of the shape, never a named owner (the bill's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function walkFailLaneRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFails, pairOwns, shareOfFails } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the walk-fail's own lane riders (v0.776.0): no solo lane owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE LANE MIX'S OWN WALK: the bill's tie law held, the mix is the shape - the lanes' own crowd prices the starves the solo law refused to name`
+}

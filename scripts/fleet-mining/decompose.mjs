@@ -19,7 +19,7 @@ import { o2Gap, reentryGaps, REENTRY_IMMEDIATE_MAX } from '../../src/lib/o2gap.m
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
-import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book
+import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book; (v0.776.0) WHICH lane owns it
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
 import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
@@ -1910,6 +1910,15 @@ if (openDeaf.openDeaf.length > 0) {
     else {
       const wfr = walkFailRiders(wf.walk.byBot)
       if (wfr) console.log(`  ${walkFailRidersRow(wfr)}`)
+    }
+    // (v0.776.0) THE WALK-FAIL'S OWN LANE - the same seat law on the
+    // census's own byLane cell (the bill in its owner case, the riders in
+    // the bill's own silence - one row, never both, the branch law).
+    const wfl = walkFailLaneBill(wf.walk.byLane)
+    if (wfl) console.log(`  ${walkFailLaneBillRow(wfl)}`)
+    else {
+      const wflr = walkFailLaneRiders(wf.walk.byLane)
+      if (wflr) console.log(`  ${walkFailLaneRidersRow(wflr)}`)
     }
     if (wf.walk.timeouts.length) console.log(`  lane walk timeouts ms: ${wf.walk.timeouts.join(',')}`)
   }

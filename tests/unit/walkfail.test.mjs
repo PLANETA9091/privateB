@@ -6,7 +6,7 @@
 // census owns that lane - one parser per lane, the v0.409.0 split law).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyWalkWhy, parseWalkFail, parseSweepVerdict, classifySweepReason, walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow } from '../../src/lib/walkfail.mjs'
+import { classifyWalkWhy, parseWalkFail, parseSweepVerdict, classifySweepReason, walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs'
 
 test('walk-fail: the face-25 tool-lane verbatims parse with lane, nudge and bot', () => {
   const a = parseWalkFail('F7 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)')
@@ -279,4 +279,70 @@ test('WIRING: decompose seats the walk-fail book in the census\'s own shadow', a
   // crowded-sky row legitimately prints inline in the decompose)
   assert.ok(!src.includes("THE CROWD'S OWN WALK"), 'the row prose must stay in the lib')
   assert.ok(!src.includes("THE REPEAT WALKER'S OWN SEAT"), 'the row prose must stay in the lib')
+})
+
+test('walk-fail lane: the face-73 cell - the fuel lane owns the book (the bill\'s first field case)', () => {
+  // the census's own byLane cell stays byte-untouched and the lens reads
+  // THE SAME cell the decompose prints (zero re-parsing - the additive law)
+  const c = walkFailCensus([
+    'F18 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F11 iron commune: chest walk failed (No path to the goal!)',
+    'F5 food commons: chest walk failed (walk timeout after 7037ms)'
+  ])
+  assert.equal(c.walk.total, 3)
+  assert.deepEqual(c.walk.byLane, { 'fuel commons': 1, 'iron commune': 1, 'food commons': 1 })
+  // face 73's own lane distribution as the agreeing witness (the mine's
+  // own split: fuel commons=21 iron commune=9 food commons=7)
+  const bill = walkFailLaneBill({ 'fuel commons': 21, 'iron commune': 9, 'food commons': 7 })
+  assert.deepEqual(bill, { lane: 'fuel commons', owns: 21, ofFails: 37, shareOfFails: 0.568 })
+  assert.equal(walkFailLaneBillRow(bill), `the walk-fail's own lane bill (v0.776.0): fuel commons owns 21 of 37 fail(s) (56.8%) - THE LANE'S OWN SEAT: one lane's own walks own the starves - the lane's own front prices the walks the raw split rode unnamed`)
+})
+
+test('walk-fail lane: the tie owns nothing; the no-majority mix keeps the deterministic order', () => {
+  // a tie owns nothing (the storm-has-no-seat precedent) - and the tied
+  // riders keep the deterministic order (count desc, then the name's own:
+  // 'fuel commons' < 'iron commune' byte-wise)
+  const tie = walkFailLaneBill({ 'fuel commons': 5, 'iron commune': 5 })
+  assert.equal(tie, null)
+  const tr = walkFailLaneRiders({ 'iron commune': 5, 'fuel commons': 5 })
+  assert.equal(tr.duet, true)
+  assert.equal(tr.leader, 'fuel commons')
+  assert.equal(tr.runner, 'iron commune')
+  // the no-majority spread: the top lane at or under the rest reads the
+  // bill's silence, the riders price the pair's concentration
+  const spread = walkFailLaneBill({ 'iron commune': 9, 'food commons': 7, 'fuel commons': 6 })
+  assert.equal(spread, null)
+  const sr = walkFailLaneRiders({ 'iron commune': 9, 'food commons': 7, 'fuel commons': 6 })
+  assert.deepEqual(sr, { leader: 'iron commune', leaderOwns: 9, runner: 'food commons', runnerOwns: 7, ofFails: 22, pairOwns: 16, shareOfFails: 0.727, duet: false })
+  assert.equal(walkFailLaneRidersRow(sr), `the walk-fail's own lane riders (v0.776.0): no solo lane owns the majority - iron commune x9 + food commons x7 own 16 of 22 fail(s) (72.7%) - THE LANE MIX'S OWN WALK: the bill's tie law held, the mix is the shape - the lanes' own crowd prices the starves the solo law refused to name`)
+})
+
+test('walk-fail lane: the junk battery never invents a lane or a shape', () => {
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(walkFailLaneBill(junk), null, `bill must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(walkFailLaneRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(walkFailLaneBillRow(junk), null)
+    assert.equal(walkFailLaneRidersRow(junk), null)
+  }
+  // non-finite and non-positive counts are skipped, never priced
+  const skewed = walkFailLaneBill({ 'fuel commons': 3, 'iron commune': -1, 'food commons': 0, bare: NaN })
+  assert.deepEqual(skewed, { lane: 'fuel commons', owns: 3, ofFails: 3, shareOfFails: 1 })
+  // a single lane owns the book but the riders need two
+  assert.deepEqual(walkFailLaneRiders({ 'fuel commons': 6 }), null)
+  assert.deepEqual(walkFailLaneBill({ 'fuel commons': 6 }), { lane: 'fuel commons', owns: 6, ofFails: 6, shareOfFails: 1 })
+  // a junk-silent bill feeds no row
+  assert.equal(walkFailLaneBillRow({ lane: 'fuel commons', owns: 50, ofFails: 30, shareOfFails: 1.667 }), null)
+})
+
+test('WIRING: decompose seats the walk-fail lane book beside the bot seats', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the branch rides the byLane cell the decompose already prints
+  assert.ok(src.includes('walkFailLaneBill(wf.walk.byLane)'), 'the lane bill must read the census\'s own byLane cell')
+  assert.ok(src.includes('walkFailLaneRiders(wf.walk.byLane)'), 'the lane riders must read the census\'s own byLane cell')
+  assert.ok(src.includes('walkFailLaneRidersRow'), 'the lane riders row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchors are the full row tails, not any bare substring
+  assert.ok(!src.includes("THE LANE'S OWN SEAT"), 'the lane bill row prose must stay in the lib')
+  assert.ok(!src.includes("THE LANE MIX'S OWN WALK"), 'the lane riders row prose must stay in the lib')
 })
