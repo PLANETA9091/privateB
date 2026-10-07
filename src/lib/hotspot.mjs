@@ -212,3 +212,100 @@ export function hotspotBands (spots, { radius } = {}) {
   out.bandSpots = out.bands.reduce((s, b) => s + b.spots.length, 0)
   return out
 }
+
+// (v0.794.0) THE HOT SPOT'S OWN SEAT - WHICH spot owns the starvation
+// book. The census row named the spots' counts ('spot [-110,409] y=71 x6
+// (hop:5 iron commune:1)' - face 82's own read: 27 spots holding 60
+// failures) while the WHO rode raw: no row ever said WHICH spot's own
+// failures own the book (the v0.421.0 bands merged the neighbors, the
+// v0.419.0 signature named the CROSS-LANE shape - never the owner spot).
+// THE SEAT LAW (the census's own spot cells only, zero re-parsing - the
+// v0.784.0 kind-seat precedent, the v0.793.0 ground seat's own geometry
+// shape): the strict-majority law - a solo spot owns the book only above
+// half (a tie owns nothing); the book is the spot cells' own sum (an
+// unpositioned failure rides no spot - the '?' placeholder and the
+// @coord-less walk-fail stay the census's own honest outside); junk never
+// invents a spot (a missing or non-object census, a spot cell without a
+// finite count or a key, or no counted spot reads the honest silence -
+// null, the decompose's own guard skips the row). The spot's own name is
+// the census's own key ('x,z' - the row's display adds the brackets the
+// decompose already speaks).
+function spotTally (hs) {
+  if (!hs || typeof hs !== 'object' || Array.isArray(hs)) return null
+  if (!Array.isArray(hs.spots)) return null
+  const tallies = {}
+  let total = 0
+  for (const sp of hs.spots) {
+    if (!sp || typeof sp !== 'object') continue
+    const n = sp.total
+    if (!Number.isFinite(n) || n <= 0 || typeof sp.key !== 'string' || !sp.key) continue
+    total += n
+    tallies[sp.key] = (tallies[sp.key] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function hotSpotSeat (hs) {
+  const t = spotTally(hs)
+  if (!t) return null
+  let topOwns = 0
+  let topSpot = null
+  for (const [spot, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topSpot = spot }
+  }
+  if (topSpot === null || topOwns <= t.total - topOwns) return null
+  return { spot: topSpot, owns: topOwns, ofFailures: t.total, shareOfFailures: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.794.0) the spot seat's own row - THE SPOT'S OWN SEAT: the seat names
+// WHICH spot owns the starvation book; the yard's own map prices the cure
+// (a solo spot is the one yard's own walk problem - the bands price the
+// strips, the seat prices the point). Junk never prints a seat (the honest
+// silence's own row law).
+export function hotSpotSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { spot, owns, ofFailures, shareOfFailures } = seat
+  if (typeof spot !== 'string' || !spot ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFailures) || ofFailures <= 0 || owns > ofFailures ||
+      !Number.isFinite(shareOfFailures)) return null
+  return `the hot spot's own seat (v0.794.0): spot [${spot}] owns ${owns} of ${ofFailures} failure(s) (${(shareOfFailures * 100).toFixed(1)}%) - THE SPOT'S OWN SEAT: one spot's own failures own the starvation book - the yard's own map prices the cure the raw split rode unnamed`
+}
+
+// (v0.794.0) THE HOT SPOT'S OWN RIDERS - the spot seat's own silence's
+// companion. The seat names the solo spot under the strict-majority law; a
+// no-majority spot crowd rode raw with no row naming the shape (face 82's
+// own read: a 27-spot crowd - the yard starves everywhere, the top pair
+// still only 10 of 60). THE RIDER LAW (the census's own spot cells only,
+// zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two spots' concentration prices the shape the
+// solo law refused to name (the seat's owner case leaves the companion
+// unprinted - the decompose's own branch law). Junk never invents a shape:
+// a missing or non-object census, a spot cell without a finite count or a
+// key, or fewer than two counted spots reads the honest silence (null).
+// The order is deterministic (count desc, then the key's own byte:
+// '-129,389' < '-140,411').
+export function hotSpotRiders (hs) {
+  const t = spotTally(hs)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFailures: t.total, pairOwns, shareOfFailures: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.794.0) the spot riders' own row - THE SPOT'S OWN MIX: a measure of
+// the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function hotSpotRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFailures, pairOwns, shareOfFailures } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFailures) || ofFailures <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFailures ||
+      !Number.isFinite(shareOfFailures)) return null
+  return `the hot spot's own riders (v0.794.0): no solo spot owns the majority - spot [${leader}] x${leaderOwns} + spot [${runner}] x${runnerOwns} own ${pairOwns} of ${ofFailures} failure(s) (${(shareOfFailures * 100).toFixed(1)}%) - THE SPOT'S OWN MIX: the seat's tie law held, the mix is the shape - the spots' own geometry prices the book the solo law refused to seat`
+}

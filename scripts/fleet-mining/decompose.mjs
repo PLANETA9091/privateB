@@ -21,7 +21,7 @@ import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the as
 import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
 import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book; (v0.776.0) WHICH lane owns it
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
-import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
+import { hotspotCensus, hotspotBands, hotSpotSeat, hotSpotSeatRow, hotSpotRiders, hotSpotRidersRow } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read; (v0.794.0) WHICH spot owns the starvation book
 import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow, climbStageBill, climbStageBillRow, climbStageRiders, climbStageRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book; (v0.781.0) WHICH rung owns the ladder
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
@@ -2972,6 +2972,16 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  spot [${sp.key}]${sp.y !== null ? ` y=${sp.y}` : ''} x${sp.total} (${lanes}) (${whys}) bots ${bots}`)
     }
     if (hs.spots.length > 5) console.log(`  ... ${hs.spots.length - 5} more spot(s) - the tail stays in the lib's row`)
+    // (v0.794.0) WHICH spot owns the starvation book - the seat + the
+    // riders, one row never both (the branch law; the owner case leaves the
+    // companion unprinted; a spot-less or all-unpositioned face reads the
+    // honest silence).
+    const hss = hotSpotSeat(hs)
+    if (hss) console.log(`  ${hotSpotSeatRow(hss)}`)
+    else {
+      const hsr = hotSpotRiders(hs)
+      if (hsr) console.log(`  ${hotSpotRidersRow(hsr)}`)
+    }
     // (v0.421.0) THE HOT-SPOT BAND - the neighbors merge: spots within
     // HOT_SPOT_BAND_RADIUS (manhattan, 4) collapse into strips. A cross-lane
     // BAND is the geometry problem's own shape: the same ground starving
