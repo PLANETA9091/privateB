@@ -177,7 +177,7 @@ export function o2Gap (lines) {
 }
 
 //
-// (v0.745.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock (the
+// (v0.746.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock (the
 // skywalk law: the relation split's own rows, one read, no re-parsing).
 // The stale class (the lane completed, the bot re-drowned) carried its
 // delay unread since v0.477.0: the 43rd's F13@42s/F1@166s and the 57th's

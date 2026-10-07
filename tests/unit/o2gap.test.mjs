@@ -165,7 +165,7 @@ test('o2Gap is junk-safe and nulls on non-array (the laws)', () => {
   assert.deepEqual(o2Gap([null, 7, 'garbage', 'F13 [F13] water: rescue complete in 1.2s']), { deaths: 0, rescue: { live: 0, stale: 0, never: 0 }, wet: { live: 0, atLast: 0, unknown: 0 }, lastPass: { seen: 0, none: 0 }, cue: { wired: 0, cueOnly: 0, blind: 0 }, mirrors: 0, perBot: {} })
 })
 
-// (v0.745.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock. The
+// (v0.746.0) THE RE-ENTRY'S OWN GAP - the stale class's own clock. The
 // face 57 byte-verbatim death (run 37569577638): F1 re-drowned 2s after
 // the lane completed - THE RELEASE'S OWN EDGE (the walk-out never got
 // traction), the leg names what the bot was walking (the fuel commons
