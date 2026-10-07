@@ -50,10 +50,10 @@ export function kickKindCensus (lines) {
   for (const [k, v] of Object.entries(byKind)) {
     if (k.includes('duplicate_login')) dupN += v
   }
-  return { n, byKind, byBot, kinds: Object.keys(byKind).sort(), dupN, verdict: kickKindVerdict(byKind) } // (v0.762.0) the verdict rides additively - the kick kinds' own front
+  return { n, byKind, byBot, kinds: Object.keys(byKind).sort(), dupN, verdict: kickKindVerdict(byKind) } // (v0.763.0) the verdict rides additively - the kick kinds' own front
 }
 
-// (v0.762.0) THE KICK KINDS' OWN VERDICT - the census's verdict leg (the
+// (v0.763.0) THE KICK KINDS' OWN VERDICT - the census's verdict leg (the
 // raw kinds rode since v0.730.0; face 67's own read delivered the first
 // monopoly: disconnect.timeout owned 13 of 13 kicks and the row spoke raw,
 // no front named). THE KIND LAW (the byKind cells only, zero re-parsing -
