@@ -9,7 +9,7 @@
 //
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fightLedger, FIGHTING_RE, FIGHT_END_RE } from '../../src/lib/fightledger.mjs'
+import { fightLedger, FIGHTING_RE, FIGHT_END_RE, fightExitBill, fightExitBillRow, fightExitRiders, fightExitRidersRow } from '../../src/lib/fightledger.mjs'
 
 // the face-43 anatomy, hand-traced line by line from the stored
 // artifact (the mini covers every close class the lane emits, plus the
@@ -254,4 +254,80 @@ test('fightLedger - the junk battery and the honest zero shape', () => {
     exitZones: { belowFlee: 0, atOrAbove: 0, fleeLine: 8 },
     rows: []
   })
+})
+
+// (v0.782.0) THE FIGHTS' OWN EXIT - the exit-class seat. The verbatims
+// are the held faces' own splits (face 76 = run 37654464678: 'verdict
+// ignore 8' of 12; face 74 = 37643508935: mob down 11 of 17; face 75 =
+// 37649886742: the crowd 8/5 of 18; face 73 = 37639051812: the duet).
+// The owner churns face-local - the seat re-names the front every face.
+
+test('the exit seat: the face-76 verdict-ignore crowd owns the book (the mine\'s own distribution as the agreeing witness)', () => {
+  // face 76's own ledger cells, byte-true
+  const f76 = { starts: 12, mobDown: 3, deadline: 1, chaseCeiling: 0, verdictIgnore: 8, abandoned: 0, sheltered: 0, died: 0, open: 0 }
+  const bill = fightExitBill(f76)
+  assert.deepEqual(bill, { exit: 'verdict ignore', owns: 8, ofFights: 12, shareOfFights: 0.667 })
+  assert.equal(
+    fightExitBillRow(bill),
+    "the fights' own exit (v0.782.0): verdict ignore owns 8 of 12 fight(s) (66.7%) - THE EXIT'S OWN SEAT: one class's own endings own the fight book - the class's own front prices the fights the raw split rode unnamed"
+  )
+  // face 74's own mob-down landslide
+  const f74 = { starts: 17, mobDown: 11, deadline: 0, chaseCeiling: 2, verdictIgnore: 2, abandoned: 1, sheltered: 0, died: 1, open: 0 }
+  assert.deepEqual(fightExitBill(f74), { exit: 'mob down', owns: 11, ofFights: 17, shareOfFights: 0.647 })
+})
+
+test('the seat\'s tie law, the byte-wise order pin and the held faces\' duet and crowd', () => {
+  // a tie owns nothing - the storm-has-no-seat precedent (face 73's own duet: died 2 / mob down 2)
+  const f73 = { starts: 4, mobDown: 2, deadline: 0, chaseCeiling: 0, verdictIgnore: 0, abandoned: 0, sheltered: 0, died: 2, open: 0 }
+  assert.equal(fightExitBill(f73), null)
+  const duet = fightExitRiders(f73)
+  assert.deepEqual(duet, { leader: 'died', leaderOwns: 2, runner: 'mob down', runnerOwns: 2, ofFights: 4, pairOwns: 4, shareOfFights: 1, duet: true })
+  assert.equal(
+    fightExitRidersRow(duet),
+    "the fights' own exit riders (v0.782.0): no solo exit owns the majority - died x2 + mob down x2 own 4 of 4 fight(s) (100.0%) - THE EXIT'S OWN MIX: the seat's tie law held, the mix is the shape - the fight's own crowd prices the endings the solo law refused to name"
+  )
+  // face 75's own crowd: 8/5 of 18 - no majority, the riders measure it
+  const f75 = { starts: 18, mobDown: 8, deadline: 1, chaseCeiling: 5, verdictIgnore: 0, abandoned: 1, sheltered: 0, died: 3, open: 0 }
+  assert.equal(fightExitBill(f75), null)
+  const crowd = fightExitRiders(f75)
+  assert.deepEqual(crowd, { leader: 'mob down', leaderOwns: 8, runner: 'chase ceiling', runnerOwns: 5, ofFights: 18, pairOwns: 13, shareOfFights: 0.722, duet: false })
+  // the byte-wise order pin: equal counts read the name's own byte
+  const pin = fightExitRiders({ mobDown: 3, died: 3 })
+  assert.equal(pin.leader, 'died') // 'died' < 'mob down' byte-wise
+  assert.equal(pin.duet, true)
+  // a single closed class seats but the riders need two
+  assert.deepEqual(fightExitBill({ mobDown: 6 }), { exit: 'mob down', owns: 6, ofFights: 6, shareOfFights: 1 })
+  assert.equal(fightExitRiders({ mobDown: 6 }), null)
+})
+
+test('the junk battery, the unclosed fence and the non-finite cells never invent a seat or a shape', () => {
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(fightExitBill(junk), null, `seat must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(fightExitRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(fightExitBillRow(junk), null)
+    assert.equal(fightExitRidersRow(junk), null)
+  }
+  // the unclosed 'open' class stays outside - the v0.780.0 fence: a fight
+  // that never ended closes no book
+  const fenced = fightExitBill({ mobDown: 2, open: 5 })
+  assert.deepEqual(fenced, { exit: 'mob down', owns: 2, ofFights: 2, shareOfFights: 1 })
+  // non-finite and non-positive cells are skipped, never priced
+  const skewed = fightExitBill({ mobDown: 3, verdictIgnore: -1, died: 0, abandoned: NaN, sheltered: 'x' })
+  assert.deepEqual(skewed, { exit: 'mob down', owns: 3, ofFights: 3, shareOfFights: 1 })
+  // a junk-silent seat feeds no row
+  assert.equal(fightExitBillRow({ exit: 'died', owns: 50, ofFights: 30, shareOfFights: 1.667 }), null)
+  assert.equal(fightExitRidersRow({ leader: 'died', leaderOwns: 4, runner: 'mob down', runnerOwns: 3, ofFights: 9, pairOwns: 99, shareOfFails: 11 }), null)
+})
+
+test('WIRING: decompose seats the fight exit beside the raw split read', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the branch rides the ledger object the decompose already prints
+  assert.ok(src.includes('fightExitBill(fl)'), 'the seat must read the ledger\'s own exit cells')
+  assert.ok(src.includes('fightExitRiders(fl)'), 'the riders must read the ledger\'s own exit cells')
+  assert.ok(src.includes('fightExitRidersRow'), 'the riders row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchors are the full row tails, not any bare substring
+  assert.ok(!src.includes("THE EXIT'S OWN SEAT"), 'the seat row prose must stay in the lib')
+  assert.ok(!src.includes("THE EXIT'S OWN MIX"), 'the riders row prose must stay in the lib')
 })

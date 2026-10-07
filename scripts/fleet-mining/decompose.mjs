@@ -44,7 +44,7 @@ import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0
 import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
 import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
-import { fightLedger } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced)
+import { fightLedger, fightExitBill, fightExitBillRow, fightExitRiders, fightExitRidersRow } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced); (v0.782.0) WHICH exit class owns the fight book
 import { flipDrift } from '../../src/lib/flipdrift.mjs' // (v0.487.0) the execution drift - the decision-to-flight gap priced (the flip book's fled rows joined back to the decision; SLOT COLLISION #14: 0.486.0 taken by fire-2130's THE FIGHT COST LEDGER mid-fire)
 import { shelterLadder } from '../../src/lib/shieldledger.mjs' // (v0.489.0) the shield ladder - the shelter attempt's own book (the wall door, the ring door, the re-scan tax)
 import { famineCensus } from '../../src/lib/famineledger.mjs' // (v0.687.0) the famine anatomy - the trip's own starvation read (which slot starves)
@@ -1080,6 +1080,16 @@ if (shooter.total > 0) {
   } else {
     const book = fl.mobDown + fl.deadline + fl.chaseCeiling + fl.verdictIgnore + fl.abandoned + fl.sheltered + fl.died + fl.open
     console.log(`  fights: ${fl.starts} - mob down ${fl.mobDown} / deadline ${fl.deadline} / chase ceiling ${fl.chaseCeiling} / verdict ignore ${fl.verdictIgnore} / abandoned ${fl.abandoned} / sheltered ${fl.sheltered} / died ${fl.died} / open ${fl.open} - book ${book}/${fl.starts}`)
+    // (v0.782.0) THE FIGHTS' OWN EXIT - the exit-class seat on the
+    // ledger's own exit cells (the seat in its owner case, the riders
+    // in the seat's own silence - one row, never both, the branch law;
+    // the unclosed 'open' class stays outside - the v0.780.0 fence).
+    const fe = fightExitBill(fl)
+    if (fe) console.log(`  ${fightExitBillRow(fe)}`)
+    else {
+      const fer = fightExitRiders(fl)
+      if (fer) console.log(`  ${fightExitRidersRow(fer)}`)
+    }
     if (fl.costs) console.log(`  the wins' cost (hp): min ${fl.costs.min.toFixed(1)} / median ${fl.costs.median.toFixed(1)} / max ${fl.costs.max.toFixed(1)} - free wins ${fl.freeWins}${fl.costs.min < 0 ? ' (the NEGATIVE tail is the regen slog: the fight outlasted the drain)' : ''}`)
     const wbits = Object.entries(fl.weapons).sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w}:${n}`).join(' ')
     if (wbits) console.log(`  the weapons: ${wbits} - the longest fight ${fl.slog.maxRounds} rounds (${fl.slog.bot} vs ${fl.slog.mob}, ${fl.slog.weapon})${fl.slog.weapon && fl.slog.weapon.includes('pickaxe') ? ' - THE PICKAXE TAX: the tool ground where the sword would have swung' : ''}`)

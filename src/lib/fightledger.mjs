@@ -324,3 +324,106 @@ export function fightLedger (lines) {
     rows
   }
 }
+
+// (v0.782.0) THE FIGHTS' OWN EXIT - the fight book's own exit-class
+// seat. The v0.486.0 ledger priced every fight's cost and the raw
+// split line printed the classes - no row ever named WHICH exit class
+// owns the book (face 76's own split rode raw: 'verdict ignore 8' of
+// 12 fights beside the flat cells). THE SEAT LAW (the ledger's own
+// exit cells only, zero re-parsing - the v0.780.0 bill's own
+// precedent, the cells instead of the events): the top exit class owns
+// the book under the strict-majority law (a tie owns nothing - the
+// storm-has-no-seat precedent); the unclosed 'open' class stays
+// outside (the v0.780.0 fence - a fight that never ended closes no
+// book). Junk never invents a seat: a missing or non-object ledger,
+// a non-finite or non-positive cell, or a tied spread reads the
+// honest silence (null - the decompose's own guard skips the row).
+// The labels are the emitter's own class vocabulary byte-true
+// ('mob down', 'chase ceiling', 'verdict ignore' - hyphens real).
+const FIGHT_EXIT_CELLS = [
+  ['mobDown', 'mob down'],
+  ['deadline', 'deadline'],
+  ['chaseCeiling', 'chase ceiling'],
+  ['verdictIgnore', 'verdict ignore'],
+  ['abandoned', 'abandoned'],
+  ['sheltered', 'sheltered'],
+  ['died', 'died'],
+]
+
+function fightExitTally (fl) {
+  if (!fl || typeof fl !== 'object' || Array.isArray(fl)) return null
+  const tallies = {}
+  let total = 0
+  for (const [key, label] of FIGHT_EXIT_CELLS) {
+    const n = fl[key]
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[label] = (tallies[label] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function fightExitBill (fl) {
+  const t = fightExitTally(fl)
+  if (!t) return null
+  let topUnits = 0
+  let topExit = null
+  for (const [exit, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topExit = exit }
+  }
+  if (topExit === null || topUnits <= t.total - topUnits) return null
+  return { exit: topExit, owns: topUnits, ofFights: t.total, shareOfFights: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.782.0) the exit seat's own row - THE EXIT'S OWN SEAT: the seat
+// names WHICH exit class owns the fight book; the class's own front
+// prices the cure (a verdict-ignore crowd is the flee verdict's own
+// deafness, a died crowd the mob's own win). Junk never prints a seat
+// (the honest silence's own row law).
+export function fightExitBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { exit, owns, ofFights, shareOfFights } = bill
+  if (typeof exit !== 'string' || !exit ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFights) || ofFights <= 0 || owns > ofFights ||
+      !Number.isFinite(shareOfFights)) return null
+  return `the fights' own exit (v0.782.0): ${exit} owns ${owns} of ${ofFights} fight(s) (${(shareOfFights * 100).toFixed(1)}%) - THE EXIT'S OWN SEAT: one class's own endings own the fight book - the class's own front prices the fights the raw split rode unnamed`
+}
+
+// (v0.782.0) THE FIGHTS' OWN EXIT RIDERS - the exit seat's own
+// silence's companion. The seat names the solo class under the
+// strict-majority law; a no-majority exit mix rode raw with no row
+// naming the shape. THE RIDER LAW (the ledger's own exit cells only,
+// zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two classes' concentration prices the shape
+// the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object ledger, a non-finite or
+// non-positive cell, or fewer than two classes reads the honest
+// silence (null). The order is deterministic (count desc, then the
+// name's own byte: 'abandoned' < 'chase ceiling' < 'died' < 'mob down'
+// < 'sheltered' < 'verdict ignore').
+export function fightExitRiders (fl) {
+  const t = fightExitTally(fl)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFights: t.total, pairOwns, shareOfFights: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.782.0) the exit riders' own row - THE EXIT'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the
+// pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function fightExitRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFights, pairOwns, shareOfFights } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFights) || ofFights <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFights ||
+      !Number.isFinite(shareOfFights)) return null
+  return `the fights' own exit riders (v0.782.0): no solo exit owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFights} fight(s) (${(shareOfFights * 100).toFixed(1)}%) - THE EXIT'S OWN MIX: the seat's tie law held, the mix is the shape - the fight's own crowd prices the endings the solo law refused to name`
+}
