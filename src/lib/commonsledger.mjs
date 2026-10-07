@@ -82,6 +82,35 @@
 // ledger's 'the rungs and the resupply' - the resupply leg delivered
 // ZERO; the 172 torches were the rungs' and the pockets' work alone.
 //
+// (v0.737.0) THE DRY YARD'S OWN GRAMMAR - the field's four evolutions
+// the ledger went blind to (face 52 = run 37549177806: the chest
+// anatomy row read 'empty 0' while the log carried 154 dry reads -
+// the supply-side drought proof was invisible for faces). The heals,
+// each additive (the old shapes keep reading byte-stable):
+//   the located dry chest - 'chest holds no fuel at [x,y,z]' (154 on
+//     the 52nd, 48 distinct chests, top [-121,71,403] x8): the bare
+//     form's locationless RE matched nothing new. The located read
+//     bumps the sweep's emptyChest AND the dry yard's own column
+//     (dryReads + the per-chest dryChests map - the yard's dry side
+//     named per chest);
+//   the last mile refused - 'the last mile refused (...)' (10 on the
+//     52nd): the walk reached the last mile and refused - a walk
+//     anatomy of its own (lastMile + the digit-normalized whys map:
+//     'raw walk timeout after Nms' / 'raw walk: no net progress for
+//     Nms' / 'raw walk stalled after Nms');
+//   the anchor scan that found no anchor - 'the anchor scan saw N
+//     chest(s), M usable after the empty memory - no anchor' (5 on
+//     the 52nd, usable 0): the scan's own census, read OUTSIDE the
+//     sweep gate (no anchor = no sweep ever opened - the death-row
+//     precedent);
+//   the ask defers - 'the ask defers (this stance came up dry Ns
+//     ago ...)' (4 on the 52nd): the ask that never sent (the clock
+//     re-arms) - read outside the sweep gate, the maxDeferSpan kept
+//     as a max (a span sums to nothing).
+// THE DRY YARD'S OWN VERDICT on the 52nd (the maiden read the heals
+// make speakable): demand 88 coal / inflow 0 (no fuel tithe line in
+// the whole face) / the yard read dry 154 times across 48 chests -
+// the drought is the YARD'S, not the walk's.//
 // Pure parser, unit-pinned; decompose is its field read.
 // Mining-surface only: zero fleet wiring, zero new log lines.
 // Junk-safe end to end: non-string rows skipped, a face with no
@@ -116,7 +145,22 @@ export const COMMONS_NOYARD_RE = /^(\S+) fuel commons: no yard chest in range$/
 export const COMMONS_DOOM_RE =
   /^(\S+) fuel commons: chest at \[([-0-9?,]+)\] the yard stands (\d+) levels up over (\d+)b lateral - the walk ladder cannot climb, the ask rides \(the tithe owns the deep resupply\)$/
 // 'F9 fuel commons: chest holds no fuel'
-export const COMMONS_EMPTY_RE = /^(\S+) fuel commons: chest holds no fuel$/
+// (v0.737.0) the located form - 'F2 fuel commons: chest holds no
+// fuel at [-136,71,401]' (154 on the 52nd): the location rides the
+// dry yard's own column
+export const COMMONS_EMPTY_RE = /^(\S+) fuel commons: chest holds no fuel(?: at \[([^\]]+)\])?$/
+// (v0.737.0) the last mile refused - 'F2 fuel commons: the last mile
+// refused (raw walk timeout after 2000ms (d=6.7))' - the walk's
+// last-mile class, its own anatomy
+export const COMMONS_LASTMILE_RE = /^(\S+) fuel commons: the last mile refused \((.+)\)$/
+// (v0.737.0) the anchor scan that found no anchor - read OUTSIDE the
+// sweep gate (no anchor = no sweep ever opened)
+// 'F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor'
+export const COMMONS_SCANS_SAW_RE = /^(\S+) fuel commons: the anchor scan saw (\d+) chest\(s\), (\d+) usable after the empty memory - no anchor$/
+// (v0.737.0) the ask defers - the ask that never sent (the clock
+// re-arms) - read OUTSIDE the sweep gate
+// 'F2 fuel commons: the ask defers (this stance came up dry 4s ago - ...)'
+export const COMMONS_ASK_DEFER_RE = /^(\S+) fuel commons: the ask defers \(this stance came up dry (\d+)s ago/
 // 'F9 fuel commons: open failed (open fuel chest: timeout after 10000ms)'
 // 'F9 fuel commons: open failed after the cover dig (timeout after 10000ms)'
 export const COMMONS_OPENFAIL_RE = /^(\S+) fuel commons: open failed (?:after the cover dig )?\((.+)\)$/
@@ -153,6 +197,18 @@ export function walkWhyClass (why) {
   return w.split(' (')[0].split(' [')[0].trim()
 }
 
+/**
+ * (v0.737.0) The last-mile why's normalizer: the raw tails carry
+ * live numbers ('raw walk timeout after 2000ms') - the class map
+ * needs the digit-free shape ('raw walk timeout after Nms') or every
+ * read owns its own private key. Digits (and their decimals) -> N.
+ * @param {string} why the walked why class
+ * @returns {string} the digit-free class
+ */
+export function normalizeWhy (why) {
+  return String(why ?? '').replace(/\d+(?:\.\d+)?/g, 'N').trim()
+}
+
 function zeroBot () {
   return {
     asks: 0, askCoal: 0,
@@ -161,8 +217,11 @@ function zeroBot () {
     delivered: 0, units: 0, budgetSpent: 0, silentExhaust: 0, ghost: 0, noChest: 0,
     emptyChest: 0, openFail: 0, verticalDoom: 0, blockVanished: 0, walkFail: 0,
     nudges: 0, resegments: 0, spentSlice: 0, coverStandDown: 0, ghostRetry: 0,
+    lastMile: 0, dryReads: 0,
+    scanSaw: 0, scanSawSeen: 0, scanSawUsable: 0,
+    askDefers: 0, maxDeferSpan: 0,
     deaths: 0,
-    doomShapes: [], walkFailWhys: {}
+    doomShapes: [], walkFailWhys: {}, dryChests: {}, lastMileWhys: {}
   }
 }
 
@@ -209,11 +268,13 @@ export function commonsLedger (lines) {
       b.units += sw.units
       b.laneTorch += sw.lane === 'torch' ? 1 : 0
       b.laneSmelt += sw.lane === 'smelt' ? 1 : 0
-      for (const k of ['emptyChest', 'openFail', 'verticalDoom', 'blockVanished', 'walkFail', 'nudges', 'resegments', 'spentSlice', 'coverStandDown', 'ghostRetry']) {
+      for (const k of ['emptyChest', 'openFail', 'verticalDoom', 'blockVanished', 'walkFail', 'lastMile', 'dryReads', 'nudges', 'resegments', 'spentSlice', 'coverStandDown', 'ghostRetry']) {
         b[k] += sw.anatomy[k]
       }
       for (const sh of sw.doomShapes) b.doomShapes.push(sh)
       for (const [w, n] of Object.entries(sw.walkFailWhys)) b.walkFailWhys[w] = (b.walkFailWhys[w] ?? 0) + n
+      for (const [loc, n] of Object.entries(sw.dryChests)) b.dryChests[loc] = (b.dryChests[loc] ?? 0) + n
+      for (const [w, n] of Object.entries(sw.lastMileWhys)) b.lastMileWhys[w] = (b.lastMileWhys[w] ?? 0) + n
     })
     rows.push({ type: 'sweep', bot, idx, lane: sw.lane, cls, units: sw.units, ...sw.anatomy })
   }
@@ -245,6 +306,22 @@ export function commonsLedger (lines) {
       rows.push({ type: 'death', bot: m[1], idx, cls: 'drownedOnTheWalk' })
       continue
     }
+    // ---- (v0.737.0) the dry yard's own census - read OUTSIDE the
+    // sweep gate (the death-row precedent): the scan that found no
+    // anchor (no sweep ever opened) and the ask that never sent
+    // (the clock re-arms) are their own classes, never sweep anatomy
+    m = COMMONS_SCANS_SAW_RE.exec(line)
+    if (m) {
+      bump(m[1], b => { b.scanSaw++; b.scanSawSeen += Number(m[2]); b.scanSawUsable += Number(m[3]) })
+      rows.push({ type: 'scan', bot: m[1], idx, seen: Number(m[2]), usable: Number(m[3]) })
+      continue
+    }
+    m = COMMONS_ASK_DEFER_RE.exec(line)
+    if (m) {
+      bump(m[1], b => { b.askDefers++; b.maxDeferSpan = Math.max(b.maxDeferSpan, Number(m[2])) })
+      rows.push({ type: 'defer', bot: m[1], idx, span: Number(m[2]) })
+      continue
+    }
     // ---- the sweep opener ----
     m = COMMONS_ANCHOR_RE.exec(line)
     if (m) {
@@ -257,10 +334,13 @@ export function commonsLedger (lines) {
         units: 0,
         anatomy: {
           emptyChest: 0, openFail: 0, verticalDoom: 0, blockVanished: 0, walkFail: 0,
-          nudges: 0, resegments: 0, spentSlice: 0, coverStandDown: 0, ghostRetry: 0
+          nudges: 0, resegments: 0, spentSlice: 0, coverStandDown: 0, ghostRetry: 0,
+          lastMile: 0, dryReads: 0
         },
         doomShapes: [],
-        walkFailWhys: {}
+        walkFailWhys: {},
+        dryChests: {},
+        lastMileWhys: {}
       }
       void b
       continue
@@ -315,7 +395,22 @@ export function commonsLedger (lines) {
       continue
     }
     vm = COMMONS_EMPTY_RE.exec(line)
-    if (vm) { a.emptyChest++; continue }
+    if (vm) {
+      a.emptyChest++
+      // (v0.737.0) the located form rides the dry yard's own column
+      if (vm[2]) {
+        a.dryReads++
+        s.sweep.dryChests[vm[2]] = (s.sweep.dryChests[vm[2]] ?? 0) + 1
+      }
+      continue
+    }
+    vm = COMMONS_LASTMILE_RE.exec(line)
+    if (vm) {
+      a.lastMile++
+      const w = normalizeWhy(walkWhyClass(vm[2]))
+      s.sweep.lastMileWhys[w] = (s.sweep.lastMileWhys[w] ?? 0) + 1
+      continue
+    }
     vm = COMMONS_OPENFAIL_RE.exec(line)
     if (vm) { a.openFail++; continue }
     vm = COMMONS_WALKFAIL_RE.exec(line)
@@ -347,10 +442,14 @@ export function commonsLedger (lines) {
   for (const b of Object.values(bots)) {
     for (const k of Object.keys(totals)) {
       if (Array.isArray(b[k])) continue
+      if (k === 'maxDeferSpan') continue // a span sums to nothing - the max owns it
       if (typeof b[k] === 'number') totals[k] += b[k]
     }
+    totals.maxDeferSpan = Math.max(totals.maxDeferSpan, b.maxDeferSpan)
     for (const sh of b.doomShapes) totals.doomShapes.push(sh)
     for (const [w, n] of Object.entries(b.walkFailWhys)) totals.walkFailWhys[w] = (totals.walkFailWhys[w] ?? 0) + n
+    for (const [loc, n] of Object.entries(b.dryChests)) totals.dryChests[loc] = (totals.dryChests[loc] ?? 0) + n
+    for (const [w, n] of Object.entries(b.lastMileWhys)) totals.lastMileWhys[w] = (totals.lastMileWhys[w] ?? 0) + n
   }
   return { bots, totals, rows }
 }

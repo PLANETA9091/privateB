@@ -11,9 +11,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  commonsLedger, walkWhyClass,
+  commonsLedger, walkWhyClass, normalizeWhy,
   COMMONS_ANCHOR_RE, COMMONS_TOOK_RE, COMMONS_BUDGET_RE,
-  COMMONS_DOOM_RE, COMMONS_DEATH_RE
+  COMMONS_DOOM_RE, COMMONS_DEATH_RE,
+  COMMONS_EMPTY_RE, COMMONS_LASTMILE_RE,
+  COMMONS_SCANS_SAW_RE, COMMONS_ASK_DEFER_RE
 } from '../../src/lib/commonsledger.mjs'
 import { TORCH_RESUPPLY_RE } from '../../src/lib/torchbook.mjs'
 
@@ -258,6 +260,12 @@ test('commonsLedger: the why class and the grammar heads', () => {
   assert.equal(walkWhyClass('No path to the goal!'), 'No path to the goal!')
   assert.equal(walkWhyClass('water rescue in progress (iron commune walk @-143,391 (nudge retry'), 'water rescue in progress')
   assert.equal(walkWhyClass(null), '')
+  // (v0.737.0) the digit-free last-mile classes
+  assert.equal(normalizeWhy('raw walk timeout after 2000ms'), 'raw walk timeout after Nms')
+  assert.equal(normalizeWhy('raw walk: no net progress for 1000ms'), 'raw walk: no net progress for Nms')
+  assert.equal(normalizeWhy('raw walk stalled after 5000ms'), 'raw walk stalled after Nms')
+  assert.equal(normalizeWhy(walkWhyClass('raw walk timeout after 2000ms (d=6.7)')), 'raw walk timeout after Nms')
+  assert.equal(normalizeWhy(null), '')
   // the anchor read is the opener, byte-exact
   assert.ok(COMMONS_ANCHOR_RE.test('F9 fuel commons: the anchor chest is read first'))
   assert.ok(!COMMONS_ANCHOR_RE.test('F9 fuel anchor scan: the palette read empty x1 - the singular probe rescued the scan (chest at [-132,81,420])'))
@@ -266,4 +274,96 @@ test('commonsLedger: the why class and the grammar heads', () => {
   assert.ok(COMMONS_DOOM_RE.test('F3 fuel commons: chest at [-117,79,409] the yard stands 36 levels up over 4b lateral - the walk ladder cannot climb, the ask rides (the tithe owns the deep resupply)'))
   assert.ok(COMMONS_DEATH_RE.test('F13 [F13] death: drown context (o2 reset(-1), feet water, head water, rescue 42s ago, leg fuel commons walk @-145,391, wet 3s@last)'))
   assert.ok(!COMMONS_DEATH_RE.test('F1 [F1] death: drown context (o2 reset(-1), feet water, head water, rescue 42s ago, leg bank walk @-145,391, wet 3s@last)'))
+})
+
+// (v0.737.0) THE DRY YARD'S OWN GRAMMAR - the 52nd's four evolutions
+// the ledger went blind to (the chest anatomy row read 'empty 0'
+// while the log carried 154 located dry reads). The lines are
+// byte-verbatim from face 52 = run 37549177806, fleet19.log.
+const F2_DRY_MINI = [
+  'F2 fuel commons: the anchor chest is read first',
+  'F2 fuel commons: chest holds no fuel at [-136,71,401]', // THE LOCATED DRY CHEST
+  'F2 fuel commons: chest holds no fuel', // the bare form rides beside it
+  'F2 fuel commons: the last mile refused (raw walk timeout after 2000ms (d=6.7))',
+  'F2 fuel commons: the last mile refused (raw walk: no net progress for 1000ms (best d=6.4))',
+  'F2 fuel commons: the last mile refused (raw walk stalled after 5000ms (d=8.1))',
+  'F2 fuel commons: budget spent (0/1 units)', // the verdict closes the sweep
+  'F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor', // no anchor - no sweep
+  'F2 fuel commons: the ask defers (this stance came up dry 4s ago - the climb owns the depth, the tithe owns the refill, the clock re-arms the ask)',
+  'F2 fuel commons: the ask defers (this stance came up dry 12s ago - the climb owns the depth, the tithe owns the refill, the clock re-arms the ask)'
+]
+
+test('commonsLedger v0.737.0: the dry yard - the located dry chest, the last mile, the no-anchor scan, the ask defer', () => {
+  const r = commonsLedger(F2_DRY_MINI)
+  const f2 = r.bots.F2
+  assert.ok(f2, 'F2 present')
+  // the sweep's own book (in-sweep lines only)
+  assert.equal(f2.sweeps, 1)
+  assert.equal(f2.emptyChest, 2, 'the bare form AND the located form are the sweep\'s anatomy')
+  assert.equal(f2.dryReads, 1, 'only the located form rides the dry yard\'s column')
+  assert.deepEqual(f2.dryChests, { '-136,71,401': 1 })
+  assert.equal(f2.lastMile, 3, 'the last mile refused - the walk\'s own anatomy')
+  assert.deepEqual(f2.lastMileWhys, {
+    'raw walk timeout after Nms': 1,
+    'raw walk: no net progress for Nms': 1,
+    'raw walk stalled after Nms': 1
+  })
+  assert.equal(f2.budgetSpent, 1, 'the verdict still closes the sweep')
+  // the out-of-sweep census (the death-row precedent)
+  assert.equal(f2.scanSaw, 1)
+  assert.equal(f2.scanSawSeen, 2)
+  assert.equal(f2.scanSawUsable, 0, 'the 52nd\'s scans saw chests and none usable')
+  assert.equal(f2.askDefers, 2, 'the ask that never sent')
+  assert.equal(f2.maxDeferSpan, 12, 'the max owns the span (4s and 12s -> 12)')
+  // the rows carry the new types
+  assert.ok(r.rows.find(x => x.type === 'scan' && x.bot === 'F2' && x.seen === 2))
+  assert.ok(r.rows.find(x => x.type === 'defer' && x.bot === 'F2' && x.span === 12))
+  // the totals: the maps merged, the span maxed
+  const t = r.totals
+  assert.equal(t.dryReads, 1)
+  assert.deepEqual(t.dryChests, { '-136,71,401': 1 })
+  assert.equal(t.lastMile, 3)
+  assert.equal(t.maxDeferSpan, 12, 'a span sums to nothing - the max owns it')
+  assert.equal(t.sweeps, t.delivered + t.budgetSpent + t.ghost + t.noChest + t.silentExhaust, 'the book law holds')
+})
+
+test('commonsLedger v0.737.0: the grammar heads - the located form, the last mile, the scan, the defer', () => {
+  assert.ok(COMMONS_EMPTY_RE.test('F2 fuel commons: chest holds no fuel'), 'the bare form keeps matching (the old faces stay byte-stable)')
+  const loc = COMMONS_EMPTY_RE.exec('F2 fuel commons: chest holds no fuel at [-136,71,401]')
+  assert.ok(loc, 'the located form matches')
+  assert.equal(loc[2], '-136,71,401')
+  assert.ok(COMMONS_LASTMILE_RE.test('F2 fuel commons: the last mile refused (raw walk timeout after 2000ms (d=6.7))'))
+  assert.equal(COMMONS_LASTMILE_RE.exec('F2 fuel commons: the last mile refused (raw walk: no net progress for 1000ms (best d=6.4))')[2], 'raw walk: no net progress for 1000ms (best d=6.4)', 'the greedy capture owns the nested parens')
+  assert.ok(COMMONS_SCANS_SAW_RE.test('F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor'))
+  const scan = COMMONS_SCANS_SAW_RE.exec('F2 fuel commons: the anchor scan saw 2 chest(s), 0 usable after the empty memory - no anchor')
+  assert.equal(scan[2], '2')
+  assert.equal(scan[3], '0')
+  assert.ok(COMMONS_ASK_DEFER_RE.test('F2 fuel commons: the ask defers (this stance came up dry 12s ago - the climb owns the depth, the tithe owns the refill, the clock re-arms the ask)'))
+  assert.equal(COMMONS_ASK_DEFER_RE.exec('F2 fuel commons: the ask defers (this stance came up dry 12s ago - the climb owns the depth)')[2], '12')
+  assert.ok(!COMMONS_ASK_DEFER_RE.test('F2 fuel commons: the ask defers (a different shape)'), 'the strict grammar keeps the defer honest')
+})
+
+test('commonsLedger v0.737.0: the old faces stay byte-stable and the gate keeps its law', () => {
+  // the F19 mini's bare dry chests read exactly as before (5, no dry reads)
+  const r = commonsLedger(F19_MINI)
+  const f19 = r.bots.F19
+  assert.equal(f19.emptyChest, 5, 'the bare form\'s count unchanged')
+  assert.equal(f19.dryReads, 0, 'the bare form carries no location - the dry column stays silent')
+  assert.deepEqual(f19.dryChests, {})
+  // the located form OUTSIDE a sweep stays dropped (the v0.502.0 gate law)
+  const out = commonsLedger([
+    'F1 fuel commons: chest holds no fuel at [-116,71,411]' // no sweep open - not ours to read
+  ])
+  assert.equal(out.bots.F1, undefined, 'the located anatomy outside a sweep - dropped like the bare form')
+  // the no-anchor scan and the defer need no sweep - their own census
+  const own = commonsLedger([
+    'F4 fuel commons: the anchor scan saw 1 chest(s), 0 usable after the empty memory - no anchor',
+    'F4 fuel commons: the ask defers (this stance came up dry 2s ago - the climb owns the depth, the tithe owns the refill, the clock re-arms the ask)'
+  ])
+  const f4 = own.bots.F4
+  assert.ok(f4, 'the out-of-sweep census creates the bot (the death-row precedent)')
+  assert.equal(f4.sweeps, 0)
+  assert.equal(f4.scanSaw, 1)
+  assert.equal(f4.askDefers, 1)
+  assert.equal(own.totals.sweeps, 0)
 })

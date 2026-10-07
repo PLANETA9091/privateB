@@ -3214,9 +3214,16 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const t = cl.totals
     console.log(`--- COMMONS LEDGER (v0.502.0: the ask's answer - the sweeps, the walk, the deliveries) ---`)
     console.log(`  sweeps ${t.sweeps} (torch lane ${t.laneTorch} / smelt lane ${t.laneSmelt}): delivered ${t.delivered} (${t.units} units) / budget-spent ${t.budgetSpent} / silent-exhaust ${t.silentExhaust} / ghost ${t.ghost} / no-chest ${t.noChest}`)
-    console.log(`  walk anatomy: nudges ${t.nudges} / re-segments ${t.resegments} / spent slices ${t.spentSlice} / walk fails ${t.walkFail} (${Object.entries(t.walkFailWhys).map(([w, n]) => `${w} ${n}`).join(', ')})`)
+    console.log(`  walk anatomy: nudges ${t.nudges} / re-segments ${t.resegments} / spent slices ${t.spentSlice} / walk fails ${t.walkFail} (${Object.entries(t.walkFailWhys).map(([w, n]) => `${w} ${n}`).join(', ')})${t.lastMile ? ` / last-mile refused ${t.lastMile} (${Object.entries(t.lastMileWhys).map(([w, n]) => `${w} ${n}`).join(', ')})` : ''}`)
     console.log(`  chest anatomy: empty ${t.emptyChest} / open-fail ${t.openFail} / vertical doom ${t.verticalDoom} (${t.doomShapes.join(', ')}) / vanished ${t.blockVanished} / cover stand-downs ${t.coverStandDown}`)
-    console.log(`  asks ${t.asks} (${t.askCoal} coal asked): re-plans ${t.rePlan} / still-dry ${t.stillDry} / cap ${t.cap} / reserve ${t.reserve} / error ${t.error} / open ${t.askOpen} - deaths on the walk ${t.deaths}`)
+    // (v0.737.0) the dry yard's own side - the located dry reads the
+    // old grammar never saw (154 across 48 chests on the 52nd)
+    if (t.dryReads > 0) {
+      const top = Object.entries(t.dryChests).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([loc, n]) => `[${loc}] x${n}`).join(', ')
+      console.log(`  the dry yard's own side: ${t.dryReads} located dry reads across ${Object.keys(t.dryChests).length} chest(s) (top ${top}) - the yard's inflow is the drought's front`)
+    }
+    if (t.scanSaw > 0) console.log(`  anchor scans that found no anchor: ${t.scanSaw} (saw ${t.scanSawSeen} chest(s), ${t.scanSawUsable} usable after the empty memory)`)
+    console.log(`  asks ${t.asks} (${t.askCoal} coal asked): re-plans ${t.rePlan} / still-dry ${t.stillDry} / cap ${t.cap} / reserve ${t.reserve} / error ${t.error} / open ${t.askOpen} - deaths on the walk ${t.deaths}${t.askDefers ? ` - the ask deferred ${t.askDefers} (a stance dry up to ${t.maxDeferSpan}s ago re-arms the clock)` : ''}`)
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)
   }
