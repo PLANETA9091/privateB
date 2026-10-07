@@ -6,7 +6,7 @@ import { orphanOwnerCensus } from '../../src/lib/orphanowner.mjs' // (v0.679.0) 
 import { askWhyCensus, dryAskVerdict, dryAskVerdictRow, dryAskBotBill, dryAskBotBillRow, dryAskRiders, dryAskRidersRow } from '../../src/lib/askwhycensus.mjs' // (v0.652.0) THE ASK'S OWN WHY BOOK - the ask ladder's walk-failure whys joined to the dry terminals (the delivery side's v0.612.0 why-book law, the ask side's own seat); (v0.769.0) WHICH class owns the dry ask; (v0.772.0) WHICH walker owns the class's rows
 import { bankFlowCensus, bankYield, writeOffBill, writeOffBillRow, writeOffRiders, writeOffRidersRow } from '../../src/lib/bankcensus.mjs' // (v0.686.0) + the yield dial - the banked mass over the visit lane's own line count; (v0.777.0) + the write-off's own cast - the book's bot-level seat
 import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/routecensus.mjs' // (v0.388.0) the route gate's field read
-import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
+import { shooterCensus, shooterAttackerBill, shooterAttackerBillRow, shooterAttackerRiders, shooterAttackerRidersRow } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read; (v0.792.0) WHICH attacker owns the combat pressure
 import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict
@@ -845,6 +845,17 @@ const shooter = shooterCensus(lines)
 if (shooter.total > 0) {
   const atkRow = Object.entries(shooter.byAttacker).map(([a, n]) => `${a}=${n}`).join(' ')
   console.log(`  combat lines: ${shooter.total} (attackers: ${atkRow || 'none priced'})`)
+  // (v0.792.0) THE ENCOUNTER BOOK'S OWN ATTACKER SEAT - WHICH attacker
+  // owns the combat pressure (the seat + the riders, one row never both -
+  // the branch law; the owner case leaves the companion unprinted). The
+  // prose's lowercase names are this book's own capture depth - the death
+  // book's server-verbatim species (v0.788.0) stays the other book.
+  const skb = shooterAttackerBill(shooter)
+  if (skb) console.log(`  ${shooterAttackerBillRow(skb)}`)
+  else {
+    const skr = shooterAttackerRiders(shooter)
+    if (skr) console.log(`  ${shooterAttackerRidersRow(skr)}`)
+  }
   const botRow = Object.entries(shooter.byBot).map(([b, n]) => `${b}=${n}`).join(' ')
   if (botRow) console.log(`  per-bot: ${botRow}`)
   // (v0.393.0) THE COMBAT-WHALE LENS - the top bots' verb splits (byBot says

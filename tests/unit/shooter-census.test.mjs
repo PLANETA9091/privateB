@@ -6,7 +6,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseCombatLine, shooterCensus, SIEGE_MIN_SESSION_LEN } from '../../src/lib/shootercensus.mjs'
+import fs from 'node:fs'
+import { parseCombatLine, shooterCensus, SIEGE_MIN_SESSION_LEN, shooterAttackerBill, shooterAttackerBillRow, shooterAttackerRiders, shooterAttackerRidersRow } from '../../src/lib/shootercensus.mjs'
 
 // face-15 verbatims (the ranged band + the verdict/shelter mechanics)
 const RING_RANGED = 'F9 [F9] combat: shelter ring ranged mode: the full ring is refused, the arrow wall owns it vs skeleton@2.8'
@@ -487,4 +488,106 @@ test('the face-68 melee pair reads zero strangers (otherVerbs empty)', () => {
   assert.equal(c.otherVerbs.melee, undefined, 'the drifted name is seated - the honest sweep reads silence')
   assert.equal(c.byVerb['melee-ceiling'], 1)
   assert.equal(c.byVerb['melee-cooldown'], 1)
+})
+
+// (v0.792.0) THE ENCOUNTER BOOK'S OWN ATTACKER - the seat + the riders on
+// the census's own byAttacker cell (the combat prose's own lowercase
+// attacker names). The face-81 verbatims (37678241663, THE PRESSURE
+// STORM): the readout rode 'combat lines: 201 (attackers: drowned=22
+// zombie=116 creeper=10 skeleton=9 spider=2)' - 159 named touches and no
+// row ever said WHO owns the pressure. The seat counts the TOUCHES, the
+// death book's own species (v0.788.0, server-verbatim 'Drowned') counts
+// the KILLS - the two books never join (the two capture depths).
+const F81_ZOMBIE = 'F1 [F1] combat: fighting zombie'
+const F81_DROWNED = 'F1 [F1] combat: fighting drowned'
+const F81_CREEPER = 'F1 [F1] combat: fighting creeper'
+const F81_SKELETON = 'F1 [F1] combat: fighting skeleton'
+const F81_SPIDER = 'F1 [F1] combat: fighting spider'
+
+test('the face-81 pressure storm: zombie owns 116 of 159 (73.0%) - the encounter book\'s own attacker seats the pressure', () => {
+  const lines = [
+    ...Array(116).fill(F81_ZOMBIE),
+    ...Array(22).fill(F81_DROWNED),
+    ...Array(10).fill(F81_CREEPER),
+    ...Array(9).fill(F81_SKELETON),
+    ...Array(2).fill(F81_SPIDER)
+  ]
+  const c = shooterCensus(lines)
+  assert.deepEqual(c.byAttacker, { zombie: 116, drowned: 22, creeper: 10, skeleton: 9, spider: 2 })
+  const b = shooterAttackerBill(c)
+  assert.deepEqual(b, { attacker: 'zombie', owns: 116, ofLines: 159, shareOfLines: 0.73 })
+  assert.equal(
+    shooterAttackerBillRow(b),
+    "the encounter book's own attacker (v0.792.0): zombie owns 116 of 159 attacker line(s) (73.0%) - THE PRESSURE'S OWN SEAT: one attacker's own touches own the combat book - the pressure's own front prices the encounters the raw split rode unnamed"
+  )
+  // the riders stay a MEASURE even in the owner case - the decompose's
+  // branch law leaves the companion unprinted when the seat is owned
+  const m = shooterAttackerRiders(c)
+  assert.equal(m.leader, 'zombie')
+  assert.equal(m.runner, 'drowned')
+  assert.equal(m.duet, false)
+})
+
+test('the tie law holds the seat silent and the byte order pins drowned < zombie + the below-half plurality fence', () => {
+  // the tie duet: 2 + 2 - a tie owns nothing, the duet measures the shape
+  const tie = shooterCensus([F81_ZOMBIE, F81_ZOMBIE, F81_DROWNED, F81_DROWNED])
+  assert.equal(shooterAttackerBill(tie), null)
+  const tieR = shooterAttackerRiders(tie)
+  assert.deepEqual(tieR, { leader: 'drowned', leaderOwns: 2, runner: 'zombie', runnerOwns: 2, ofLines: 4, pairOwns: 4, shareOfLines: 1, duet: true })
+  assert.equal(
+    shooterAttackerRidersRow(tieR),
+    "the encounter book's own attacker riders (v0.792.0): no solo attacker owns the majority - drowned x2 + zombie x2 own 4 of 4 attacker line(s) (100.0%) - THE PRESSURE'S OWN MIX: the seat's tie law held, the mix is the shape - the encounters' own crowd prices the attackers the solo law refused to name"
+  )
+  // the below-half plurality: 3 of 7 owns nothing (3 <= 4); the 2-way rank
+  // tie behind the leader breaks on the name's own byte 'drowned' < 'skeleton'
+  const plural = shooterCensus([
+    F81_ZOMBIE, F81_ZOMBIE, F81_ZOMBIE,
+    F81_DROWNED, F81_DROWNED,
+    F81_SKELETON, F81_SKELETON
+  ])
+  assert.equal(shooterAttackerBill(plural), null)
+  const pR = shooterAttackerRiders(plural)
+  assert.equal(pR.leader, 'zombie')
+  assert.equal(pR.runner, 'drowned')
+  assert.equal(pR.pairOwns, 5)
+  assert.equal(pR.duet, false)
+})
+
+test('the single-attacker fence - one voice owns the seat but the riders read the honest silence', () => {
+  const solo = shooterCensus([F81_ZOMBIE, F81_ZOMBIE, F81_ZOMBIE])
+  const b = shooterAttackerBill(solo)
+  assert.deepEqual(b, { attacker: 'zombie', owns: 3, ofLines: 3, shareOfLines: 1 })
+  assert.equal(shooterAttackerRiders(solo), null)
+  // the names are the prose's own lowercase bytes - the lens is
+  // name-blind (the parser's own whitelist is the grammar's fence): a
+  // stranger key in the cell keeps its own byte, never invented into a
+  // named class
+  const c = shooterCensus(['F1 [F1] combat: fighting vex'])
+  assert.equal(c.byAttacker.vex, undefined, "the parser's whitelist is the grammar's own fence")
+  const stranger = shooterAttackerBill({ byAttacker: { vex: 3 } })
+  assert.deepEqual(stranger, { attacker: 'vex', owns: 3, ofLines: 3, shareOfLines: 1 })
+})
+
+test('the junk battery and the byte-exact rows - the decompose branch rides the cell, the prose lives only in the lib', () => {
+  const junk = [null, undefined, 42, 'x', [], {}, { byAttacker: null }, { byAttacker: 'x' }, { byAttacker: [] }, { byAttacker: {} }, { byAttacker: { zombie: 0 } }, { byAttacker: { zombie: -2 } }, { byAttacker: { zombie: 'x' } }]
+  for (const j of junk) {
+    assert.equal(shooterAttackerBill(j), null, `bill stays silent on ${JSON.stringify(j)}`)
+    assert.equal(shooterAttackerRiders(j), null, `riders stay silent on ${JSON.stringify(j)}`)
+  }
+  // the row functions judge their own side
+  assert.equal(shooterAttackerBillRow(null), null)
+  assert.equal(shooterAttackerBillRow(42), null)
+  assert.equal(shooterAttackerBillRow({ attacker: '', owns: 1, ofLines: 2, shareOfLines: 0.5 }), null)
+  assert.equal(shooterAttackerBillRow({ attacker: 'zombie', owns: 3, ofLines: 2, shareOfLines: 1 }), null)
+  assert.equal(shooterAttackerBillRow({ attacker: 'zombie', owns: 1, ofLines: 2, shareOfLines: NaN }), null)
+  assert.equal(shooterAttackerRidersRow(null), null)
+  assert.equal(shooterAttackerRidersRow(42), null)
+  assert.equal(shooterAttackerRidersRow({ leader: 'zombie', leaderOwns: 1, runner: '', runnerOwns: 1, ofLines: 2, pairOwns: 2, shareOfLines: 1 }), null)
+  // the WIRING assert: the branch rides the census cell, the prose lives
+  // only in the lib (the deathkinds v0.788.0 precedent)
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const skb = shooterAttackerBill(shooter)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (skb) console.log(`  ${shooterAttackerBillRow(skb)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const skr = shooterAttackerRiders(shooter)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE PRESSURE'S OWN SEAT"), 'the prose stays in the lib')
 })

@@ -456,3 +456,100 @@ export function shooterCensus (lines) {
     maxDist
   }
 }
+
+// (v0.792.0) THE ENCOUNTER BOOK'S OWN ATTACKER - WHICH attacker owns the
+// combat pressure. Face 81 (37678241663, the pressure storm) rode the raw
+// split 'combat lines: 201 (attackers: drowned=22 zombie=116 creeper=10
+// skeleton=9 spider=2)' - 159 named touches across 201 lines and no row
+// ever said WHO owns the pressure, while the death book's own species
+// (v0.788.0) already had its seat. THE SEAT LAW (the census's own
+// byAttacker cell only, zero re-parsing - the v0.674.0 add-and-tally
+// cell, the v0.788.0 attacker seat's own precedent): the strict-majority
+// law, one attacker owns the pressure only above half (a tie owns
+// nothing). The names are the combat prose's own lowercase bytes
+// ('creeper' < 'drowned' < 'skeleton' < 'spider' < 'zombie') - the other
+// capture depth from the death book's server-verbatim species ('Drowned'
+// etc.); this lens never joins the two books (the death book's cell
+// prices the kills, this one the touches). Junk never invents an
+// attacker: a missing or non-object cell, a non-finite or non-positive
+// count, or a tied spread reads the honest silence (null - the
+// decompose's own guard skips the row).
+function shooterAttackerTally (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const byAttacker = census.byAttacker
+  if (!byAttacker || typeof byAttacker !== 'object' || Array.isArray(byAttacker)) return null
+  const tallies = {}
+  let total = 0
+  for (const [attacker, n] of Object.entries(byAttacker)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[attacker] = (tallies[attacker] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function shooterAttackerBill (census) {
+  const t = shooterAttackerTally(census)
+  if (!t) return null
+  let topUnits = 0
+  let topAttacker = null
+  for (const [attacker, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topAttacker = attacker }
+  }
+  if (topAttacker === null || topUnits <= t.total - topUnits) return null
+  return { attacker: topAttacker, owns: topUnits, ofLines: t.total, shareOfLines: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.792.0) the attacker seat's own row - THE PRESSURE'S OWN SEAT: the
+// seat names WHICH prose-named attacker owns the encounter book; the
+// pressure's own front prices the cure (a zombie crowd is the night's
+// own melee levy - the armor and the light lanes price it; the death
+// book's own seat (v0.788.0) names the killer that converts). Junk never
+// prints a seat (the honest silence's own row law).
+export function shooterAttackerBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { attacker, owns, ofLines, shareOfLines } = bill
+  if (typeof attacker !== 'string' || !attacker ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofLines) || ofLines <= 0 || owns > ofLines ||
+      !Number.isFinite(shareOfLines)) return null
+  return `the encounter book's own attacker (v0.792.0): ${attacker} owns ${owns} of ${ofLines} attacker line(s) (${(shareOfLines * 100).toFixed(1)}%) - THE PRESSURE'S OWN SEAT: one attacker's own touches own the combat book - the pressure's own front prices the encounters the raw split rode unnamed`
+}
+
+// (v0.792.0) THE ENCOUNTER BOOK'S OWN ATTACKER RIDERS - the seat's own
+// silence's companion. The seat names the solo attacker under the
+// strict-majority law; a no-majority pressure mix rode raw with no row
+// naming the shape. THE RIDER LAW (the census's own byAttacker cell
+// only, zero re-parsing - the seat's own precedent): a MEASURE, never a
+// verdict-owner - the top two attackers' concentration prices the shape
+// the solo law refused to name (the seat's owner case leaves the
+// companion unprinted - the decompose's own branch law). Junk never
+// invents a shape: a missing or non-object cell, a non-finite or
+// non-positive count, or fewer than two attackers reads the honest
+// silence (null). The order is deterministic (count desc, then the
+// name's own byte: 'creeper' < 'drowned' < 'skeleton' < 'spider' <
+// 'zombie').
+export function shooterAttackerRiders (census) {
+  const t = shooterAttackerTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofLines: t.total, pairOwns, shareOfLines: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.792.0) the attacker riders' own row - THE PRESSURE'S OWN MIX: a
+// measure of the shape, never a named owner (the seat's tie law holds);
+// the pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function shooterAttackerRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofLines, pairOwns, shareOfLines } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofLines) || ofLines <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofLines ||
+      !Number.isFinite(shareOfLines)) return null
+  return `the encounter book's own attacker riders (v0.792.0): no solo attacker owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofLines} attacker line(s) (${(shareOfLines * 100).toFixed(1)}%) - THE PRESSURE'S OWN MIX: the seat's tie law held, the mix is the shape - the encounters' own crowd prices the attackers the solo law refused to name`
+}
