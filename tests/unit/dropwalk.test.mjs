@@ -7,7 +7,7 @@
 // v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DROP_WALK_FAIL_RE, classifyDropFailWhy, parseDropWalkFail, dropWalkCensus } from '../../src/lib/dropwalk.mjs'
+import { DROP_WALK_FAIL_RE, classifyDropFailWhy, parseDropWalkFail, dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow } from '../../src/lib/dropwalk.mjs'
 
 test('drop-walk: the face-26 timeout verbatim parses bot, spot, ms, dy, range', () => {
   const a = parseDropWalkFail('F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)')
@@ -326,4 +326,48 @@ test('no-path: the face-27 anomaly battery reproduces by hand - 9 fails, F17 lea
   assert.equal(c.dy.min, -2.0)
   assert.equal(c.dy.max, 1.0)
   assert.deepEqual([c.dy.below, c.dy.plane, c.dy.above], [5, 2, 2])
+})
+
+test('drop-walk verdict: the face-74 cell - timeout owns the book (the verdict\'s first field case)', () => {
+  // the census's own byWhy cell stays byte-untouched and the lens reads
+  // THE SAME cell the decompose prints (zero re-parsing - the additive law)
+  const c = dropWalkCensus([
+    'F2 [F2] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)',
+    'F8 [F8] vein sweep: the drop walk to [-142,56,420] failed - doomed goal (ledgered 44s ago at [-143,56,419]) - sweep drops refused (dy -2.0, range 2)',
+    'F5 [F5] vein sweep: the drop walk to [-113,41,430] failed - goal admission: no standable cell in the goal\'s arrival sphere - sweep drops refused (dy -2.0, range 2)'
+  ])
+  assert.equal(c.fails, 3)
+  assert.deepEqual(c.byWhy, { timeout: 1, doomed: 1, admission: 1 })
+  // face 74's own why distribution as the agreeing witness (the mine's
+  // own split: timeout=11 admission=6 doomed=3)
+  const v = dropWalkVerdict({ timeout: 11, admission: 6, doomed: 3 })
+  assert.deepEqual(v, { why: 'timeout', owns: 11, ofFails: 20, shareOfFails: 0.55 })
+  assert.equal(dropWalkVerdictRow(v), `the drop-walk's own verdict (v0.778.0): timeout owns 11 of 20 fail(s) (55.0%) - THE DROP'S OWN FRONT: the walk layer's own verdict names the class - the honest refusals stay the fleet's own saves, the burns price the lane's cure`)
+})
+
+test('drop-walk verdict: the tie owns nothing; the junk battery never invents an owner', () => {
+  // a tie owns nothing (the storm-has-no-seat precedent)
+  assert.equal(dropWalkVerdict({ timeout: 5, doomed: 5 }), null)
+  // a no-majority spread reads the honest silence (top at or under the rest)
+  assert.equal(dropWalkVerdict({ timeout: 4, admission: 4, doomed: 3 }), null)
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(dropWalkVerdict(junk), null, `verdict must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(dropWalkVerdictRow(junk), null)
+  }
+  // non-finite and non-positive counts are skipped, never priced
+  const skewed = dropWalkVerdict({ timeout: 3, doomed: -1, admission: 0, other: NaN })
+  assert.deepEqual(skewed, { why: 'timeout', owns: 3, ofFails: 3, shareOfFails: 1 })
+  // a junk-silent verdict feeds no row
+  assert.equal(dropWalkVerdictRow({ why: 'timeout', owns: 50, ofFails: 30, shareOfFails: 1.667 }), null)
+})
+
+test('WIRING: decompose seats the drop-walk book beside the rent read', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the branch rides the byWhy cell the decompose already prints
+  assert.ok(src.includes('dropWalkVerdict(dw.byWhy)'), 'the verdict must read the census\'s own byWhy cell')
+  assert.ok(src.includes('dropWalkVerdictRow'), 'the verdict row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchor is the full row tail, not any bare substring
+  assert.ok(!src.includes("THE DROP'S OWN FRONT"), 'the verdict row prose must stay in the lib')
 })

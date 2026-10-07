@@ -274,3 +274,51 @@ export function dropWalkCensus (lines) {
   c.admission.n = fl(c.admission.n)
   return { ...c, clock: decideClock(stamps, clockEnd) }
 }
+
+// (v0.778.0) THE DROP-WALK'S OWN VERDICT - the book's own class seat. The
+// v0.413.0 census priced the classes and the walkers, the walked leg
+// (v0.418.0) split the timeout's anatomy - no row ever named WHICH class
+// owns the book (face 74's own census rode the answer raw: 'by why:
+// timeout=11 admission=6 doomed=3' beside 'timeouts: n=11 max=8000ms
+// sum=88000ms' - the 8s rent's majority sat unnamed). THE VERDICT LAW (the
+// census's own byWhy cell only, zero re-parsing - the v0.769.0 verdict's
+// own precedent): the top class owns the book under the strict-majority
+// law (a tie owns nothing - the storm-has-no-seat precedent). Junk never
+// invents a verdict: a missing or empty tally, a non-finite or
+// non-positive count, or a tied spread reads the honest silence (null -
+// the decompose's own guard skips the row). The honest-refusal caveat is
+// the reader's own: the admission and water-rescue classes are the
+// fleet's own saves (the burns they would have paid never left the
+// pocket), the doomed class is the ledger's own consult - a verdict whose
+// owner is a refusal class reads the lane's honest shape, not a defect's
+// seat.
+export function dropWalkVerdict (byWhy) {
+  const mix = (byWhy && typeof byWhy === 'object' && !Array.isArray(byWhy)) ? byWhy : {}
+  const tallies = {}
+  let total = 0
+  for (const [why, n] of Object.entries(mix)) {
+    if (typeof why !== 'string' || !why || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[why] = (tallies[why] || 0) + n
+  }
+  let topUnits = 0
+  let topWhy = null
+  for (const [why, n] of Object.entries(tallies)) {
+    if (n > topUnits) { topUnits = n; topWhy = why }
+  }
+  if (topWhy === null || topUnits <= total - topUnits) return null
+  return { why: topWhy, owns: topUnits, ofFails: total, shareOfFails: +(topUnits / total).toFixed(3) }
+}
+
+// (v0.778.0) the verdict's own row - THE DROP'S OWN FRONT: the class
+// names the lane's own front; the timeouts' own rent read (n/max/sum)
+// prices the timeout's burn beside it, the walked split names the cure's
+// lane. Junk never prints a verdict (the honest silence's own row law).
+export function dropWalkVerdictRow (v) {
+  if (!v || typeof v !== 'object') return null
+  const { why, owns, ofFails, shareOfFails } = v
+  if (typeof why !== 'string' || !why || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || owns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the drop-walk's own verdict (v0.778.0): ${why} owns ${owns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DROP'S OWN FRONT: the walk layer's own verdict names the class - the honest refusals stay the fleet's own saves, the burns price the lane's cure`
+}
