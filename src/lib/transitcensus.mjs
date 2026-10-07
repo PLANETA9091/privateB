@@ -195,7 +195,7 @@ export function targetCadence (t) {
   return { verdict, closed: Math.round(closed * 100), min: seq.min, max: seq.max }
 }
 
-// (v0.782.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
+// (v0.783.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
 // water lane's spender axis: the transit census's own launches.byBot cell
 // (zero re-parsing - the v0.779.0 byWhy / v0.780.0 totals / v0.781.0
 // byStage cell law), read the way the rescue book's cast read ITS lane.
@@ -237,7 +237,7 @@ export function transitLaunchBill (byBot) {
   return { bot: topBot, owns: topUnits, of, share: +(topUnits / of).toFixed(3) }
 }
 
-// (v0.782.0) the bill's own row - THE SWIM'S OWN SPENDER: the spender is
+// (v0.783.0) the bill's own row - THE SWIM'S OWN SPENDER: the spender is
 // the lever input the loop ledgers price behind their own bars. Junk
 // never prints (the honest silence's own row law).
 export function transitLaunchBillRow (bill) {
@@ -245,7 +245,7 @@ export function transitLaunchBillRow (bill) {
   const { bot, owns, of, share } = bill
   if (typeof bot !== 'string' || !bot || !Number.isFinite(owns) || owns <= 0 ||
       !Number.isFinite(of) || of <= 0 || owns > of || !Number.isFinite(share)) return null
-  return `the launches' own bill (v0.782.0): ${bot} owns ${owns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender`
+  return `the launches' own bill (v0.783.0): ${bot} owns ${owns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender`
 }
 
 /**
@@ -272,7 +272,7 @@ export function transitLaunchRiders (byBot) {
   }
 }
 
-// (v0.782.0) the riders' own row - THE CROWD'S OWN SWIM: a measure of the
+// (v0.783.0) the riders' own row - THE CROWD'S OWN SWIM: a measure of the
 // shape, never a named owner (the bill's tie law holds); the pair prices
 // the concentration the solo law refused to seat. Junk never prints.
 export function transitLaunchRidersRow (r) {
@@ -282,5 +282,5 @@ export function transitLaunchRidersRow (r) {
       !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
       !Number.isFinite(of) || of <= 0 || !Number.isFinite(pairOwns) || pairOwns > of ||
       !Number.isFinite(share)) return null
-  return `the launches' own riders (v0.782.0): no solo spender owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name`
+  return `the launches' own riders (v0.783.0): no solo spender owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name`
 }

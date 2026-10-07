@@ -231,7 +231,7 @@ test('launch cadence: the seqs are per-bot at a shared target - never mixed', ()
   assert.equal(targetCadence(c.targets[0]), null)
 })
 
-// (v0.782.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
+// (v0.783.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
 // census's own launches.byBot cell (zero re-parsing), the strict-majority
 // law (a tie owns nothing), the riders measure-not-owner (the v0.780.0
 // riders law), the decompose's one-additive-branch wiring.
@@ -244,7 +244,7 @@ test('launch bill: the face-76 field cell through the seat - F4 owns the whole l
   assert.deepEqual(c.launches.byBot, { F4: 63 })
   const bill = transitLaunchBill(c.launches.byBot)
   assert.deepEqual(bill, { bot: 'F4', owns: 63, of: 63, share: 1 })
-  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.782.0): F4 owns 63 of 63 launch(es) (100.0%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
+  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.783.0): F4 owns 63 of 63 launch(es) (100.0%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
   assert.equal(transitLaunchRiders(c.launches.byBot), null, 'a single-class cell never seats a solo pair')
   assert.equal(transitLaunchRidersRow(null), null)
 })
@@ -256,7 +256,7 @@ test('launch bill: the tie law + the near-tie edge - face 70\'s own 17:15 shape 
   assert.equal(transitLaunchBill(nearTie), null)
   const r = transitLaunchRiders(nearTie)
   assert.deepEqual({ leader: r.leader, leaderOwns: r.leaderOwns, runner: r.runner, runnerOwns: r.runnerOwns, of: r.of, tie: r.tie }, { leader: 'F9', leaderOwns: 17, runner: 'F6', runnerOwns: 15, of: 34, tie: false })
-  assert.equal(transitLaunchRidersRow(r), "the launches' own riders (v0.782.0): no solo spender owns the majority - F9 x17 + F6 x15 own 32 of 34 launch(es) (94.1%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name")
+  assert.equal(transitLaunchRidersRow(r), "the launches' own riders (v0.783.0): no solo spender owns the majority - F9 x17 + F6 x15 own 32 of 34 launch(es) (94.1%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name")
   // the TRUE tie owns nothing on both sides of the branch
   const tie = { F2: 5, F8: 5 }
   assert.equal(transitLaunchBill(tie), null)
@@ -269,7 +269,7 @@ test('launch bill: the close majority - face 75\'s own 41-of-79 shape seats F6',
   const cell = { F6: 41, F9: 17, F16: 9, F7: 6, F8: 6 }
   const bill = transitLaunchBill(cell)
   assert.deepEqual(bill, { bot: 'F6', owns: 41, of: 79, share: 0.519 })
-  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.782.0): F6 owns 41 of 79 launch(es) (51.9%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
+  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.783.0): F6 owns 41 of 79 launch(es) (51.9%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
   // the branch law lives in the WIRING (decompose: if (bill) ... else
   // riders) - the riders stay a pure cell read, never branch-aware
   // (the v0.780.0 riders law's own shape)

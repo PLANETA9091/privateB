@@ -76,7 +76,7 @@ import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) 
 import { swirlBill, criedWolf } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath); (v0.736.0) the cried-wolf join - the churn's verdict bot that died the trigger-blind death
 import { skyWalk } from '../../src/lib/skywalk.mjs' // (v0.727.0) the crowded sky's own walk - the decide starve's own hand on the walk refusals (the one-parser join: walkfail + decideweather)
 import { frozenCensus } from '../../src/lib/frozencensus.mjs' // (v0.426.0) the freeze family's census (the F10 frozen-while-head-wet class's read)
-import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH, transitLaunchBill, transitLaunchBillRow, transitLaunchRiders, transitLaunchRidersRow } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict; (v0.782.0) WHICH bot owns the swim
+import { transitCensus, targetCadence, TRANSIT_POCKET_DEPTH, transitLaunchBill, transitLaunchBillRow, transitLaunchRiders, transitLaunchRidersRow } from '../../src/lib/transitcensus.mjs' // (v0.427.0) the rescue swim's launch lane (the toward-known-land read); (v0.435.0) the stall depth split; (v0.446.0) the launch cadence verdict; (v0.783.0) WHICH bot owns the swim
 import { rearmCensus } from '../../src/lib/rearm.mjs' // (v0.443.0) the same-target re-arm brake's family row
 import { transitLoopLedger } from '../../src/lib/transitloop.mjs' // (v0.692.0) the per-bot swim loop's own account (the whale's ledger)
 import { whaleWaterBill } from '../../src/lib/whalewater.mjs' // (v0.698.0) the whale's water bill - the zero-gain loop's rescue-side account
@@ -3129,7 +3129,7 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     const ll = Object.entries(tc.launches.byLand).map(([k, n]) => `${k}:${n}`).join(' ')
     const d = tc.launches.dist
     console.log(`  launches: ${tc.launches.n}${ll ? `, land: ${ll}` : ''}${d.n > 0 ? `, d ${d.min}..${d.max} (avg ${(d.sum / d.n).toFixed(1)})` : ''}${lb ? `, top bots: ${lb}` : ''}`)
-    // (v0.782.0) THE SWIM'S OWN SPENDER - the launches' own bot bill (the
+    // (v0.783.0) THE SWIM'S OWN SPENDER - the launches' own bot bill (the
     // census's own byBot cell, zero re-parsing): the top bot owns the swim
     // under the strict-majority law, else the riders price the crowd (one
     // row, never both - the branch law).
