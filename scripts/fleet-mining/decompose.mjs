@@ -29,7 +29,7 @@ import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the deci
 import { dropWalkCensus } from '../../src/lib/dropwalk.mjs' // (v0.413.0) the vein sweep's per-fail drop-walk line
 import { mapTripCensus, parseWorldmapTail, mapTripGap, tripReceipt, tripVoice, pocketDrain, pocketDrainAttr, materialBalance, balanceReconcile, leakClock, pocketPeakClock, pocketPeakClockRow, RECEIPT_WINDOW_SAMPLES } from '../../src/lib/maptrip.mjs' // (v0.415.0) the materials plan's launch economics; (v0.445.0) the knowledge side + the gap composer; (v0.447.0) the delivery leg's yield; (v0.449.0) the window calibration; (v0.450.0) the voice roster; (v0.451.0) the pocket drain ledger; (v0.452.0) the drain attribution; (v0.453.0) the material balance; (v0.455.0) the lenses converge; (v0.458.0) the re-gather share; (v0.460.0) the no-leak's own name; (v0.472.0) the leak clock - the share's third split; (v0.772.0) the pocket's own peak clock
 import { deficitsCensus } from '../../src/lib/deficitrow.mjs' // (v0.417.0) the plan's harvest side (the deficits row's clock)
-import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting; (v0.764.0) WHICH class owns the debt; (v0.745.0) the re-smelt shadow's payback - did a later chain ever return; (v0.747.0) the clip's own diet - the fuel side's own worth vs the vanilla bar; (v0.748.0) the clock's own window - the clock side's own worth vs the vanilla speed; (v0.749.0) the clock ask's own scale - the batch's own size vs the windows' whole worth
+import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, fuelClipClockVerdict, fuelClipClockRow } from '../../src/lib/smeltledger.mjs' // (v0.461.0) the furnace lane's own words - the batches, the clips, the refusals; (v0.744.0) the clip's own debt - the units the chains left smelting; (v0.764.0) WHICH class owns the debt; (v0.745.0) the re-smelt shadow's payback - did a later chain ever return; (v0.747.0) the clip's own diet - the fuel side's own worth vs the vanilla bar; (v0.748.0) the clock's own window - the clock side's own worth vs the vanilla speed; (v0.749.0) the clock ask's own scale - the batch's own size vs the windows' whole worth; (v0.774.0) WHEN the fuel clips ride
 import { furnacePut } from '../../src/lib/furnaceput.mjs' // (v0.664.0) THE FURNACE PUT'S OWN PAIR - the no-walk opens and the slot read-back's input x fuel pairing (the machine's own diet)
 import { fuelDiet, coalEquivalent } from '../../src/lib/fueldiet.mjs' // (v0.666.0) THE FUEL DIET'S OWN BILL - the intent side's fuel split by the emitter's own window law (metal vs junk) + the kindling bill + the coal touch + the plain-furnace mismatch
 import { fuelYieldOf } from '../../src/lib/smelting.mjs' // (v0.666.0) the vanilla yield table's own voice - the diet row's coal divisor, never a made constant
@@ -2505,6 +2505,11 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     // old row's bytes stay untouched); the junk and the tie read the
     // honest silence
     if (clipDebtSeat(sl)) console.log(`  ${clipDebtSeatRow(sl)}`)
+    // (v0.774.0) THE FUEL CLIP'S OWN CLOCK - the fuel side's own WHEN (the
+    // v0.764.0 seat priced WHICH class owns the debt, the 2:1 dominance
+    // law prices the phase); no dominance reads the honest silence
+    const fccv = fuelClipClockVerdict(sl)
+    if (fccv) console.log(`  ${fuelClipClockRow(fccv)}`)
     // (v0.745.0) the re-smelt shadow's payback - did a later chain ever
     // re-announce the clipped batch (the clip line's own promise, now
     // priced: the returned chains vs the IOU that stands alone); zero

@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipDebtSeat, clipDebtSeatRow, clipPaybackRow, clipDietRow, clockWindowRow, clockAskRow, fuelClipClockVerdict, fuelClipClockRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -531,4 +531,68 @@ test('v0.764.0 the seat rides the decompose mine (WIRING)', async () => {
   const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
   assert.equal(src.includes('clipDebtSeatRow'), true)
   assert.equal(src.includes("the clip debt's own seat"), false) // the prose lives in the lib, never duplicated in the mine
+})
+
+// (v0.774.0) THE FUEL CLIP'S OWN CLOCK - the fuel side's own WHEN. The
+// v0.764.0 seat priced WHICH class owns the clip debt; the phase book
+// rides the pulse rail (the zeroclock's own bracket law: the MIDPOINT of
+// lo/hi classifies into the clock's thirds, a missing end reads
+// 'unplaced', a bracket wider than a third counts wide).
+test('v0.774.0 the fuel clips\u2019 phase book rides the pulse rail (the bracket law)', () => {
+  const lines = [
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper', // idx0: before any anchor -> unplaced
+    'b] n=1 ts=30s rss=300M', // anchor ts=30
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper', // idx2: lo=30 hi=300 mid=165 <= 320 -> early
+    'b] n=2 ts=300s rss=300M', // anchor ts=300
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper', // idx4: lo=300 hi=600 mid=450 <= 640 -> mid
+    'b] n=3 ts=600s rss=300M', // anchor ts=600
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper', // idx6: lo=600 hi=960 mid=780 -> late; hi-lo=360 > 320 -> wide
+    'b] n=4 ts=960s rss=300M', // anchor ts=960 (clockEnd, thirdS=320)
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper', // idx8: no hi -> unplaced
+    '[F8] fuel clips the batch: 2 x coal completes 3 of 10 x raw_copper' // idx9: no hi -> unplaced
+  ]
+  const l = smeltLedger(lines)
+  assert.equal(l.fuelClips, 6)
+  assert.equal(l.clipDebtFuel, 42) // the old cells stay byte-stable beside the new one (the additive law)
+  assert.deepEqual(l.fuelClipClock, { anchors: 4, clockEnd: 960, thirdS: 320, n: 6, byPhase: { early: 1, mid: 1, late: 1, unplaced: 3 }, wide: 1 })
+  // a 1/1/1 spread owns nothing (the 2:1 law reads the honest silence)
+  assert.equal(fuelClipClockVerdict(l), null)
+})
+
+test('v0.774.0 the verdict reads the field\u2019s own three shapes (the 2:1 dominance law)', () => {
+  // the face-70 shape: 3 of 3 late (the fuel's own 100% debt face)
+  const late = fuelClipClockVerdict({ fuelClipClock: { anchors: 38, clockEnd: 761, thirdS: 253.66666666666666, n: 3, byPhase: { early: 0, mid: 0, late: 3, unplaced: 0 }, wide: 0 } })
+  assert.equal(late.verdict, 'late')
+  assert.equal(late.n, 3)
+  // the face-71 shape: 2 of 2 mid
+  assert.equal(fuelClipClockVerdict({ fuelClipClock: { anchors: 31, clockEnd: 621, thirdS: 207, n: 2, byPhase: { early: 0, mid: 2, late: 0, unplaced: 0 }, wide: 0 } }).verdict, 'mid')
+  // the early shape: 3 of 4
+  assert.equal(fuelClipClockVerdict({ fuelClipClock: { anchors: 30, clockEnd: 900, thirdS: 300, n: 4, byPhase: { early: 3, mid: 0, late: 0, unplaced: 1 }, wide: 0 } }).verdict, 'early')
+  // the face-72 shape: the 4/4 split owns nothing
+  assert.equal(fuelClipClockVerdict({ fuelClipClock: { anchors: 46, clockEnd: 921, thirdS: 307, n: 8, byPhase: { early: 0, mid: 4, late: 4, unplaced: 0 }, wide: 0 } }), null)
+  // the honest silences: no clips, no ledger
+  assert.equal(fuelClipClockVerdict({ fuelClipClock: { anchors: 10, clockEnd: 300, thirdS: 100, n: 0, byPhase: { early: 0, mid: 0, late: 0, unplaced: 0 }, wide: 0 } }), null)
+  assert.equal(fuelClipClockVerdict(null), null)
+  assert.equal(fuelClipClockVerdict({}), null)
+})
+
+test('v0.774.0 the clock rows speak byte-exact and junk never prints', () => {
+  const late = fuelClipClockRow({ verdict: 'late', n: 3, byPhase: { early: 0, mid: 0, late: 3, unplaced: 0 }, anchors: 38, wide: 0, thirdS: 253.66666666666666 })
+  assert.equal(late, `the fuel clip's own clock (v0.774.0): the fuel clips rode LATE-dominant (3 of 3; early 0 / mid 0 / late 3 / unplaced 0, 0 wide of 38 anchor(s)) - the deadline's own signature: the furnace starves on the closing walks - re-prime the fuel before the walk`)
+  const mid = fuelClipClockRow({ verdict: 'mid', n: 2, byPhase: { early: 0, mid: 2, late: 0, unplaced: 0 }, anchors: 31, wide: 0, thirdS: 207 })
+  assert.equal(mid, `the fuel clip's own clock (v0.774.0): the fuel clips rode MID-dominant (2 of 2; early 0 / mid 2 / late 0 / unplaced 0, 0 wide of 31 anchor(s)) - the mid-run churn is the lever - the batch's own pace prices the priming`)
+  const early = fuelClipClockRow({ verdict: 'early', n: 4, byPhase: { early: 3, mid: 0, late: 0, unplaced: 1 }, anchors: 30, wide: 0, thirdS: 300 })
+  assert.equal(early, `the fuel clip's own clock (v0.774.0): the fuel clips rode EARLY-dominant (3 of 4; early 3 / mid 0 / late 0 / unplaced 1, 0 wide of 30 anchor(s)) - the opening's own defect: the priming is the front - the first chains starve the batch`)
+  for (const junk of [undefined, null, 42, 'str', {}, { verdict: 'mixed', n: 4, byPhase: { early: 2, mid: 2, late: 0, unplaced: 0 }, anchors: 5, wide: 0 }, { verdict: 'late', n: -1, byPhase: { early: 0, mid: 0, late: 0, unplaced: 0 }, anchors: 5, wide: 0 }, { verdict: 'late', n: 3, byPhase: null, anchors: 5, wide: 0 }]) {
+    assert.equal(fuelClipClockRow(junk), null, `the row must stay silent on ${JSON.stringify(junk)}`)
+  }
+})
+
+test('v0.774.0 the clock rides the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('fuelClipClockVerdict(sl)'), true)
+  assert.equal(src.includes('fuelClipClockRow(fccv)'), true)
+  assert.equal(src.includes("the fuel clip's own clock"), false) // the prose lives in the lib, never duplicated in the mine
+  assert.equal(src.includes('the fuel clips rode LATE-dominant'), false)
 })
