@@ -274,3 +274,104 @@ export function fleeLedger (lines) {
 }
 
 export { OUTCOMES as FLEE_OUTCOMES }
+
+// (v0.798.0) THE FLEE BOOK'S OWN SEAT - WHICH outcome owns the escape
+// lane's success book. The survival ledger's own split row ('reflee 14 /
+// stood 2 / ... - book 29/29') counts the episodes per outcome class and
+// the survival fork prices the mid-flee deaths, but no row ever said
+// WHICH outcome's own closes own the episode book - the raw split rode
+// unnamed. THE SEAT LAW (the census's own outcome counters only, zero
+// re-parsing - the v0.784.0 kind-seat precedent, the v0.795.0 verdict
+// seat's own shape): the strict-majority law - a solo outcome owns the
+// book only above half (a tie owns nothing); the names are the census's
+// own vocabulary bytes ('chased' < 'crossfire' < 'died-other' < 'open' <
+// 'reflee' < 'sheltered' < 'stood'); junk never invents an outcome (a
+// missing or non-object ledger, a non-finite counter, or a zero book
+// reads the honest silence - null, the decompose's own guard skips the
+// row).
+const FLEE_BOOK_CELLS = [
+  ['reflee', 'reflee'],
+  ['stood', 'stood'],
+  ['sheltered', 'sheltered'],
+  ['chased', 'chased'],
+  ['crossfire', 'crossfire'],
+  ['died-other', 'diedOther'],
+  ['open', 'open']
+]
+
+function fleeOutcomeTally (fl) {
+  if (!fl || typeof fl !== 'object' || Array.isArray(fl)) return null
+  const tallies = {}
+  let total = 0
+  for (const [cls, field] of FLEE_BOOK_CELLS) {
+    const n = fl[field]
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[cls] = (tallies[cls] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function fleeOutcomeBill (fl) {
+  const t = fleeOutcomeTally(fl)
+  if (!t) return null
+  let topOwns = 0
+  let topOutcome = null
+  for (const [cls, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topOutcome = cls }
+  }
+  if (topOutcome === null || topOwns <= t.total - topOwns) return null
+  return { outcome: topOutcome, owns: topOwns, ofFlees: t.total, shareOfFlees: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.798.0) the flee seat's own row - THE FLEE'S OWN SEAT: the seat
+// names WHICH outcome's own closes own the escape book; the outcome's own
+// front prices the churn (a solo reflee seat is the re-arm loop's own
+// signature - the survival fork's own companion). Junk never prints a
+// seat (the honest silence's own row law).
+export function fleeOutcomeBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { outcome, owns, ofFlees, shareOfFlees } = bill
+  if (typeof outcome !== 'string' || !outcome ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFlees) || ofFlees <= 0 || owns > ofFlees ||
+      !Number.isFinite(shareOfFlees)) return null
+  return `the flee book's own seat (v0.798.0): ${outcome} owns ${owns} of ${ofFlees} flee episode(s) (${(shareOfFlees * 100).toFixed(1)}%) - THE FLEE'S OWN SEAT: one outcome's own closes own the escape book - the outcome's own front prices the churn the raw split rode unnamed`
+}
+
+// (v0.798.0) THE FLEE BOOK'S OWN RIDERS - the flee seat's own silence's
+// companion. The seat names the solo outcome under the strict-majority
+// law; a no-majority outcome mix rode raw with no row naming the shape.
+// THE RIDER LAW (the census's own outcome counters only, zero re-parsing
+// - the seat's own precedent): a MEASURE, never a verdict-owner - the top
+// two outcomes' concentration prices the shape the solo law refused to
+// name (the seat's owner case leaves the companion unprinted - the
+// decompose's own branch law). Junk never invents a shape: a missing or
+// non-object ledger, a non-finite counter, or fewer than two counted
+// outcomes reads the honest silence (null). The order is deterministic
+// (count desc, then the outcome's own byte: the name's own lexicographic
+// law - 'chased' < 'reflee').
+export function fleeOutcomeRiders (fl) {
+  const t = fleeOutcomeTally(fl)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFlees: t.total, pairOwns, shareOfFlees: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.798.0) the flee riders' own row - THE FLEE'S OWN MIX: a measure of
+// the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never
+// prints a shape (the honest silence's own row law).
+export function fleeOutcomeRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFlees, pairOwns, shareOfFlees } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFlees) || ofFlees <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFlees ||
+      !Number.isFinite(shareOfFlees)) return null
+  return `the flee book's own riders (v0.798.0): no solo outcome owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFlees} flee episode(s) (${(shareOfFlees * 100).toFixed(1)}%) - THE FLEE'S OWN MIX: the seat's tie law held, the mix is the shape - the outcomes' own spread prices the churn the solo law refused to seat`
+}

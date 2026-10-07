@@ -41,7 +41,7 @@ import { upgradeCensus, deferPromise, upgradeVerdicts, verdictSpread, promisePer
 import { counterGap, upgradeJoin } from '../../src/lib/countergap.mjs' // (v0.469.0) the counter-words gap - the tally join that closes the book the verdict census named (SLOT COLLISION #5: 0.468.0 taken mid-fire); (v0.474.0) the words-verdict join - the residual's name
 import { mainFreezeCensus } from '../../src/lib/mainfreeze.mjs' // (v0.661.0) THE MAIN FREEZE'S OWN ROW - the blackbox dump's own census (the ring's last named activity reads at last)
 import { stormRefusalLedger } from '../../src/lib/stormrefusal.mjs' // (v0.478.0) the storm ledger - the craft storm's transient/terminal split, the three handoffs' standing why-read
-import { fleeLedger, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress)
+import { fleeLedger, STUCK_REFLEE_U, fleeOutcomeBill, fleeOutcomeBillRow, fleeOutcomeRiders, fleeOutcomeRidersRow } from '../../src/lib/fleeledger.mjs' // (v0.481.0) the flee survival ledger - the escape lane's own episode book (the start side's outcome, the chase's progress); (v0.798.0) WHICH outcome owns the flee book
 import { criticalPrelude } from '../../src/lib/criticalprelude.mjs' // (v0.483.0) the critical prelude - the combat lane's own low-hp sensor priced (the bar's join to the flight it announced)
 import { verdictExecution } from '../../src/lib/verdictflip.mjs' // (v0.484.0) the verdict execution - the flip's own fate book, re-versioned 0.485.0 (SLOT COLLISION #13: 0.484.0 taken by fire-2038's THE PILE ARM mid-fire) (fled / stood / sheltered / died / open)
 import { fightLedger, fightExitBill, fightExitBillRow, fightExitRiders, fightExitRidersRow } from '../../src/lib/fightledger.mjs' // (v0.486.0) the fight cost ledger - the stand-and-fight lane's own episode book (the win's cost anatomy priced); (v0.782.0) WHICH exit class owns the fight book
@@ -1022,6 +1022,16 @@ if (shooter.total > 0) {
   } else {
     const book = fl.reflee + fl.stood + fl.sheltered + fl.chased + fl.crossfire + fl.diedOther + fl.open
     console.log(`  flee episodes: ${fl.starts} - reflee ${fl.reflee} (stuck ${fl.stuckReflees}) / stood ${fl.stood} / sheltered ${fl.sheltered} / chased ${fl.chased} / crossfire ${fl.crossfire} / died-other ${fl.diedOther} / open ${fl.open} - book ${book}/${fl.starts}`)
+    // (v0.798.0) WHICH outcome owns the flee book - the seat + the
+    // riders, one row never both (the branch law; the owner case leaves
+    // the companion unprinted; the zero-episode face reads the honest
+    // silence - the starts gate above is the branch's own fence).
+    const fob = fleeOutcomeBill(fl)
+    if (fob) console.log(`  ${fleeOutcomeBillRow(fob)}`)
+    else {
+      const forr = fleeOutcomeRiders(fl)
+      if (forr) console.log(`  ${fleeOutcomeRidersRow(forr)}`)
+    }
     if (fl.hp) console.log(`  hp at flee start: min ${fl.hp.min.toFixed(1)} / median ${fl.hp.median.toFixed(1)} / max ${fl.hp.max.toFixed(1)}; kite starts ${fl.kiteStarts}`)
     const bb = fl.bands
     console.log(`  start bands: close ${bb.close.starts} (died ${bb.close.died}) / mid ${bb.mid.starts} (died ${bb.mid.died}) / far ${bb.far.starts} (died ${bb.far.died})${bb.unpriced.starts ? ` / unpriced ${bb.unpriced.starts}` : ''}`)

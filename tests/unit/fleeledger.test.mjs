@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fleeLedger, FLEE_START_RE, FLEE_KILL_RE, STUCK_REFLEE_U } from '../../src/lib/fleeledger.mjs'
+import fs from 'node:fs'
+import { fleeLedger, FLEE_START_RE, FLEE_KILL_RE, STUCK_REFLEE_U, fleeOutcomeBill, fleeOutcomeBillRow, fleeOutcomeRiders, fleeOutcomeRidersRow } from '../../src/lib/fleeledger.mjs'
 import { distBand } from '../../src/lib/shelterledger.mjs'
 
 // Face 43's live shapes verbatim (run 36970605824) - the twelve flee
@@ -265,4 +266,108 @@ test('the zero law: a face with no flees reads the honest zero shape', () => {
   assert.deepEqual(r.crowd, { solo: { starts: 0, died: 0 }, crowd: { starts: 0, died: 0 }, unpriced: { starts: 0, died: 0 } })
   assert.deepEqual(r.perBot, {})
   assert.deepEqual(r.rows, [])
+})
+
+// (v0.798.0) THE FLEE BOOK'S OWN SEAT - WHICH outcome owns the escape
+// lane's success book. The census's own outcome counters only, zero
+// re-parsing; the strict-majority law, a tie owns nothing; junk never
+// invents an outcome.
+test("the flee book's own seat - the face-84 cell through the seat law with the byte-exact row + the crowd's measure-not-owner law", () => {
+  // face 84's own shape: open 1 of 1 - the solo seat fires
+  const solo = { starts: 1, reflee: 0, stood: 0, sheltered: 0, chased: 0, crossfire: 0, diedOther: 0, open: 1 }
+  const seat = fleeOutcomeBill(solo)
+  assert.deepEqual(seat, { outcome: 'open', owns: 1, ofFlees: 1, shareOfFlees: 1 })
+  assert.equal(
+    fleeOutcomeBillRow(seat),
+    "the flee book's own seat (v0.798.0): open owns 1 of 1 flee episode(s) (100.0%) - THE FLEE'S OWN SEAT: one outcome's own closes own the escape book - the outcome's own front prices the churn the raw split rode unnamed"
+  )
+  // the crowd shape (face 81's own counters): reflee 14 + chased 6 of 29
+  // - the top at 14/29 is below half, no solo seat; the riders measure
+  // the storm's own re-arm gravity
+  const storm = { starts: 29, reflee: 14, stood: 2, sheltered: 1, chased: 6, crossfire: 3, diedOther: 0, open: 3 }
+  assert.equal(fleeOutcomeBill(storm), null, '14 of 29 is below half - the re-arm gravity stays unseated')
+  const sr = fleeOutcomeRiders(storm)
+  assert.deepEqual(sr, { leader: 'reflee', leaderOwns: 14, runner: 'chased', runnerOwns: 6, ofFlees: 29, pairOwns: 20, shareOfFlees: 0.69, duet: false })
+  assert.equal(
+    fleeOutcomeRidersRow(sr),
+    "the flee book's own riders (v0.798.0): no solo outcome owns the majority - reflee x14 + chased x6 own 20 of 29 flee episode(s) (69.0%) - THE FLEE'S OWN MIX: the seat's tie law held, the mix is the shape - the outcomes' own spread prices the churn the solo law refused to seat"
+  )
+  // the count tie breaks on the outcome's own byte: face 82's shape
+  // (stood x3 + the tied x2s) - 'chased' < 'crossfire' < 'reflee'
+  const tied = { starts: 10, reflee: 2, stood: 3, sheltered: 1, chased: 2, crossfire: 2, diedOther: 0, open: 0 }
+  const tr = fleeOutcomeRiders(tied)
+  assert.equal(tr.leader, 'stood')
+  assert.equal(tr.runner, 'chased', "the x2 tie breaks on the byte - 'chased' < 'crossfire' < 'reflee'")
+  assert.equal(tr.pairOwns, 5)
+  assert.equal(tr.duet, false)
+})
+
+test("the tie law - a tie owns nothing - and the duet byte pin 'chased' < 'open' + the fences", () => {
+  // face 83's own counters: chased 2 + open 2 of 4 - the tie owns
+  // nothing, the duet prices the shape
+  const tie = { starts: 4, reflee: 0, stood: 0, sheltered: 0, chased: 2, crossfire: 0, diedOther: 0, open: 2 }
+  assert.equal(fleeOutcomeBill(tie), null, 'the tie owns nothing - the seat stays silent')
+  const r = fleeOutcomeRiders(tie)
+  assert.deepEqual(r, { leader: 'chased', leaderOwns: 2, runner: 'open', runnerOwns: 2, ofFlees: 4, pairOwns: 4, shareOfFlees: 1, duet: true })
+  assert.equal(
+    fleeOutcomeRidersRow(r),
+    "the flee book's own riders (v0.798.0): no solo outcome owns the majority - chased x2 + open x2 own 4 of 4 flee episode(s) (100.0%) - THE FLEE'S OWN MIX: the seat's tie law held, the mix is the shape - the outcomes' own spread prices the churn the solo law refused to seat"
+  )
+  // the exact-half fence: the top at exactly half reads no solo seat
+  const half = { reflee: 2, stood: 0, sheltered: 0, chased: 0, crossfire: 0, diedOther: 0, open: 2 }
+  assert.equal(fleeOutcomeBill(half), null)
+  const rh = fleeOutcomeRiders(half)
+  assert.equal(rh.leader, 'open', "the zero cells never tally - the tie is open vs reflee, 'open' < 'reflee'")
+  assert.equal(rh.runner, 'reflee')
+  assert.equal(rh.duet, true)
+  // the below-half plurality fence: the top class under half never seats
+  const plural = { reflee: 3, stood: 0, sheltered: 0, chased: 2, crossfire: 2, diedOther: 0, open: 0 }
+  assert.equal(fleeOutcomeBill(plural), null, '3 of 7 is below half - the plurality stays unseated')
+  // the below-half SOLO seat fence: a top at exactly 2 of 5 never seats
+  const under = { reflee: 0, stood: 0, sheltered: 0, chased: 2, crossfire: 0, diedOther: 0, open: 3 }
+  const us = fleeOutcomeBill(under)
+  assert.deepEqual(us, { outcome: 'open', owns: 3, ofFlees: 5, shareOfFlees: 0.6 }, '3 of 5 is above half - the seat fires')
+})
+
+test("the cells' own sum law + the single-class fence + the zero-book silence", () => {
+  // a junk counter is skipped honest, the finite cells beside it still
+  // tally (the book is the seven's own sum - never the starts counter)
+  const mixed = { starts: 99, reflee: 2, stood: 'x', sheltered: null, chased: NaN, crossfire: -1, diedOther: 0, open: 1 }
+  const ms = fleeOutcomeBill(mixed)
+  assert.deepEqual(ms, { outcome: 'reflee', owns: 2, ofFlees: 3, shareOfFlees: 0.667 })
+  // the single-class fence: one counted outcome reads a seat but no
+  // riders (fewer than two cells - the honest silence's companion law)
+  const only = { reflee: 2, stood: 0, sheltered: 0, chased: 0, crossfire: 0, diedOther: 0, open: 0 }
+  assert.deepEqual(fleeOutcomeBill(only), { outcome: 'reflee', owns: 2, ofFlees: 2, shareOfFlees: 1 })
+  assert.equal(fleeOutcomeRiders(only), null)
+  // the zero-book face reads the honest silence both ways
+  const zero = { reflee: 0, stood: 0, sheltered: 0, chased: 0, crossfire: 0, diedOther: 0, open: 0 }
+  assert.equal(fleeOutcomeBill(zero), null)
+  assert.equal(fleeOutcomeRiders(zero), null)
+  assert.deepEqual(fleeOutcomeBill({ starts: 0 }), null)
+})
+
+test('the junk battery + the WIRING assert - the decompose branch rides the cell, the prose lives only in the lib', () => {
+  // the junk battery: junk never invents an outcome (the honest silence)
+  assert.equal(fleeOutcomeBill(null), null)
+  assert.equal(fleeOutcomeBill(undefined), null)
+  assert.equal(fleeOutcomeBill(42), null)
+  assert.equal(fleeOutcomeBill([1, 2]), null)
+  assert.equal(fleeOutcomeBill({}), null)
+  assert.equal(fleeOutcomeBill({ reflee: 'nope', open: NaN }), null)
+  assert.equal(fleeOutcomeBillRow(null), null)
+  assert.equal(fleeOutcomeBillRow({ outcome: '', owns: 1, ofFlees: 1, shareOfFlees: 1 }), null)
+  assert.equal(fleeOutcomeBillRow({ outcome: 'open', owns: 2, ofFlees: 1, shareOfFlees: 2 }), null)
+  assert.equal(fleeOutcomeRiders(null), null)
+  assert.equal(fleeOutcomeRiders({}), null)
+  assert.equal(fleeOutcomeRidersRow(null), null)
+  assert.equal(fleeOutcomeRidersRow({ leader: 'open', leaderOwns: 0, runner: 'reflee', runnerOwns: 1, ofFlees: 2, pairOwns: 1, shareOfFlees: 0.5 }), null)
+  // the WIRING assert - the decompose branch rides the flee episodes row,
+  // the prose lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const fob = fleeOutcomeBill(fl)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (fob) console.log(`  ${fleeOutcomeBillRow(fob)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const forr = fleeOutcomeRiders(fl)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE FLEE'S OWN SEAT"), 'the prose stays in the lib')
+  assert.ok(!src.includes("THE FLEE'S OWN MIX"), 'the mix prose stays in the lib')
 })
