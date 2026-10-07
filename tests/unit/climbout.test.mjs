@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseClimbOut, climbOutCensus, classifyClimbWhy } from '../../src/lib/climbout.mjs'
+import { parseClimbOut, climbOutCensus, classifyClimbWhy, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow } from '../../src/lib/climbout.mjs'
 
 test('the OK verbatims (face 27): gained/steps/dug/secs read whole; the arm rides', () => {
   const a = parseClimbOut('F8 climb out (pre-position): OK +11 levels (10 steps, 23 dug, 26s)')
@@ -192,4 +192,70 @@ test('the honest zeros: empty input and non-array read the empty row shape', () 
     assert.deepEqual(hs.stages, { n: 0, max: 0 })
     assert.equal(hs.unparsed, 0)
   }
+})
+
+// (v0.779.0) THE CLIMB FAIL'S OWN VERDICT tests - the climb book's own
+// why-level seat (the strict-majority law on the census's own byWhy
+// cell) + the riders companion (measure-not-owner). The fixtures are the
+// mines' own distributions (the honest-anchor law).
+
+test('climb fail: the face-74 cell fires the verdict (stalled owns the majority); the census cell rides byte-untouched', () => {
+  // face 74's own distribution (run 37643508935): stalled:14 timeout:3
+  // wet-sentinel:3 wet-wall:2 low-o:1 rescue-owns:1
+  const cell = { stalled: 14, timeout: 3, 'wet-sentinel': 3, 'wet-wall': 2, 'low-o': 1, 'rescue-owns': 1 }
+  const snapshot = JSON.parse(JSON.stringify(cell))
+  const bill = climbFailVerdict(cell)
+  assert.deepEqual(bill, { why: 'stalled', owns: 14, ofFails: 24, shareOfFails: 0.583 })
+  assert.deepEqual(cell, snapshot) // the census's own cell stays byte-untouched
+  assert.equal(climbFailVerdictRow(bill), `the climb fail's own verdict (v0.779.0): stalled owns 14 of 24 fail(s) (58.3%) - THE DOOM'S OWN SEAT: one why's own climbs own the ladder's doom - the why's own front prices the climb the raw split rode unnamed`)
+})
+
+test('climb fail: the tie owns nothing; the no-majority mixes keep the deterministic order', () => {
+  // face 70's own tie (stalled:7 timeout:7) - the verdict's silence, the
+  // riders' duet ('stalled' < 'timeout' byte-wise)
+  const f70 = { stalled: 7, timeout: 7, 'wet-wall': 4, 'low-o': 4, 'rescue-owns': 1 }
+  assert.equal(climbFailVerdict(f70), null)
+  const r70 = climbFailRiders(f70)
+  assert.deepEqual(r70, { leader: 'stalled', leaderOwns: 7, runner: 'timeout', runnerOwns: 7, ofFails: 23, pairOwns: 14, shareOfFails: 0.609, duet: true })
+  assert.equal(climbFailRidersRow(r70), `the climb fail's own riders (v0.779.0): no solo why owns the majority - stalled x7 + timeout x7 own 14 of 23 fail(s) (60.9%) - THE DOOM'S OWN MIX: the bill's tie law held, the mix is the shape - the climb's own crowd prices the ladder the solo law refused to name`)
+  // face 72's runner tie (rescue-owns x4 vs timeout x4) reads byte-wise:
+  // 'rescue-owns' < 'timeout' - the rescue-owns class is the runner
+  const f72 = { stalled: 8, 'rescue-owns': 4, timeout: 4, 'low-o': 2, 'wet-sentinel': 2, 'wet-wall': 1, stopped: 1 }
+  assert.equal(climbFailVerdict(f72), null)
+  const r72 = climbFailRiders(f72)
+  assert.deepEqual(r72, { leader: 'stalled', leaderOwns: 8, runner: 'rescue-owns', runnerOwns: 4, ofFails: 22, pairOwns: 12, shareOfFails: 0.545, duet: false })
+  // face 73's own timeout lead stays under the majority (5 of 14)
+  const f73 = { timeout: 5, 'low-o': 4, 'rescue-owns': 2, 'wet-sentinel': 1, stalled: 1, 'wet-wall': 1 }
+  assert.equal(climbFailVerdict(f73), null)
+  assert.deepEqual(climbFailRiders(f73), { leader: 'timeout', leaderOwns: 5, runner: 'low-o', runnerOwns: 4, ofFails: 14, pairOwns: 9, shareOfFails: 0.643, duet: false })
+})
+
+test('climb fail: the junk battery never invents a verdict or a shape', () => {
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(climbFailVerdict(junk), null, `verdict must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(climbFailRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(climbFailVerdictRow(junk), null)
+    assert.equal(climbFailRidersRow(junk), null)
+  }
+  // non-finite and non-positive counts are skipped, never priced
+  const skewed = climbFailVerdict({ stalled: 3, timeout: -1, 'low-o': 0, exhausted: NaN })
+  assert.deepEqual(skewed, { why: 'stalled', owns: 3, ofFails: 3, shareOfFails: 1 })
+  // a single why owns the book but the riders need two
+  assert.deepEqual(climbFailRiders({ stalled: 6 }), null)
+  assert.deepEqual(climbFailVerdict({ stalled: 6 }), { why: 'stalled', owns: 6, ofFails: 6, shareOfFails: 1 })
+  // a junk-silent verdict feeds no row
+  assert.equal(climbFailVerdictRow({ why: 'stalled', owns: 50, ofFails: 30, shareOfFails: 1.667 }), null)
+})
+
+test('WIRING: decompose seats the climb fail book beside the fail-whys read', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the branch rides the byWhy cell the decompose already prints
+  assert.ok(src.includes('climbFailVerdict(c.byWhy)'), 'the verdict must read the census\'s own byWhy cell')
+  assert.ok(src.includes('climbFailRiders(c.byWhy)'), 'the riders must read the census\'s own byWhy cell')
+  assert.ok(src.includes('climbFailRidersRow'), 'the riders row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchors are the full row tails, not any bare substring
+  assert.ok(!src.includes("THE DOOM'S OWN SEAT"), 'the verdict row prose must stay in the lib')
+  assert.ok(!src.includes("THE DOOM'S OWN MIX"), 'the riders row prose must stay in the lib')
 })

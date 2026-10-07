@@ -22,7 +22,7 @@ import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (
 import { walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow, walkFailLaneBill, walkFailLaneBillRow, walkFailLaneRiders, walkFailLaneRidersRow } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane); (v0.773.0) WHICH walker owns the chest-walk book; (v0.776.0) WHICH lane owns it
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
-import { climbOutCensus } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read
+import { climbOutCensus, climbFailVerdict, climbFailVerdictRow, climbFailRiders, climbFailRidersRow } from '../../src/lib/climbout.mjs' // (v0.420.0) the vertical doom's verdict read; (v0.779.0) WHICH fail-why owns the climb book
 import { bankFailCensus } from '../../src/lib/bankfail.mjs' // (v0.411.0) the bank lane's own decide/no-path ledger
 import { nopathBill } from '../../src/lib/nopathbill.mjs' // (v0.716.0) the no-path spike's own WHO read - the door family's no-path rides folded per bot per lane (the column's repeats vs the crowd's spread)
 import { decideBook } from '../../src/lib/decidebook.mjs' // (v0.720.0) the decide door's own book - the door leg's decide rides per bot AND per goal (the shared dead chest's cross-bot column vs the bot's rider repeats)
@@ -2915,6 +2915,15 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  attempts: ${c.attempts} (ok ${c.ok} + retry-ok ${c.retryOk} = ${okShare}% pay, failed ${c.failed} + retry-failed ${c.retryFailed})`)
     const whys = Object.entries(c.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' ')
     if (whys) console.log(`  fail whys: ${whys}${c.stages.n > 0 ? ` - stage ladder depth ${c.stages.n} (max [stage ${c.stages.max}])` : ''}`)
+    // (v0.779.0) THE CLIMB FAIL'S OWN VERDICT - the same seat law on the
+    // census's own byWhy cell (the verdict in its owner case, the riders
+    // in the verdict's own silence - one row, never both, the branch law).
+    const cfv = climbFailVerdict(c.byWhy)
+    if (cfv) console.log(`  ${climbFailVerdictRow(cfv)}`)
+    else {
+      const cfr = climbFailRiders(c.byWhy)
+      if (cfr) console.log(`  ${climbFailRidersRow(cfr)}`)
+    }
     if (c.ok + c.retryOk > 0) console.log(`  the payable price: gains n${c.gains.n} sum ${c.gains.sum} max ${c.gains.max} levels, dug max ${c.dug.max}, secs n${c.secs.n} (max ${c.secs.max}s${c.secs.n > 0 ? `, avg ${Math.round(c.secs.sum / c.secs.n)}s` : ''})`)
     console.log(`  the ladder's own books: retry plans ${c.retries.plans}, no-retry ${c.retries.noRetry}, doom retargets ${c.doomRetargets.n}${c.unparsed > 0 ? `, unparsed ${c.unparsed} (the shape escaped - counted, never dropped)` : ''}`)
   }

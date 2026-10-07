@@ -170,3 +170,91 @@ export function climbOutCensus (lines) {
   }
   return out
 }
+
+// (v0.779.0) THE CLIMB FAIL'S OWN VERDICT - the climb book's own
+// why-level seat. The v0.420.0 census priced the whys, the stage ladder
+// and the doom retargets - no row ever named WHICH fail-why owns the
+// book (face 74's own census rode the answer raw: 'fail whys:
+// stalled:14 timeout:3 wet-sentinel:3 wet-wall:2 low-o:1 rescue-owns:1'
+// - the stall's majority sat unnamed beside the doom gate's own
+// anatomy). THE VERDICT LAW (the census's own byWhy cell only, zero
+// re-parsing - the v0.778.0 verdict's own precedent, the cell instead
+// of the event): the top why owns the book under the strict-majority
+// law (a tie owns nothing - the storm-has-no-seat precedent). Junk
+// never invents a verdict: a missing or empty tally, a non-finite or
+// non-positive count, or a tied spread reads the honest silence (null -
+// the decompose's own guard skips the row). The tally's own keys are
+// classifyClimbWhy's classes - the emitter's own why vocabulary.
+export function climbFailVerdict (byWhy) {
+  const mix = (byWhy && typeof byWhy === 'object' && !Array.isArray(byWhy)) ? byWhy : {}
+  const tallies = {}
+  let total = 0
+  for (const [why, n] of Object.entries(mix)) {
+    if (typeof why !== 'string' || !why || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[why] = (tallies[why] || 0) + n
+  }
+  let topUnits = 0
+  let topWhy = null
+  for (const [why, n] of Object.entries(tallies)) {
+    if (n > topUnits) { topUnits = n; topWhy = why }
+  }
+  if (topWhy === null || topUnits <= total - topUnits) return null
+  return { why: topWhy, owns: topUnits, ofFails: total, shareOfFails: +(topUnits / total).toFixed(3) }
+}
+
+// (v0.779.0) the verdict's own row - THE DOOM'S OWN SEAT: the seat names
+// WHICH fail-why owns the climb book; the stall's own anatomy (the
+// v0.420.0 stage ladder) prices the why's cure. Junk never prints a
+// seat (the honest silence's own row law).
+export function climbFailVerdictRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { why, owns, ofFails, shareOfFails } = bill
+  if (typeof why !== 'string' || !why || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || owns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the climb fail's own verdict (v0.779.0): ${why} owns ${owns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DOOM'S OWN SEAT: one why's own climbs own the ladder's doom - the why's own front prices the climb the raw split rode unnamed`
+}
+
+// (v0.779.0) THE CLIMB FAIL'S OWN RIDERS - the verdict's silence's own
+// companion. The verdict names the solo why under the strict-majority
+// law; a no-majority why mix rode raw with no row naming the shape.
+// THE RIDER LAW (the census's own byWhy cell only, zero re-parsing - the
+// verdict's own precedent): a MEASURE, never a verdict-owner - the top
+// two whys' concentration prices the shape the solo law refused to name
+// (the verdict's owner case leaves the companion unprinted - the
+// decompose's own branch law). Junk never invents a shape: a missing or
+// empty tally, a non-finite or non-positive count, or fewer than two
+// whys reads the honest silence (null). The order is deterministic
+// (count desc, then the name's own: 'low-o' < 'rescue-owns' < 'stalled'
+// < 'timeout' byte-wise).
+export function climbFailRiders (byWhy) {
+  const mix = (byWhy && typeof byWhy === 'object' && !Array.isArray(byWhy)) ? byWhy : {}
+  const tallies = {}
+  let total = 0
+  for (const [why, n] of Object.entries(mix)) {
+    if (typeof why !== 'string' || !why || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[why] = (tallies[why] || 0) + n
+  }
+  const ranked = Object.entries(tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (total <= 0 || ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFails: total, pairOwns, shareOfFails: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.779.0) the riders' own row - THE DOOM'S OWN MIX: a measure of the
+// shape, never a named owner (the verdict's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never
+// prints a shape (the honest silence's own row law).
+export function climbFailRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFails, pairOwns, shareOfFails } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the climb fail's own riders (v0.779.0): no solo why owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DOOM'S OWN MIX: the bill's tie law held, the mix is the shape - the climb's own crowd prices the ladder the solo law refused to name`
+}
