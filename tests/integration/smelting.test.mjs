@@ -496,6 +496,20 @@ test('smelting pipeline: craft a furnace, place it, smelt sand into glass', { ti
     t.skip(`bootstrap ate the budget (${Math.round(budgetLeft() / 1000)}s left) - smelting chain not exercised this run`)
     return
   }
+  // (v0.751.0) NIGHT RE-ARM: the spawn guard read day, but the bootstrap minutes
+  // roll the world's real clock toward nightfall - the CI face (#2477) died
+  // exactly here: 'SmeltTest was slain by Zombie' x2 (nightfall landed between
+  // the spawn check and the tool phase), the 390s box burned on a naked
+  // re-spawned bot. The workflow's day-lock (server.sh cmd -> console gamerule)
+  // is the primary cure; this re-check is the honest fallback - if night still
+  // falls, the same law as the wood-scarce skips above applies (mobs killing an
+  // unarmoured single bot is an environment condition, not a smelting failure):
+  // skip instead of feeding the box a guaranteed slaughter.
+  const todMid = bot.time?.timeOfDay ?? 0
+  if (isNight(todMid)) {
+    t.skip(`night fell mid-bootstrap (timeOfDay ${todMid}) - the unarmoured chain cannot survive the mobs; the day-lock owns the cure, this run reads the honest skip`)
+    return
+  }
 
   // --- fuel: convert the DOMINANT log type into planks (>= 20 of one kind: the
   //     table craft eats 4, pickFuel reserves 8 for the tool bootstrap, the rest
