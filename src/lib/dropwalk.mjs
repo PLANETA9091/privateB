@@ -322,3 +322,53 @@ export function dropWalkVerdictRow (v) {
       !Number.isFinite(shareOfFails)) return null
   return `the drop-walk's own verdict (v0.778.0): ${why} owns ${owns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DROP'S OWN FRONT: the walk layer's own verdict names the class - the honest refusals stay the fleet's own saves, the burns price the lane's cure`
 }
+
+// (v0.785.0) THE DROP-WALK'S OWN WHY RIDERS - the verdict's own
+// silence's companion. The v0.778.0 verdict names the solo class under
+// the strict-majority law; a no-majority why mix rode raw with no row
+// naming the shape (face 76's own census read 'admission=12
+// timeout=11 other=6 doomed=1' - the 40% admission sat unnamed, the
+// verdict's own honest silence). THE RIDER LAW (the census's own
+// byWhy cell only, zero re-parsing - the verdict's own precedent): a
+// MEASURE, never a verdict-owner - the top two classes' concentration
+// prices the shape the solo law refused to name (the verdict's owner
+// case leaves the companion unprinted - the decompose's own branch
+// law). Junk never invents a shape: a missing or non-object tally, a
+// non-finite or non-positive count, or fewer than two classes reads
+// the honest silence (null). The order is deterministic (count desc,
+// then the name's own byte: 'admission' < 'doomed' < 'no-path' <
+// 'other' < 'timeout' < 'water-rescue'). The honest-refusal caveat is
+// the reader's own (the v0.778.0 verdict's own): the admission and
+// water-rescue classes are the fleet's own saves - a rider pair that
+// carries them prices the lane's honest shape, not a defect's seat.
+export function dropWalkRiders (byWhy) {
+  const mix = (byWhy && typeof byWhy === 'object' && !Array.isArray(byWhy)) ? byWhy : {}
+  const tallies = {}
+  let total = 0
+  for (const [why, n] of Object.entries(mix)) {
+    if (typeof why !== 'string' || !why || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[why] = (tallies[why] || 0) + n
+  }
+  if (total <= 0) return null
+  const ranked = Object.entries(tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFails: total, pairOwns, shareOfFails: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.785.0) the why riders' own row - THE DROP'S OWN MIX: a measure
+// of the shape, never a named owner (the verdict's tie law holds); the
+// pair prices the concentration the solo law refused to seat. Junk
+// never prints a shape (the honest silence's own row law).
+export function dropWalkRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFails, pairOwns, shareOfFails } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the drop-walk's own why riders (v0.785.0): no solo why owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE DROP'S OWN MIX: the verdict's tie law held, the mix is the shape - the drop-walk's own crowd prices the classes the solo law refused to name`
+}

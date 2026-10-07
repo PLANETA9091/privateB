@@ -7,7 +7,7 @@
 // v0.409.0 split law.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DROP_WALK_FAIL_RE, classifyDropFailWhy, parseDropWalkFail, dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow } from '../../src/lib/dropwalk.mjs'
+import { DROP_WALK_FAIL_RE, classifyDropFailWhy, parseDropWalkFail, dropWalkCensus, dropWalkVerdict, dropWalkVerdictRow, dropWalkRiders, dropWalkRidersRow } from '../../src/lib/dropwalk.mjs'
 
 test('drop-walk: the face-26 timeout verbatim parses bot, spot, ms, dy, range', () => {
   const a = parseDropWalkFail('F7 [F7] vein sweep: the drop walk to [-136,46,414] failed - sweep drops: timeout after 8000ms (dy 3.0, range 2)')
@@ -370,4 +370,72 @@ test('WIRING: decompose seats the drop-walk book beside the rent read', async ()
   // the row prose lives only in the lib (the v0.767.0 wiring law) - the
   // anchor is the full row tail, not any bare substring
   assert.ok(!src.includes("THE DROP'S OWN FRONT"), 'the verdict row prose must stay in the lib')
+})
+
+// (v0.785.0) THE DROP-WALK'S OWN WHY RIDERS - the verdict's silence's
+// own companion. The face mixes byte for byte from the held faces'
+// decompose readouts (37654464678, 37658837046, 37639051812,
+// 37649886742) - the mine's own answer: the verdict's tie law held on
+// four of five faces (the mix IS the shape), only face 73's timeout
+// ever sat solo (11 of 20).
+test('the face-76 cell through the riders - the 40% silence named, the near-duet measured', () => {
+  // face 76's own mix: admission=12 timeout=11 other=6 doomed=1 - the
+  // v0.778.0 verdict read the honest silence (40%), the riders name the
+  // shape the solo law refused to seat
+  const r = dropWalkRiders({ admission: 12, timeout: 11, other: 6, doomed: 1 })
+  assert.deepEqual(r, { leader: 'admission', leaderOwns: 12, runner: 'timeout', runnerOwns: 11, ofFails: 30, pairOwns: 23, shareOfFails: 0.767, duet: false })
+  assert.equal(
+    dropWalkRidersRow(r),
+    "the drop-walk's own why riders (v0.785.0): no solo why owns the majority - admission x12 + timeout x11 own 23 of 30 fail(s) (76.7%) - THE DROP'S OWN MIX: the verdict's tie law held, the mix is the shape - the drop-walk's own crowd prices the classes the solo law refused to name"
+  )
+  // face 77's own duet: admission=5 timeout=5 + the tail's own four classes
+  const duet = dropWalkRiders({ admission: 5, timeout: 5, doomed: 4, 'no-path': 2, other: 1, 'water-rescue': 1 })
+  assert.equal(duet.duet, true)
+  assert.equal(duet.pairOwns, 10)
+  assert.equal(duet.ofFails, 18)
+  assert.equal(duet.leader, 'admission') // 5 vs 5 - the name's own byte breaks the rank order
+})
+
+test("the face-74 duet and the measure law - the riders stay a MEASURE in the verdict's owner case", () => {
+  // face 74's own duet: doomed=3 timeout=3 admission=1 - the byte order
+  // pins 'doomed' < 'timeout' at the equal count
+  const r = dropWalkRiders({ doomed: 3, timeout: 3, admission: 1 })
+  assert.equal(r.leader, 'doomed')
+  assert.equal(r.runner, 'timeout')
+  assert.equal(r.duet, true)
+  assert.equal(
+    dropWalkRidersRow(r),
+    "the drop-walk's own why riders (v0.785.0): no solo why owns the majority - doomed x3 + timeout x3 own 6 of 7 fail(s) (85.7%) - THE DROP'S OWN MIX: the verdict's tie law held, the mix is the shape - the drop-walk's own crowd prices the classes the solo law refused to name"
+  )
+  // face 73's owner case: timeout 11 of 20 owns the book - the riders
+  // stay a pure cell read (the measure, never branch-aware); the
+  // decompose's branch law leaves the companion unprinted
+  const owner = dropWalkRiders({ timeout: 11, admission: 6, doomed: 3 })
+  assert.equal(owner.leader, 'timeout')
+  assert.equal(owner.runner, 'admission')
+  assert.equal(owner.duet, false)
+})
+
+test('the junk battery - the honest silence every time, the single class prices no mix', () => {
+  for (const junk of [undefined, null, 42, 'str', [], {}, { timeout: 0 }, { timeout: -2 }, { timeout: NaN }, { admission: Infinity }]) {
+    assert.equal(dropWalkRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+  }
+  // a lone class prices no pair (the riders' own fence)
+  assert.equal(dropWalkRiders({ doomed: 3 }), null)
+  // the rows' own junk law - the honest silence's row
+  assert.equal(dropWalkRidersRow(null), null)
+  assert.equal(dropWalkRidersRow({}), null)
+  assert.equal(dropWalkRidersRow({ leader: '', leaderOwns: 1, runner: 'timeout', runnerOwns: 1, ofFails: 2, pairOwns: 2, shareOfFails: 1 }), null)
+  assert.equal(dropWalkRidersRow({ leader: 'admission', leaderOwns: 0, runner: 'timeout', runnerOwns: 1, ofFails: 1, pairOwns: 1, shareOfFails: 1 }), null)
+  assert.equal(dropWalkRidersRow({ leader: 'admission', leaderOwns: 2, runner: 'timeout', runnerOwns: 1, ofFails: 1, pairOwns: 3, shareOfFails: 3 }), null)
+})
+
+test('the WIRING assert - the else branch rides the same byWhy cell, the prose lives only in the lib', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const dwr = dropWalkRiders(dw.byWhy)'), 'the riders read the census\'s own byWhy cell')
+  assert.ok(src.includes('if (dwr) console.log(`  ${dropWalkRidersRow(dwr)}`)'), 'the riders row rides the else branch')
+  assert.ok(src.includes('dropWalkRiders, dropWalkRidersRow'), 'the import tail carries the companion')
+  // the row prose lives only in the lib (the v0.767.0 wiring law)
+  assert.ok(!src.includes("THE DROP'S OWN MIX"), 'the riders row prose must stay in the lib')
 })
