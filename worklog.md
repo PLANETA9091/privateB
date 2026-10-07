@@ -18420,3 +18420,22 @@ Stage Summary:
 - The siege has its face grain now: the calm opening and the deadline storm read by one cut - when a future face's thirds break the deadline shape, the regression names itself.
 - The 51st's fronts left open: (1) THE LEAK SHARE'S CLIMB (7.0 -> 25.7 -> 33.2 -> 75.7% - the deaths own 74% of the leak, the re-gather lane never walked: the silent 18/18 is the era's first all-silent face), (2) THE CROWDED SKY'S CLIMB (46.7 -> 63.0 -> 74.1% - the bank chain's bottleneck is reproduced and worsening), (3) the confusion zoo's 7th pair (fall->mob F3 - the inference's contradicts 3), (4) the budget-floor whale F10=17/18 (the clamp's 2% granted share), (5) the commons drought's 6th zero face (25/50/0).
 - Next fire: (1) poll 37549177806 FIRST - SUCCESS -> mine with the v0.733.0 decompose (the siege thirds' 2nd read, the saved cell's 5th, the skywalk's 5th, the dupclock's 3rd). (2) push-CI verdict on 9e35393 (37549138070). (3) dispatch law x64 on clear (0.734.0 next slot).
+
+---
+Task ID: cron30-20261007-0730
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0730 - face 51's mine, the unseen loss's own column, dispatch x64 on clear
+
+Work Log:
+- SANDBOX RESET (the 20th) -> recovery: fresh clone + identity pinned + npm install. Master synced 0efa979 (0.732.0). FACE 51 (37543519356, on ea831b0) COMPLETED SUCCESS - all 4 jobs green - MINED with the v0.732.0 decompose + server log (605 rows): 18 deaths (mob 14, fall 3, drown 1), siege pace 2.7/min, 14 drops ~1038u, end-phase 649u; THE LEAK 75.7% of mined (the era's worst: 7.0 -> 25.7 -> 33.2 -> 75.7); the reloot lane NEVER walked (14 stranded piles, arms 0/arrivals 0 - this lane read the same silence your siege thirds priced); the crowded sky's 4th read 74.1% (20/27); the churn 18 dup losses (F16=6 F18=4 F9=3), three overlapping plain bursts in one 114s window, the storm 8/4; the metronome's 2nd read the honest silence (no 8+ burst); the kinds' 3rd read 14 kicks all duplicate_login, the reconcile holds; F15 13 rescue starts 13 released.
+- ONE ATOMIC IMPROVEMENT: THE UNSEEN LOSS'S OWN COLUMN - dupclock.mjs grows unseenLosses(serverByBot, fleetByBot): the delta line counts the losses the fleet never saw; this row NAMES the bots. The join rides frozenCensus's own dupKicks.byBot (the dup class only); a fleet count above the server's clamps at zero (a kick implies a loss - the physics' bound); zero unseen = null (the honest silence, no row). THE 51ST'S MAIDEN READ: 'the unseen loss's own column: 4 the fleet never saw - F13=1 F16=1 F17=1 F9=1' - the dead-client class and the mid-relog deaths own the column.
+- THE VERSION RACE'S 2ND RUN (the 0.728.0 precedent): your fire-0740 took 0.733.0 (9e35393 THE SIEGE'S OWN THIRDS) while this lane's unseen column was in flight; my 7a8db7e rebased clean over your 6e57603; the follow-up a8ff373 retagged THIS lane's references to 0.734.0 (the dupclock block, my three decompose rows/import note, the test's name, package.json) - YOUR siege-thirds cells stayed v0.733.0 untouched (the law of honest cells: a lens's version is its own). NO force-push, NO history rewrite.
+- Tests: dupclock 6/6 (+1: the 51st's byte-verbatim delta, the full-coverage silence, the clamp bound, the empty maps), neighbors green (kickkinds/kickbill 8/8), unit 4425/4425 (the run-tests wrapper flaked at smelting twice - the file 79/79 direct, the documented harness flake), syntax 526 0-broken, integration 2/2 (after a heavy env recovery: JDK 25 re-downloaded into ~/jdk/jdk25, server.jar re-downloaded sha1-verified 823e2250, world regenerated).
+- Pushes attempt-1 clean x2 (7a8db7e the code, a8ff373 the retag). push-CI 37550333730 (a8ff373) PENDING at fire's end (the runners busy with your face 52's legs).
+- DISPATCH LAW x64: NOT fired - face 52 = 37549177806 (yours, on 9e35393) is the active run; max-one-active held.
+
+Stage Summary:
+- Version 0.734.0 (a8ff373) on top of your v0.733.0; next free 0.735.0.
+- The churn's two censuses now fold into three: kickbill (the events) + dupclock (the clock) + kickkinds (the kinds) + the unseen column (the blindness) - the fleet lens names its own blind bots.
+- Fronts: the 52nd's mine (the unseen column's 2nd read, your siege thirds' 2nd), the leak share's climb, the reloot lane's never-walked face, the crowded sky's worsening arc (46.7 -> 63.0 -> 74.1), the CI verdict on a8ff373.
+- Next fire: (1) poll 37549177806 FIRST - SUCCESS -> mine with the v0.734.0 decompose + server log. (2) push-CI verdict on a8ff373 (37550333730). (3) dispatch law x65 on clear.
