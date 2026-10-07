@@ -98,7 +98,29 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // clock side stays its own class. Honest silences: zero fuel clips, no
 // row; an unknown fuel's capacity is the honest gap, never a guess.
 
-import { fuelYieldOf } from './smelting.mjs' // (v0.747.0) the vanilla yield table's own voice - the diet row's capacity bar, never a made constant (the fueldiet.mjs precedent; smelting never imports smeltledger - no cycle)
+// (v0.748.0) THE CLOCK'S OWN WINDOW - the clock side's own worth, priced
+// from the line's own seconds. The clock clip line carries its own
+// window verbatim ('the 83s window completes ~7 of 36 x raw_copper':
+// cc[2] was matched and dropped before) - and the vanilla smelt speed
+// (SMELT_SECONDS_PER_ITEM = 200 ticks / 20 tps, the never-a-made-constant
+// law's own bar) prices what that window could ever complete: capacity =
+// window-seconds / 10. The join prices the clock's own diet: delivered /
+// capacity. Below 100% the furnace idled inside the window - the vanilla
+// capacity went unpaid while the clock still ran (fuel/input gaps mid-
+// window - the next read's subject; the 58th's six windows: 190s of
+// window for 16 completed, capacity 19, paid 84%). At 100% the furnace
+// kept the vanilla beat - the window was its own metronome, the debt is
+// purely the window's own shrinkage against the batch's ask (short
+// windows can also overshoot: a unit mid-flight at window open finishes
+// inside it). The read rides the SAME SMELT_CLOCK_CLIP_RE match (one
+// parser per shape) - the furnace book's fourth entry beside the debt
+// (v0.744.0), the payback (v0.745.0) and the diet (v0.747.0). The window
+// seconds accumulate INTEGER (the float drift of a sum-of-divisions is
+// the trap); the division lives once at the row. Honest silence: zero
+// clock clips, no row (the window is always numeric - no unknown gap
+// class exists here).
+
+import { fuelYieldOf, SMELT_SECONDS_PER_ITEM } from './smelting.mjs' // (v0.747.0) the vanilla yield table's own voice - the diet row's capacity bar, never a made constant (the fueldiet.mjs precedent; smelting never imports smeltledger - no cycle); (v0.748.0) SMELT_SECONDS_PER_ITEM - the clock window's own vanilla bar (200 ticks / 20 tps)
 
 /**
  * Read the smelt lane's own words into a ledger.
@@ -136,6 +158,7 @@ export function smeltLedger (lines) {
     fuelClipFuel: 0, // (v0.747.0) the fuel units the fuel clip lines name (fc[2] - matched and dropped before)
     fuelClipFuelItems: {}, // (v0.747.0) the clip fuel by item (fc[3])
     fuelClipCapacity: 0, // (v0.747.0) the vanilla capacity that fuel carried (sum fc[2] x fuelYieldOf(fc[3]))
+    clockClipWindowSec: 0, // (v0.748.0) the window seconds the clock clip lines carried verbatim (cc[2] - matched and dropped before); kept INTEGER here, the capacity's division lives once at the row (the accumulation's own float drift is the trap)
     byBot: {}
   }
   // (v0.745.0) the outstanding clip debt per bot|item, in walk order
@@ -197,6 +220,9 @@ export function smeltLedger (lines) {
       ledger.clockClips++
       ledger.clockClipCompleted += Number(cc[3])
       ledger.clockClipAsked += Number(cc[4])
+      // (v0.748.0) the clock's own window - the seconds the line carried
+      // verbatim (cc[2]), the clock class's own worth leg
+      ledger.clockClipWindowSec += Number(cc[2])
       bot(cc[1]).clips++
       // (v0.744.0) the clip's own debt - the clock class's own deficit
       const debt = Number(cc[4]) - Number(cc[3])
@@ -270,4 +296,21 @@ export function clipDietRow (ledger) {
     ? 'the fuel died at its own capacity - the ask\'s own price'
     : 'the capacity\'s own tail unpaid - the window\'s own tax rode the same chain'
   return `the clip's own diet: the fuel clips burned ${ledger.fuelClipFuel} fuel-unit(s) (${items}) for ${ledger.fuelClipCompleted} completed unit(s) - the vanilla capacity ${ledger.fuelClipCapacity} paid ${pct}% (${verdict})`
+}
+
+// (v0.748.0) ONE verdict line, only when a clock clip stood at all (zero
+// clock clips = the honest silence - the fuel-only faces read nothing
+// here). The join: delivered vs the vanilla capacity the windows carried
+// (SMELT_SECONDS_PER_ITEM's own bar, never a made constant). Two
+// classes, exclusive: below 100% = the furnace idled inside the window
+// (the idle's own tax rode the same windows) / at-or-above 100% = the
+// furnace kept the vanilla beat (the window was its own metronome).
+export function clockWindowRow (ledger) {
+  if (!ledger || !(ledger.clockClips > 0)) return null
+  const cap = ledger.clockClipWindowSec / SMELT_SECONDS_PER_ITEM
+  const pct = Math.round(100 * ledger.clockClipCompleted / cap)
+  const verdict = pct >= 100
+    ? 'the furnace kept the vanilla beat - the window was its own metronome'
+    : 'the furnace idled inside the window - the idle\'s own tax rode the same windows'
+  return `the clock's own window: the clock clips burned ${ledger.clockClipWindowSec}s of window for ${ledger.clockClipCompleted} completed unit(s) - the vanilla capacity ${cap} paid ${pct}% (${verdict})`
 }

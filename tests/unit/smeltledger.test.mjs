@@ -6,7 +6,7 @@
 // split avoids). Junk judges nothing, non-array is null.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
+import { smeltLedger, clipDebtRow, clipPaybackRow, clipDietRow, clockWindowRow, SMELT_START_RE, SMELT_FUEL_CLIP_RE, SMELT_CLOCK_CLIP_RE, SMELT_REFUSAL_RE, SMELT_TOOK_RE } from '../../src/lib/smeltledger.mjs'
 
 test('smelt-ledger: the batches, the fuel and the per-bot/per-item split (live face 36/39 shapes)', () => {
   const lines = [
@@ -339,4 +339,61 @@ test('clip-diet: the honest silences, the unknown-fuel gap and the junk fences',
   const junked = smeltLedger([null, 42, 'fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper'])
   assert.equal(junked.fuelClips, 0)
   assert.equal(junked.fuelClipFuel, 0)
+})
+
+// ---- (v0.748.0) THE CLOCK'S OWN WINDOW ----
+
+test('clock-window: the 58th\'s six windows - 190s for 16 completed, capacity 19, paid 84% (the idle\'s own tax)', () => {
+  const lines = [
+    '[F14] fuel clips the batch: 3 x oak_log completes 4 of 6 x cobblestone (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 83s window completes ~7 of 36 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 47s window completes ~4 of 29 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 24s window completes ~2 of 25 x raw_copper (the rest re-smelts on the next chain)',
+    '[F14] the clock clips the batch: the 18s window completes ~1 of 2 x cobblestone (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 13s window completes ~1 of 23 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] fuel clips the batch: 2 x coal completes 16 of 22 x raw_copper (the rest re-smelts on the next chain)',
+    '[F1] the clock clips the batch: the 5s window completes ~1 of 22 x raw_copper (the rest re-smelts on the next chain)'
+  ]
+  const l = smeltLedger(lines)
+  // the old fields byte-stable beside the window
+  assert.equal(l.clockClips, 6)
+  assert.equal(l.clockClipCompleted, 16)
+  assert.equal(l.clockClipAsked, 137)
+  assert.equal(l.clipDebtClock, 121)
+  // the window's own read - integer seconds, one division at the row
+  assert.equal(l.clockClipWindowSec, 190, '83+47+24+18+13+5 - the line\'s own seconds, matched and dropped before')
+  const row = clockWindowRow(l)
+  assert.ok(row)
+  assert.equal(row, "the clock's own window: the clock clips burned 190s of window for 16 completed unit(s) - the vanilla capacity 19 paid 84% (the furnace idled inside the window - the idle's own tax rode the same windows)")
+})
+
+test('clock-window: the vanilla metronome held - paid in full and the short-window overshoot', () => {
+  // a window that delivered everything vanilla allows (20s -> capacity 2, delivered 2)
+  const beat = smeltLedger(['[F7] the clock clips the batch: the 20s window completes ~2 of 36 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(beat.clockClipWindowSec, 20)
+  assert.equal(clockWindowRow(beat), "the clock's own window: the clock clips burned 20s of window for 2 completed unit(s) - the vanilla capacity 2 paid 100% (the furnace kept the vanilla beat - the window was its own metronome)")
+  // a short window can overshoot - a unit mid-flight at window open finishes inside it (5s -> capacity 0.5, delivered 1)
+  const over = smeltLedger(['[F2] the clock clips the batch: the 5s window completes ~1 of 22 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(over.clockClipWindowSec, 5)
+  assert.equal(clockWindowRow(over), "the clock's own window: the clock clips burned 5s of window for 1 completed unit(s) - the vanilla capacity 0.5 paid 200% (the furnace kept the vanilla beat - the window was its own metronome)")
+})
+
+test('clock-window: the non-integer capacity renders the vanilla decimal (47s -> 4.7, paid 85%)', () => {
+  const l = smeltLedger(['[F1] the clock clips the batch: the 47s window completes ~4 of 29 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(l.clockClipWindowSec, 47)
+  assert.equal(clockWindowRow(l), "the clock's own window: the clock clips burned 47s of window for 4 completed unit(s) - the vanilla capacity 4.7 paid 85% (the furnace idled inside the window - the idle's own tax rode the same windows)")
+})
+
+test('clock-window: the honest silences and the junk fences', () => {
+  // fuel-only faces read the honest silence (the window is the clock side)
+  const fuelOnly = smeltLedger(['[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)'])
+  assert.equal(fuelOnly.clockClips, 0)
+  assert.equal(fuelOnly.clockClipWindowSec, 0)
+  assert.equal(clockWindowRow(fuelOnly), null, 'zero clock clips = no row')
+  assert.equal(clockWindowRow(null), null)
+  assert.equal(clockWindowRow({}), null)
+  // junk rows never mint a window
+  const junked = smeltLedger([null, 42, 'the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper'])
+  assert.equal(junked.clockClips, 0)
+  assert.equal(junked.clockClipWindowSec, 0)
 })

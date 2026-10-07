@@ -749,6 +749,15 @@ const CHARCOAL_LOGS = new Set([
   'acacia_log', 'mangrove_log', 'cherry_log', 'pale_oak_log'
 ])
 
+// (v0.748.0) THE CLOCK'S OWN BAR - the vanilla smelt speed, never a made
+// constant: a furnace completes one item every 200 game ticks (the smelt
+// operation's own tick budget, stable across vanilla 1.x..26.x), and the
+// server clock runs 20 ticks per second -> 10 seconds per unit. The clock
+// window lens divides the clip line's own window by THIS bar (the same
+// never-a-made-constant law fuelYieldOf obeyed for the fuel side: the
+// capacity is the vanilla table's own voice, the lens invents nothing).
+export const SMELT_SECONDS_PER_ITEM = 10 // 200 ticks / 20 tps
+
 export function fuelYieldOf (fuelName) {
   if (FUEL_YIELD[fuelName] != null) return FUEL_YIELD[fuelName]
   if (fuelName.endsWith(PLANK_SUFFIX)) return 1.5
