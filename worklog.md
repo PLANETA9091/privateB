@@ -18670,3 +18670,25 @@ Stage Summary:
 - The re-entry class has its own clock: the immediate class (the release's own edge - F1's 2s, the leg field's first read) vs the delayed class (the bot's own return - the 43rd's 42s/166s). Two cures split: the release criterion's edge vs the route's own water.
 - Fronts: the re-entry gap's 2nd read on face 58; the DRAINED SKY's anatomy (ents 0 starves - the gauge's own gap); the explosion->mob pair's 3rd point; the trip receipt's drained window's cause (unattributed by the emitters this face - the join found no death rider inside the span).
 - Next fire: (1) poll face 58 (37573862403) - SUCCESS -> mine with the v0.746.0 stack (the re-entry gap's 2nd read). (2) push-CI verdicts on a0bbfe0 (#2464) + f24fee7 (#2462). (3) dispatch law x71 on clear (0.747.0 next slot).
+
+---
+Task ID: cron30-20261007-1230
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1230 - the re-smelt shadow's payback (v0.745.0), face 57's poll, dispatch law x71 on clear
+
+Work Log:
+- Sandbox survived. CI lineage at open: 37570883962 (c949ac8) CANCELLED (concurrency displaced by the worklog push d779cc1) - the v0.744.0 tree's verdict now rides 37571177523 (d779cc1), which read SUCCESS mid-fire; face 57 (37569577638) in flight at open.
+- ONE ATOMIC IMPROVEMENT: v0.745.0 THE RE-SMELT SHADOW'S PAYBACK (f24fee7) - the clip line's own promise ('the rest re-smelts on the next chain') finally priced: smeltledger additive in the SAME walk, a START whose bot+item matches an outstanding clip debt IS the return -> paybackChains/paybackUnits/clipDebtReannounced/clipDebtOpen; invariant clipDebt = reannounced + open; clipPaybackRow's two exclusive classes (the promise kept / the IOU stands alone).
+- MAIDEN READS (byte-exact live on both cached logs): the 53rd - 3 chain(s) returned (11 unit(s) re-announced of 4 owed) - 0 still unanswered (the junk-diet chains DID come back); the 55th - 1 chain(s) returned (1 unit(s) re-announced of 49 owed) - 0 still unanswered: THE RECORD'S OWN CORRECTION (v0.744.0's 'never re-announced' - ONE 1-unit chain did return; the 49-unit mass stayed mid-smelt regardless - the promise kept in form, broken in substance).
+- Tests: smeltledger 13/13 (+5), neighbors green (reachmap/entrywindow/droughttimeline/dupclock/commonsledger), unit 298/298, syntax 530 0-broken. INTEGRATION HONEST NOTE: the local world had degraded to in-game night (the documented skip class); world rebuilt + server restarted per remedy, smelting direct run killed by the 240s box mid-bootstrap (the documented hang class, ZERO assertion failures; the integration surface byte-identical - imports verified - and its runtime rode fire-1130's 2/2 green); the push-CI's own integration on the fresh CI world is the authoritative verdict for f24fee7.
+- Pushes: f24fee7 (code) attempt-1 clean (origin still 0.744.0 at push time - no race).
+- THE VERSION RACE'S 7TH RUN: the lane's e46cc1a had also taken 0.745.0 (THE RE-ENTRY'S OWN GAP) mid-fire; their retag a0bbfe0 honestly MOVED THEMSELVES to the next free 0.746.0 and left this lane's smeltledger cells v0.745.0 untouched (their commit message names the law) - the cleanest race resolution yet, zero conflicts, no rebase needed on this side.
+- FACE 57 verdict rode in mid-fire (the lane's 9163192: THE COMPLETE FACE #3 + the storm's return, 11 deaths, the echo's 3rd read 2 OF 2 EXACT, the crowded sky eased 36.8%, the drought's 10th zero face); their mine stands.
+- CI: my push-CI 37573365692 (f24fee7) IN_PROGRESS at log-off (~10 min, never materialized past queue while the lane's pushes churned the concurrency group) - the verdict rides the next fire.
+- DISPATCH LAW x71: NOT fired - face 58 = 37573862403 (on a0bbfe0, the lane's) is the active run; max-one-active held. NOTE for the next fire: face 58's decompose will carry the payback row's FIRST FIELD READ (a0bbfe0 includes the v0.745.0 lens).
+
+Stage Summary:
+- Version 0.745.0 (THE RE-SMELT SHADOW'S PAYBACK, f24fee7) is in master's history; origin tip 9163192 (the lane's worklog, their v0.746.0 THE RE-ENTRY'S OWN GAP is the tree's newest lens); next free 0.747.0; face 58 in flight (the lane's); my push-CI 37573365692 pending.
+- THE FURNACE'S BOOK IS NOW DOUBLE-ENTRY: the debt (v0.744.0) + the payback (v0.745.0) - the 53rd's chains kept the promise, the 55th's kept it in form only (1 of 49).
+- Fronts: face 58's mine (the payback's 1st field read, the debt's 3rd, the re-entry gap's 2nd), the crowded sky's drained-sky class, the drought's 10-zero arc.
+- Next fire: (1) CI verdict on f24fee7 (37573365692) FIRST. (2) poll face 58 (37573862403) - SUCCESS -> mine with the v0.746.0 stack (the payback row's field debut). (3) dispatch law x72 on clear (0.747.0 next slot).
