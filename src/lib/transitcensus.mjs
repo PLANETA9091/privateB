@@ -194,3 +194,93 @@ export function targetCadence (t) {
   const verdict = closed >= 0.5 ? 'approach' : 'walls'
   return { verdict, closed: Math.round(closed * 100), min: seq.min, max: seq.max }
 }
+
+// (v0.782.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
+// water lane's spender axis: the transit census's own launches.byBot cell
+// (zero re-parsing - the v0.779.0 byWhy / v0.780.0 totals / v0.781.0
+// byStage cell law), read the way the rescue book's cast read ITS lane.
+// The pin's own seat (v0.722.0) prices WHERE a bot keeps aiming (the
+// target concentration); no row ever named WHO owns the swim lane itself
+// (the byBot split rode raw in the 'top bots' inline). Face 76's own
+// answer rode rawest: F4 rode 63 of the face's 63 launches (100.0%) -
+// THE WHALE'S OWN LANE - and the lane's owner is the lever input the
+// loop ledgers (v0.692.0/v0.698.0/v0.754.0) price per-face behind their
+// own 50-launch bar.
+// THE BILL LAW: the top bot owns the swim under the strict-majority law
+// (topUnits > of - topUnits; a tie owns nothing - the storm-has-no-seat
+// precedent); junk never invents a bill (a missing or empty cell, a
+// non-finite or non-positive count reads the honest silence). The
+// riders (measure-not-owner - the v0.780.0 riders law): the top pair
+// prices the concentration the solo law refused to seat, count desc
+// then the key's own byte asc; a single-class cell reads the bill or
+// nothing, never a solo 'pair'. Decompose wires ONE additive branch
+// beside the pin row (one row, never both - the branch law).
+
+/**
+ * The launches' own bot bill (strict-majority law) over the census's
+ * launches.byBot cell.
+ * @param {{}[key: string]: number} [byBot] the transit census's own cell
+ * @returns {null|{bot: string, owns: number, of: number, share: number}}
+ */
+export function transitLaunchBill (byBot) {
+  if (!(byBot && typeof byBot === 'object') || Array.isArray(byBot)) return null
+  let of = 0
+  let topBot = null
+  let topUnits = 0
+  for (const [bot, n] of Object.entries(byBot)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    of += n
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (of <= 0 || topBot === null) return null
+  if (topUnits <= of - topUnits) return null
+  return { bot: topBot, owns: topUnits, of, share: +(topUnits / of).toFixed(3) }
+}
+
+// (v0.782.0) the bill's own row - THE SWIM'S OWN SPENDER: the spender is
+// the lever input the loop ledgers price behind their own bars. Junk
+// never prints (the honest silence's own row law).
+export function transitLaunchBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, owns, of, share } = bill
+  if (typeof bot !== 'string' || !bot || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(of) || of <= 0 || owns > of || !Number.isFinite(share)) return null
+  return `the launches' own bill (v0.782.0): ${bot} owns ${owns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender`
+}
+
+/**
+ * The launches' own riders (measure-not-owner) over the same cell.
+ * @param {{}[key: string]: number} [byBot] the transit census's own cell
+ * @returns {null|{leader: string, leaderOwns: number, runner: string,
+ *   runnerOwns: number, of: number, pairOwns: number, share: number,
+ *   tie: boolean}}
+ */
+export function transitLaunchRiders (byBot) {
+  if (!(byBot && typeof byBot === 'object') || Array.isArray(byBot)) return null
+  const ranked = Object.entries(byBot)
+    .map(([bot, n]) => ({ bot, n }))
+    .filter(c => Number.isFinite(c.n) && c.n > 0)
+    .sort((a, b) => b.n - a.n || (a.bot < b.bot ? -1 : 1))
+  if (ranked.length < 2) return null
+  const of = ranked.reduce((a, c) => a + c.n, 0)
+  const pairOwns = ranked[0].n + ranked[1].n
+  return {
+    leader: ranked[0].bot, leaderOwns: ranked[0].n,
+    runner: ranked[1].bot, runnerOwns: ranked[1].n,
+    of, pairOwns, share: +(pairOwns / of).toFixed(3),
+    tie: ranked[0].n === ranked[1].n
+  }
+}
+
+// (v0.782.0) the riders' own row - THE CROWD'S OWN SWIM: a measure of the
+// shape, never a named owner (the bill's tie law holds); the pair prices
+// the concentration the solo law refused to seat. Junk never prints.
+export function transitLaunchRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, of, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(of) || of <= 0 || !Number.isFinite(pairOwns) || pairOwns > of ||
+      !Number.isFinite(share)) return null
+  return `the launches' own riders (v0.782.0): no solo spender owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${of} launch(es) (${(share * 100).toFixed(1)}%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name`
+}

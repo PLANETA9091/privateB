@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseTransitLaunch, parseTransitStall, transitCensus, targetCadence, TRANSIT_POCKET_DEPTH } from '../../src/lib/transitcensus.mjs'
+import { parseTransitLaunch, parseTransitStall, transitCensus, targetCadence, TRANSIT_POCKET_DEPTH, transitLaunchBill, transitLaunchBillRow, transitLaunchRiders, transitLaunchRidersRow } from '../../src/lib/transitcensus.mjs'
 
 test('transit-census: the face verbatim launch (F1, the walls class seat)', () => {
   const line = 'F1 [F1] water: transit toward known land (oak_log) at [-134,413] d=3'
@@ -229,4 +229,67 @@ test('launch cadence: the seqs are per-bot at a shared target - never mixed', ()
   assert.deepEqual(c.targets[0].seqs, { F1: { n: 5, min: 20, max: 40 }, F2: { n: 5, min: 7, max: 7 } })
   // the target is multi-bot: no verdict at target level (the mixing law)
   assert.equal(targetCadence(c.targets[0]), null)
+})
+
+// (v0.782.0) THE SWIM'S OWN SPENDER - the launches' own bot bill. The
+// census's own launches.byBot cell (zero re-parsing), the strict-majority
+// law (a tie owns nothing), the riders measure-not-owner (the v0.780.0
+// riders law), the decompose's one-additive-branch wiring.
+
+test('launch bill: the face-76 field cell through the seat - F4 owns the whole lane', () => {
+  const lines = []
+  for (let i = 0; i < 62; i++) lines.push('F4 [F4] water: transit toward known land (birch_log) at [-129,433] d=30')
+  lines.push('F4 [F4] water: transit toward known land (sand) at [-159,412] d=58')
+  const c = transitCensus(lines)
+  assert.deepEqual(c.launches.byBot, { F4: 63 })
+  const bill = transitLaunchBill(c.launches.byBot)
+  assert.deepEqual(bill, { bot: 'F4', owns: 63, of: 63, share: 1 })
+  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.782.0): F4 owns 63 of 63 launch(es) (100.0%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
+  assert.equal(transitLaunchRiders(c.launches.byBot), null, 'a single-class cell never seats a solo pair')
+  assert.equal(transitLaunchRidersRow(null), null)
+})
+
+test('launch bill: the tie law + the near-tie edge - face 70\'s own 17:15 shape reads the riders, not a bill', () => {
+  // face 70's own cell: F9 17 vs F6 15 - the majority missing by ONE,
+  // the strict law's honest edge (17 <= 34 - 17)
+  const nearTie = { F9: 17, F6: 15, F15: 2 }
+  assert.equal(transitLaunchBill(nearTie), null)
+  const r = transitLaunchRiders(nearTie)
+  assert.deepEqual({ leader: r.leader, leaderOwns: r.leaderOwns, runner: r.runner, runnerOwns: r.runnerOwns, of: r.of, tie: r.tie }, { leader: 'F9', leaderOwns: 17, runner: 'F6', runnerOwns: 15, of: 34, tie: false })
+  assert.equal(transitLaunchRidersRow(r), "the launches' own riders (v0.782.0): no solo spender owns the majority - F9 x17 + F6 x15 own 32 of 34 launch(es) (94.1%) - THE CROWD'S OWN SWIM: the bill's tie law held, the concentration is still real - the pair prices the re-arms the solo law refused to name")
+  // the TRUE tie owns nothing on both sides of the branch
+  const tie = { F2: 5, F8: 5 }
+  assert.equal(transitLaunchBill(tie), null)
+  const rt = transitLaunchRiders(tie)
+  assert.equal(rt.tie, true)
+  assert.equal(rt.share, 1, 'the pair owns the whole lane when the cell is the pair')
+})
+
+test('launch bill: the close majority - face 75\'s own 41-of-79 shape seats F6', () => {
+  const cell = { F6: 41, F9: 17, F16: 9, F7: 6, F8: 6 }
+  const bill = transitLaunchBill(cell)
+  assert.deepEqual(bill, { bot: 'F6', owns: 41, of: 79, share: 0.519 })
+  assert.equal(transitLaunchBillRow(bill), "the launches' own bill (v0.782.0): F6 owns 41 of 79 launch(es) (51.9%) - THE SWIM'S OWN SPENDER: one bot's own re-arms own the water lane - the pin's own seat (v0.722.0) prices the aim, the bill names the spender")
+  // the branch law lives in the WIRING (decompose: if (bill) ... else
+  // riders) - the riders stay a pure cell read, never branch-aware
+  // (the v0.780.0 riders law's own shape)
+  const riders = transitLaunchRiders(cell)
+  assert.deepEqual({ leader: riders.leader, leaderOwns: riders.leaderOwns, runner: riders.runner, runnerOwns: riders.runnerOwns, of: riders.of }, { leader: 'F6', leaderOwns: 41, runner: 'F9', runnerOwns: 17, of: 79 })
+})
+
+test('launch bill: the junk battery - the silence never invents a spender', () => {
+  const junkCells = [null, undefined, 'junk', 42, [], ['', ''], { F4: 0 }, { F4: -2 }, { F4: 'x' }, { F4: NaN }, { F4: Infinity }, {}]
+  for (const j of junkCells) {
+    assert.equal(transitLaunchBill(j), null, `bill ${JSON.stringify(j)}`)
+    assert.equal(transitLaunchRiders(j), null, `riders ${JSON.stringify(j)}`)
+  }
+  assert.equal(transitLaunchBillRow(null), null)
+  assert.equal(transitLaunchBillRow('junk'), null)
+  assert.equal(transitLaunchBillRow({ bot: 'F4', owns: 5, of: 9, share: NaN }), null, 'junk share never prints')
+  assert.equal(transitLaunchBillRow({ bot: 'F4', owns: 12, of: 9, share: 1 }), null, 'owns > of is impossible evidence')
+  assert.equal(transitLaunchRidersRow({ leader: 'F4', leaderOwns: 5, runner: 'F8', runnerOwns: 3, of: 9, pairOwns: 12, share: 1 }), null, 'pairOwns > of never prints')
+  assert.equal(transitLaunchRidersRow({ leader: 'F4', leaderOwns: 0, runner: 'F8', runnerOwns: 3, of: 9, pairOwns: 3, share: 0.333 }), null, 'zero-count leaders are junk')
+  // the mixed junk cell: the junk keys drop, the real counts still price
+  const mixed = { F4: 10, junk: -3, F8: 2, gone: NaN }
+  assert.deepEqual(transitLaunchBill(mixed), { bot: 'F4', owns: 10, of: 12, share: 0.833 })
 })
