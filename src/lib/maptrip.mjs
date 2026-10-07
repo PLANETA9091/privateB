@@ -442,7 +442,7 @@ export function pocketDrain (lines) {
   }
 }
 
-// (v0.770.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
+// (v0.771.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
 // its phase. The drain row prices the peak-to-end drop but never WHEN the
 // peak rode: face 70 (37624132784) peaked 1738u at t-22s - the final 22
 // seconds of the whole window - while the budget-floor verdict's own
@@ -499,7 +499,7 @@ export function pocketPeakClockRow (c) {
     : c.phase === 'mid'
       ? `the drain had its window and the bank still trailed it home - the bank's own pace is the lever`
       : `the chain drained the opening build - the bank owned the window (the crater is not the deadline's)`
-  return `the pocket's own peak clock (v0.770.0): the peak (${c.peak}u) rode ${c.phase.toUpperCase()} (${where}) - ${why}`
+  return `the pocket's own peak clock (v0.771.0): the peak (${c.peak}u) rode ${c.phase.toUpperCase()} (${where}) - ${why}`
 }
 
 // (v0.452.0) THE DRAIN ATTRIBUTION - the UNACCOUNTED residual learns its

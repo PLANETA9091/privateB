@@ -961,7 +961,7 @@ test('leak-clock: junk-safe and nulls on non-array (the zero law)', () => {
   assert.deepEqual(r, { samples: 0, tMax: null, tMin: null, legs: { early: { n: 0, u: 0 }, mid: { n: 0, u: 0 }, late: { n: 0, u: 0 } }, unpositioned: { n: 0, u: 0 }, drops: { n: 0, u: 0, maxU: null, maxBot: null, maxShare: null }, placedByThird: { early: 0, mid: 0, late: 0 }, placedUnpositioned: 0, clockCenter: null })
 })
 
-// (v0.770.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
+// (v0.771.0) THE POCKET'S OWN PEAK CLOCK - the drain ledger's peak learns
 // its phase. The verbatims are the field's own shapes: face 70
 // (37624132784) peaked 1738u at t-22s of a t-537s..t-0s span (95.9% in) -
 // the budget-floor verdict's lever claim ('the pocket's drain is the
@@ -993,7 +993,7 @@ test('pocket-peak-clock: the face-70 cell - the peak rode LATE (the lever claim 
   assert.equal(c.drop, 418)
   assert.equal(c.phase, 'late')
   const row = pocketPeakClockRow(c)
-  assert.equal(row, "the pocket's own peak clock (v0.770.0): the peak (1738u) rode LATE (t-22s of a t-537s..t-0s span, 95.9% in) - the deadline's own signature: the drain never got its window (the budget-floor verdict's lever claim confirmed: the pocket's drain is the front)")
+  assert.equal(row, "the pocket's own peak clock (v0.771.0): the peak (1738u) rode LATE (t-22s of a t-537s..t-0s span, 95.9% in) - the deadline's own signature: the drain never got its window (the budget-floor verdict's lever claim confirmed: the pocket's drain is the front)")
   // THE WIRING assert - the peak/peakT/drop are pocketDrain's own cells,
   // the first-occurrence rule byte-shared (zero re-parsing drift)
   const pd = pocketDrain(lines)
