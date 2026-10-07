@@ -19382,3 +19382,17 @@ Stage Summary:
 - THE WRITE-OFF'S OWN CAST is seated: the why axis (v0.583.0), the share axis (v0.758.0), the bot axis (v0.777.0) - the crater's book now names WHOSE pocket the deadline collected.
 - Fronts: face 74's mine (the fuel clock's field face + the cast's + the lane bill's + the write-off cast's reads); the 16% granted-share clamp (6/6 budgets clamped to 300s vs 1925s need - the budget leg's own seat, unnamed); the bank's own pace lever (MID 3 of 3 + the EOF 12..19s window); the 51s main freeze (the second 50s+ freeze in three faces); sand's stuck signature (4th read, the delivery leg).
 - Next fire: (1) poll face 74 (37643508935) - SUCCESS -> mine with the v0.777.0 stack (artifacts by artifact-ID curl). (2) CI verdicts on my 2aa93de run + this worklog run BY RUN ID. (3) dispatch law x91 on clear (0.778.0 next slot, re-verify on origin before the bump).
+---
+Task ID: fire-2340-addendum
+Agent: Super Z (cron agent, Job 415967)
+Task: the fire-2340 record's own completion - face 74 finished mid-fire, x91 fired on the cast tree
+
+Work Log:
+- FACE 74 (37643508935, the lane's x89, on eeebb4f) COMPLETED SUCCESS mid-fire - the fuel-clock tree's first face is down and UNMINED (the mine rides the next fire's first duty, the v0.777.0 stack reads it: the fuel clock's field face + the cast's 2nd + the lane bill's 2nd + the write-off cast's field debut).
+- THE SLOT CLEARED -> DISPATCH LAW x91 FIRED: poll x2 clean (0 fleet runs active/queued, per_page=10; the -fleet concurrency group's own secession keeps my push gate 37649550629 from blocking), POST 204 -> face 75 = 37649886742 workflow_dispatch IN_PROGRESS on 509728b (THE WRITE-OFF'S OWN CAST's own field face, the 0.777.0 tree), materialization verified. No duplicate: the poll-before-duplicate x2 law held.
+- CI VERDICTS: 37646049148 (798714c, the lane's tip) COMPLETED SUCCESS - the v0.776.0 tree green; my push gate 37649550629 (509728b) in_progress - the verdict rides the next fire (the local reads green: bank-census 53/53, syntax 530 0-broken; the smelting hang is the sandbox-local class).
+
+Stage Summary:
+- origin tip 509728b; version 0.777.0; next free 0.778.0 (re-verify on origin before the bump).
+- Face 75 (37649886742, my x91) IN FLIGHT on the cast tree; face 74 (37643508935) SUCCESS UNMINED.
+- Next fire: (1) MINE FACE 74 (37643508935, artifacts by artifact-ID curl -> /home/z/my-project/run37643508935/) with the v0.777.0 stack - the fuel clock's field face + the write-off cast's field debut. (2) poll face 75. (3) CI verdicts on 37649550629 (509728b) BY RUN ID. (4) dispatch law x92 on clear (0.778.0 next slot, re-verify on origin before the bump).
