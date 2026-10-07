@@ -1676,6 +1676,18 @@ if (hopZero.total > 0) {
   const whys = Object.entries(hopZero.byWhy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
   const bots = Object.entries(hopZero.byBot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join(' ')
   console.log(`  zero-hops: ${hopZero.total} by why: ${whys || 'none'}`)
+  // (v0.759.0) THE HOP-ZERO'S OWN BLEED - the total's honest split (the
+  // nothing-to-deposit class is the machinery working on an empty pocket,
+  // not a delivery bleed) + the top bleed why's own front under the
+  // strict-majority law. One additive row beside the v0.399.0 census -
+  // the cells are the census's own, zero re-parsing.
+  if (hopZero.bleed && hopZero.bleed.total > 0) {
+    const b = hopZero.bleed
+    const tail = b.topWhy
+      ? ` - ${b.topWhy.cls} owns the bleed ${b.topWhy.units}/${b.bleed} (${(b.topWhy.shareOfBleed * 100).toFixed(1)}%): ${b.topWhy.lever}`
+      : (b.bleed > 0 ? ' - no single why owns the bleed (the storm has no seat)' : ' - the honest lane (every zero was an empty pocket)')
+    console.log(`  the hop-zero's own bleed (v0.759.0): ${b.bleed} bleed(s) of ${b.total} zero(s) (${(b.bleedShare * 100).toFixed(1)}%), the honest non-defects ${b.honest}${tail}`)
+  }
   console.log(`  per bot: ${bots || 'none'}`)
   const hot = Object.entries(hopZero.byChest).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `[${k}]x${v}`).join(' ')
   if (hot) console.log(`  hot chests (repeat zero positions): ${hot}`)

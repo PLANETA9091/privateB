@@ -110,5 +110,54 @@ export function hopCensus (lines) {
     if (e.dist !== null) { out.dists.n++; out.dists.sum += e.dist; if (e.dist > out.dists.max) out.dists.max = e.dist }
     out.events.push(e)
   }
-  return out
+  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy) }) // (v0.759.0) the bleed rides additively - the hop-zero's own split
+}
+
+// (v0.759.0) THE HOP-ZERO'S OWN BLEED - the zero-hop total's honest split.
+// The v0.399.0 census counted every zero the same way; face 66's lane read
+// 61 zeros with 6 of them 'nothing-to-deposit' - the machinery worked, the
+// pocket was empty: not a delivery bleed, the delivery chain was never
+// asked. THE BLEED LAW (the byWhy cells only, zero re-parsing - the
+// v0.758.0 seat precedent): 'nothing-to-deposit' is the honest non-defect
+// (the hop had nothing to move); every other class is the bleed. The top
+// bleed why rides beside the split under the strict-majority law (a tie
+// owns nothing - the storm-has-no-seat precedent) with the lever table's
+// own front (the write-off levers' law - one table, the fallback honest).
+// Junk never invents a bleed: a missing/empty mix reads the honest
+// zero-shape; negative/non-finite counts are skipped and counted (the
+// count's own junk law - never priced, never silently dropped).
+export const HOP_ZERO_LEVERS = {
+  'decide-timeout': 'the decider\'s own clock is the front',
+  'walk-timeout': 'the walk budget is the front',
+  'open-timeout': 'the chest open\'s reach is the front',
+  'no-path': 'the walk lattice is the front',
+  'goal-churn': 'the storm\'s own churn is the front',
+  'budget-floor': 'the walk floor\'s budget is the front',
+  'brake-refusal': 'the brake\'s own gate is the front',
+  'unreachable-other': 'the class\'s own detail is the front',
+  'other': 'the class\'s own detail is the front',
+}
+
+export function hopZeroBleed (byWhy) {
+  const mix = (byWhy && typeof byWhy === 'object' && !Array.isArray(byWhy)) ? byWhy : {}
+  let total = 0
+  let honest = 0
+  let bad = 0
+  const bleedWhys = {}
+  for (const [cls, n] of Object.entries(mix)) {
+    if (!Number.isFinite(n) || n < 0) { bad++; continue }
+    total += n
+    if (cls === 'nothing-to-deposit') { honest += n; continue }
+    bleedWhys[cls] = n
+  }
+  const bleed = total - honest
+  let topUnits = 0
+  let topCls = null
+  for (const [cls, n] of Object.entries(bleedWhys)) {
+    if (n > topUnits) { topUnits = n; topCls = cls }
+  }
+  const topWhy = topCls !== null && topUnits > bleed - topUnits
+    ? { cls: topCls, units: topUnits, shareOfBleed: +(topUnits / bleed).toFixed(3), lever: HOP_ZERO_LEVERS[topCls] || 'the class\'s own detail is the front' }
+    : null
+  return { total, bleed, honest, bleedShare: total > 0 ? +(bleed / total).toFixed(3) : 0, topWhy, bad }
 }
