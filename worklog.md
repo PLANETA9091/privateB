@@ -18692,3 +18692,24 @@ Stage Summary:
 - THE FURNACE'S BOOK IS NOW DOUBLE-ENTRY: the debt (v0.744.0) + the payback (v0.745.0) - the 53rd's chains kept the promise, the 55th's kept it in form only (1 of 49).
 - Fronts: face 58's mine (the payback's 1st field read, the debt's 3rd, the re-entry gap's 2nd), the crowded sky's drained-sky class, the drought's 10-zero arc.
 - Next fire: (1) CI verdict on f24fee7 (37573365692) FIRST. (2) poll face 58 (37573862403) - SUCCESS -> mine with the v0.746.0 stack (the payback row's field debut). (3) dispatch law x72 on clear (0.747.0 next slot).
+
+---
+Task ID: cron30-20261007-1300
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1300 - the clip's own diet (v0.747.0), the fuel side's own worth, dispatch law x72 on clear
+
+Work Log:
+- Sandbox survived. Master synced fd53744; version at open 0.746.0 (the lane's a0bbfe0), next free 0.747.0.
+- CI lineage at open: my push-CI 37573365692 (f24fee7, v0.745.0) IN_PROGRESS ~35 min (runner contention with face 58's leg); face 58 (37573862403, the lane's) in flight. The 37573365692 verdict read SUCCESS mid-fire - THE V0.745.0 TREE IS GREEN INCLUDING THE FRESH-WORLD CI INTEGRATION (fire-1230's honest note resolved: the authoritative verdict landed).
+- ONE ATOMIC IMPROVEMENT: v0.747.0 THE CLIP'S OWN DIET (9d7883b) - the fuel clip line's own fuel (fc[2] x fc[3], matched and dropped since v0.461.0) joined to the vanilla yield table (fuelYieldOf, the v0.666.0 never-a-made-constant law, the fueldiet.mjs import precedent - no cycle): fuelClipFuel / fuelClipFuelItems / fuelClipCapacity (sum fuel-units x yield); clipDietRow's two exclusive classes: paid in full (100%) = the fuel died at its own capacity - THE ASK'S OWN PRICE (the plan underfueled, the fuel innocent); below 100% = the capacity's own tail unpaid - THE WINDOW'S OWN TAX rode the same chain; unknown fuel = the honest gap.
+- MAIDEN READS (byte-exact live on both cached logs): the 55th - 2 coal for 16 completed, capacity 16 paid 100% (the fuel died at its own capacity - the ask's own price: F4's 2-coal plan against a 33-batch); the 53rd - 5 fuel-units (stick 3, oak_log 2) for 4 completed, capacity 4.5 paid 89% (the window's own tax - the junk diet still had worth when the batch ended).
+- Tests: smeltledger 17/17 (+4), fueldiet/reachmap/dupclock/commonsledger green, unit 298/298, syntax 530 0-broken. Integration: NOT re-run locally this fire (the surface byte-identical again - mining-surface-only diff, imports verified; the v0.745.0 CI green just proved the same surface; the new push-CI's fresh-world run is the authoritative verdict for 9d7883b).
+- Pushes: 9d7883b (code) attempt-1 clean (origin fd53744 at push, version 0.746.0 free - no race).
+- DISPATCH LAW x72: NOT fired - face 58 = 37573862403 (on a0bbfe0, the lane's) still the active run at log-off (~35 min in flight); max-one-active held.
+- CI: the new push-CI 37575086129 (9d7883b, v0.747.0) PENDING at log-off (never materialized past queue in the 4-min poll); 37574210587 (fd53744 worklog) in_progress; the verdicts ride the next fire.
+
+Stage Summary:
+- Version 0.747.0 (THE CLIP'S OWN DIET, 9d7883b) is master's tip; next free 0.748.0; face 58 in flight (the lane's); push-CI 37575086129 pending.
+- THE FURNACE'S BOOK HAS THREE ENTRIES: the debt (v0.744.0) - what the furnace owes; the payback (v0.745.0) - whether the chain ever returns; the diet (v0.747.0) - whether the fuel itself was the constraint (the 55th's answer: NO - the plan was).
+- Fronts: face 58's mine (the payback's 1st field read, the diet's 1st field read, the debt's 3rd, the re-entry gap's 2nd), the underfuel-plan class (the ask's own price now priced - the fuel planner's own front), the DRAINED SKY (the lane's), the drought's 10-zero arc.
+- Next fire: (1) CI verdict on 9d7883b (37575086129) FIRST. (2) poll face 58 (37573862403) - SUCCESS -> mine with the v0.747.0 stack (the diet's field debut). (3) dispatch law x73 on clear (0.748.0 next slot).
