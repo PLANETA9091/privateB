@@ -11,7 +11,7 @@ import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs'
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
 import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
-import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
+import { hopCensus, hopZeroBotBillRow } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read; (v0.767.0) WHICH walker owns the bleed
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
 import { zeroClockCensus, budgetFloorVerdict, noPathClockVerdict } from '../../src/lib/zeroclock.mjs' // (v0.441.0) the hop zeros' face-phase anatomy; (v0.766.0) the walk lattice's own clock - the no-path class's phase verdict
 import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' // (v0.473.0) the budget-zero family's per-bot half - the sizing lever's spread read (fuel commons + iron commune, the trip kind rides the line); (v0.475.0) the goal-size split - the miscalibration read
@@ -1698,6 +1698,11 @@ if (hopZero.total > 0) {
       : (b.bleed > 0 ? ' - no single why owns the bleed (the storm has no seat)' : ' - the honest lane (every zero was an empty pocket)')
     console.log(`  the hop-zero's own bleed (v0.760.0): ${b.bleed} bleed(s) of ${b.total} zero(s) (${(b.bleedShare * 100).toFixed(1)}%), the honest non-defects ${b.honest}${tail}`)
   }
+  // (v0.767.0) WHICH walker owns the bleed - one additive row beside the
+  // v0.760.0 verdict (the cells are the census's own events, zero
+  // re-parsing; the old rows' bytes stay untouched); the tie and the
+  // junk read the honest silence
+  if (hopZero.botBill) console.log(`  ${hopZeroBotBillRow(hopZero.botBill)}`)
   console.log(`  per bot: ${bots || 'none'}`)
   const hot = Object.entries(hopZero.byChest).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `[${k}]x${v}`).join(' ')
   if (hot) console.log(`  hot chests (repeat zero positions): ${hot}`)

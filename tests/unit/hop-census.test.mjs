@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseHopZero, hopCensus, classifyHopZero, HOP_ZERO_RE, hopZeroBleed } from '../../src/lib/hopcensus.mjs'
+import { parseHopZero, hopCensus, classifyHopZero, HOP_ZERO_RE, hopZeroBleed, hopZeroBotBill, hopZeroBotBillRow } from '../../src/lib/hopcensus.mjs'
 
 // face-22 verbatims (one per class, real bots/positions/dists)
 const GOAL_CHURN = 'F7 [F7] hop: chest at [-123,68,411] d=16 zero: chest unreachable (The goal was changed before it could be completed!)'
@@ -227,4 +227,75 @@ test('v0.760.0 the bleed junk battery', () => {
   assert.equal(honestLane.topWhy, null)
   const unknown = hopZeroBleed({ 'mystery-class': 3 })
   assert.equal(unknown.topWhy.lever, 'the class\'s own detail is the front')
+})
+
+// (v0.767.0) THE BLEED'S OWN BOT BILL - the face-69 cell: the mine's own
+// 10 verbatim zero-hop lines (37617643599, the held artifact) - the
+// v0.760.0 verdict seats the budget-floor class (5/9) while the bill
+// seats the repeat rider (F4 owns 7 of 9 bleeds; the honest
+// nothing-to-deposit never bills). The v0.760.0 row's own cells stay
+// byte-untouched beside the bill.
+const FACE69_ZERO_LINES = [
+  'F4 [F4] hop: chest at [-122,71,415] d=51 zero: chest beyond the hop search radius 48 - walking home instead',
+  'F18 [F18] hop: chest at [-107,71,409] d=22 zero: chest unreachable (Took to long to decide path to goal!)',
+  'F4 [F4] hop: chest at [-127,71,413] d=37 zero: chest unreachable (budget exhausted (walk floor))',
+  'F4 [F4] hop: chest at [-122,71,411] d=36 zero: chest unreachable (budget exhausted (walk floor))',
+  'F4 [F4] hop: chest at [-127,71,411] d=37 zero: chest unreachable (budget exhausted (walk floor))',
+  'F4 [F4] hop: chest at [-117,71,409] d=37 zero: chest unreachable (budget exhausted (walk floor))',
+  'F4 [F4] hop: chest at [-122,71,409] d=37 zero: chest unreachable (budget exhausted (walk floor))',
+  'F14 [F14] hop: chest at [-126,71,389] d=7 zero: chest unreachable (The goal was changed before it could be completed!)',
+  'F4 [F4] hop: chest at [-117,71,415] d=45 zero: chest unreachable (No path to the goal!)',
+  'F4 [F4] hop: chest at [-122,71,415] d=33 zero: nothing to deposit',
+]
+
+test('v0.767.0 the face-69 bill cell - the repeat rider rides beside the class seat', () => {
+  const c = hopCensus(FACE69_ZERO_LINES)
+  // the class seat (v0.760.0) is byte-untouched: budget-floor owns 5 of 9
+  assert.equal(c.bleed.topWhy.cls, 'budget-floor')
+  assert.equal(c.bleed.topWhy.units, 5)
+  assert.equal(c.bleed.topWhy.shareOfBleed, 0.556)
+  // the bot bill (v0.767.0): F4 owns 7 of 9 (the nothing-to-deposit never bills)
+  assert.deepEqual(c.botBill, { bot: 'F4', owns: 7, ofBleed: 9, shareOfBleed: 0.778 })
+  assert.equal(hopZeroBotBillRow(c.botBill), 'the bleed\'s own bot bill (v0.767.0): F4 owns 7 of 9 bleed(s) (77.8%) - THE REPEAT RIDER\'S OWN SEAT: one walker\'s own lane owns the bleed - the class verdict\'s own lever prices the rider\'s walks')
+})
+
+// (v0.767.0) the tie owns nothing + the honest lane's own silence: a
+// tied spread seats no bot (the storm-has-no-seat precedent); an
+// all-honest face (every zero an empty pocket) never invents a rider.
+test('v0.767.0 the bill tie owns nothing + the honest lane', () => {
+  const tie = hopZeroBotBill([
+    { bot: 'F1', klass: { why: 'no-path' } },
+    { bot: 'F2', klass: { why: 'goal-churn' } },
+  ])
+  assert.equal(tie, null)
+  const honestLane = hopZeroBotBill([
+    { bot: 'F4', klass: { why: 'nothing-to-deposit' } },
+    { bot: 'F9', klass: { why: 'nothing-to-deposit' } },
+  ])
+  assert.equal(honestLane, null)
+})
+
+// (v0.767.0) the bill junk battery: the missing/empty event list, the
+// botless and classless events, the non-string whys - the honest silence
+// (null); the row never prints a junk seat.
+test('v0.767.0 the bill junk battery', () => {
+  assert.equal(hopZeroBotBill(null), null)
+  assert.equal(hopZeroBotBill('junk'), null)
+  assert.equal(hopZeroBotBill([]), null)
+  assert.equal(hopZeroBotBill([null, 42, { bot: 'F1' }, { klass: { why: 'no-path' } }, { bot: 'F1', klass: { why: 7 } }]), null)
+  assert.equal(hopZeroBotBillRow(null), null)
+  assert.equal(hopZeroBotBillRow({ bot: '', owns: 1, ofBleed: 2, shareOfBleed: 0.5 }), null)
+  assert.equal(hopZeroBotBillRow({ bot: 'F4', owns: 0, ofBleed: 2, shareOfBleed: 0 }), null)
+  assert.equal(hopZeroBotBillRow({ bot: 'F4', owns: 3, ofBleed: 2, shareOfBleed: 1.5 }), null)
+})
+
+// (v0.767.0) the WIRING assert: the decompose mine prints the bill row
+// beside the v0.760.0 verdict (the additive law - the call site in the
+// source, the guard reads the census's own bill); the prose lives in the
+// lib, never duplicated in the mine.
+test('v0.767.0 the bill rides the decompose mine (WIRING)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.equal(src.includes('hopZeroBotBillRow'), true)
+  assert.equal(src.includes("the bleed's own bot bill"), false) // the prose lives in the lib, never duplicated in the mine
 })

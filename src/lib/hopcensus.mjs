@@ -110,7 +110,7 @@ export function hopCensus (lines) {
     if (e.dist !== null) { out.dists.n++; out.dists.sum += e.dist; if (e.dist > out.dists.max) out.dists.max = e.dist }
     out.events.push(e)
   }
-  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy) }) // (v0.760.0) the bleed rides additively - the hop-zero's own split
+  return Object.assign(out, { bleed: hopZeroBleed(out.byWhy), botBill: hopZeroBotBill(out.events) }) // (v0.760.0) the bleed rides additively - the hop-zero's own split; (v0.767.0) the bot bill rides beside it
 }
 
 // (v0.760.0) THE HOP-ZERO'S OWN BLEED - the zero-hop total's honest split.
@@ -160,4 +160,49 @@ export function hopZeroBleed (byWhy) {
     ? { cls: topCls, units: topUnits, shareOfBleed: +(topUnits / bleed).toFixed(3), lever: HOP_ZERO_LEVERS[topCls] || 'the class\'s own detail is the front' }
     : null
   return { total, bleed, honest, bleedShare: total > 0 ? +(bleed / total).toFixed(3) : 0, topWhy, bad }
+}
+
+// (v0.767.0) THE BLEED'S OWN BOT BILL - the bleed's bot-level seat. The
+// v0.760.0 verdict priced WHICH class owns the bleed, never WHICH walker
+// owns the class - face 69's own census rode the answer raw ('per bot:
+// F4=8 F18=1 F14=1' with the budget-floor seat 5/5 one bot's own) with no
+// row naming the repeat rider. THE BILL LAW (the census's own events
+// only, zero re-parsing - the v0.760.0 byWhy precedent): the honest
+// non-defect ('nothing-to-deposit') never bills a bot; the top bot owns
+// the bleed under the strict-majority law (a tie owns nothing - the
+// storm-has-no-seat precedent). Junk never invents a rider: a missing or
+// empty event list, a botless or classless event, or a tied spread reads
+// the honest silence (null - the decompose's own guard skips the row).
+export function hopZeroBotBill (events) {
+  const rows = Array.isArray(events) ? events : []
+  const byBot = {}
+  let bleed = 0
+  for (const e of rows) {
+    if (!e || typeof e !== 'object') continue
+    const why = e.klass && typeof e.klass === 'object' ? e.klass.why : null
+    if (typeof why !== 'string' || typeof e.bot !== 'string' || !e.bot) continue
+    if (why === 'nothing-to-deposit') continue // the honest non-defect never bills
+    bleed++
+    byBot[e.bot] = (byBot[e.bot] || 0) + 1
+  }
+  let topUnits = 0
+  let topBot = null
+  for (const [bot, n] of Object.entries(byBot)) {
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (topBot === null || topUnits <= bleed - topUnits) return null
+  return { bot: topBot, owns: topUnits, ofBleed: bleed, shareOfBleed: +(topUnits / bleed).toFixed(3) }
+}
+
+// (v0.767.0) the bill's own row - THE REPEAT RIDER'S OWN SEAT: the seat
+// names WHO owns the bleed; the v0.760.0 verdict's own lever prices the
+// rider's cure (the class's front - one table, the fallback honest).
+// Junk never prints a seat (the honest silence's own row law).
+export function hopZeroBotBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, owns, ofBleed, shareOfBleed } = bill
+  if (typeof bot !== 'string' || !bot || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofBleed) || ofBleed <= 0 || owns > ofBleed ||
+      !Number.isFinite(shareOfBleed)) return null
+  return `the bleed's own bot bill (v0.767.0): ${bot} owns ${owns} of ${ofBleed} bleed(s) (${(shareOfBleed * 100).toFixed(1)}%) - THE REPEAT RIDER'S OWN SEAT: one walker's own lane owns the bleed - the class verdict's own lever prices the rider's walks`
 }
