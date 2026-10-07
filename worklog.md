@@ -18798,3 +18798,25 @@ Stage Summary:
 - Face 60's lesson: the integration world's real clock was the last un-harnessed environment axis - the single-bot pipeline lanes now own their sky.
 - Fronts: face 61's mine (the storm's 4th face on the newest lens stack); the integration job's green recovery (the day-lock's first CI verdict rides #2479/#2480 + face 61's own integration leg); the economy's dark arc (face 59: banked 0 of 2006, leaks 68.3%).
 - Next fire: (1) poll face 61 (37583836654) - SUCCESS -> mine with the full lens stack (the day-lock face). (2) push-CI verdicts on 97d3cd1/fc768b9. (3) dispatch law x76 on clear (0.752.0 next slot, mind the lane's retag).
+
+---
+Task ID: cron30-20261007-1430
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 1430 - face 60's autopsy turned code (the storm's own tally), dispatch law held (the lane's face 61 active)
+
+Work Log:
+- Sandbox survived. Master synced f4e141b (v0.750.0); next free 0.751.0 at open.
+- CI lineage resolved at open: my fire-1400 pending verdict 37580518752 (2140ea8, v0.750.0) SUCCESS - the tree is green. Face 59 (37578185634) completed SUCCESS (mined by fire 1400's own session).
+- FACE 60 AUTOPSIED (37580611393 FAILURE, my x74 dispatch, on 2140ea8): the Integration job died on tests/integration/smelting.test.mjs 'test timed out after 390000ms' - the anatomy: 'SmeltTest was slain by Zombie' at 06:28:52Z (death drop ~65u, re-bootstrapping) and again at 06:30:01Z, then a silent 2m22s hang, then the raw timeout; unit shards green (22+24), the 'Big fleet run (19 bots, optional)' job was SKIPPED - the face was LOST to an environment flake that looked like a pipeline failure. Artifacts: only the 2359-byte fleet-logs (the 2-bot/90s in-job leg) - nothing minable.
+- ONE ATOMIC IMPROVEMENT: THE STORM'S OWN TALLY - the body-count side of the sky policy. nightsafety.mjs grows stormTallySkip(mobDeaths, threshold = MOB_STORM_DEATHS = 2): an unarmoured single-bot chain that has absorbed 2 mob kills is not testing the pipeline any more - it is feeding the storm, and the honest verdict is the same skip the night guard hands out, not a timeout; junk-safe (non-finite/negative never widen the skip). smelting.test.mjs wires the count at its own log sink (the miner's canonical died line's server-kind authority '[kind=mob by Zombie]') and the gate rides EVERY phase boundary next to the budget clock (bootstrap/cobble/table/smelt, t.skip+return); the gate handle is a MODULE-SCOPE dynamic import (the craftItem lesson, v0.93.0).
+- THE VERSION RACE'S 10TH RUN: the lane's fire-1440 took 0.751.0 mid-fire (THE DAY-LOCK, 97d3cd1 - the SAME corpse read from the prevention side: the workflow's day-lock gamerule + the night guard's mid-pipeline re-arm); my rebase dropped my package.json hunk as already-applied (push fc768b9 rode clean on top); the honest retag (72906de) moved MY references to 0.752.0 (the tally block, the test section, the three smelting-test comments, package.json). THEIR cells stay v0.751.0 untouched - the two cures coexist by design: theirs is the PREVENTION layer, mine is the SAFETY NET (any storm the lock and the re-arm miss, day or night, reads the corpses and skips honestly).
+- Tests: nightsafety 21/21 (+3: threshold semantics, junk battery, custom-threshold pricing), unit 298/298 files, syntax 530 0-broken. Integration not re-run locally (test-harness-only diff; the next push-CI's fresh world is the verdict).
+- Pushes: fc768b9 (code) attempt-1 clean over the lane's 97d3cd1; 72906de (retag) attempt-1 clean over the lane's worklog cf3a112 (which names this tally 'the 3rd protective layer' - the lane's own acknowledgment).
+- DISPATCH LAW x75 HELD: the lane's face 61 = 37583836654 (workflow_dispatch, on fc768b9 - the tally + day-lock protected tree) IN_PROGRESS at decision time; max-one-active-fleet-run stands, no duplicate created. My x75 rides the next fire on a clear queue (0.753.0 next slot).
+- CI: my push-CI 37584174932 (72906de) pending at log-off; the worklog push below displaces it (the arbiter pattern) - the tree verdict rides the worklog commit's own run.
+
+Stage Summary:
+- v0.752.0 (THE STORM'S OWN TALLY, 72906de) is master's tip; next free 0.753.0; the lane's face 61 in flight (on fc768b9, the first tree with both protections).
+- FACE 60'S CORPSES ARE NOW HARNESS: the body-count gate turns any mid-test mob storm into the honest skip instead of a 390s pipeline-look-alike failure that loses the whole face.
+- Fronts: face 61's mine (the first fully-protected face - the day-lock's and the tally's joint debut); the economy front (face 59: banked 0 of 2006, leaks 68.3%, the door leg's chest-unreachable 54); the drought's sand seat; the re-entry delayed class's 2nd read.
+- Next fire: (1) CI verdict on the tree (the worklog push's own run) FIRST. (2) poll face 61 (37583836654) - SUCCESS -> mine with the v0.752.0 stack. (3) dispatch law x75 on clear (0.753.0 next slot).
