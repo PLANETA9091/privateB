@@ -6,7 +6,7 @@
 // census owns that lane - one parser per lane, the v0.409.0 split law).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyWalkWhy, parseWalkFail, parseSweepVerdict, classifySweepReason, walkFailCensus } from '../../src/lib/walkfail.mjs'
+import { classifyWalkWhy, parseWalkFail, parseSweepVerdict, classifySweepReason, walkFailCensus, walkFailBotBill, walkFailBotBillRow, walkFailRiders, walkFailRidersRow } from '../../src/lib/walkfail.mjs'
 
 test('walk-fail: the face-25 tool-lane verbatims parse with lane, nudge and bot', () => {
   const a = parseWalkFail('F7 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)')
@@ -205,4 +205,78 @@ test('decide clock: the honest zero keeps the clock shape', () => {
   assert.equal(c.clock.untimed, 0)
   assert.equal(c.clock.clockEnd, 10)
   assert.equal(c.clock.maxBurst, 0)
+})
+
+// (v0.773.0) THE WALK-FAIL'S OWN SEATS - the chest-walk book's bot-level
+// lens tests. The face-72 cell is the mine's own byBot distribution
+// (37632243441): 42 fails across 18 bots, no solo owner - the bill's tie
+// law reads the honest silence and the riders price the crowd.
+test('walk-fail seats: the face-72 cell - the bill silent, the riders price the crowd', () => {
+  // the mine's own per-bot read (decompose-face72.txt line 310), byte-honest
+  const byBot = { F7: 6, F17: 5, F8: 4, F11: 4, F16: 3, F9: 3, F2: 2, F14: 2, F19: 2, F18: 2, F13: 2, F6: 1, F3: 1, F15: 1, F1: 1, F5: 1, F10: 1, F4: 1 }
+  assert.equal(Object.values(byBot).reduce((a, b) => a + b, 0), 42)
+  const bill = walkFailBotBill(byBot)
+  assert.equal(bill, null) // F7's 6 own at most a quarter - no strict majority, the tie law holds
+  const r = walkFailRiders(byBot)
+  assert.deepEqual(r, { leader: 'F7', leaderOwns: 6, runner: 'F17', runnerOwns: 5, ofFails: 42, pairOwns: 11, shareOfFails: 0.262, duet: false })
+  assert.equal(walkFailRidersRow(r), `the walk-fail's own riders (v0.773.0): no solo walker owns the majority - F7 x6 + F17 x5 own 11 of 42 fail(s) (26.2%) - THE CROWD'S OWN WALK: the bill's tie law held, the spread is the shape - the fleet's own crowd prices the starves the solo law refused to name`)
+  // the additive law: the census's own cells stay byte-untouched and the
+  // lens reads THE SAME cell the decompose prints (zero re-parsing)
+  const c = walkFailCensus([
+    'F7 fuel commons: chest walk failed after the nudge (Took to long to decide path to goal!)',
+    'F7 iron commune: chest walk failed (No path to the goal!)',
+    'F17 iron commune: chest walk failed (Took to long to decide path to goal!)',
+    'F8 fuel commons: chest walk failed (iron commune walk @-118,404: timeout after 528ms)'
+  ])
+  assert.equal(c.walk.total, 4)
+  assert.deepEqual(c.walk.byBot, { F7: 2, F17: 1, F8: 1 })
+  const cr = walkFailRiders(c.walk.byBot)
+  assert.deepEqual(cr, { leader: 'F7', leaderOwns: 2, runner: 'F17', runnerOwns: 1, ofFails: 4, pairOwns: 3, shareOfFails: 0.75, duet: false })
+})
+
+test('walk-fail seats: the bill owns in its strict-majority case; the tie owns nothing', () => {
+  const bill = walkFailBotBill({ F7: 23, F17: 5, F8: 4 })
+  assert.deepEqual(bill, { bot: 'F7', owns: 23, ofFails: 32, shareOfFails: 0.719 })
+  assert.equal(walkFailBotBillRow(bill), `the walk-fail's own bill (v0.773.0): F7 owns 23 of 32 fail(s) (71.9%) - THE REPEAT WALKER'S OWN SEAT: one walker's own lanes own the starves - the crowded sky's own verdict prices the walker's walks`)
+  // a tie owns nothing (the storm-has-no-seat precedent) - and the tied
+  // riders keep the deterministic order (count desc, then the name's own)
+  const tie = walkFailBotBill({ F7: 6, F17: 6 })
+  assert.equal(tie, null)
+  const tr = walkFailRiders({ F17: 6, F7: 6 })
+  assert.equal(tr.duet, true)
+  // the deterministic order: count desc, then the NAME's own - and 'F17' <
+  // 'F7' byte-wise ('1' < '7' at index 1), so the tie reads F17 first
+  assert.equal(tr.leader, 'F17')
+  assert.equal(tr.runner, 'F7')
+  assert.equal(walkFailRidersRow(tr), `the walk-fail's own riders (v0.773.0): no solo walker owns the majority - F17 x6 + F7 x6 own 12 of 12 fail(s) (100.0%) - THE CROWD'S OWN WALK: the bill's tie law held, the spread is the shape - the fleet's own crowd prices the starves the solo law refused to name`)
+})
+
+test('walk-fail seats: the junk battery never invents a rider or a shape', () => {
+  for (const junk of [undefined, null, 42, 'str', [], {}]) {
+    assert.equal(walkFailBotBill(junk), null, `bill must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(walkFailRiders(junk), null, `riders must stay silent on ${JSON.stringify(junk)}`)
+    assert.equal(walkFailBotBillRow(junk), null)
+    assert.equal(walkFailRidersRow(junk), null)
+  }
+  // non-finite and non-positive counts are skipped, never priced
+  const skewed = walkFailBotBill({ F7: 3, F9: -1, F10: 0, F11: NaN })
+  assert.deepEqual(skewed, { bot: 'F7', owns: 3, ofFails: 3, shareOfFails: 1 })
+  // a single walker owns the book but the riders need two
+  assert.deepEqual(walkFailRiders({ F7: 6 }), null)
+  // a junk-silent bill feeds no row
+  assert.equal(walkFailBotBillRow({ bot: 'F7', owns: 50, ofFails: 30, shareOfFails: 1.667 }), null)
+})
+
+test('WIRING: decompose seats the walk-fail book in the census\'s own shadow', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  // the branch rides the byBot cell the decompose already prints
+  assert.ok(src.includes('walkFailBotBill(wf.walk.byBot)'), 'the bill must read the census\'s own byBot cell')
+  assert.ok(src.includes('walkFailRiders(wf.walk.byBot)'), 'the riders must read the census\'s own byBot cell')
+  assert.ok(src.includes('walkFailRidersRow'), 'the riders row must ride the import tail')
+  // the row prose lives only in the lib (the v0.767.0 wiring law) - the
+  // anchors are the row tails, NOT the bare 'THE CROWD' (the v0.727.0
+  // crowded-sky row legitimately prints inline in the decompose)
+  assert.ok(!src.includes("THE CROWD'S OWN WALK"), 'the row prose must stay in the lib')
+  assert.ok(!src.includes("THE REPEAT WALKER'S OWN SEAT"), 'the row prose must stay in the lib')
 })

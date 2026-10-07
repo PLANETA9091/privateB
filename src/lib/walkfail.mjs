@@ -210,3 +210,91 @@ export function walkFailCensus (lines) {
   }
   return { walk, sweep, decideTotal: decide, clock: decideClock(stamps, clockEnd) }
 }
+
+// (v0.773.0) THE WALK-FAIL'S OWN BOT BILL - the chest-walk book's bot-level
+// seat. The v0.410.0 census priced the classes and the lanes, the v0.727.0
+// sky priced the decide starve's own hand - no row ever named WHICH walker
+// owns the book (face 72's own census rode the answer raw: 'per bot:
+// F7=6 F17=5 F8=4 F11=4 ...' - 42 fails across 18 bots, no seat). THE BILL
+// LAW (the census's own byBot cell only, zero re-parsing - the v0.767.0
+// bill's own precedent, the cell instead of the event: every chest-walk
+// fail is a defect, no honest lane to spare): the top walker owns the book
+// under the strict-majority law (a tie owns nothing - the storm-has-no-seat
+// precedent). Junk never invents a rider: a missing or empty tally, a
+// non-finite or non-positive count, or a tied spread reads the honest
+// silence (null - the decompose's own guard skips the row).
+export function walkFailBotBill (byBot) {
+  const mix = (byBot && typeof byBot === 'object' && !Array.isArray(byBot)) ? byBot : {}
+  const tallies = {}
+  let total = 0
+  for (const [bot, n] of Object.entries(mix)) {
+    if (typeof bot !== 'string' || !bot || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[bot] = (tallies[bot] || 0) + n
+  }
+  let topUnits = 0
+  let topBot = null
+  for (const [bot, n] of Object.entries(tallies)) {
+    if (n > topUnits) { topUnits = n; topBot = bot }
+  }
+  if (topBot === null || topUnits <= total - topUnits) return null
+  return { bot: topBot, owns: topUnits, ofFails: total, shareOfFails: +(topUnits / total).toFixed(3) }
+}
+
+// (v0.773.0) the bill's own row - THE REPEAT WALKER'S OWN SEAT: the seat
+// names WHO owns the book; the crowded sky's own verdict (v0.727.0) prices
+// the walker's cure. Junk never prints a seat (the honest silence's own
+// row law).
+export function walkFailBotBillRow (bill) {
+  if (!bill || typeof bill !== 'object') return null
+  const { bot, owns, ofFails, shareOfFails } = bill
+  if (typeof bot !== 'string' || !bot || !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || owns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the walk-fail's own bill (v0.773.0): ${bot} owns ${owns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE REPEAT WALKER'S OWN SEAT: one walker's own lanes own the starves - the crowded sky's own verdict prices the walker's walks`
+}
+
+// (v0.773.0) THE WALK-FAIL'S OWN RIDERS - the bill's silence's own
+// companion. The v0.773.0 bill names the solo walker under the
+// strict-majority law; face 72's own census rode the answer raw when the
+// bill went silent (F7=6, F17=5 - the top pair owns 11 of 42, a CROWD at
+// the top, not a duet). THE RIDER LAW (the census's own byBot cell only,
+// zero re-parsing - the bill's own precedent): a MEASURE, never a
+// verdict-owner - the top two walkers' concentration prices the shape the
+// solo law refused to name (the bill's owner case leaves the companion
+// unprinted - the decompose's own branch law). Junk never invents a shape:
+// a missing or empty tally, a non-finite or non-positive count, or fewer
+// than two walkers reads the honest silence (null). The order is
+// deterministic (count desc, then the name's own).
+export function walkFailRiders (byBot) {
+  const mix = (byBot && typeof byBot === 'object' && !Array.isArray(byBot)) ? byBot : {}
+  const tallies = {}
+  let total = 0
+  for (const [bot, n] of Object.entries(mix)) {
+    if (typeof bot !== 'string' || !bot || !Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[bot] = (tallies[bot] || 0) + n
+  }
+  const ranked = Object.entries(tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (total <= 0 || ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofFails: total, pairOwns, shareOfFails: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.773.0) the riders' own row - THE CROWD'S OWN WALK: a measure of the
+// shape, never a named owner (the bill's tie law holds); the pair prices
+// the concentration the solo law refused to seat - and where the hop
+// bleed's pair owned 64%, this book's pair can own a quarter: the crowd is
+// the shape the seat names. Junk never prints a shape (the honest
+// silence's own row law).
+export function walkFailRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofFails, pairOwns, shareOfFails } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofFails) || ofFails <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofFails ||
+      !Number.isFinite(shareOfFails)) return null
+  return `the walk-fail's own riders (v0.773.0): no solo walker owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofFails} fail(s) (${(shareOfFails * 100).toFixed(1)}%) - THE CROWD'S OWN WALK: the bill's tie law held, the spread is the shape - the fleet's own crowd prices the starves the solo law refused to name`
+}
