@@ -5,7 +5,7 @@
 //
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { smeltHold, SMELT_HOLD_RE, SMELT_HOLD_SKIP_RE, SMELT_END_BANK_SKIP_RE, SMELT_LOCAL_FALLBACK_RE } from '../../src/lib/smelthold.mjs'
+import { smeltHold, SMELT_HOLD_RE, SMELT_HOLD_SKIP_RE, SMELT_END_BANK_SKIP_RE, SMELT_LOCAL_FALLBACK_RE, refusalSegClass, refusalSegs, smeltRefusalAnatomy, REFUSAL_SEG_CLASSES } from '../../src/lib/smelthold.mjs'
 import { JUNK_COAL_FLOOR } from '../../src/lib/smelting.mjs'
 
 // Face 42's hold lane, verbatim and in the live order: nine holds -
@@ -202,4 +202,114 @@ test('junk / blob / zero battery', () => {
   const junk = smeltHold(['', 'junk', 42, null, 'F1 bank: holding 45s for the smelt leg'])
   assert.ok(junk)
   assert.equal(junk.holds, 0)
+})
+
+// (v0.753.0) THE REFUSAL'S OWN ANATOMY - face 61's refusal WHY text,
+// byte-verbatim from run 37583836654's fleet19.log (the first
+// fully-protected face), in the live order. Fourteen refusal lines,
+// five distinct voices, one 8-segment multi-skin (F19's timeout plus
+// seven no-fuel retrials), one 2-segment busy pair (F12).
+const FACE61_REFUSALS = [
+  'F2 smelt: 0 (nothing to smelt)',
+  'F2 smelt: 0 (nothing to smelt)',
+  'F9 smelt: 0 (cobblestone@furnace: no fuel)',
+  'F9 smelt: 0 (birch_log@furnace: machine unreachable (fleet goal ceiling: 30 goals fleet-wide in 5s - walk to furnace refused for 3s))',
+  'F8 smelt: 0 (raw_iron@blast_furnace: machine unreachable (visit budget spent (walk slice)))',
+  'F5 smelt: 0 (oak_log@furnace: no fuel)',
+  'F5 smelt: 0 (nothing to smelt)',
+  'F3 smelt: 0 (oak_log@furnace: machine unreachable (fleet goal ceiling: 30 goals fleet-wide in 5s - walk to furnace refused for 3s))',
+  'F19 smelt: 0 (timeout; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel)',
+  'F18 smelt: 0 (cobblestone@furnace: no fuel)',
+  'F13 smelt: 0 (oak_log@furnace: machine unreachable (visit budget spent (walk slice)))',
+  'F13 smelt: 0 (oak_log@furnace: machine unreachable (fleet goal ceiling: 30 goals fleet-wide in 5s - walk to furnace refused for 3s))',
+  'F12 smelt: 0 (cobblestone@furnace: busy; oak_log@furnace: busy cold)',
+  'F1 smelt: 0 (nothing to smelt)'
+]
+
+test('the refusal\'s own anatomy (v0.753.0): the segment classifier reads every face-61 voice', () => {
+  // The single-voice segments.
+  assert.equal(refusalSegClass('nothing to smelt'), 'nothing')
+  assert.equal(refusalSegClass('cobblestone@furnace: no fuel'), 'no-fuel')
+  assert.equal(refusalSegClass('raw_iron@blast_furnace: machine unreachable (visit budget spent (walk slice))'), 'unreachable')
+  assert.equal(refusalSegClass('oak_log@furnace: machine unreachable (fleet goal ceiling: 30 goals fleet-wide in 5s - walk to furnace refused for 3s)'), 'unreachable')
+  assert.equal(refusalSegClass('cobblestone@furnace: busy'), 'busy')
+  assert.equal(refusalSegClass('oak_log@furnace: busy cold'), 'busy')
+  assert.equal(refusalSegClass('timeout'), 'timeout')
+  // The unknown voice reads 'other' (counted, never invented into a named class).
+  assert.equal(refusalSegClass('quantum foam'), 'other')
+  // The fixed vocab is the anatomy's own spine (stable shape for the row printers).
+  assert.deepEqual(REFUSAL_SEG_CLASSES, ['nothing', 'no-fuel', 'busy', 'timeout', 'unreachable', 'other'])
+})
+
+test('the refusal\'s own anatomy (v0.753.0): refusalSegs splits the multi-segment machine skin', () => {
+  // The bare voice.
+  const bare = refusalSegs('nothing to smelt')
+  assert.equal(bare.length, 1)
+  assert.equal(bare[0].cls, 'nothing')
+  assert.equal(bare[0].raw, 'nothing to smelt')
+  // F19's 8-segment skin: one timeout + seven no-fuel retrials.
+  const f19 = refusalSegs('timeout; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel; cobblestone@furnace: no fuel')
+  assert.equal(f19.length, 8)
+  assert.equal(f19[0].cls, 'timeout')
+  assert.equal(f19.slice(1).filter(p => p.cls === 'no-fuel').length, 7)
+  // F12's busy pair.
+  const f12 = refusalSegs('cobblestone@furnace: busy; oak_log@furnace: busy cold')
+  assert.equal(f12.length, 2)
+  assert.deepEqual(f12.map(p => p.cls), ['busy', 'busy'])
+  // The nested parens survive the split (the greedy capture's own law).
+  const f8 = refusalSegs('raw_iron@blast_furnace: machine unreachable (visit budget spent (walk slice))')
+  assert.equal(f8.length, 1)
+  assert.ok(f8[0].raw.endsWith('(walk slice))'))
+})
+
+test('the refusal\'s own anatomy (v0.753.0): smeltRefusalAnatomy prices face 61\'s refusal mix', () => {
+  const a = smeltRefusalAnatomy(FACE61_REFUSALS)
+  assert.ok(a)
+  assert.equal(a.refusals, 14)
+  // The mix: nothing 4 (F2 x2, F5, F1) / no-fuel 10 (F9, F5, F18 + F19's seven) /
+  // unreachable 5 (F9, F8, F3, F13 x2) / busy 2 (F12) / timeout 1 (F19's head).
+  assert.equal(a.segs.nothing, 4)
+  assert.equal(a.segs['no-fuel'], 10)
+  assert.equal(a.segs.unreachable, 5)
+  assert.equal(a.segs.busy, 2)
+  assert.equal(a.segs.timeout, 1)
+  assert.equal(a.segs.other, 0)
+  // The multi-segment skins: F19 (8 segs) and F12 (2 segs).
+  assert.equal(a.multi, 2)
+  // The roster: 9 distinct bots spoke (F2, F9, F8, F5, F3, F19, F18, F13, F12, F1 = 10).
+  assert.equal(Object.keys(a.byBot).length, 10)
+  assert.equal(a.byBot.F13, 2)
+  assert.equal(a.rows.length, 14)
+  // F19's row carries the whole 8-voice read in live order.
+  const f19row = a.rows.find(r => r.bot === 'F19')
+  assert.equal(f19row.classes.length, 8)
+  assert.equal(f19row.classes[0], 'timeout')
+})
+
+test('the refusal\'s own anatomy (v0.753.0): junk battery - no anatomy from nothing', () => {
+  // The WHY-text edges.
+  assert.equal(refusalSegs(42), null)
+  assert.equal(refusalSegs(null), null)
+  assert.equal(refusalSegs(''), null)
+  assert.equal(refusalSegs('   '), null)
+  // The scan's edges.
+  assert.equal(smeltRefusalAnatomy(null), null)
+  assert.equal(smeltRefusalAnatomy('a string'), null)
+  assert.equal(smeltRefusalAnatomy(42), null)
+  const empty = smeltRefusalAnatomy([])
+  assert.ok(empty)
+  assert.equal(empty.refusals, 0)
+  assert.equal(empty.multi, 0)
+  assert.deepEqual(empty.segs, { nothing: 0, 'no-fuel': 0, busy: 0, timeout: 0, unreachable: 0, other: 0 })
+  // Junk lines are skipped, never a crash; the yield line is NOT a refusal.
+  const junk = smeltRefusalAnatomy([42, null, '', 'F1 smelt: 2 (something real)', 'junk', FACE61_REFUSALS[0]])
+  assert.equal(junk.refusals, 1)
+  assert.equal(junk.segs.nothing, 1)
+  // The coarse lens is untouched: the v0.491.0 refusedWhy still reads {nothing, machine}
+  // on the same face (the two generations coexist, the parse never forks).
+  const sh = smeltHold([...FACE42_MINI])
+  assert.ok(sh)
+  assert.equal(sh.fates.refused, 2)
+  assert.equal(sh.refusedWhy.nothing, 1)
+  assert.equal(sh.refusedWhy.machine, 1)
 })

@@ -189,3 +189,73 @@ export function smeltHold (lines) {
     skips: skips.length, skipClasses, endBankStandalone, rows
   }
 }
+
+// (v0.753.0) THE REFUSAL'S OWN ANATOMY - the refusal WHY text learns to
+// speak in segments. The v0.491.0 lens read the refusal's fate wide but
+// its WHY coarse: refusalClass knows exactly two verdicts (nothing /
+// machine) and the multi-segment machine skin rides as one undecoded
+// blob. Face 61 (fleet 37583836654, the first fully-protected face)
+// made the coarseness unignorable: 14 refusal lines carried at least
+// five distinct voices the two-class lens lumps together -
+//
+//   F2  smelt: 0 (nothing to smelt)                                     -> nothing
+//   F9  smelt: 0 (cobblestone@furnace: no fuel)                         -> no-fuel
+//   F8  smelt: 0 (raw_iron@blast_furnace: machine unreachable (visit
+//       budget spent (walk slice)))                                     -> unreachable
+//   F3  smelt: 0 (oak_log@furnace: machine unreachable (fleet goal
+//       ceiling: 30 goals fleet-wide in 5s - walk to furnace refused
+//       for 3s))                                                        -> unreachable
+//   F12 smelt: 0 (cobblestone@furnace: busy; oak_log@furnace: busy cold) -> busy x2
+//   F19 smelt: 0 (timeout; cobblestone@furnace: no fuel; x7)            -> timeout + no-fuel x7
+//
+// THE WIRE: the machine skin nests its segments after '; ' and each
+// segment names its own voice - the anatomy splits the greedy capture
+// (SMELT_HOLD_REFUSAL_RE already anchors to the LAST closing paren, so
+// the nested parens survive), classifies every segment, and prices the
+// fleet's refusal mix. The coarse lens is UNTOUCHED (refusedWhy keeps
+// its {nothing, machine} shape - decompose's v0.491.0 row reads it
+// byte-identical); the anatomy is the additive generation beside it.
+// Junk law: a non-string / blank WHY reads null (no anatomy from
+// nothing); an unknown segment voice reads 'other' (counted, never
+// invented into a named class); a junk line is skipped, never a crash.
+export const REFUSAL_SEG_CLASSES = ['nothing', 'no-fuel', 'busy', 'timeout', 'unreachable', 'other']
+
+export function refusalSegClass (seg) {
+  if (typeof seg !== 'string') return 'other'
+  const s = seg.toLowerCase()
+  if (s === 'nothing to smelt') return 'nothing'
+  if (s.includes('no fuel')) return 'no-fuel'
+  if (s.includes('busy')) return 'busy'
+  if (s.includes('timeout')) return 'timeout'
+  if (s.includes('unreachable')) return 'unreachable'
+  return 'other'
+}
+
+export function refusalSegs (why) {
+  if (typeof why !== 'string' || why.trim() === '') return null
+  return why.split(';')
+    .map(s => s.trim())
+    .filter(s => s !== '')
+    .map(raw => ({ raw, cls: refusalSegClass(raw) }))
+}
+
+export function smeltRefusalAnatomy (lines) {
+  if (!Array.isArray(lines)) return null
+  const segs = {}
+  for (const c of REFUSAL_SEG_CLASSES) segs[c] = 0
+  const byBot = {}
+  const rows = []
+  let multi = 0
+  for (const line of lines) {
+    if (typeof line !== 'string') continue
+    const m = SMELT_HOLD_REFUSAL_RE.exec(line)
+    if (!m) continue
+    const parts = refusalSegs(m[2]) || []
+    const classes = parts.map(p => p.cls)
+    for (const c of classes) segs[c] = (segs[c] || 0) + 1
+    byBot[m[1]] = (byBot[m[1]] || 0) + 1
+    if (parts.length > 1) multi++
+    rows.push({ bot: m[1], classes, raw: m[2] })
+  }
+  return { refusals: rows.length, segs, byBot, multi, rows }
+}

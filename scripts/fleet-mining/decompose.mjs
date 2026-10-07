@@ -53,7 +53,7 @@ import { woodClimbCost } from '../../src/lib/climbcost.mjs' // (v0.694.0) the cl
 import { woodRefusalCensus } from '../../src/lib/climbrefusal.mjs' // (v0.691.0) the refusal's why - the climb-fail→refusal join names the walk's start seat
 import { smeltVerdict } from '../../src/lib/smeltverdict.mjs' // (v0.490.0) the smelt verdict - the furnace's own report card (the yield line graded against its own forecast; SLOT COLLISION #15: 0.489.0 taken by fire-2238's THE SHIELD LADDER mid-fire)
 import { ringAfter } from '../../src/lib/ringafter.mjs' // (v0.493.0) the ring aftermath - what the ring landing bought (the shield ladder's book joined forward: the sieve, the siege, the hold)
-import { smeltHold } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did)
+import { smeltHold, smeltRefusalAnatomy } from '../../src/lib/smelthold.mjs' // (v0.491.0) the smelt hold ledger - the reserve decision's own fate (the hold joined to what the leg then did); + (v0.753.0) the refusal's own anatomy
 import { toolRecovery } from '../../src/lib/toolrecovery.mjs' // (v0.492.0) the recovery book - the pick-less bootstrap's own report card
 import { stickBill } from '../../src/lib/stickbill.mjs' // (v0.711.0) the stick economy's own bill - the four lanes' stick cells folded into one toll
 import { chaseBill } from '../../src/lib/chasebill.mjs' // (v0.712.0) the chase's own geometry - the chased deaths' killDelta bill (the speed gap vs the trade lost)
@@ -3115,6 +3115,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     fbits.push(`fired+yield ${sh.fates.fired} (${sh.firedActualTotal}u)`)
     if (sh.fates.firedZero) fbits.push(`fired-ZERO ${sh.fates.firedZero} (the in-flight batch)`)
     fbits.push(`refused ${sh.fates.refused} (nothing ${sh.refusedWhy.nothing} / machine ${sh.refusedWhy.machine})`)
+    // (v0.753.0) the refusal's own anatomy - the segment mix beside the coarse
+    // v0.491.0 two-class read (the same 14-line face-61 corpus, five voices).
+    const ra = smeltRefusalAnatomy(lines)
+    if (ra && ra.refusals > 0) {
+      fbits.push(`refusal anatomy: nothing ${ra.segs.nothing} / no-fuel ${ra.segs['no-fuel']} / unreachable ${ra.segs.unreachable} / busy ${ra.segs.busy} / timeout ${ra.segs.timeout} / other ${ra.segs.other} (multi-skin ${ra.multi})`)
+    }
     if (sh.fates.budgetDied) fbits.push(`budget-died ${sh.fates.budgetDied}`)
     if (sh.fates.unresolved) fbits.push(`unresolved ${sh.fates.unresolved}`)
     if (sh.fallbacks) fbits.push(`fallback-noted ${sh.fallbacks} (prose never closes)`)
