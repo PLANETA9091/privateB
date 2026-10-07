@@ -253,7 +253,7 @@ export function deathKindCensus (lines) {
   return { total, byKind, byBot, vertical, verticalCount: vertical.length, unparsed, inferredOnly, inferredOnlyCount: inferredOnly.length, otherVerbs, inference }
 }
 
-// (v0.783.0) THE DEATHS' OWN KIND - the death book's own kind seat. The
+// (v0.784.0) THE DEATHS' OWN KIND - the death book's own kind seat. The
 // v0.425.0 census priced every death's kind and the raw causes line
 // printed the buckets - no row ever named WHICH kind owns the death
 // book (face 77's own line rode raw: 'death causes: drown=4 fall=1' -
@@ -300,7 +300,7 @@ export function deathKindBill (census) {
   return { kind: topKind, owns: topUnits, ofDeaths: t.total, shareOfDeaths: +(topUnits / t.total).toFixed(3) }
 }
 
-// (v0.783.0) the kind seat's own row - THE KIND'S OWN SEAT: the seat
+// (v0.784.0) the kind seat's own row - THE KIND'S OWN SEAT: the seat
 // names WHICH kind owns the death book; the kind's own front prices
 // the cure (a drown crowd is the water's own levy, an explosion crowd
 // the blast's own tax, a mob crowd the siege's own win). Junk never
@@ -312,10 +312,10 @@ export function deathKindBillRow (bill) {
       !Number.isFinite(owns) || owns <= 0 ||
       !Number.isFinite(ofDeaths) || ofDeaths <= 0 || owns > ofDeaths ||
       !Number.isFinite(shareOfDeaths)) return null
-  return `the deaths' own kind (v0.783.0): ${kind} owns ${owns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed`
+  return `the deaths' own kind (v0.784.0): ${kind} owns ${owns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed`
 }
 
-// (v0.783.0) THE DEATHS' OWN KIND RIDERS - the kind seat's own
+// (v0.784.0) THE DEATHS' OWN KIND RIDERS - the kind seat's own
 // silence's companion. The seat names the solo kind under the
 // strict-majority law; a no-majority death mix rode raw with no row
 // naming the shape. THE RIDER LAW (the census's own byKind cell only,
@@ -339,7 +339,7 @@ export function deathKindRiders (census) {
   return { leader, leaderOwns, runner, runnerOwns, ofDeaths: t.total, pairOwns, shareOfDeaths: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
 }
 
-// (v0.783.0) the kind riders' own row - THE KIND'S OWN MIX: a measure
+// (v0.784.0) the kind riders' own row - THE KIND'S OWN MIX: a measure
 // of the shape, never a named owner (the seat's tie law holds); the
 // pair prices the concentration the solo law refused to seat. Junk
 // never prints a shape (the honest silence's own row law).
@@ -350,5 +350,5 @@ export function deathKindRidersRow (r) {
       !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
       !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
       !Number.isFinite(shareOfDeaths)) return null
-  return `the deaths' own kind riders (v0.783.0): no solo kind owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name`
+  return `the deaths' own kind riders (v0.784.0): no solo kind owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name`
 }

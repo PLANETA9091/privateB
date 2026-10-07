@@ -114,7 +114,7 @@ test('a non-array input judges nothing (junk-safe by contract)', () => {
 
 test('WIRING: the decompose prints the causes row and the vertical rows (the DEATHS block)', () => {
   const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
-  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.783.0: the kind seat rides too)')
+  assert.match(src, /import \{ deathKindCensus, deathKindBill, deathKindBillRow, deathKindRiders, deathKindRidersRow \} from '\.\.\/\.\.\/src\/lib\/deathkinds\.mjs'/, 'the census import rides the decompose head (v0.784.0: the kind seat rides too)')
   assert.match(src, /death causes: \$\{causeRow\}\$\{inferredNote\}\$\{unparsedNote\}/, 'the mechanical causes row prints on every face (v0.672.0: the inferred-only note rides too)')
   assert.match(src, /vertical death: \$\{v\.bot\}/, 'the vertical row names the front\'s witness')
 })
@@ -463,7 +463,7 @@ test("the zero shape and the class's debut - the face-27 anatomy retro-reads the
   })
 })
 
-// (v0.783.0) THE DEATHS' OWN KIND - the seat + the riders. The face-77
+// (v0.784.0) THE DEATHS' OWN KIND - the seat + the riders. The face-77
 // and face-75 verbatims byte for byte from the artifacts (37658837046,
 // 37649886742) - the mine's own answer: the owner churns face-local
 // (mob 73 -> drown 74 -> duet 75 -> explosion 76 -> drown 77), the seat
@@ -489,7 +489,7 @@ test('the face-77 cell through the seat - the drown majority owns the book, the 
   assert.deepEqual(b, { kind: 'drown', owns: 5, ofDeaths: 6, shareOfDeaths: 0.833 })
   assert.equal(
     deathKindBillRow(b),
-    "the deaths' own kind (v0.783.0): drown owns 5 of 6 death(s) (83.3%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
+    "the deaths' own kind (v0.784.0): drown owns 5 of 6 death(s) (83.3%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
   )
   // the riders stay a MEASURE even in the owner case (the seat's own
   // precedent) - the decompose's branch law leaves the companion
@@ -514,7 +514,7 @@ test("the face-75 duet - the tie law holds the seat silent, the riders measure t
   assert.equal(r.runner, 'mob') // 5 vs 5 - the name's own byte breaks the rank order
   assert.equal(
     deathKindRidersRow(r),
-    "the deaths' own kind riders (v0.783.0): no solo kind owns the majority - drown x5 + mob x5 own 10 of 11 death(s) (90.9%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name"
+    "the deaths' own kind riders (v0.784.0): no solo kind owns the majority - drown x5 + mob x5 own 10 of 11 death(s) (90.9%) - THE KIND'S OWN MIX: the seat's tie law held, the mix is the shape - the deaths' own crowd prices the kinds the solo law refused to name"
   )
   // the byte order pin: an equal-count mix ranks by the name's own byte
   const bytes = deathKindRiders(deathKindCensus([FACE77_FALL_F2, FACE76_EXPLOSION_F14]))
@@ -527,7 +527,7 @@ test('the byte-exact rows and the junk battery - the unknown fence, the non-fini
   const solo = deathKindBill(deathKindCensus([FACE76_EXPLOSION_F14]))
   assert.equal(
     deathKindBillRow(solo),
-    "the deaths' own kind (v0.783.0): explosion owns 1 of 1 death(s) (100.0%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
+    "the deaths' own kind (v0.784.0): explosion owns 1 of 1 death(s) (100.0%) - THE KIND'S OWN SEAT: one kind's own deaths own the book - the kind's own front prices the deaths the raw split rode unnamed"
   )
   // the unknown fence: a death nobody named a kind for closes no seat
   const fenced = { byKind: { drown: 2, unknown: 3 } }
