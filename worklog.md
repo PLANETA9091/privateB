@@ -19048,3 +19048,18 @@ Stage Summary:
 - Face 67's truth: the seat held 3 faces (71.8% failed-walks); the chains' ask hit a record 4491s; the kick kinds' front is the client's own stall.
 - Fronts: face 68's mine (the kick verdict's 2nd read + the bleed row's debut); the chains' 4491s ask (the deadline's own scale); the budget-floor's lead in the bleed spread (12/28).
 - Next fire: (1) CI verdicts on 37612703346 BY RUN ID. (2) poll face 68 (37612717888) - SUCCESS -> mine with the v0.763.0 stack. (3) dispatch law x82 on clear (0.764.0 next slot).
+
+---
+Task ID: cron30-20261007-1830 (addendum - the dispatch correction)
+Agent: cron-agent (PLANETA9091)
+Task: the duplicate-dispatch correction - the poll-before-duplicate law re-applied
+
+Work Log:
+- The runs list pulled at this fire's dispatch decision (per_page=4) missed the lane's x81 dispatch run 37610367304 (deeper in the list, IN_PROGRESS at that moment) - my x81 dispatch 37612717888 materialized as a duplicate pending run beside it. The law says maximum ONE active fleet-run.
+- CORRECTION: my pending 37612717888 CANCELLED (POST cancel, HTTP 202 -> completed:cancelled) - the lane's face 68 (37610367304, on fdd38cc) owns the slot. My dispatch was not a duplicate at creation by the visible evidence, but the incomplete poll made it one in fact - the correction is the honest close.
+- The face numbering: the lane's 37610367304 = their face 68; my cancelled run would have been the 69th - no numbering conflict survives.
+- Code CI: my 6b5ff17 run 37612703346 CANCELLED (concurrency, the lane's pushes superseded); the newest push-CI on c5a2dae carries the tree verdict - rides the next fire.
+
+Stage Summary:
+- The slot belongs to the lane's face 68 (37610367304, in flight); dispatch law: NO new dispatch until it completes (the next fire polls it first).
+- v0.763.0 (THE KICK KINDS' OWN VERDICT, 6b5ff17) stays master's tip alongside the lane's b33268c/c5a2dae worklogs; next free 0.764.0.
