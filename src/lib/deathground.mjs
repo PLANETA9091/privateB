@@ -107,3 +107,99 @@ export function deathGrounds (lines) {
     singles: grounds.filter(g => g.n === 1).length
   }
 }
+
+// (v0.792.0) THE DEATH GROUND'S OWN SEAT - WHICH ground owns the combat
+// death book. The census row named the grounds' counts ('ground [-140,394]
+// x5 (Drowned:4 Zombie:1)' - face 81's own read: one shore nest took five
+// bots) while the WHO rode raw: no row ever said WHICH ground's own deaths
+// own the book (the v0.466.0 cross-read priced the SHARED share - face 81's
+// 'deaths on shared grounds 12 of 17' - never the owner). THE SEAT LAW (the
+// census's own ground cells only, zero re-parsing - the v0.784.0 kind-seat
+// precedent, the v0.791.0 arena seat's own shape): the strict-majority law
+// - a solo ground owns the book only above half (a tie owns nothing); the
+// book is the grounds cells' own sum (a blind death rides no ground - the
+// placed book only prices what the census placed, the blind stay the join's
+// own honest outside); junk never invents a ground (a missing or non-object
+// census, a grounds cell without a finite place or count, or no counted
+// ground reads the honest silence - null, the decompose's own guard skips
+// the row). The ground's own name is the census's own display key - the
+// seed coord bracket '[x,z]' the decompose's row already speaks.
+function groundTally (dg) {
+  if (!dg || typeof dg !== 'object' || Array.isArray(dg)) return null
+  if (!Array.isArray(dg.grounds)) return null
+  const tallies = {}
+  let total = 0
+  for (const g of dg.grounds) {
+    if (!g || typeof g !== 'object') continue
+    const n = g.n
+    if (!Number.isFinite(n) || n <= 0 || !Number.isFinite(g.x) || !Number.isFinite(g.z)) continue
+    const key = `[${g.x},${g.z}]`
+    total += n
+    tallies[key] = (tallies[key] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function deathGroundSeat (dg) {
+  const t = groundTally(dg)
+  if (!t) return null
+  let topOwns = 0
+  let topGround = null
+  for (const [ground, n] of Object.entries(t.tallies)) {
+    if (n > topOwns) { topOwns = n; topGround = ground }
+  }
+  if (topGround === null || topOwns <= t.total - topOwns) return null
+  return { ground: topGround, owns: topOwns, ofDeaths: t.total, shareOfDeaths: +(topOwns / t.total).toFixed(3) }
+}
+
+// (v0.792.0) the ground seat's own row - THE GROUND'S OWN SEAT: the seat
+// names WHICH ground owns the combat book; the nest's own geometry prices
+// the mob front (a solo ground is the nest harvest's own signature - the
+// cure digs there, not everywhere). Junk never prints a seat (the honest
+// silence's own row law).
+export function deathGroundSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { ground, owns, ofDeaths, shareOfDeaths } = seat
+  if (typeof ground !== 'string' || !ground ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || owns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the death ground's own seat (v0.792.0): ground ${ground} owns ${owns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN SEAT: one ground's own deaths own the combat book - the nest's own geometry prices the front the raw split rode unnamed`
+}
+
+// (v0.792.0) THE DEATH GROUND'S OWN RIDERS - the ground seat's own
+// silence's companion. The seat names the solo ground under the
+// strict-majority law; a no-majority ground mix rode raw with no row naming
+// the shape. THE RIDER LAW (the census's own ground cells only, zero
+// re-parsing - the seat's own precedent): a MEASURE, never a verdict-owner
+// - the top two grounds' concentration prices the shape the solo law
+// refused to name (the seat's owner case leaves the companion unprinted -
+// the decompose's own branch law). Junk never invents a shape: a missing or
+// non-object census, a grounds cell without a finite place or count, or
+// fewer than two counted grounds reads the honest silence (null). The order
+// is deterministic (count desc, then the ground's own byte: the key's own
+// lexicographic law - '[-125,394]' < '[-140,394]').
+export function deathGroundRiders (dg) {
+  const t = groundTally(dg)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofDeaths: t.total, pairOwns, shareOfDeaths: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.792.0) the ground riders' own row - THE GROUND'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function deathGroundRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofDeaths, pairOwns, shareOfDeaths } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofDeaths) || ofDeaths <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofDeaths ||
+      !Number.isFinite(shareOfDeaths)) return null
+  return `the death ground's own riders (v0.792.0): no solo ground owns the majority - ground ${leader} x${leaderOwns} + ground ${runner} x${runnerOwns} own ${pairOwns} of ${ofDeaths} combat death(s) (${(shareOfDeaths * 100).toFixed(1)}%) - THE GROUND'S OWN MIX: the seat's tie law held, the mix is the shape - the grounds' own geometry prices the book the solo law refused to seat`
+}
