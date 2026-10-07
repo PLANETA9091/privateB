@@ -120,6 +120,26 @@ export const SMELT_TOOK_RE = /^\[(F\d+)\] took (\d+) x ([a-z_]+) \((\d+)\/(\d+)\
 // clock clips, no row (the window is always numeric - no unknown gap
 // class exists here).
 
+// (v0.749.0) THE PLAN'S OWN MARGIN - THE RECORD'S OWN CORRECTION (the
+// v0.745.0 precedent). The v0.748.0 read treated the clip line's ~C as
+// 'completed unit(s)' and priced the shortfall against the vanilla bar
+// as an unknown idle (fuel/input gaps mid-window - the next read's
+// subject). The emitter's own words disagree: smelting.mjs prices the
+// cap at PUT time (clockCapItems = max(1, floor(W / 11)), the 11s bar
+// being 'vanilla 10s + lag margin') and logs the line BEFORE the put -
+// the ~C is what the plan PUT, never what the furnace completed
+// (verified: all six of the 58th's windows match floor(W/11) exactly,
+// including the one-item floor's own 5s put). The idle is REAL but its
+// cause is the plan's own design: the margin exists so the poll window
+// finishes the batch AND harvests it (the v0.112.0 timeout path pulls
+// un-smelted input back - the churn is the cost the margin buys off).
+// The correction prices the margin in the machine's own seconds: per
+// clip max(0, W - 10 x cap), the vanilla bar's own remainder. The two
+// classes re-derive: idle > 0 = the 11s plan bar is the tax (the
+// harvest's own margin) / idle = 0 = the plan's own puts outran the
+// vanilla bar (the window's tail rides the next chain - the margin in
+// reverse: the put outlives the window and the harvest lands late).
+
 import { fuelYieldOf, SMELT_SECONDS_PER_ITEM } from './smelting.mjs' // (v0.747.0) the vanilla yield table's own voice - the diet row's capacity bar, never a made constant (the fueldiet.mjs precedent; smelting never imports smeltledger - no cycle); (v0.748.0) SMELT_SECONDS_PER_ITEM - the clock window's own vanilla bar (200 ticks / 20 tps)
 
 /**
@@ -159,6 +179,7 @@ export function smeltLedger (lines) {
     fuelClipFuelItems: {}, // (v0.747.0) the clip fuel by item (fc[3])
     fuelClipCapacity: 0, // (v0.747.0) the vanilla capacity that fuel carried (sum fc[2] x fuelYieldOf(fc[3]))
     clockClipWindowSec: 0, // (v0.748.0) the window seconds the clock clip lines carried verbatim (cc[2] - matched and dropped before); kept INTEGER here, the capacity's division lives once at the row (the accumulation's own float drift is the trap)
+    clockClipIdleSec: 0, // (v0.749.0) the machine's own unpaid seconds inside the plan's windows (per clip max(0, W - 10 x cap); the plan's own 11s bar is the cause, never a fuel/input gap - the emitter caps the put at floor(W/11) BEFORE the put)
     byBot: {}
   }
   // (v0.745.0) the outstanding clip debt per bot|item, in walk order
@@ -223,6 +244,13 @@ export function smeltLedger (lines) {
       // (v0.748.0) the clock's own window - the seconds the line carried
       // verbatim (cc[2]), the clock class's own worth leg
       ledger.clockClipWindowSec += Number(cc[2])
+      // (v0.749.0) the plan's own margin - the emitter prices the cap at
+      // PUT time (smelting.mjs: clockCapItems = max(1, floor(W / 11)), the
+      // 11s bar being 'vanilla 10s + lag margin'), so the ~C is what the
+      // plan PUT, never what the furnace completed; the machine's own
+      // unpaid time inside the plan's window is the vanilla bar's own
+      // remainder: max(0, W - 10 x cap), integer seconds
+      ledger.clockClipIdleSec += Math.max(0, Number(cc[2]) - SMELT_SECONDS_PER_ITEM * Number(cc[3]))
       bot(cc[1]).clips++
       // (v0.744.0) the clip's own debt - the clock class's own deficit
       const debt = Number(cc[4]) - Number(cc[3])
@@ -298,21 +326,21 @@ export function clipDietRow (ledger) {
   return `the clip's own diet: the fuel clips burned ${ledger.fuelClipFuel} fuel-unit(s) (${items}) for ${ledger.fuelClipCompleted} completed unit(s) - the vanilla capacity ${ledger.fuelClipCapacity} paid ${pct}% (${verdict})`
 }
 
-// (v0.748.0) ONE verdict line, only when a clock clip stood at all (zero
-// clock clips = the honest silence - the fuel-only faces read nothing
-// here). The join: delivered vs the vanilla capacity the windows carried
-// (SMELT_SECONDS_PER_ITEM's own bar, never a made constant). Two
-// classes, exclusive: below 100% = the furnace idled inside the window
-// (the idle's own tax rode the same windows) / at-or-above 100% = the
-// furnace kept the vanilla beat (the window was its own metronome).
+// (v0.749.0) ONE verdict line, only when a clock clip stood at all (zero
+// clock clips = the honest silence). THE CORRECTED READ (the record's own
+// correction - the ~C is the plan's own put cap, floor(W/11) at the
+// emitter, never the furnace's completed count): the row prices the
+// plan's own margin in the machine's own seconds. Two classes,
+// exclusive: idle > 0 = the 11s plan bar is the tax (the harvest's own
+// margin) / idle = 0 = the plan's own puts outran the vanilla bar (the
+// window's tail rides the next chain).
 export function clockWindowRow (ledger) {
   if (!ledger || !(ledger.clockClips > 0)) return null
-  const cap = ledger.clockClipWindowSec / SMELT_SECONDS_PER_ITEM
-  const pct = Math.round(100 * ledger.clockClipCompleted / cap)
-  const verdict = pct >= 100
-    ? 'the furnace kept the vanilla beat - the window was its own metronome'
-    : 'the furnace idled inside the window - the idle\'s own tax rode the same windows'
-  return `the clock's own window: the clock clips burned ${ledger.clockClipWindowSec}s of window for ${ledger.clockClipCompleted} completed unit(s) - the vanilla capacity ${cap} paid ${pct}% (${verdict})`
+  const bar = ledger.clockClipWindowSec / SMELT_SECONDS_PER_ITEM
+  const verdict = ledger.clockClipIdleSec > 0
+    ? 'the plan\'s own 11s bar is the tax - the harvest\'s own margin'
+    : 'the plan\'s own puts outran the vanilla bar - the window\'s tail rides the next chain'
+  return `the clock's own window: the clock clips burned ${ledger.clockClipWindowSec}s of window for ${ledger.clockClipCompleted} unit(s) put (the plan's own cap) - the vanilla capacity ${bar} left ${ledger.clockClipIdleSec}s idle (${verdict})`
 }
 
 // (v0.749.0) THE CLOCK ASK'S OWN SCALE - the batch's own size, priced

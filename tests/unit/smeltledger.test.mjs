@@ -341,9 +341,9 @@ test('clip-diet: the honest silences, the unknown-fuel gap and the junk fences',
   assert.equal(junked.fuelClipFuel, 0)
 })
 
-// ---- (v0.748.0) THE CLOCK'S OWN WINDOW ----
+// ---- (v0.749.0) THE PLAN'S OWN MARGIN (the clock window's own correction) ----
 
-test('clock-window: the 58th\'s six windows - 190s for 16 completed, capacity 19, paid 84% (the idle\'s own tax)', () => {
+test('clock-window: the 58th\'s six windows - 190s, 16 unit(s) put, capacity 19, 35s of the plan\'s own idle', () => {
   const lines = [
     '[F14] fuel clips the batch: 3 x oak_log completes 4 of 6 x cobblestone (the rest re-smelts on the next chain)',
     '[F1] the clock clips the batch: the 83s window completes ~7 of 36 x raw_copper (the rest re-smelts on the next chain)',
@@ -362,26 +362,39 @@ test('clock-window: the 58th\'s six windows - 190s for 16 completed, capacity 19
   assert.equal(l.clipDebtClock, 121)
   // the window's own read - integer seconds, one division at the row
   assert.equal(l.clockClipWindowSec, 190, '83+47+24+18+13+5 - the line\'s own seconds, matched and dropped before')
+  // (v0.749.0) the plan's own margin: per clip max(0, W - 10 x cap)
+  // 83-70=13, 47-40=7, 24-20=4, 18-10=8, 13-10=3, 5-10<0=0 -> 35
+  assert.equal(l.clockClipIdleSec, 35)
+  // the ~C is the plan's own cap - floor(W/11) at the emitter, verified per window
+  assert.equal(7, Math.floor(83 / 11))
+  assert.equal(4, Math.floor(47 / 11))
+  assert.equal(2, Math.floor(24 / 11))
+  assert.equal(1, Math.floor(18 / 11))
+  assert.equal(1, Math.floor(13 / 11))
+  assert.equal(1, Math.max(1, Math.floor(5 / 11)))
   const row = clockWindowRow(l)
   assert.ok(row)
-  assert.equal(row, "the clock's own window: the clock clips burned 190s of window for 16 completed unit(s) - the vanilla capacity 19 paid 84% (the furnace idled inside the window - the idle's own tax rode the same windows)")
+  assert.equal(row, "the clock's own window: the clock clips burned 190s of window for 16 unit(s) put (the plan's own cap) - the vanilla capacity 19 left 35s idle (the plan's own 11s bar is the tax - the harvest's own margin)")
 })
 
-test('clock-window: the vanilla metronome held - paid in full and the short-window overshoot', () => {
-  // a window that delivered everything vanilla allows (20s -> capacity 2, delivered 2)
+test('clock-window: the overshoot class - the plan\'s own puts outran the vanilla bar (the tail rides the next chain)', () => {
+  // 20s window put 2 (the plan's cap) - the vanilla bar consumed exactly (20 - 20 = 0 idle)
   const beat = smeltLedger(['[F7] the clock clips the batch: the 20s window completes ~2 of 36 x raw_copper (the rest re-smelts on the next chain)'])
   assert.equal(beat.clockClipWindowSec, 20)
-  assert.equal(clockWindowRow(beat), "the clock's own window: the clock clips burned 20s of window for 2 completed unit(s) - the vanilla capacity 2 paid 100% (the furnace kept the vanilla beat - the window was its own metronome)")
-  // a short window can overshoot - a unit mid-flight at window open finishes inside it (5s -> capacity 0.5, delivered 1)
+  assert.equal(beat.clockClipIdleSec, 0)
+  assert.equal(clockWindowRow(beat), "the clock's own window: the clock clips burned 20s of window for 2 unit(s) put (the plan's own cap) - the vanilla capacity 2 left 0s idle (the plan's own puts outran the vanilla bar - the window's tail rides the next chain)")
+  // a short window's one-item floor puts past the vanilla bar (5s put 1, bar 0.5 - the item finishes at 10s, past the window)
   const over = smeltLedger(['[F2] the clock clips the batch: the 5s window completes ~1 of 22 x raw_copper (the rest re-smelts on the next chain)'])
   assert.equal(over.clockClipWindowSec, 5)
-  assert.equal(clockWindowRow(over), "the clock's own window: the clock clips burned 5s of window for 1 completed unit(s) - the vanilla capacity 0.5 paid 200% (the furnace kept the vanilla beat - the window was its own metronome)")
+  assert.equal(over.clockClipIdleSec, 0, '5 - 10 x 1 < 0 - floored at 0')
+  assert.equal(clockWindowRow(over), "the clock's own window: the clock clips burned 5s of window for 1 unit(s) put (the plan's own cap) - the vanilla capacity 0.5 left 0s idle (the plan's own puts outran the vanilla bar - the window's tail rides the next chain)")
 })
 
-test('clock-window: the non-integer capacity renders the vanilla decimal (47s -> 4.7, paid 85%)', () => {
+test('clock-window: the non-integer capacity renders the vanilla decimal (47s -> 4.7, 7s idle)', () => {
   const l = smeltLedger(['[F1] the clock clips the batch: the 47s window completes ~4 of 29 x raw_copper (the rest re-smelts on the next chain)'])
   assert.equal(l.clockClipWindowSec, 47)
-  assert.equal(clockWindowRow(l), "the clock's own window: the clock clips burned 47s of window for 4 completed unit(s) - the vanilla capacity 4.7 paid 85% (the furnace idled inside the window - the idle's own tax rode the same windows)")
+  assert.equal(l.clockClipIdleSec, 7, '47 - 10 x 4')
+  assert.equal(clockWindowRow(l), "the clock's own window: the clock clips burned 47s of window for 4 unit(s) put (the plan's own cap) - the vanilla capacity 4.7 left 7s idle (the plan's own 11s bar is the tax - the harvest's own margin)")
 })
 
 test('clock-window: the honest silences and the junk fences', () => {
@@ -389,6 +402,7 @@ test('clock-window: the honest silences and the junk fences', () => {
   const fuelOnly = smeltLedger(['[F4] fuel clips the batch: 2 x coal completes 16 of 33 x raw_copper (the rest re-smelts on the next chain)'])
   assert.equal(fuelOnly.clockClips, 0)
   assert.equal(fuelOnly.clockClipWindowSec, 0)
+  assert.equal(fuelOnly.clockClipIdleSec, 0)
   assert.equal(clockWindowRow(fuelOnly), null, 'zero clock clips = no row')
   assert.equal(clockWindowRow(null), null)
   assert.equal(clockWindowRow({}), null)
@@ -396,6 +410,7 @@ test('clock-window: the honest silences and the junk fences', () => {
   const junked = smeltLedger([null, 42, 'the clock clips the batch: the 21s window completes ~1 of 14 x raw_copper'])
   assert.equal(junked.clockClips, 0)
   assert.equal(junked.clockClipWindowSec, 0)
+  assert.equal(junked.clockClipIdleSec, 0)
 })
 
 // ---- (v0.749.0) THE CLOCK ASK'S OWN SCALE ----
