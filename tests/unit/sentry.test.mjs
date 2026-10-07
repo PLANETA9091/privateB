@@ -8,7 +8,8 @@
 // the o2 arc with the code's own thresholds, the planar spots).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SENTRY_PASS_RE, parseSentryPass, sentryCensus } from '../../src/lib/sentry.mjs'
+import fs from 'node:fs'
+import { SENTRY_PASS_RE, parseSentryPass, sentryCensus, sentrySightSeat, sentrySightSeatRow, sentrySightRiders, sentrySightRidersRow } from '../../src/lib/sentry.mjs'
 import { OXYGEN_CRITICAL_LEVEL, OXYGEN_RESCUE_LEVEL } from '../../src/lib/drowning.mjs'
 
 const HIT = 'F12 [F12] water: pass 4 head=dry shore=hit r=3 land=none y=62.1 o2=20 probes=0 at=[-151,62,396]'
@@ -183,4 +184,94 @@ test('regex export: the token pins the grammar - the bot tag self-matches, the e
   assert.ok(SENTRY_PASS_RE.test(BLIND))
   assert.ok(!SENTRY_PASS_RE.test('F12 [F13] water: pass 4 head=dry shore=hit r=3 land=none y=62.1 o2=20 probes=0 at=[-151,62,396]'), 'the tag must self-match')
   assert.ok(!SENTRY_PASS_RE.test('F7 [F7] water: passes 4 head=dry shore=hit r=3 land=none y=62.1 o2=20 probes=0 at=[-151,62,396]'), 'the token is the singular pass')
+})
+
+// (v0.797.0) THE SIGHT'S OWN SEAT - WHICH sight class owns the
+// ground-truth book. The face verbatims (the sight cells' own splits):
+// face 84 (37694318753, the calm) hit 88 / ledgered 11 / blind 106 - the
+// bare majority; face 83 (37689818269, the wet) blind 209 of 317 - the
+// owner; face 82 (37685069081) the hit/blind tie 76+76; face 79
+// (37668633803) the below-half duet 63+58.
+test('the face-84 calm cell through the seat law: blind owns 106 of 205 (51.7%) - the ground-truth book\'s own owner', () => {
+  const c = sentryCensus([...Array(88).fill(HIT), ...Array(11).fill(LEDGERED), ...Array(106).fill(BLIND)])
+  assert.deepEqual(c.sight, { hit: 88, ledgered: 11, blind: 106 })
+  const s = sentrySightSeat(c)
+  assert.deepEqual(s, { sight: 'blind', owns: 106, ofPasses: 205, share: 0.517 })
+  assert.equal(
+    sentrySightSeatRow(s),
+    "the sight's own seat (v0.797.0): blind owns 106 of 205 sight class(es) (51.7%) - THE SIGHT'S OWN SEAT: one sight class's own passes own the ground-truth book - the class's own front prices the water the raw split rode unnamed"
+  )
+  // the measure-not-owner law: the riders stay a MEASURE even in the
+  // owner case - the decompose's branch law leaves the companion unprinted
+  const r = sentrySightRiders(c)
+  assert.deepEqual(r, { leader: 'blind', leaderOwns: 106, runner: 'hit', runnerOwns: 88, ofPasses: 205, pairOwns: 194, share: 0.946, duet: false })
+})
+
+test('the tie law holds the seat silent and the byte order pins blind < hit - the face-82 duet and the face-79 below-half duet', () => {
+  // the face-82 tie: hit x76 + blind x76 - a tie owns nothing, the duet
+  // measures the shape, the rank tie breaks on the class's own byte
+  const tie = sentryCensus([...Array(76).fill(HIT), ...Array(1).fill(LEDGERED), ...Array(76).fill(BLIND)])
+  assert.equal(sentrySightSeat(tie), null)
+  const tR = sentrySightRiders(tie)
+  assert.deepEqual(tR, { leader: 'blind', leaderOwns: 76, runner: 'hit', runnerOwns: 76, ofPasses: 153, pairOwns: 152, share: 0.993, duet: true })
+  assert.equal(
+    sentrySightRidersRow(tR),
+    "the sight's own riders (v0.797.0): no solo class owns the majority - blind x76 + hit x76 own 152 of 153 sight class(es) (99.3%) - THE SIGHT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the water the solo law refused to name"
+  )
+  // the face-79 below-half plurality: hit 63 of 127 (63 <= 64) owns
+  // nothing - the riders price the near-miss duet
+  const plural = sentryCensus([...Array(63).fill(HIT), ...Array(6).fill(LEDGERED), ...Array(58).fill(BLIND)])
+  assert.equal(sentrySightSeat(plural), null)
+  const pR = sentrySightRiders(plural)
+  assert.deepEqual(pR, { leader: 'hit', leaderOwns: 63, runner: 'blind', runnerOwns: 58, ofPasses: 127, pairOwns: 121, share: 0.953, duet: false })
+  assert.equal(
+    sentrySightRidersRow(pR),
+    "the sight's own riders (v0.797.0): no solo class owns the majority - hit x63 + blind x58 own 121 of 127 sight class(es) (95.3%) - THE SIGHT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the water the solo law refused to name"
+  )
+  // the face-83 wet owner: blind 209 of 317 (65.9%) - the strict-majority
+  // owner case through the real parser's own join
+  const wet = sentryCensus([...Array(96).fill(HIT), ...Array(12).fill(LEDGERED), ...Array(209).fill(BLIND)])
+  const wS = sentrySightSeat(wet)
+  assert.deepEqual(wS, { sight: 'blind', owns: 209, ofPasses: 317, share: 0.659 })
+  assert.equal(
+    sentrySightSeatRow(wS),
+    "the sight's own seat (v0.797.0): blind owns 209 of 317 sight class(es) (65.9%) - THE SIGHT'S OWN SEAT: one sight class's own passes own the ground-truth book - the class's own front prices the water the raw split rode unnamed"
+  )
+})
+
+test('the cells\'-own-sum law - the junk counts stay outside, the single-class fence holds, the solo class seats', () => {
+  // the junk count rides no class: the book is the cell's own counted sum
+  const mixed = { sight: { hit: 3, ledgered: 'x', blind: -2 } }
+  const s = sentrySightSeat(mixed)
+  assert.deepEqual(s, { sight: 'hit', owns: 3, ofPasses: 3, share: 1 })
+  assert.equal(sentrySightRiders(mixed), null, 'the single-class fence reads the honest silence')
+  // the all-junk cell and the zero book read the honest silence
+  for (const j of [{ sight: { hit: 0, ledgered: -1, blind: 'x' } }, { sight: {} }, {}, { sight: null }, { sight: 'x' }, { sight: [] }]) {
+    assert.equal(sentrySightSeat(j), null)
+    assert.equal(sentrySightRiders(j), null)
+  }
+  // the non-object census judges nothing
+  for (const j of [null, undefined, 42, 'x', []]) {
+    assert.equal(sentrySightSeat(j), null)
+    assert.equal(sentrySightRiders(j), null)
+  }
+})
+
+test('the junk battery and the byte-exact rows - the decompose branch rides the cell, the prose lives only in the lib', () => {
+  // the row functions judge their own side
+  assert.equal(sentrySightSeatRow(null), null)
+  assert.equal(sentrySightSeatRow(42), null)
+  assert.equal(sentrySightSeatRow({ sight: '', owns: 1, ofPasses: 2, share: 0.5 }), null)
+  assert.equal(sentrySightSeatRow({ sight: 'blind', owns: 3, ofPasses: 2, share: 1 }), null)
+  assert.equal(sentrySightSeatRow({ sight: 'blind', owns: 1, ofPasses: 2, share: NaN }), null)
+  assert.equal(sentrySightRidersRow(null), null)
+  assert.equal(sentrySightRidersRow(42), null)
+  assert.equal(sentrySightRidersRow({ leader: 'blind', leaderOwns: 1, runner: '', runnerOwns: 1, ofPasses: 2, pairOwns: 2, share: 1 }), null)
+  // the WIRING assert: the branch rides the census cell, the prose lives
+  // only in the lib (the shooter seat v0.792.0 precedent)
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const sightSeat = sentrySightSeat(sc)'), 'the seat rides the census cell')
+  assert.ok(src.includes('if (sightSeat) console.log(`  ${sentrySightSeatRow(sightSeat)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const sightRiders = sentrySightRiders(sc)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE SIGHT'S OWN SEAT:"), 'the prose stays in the lib')
 })

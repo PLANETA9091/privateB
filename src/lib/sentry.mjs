@@ -180,3 +180,94 @@ export function sentryCensus (lines) {
   out.spots = [...spots.values()].sort((a, b) => b.total - a.total || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
   return out
 }
+
+// (v0.797.0) THE SIGHT'S OWN SEAT - WHICH sight class owns the
+// ground-truth book. Face 84 (37694318753, the zero-death calm) rode the
+// raw split 'sight: hit 88, ledgered 11 (oak_log:11), blind 106' - 205
+// passes and no row ever said WHICH class owns the book, while the
+// ground-truth prose named only the blind class's own meaning (the pass
+// never saw shore or land). THE SEAT LAW (the census's own sight cell
+// only, zero re-parsing - the v0.784.0 kind-seat precedent, the v0.792.0
+// attacker seat's own shape): the strict-majority law - a solo class owns
+// the book only above half (a tie owns nothing); the book is the sight
+// cell's own sum (hit + ledgered + blind); junk never invents a class (a
+// missing or non-object census/cell, a non-finite or non-positive count,
+// or a zero book reads the honest silence - null). The names are the
+// census's own bytes ('blind' < 'hit' < 'ledgered').
+function sightTally (census) {
+  if (!census || typeof census !== 'object' || Array.isArray(census)) return null
+  const sight = census.sight
+  if (!sight || typeof sight !== 'object' || Array.isArray(sight)) return null
+  const tallies = {}
+  let total = 0
+  for (const [cls, n] of Object.entries(sight)) {
+    if (!Number.isFinite(n) || n <= 0) continue
+    total += n
+    tallies[cls] = (tallies[cls] || 0) + n
+  }
+  return total > 0 ? { tallies, total } : null
+}
+
+export function sentrySightSeat (census) {
+  const t = sightTally(census)
+  if (!t) return null
+  let topUnits = 0
+  let topClass = null
+  for (const [cls, n] of Object.entries(t.tallies)) {
+    if (n > topUnits) { topUnits = n; topClass = cls }
+  }
+  if (topClass === null || topUnits <= t.total - topUnits) return null
+  return { sight: topClass, owns: topUnits, ofPasses: t.total, share: +(topUnits / t.total).toFixed(3) }
+}
+
+// (v0.797.0) the sight seat's own row - THE SIGHT'S OWN SEAT: the seat
+// names WHICH sight class owns the ground-truth book; the class's own
+// front prices the cure (the blind majority is the mid-episode crowd's
+// own root - the shore-scan and the map lanes price it). Junk never
+// prints a seat (the honest silence's own row law).
+export function sentrySightSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { sight, owns, ofPasses, share } = seat
+  if (typeof sight !== 'string' || !sight ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofPasses) || ofPasses <= 0 || owns > ofPasses ||
+      !Number.isFinite(share)) return null
+  return `the sight's own seat (v0.797.0): ${sight} owns ${owns} of ${ofPasses} sight class(es) (${(share * 100).toFixed(1)}%) - THE SIGHT'S OWN SEAT: one sight class's own passes own the ground-truth book - the class's own front prices the water the raw split rode unnamed`
+}
+
+// (v0.797.0) THE SIGHT'S OWN RIDERS - the seat's own silence's companion.
+// The seat names the solo class under the strict-majority law; a
+// no-majority sight mix rode raw with no row naming the shape. THE RIDER
+// LAW (the census's own sight cell only, zero re-parsing - the seat's own
+// precedent): a MEASURE, never a verdict-owner - the top two classes'
+// concentration prices the shape the solo law refused to name (the
+// seat's owner case leaves the companion unprinted - the decompose's own
+// branch law). Junk never invents a shape: a missing or non-object
+// census/cell, a non-finite or non-positive count, or fewer than two
+// counted classes reads the honest silence (null). The order is
+// deterministic (count desc, then the class's own byte: 'blind' < 'hit'
+// < 'ledgered').
+export function sentrySightRiders (census) {
+  const t = sightTally(census)
+  if (!t) return null
+  const ranked = Object.entries(t.tallies).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  if (ranked.length < 2) return null
+  const [leader, leaderOwns] = ranked[0]
+  const [runner, runnerOwns] = ranked[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofPasses: t.total, pairOwns, share: +(pairOwns / t.total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.797.0) the sight riders' own row - THE SIGHT'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never
+// prints a shape (the honest silence's own row law).
+export function sentrySightRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofPasses, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofPasses) || ofPasses <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofPasses ||
+      !Number.isFinite(share)) return null
+  return `the sight's own riders (v0.797.0): no solo class owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofPasses} sight class(es) (${(share * 100).toFixed(1)}%) - THE SIGHT'S OWN MIX: the seat's tie law held, the mix is the shape - the classes' own crowd prices the water the solo law refused to name`
+}

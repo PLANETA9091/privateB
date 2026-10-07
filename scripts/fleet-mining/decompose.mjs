@@ -71,7 +71,7 @@ import { reachRadius, reachRadiusRow, reachClock, reachClockRow } from '../../sr
 import { bridgeBook, bridgePocketBill, bridgePocketBillRow, bridgePocketRiders, bridgePocketRidersRow } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire); (v0.786.0) WHICH bot owns the pocket tax
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
-import { sentryCensus } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census)
+import { sentryCensus, sentrySightSeat, sentrySightSeatRow, sentrySightRiders, sentrySightRidersRow } from '../../src/lib/sentry.mjs' // (v0.422.0) the drowning sentry's per-pass read (the water lane's first census); (v0.797.0) WHICH sight class owns the ground-truth book
 import { rescueClockCensus } from '../../src/lib/rescueclock.mjs' // (v0.431.0) the rescue lane's price leg (durations + the frozen blindness)
 import { swirlBill, criedWolf } from '../../src/lib/swirlbill.mjs' // (v0.726.0) the instant churn's own bill - the rescue lane's zero-close loop (the trigger's drowning, the lane's surface-safe, the same breath); (v0.736.0) the cried-wolf join - the churn's verdict bot that died the trigger-blind death
 import { skyWalk } from '../../src/lib/skywalk.mjs' // (v0.727.0) the crowded sky's own walk - the decide starve's own hand on the walk refusals (the one-parser join: walkfail + decideweather)
@@ -3120,6 +3120,15 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
     console.log(`  head: dry ${sc.byHead.dry} / wet ${sc.byHead.wet} - shore: hit ${sc.shore.hit}${sc.shore.r.n > 0 ? ` (r max ${sc.shore.r.max}, avg ${(sc.shore.r.sum / sc.shore.r.n).toFixed(1)})` : ''} / none ${sc.shore.none}`)
     const led = Object.entries(sc.land.byLand).map(([k, n]) => `${k}:${n}`).join(' ')
     console.log(`  sight: hit ${sc.sight.hit}, ledgered ${sc.sight.ledgered}${led ? ` (${led})` : ''}, blind ${sc.sight.blind}${sc.sight.blind > 0 ? ' - THE GROUND-TRUTH CLASS: the pass never saw shore or land' : ''}`)
+    // (v0.797.0) THE SIGHT'S OWN SEAT - WHICH sight class owns the
+    // ground-truth book, one additive branch beside the raw split (one
+    // row, never both - the branch law); the junk reads the honest silence
+    const sightSeat = sentrySightSeat(sc)
+    if (sightSeat) console.log(`  ${sentrySightSeatRow(sightSeat)}`)
+    else {
+      const sightRiders = sentrySightRiders(sc)
+      if (sightRiders) console.log(`  ${sentrySightRidersRow(sightRiders)}`)
+    }
     const o2avg = sc.o2.n > 0 ? (sc.o2.sum / sc.o2.n).toFixed(1) : 'n/a'
     console.log(`  o2: min ${sc.o2.min}, avg ${o2avg}, at20 ${sc.o2.at20}, at0 ${sc.o2.at0}, critical(<=4) ${sc.o2.critical}, rescueBand(<=10) ${sc.o2.rescueBand}${sc.o2.reset > 0 || sc.o2.unknown > 0 ? `, reset ${sc.o2.reset}, unknown ${sc.o2.unknown}` : ''}`)
     for (const sp of sc.spots.slice(0, 5)) {
