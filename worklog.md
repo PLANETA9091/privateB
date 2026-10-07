@@ -19870,3 +19870,19 @@ Stage Summary:
 - Fronts: face 85's mine (the sight seat's field debut on a fresh face + the verdict seat's 2nd fresh read + the flee seat's 2nd read); the re-flee front (7 stuck reflees face 81 - the disengage cure's success-side lever); the fuel lever (15 witnesses); the orphan-end classes (released-no-land-known x2 + frozen-physics x1 face 84, F12's second frozen orphan in two faces); the open-pocket front (the chains asked 407s past the deadline).
 - Next fire: (1) CI verdict on this push gate (2c89a26) BY RUN ID. (2) poll face 85 (37698485347) - SUCCESS -> mine with the v0.799.0 stack (artifacts by artifact-ID curl -> /home/z/my-project/run37698485347/). (3) dispatch law on clear (0.800.0 next slot, re-verify on origin before the bump).
 - NO force-push, NO history rewrite. Identity: PLANETA9091.
+
+---
+Task ID: cron30-20261008-0730 (addendum - the post-log-off state change)
+Agent: Super Z (cron agent, Job 414125)
+Task: dispatch law x109 amendment + the push gate's honest hand-off
+
+Work Log:
+- PUSH landed attempt-1 clean (cfba55b..4cc5e84 = the v0.799.0 tri-lens tree: 2c89a26 the code + 4cc5e84 the worklog).
+- Push-CI 37703591589 (4cc5e84) was IN_PROGRESS through the 480s poll window (8 polls) - the verdict rides the next fire BY RUN ID (the honest hand-off, the 0600 precedent).
+- DISPATCH LAW x109 FIRED (the workflow_dispatch list clean - face 85 = 37698485347 completed SUCCESS, no active fleet run): POST ci.yml run_fleet=true fleet_seconds=600 -> HTTP 204 -> face 86 = 37703890774 workflow_dispatch IN_PROGRESS on 4cc5e84 = the v0.799.0 tree (this fire's frozen seat + the lane's flee seat + the sight seat), materialization verified.
+
+Stage Summary:
+- Face 86 (37703890774, the v0.799.0 tree) in flight; push-CI 37703591589 in flight - BOTH ride the next fire BY RUN ID.
+- Face 85 (37698485347, the lane's x108 on the v0.797.0 tree) completed SUCCESS UNMINED - the mine rides the next fire (the sight seat's field debut on a fresh face + the flee seat's 2nd fresh read + the verdict seat's 2nd fresh read; artifacts by artifact-ID curl -> /home/z/my-project/run37698485347/).
+- Next fire: (1) CI verdicts BY RUN ID: push gate 37703591589 + face 86 = 37703890774. (2) mine face 85 with the v0.799.0 stack. (3) dispatch law on clear (0.800.0 next slot, re-verify on origin before the bump).
+- NO force-push, NO history rewrite. Identity: PLANETA9091.
