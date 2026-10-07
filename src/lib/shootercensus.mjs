@@ -95,20 +95,40 @@ const BOT_TAG_RE = /(?:^|\s)(F\d+) \[\1\]/
 // The combat layer's own marker - the body is everything after it.
 const MARKER_RE = /\bcombat: (.+)$/
 
-// The attacker vocabulary (face 15's five) + the priced forms. The layer
-// emits FOUR attacker shapes (all verbatim face 15):
+// The attacker vocabulary (face 15's five + face 83's enderman) + the
+// priced forms. The layer emits FOUR attacker shapes (all verbatim face
+// 15 / face 83):
 //   'vs skeleton@2.8'          - the priced vs form (most verbs)
 //   ', skeleton@2.8)'          - the bare @ form (shelter skip's prose)
 //   'sheltering from skeleton' - the from form
 //   'fighting drowned' / 'fleeing skeleton' - the bare engagement form
-const ATTACKER_VS_RE = /vs (drowned|skeleton|zombie|spider|creeper)(?:@(\d+(?:\.\d+)?))?/
+//
+// (v0.796.0) THE ENDERMAN'S OWN GRAMMAR - the sixth name joins the four
+// alternations. Face 83 (37689818269, the enderman's debut face) rode
+// TWO server-verbatim kills ('was slain by Enderman' x2 - the death
+// book's own attacker mix 'Zombie x3 + Enderman x2 own 5 of 6 mob
+// kill(s)' (83.3%)) while the encounter book's raw split named only
+// 'drowned=23 zombie=31' - FOURTEEN combat lines ('fighting enderman
+// (dist 5.0...)', 'fleeing enderman (dist 6.7...)', 'drift return wait
+// vs enderman (@5.0)', 'shelter wall miss (open field: ...
+// enderman@6.7)', 'vs enderman (proximity)') rode the census UNNAMED - 14 of
+// the face's 27 unattributed lines, the pressure's own front blind to
+// the killer the death book had named. The widening rides the v0.765.0
+// spaced-@ precedent: the held faces 79/81/82 carry zero enderman
+// lines - their reads stay byte-identical; face 83's own cell grows the
+// enderman key and the seat's denominator re-prices honestly (the solo
+// seat 'zombie 31 of 54 (57.4%)' becomes the riders 'zombie x31 +
+// drowned x23 own 54 of 68 (79.4%)' - the mix the solo law refused
+// while the enderman rode invisible). The seat itself stays name-blind
+// - the grammar's fence is these four alternations and nothing else.
+const ATTACKER_VS_RE = /vs (drowned|skeleton|zombie|spider|creeper|enderman)(?:@(\d+(?:\.\d+)?))?/
 // (v0.765.0) the SPACED @ form - face 68's melee ceiling line rode
 // 'drowned @3.3' (a single space before the @); the @ price is real, the
 // space is the emitter's own prose. The optional space keeps every prior
 // face byte-identical (the unspaced form is the overwhelmingly common one).
-const ATTACKER_AT_RE = /(drowned|skeleton|zombie|spider|creeper) ?@(\d+(?:\.\d+)?)/
-const ATTACKER_FROM_RE = /from (drowned|skeleton|zombie|spider|creeper)\b/
-const ATTACKER_BARE_RE = /^(?:fighting|fleeing) (drowned|skeleton|zombie|spider|creeper)\b/
+const ATTACKER_AT_RE = /(drowned|skeleton|zombie|spider|creeper|enderman) ?@(\d+(?:\.\d+)?)/
+const ATTACKER_FROM_RE = /from (drowned|skeleton|zombie|spider|creeper|enderman)\b/
+const ATTACKER_BARE_RE = /^(?:fighting|fleeing) (drowned|skeleton|zombie|spider|creeper|enderman)\b/
 const DIST_RE = /\(dist (\d+(?:\.\d+)?)/
 
 // The attacker read: the four shapes in priority order (vs first - the

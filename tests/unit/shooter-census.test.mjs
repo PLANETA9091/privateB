@@ -591,3 +591,92 @@ test('the junk battery and the byte-exact rows - the decompose branch rides the 
   assert.ok(src.includes('const skr = shooterAttackerRiders(shooter)'), 'the riders ride the same branch law')
   assert.ok(!src.includes("THE PRESSURE'S OWN SEAT"), 'the prose stays in the lib')
 })
+
+// (v0.796.0) THE ENDERMAN'S OWN GRAMMAR - the sixth name joins the four
+// alternations. The face-83 verbatims (37689818269, the enderman's debut
+// face): TWO server-verbatim kills ('was slain by Enderman' x2) while the
+// raw split named only 'drowned=23 zombie=31' - FOURTEEN combat lines rode
+// the census unnamed, the pressure's own front blind to the killer the
+// death book had named.
+const F83_ENDERMAN_FIGHT = 'F4 [F4] combat: fighting enderman (dist 5.0, hp 20.0, 1 nearby, proximity)'
+const F83_ENDERMAN_FLEE = 'F14 [F14] combat: fleeing enderman (dist 6.7, hp 6.7, 2 nearby, proximity)'
+const F83_ENDERMAN_DRIFT = 'F4 [F4] combat: drift return wait vs enderman (@5.0) - the swimmer always comes back'
+const F83_ENDERMAN_WALL = 'F14 [F14] combat: shelter wall miss (open field: no diggable wall, ring next, enderman@6.7)'
+const F83_ENDERMAN_VS = 'F14 [F14] combat: flee bearing rotated 90deg (the second hostile vetoes the away target) vs enderman (proximity)'
+const F83_ENDERMAN_DEATH = 'F14 [F14] died - respawning (cause: server: was slain by Enderman [kind=mob by Enderman] | inferred: enderman@1.8 (0s before death at [-150,64,411]) [the inference corroborates the server verdict])'
+
+test('the enderman grammar (v0.796.0): all four attacker shapes price the sixth name', () => {
+  const fight = parseCombatLine(F83_ENDERMAN_FIGHT)
+  assert.equal(fight.bot, 'F4')
+  assert.equal(fight.attacker, 'enderman', 'the bare engagement form prices the enderman')
+  assert.equal(fight.dist, 5.0)
+  const flee = parseCombatLine(F83_ENDERMAN_FLEE)
+  assert.equal(flee.attacker, 'enderman')
+  assert.equal(flee.dist, 6.7)
+  const drift = parseCombatLine(F83_ENDERMAN_DRIFT)
+  assert.equal(drift.attacker, 'enderman', 'the vs form prices the drift prose')
+  assert.equal(drift.dist, null, "the (@5.0) tail is not the parser's own price - the honest no-invention")
+  const wall = parseCombatLine(F83_ENDERMAN_WALL)
+  assert.equal(wall.attacker, 'enderman')
+  assert.equal(wall.dist, 6.7, 'the @ form keeps its own price')
+  assert.equal(wall.verb, 'shelter-wall-miss')
+  const vs = parseCombatLine(F83_ENDERMAN_VS)
+  assert.equal(vs.attacker, 'enderman', 'the unpriced vs form attributes the enderman')
+})
+
+test('the face-83 cell through the seat law: zombie 31 of 68 never seats - the riders own the honest mix', () => {
+  const lines = [
+    ...Array(31).fill(F81_ZOMBIE),
+    ...Array(23).fill(F81_DROWNED),
+    F83_ENDERMAN_FIGHT, F83_ENDERMAN_FLEE, F83_ENDERMAN_DRIFT, F83_ENDERMAN_WALL, F83_ENDERMAN_VS,
+    ...Array(9).fill(F83_ENDERMAN_FIGHT)
+  ]
+  const c = shooterCensus(lines)
+  assert.deepEqual(c.byAttacker, { zombie: 31, drowned: 23, enderman: 14 }, "the face-83 cell grows the enderman key - 14 lines ride out of the unnamed")
+  // the solo law re-prices honestly: zombie 31 of 68 (31 <= 37) owns nothing
+  const b = shooterAttackerBill(c)
+  assert.equal(b, null)
+  const r = shooterAttackerRiders(c)
+  assert.deepEqual(r, { leader: 'zombie', leaderOwns: 31, runner: 'drowned', runnerOwns: 23, ofLines: 68, pairOwns: 54, shareOfLines: 0.794, duet: false })
+  assert.equal(
+    shooterAttackerRidersRow(r),
+    "the encounter book's own attacker riders (v0.792.0): no solo attacker owns the majority - zombie x31 + drowned x23 own 54 of 68 attacker line(s) (79.4%) - THE PRESSURE'S OWN MIX: the seat's tie law held, the mix is the shape - the encounters' own crowd prices the attackers the solo law refused to name"
+  )
+})
+
+test('the enderman byte order pins drowned < enderman < skeleton - and the solo enderman seats', () => {
+  // the duet tie: enderman x2 + drowned x2 - the rank tie breaks on the
+  // name's own byte ('drowned' < 'enderman' in the vocabulary's own order)
+  const duet = shooterCensus([F83_ENDERMAN_FIGHT, F83_ENDERMAN_FIGHT, F81_DROWNED, F81_DROWNED])
+  assert.equal(shooterAttackerBill(duet), null)
+  const dR = shooterAttackerRiders(duet)
+  assert.equal(dR.leader, 'drowned')
+  assert.equal(dR.runner, 'enderman')
+  assert.equal(dR.duet, true)
+  // the 2-way rank tie behind the byte: 'enderman' < 'skeleton'
+  const rank = shooterCensus([F83_ENDERMAN_FIGHT, F83_ENDERMAN_FIGHT, F81_SKELETON, F81_SKELETON])
+  const rR = shooterAttackerRiders(rank)
+  assert.equal(rR.leader, 'enderman')
+  assert.equal(rR.runner, 'skeleton')
+  // the owner case through the real parser's own join: 3 enderman lines solo
+  const solo = shooterCensus([F83_ENDERMAN_FIGHT, F83_ENDERMAN_FLEE, F83_ENDERMAN_DRIFT])
+  const b = shooterAttackerBill(solo)
+  assert.deepEqual(b, { attacker: 'enderman', owns: 3, ofLines: 3, shareOfLines: 1 })
+  assert.equal(
+    shooterAttackerBillRow(b),
+    "the encounter book's own attacker (v0.792.0): enderman owns 3 of 3 attacker line(s) (100.0%) - THE PRESSURE'S OWN SEAT: one attacker's own touches own the combat book - the pressure's own front prices the encounters the raw split rode unnamed"
+  )
+})
+
+test('the enderman death line never joins the encounter book - the deathsweep owns the deaths, the census keys on the combat marker only', () => {
+  // the server-verbatim kill rides the death book (v0.788.0's own capture
+  // depth) - the census never double-counts it (the v0.390.0 own law)
+  assert.equal(parseCombatLine(F83_ENDERMAN_DEATH), null)
+  const c = shooterCensus([F83_ENDERMAN_DEATH])
+  assert.equal(c.total, 0)
+  assert.deepEqual(c.byAttacker, {})
+  // the junk battery holds on the widened grammar: non-string judges nothing
+  assert.equal(parseCombatLine(null), null)
+  assert.equal(parseCombatLine(42), null)
+  assert.equal(parseCombatLine('no marker here enderman@5.0'), null)
+})
