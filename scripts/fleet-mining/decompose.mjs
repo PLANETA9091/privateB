@@ -9,7 +9,7 @@ import { routeGateCensus, ROUTE_GATE_RIM_TRAP_REFUSALS } from '../../src/lib/rou
 import { shooterCensus } from '../../src/lib/shootercensus.mjs' // (v0.390.0) the shooter band's field read
 import { shelterLedger, OUTCOME_CLASSES } from '../../src/lib/shelterledger.mjs' // (v0.457.0) the combat verdict's price - the outcome join; (v0.466.0) the class vocabulary for the flee-ground cross-read
 import { deathSweep } from '../../src/lib/deathsweep.mjs' // (v0.389.0) the honest death sweep's field read
-import { sealDeathCensus, strandedPiles, BIG_PILE_U } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price
+import { sealDeathCensus, strandedPiles, BIG_PILE_U, thirdsVerdict } from '../../src/lib/sealdeath.mjs' // (v0.403.0) the seal economy's death leg; (v0.476.0) the stranded piles - the sweep-reach wire's price; (v0.755.0) the thirds' own verdict
 import { sealCensus, SEAL_FAMILIES } from '../../src/lib/sealcensus.mjs' // (v0.397.0) the keep families' field read
 import { hopCensus } from '../../src/lib/hopcensus.mjs' // (v0.399.0) the walk-deliveries class's field read
 import { openDeafCensus, chestFateLedger } from '../../src/lib/opendeaf.mjs' // (v0.438.0) the open-timeout zeros against the valve + the main-late spikes; (v0.448.0) the returns to the autopsied chests
@@ -276,13 +276,14 @@ if (sweep.keywordOnly.length) {
       if (c.thirds) {
         const t = c.thirds
         const unplacedNote = t.unplaced > 0 ? `, ${t.unplaced} unplaced` : ''
-        const dom = Math.max(t.early, t.mid, t.late)
-        const domName = dom === t.late ? 'late' : (dom === t.mid ? 'mid' : 'early')
-        const dominant = dom >= Math.ceil((2 * c.timed) / 3)
+        // (v0.755.0) the verdict rides the lib's own one truth now - the same
+        // 2/3 share law, the same seat prose; the tie branch reads 'even'
+        // honestly (the storm has no seat) instead of the order's silent late.
+        const tv = thirdsVerdict(t, c.timed)
         let seat
-        if (!dominant) seat = "- the deaths spread across the face's clock"
-        else if (domName === 'late') seat = `- THE DEADLINE'S OWN THIRD: the opening ${Math.round(t.thirdS)}s took ${t.early}, the storm rode the face's end`
-        else if (domName === 'mid') seat = `- THE MIDDLE'S OWN STORM: ${t.mid} of ${c.timed} death(s) peaked mid-face`
+        if (!tv || tv.cls === 'spread' || tv.cls === 'even' || tv.cls === 'none') seat = "- the deaths spread across the face's clock"
+        else if (tv.cls === 'late') seat = `- THE DEADLINE'S OWN THIRD: the opening ${Math.round(t.thirdS)}s took ${t.early}, the storm rode the face's end`
+        else if (tv.cls === 'mid') seat = `- THE MIDDLE'S OWN STORM: ${t.mid} of ${c.timed} death(s) peaked mid-face`
         else seat = `- THE OPENING'S OWN STORM: ${t.early} of ${c.timed} death(s) led the face`
         console.log(`  the siege's own thirds (v0.733.0): early ${t.early} / mid ${t.mid} / late ${t.late} (thirds ${Math.round(t.thirdS)}s of the clock's ${c.clockEnd}s${unplacedNote}) ${seat}`)
       }

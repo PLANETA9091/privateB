@@ -359,3 +359,44 @@ export function strandedPiles (lines) {
     refusalWhys
   }
 }
+
+// (v0.755.0) THE THIRDS' OWN VERDICT - the classification leaves the mining
+// script and becomes the lib's own one truth. The v0.733.0 thirds lens
+// (clock.thirds: early/mid/late over the face's full clock) priced the
+// WHERE, but its DOMINANCE class lived inline in decompose's print row -
+// unit-test-blind, and its tie branch read dishonestly (a max tie silently
+// resolved late > mid > early by order, a storm seat no field face ever
+// named). The extraction rides the SAME 2/3 share law the field's own
+// reads were made with (the boundary second already belongs to the later
+// third - the zero clock's own cut):
+//
+//   face 51 (run 37543519356): 0/2/16 -> late, 16 >= 12   - THE DEADLINE'S OWN THIRD
+//   face 60 (the dispatch's own corpse): 0/1/2 -> late, 2 >= 2
+//   face 61 (37583836654): 0/1/2 -> late, 2 >= 2          - the deadline's third again
+//   face 62 (37586368766): 0/3/0 -> mid, 3 >= 2           - THE MIDDLE'S OWN STORM
+//
+// The verdict classes: 'late' | 'mid' | 'early' (the dominant seat, >= 2/3
+// of the timed deaths), 'spread' (a unique max below the bar - the deaths
+// spread across the face's clock), 'even' (a max tie - the storm has no
+// seat; the tie branch the field never read now reads honestly), 'none'
+// (a zero clock). Junk law: a missing/negative/non-finite third reads
+// null (the clock never invents); a non-finite timed falls back to the
+// thirds' own sum (the caller's count is a convenience, not a truth).
+export function thirdsVerdict (thirds, timed) {
+  if (!thirds || typeof thirds !== 'object') return null
+  const e = thirds.early
+  const m = thirds.mid
+  const l = thirds.late
+  if (!Number.isFinite(e) || !Number.isFinite(m) || !Number.isFinite(l)) return null
+  if (e < 0 || m < 0 || l < 0) return null
+  const total = Number.isFinite(timed) && timed >= 0 ? timed : e + m + l
+  const counts = { early: e, mid: m, late: l }
+  if (total <= 0) return { cls: 'none', dom: 0, dominant: false, share: 0, counts, total: 0 }
+  const dom = Math.max(e, m, l)
+  const ties = [e, m, l].filter(x => x === dom).length
+  const dominant = dom >= Math.ceil((2 * total) / 3)
+  const share = dom / total
+  if (ties > 1) return { cls: 'even', dom, dominant, share, counts, total }
+  if (!dominant) return { cls: 'spread', dom, dominant: false, share, counts, total }
+  return { cls: dom === l ? 'late' : (dom === m ? 'mid' : 'early'), dom, dominant: true, share, counts, total }
+}

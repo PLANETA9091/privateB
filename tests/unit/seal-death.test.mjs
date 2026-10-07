@@ -688,3 +688,70 @@ test('WIRING: the decompose prints the siege thirds row (v0.733.0)', () => {
   assert.match(src, /the siege's own thirds \(v0\.733\.0\): early \$\{t\.early\} \/ mid \$\{t\.mid\} \/ late \$\{t\.late\}/, 'the face grain prints beside the burst share')
   assert.match(src, /THE DEADLINE'S OWN THIRD/, 'the dominant-late seat names the storm')
 })
+
+// (v0.755.0) THE THIRDS' OWN VERDICT - the classification's own unit pins.
+// The field's own thirds reads are the honest cells (the mine's published
+// numbers, now the lib's one truth): face 51's 0/2/16 (the storm is the
+// deadline's own), face 60/61's 0/1/2 (the deadline's third again - the
+// 2/3 law's exact boundary), face 62's 0/3/0 (THE MIDDLE'S OWN STORM -
+// the thirds' first mid-dominant read).
+import { thirdsVerdict } from '../../src/lib/sealdeath.mjs'
+
+test('the thirds\' own verdict (v0.755.0): the field\'s own reads classify byte-compatibly', () => {
+  // Face 51 (run 37543519356): 18 deaths, the opening third took 0.
+  const f51 = thirdsVerdict({ early: 0, mid: 2, late: 16, thirdS: 280 }, 18)
+  assert.equal(f51.cls, 'late')
+  assert.equal(f51.dominant, true)
+  assert.ok(Math.abs(f51.share - 16 / 18) < 1e-9)
+  // Face 61 (37583836654): 3 deaths, the deadline's third again - the
+  // exact 2/3 boundary (dom 2 >= ceil(2*3/3) = 2).
+  const f61 = thirdsVerdict({ early: 0, mid: 1, late: 2, thirdS: 200 }, 3)
+  assert.equal(f61.cls, 'late')
+  assert.equal(f61.dominant, true)
+  // Face 62 (37586368766): THE MIDDLE'S OWN STORM - the first mid-dominant read.
+  const f62 = thirdsVerdict({ early: 0, mid: 3, late: 0, thirdS: 200 }, 3)
+  assert.equal(f62.cls, 'mid')
+  assert.equal(f62.dominant, true)
+  // A unique max below the bar reads 'spread' (5 of 9 < ceil(6)).
+  const spread = thirdsVerdict({ early: 5, mid: 2, late: 2 }, 9)
+  assert.equal(spread.cls, 'spread')
+  assert.equal(spread.dominant, false)
+  // The early seat (the class that awaits its face).
+  const early = thirdsVerdict({ early: 4, mid: 1, late: 0 }, 6)
+  assert.equal(early.cls, 'early')
+})
+
+test('the thirds\' own verdict (v0.755.0): the tie branch reads honestly - the storm has no seat', () => {
+  // The old inline law silently resolved ties late > mid > early by order;
+  // the field never read a tie - the extraction names it 'even'.
+  const tie = thirdsVerdict({ early: 0, mid: 2, late: 2 }, 4)
+  assert.equal(tie.cls, 'even')
+  assert.equal(tie.dom, 2)
+  assert.equal(tie.dominant, false, 'a two-way tie can never hold 2/3 of the clock')
+  const threeWay = thirdsVerdict({ early: 2, mid: 2, late: 2 }, 6)
+  assert.equal(threeWay.cls, 'even')
+  // The zero clock reads 'none' (the calm paradox owns the zero-death face).
+  const none = thirdsVerdict({ early: 0, mid: 0, late: 0 }, 0)
+  assert.equal(none.cls, 'none')
+  assert.equal(none.total, 0)
+})
+
+test('the thirds\' own verdict (v0.755.0): junk battery - the clock never invents', () => {
+  assert.equal(thirdsVerdict(null, 5), null)
+  assert.equal(thirdsVerdict('a string', 5), null)
+  assert.equal(thirdsVerdict(42, 5), null)
+  assert.equal(thirdsVerdict({ early: 'x', mid: 1, late: 2 }, 3), null)
+  assert.equal(thirdsVerdict({ early: -1, mid: 1, late: 2 }, 2), null)
+  assert.equal(thirdsVerdict({ mid: 1, late: 2 }, 3), null)
+  // A non-finite timed falls back to the thirds' own sum.
+  const fb = thirdsVerdict({ early: 1, mid: 0, late: 2 }, undefined)
+  assert.equal(fb.total, 3)
+  assert.equal(fb.cls, 'late')
+})
+
+test('WIRING: the decompose rides the lib\'s one truth (v0.755.0)', () => {
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), import.meta.url ? 'utf8' : 'utf8')
+  assert.match(src, /thirdsVerdict\(t, c\.timed\)/, 'the inline classification is gone - the lib classifies')
+  assert.match(src, /THE MIDDLE'S OWN STORM/, 'the mid seat keeps its name')
+  assert.match(src, /THE OPENING'S OWN STORM/, 'the early seat keeps its name')
+})
