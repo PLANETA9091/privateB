@@ -18515,3 +18515,21 @@ Stage Summary:
 - THE 53RD'S OWN HEADLINE: the dupclock join closed BOTH sides at silence (6=6), the cried-wolf stayed silent honestly, and the dry yard's 2nd read priced the drought as STRUCTURAL - two faces, 150+92 located dry reads, zero inflow, zero deliveries.
 - Fronts: the 54th's mine (the dry yard's 3rd read on its own tree, the mid-storm's 3rd read, the unseen/surplus columns' 4th), the fuel-tithe refill front (the yard's inflow is the code front now), CI verdict on cf6eac7, F1's freeze ladder (the patience is not the cure - what is?).
 - Next fire: (1) poll 37557552795 FIRST - SUCCESS -> mine with the v0.737.0 stack. (2) push-CI verdict on cf6eac7. (3) dispatch law x67 on clear.
+
+---
+Task ID: cron30-20261007-0930
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0930 - the pump's own timeline, the honest inflow correction, face 54's poll
+
+Work Log:
+- Sandbox survived; master synced 0caeeeb (mine). No lane pushes this window. THE HONEST CORRECTION first: the fire-0900 read's 'inflow 0 (no fuel tithe line in the whole face)' was TRUE for the 52nd only - the 53rd's log carries 'F19 [F19] fuel tithe: banked 21 x coal (pocket keeps 6)' and 'F4 [F4] fuel tithe: banked 3 x coal (pocket keeps 6)' (24 coal banked mid-face) plus the inflow read-back 'fuel tithe inflow: attempted 2, delivered 0, dry 2'. The drought's structure re-reads: not zero inflow - the stock SAT while the sweeps starved.
+- ONE ATOMIC IMPROVEMENT: v0.738.0 THE PUMP'S OWN TIMELINE (eb602a9). droughttimeline.mjs joins two already-parsed streams (the skywalk law - no re-parsing): the pump's events ride sealcensus's OWN SEAL_BANKED_RE (the fuel-tithe family's coal item - one parser per shape), the dry reads ride commonsledger's OWN COMMONS_EMPTY_RE (the located form only; the RAW stream's population, named and never mixed with the ledger's in-sweep dryReads). The join: each dry read's index vs the banks' first index - before = the pump's silence's own, after = the delivery's own break. THE VERDICT (exclusive): the pump never spoke / the pump holds / the delivery's own break / no drought rode this face (no row). THE MAIDEN READS (byte-exact): the 53rd - 'the tithe banked 24 coal in 2 firing(s) (F19 21u @57%, F4 3u @95% of the stream); the dry reads 92 - before the first bank 50, after it 42 (46%) - the pump primed and the yard still read dry - the delivery's own break (the stock sat while the sweeps starved)'; the 52nd - 'the tithe never spoke (0 banked firing(s)); the dry reads 154 - the drought is the inflow's own'. THE DROUGHT'S MAP HAS TWO CLASSES NOW - the cure candidates split with them: the refill's arm vs the sweeps' reach (the 53rd's 17 last-mile refusals walk the nearest chests and never reach the primed one, or the tithe's chest is not the sweeps' chest).
+- Tests: droughttimeline 5/5 (+5: the 53rd's byte-verbatim shape, the 52nd's silence, the pump-holds fence, the strict-grammar junk battery - the suffixed line dropped, the seal-units clause read, the honest zero), unit 297/297 files, syntax 528 0-broken, integration 2/2 (the server survived). Zero fleet wiring (the v0.379/.../v0.737.0 precedent). Push eb602a9 attempt-1 clean.
+- FACE 54 (37557552795, on cf6eac7) polled ~5 min - the big fleet leg still IN_PROGRESS at log-off (the unit shards + integration green, the runner contention slow again); the mine rides next fire (the dry yard's 3rd read on its own tree + the pump's timeline's first live field read).
+- DISPATCH LAW x67: NOT fired - face 54 is the active run (max-one-active held).
+
+Stage Summary:
+- Version 0.738.0 (THE PUMP'S OWN TIMELINE, eb602a9); next free 0.739.0; face 54 in flight at log-off; push-CI on eb602a9 pending.
+- THE DROUGHT'S OWN MAP: the 52nd = the pump's silence (0 banks), the 53rd = the delivery's own break (24 coal banked, 42 dry reads after the prime) - the join now prices WHICH cure the face calls for.
+- Fronts: the 54th's mine (the dry yard's 3rd read on its own tree, the pump's timeline's first live read, the mid-storm's 3rd), CI verdicts on eb602a9, the sweeps'-reach anatomy (the last mile's chest map vs the tithe's chest - whose chest does the tithe prime?).
+- Next fire: (1) poll 37557552795 FIRST - SUCCESS -> mine with the v0.738.0 stack. (2) push-CI verdict on eb602a9. (3) dispatch law x67 on clear.
