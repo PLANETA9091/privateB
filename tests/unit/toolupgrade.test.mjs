@@ -591,6 +591,29 @@ test('craftSparePickaxe: sticks in the pocket skip the top-up entirely', async (
   assert.equal(res.ok, true)
 })
 
+test("craftSparePickaxe: a non-landing craft names its why (v0.761.0 - the undefined's own why)", async () => {
+  // face 67 (37604914131) F8: 'spare craft failed (undefined) - re-running
+  // the bootstrap' - this was the only exit without a reason and the census
+  // rode 'UNDEFINED 1 (the emitter's own honest gap)'. The non-landing
+  // return now carries its own why (matching the step's own prose).
+  const items = [
+    it('stone_pickaxe', 1, { max: 131 }),
+    it('cobblestone', 9),
+    it('stick', 2)
+  ]
+  const res = await craftSparePickaxe(fakeBot(items), {
+    log: () => {},
+    deps: {
+      craftUntil: async () => false, // the table craft ran and nothing landed
+      placeTable: async () => ({ name: 'crafting_table' })
+    }
+  })
+  assert.equal(res.ok, false)
+  assert.equal(res.tier, 'stone_pickaxe')
+  assert.equal(res.picks, 1)
+  assert.equal(res.reason, 'craft did not land')
+})
+
 
 // ------------------------------------------- (v0.106.0) THE PLANK RUNG
 // run94 (35841864758) killed the tool lane 8 times with 'no craftable recipe

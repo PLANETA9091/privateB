@@ -450,7 +450,16 @@ export async function craftSparePickaxe (bot, { log = null, maxSpares = 2, deps 
     const after = PICK_TIERS.reduce((a, t) => a + countItem(bot, t), 0)
     const done = ok && after > before
     step(`spare pick: ${done ? 'OK' : 'craft did not land'} (${chk.tier}, holds ${after})`)
-    return { ok: done, tier: chk.tier, picks: after }
+    // (v0.761.0) THE CRAFT'S OWN WHY: the non-landing return names its why.
+    // Face 67 (37604914131) rode the census's honest flag - 'UNDEFINED 1
+    // (the emitter's own honest gap)' - because this was the only exit
+    // without a reason: the emitter printed 'spare craft failed (undefined)'
+    // and the mid-fail's class had no seat to own. The why matches the
+    // step's own prose (the craft ran and nothing landed - not a stick,
+    // table or materials drought; the census reads it 'other').
+    return done
+      ? { ok: true, tier: chk.tier, picks: after }
+      : { ok: false, tier: chk.tier, picks: after, reason: 'craft did not land' }
   } catch (e) {
     return { ok: false, tier: null, reason: `error: ${e.message}` }
   }
