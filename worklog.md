@@ -18475,3 +18475,21 @@ Stage Summary:
 - The churn has its aftermath verdict: the false-alarm volume and the trigger's silence joined on one bot - the era's two cried-wolf faces so far: the 47th (died mid-rescue - NOT the join's) and the 52nd (the verdict).
 - The 52nd's fronts: the suffocate kind's own anatomy (the era's first - head sand, the falling-block hazard), the inference's worst face (blind 3/3), the commons drought's 7th zero face, the ents DRIVER x14, the budget-floor's 21% granted share.
 - Next fire: (1) poll 37553652417 FIRST - SUCCESS -> mine with the v0.736.0 decompose (the cried-wolf's 2nd read, the surplus kick's 2nd, the thirds' 3rd). (2) push-CI verdict on 1f3557d (37554751337). (3) dispatch law x66 on clear (0.737.0 next slot).
+
+---
+Task ID: cron30-20261007-0900
+Agent: cron-agent (PLANETA9091)
+Task: standard cron fire 0900 - face 53's poll, the dry yard's own grammar, dispatch x66 on clear
+
+Work Log:
+- Sandbox survived. Master synced 0e67834 (the lane's fire-0840 worklog; their v0.736.0 cried-wolf retag landed while this lane worked). CI verdicts: push 37553645066 (b8eefb7, the surplus kick) SUCCESS; the lane's aa41283/1f3557d push CIs cancelled superseded, 0e67834's in flight.
+- FACE 53 (37553652417, on b8eefb7) polled TWICE (~7 min of polling) - the big fleet leg still IN_PROGRESS at the fire's code window (the runner contention with the lane's push-CI matrix is the suspect); the mine rides next fire (the 53rd's own read: the surplus's 2nd read, the calm face's repeat?, the reloot lane's 2nd walk).
+- ONE ATOMIC IMPROVEMENT: v0.737.0 THE DRY YARD'S OWN GRAMMAR (40140ec). THE FIND: the commons ledger went blind to the field grammar's four evolutions - face 52's chest anatomy row read 'empty 0' while the log carried 154 dry chest reads (the drought wore a walk's costume). The heals, all additive: the LOCATED dry chest ('chest holds no fuel at [x,y,z]' -> emptyChest + dryReads + the per-chest dryChests map), the LAST MILE REFUSED (lastMile + normalizeWhy's digit-free whys), the no-anchor scan ('the anchor scan saw N chest(s), M usable' - read OUTSIDE the sweep gate, the death-row precedent), the ASK DEFERS ('this stance came up dry Ns ago' - maxDeferSpan kept as a max). THE 52ND'S MAIDEN READ: 'the dry yard's own side: 150 located dry reads across 48 chest(s) (top [-121,71,403] x7, [-121,71,405] x7, [-151,71,401] x6) - the yard's inflow is the drought's front' (4 of 154 raw rode outside a sweep - the honest gate keeps its law). THE DROUGHT'S BALANCE: demand 88 coal / inflow 0 (no fuel tithe line in the whole face) / delivered 0 - the drought is the YARD'S, not the walk's; last-mile refused 10 (timeout 8 / stalled 1 / no progress 1); the ask deferred 4 (a stance dry up to 12s ago); scans found no anchor 5 (saw 2, usable 0).
+- Tests: commonsledger 13/13 (+3: the byte-verbatim four classes, the grammar heads with the greedy nested-paren capture, the byte-stability fence - the F19 bare form reads 5/dryReads 0 unchanged), unit 296/296 files, syntax 526 0-broken, integration 2/2 (the server survived, jar sha1 verified). Zero fleet wiring (mining-surface only, the v0.379/.../v0.735.0 precedent).
+- Push 40140ec: attempt-1 pending at log-off (rebase-first law held). Dispatch law x66: NOT fired at log-off - face 53 still the active run (max-one-active); if the queue reads clear before this worklog pushes, the dispatch rides this fire's tail.
+
+Stage Summary:
+- Version 0.737.0 (THE DRY YARD'S OWN GRAMMAR, 40140ec); next free 0.738.0; face 53 in flight at log-off.
+- THE DROUGHT'S ROOT IS THE YARD'S, NOT THE WALK'S: 154 dry reads across 48 chests + zero fuel tithe + 88 coal demanded = the supply-side drought - the altitude law (v0.502.0) priced the walk's rent; the dry yard's own column now prices the empty shelf.
+- Fronts: the 53rd's mine (the surplus's 2nd read, the calm repeat, the reloot's 2nd walk, the dry yard's 2nd read on the v0.737.0 stack), the fuel-tithe refill front (the inflow the yard never got), CI verdict on 40140ec, dispatch law x66 on clear.
+- Next fire: (1) poll 37553652417 FIRST - SUCCESS -> mine with the v0.737.0 decompose + server log. (2) push-CI verdict on 40140ec. (3) dispatch law x66 on clear.
