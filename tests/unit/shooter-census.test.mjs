@@ -450,7 +450,7 @@ test('seal roster: unknown-bot skips land under the unknown key + the junk batte
   assert.deepEqual(c.ringStock.byBot, { unknown: { seen: 1, zeroHave: 1 } })
 })
 
-// (v0.764.0) THE MELEE COOLDOWN'S OWN SEAT - face 68 (37610367304) drifted
+// (v0.765.0) THE MELEE COOLDOWN'S OWN SEAT - face 68 (37610367304) drifted
 // the vocabulary: 'melee cooldown armed vs drowned (10s)' rode beside the
 // already-seated 'melee chase ceiling held' and the honest sweep printed
 // the stranger name (UNKNOWN verbs: melee=1). The seat names the melee
