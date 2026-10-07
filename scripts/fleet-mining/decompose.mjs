@@ -66,6 +66,7 @@ import { assistLedger } from '../../src/lib/assistledger.mjs' // (v0.499.0) the 
 import { torchBook } from '../../src/lib/torchbook.mjs' // (v0.500.0) the torch ledger - the light supply's floors, rungs, asks and yield
 import { veinLedger } from '../../src/lib/veinledger.mjs' // (v0.501.0) the vein ledger - the sweep's terminals, walk yield, gallery digs, refusals and the tier guard
 import { commonsLedger } from '../../src/lib/commonsledger.mjs' // (v0.502.0) the commons ledger - the ask's answer: the sweeps, the walk anatomy, the deliveries
+import { droughtTimeline, droughtTimelineRow } from '../../src/lib/droughttimeline.mjs' // (v0.738.0) the pump's own timeline - the tithe's banks vs the dry reads' positions
 import { bridgeBook } from '../../src/lib/bridgebook.mjs' // (v0.496.0) the bridge book - the vertical walk's fill lane (the refusals' why-flip, the cobble signature, the server's own veto; SLOT COLLISION #17: 0.495.0 taken by fire-0008's THE TABLE GATE mid-fire)
 import { bridgeRefusalCensus, bridgeRefusalRow } from '../../src/lib/climbbridge.mjs' // (v0.665.0) THE CLIMB BRIDGE'S FIELD READ - the refusal book's own grains wired to the mining surface: the gate, the pit donor, the plant clear, the shadow gate's defers
 import { planTopCensus } from '../../src/lib/plantop.mjs' // (v0.440.0) the named board - the stuck slot's own name
@@ -3223,6 +3224,12 @@ console.log('  plan lines:', count(/materials plan|plan progress/i))
       console.log(`  the dry yard's own side: ${t.dryReads} located dry reads across ${Object.keys(t.dryChests).length} chest(s) (top ${top}) - the yard's inflow is the drought's front`)
     }
     if (t.scanSaw > 0) console.log(`  anchor scans that found no anchor: ${t.scanSaw} (saw ${t.scanSawSeen} chest(s), ${t.scanSawUsable} usable after the empty memory)`)
+    // (v0.738.0) the pump's own timeline - the tithe's banked events
+    // vs the dry reads' positions in the stream (the 53rd's motive:
+    // 21 coal sat in the yard while the sweeps starved)
+    const dt = droughtTimeline(lines)
+    const dtRow = droughtTimelineRow(dt)
+    if (dtRow) console.log(`  ${dtRow}`)
     console.log(`  asks ${t.asks} (${t.askCoal} coal asked): re-plans ${t.rePlan} / still-dry ${t.stillDry} / cap ${t.cap} / reserve ${t.reserve} / error ${t.error} / open ${t.askOpen} - deaths on the walk ${t.deaths}${t.askDefers ? ` - the ask deferred ${t.askDefers} (a stance dry up to ${t.maxDeferSpan}s ago re-arms the clock)` : ''}`)
     const rows = Object.entries(cl.bots).sort((a, b) => b[1].sweeps - a[1].sweeps).slice(0, 6)
     if (rows.length) console.log(`  bots heaviest-first: ${rows.map(([b, r]) => `${b} ${r.sweeps}sw/${r.asks}ask`).join(' ')}`)
