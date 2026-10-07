@@ -92,3 +92,31 @@ export function entryWindow (o2g, lines) {
   }
   return { floorSec, laneCost: { saves: costs.length, min, median, max }, perDeath, verdicts }
 }
+
+//
+// (v0.743.0) THE SAVEABLE DEATH - the window's own verdict joined with the
+// lane's own relation (the skywalk law: two lenses, one read, no
+// re-parsing). A death whose effective window FITS (covers the lane's
+// worst observed save - the wiring closes with headroom) AND whose rescue
+// relation is 'never' (o2Gap's own grammar - the trigger itself never
+// fired) reads the saveable class: the window was there, the trigger was
+// not - the trigger's own gap owned the death. THE FENCES: live = the lane
+// flew blind (the sensor's class - v0.379.0's row), stale = the re-entry
+// class (v0.477.0's row), tight/misses = the timing's price (v0.480.0's
+// own rows), unpriced = the honest blind spot - and a face with no lane
+// saves cannot name the class (the fits bar needs the lane's own cost
+// ground; the verdict already reads unpriced there). Junk-safe: non-object
+// ew/o2g -> []. Pure: reads, never mutates.
+//
+export function saveableDeaths (ew, o2g) {
+  if (!ew || typeof ew !== 'object' || !o2g || typeof o2g !== 'object') return []
+  const laneWorst = ew.laneCost ? ew.laneCost.max : null
+  const rows = []
+  for (const [bot, v] of Object.entries(ew.perDeath || {})) {
+    if (!v || v.verdict !== 'fits') continue
+    const rel = o2g.perBot && o2g.perBot[bot]
+    if (!rel || rel.rescueKind !== 'never') continue
+    rows.push({ bot, effective: v.effective, laneWorst })
+  }
+  return rows
+}

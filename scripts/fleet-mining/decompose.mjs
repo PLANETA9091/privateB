@@ -18,7 +18,7 @@ import { budgetSpread, budgetGoalSplit } from '../../src/lib/budgetspread.mjs' /
 import { o2Gap } from '../../src/lib/o2gap.mjs' // (v0.477.0) the rescue-relation split - the o2 census's missing half (stale vs live rescues) + the sentry's last-known read joined per drown death
 import { sensorToll } from '../../src/lib/sensortoll.mjs' // (v0.707.0) the sensor's own toll - the reset(-1) skin's mass across the family's three skins
 import { ascendStall } from '../../src/lib/ascendstall.mjs' // (v0.708.0) the ascend's live fence - the stall lane's own mass (the live side the toll fences out)
-import { entryWindow } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves
+import { entryWindow, saveableDeaths } from '../../src/lib/entrywindow.mjs' // (v0.480.0) the effective window - the live trigger's real reaction window (lead - the stale floor) priced against the lane's own saves; (v0.743.0) the saveable death - the window's own verdict joined with the lane's own relation
 import { walkFailCensus } from '../../src/lib/walkfail.mjs' // (v0.410.0) the A* starvation's fleet-wide leg (beyond the hop lane)
 import { decideWeather } from '../../src/lib/decideweather.mjs' // (v0.689.0) THE DECIDE WEATHER - the A* starvation's own sky read (the starve's ents/rss at its own anchor)
 import { hotspotCensus, hotspotBands } from '../../src/lib/hotspot.mjs' // (v0.419.0 + the v0.421.0 band read) the failure geometry's cross-lane read
@@ -636,6 +636,14 @@ const ew = entryWindow(o2g, lines)
 if (ew) {
   const ewBits = Object.entries(ew.perDeath).map(([bot, v]) => `${bot} [lead ${v.lead ?? '?'}s - floor ${ew.floorSec}s = ${v.effective !== null ? `${v.effective}s` : 'n/a'}, ${v.verdict}]`).join(' ')
   console.log(`  effective window (v0.480.0): the live trigger's window = lead - ${ew.floorSec}s stale floor; the lane's saves cost min ${ew.laneCost.min}s / median ${ew.laneCost.median}s / max ${ew.laneCost.max}s (n=${ew.laneCost.saves}) - fits ${ew.verdicts.fits} / tight ${ew.verdicts.tight} / misses ${ew.verdicts.misses} / unpriced ${ew.verdicts.unpriced}${ewBits ? ` (${ewBits})` : ''}`)
+  // (v0.743.0) THE SAVEABLE DEATH - the window's own verdict (v0.480.0)
+  // joined with the lane's own relation (v0.477.0's grammar, o2Gap's own
+  // perBot): fits + never = the window covered the lane's worst save and
+  // the trigger never fired - the saveable class. Silent on every other
+  // combination (the fences are the older rows' own subjects).
+  for (const sd of saveableDeaths(ew, o2g)) {
+    console.log(`  the saveable death (v0.743.0): ${sd.bot}'s window fit (${sd.effective}s >= the lane's worst save ${sd.laneWorst}s) and the lane never flew - the trigger's own gap owned the death - the window was there, the trigger was not`)
+  }
 }
 // (v0.707.0) THE SENSOR'S OWN TOLL - the reset(-1) skin's full mass across
 // the family's three skins: the death contexts the v0.379.0 census owns,
