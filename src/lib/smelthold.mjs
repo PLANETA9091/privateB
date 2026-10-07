@@ -259,3 +259,99 @@ export function smeltRefusalAnatomy (lines) {
   }
   return { refusals: rows.length, segs, byBot, multi, rows }
 }
+
+//
+// (v0.789.0) THE SMELT REFUSAL'S OWN SEGMENT - WHICH segment class owns the
+// refusal anatomy. The v0.753.0 anatomy named the segments' counts ('nothing
+// 3 / no-fuel 0 / unreachable 22 / busy 0 / timeout 5 / other 0' - face 79's
+// own read: 30 refusal segments, the unreachable segment 73.3%) while the
+// WHO rode raw: no row ever said WHICH segment's own refusals own the
+// anatomy book. THE SEAT LAW (the anatomy's own segs cell only, zero
+// re-parsing - the v0.784.0 kind-seat precedent): the strict-majority law -
+// a solo segment owns the anatomy only above half (a tie owns nothing - the
+// v0.784.0 seat law); junk never invents a segment (a missing or non-object
+// segs cell, a non-finite or non-positive count, or no counted segment reads
+// the honest silence). The segment mass is the segs cells' own sum (a
+// multi-skin refusal rides each of its voices - the anatomy's own counting
+// law). Pure: reads the anatomy, never mutates.
+//
+// smeltRefusalSeat(anatomy) ->
+//   { seg, owns, ofSegs, share } | null
+export function smeltRefusalSeat (anatomy) {
+  if (!anatomy || typeof anatomy !== 'object') return null
+  const segs = anatomy.segs
+  if (!segs || typeof segs !== 'object' || Array.isArray(segs)) return null
+  const entries = Object.entries(segs)
+    .filter(([seg, n]) => typeof seg === 'string' && seg !== '' && Number.isFinite(n) && n > 0)
+  if (!entries.length) return null
+  let total = 0
+  for (const [, n] of entries) total += n
+  if (!(total > 0)) return null
+  entries.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [seg, owns] = entries[0]
+  // the tie law - a tie owns nothing (the v0.784.0 seat law)
+  if (entries.length > 1 && entries[1][1] === owns) return null
+  // the strict-majority law - only above half
+  if (owns * 2 <= total) return null
+  return { seg, owns, ofSegs: total, share: +(owns / total).toFixed(3) }
+}
+
+// (v0.789.0) the segment seat's own row - THE SEGMENT'S OWN SEAT: the seat
+// names WHICH segment class owns the refusal anatomy; the segment's own
+// front prices the cure (the machine's reach is the unreachable front, the
+// fuel's diet is the no-fuel front - the anatomy's own split names the lane).
+// Junk never prints a seat (the honest silence's own row law).
+export function smeltRefusalSeatRow (seat) {
+  if (!seat || typeof seat !== 'object') return null
+  const { seg, owns, ofSegs, share } = seat
+  if (typeof seg !== 'string' || !seg ||
+      !Number.isFinite(owns) || owns <= 0 ||
+      !Number.isFinite(ofSegs) || ofSegs <= 0 || owns > ofSegs ||
+      !Number.isFinite(share)) return null
+  return `the smelt refusal's own segment (v0.789.0): ${seg} owns ${owns} of ${ofSegs} refusal segment(s) (${(share * 100).toFixed(1)}%) - THE SEGMENT'S OWN SEAT: one segment's own refusals own the anatomy book - the segment's own front prices the hold the raw split rode unnamed`
+}
+
+// (v0.789.0) THE SMELT REFUSAL'S OWN RIDERS - the segment seat's own
+// silence's companion. The seat names the solo segment under the
+// strict-majority law; a no-majority segment mix rode raw with no row
+// naming the shape (face 61's own read: no-fuel 10 of 22 segments - the
+// mix the seat's own law refused to seat). THE RIDER LAW (the anatomy's
+// own segs cell only, zero re-parsing - the seat's own precedent): a
+// MEASURE, never a verdict-owner - the top two segments' concentration
+// prices the shape the solo law refused to name (the seat's owner case
+// leaves the companion unprinted - the decompose's own branch law). Junk
+// never invents a shape: a missing or non-object segs cell, a non-finite
+// or non-positive count, or fewer than two counted segments reads the
+// honest silence (null). The order is deterministic (count desc, then the
+// segment's own byte asc: 'busy' < 'no-fuel' < 'nothing' < 'other' <
+// 'timeout' < 'unreachable').
+export function smeltRefusalRiders (anatomy) {
+  if (!anatomy || typeof anatomy !== 'object') return null
+  const segs = anatomy.segs
+  if (!segs || typeof segs !== 'object' || Array.isArray(segs)) return null
+  const entries = Object.entries(segs)
+    .filter(([seg, n]) => typeof seg === 'string' && seg !== '' && Number.isFinite(n) && n > 0)
+  if (entries.length < 2) return null
+  let total = 0
+  for (const [, n] of entries) total += n
+  if (!(total > 0)) return null
+  entries.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+  const [leader, leaderOwns] = entries[0]
+  const [runner, runnerOwns] = entries[1]
+  const pairOwns = leaderOwns + runnerOwns
+  return { leader, leaderOwns, runner, runnerOwns, ofSegs: total, pairOwns, share: +(pairOwns / total).toFixed(3), duet: leaderOwns === runnerOwns }
+}
+
+// (v0.789.0) the segment riders' own row - THE SEGMENT'S OWN MIX: a measure
+// of the shape, never a named owner (the seat's tie law holds); the pair
+// prices the concentration the solo law refused to seat. Junk never prints
+// a shape (the honest silence's own row law).
+export function smeltRefusalRidersRow (r) {
+  if (!r || typeof r !== 'object') return null
+  const { leader, leaderOwns, runner, runnerOwns, ofSegs, pairOwns, share } = r
+  if (typeof leader !== 'string' || !leader || typeof runner !== 'string' || !runner ||
+      !Number.isFinite(leaderOwns) || leaderOwns <= 0 || !Number.isFinite(runnerOwns) || runnerOwns <= 0 ||
+      !Number.isFinite(ofSegs) || ofSegs <= 0 || !Number.isFinite(pairOwns) || pairOwns > ofSegs ||
+      !Number.isFinite(share)) return null
+  return `the smelt refusal's own segment riders (v0.789.0): no solo segment owns the majority - ${leader} x${leaderOwns} + ${runner} x${runnerOwns} own ${pairOwns} of ${ofSegs} refusal segment(s) (${(share * 100).toFixed(1)}%) - THE SEGMENT'S OWN MIX: the seat's tie law held, the mix is the shape - the segments' own spread prices the hold the solo law refused to name`
+}

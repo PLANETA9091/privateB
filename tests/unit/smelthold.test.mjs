@@ -4,8 +4,9 @@
 // fleet19.log), in the live order - hand-traced first, then pinned.
 //
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { test } from 'node:test'
-import { smeltHold, SMELT_HOLD_RE, SMELT_HOLD_SKIP_RE, SMELT_END_BANK_SKIP_RE, SMELT_LOCAL_FALLBACK_RE, refusalSegClass, refusalSegs, smeltRefusalAnatomy, REFUSAL_SEG_CLASSES } from '../../src/lib/smelthold.mjs'
+import { smeltHold, SMELT_HOLD_RE, SMELT_HOLD_SKIP_RE, SMELT_END_BANK_SKIP_RE, SMELT_LOCAL_FALLBACK_RE, refusalSegClass, refusalSegs, smeltRefusalAnatomy, smeltRefusalSeat, smeltRefusalSeatRow, smeltRefusalRiders, smeltRefusalRidersRow, REFUSAL_SEG_CLASSES } from '../../src/lib/smelthold.mjs'
 import { JUNK_COAL_FLOOR } from '../../src/lib/smelting.mjs'
 
 // Face 42's hold lane, verbatim and in the live order: nine holds -
@@ -312,4 +313,68 @@ test('the refusal\'s own anatomy (v0.753.0): junk battery - no anatomy from noth
   assert.equal(sh.fates.refused, 2)
   assert.equal(sh.refusedWhy.nothing, 1)
   assert.equal(sh.refusedWhy.machine, 1)
+})
+
+// (v0.789.0) THE SMELT REFUSAL'S OWN SEGMENT - face 79's own segs cell
+// through the seat: 30 refusal segments, the unreachable segment 73.3%.
+const face79Anatomy = { refusals: 24, segs: { nothing: 3, 'no-fuel': 0, busy: 0, timeout: 5, unreachable: 22, other: 0 }, byBot: {}, multi: 6, rows: [] }
+
+test('the refusal\'s own segment seat (v0.789.0): face 79\'s cell through the seat - unreachable owns 22 of 30 (73.3%)', () => {
+  const s = smeltRefusalSeat(face79Anatomy)
+  assert.deepEqual(s, { seg: 'unreachable', owns: 22, ofSegs: 30, share: 0.733 })
+  assert.equal(smeltRefusalSeatRow(s), `the smelt refusal's own segment (v0.789.0): unreachable owns 22 of 30 refusal segment(s) (73.3%) - THE SEGMENT'S OWN SEAT: one segment's own refusals own the anatomy book - the segment's own front prices the hold the raw split rode unnamed`)
+})
+
+test('the refusal\'s own segment seat obeys the tie and the strict-majority laws (a tie owns nothing, below half owns nothing)', () => {
+  // the tie - a tie owns nothing (the v0.784.0 seat law)
+  assert.equal(smeltRefusalSeat({ segs: { busy: 3, timeout: 3 } }), null)
+  // below half - 4 of 10 owns nothing
+  assert.equal(smeltRefusalSeat({ segs: { busy: 4, timeout: 3, nothing: 3 } }), null)
+  // the live face-61 corpus - no-fuel 10 of 22 (45.5%) sits BELOW half:
+  // the mix the seat's own law refused to seat
+  const a61 = smeltRefusalAnatomy(FACE61_REFUSALS)
+  assert.equal(smeltRefusalSeat(a61), null)
+  // the riders ride the no-owner cases - the byte order broke the rank tie
+  // ('busy' < 'no-fuel' < 'nothing' < 'other' < 'timeout' < 'unreachable')
+  const r61 = smeltRefusalRiders(a61)
+  assert.deepEqual(r61, { leader: 'no-fuel', leaderOwns: 10, runner: 'unreachable', runnerOwns: 5, ofSegs: 22, pairOwns: 15, share: 0.682, duet: false })
+  assert.equal(smeltRefusalRidersRow(r61), `the smelt refusal's own segment riders (v0.789.0): no solo segment owns the majority - no-fuel x10 + unreachable x5 own 15 of 22 refusal segment(s) (68.2%) - THE SEGMENT'S OWN MIX: the seat's tie law held, the mix is the shape - the segments' own spread prices the hold the solo law refused to name`)
+  // the tie duet - the byte order pin ('busy' < 'timeout')
+  const tieRiders = smeltRefusalRiders({ segs: { timeout: 3, busy: 3 } })
+  assert.deepEqual(tieRiders, { leader: 'busy', leaderOwns: 3, runner: 'timeout', runnerOwns: 3, ofSegs: 6, pairOwns: 6, share: 1, duet: true })
+})
+
+test('the refusal\'s own segment riders is the measure-not-owner law (the owner case keeps the measure, the decompose branch decides)', () => {
+  // the owner case's own measure - the riders still read (the branch law
+  // lives in the decompose, the lib stays the honest measure)
+  const m = smeltRefusalRiders(face79Anatomy)
+  assert.deepEqual(m, { leader: 'unreachable', leaderOwns: 22, runner: 'timeout', runnerOwns: 5, ofSegs: 30, pairOwns: 27, share: 0.9, duet: false })
+  // the single-segment fence - fewer than two counted segments reads the silence
+  assert.equal(smeltRefusalRiders({ segs: { unreachable: 5 } }), null)
+})
+
+test('the segment seat\'s junk battery and the WIRING assert - the decompose branch rides the seat, the prose lives only in the lib', () => {
+  // the junk battery - the honest silence every time
+  const junk = [null, undefined, 42, 'prose', [], { segs: null }, { segs: 'x' }, { segs: {} }, { segs: { nothing: 0, timeout: 0 } }, { segs: { unreachable: -1 } }, { segs: { unreachable: NaN } }, { segs: { unreachable: Infinity } }]
+  for (const j of junk) {
+    assert.equal(smeltRefusalSeat(j), null)
+    assert.equal(smeltRefusalRiders(j), null)
+  }
+  // a nameless segment never counts (the segment fence)
+  assert.equal(smeltRefusalSeat({ segs: { '': 3 } }), null)
+  // the rows' own junk law - the honest silence's row
+  assert.equal(smeltRefusalSeatRow(null), null)
+  assert.equal(smeltRefusalSeatRow({}), null)
+  assert.equal(smeltRefusalSeatRow({ seg: '', owns: 1, ofSegs: 2, share: 0.5 }), null)
+  assert.equal(smeltRefusalSeatRow({ seg: 'busy', owns: 3, ofSegs: 2, share: 1.5 }), null)
+  assert.equal(smeltRefusalRidersRow(null), null)
+  assert.equal(smeltRefusalRidersRow({}), null)
+  assert.equal(smeltRefusalRidersRow({ leader: 'busy', leaderOwns: 0, runner: 'timeout', runnerOwns: 1, ofSegs: 1, pairOwns: 1, share: 1 }), null)
+  // the WIRING assert - the decompose branch rides the seat, the prose
+  // lives only in the lib
+  const src = fs.readFileSync(new URL('../../scripts/fleet-mining/decompose.mjs', import.meta.url), 'utf8')
+  assert.ok(src.includes('const srs = smeltRefusalSeat(ra)'), 'the seat rides the anatomy cells')
+  assert.ok(src.includes('if (srs) console.log(`  ${smeltRefusalSeatRow(srs)}`)'), 'the owner row rides the branch')
+  assert.ok(src.includes('const srr = smeltRefusalRiders(ra)'), 'the riders ride the same branch law')
+  assert.ok(!src.includes("THE SEGMENT'S OWN SEAT"), 'the prose stays in the lib')
 })
